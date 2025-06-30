@@ -1,8 +1,12 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { logger } from 'hono/logger';
 import { serveStatic } from 'hono/bun';
 
 const app = new Hono();
+
+// Add logger middleware
+app.use('*', logger());
 
 // Enable CORS for development
 app.use('*', cors({
