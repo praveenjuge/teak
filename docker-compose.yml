@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: teak
+    container_name: web
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
     environment:
@@ -23,7 +23,7 @@ services:
   #   volumes:
   #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
   #   depends_on:
-  #     - teak
+  #     - web
   #   networks:
   #     - teak-network
 
