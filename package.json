@@ -1,0 +1,36 @@
+{
+  "name": "teak",
+  "version": "0.0.1",
+  "description": "Modern dockerized web application with Hono.js and React",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
+    "dev:backend": "tsx watch --clear-screen=false backend/src/index.ts",
+    "dev:frontend": "cd frontend && bun run dev",
+    "build": "bun run build:frontend && bun run build:backend",
+    "build:frontend": "cd frontend && bun run build",
+    "build:backend": "tsc -p backend/tsconfig.json",
+    "start": "node dist/index.js",
+    "type-check": "tsc --noEmit",
+    "install:all": "bun install && cd frontend && bun install"
+  },
+  "dependencies": {
+    "hono": "^4.8.3",
+    "@hono/node-server": "^1.14.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.7",
+    "typescript": "^5.8.3",
+    "tsx": "^4.20.3",
+    "concurrently": "^9.2.0"
+  },
+  "keywords": [
+    "hono",
+    "react",
+    "typescript",
+    "docker"
+  ],
+  "author": "praveenjuge <hello@praveenjuge.com>",
+  "license": "MIT"
+}
