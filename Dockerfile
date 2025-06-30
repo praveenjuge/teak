@@ -5,13 +5,13 @@ FROM oven/bun:1 AS frontend-builder
 WORKDIR /app/frontend
 
 # Copy frontend package files
-COPY frontend/package.json frontend/bun.lockb* ./
+COPY apps/web/package.json apps/web/bun.lockb* ./
 
 # Install frontend dependencies
 RUN bun install --frozen-lockfile
 
 # Copy frontend source
-COPY frontend/ ./
+COPY apps/web/ ./
 
 # Build the frontend
 RUN bun run build
@@ -40,7 +40,7 @@ COPY backend/ ./backend/
 RUN bun run build:backend
 
 # Copy built frontend from previous stage
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY --from=frontend-builder /app/frontend/dist ./apps/web/dist
 
 # Set correct ownership
 RUN chown -R nodejs:nodejs /app

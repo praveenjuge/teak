@@ -70,13 +70,13 @@ app.post('/api/users', async (c) => {
 
 // Serve static files from the frontend build
 app.use('/assets/*', serveStatic({
-  root: './frontend/dist'
+  root: './apps/web/dist'
 }));
 
 // Fallback for SPA routing - serve index.html for all non-API routes
 app.get('*', async (c) => {
   try {
-    const indexFile = Bun.file('./frontend/dist/index.html');
+    const indexFile = Bun.file('./apps/web/dist/index.html');
 
     if (await indexFile.exists()) {
       const indexContent = await indexFile.text();
@@ -89,7 +89,7 @@ app.get('*', async (c) => {
   }
 });
 
-const port = parseInt(Bun.env.PORT || '3001');
+const port = parseInt(Bun.env['PORT'] || '3001');
 
 console.log(`🚀 Server starting on port ${port}`);
 console.log(` API endpoints: http://localhost:${port}/api/*`);

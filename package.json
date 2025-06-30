@@ -15,11 +15,11 @@
   "scripts": {
     "build": "bun run build:frontend && bun run build:backend",
     "build:backend": "bun build backend/src/index.ts --outdir dist --target bun",
-    "build:frontend": "cd frontend && bun run build",
+    "build:frontend": "cd apps/web && bun run build",
     "dev": "concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
     "dev:backend": "bun --watch backend/src/index.ts",
-    "dev:frontend": "cd frontend && bun run dev",
-    "install:all": "bun install && cd frontend && bun install",
+    "dev:frontend": "cd apps/web && bun run dev",
+    "install:all": "bun install && cd apps/web && bun install",
     "start": "bun dist/index.js",
     "type-check": "bun --no-install --dry-run backend/src/index.ts"
   },
