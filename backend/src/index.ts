@@ -1,12 +1,6 @@
-import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { readFileSync, existsSync } from 'fs';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { serveStatic } from 'hono/bun';
 
 const app = new Hono();
 
@@ -70,41 +64,18 @@ app.post('/api/users', async (c) => {
   }, 201);
 });
 
-// Serve static assets manually
-app.get('/assets/*', async (c) => {
-  const requestPath = c.req.path;
-  const filePath = path.join(__dirname, '../frontend/dist', requestPath);
-
-  if (existsSync(filePath)) {
-    try {
-      const content = readFileSync(filePath);
-      const ext = path.extname(filePath);
-
-      // Set appropriate content type
-      let contentType = 'application/octet-stream';
-      if (ext === '.js') contentType = 'application/javascript';
-      else if (ext === '.css') contentType = 'text/css';
-      else if (ext === '.html') contentType = 'text/html';
-      else if (ext === '.png') contentType = 'image/png';
-      else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
-      else if (ext === '.svg') contentType = 'image/svg+xml';
-
-      c.header('Content-Type', contentType);
-      return c.body(content);
-    } catch {
-      return c.text('File not found', 404);
-    }
-  }
-
-  return c.text('File not found', 404);
-});
+// Serve static files from the frontend build
+app.use('/assets/*', serveStatic({
+  root: './frontend/dist'
+}));
 
 // Fallback for SPA routing - serve index.html for all non-API routes
 app.get('*', async (c) => {
   try {
-    const indexPath = path.join(__dirname, '../frontend/dist/index.html');
-    if (existsSync(indexPath)) {
-      const indexContent = readFileSync(indexPath, 'utf-8');
+    const indexFile = Bun.file('./frontend/dist/index.html');
+
+    if (await indexFile.exists()) {
+      const indexContent = await indexFile.text();
       return c.html(indexContent);
     } else {
       return c.text('Frontend not built yet. Run "bun run build:frontend" first.', 404);
@@ -114,14 +85,14 @@ app.get('*', async (c) => {
   }
 });
 
-const port = parseInt(process.env.PORT || '3001');
+const port = parseInt(Bun.env.PORT || '3001');
 
 console.log(`🚀 Server starting on port ${port}`);
 console.log(` API endpoints: http://localhost:${port}/api/*`);
 
-serve({
-  fetch: app.fetch,
+export default {
   port,
-}, (info) => {
-  console.log(`✅ Server is running on http://localhost:${info.port}`);
-});
+  fetch: app.fetch,
+};
+
+console.log(`✅ Server is running on http://localhost:${port}`);

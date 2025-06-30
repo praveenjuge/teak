@@ -14,23 +14,20 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "bun run build:frontend && bun run build:backend",
-    "build:backend": "tsc -p backend/tsconfig.json",
+    "build:backend": "bun build backend/src/index.ts --outdir dist --target bun",
     "build:frontend": "cd frontend && bun run build",
     "dev": "concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
-    "dev:backend": "tsx watch --clear-screen=false backend/src/index.ts",
+    "dev:backend": "bun --watch backend/src/index.ts",
     "dev:frontend": "cd frontend && bun run dev",
     "install:all": "bun install && cd frontend && bun install",
-    "start": "node dist/index.js",
-    "type-check": "tsc --noEmit"
+    "start": "bun dist/index.js",
+    "type-check": "bun --no-install --dry-run backend/src/index.ts"
   },
   "dependencies": {
-    "@hono/node-server": "^1.14.4",
     "hono": "^4.8.3"
   },
   "devDependencies": {
-    "@types/node": "^24.0.7",
-    "concurrently": "^9.2.0",
-    "tsx": "^4.20.3",
-    "typescript": "^5.8.3"
+    "@types/bun": "latest",
+    "concurrently": "^9.2.0"
   }
 }

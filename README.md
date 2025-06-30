@@ -2,9 +2,10 @@
 
 ## 🏗️ Architecture
 
+- **Runtime**: Bun
 - **Backend**: Hono.js (TypeScript)
 - **Frontend**: React 19 + Vite (TypeScript)
-- **Containerization**: Multi-stage Docker build
+- **Containerization**: Docker
 
 ## 📁 Project Structure
 
@@ -12,16 +13,16 @@
 teak/
 ├── backend/
 │   ├── src/
-│   │   └── index.ts          # Hono.js server with API routes
-│   └── tsconfig.json         # Backend TypeScript config
+│   │   └── index.ts         # Hono.js server with API routes
+│   └── tsconfig.json        # Backend TypeScript config
 ├── frontend/
 │   ├── src/
-│   │   ├── App.tsx           # React app with API integration
-│   │   ├── App.css           # Styling
-│   │   └── main.tsx          # React entry point
-│   ├── vite.config.ts        # Vite config with proxy
-│   └── package.json          # Frontend dependencies
-├── Dockerfile               # Multi-stage build
+│   │   ├── App.tsx          # React app with API integration
+│   │   ├── App.css          # Styling
+│   │   └── main.tsx         # React entry point
+│   ├── vite.config.ts       # Vite config with proxy
+│   └── package.json         # Frontend dependencies
+├── Dockerfile               # Multi-stage build with Bun
 ├── docker-compose.yml       # Container orchestration
 ├── .dockerignore            # Docker ignore patterns
 ├── .env.example             # Environment variables template
@@ -34,9 +35,9 @@ teak/
 ### Prerequisites
 
 - Docker & Docker Compose
-- Node.js 18+ (for local development)
+- Bun 1.0+ (for local development)
 
-### 🐳 Run with Docker (Recommended)
+### 🐳 Run with Docker
 
 1. **Clone and navigate to the project:**
    ```bash
@@ -55,21 +56,43 @@ teak/
 
 ### 🔧 Local Development
 
-1. **Install dependencies:**
+1. **Install Bun (if not already installed):**
    ```bash
-   npm run install:all
+   curl -fsSL https://bun.sh/install | bash
    ```
 
-2. **Start development servers:**
+2. **Install dependencies:**
    ```bash
-   npm run dev
+   bun run install:all
+   ```
+
+3. **Start development servers:**
+   ```bash
+   bun dev
    ```
    This starts both backend (port 3001) and frontend (port 3000) with
-   hot-reload.
+   hot-reload using Bun's fast watch mode.
 
-3. **Access the application:**
+4. **Access the application:**
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:3000/api (proxied to port 3001)
+
+## 🔧 Available Scripts
+
+### Root Level
+- `bun dev` - Start both backend and frontend in development mode
+- `bun build` - Build both backend and frontend for production
+- `bun start` - Start the production server
+- `bun run install:all` - Install all dependencies (root + frontend)
+
+### Backend Development
+- `bun run dev:backend` - Start backend development server with watch mode
+- `bun run build:backend` - Build backend using Bun bundler
+- `bun run type-check` - Type check backend code
+
+### Frontend Development
+- `bun run dev:frontend` - Start frontend development server
+- `bun run build:frontend` - Build frontend for production
 
 ## 🐳 Docker Commands
 
@@ -83,12 +106,6 @@ docker build -t teak .
 
 ```bash
 docker run -p 3000:3000 -e PORT=3000 teak
-```
-
-### Run with custom port
-
-```bash
-docker run -p 8080:8080 -e PORT=8080 teak
 ```
 
 ### Docker Compose commands
