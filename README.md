@@ -23,7 +23,7 @@ teak/
 │   │   │   └── main.tsx     # React entry point
 │   │   ├── vite.config.ts   # Vite config with proxy
 │   │   └── package.json     # Frontend dependencies
-│   └── mobile/              # Mobile app (placeholder)
+│   └── mobile/              # Mobile app
 ├── Dockerfile               # Multi-stage build with Bun
 ├── docker-compose.yml       # Container orchestration
 ├── .dockerignore            # Docker ignore patterns
@@ -43,7 +43,7 @@ teak/
 
 1. **Clone and navigate to the project:**
    ```bash
-   git clone <your-repo-url>
+   git clone git@github.com:praveenjuge/teak.git
    cd teak
    ```
 
@@ -54,7 +54,7 @@ teak/
 
 3. **Access the application:**
    - Frontend & API: http://localhost:3000
-   - API endpoints: http://localhost:3000/api/*
+   - API endpoints: http://localhost:3000/api
 
 ### 🔧 Local Development
 
@@ -72,29 +72,21 @@ teak/
    ```bash
    bun dev
    ```
-   This starts both backend (port 3001) and frontend (port 3000) with hot-reload
-   using Bun's fast watch mode.
 
 4. **Access the application:**
    - Frontend: http://localhost:3000
-   - Backend API: http://localhost:3000/api (proxied to port 3001)
+   - Backend API: http://localhost:3000/api
 
 ## 🔧 Available Scripts
-
-### Root Level
 
 - `bun dev` - Start both backend and frontend in development mode
 - `bun build` - Build both backend and frontend for production
 - `bun start` - Start the production server
 - `bun run install:all` - Install all dependencies (root + web app)
 
-### Backend Development
-
 - `bun run dev:backend` - Start backend development server with watch mode
 - `bun run build:backend` - Build backend using Bun bundler
 - `bun run type-check` - Type check backend code
-
-### Frontend Development
 
 - `bun run dev:frontend` - Start frontend development server
 - `bun run build:frontend` - Build frontend for production

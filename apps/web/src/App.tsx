@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from "react";
 
 interface User {
   id: number;
@@ -27,10 +27,10 @@ function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'user' });
+  const [newUser, setNewUser] = useState({ name: "", email: "", role: "user" });
   const [submitting, setSubmitting] = useState(false);
 
-  const API_BASE = '/api';
+  const API_BASE = "/api";
 
   const fetchUsers = async () => {
     try {
@@ -40,7 +40,7 @@ function App() {
         setUsers(result.data);
       }
     } catch (error) {
-      console.error('Failed to fetch users:', error);
+      console.error("Failed to fetch users:", error);
     }
   };
 
@@ -52,7 +52,7 @@ function App() {
         setStats(result.data);
       }
     } catch (error) {
-      console.error('Failed to fetch stats:', error);
+      console.error("Failed to fetch stats:", error);
     }
   };
 
@@ -63,9 +63,9 @@ function App() {
     setSubmitting(true);
     try {
       const response = await fetch(`${API_BASE}/users`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(newUser),
       });
@@ -73,14 +73,14 @@ function App() {
       const result: ApiResponse<User> = await response.json();
 
       if (result.success) {
-        setUsers(prev => [...prev, result.data]);
-        setNewUser({ name: '', email: '', role: 'user' });
+        setUsers((prev) => [...prev, result.data]);
+        setNewUser({ name: "", email: "", role: "user" });
       } else {
-        alert(result.error || 'Failed to create user');
+        alert(result.error || "Failed to create user");
       }
     } catch (error) {
-      console.error('Failed to create user:', error);
-      alert('Failed to create user');
+      console.error("Failed to create user:", error);
+      alert("Failed to create user");
     } finally {
       setSubmitting(false);
     }
@@ -121,11 +121,15 @@ function App() {
             <div className="stats-grid">
               <div className="stat-card">
                 <h3>Total Users</h3>
-                <p className="stat-number">{stats.totalUsers.toLocaleString()}</p>
+                <p className="stat-number">
+                  {stats.totalUsers.toLocaleString()}
+                </p>
               </div>
               <div className="stat-card">
                 <h3>Active Users</h3>
-                <p className="stat-number">{stats.activeUsers.toLocaleString()}</p>
+                <p className="stat-number">
+                  {stats.activeUsers.toLocaleString()}
+                </p>
               </div>
               <div className="stat-card">
                 <h3>Revenue</h3>
@@ -148,7 +152,7 @@ function App() {
           </div>
 
           <div className="users-list">
-            {users.map(user => (
+            {users.map((user) => (
               <div key={user.id} className="user-card">
                 <div className="user-info">
                   <h3>{user.name}</h3>
@@ -168,7 +172,9 @@ function App() {
                 type="text"
                 placeholder="Name"
                 value={newUser.name}
-                onChange={(e) => setNewUser(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) =>
+                  setNewUser((prev) => ({ ...prev, name: e.target.value }))
+                }
                 required
               />
             </div>
@@ -177,27 +183,31 @@ function App() {
                 type="email"
                 placeholder="Email"
                 value={newUser.email}
-                onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                onChange={(e) =>
+                  setNewUser((prev) => ({ ...prev, email: e.target.value }))
+                }
                 required
               />
             </div>
             <div className="form-group">
               <select
                 value={newUser.role}
-                onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value }))}
+                onChange={(e) =>
+                  setNewUser((prev) => ({ ...prev, role: e.target.value }))
+                }
               >
                 <option value="user">User</option>
                 <option value="admin">Admin</option>
               </select>
             </div>
             <button type="submit" disabled={submitting} className="submit-btn">
-              {submitting ? '⏳ Creating...' : '✅ Create User'}
+              {submitting ? "⏳ Creating..." : "✅ Create User"}
             </button>
           </form>
         </section>
       </main>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
