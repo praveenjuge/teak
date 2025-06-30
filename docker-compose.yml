@@ -1,5 +1,5 @@
 services:
-  teak:
+  web:
     build:
       context: .
       dockerfile: Dockerfile
