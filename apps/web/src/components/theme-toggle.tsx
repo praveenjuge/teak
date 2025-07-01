@@ -38,7 +38,7 @@ export function ThemeToggle() {
               size="sm"
               onClick={() => setTheme(themeOption.value)}
               className={`
-                h-8 px-2 justify-center
+                h-8 px-2 justify-center shadow-none
                 ${isActive ? "bg-background border hover:bg-background dark:hover:bg-background" : ""}
               `}
             >
