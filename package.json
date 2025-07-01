@@ -25,6 +25,11 @@
     "docker:dev:down": "docker-compose -f docker/docker-compose.dev.yml down",
     "docker:dev:clean": "docker-compose -f docker/docker-compose.dev.yml down --volumes --rmi all",
     "docker:prod": "docker-compose -f docker/docker-compose.yml up --build",
+    "db": "./scripts/db.sh",
+    "db:connect": "./scripts/db.sh connect",
+    "db:backup": "./scripts/db.sh backup",
+    "db:status": "./scripts/db.sh status",
+    "db:reset": "./scripts/db.sh reset",
     "install:all": "bun install && cd apps/web && bun install",
     "start": "bun dist/index.js",
     "type-check": "bun --no-install --dry-run backend/src/index.ts"

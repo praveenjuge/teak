@@ -16,6 +16,30 @@ if ! docker info > /dev/null 2>&1; then
     exit 1
 fi
 
+# Function to wait for PostgreSQL
+wait_for_postgres() {
+    echo -e "${YELLOW}⏳ Waiting for PostgreSQL to be ready...${NC}"
+    local max_attempts=30
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        if docker exec teak-postgres-dev pg_isready -U teak_user -d teak_dev > /dev/null 2>&1; then
+            echo -e "${GREEN}✅ PostgreSQL is ready!${NC}"
+            return 0
+        fi
+        
+        if [ $((attempt % 5)) -eq 0 ]; then
+            echo -e "${YELLOW}   Still waiting for PostgreSQL... (${attempt}/${max_attempts})${NC}"
+        fi
+        
+        sleep 2
+        ((attempt++))
+    done
+    
+    echo -e "${RED}❌ PostgreSQL failed to start within expected time${NC}"
+    return 1
+}
+
 # Function to wait for service to be ready
 wait_for_service() {
     local url=$1
@@ -95,24 +119,28 @@ open_browser() {
 
 # Function to handle services after Docker is up
 handle_post_startup() {
-    # Wait for backend to be ready
-    if wait_for_service "http://localhost:3001" "Backend API"; then
-        # Wait for frontend to be ready
-        if wait_for_service "http://localhost:3000" "Frontend"; then
-            echo -e "${GREEN}🎉 All services are ready!${NC}"
-            
-            # Open VS Code first
-            open_vscode
-            
-            # Small delay before opening browser
-            sleep 2
-            
-            # Open browser
-            open_browser
-            
-            echo -e "${GREEN}✨ Development environment is fully ready!${NC}"
-            echo -e "${BLUE}📱 Frontend: http://localhost:3000${NC}"
-            echo -e "${BLUE}🔌 Backend API: http://localhost:3001${NC}"
+    # Wait for PostgreSQL first
+    if wait_for_postgres; then
+        # Wait for backend to be ready
+        if wait_for_service "http://localhost:3001" "Backend API"; then
+            # Wait for frontend to be ready
+            if wait_for_service "http://localhost:3000" "Frontend"; then
+                echo -e "${GREEN}🎉 All services are ready!${NC}"
+                
+                # Open VS Code first
+                open_vscode
+                
+                # Small delay before opening browser
+                sleep 2
+                
+                # Open browser
+                open_browser
+                
+                echo -e "${GREEN}✨ Development environment is fully ready!${NC}"
+                echo -e "${BLUE}📱 Frontend: http://localhost:3000${NC}"
+                echo -e "${BLUE}🔌 Backend API: http://localhost:3001${NC}"
+                echo -e "${BLUE}🗄️  Database: postgresql://teak_user:teak_dev_password@localhost:5432/teak_dev${NC}"
+            fi
         fi
     fi
 }
@@ -124,6 +152,7 @@ echo -e "${YELLOW}📦 Building and starting containers...${NC}"
 echo -e "${BLUE}🔥 Hot reload is enabled - your changes will be reflected automatically!${NC}"
 echo -e "${BLUE}📱 Frontend: http://localhost:3000${NC}"
 echo -e "${BLUE}🔌 Backend API: http://localhost:3001${NC}"
+echo -e "${BLUE}🗄️  Database: postgresql://teak_user:teak_dev_password@localhost:5432/teak_dev${NC}"
 echo -e "${YELLOW}⏹️  Press Ctrl+C to stop the development environment${NC}"
 
 # Start Docker Compose

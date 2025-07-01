@@ -4,9 +4,11 @@ FROM oven/bun:1
 # Set working directory
 WORKDIR /app
 
-# Install development tools
+# Install development tools and PostgreSQL client
 RUN apt-get update && apt-get install -y \
   curl \
+  postgresql-client \
+  netcat-openbsd \
   && rm -rf /var/lib/apt/lists/*
 
 # Copy package files first for better caching
@@ -30,13 +32,20 @@ COPY . .
 RUN echo '#!/bin/bash\n\
   set -e\n\
   echo "🚀 Starting Teak development environment..."\n\
-  echo "📦 Installing dependencies if needed..."\n\
+  echo "�️  Waiting for PostgreSQL to be ready..."\n\
+  while ! nc -z postgres-dev 5432; do\n\
+  echo "   Waiting for PostgreSQL..."\n\
+  sleep 2\n\
+  done\n\
+  echo "✅ PostgreSQL is ready!"\n\
+  echo "�📦 Installing dependencies if needed..."\n\
   bun install --frozen-lockfile || bun install\n\
   cd /app/apps/web && (bun install --frozen-lockfile || bun install)\n\
   cd /app\n\
   echo "🔥 Starting development servers..."\n\
   echo "🌐 Frontend will be available at http://localhost:3000"\n\
   echo "🔌 Backend API will be available at http://localhost:3001"\n\
+  echo "🗄️  Database available at localhost:5432 (teak_dev)"\n\
   echo "📝 Starting hot reload development mode..."\n\
   # Start backend in background\n\
   PORT=3001 bun --watch backend/src/index.ts &\n\

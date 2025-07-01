@@ -1,10 +1,9 @@
 # Teak
 
-## 🏗️ Architecture
-
 - **Runtime**: Bun
 - **Backend**: Hono.js (TypeScript)
 - **Frontend**: React 19 + Vite (TypeScript)
+- **Database**: PostgreSQL 17
 - **Containerization**: Docker
 
 ## 📁 Project Structure
@@ -25,9 +24,7 @@ teak/
 │   │   └── package.json     # Frontend dependencies
 │   └── mobile/              # Mobile app
 ├── docker/                  # Docker configuration
-│   ├── Dockerfile           # Multi-stage build with Bun
-│   ├── docker-compose.yml   # Container orchestration
-│   └── .dockerignore        # Docker ignore patterns
+├── scripts/                 # Utility scripts
 ├── .env.example             # Environment variables template
 ├── package.json             # Root package.json
 └── README.md                # This file
@@ -39,8 +36,9 @@ teak/
 
 - Docker & Docker Compose
 - Bun 1.0+ (for local development)
+- PostgreSQL 17 (automatically provided via Docker)
 
-### 🐳 Run with Docker
+### Local Development
 
 1. **Clone and navigate to the project:**
    ```bash
@@ -57,47 +55,32 @@ teak/
    - 🐳 Build and start Docker containers
    - 🔥 Enable hot reload for both frontend and backend
    - 📝 Automatically open VS Code in the current directory
+   - 🗄️ Initialize PostgreSQL database with sample schema
    - 🌐 Wait for services to be ready, then open your browser at
      http://localhost:3000
    - 📡 Backend API available at http://localhost:3001
+   - 🗃️ PostgreSQL database available at localhost:5432
 
-3. **Build and run with Docker Compose:**
-   ```bash
-   cd docker
-   docker-compose up --build
-   ```
+## 🗄️ Database
 
-4. **Access the application:**
-   - Frontend & API: http://localhost:3000
-   - API endpoints: http://localhost:3000/api
+### PostgreSQL Setup
 
-## 🔧 Available Scripts
+The project uses PostgreSQL 17 as the database, which is automatically
+configured and started through Docker Compose.
 
-- `bun dev` - Start both backend and frontend in development mode
-- `bun build` - Build both backend and frontend for production
-- `bun start` - Start the production server
-- `bun run install:all` - Install all dependencies (root + web app)
+#### Development Database
 
-- `bun run dev:backend` - Start backend development server with watch mode
-- `bun run build:backend` - Build backend using Bun bundler
-- `bun run type-check` - Type check backend code
+- **Host**: localhost
+- **Port**: 5432
+- **Database**: `teak_dev`
+- **User**: `teak_user`
+- **Password**: `teak_dev_password` (development only)
 
-- `bun run dev:frontend` - Start frontend development server
-- `bun run build:frontend` - Build frontend for production
+#### Production Database
 
-## 🐳 Docker Commands
-
-### Build the image
-
-```bash
-docker build -t teak -f docker/Dockerfile .
-```
-
-### Run the container
-
-```bash
-docker run -p 3000:3000 -e PORT=3000 teak
-```
+- **Database**: `teak`
+- **User**: `teak_user`
+- **Password**: Set via `POSTGRES_PASSWORD` environment variable
 
 ### Docker Compose commands
 
@@ -123,10 +106,25 @@ docker-compose logs -f
 
 ## ⚙️ Environment Variables
 
-| Variable   | Default       | Description      |
-| ---------- | ------------- | ---------------- |
-| `PORT`     | `3000`        | Server port      |
-| `NODE_ENV` | `development` | Node environment |
+### Development Environment
+
+| Variable        | Default       | Description                  |
+| --------------- | ------------- | ---------------------------- |
+| `NODE_ENV`      | `development` | Node environment             |
+| `FRONTEND_PORT` | `3000`        | Frontend development port    |
+| `BACKEND_PORT`  | `3001`        | Backend development port     |
+| `DATABASE_URL`  | (see below)   | PostgreSQL connection string |
+
+### Production Environment
+
+| Variable            | Default      | Description                  |
+| ------------------- | ------------ | ---------------------------- |
+| `PORT`              | `3000`       | Server port                  |
+| `NODE_ENV`          | `production` | Node environment             |
+| `POSTGRES_DB`       | `teak`       | PostgreSQL database name     |
+| `POSTGRES_USER`     | `teak_user`  | PostgreSQL username          |
+| `POSTGRES_PASSWORD` | (required)   | PostgreSQL password          |
+| `DATABASE_URL`      | (see below)  | PostgreSQL connection string |
 
 Create a `.env` file from `.env.example`:
 

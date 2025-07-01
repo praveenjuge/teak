@@ -19,6 +19,12 @@ RUN bun run build
 # Stage 2: Build the backend and final image
 FROM oven/bun:1 AS final
 
+# Install PostgreSQL client for runtime database operations
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set working directory
 WORKDIR /app
 
@@ -53,5 +59,19 @@ ENV PORT=3000
 # Expose port
 EXPOSE $PORT
 
-# Start the application with Bun
-CMD ["bun", "start"]
+# Create a production startup script that waits for PostgreSQL
+RUN echo '#!/bin/bash\n\
+    set -e\n\
+    echo "🚀 Starting Teak production application..."\n\
+    echo "🗄️  Waiting for PostgreSQL to be ready..."\n\
+    while ! nc -z postgres 5432; do\n\
+    echo "   Waiting for PostgreSQL..."\n\
+    sleep 2\n\
+    done\n\
+    echo "✅ PostgreSQL is ready!"\n\
+    echo "🔥 Starting application..."\n\
+    exec bun start\n\
+    ' > /app/start-prod.sh && chmod +x /app/start-prod.sh
+
+# Start the application with the startup script
+CMD ["/app/start-prod.sh"]

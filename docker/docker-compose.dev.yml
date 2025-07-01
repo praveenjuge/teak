@@ -12,6 +12,7 @@ services:
       - FRONTEND_PORT=3000
       - BACKEND_PORT=3001
       - VITE_HMR_PORT=3000
+      - DATABASE_URL=postgresql://teak_user:teak_dev_password@postgres-dev:5432/teak_dev
     volumes:
       # Mount source code for hot reloading
       - ../apps/web:/app/apps/web
@@ -26,6 +27,33 @@ services:
     restart: unless-stopped
     stdin_open: true
     tty: true
+    depends_on:
+      - postgres-dev
+
+  postgres-dev:
+    image: postgres:17
+    container_name: teak-postgres-dev
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=teak_dev
+      - POSTGRES_USER=teak_user
+      - POSTGRES_PASSWORD=teak_dev_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=en_US.UTF-8 --lc-ctype=en_US.UTF-8
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - teak-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teak_user -d teak_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_dev_data:
 
 networks:
   teak-network:
