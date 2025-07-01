@@ -6,6 +6,7 @@ import { serveStatic } from 'hono/bun';
 import { auth } from './auth';
 import { userRoutes } from './routes/users';
 
+// App with type-safe context
 const app = new Hono<{
   Variables: {
     user: typeof auth.$Infer.Session.user | null;
@@ -13,82 +14,56 @@ const app = new Hono<{
   }
 }>();
 
-// Add logger middleware
+// Core middleware
 app.use('*', logger());
-
-// Enable CORS for development - includes Better Auth routes
 app.use('*', cors({
   origin: ['http://localhost:3000'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
-  credentials: true, // Important for Better Auth cookies
+  credentials: true, // Required for Better Auth cookies
 }));
 
-// Add caching for static assets
+// Cache static assets for 1 year
 app.use('/assets/*', cache({
   cacheName: 'teak-assets',
-  cacheControl: 'max-age=31536000', // 1 year
+  cacheControl: 'max-age=31536000',
 }));
 
-// Better Auth middleware - extract user and session from request
+// Auth middleware - extract user and session from request
 app.use('*', async (c, next) => {
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
 
-  if (!session) {
-    c.set('user', null);
-    c.set('session', null);
-    return next();
-  }
-
-  c.set('user', session.user);
-  c.set('session', session.session);
+  c.set('user', session?.user || null);
+  c.set('session', session?.session || null);
   return next();
 });
 
-// Mount Better Auth handler
-app.on(['POST', 'GET'], '/api/auth/**', (c) => {
-  return auth.handler(c.req.raw);
-});
-
-// Better Auth routes
-app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+// Better Auth handler
+app.on(['POST', 'GET'], '/api/auth/**', (c) => auth.handler(c.req.raw));
 
 // API routes
 app.route('/api/users', userRoutes);
 
-// Auth-protected API routes
+// Protected session endpoint
 app.get('/api/session', (c) => {
-  const session = c.get('session');
   const user = c.get('user');
+  if (!user) return c.json({ error: 'Not authenticated' }, 401);
 
-  if (!user) {
-    return c.json({ error: 'Not authenticated' }, 401);
-  }
-
-  return c.json({
-    session,
-    user
-  });
+  return c.json({ session: c.get('session'), user });
 });
 
+// Protected API example
 app.get('/api/protected', (c) => {
   const user = c.get('user');
-
-  if (!user) {
-    return c.json({ error: 'Authentication required' }, 401);
-  }
+  if (!user) return c.json({ error: 'Authentication required' }, 401);
 
   return c.json({
     message: 'This is a protected route',
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name
-    }
+    user: { id: user.id, email: user.email, name: user.name }
   });
 });
 
-// Public API route
+// Health check endpoint
 app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
@@ -97,31 +72,29 @@ app.get('/api/health', (c) => {
   });
 });
 
-// Serve static files from the frontend build with optimized caching
+// Serve static files with optimized caching
 app.use('/assets/*', serveStatic({
   root: './apps/web/dist',
-  onNotFound: (path) => {
-    console.log(`Static file not found: ${path}`);
-  }
+  onNotFound: (path) => console.log(`Static file not found: ${path}`)
 }));
 
-// Fallback for SPA routing - serve index.html for all non-API routes
+// SPA fallback - serve index.html for all non-API routes
 app.get('*', async (c) => {
   try {
     const indexFile = Bun.file('./apps/web/dist/index.html');
 
-    if (await indexFile.exists()) {
-      const indexContent = await indexFile.text();
-
-      // Add proper caching headers for index.html
-      c.header('Cache-Control', 'public, max-age=0, must-revalidate');
-      c.header('ETag', `"${await Bun.hash(indexContent)}"`);
-
-      return c.html(indexContent);
-    } else {
+    if (!(await indexFile.exists())) {
       return c.text('Frontend not built yet. Run "bun run build:frontend" first.', 404);
     }
-  } catch (error) {
+
+    const content = await indexFile.text();
+
+    // Cache headers for index.html
+    c.header('Cache-Control', 'public, max-age=0, must-revalidate');
+    c.header('ETag', `"${await Bun.hash(content)}"`);
+
+    return c.html(content);
+  } catch {
     return c.text('Error serving frontend files', 500);
   }
 });
@@ -129,11 +102,7 @@ app.get('*', async (c) => {
 const port = parseInt(Bun.env['PORT'] || '3001');
 
 console.log(`🚀 Server starting on port ${port}`);
-console.log(` API endpoints: http://localhost:${port}/api/*`);
-
-export default {
-  port,
-  fetch: app.fetch,
-};
-
+console.log(`📡 API endpoints: http://localhost:${port}/api/*`);
 console.log(`✅ Server is running on http://localhost:${port}`);
+
+export default { port, fetch: app.fetch };
