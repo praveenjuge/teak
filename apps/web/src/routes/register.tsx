@@ -10,26 +10,26 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export const Route = createFileRoute("/login")({
+export const Route = createFileRoute("/register")({
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  const handleLogin = (e: React.FormEvent) => {
+  const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log("Login initiated");
+    // Handle registration logic here
+    console.log("Registration initiated");
   };
 
   return (
     <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-2xl">Welcome to Teak</CardTitle>
-          <CardDescription>Sign in to your account to continue</CardDescription>
+          <CardTitle className="text-2xl">Create Account</CardTitle>
+          <CardDescription>Sign up for a new account</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleRegister} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -44,25 +44,28 @@ function RouteComponent() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder="Create a password"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Confirm your password"
                 required
               />
             </div>
             <Button type="submit" className="w-full">
-              Sign In
+              Create Account
             </Button>
           </form>
-          <div className="mt-4 text-center space-y-2">
-            <Link
-              to="/forgot-password"
-              className="text-sm text-muted-foreground hover:underline"
-            >
-              Forgot your password?
-            </Link>
+          <div className="mt-4 text-center">
             <div className="text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link to="/register" className="hover:underline">
-                Sign up
+              Already have an account?{" "}
+              <Link to="/login" className="hover:underline">
+                Sign in
               </Link>
             </div>
           </div>

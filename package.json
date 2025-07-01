@@ -17,7 +17,6 @@
     "build:backend": "bun build backend/src/index.ts --outdir dist --target bun",
     "build:frontend": "cd apps/web && bun run build",
     "dev": "./scripts/dev.sh",
-    "dev:local": "concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
     "dev:backend": "PORT=3001 bun --watch backend/src/index.ts",
     "dev:frontend": "cd apps/web && bun run dev",
     "docker:dev": "docker-compose -f docker/docker-compose.dev.yml up --build",
@@ -37,7 +36,6 @@
     "hono": "^4.8.3"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "concurrently": "^9.2.0"
+    "@types/bun": "latest"
   }
 }

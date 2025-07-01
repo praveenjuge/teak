@@ -10,59 +10,53 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export const Route = createFileRoute("/login")({
+export const Route = createFileRoute("/reset-password")({
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  const handleLogin = (e: React.FormEvent) => {
+  const handleResetPassword = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log("Login initiated");
+    // Handle reset password logic here
+    console.log("Password reset initiated");
   };
 
   return (
     <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-2xl">Welcome to Teak</CardTitle>
-          <CardDescription>Sign in to your account to continue</CardDescription>
+          <CardTitle className="text-2xl">Reset Password</CardTitle>
+          <CardDescription>Enter your new password</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleResetPassword} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="password">New Password</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
+                id="password"
+                type="password"
+                placeholder="Enter new password"
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
               <Input
-                id="password"
+                id="confirmPassword"
                 type="password"
-                placeholder="Enter your password"
+                placeholder="Confirm new password"
                 required
               />
             </div>
             <Button type="submit" className="w-full">
-              Sign In
+              Reset Password
             </Button>
           </form>
-          <div className="mt-4 text-center space-y-2">
-            <Link
-              to="/forgot-password"
-              className="text-sm text-muted-foreground hover:underline"
-            >
-              Forgot your password?
-            </Link>
+          <div className="mt-4 text-center">
             <div className="text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link to="/register" className="hover:underline">
-                Sign up
+              Remember your password?{" "}
+              <Link to="/login" className="hover:underline">
+                Sign in
               </Link>
             </div>
           </div>
