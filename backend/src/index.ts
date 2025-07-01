@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { serveStatic } from 'hono/bun';
 import { auth } from './auth';
+import { userRoutes } from './routes/users';
 
 const app = new Hono<{
   Variables: {
@@ -41,6 +42,12 @@ app.use('*', async (c, next) => {
 app.on(['POST', 'GET'], '/api/auth/**', (c) => {
   return auth.handler(c.req.raw);
 });
+
+// Better Auth routes
+app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+
+// API routes
+app.route('/api/users', userRoutes);
 
 // Auth-protected API routes
 app.get('/api/session', (c) => {

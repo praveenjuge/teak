@@ -42,7 +42,11 @@ RUN echo '#!/bin/bash\n\
   bun install\n\
   cd /app/apps/web && bun install\n\
   cd /app\n\
-  echo "🔥 Starting development servers..."\n\
+  echo "� Running database migrations..."\n\
+  cd /app/backend && bun run ../node_modules/.bin/drizzle-kit push --force\n\
+  cd /app\n\
+  echo "✅ Database schema synchronized!"\n\
+  echo "�🔥 Starting development servers..."\n\
   echo "🌐 Frontend will be available at http://localhost:3000"\n\
   echo "🔌 Backend API will be available at http://localhost:3001"\n\
   echo "🗄️ Database available at localhost:5432 (teak_dev)"\n\

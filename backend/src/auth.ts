@@ -5,6 +5,7 @@
  * - Email/password authentication enabled
  * - Email verification disabled (no email service configured)
  * - Password reset emails logged to console (for development)
+ * - Using Drizzle ORM adapter for database operations
  * 
  * TODO: Add email service integration
  * Popular options:
@@ -15,14 +16,20 @@
  */
 
 import { betterAuth } from "better-auth";
-import { Pool } from "pg";
-
-const pool = new Pool({
-  connectionString: process.env["DATABASE_URL"] || "postgresql://teak_user:your_secure_password_here@localhost:5432/teak",
-});
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { db } from "./db";
+import * as schema from "./db/schema";
 
 export const auth = betterAuth({
-  database: pool,
+  database: drizzleAdapter(db, {
+    provider: "pg",
+    schema: {
+      user: schema.users,
+      session: schema.sessions,
+      account: schema.accounts,
+      verification: schema.verifications,
+    },
+  }),
   baseURL: process.env["BETTER_AUTH_URL"] || "http://localhost:3001",
   secret: process.env["BETTER_AUTH_SECRET"] || "fallback-secret-for-dev",
 

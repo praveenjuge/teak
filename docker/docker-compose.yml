@@ -9,11 +9,13 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=${PORT:-3000}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-teak_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-teak}
     restart: unless-stopped
     networks:
       - teak-network
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
   postgres:
     image: postgres:17

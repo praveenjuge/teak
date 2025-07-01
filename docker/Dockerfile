@@ -45,6 +45,9 @@ COPY backend/ ./backend/
 # Build backend
 RUN bun run build:backend
 
+# Generate Drizzle migrations
+RUN cd backend && bun run ../node_modules/.bin/drizzle-kit generate
+
 # Copy built frontend from previous stage
 COPY --from=frontend-builder /app/frontend/dist ./apps/web/dist
 
@@ -69,7 +72,11 @@ RUN echo '#!/bin/bash\n\
     sleep 2\n\
     done\n\
     echo "✅ PostgreSQL is ready!"\n\
-    echo "🔥 Starting application..."\n\
+    echo "� Running database migrations..."\n\
+    cd /app/backend && bun run ../node_modules/.bin/drizzle-kit migrate\n\
+    cd /app\n\
+    echo "✅ Database migrations completed!"\n\
+    echo "�🔥 Starting application..."\n\
     exec bun start\n\
     ' > /app/start-prod.sh && chmod +x /app/start-prod.sh
 
