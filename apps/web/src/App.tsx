@@ -1,207 +1,107 @@
-import { useState, useEffect } from "react";
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-  createdAt?: string;
-}
-
-interface Stats {
-  totalUsers: number;
-  activeUsers: number;
-  revenue: number;
-  growth: number;
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  count?: number;
-  message?: string;
-  error?: string;
-}
+import { authClient } from "./lib/auth-client";
 
 function App() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [newUser, setNewUser] = useState({ name: "", email: "", role: "user" });
-  const [submitting, setSubmitting] = useState(false);
-
-  const API_BASE = "/api";
-
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/users`);
-      const result: ApiResponse<User[]> = await response.json();
-      if (result.success) {
-        setUsers(result.data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch users:", error);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/stats`);
-      const result: ApiResponse<Stats> = await response.json();
-      if (result.success) {
-        setStats(result.data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch stats:", error);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newUser.name || !newUser.email) return;
-
-    setSubmitting(true);
-    try {
-      const response = await fetch(`${API_BASE}/users`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newUser),
-      });
-
-      const result: ApiResponse<User> = await response.json();
-
-      if (result.success) {
-        setUsers((prev) => [...prev, result.data]);
-        setNewUser({ name: "", email: "", role: "user" });
-      } else {
-        alert(result.error || "Failed to create user");
-      }
-    } catch (error) {
-      console.error("Failed to create user:", error);
-      alert("Failed to create user");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await Promise.all([fetchUsers(), fetchStats()]);
-      setLoading(false);
-    };
-
-    loadData();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="app">
-        <div className="loading">
-          <div className="spinner"></div>
-          <p>Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const { data: session } = authClient.useSession();
 
   return (
-    <main className="space-y-8 p-8">
-      <header className="header">
-        <h1>🌿 Teak Dashboard</h1>
-        <p>Modern Dockerized Web Application</p>
-      </header>
+    <main className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4">
+        <header className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-800 mb-4">
+            🌿 Teak - Better Auth Demo
+          </h1>
+          <p className="text-lg text-gray-600">
+            Modern Authentication with Better Auth + Hono + PostgreSQL
+          </p>
+        </header>
 
-      {stats && (
-        <section className="border-t">
-          <h2>📊 Statistics</h2>
-          <div className="stats-grid">
-            <div className="stat-card">
-              <h3>Total Users</h3>
-              <p className="stat-number">{stats.totalUsers.toLocaleString()}</p>
-            </div>
-            <div className="stat-card">
-              <h3>Active Users</h3>
-              <p className="stat-number">
-                {stats.activeUsers.toLocaleString()}
-              </p>
-            </div>
-            <div className="stat-card">
-              <h3>Revenue</h3>
-              <p className="stat-number">${stats.revenue.toLocaleString()}</p>
-            </div>
-            <div className="stat-card">
-              <h3>Growth</h3>
-              <p className="stat-number">{stats.growth}%</p>
-            </div>
-          </div>
-        </section>
-      )}
+        <div className="max-w-2xl mx-auto">
+          {session?.user && (
+            <div className="mt-8 p-6 bg-white rounded-lg shadow-lg">
+              <h3 className="text-xl font-semibold mb-4">🔗 API Testing</h3>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium text-gray-700">
+                    Protected Route Test:
+                  </h4>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(
+                          "http://localhost:3001/api/protected",
+                          {
+                            credentials: "include",
+                          }
+                        );
+                        const data = await response.json();
+                        alert(JSON.stringify(data, null, 2));
+                      } catch (err) {
+                        alert("Error: " + err);
+                      }
+                    }}
+                    className="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  >
+                    Test Protected Route
+                  </button>
+                </div>
 
-      <section className="border-t">
-        <div className="users-header">
-          <h2>👥 Users ({users.length})</h2>
-          <button onClick={fetchUsers} className="refresh-btn">
-            🔄 Refresh
-          </button>
-        </div>
-
-        <div className="users-list">
-          {users.map((user) => (
-            <div key={user.id} className="user-card">
-              <div className="user-info">
-                <h3>{user.name}</h3>
-                <p>{user.email}</p>
-                <span className={`role ${user.role}`}>{user.role}</span>
+                <div>
+                  <h4 className="font-medium text-gray-700">Session Info:</h4>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(
+                          "http://localhost:3001/api/session",
+                          {
+                            credentials: "include",
+                          }
+                        );
+                        const data = await response.json();
+                        alert(JSON.stringify(data, null, 2));
+                      } catch (err) {
+                        alert("Error: " + err);
+                      }
+                    }}
+                    className="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                  >
+                    Get Session Info
+                  </button>
+                </div>
               </div>
             </div>
-          ))}
-        </div>
-      </section>
+          )}
 
-      <section className="border-t">
-        <h2>➕ Add New User</h2>
-        <form onSubmit={handleSubmit} className="user-form">
-          <div className="form-group">
-            <input
-              type="text"
-              placeholder="Name"
-              value={newUser.name}
-              onChange={(e) =>
-                setNewUser((prev) => ({ ...prev, name: e.target.value }))
-              }
-              required
-            />
+          <div className="mt-8 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="text-lg font-semibold text-blue-800 mb-3">
+              📝 Setup Notes
+            </h3>
+            <ul className="text-sm text-blue-700 space-y-2">
+              <li>✅ Better Auth integrated with Hono backend</li>
+              <li>✅ PostgreSQL database with auto-generated tables</li>
+              <li>
+                ✅ Email/password authentication (no verification required)
+              </li>
+              <li>
+                ⚠️ Email service not configured (emails logged to console)
+              </li>
+              <li>🔒 Protected API routes working with session middleware</li>
+              <li>🍪 Secure cookie-based sessions</li>
+            </ul>
           </div>
-          <div className="form-group">
-            <input
-              type="email"
-              placeholder="Email"
-              value={newUser.email}
-              onChange={(e) =>
-                setNewUser((prev) => ({ ...prev, email: e.target.value }))
-              }
-              required
-            />
+
+          <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+            <h4 className="font-medium text-gray-700 mb-2">🚀 Next Steps:</h4>
+            <ul className="text-sm text-gray-600 space-y-1">
+              <li>• Add email service (Resend, SendGrid, AWS SES)</li>
+              <li>• Enable email verification</li>
+              <li>• Add social login providers (Google, GitHub, etc.)</li>
+              <li>• Implement password reset functionality</li>
+              <li>• Add user roles and permissions</li>
+              <li>• Set up 2FA with Better Auth plugins</li>
+            </ul>
           </div>
-          <div className="form-group">
-            <select
-              value={newUser.role}
-              onChange={(e) =>
-                setNewUser((prev) => ({ ...prev, role: e.target.value }))
-              }
-            >
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-          <button type="submit" disabled={submitting} className="submit-btn">
-            {submitting ? "⏳ Creating..." : "✅ Create User"}
-          </button>
-        </form>
-      </section>
+        </div>
+      </div>
     </main>
   );
 }
