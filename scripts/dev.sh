@@ -139,7 +139,7 @@ handle_post_startup() {
                 echo -e "${GREEN}✨ Development environment is fully ready!${NC}"
                 echo -e "${BLUE}📱 Frontend: http://localhost:3000${NC}"
                 echo -e "${BLUE}🔌 Backend API: http://localhost:3001${NC}"
-                echo -e "${BLUE}🗄️  Database: postgresql://teak_user:teak_dev_password@localhost:5432/teak_dev${NC}"
+                echo -e "${BLUE}🗄️ Database: postgresql://teak_user:teak_dev_password@localhost:5432/teak_dev${NC}"
             fi
         fi
     fi
@@ -152,8 +152,8 @@ echo -e "${YELLOW}📦 Building and starting containers...${NC}"
 echo -e "${BLUE}🔥 Hot reload is enabled - your changes will be reflected automatically!${NC}"
 echo -e "${BLUE}📱 Frontend: http://localhost:3000${NC}"
 echo -e "${BLUE}🔌 Backend API: http://localhost:3001${NC}"
-echo -e "${BLUE}🗄️  Database: postgresql://teak_user:teak_dev_password@localhost:5432/teak_dev${NC}"
-echo -e "${YELLOW}⏹️  Press Ctrl+C to stop the development environment${NC}"
+echo -e "${BLUE}🗄️ Database: postgresql://teak_user:teak_dev_password@localhost:5432/teak_dev${NC}"
+echo -e "${YELLOW}⏹️ Press Ctrl+C to stop the development environment${NC}"
 
 # Start Docker Compose
 docker-compose -f docker/docker-compose.dev.yml up --build
