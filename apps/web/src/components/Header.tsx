@@ -48,22 +48,18 @@ export function Header() {
 
           {/* User Info and Sign Out */}
           <div className="flex items-center gap-4">
-            {session?.user && (
-              <>
-                <span className="text-sm text-muted-foreground">
-                  {session.user.name || session.user.email}
-                </span>
-                <Button
-                  onClick={handleSignOut}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign Out
-                </Button>
-              </>
-            )}
+            <span className="text-sm text-muted-foreground">
+              {session?.user?.name || session?.user?.email}
+            </span>
+            <Button
+              onClick={handleSignOut}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
           </div>
         </div>
       </div>
