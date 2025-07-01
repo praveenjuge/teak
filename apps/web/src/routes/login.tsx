@@ -111,10 +111,10 @@ function RouteComponent() {
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-          <div className="mt-4 text-center space-y-2">
+          <div className="mt-4 space-y-2">
             <Link
               to="/forgot-password"
-              className="text-sm text-muted-foreground hover:underline"
+              className="text-sm text-muted-foreground hover:underline flex"
             >
               Forgot your password?
             </Link>
