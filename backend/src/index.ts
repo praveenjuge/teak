@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { cache } from 'hono/cache';
 import { serveStatic } from 'hono/bun';
 import { auth } from './auth';
 import { userRoutes } from './routes/users';
@@ -21,6 +22,12 @@ app.use('*', cors({
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
   credentials: true, // Important for Better Auth cookies
+}));
+
+// Add caching for static assets
+app.use('/assets/*', cache({
+  cacheName: 'teak-assets',
+  cacheControl: 'max-age=31536000', // 1 year
 }));
 
 // Better Auth middleware - extract user and session from request
@@ -90,9 +97,12 @@ app.get('/api/health', (c) => {
   });
 });
 
-// Serve static files from the frontend build
+// Serve static files from the frontend build with optimized caching
 app.use('/assets/*', serveStatic({
-  root: './apps/web/dist'
+  root: './apps/web/dist',
+  onNotFound: (path) => {
+    console.log(`Static file not found: ${path}`);
+  }
 }));
 
 // Fallback for SPA routing - serve index.html for all non-API routes
@@ -102,6 +112,11 @@ app.get('*', async (c) => {
 
     if (await indexFile.exists()) {
       const indexContent = await indexFile.text();
+
+      // Add proper caching headers for index.html
+      c.header('Cache-Control', 'public, max-age=0, must-revalidate');
+      c.header('ETag', `"${await Bun.hash(indexContent)}"`);
+
       return c.html(indexContent);
     } else {
       return c.text('Frontend not built yet. Run "bun run build:frontend" first.', 404);
