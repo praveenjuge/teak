@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
+import { AuthLayout } from "@/components/AuthLayout";
 
 export const Route = createFileRoute("/reset-password")({
   component: RouteComponent,
@@ -96,8 +97,8 @@ function RouteComponent() {
 
   if (success) {
     return (
-      <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <Card className="w-full max-w-sm">
+      <AuthLayout>
+        <Card>
           <CardHeader>
             <CardTitle className="text-2xl">
               Password Reset Successful
@@ -117,13 +118,13 @@ function RouteComponent() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </AuthLayout>
     );
   }
 
   return (
-    <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-sm">
+    <AuthLayout>
+      <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Reset Password</CardTitle>
           <CardDescription>Enter your new password</CardDescription>
@@ -177,6 +178,6 @@ function RouteComponent() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </AuthLayout>
   );
 }

@@ -1,11 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
 import { useEffect } from "react";
 
@@ -45,10 +39,6 @@ function HomeComponent() {
         </p>
 
         <Card className="text-left">
-          <CardHeader>
-            <CardTitle>Your Account</CardTitle>
-            <CardDescription>Account information and details</CardDescription>
-          </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <label className="text-sm font-medium text-muted-foreground">

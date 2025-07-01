@@ -12,7 +12,6 @@ function RootComponent() {
 
   return (
     <>
-      {/* Only show header when user is authenticated */}
       {!isPending && session?.user && <Header />}
 
       <main className="flex-1">
