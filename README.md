@@ -24,9 +24,10 @@ teak/
 │   │   ├── vite.config.ts   # Vite config with proxy
 │   │   └── package.json     # Frontend dependencies
 │   └── mobile/              # Mobile app
-├── Dockerfile               # Multi-stage build with Bun
-├── docker-compose.yml       # Container orchestration
-├── .dockerignore            # Docker ignore patterns
+├── docker/                  # Docker configuration
+│   ├── Dockerfile           # Multi-stage build with Bun
+│   ├── docker-compose.yml   # Container orchestration
+│   └── .dockerignore        # Docker ignore patterns
 ├── .env.example             # Environment variables template
 ├── package.json             # Root package.json
 └── README.md                # This file
@@ -47,35 +48,28 @@ teak/
    cd teak
    ```
 
-2. **Build and run with Docker Compose:**
+2. **Start development environment:**
    ```bash
+   bun run dev
+   ```
+
+   This will:
+   - 🐳 Build and start Docker containers
+   - 🔥 Enable hot reload for both frontend and backend
+   - 📝 Automatically open VS Code in the current directory
+   - 🌐 Wait for services to be ready, then open your browser at
+     http://localhost:3000
+   - 📡 Backend API available at http://localhost:3001
+
+3. **Build and run with Docker Compose:**
+   ```bash
+   cd docker
    docker-compose up --build
    ```
 
-3. **Access the application:**
+4. **Access the application:**
    - Frontend & API: http://localhost:3000
    - API endpoints: http://localhost:3000/api
-
-### 🔧 Local Development
-
-1. **Install Bun (if not already installed):**
-   ```bash
-   curl -fsSL https://bun.sh/install | bash
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   bun run install:all
-   ```
-
-3. **Start development servers:**
-   ```bash
-   bun dev
-   ```
-
-4. **Access the application:**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:3000/api
 
 ## 🔧 Available Scripts
 
@@ -96,7 +90,7 @@ teak/
 ### Build the image
 
 ```bash
-docker build -t teak .
+docker build -t teak -f docker/Dockerfile .
 ```
 
 ### Run the container
@@ -108,6 +102,9 @@ docker run -p 3000:3000 -e PORT=3000 teak
 ### Docker Compose commands
 
 ```bash
+# Navigate to docker directory first
+cd docker
+
 # Start services
 docker-compose up
 

@@ -1,0 +1,51 @@
+# Development Dockerfile for Teak App with hot reloading
+FROM oven/bun:1
+
+# Set working directory
+WORKDIR /app
+
+# Install development tools
+RUN apt-get update && apt-get install -y \
+  curl \
+  && rm -rf /var/lib/apt/lists/*
+
+# Copy package files first for better caching
+COPY package.json bun.lock* ./
+
+# Install root dependencies
+RUN bun install
+
+# Copy frontend package files and install dependencies
+COPY apps/web/package.json apps/web/bun.lock* ./apps/web/
+WORKDIR /app/apps/web
+RUN bun install
+
+# Go back to root
+WORKDIR /app
+
+# Copy source code (will be overridden by volume mounts in docker-compose)
+COPY . .
+
+# Create a startup script
+RUN echo '#!/bin/bash\n\
+  set -e\n\
+  echo "🚀 Starting Teak development environment..."\n\
+  echo "📦 Installing dependencies if needed..."\n\
+  bun install --frozen-lockfile || bun install\n\
+  cd /app/apps/web && (bun install --frozen-lockfile || bun install)\n\
+  cd /app\n\
+  echo "🔥 Starting development servers..."\n\
+  echo "🌐 Frontend will be available at http://localhost:3000"\n\
+  echo "🔌 Backend API will be available at http://localhost:3001"\n\
+  echo "📝 Starting hot reload development mode..."\n\
+  # Start backend in background\n\
+  PORT=3001 bun --watch backend/src/index.ts &\n\
+  # Start frontend in foreground\n\
+  cd apps/web && exec bun run dev\n\
+  ' > /app/start-dev.sh && chmod +x /app/start-dev.sh
+
+# Expose ports
+EXPOSE 3000 3001
+
+# Start development servers
+CMD ["/app/start-dev.sh"]

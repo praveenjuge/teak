@@ -5,7 +5,7 @@ FROM oven/bun:1 AS frontend-builder
 WORKDIR /app/frontend
 
 # Copy frontend package files
-COPY apps/web/package.json apps/web/bun.lockb* ./
+COPY apps/web/package.json apps/web/bun.lock* ./
 
 # Install frontend dependencies
 RUN bun install --frozen-lockfile
@@ -27,7 +27,7 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --ingroup nodejs nodejs
 
 # Copy backend package files
-COPY package.json bun.lockb* ./
+COPY package.json bun.lock* ./
 COPY backend/tsconfig.json ./backend/
 
 # Install dependencies

@@ -1,0 +1,21 @@
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: web
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    environment:
+      - NODE_ENV=production
+      - PORT=${PORT:-3000}
+    restart: unless-stopped
+    networks:
+      - teak-network
+
+networks:
+  teak-network:
+    driver: bridge
+# Optional: Add volumes for persistent data
+# volumes:
+#   teak-data:

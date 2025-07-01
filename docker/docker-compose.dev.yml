@@ -1,0 +1,32 @@
+services:
+  web-dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    container_name: teak-dev
+    ports:
+      - "3000:3000" # Frontend
+      - "3001:3001" # Backend API
+    environment:
+      - NODE_ENV=development
+      - FRONTEND_PORT=3000
+      - BACKEND_PORT=3001
+      - VITE_HMR_PORT=3000
+    volumes:
+      # Mount source code for hot reloading
+      - ../apps/web:/app/apps/web
+      - ../backend:/app/backend
+      - ../package.json:/app/package.json
+      - ../bun.lock:/app/bun.lock
+      # Exclude node_modules to avoid conflicts
+      - /app/apps/web/node_modules
+      - /app/node_modules
+    networks:
+      - teak-network
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+networks:
+  teak-network:
+    driver: bridge
