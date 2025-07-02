@@ -17,7 +17,7 @@ const app = new Hono<{
 // Core middleware
 app.use('*', logger());
 app.use('*', cors({
-  origin: ['http://localhost:3000'],
+  origin: ['http://localhost:3000', 'http://localhost:8081'], // Add Expo development server
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
   credentials: true, // Required for Better Auth cookies

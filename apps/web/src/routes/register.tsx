@@ -89,7 +89,7 @@ function RouteComponent() {
     <AuthLayout>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Create Account</CardTitle>
+          <CardTitle>Create Account</CardTitle>
           <CardDescription>Sign up for a new account</CardDescription>
         </CardHeader>
         <CardContent>

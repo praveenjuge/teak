@@ -126,7 +126,7 @@ function RouteComponent() {
     <AuthLayout>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Reset Password</CardTitle>
+          <CardTitle>Reset Password</CardTitle>
           <CardDescription>Enter your new password</CardDescription>
         </CardHeader>
         <CardContent>

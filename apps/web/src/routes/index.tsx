@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
 import { useEffect } from "react";
+import { Header } from "@/components/Header";
 
 export const Route = createFileRoute("/")({
   component: HomeComponent,
@@ -30,39 +31,20 @@ function HomeComponent() {
   }
 
   return (
-    <div className="container mx-auto py-12 px-4">
-      <div className="max-w-2xl mx-auto text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome back!</h1>
-        <p className="text-xl text-muted-foreground mb-8">
-          You are successfully signed in as{" "}
-          {session.user.name || session.user.email}
-        </p>
-
-        <Card className="text-left">
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                Email
-              </label>
-              <p className="text-sm">{session.user.email}</p>
-            </div>
-            {session.user.name && (
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  Name
-                </label>
-                <p className="text-sm">{session.user.name}</p>
-              </div>
-            )}
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                User ID
-              </label>
-              <p className="text-sm font-mono">{session.user.id}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <>
+      <Header />
+      <Card>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="font-medium text-muted-foreground">Email</label>
+            <p>{session.user.email}</p>
+          </div>
+          <div>
+            <label className="font-medium text-muted-foreground">User ID</label>
+            <p className="font-mono">{session.user.id}</p>
+          </div>
+        </CardContent>
+      </Card>
+    </>
   );
 }

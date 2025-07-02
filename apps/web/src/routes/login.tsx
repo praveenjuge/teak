@@ -73,7 +73,7 @@ function RouteComponent() {
     <AuthLayout>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Welcome to Teak</CardTitle>
+          <CardTitle>Welcome to Teak</CardTitle>
           <CardDescription>Sign in to your account to continue</CardDescription>
         </CardHeader>
         <CardContent>

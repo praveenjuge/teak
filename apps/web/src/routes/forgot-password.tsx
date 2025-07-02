@@ -84,7 +84,7 @@ function RouteComponent() {
     <AuthLayout>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Forgot Password</CardTitle>
+          <CardTitle>Forgot Password</CardTitle>
           <CardDescription>
             Enter your email to reset your password
           </CardDescription>
