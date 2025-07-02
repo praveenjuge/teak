@@ -38,32 +38,25 @@ export default function AddScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }}>
       <ScrollView
-        contentContainerStyle={{ padding: 16, flex: 1 }}
+        contentContainerStyle={{ padding: 20, flex: 1 }}
         keyboardShouldPersistTaps="handled"
       >
-        <View
+        <TextInput
           style={{
+            borderWidth: 1,
             marginBottom: 20,
+            borderColor: "#d1d5db",
+            borderRadius: 8,
+            padding: 12,
+            backgroundColor: "#fff",
+            color: "#111827",
           }}
-        >
-          <TextInput
-            style={{
-              borderWidth: 1,
-              borderColor: "#d1d5db",
-              borderRadius: 8,
-              padding: 12,
-              fontSize: 16,
-              backgroundColor: "#fff",
-              color: "#111827",
-            }}
-            placeholder="Enter item title"
-            value={title}
-            onChangeText={setTitle}
-            maxLength={100}
-            autoCapitalize="sentences"
-            autoCorrect={true}
-          />
-        </View>
+          placeholder="Enter title"
+          value={title}
+          onChangeText={setTitle}
+          autoCapitalize="sentences"
+          autoCorrect={true}
+        />
         <View style={{ flexDirection: "row", marginBottom: 24 }}>
           <TouchableOpacity
             style={{
@@ -78,7 +71,7 @@ export default function AddScreen() {
             onPress={handleSave}
             disabled={isLoading || !title.trim()}
           >
-            <Text style={{ fontSize: 16, fontWeight: "600", color: "#fff" }}>
+            <Text style={{ fontWeight: "600", color: "#fff" }}>
               {isLoading ? "Saving..." : "Save Item"}
             </Text>
           </TouchableOpacity>

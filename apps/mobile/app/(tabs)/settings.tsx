@@ -7,7 +7,6 @@ import {
   Alert,
   StyleSheet,
 } from "react-native";
-import { StatusBar } from "expo-status-bar";
 import { authClient, getStoredApiUrl } from "../../lib/auth-client";
 
 export default function SettingsScreen() {
@@ -38,37 +37,29 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.section}>
-          <Text>{session?.user?.email}</Text>
-          <Text>{session?.user?.id}</Text>
-          <Text>{serverUrl || "Not Configured"}</Text>
-        </View>
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.settingItem} onPress={handleLogout}>
-            <Text style={styles.settingTitle}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </View>
+    <ScrollView contentContainerStyle={styles.scrollContent}>
+      <Text>{session?.user?.email}</Text>
+      <Text>{session?.user?.id}</Text>
+      <Text>{serverUrl || "Not Configured"}</Text>
+      <TouchableOpacity style={styles.settingItem} onPress={handleLogout}>
+        <Text style={styles.settingTitle}>Logout</Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 32 },
+  scrollContent: { padding: 20, flex: 1 },
   section: { marginBottom: 24 },
   settingItem: {
-    padding: 16,
-    backgroundColor: "#fff",
+    padding: 14,
+    marginVertical: 20,
+    backgroundColor: "#dc2626",
     borderRadius: 12,
     alignItems: "center",
-    marginBottom: 8,
   },
   settingTitle: {
     fontWeight: "500",
-    color: "#dc2626",
+    color: "#fff",
   },
 });
