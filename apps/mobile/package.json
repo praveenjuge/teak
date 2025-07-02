@@ -6,15 +6,19 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "lint": "expo lint"
   },
   "dependencies": {
     "@better-auth/expo": "^1.2.12",
     "@expo/vector-icons": "^14.1.0",
     "better-auth": "^1.2.12",
     "expo": "~53.0.16",
+    "expo-blur": "^14.1.5",
+    "expo-haptics": "^14.1.4",
     "expo-router": "~5.1.2",
     "expo-secure-store": "^14.2.3",
+    "expo-status-bar": "^2.2.3",
     "react": "19.0.0",
     "react-native": "0.79.5"
   },

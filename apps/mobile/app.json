@@ -30,6 +30,9 @@
     "scheme": "teak",
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }

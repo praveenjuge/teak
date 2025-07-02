@@ -1,15 +1,26 @@
 import { Stack } from "expo-router";
 import React from "react";
-import { authClient } from "../lib/auth-client";
-import SplashScreenController from "./splash";
-import { AuthProvider } from "../lib/AuthContext";
+import { authClient } from "@/lib/auth-client";
+import SplashScreenController from "@/app/splash";
+import { AuthProvider } from "@/lib/AuthContext";
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from "@react-navigation/native";
+import { useColorScheme } from "react-native";
+import { StatusBar } from "expo-status-bar";
 
 export default function RootLayout() {
+  const colorScheme = useColorScheme();
   return (
-    <AuthProvider>
-      <SplashScreenController />
-      <RootNavigator />
-    </AuthProvider>
+    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+      <AuthProvider>
+        <SplashScreenController />
+        <RootNavigator />
+      </AuthProvider>
+      <StatusBar style="auto" />
+    </ThemeProvider>
   );
 }
 

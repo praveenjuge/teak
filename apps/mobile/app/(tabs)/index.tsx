@@ -27,6 +27,46 @@ export default function HomeScreen() {
         <Text style={styles.title}>Welcome back!</Text>
         <Text>{session?.user?.email}</Text>
       </View>
+      <View style={styles.card}>
+        <Text style={styles.title}>Welcome back!</Text>
+        <Text>{session?.user?.email}</Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.title}>Welcome back!</Text>
+        <Text>{session?.user?.email}</Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.title}>Welcome back!</Text>
+        <Text>{session?.user?.email}</Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.title}>Welcome back!</Text>
+        <Text>{session?.user?.email}</Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.title}>Welcome back!</Text>
+        <Text>{session?.user?.email}</Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.title}>Welcome back!</Text>
+        <Text>{session?.user?.email}</Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.title}>Welcome back!</Text>
+        <Text>{session?.user?.email}</Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.title}>Welcome back!</Text>
+        <Text>{session?.user?.email}</Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.title}>Welcome back!</Text>
+        <Text>{session?.user?.email}</Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.title}>Welcome back!</Text>
+        <Text>{session?.user?.email}</Text>
+      </View>
     </ScrollView>
   );
 }
@@ -37,7 +77,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: "lightblue",
     padding: 20,
     borderRadius: 12,
     elevation: 2,

@@ -1,11 +1,23 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { HapticTab } from "@/components/HapticTab";
+import { Platform } from "react-native";
+import TabBarBackground from "@/components/TabBarBackground";
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         tabBarHideOnKeyboard: true,
+        tabBarButton: HapticTab,
+        tabBarBackground: TabBarBackground,
+        tabBarStyle: Platform.select({
+          ios: {
+            // Use a transparent background on iOS to show the blur effect
+            position: "absolute",
+          },
+          default: {},
+        }),
       }}
     >
       <Tabs.Screen
