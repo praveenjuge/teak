@@ -8,10 +8,10 @@ const API_URL_KEY = "teak_api_url";
 export const getStoredApiUrl = async (): Promise<string> => {
   try {
     const storedUrl = await SecureStore.getItemAsync(API_URL_KEY);
-    return storedUrl || (__DEV__ ? "http://192.168.29.57:3001" : "");
+    return storedUrl || (__DEV__ ? "http://192.168.29.57:3000" : "");
   } catch (error) {
     console.error("Failed to get stored API URL:", error);
-    return __DEV__ ? "http://192.168.29.57:3001" : "";
+    return __DEV__ ? "http://192.168.29.57:3000" : "";
   }
 };
 
@@ -57,7 +57,7 @@ export const getAuthClient = () => {
   if (!_currentAuthClient) {
     // Fallback: create with default URL if not initialized
     console.warn("Auth client not initialized, creating with default URL");
-    _currentAuthClient = createAuthClientWithUrl(__DEV__ ? "http://192.168.29.57:3001" : "");
+    _currentAuthClient = createAuthClientWithUrl(__DEV__ ? "http://192.168.29.57:3000" : "");
   }
   return _currentAuthClient;
 };
@@ -70,4 +70,4 @@ export const updateAuthClient = (baseURL: string) => {
 };
 
 // Create default client for immediate use (before initialization)
-export const authClient = createAuthClientWithUrl(__DEV__ ? "http://192.168.29.57:3001" : "");
+export const authClient = createAuthClientWithUrl(__DEV__ ? "http://192.168.29.57:3000" : "");

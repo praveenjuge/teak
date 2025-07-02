@@ -32,7 +32,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } catch (error) {
         console.error("Failed to initialize auth client:", error);
         // Fallback to default
-        const defaultUrl = __DEV__ ? "http://192.168.29.57:3001" : "";
+        const defaultUrl = __DEV__ ? "http://192.168.29.57:3000" : "";
         const client = createAuthClientWithUrl(defaultUrl);
         setAuthClient(client);
       } finally {
