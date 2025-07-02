@@ -27,14 +27,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const initializeAuth = async () => {
       try {
         const storedUrl = await getStoredApiUrl();
-        const client = createAuthClientWithUrl(storedUrl);
-        setAuthClient(client);
+        if (storedUrl) {
+          const client = createAuthClientWithUrl(storedUrl);
+          setAuthClient(client);
+        }
       } catch (error) {
         console.error("Failed to initialize auth client:", error);
-        // Fallback to default
-        const defaultUrl = __DEV__ ? "http://192.168.29.57:3000" : "";
-        const client = createAuthClientWithUrl(defaultUrl);
-        setAuthClient(client);
       } finally {
         setIsInitialized(true);
       }
