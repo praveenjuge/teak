@@ -1,26 +1,27 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiClient, type Card } from "@/lib/api";
+import { apiClient } from "@/lib/api";
+import type { Card } from "@/lib/api";
 import { CardItem } from "./CardItem";
 import { EmptyState } from "./empty-state";
 import Loading from "./loading";
 import { AlertTriangle, Loader2, Search, Bookmark } from "lucide-react";
 import { Button } from "./ui/button";
+import { useSearch } from "@/contexts/SearchContext";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 
-interface CardsGridProps {
-  searchQuery?: string;
-  selectedType?: Card["type"];
-}
+export function CardsGrid() {
+  const { searchQuery, selectedType } = useSearch();
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
-export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
+  // Show if we're currently searching (user is typing but debounced value hasn't updated yet)
+  const isSearching =
+    searchQuery !== debouncedSearchQuery && searchQuery.trim().length > 0;
+
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["cards", { searchQuery, selectedType }],
+    queryKey: ["cards", { searchQuery: debouncedSearchQuery, selectedType }],
     queryFn: () => {
-      if (searchQuery) {
-        return apiClient.searchCards(searchQuery, {
-          type: selectedType,
-        });
-      }
       return apiClient.getCards({
+        q: debouncedSearchQuery?.trim() || undefined,
         type: selectedType,
         sort: "created_at",
         order: "desc",
@@ -30,7 +31,7 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
     refetchOnWindowFocus: false,
   });
 
-  if (isLoading) {
+  if (isLoading || isSearching) {
     return <Loading />;
   }
 
@@ -55,11 +56,11 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
   if (!data || data.cards.length === 0) {
     return (
       <EmptyState
-        icon={searchQuery ? Search : Bookmark}
-        title={searchQuery ? "No cards found" : "No cards yet"}
+        icon={debouncedSearchQuery ? Search : Bookmark}
+        title={debouncedSearchQuery ? "No cards found" : "No cards yet"}
         description={
-          searchQuery
-            ? `No cards match "${searchQuery}"${selectedType ? ` in ${selectedType} cards` : ""}`
+          debouncedSearchQuery
+            ? `No cards match "${debouncedSearchQuery}"${selectedType ? ` in ${selectedType} cards` : ""}`
             : "Add your first bookmark, note, or media to get started."
         }
       />

@@ -5,6 +5,7 @@ import { Header } from "@/components/Header";
 import { AddCard } from "@/components/AddCard";
 import { CardsGrid } from "@/components/CardsGrid";
 import Loading from "@/components/loading";
+import { SearchProvider } from "@/contexts/SearchContext";
 
 export const Route = createFileRoute("/")({
   component: HomeComponent,
@@ -29,10 +30,10 @@ function HomeComponent() {
   }
 
   return (
-    <>
+    <SearchProvider>
       <Header />
       <AddCard />
       <CardsGrid />
-    </>
+    </SearchProvider>
   );
 }
