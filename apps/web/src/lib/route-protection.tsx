@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { authClient } from "./auth-client";
+import Loading from "@/components/loading";
 
 // Hook to protect routes that require authentication
 export function useRequireAuth() {
@@ -41,11 +42,7 @@ export function ProtectedRoute({ children, fallback }: ProtectedRouteProps) {
 
   // Show loading state while checking authentication
   if (isPending) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px] text-muted-foreground">
-        Loading...
-      </div>
-    );
+    return <Loading />;
   }
 
   // Show fallback or nothing if not authenticated

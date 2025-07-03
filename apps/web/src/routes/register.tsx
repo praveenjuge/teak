@@ -13,6 +13,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { useRedirectIfAuthenticated } from "@/lib/route-protection";
 import { AuthLayout } from "@/components/AuthLayout";
+import Loading from "@/components/loading";
 
 export const Route = createFileRoute("/register")({
   component: RouteComponent,
@@ -33,9 +34,7 @@ function RouteComponent() {
   if (authPending) {
     return (
       <AuthLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-muted-foreground">Loading...</div>
-        </div>
+        <Loading />
       </AuthLayout>
     );
   }
