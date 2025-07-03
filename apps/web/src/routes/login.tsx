@@ -29,11 +29,7 @@ function RouteComponent() {
   const navigate = useNavigate();
 
   if (authPending) {
-    return (
-      <AuthLayout>
-        <Loading />
-      </AuthLayout>
-    );
+    return <Loading />;
   }
 
   const handleLogin = async (e: React.FormEvent) => {

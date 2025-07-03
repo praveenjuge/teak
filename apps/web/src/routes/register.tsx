@@ -32,11 +32,7 @@ function RouteComponent() {
 
   // Show loading while checking auth status
   if (authPending) {
-    return (
-      <AuthLayout>
-        <Loading />
-      </AuthLayout>
-    );
+    return <Loading />;
   }
 
   const handleRegister = async (e: React.FormEvent) => {
