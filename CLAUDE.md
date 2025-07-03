@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 **Teak** is a modern full-stack monorepo built with Bun runtime, featuring:
+
 - **Backend**: Hono.js API server with PostgreSQL and Drizzle ORM
 - **Web Frontend**: React 19 + Vite with TanStack Router
 - **Mobile App**: React Native with Expo
@@ -15,6 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Essential Commands
 
 ### Development
+
 ```bash
 # Start full development environment (Docker + all services)
 bun run dev
@@ -28,6 +30,7 @@ bun run install:all
 ```
 
 ### Database Management
+
 ```bash
 # Generate database migrations
 bun run db:generate
@@ -48,6 +51,7 @@ bun run db:reset        # Reset database
 ```
 
 ### Build & Production
+
 ```bash
 # Build all applications
 bun run build
@@ -61,6 +65,7 @@ bun run docker:prod
 ```
 
 ### Code Quality
+
 ```bash
 # Frontend linting (from apps/web/)
 cd apps/web && bun run lint
@@ -72,6 +77,7 @@ bun run type-check
 ## Architecture
 
 ### Project Structure
+
 ```
 teak/
 ├── apps/
@@ -83,23 +89,28 @@ teak/
 ```
 
 ### Key Technologies
+
 - **Runtime**: Bun (JavaScript runtime)
 - **Backend**: Hono.js with Better Auth
 - **Frontend**: React 19, TanStack Router, Tailwind CSS 4.x
 - **Mobile**: React Native, Expo Router
 - **Database**: PostgreSQL 17 with Drizzle ORM
-- **Styling**: Tailwind CSS with Radix UI components
+- **Styling**: Tailwind CSS with shadcn/ui
 - **Validation**: Zod schemas with React Hook Form
 
 ### Authentication System
+
 Better Auth is integrated across all platforms:
+
 - **Database**: Users, sessions, accounts, verification tables
 - **Backend**: `/backend/src/auth.ts` - Auth configuration
 - **Web**: Better Auth React client with session management
 - **Mobile**: Better Auth Expo plugin with secure storage
 
 ### Database Schema
+
 Located in `/backend/src/db/schema.ts`:
+
 - **Users**: Core user management
 - **Sessions**: Authentication sessions
 - **Accounts**: OAuth provider support
@@ -115,6 +126,7 @@ Located in `/backend/src/db/schema.ts`:
 ## Important File Locations
 
 ### Backend (`/backend/src/`)
+
 - `index.ts` - Main Hono.js server with API routes
 - `auth.ts` - Better Auth configuration
 - `db/schema.ts` - Database schema definitions
@@ -122,23 +134,27 @@ Located in `/backend/src/db/schema.ts`:
 - `routes/users.ts` - User management API routes
 
 ### Web Frontend (`/apps/web/src/`)
+
 - `main.tsx` - React 19 entry point with TanStack Router
 - `App.tsx` - Main app component with authentication
 - `routes/` - File-based routing with TanStack Router
 - `components/` - Reusable UI components with Radix UI
 
 ### Mobile App (`/apps/mobile/`)
+
 - `app/_layout.tsx` - Expo Router configuration with auth
 - `app/` - File-based routing structure
 
 ## Environment Configuration
 
 ### Development
+
 - Frontend: `http://localhost:3000`
 - Backend API: `http://localhost:3001`
 - Database: `localhost:5432` (PostgreSQL)
 
 ### Environment Variables
+
 - Development values are in Docker compose files
 - Production requires `POSTGRES_PASSWORD` and `DATABASE_URL`
 - Copy `.env.example` to `.env` for local customization

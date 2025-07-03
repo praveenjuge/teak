@@ -12,7 +12,7 @@
 ## Architecture
 
 - Backend: Hono.js with Bun runtime
-- Frontend: React, TanStack Router, Vite
+- Frontend: React, TanStack Router, TanStack Query, Vite
 - Database: PostgreSQL with Drizzle ORM
 - Mobile: React Native with Expo
 - Auth: Better Auth
