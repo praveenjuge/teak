@@ -8,17 +8,14 @@ export function ThemeToggle() {
   const themes = [
     {
       value: "light",
-      label: "Light",
       icon: Sun,
     },
     {
       value: "dark",
-      label: "Dark",
       icon: Moon,
     },
     {
       value: "system",
-      label: "System",
       icon: Monitor,
     },
   ] as const;
@@ -30,13 +27,12 @@ export function ThemeToggle() {
         const isActive = theme === themeOption.value;
         return (
           <Button
+            size="sm"
             key={themeOption.value}
             variant={isActive ? "outline" : "ghost"}
-            size="sm"
             onClick={() => setTheme(themeOption.value)}
           >
             <Icon />
-            <span className="text-xs">{themeOption.label}</span>
           </Button>
         );
       })}

@@ -107,21 +107,16 @@ function RouteComponent() {
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
-          </form>
-          <div className="mt-4 space-y-2">
-            <Link
-              to="/forgot-password"
-              className="text-sm text-muted-foreground hover:underline flex"
-            >
+            <Link to="/forgot-password" className="text-primary flex">
               Forgot your password?
             </Link>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-muted-foreground">
               Don't have an account?{" "}
-              <Link to="/register" className="hover:underline">
+              <Link to="/register" className="text-primary">
                 Sign up
               </Link>
             </div>
-          </div>
+          </form>
         </CardContent>
       </Card>
     </AuthLayout>

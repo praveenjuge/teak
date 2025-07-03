@@ -111,15 +111,13 @@ function RouteComponent() {
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Sending..." : "Send Reset Link"}
             </Button>
-          </form>
-          <div className="mt-4 text-center">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-muted-foreground">
               Remember your password?{" "}
-              <Link to="/login" className="hover:underline">
+              <Link to="/login" className="text-primary">
                 Sign in
               </Link>
             </div>
-          </div>
+          </form>
         </CardContent>
       </Card>
     </AuthLayout>
