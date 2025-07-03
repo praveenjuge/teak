@@ -1,0 +1,799 @@
+{
+  "info": {
+    "name": "Teak API",
+    "description": "Complete API collection for Teak - a modern card-based content management system",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-extract and set session token from cookies",
+          "if (pm.response && pm.response.cookies) {",
+          "  const sessionCookie = pm.response.cookies.find(cookie => cookie.name === 'better-auth.session_token');",
+          "  if (sessionCookie) {",
+          "    pm.environment.set('sessionToken', sessionCookie.value);",
+          "  }",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [],
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "User authentication endpoints using Better Auth",
+      "item": [
+        {
+          "name": "Sign Up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has user and token', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('user');",
+                  "    pm.expect(jsonData).to.have.property('token');",
+                  "    pm.expect(jsonData.user).to.have.property('id');",
+                  "    pm.expect(jsonData.user).to.have.property('email');",
+                  "});",
+                  "",
+                  "// Extract session token from cookies",
+                  "const cookies = pm.response.cookies;",
+                  "const sessionCookie = cookies.find(cookie => cookie.name === 'better-auth.session_token');",
+                  "if (sessionCookie) {",
+                  "    pm.environment.set('sessionToken', sessionCookie.value);",
+                  "    console.log('Session token saved:', sessionCookie.value.substring(0, 20) + '...');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\",\n  \"name\": \"{{userName}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/sign-up/email",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "sign-up", "email"]
+            },
+            "description": "Create a new user account with email and password"
+          }
+        },
+        {
+          "name": "Sign In",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has user and token', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('user');",
+                  "    pm.expect(jsonData).to.have.property('token');",
+                  "});",
+                  "",
+                  "// Extract session token from cookies",
+                  "const headers = pm.response.headers;",
+                  "if (headers.has('set-cookie')) {",
+                  "    const sessionCookie = headers.get('set-cookie').split('better-auth.session_token=')[1];",
+                  "    pm.environment.set('sessionToken', sessionCookie);",
+                  "    console.log('Session token saved:', sessionCookie);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/sign-in/email",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "sign-in", "email"]
+            },
+            "description": "Sign in with existing email and password"
+          }
+        },
+        {
+          "name": "Get Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has session and user', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('session');",
+                  "    pm.expect(jsonData).to.have.property('user');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/session",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "session"]
+            },
+            "description": "Get current user session information"
+          }
+        },
+        {
+          "name": "Sign Out",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// Clear session token",
+                  "pm.environment.unset('sessionToken');",
+                  "console.log('Session token cleared');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/sign-out",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "sign-out"]
+            },
+            "description": "Sign out and invalidate session"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cards Management",
+      "description": "Complete CRUD operations for cards",
+      "item": [
+        {
+          "name": "List All Cards",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has cards array', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('cards');",
+                  "    pm.expect(jsonData.cards).to.be.an('array');",
+                  "    pm.expect(jsonData).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards?limit={{limit}}&offset={{offset}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "{{limit}}"
+                },
+                {
+                  "key": "offset",
+                  "value": "{{offset}}"
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Search query"
+                },
+                {
+                  "key": "type",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by card type (audio, text, url, image, video)"
+                },
+                {
+                  "key": "sort",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Sort by (created_at, updated_at, type)"
+                },
+                {
+                  "key": "order",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Order (asc, desc)"
+                }
+              ]
+            },
+            "description": "Get list of all cards with optional search and filtering"
+          }
+        },
+        {
+          "name": "Search Cards",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has search results', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('cards');",
+                  "    pm.expect(jsonData).to.have.property('query');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/search?q=React&type=text",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "React",
+                  "description": "Search query"
+                },
+                {
+                  "key": "type",
+                  "value": "text",
+                  "description": "Filter by card type"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "disabled": true
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Advanced search with full-text search and ranking"
+          }
+        },
+        {
+          "name": "Get Card by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has card properties', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('type');",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/{{cardId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards", "{{cardId}}"]
+            },
+            "description": "Get a specific card by ID"
+          }
+        },
+        {
+          "name": "Create Text Card",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has created card', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData.type).to.equal('text');",
+                  "    // Save card ID for other requests",
+                  "    pm.environment.set('lastCreatedCardId', jsonData.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"text\",\n  \"data\": {\n    \"content\": \"This is a sample text card created via Postman. It demonstrates the text card functionality.\",\n    \"title\": \"Sample Text Card\"\n  },\n  \"metaInfo\": {\n    \"source\": \"Postman API Test\",\n    \"tags\": [\"sample\", \"test\", \"postman\"]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards"]
+            },
+            "description": "Create a new text card"
+          }
+        },
+        {
+          "name": "Create Audio Card",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has created card', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.type).to.equal('audio');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"audio\",\n  \"data\": {\n    \"transcription\": \"This is a sample audio transcription created via Postman. It demonstrates how audio content is stored and indexed.\",\n    \"media_url\": \"https://example.com/sample-audio.mp3\",\n    \"duration\": 180,\n    \"title\": \"Sample Audio Card\"\n  },\n  \"metaInfo\": {\n    \"language\": \"en\",\n    \"playtime\": \"00:03:00\",\n    \"source\": \"Postman API Test\",\n    \"tags\": [\"audio\", \"sample\", \"test\"]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards"]
+            },
+            "description": "Create a new audio card with transcription"
+          }
+        },
+        {
+          "name": "Create URL Card",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has created card', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.type).to.equal('url');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"url\",\n  \"data\": {\n    \"url\": \"https://postman.com/\",\n    \"title\": \"Postman API Development Environment\",\n    \"description\": \"Postman is a collaboration platform for API development. It simplifies each step of building an API and streamlines collaboration.\"\n  },\n  \"metaInfo\": {\n    \"source\": \"Postman Website\",\n    \"tags\": [\"api\", \"development\", \"tools\", \"postman\"]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards"]
+            },
+            "description": "Create a new URL card with metadata"
+          }
+        },
+        {
+          "name": "Create Image Card",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has created card', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.type).to.equal('image');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"image\",\n  \"data\": {\n    \"media_url\": \"https://picsum.photos/800/600?random=100\",\n    \"alt_text\": \"Sample image created via Postman API\",\n    \"title\": \"Sample Image Card\",\n    \"description\": \"This is a sample image card demonstrating image content storage and metadata.\"\n  },\n  \"metaInfo\": {\n    \"source\": \"Picsum Photos\",\n    \"tags\": [\"image\", \"sample\", \"postman\", \"demo\"],\n    \"file_size\": 500000\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards"]
+            },
+            "description": "Create a new image card with alt text and description"
+          }
+        },
+        {
+          "name": "Create Video Card",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has created card', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.type).to.equal('video');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"video\",\n  \"data\": {\n    \"media_url\": \"https://example.com/sample-video.mp4\",\n    \"transcription\": \"This is a sample video transcription created via Postman. It demonstrates video content storage with transcription support.\",\n    \"duration\": 300,\n    \"title\": \"Sample Video Card\"\n  },\n  \"metaInfo\": {\n    \"language\": \"en\",\n    \"playtime\": \"00:05:00\",\n    \"source\": \"Postman API Test\",\n    \"tags\": [\"video\", \"sample\", \"demo\"],\n    \"file_size\": 50000000\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards"]
+            },
+            "description": "Create a new video card with transcription"
+          }
+        },
+        {
+          "name": "Update Card",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has updated card', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('updatedAt');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": {\n    \"content\": \"This is an updated text card with new content. The update demonstrates the PUT endpoint functionality.\",\n    \"title\": \"Updated Sample Text Card\"\n  },\n  \"metaInfo\": {\n    \"source\": \"Postman API Test - Updated\",\n    \"tags\": [\"sample\", \"test\", \"postman\", \"updated\"]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/{{lastCreatedCardId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards", "{{lastCreatedCardId}}"]
+            },
+            "description": "Update an existing card (uses lastCreatedCardId from previous create request)"
+          }
+        },
+        {
+          "name": "Delete Card",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response confirms deletion', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/{{lastCreatedCardId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards", "{{lastCreatedCardId}}"]
+            },
+            "description": "Soft delete a card (uses lastCreatedCardId from previous create request)"
+          }
+        },
+        {
+          "name": "Get Card Statistics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has statistics', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('total');",
+                  "    pm.expect(jsonData).to.have.property('by_type');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards", "stats"]
+            },
+            "description": "Get card statistics including total count and breakdown by type"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Utility",
+      "description": "Health check and utility endpoints",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has status ok', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.equal('ok');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Health check endpoint to verify API is running"
+          }
+        },
+        {
+          "name": "Protected Route Test",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has protected message', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData).to.have.property('user');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/protected",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "protected"]
+            },
+            "description": "Test protected route that requires authentication"
+          }
+        }
+      ]
+    }
+  ]
+}

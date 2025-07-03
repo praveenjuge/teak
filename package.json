@@ -13,12 +13,13 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "bun run build:frontend && bun run build:backend",
-    "build:backend": "bun build backend/src/index.ts --outdir dist --target bun",
-    "build:frontend": "cd apps/web && bun run build",
+    "build": "source ./scripts/use-node-20.sh && bun run build:frontend && bun run build:backend",
+    "build:backend": "source ./scripts/use-node-20.sh && bun build backend/src/index.ts --outdir dist --target bun",
+    "build:frontend": "source ./scripts/use-node-20.sh && cd apps/web && bun run build",
     "dev": "./scripts/dev.sh",
-    "dev:backend": "PORT=3001 bun --watch backend/src/index.ts",
-    "dev:frontend": "cd apps/web && bun run dev",
+    "dev:local": "./scripts/dev-local.sh",
+    "dev:backend": "source ./scripts/use-node-20.sh && PORT=3001 bun --watch backend/src/index.ts",
+    "dev:frontend": "source ./scripts/use-node-20.sh && cd apps/web && bun run dev",
     "docker:dev": "docker-compose -f docker/docker-compose.dev.yml up --build",
     "docker:dev:down": "docker-compose -f docker/docker-compose.dev.yml down",
     "docker:dev:clean": "docker-compose -f docker/docker-compose.dev.yml down --volumes --rmi all",
@@ -28,20 +29,22 @@
     "db:backup": "./scripts/db.sh backup",
     "db:status": "./scripts/db.sh status",
     "db:reset": "./scripts/db.sh reset",
-    "db:generate": "cd backend && bunx drizzle-kit generate",
-    "db:migrate": "cd backend && bunx drizzle-kit migrate",
-    "db:push": "cd backend && bunx drizzle-kit push",
-    "db:studio": "cd backend && bunx drizzle-kit studio",
+    "db:generate": "source ./scripts/use-node-20.sh && cd backend && bunx drizzle-kit generate",
+    "db:migrate": "source ./scripts/use-node-20.sh && cd backend && bunx drizzle-kit migrate",
+    "db:push": "source ./scripts/use-node-20.sh && cd backend && bunx drizzle-kit push",
+    "db:studio": "source ./scripts/use-node-20.sh && cd backend && bunx drizzle-kit studio",
+    "db:seed": "source ./scripts/use-node-20.sh && cd backend && bun run src/seeds/cards.ts",
     "install:all": "bun install && cd apps/web && bun install && cd .. && cd mobile && bun install",
-    "start": "bun dist/index.js",
-    "type-check": "bun --no-install --dry-run backend/src/index.ts"
+    "start": "source ./scripts/use-node-20.sh && bun dist/index.js",
+    "type-check": "source ./scripts/use-node-20.sh && bun --no-install --dry-run backend/src/index.ts"
   },
   "dependencies": {
     "@better-auth/expo": "^1.2.12",
     "better-auth": "^1.2.12",
     "drizzle-orm": "^0.44.2",
     "hono": "^4.8.3",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "zod": "^3.25.71"
   },
   "devDependencies": {
     "@types/bun": "latest",

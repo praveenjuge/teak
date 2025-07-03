@@ -5,6 +5,7 @@ import { cache } from 'hono/cache';
 import { serveStatic } from 'hono/bun';
 import { auth } from './auth';
 import { userRoutes } from './routes/users';
+import { cardRoutes } from './routes/cards';
 
 // App with type-safe context
 const app = new Hono<{
@@ -38,11 +39,12 @@ app.use('*', async (c, next) => {
   return next();
 });
 
-// Better Auth handler
-app.on(['POST', 'GET'], '/api/auth/**', (c) => auth.handler(c.req.raw));
+// Better Auth handler - handle all HTTP methods
+app.all('/api/auth/*', (c) => auth.handler(c.req.raw));
 
 // API routes
 app.route('/api/users', userRoutes);
+app.route('/api/cards', cardRoutes);
 
 // Protected session endpoint
 app.get('/api/session', (c) => {

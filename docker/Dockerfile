@@ -1,8 +1,12 @@
 # Multi-stage Dockerfile for Teak App with Bun
 # Stage 1: Build the frontend
-FROM oven/bun:1 AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
+
+# Install Bun for Alpine Linux
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:$PATH"
 
 # Copy frontend package files
 COPY apps/web/package.json apps/web/bun.lock* ./
@@ -17,20 +21,24 @@ COPY apps/web/ ./
 RUN bun run build
 
 # Stage 2: Build the backend and final image
-FROM oven/bun:1 AS final
+FROM node:20-alpine AS final
 
 # Install PostgreSQL client for runtime database operations
-RUN apt-get update && apt-get install -y \
+RUN apk add --no-cache \
     postgresql-client \
     netcat-openbsd \
-    && rm -rf /var/lib/apt/lists/*
+    bash
+
+# Install Bun for Alpine Linux
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:$PATH"
 
 # Set working directory
 WORKDIR /app
 
 # Create non-root user for security
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 --ingroup nodejs nodejs
+RUN addgroup -g 1001 nodejs && \
+    adduser -S -u 1001 -G nodejs nodejs
 
 # Copy backend package files
 COPY package.json bun.lock* ./

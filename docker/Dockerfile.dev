@@ -1,15 +1,19 @@
 # Development Dockerfile for Teak App with hot reloading
-FROM oven/bun:1
+FROM node:20-alpine
 
 # Set working directory
 WORKDIR /app
 
 # Install development tools and PostgreSQL client
-RUN apt-get update && apt-get install -y \
+RUN apk add --no-cache \
   curl \
   postgresql-client \
   netcat-openbsd \
-  && rm -rf /var/lib/apt/lists/*
+  bash
+
+# Install Bun for Alpine Linux
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:$PATH"
 
 # Copy package files first for better caching
 COPY package.json bun.lock* ./
