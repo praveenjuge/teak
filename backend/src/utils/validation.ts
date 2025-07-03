@@ -1,5 +1,5 @@
+import type { Context } from 'hono';
 import { z } from 'zod';
-import { Context } from 'hono';
 
 // Helper to validate request body
 export async function validateBody<T>(c: Context, schema: z.ZodSchema<T>) {
@@ -43,7 +43,7 @@ export function validateParams<T>(c: Context, schema: z.ZodSchema<T>) {
 // Helper to validate card data based on type
 export function validateCardData(type: string, data: any) {
   const { cardDataSchema } = require('../schemas/cards');
-  
+
   try {
     return cardDataSchema.parse({ type, data });
   } catch (error) {

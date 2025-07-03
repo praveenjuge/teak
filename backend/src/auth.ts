@@ -8,7 +8,6 @@
  * - Using Drizzle ORM adapter for database operations
  * 
  * TODO: Add email service integration
- * Popular options:
  * - Resend (resend.com)
  * - SendGrid
  * - AWS SES

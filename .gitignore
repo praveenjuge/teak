@@ -86,3 +86,5 @@ temp/
 bun.lock
 backend/drizzle/meta/
 bun.lockb
+apps/web/bun.lockb
+.gitignore

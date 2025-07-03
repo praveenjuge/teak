@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, desc, asc, and, isNull, or, sql } from 'drizzle-orm';
+import { eq, desc, asc, and, isNull, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { cards } from '../db/schema';
 import {
@@ -7,10 +7,6 @@ import {
   updateCardSchema,
   searchCardsSchema,
   cardIdSchema,
-  cardDataSchema,
-  type CreateCard,
-  type UpdateCard,
-  type SearchCardsQuery
 } from '../schemas/cards';
 import { validateBody, validateQuery, validateParams, validateCardData } from '../utils/validation';
 
@@ -97,11 +93,12 @@ cardRoutes.get('/search', async (c) => {
             ),
             plainto_tsquery('english', ${q})
           )`))
-      .limit(limit)
-      .offset(offset);
+      .limit(typeof limit === 'number' ? limit : 20)
+      .offset(typeof offset === 'number' ? offset : 0);
 
     // Get total count for the search
-    const [{ count }] = await db
+    const countResult = await db
+
       .select({ count: sql<number>`count(*)` })
       .from(cards)
       .where(
@@ -118,13 +115,14 @@ cardRoutes.get('/search', async (c) => {
           `
         )
       );
+    const count = countResult && countResult[0] ? countResult[0].count : 0;
 
     return c.json({
       cards: searchResults,
       total: count,
       limit,
       offset,
-      hasMore: offset + limit < count,
+      hasMore: (typeof offset === 'number' ? offset : 0) + (typeof limit === 'number' ? limit : 20) < count,
       query: q
     });
 
@@ -158,7 +156,7 @@ cardRoutes.get('/stats', async (c) => {
       .groupBy(cards.type);
 
     // Get total count
-    const [{ total }] = await db
+    const totalResult = await db
       .select({ total: sql<number>`count(*)` })
       .from(cards)
       .where(
@@ -167,6 +165,7 @@ cardRoutes.get('/stats', async (c) => {
           isNull(cards.deletedAt)
         )
       );
+    const total = totalResult && totalResult[0] ? totalResult[0].total : 0;
 
     return c.json({
       total,
@@ -204,10 +203,8 @@ cardRoutes.get('/', async (c) => {
       whereClause = and(whereClause, eq(cards.type, type));
     }
 
-    // Build the base query
-    let dbQuery = db.select().from(cards).where(whereClause);
-
-    // Add search if query provided
+    // Always use the same select shape for dbQuery
+    let effectiveWhereClause = whereClause;
     if (q) {
       const searchCondition = sql`
         to_tsvector('english', 
@@ -218,34 +215,41 @@ cardRoutes.get('/', async (c) => {
           COALESCE(${cards.data}->>'description', '')
         ) @@ plainto_tsquery('english', ${q})
       `;
-      whereClause = and(whereClause, searchCondition);
-      dbQuery = db.select().from(cards).where(whereClause);
+      effectiveWhereClause = and(whereClause, searchCondition);
     }
-
-    // Add sorting
     const sortColumn = sort === 'created_at' ? cards.createdAt :
       sort === 'updated_at' ? cards.updatedAt :
         cards.type;
     const orderBy = order === 'asc' ? asc(sortColumn) : desc(sortColumn);
 
-    dbQuery = dbQuery.orderBy(orderBy);
-
-    // Add pagination
-    dbQuery = dbQuery.limit(limit).offset(offset);
-
-    // Execute the query
-    const result = await dbQuery;
+    const result = await db
+      .select({
+        id: cards.id,
+        type: cards.type,
+        data: cards.data,
+        metaInfo: cards.metaInfo,
+        createdAt: cards.createdAt,
+        updatedAt: cards.updatedAt,
+        deletedAt: cards.deletedAt,
+        userId: cards.userId
+      })
+      .from(cards)
+      .where(effectiveWhereClause)
+      .orderBy(orderBy)
+      .limit(typeof limit === 'number' ? limit : 20)
+      .offset(typeof offset === 'number' ? offset : 0);
 
     // Get total count for pagination
     const countQuery = db.select({ count: sql<number>`count(*)` }).from(cards).where(whereClause);
-    const [{ count }] = await countQuery;
+    const countResult = await countQuery;
+    const count = countResult && countResult[0] ? countResult[0].count : 0;
 
     return c.json({
       cards: result,
       total: count,
       limit,
       offset,
-      hasMore: offset + limit < count
+      hasMore: (typeof offset === 'number' ? offset : 0) + (typeof limit === 'number' ? limit : 20) < count
     });
 
   } catch (error) {
