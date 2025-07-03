@@ -4,6 +4,7 @@ import type { Card } from "@/lib/api";
 import { CardItem } from "./CardItem";
 import { AddCardItem } from "./AddCardItem";
 import { EmptyState } from "./empty-state";
+import { CardsGridSkeleton } from "./CardSkeleton";
 import { AlertTriangle, Search } from "lucide-react";
 import { useSearch } from "@/contexts/SearchContext";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
@@ -12,7 +13,7 @@ export function CardsGrid() {
   const { searchQuery, selectedType } = useSearch();
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 200);
 
-  const { data, error, refetch } = useQuery({
+  const { data, error, refetch, isLoading } = useQuery({
     queryKey: ["cards", { searchQuery: debouncedSearchQuery, selectedType }],
     queryFn: () => {
       return apiClient.getCards({
@@ -25,6 +26,10 @@ export function CardsGrid() {
     staleTime: 30 * 1000, // 30 seconds
     refetchOnWindowFocus: false,
   });
+
+  if (isLoading) {
+    return <CardsGridSkeleton />;
+  }
 
   if (error) {
     return (

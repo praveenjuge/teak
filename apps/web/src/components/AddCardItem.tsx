@@ -144,7 +144,7 @@ export function AddCardItem() {
   };
 
   return (
-    <Card className="border-dashed">
+    <Card className="border-dashed min-h-50">
       <CardContent className="h-full">
         <Textarea
           ref={textareaRef}
