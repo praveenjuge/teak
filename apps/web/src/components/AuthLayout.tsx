@@ -1,7 +1,6 @@
-import { memo, Suspense, lazy } from "react";
+import { Suspense, lazy } from "react";
 import Logo from "./Logo";
 
-// Lazy load patterns for better performance
 const TopPattern = lazy(() =>
   import("@/components/patterns/TopPattern").then((m) => ({
     default: m.TopPattern,
@@ -13,11 +12,7 @@ const BottomPattern = lazy(() =>
   }))
 );
 
-interface AuthLayoutProps {
-  children: React.ReactNode;
-}
-
-export const AuthLayout = memo(({ children }: AuthLayoutProps) => {
+export const AuthLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <>
       <main className="mx-auto flex max-w-xs flex-col items-center justify-center space-y-8 py-14 md:h-screen">
@@ -32,6 +27,4 @@ export const AuthLayout = memo(({ children }: AuthLayoutProps) => {
       </Suspense>
     </>
   );
-});
-
-AuthLayout.displayName = "AuthLayout";
+};

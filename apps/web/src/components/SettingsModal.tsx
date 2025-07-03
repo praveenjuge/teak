@@ -15,10 +15,10 @@ export default function SettingsModal() {
   const { data: session } = useSession();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // Handle user sign out
   const handleSignOut = async () => {
     try {
       await authClient.signOut();
+      window.location.reload();
       setSettingsOpen(false);
     } catch (error) {
       console.error("Sign out failed:", error);

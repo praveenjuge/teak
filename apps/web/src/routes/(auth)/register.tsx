@@ -11,51 +11,59 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
-import { useRedirectIfAuthenticated } from "@/lib/route-protection";
 import { AuthLayout } from "@/components/AuthLayout";
-import Loading from "@/components/loading";
 
-export const Route = createFileRoute("/login")({
+export const Route = createFileRoute("/(auth)/register")({
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  const { isPending: authPending } = useRedirectIfAuthenticated();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  if (authPending) {
-    return <Loading />;
-  }
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      setIsLoading(false);
+      return;
+    }
+
+    // Validate password length
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const { data, error } = await authClient.signIn.email({
+      const { data, error } = await authClient.signUp.email({
         email,
         password,
+        name: "", // Empty name since it's not collected from user
       });
 
       if (error) {
-        setError(error.message || "Login failed");
-        console.log("Login error:", error);
+        setError(error.message || "Registration failed");
+        console.log("Registration error:", error);
         return;
       }
 
       if (data) {
-        console.log("Login successful:", data);
-        // Redirect to home page after successful login
-        navigate({ to: "/" });
+        console.log("Registration successful:", data);
+        // Redirect to login page after successful registration
+        navigate({ to: "/login" });
       }
     } catch (err) {
-      console.error("Login error:", err);
+      console.error("Registration error:", err);
       setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
@@ -66,11 +74,11 @@ function RouteComponent() {
     <AuthLayout>
       <Card>
         <CardHeader>
-          <CardTitle>Welcome to Teak</CardTitle>
-          <CardDescription>Sign in to your account to continue</CardDescription>
+          <CardTitle>Create Account</CardTitle>
+          <CardDescription>Sign up for a new account</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleRegister} className="space-y-4">
             {error && (
               <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
                 {error}
@@ -93,23 +101,32 @@ function RouteComponent() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder="Create a password (min 8 characters)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Confirm your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? "Creating account..." : "Create Account"}
             </Button>
-            <Link to="/forgot-password" className="text-primary flex">
-              Forgot your password?
-            </Link>
             <div className="text-muted-foreground">
-              Don't have an account?{" "}
-              <Link to="/register" className="text-primary">
-                Sign up
+              Already have an account?{" "}
+              <Link to="/login" className="text-primary">
+                Sign in
               </Link>
             </div>
           </form>

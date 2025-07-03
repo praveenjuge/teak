@@ -18,7 +18,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { AuthLayout } from "@/components/AuthLayout";
 
-export const Route = createFileRoute("/reset-password")({
+export const Route = createFileRoute("/(auth)/reset-password")({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>) => ({
     token: (search.token as string) || "",
@@ -32,7 +32,7 @@ function RouteComponent() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
-  const { token } = useSearch({ from: "/reset-password" });
+  const { token } = useSearch({ from: "/(auth)/reset-password" });
 
   useEffect(() => {
     // Check if token is present in URL

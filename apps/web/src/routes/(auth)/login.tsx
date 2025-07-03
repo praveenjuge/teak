@@ -11,69 +11,43 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
-import { useRedirectIfAuthenticated } from "@/lib/route-protection";
 import { AuthLayout } from "@/components/AuthLayout";
-import Loading from "@/components/loading";
 
-export const Route = createFileRoute("/register")({
+export const Route = createFileRoute("/(auth)/login")({
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  // Redirect if already authenticated
-  const { isPending: authPending } = useRedirectIfAuthenticated();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  // Show loading while checking auth status
-  if (authPending) {
-    return <Loading />;
-  }
-
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
-    // Validate passwords match
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      setIsLoading(false);
-      return;
-    }
-
-    // Validate password length
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters long");
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const { data, error } = await authClient.signUp.email({
+      const { data, error } = await authClient.signIn.email({
         email,
         password,
-        name: "", // Empty name since it's not collected from user
       });
 
       if (error) {
-        setError(error.message || "Registration failed");
-        console.log("Registration error:", error);
+        setError(error.message || "Login failed");
+        console.log("Login error:", error);
         return;
       }
 
       if (data) {
-        console.log("Registration successful:", data);
-        // Redirect to login page after successful registration
-        navigate({ to: "/login" });
+        console.log("Login successful:", data);
+        // Redirect to home page after successful login
+        navigate({ to: "/" });
       }
     } catch (err) {
-      console.error("Registration error:", err);
+      console.error("Login error:", err);
       setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
@@ -84,11 +58,11 @@ function RouteComponent() {
     <AuthLayout>
       <Card>
         <CardHeader>
-          <CardTitle>Create Account</CardTitle>
-          <CardDescription>Sign up for a new account</CardDescription>
+          <CardTitle>Welcome to Teak</CardTitle>
+          <CardDescription>Sign in to your account to continue</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleRegister} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
             {error && (
               <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
                 {error}
@@ -111,32 +85,23 @@ function RouteComponent() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Create a password (min 8 characters)"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="Confirm your password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Creating account..." : "Create Account"}
+              {isLoading ? "Signing in..." : "Sign In"}
             </Button>
+            <Link to="/forgot-password" className="text-primary flex">
+              Forgot your password?
+            </Link>
             <div className="text-muted-foreground">
-              Already have an account?{" "}
-              <Link to="/login" className="text-primary">
-                Sign in
+              Don't have an account?{" "}
+              <Link to="/register" className="text-primary">
+                Sign up
               </Link>
             </div>
           </form>

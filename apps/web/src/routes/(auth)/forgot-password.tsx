@@ -13,7 +13,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { AuthLayout } from "@/components/AuthLayout";
 
-export const Route = createFileRoute("/forgot-password")({
+export const Route = createFileRoute("/(auth)/forgot-password")({
   component: RouteComponent,
 });
 
