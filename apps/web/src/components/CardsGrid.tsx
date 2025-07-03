@@ -4,8 +4,7 @@ import type { Card } from "@/lib/api";
 import { CardItem } from "./CardItem";
 import { AddCardItem } from "./AddCardItem";
 import { EmptyState } from "./empty-state";
-import { AlertTriangle, Loader2, Search } from "lucide-react";
-import { Button } from "./ui/button";
+import { AlertTriangle, Search } from "lucide-react";
 import { useSearch } from "@/contexts/SearchContext";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 
@@ -29,19 +28,17 @@ export function CardsGrid() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 space-y-4">
-        <AlertTriangle className="h-12 w-12 text-destructive" />
-        <div className="text-center">
-          <h3 className="text-lg font-semibold">Failed to load cards</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            {error instanceof Error ? error.message : "Something went wrong"}
-          </p>
-        </div>
-        <Button onClick={() => refetch()} variant="outline">
-          <Loader2 className="h-4 w-4 mr-2" />
-          Try Again
-        </Button>
-      </div>
+      <EmptyState
+        icon={AlertTriangle}
+        title="Failed to load cards"
+        description={
+          error instanceof Error ? error.message : "Something went wrong"
+        }
+        action={{
+          label: "Try Again",
+          onClick: () => refetch(),
+        }}
+      />
     );
   }
 
@@ -59,14 +56,14 @@ export function CardsGrid() {
 
     // When not searching and no cards exist, show just the AddCardItem
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 my-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <AddCardItem />
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 my-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {/* Only show AddCardItem when not searching */}
       {!debouncedSearchQuery && <AddCardItem />}
       {data.cards.map((card: Card) => (
