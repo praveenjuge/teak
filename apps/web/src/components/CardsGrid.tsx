@@ -70,7 +70,7 @@ export function CardsGrid() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 my-6">
       {data.cards.map((card: Card) => (
-        <CardItem key={card.id} card={card} />
+        <CardItem key={card.id} card={card} onDelete={refetch} />
       ))}
     </div>
   );
