@@ -36,8 +36,8 @@ export function Header() {
   };
 
   return (
-    <header className="max-w-7xl mx-auto flex items-center justify-between h-14 mb-4">
-      <form onSubmit={handleSearch} className="relative flex-1 max-w-md">
+    <header className="max-w-7xl mx-auto flex items-center justify-between h-14 mb-4 gap-2">
+      <form onSubmit={handleSearch} className="relative flex-1">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground size-4" />
         <Input
           type="search"
@@ -49,7 +49,7 @@ export function Header() {
       </form>
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogTrigger asChild>
-          <Button variant="ghost" size="icon">
+          <Button variant="outline" size="icon">
             <Settings />
             <span className="sr-only">Settings</span>
           </Button>
