@@ -15,12 +15,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ✅ Login function (Redirect to Home)
   const login = () => {
     setIsAuthenticated(true);
-    router.replace("/(main)/(tabs)/(home)"); // ✅ Redirect to home tab
+    router.replace("/(tabs)"); // ✅ Redirect to home tab
   };
   // ✅ Logout function (Redirect to Auth Screen)
   const logout = () => {
     setIsAuthenticated(false);
-    router.replace("/(auth)"); // ✅ Redirect to login screen
+    router.replace("/(auth)/login"); // ✅ Redirect to login screen
   };
   return (
     <AuthContext.Provider value={{ isAuthenticated, login, logout }}>

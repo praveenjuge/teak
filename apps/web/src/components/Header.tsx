@@ -9,10 +9,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { authClient } from "@/lib/auth-client";
+import { authClient, useSession } from "@/lib/auth-client";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export function Header() {
+  const { data: session } = useSession();
   const [searchQuery, setSearchQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -53,22 +54,30 @@ export function Header() {
             <span className="sr-only">Settings</span>
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[400px] p-0">
-          <DialogHeader className="px-6 py-4 pb-2">
-            <DialogTitle className="text-lg font-semibold">
-              Settings
-            </DialogTitle>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Settings</DialogTitle>
           </DialogHeader>
-          <div className="px-6 pb-6 space-y-4">
-            <ThemeToggle />
-            <Button
-              onClick={handleSignOut}
-              variant="ghost"
-              className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 px-3 py-2.5 h-auto"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="text-sm">Sign Out</span>
-            </Button>
+          <div className="space-y-4 mt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Email</span>
+              <span>{session?.user.email}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Server</span>
+              <span className="font-mono">http://localhost:3001</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Theme</span>
+              <ThemeToggle />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">You are Logged In</span>
+              <Button onClick={handleSignOut} variant="outline" size="sm">
+                <LogOut />
+                Logout
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

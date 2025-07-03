@@ -19,7 +19,6 @@ export const Route = createFileRoute("/login")({
 });
 
 function RouteComponent() {
-  // Redirect if already authenticated
   const { isPending: authPending } = useRedirectIfAuthenticated();
 
   const [email, setEmail] = useState("");
@@ -28,7 +27,6 @@ function RouteComponent() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  // Show loading while checking auth status
   if (authPending) {
     return (
       <AuthLayout>

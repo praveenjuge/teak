@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Card, CardContent } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
 import { useEffect } from "react";
 import { Header } from "@/components/Header";
+import { EmptyState } from "@/components/empty-state";
+import { Axe } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: HomeComponent,
@@ -27,24 +28,17 @@ function HomeComponent() {
   }
 
   if (!session?.user) {
-    return null; // Will redirect to login
+    return null;
   }
 
   return (
     <>
       <Header />
-      <Card>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="font-medium text-muted-foreground">Email</label>
-            <p>{session.user.email}</p>
-          </div>
-          <div>
-            <label className="font-medium text-muted-foreground">User ID</label>
-            <p className="font-mono">{session.user.id}</p>
-          </div>
-        </CardContent>
-      </Card>
+      <EmptyState
+        icon={Axe}
+        title="Welcome to Teak"
+        description="Add your first bookmark, note, or image to start the magic."
+      />
     </>
   );
 }
