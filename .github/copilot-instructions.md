@@ -11,8 +11,9 @@
 ## Architecture
 
 - Backend: Hono.js with Bun runtime
-- Frontend: React with TanStack Router
+- Frontend: React, TanStack Router, Vite
 - Database: PostgreSQL with Drizzle ORM
+- Mobile: React Native with Expo
 - Auth: Better Auth
 - Styling: Tailwind CSS with shadcn/ui components
 - Deployment: Docker with Docker Compose
@@ -20,6 +21,7 @@
 ## File Structure
 
 - `apps/web/` - React frontend application
+- `apps/mobile/` - React Native mobile application
 - `backend/` - Hono.js backend API
 - `docker/` - Docker configuration files
 - `scripts/` - Build and development scripts

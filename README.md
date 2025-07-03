@@ -1,10 +1,11 @@
 # Teak
 
-- **Runtime**: Bun
-- **Backend**: Hono.js (TypeScript)
-- **Frontend**: React 19 + Vite (TypeScript)
-- **Database**: PostgreSQL 17
-- **Containerization**: Docker
+- Runtime: Bun
+- Backend: Hono.js (TypeScript)
+- Web App: React 19 + Vite (TypeScript)
+- Mobile App: React Native with Expo
+- Database: PostgreSQL 17
+- Containerization: Docker
 
 ## 📁 Project Structure
 
@@ -22,7 +23,7 @@ teak/
 │   │   │   └── main.tsx     # React entry point
 │   │   ├── vite.config.ts   # Vite config with proxy
 │   │   └── package.json     # Frontend dependencies
-│   └── mobile/              # Mobile app
+│   └── mobile/              # Expo React Native Mobile App
 ├── docker/                  # Docker configuration
 ├── scripts/                 # Utility scripts
 ├── .env.example             # Environment variables template
@@ -41,12 +42,14 @@ teak/
 ### Local Development
 
 1. **Clone and navigate to the project:**
+
    ```bash
    git clone git@github.com:praveenjuge/teak.git
    cd teak
    ```
 
 2. **Start development environment:**
+
    ```bash
    bun run dev
    ```

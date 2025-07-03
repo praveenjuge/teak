@@ -32,7 +32,7 @@
     "db:migrate": "cd backend && bunx drizzle-kit migrate",
     "db:push": "cd backend && bunx drizzle-kit push",
     "db:studio": "cd backend && bunx drizzle-kit studio",
-    "install:all": "bun install && cd apps/web && bun install",
+    "install:all": "bun install && cd apps/web && bun install && cd .. && cd mobile && bun install",
     "start": "bun dist/index.js",
     "type-check": "bun --no-install --dry-run backend/src/index.ts"
   },
