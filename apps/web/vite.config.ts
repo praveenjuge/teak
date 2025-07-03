@@ -3,14 +3,6 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import path from "path"
-import crypto from "crypto"
-
-// Polyfill for Bun compatibility
-if (!crypto.hash) {
-  crypto.hash = function(algorithm: string, data: any) {
-    return crypto.createHash(algorithm).update(data).digest('hex')
-  }
-}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -20,7 +12,18 @@ export default defineConfig({
       target: 'react',
       autoCodeSplitting: true,
     }),
-    react(),
+    react({
+      babel: {
+        plugins: [
+          [
+            'babel-plugin-react-compiler',
+            {
+              runtime: 'automatic',
+            },
+          ],
+        ],
+      },
+    }),
   ],
   server: {
     host: '0.0.0.0', // Allow external connections (required for Docker)
