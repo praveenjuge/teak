@@ -7,6 +7,7 @@
 - Run `bun run dev` for full-stack development
 - Use `bun run db:studio` for database management
 - Follow the Docker development setup when needed
+- Don't implement any toast ui notifications
 
 ## Architecture
 

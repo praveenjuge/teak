@@ -89,7 +89,7 @@ export const updateCardSchema = z.object({
 export const searchCardsSchema = z.object({
   q: z.string().optional(), // Search query
   type: cardTypeEnum.optional(), // Filter by card type
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  limit: z.coerce.number().int().min(1).optional(), // Remove max limit and make optional
   offset: z.coerce.number().int().min(0).default(0),
   sort: z.enum(['created_at', 'updated_at', 'type']).default('created_at'),
   order: z.enum(['asc', 'desc']).default('desc'),

@@ -85,3 +85,4 @@ tmp/
 temp/
 bun.lock
 backend/drizzle/meta/
+bun.lockb
