@@ -1,5 +1,5 @@
 # Development Dockerfile for Teak App with hot reloading
-FROM node:20-alpine
+FROM oven/bun:1-alpine
 
 # Set working directory
 WORKDIR /app
@@ -11,9 +11,7 @@ RUN apk add --no-cache \
   netcat-openbsd \
   bash
 
-# Install Bun for Alpine Linux
-RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:$PATH"
+# Bun is already installed in the oven/bun image
 
 # Copy package files first for better caching
 COPY package.json bun.lock* ./

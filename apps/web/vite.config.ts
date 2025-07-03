@@ -3,6 +3,14 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import path from "path"
+import crypto from "crypto"
+
+// Polyfill for Bun compatibility
+if (!crypto.hash) {
+  crypto.hash = function(algorithm: string, data: any) {
+    return crypto.createHash(algorithm).update(data).digest('hex')
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({

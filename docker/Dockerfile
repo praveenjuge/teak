@@ -1,12 +1,10 @@
 # Multi-stage Dockerfile for Teak App with Bun
 # Stage 1: Build the frontend
-FROM node:20-alpine AS frontend-builder
+FROM oven/bun:1-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Install Bun for Alpine Linux
-RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:$PATH"
+# Bun is already installed in the oven/bun image
 
 # Copy frontend package files
 COPY apps/web/package.json apps/web/bun.lock* ./
@@ -21,7 +19,7 @@ COPY apps/web/ ./
 RUN bun run build
 
 # Stage 2: Build the backend and final image
-FROM node:20-alpine AS final
+FROM oven/bun:1-alpine AS final
 
 # Install PostgreSQL client for runtime database operations
 RUN apk add --no-cache \
@@ -29,16 +27,14 @@ RUN apk add --no-cache \
     netcat-openbsd \
     bash
 
-# Install Bun for Alpine Linux
-RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:$PATH"
+# Bun is already installed in the oven/bun image
 
 # Set working directory
 WORKDIR /app
 
 # Create non-root user for security
-RUN addgroup -g 1001 nodejs && \
-    adduser -S -u 1001 -G nodejs nodejs
+RUN addgroup -g 1001 bun && \
+    adduser -S -u 1001 -G bun bun
 
 # Copy backend package files
 COPY package.json bun.lock* ./
@@ -60,8 +56,8 @@ RUN cd backend && bun run ../node_modules/.bin/drizzle-kit generate
 COPY --from=frontend-builder /app/frontend/dist ./apps/web/dist
 
 # Set correct ownership
-RUN chown -R nodejs:nodejs /app
-USER nodejs
+RUN chown -R bun:bun /app
+USER bun
 
 # Environment variables
 ENV NODE_ENV=production

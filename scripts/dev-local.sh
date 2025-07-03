@@ -20,17 +20,17 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Function to setup nvm and Node.js v20
-setup_nvm() {
-    local nvm_command="source ~/.nvm/nvm.sh && nvm use 20"
-    echo "$nvm_command"
+# Function to setup Bun version
+setup_bun() {
+    local bun_command="bun --version"
+    echo "$bun_command"
 }
 
 # Function to detect terminal and open new tab
 open_terminal_tab() {
     local title="$1"
     local command="$2"
-    local full_command="$(setup_nvm) && $command"
+    local full_command="$command"
     
     # Detect the operating system and terminal
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -112,13 +112,13 @@ done
 
 print_status "PostgreSQL is ready!"
 
-# Setup nvm and use Node.js v20
-print_status "Setting up Node.js v20 with nvm..."
-if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
-    source "$HOME/.nvm/nvm.sh"
-    nvm use 20
+# Check Bun version
+print_status "Using Bun runtime..."
+if command -v bun &> /dev/null; then
+    print_status "Bun version: $(bun --version)"
 else
-    print_warning "nvm not found. Make sure Node.js v20 is installed."
+    print_error "Bun not found. Please install Bun."
+    exit 1
 fi
 
 # Install dependencies
