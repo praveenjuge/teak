@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { authClient } from "@/lib/auth-client";
 import { useEffect } from "react";
 import { Header } from "@/components/Header";
-import { AddCard } from "@/components/AddCard";
 import { CardsGrid } from "@/components/CardsGrid";
 import Loading from "@/components/loading";
 import { SearchProvider } from "@/contexts/SearchContext";
@@ -32,7 +31,6 @@ function HomeComponent() {
   return (
     <SearchProvider>
       <Header />
-      <AddCard />
       <CardsGrid />
     </SearchProvider>
   );

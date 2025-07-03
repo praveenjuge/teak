@@ -2,7 +2,14 @@ import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { apiClient, type Card } from "@/lib/api";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { apiClient, type Card as CardType } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
 function isUrl(text: string): boolean {
@@ -15,7 +22,7 @@ function isUrl(text: string): boolean {
 }
 
 function detectCardType(content: string): {
-  type: Card["type"];
+  type: CardType["type"];
   data: Record<string, any>;
 } {
   const trimmedContent = content.trim();
@@ -53,14 +60,14 @@ function detectCardType(content: string): {
   };
 }
 
-export function AddCard() {
+export function AddCardItem() {
   const [content, setContent] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
 
   const createCardMutation = useMutation({
     mutationFn: (cardData: {
-      type: Card["type"];
+      type: CardType["type"];
       data: Record<string, any>;
       metaInfo?: Record<string, any>;
     }) => apiClient.createCard(cardData),
@@ -137,27 +144,31 @@ export function AddCard() {
   };
 
   return (
-    <div className="flex gap-2">
-      <Textarea
-        ref={textareaRef}
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="Enter your bookmark, URL, or note... (⌘+Enter to save)"
-        disabled={createCardMutation.isPending}
-        className="min-h-[60px] resize-none"
-      />
-      <Button
-        onClick={handleSave}
-        size="sm"
-        disabled={!content.trim() || createCardMutation.isPending}
-        className="shrink-0"
-      >
-        {createCardMutation.isPending && (
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-        )}
-        Save
-      </Button>
-    </div>
+    <Card className="border-dashed">
+      <CardContent className="h-full">
+        <Textarea
+          ref={textareaRef}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Enter your bookmark, URL, or note... (⌘+Enter to save)"
+          disabled={createCardMutation.isPending}
+          className="min-h-[80px] resize-none h-full"
+        />
+      </CardContent>
+      <CardFooter>
+        <Button
+          size="sm"
+          onClick={handleSave}
+          disabled={!content.trim() || createCardMutation.isPending}
+        >
+          {createCardMutation.isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <span>Save Card</span>
+          )}
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }

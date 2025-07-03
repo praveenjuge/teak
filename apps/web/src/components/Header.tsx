@@ -36,7 +36,7 @@ export function Header() {
     <header className="max-w-7xl mx-auto flex items-center justify-between h-14 mb-4 gap-2">
       <form onSubmit={handleSearch} className="relative flex-1">
         {isSearching ? (
-          <Loader2 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground size-4 animate-spin" />
+          <Loader2 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-primary size-4 animate-spin" />
         ) : (
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground size-4" />
         )}

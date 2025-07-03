@@ -1,8 +1,9 @@
 import type { Card as CardType } from "@/lib/api";
 import {
   Card,
-  CardAction,
   CardContent,
+  CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -102,18 +103,9 @@ export function CardItem({ card, onDelete }: CardItemProps) {
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
-        <CardAction className="text-xs bg-muted px-2 py-1 rounded flex items-center gap-1">
-          {getCardIcon(card.type)}
-          {card.type}
-        </CardAction>
+        {content && <CardDescription>{content && content}</CardDescription>}
       </CardHeader>
       <CardContent className="space-y-4">
-        {content && (
-          <p className="text-sm text-muted-foreground line-clamp-3">
-            {content}
-          </p>
-        )}
-
         {/* Render type-specific content */}
         {card.type === "url" && card.data.url && (
           <a
@@ -145,9 +137,15 @@ export function CardItem({ card, onDelete }: CardItemProps) {
               {(card.data.duration % 60).toString().padStart(2, "0")}
             </div>
           )}
+      </CardContent>
+      <CardFooter className="flex justify-between items-center">
+        <div className="text-xs bg-muted px-2 py-1 rounded-full flex items-center gap-1">
+          {getCardIcon(card.type)}
+          {card.type}
+        </div>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="outline" size="icon" disabled={isDeleting}>
+            <Button variant="outline" size="sm" disabled={isDeleting}>
               <Trash2 />
             </Button>
           </AlertDialogTrigger>
@@ -167,7 +165,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </CardContent>
+      </CardFooter>
     </Card>
   );
 }
