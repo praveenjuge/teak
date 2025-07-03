@@ -29,6 +29,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api";
 import { useState } from "react";
+import { Badge } from "./ui/badge";
 
 interface CardItemProps {
   card: CardType;
@@ -139,10 +140,10 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           )}
       </CardContent>
       <CardFooter className="flex justify-between items-center">
-        <div className="text-xs bg-muted px-2 py-1 rounded-full flex items-center gap-1">
+        <Badge variant="outline">
           {getCardIcon(card.type)}
           {card.type}
-        </div>
+        </Badge>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="outline" size="sm" disabled={isDeleting}>
