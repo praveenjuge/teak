@@ -84,3 +84,4 @@ Thumbs.db
 tmp/
 temp/
 bun.lock
+backend/drizzle/meta/

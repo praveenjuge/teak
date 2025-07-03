@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, text, serial, pgEnum, timestamp, boolean, jsonb } from 'drizzle-orm/pg-core';
 
 // Users table for Better Auth
 export const users = pgTable('user', {
@@ -49,3 +49,43 @@ export const verifications = pgTable('verification', {
   createdAt: timestamp('createdAt').notNull().defaultNow(),
   updatedAt: timestamp('updatedAt').notNull().defaultNow(),
 });
+
+
+// Cards
+// We can have the data part to have core attributes relevant to the card type
+// and the meta_info part to have more non core attributes.
+
+// e.g
+// Audio
+// {
+//   "type": "audio",
+//   "data": {
+//     "transcription": "This audio talks about google search engine",
+//     "media_url": "https://example.com/audio.mp3"
+//   },
+//   "meta_info": {
+//     "language": "en",
+//     "playtime": "00:10:00"
+//   }
+// }
+// 
+// Text
+// {
+//   "type": "text",
+//   "data": {
+//     "content": "This is a text card"
+//    },
+//   "meta_info": {}
+// }
+
+export const cardType = pgEnum('cardType', ['audio', 'text', 'url', 'image', 'video'])
+export const cards = pgTable('cards', {
+  id: serial('id').primaryKey().notNull(),
+  type: cardType('type').notNull(),
+  data: jsonb('data').default({}), // contains content, url, transcription, media_url based on type
+  metaInfo: jsonb('metaInfo').default({}),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+  deletedAt: timestamp('deletedAt'),
+  userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+})
