@@ -2,15 +2,15 @@ import { Hono } from 'hono';
 import { eq, desc, asc, and, isNull, or, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { cards } from '../db/schema';
-import { 
-  createCardSchema, 
-  updateCardSchema, 
-  searchCardsSchema, 
+import {
+  createCardSchema,
+  updateCardSchema,
+  searchCardsSchema,
   cardIdSchema,
   cardDataSchema,
   type CreateCard,
   type UpdateCard,
-  type SearchCardsQuery 
+  type SearchCardsQuery
 } from '../schemas/cards';
 import { validateBody, validateQuery, validateParams, validateCardData } from '../utils/validation';
 
@@ -21,6 +21,166 @@ export const cardRoutes = new Hono<{
     session: any;
   }
 }>();
+
+// GET /api/cards/search - Advanced search endpoint
+cardRoutes.get('/search', async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user) {
+      return c.json({ error: 'Authentication required' }, 401);
+    }
+
+    const query = validateQuery(c, searchCardsSchema);
+    const { q, type, limit, offset } = query;
+
+    if (!q) {
+      return c.json({ error: 'Search query is required' }, 400);
+    }
+
+    // Build search query with ranking
+    let whereClause = and(
+      eq(cards.userId, user.id),
+      isNull(cards.deletedAt)
+    );
+
+    // Add type filter if specified
+    if (type) {
+      whereClause = and(whereClause, eq(cards.type, type));
+    }
+
+    // Full-text search with ranking
+    const searchResults = await db
+      .select({
+        id: cards.id,
+        type: cards.type,
+        data: cards.data,
+        metaInfo: cards.metaInfo,
+        createdAt: cards.createdAt,
+        updatedAt: cards.updatedAt,
+        deletedAt: cards.deletedAt,
+        userId: cards.userId,
+        rank: sql<number>`
+          ts_rank(
+            to_tsvector('english', 
+              COALESCE(${cards.data}->>'content', '') || ' ' ||
+              COALESCE(${cards.data}->>'url', '') || ' ' ||
+              COALESCE(${cards.data}->>'transcription', '') || ' ' ||
+              COALESCE(${cards.data}->>'title', '') || ' ' ||
+              COALESCE(${cards.data}->>'description', '')
+            ),
+            plainto_tsquery('english', ${q})
+          )
+        `
+      })
+      .from(cards)
+      .where(
+        and(
+          whereClause,
+          sql`
+            to_tsvector('english', 
+              COALESCE(${cards.data}->>'content', '') || ' ' ||
+              COALESCE(${cards.data}->>'url', '') || ' ' ||
+              COALESCE(${cards.data}->>'transcription', '') || ' ' ||
+              COALESCE(${cards.data}->>'title', '') || ' ' ||
+              COALESCE(${cards.data}->>'description', '')
+            ) @@ plainto_tsquery('english', ${q})
+          `
+        )
+      )
+      .orderBy(desc(sql`ts_rank(
+            to_tsvector('english', 
+              COALESCE(${cards.data}->>'content', '') || ' ' ||
+              COALESCE(${cards.data}->>'url', '') || ' ' ||
+              COALESCE(${cards.data}->>'transcription', '') || ' ' ||
+              COALESCE(${cards.data}->>'title', '') || ' ' ||
+              COALESCE(${cards.data}->>'description', '')
+            ),
+            plainto_tsquery('english', ${q})
+          )`))
+      .limit(limit)
+      .offset(offset);
+
+    // Get total count for the search
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(cards)
+      .where(
+        and(
+          whereClause,
+          sql`
+            to_tsvector('english', 
+              COALESCE(${cards.data}->>'content', '') || ' ' ||
+              COALESCE(${cards.data}->>'url', '') || ' ' ||
+              COALESCE(${cards.data}->>'transcription', '') || ' ' ||
+              COALESCE(${cards.data}->>'title', '') || ' ' ||
+              COALESCE(${cards.data}->>'description', '')
+            ) @@ plainto_tsquery('english', ${q})
+          `
+        )
+      );
+
+    return c.json({
+      cards: searchResults,
+      total: count,
+      limit,
+      offset,
+      hasMore: offset + limit < count,
+      query: q
+    });
+
+  } catch (error) {
+    console.error('Error searching cards:', error);
+    return c.json({ error: error instanceof Error ? error.message : 'Failed to search cards' }, 400);
+  }
+});
+
+// GET /api/cards/stats - Get user's card statistics
+cardRoutes.get('/stats', async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user) {
+      return c.json({ error: 'Authentication required' }, 401);
+    }
+
+    // Get card counts by type
+    const stats = await db
+      .select({
+        type: cards.type,
+        count: sql<number>`count(*)`
+      })
+      .from(cards)
+      .where(
+        and(
+          eq(cards.userId, user.id),
+          isNull(cards.deletedAt)
+        )
+      )
+      .groupBy(cards.type);
+
+    // Get total count
+    const [{ total }] = await db
+      .select({ total: sql<number>`count(*)` })
+      .from(cards)
+      .where(
+        and(
+          eq(cards.userId, user.id),
+          isNull(cards.deletedAt)
+        )
+      );
+
+    return c.json({
+      total,
+      by_type: stats.reduce((acc, stat) => {
+        acc[stat.type] = stat.count;
+        return acc;
+      }, {} as Record<string, number>)
+    });
+
+  } catch (error) {
+    console.error('Error fetching card stats:', error);
+    return c.json({ error: error instanceof Error ? error.message : 'Failed to fetch card statistics' }, 400);
+  }
+});
 
 // GET /api/cards - List all cards with optional search and filters
 cardRoutes.get('/', async (c) => {
@@ -63,11 +223,11 @@ cardRoutes.get('/', async (c) => {
     }
 
     // Add sorting
-    const sortColumn = sort === 'created_at' ? cards.createdAt : 
-                      sort === 'updated_at' ? cards.updatedAt : 
-                      cards.type;
+    const sortColumn = sort === 'created_at' ? cards.createdAt :
+      sort === 'updated_at' ? cards.updatedAt :
+        cards.type;
     const orderBy = order === 'asc' ? asc(sortColumn) : desc(sortColumn);
-    
+
     dbQuery = dbQuery.orderBy(orderBy);
 
     // Add pagination
@@ -137,7 +297,7 @@ cardRoutes.post('/', async (c) => {
     }
 
     const body = await validateBody(c, createCardSchema);
-    
+
     // Validate the card data based on its type
     validateCardData(body.type, body.data);
 
@@ -256,153 +416,3 @@ cardRoutes.delete('/:id', async (c) => {
   }
 });
 
-// GET /api/cards/search - Advanced search endpoint
-cardRoutes.get('/search', async (c) => {
-  try {
-    const user = c.get('user');
-    if (!user) {
-      return c.json({ error: 'Authentication required' }, 401);
-    }
-
-    const query = validateQuery(c, searchCardsSchema);
-    const { q, type, limit, offset } = query;
-
-    if (!q) {
-      return c.json({ error: 'Search query is required' }, 400);
-    }
-
-    // Build search query with ranking
-    let whereClause = and(
-      eq(cards.userId, user.id),
-      isNull(cards.deletedAt)
-    );
-
-    // Add type filter if specified
-    if (type) {
-      whereClause = and(whereClause, eq(cards.type, type));
-    }
-
-    // Full-text search with ranking
-    const searchResults = await db
-      .select({
-        id: cards.id,
-        type: cards.type,
-        data: cards.data,
-        metaInfo: cards.metaInfo,
-        createdAt: cards.createdAt,
-        updatedAt: cards.updatedAt,
-        deletedAt: cards.deletedAt,
-        userId: cards.userId,
-        rank: sql<number>`
-          ts_rank(
-            to_tsvector('english', 
-              COALESCE(${cards.data}->>'content', '') || ' ' ||
-              COALESCE(${cards.data}->>'url', '') || ' ' ||
-              COALESCE(${cards.data}->>'transcription', '') || ' ' ||
-              COALESCE(${cards.data}->>'title', '') || ' ' ||
-              COALESCE(${cards.data}->>'description', '')
-            ),
-            plainto_tsquery('english', ${q})
-          )
-        `
-      })
-      .from(cards)
-      .where(
-        and(
-          whereClause,
-          sql`
-            to_tsvector('english', 
-              COALESCE(${cards.data}->>'content', '') || ' ' ||
-              COALESCE(${cards.data}->>'url', '') || ' ' ||
-              COALESCE(${cards.data}->>'transcription', '') || ' ' ||
-              COALESCE(${cards.data}->>'title', '') || ' ' ||
-              COALESCE(${cards.data}->>'description', '')
-            ) @@ plainto_tsquery('english', ${q})
-          `
-        )
-      )
-      .orderBy(desc(sql`rank`))
-      .limit(limit)
-      .offset(offset);
-
-    // Get total count for the search
-    const [{ count }] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(cards)
-      .where(
-        and(
-          whereClause,
-          sql`
-            to_tsvector('english', 
-              COALESCE(${cards.data}->>'content', '') || ' ' ||
-              COALESCE(${cards.data}->>'url', '') || ' ' ||
-              COALESCE(${cards.data}->>'transcription', '') || ' ' ||
-              COALESCE(${cards.data}->>'title', '') || ' ' ||
-              COALESCE(${cards.data}->>'description', '')
-            ) @@ plainto_tsquery('english', ${q})
-          `
-        )
-      );
-
-    return c.json({
-      cards: searchResults,
-      total: count,
-      limit,
-      offset,
-      hasMore: offset + limit < count,
-      query: q
-    });
-
-  } catch (error) {
-    console.error('Error searching cards:', error);
-    return c.json({ error: error instanceof Error ? error.message : 'Failed to search cards' }, 400);
-  }
-});
-
-// GET /api/cards/stats - Get user's card statistics
-cardRoutes.get('/stats', async (c) => {
-  try {
-    const user = c.get('user');
-    if (!user) {
-      return c.json({ error: 'Authentication required' }, 401);
-    }
-
-    // Get card counts by type
-    const stats = await db
-      .select({
-        type: cards.type,
-        count: sql<number>`count(*)`
-      })
-      .from(cards)
-      .where(
-        and(
-          eq(cards.userId, user.id),
-          isNull(cards.deletedAt)
-        )
-      )
-      .groupBy(cards.type);
-
-    // Get total count
-    const [{ total }] = await db
-      .select({ total: sql<number>`count(*)` })
-      .from(cards)
-      .where(
-        and(
-          eq(cards.userId, user.id),
-          isNull(cards.deletedAt)
-        )
-      );
-
-    return c.json({
-      total,
-      by_type: stats.reduce((acc, stat) => {
-        acc[stat.type] = stat.count;
-        return acc;
-      }, {} as Record<string, number>)
-    });
-
-  } catch (error) {
-    console.error('Error fetching card stats:', error);
-    return c.json({ error: error instanceof Error ? error.message : 'Failed to fetch card statistics' }, 400);
-  }
-});
