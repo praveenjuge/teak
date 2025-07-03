@@ -163,7 +163,7 @@ export function AddCardItem() {
           disabled={!content.trim() || createCardMutation.isPending}
         >
           {createCardMutation.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="animate-spin" />
           ) : (
             <span>Save Card</span>
           )}
