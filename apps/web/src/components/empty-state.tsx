@@ -25,7 +25,12 @@ export function EmptyState({
       <h2 className="mt-4 text-balance font-semibold">{title}</h2>
       <p className="mt-1 text-balance text-muted-foreground">{description}</p>
       {action && (
-        <Button onClick={action.onClick} className="mt-6">
+        <Button
+          onClick={action.onClick}
+          className="mt-6"
+          variant="outline"
+          size="sm"
+        >
           {action.label}
         </Button>
       )}

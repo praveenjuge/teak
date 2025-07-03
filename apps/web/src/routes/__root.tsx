@@ -8,7 +8,7 @@ export const Route = createRootRoute({
 function RootComponent() {
   return (
     <>
-      <main className="max-w-7xl mx-auto px-4">
+      <main className="max-w-7xl mx-auto p-4">
         <Outlet />
       </main>
       <TanStackRouterDevtools />
