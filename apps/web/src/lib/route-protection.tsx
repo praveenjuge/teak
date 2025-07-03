@@ -42,8 +42,8 @@ export function ProtectedRoute({ children, fallback }: ProtectedRouteProps) {
   // Show loading state while checking authentication
   if (isPending) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-muted-foreground">Loading...</div>
+      <div className="flex items-center justify-center min-h-[400px] text-muted-foreground">
+        Loading...
       </div>
     );
   }

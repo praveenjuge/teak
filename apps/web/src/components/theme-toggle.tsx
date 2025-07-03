@@ -24,20 +24,16 @@ export function ThemeToggle() {
   ] as const;
 
   return (
-    <div className="grid grid-cols-3 bg-accent rounded-lg border p-px">
+    <div className="grid grid-cols-3 bg-accent rounded-lg">
       {themes.map((themeOption) => {
         const Icon = themeOption.icon;
         const isActive = theme === themeOption.value;
-
         return (
           <Button
             key={themeOption.value}
-            variant="ghost"
+            variant={isActive ? "outline" : "ghost"}
             size="sm"
             onClick={() => setTheme(themeOption.value)}
-            className={`
-                ${isActive ? "bg-background border hover:bg-background dark:hover:bg-background" : ""}
-              `}
           >
             <Icon />
             <span className="text-xs">{themeOption.label}</span>
