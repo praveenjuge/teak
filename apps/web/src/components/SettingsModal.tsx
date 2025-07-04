@@ -43,10 +43,6 @@ export default function SettingsModal() {
             <span>{session?.user.email}</span>
           </div>
           <div className="flex items-center justify-between h-8">
-            <span className="text-muted-foreground">Server</span>
-            <span className="font-mono">http://localhost:3001</span>
-          </div>
-          <div className="flex items-center justify-between h-8">
             <span className="text-muted-foreground">Theme</span>
             <ThemeToggle />
           </div>

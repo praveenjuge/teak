@@ -10,7 +10,7 @@ export default function Logo({ variant = "default" }: LogoProps) {
           ? "text-primary"
           : variant === "current"
             ? "text-current"
-            : "text-neutral-500"
+            : "text-current/40"
       }`}
       viewBox="0 0 96 29"
       fill="currentColor"

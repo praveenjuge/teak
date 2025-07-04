@@ -14,17 +14,16 @@ export function CardSkeleton() {
 }
 
 export function CardsGridSkeleton() {
-  // Opacities from 100% to 20% in 11 steps
   const opacities = [
     "opacity-100",
     "opacity-95",
     "opacity-90",
-    "opacity-85",
     "opacity-80",
-    "opacity-75",
     "opacity-70",
     "opacity-60",
+    "opacity-50",
     "opacity-40",
+    "opacity-30",
     "opacity-20",
   ];
   return (

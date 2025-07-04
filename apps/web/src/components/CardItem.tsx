@@ -24,9 +24,13 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { apiClient } from "@/lib/api";
 import { useState } from "react";
 import { Badge } from "./ui/badge";
@@ -83,6 +87,7 @@ const getCardContent = (card: CardType): string => {
 
 export function CardItem({ card, onDelete }: CardItemProps) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const title = getCardTitle(card);
   const content = getCardContent(card);
 
@@ -97,76 +102,86 @@ export function CardItem({ card, onDelete }: CardItemProps) {
       console.error("Failed to delete card:", error);
     } finally {
       setIsDeleting(false);
+      setShowDeleteDialog(false);
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        {content && <CardDescription>{content && content}</CardDescription>}
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Render type-specific content */}
-        {card.type === "url" && card.data.url && (
-          <a
-            href={card.data.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {card.data.url}
-          </a>
-        )}
+    <ContextMenu>
+      <ContextMenuTrigger className="h-full">
+        <Card className="h-full relative">
+          <CardHeader>
+            <CardTitle>{title}</CardTitle>
+            {content && <CardDescription>{content && content}</CardDescription>}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Render type-specific content */}
+            {card.type === "url" && card.data.url && (
+              <a
+                href={card.data.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {card.data.url}
+              </a>
+            )}
 
-        {card.type === "image" && card.data.media_url && (
-          <div className="aspect-video bg-muted rounded overflow-hidden">
-            <img
-              src={card.data.media_url}
-              alt={card.data.alt_text || title}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-          </div>
-        )}
+            {card.type === "image" && card.data.media_url && (
+              <div className="aspect-video bg-muted rounded overflow-hidden">
+                <img
+                  src={card.data.media_url}
+                  alt={card.data.alt_text || title}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+            )}
 
-        {(card.type === "audio" || card.type === "video") &&
-          card.data.duration && (
-            <div className="text-muted-foreground">
-              Duration: {Math.floor(card.data.duration / 60)}:
-              {(card.data.duration % 60).toString().padStart(2, "0")}
-            </div>
-          )}
-      </CardContent>
-      <CardFooter className="flex justify-between items-center">
-        <Badge variant="outline">
-          {getCardIcon(card.type)}
-          {card.type}
-        </Badge>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="outline" size="sm" disabled={isDeleting}>
-              <Trash2 />
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Card</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete this card? This action cannot be
-                undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
-                {isDeleting ? "Deleting..." : "Delete"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </CardFooter>
-    </Card>
+            {(card.type === "audio" || card.type === "video") &&
+              card.data.duration && (
+                <div className="text-muted-foreground">
+                  Duration: {Math.floor(card.data.duration / 60)}:
+                  {(card.data.duration % 60).toString().padStart(2, "0")}
+                </div>
+              )}
+            <Badge
+              variant="outline"
+              className="absolute bottom-2 right-2 rounded-full border-dashed"
+            >
+              {getCardIcon(card.type)}
+              {card.type}
+            </Badge>
+          </CardContent>
+        </Card>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem
+          onClick={() => setShowDeleteDialog(true)}
+          disabled={isDeleting}
+        >
+          <Trash2 />
+          Delete
+        </ContextMenuItem>
+      </ContextMenuContent>
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Card</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this card? This action cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </ContextMenu>
   );
 }

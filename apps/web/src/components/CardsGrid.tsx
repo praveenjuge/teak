@@ -21,6 +21,7 @@ export function CardsGrid() {
         type: selectedType,
         sort: "created_at",
         order: "desc",
+        limit: 100,
       });
     },
     staleTime: 30 * 1000, // 30 seconds
