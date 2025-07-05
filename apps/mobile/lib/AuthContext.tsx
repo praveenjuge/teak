@@ -12,18 +12,18 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
-  
-  console.log('[AuthContext] Current authentication state:', isAuthenticated);
-  
+
+  console.log("[AuthContext] Current authentication state:", isAuthenticated);
+
   // ✅ Login function (Redirect to Home)
   const login = () => {
-    console.log('[AuthContext] Login called');
+    console.log("[AuthContext] Login called");
     setIsAuthenticated(true);
     router.replace("/(tabs)"); // ✅ Redirect to home tab
   };
   // ✅ Logout function (Redirect to Auth Screen)
   const logout = () => {
-    console.log('[AuthContext] Logout called');
+    console.log("[AuthContext] Logout called");
     setIsAuthenticated(false);
     router.replace("/(auth)/login"); // ✅ Redirect to login screen
   };
@@ -39,6 +39,6 @@ export const useAuth = (): AuthContextType => {
   if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
-  console.log('[AuthContext] useAuth called, returning:', context);
+  console.log("[AuthContext] useAuth called, returning:", context);
   return context;
 };

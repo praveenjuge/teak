@@ -42,7 +42,7 @@ export const createAuthClientWithUrl = () => {
   // Ensure URL has proper format
   const formattedURL = serverURL.endsWith('/') ? serverURL.slice(0, -1) : serverURL;
   const baseURL = `${formattedURL}/api/auth`;
-  
+
   console.log('[AuthClient] Creating auth client:', { serverURL, formattedURL, baseURL });
 
   return createAuthClient({

@@ -23,29 +23,36 @@ interface CardsGridProps {
 export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  
-  // Check authentication state
-  const { data: session, isPending: sessionPending, error: sessionError } = authClient.useSession();
 
-  console.log('[CardsGrid] Component rendered with props:', { searchQuery, selectedType });
-  console.log('[CardsGrid] Auth session state:', { 
-    hasSession: !!session, 
-    sessionPending, 
+  // Check authentication state
+  const {
+    data: session,
+    isPending: sessionPending,
+    error: sessionError,
+  } = authClient.useSession();
+
+  console.log("[CardsGrid] Component rendered with props:", {
+    searchQuery,
+    selectedType,
+  });
+  console.log("[CardsGrid] Auth session state:", {
+    hasSession: !!session,
+    sessionPending,
     sessionError: sessionError?.message || null,
-    userId: session?.user?.id || null
+    userId: session?.user?.id || null,
   });
 
   const { data, error, refetch, isLoading, isRefetching } = useQuery({
     queryKey: ["cards", { searchQuery, selectedType }],
     queryFn: async () => {
-      console.log('[CardsGrid] Starting API call with params:', {
+      console.log("[CardsGrid] Starting API call with params:", {
         q: searchQuery?.trim() || undefined,
         type: selectedType,
         sort: "created_at",
         order: "desc",
         limit: 100,
       });
-      
+
       try {
         const result = await apiClient.getCards({
           q: searchQuery?.trim() || undefined,
@@ -54,14 +61,14 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
           order: "desc",
           limit: 100,
         });
-        console.log('[CardsGrid] API call successful:', result);
+        console.log("[CardsGrid] API call successful:", result);
         return result;
       } catch (err) {
-        console.error('[CardsGrid] API call failed:', err);
-        console.error('[CardsGrid] Error details:', {
-          name: err instanceof Error ? err.name : 'Unknown',
+        console.error("[CardsGrid] API call failed:", err);
+        console.error("[CardsGrid] Error details:", {
+          name: err instanceof Error ? err.name : "Unknown",
           message: err instanceof Error ? err.message : String(err),
-          stack: err instanceof Error ? err.stack : undefined
+          stack: err instanceof Error ? err.stack : undefined,
         });
         throw err;
       }
@@ -71,18 +78,18 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
     refetchOnWindowFocus: false,
   });
 
-  console.log('[CardsGrid] Query state:', { 
-    isLoading, 
-    isRefetching, 
-    hasData: !!data, 
+  console.log("[CardsGrid] Query state:", {
+    isLoading,
+    isRefetching,
+    hasData: !!data,
     hasError: !!error,
     dataLength: data?.cards?.length || 0,
     sessionPending,
-    queryEnabled: !sessionPending
+    queryEnabled: !sessionPending,
   });
 
   if (error) {
-    console.error('[CardsGrid] Rendering error state:', error);
+    console.error("[CardsGrid] Rendering error state:", error);
   }
 
   // Define dynamic styles
@@ -106,7 +113,7 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
 
   // Show loading if session is still loading
   if (sessionPending) {
-    console.log('[CardsGrid] Session is still loading, showing loading state');
+    console.log("[CardsGrid] Session is still loading, showing loading state");
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />

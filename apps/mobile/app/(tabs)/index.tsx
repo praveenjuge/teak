@@ -5,11 +5,9 @@ import {
   SafeAreaView,
   useColorScheme,
 } from "react-native";
-import { authClient } from "../../lib/auth-client";
 import { CardsGrid } from "../../components/CardsGrid";
 
 export default function HomeScreen() {
-  const { data: session } = authClient.useSession();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -31,13 +29,6 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, dynamicStyles.container]}>
-      <View style={[styles.header, dynamicStyles.header]}>
-        <Text style={[styles.title, dynamicStyles.title]}>Welcome back!</Text>
-        <Text style={[styles.subtitle, dynamicStyles.subtitle]}>
-          {session?.user?.email}
-        </Text>
-      </View>
-
       <CardsGrid />
     </SafeAreaView>
   );
@@ -46,18 +37,5 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 16,
   },
 });

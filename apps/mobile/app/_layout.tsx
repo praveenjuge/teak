@@ -33,12 +33,12 @@ function RootNavigator() {
   const { data: session, isPending, error } = authClient.useSession();
   const sessionPresent = session ? true : false;
 
-  console.log('[RootLayout] Session state:', { 
-    session: session ? 'present' : 'null', 
-    sessionPresent, 
-    isPending, 
+  console.log("[RootLayout] Session state:", {
+    session: session ? "present" : "null",
+    sessionPresent,
+    isPending,
     error: error ? error.message : null,
-    userId: session?.user?.id || null
+    userId: session?.user?.id || null,
   });
 
   // Setup React Native optimizations for TanStack Query
