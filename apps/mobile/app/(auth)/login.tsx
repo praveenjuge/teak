@@ -13,7 +13,7 @@ import { authClient, storeApiUrl } from "../../lib/auth-client";
 
 export default function Login() {
   const [apiUrl, setApiUrl] = useState(
-    __DEV__ ? "http://192.168.29.57:3000" : ""
+    __DEV__ ? "http://192.168.29.96:3000" : ""
   );
   const [email, setEmail] = useState(__DEV__ ? "hello@praveenjuge.com" : "");
   const [password, setPassword] = useState(__DEV__ ? "asdfghjkl;'" : "");

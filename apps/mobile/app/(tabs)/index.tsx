@@ -1,89 +1,63 @@
 import {
   View,
   Text,
-  ScrollView,
-  RefreshControl,
   StyleSheet,
+  SafeAreaView,
+  useColorScheme,
 } from "react-native";
-import { useState, useCallback } from "react";
 import { authClient } from "../../lib/auth-client";
+import { CardsGrid } from "../../components/CardsGrid";
 
 export default function HomeScreen() {
   const { data: session } = authClient.useSession();
-  const [refreshing, setRefreshing] = useState(false);
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
-  }, []);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  const dynamicStyles = {
+    container: {
+      backgroundColor: isDark ? "#000" : "#f5f5f5",
+    },
+    header: {
+      backgroundColor: isDark ? "#1f1f1f" : "#fff",
+      borderBottomColor: isDark ? "#333" : "#e0e0e0",
+    },
+    title: {
+      color: isDark ? "#fff" : "#333",
+    },
+    subtitle: {
+      color: isDark ? "#ccc" : "#666",
+    },
+  };
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <View style={styles.card}>
-        <Text style={styles.title}>Welcome back!</Text>
-        <Text>{session?.user?.email}</Text>
+    <SafeAreaView style={[styles.container, dynamicStyles.container]}>
+      <View style={[styles.header, dynamicStyles.header]}>
+        <Text style={[styles.title, dynamicStyles.title]}>Welcome back!</Text>
+        <Text style={[styles.subtitle, dynamicStyles.subtitle]}>
+          {session?.user?.email}
+        </Text>
       </View>
-      <View style={styles.card}>
-        <Text style={styles.title}>Welcome back!</Text>
-        <Text>{session?.user?.email}</Text>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.title}>Welcome back!</Text>
-        <Text>{session?.user?.email}</Text>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.title}>Welcome back!</Text>
-        <Text>{session?.user?.email}</Text>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.title}>Welcome back!</Text>
-        <Text>{session?.user?.email}</Text>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.title}>Welcome back!</Text>
-        <Text>{session?.user?.email}</Text>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.title}>Welcome back!</Text>
-        <Text>{session?.user?.email}</Text>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.title}>Welcome back!</Text>
-        <Text>{session?.user?.email}</Text>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.title}>Welcome back!</Text>
-        <Text>{session?.user?.email}</Text>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.title}>Welcome back!</Text>
-        <Text>{session?.user?.email}</Text>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.title}>Welcome back!</Text>
-        <Text>{session?.user?.email}</Text>
-      </View>
-    </ScrollView>
+
+      <CardsGrid />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    flexGrow: 1,
-    padding: 20,
+  container: {
+    flex: 1,
   },
-  card: {
-    backgroundColor: "lightblue",
-    padding: 20,
-    borderRadius: 12,
-    elevation: 2,
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
   },
   title: {
+    fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 6,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 16,
   },
 });
