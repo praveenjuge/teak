@@ -12,7 +12,6 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import type { Card } from "@/lib/api";
 import { CardItem } from "./CardItem";
-import { useRefreshOnFocus } from "@/lib/query-setup";
 import { authClient } from "@/lib/auth-client";
 
 interface CardsGridProps {
@@ -116,16 +115,13 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
     console.log("[CardsGrid] Session is still loading, showing loading state");
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator />
         <Text style={[styles.loadingText, dynamicStyles.loadingText]}>
           Checking authentication...
         </Text>
       </View>
     );
   }
-
-  // Refresh when screen comes into focus
-  useRefreshOnFocus(refetch);
 
   const renderCard = ({ item, index }: { item: Card; index: number }) => (
     <View
@@ -192,7 +188,7 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    paddingBottom: 60,
+    paddingBottom: 100,
   },
   row: {
     justifyContent: "space-between",

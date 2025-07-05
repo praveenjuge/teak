@@ -18,7 +18,7 @@
     "build:frontend": "cd apps/web && bun run build",
     "dev": "./scripts/dev.sh",
     "dev:local": "./scripts/dev-local.sh",
-    "dev:backend": "pkill -f 'bun --watch backend/src/index.ts' && PORT=3001 bun --watch backend/src/index.ts",
+    "dev:backend": "lsof -ti:3001 | xargs -r kill && PORT=3001 bun --watch backend/src/index.ts",
     "dev:frontend": "cd apps/web && bun run dev",
     "docker:dev": "docker-compose -f docker/docker-compose.dev.yml up --build",
     "docker:dev:down": "docker-compose -f docker/docker-compose.dev.yml down",

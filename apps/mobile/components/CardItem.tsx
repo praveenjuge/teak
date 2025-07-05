@@ -156,8 +156,8 @@ export function CardItem({ card, onDelete }: CardItemProps) {
 const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
+    padding: 12,
+    marginBottom: 8,
   },
   emoji: {
     marginBottom: 6,
