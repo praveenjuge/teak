@@ -182,11 +182,7 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
       columnWrapperStyle={styles.row}
       ListEmptyComponent={renderEmpty}
       refreshControl={
-        <RefreshControl
-          refreshing={isRefetching}
-          onRefresh={refetch}
-          colors={["#007AFF"]}
-        />
+        <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
       }
       showsVerticalScrollIndicator={false}
     />
@@ -196,7 +192,7 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    paddingTop: 10,
+    paddingBottom: 60,
   },
   row: {
     justifyContent: "space-between",

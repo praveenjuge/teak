@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Dimensions,
   Alert,
   useColorScheme,
 } from "react-native";
@@ -16,9 +15,6 @@ interface CardItemProps {
   card: Card;
   onDelete?: () => void;
 }
-
-const { width: screenWidth } = Dimensions.get("window");
-const cardWidth = (screenWidth - 60) / 2; // 2 cards per row with margins
 
 const getCardTitle = (card: Card): string => {
   const { data } = card;
@@ -82,10 +78,6 @@ export function CardItem({ card, onDelete }: CardItemProps) {
     content: {
       color: isDark ? "#ccc" : "#666",
     },
-    cardType: {
-      backgroundColor: isDark ? "#333" : "#f0f0f0",
-      color: isDark ? "#ccc" : "#666",
-    },
     duration: {
       color: isDark ? "#ccc" : "#666",
     },
@@ -123,16 +115,11 @@ export function CardItem({ card, onDelete }: CardItemProps) {
 
   return (
     <TouchableOpacity
-      style={[styles.card, dynamicStyles.card, { width: cardWidth }]}
+      style={[styles.card, dynamicStyles.card]}
       onLongPress={handleLongPress}
       activeOpacity={0.8}
     >
-      <View style={styles.cardHeader}>
-        <Text style={styles.emoji}>{emoji}</Text>
-        <Text style={[styles.cardType, dynamicStyles.cardType]}>
-          {card.type}
-        </Text>
-      </View>
+      <Text style={styles.emoji}>{emoji}</Text>
 
       <Text style={[styles.title, dynamicStyles.title]} numberOfLines={2}>
         {title}
@@ -157,7 +144,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
 
       {(card.type === "audio" || card.type === "video") &&
         card.data.duration && (
-          <Text style={[styles.duration, dynamicStyles.duration]}>
+          <Text style={[dynamicStyles.duration]}>
             Duration: {Math.floor(card.data.duration / 60)}:
             {(card.data.duration % 60).toString().padStart(2, "0")}
           </Text>
@@ -169,54 +156,27 @@ export function CardItem({ card, onDelete }: CardItemProps) {
 const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
-    padding: 16,
+    padding: 14,
     marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
   },
   emoji: {
-    fontSize: 20,
-  },
-  cardType: {
-    fontSize: 12,
-    textTransform: "capitalize",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    marginBottom: 6,
   },
   title: {
-    fontSize: 16,
     fontWeight: "600",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   content: {
-    fontSize: 14,
     lineHeight: 20,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   imageContainer: {
     borderRadius: 8,
     overflow: "hidden",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   image: {
     width: "100%",
     height: 100,
-  },
-  duration: {
-    fontSize: 12,
-    fontStyle: "italic",
   },
 });
