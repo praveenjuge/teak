@@ -15,6 +15,7 @@ import {
   getStoredApiUrl,
 } from "../../lib/auth-client";
 import { reloadAppAsync } from "expo";
+import { colors, borderWidths } from "../../constants/colors";
 
 export default function Login() {
   const [step, setStep] = useState<"server" | "login">("server");
@@ -183,7 +184,6 @@ export default function Login() {
             value={apiUrl}
             onChangeText={setApiUrl}
             placeholder="https://teak.example.com"
-            placeholderTextColor="#8E8E93"
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
@@ -201,7 +201,7 @@ export default function Login() {
           disabled={!apiUrl.trim() || isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator />
           ) : (
             <Text style={styles.loginButtonText}>Continue</Text>
           )}
@@ -231,7 +231,6 @@ export default function Login() {
           value={email}
           onChangeText={setEmail}
           placeholder="Enter your email"
-          placeholderTextColor="#8E8E93"
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
@@ -247,7 +246,6 @@ export default function Login() {
           value={password}
           onChangeText={setPassword}
           placeholder="Enter your password"
-          placeholderTextColor="#8E8E93"
           secureTextEntry
           textContentType="password"
         />
@@ -263,7 +261,7 @@ export default function Login() {
         disabled={!email || !password || isLoading}
       >
         {isLoading ? (
-          <ActivityIndicator color="#FFFFFF" />
+          <ActivityIndicator color={colors.adaptiveWhite} />
         ) : (
           <Text style={styles.loginButtonText}>Sign In</Text>
         )}
@@ -282,54 +280,55 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   stepTitle: {
-    fontSize: 16,
     fontWeight: "bold",
     marginBottom: 6,
+    color: colors.label,
   },
   stepDescription: {
-    color: "#8E8E93",
+    color: colors.secondaryLabel,
     marginBottom: 6,
   },
   serverInfo: {
-    color: "#8E8E93",
+    color: colors.secondaryLabel,
   },
   inputGroup: {
     marginBottom: 20,
   },
   label: {
-    color: "#8E8E93",
+    color: colors.secondaryLabel,
     marginBottom: 4,
   },
   input: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.background,
     borderRadius: 8,
     padding: 14,
-    borderWidth: 1,
-    borderColor: "#E5E5EA",
+    borderWidth: borderWidths.hairline,
+    borderColor: colors.border,
+    color: colors.label,
   },
   loginButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: colors.primary,
     borderRadius: 8,
     padding: 14,
     alignItems: "center",
     marginBottom: 12,
   },
   loginButtonDisabled: {
-    backgroundColor: "#8E8E93",
+    opacity: 0.3,
   },
   loginButtonText: {
-    color: "#FFFFFF",
+    color: colors.adaptiveWhite,
     fontWeight: "600",
   },
   backButton: {
     borderRadius: 8,
     padding: 14,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#007AFF",
+    borderWidth: borderWidths.hairline,
+    borderColor: colors.primary,
   },
   backButtonText: {
-    color: "#007AFF",
+    color: colors.primary,
     fontWeight: "600",
   },
 });

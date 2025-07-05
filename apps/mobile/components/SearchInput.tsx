@@ -1,29 +1,22 @@
 import React from "react";
-import {
-  View,
-  TextInput,
-  StyleSheet,
-  useColorScheme,
-  Platform,
-} from "react-native";
+import { View, TextInput, StyleSheet, Platform } from "react-native";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useSearch } from "@/lib/SearchContext";
+import { colors, borderWidths } from "@/constants/colors";
 
 export function SearchInput() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const { searchQuery, setSearchQuery } = useSearch();
 
   const dynamicStyles = {
     container: {
-      backgroundColor: isDark ? "#1c1c1e" : "#fff",
-      borderColor: isDark ? "#38383a" : "#d1d1d6",
+      backgroundColor: colors.background,
+      borderColor: colors.border,
     },
     input: {
-      color: isDark ? "#ffffff" : "#000000",
+      color: colors.label,
     },
     icon: {
-      color: isDark ? "#8e8e93" : "#8e8e93",
+      color: colors.secondaryLabel,
     },
   };
 
@@ -55,7 +48,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderBottomWidth: 1,
+    borderBottomWidth: borderWidths.hairline,
   },
   searchIcon: {
     marginRight: 8,

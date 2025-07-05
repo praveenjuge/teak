@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   Image,
   Alert,
-  useColorScheme,
 } from "react-native";
 import type { Card } from "@/lib/api";
 import { apiClient } from "@/lib/api";
+import { borderWidths, colors } from "@/constants/colors";
 
 interface CardItemProps {
   card: Card;
@@ -65,21 +65,21 @@ export function CardItem({ card, onDelete }: CardItemProps) {
   const title = getCardTitle(card);
   const content = getCardContent(card);
   const emoji = getCardEmoji(card.type);
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
 
   const dynamicStyles = {
     card: {
-      backgroundColor: isDark ? "#1f1f1f" : "#fff",
+      backgroundColor: colors.background,
+      borderWidth: borderWidths.hairline,
+      borderColor: colors.border,
     },
     title: {
-      color: isDark ? "#fff" : "#333",
+      color: colors.label,
     },
     content: {
-      color: isDark ? "#ccc" : "#666",
+      color: colors.secondaryLabel,
     },
     duration: {
-      color: isDark ? "#ccc" : "#666",
+      color: colors.secondaryLabel,
     },
   };
 

@@ -11,6 +11,7 @@ import {
 import { useState, useRef } from "react";
 import { useCreateCard } from "../../lib/hooks";
 import type { Card } from "../../lib/api";
+import { colors, borderWidths } from "../../constants/colors";
 
 function isUrl(text: string): boolean {
   try {
@@ -109,12 +110,13 @@ export default function AddScreen() {
         <TextInput
           ref={textInputRef}
           style={{
-            borderBottomWidth: 1,
-            borderColor: "#d1d5db",
+            borderBottomWidth: borderWidths.hairline,
+            borderColor: colors.border,
             padding: 16,
-            backgroundColor: "#fff",
-            minHeight: 120,
+            backgroundColor: colors.background,
+            minHeight: 150,
             textAlignVertical: "top",
+            color: colors.label,
           }}
           placeholder="Enter your bookmark, URL, or note"
           value={content}
@@ -132,15 +134,14 @@ export default function AddScreen() {
               alignItems: "center",
               padding: 14,
               borderRadius: 12,
-              backgroundColor:
-                createCardMutation.isPending || !content.trim()
-                  ? "#9ca3af"
-                  : "#2563eb",
+              backgroundColor: colors.primary,
+              opacity:
+                createCardMutation.isPending || !content.trim() ? 0.3 : 1,
             }}
             onPress={handleSave}
             disabled={createCardMutation.isPending || !content.trim()}
           >
-            <Text style={{ fontWeight: "600", color: "#fff" }}>
+            <Text style={{ fontWeight: "600", color: colors.adaptiveWhite }}>
               {createCardMutation.isPending ? "Saving..." : "Save Card"}
             </Text>
           </TouchableOpacity>
@@ -150,17 +151,19 @@ export default function AddScreen() {
         {content.trim() && (
           <View
             style={{
-              backgroundColor: "#f3f4f6",
+              backgroundColor: colors.background,
               padding: 12,
               borderRadius: 8,
               marginHorizontal: 20,
               borderLeftWidth: 4,
-              borderLeftColor: isUrl(content.trim()) ? "#10b981" : "#6b7280",
+              borderLeftColor: isUrl(content.trim())
+                ? colors.systemGreen
+                : colors.primary,
             }}
           >
             <Text
               style={{
-                color: "#374151",
+                color: colors.label,
                 fontWeight: "500",
               }}
             >
@@ -169,8 +172,7 @@ export default function AddScreen() {
             {isUrl(content.trim()) && (
               <Text
                 style={{
-                  fontSize: 12,
-                  color: "#6b7280",
+                  color: colors.secondaryLabel,
                   marginTop: 4,
                 }}
               >

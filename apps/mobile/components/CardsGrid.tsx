@@ -6,13 +6,13 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
-  useColorScheme,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import type { Card } from "@/lib/api";
 import { CardItem } from "./CardItem";
 import { authClient } from "@/lib/auth-client";
+import { colors } from "../constants/colors";
 
 interface CardsGridProps {
   searchQuery?: string;
@@ -20,9 +20,6 @@ interface CardsGridProps {
 }
 
 export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-
   // Check authentication state
   const {
     data: session,
@@ -94,19 +91,19 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
   // Define dynamic styles
   const dynamicStyles = {
     loadingText: {
-      color: isDark ? "#ccc" : "#666",
+      color: colors.secondaryLabel,
     },
     errorTitle: {
-      color: isDark ? "#fff" : "#333",
+      color: colors.label,
     },
     errorDescription: {
-      color: isDark ? "#ccc" : "#666",
+      color: colors.secondaryLabel,
     },
     emptyTitle: {
-      color: isDark ? "#fff" : "#333",
+      color: colors.label,
     },
     emptyDescription: {
-      color: isDark ? "#ccc" : "#666",
+      color: colors.secondaryLabel,
     },
   };
 
@@ -116,9 +113,6 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator />
-        <Text style={[styles.loadingText, dynamicStyles.loadingText]}>
-          Checking authentication...
-        </Text>
       </View>
     );
   }
@@ -147,10 +141,7 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={[styles.loadingText, dynamicStyles.loadingText]}>
-          Loading cards...
-        </Text>
+        <ActivityIndicator />
       </View>
     );
   }
@@ -202,10 +193,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
   },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-  },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
@@ -213,12 +200,10 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   errorTitle: {
-    fontSize: 18,
     fontWeight: "600",
     marginBottom: 8,
   },
   errorDescription: {
-    fontSize: 14,
     textAlign: "center",
   },
   emptyContainer: {
@@ -228,12 +213,10 @@ const styles = StyleSheet.create({
     padding: 40,
   },
   emptyTitle: {
-    fontSize: 18,
     fontWeight: "600",
     marginBottom: 8,
   },
   emptyDescription: {
-    fontSize: 14,
     textAlign: "center",
     lineHeight: 20,
   },
