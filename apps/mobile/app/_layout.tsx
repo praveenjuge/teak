@@ -27,16 +27,8 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
-  const { data: session, isPending, error } = authClient.useSession();
-  const sessionPresent = session ? true : false;
-
-  console.log("[RootLayout] Session state:", {
-    session: session ? "present" : "null",
-    sessionPresent,
-    isPending,
-    error: error ? error.message : null,
-    userId: session?.user?.id || null,
-  });
+  const { data } = authClient.useSession();
+  const sessionPresent = data ? true : false;
 
   // Setup React Native optimizations for TanStack Query
   useAppStateFocus();
