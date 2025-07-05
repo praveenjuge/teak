@@ -6,58 +6,126 @@ import {
   ScrollView,
   Alert,
   KeyboardAvoidingView,
+  Platform,
 } from "react-native";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useCreateCard } from "../../lib/hooks";
+import type { Card } from "../../lib/api";
+
+function isUrl(text: string): boolean {
+  try {
+    const url = new URL(text);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function detectCardType(content: string): {
+  type: Card["type"];
+  data: Record<string, any>;
+} {
+  const trimmedContent = content.trim();
+
+  if (isUrl(trimmedContent)) {
+    try {
+      const url = new URL(trimmedContent);
+      return {
+        type: "url",
+        data: {
+          url: trimmedContent,
+          title: url.hostname,
+          description: `Saved from ${url.hostname}`,
+        },
+      };
+    } catch {
+      // Fallback if URL parsing fails
+      return {
+        type: "url",
+        data: {
+          url: trimmedContent,
+          title: trimmedContent,
+        },
+      };
+    }
+  }
+
+  return {
+    type: "text",
+    data: {
+      content: trimmedContent,
+      title:
+        trimmedContent.slice(0, 50) + (trimmedContent.length > 50 ? "..." : ""),
+    },
+  };
+}
 
 export default function AddScreen() {
-  const [title, setTitle] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [content, setContent] = useState("");
+  const textInputRef = useRef<TextInput>(null);
+  const createCardMutation = useCreateCard();
 
-  const handleSave = async () => {
-    if (!title.trim()) {
-      Alert.alert("Error", "Please enter a title");
+  const handleSave = () => {
+    const trimmedContent = content.trim();
+    if (!trimmedContent) {
+      Alert.alert("Error", "Please enter some content");
       return;
     }
-    setIsLoading(true);
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      Alert.alert("Success", "Item added successfully!", [
-        {
-          text: "OK",
-          onPress: () => setTitle(""),
+
+    const { type, data } = detectCardType(trimmedContent);
+
+    createCardMutation.mutate(
+      {
+        type,
+        data,
+        metaInfo: {
+          source: "Mobile App",
+          tags: [],
         },
-      ]);
-    } catch (error) {
-      Alert.alert("Error", "Failed to add item");
-    } finally {
-      setIsLoading(false);
-    }
+      },
+      {
+        onSuccess: () => {
+          setContent("");
+          textInputRef.current?.focus();
+          Alert.alert("Success", "Card saved successfully!");
+        },
+        onError: (error) => {
+          console.error("Failed to save card:", error);
+          Alert.alert("Error", "Failed to save card. Please try again.");
+        },
+      }
+    );
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
       <ScrollView
-        contentContainerStyle={{ padding: 20, flex: 1 }}
+        contentContainerStyle={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
       >
         <TextInput
+          ref={textInputRef}
           style={{
-            borderWidth: 1,
-            marginBottom: 20,
+            borderBottomWidth: 1,
             borderColor: "#d1d5db",
-            borderRadius: 8,
-            padding: 12,
+            padding: 16,
             backgroundColor: "#fff",
-            color: "#111827",
+            minHeight: 120,
+            textAlignVertical: "top",
           }}
-          placeholder="Enter title"
-          value={title}
-          onChangeText={setTitle}
+          placeholder="Enter your bookmark, URL, or note"
+          value={content}
+          onChangeText={setContent}
+          multiline
           autoCapitalize="sentences"
           autoCorrect={true}
+          editable={!createCardMutation.isPending}
         />
-        <View style={{ flexDirection: "row", marginBottom: 24 }}>
+
+        <View style={{ flexDirection: "row", margin: 24 }}>
           <TouchableOpacity
             style={{
               flex: 1,
@@ -66,16 +134,52 @@ export default function AddScreen() {
               padding: 16,
               borderRadius: 12,
               backgroundColor:
-                isLoading || !title.trim() ? "#9ca3af" : "#2563eb",
+                createCardMutation.isPending || !content.trim()
+                  ? "#9ca3af"
+                  : "#2563eb",
             }}
             onPress={handleSave}
-            disabled={isLoading || !title.trim()}
+            disabled={createCardMutation.isPending || !content.trim()}
           >
-            <Text style={{ fontWeight: "600", color: "#fff" }}>
-              {isLoading ? "Saving..." : "Save Item"}
+            <Text style={{ fontWeight: "600", color: "#fff", fontSize: 16 }}>
+              {createCardMutation.isPending ? "Saving..." : "Save Card"}
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Content type indicator */}
+        {content.trim() && (
+          <View
+            style={{
+              backgroundColor: "#f3f4f6",
+              padding: 12,
+              borderRadius: 8,
+              borderLeftWidth: 4,
+              borderLeftColor: isUrl(content.trim()) ? "#10b981" : "#6b7280",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 14,
+                color: "#374151",
+                fontWeight: "500",
+              }}
+            >
+              {isUrl(content.trim()) ? "🔗 URL Detected" : "📝 Text Note"}
+            </Text>
+            {isUrl(content.trim()) && (
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: "#6b7280",
+                  marginTop: 4,
+                }}
+              >
+                This will be saved as a bookmark
+              </Text>
+            )}
+          </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
