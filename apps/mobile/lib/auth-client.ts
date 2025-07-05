@@ -1,7 +1,6 @@
 import { createAuthClient } from "better-auth/react";
 import { expoClient } from "@better-auth/expo/client";
 import * as SecureStore from "expo-secure-store";
-import { useEffect } from "react";
 
 const API_URL_KEY = "teak_api_url";
 
@@ -27,16 +26,12 @@ export const storeApiUrl = async (url: string): Promise<void> => {
 
 export const createAuthClientWithUrl = () => {
   const serverURL = getStoredApiUrl();
-
-  // Ensure URL has proper format
   const formattedURL = serverURL?.endsWith('/') ? serverURL.slice(0, -1) : serverURL;
   const baseURL = `${formattedURL}/api/auth`;
 
-  console.log('[AuthClient] Creating auth client:', { serverURL, formattedURL, baseURL });
-
   if (!formattedURL) {
     console.warn("[AuthClient] No API URL configured, auth client will not work");
-    return null; // Return null or handle as needed
+    return null;
   }
 
   return createAuthClient({

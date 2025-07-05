@@ -24,20 +24,17 @@ export default function Login() {
   const [email, setEmail] = useState(__DEV__ ? "hello@praveenjuge.com" : "");
   const [password, setPassword] = useState(__DEV__ ? "asdfghjkl;'" : "");
   const [isLoading, setIsLoading] = useState(false);
-  const [isCheckingStoredUrl, setIsCheckingStoredUrl] = useState(true);
 
   useEffect(() => {
-    const checkStoredUrl = async () => {
+    const checkStoredUrl = () => {
       try {
-        const storedUrl = await getStoredApiUrl();
+        const storedUrl = getStoredApiUrl();
         if (storedUrl && storedUrl.trim()) {
           setApiUrl(storedUrl);
           setStep("login");
         }
       } catch (error) {
         console.error("Error checking stored URL:", error);
-      } finally {
-        setIsCheckingStoredUrl(false);
       }
     };
 
@@ -165,20 +162,6 @@ export default function Login() {
     setStep("server");
   };
 
-  // Show loading screen while checking for stored URL
-  if (isCheckingStoredUrl) {
-    return (
-      <View
-        style={[styles.stepContainer, { flex: 1, justifyContent: "center" }]}
-      >
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={[styles.stepDescription, { marginTop: 16 }]}>
-          Checking server configuration...
-        </Text>
-      </View>
-    );
-  }
-
   if (step === "server") {
     return (
       <ScrollView
@@ -296,27 +279,19 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   stepContainer: {
-    marginBottom: 30,
-    alignItems: "center",
+    marginBottom: 16,
   },
   stepTitle: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: "bold",
-    color: "#000000",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   stepDescription: {
-    fontSize: 16,
     color: "#8E8E93",
-    textAlign: "center",
-    lineHeight: 22,
+    marginBottom: 6,
   },
   serverInfo: {
-    fontSize: 12,
     color: "#8E8E93",
-    textAlign: "center",
-    marginTop: 8,
-    fontStyle: "italic",
   },
   inputGroup: {
     marginBottom: 20,
@@ -347,7 +322,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   backButton: {
-    backgroundColor: "transparent",
     borderRadius: 8,
     padding: 14,
     alignItems: "center",
