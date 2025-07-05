@@ -125,13 +125,12 @@ export default function AddScreen() {
           editable={!createCardMutation.isPending}
         />
 
-        <View style={{ flexDirection: "row", margin: 24 }}>
+        <View style={{ flexDirection: "row", margin: 20 }}>
           <TouchableOpacity
             style={{
               flex: 1,
               alignItems: "center",
-              justifyContent: "center",
-              padding: 16,
+              padding: 14,
               borderRadius: 12,
               backgroundColor:
                 createCardMutation.isPending || !content.trim()
@@ -141,7 +140,7 @@ export default function AddScreen() {
             onPress={handleSave}
             disabled={createCardMutation.isPending || !content.trim()}
           >
-            <Text style={{ fontWeight: "600", color: "#fff", fontSize: 16 }}>
+            <Text style={{ fontWeight: "600", color: "#fff" }}>
               {createCardMutation.isPending ? "Saving..." : "Save Card"}
             </Text>
           </TouchableOpacity>
@@ -154,13 +153,13 @@ export default function AddScreen() {
               backgroundColor: "#f3f4f6",
               padding: 12,
               borderRadius: 8,
+              marginHorizontal: 20,
               borderLeftWidth: 4,
               borderLeftColor: isUrl(content.trim()) ? "#10b981" : "#6b7280",
             }}
           >
             <Text
               style={{
-                fontSize: 14,
                 color: "#374151",
                 fontWeight: "500",
               }}
