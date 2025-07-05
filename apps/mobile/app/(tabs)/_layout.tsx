@@ -1,8 +1,8 @@
 import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { IconSymbol } from "@/components/ui/IconSymbol";
 import { HapticTab } from "@/components/HapticTab";
 import { Platform } from "react-native";
-import TabBarBackground from "@/components/TabBarBackground";
+import TabBarBackground from "@/components/ui/TabBarBackground";
 
 export default function TabLayout() {
   return (
@@ -25,8 +25,8 @@ export default function TabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? "home" : "home-outline"}
+            <IconSymbol
+              name={focused ? "house.fill" : "house"}
               size={size}
               color={color}
             />
@@ -37,9 +37,10 @@ export default function TabLayout() {
         name="add"
         options={{
           title: "Add Card",
+          tabBarLabel: "Add",
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? "add-circle" : "add-circle-outline"}
+            <IconSymbol
+              name={focused ? "plus.circle.fill" : "plus.circle"}
               size={size}
               color={color}
             />
@@ -51,8 +52,8 @@ export default function TabLayout() {
         options={{
           title: "Settings",
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? "settings" : "settings-outline"}
+            <IconSymbol
+              name={focused ? "gearshape.fill" : "gearshape"}
               size={size}
               color={color}
             />

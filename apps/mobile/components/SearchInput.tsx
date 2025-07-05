@@ -6,7 +6,7 @@ import {
   useColorScheme,
   Platform,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useSearch } from "@/lib/SearchContext";
 
 export function SearchInput() {
@@ -29,8 +29,8 @@ export function SearchInput() {
 
   return (
     <View style={[styles.container, dynamicStyles.container]}>
-      <Ionicons
-        name="search"
+      <IconSymbol
+        name="magnifyingglass"
         size={20}
         color={dynamicStyles.icon.color}
         style={styles.searchIcon}
