@@ -2,7 +2,6 @@ import { Stack } from "expo-router";
 import React from "react";
 import { authClient } from "@/lib/auth-client";
 import SplashScreenController from "@/app/splash";
-import { AuthProvider } from "@/lib/AuthContext";
 import {
   DarkTheme,
   DefaultTheme,
@@ -19,10 +18,8 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <AuthProvider>
-          <SplashScreenController />
-          <RootNavigator />
-        </AuthProvider>
+        <SplashScreenController />
+        <RootNavigator />
         <StatusBar style="auto" />
       </ThemeProvider>
     </QueryClientProvider>
