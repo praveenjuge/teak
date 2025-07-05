@@ -28,7 +28,7 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
     data: session,
     isPending: sessionPending,
     error: sessionError,
-  } = authClient.useSession();
+  } = authClient?.useSession() || { data: null, isPending: false, error: null };
 
   console.log("[CardsGrid] Component rendered with props:", {
     searchQuery,

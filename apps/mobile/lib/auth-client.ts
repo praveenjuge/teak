@@ -4,17 +4,15 @@ import * as SecureStore from "expo-secure-store";
 import { useEffect } from "react";
 
 const API_URL_KEY = "teak_api_url";
-const DEFAULT_URL = "http://192.168.29.96:3000"
 
-export const getStoredApiUrl = async (): Promise<string> => {
+export const getStoredApiUrl = () => {
   try {
-    const storedUrl = await SecureStore.getItemAsync(API_URL_KEY);
-    const url = storedUrl || DEFAULT_URL;
+    const storedUrl = SecureStore.getItem(API_URL_KEY);
+    const url = storedUrl;
     console.log('[AuthClient] Retrieved API URL:', { storedUrl, url });
     return url;
   } catch (error) {
     console.error("[AuthClient] Failed to get stored API URL:", error);
-    return DEFAULT_URL;
   }
 };
 
@@ -28,22 +26,18 @@ export const storeApiUrl = async (url: string): Promise<void> => {
 };
 
 export const createAuthClientWithUrl = () => {
-  let serverURL = DEFAULT_URL;
-
-  useEffect(() => {
-    const fetchApiUrl = async () => {
-      serverURL = await getStoredApiUrl();
-      console.log('[AuthClient] Auth client initialized with URL:', serverURL);
-    };
-
-    fetchApiUrl();
-  }, []);
+  const serverURL = getStoredApiUrl();
 
   // Ensure URL has proper format
-  const formattedURL = serverURL.endsWith('/') ? serverURL.slice(0, -1) : serverURL;
+  const formattedURL = serverURL?.endsWith('/') ? serverURL.slice(0, -1) : serverURL;
   const baseURL = `${formattedURL}/api/auth`;
 
   console.log('[AuthClient] Creating auth client:', { serverURL, formattedURL, baseURL });
+
+  if (!formattedURL) {
+    console.warn("[AuthClient] No API URL configured, auth client will not work");
+    return null; // Return null or handle as needed
+  }
 
   return createAuthClient({
     baseURL,

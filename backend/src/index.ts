@@ -68,6 +68,7 @@ app.get('/api/protected', (c) => {
 // Health check endpoint
 app.get('/api/health', (c) => {
   return c.json({
+    service: 'teak',
     status: 'ok',
     timestamp: new Date().toISOString(),
     auth: 'better-auth enabled'

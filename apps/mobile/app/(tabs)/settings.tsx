@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  View,
   Text,
   TouchableOpacity,
   ScrollView,
@@ -10,14 +9,8 @@ import {
 import { authClient, getStoredApiUrl } from "../../lib/auth-client";
 
 export default function SettingsScreen() {
-  const { data: session } = authClient.useSession();
-  const [serverUrl, setServerUrl] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    getStoredApiUrl()
-      .then(setServerUrl)
-      .catch(() => setServerUrl(null));
-  }, []);
+  const { data: session } = authClient?.useSession() || { data: null };
+  const serverUrl = getStoredApiUrl();
 
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -27,7 +20,11 @@ export default function SettingsScreen() {
         style: "destructive",
         onPress: async () => {
           try {
-            await authClient.signOut();
+            if (authClient) {
+              await authClient.signOut();
+            } else {
+              Alert.alert("Error", "Authentication client not available");
+            }
           } catch {
             Alert.alert("Error", "Failed to logout");
           }

@@ -27,8 +27,8 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
-  const { data } = authClient.useSession();
-  const sessionPresent = data ? true : false;
+  const sessionData = authClient ? authClient.useSession() : { data: null };
+  const sessionPresent = sessionData.data ? true : false;
 
   // Setup React Native optimizations for TanStack Query
   useAppStateFocus();

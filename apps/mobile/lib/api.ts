@@ -39,18 +39,27 @@ class ApiClient {
     });
 
     // Get session info for logging
-    const sessionResult = await authClient.getSession();
-    console.log('[ApiClient] Session result:', {
-      hasData: !!sessionResult.data,
-      hasError: !!sessionResult.error,
-      errorMessage: sessionResult.error?.message,
-      sessionId: sessionResult.data?.session?.id,
-      userId: sessionResult.data?.user?.id,
-    });
+    let sessionResult: any = null;
+    if (authClient) {
+      sessionResult = await authClient.getSession();
+      console.log('[ApiClient] Session result:', {
+        hasData: !!sessionResult.data,
+        hasError: !!sessionResult.error,
+        errorMessage: sessionResult.error?.message,
+        sessionId: sessionResult.data?.session?.id,
+        userId: sessionResult.data?.user?.id,
+      });
+    } else {
+      console.log('[ApiClient] Auth client not available');
+    }
 
     try {
       // Use Better Auth's built-in fetch that automatically handles authentication
       console.log('[ApiClient] Using authClient.$fetch for authenticated request');
+
+      if (!authClient) {
+        throw new Error('Auth client not available');
+      }
 
       const authFetchUrl = `${apiBaseUrl}${endpoint}`;
       console.log('[ApiClient] AuthClient fetch URL:', authFetchUrl);
