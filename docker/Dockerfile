@@ -9,7 +9,7 @@ COPY apps/web/package.json apps/web/bun.lock ./web/
 COPY package.json bun.lock ./
 
 # Install dependencies
-RUN cd web && bun install --frozen-lockfile
+RUN cd web && bun install
 
 # Copy frontend source
 COPY apps/web ./web/
@@ -27,7 +27,7 @@ COPY backend/package.json ./backend/
 COPY package.json ./
 
 # Install dependencies
-RUN cd backend && bun install --frozen-lockfile
+RUN cd backend && bun install
 
 # Copy backend source
 COPY backend ./backend/
