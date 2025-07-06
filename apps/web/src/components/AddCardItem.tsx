@@ -413,6 +413,29 @@ export function AddCardItem() {
     );
   }
 
+  if (uploadProgress !== null) {
+    // Only show uploading status while file is uploading
+    return (
+      <Card className="min-h-50 p-4 gap-4 flex flex-col items-center justify-center">
+        <CardContent className="p-0 w-full">
+          <div className="mt-2 w-full">
+            <div className="flex justify-between text-sm text-muted-foreground mb-1">
+              <span>Uploading...</span>
+              <span>{Math.round(uploadProgress)}%</span>
+            </div>
+            <div className="w-full bg-secondary rounded-full h-2">
+              <div
+                className="bg-primary h-2 rounded-full transition-all duration-300"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // ...existing code...
   return (
     <Card className="min-h-50 p-4 gap-4">
       <CardContent className="p-0 h-full">
@@ -427,20 +450,7 @@ export function AddCardItem() {
         />
       </CardContent>
       <CardContent className="p-0">
-        {uploadProgress !== null && (
-          <div className="mt-2">
-            <div className="flex justify-between text-sm text-muted-foreground mb-1">
-              <span>Uploading...</span>
-              <span>{Math.round(uploadProgress)}%</span>
-            </div>
-            <div className="w-full bg-secondary rounded-full h-2">
-              <div
-                className="bg-primary h-2 rounded-full transition-all duration-300"
-                style={{ width: `${uploadProgress}%` }}
-              />
-            </div>
-          </div>
-        )}
+        {/* Upload progress UI is now only shown in upload state */}
       </CardContent>
       <CardFooter className="p-0 flex justify-between">
         <div className="flex gap-2">

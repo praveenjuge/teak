@@ -28,8 +28,8 @@ export default function SettingsModal() {
   return (
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon">
-          <Settings />
+        <Button variant="ghost" size="icon">
+          <Settings className="size-4.5" />
           <span className="sr-only">Settings</span>
         </Button>
       </DialogTrigger>

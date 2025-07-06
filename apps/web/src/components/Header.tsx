@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
-import { Search, Loader2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Search, Loader2, X } from "lucide-react";
 import SettingsModal from "./SettingsModal";
 import { useSearch } from "@/contexts/SearchContext";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { Button } from "./ui/button";
 
 export function Header() {
   const { searchQuery, setSearchQuery } = useSearch();
@@ -33,21 +33,31 @@ export function Header() {
   };
 
   return (
-    <header className="flex items-center mb-4 gap-2">
+    <header className="flex items-center gap-2">
       <form onSubmit={handleSearch} className="relative flex-1">
         {isSearching ? (
-          <Loader2 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-primary size-4 animate-spin" />
+          <Loader2 className="pointer-events-none absolute left-0 top-1/2 transform -translate-y-1/2 text-primary size-5 animate-spin" />
         ) : (
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground size-4" />
+          <Search className="pointer-events-none absolute left-0 top-1/2 transform -translate-y-1/2 text-muted-foreground size-5" />
         )}
-        <Input
-          type="search"
+        <input
+          type="text"
           ref={inputRef}
-          className="pl-9"
+          className="pl-7 h-16 w-full outline-0 text-base"
           value={searchQuery}
           placeholder="Search cards... (⌘K)"
           onChange={(e) => setSearchQuery(e.target.value)}
         />
+        {searchQuery && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2"
+            onClick={() => setSearchQuery("")}
+          >
+            <X />
+          </Button>
+        )}
       </form>
       <SettingsModal />
     </header>
