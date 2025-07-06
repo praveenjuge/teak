@@ -1,7 +1,6 @@
 import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { apiClient, type Card as CardType } from "@/lib/api";
 import { Loader2, Mic, Square, FileUp } from "lucide-react";
@@ -435,24 +434,21 @@ export function AddCardItem() {
     );
   }
 
-  // ...existing code...
   return (
-    <Card className="min-h-50 p-4 gap-4">
+    <Card className="min-h-50 gap-0 p-0 focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
       <CardContent className="p-0 h-full">
-        <Textarea
+        <textarea
           ref={textareaRef}
           value={content}
+          name="content"
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Enter your bookmark, URL, or note... (⌘+Enter to save)"
           disabled={createCardMutation.isPending}
-          className="min-h-[80px] resize-none h-full"
+          placeholder="Enter your bookmark, URL, or note... (⌘+Enter to save)"
+          className="min-h-[80px] resize-none h-full outline-0 p-4 w-full"
         />
       </CardContent>
-      <CardContent className="p-0">
-        {/* Upload progress UI is now only shown in upload state */}
-      </CardContent>
-      <CardFooter className="p-0 flex justify-between">
+      <CardFooter className="px-4 pb-4 flex justify-between">
         <div className="flex gap-2">
           <input
             ref={fileInputRef}
@@ -496,7 +492,7 @@ export function AddCardItem() {
           {createCardMutation.isPending ? (
             <Loader2 className="animate-spin" />
           ) : (
-            <span>Save Card</span>
+            <span>Save</span>
           )}
         </Button>
       </CardFooter>
