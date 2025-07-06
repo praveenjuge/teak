@@ -1,0 +1,39 @@
+{
+  "name": "@teak/backend",
+  "version": "0.0.1",
+  "description": "Teak backend API server built with Hono.js",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "lsof -ti:3001 | xargs -r kill && PORT=3001 bun --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "start": "bun dist/index.js",
+    "type-check": "bun --no-install --dry-run src/index.ts",
+    "db:generate": "bunx drizzle-kit generate",
+    "db:migrate": "bunx drizzle-kit migrate", 
+    "db:push": "bunx drizzle-kit push",
+    "db:studio": "bunx drizzle-kit studio",
+    "db:seed": "bun run src/seeds/cards.ts"
+  },
+  "dependencies": {
+    "better-auth": "^1.2.12",
+    "drizzle-orm": "^0.44.2",
+    "hono": "^4.8.3",
+    "pg": "^8.16.3",
+    "zod": "^3.25.71"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/pg": "^8.15.4",
+    "drizzle-kit": "^0.31.4"
+  },
+  "keywords": [
+    "hono",
+    "api",
+    "backend",
+    "postgresql",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "praveenjuge <hello@praveenjuge.com>"
+}

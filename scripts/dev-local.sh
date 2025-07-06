@@ -157,7 +157,7 @@ sleep 1
 
 # Open frontend tab
 print_status "Starting frontend server..."
-open_terminal_tab "Frontend" "echo 'Starting frontend server...' && bun run dev:frontend"
+open_terminal_tab "Frontend" "echo 'Starting frontend server...' && bun run --bun dev:frontend"
 
 # Wait a moment between tabs
 sleep 1
