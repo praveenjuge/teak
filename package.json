@@ -22,14 +22,12 @@
   "scripts": {
     "bootstrap": "./scripts/bootstrap.sh",
     "install:all": "./scripts/install-deps.sh",
-    "setup:db": "./scripts/setup-db.sh",
-    "dev": "./scripts/dev.sh",
+    "dev": "./scripts/dev-local.sh",
     "dev:local": "./scripts/dev-local.sh",
     "dev:backend": "cd backend && bun run dev",
     "dev:frontend": "cd apps/web && bun run dev",
     "dev:mobile": "cd apps/mobile && bun run start",
     "build": "bun run build:backend && bun run build:frontend",
-    "docker:dev": "docker-compose -f docker/docker-compose.dev.yml up --build",
     "docker:prod": "docker-compose -f docker/docker-compose.yml up --build"
   },
   "devDependencies": {

@@ -76,11 +76,11 @@ RUN echo '#!/bin/bash\n\
     sleep 2\n\
     done\n\
     echo "✅ PostgreSQL is ready!"\n\
-    echo "� Running database migrations..."\n\
+    echo "🔄 Running database migrations..."\n\
     cd /app/backend && bun run ../node_modules/.bin/drizzle-kit migrate\n\
     cd /app\n\
     echo "✅ Database migrations completed!"\n\
-    echo "�🔥 Starting application..."\n\
+    echo "🔥 Starting application..."\n\
     exec bun start\n\
     ' > /app/start-prod.sh && chmod +x /app/start-prod.sh
 
