@@ -2,7 +2,8 @@ import { mkdir, writeFile, unlink, stat } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { fileTypeFromBuffer } from 'file-type';
-import { FileUploadService, UploadedFile, UploadOptions } from './FileUploadService.js';
+import { FileUploadService } from './FileUploadService.js';
+import type { UploadedFile, UploadOptions } from './FileUploadService.js';
 
 export class LocalFileUploadService extends FileUploadService {
   private uploadsDir: string;

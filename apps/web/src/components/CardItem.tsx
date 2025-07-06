@@ -127,18 +127,10 @@ export function CardItem({ card, onDelete }: CardItemProps) {
 
       case "text":
         if (!card.data.content) return null;
-        return (
-          <p className="text-sm text-muted-foreground leading-relaxed p-4">
-            {card.data.content}
-          </p>
-        );
+        return <p className="leading-relaxed p-4">{card.data.content}</p>;
 
       default:
-        return (
-          <p className="text-sm text-muted-foreground leading-relaxed p-4">
-            {card.data.content}
-          </p>
-        );
+        return <p className="leading-relaxed p-4">{card.data.content}</p>;
     }
   };
 

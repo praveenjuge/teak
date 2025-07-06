@@ -1,4 +1,4 @@
-import { CardType } from '../../schemas/cards';
+import type { CardType } from '../../schemas/cards';
 
 export interface SearchOptions {
   query?: string;

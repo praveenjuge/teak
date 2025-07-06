@@ -1,4 +1,5 @@
 # Rules
+
 1. First think through the problem, read the codebase for relevant files, and write a plan to tasks/todo.md.
 2. The plan should have a list of todo items that you can check off as you complete them
 3. Before you begin working, check in with me and I will verify the plan.
@@ -9,8 +10,10 @@
 8. Avoid duplication of code and think like a senior software engineer. Try refactoring code to modules, classes or something of that sort.
 9. Always update the postman collection whenever APIs are updated.
 10. Keep the routes cleaner and move all the major logic to services.
+11. Run`bunx tsc --noEmit` to check for type errors at the end
 
 # Secondary rules
+
 1. No artifacts.
 2. Less code is better than more code.
 3. No fallback mechanisms — they hide real failures.

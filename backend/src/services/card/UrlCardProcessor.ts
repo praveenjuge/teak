@@ -1,5 +1,6 @@
 import { parse } from 'node-html-parser';
-import { CardProcessor, ProcessedCardData, ProcessingContext } from './CardProcessor.js';
+import { CardProcessor } from './CardProcessor.js';
+import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
 
 interface UrlMetadata {
   title?: string;
@@ -12,8 +13,8 @@ interface UrlMetadata {
 
 export class UrlCardProcessor extends CardProcessor {
   async process(context: ProcessingContext): Promise<ProcessedCardData> {
-    const url = context.inputData.url;
-    
+    const url = context.inputData['url'];
+
     if (!url || !this.isValidUrl(url)) {
       throw new Error('URL card requires a valid url field');
     }
@@ -33,7 +34,7 @@ export class UrlCardProcessor extends CardProcessor {
         og_type: metadata.type,
         canonical_url: metadata.url,
         fetched_at: new Date().toISOString(),
-        ...context.inputData.metaInfo
+        ...context.inputData['metaInfo']
       }
     };
   }

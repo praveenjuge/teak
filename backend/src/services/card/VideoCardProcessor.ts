@@ -1,7 +1,8 @@
 import ffprobe from 'ffprobe-static';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { CardProcessor, ProcessedCardData, ProcessingContext } from './CardProcessor.js';
+import { CardProcessor } from './CardProcessor.js';
+import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
 import { LocalFileUploadService } from '../file/LocalFileUploadService.js';
 
 const execFileAsync = promisify(execFile);
@@ -27,7 +28,7 @@ export class VideoCardProcessor extends CardProcessor {
   async process(context: ProcessingContext): Promise<ProcessedCardData> {
     if (!context.file) {
       // Handle URL-based video
-      const mediaUrl = context.inputData.media_url;
+      const mediaUrl = context.inputData['media_url'];
       if (!mediaUrl) {
         throw new Error('Video card requires either a file upload or media_url');
       }
@@ -36,7 +37,7 @@ export class VideoCardProcessor extends CardProcessor {
         data: {
           media_url: mediaUrl
         },
-        metaInfo: context.inputData.metaInfo || {}
+        metaInfo: context.inputData['metaInfo'] || {}
       };
     }
 
@@ -44,7 +45,7 @@ export class VideoCardProcessor extends CardProcessor {
     const uploadResult = await this.fileUploadService.uploadFile(context.file, {
       maxSize: 200 * 1024 * 1024, // 200MB
       allowedTypes: [
-        'video/mp4', 'video/webm', 'video/ogg', 'video/avi', 
+        'video/mp4', 'video/webm', 'video/ogg', 'video/avi',
         'video/mov', 'video/wmv', 'video/flv', 'video/mkv',
         'video/m4v', 'video/3gp', 'video/quicktime'
       ],
@@ -87,7 +88,7 @@ export class VideoCardProcessor extends CardProcessor {
 
       const result = JSON.parse(stdout);
       const videoStream = result.streams?.find((stream: any) => stream.codec_type === 'video');
-      
+
       if (!videoStream) {
         return {};
       }
@@ -109,11 +110,12 @@ export class VideoCardProcessor extends CardProcessor {
 
   private calculateFps(frameRate?: string): number | undefined {
     if (!frameRate) return undefined;
-    
+
     try {
       // Handle frame rates like "30/1" or "24000/1001"
       const [numerator, denominator] = frameRate.split('/').map(Number);
-      return denominator ? Math.round((numerator / denominator) * 100) / 100 : numerator;
+      const num = numerator ?? 0;
+      return denominator ? Math.round((num / denominator) * 100) / 100 : num;
     } catch {
       return undefined;
     }

@@ -1,7 +1,8 @@
 import { eq, desc, asc, and, isNull, sql } from 'drizzle-orm';
 import { db } from '../../db';
 import { cards } from '../../db/schema';
-import { SearchAndSortService, SearchOptions, SearchResult } from './SearchAndSortService';
+import { SearchAndSortService } from './SearchAndSortService';
+import type { SearchOptions, SearchResult } from './SearchAndSortService';
 
 export class DatabaseSearchService extends SearchAndSortService {
   async searchCards(options: SearchOptions): Promise<SearchResult> {
@@ -111,7 +112,7 @@ export class DatabaseSearchService extends SearchAndSortService {
     // Regular sorting without search
     const sortColumn = sort === 'created_at' ? cards.createdAt :
       sort === 'updated_at' ? cards.updatedAt :
-      cards.type;
+        cards.type;
     const orderBy = order === 'asc' ? asc(sortColumn) : desc(sortColumn);
 
     const result = await db

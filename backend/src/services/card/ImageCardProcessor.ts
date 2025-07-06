@@ -1,4 +1,5 @@
-import { CardProcessor, ProcessedCardData, ProcessingContext } from './CardProcessor.js';
+import { CardProcessor } from './CardProcessor.js';
+import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
 import { LocalFileUploadService } from '../file/LocalFileUploadService.js';
 
 export class ImageCardProcessor extends CardProcessor {
@@ -12,7 +13,7 @@ export class ImageCardProcessor extends CardProcessor {
   async process(context: ProcessingContext): Promise<ProcessedCardData> {
     if (!context.file) {
       // Handle URL-based image
-      const mediaUrl = context.inputData.media_url;
+      const mediaUrl = context.inputData['media_url'];
       if (!mediaUrl) {
         throw new Error('Image card requires either a file upload or media_url');
       }
@@ -21,7 +22,7 @@ export class ImageCardProcessor extends CardProcessor {
         data: {
           media_url: mediaUrl
         },
-        metaInfo: context.inputData.metaInfo || {}
+        metaInfo: context.inputData['metaInfo'] || {}
       };
     }
 

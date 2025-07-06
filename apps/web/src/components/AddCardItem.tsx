@@ -270,8 +270,8 @@ export function AddCardItem() {
   };
 
   return (
-    <Card className="border-dashed min-h-50">
-      <CardContent className="h-full">
+    <Card className="min-h-50 p-4 gap-4">
+      <CardContent className="p-0 h-full">
         <Textarea
           ref={textareaRef}
           value={content}
@@ -296,7 +296,7 @@ export function AddCardItem() {
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex justify-between">
+      <CardFooter className="p-0 flex justify-between">
         <div className="flex gap-2">
           <input
             ref={fileInputRef}

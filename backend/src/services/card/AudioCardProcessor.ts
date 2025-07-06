@@ -1,7 +1,8 @@
 import ffprobe from 'ffprobe-static';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { CardProcessor, ProcessedCardData, ProcessingContext } from './CardProcessor.js';
+import { CardProcessor } from './CardProcessor.js';
+import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
 import { LocalFileUploadService } from '../file/LocalFileUploadService.js';
 
 const execFileAsync = promisify(execFile);
@@ -25,7 +26,7 @@ export class AudioCardProcessor extends CardProcessor {
   async process(context: ProcessingContext): Promise<ProcessedCardData> {
     if (!context.file) {
       // Handle URL-based audio
-      const mediaUrl = context.inputData.media_url;
+      const mediaUrl = context.inputData['media_url'];
       if (!mediaUrl) {
         throw new Error('Audio card requires either a file upload or media_url');
       }
@@ -33,9 +34,9 @@ export class AudioCardProcessor extends CardProcessor {
       return {
         data: {
           media_url: mediaUrl,
-          transcription: context.inputData.transcription || ''
+          transcription: context.inputData['transcription'] || ''
         },
-        metaInfo: context.inputData.metaInfo || {}
+        metaInfo: context.inputData['metaInfo'] || {}
       };
     }
 
@@ -43,7 +44,7 @@ export class AudioCardProcessor extends CardProcessor {
     const uploadResult = await this.fileUploadService.uploadFile(context.file, {
       maxSize: 50 * 1024 * 1024, // 50MB
       allowedTypes: [
-        'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/ogg', 
+        'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/ogg',
         'audio/webm', 'audio/aac', 'audio/flac', 'audio/x-m4a'
       ],
       generateUrl: (path) => `/api/uploads/${path}`
@@ -55,7 +56,7 @@ export class AudioCardProcessor extends CardProcessor {
     return {
       data: {
         media_url: uploadResult.url,
-        transcription: context.inputData.transcription || '',
+        transcription: context.inputData['transcription'] || '',
         original_filename: uploadResult.originalName
       },
       metaInfo: {
@@ -84,7 +85,7 @@ export class AudioCardProcessor extends CardProcessor {
 
       const result = JSON.parse(stdout);
       const audioStream = result.streams?.find((stream: any) => stream.codec_type === 'audio');
-      
+
       if (!audioStream) {
         return {};
       }

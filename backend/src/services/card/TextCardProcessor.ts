@@ -1,9 +1,10 @@
-import { CardProcessor, ProcessedCardData, ProcessingContext } from './CardProcessor.js';
+import { CardProcessor } from './CardProcessor.js';
+import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
 
 export class TextCardProcessor extends CardProcessor {
   async process(context: ProcessingContext): Promise<ProcessedCardData> {
-    const content = context.inputData.content;
-    
+    const content = context.inputData['content'];
+
     if (!content || typeof content !== 'string') {
       throw new Error('Text card requires content field');
     }

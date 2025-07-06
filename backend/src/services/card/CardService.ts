@@ -5,7 +5,8 @@ import { VideoCardProcessor } from './VideoCardProcessor.js';
 import { TextCardProcessor } from './TextCardProcessor.js';
 import { UrlCardProcessor } from './UrlCardProcessor.js';
 import { ImageCardProcessor } from './ImageCardProcessor.js';
-import { CardProcessor, ProcessingContext } from './CardProcessor.js';
+import { CardProcessor } from './CardProcessor.js';
+import type { ProcessingContext } from './CardProcessor.js';
 
 export type CardType = 'audio' | 'text' | 'url' | 'image' | 'video';
 
@@ -30,13 +31,13 @@ export class CardService {
   private processors: Map<CardType, CardProcessor>;
 
   constructor() {
-    this.processors = new Map([
+    this.processors = new Map<CardType, CardProcessor>([
       ['audio', new AudioCardProcessor()],
       ['video', new VideoCardProcessor()],
       ['text', new TextCardProcessor()],
       ['url', new UrlCardProcessor()],
       ['image', new ImageCardProcessor()]
-    ]);
+    ] as const);
   }
 
   async createCard(
@@ -72,13 +73,21 @@ export class CardService {
         })
         .returning();
 
-      return newCard;
+      if (!newCard) {
+        throw new Error('Failed to create card');
+      }
+
+      return {
+        ...newCard,
+        data: newCard.data as Record<string, any>,
+        metaInfo: newCard.metaInfo as Record<string, any>
+      };
 
     } catch (error) {
       // Handle auto-conversion from text to URL
       if (error instanceof Error && error.message.startsWith('AUTO_CONVERT_TO_URL:')) {
         const url = error.message.split('AUTO_CONVERT_TO_URL:')[1];
-        
+
         // Recursively create URL card
         return this.createCard({
           type: 'url',
