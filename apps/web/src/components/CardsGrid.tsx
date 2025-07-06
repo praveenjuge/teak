@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Masonry } from "masonic";
 import { apiClient } from "@/lib/api";
 import type { Card } from "@/lib/api";
 import { CardItem } from "./CardItem";
@@ -8,12 +9,47 @@ import { CardsGridSkeleton } from "./CardSkeleton";
 import { AlertTriangle, Search } from "lucide-react";
 import { useSearch } from "@/contexts/SearchContext";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { useCallback, useMemo } from "react";
+
+// Create the masonry render component
+interface MasonryItemData {
+  type: "card" | "add";
+  card?: Card;
+  onDelete?: () => void;
+}
+
+const MasonryItem = ({
+  data,
+  width,
+}: {
+  data: MasonryItemData;
+  width: number;
+}) => {
+  if (data?.type === "add") {
+    return (
+      <div style={{ width }}>
+        <AddCardItem />
+      </div>
+    );
+  }
+
+  if (data?.card) {
+    return (
+      <div style={{ width }}>
+        <CardItem card={data.card} onDelete={data.onDelete} />
+      </div>
+    );
+  }
+  // Return an empty div instead of null to avoid WeakMap issues
+  return <div style={{ width, height: 0 }} />;
+};
 
 export function CardsGrid() {
   const { searchQuery, selectedType } = useSearch();
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 200);
+  const queryClient = useQueryClient();
 
-  const { data, error, refetch, isLoading } = useQuery({
+  const { data, error, isLoading } = useQuery({
     queryKey: ["cards", { searchQuery: debouncedSearchQuery, selectedType }],
     queryFn: () => {
       return apiClient.getCards({
@@ -27,6 +63,12 @@ export function CardsGrid() {
     staleTime: 30 * 1000, // 30 seconds
     refetchOnWindowFocus: false,
   });
+
+  // Memoized callback for handling card deletion
+  const handleCardDelete = useCallback(() => {
+    // Invalidate the cards query to refresh the grid
+    queryClient.invalidateQueries({ queryKey: ["cards"] });
+  }, [queryClient]);
 
   if (isLoading) {
     return <CardsGridSkeleton />;
@@ -42,7 +84,10 @@ export function CardsGrid() {
         }
         action={{
           label: "Try Again",
-          onClick: () => refetch(),
+          onClick: () => {
+            // Invalidate queries to retry loading
+            queryClient.invalidateQueries({ queryKey: ["cards"] });
+          },
         }}
       />
     );
@@ -68,13 +113,38 @@ export function CardsGrid() {
     );
   }
 
+  // Prepare masonry items with memoization to ensure proper re-rendering
+  const masonryItems: MasonryItemData[] = useMemo(() => {
+    const items: MasonryItemData[] = [];
+
+    // Add the AddCardItem only when not searching
+    if (!debouncedSearchQuery) {
+      items.push({ type: "add" });
+    }
+
+    // Add all cards
+    data.cards.forEach((card: Card) => {
+      // Only add valid card objects to prevent WeakMap errors
+      if (card && card.id) {
+        items.push({ type: "card", card, onDelete: handleCardDelete });
+      }
+    });
+
+    return items;
+  }, [data.cards, debouncedSearchQuery, handleCardDelete]);
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-      {/* Only show AddCardItem when not searching */}
-      {!debouncedSearchQuery && <AddCardItem />}
-      {data.cards.map((card: Card) => (
-        <CardItem key={card.id} card={card} onDelete={refetch} />
-      ))}
-    </div>
+    <Masonry
+      key={`${data.cards.length}-${debouncedSearchQuery || "all"}-${selectedType || "all"}`}
+      items={masonryItems}
+      render={MasonryItem}
+      columnGutter={24}
+      rowGutter={24}
+      columnWidth={264}
+      maxColumnCount={5}
+      itemKey={(item, index) =>
+        item?.type === "add" ? "add-card" : item?.card?.id || `item-${index}`
+      }
+    />
   );
 }

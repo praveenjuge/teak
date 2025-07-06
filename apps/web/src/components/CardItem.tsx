@@ -20,6 +20,7 @@ import {
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { apiClient } from "@/lib/api";
 import { useState, useRef, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface CardItemProps {
   card: CardType;
@@ -35,13 +36,64 @@ const formatDuration = (seconds: number): string => {
 
 export function CardItem({ card, onDelete }: CardItemProps) {
   const { playAudio, pauseAudio, currentlyPlaying } = useAudioPlayer();
-  const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   const isPlaying =
     currentlyPlaying !== null && currentlyPlaying === audioRef.current;
+
+  // Delete mutation with optimistic updates
+  const deleteMutation = useMutation({
+    mutationFn: (cardId: number) => apiClient.deleteCard(cardId),
+    onMutate: async (cardId) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ["cards"] });
+
+      // Snapshot the previous cards data
+      const previousQueries = queryClient.getQueriesData({
+        queryKey: ["cards"],
+      });
+
+      // Optimistically remove the card from all cards queries
+      queryClient.setQueriesData({ queryKey: ["cards"] }, (oldData: any) => {
+        if (!oldData || !oldData.cards) return oldData;
+
+        return {
+          ...oldData,
+          cards: oldData.cards.filter((c: CardType) => c.id !== cardId),
+          total: oldData.total - 1,
+        };
+      });
+
+      // Return a context object with the snapshotted value
+      return { previousQueries };
+    },
+    onError: (err, _, context) => {
+      // If the mutation fails, restore all previous queries
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      console.error("Failed to delete card:", err);
+    },
+    onSuccess: () => {
+      // Close the dialog and call the onDelete callback
+      setShowDeleteDialog(false);
+      onDelete?.();
+    },
+    onSettled: () => {
+      // Invalidate and refetch cards to ensure we have the latest data
+      queryClient.invalidateQueries({ queryKey: ["cards"] });
+    },
+  });
+
+  const handleDelete = () => {
+    if (deleteMutation.isPending) return;
+    deleteMutation.mutate(card.id);
+  };
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -78,21 +130,6 @@ export function CardItem({ card, onDelete }: CardItemProps) {
     }
   };
 
-  const handleDelete = async () => {
-    if (isDeleting) return;
-
-    try {
-      setIsDeleting(true);
-      await apiClient.deleteCard(card.id);
-      onDelete?.();
-    } catch (error) {
-      console.error("Failed to delete card:", error);
-    } finally {
-      setIsDeleting(false);
-      setShowDeleteDialog(false);
-    }
-  };
-
   const handleUrlClick = (url: string) => {
     window.open(url, "_blank", "noopener,noreferrer");
   };
@@ -102,8 +139,18 @@ export function CardItem({ card, onDelete }: CardItemProps) {
     switch (card.type) {
       case "image":
         if (!card.data.media_url) return null;
+
+        // Get image dimensions from stored data
+        const width = card.data.width;
+        const height = card.data.height;
+
         return (
-          <div className="aspect-video bg-muted rounded overflow-hidden">
+          <div
+            className="bg-muted rounded overflow-hidden"
+            style={{
+              aspectRatio: width && height ? `${width} / ${height}` : undefined,
+            }}
+          >
             <img
               src={card.data.media_url}
               alt={card.data.alt_text || "Image"}
@@ -204,7 +251,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
       <ContextMenuContent>
         <ContextMenuItem
           onClick={() => setShowDeleteDialog(true)}
-          disabled={isDeleting}
+          disabled={deleteMutation.isPending}
         >
           <Trash2 />
           Delete
@@ -221,8 +268,11 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
-              {isDeleting ? "Deleting..." : "Delete"}
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

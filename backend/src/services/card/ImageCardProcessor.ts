@@ -39,7 +39,9 @@ export class ImageCardProcessor extends CardProcessor {
     return {
       data: {
         media_url: uploadResult.url,
-        original_filename: uploadResult.originalName
+        original_filename: uploadResult.originalName,
+        width: uploadResult.width,
+        height: uploadResult.height
       },
       metaInfo: {
         file_size: uploadResult.size,

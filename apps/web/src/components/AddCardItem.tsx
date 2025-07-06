@@ -118,6 +118,10 @@ export function AddCardItem() {
       // Focus back to textarea for continuous input
       textareaRef.current?.focus();
     },
+    onSettled: () => {
+      // Always ensure queries are invalidated after mutation completes
+      queryClient.invalidateQueries({ queryKey: ["cards"] });
+    },
   });
 
   const createFileCardMutation = useMutation({
@@ -192,6 +196,11 @@ export function AddCardItem() {
     },
     onSuccess: () => {
       // Invalidate and refetch to get the real data from server
+      queryClient.invalidateQueries({ queryKey: ["cards"] });
+      setUploadProgress(null);
+    },
+    onSettled: () => {
+      // Always ensure queries are invalidated and progress is reset
       queryClient.invalidateQueries({ queryKey: ["cards"] });
       setUploadProgress(null);
     },
@@ -435,19 +444,17 @@ export function AddCardItem() {
   }
 
   return (
-    <Card className="min-h-50 gap-0 p-0 focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
-      <CardContent className="p-0 h-full">
-        <textarea
-          ref={textareaRef}
-          value={content}
-          name="content"
-          onChange={(e) => setContent(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={createCardMutation.isPending}
-          placeholder="Enter your bookmark, URL, or note... (⌘+Enter to save)"
-          className="min-h-[80px] resize-none h-full outline-0 p-4 w-full"
-        />
-      </CardContent>
+    <Card className="min-h-50 gap-0 p-0 focus-within:ring-1 focus-within:ring-primary focus-within:border-primary justify-between">
+      <textarea
+        ref={textareaRef}
+        value={content}
+        name="content"
+        onChange={(e) => setContent(e.target.value)}
+        onKeyDown={handleKeyDown}
+        disabled={createCardMutation.isPending}
+        placeholder="Enter your bookmark, URL, or note... (⌘+Enter to save)"
+        className="min-h-[80px] resize-none h-full outline-0 p-4 w-full flex-1"
+      />
       <CardFooter className="px-4 pb-4 flex justify-between">
         <div className="flex gap-2">
           <input

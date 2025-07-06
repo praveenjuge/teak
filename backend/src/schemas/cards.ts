@@ -30,6 +30,8 @@ export const imageDataSchema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
   original_filename: z.string().optional(), // For uploaded files
+  width: z.number().positive().optional(), // Image width in pixels
+  height: z.number().positive().optional(), // Image height in pixels
 });
 
 export const videoDataSchema = z.object({

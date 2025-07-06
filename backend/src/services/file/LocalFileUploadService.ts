@@ -2,6 +2,7 @@ import { mkdir, writeFile, unlink, stat } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { fileTypeFromBuffer } from 'file-type';
+import imageSize from 'image-size';
 import { FileUploadService } from './FileUploadService.js';
 import type { UploadedFile, UploadOptions } from './FileUploadService.js';
 
@@ -52,13 +53,29 @@ export class LocalFileUploadService extends FileUploadService {
     // Generate URL
     const url = options.generateUrl(relativePath);
 
+    // Extract image dimensions if it's an image
+    let width: number | undefined;
+    let height: number | undefined;
+
+    if (fileType.mime.startsWith('image/')) {
+      try {
+        const dimensions = imageSize(uint8Array);
+        width = dimensions.width;
+        height = dimensions.height;
+      } catch (error) {
+        console.warn('Failed to extract image dimensions:', error);
+      }
+    }
+
     return {
       filename,
       originalName: file.name,
       path: relativePath,
       size: file.size,
       mimeType: fileType.mime,
-      url
+      url,
+      width,
+      height
     };
   }
 

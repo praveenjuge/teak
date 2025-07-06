@@ -20,6 +20,7 @@
     "@tanstack/react-router": "^1.123.2",
     "better-auth": "^1.2.12",
     "lucide-react": "^0.525.0",
+    "masonic": "^4.1.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.59.0",

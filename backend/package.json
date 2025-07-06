@@ -16,11 +16,13 @@
     "db:seed": "bun run src/seeds/cards.ts"
   },
   "dependencies": {
+    "@types/image-size": "^0.8.0",
     "better-auth": "^1.2.12",
     "drizzle-orm": "^0.44.2",
     "ffprobe-static": "^3.1.0",
     "file-type": "^21.0.0",
     "hono": "^4.8.3",
+    "image-size": "^2.0.2",
     "node-html-parser": "^7.0.1",
     "pg": "^8.16.3",
     "uuid": "^11.1.0",

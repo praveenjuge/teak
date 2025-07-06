@@ -5,6 +5,8 @@ export interface UploadedFile {
   size: number;
   mimeType: string;
   url: string;
+  width?: number; // Image width in pixels
+  height?: number; // Image height in pixels
 }
 
 export interface UploadOptions {
