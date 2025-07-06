@@ -3,7 +3,7 @@
 **Modern full-stack monorepo** with clean architecture and powerful tooling.
 
 - **Runtime**: Bun
-- **Backend**: Hono.js API server (@teak/backend) 
+- **Backend**: Hono.js API server (@teak/backend)
 - **Web App**: React 19 + Vite (@teak/web)
 - **Mobile App**: React Native with Expo (@teak/mobile)
 - **Database**: PostgreSQL 17 with Drizzle ORM
@@ -87,7 +87,7 @@ bun run dev
 
 # Start individual services
 bun run dev:backend    # Backend API server only
-bun run dev:frontend   # React web app only  
+bun run dev:frontend   # React web app only
 bun run dev:mobile     # React Native mobile app
 
 # Build all applications
@@ -124,7 +124,7 @@ bun run docker:dev         # Start development containers
 bun run docker:dev:down    # Stop development containers
 bun run docker:dev:clean   # Stop and remove all containers + volumes
 
-# Production environment  
+# Production environment
 bun run docker:prod        # Start production containers
 ```
 
@@ -146,7 +146,7 @@ configured and started through Docker Compose.
 
 - **Host**: localhost
 - **Port**: 5432
-- **Database**: `teak_dev`
+- **Database**: `teak_db`
 - **User**: `teak_user`
 - **Password**: `teak_dev_password` (development only)
 

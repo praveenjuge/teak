@@ -84,6 +84,17 @@ open_terminal_tab() {
     fi
 }
 
+# Check if Docker is installed and running
+if ! command -v docker &> /dev/null; then
+    print_error "Docker not found. Please install Docker Desktop."
+    exit 1
+fi
+
+if ! docker info &> /dev/null; then
+    print_error "Docker is not running. Please start Docker Desktop."
+    exit 1
+fi
+
 # Check if PostgreSQL is available
 if ! command -v psql &> /dev/null; then
     print_warning "PostgreSQL client (psql) not found. Database management commands may not work."
@@ -93,9 +104,54 @@ fi
 PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$PROJECT_ROOT"
 
-print_status "NOTE: This script assumes you have PostgreSQL running locally."
-print_status "Please ensure PostgreSQL is running on localhost:5432 with database 'teak_dev'"
-print_status "Username: teak_user, Password: teak_dev_password"
+# Check for .env file and create from example if it doesn't exist
+if [ ! -f ".env" ]; then
+    if [ -f ".env.example" ]; then
+        print_status "Creating .env file from .env.example..."
+        cp .env.example .env
+        print_warning "Please update the .env file with your actual values before running in production."
+    else
+        print_error ".env.example file not found. Please create environment configuration."
+        exit 1
+    fi
+fi
+
+# Start PostgreSQL using Docker Compose
+print_status "Starting PostgreSQL with Docker Compose..."
+
+# Set default environment variables if not present in .env
+export POSTGRES_DB=${POSTGRES_DB:-teak_db}
+export POSTGRES_USER=${POSTGRES_USER:-teak_user}
+export POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-teak_dev_password}
+
+# Clean up any orphaned containers first
+docker-compose -f docker/docker-compose.yml down --remove-orphans 2>/dev/null || true
+
+# Start PostgreSQL
+docker-compose -f docker/docker-compose.yml up -d postgres
+
+# Wait for PostgreSQL to be ready
+print_status "Waiting for PostgreSQL to be ready..."
+max_attempts=30
+attempts=0
+while [ $attempts -lt $max_attempts ]; do
+    if docker-compose -f docker/docker-compose.yml exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" &> /dev/null; then
+        print_status "PostgreSQL is ready!"
+        break
+    fi
+    ((attempts++))
+    print_status "Waiting for PostgreSQL... (${attempts}/${max_attempts})"
+    sleep 2
+done
+
+if [ $attempts -eq $max_attempts ]; then
+    print_error "PostgreSQL failed to start within expected time. Check Docker logs:"
+    print_error "docker-compose -f docker/docker-compose.yml logs postgres"
+    exit 1
+fi
+
+print_status "PostgreSQL started successfully!"
+print_status "Database: $POSTGRES_DB, User: $POSTGRES_USER, Port: 5432"
 
 # Check Bun version
 print_status "Using Bun runtime..."
@@ -135,7 +191,7 @@ sleep 2
 
 # Open backend tab
 print_status "Starting backend server..."
-open_terminal_tab "Backend" "export DATABASE_URL=postgresql://teak_user:teak_dev_password@localhost:5432/teak_dev && echo 'Starting backend server...' && bun run dev:backend"
+open_terminal_tab "Backend" "source .env && echo 'Starting backend server...' && bun run dev:backend"
 
 # Wait a moment between tabs
 sleep 1
@@ -149,14 +205,16 @@ sleep 1
 
 # Open database management tab
 print_status "Opening database management tab..."
-open_terminal_tab "Database" "echo 'Database Management Commands:' && echo '  bun run db:studio  - Open Drizzle Studio' && echo '  psql -h localhost -U teak_user -d teak_dev - Connect to database' && echo '' && echo 'PostgreSQL should be running on localhost:5432'"
+open_terminal_tab "Database" "echo 'Database Management Commands:' && echo '  bun run db:studio  - Open Drizzle Studio' && echo '  psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB - Connect to database' && echo '  docker-compose -f docker/docker-compose.yml logs postgres - View PostgreSQL logs' && echo '  docker-compose -f docker/docker-compose.yml stop postgres - Stop PostgreSQL' && echo '' && echo 'PostgreSQL running in Docker on localhost:5432'"
 
 print_status "Development environment is ready!"
 print_status "Services started:"
-print_status "  ✓ PostgreSQL: localhost:5432 (Local)"
+print_status "  ✓ PostgreSQL: localhost:5432 (Docker)"
 print_status "  ✓ Backend API: localhost:3001 (Local)"
 print_status "  ✓ Frontend: localhost:3000 (Local)"
 print_status ""
 print_status "Terminal tabs opened for backend, frontend, and database management."
+print_status ""
+print_status "To stop PostgreSQL: docker-compose -f docker/docker-compose.yml stop postgres"
 print_status ""
 print_status "Happy coding! 🚀"
