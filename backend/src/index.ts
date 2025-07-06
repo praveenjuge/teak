@@ -19,8 +19,8 @@ const app = new Hono<{
 app.use('*', logger());
 app.use('*', cors({
   origin: ['http://localhost:3000', 'http://localhost:8081'], // Add Expo development server
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
+  allowHeaders: ['Content-Type', 'Authorization', 'Range', 'Content-Range', 'Content-Length'],
   credentials: true, // Required for Better Auth cookies
 }));
 
@@ -46,7 +46,46 @@ app.all('/api/auth/*', (c) => auth.handler(c.req.raw));
 app.route('/api/users', userRoutes);
 app.route('/api/cards', cardRoutes);
 
-// Serve uploaded files
+// Serve uploaded files with proper headers for audio
+app.use('/api/uploads/*', async (c, next) => {
+  const path = c.req.path;
+  const filePath = path.replace('/api/uploads', '');
+
+  console.log(`[Uploads] Serving file: ${filePath}`);
+
+  // Get file extension to determine content type
+  const ext = filePath.split('.').pop()?.toLowerCase();
+
+  // Set appropriate content type and headers for audio files
+  if (ext === 'm4a' || ext === 'mp4' || ext === 'aac') {
+    c.header('Content-Type', 'audio/mp4');
+    c.header('Accept-Ranges', 'bytes');
+    c.header('Access-Control-Allow-Origin', '*');
+    c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    c.header('Access-Control-Allow-Headers', 'Range, Content-Range, Content-Length');
+  } else if (ext === 'mp3') {
+    c.header('Content-Type', 'audio/mpeg');
+    c.header('Accept-Ranges', 'bytes');
+    c.header('Access-Control-Allow-Origin', '*');
+    c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    c.header('Access-Control-Allow-Headers', 'Range, Content-Range, Content-Length');
+  } else if (ext === 'wav') {
+    c.header('Content-Type', 'audio/wav');
+    c.header('Accept-Ranges', 'bytes');
+    c.header('Access-Control-Allow-Origin', '*');
+    c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    c.header('Access-Control-Allow-Headers', 'Range, Content-Range, Content-Length');
+  } else if (ext === 'ogg') {
+    c.header('Content-Type', 'audio/ogg');
+    c.header('Accept-Ranges', 'bytes');
+    c.header('Access-Control-Allow-Origin', '*');
+    c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    c.header('Access-Control-Allow-Headers', 'Range, Content-Range, Content-Length');
+  }
+
+  return next();
+});
+
 app.use('/api/uploads/*', serveStatic({
   root: './uploads',
   rewriteRequestPath: (path) => path.replace('/api/uploads', ''),
@@ -80,6 +119,34 @@ app.get('/api/health', (c) => {
     timestamp: new Date().toISOString(),
     auth: 'better-auth enabled'
   });
+});
+
+// Test endpoint to check file serving
+app.get('/api/test-audio/:path', async (c) => {
+  const path = c.req.param('path');
+  const fullPath = `./uploads/${path}`;
+
+  try {
+    const file = Bun.file(fullPath);
+    const exists = await file.exists();
+    const size = exists ? file.size : 0;
+
+    return c.json({
+      path,
+      fullPath,
+      exists,
+      size,
+      type: file.type,
+      url: `/api/uploads/${path}`
+    });
+  } catch (error) {
+    return c.json({
+      error: 'Failed to check file',
+      path,
+      fullPath,
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
 });
 
 // Serve static files with optimized caching
