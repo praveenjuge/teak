@@ -2,15 +2,9 @@ import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { apiClient, type Card as CardType } from "@/lib/api";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mic, FileUp } from "lucide-react";
 
 function isUrl(text: string): boolean {
   try {
@@ -156,7 +150,33 @@ export function AddCardItem() {
           className="min-h-[80px] resize-none h-full"
         />
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex justify-between">
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            type="button"
+            onClick={() => {
+              // TODO: Implement file upload functionality
+              console.log("File/Image upload clicked");
+            }}
+            title="Add file or image"
+          >
+            <FileUp className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            type="button"
+            onClick={() => {
+              // TODO: Implement audio recording functionality
+              console.log("Audio recording clicked");
+            }}
+            title="Record audio"
+          >
+            <Mic className="h-4 w-4" />
+          </Button>
+        </div>
         <Button
           size="sm"
           onClick={handleSave}

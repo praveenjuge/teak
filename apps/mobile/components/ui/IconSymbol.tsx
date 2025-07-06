@@ -24,6 +24,8 @@ const MAPPING = {
   "plus.circle": "add-circle-outline",
   "gearshape.fill": "settings",
   gearshape: "settings",
+  paperclip: "attach-file",
+  "mic.fill": "mic",
 } as IconMapping;
 
 /**

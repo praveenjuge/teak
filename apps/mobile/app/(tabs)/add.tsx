@@ -12,6 +12,7 @@ import { useState, useRef } from "react";
 import { useCreateCard } from "../../lib/hooks";
 import type { Card } from "../../lib/api";
 import { colors, borderWidths } from "../../constants/colors";
+import { IconSymbol } from "../../components/ui/IconSymbol";
 
 function isUrl(text: string): boolean {
   try {
@@ -127,13 +128,68 @@ export default function AddScreen() {
           editable={!createCardMutation.isPending}
         />
 
-        <View style={{ flexDirection: "row", margin: 20 }}>
+        <View style={{ flexDirection: "row", margin: 16, gap: 8 }}>
+          <TouchableOpacity
+            style={{
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 12,
+              backgroundColor: colors.background,
+              borderWidth: borderWidths.hairline,
+              borderColor: colors.border,
+              width: 50,
+              height: 50,
+            }}
+            onPress={() => {
+              // TODO: Implement file/image upload functionality
+              console.log("File/Image upload pressed");
+              Alert.alert(
+                "File Upload",
+                "File/Image upload functionality will be implemented here"
+              );
+            }}
+          >
+            <IconSymbol
+              name="paperclip"
+              size={24}
+              color={colors.secondaryLabel}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 12,
+              backgroundColor: colors.background,
+              borderWidth: borderWidths.hairline,
+              borderColor: colors.border,
+              width: 50,
+              height: 50,
+            }}
+            onPress={() => {
+              // TODO: Implement audio recording functionality
+              console.log("Audio recording pressed");
+              Alert.alert(
+                "Audio Recording",
+                "Audio recording functionality will be implemented here"
+              );
+            }}
+          >
+            <IconSymbol
+              name="mic.fill"
+              size={24}
+              color={colors.secondaryLabel}
+            />
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={{
               flex: 1,
-              alignItems: "center",
-              padding: 14,
               borderRadius: 12,
+              height: 50,
+              alignItems: "center",
+              justifyContent: "center",
               backgroundColor: colors.primary,
               opacity:
                 createCardMutation.isPending || !content.trim() ? 0.3 : 1,
