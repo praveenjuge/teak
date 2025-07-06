@@ -40,7 +40,8 @@ export function CardItem({ card, onDelete }: CardItemProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
-  const isPlaying = currentlyPlaying !== null && currentlyPlaying === audioRef.current;
+  const isPlaying =
+    currentlyPlaying !== null && currentlyPlaying === audioRef.current;
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -52,10 +53,10 @@ export function CardItem({ card, onDelete }: CardItemProps) {
       }
     };
 
-    audio.addEventListener('ended', handleAudioEnded);
+    audio.addEventListener("ended", handleAudioEnded);
 
     return () => {
-      audio.removeEventListener('ended', handleAudioEnded);
+      audio.removeEventListener("ended", handleAudioEnded);
     };
   }, [audioRef, isPlaying, pauseAudio]);
 
@@ -75,22 +76,6 @@ export function CardItem({ card, onDelete }: CardItemProps) {
         (audioRef.current.currentTime / audioRef.current.duration) * 100;
       progressRef.current.style.width = `${progress}%`;
     }
-  };
-
-  const handleScrub = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (audioRef.current) {
-      const scrubbable = e.currentTarget;
-      const rect = scrubbable.getBoundingClientRect();
-      const offsetX = e.clientX - rect.left;
-      const width = scrubbable.clientWidth;
-      const percentage = offsetX / width;
-      const newTime = percentage * audioRef.current.duration;
-      audioRef.current.currentTime = newTime;
-    }
-  };
-
-  const handleScrubEnd = () => {
-    // Potentially useful for more complex scrub logic
   };
 
   const handleDelete = async () => {
@@ -153,23 +138,27 @@ export function CardItem({ card, onDelete }: CardItemProps) {
 
       case "audio":
         return (
-          <div className="flex items-center justify-between p-4 w-full space-x-4">
+          <button
+            onClick={handlePlayPause}
+            className="flex items-center justify-between p-4 w-full space-x-4"
+          >
             <audio
               ref={audioRef}
               src={card.data.media_url}
               onTimeUpdate={handleTimeUpdate}
             />
-            <button onClick={handlePlayPause} className="focus:outline-none">
-              <div className="bg-primary rounded-full p-2">
-                {isPlaying ? (
-                  <Pause className="size-4 text-primary-foreground fill-current" />
-                ) : (
-                  <Play className="size-4 text-primary-foreground fill-current" />
-                )}
-              </div>
-            </button>
-            <div className="flex-grow bg-muted rounded-full h-2 cursor-pointer" onMouseDown={handleScrub} onMouseUp={handleScrubEnd}>
-              <div ref={progressRef} className="bg-primary h-full rounded-full"></div>
+            <div className="bg-primary rounded-full p-1.5">
+              {isPlaying ? (
+                <Pause className="size-3.5 text-primary-foreground fill-current" />
+              ) : (
+                <Play className="size-3.5 text-primary-foreground fill-current" />
+              )}
+            </div>
+            <div className="flex-grow bg-muted rounded-full h-2">
+              <div
+                ref={progressRef}
+                className="bg-border h-full rounded-full"
+              ></div>
             </div>
             {card.data.duration ? (
               <div className="flex items-center space-x-2 text-muted-foreground">
@@ -179,7 +168,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
                 </span>
               </div>
             ) : null}
-          </div>
+          </button>
         );
 
       case "url":

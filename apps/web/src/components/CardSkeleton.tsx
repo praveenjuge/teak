@@ -15,7 +15,6 @@ export function CardSkeleton() {
 
 export function CardsGridSkeleton() {
   const opacities = [
-    "opacity-100",
     "opacity-95",
     "opacity-90",
     "opacity-80",
@@ -23,11 +22,15 @@ export function CardsGridSkeleton() {
     "opacity-60",
     "opacity-50",
     "opacity-40",
+    "opacity-35",
     "opacity-30",
+    "opacity-25",
     "opacity-20",
+    "opacity-15",
+    "opacity-10",
   ];
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
       {opacities.map((opacity, i) => (
         <div key={i} className={opacity}>
           <CardSkeleton />
