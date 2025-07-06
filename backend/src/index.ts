@@ -46,6 +46,13 @@ app.all('/api/auth/*', (c) => auth.handler(c.req.raw));
 app.route('/api/users', userRoutes);
 app.route('/api/cards', cardRoutes);
 
+// Serve uploaded files
+app.use('/api/uploads/*', serveStatic({
+  root: './uploads',
+  rewriteRequestPath: (path) => path.replace('/api/uploads', ''),
+  onNotFound: (path) => console.log(`Upload file not found: ${path}`)
+}));
+
 // Protected session endpoint
 app.get('/api/session', (c) => {
   const user = c.get('user');

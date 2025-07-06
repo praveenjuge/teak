@@ -1,54 +1,36 @@
 {
-  "name": "teak",
+  "name": "@teak/root",
   "version": "0.0.1",
-  "description": "Modern dockerized web application with Hono.js and React",
+  "description": "Teak - Modern full-stack monorepo with Hono.js backend, React web, and React Native mobile",
   "keywords": [
+    "monorepo",
     "hono",
     "react",
+    "react-native",
     "typescript",
     "docker"
   ],
   "license": "MIT",
   "author": "praveenjuge <hello@praveenjuge.com>",
   "type": "module",
-  "main": "dist/index.js",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "apps/web",
+    "apps/mobile"
+  ],
   "scripts": {
-    "build": "bun run build:frontend && bun run build:backend",
-    "build:backend": "bun build backend/src/index.ts --outdir dist --target bun",
-    "build:frontend": "cd apps/web && bun run build",
-    "dev": "./scripts/dev.sh",
+    "bootstrap": "./scripts/bootstrap.sh",
+    "install:all": "./scripts/install-deps.sh",
+    "dev": "./scripts/dev-local.sh",
     "dev:local": "./scripts/dev-local.sh",
-    "dev:backend": "lsof -ti:3001 | xargs -r kill && PORT=3001 bun --watch backend/src/index.ts",
+    "dev:backend": "cd backend && bun run dev",
     "dev:frontend": "cd apps/web && bun run dev",
-    "docker:dev": "docker-compose -f docker/docker-compose.dev.yml up --build",
-    "docker:dev:down": "docker-compose -f docker/docker-compose.dev.yml down",
-    "docker:dev:clean": "docker-compose -f docker/docker-compose.dev.yml down --volumes --rmi all",
-    "docker:prod": "docker-compose -f docker/docker-compose.yml up --build",
-    "db": "./scripts/db.sh",
-    "db:connect": "./scripts/db.sh connect",
-    "db:backup": "./scripts/db.sh backup",
-    "db:status": "./scripts/db.sh status",
-    "db:reset": "./scripts/db.sh reset",
-    "db:generate": "cd backend && bunx drizzle-kit generate",
-    "db:migrate": "cd backend && bunx drizzle-kit migrate",
-    "db:push": "cd backend && bunx drizzle-kit push",
-    "db:studio": "cd backend && bunx drizzle-kit studio",
-    "db:seed": "cd backend && bun run src/seeds/cards.ts",
-    "install:all": "bun install && cd apps/web && bun install && cd .. && cd mobile && bun install",
-    "start": "bun dist/index.js",
-    "type-check": "bun --no-install --dry-run backend/src/index.ts"
-  },
-  "dependencies": {
-    "@better-auth/expo": "^1.2.12",
-    "better-auth": "^1.2.12",
-    "drizzle-orm": "^0.44.2",
-    "hono": "^4.8.3",
-    "pg": "^8.16.3",
-    "zod": "^3.25.71"
+    "dev:mobile": "cd apps/mobile && bun run start",
+    "build": "bun run build:backend && bun run build:frontend",
+    "docker:prod": "docker-compose -f docker/docker-compose.yml up --build"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "@types/pg": "^8.15.4",
-    "drizzle-kit": "^0.31.4"
+    "@types/bun": "latest"
   }
 }

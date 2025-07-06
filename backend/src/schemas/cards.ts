@@ -5,10 +5,11 @@ export const cardTypeEnum = z.enum(['audio', 'text', 'url', 'image', 'video']);
 
 // Card data schemas for different types
 export const audioDataSchema = z.object({
-  transcription: z.string().min(1, 'Transcription is required'),
-  media_url: z.string().url('Must be a valid URL'),
+  transcription: z.string().optional(), // Made optional since it can be empty for file uploads
+  media_url: z.string().optional(), // Made optional for file uploads
   duration: z.number().positive().optional(),
   title: z.string().optional(),
+  original_filename: z.string().optional(), // For uploaded files
 });
 
 export const textDataSchema = z.object({
@@ -20,21 +21,24 @@ export const urlDataSchema = z.object({
   url: z.string().url('Must be a valid URL'),
   title: z.string().optional(),
   description: z.string().optional(),
+  image: z.string().optional(), // For OG image
 });
 
 export const imageDataSchema = z.object({
-  media_url: z.string().url('Must be a valid URL'),
+  media_url: z.string().optional(), // Made optional for file uploads
   alt_text: z.string().optional(),
   title: z.string().optional(),
   description: z.string().optional(),
+  original_filename: z.string().optional(), // For uploaded files
 });
 
 export const videoDataSchema = z.object({
-  media_url: z.string().url('Must be a valid URL'),
+  media_url: z.string().optional(), // Made optional for file uploads
   transcription: z.string().optional(),
   subtitles: z.string().optional(),
   duration: z.number().positive().optional(),
   title: z.string().optional(),
+  original_filename: z.string().optional(), // For uploaded files
 });
 
 // Meta info schema (common for all card types)

@@ -278,66 +278,7 @@
                 }
               ]
             },
-            "description": "Get list of all cards with optional search and filtering"
-          }
-        },
-        {
-          "name": "Search Cards",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Response has search results', function () {",
-                  "    const jsonData = pm.response.json();",
-                  "    pm.expect(jsonData).to.have.property('cards');",
-                  "    pm.expect(jsonData).to.have.property('query');",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Cookie",
-                "value": "better-auth.session_token={{sessionToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/cards/search?q=React&type=text",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "cards", "search"],
-              "query": [
-                {
-                  "key": "q",
-                  "value": "React",
-                  "description": "Search query"
-                },
-                {
-                  "key": "type",
-                  "value": "text",
-                  "description": "Filter by card type"
-                },
-                {
-                  "key": "limit",
-                  "value": "10",
-                  "disabled": true
-                },
-                {
-                  "key": "offset",
-                  "value": "0",
-                  "disabled": true
-                }
-              ]
-            },
-            "description": "Advanced search with full-text search and ranking"
+            "description": "Get list of all cards with optional search, filtering, and sorting. Use 'q' parameter for full-text search with ranking."
           }
         },
         {
@@ -602,6 +543,234 @@
           }
         },
         {
+          "name": "Create Audio Card with File Upload",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has created card', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.type).to.equal('audio');",
+                  "    pm.expect(jsonData.data).to.have.property('media_url');",
+                  "});",
+                  "",
+                  "pm.test('Response includes file metadata', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('file_size');",
+                  "    pm.expect(jsonData.data).to.have.property('mime_type');",
+                  "    pm.expect(jsonData.data).to.have.property('original_name');",
+                  "});",
+                  "",
+                  "pm.test('Media URL is accessible', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.media_url).to.include('/api/uploads/audio/');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "type",
+                  "value": "audio",
+                  "type": "text"
+                },
+                {
+                  "key": "data",
+                  "value": "{\n  \"transcription\": \"This is a sample audio transcription from an uploaded file. It demonstrates the file upload functionality with automatic metadata extraction.\",\n  \"title\": \"Sample Audio Card - File Upload\"\n}",
+                  "type": "text"
+                },
+                {
+                  "key": "metaInfo",
+                  "value": "{\n  \"language\": \"en\",\n  \"source\": \"Postman File Upload Test\",\n  \"tags\": [\"audio\", \"file-upload\", \"sample\", \"test\"]\n}",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards"]
+            },
+            "description": "Create a new audio card with file upload. This example demonstrates the multipart/form-data functionality for uploading audio files. The API will automatically extract metadata such as duration, bitrate, format, and file size. The uploaded file will be stored locally and a media_url will be generated for playback."
+          }
+        },
+        {
+          "name": "Create Video Card with File Upload",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has created card', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.type).to.equal('video');",
+                  "    pm.expect(jsonData.data).to.have.property('media_url');",
+                  "});",
+                  "",
+                  "pm.test('Response includes file metadata', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('file_size');",
+                  "    pm.expect(jsonData.data).to.have.property('mime_type');",
+                  "    pm.expect(jsonData.data).to.have.property('original_name');",
+                  "});",
+                  "",
+                  "pm.test('Media URL is accessible', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.media_url).to.include('/api/uploads/video/');",
+                  "});",
+                  "",
+                  "pm.test('Video metadata is extracted', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    // Duration should be extracted from video file",
+                  "    pm.expect(jsonData.data).to.have.property('duration');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "type",
+                  "value": "video",
+                  "type": "text"
+                },
+                {
+                  "key": "data",
+                  "value": "{\n  \"transcription\": \"This is a sample video transcription from an uploaded file. It demonstrates the file upload functionality with automatic metadata extraction including duration, resolution, and codec information.\",\n  \"title\": \"Sample Video Card - File Upload\"\n}",
+                  "type": "text"
+                },
+                {
+                  "key": "metaInfo",
+                  "value": "{\n  \"language\": \"en\",\n  \"source\": \"Postman File Upload Test\",\n  \"tags\": [\"video\", \"file-upload\", \"sample\", \"test\"]\n}",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards"]
+            },
+            "description": "Create a new video card with file upload. This example demonstrates the multipart/form-data functionality for uploading video files. The API will automatically extract metadata such as duration, resolution, fps, codec, bitrate, and file size. The uploaded file will be stored locally and a media_url will be generated for playback."
+          }
+        },
+        {
+          "name": "Create Image Card with File Upload",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has created card', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.type).to.equal('image');",
+                  "    pm.expect(jsonData.data).to.have.property('media_url');",
+                  "});",
+                  "",
+                  "pm.test('Response includes file metadata', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('file_size');",
+                  "    pm.expect(jsonData.data).to.have.property('mime_type');",
+                  "    pm.expect(jsonData.data).to.have.property('original_name');",
+                  "});",
+                  "",
+                  "pm.test('Media URL is accessible', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.media_url).to.include('/api/uploads/image/');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "type",
+                  "value": "image",
+                  "type": "text"
+                },
+                {
+                  "key": "data",
+                  "value": "{\n  \"alt_text\": \"Sample image uploaded via Postman API demonstrating file upload functionality\",\n  \"title\": \"Sample Image Card - File Upload\",\n  \"description\": \"This image was uploaded using the multipart/form-data endpoint, demonstrating the file upload capabilities of the Teak API.\"\n}",
+                  "type": "text"
+                },
+                {
+                  "key": "metaInfo",
+                  "value": "{\n  \"source\": \"Postman File Upload Test\",\n  \"tags\": [\"image\", \"file-upload\", \"sample\", \"test\"]\n}",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards"]
+            },
+            "description": "Create a new image card with file upload. This example demonstrates the multipart/form-data functionality for uploading image files. The API will automatically extract metadata such as file size, mime type, and original filename. The uploaded file will be stored locally and a media_url will be generated for display."
+          }
+        },
+        {
           "name": "Update Card",
           "event": [
             {
@@ -680,43 +849,6 @@
               "path": ["api", "cards", "{{lastCreatedCardId}}"]
             },
             "description": "Soft delete a card (uses lastCreatedCardId from previous create request)"
-          }
-        },
-        {
-          "name": "Get Card Statistics",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Response has statistics', function () {",
-                  "    const jsonData = pm.response.json();",
-                  "    pm.expect(jsonData).to.have.property('total');",
-                  "    pm.expect(jsonData).to.have.property('by_type');",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Cookie",
-                "value": "better-auth.session_token={{sessionToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/cards/stats",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "cards", "stats"]
-            },
-            "description": "Get card statistics including total count and breakdown by type"
           }
         }
       ]

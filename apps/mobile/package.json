@@ -1,5 +1,5 @@
 {
-  "name": "teak",
+  "name": "@teak/mobile",
   "version": "0.0.1",
   "main": "expo-router/entry",
   "scripts": {

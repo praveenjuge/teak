@@ -1,33 +1,41 @@
 # Teak
 
-- Runtime: Bun
-- Backend: Hono.js (TypeScript)
-- Web App: React 19 + Vite (TypeScript)
-- Mobile App: React Native with Expo
-- Database: PostgreSQL 17
-- Containerization: Docker
+**Modern full-stack monorepo** with clean architecture and powerful tooling.
+
+- **Runtime**: Bun
+- **Backend**: Hono.js API server (@teak/backend) 
+- **Web App**: React 19 + Vite (@teak/web)
+- **Mobile App**: React Native with Expo (@teak/mobile)
+- **Database**: PostgreSQL 17 with Drizzle ORM
+- **Containerization**: Docker
 
 ## 📁 Project Structure
 
 ```
 teak/
-├── backend/
+├── backend/                 # Backend API server
 │   ├── src/
-│   │   └── index.ts         # Hono.js server with API routes
-│   └── tsconfig.json        # Backend TypeScript config
+│   │   ├── index.ts         # Hono.js server entry point
+│   │   ├── routes/          # API route handlers
+│   │   ├── services/        # Business logic services
+│   │   ├── db/              # Database schema & connection
+│   │   └── auth.ts          # Better Auth configuration
+│   └── package.json         # Backend dependencies (@teak/backend)
 ├── apps/
-│   ├── web/                 # Frontend React app
+│   ├── web/                 # React 19 frontend (@teak/web)
 │   │   ├── src/
-│   │   │   ├── App.tsx      # React app with API integration
-│   │   │   ├── App.css      # Styling
-│   │   │   └── main.tsx     # React entry point
-│   │   ├── vite.config.ts   # Vite config with proxy
-│   │   └── package.json     # Frontend dependencies
-│   └── mobile/              # Expo React Native Mobile App
-├── docker/                  # Docker configuration
-├── scripts/                 # Utility scripts
+│   │   │   ├── App.tsx      # Main React app
+│   │   │   ├── routes/      # TanStack Router routes
+│   │   │   └── components/  # Reusable UI components
+│   │   └── package.json     # Web app dependencies
+│   └── mobile/              # React Native mobile app (@teak/mobile)
+│       ├── app/             # Expo Router file-based routing
+│       └── package.json     # Mobile app dependencies
+├── docker/                  # Docker configurations
+├── scripts/                 # Utility & bootstrap scripts
+├── postman/                 # API testing collection
 ├── .env.example             # Environment variables template
-├── package.json             # Root package.json
+├── package.json             # Root monorepo orchestrator (@teak/root)
 └── README.md                # This file
 ```
 
@@ -35,34 +43,97 @@ teak/
 
 ### Prerequisites
 
-- Docker & Docker Compose
-- Bun 1.0+ (for local development)
-- PostgreSQL 17 (automatically provided via Docker)
+- **Docker & Docker Compose** (for database and containerized development)
+- **Bun 1.0+** (JavaScript runtime)
 
-### Local Development
+### Bootstrap Project
 
-1. **Clone and navigate to the project:**
+1. **Clone and setup the entire project:**
 
    ```bash
    git clone git@github.com:praveenjuge/teak.git
    cd teak
+   bun run bootstrap
    ```
 
-2. **Start development environment:**
+   This single command will:
+   - Install all dependencies across workspaces
+   - Setup and configure the database
+   - Initialize environment files
+   - Verify prerequisites
 
-   ```bash
-   bun run dev
-   ```
+### Alternative Setup (Manual)
 
-   This will:
-   - 🐳 Build and start Docker containers
-   - 🔥 Enable hot reload for both frontend and backend
-   - 📝 Automatically open VS Code in the current directory
-   - 🗄️ Initialize PostgreSQL database with sample schema
-   - 🌐 Wait for services to be ready, then open your browser at
-     http://localhost:3000
-   - 📡 Backend API available at http://localhost:3001
-   - 🗃️ PostgreSQL database available at localhost:5432
+If you prefer step-by-step setup:
+
+```bash
+# Install all dependencies
+bun run install:all
+
+# Setup database (starts Docker containers, runs migrations, seeds data)
+bun run setup:db
+
+# Copy environment file
+cp .env.example .env
+```
+
+## 🛠️ Development Commands
+
+### Core Commands
+
+```bash
+# Start full development environment (Docker + all services)
+bun run dev
+
+# Start individual services
+bun run dev:backend    # Backend API server only
+bun run dev:frontend   # React web app only  
+bun run dev:mobile     # React Native mobile app
+
+# Build all applications
+bun run build
+
+# Build individual apps
+bun run build:backend
+bun run build:frontend
+```
+
+### Database Management
+
+```bash
+# Backend database commands (run from backend/ directory)
+cd backend
+
+bun run db:generate    # Generate database migrations
+bun run db:migrate     # Apply migrations to database
+bun run db:push        # Push schema changes directly
+bun run db:studio      # Open Drizzle Studio (database GUI)
+bun run db:seed        # Seed database with sample data
+
+# Root level database utilities
+bun run db:connect     # Connect to database via psql
+bun run db:status      # Check database connection status
+bun run db:reset       # Reset database (destructive!)
+```
+
+### Docker Commands
+
+```bash
+# Development environment
+bun run docker:dev         # Start development containers
+bun run docker:dev:down    # Stop development containers
+bun run docker:dev:clean   # Stop and remove all containers + volumes
+
+# Production environment  
+bun run docker:prod        # Start production containers
+```
+
+### Services Information
+
+- **Frontend**: http://localhost:3000 (React 19 + Vite)
+- **Backend API**: http://localhost:3001 (Hono.js)
+- **Database**: localhost:5432 (PostgreSQL 17)
+- **Drizzle Studio**: http://localhost:4983 (when running `db:studio`)
 
 ## 🗄️ Database
 

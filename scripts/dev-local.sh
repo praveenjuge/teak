@@ -84,33 +84,18 @@ open_terminal_tab() {
     fi
 }
 
-# Check if Docker is running
-if ! docker info &> /dev/null; then
-    print_error "Docker is not running. Please start Docker first."
-    exit 1
+# Check if PostgreSQL is available
+if ! command -v psql &> /dev/null; then
+    print_warning "PostgreSQL client (psql) not found. Database management commands may not work."
 fi
 
 # Project root directory
 PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$PROJECT_ROOT"
 
-print_status "Starting PostgreSQL with Docker..."
-docker-compose -f docker/docker-compose.db.yml up -d
-
-# Wait for PostgreSQL to be ready
-print_status "Waiting for PostgreSQL to be ready..."
-timeout=30
-counter=0
-while ! docker exec teak-postgres-dev pg_isready -U teak_user -d teak_dev &> /dev/null; do
-    if [ $counter -eq $timeout ]; then
-        print_error "PostgreSQL failed to start within ${timeout} seconds"
-        exit 1
-    fi
-    sleep 1
-    counter=$((counter + 1))
-done
-
-print_status "PostgreSQL is ready!"
+print_status "NOTE: This script assumes you have PostgreSQL running locally."
+print_status "Please ensure PostgreSQL is running on localhost:5432 with database 'teak_dev'"
+print_status "Username: teak_user, Password: teak_dev_password"
 
 # Check Bun version
 print_status "Using Bun runtime..."
@@ -157,22 +142,21 @@ sleep 1
 
 # Open frontend tab
 print_status "Starting frontend server..."
-open_terminal_tab "Frontend" "echo 'Starting frontend server...' && bun run dev:frontend"
+open_terminal_tab "Frontend" "echo 'Starting frontend server...' && bun run --bun dev:frontend"
 
 # Wait a moment between tabs
 sleep 1
 
 # Open database management tab
 print_status "Opening database management tab..."
-open_terminal_tab "Database" "echo 'Database Management Commands:' && echo '  bun run db:studio  - Open Drizzle Studio' && echo '  bun run db:connect - Connect to database' && echo '  docker-compose -f docker/docker-compose.db.yml logs -f - View logs' && echo '' && echo 'PostgreSQL is running on localhost:5432'"
+open_terminal_tab "Database" "echo 'Database Management Commands:' && echo '  bun run db:studio  - Open Drizzle Studio' && echo '  psql -h localhost -U teak_user -d teak_dev - Connect to database' && echo '' && echo 'PostgreSQL should be running on localhost:5432'"
 
 print_status "Development environment is ready!"
 print_status "Services started:"
-print_status "  ✓ PostgreSQL: localhost:5432 (Docker)"
+print_status "  ✓ PostgreSQL: localhost:5432 (Local)"
 print_status "  ✓ Backend API: localhost:3001 (Local)"
 print_status "  ✓ Frontend: localhost:3000 (Local)"
 print_status ""
 print_status "Terminal tabs opened for backend, frontend, and database management."
-print_status "To stop PostgreSQL: docker-compose -f docker/docker-compose.db.yml down"
 print_status ""
 print_status "Happy coding! 🚀"
