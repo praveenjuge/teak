@@ -1,50 +1,61 @@
+version: '3.8'
+
 services:
-  web:
+  # Teak Application (Single Image)
+  teak:
     build:
-      context: ..
+      context: ../
       dockerfile: docker/Dockerfile
-    container_name: web
     ports:
-      - "${PORT:-3000}:${PORT:-3000}"
+      - "80:80"
     environment:
       - NODE_ENV=production
-      - PORT=${PORT:-3000}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-teak_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-teak_db}
-    restart: unless-stopped
+      - PORT=80
+      - BACKEND_PORT=3001
+      - DATABASE_URL=postgresql://teak_user:teak_password@db:5432/teak_db
+      - BETTER_AUTH_SECRET=your-super-secret-key-change-this-in-production
+      - BETTER_AUTH_URL=http://localhost:80
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - teak-network
-    depends_on:
-      postgres:
-        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  postgres:
-    image: postgres:17
-    container_name: teak-postgres
-    ports:
-      - "5432:5432"
+  # PostgreSQL Database
+  db:
+    image: postgres:17-alpine
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-teak_db}
-      - POSTGRES_USER=${POSTGRES_USER:-teak_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=en_US.UTF-8 --lc-ctype=en_US.UTF-8
+      POSTGRES_USER: teak_user
+      POSTGRES_PASSWORD: teak_password
+      POSTGRES_DB: teak_db
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - teak-network
     restart: unless-stopped
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-teak_user} -d ${POSTGRES_DB:-teak_db}",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "pg_isready -U teak_user -d teak_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    ports:
+      - "5432:5432"  # Optional: Remove in production for security
 
-volumes:
-  postgres_data:
-
+# Networks
 networks:
   teak-network:
     driver: bridge
+
+# Volumes
+volumes:
+  postgres_data:
+    driver: local

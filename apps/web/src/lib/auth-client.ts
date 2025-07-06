@@ -8,7 +8,7 @@
 import { createAuthClient } from "better-auth/react";
 
 export const authClient = createAuthClient({
-  baseURL: "http://localhost:3001", // Backend URL
+  baseURL: import.meta.env.VITE_AUTH_URL || (import.meta.env.PROD ? "" : "http://localhost:3001"), // Backend URL
   fetchOptions: {
     onError(context) {
       // Log errors for debugging

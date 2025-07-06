@@ -6,6 +6,7 @@ import { serveStatic } from 'hono/bun';
 import { auth } from './auth';
 import { userRoutes } from './routes/users';
 import { cardRoutes } from './routes/cards';
+import { healthRoutes } from './health';
 
 // App with type-safe context
 const app = new Hono<{
@@ -45,6 +46,7 @@ app.all('/api/auth/*', (c) => auth.handler(c.req.raw));
 // API routes
 app.route('/api/users', userRoutes);
 app.route('/api/cards', cardRoutes);
+app.route('/api', healthRoutes);
 
 // Serve uploaded files with proper headers for audio
 app.use('/api/uploads/*', async (c, next) => {
@@ -176,7 +178,7 @@ app.get('*', async (c) => {
   }
 });
 
-const port = parseInt(Bun.env['PORT'] || '3001');
+const port = parseInt(Bun.env['BACKEND_PORT'] || Bun.env['PORT'] || '3001');
 
 console.log(`🚀 Server starting on port ${port}`);
 console.log(`📡 API endpoints: http://localhost:${port}/api/*`);
