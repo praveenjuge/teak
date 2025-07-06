@@ -10,7 +10,7 @@
     "start": "bun dist/index.js",
     "type-check": "bun --no-install --dry-run src/index.ts",
     "db:generate": "bunx drizzle-kit generate",
-    "db:migrate": "bunx drizzle-kit migrate", 
+    "db:migrate": "bunx drizzle-kit migrate",
     "db:push": "bunx drizzle-kit push",
     "db:studio": "bunx drizzle-kit studio",
     "db:seed": "bun run src/seeds/cards.ts"
@@ -18,13 +18,18 @@
   "dependencies": {
     "better-auth": "^1.2.12",
     "drizzle-orm": "^0.44.2",
+    "ffprobe-static": "^3.1.0",
+    "file-type": "^21.0.0",
     "hono": "^4.8.3",
+    "node-html-parser": "^7.0.1",
     "pg": "^8.16.3",
+    "uuid": "^11.1.0",
     "zod": "^3.25.71"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/pg": "^8.15.4",
+    "@types/uuid": "^10.0.0",
     "drizzle-kit": "^0.31.4"
   },
   "keywords": [

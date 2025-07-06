@@ -8,16 +8,24 @@ import {
   searchCardsSchema,
   cardIdSchema,
 } from '../schemas/cards';
+import { createCardWithFileSchema } from '../schemas/fileUpload';
 import { validateBody, validateQuery, validateParams, validateCardData } from '../utils/validation';
 import { DatabaseSearchService } from '../services/search/DatabaseSearchService';
+import { CardService } from '../services/card/CardService';
+import { fileUploadMiddleware, getUploadedFile, getFormField } from '../middleware/fileUpload';
 
 // Create cards router with type-safe context
 export const cardRoutes = new Hono<{
   Variables: {
     user: any;
     session: any;
+    uploadedFiles: any[];
+    formData: FormData;
   }
 }>();
+
+// Initialize card service
+const cardService = new CardService();
 
 
 
@@ -89,29 +97,58 @@ cardRoutes.get('/:id', async (c) => {
 });
 
 // POST /api/cards - Create a new card
-cardRoutes.post('/', async (c) => {
+cardRoutes.post('/', fileUploadMiddleware, async (c) => {
   try {
     const user = c.get('user');
     if (!user) {
       return c.json({ error: 'Authentication required' }, 401);
     }
 
-    const body = await validateBody(c, createCardSchema);
+    const contentType = c.req.header('content-type');
+    
+    if (contentType?.includes('multipart/form-data')) {
+      // Handle file upload request
+      const type = getFormField(c, 'type');
+      const dataField = getFormField(c, 'data');
+      const metaInfoField = getFormField(c, 'metaInfo');
+      
+      if (!type) {
+        return c.json({ error: 'Card type is required' }, 400);
+      }
 
-    // Validate the card data based on its type
-    validateCardData(body.type, body.data);
+      // Parse and validate form data
+      const formData = createCardWithFileSchema.parse({
+        type,
+        data: dataField,
+        metaInfo: metaInfoField
+      });
 
-    const [newCard] = await db
-      .insert(cards)
-      .values({
+      // Get uploaded file for media types
+      const file = getUploadedFile(c, 'file');
+      
+      // Create card using service
+      const newCard = await cardService.createCard({
+        type: formData.type as any,
+        data: formData.data || {},
+        metaInfo: formData.metaInfo,
+        file
+      }, user.id);
+
+      return c.json(newCard, 201);
+
+    } else {
+      // Handle JSON request (backward compatibility)
+      const body = await validateBody(c, createCardSchema);
+
+      // Create card using service
+      const newCard = await cardService.createCard({
         type: body.type,
         data: body.data,
-        metaInfo: body.metaInfo || {},
-        userId: user.id,
-      })
-      .returning();
+        metaInfo: body.metaInfo
+      }, user.id);
 
-    return c.json(newCard, 201);
+      return c.json(newCard, 201);
+    }
 
   } catch (error) {
     console.error('Error creating card:', error);
