@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, desc, asc, and, isNull, sql } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { db } from '../db';
 import { cards } from '../db/schema';
 import {
@@ -9,6 +9,7 @@ import {
   cardIdSchema,
 } from '../schemas/cards';
 import { validateBody, validateQuery, validateParams, validateCardData } from '../utils/validation';
+import { DatabaseSearchService } from '../services/search/DatabaseSearchService';
 
 // Create cards router with type-safe context
 export const cardRoutes = new Hono<{
@@ -18,168 +19,7 @@ export const cardRoutes = new Hono<{
   }
 }>();
 
-// GET /api/cards/search - Advanced search endpoint
-cardRoutes.get('/search', async (c) => {
-  try {
-    const user = c.get('user');
-    if (!user) {
-      return c.json({ error: 'Authentication required' }, 401);
-    }
 
-    const query = validateQuery(c, searchCardsSchema);
-    const { q, type, limit, offset } = query;
-
-    if (!q) {
-      return c.json({ error: 'Search query is required' }, 400);
-    }
-
-    // Build search query with ranking
-    let whereClause = and(
-      eq(cards.userId, user.id),
-      isNull(cards.deletedAt)
-    );
-
-    // Add type filter if specified
-    if (type) {
-      whereClause = and(whereClause, eq(cards.type, type));
-    }
-
-    // Full-text search with ranking
-    const searchResults = await db
-      .select({
-        id: cards.id,
-        type: cards.type,
-        data: cards.data,
-        metaInfo: cards.metaInfo,
-        createdAt: cards.createdAt,
-        updatedAt: cards.updatedAt,
-        deletedAt: cards.deletedAt,
-        userId: cards.userId,
-        rank: sql<number>`
-          ts_rank(
-            to_tsvector('english', 
-              COALESCE(${cards.data}->>'content', '') || ' ' ||
-              COALESCE(${cards.data}->>'url', '') || ' ' ||
-              COALESCE(${cards.data}->>'transcription', '') || ' ' ||
-              COALESCE(${cards.data}->>'title', '') || ' ' ||
-              COALESCE(${cards.data}->>'description', '')
-            ),
-            plainto_tsquery('english', ${q})
-          )
-        `
-      })
-      .from(cards)
-      .where(
-        and(
-          whereClause,
-          sql`
-            to_tsvector('english', 
-              COALESCE(${cards.data}->>'content', '') || ' ' ||
-              COALESCE(${cards.data}->>'url', '') || ' ' ||
-              COALESCE(${cards.data}->>'transcription', '') || ' ' ||
-              COALESCE(${cards.data}->>'title', '') || ' ' ||
-              COALESCE(${cards.data}->>'description', '')
-            ) @@ plainto_tsquery('english', ${q})
-          `
-        )
-      )
-      .orderBy(desc(sql`ts_rank(
-            to_tsvector('english', 
-              COALESCE(${cards.data}->>'content', '') || ' ' ||
-              COALESCE(${cards.data}->>'url', '') || ' ' ||
-              COALESCE(${cards.data}->>'transcription', '') || ' ' ||
-              COALESCE(${cards.data}->>'title', '') || ' ' ||
-              COALESCE(${cards.data}->>'description', '')
-            ),
-            plainto_tsquery('english', ${q})
-          )`))
-      .limit(typeof limit === 'number' ? limit : 20)
-      .offset(typeof offset === 'number' ? offset : 0);
-
-    // Get total count for the search
-    const countResult = await db
-
-      .select({ count: sql<number>`count(*)` })
-      .from(cards)
-      .where(
-        and(
-          whereClause,
-          sql`
-            to_tsvector('english', 
-              COALESCE(${cards.data}->>'content', '') || ' ' ||
-              COALESCE(${cards.data}->>'url', '') || ' ' ||
-              COALESCE(${cards.data}->>'transcription', '') || ' ' ||
-              COALESCE(${cards.data}->>'title', '') || ' ' ||
-              COALESCE(${cards.data}->>'description', '')
-            ) @@ plainto_tsquery('english', ${q})
-          `
-        )
-      );
-    const count = countResult && countResult[0] ? countResult[0].count : 0;
-
-    return c.json({
-      cards: searchResults,
-      total: count,
-      limit,
-      offset,
-      hasMore: (typeof offset === 'number' ? offset : 0) + (typeof limit === 'number' ? limit : 20) < count,
-      query: q
-    });
-
-  } catch (error) {
-    console.error('Error searching cards:', error);
-    return c.json({ error: error instanceof Error ? error.message : 'Failed to search cards' }, 400);
-  }
-});
-
-// GET /api/cards/stats - Get user's card statistics
-cardRoutes.get('/stats', async (c) => {
-  try {
-    const user = c.get('user');
-    if (!user) {
-      return c.json({ error: 'Authentication required' }, 401);
-    }
-
-    // Get card counts by type
-    const stats = await db
-      .select({
-        type: cards.type,
-        count: sql<number>`count(*)`
-      })
-      .from(cards)
-      .where(
-        and(
-          eq(cards.userId, user.id),
-          isNull(cards.deletedAt)
-        )
-      )
-      .groupBy(cards.type);
-
-    // Get total count
-    const totalResult = await db
-      .select({ total: sql<number>`count(*)` })
-      .from(cards)
-      .where(
-        and(
-          eq(cards.userId, user.id),
-          isNull(cards.deletedAt)
-        )
-      );
-    const total = totalResult && totalResult[0] ? totalResult[0].total : 0;
-
-    return c.json({
-      total,
-      by_type: stats.reduce((acc, stat) => {
-        acc[stat.type] = stat.count;
-        return acc;
-      }, {} as Record<string, number>)
-    });
-
-  } catch (error) {
-    console.error('Error fetching card stats:', error);
-    return c.json({ error: error instanceof Error ? error.message : 'Failed to fetch card statistics' }, 400);
-  }
-});
 
 // GET /api/cards - List all cards with optional search and filters
 cardRoutes.get('/', async (c) => {
@@ -192,65 +32,21 @@ cardRoutes.get('/', async (c) => {
     const query = validateQuery(c, searchCardsSchema);
     const { q, type, limit, offset, sort, order } = query;
 
-    // Build the query
-    let whereClause = and(
-      eq(cards.userId, user.id),
-      isNull(cards.deletedAt) // Only non-deleted cards
-    );
+    // Initialize search service
+    const searchService = new DatabaseSearchService();
 
-    // Add type filter if specified
-    if (type) {
-      whereClause = and(whereClause, eq(cards.type, type));
-    }
-
-    // Always use the same select shape for dbQuery
-    let effectiveWhereClause = whereClause;
-    if (q) {
-      const searchCondition = sql`
-        to_tsvector('english', 
-          COALESCE(${cards.data}->>'content', '') || ' ' ||
-          COALESCE(${cards.data}->>'url', '') || ' ' ||
-          COALESCE(${cards.data}->>'transcription', '') || ' ' ||
-          COALESCE(${cards.data}->>'title', '') || ' ' ||
-          COALESCE(${cards.data}->>'description', '')
-        ) @@ plainto_tsquery('english', ${q})
-      `;
-      effectiveWhereClause = and(whereClause, searchCondition);
-    }
-    const sortColumn = sort === 'created_at' ? cards.createdAt :
-      sort === 'updated_at' ? cards.updatedAt :
-        cards.type;
-    const orderBy = order === 'asc' ? asc(sortColumn) : desc(sortColumn);
-
-    const result = await db
-      .select({
-        id: cards.id,
-        type: cards.type,
-        data: cards.data,
-        metaInfo: cards.metaInfo,
-        createdAt: cards.createdAt,
-        updatedAt: cards.updatedAt,
-        deletedAt: cards.deletedAt,
-        userId: cards.userId
-      })
-      .from(cards)
-      .where(effectiveWhereClause)
-      .orderBy(orderBy)
-      .limit(typeof limit === 'number' ? limit : 20)
-      .offset(typeof offset === 'number' ? offset : 0);
-
-    // Get total count for pagination
-    const countQuery = db.select({ count: sql<number>`count(*)` }).from(cards).where(whereClause);
-    const countResult = await countQuery;
-    const count = countResult && countResult[0] ? countResult[0].count : 0;
-
-    return c.json({
-      cards: result,
-      total: count,
+    // Use the search service to handle all search and filtering logic
+    const result = await searchService.searchCards({
+      query: q,
+      type,
       limit,
       offset,
-      hasMore: (typeof offset === 'number' ? offset : 0) + (typeof limit === 'number' ? limit : 20) < count
+      sort,
+      order,
+      userId: user.id
     });
+
+    return c.json(result);
 
   } catch (error) {
     console.error('Error fetching cards:', error);
