@@ -8,9 +8,10 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import { Audio } from "expo-av";
 import { useCreateCard } from "../../lib/hooks";
 import type { Card } from "../../lib/api";
 import { apiClient } from "../../lib/api";
@@ -69,9 +70,29 @@ function detectCardType(content: string): {
 export default function AddScreen() {
   const [content, setContent] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   const textInputRef = useRef<TextInput>(null);
   const createCardMutation = useCreateCard();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (isRecording) {
+      interval = setInterval(async () => {
+        const status = await recording?.getStatusAsync();
+        if (status?.isRecording) {
+          setRecordingDuration(status.durationMillis / 1000);
+        }
+      }, 1000);
+    }
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [isRecording, recording]);
 
   const createFileCardMutation = useMutation({
     mutationFn: async ({
@@ -89,6 +110,7 @@ export default function AddScreen() {
         metaInfo?: Record<string, any>;
       };
     }) => {
+      setIsUploading(true);
       return apiClient.createCardWithFile(
         fileUri,
         fileName,
@@ -107,6 +129,62 @@ export default function AddScreen() {
       setIsUploading(false);
     },
   });
+
+  async function startRecording() {
+    try {
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission required",
+          "Permission to access microphone is required!"
+        );
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      setRecording(recording);
+      setIsRecording(true);
+      setRecordingDuration(0);
+    } catch (err) {
+      console.error("Failed to start recording", err);
+      Alert.alert("Error", "Failed to start recording.");
+    }
+  }
+
+  async function stopRecording() {
+    if (!recording) return;
+
+    setIsRecording(false);
+    await recording.stopAndUnloadAsync();
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+    });
+    const uri = recording.getURI();
+    if (uri) {
+      createFileCardMutation.mutate({
+        fileUri: uri,
+        fileName: `recording-${Date.now()}.m4a`,
+        mimeType: "audio/m4a",
+        cardData: {
+          type: "audio",
+          metaInfo: {
+            source: "Mobile Voice Recording",
+            recordingDuration: recordingDuration,
+            tags: ["voice-note"],
+          },
+        },
+      });
+    }
+    setRecording(null);
+    setRecordingDuration(0);
+  }
 
   const handleFileUpload = async () => {
     try {
@@ -130,15 +208,13 @@ export default function AddScreen() {
               }
 
               const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ["images", "videos"],
+                mediaTypes: ImagePicker.MediaTypeOptions.All,
                 allowsEditing: false,
                 quality: 1,
               });
 
               if (!result.canceled && result.assets[0]) {
                 const asset = result.assets[0];
-                setIsUploading(true);
-
                 createFileCardMutation.mutate({
                   fileUri: asset.uri,
                   fileName:
@@ -170,15 +246,13 @@ export default function AddScreen() {
               }
 
               const result = await ImagePicker.launchCameraAsync({
-                mediaTypes: ["images", "videos"],
+                mediaTypes: ImagePicker.MediaTypeOptions.All,
                 allowsEditing: false,
                 quality: 1,
               });
 
               if (!result.canceled && result.assets[0]) {
                 const asset = result.assets[0];
-                setIsUploading(true);
-
                 createFileCardMutation.mutate({
                   fileUri: asset.uri,
                   fileName:
@@ -206,8 +280,6 @@ export default function AddScreen() {
 
                 if (!result.canceled && result.assets[0]) {
                   const asset = result.assets[0];
-                  setIsUploading(true);
-
                   createFileCardMutation.mutate({
                     fileUri: asset.uri,
                     fileName: asset.name,
@@ -269,6 +341,45 @@ export default function AddScreen() {
       }
     );
   };
+
+  if (isRecording) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: colors.background,
+        }}
+      >
+        <Text style={{ fontSize: 24, color: colors.label, marginBottom: 20 }}>
+          Recording...
+        </Text>
+        <Text
+          style={{
+            fontSize: 20,
+            color: colors.secondaryLabel,
+            marginBottom: 40,
+          }}
+        >
+          {new Date(recordingDuration * 1000).toISOString().substr(14, 5)}
+        </Text>
+        <TouchableOpacity
+          style={{
+            width: 80,
+            height: 80,
+            borderRadius: 40,
+            backgroundColor: "red",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+          onPress={stopRecording}
+        >
+          <IconSymbol name="stop.fill" size={40} color="white" />
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -333,14 +444,7 @@ export default function AddScreen() {
               width: 50,
               height: 50,
             }}
-            onPress={() => {
-              // TODO: Implement audio recording functionality
-              console.log("Audio recording pressed");
-              Alert.alert(
-                "Audio Recording",
-                "Audio recording functionality will be implemented here"
-              );
-            }}
+            onPress={startRecording}
           >
             <IconSymbol
               name="mic.fill"

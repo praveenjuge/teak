@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { apiClient, type Card as CardType } from "@/lib/api";
-import { Loader2, Mic, FileUp } from "lucide-react";
+import { Loader2, Mic, Square, FileUp } from "lucide-react";
 
 function isUrl(text: string): boolean {
   try {
@@ -57,6 +57,11 @@ function detectCardType(content: string): {
 export function AddCardItem() {
   const [content, setContent] = useState("");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
+    null
+  );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -193,6 +198,111 @@ export function AddCardItem() {
     },
   });
 
+  // Recording functionality
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      // Try to use audio/webm first, fallback to default if not supported
+      let mimeType = "audio/webm";
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = "audio/webm;codecs=opus";
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = ""; // Use browser default
+        }
+      }
+
+      const recorder = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined
+      );
+      const chunks: BlobPart[] = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        console.log("Recording stopped, chunks:", chunks.length);
+        // Ensure we create an audio blob, not video
+        const audioMimeType = mimeType || "audio/webm";
+        const blob = new Blob(chunks, { type: audioMimeType });
+        console.log("Blob created, size:", blob.size, "type:", blob.type);
+
+        // Create file with audio extension and type
+        const fileExtension = audioMimeType.includes("webm") ? "webm" : "wav";
+        const file = new File(
+          [blob],
+          `recording-${Date.now()}.${fileExtension}`,
+          {
+            type: audioMimeType,
+          }
+        );
+        console.log("File created:", file.name, file.size, file.type);
+
+        // Upload the recorded audio
+        console.log("Starting upload mutation...");
+        createFileCardMutation.mutate({
+          file,
+          cardData: {
+            type: "audio",
+            metaInfo: {
+              source: "Voice Recording",
+              recordingDuration: recordingDuration,
+              tags: ["voice-recording"],
+            },
+          },
+        });
+
+        // Cleanup
+        stream.getTracks().forEach((track) => track.stop());
+        setIsRecording(false);
+        setRecordingDuration(0);
+        setMediaRecorder(null);
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+
+      // Start duration counter
+      const startTime = Date.now();
+      const interval = setInterval(() => {
+        if (recorder.state === "recording") {
+          setRecordingDuration(Math.floor((Date.now() - startTime) / 1000));
+        } else {
+          clearInterval(interval);
+        }
+      }, 1000);
+    } catch (error) {
+      console.error("Error starting recording:", error);
+      alert("Could not access microphone. Please check permissions.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
+    }
+  };
+
+  const handleAudioRecording = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  // Format recording duration as MM:SS
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
   function detectCardTypeFromFile(file: File): CardType["type"] {
     if (file.type.startsWith("image/")) {
       return "image";
@@ -223,6 +333,10 @@ export function AddCardItem() {
       "audio/mpeg",
       "audio/wav",
       "audio/ogg",
+      "audio/webm",
+      "audio/mp4",
+      "audio/aac",
+      "audio/flac",
     ];
 
     if (!supportedTypes.includes(file.type)) {
@@ -269,6 +383,36 @@ export function AddCardItem() {
     }
   };
 
+  if (isRecording) {
+    return (
+      <Card className="min-h-50 p-4 gap-4 flex flex-col items-center justify-center">
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              <span className="text-sm font-medium text-red-700">
+                Recording...
+              </span>
+            </div>
+            <span className="text-sm font-mono text-red-600">
+              {formatDuration(recordingDuration)}
+            </span>
+          </div>
+        </div>
+        <Button
+          variant="destructive"
+          size="icon"
+          type="button"
+          onClick={stopRecording}
+          title="Stop recording"
+          className="mt-4"
+        >
+          <Square className="h-4 w-4" />
+        </Button>
+      </Card>
+    );
+  }
+
   return (
     <Card className="min-h-50 p-4 gap-4">
       <CardContent className="p-0 h-full">
@@ -281,6 +425,8 @@ export function AddCardItem() {
           disabled={createCardMutation.isPending}
           className="min-h-[80px] resize-none h-full"
         />
+      </CardContent>
+      <CardContent className="p-0">
         {uploadProgress !== null && (
           <div className="mt-2">
             <div className="flex justify-between text-sm text-muted-foreground mb-1">
@@ -323,10 +469,10 @@ export function AddCardItem() {
             variant="outline"
             size="icon"
             type="button"
-            onClick={() => {
-              // TODO: Implement audio recording functionality
-              console.log("Audio recording clicked");
-            }}
+            onClick={handleAudioRecording}
+            disabled={
+              createFileCardMutation.isPending || uploadProgress !== null
+            }
             title="Record audio"
           >
             <Mic className="h-4 w-4" />

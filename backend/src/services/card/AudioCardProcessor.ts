@@ -45,7 +45,8 @@ export class AudioCardProcessor extends CardProcessor {
       maxSize: 50 * 1024 * 1024, // 50MB
       allowedTypes: [
         'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/ogg',
-        'audio/webm', 'audio/aac', 'audio/flac', 'audio/x-m4a'
+        'audio/webm', 'audio/aac', 'audio/flac', 'audio/x-m4a',
+        'video/webm' // Allow video/webm as it's often used for audio-only recordings
       ],
       generateUrl: (path) => `/api/uploads/${path}`
     });

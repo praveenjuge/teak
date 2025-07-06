@@ -1,6 +1,6 @@
 import type { Card as CardType } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
-import { ExternalLink, Trash2, Play, Clock } from "lucide-react";
+import { ExternalLink, Trash2, Play, Clock, Pause } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,8 +17,9 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { apiClient } from "@/lib/api";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface CardItemProps {
   card: CardType;
@@ -33,8 +34,64 @@ const formatDuration = (seconds: number): string => {
 };
 
 export function CardItem({ card, onDelete }: CardItemProps) {
+  const { playAudio, pauseAudio, currentlyPlaying } = useAudioPlayer();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
+
+  const isPlaying = currentlyPlaying !== null && currentlyPlaying === audioRef.current;
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleAudioEnded = () => {
+      if (isPlaying) {
+        pauseAudio(audio);
+      }
+    };
+
+    audio.addEventListener('ended', handleAudioEnded);
+
+    return () => {
+      audio.removeEventListener('ended', handleAudioEnded);
+    };
+  }, [audioRef, isPlaying, pauseAudio]);
+
+  const handlePlayPause = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        pauseAudio(audioRef.current);
+      } else {
+        playAudio(audioRef.current);
+      }
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current && progressRef.current) {
+      const progress =
+        (audioRef.current.currentTime / audioRef.current.duration) * 100;
+      progressRef.current.style.width = `${progress}%`;
+    }
+  };
+
+  const handleScrub = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (audioRef.current) {
+      const scrubbable = e.currentTarget;
+      const rect = scrubbable.getBoundingClientRect();
+      const offsetX = e.clientX - rect.left;
+      const width = scrubbable.clientWidth;
+      const percentage = offsetX / width;
+      const newTime = percentage * audioRef.current.duration;
+      audioRef.current.currentTime = newTime;
+    }
+  };
+
+  const handleScrubEnd = () => {
+    // Potentially useful for more complex scrub logic
+  };
 
   const handleDelete = async () => {
     if (isDeleting) return;
@@ -97,17 +154,31 @@ export function CardItem({ card, onDelete }: CardItemProps) {
       case "audio":
         return (
           <div className="flex items-center justify-between p-4 w-full space-x-4">
-            <div className="bg-primary rounded-full p-2">
-              <Play className="size-4 text-primary-foreground fill-current" />
+            <audio
+              ref={audioRef}
+              src={card.data.media_url}
+              onTimeUpdate={handleTimeUpdate}
+            />
+            <button onClick={handlePlayPause} className="focus:outline-none">
+              <div className="bg-primary rounded-full p-2">
+                {isPlaying ? (
+                  <Pause className="size-4 text-primary-foreground fill-current" />
+                ) : (
+                  <Play className="size-4 text-primary-foreground fill-current" />
+                )}
+              </div>
+            </button>
+            <div className="flex-grow bg-muted rounded-full h-2 cursor-pointer" onMouseDown={handleScrub} onMouseUp={handleScrubEnd}>
+              <div ref={progressRef} className="bg-primary h-full rounded-full"></div>
             </div>
-            <div className="flex items-center space-x-2 text-muted-foreground">
-              <Clock className="w-4 h-4" />
-              <span className="text-sm">
-                {card.data.duration
-                  ? formatDuration(card.data.duration)
-                  : "Audio"}
-              </span>
-            </div>
+            {card.data.duration ? (
+              <div className="flex items-center space-x-2 text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                <span className="text-sm">
+                  {formatDuration(card.data.duration)}
+                </span>
+              </div>
+            ) : null}
           </div>
         );
 

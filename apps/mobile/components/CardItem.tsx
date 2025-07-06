@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -7,12 +7,14 @@ import {
   Image,
   Alert,
   Linking,
+  ActivityIndicator,
 } from "react-native";
 import type { Card } from "@/lib/api";
 import { apiClient } from "@/lib/api";
 import { borderWidths, colors } from "@/constants/colors";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { getFullMediaUrl } from "@/lib/utils";
+import { Audio } from "expo-av";
 
 interface CardItemProps {
   card: Card;
@@ -22,11 +24,17 @@ interface CardItemProps {
 // Helper function to format duration
 const formatDuration = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
+  const remainingSeconds = Math.floor(seconds % 60);
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
 
 export function CardItem({ card, onDelete }: CardItemProps) {
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [playbackPosition, setPlaybackPosition] = useState(0);
+  const isSeeking = useRef(false);
+
   const dynamicStyles = {
     card: {
       backgroundColor: colors.background,
@@ -42,6 +50,68 @@ export function CardItem({ card, onDelete }: CardItemProps) {
     primaryText: {
       color: colors.primary,
     },
+  };
+
+  useEffect(() => {
+    return sound
+      ? () => {
+          sound.unloadAsync();
+        }
+      : undefined;
+  }, [sound]);
+
+  const onPlaybackStatusUpdate = (status: any) => {
+    if (!isSeeking.current) {
+      if (status.isLoaded) {
+        setPlaybackPosition(status.positionMillis / 1000);
+        setIsPlaying(status.isPlaying);
+        if (status.didJustFinish) {
+          setIsPlaying(false);
+          setPlaybackPosition(0);
+          sound?.setPositionAsync(0);
+        }
+      }
+    }
+  };
+
+  const playSound = async () => {
+    if (!card.data.media_url) return;
+
+    const fullAudioUrl = getFullMediaUrl(card.data.media_url);
+    if (!fullAudioUrl) return;
+
+    setIsLoading(true);
+    try {
+      if (sound) {
+        await sound.playAsync();
+      } else {
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          { uri: fullAudioUrl },
+          { shouldPlay: true },
+          onPlaybackStatusUpdate
+        );
+        setSound(newSound);
+      }
+    } catch (error) {
+      console.error("Failed to play sound", error);
+      Alert.alert("Error", "Could not play audio.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const pauseSound = async () => {
+    if (sound) {
+      await sound.pauseAsync();
+    }
+  };
+
+  const handleAudioPress = () => {
+    if (isPlaying) {
+      pauseSound();
+    } else {
+      playSound();
+    }
   };
 
   const handleDelete = () => {
@@ -183,6 +253,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
         return (
           <TouchableOpacity
             style={[styles.card, dynamicStyles.card, styles.cardPadding]}
+            onPress={handleAudioPress}
             onLongPress={handleLongPress}
             activeOpacity={0.8}
           >
@@ -193,18 +264,22 @@ export function CardItem({ card, onDelete }: CardItemProps) {
                   { backgroundColor: colors.primary },
                 ]}
               >
-                <IconSymbol name="play.fill" size={14} color="white" />
+                {isLoading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <IconSymbol
+                    name={isPlaying ? "pause.fill" : "play.fill"}
+                    size={14}
+                    color="white"
+                  />
+                )}
               </View>
               <View style={styles.audioInfo}>
-                <IconSymbol
-                  name="clock"
-                  size={14}
-                  color={colors.secondaryLabel}
-                />
                 <Text style={[styles.audioTime, dynamicStyles.mutedText]}>
+                  {formatDuration(playbackPosition)} /{" "}
                   {card.data.duration
                     ? formatDuration(card.data.duration)
-                    : "Audio"}
+                    : "--:--"}
                 </Text>
               </View>
             </View>

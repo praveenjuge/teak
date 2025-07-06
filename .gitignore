@@ -89,3 +89,4 @@ bun.lockb
 apps/web/bun.lockb
 .gitignore
 backend/uploads
+package-lock.json
