@@ -151,7 +151,7 @@ export default function AddScreen() {
           >
             <IconSymbol
               name="paperclip"
-              size={24}
+              size={20}
               color={colors.secondaryLabel}
             />
           </TouchableOpacity>
@@ -178,7 +178,7 @@ export default function AddScreen() {
           >
             <IconSymbol
               name="mic.fill"
-              size={24}
+              size={20}
               color={colors.secondaryLabel}
             />
           </TouchableOpacity>
