@@ -192,6 +192,101 @@ class ApiClient {
     });
   }
 
+  async createCardWithFile(
+    fileUri: string,
+    fileName: string,
+    mimeType: string,
+    cardData?: {
+      type?: Card['type'];
+      data?: Record<string, any>;
+      metaInfo?: Record<string, any>;
+    },
+    onProgress?: (progress: number) => void
+  ): Promise<Card> {
+    const apiBaseUrl = await getStoredApiUrl();
+    const url = `${apiBaseUrl}/api/cards`;
+
+    const formData = new FormData();
+
+    // Create file object for React Native
+    const fileData = {
+      uri: fileUri,
+      name: fileName,
+      type: mimeType,
+    } as any;
+
+    formData.append('file', fileData);
+
+    // Auto-detect card type based on file MIME type
+    const detectedType = this.detectCardTypeFromFile(mimeType);
+    const type = cardData?.type || detectedType;
+
+    formData.append('type', type);
+
+    if (cardData?.data) {
+      formData.append('data', JSON.stringify(cardData.data));
+    }
+
+    if (cardData?.metaInfo) {
+      formData.append('metaInfo', JSON.stringify(cardData.metaInfo));
+    }
+
+    try {
+      // Try using authClient first
+      if (authClient) {
+        const response = await authClient.$fetch(url, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        if (response && typeof response === 'object' && 'data' in response && 'error' in response) {
+          const wrappedResponse = response as any;
+          if (wrappedResponse.error) {
+            const errorMessage = typeof wrappedResponse.error === 'string' ? wrappedResponse.error : wrappedResponse.error.message || 'Unknown error';
+            throw new Error(errorMessage);
+          }
+          return wrappedResponse.data;
+        }
+
+        return response as Card;
+      }
+
+      // Fallback to regular fetch
+      const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('File upload error:', error);
+      throw error;
+    }
+  }
+
+  private detectCardTypeFromFile(mimeType: string): Card['type'] {
+    if (mimeType.startsWith('image/')) {
+      return 'image';
+    } else if (mimeType.startsWith('video/')) {
+      return 'video';
+    } else if (mimeType.startsWith('audio/')) {
+      return 'audio';
+    } else {
+      // Default to image for unknown types
+      return 'image';
+    }
+  }
+
   async updateCard(id: number, cardData: {
     data?: Record<string, any>;
     metaInfo?: Record<string, any>;

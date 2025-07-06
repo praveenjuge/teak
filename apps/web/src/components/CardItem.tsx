@@ -1,20 +1,6 @@
 import type { Card as CardType } from "@/lib/api";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  FileText,
-  Image,
-  Video,
-  Music,
-  ExternalLink,
-  Trash2,
-} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { ExternalLink, Trash2, Play, Clock } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,63 +19,22 @@ import {
 } from "@/components/ui/context-menu";
 import { apiClient } from "@/lib/api";
 import { useState } from "react";
-import { Badge } from "./ui/badge";
 
 interface CardItemProps {
   card: CardType;
   onDelete?: () => void;
 }
 
-const getCardIcon = (type: CardType["type"]) => {
-  switch (type) {
-    case "text":
-      return <FileText className="size-4 shrink-0" />;
-    case "image":
-      return <Image className="size-4 shrink-0" />;
-    case "video":
-      return <Video className="size-4 shrink-0" />;
-    case "audio":
-      return <Music className="size-4 shrink-0" />;
-    case "url":
-      return <ExternalLink className="size-4 shrink-0" />;
-    default:
-      return <FileText className="size-4 shrink-0" />;
-  }
-};
-
-const getCardTitle = (card: CardType): string => {
-  const { data } = card;
-  return (
-    data.title ||
-    data.name ||
-    data.url ||
-    `${card.type.charAt(0).toUpperCase() + card.type.slice(1)} Card`
-  );
-};
-
-const getCardContent = (card: CardType): string => {
-  const { data } = card;
-
-  switch (card.type) {
-    case "text":
-      return data.content || "";
-    case "audio":
-    case "video":
-      return data.transcription || data.description || "";
-    case "url":
-      return data.description || data.url || "";
-    case "image":
-      return data.description || data.alt_text || "";
-    default:
-      return JSON.stringify(data);
-  }
+// Helper function to format duration
+const formatDuration = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
 
 export function CardItem({ card, onDelete }: CardItemProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const title = getCardTitle(card);
-  const content = getCardContent(card);
 
   const handleDelete = async () => {
     if (isDeleting) return;
@@ -106,54 +51,102 @@ export function CardItem({ card, onDelete }: CardItemProps) {
     }
   };
 
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger className="h-full">
-        <Card className="h-full relative">
-          <CardHeader>
-            <CardTitle>{title}</CardTitle>
-            {content && <CardDescription>{content && content}</CardDescription>}
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Render type-specific content */}
-            {card.type === "url" && card.data.url && (
-              <a
-                href={card.data.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {card.data.url}
-              </a>
-            )}
+  const handleUrlClick = (url: string) => {
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
-            {card.type === "image" && card.data.media_url && (
-              <div className="aspect-video bg-muted rounded overflow-hidden">
-                <img
-                  src={card.data.media_url}
-                  alt={card.data.alt_text || title}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
+  // Render content based on card type
+  const renderCardContent = () => {
+    switch (card.type) {
+      case "image":
+        if (!card.data.media_url) return null;
+        return (
+          <div className="aspect-video bg-muted rounded overflow-hidden">
+            <img
+              src={card.data.media_url}
+              alt={card.data.alt_text || "Image"}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        );
+
+      case "video":
+        return (
+          <div className="aspect-video bg-muted rounded overflow-hidden relative">
+            {card.data.media_url ? (
+              // For now, we'll show a gray background as video placeholder
+              // In the future, this could be a video thumbnail
+              <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"></div>
+            ) : (
+              <div className="w-full h-full bg-muted flex items-center justify-center"></div>
+            )}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="bg-black/60 rounded-full p-3">
+                <Play className="size-4 text-white fill-white" />
+              </div>
+            </div>
+            {card.data.duration && (
+              <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                {formatDuration(card.data.duration)}
               </div>
             )}
+          </div>
+        );
 
-            {(card.type === "audio" || card.type === "video") &&
-              card.data.duration && (
-                <div className="text-muted-foreground">
-                  Duration: {Math.floor(card.data.duration / 60)}:
-                  {(card.data.duration % 60).toString().padStart(2, "0")}
-                </div>
-              )}
-            <Badge
-              variant="outline"
-              className="absolute bottom-2 right-2 rounded-full border-dashed"
-            >
-              {getCardIcon(card.type)}
-              {card.type}
-            </Badge>
-          </CardContent>
+      case "audio":
+        return (
+          <div className="flex items-center justify-between p-4 w-full space-x-4">
+            <div className="bg-primary rounded-full p-2">
+              <Play className="size-4 text-primary-foreground fill-current" />
+            </div>
+            <div className="flex items-center space-x-2 text-muted-foreground">
+              <Clock className="w-4 h-4" />
+              <span className="text-sm">
+                {card.data.duration
+                  ? formatDuration(card.data.duration)
+                  : "Audio"}
+              </span>
+            </div>
+          </div>
+        );
+
+      case "url":
+        if (!card.data.url) return null;
+        return (
+          <div
+            className="flex items-center p-4 cursor-pointer transition-colors space-x-2 text-primary truncate"
+            onClick={() => handleUrlClick(card.data.url)}
+          >
+            <ExternalLink className="size-4" />
+            <span className="font-medium truncate max-w-xs">
+              {card.data.title || card.data.url}
+            </span>
+          </div>
+        );
+
+      case "text":
+        if (!card.data.content) return null;
+        return (
+          <p className="text-sm text-muted-foreground leading-relaxed p-4">
+            {card.data.content}
+          </p>
+        );
+
+      default:
+        return (
+          <p className="text-sm text-muted-foreground leading-relaxed p-4">
+            {card.data.content}
+          </p>
+        );
+    }
+  };
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger>
+        <Card className="relative overflow-hidden p-0">
+          <CardContent className="p-0">{renderCardContent()}</CardContent>
         </Card>
       </ContextMenuTrigger>
       <ContextMenuContent>

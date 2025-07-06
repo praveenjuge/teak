@@ -56,7 +56,9 @@ function detectCardType(content: string): {
 
 export function AddCardItem() {
   const [content, setContent] = useState("");
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
   const createCardMutation = useMutation({
@@ -114,6 +116,136 @@ export function AddCardItem() {
     },
   });
 
+  const createFileCardMutation = useMutation({
+    mutationFn: ({
+      file,
+      cardData,
+    }: {
+      file: File;
+      cardData?: {
+        type?: CardType["type"];
+        data?: Record<string, any>;
+        metaInfo?: Record<string, any>;
+      };
+    }) => apiClient.createCardWithFile(file, cardData, setUploadProgress),
+    onMutate: async ({ file, cardData }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["cards"] });
+
+      // Snapshot the previous queries
+      const previousQueries = queryClient.getQueriesData({
+        queryKey: ["cards"],
+      });
+
+      // Create placeholder card while uploading
+      const detectedType = detectCardTypeFromFile(file);
+      const placeholderCard = {
+        id: Date.now(), // Temporary ID
+        type: cardData?.type || detectedType,
+        data: {
+          title: `Uploading ${file.name}...`,
+          ...(detectedType === "image" && {
+            alt_text: `Uploading image: ${file.name}`,
+          }),
+          ...(detectedType === "video" && { duration: 0 }),
+          ...(detectedType === "audio" && { duration: 0 }),
+          ...cardData?.data,
+        },
+        metaInfo: {
+          source: "File Upload",
+          uploading: true,
+          fileName: file.name,
+          fileSize: file.size,
+          ...cardData?.metaInfo,
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        userId: "current-user",
+      };
+
+      // Optimistically update all cards queries
+      queryClient.setQueriesData({ queryKey: ["cards"] }, (oldData: any) => {
+        if (!oldData || !oldData.cards) return oldData;
+
+        return {
+          ...oldData,
+          cards: [placeholderCard, ...oldData.cards],
+          total: oldData.total + 1,
+        };
+      });
+
+      return { previousQueries, placeholderCard };
+    },
+    onError: (err, _, context) => {
+      // If the mutation fails, restore all previous queries
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      console.error("Failed to upload file:", err);
+      setUploadProgress(null);
+    },
+    onSuccess: () => {
+      // Invalidate and refetch to get the real data from server
+      queryClient.invalidateQueries({ queryKey: ["cards"] });
+      setUploadProgress(null);
+    },
+  });
+
+  function detectCardTypeFromFile(file: File): CardType["type"] {
+    if (file.type.startsWith("image/")) {
+      return "image";
+    } else if (file.type.startsWith("video/")) {
+      return "video";
+    } else if (file.type.startsWith("audio/")) {
+      return "audio";
+    } else {
+      return "image"; // Default fallback
+    }
+  }
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+
+    // Validate file type
+    const supportedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "video/mp4",
+      "video/webm",
+      "video/quicktime",
+      "audio/mpeg",
+      "audio/wav",
+      "audio/ogg",
+    ];
+
+    if (!supportedTypes.includes(file.type)) {
+      alert(
+        "Unsupported file type. Please select an image, video, or audio file."
+      );
+      return;
+    }
+
+    // Reset file input
+    event.target.value = "";
+
+    createFileCardMutation.mutate({
+      file,
+      cardData: {
+        metaInfo: {
+          source: "File Upload",
+          tags: [],
+        },
+      },
+    });
+  };
+
   const handleSave = () => {
     const trimmedContent = content.trim();
     if (!trimmedContent) return;
@@ -149,20 +281,43 @@ export function AddCardItem() {
           disabled={createCardMutation.isPending}
           className="min-h-[80px] resize-none h-full"
         />
+        {uploadProgress !== null && (
+          <div className="mt-2">
+            <div className="flex justify-between text-sm text-muted-foreground mb-1">
+              <span>Uploading...</span>
+              <span>{Math.round(uploadProgress)}%</span>
+            </div>
+            <div className="w-full bg-secondary rounded-full h-2">
+              <div
+                className="bg-primary h-2 rounded-full transition-all duration-300"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
       </CardContent>
       <CardFooter className="flex justify-between">
         <div className="flex gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*,audio/*"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
           <Button
             variant="outline"
             size="icon"
             type="button"
-            onClick={() => {
-              // TODO: Implement file upload functionality
-              console.log("File/Image upload clicked");
-            }}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={createFileCardMutation.isPending}
             title="Add file or image"
           >
-            <FileUp className="h-4 w-4" />
+            {createFileCardMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileUp className="h-4 w-4" />
+            )}
           </Button>
           <Button
             variant="outline"
