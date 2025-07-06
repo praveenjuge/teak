@@ -12,6 +12,7 @@ import type { Card } from "@/lib/api";
 import { apiClient } from "@/lib/api";
 import { borderWidths, colors } from "@/constants/colors";
 import { IconSymbol } from "@/components/ui/IconSymbol";
+import { getFullMediaUrl } from "@/lib/utils";
 
 interface CardItemProps {
   card: Card;
@@ -92,6 +93,16 @@ export function CardItem({ card, onDelete }: CardItemProps) {
     switch (card.type) {
       case "image":
         if (!card.data.media_url) return null;
+
+        const fullImageUrl = getFullMediaUrl(card.data.media_url);
+        if (!fullImageUrl) {
+          console.warn(
+            "[CardItem] Could not construct full image URL for:",
+            card.data.media_url
+          );
+          return null;
+        }
+
         return (
           <TouchableOpacity
             style={[styles.card, dynamicStyles.card]}
@@ -100,9 +111,22 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           >
             <View>
               <Image
-                source={{ uri: card.data.media_url }}
+                source={{ uri: fullImageUrl }}
                 style={styles.image}
                 resizeMode="cover"
+                onError={(error) => {
+                  console.error(
+                    "[CardItem] Image load error:",
+                    error.nativeEvent.error
+                  );
+                  console.error("[CardItem] Failed URL:", fullImageUrl);
+                }}
+                onLoadStart={() => {
+                  console.log("[CardItem] Image load started:", fullImageUrl);
+                }}
+                onLoadEnd={() => {
+                  console.log("[CardItem] Image load ended:", fullImageUrl);
+                }}
               />
             </View>
           </TouchableOpacity>
@@ -116,7 +140,29 @@ export function CardItem({ card, onDelete }: CardItemProps) {
             activeOpacity={0.8}
           >
             <View style={styles.videoContainer}>
-              <View style={styles.videoPlaceholder}></View>
+              {card.data.thumbnail_url ? (
+                <Image
+                  source={{
+                    uri:
+                      getFullMediaUrl(card.data.thumbnail_url) ||
+                      card.data.thumbnail_url,
+                  }}
+                  style={styles.videoPlaceholder}
+                  resizeMode="cover"
+                />
+              ) : card.data.media_url ? (
+                <Image
+                  source={{
+                    uri:
+                      getFullMediaUrl(card.data.media_url) ||
+                      card.data.media_url,
+                  }}
+                  style={styles.videoPlaceholder}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.videoPlaceholder}></View>
+              )}
               <View style={styles.playOverlay}>
                 <View style={styles.playButton}>
                   <IconSymbol name="play.fill" size={14} color="white" />
