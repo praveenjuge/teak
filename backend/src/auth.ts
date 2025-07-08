@@ -19,6 +19,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { expo } from "@better-auth/expo";
 import { db } from "./db";
 import * as schema from "./db/schema";
+import { validateUserRegistration } from "./services/userRegistration";
 
 export const auth = betterAuth({
   plugins: [expo()],
@@ -47,6 +48,34 @@ export const auth = betterAuth({
       console.log('🎫 Reset token:', token);
       console.log('Note: Configure email service to actually send emails');
     },
+  },
+
+  // Hooks for custom logic
+  hooks: {
+    before: [
+      {
+        matcher: (ctx) => ctx.path === "/sign-up/email",
+        handler: async (request) => {
+          try {
+            // Validate user registration before proceeding
+            await validateUserRegistration();
+          } catch (error) {
+            // Return error response that Better Auth will handle
+            return new Response(
+              JSON.stringify({ 
+                error: { 
+                  message: error instanceof Error ? error.message : 'Registration not allowed'
+                } 
+              }),
+              { 
+                status: 400, 
+                headers: { 'Content-Type': 'application/json' } 
+              }
+            );
+          }
+        },
+      },
+    ],
   },
 
   // Email verification configuration (for when you add email service)
