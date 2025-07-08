@@ -25,6 +25,23 @@ export default defineConfig({
       },
     }),
   ],
+  optimizeDeps: {
+    exclude: [
+      '@tanstack/react-router-devtools',
+      '@tanstack/react-query-devtools'
+    ],
+    include: [
+      'react-dom/client',
+      '@tanstack/react-router',
+      '@tanstack/react-query',
+      'better-auth/react',
+      '@radix-ui/react-label',
+      '@radix-ui/react-slot',
+      'class-variance-authority',
+      'clsx',
+      'tailwind-merge'
+    ]
+  },
   server: {
     host: '0.0.0.0', // Allow external connections (required for Docker)
     port: 3000,
@@ -36,7 +53,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: process.env.VITE_API_URL || 'http://backend:3001',
         changeOrigin: true,
       }
     }

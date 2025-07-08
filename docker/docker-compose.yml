@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Teak Application (Single Image)
   teak:

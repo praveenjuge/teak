@@ -192,19 +192,71 @@ const sampleCards = [
   }
 ];
 
+async function seedUser() {
+  try {
+    console.log('👤 Creating demo user...');
+
+    // Check if demo user already exists
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, 'demo@teak.dev'))
+      .limit(1);
+
+    if (existingUser) {
+      console.log('✅ Demo user already exists');
+      console.log('📧 Email: demo@teak.dev');
+      console.log('💡 Register this user through the frontend with any password');
+      return existingUser;
+    }
+
+    console.log('💾 Creating demo user (registration required)...');
+    
+    const crypto = await import('crypto');
+    const userId = crypto.randomUUID();
+    
+    // Create user without password - they'll register through the frontend
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        id: userId,
+        name: 'Demo User',
+        email: 'demo@teak.dev',
+        emailVerified: false, // Will be set when they register
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    console.log('✅ Demo user created successfully');
+    console.log('📧 Email: demo@teak.dev');
+    console.log('💡 Please register this user through the frontend:');
+    console.log('   1. Go to the registration page');
+    console.log('   2. Use email: demo@teak.dev');
+    console.log('   3. Set any password you want');
+    console.log('   4. The user will be linked to the seeded cards');
+    
+    return newUser;
+
+  } catch (error) {
+    console.error('❌ Error creating demo user:', error);
+    throw error;
+  }
+}
+
 export async function seedCards() {
   try {
-    console.log('🌱 Starting card seeding...');
+    console.log('🌱 Starting seeding process...');
 
-    // Get the first user to associate cards with
-    const [user] = await db.select().from(users).limit(1);
-    
+    // First, create demo user
+    const user = await seedUser();
+
     if (!user) {
-      console.log('❌ No users found. Please create a user first before seeding cards.');
+      console.log('❌ Failed to create or find demo user.');
       return;
     }
 
-    console.log(`📝 Found user: ${user.email} (${user.id})`);
+    console.log(`📝 Using user: ${user.email} (${user.id})`);
 
     // Check if cards already exist for this user
     const existingCards = await db
@@ -214,9 +266,15 @@ export async function seedCards() {
       .limit(1);
 
     if (existingCards.length > 0) {
-      console.log('⚠️  Cards already exist for this user. Skipping seeding.');
+      console.log('⚠️  Cards already exist for this user. Skipping card seeding.');
+      console.log('');
+      console.log('🎯 To access the demo data:');
+      console.log('📧 Email: demo@teak.dev');
+      console.log('💡 Register this email through the frontend');
       return;
     }
+
+    console.log('📋 Seeding sample cards...');
 
     // Insert sample cards
     const cardsToInsert = sampleCards.map(card => ({
@@ -241,10 +299,15 @@ export async function seedCards() {
       console.log(`   📋 ${type}: ${count} cards`);
     });
 
-    console.log('🎉 Card seeding completed successfully!');
+    console.log('🎉 Seeding completed successfully!');
+    console.log('');
+    console.log('🎯 To access the demo data:');
+    console.log('📧 Email: demo@teak.dev');
+    console.log('💡 Register this email through the frontend with any password');
+    console.log('🔗 The cards will automatically appear after registration!');
 
   } catch (error) {
-    console.error('❌ Error seeding cards:', error);
+    console.error('❌ Error during seeding:', error);
     throw error;
   }
 }

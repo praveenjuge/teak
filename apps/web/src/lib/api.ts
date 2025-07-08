@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3001');
+// For development, use relative URLs so Vite proxy can handle them
+// For production, use empty string to use same origin
+const API_BASE_URL = import.meta.env.PROD ? '' : '';
 
 export interface Card {
   id: number;

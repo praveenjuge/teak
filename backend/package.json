@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "lsof -ti:3001 | xargs -r kill && PORT=3001 bun --watch src/index.ts",
+    "dev": "PORT=3001 bun --watch src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
     "start": "bun dist/index.js",
     "type-check": "bun --no-install --dry-run src/index.ts",
