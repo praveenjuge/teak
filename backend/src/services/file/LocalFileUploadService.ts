@@ -9,9 +9,9 @@ import type { UploadedFile, UploadOptions } from './FileUploadService.js';
 export class LocalFileUploadService extends FileUploadService {
   private uploadsDir: string;
 
-  constructor(uploadsDir: string = './uploads') {
+  constructor(uploadsDir?: string) {
     super();
-    this.uploadsDir = uploadsDir;
+    this.uploadsDir = uploadsDir || process.env.UPLOAD_PATH || './uploads';
   }
 
   async uploadFile(file: File, options: UploadOptions): Promise<UploadedFile> {

@@ -89,7 +89,7 @@ app.use('/api/uploads/*', async (c, next) => {
 });
 
 app.use('/api/uploads/*', serveStatic({
-  root: './uploads',
+  root: process.env.UPLOAD_PATH || './uploads',
   rewriteRequestPath: (path) => path.replace('/api/uploads', ''),
   onNotFound: (path) => console.log(`Upload file not found: ${path}`)
 }));
@@ -126,7 +126,8 @@ app.get('/api/health', (c) => {
 // Test endpoint to check file serving
 app.get('/api/test-audio/:path', async (c) => {
   const path = c.req.param('path');
-  const fullPath = `./uploads/${path}`;
+  const uploadPath = process.env.UPLOAD_PATH || './uploads';
+  const fullPath = `${uploadPath}/${path}`;
 
   try {
     const file = Bun.file(fullPath);
