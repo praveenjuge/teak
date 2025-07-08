@@ -42,7 +42,7 @@ export class AudioCardProcessor extends CardProcessor {
 
     // Handle file upload
     const uploadResult = await this.fileUploadService.uploadFile(context.file, {
-      maxSize: 50 * 1024 * 1024, // 50MB
+      maxSize: 200 * 1024 * 1024, // 200MB
       allowedTypes: [
         'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/ogg',
         'audio/webm', 'audio/aac', 'audio/flac', 'audio/x-m4a',

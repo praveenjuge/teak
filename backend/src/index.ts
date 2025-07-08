@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { cache } from 'hono/cache';
 import { serveStatic } from 'hono/bun';
+import { bodyLimit } from 'hono/body-limit';
 import { auth } from './auth';
 import { userRoutes } from './routes/users';
 import { cardRoutes } from './routes/cards';
@@ -23,6 +24,16 @@ app.use('*', cors({
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
   allowHeaders: ['Content-Type', 'Authorization', 'Range', 'Content-Range', 'Content-Length'],
   credentials: true, // Required for Better Auth cookies
+}));
+
+// Body size limit for file uploads (200MB)
+app.use('*', bodyLimit({
+  maxSize: 200 * 1024 * 1024, // 200MB
+  onError: (c) => {
+    return c.json({ 
+      error: 'Request body too large. Maximum file size is 200MB.' 
+    }, 413);
+  }
 }));
 
 // Cache static assets for 1 year
