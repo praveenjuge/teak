@@ -200,6 +200,19 @@ docker-compose logs -f
 | `POSTGRES_PASSWORD` | (required)   | PostgreSQL password          |
 | `DATABASE_URL`      | (see below)  | PostgreSQL connection string |
 
+### Authentication & User Registration
+
+| Variable                        | Default | Description                           |
+| ------------------------------- | ------- | ------------------------------------- |
+| `BETTER_AUTH_SECRET`            | (required) | Secret key for Better Auth (min 32 chars) |
+| `BETTER_AUTH_URL`               | `http://localhost:3000` | Base URL for authentication callbacks |
+| `ALLOW_MULTI_USER_REGISTRATION` | `false` | Allow multiple users to register      |
+
+**User Registration Control:**
+- By default, only one user can register in the system
+- Set `ALLOW_MULTI_USER_REGISTRATION=true` to allow multiple users to register
+- If multi-user registration is disabled and a user already exists, new registration attempts will be blocked with an appropriate error message
+
 Create a `.env` file from `.env.example`:
 
 ```bash

@@ -31,6 +31,7 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/node": "^24.0.10",
     "@types/pg": "^8.15.4",
     "@types/uuid": "^10.0.0",
     "drizzle-kit": "^0.31.4"
