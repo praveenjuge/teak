@@ -1,6 +1,6 @@
 # Teak
 
-**Modern full-stack monorepo** with clean architecture and powerful tooling.
+Teak is a streamlined personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations.
 
 - **Runtime**: Bun
 - **Backend**: Hono.js API server (@teak/backend)
@@ -20,17 +20,14 @@ teak/
 │   │   ├── services/        # Business logic services
 │   │   ├── db/              # Database schema & connection
 │   │   └── auth.ts          # Better Auth configuration
-│   └── package.json         # Backend dependencies (@teak/backend)
 ├── apps/
 │   ├── web/                 # React 19 frontend (@teak/web)
 │   │   ├── src/
 │   │   │   ├── App.tsx      # Main React app
 │   │   │   ├── routes/      # TanStack Router routes
 │   │   │   └── components/  # Reusable UI components
-│   │   └── package.json     # Web app dependencies
 │   └── mobile/              # React Native mobile app (@teak/mobile)
 │       ├── app/             # Expo Router file-based routing
-│       └── package.json     # Mobile app dependencies
 ├── docker/                  # Docker configurations
 ├── scripts/                 # Utility & bootstrap scripts
 ├── postman/                 # API testing collection
@@ -202,13 +199,14 @@ docker-compose logs -f
 
 ### Authentication & User Registration
 
-| Variable                        | Default | Description                           |
-| ------------------------------- | ------- | ------------------------------------- |
-| `BETTER_AUTH_SECRET`            | (required) | Secret key for Better Auth (min 32 chars) |
-| `BETTER_AUTH_URL`               | `http://localhost:3000` | Base URL for authentication callbacks |
-| `ALLOW_MULTI_USER_REGISTRATION` | `false` | Allow multiple users to register      |
+| Variable                        | Default                 | Description                               |
+| ------------------------------- | ----------------------- | ----------------------------------------- |
+| `BETTER_AUTH_SECRET`            | (required)              | Secret key for Better Auth (min 32 chars) |
+| `BETTER_AUTH_URL`               | `http://localhost:3000` | Base URL for authentication callbacks     |
+| `ALLOW_MULTI_USER_REGISTRATION` | `false`                 | Allow multiple users to register          |
 
 **User Registration Control:**
+
 - By default, only one user can register in the system
 - Set `ALLOW_MULTI_USER_REGISTRATION=true` to allow multiple users to register
 - If multi-user registration is disabled and a user already exists, new registration attempts will be blocked with an appropriate error message
