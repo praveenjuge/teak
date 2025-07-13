@@ -1,6 +1,8 @@
 // File upload services
 export { FileUploadService } from './file/FileUploadService.js';
 export { LocalFileUploadService } from './file/LocalFileUploadService.js';
+export { S3FileUploadService } from './file/S3FileUploadService.js';
+export { createFileUploadService } from './file/FileUploadFactory.js';
 
 // Card processing services
 export { CardProcessor } from './card/CardProcessor.js';

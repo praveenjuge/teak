@@ -8,6 +8,8 @@ import { auth } from './auth';
 import { userRoutes } from './routes/users';
 import { cardRoutes } from './routes/cards';
 import { healthRoutes } from './health';
+import { getStorageConfig } from './config/storage.js';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 
 // App with type-safe context
 const app = new Hono<{
@@ -59,51 +61,113 @@ app.route('/api/users', userRoutes);
 app.route('/api/cards', cardRoutes);
 app.route('/api', healthRoutes);
 
-// Serve uploaded files with proper headers for audio
-app.use('/api/uploads/*', async (c, next) => {
+// Serve uploaded files - handles both local and S3 storage
+app.get('/api/uploads/*', async (c) => {
   const path = c.req.path;
-  const filePath = path.replace('/api/uploads', '');
+  const filePath = path.replace('/api/uploads/', '');
 
   console.log(`[Uploads] Serving file: ${filePath}`);
 
   // Get file extension to determine content type
   const ext = filePath.split('.').pop()?.toLowerCase();
 
-  // Set appropriate content type and headers for audio files
+  // Set appropriate content type
+  let contentType = 'application/octet-stream';
   if (ext === 'm4a' || ext === 'mp4' || ext === 'aac') {
-    c.header('Content-Type', 'audio/mp4');
-    c.header('Accept-Ranges', 'bytes');
-    c.header('Access-Control-Allow-Origin', '*');
-    c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    c.header('Access-Control-Allow-Headers', 'Range, Content-Range, Content-Length');
+    contentType = 'audio/mp4';
   } else if (ext === 'mp3') {
-    c.header('Content-Type', 'audio/mpeg');
-    c.header('Accept-Ranges', 'bytes');
-    c.header('Access-Control-Allow-Origin', '*');
-    c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    c.header('Access-Control-Allow-Headers', 'Range, Content-Range, Content-Length');
+    contentType = 'audio/mpeg';
   } else if (ext === 'wav') {
-    c.header('Content-Type', 'audio/wav');
-    c.header('Accept-Ranges', 'bytes');
-    c.header('Access-Control-Allow-Origin', '*');
-    c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    c.header('Access-Control-Allow-Headers', 'Range, Content-Range, Content-Length');
+    contentType = 'audio/wav';
   } else if (ext === 'ogg') {
-    c.header('Content-Type', 'audio/ogg');
-    c.header('Accept-Ranges', 'bytes');
-    c.header('Access-Control-Allow-Origin', '*');
-    c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    c.header('Access-Control-Allow-Headers', 'Range, Content-Range, Content-Length');
+    contentType = 'audio/ogg';
+  } else if (ext === 'webm') {
+    contentType = 'video/webm';
+  } else if (ext === 'jpg' || ext === 'jpeg') {
+    contentType = 'image/jpeg';
+  } else if (ext === 'png') {
+    contentType = 'image/png';
+  } else if (ext === 'gif') {
+    contentType = 'image/gif';
+  } else if (ext === 'webp') {
+    contentType = 'image/webp';
   }
 
-  return next();
-});
+  // Set headers
+  c.header('Content-Type', contentType);
+  c.header('Accept-Ranges', 'bytes');
+  c.header('Access-Control-Allow-Origin', '*');
+  c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  c.header('Access-Control-Allow-Headers', 'Range, Content-Range, Content-Length');
 
-app.use('/api/uploads/*', serveStatic({
-  root: process.env['UPLOAD_PATH'] || './uploads',
-  rewriteRequestPath: (path) => path.replace('/api/uploads', ''),
-  onNotFound: (path) => console.log(`Upload file not found: ${path}`)
-}));
+  const storageConfig = getStorageConfig();
+
+  if (storageConfig.type === 's3' && storageConfig.config) {
+    // Serve from S3
+    try {
+      const s3Client = new S3Client({
+        region: storageConfig.config.AWS_S3_REGION,
+        endpoint: storageConfig.config.AWS_S3_ENDPOINT,
+        credentials: storageConfig.config.AWS_ACCESS_KEY_ID && storageConfig.config.AWS_SECRET_ACCESS_KEY ? {
+          accessKeyId: storageConfig.config.AWS_ACCESS_KEY_ID,
+          secretAccessKey: storageConfig.config.AWS_SECRET_ACCESS_KEY,
+        } : undefined,
+        forcePathStyle: storageConfig.config.AWS_S3_FORCE_PATH_STYLE || false,
+      });
+
+      const command = new GetObjectCommand({
+        Bucket: storageConfig.config.AWS_S3_BUCKET,
+        Key: filePath,
+      });
+
+      const response = await s3Client.send(command);
+      
+      if (response.Body) {
+        const stream = response.Body as ReadableStream;
+        return new Response(stream, {
+          headers: {
+            'Content-Type': contentType,
+            'Content-Length': response.ContentLength?.toString() || '',
+            'Accept-Ranges': 'bytes',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers': 'Range, Content-Range, Content-Length',
+          }
+        });
+      }
+      
+      return c.text('File not found', 404);
+    } catch (error) {
+      console.error(`Failed to serve S3 file ${filePath}:`, error);
+      return c.text('File not found', 404);
+    }
+  } else {
+    // Serve from local storage
+    const uploadPath = process.env['UPLOAD_PATH'] || './uploads';
+    const fullPath = `${uploadPath}/${filePath}`;
+    
+    try {
+      const file = Bun.file(fullPath);
+      if (!(await file.exists())) {
+        return c.text('File not found', 404);
+      }
+      
+      return new Response(file, {
+        headers: {
+          'Content-Type': contentType,
+          'Content-Length': file.size.toString(),
+          'Accept-Ranges': 'bytes',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+          'Access-Control-Allow-Headers': 'Range, Content-Range, Content-Length',
+        }
+      });
+    } catch (error) {
+      console.error(`Failed to serve local file ${fullPath}:`, error);
+      return c.text('File not found', 404);
+    }
+  }
+});
 
 // Protected session endpoint
 app.get('/api/session', (c) => {

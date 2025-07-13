@@ -1,13 +1,14 @@
 import { CardProcessor } from './CardProcessor.js';
 import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
-import { LocalFileUploadService } from '../file/LocalFileUploadService.js';
+import { createFileUploadService } from '../file/FileUploadFactory.js';
+import type { FileUploadService } from '../file/FileUploadService.js';
 
 export class ImageCardProcessor extends CardProcessor {
-  private fileUploadService: LocalFileUploadService;
+  private fileUploadService: FileUploadService;
 
   constructor() {
     super();
-    this.fileUploadService = new LocalFileUploadService();
+    this.fileUploadService = createFileUploadService();
   }
 
   async process(context: ProcessingContext): Promise<ProcessedCardData> {

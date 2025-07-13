@@ -14,6 +14,13 @@ services:
       - BETTER_AUTH_SECRET=your-super-secret-key-change-this-in-production
       - BETTER_AUTH_URL=http://localhost:80
       - UPLOAD_PATH=/app/uploads
+      # Optional S3 Configuration (remove AWS_ prefix to use local storage)
+      # - AWS_S3_BUCKET=your-bucket-name
+      # - AWS_S3_REGION=us-east-1
+      # - AWS_S3_ENDPOINT=https://s3.amazonaws.com
+      # - AWS_ACCESS_KEY_ID=your-access-key
+      # - AWS_SECRET_ACCESS_KEY=your-secret-key
+      # - AWS_S3_FORCE_PATH_STYLE=false
     volumes:
       - uploads_data:/app/uploads
     depends_on:
