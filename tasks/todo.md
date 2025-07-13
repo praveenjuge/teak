@@ -177,3 +177,129 @@ docker-compose -f docker/docker-compose.dev.yml logs -f frontend
 5. **Automated Setup**: Database migrations and seeding happen automatically
 
 **Final Status**: ✅ All tasks completed successfully with comprehensive testing and documentation
+
+---
+
+# File Upload S3 Integration Analysis and Plan
+
+## Current File Upload System Analysis
+
+### Current Architecture
+The Teak application currently uses a **local file storage system** with the following components:
+
+#### 1. Upload Routes and Endpoints
+- **Main upload endpoint**: `POST /api/cards` with `multipart/form-data` support
+- **File serving endpoint**: `/api/uploads/*` - serves uploaded files statically
+- **Upload middleware**: `fileUploadMiddleware` in `/Users/praveenjuge/Projects/teak/backend/src/middleware/fileUpload.ts`
+
+#### 2. File Storage Logic
+- **Service abstraction**: `FileUploadService` (abstract base class)
+- **Local implementation**: `LocalFileUploadService` extends `FileUploadService`
+- **Storage location**: `./uploads` directory (configurable via `UPLOAD_PATH` env var)
+- **File organization**: Date-based structure `YYYY/MM/DD/timestamp-random.extension`
+- **File serving**: Static file serving via Hono's `serveStatic` middleware
+
+#### 3. File Processing Components
+- **Card processors**: Type-specific processors for audio, video, image cards
+  - `AudioCardProcessor` - handles audio files, extracts metadata with ffprobe
+  - `VideoCardProcessor` - handles video files, extracts metadata with ffprobe  
+  - `ImageCardProcessor` - handles image files, extracts dimensions
+- **File validation**: MIME type checking, file size limits
+- **Metadata extraction**: Audio/video duration, bitrate, dimensions, etc.
+
+#### 4. Current Directory Structure
+```
+backend/
+├── src/
+│   ├── middleware/fileUpload.ts          # Upload middleware
+│   ├── services/file/
+│   │   ├── FileUploadService.ts          # Abstract base class
+│   │   └── LocalFileUploadService.ts     # Local storage implementation
+│   ├── services/card/
+│   │   ├── CardProcessor.ts              # Base processor
+│   │   ├── AudioCardProcessor.ts         # Audio file processor
+│   │   ├── VideoCardProcessor.ts         # Video file processor
+│   │   ├── ImageCardProcessor.ts         # Image file processor
+│   │   └── CardService.ts                # Main card service
+│   ├── routes/cards.ts                   # Upload endpoints
+│   └── schemas/fileUpload.ts             # Validation schemas
+└── uploads/                              # Local storage directory
+    └── 2025/07/06/                      # Date-based organization
+```
+
+#### 5. Storage Abstraction Quality
+The codebase has **excellent abstraction** for storage services:
+- Abstract `FileUploadService` base class with clean interface
+- Pluggable design allowing easy swapping of storage implementations
+- Consistent `UploadedFile` interface across all processors
+- Clear separation between file upload and card processing logic
+
+## S3 Integration Plan
+
+### Phase 1: Create S3 File Upload Service
+- [ ] Install AWS SDK v3 (`@aws-sdk/client-s3`)
+- [ ] Create `S3FileUploadService` class extending `FileUploadService`
+- [ ] Implement S3 upload with proper error handling
+- [ ] Add S3 configuration (bucket, region, credentials)
+- [ ] Maintain same `UploadedFile` interface for compatibility
+
+### Phase 2: Update Card Processors
+- [ ] Modify `AudioCardProcessor` to use configurable file upload service
+- [ ] Modify `VideoCardProcessor` to use configurable file upload service  
+- [ ] Modify `ImageCardProcessor` to use configurable file upload service
+- [ ] Ensure metadata extraction still works with S3 URLs
+
+### Phase 3: Configuration and Environment
+- [ ] Add S3 environment variables (bucket name, region, access keys)
+- [ ] Create service factory to choose between Local and S3 storage
+- [ ] Update Docker configuration for S3 environment variables
+- [ ] Add fallback mechanism for development (local storage)
+
+### Phase 4: File Serving Updates
+- [ ] Update URL generation for S3 files (direct S3 URLs vs presigned URLs)
+- [ ] Remove local file serving middleware when using S3
+- [ ] Handle CORS for S3 bucket access
+- [ ] Update file deletion logic for S3
+
+### Phase 5: Migration and Testing
+- [ ] Create migration script for existing files (optional)
+- [ ] Update Postman collection with S3 examples
+- [ ] Test all media types (audio, video, image) with S3
+- [ ] Verify metadata extraction works with S3 storage
+- [ ] Run TypeScript checks (`bunx tsc --noEmit`)
+
+## Key Files to Modify
+
+### Core Service Files
+1. `/Users/praveenjuge/Projects/teak/backend/src/services/file/S3FileUploadService.ts` (NEW)
+2. `/Users/praveenjuge/Projects/teak/backend/src/services/card/AudioCardProcessor.ts`
+3. `/Users/praveenjuge/Projects/teak/backend/src/services/card/VideoCardProcessor.ts`  
+4. `/Users/praveenjuge/Projects/teak/backend/src/services/card/ImageCardProcessor.ts`
+5. `/Users/praveenjuge/Projects/teak/backend/src/services/index.ts`
+
+### Configuration Files
+6. `/Users/praveenjuge/Projects/teak/backend/package.json` (add AWS SDK)
+7. `/Users/praveenjuge/Projects/teak/docker/docker-compose.yml` (S3 env vars)
+8. `/Users/praveenjuge/Projects/teak/docker/docker-compose.dev.yml` (S3 env vars)
+
+### Optional Updates
+9. `/Users/praveenjuge/Projects/teak/backend/src/index.ts` (remove static file serving for S3)
+10. `/Users/praveenjuge/Projects/teak/postman/Teak-API.postman_collection.json`
+
+## Benefits of Current Architecture
+
+1. **Clean Abstraction**: The `FileUploadService` abstract class makes S3 integration straightforward
+2. **Minimal Changes**: Only need to create new S3 service and inject it into processors
+3. **Backward Compatibility**: Can maintain local storage for development environments
+4. **Type Safety**: Strong TypeScript interfaces ensure consistency
+5. **Metadata Preservation**: All existing metadata extraction logic will work unchanged
+
+## Recommendations
+
+1. **Gradual Migration**: Implement S3 as an optional storage backend first
+2. **Environment-Based**: Use environment variables to choose storage type
+3. **Dual Support**: Keep both local and S3 implementations for flexibility
+4. **Presigned URLs**: Consider using presigned URLs for secure file access
+5. **CDN Integration**: S3 can be paired with CloudFront for better performance
+
+The current codebase is well-architected for this integration with minimal breaking changes required.
