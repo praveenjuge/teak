@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function HomePage() {
   return (
     <main className="flex flex-1 flex-col">
@@ -11,12 +13,12 @@ export default function HomePage() {
             A streamlined personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
+            <Link
               href="/docs"
               className="inline-flex items-center justify-center rounded-lg bg-fd-primary px-6 py-3 text-fd-primary-foreground font-medium hover:bg-fd-primary/90 transition-colors"
             >
               Get Started
-            </a>
+            </Link>
             <a
               href="https://github.com/praveenjuge/teak"
               className="inline-flex items-center justify-center rounded-lg border border-fd-border px-6 py-3 text-fd-foreground font-medium hover:bg-fd-muted transition-colors"
@@ -123,7 +125,7 @@ export default function HomePage() {
               Simple, Self-Hosted Pricing
             </h2>
             <p className="text-xl text-fd-muted-foreground max-w-2xl mx-auto">
-              Teak is completely free and open source. Just host it yourself and you're ready to go.
+              Teak is completely free and open source. Just host it yourself and you&apos;re ready to go.
             </p>
           </div>
           
@@ -172,12 +174,12 @@ export default function HomePage() {
                   Community support
                 </li>
               </ul>
-              <a
+              <Link
                 href="/docs"
                 className="w-full inline-flex items-center justify-center rounded-lg bg-fd-primary px-6 py-3 text-fd-primary-foreground font-medium hover:bg-fd-primary/90 transition-colors"
               >
                 Get Started Now
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -201,7 +203,7 @@ export default function HomePage() {
                 What is Teak Vault?
               </summary>
               <p className="mt-4 text-fd-muted-foreground">
-                Teak Vault is a self-hosted personal knowledge hub that helps you collect, organize, and rediscover your ideas and inspirations. It's designed for creative minds who want to maintain their own private digital brain.
+                Teak Vault is a self-hosted personal knowledge hub that helps you collect, organize, and rediscover your ideas and inspirations. It&apos;s designed for creative minds who want to maintain their own private digital brain.
               </p>
             </details>
 
@@ -246,7 +248,7 @@ export default function HomePage() {
                 How do I contribute to Teak?
               </summary>
               <p className="mt-4 text-fd-muted-foreground">
-                Teak is open source and welcomes contributions! Visit our GitHub repository to report issues, suggest features, or submit pull requests. We have a friendly community that's happy to help newcomers get started.
+                Teak is open source and welcomes contributions! Visit our GitHub repository to report issues, suggest features, or submit pull requests. We have a friendly community that&apos;s happy to help newcomers get started.
               </p>
             </details>
 
@@ -255,7 +257,7 @@ export default function HomePage() {
                 What are the system requirements?
               </summary>
               <p className="mt-4 text-fd-muted-foreground">
-                Teak requires Docker and Docker Compose for the easiest setup. For development, you'll need Bun 1.0+. The system is lightweight and can run on a modest VPS with 1GB RAM and 1 CPU core.
+                Teak requires Docker and Docker Compose for the easiest setup. For development, you&apos;ll need Bun 1.0+. The system is lightweight and can run on a modest VPS with 1GB RAM and 1 CPU core.
               </p>
             </details>
           </div>
