@@ -1,4 +1,3 @@
-import React from "react";
 import { View, StyleSheet } from "react-native";
 import { CardsGrid } from "../../components/CardsGrid";
 import { SearchInput } from "../../components/SearchInput";
