@@ -7,7 +7,7 @@ export default function HomePage() {
       <section className="bg-gradient-to-b from-fd-background to-fd-muted/20 py-16 md:py-24">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-fd-primary to-fd-primary/70 bg-clip-text text-transparent">
-            Teak Vault
+            Teak
           </h1>
           <p className="text-xl md:text-2xl text-fd-muted-foreground mb-8 max-w-3xl mx-auto">
             A streamlined personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations.
@@ -193,17 +193,17 @@ export default function HomePage() {
               Frequently Asked Questions
             </h2>
             <p className="text-xl text-fd-muted-foreground max-w-2xl mx-auto">
-              Everything you need to know about Teak Vault.
+              Everything you need to know about Teak.
             </p>
           </div>
           
           <div className="max-w-3xl mx-auto space-y-6">
             <details className="p-6 rounded-lg border border-fd-border bg-fd-card">
               <summary className="font-semibold cursor-pointer text-lg">
-                What is Teak Vault?
+                What is Teak?
               </summary>
               <p className="mt-4 text-fd-muted-foreground">
-                Teak Vault is a self-hosted personal knowledge hub that helps you collect, organize, and rediscover your ideas and inspirations. It&apos;s designed for creative minds who want to maintain their own private digital brain.
+                Teak is a self-hosted personal knowledge hub that helps you collect, organize, and rediscover your ideas and inspirations. It&apos;s designed for creative minds who want to maintain their own private digital brain.
               </p>
             </details>
 
