@@ -1,5 +1,5 @@
 import { reloadAppAsync } from 'expo';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,9 +20,12 @@ import {
 export default function Login() {
   const [step, setStep] = useState<'server' | 'login'>('server');
   const [apiUrl, setApiUrl] = useState(
+    // biome-ignore lint/correctness/noUndeclaredVariables: defined from expo
     __DEV__ ? 'http://192.168.29.57:3000' : ''
   );
+  // biome-ignore lint/correctness/noUndeclaredVariables: defined from expo
   const [email, setEmail] = useState(__DEV__ ? 'hello@praveenjuge.com' : '');
+  // biome-ignore lint/correctness/noUndeclaredVariables: defined from expo
   const [password, setPassword] = useState(__DEV__ ? "asdfghjkl;'" : '');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -30,7 +33,7 @@ export default function Login() {
     const checkStoredUrl = () => {
       try {
         const storedUrl = getStoredApiUrl();
-        if (storedUrl && storedUrl.trim()) {
+        if (storedUrl?.trim()) {
           setApiUrl(storedUrl);
           setStep('login');
         }

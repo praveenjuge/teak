@@ -17,6 +17,7 @@ export const baseOptions: BaseLayoutProps = {
           width="24"
           xmlns="http://www.w3.org/2000/svg"
         >
+          <title>Teak</title>
           <circle cx={12} cy={12} fill="currentColor" r={12} />
         </svg>
         Teak

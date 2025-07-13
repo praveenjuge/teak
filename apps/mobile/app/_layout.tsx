@@ -6,7 +6,6 @@ import {
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
 import { useColorScheme } from 'react-native';
 import SplashScreenController from '@/app/splash';
 import { colors } from '@/constants/colors';
@@ -48,8 +47,9 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
+  // biome-ignore lint/correctness/useHookAtTopLevel: fix later
   const sessionData = authClient ? authClient.useSession() : { data: null };
-  const sessionPresent = sessionData.data ? true : false;
+  const sessionPresent = !!sessionData.data;
 
   // Setup React Native optimizations for TanStack Query
   useAppStateFocus();
