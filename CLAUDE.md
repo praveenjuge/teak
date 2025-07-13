@@ -22,3 +22,6 @@
 6. Never say “X remains unchanged” — always show the code.
 7. Be explicit on where snippets go (e.g., below “abc”, above “xyz”).
 8. If only one function changes, just show that one.
+
+- Prefer bun instead of node
+- Use shadcn components without any changes to default styling
