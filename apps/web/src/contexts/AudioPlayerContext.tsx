@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import type React from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+} from 'react';
 
 interface AudioPlayerContextType {
   playAudio: (audio: HTMLAudioElement) => void;
@@ -6,10 +13,15 @@ interface AudioPlayerContextType {
   currentlyPlaying: HTMLAudioElement | null;
 }
 
-const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined);
+const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(
+  undefined
+);
 
-export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentlyPlaying, setCurrentlyPlaying] = useState<HTMLAudioElement | null>(null);
+export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [currentlyPlaying, setCurrentlyPlaying] =
+    useState<HTMLAudioElement | null>(null);
   const currentlyPlayingRef = useRef<HTMLAudioElement | null>(null);
 
   const playAudio = useCallback((audio: HTMLAudioElement) => {
@@ -17,8 +29,8 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       currentlyPlayingRef.current.pause();
     }
     currentlyPlayingRef.current = audio;
-    audio.play().catch(error => {
-      console.error("Failed to play audio:", error);
+    audio.play().catch((error) => {
+      console.error('Failed to play audio:', error);
       if (currentlyPlayingRef.current === audio) {
         currentlyPlayingRef.current = null;
         setCurrentlyPlaying(null);
@@ -51,7 +63,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 export const useAudioPlayer = () => {
   const context = useContext(AudioPlayerContext);
   if (context === undefined) {
-    throw new Error('useAudioPlayer must be used within an AudioPlayerProvider');
+    throw new Error(
+      'useAudioPlayer must be used within an AudioPlayerProvider'
+    );
   }
   return context;
 };

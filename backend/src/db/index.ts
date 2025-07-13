@@ -4,7 +4,9 @@ import * as schema from './schema';
 
 // Create PostgreSQL connection pool
 export const pool = new Pool({
-  connectionString: process.env['DATABASE_URL'] || 'postgresql://teak_user:teak_dev_password@localhost:5432/teak_db',
+  connectionString:
+    process.env['DATABASE_URL'] ||
+    'postgresql://teak_user:teak_dev_password@localhost:5432/teak_db',
 });
 
 // Create Drizzle database instance

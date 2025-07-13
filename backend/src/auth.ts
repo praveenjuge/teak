@@ -1,12 +1,12 @@
 /**
  * Better Auth Configuration
- * 
+ *
  * Current setup:
  * - Email/password authentication enabled
  * - Email verification disabled (no email service configured)
  * - Password reset emails logged to console (for development)
  * - Using Drizzle ORM adapter for database operations
- * 
+ *
  * TODO: Add email service integration
  * - Resend (resend.com)
  * - SendGrid
@@ -14,17 +14,17 @@
  * - Nodemailer with SMTP
  */
 
-import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { expo } from "@better-auth/expo";
-import { db } from "./db";
-import * as schema from "./db/schema";
+import { expo } from '@better-auth/expo';
+import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { db } from './db';
+import * as schema from './db/schema';
 // import { validateUserRegistration } from "./services/userRegistration";
 
 export const auth = betterAuth({
   plugins: [expo()],
   database: drizzleAdapter(db, {
-    provider: "pg",
+    provider: 'pg',
     schema: {
       user: schema.users,
       session: schema.sessions,
@@ -32,8 +32,8 @@ export const auth = betterAuth({
       verification: schema.verifications,
     },
   }),
-  baseURL: process.env["BETTER_AUTH_URL"] || "http://localhost:3001",
-  secret: process.env["BETTER_AUTH_SECRET"] || "fallback-secret-for-dev",
+  baseURL: process.env['BETTER_AUTH_URL'] || 'http://localhost:3001',
+  secret: process.env['BETTER_AUTH_SECRET'] || 'fallback-secret-for-dev',
 
   // Enable email and password authentication
   emailAndPassword: {
@@ -83,14 +83,14 @@ export const auth = betterAuth({
 
   // Configure trusted origins
   trustedOrigins: [
-    "http://localhost:3000", // Frontend
-    "http://localhost:3001", // Backend
-    "teak://", // Mobile app scheme
+    'http://localhost:3000', // Frontend
+    'http://localhost:3001', // Backend
+    'teak://', // Mobile app scheme
   ],
 
   // Advanced security settings
   advanced: {
-    useSecureCookies: process.env["NODE_ENV"] === "production",
+    useSecureCookies: process.env['NODE_ENV'] === 'production',
     crossSubDomainCookies: {
       enabled: false, // Change to true if you need cross-subdomain cookies
     },

@@ -1,20 +1,20 @@
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
+import { serveStatic } from 'hono/bun';
+import { cache } from 'hono/cache';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { cache } from 'hono/cache';
-import { serveStatic } from 'hono/bun';
-import { bodyLimit } from 'hono/body-limit';
 import { auth } from './auth';
-import { userRoutes } from './routes/users';
-import { cardRoutes } from './routes/cards';
 import { healthRoutes } from './health';
+import { cardRoutes } from './routes/cards';
+import { userRoutes } from './routes/users';
 
 // App with type-safe context
 const app = new Hono<{
   Variables: {
     user: typeof auth.$Infer.Session.user | null;
     session: typeof auth.$Infer.Session.session | null;
-  }
+  };
 }>();
 
 // Core middleware
@@ -26,38 +26,58 @@ const isOriginAllowed = (origin: string): boolean => {
   if (process.env.NODE_ENV !== 'production') {
     return ['http://localhost:3000', 'http://localhost:8081'].includes(origin);
   }
-  
+
   // Production origins from environment variable
   if (process.env['ALLOWED_ORIGINS']) {
-    const allowedOrigins = process.env['ALLOWED_ORIGINS'].split(',').map(o => o.trim());
+    const allowedOrigins = process.env['ALLOWED_ORIGINS']
+      .split(',')
+      .map((o) => o.trim());
     return allowedOrigins.includes(origin);
   }
-  
+
   return false; // Reject all in production if no allowed origins set
 };
 
-app.use('*', cors({
-  origin: (origin) => isOriginAllowed(origin) ? origin : null,
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
-  allowHeaders: ['Content-Type', 'Authorization', 'Range', 'Content-Range', 'Content-Length'],
-  credentials: true, // Required for Better Auth cookies
-}));
+app.use(
+  '*',
+  cors({
+    origin: (origin) => (isOriginAllowed(origin) ? origin : null),
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
+    allowHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Range',
+      'Content-Range',
+      'Content-Length',
+    ],
+    credentials: true, // Required for Better Auth cookies
+  })
+);
 
 // Body size limit for file uploads (200MB)
-app.use('*', bodyLimit({
-  maxSize: 200 * 1024 * 1024, // 200MB
-  onError: (c) => {
-    return c.json({ 
-      error: 'Request body too large. Maximum file size is 200MB.' 
-    }, 413);
-  }
-}));
+app.use(
+  '*',
+  bodyLimit({
+    maxSize: 200 * 1024 * 1024, // 200MB
+    onError: (c) => {
+      return c.json(
+        {
+          error: 'Request body too large. Maximum file size is 200MB.',
+        },
+        413
+      );
+    },
+  })
+);
 
 // Cache static assets for 1 year
-app.use('/assets/*', cache({
-  cacheName: 'teak-assets',
-  cacheControl: 'max-age=31536000',
-}));
+app.use(
+  '/assets/*',
+  cache({
+    cacheName: 'teak-assets',
+    cacheControl: 'max-age=31536000',
+  })
+);
 
 // Auth middleware - extract user and session from request
 app.use('*', async (c, next) => {
@@ -92,35 +112,50 @@ app.use('/api/uploads/*', async (c, next) => {
     c.header('Accept-Ranges', 'bytes');
     c.header('Access-Control-Allow-Origin', '*');
     c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    c.header('Access-Control-Allow-Headers', 'Range, Content-Range, Content-Length');
+    c.header(
+      'Access-Control-Allow-Headers',
+      'Range, Content-Range, Content-Length'
+    );
   } else if (ext === 'mp3') {
     c.header('Content-Type', 'audio/mpeg');
     c.header('Accept-Ranges', 'bytes');
     c.header('Access-Control-Allow-Origin', '*');
     c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    c.header('Access-Control-Allow-Headers', 'Range, Content-Range, Content-Length');
+    c.header(
+      'Access-Control-Allow-Headers',
+      'Range, Content-Range, Content-Length'
+    );
   } else if (ext === 'wav') {
     c.header('Content-Type', 'audio/wav');
     c.header('Accept-Ranges', 'bytes');
     c.header('Access-Control-Allow-Origin', '*');
     c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    c.header('Access-Control-Allow-Headers', 'Range, Content-Range, Content-Length');
+    c.header(
+      'Access-Control-Allow-Headers',
+      'Range, Content-Range, Content-Length'
+    );
   } else if (ext === 'ogg') {
     c.header('Content-Type', 'audio/ogg');
     c.header('Accept-Ranges', 'bytes');
     c.header('Access-Control-Allow-Origin', '*');
     c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    c.header('Access-Control-Allow-Headers', 'Range, Content-Range, Content-Length');
+    c.header(
+      'Access-Control-Allow-Headers',
+      'Range, Content-Range, Content-Length'
+    );
   }
 
   return next();
 });
 
-app.use('/api/uploads/*', serveStatic({
-  root: process.env['UPLOAD_PATH'] || './uploads',
-  rewriteRequestPath: (path) => path.replace('/api/uploads', ''),
-  onNotFound: (path) => console.log(`Upload file not found: ${path}`)
-}));
+app.use(
+  '/api/uploads/*',
+  serveStatic({
+    root: process.env['UPLOAD_PATH'] || './uploads',
+    rewriteRequestPath: (path) => path.replace('/api/uploads', ''),
+    onNotFound: (path) => console.log(`Upload file not found: ${path}`),
+  })
+);
 
 // Protected session endpoint
 app.get('/api/session', (c) => {
@@ -137,7 +172,7 @@ app.get('/api/protected', (c) => {
 
   return c.json({
     message: 'This is a protected route',
-    user: { id: user.id, email: user.email, name: user.name }
+    user: { id: user.id, email: user.email, name: user.name },
   });
 });
 
@@ -147,7 +182,7 @@ app.get('/api/health', (c) => {
     service: 'teak',
     status: 'ok',
     timestamp: new Date().toISOString(),
-    auth: 'better-auth enabled'
+    auth: 'better-auth enabled',
   });
 });
 
@@ -168,23 +203,29 @@ app.get('/api/test-audio/:path', async (c) => {
       exists,
       size,
       type: file.type,
-      url: `/api/uploads/${path}`
+      url: `/api/uploads/${path}`,
     });
   } catch (error) {
-    return c.json({
-      error: 'Failed to check file',
-      path,
-      fullPath,
-      message: error instanceof Error ? error.message : 'Unknown error'
-    }, 500);
+    return c.json(
+      {
+        error: 'Failed to check file',
+        path,
+        fullPath,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    );
   }
 });
 
 // Serve static files with optimized caching
-app.use('/assets/*', serveStatic({
-  root: './apps/web/dist',
-  onNotFound: (path) => console.log(`Static file not found: ${path}`)
-}));
+app.use(
+  '/assets/*',
+  serveStatic({
+    root: './apps/web/dist',
+    onNotFound: (path) => console.log(`Static file not found: ${path}`),
+  })
+);
 
 // SPA fallback - serve index.html for all non-API routes
 app.get('*', async (c) => {
@@ -192,7 +233,10 @@ app.get('*', async (c) => {
     const indexFile = Bun.file('./apps/web/dist/index.html');
 
     if (!(await indexFile.exists())) {
-      return c.text('Frontend not built yet. Run "bun run build:frontend" first.', 404);
+      return c.text(
+        'Frontend not built yet. Run "bun run build:frontend" first.',
+        404
+      );
     }
 
     const content = await indexFile.text();
@@ -207,7 +251,9 @@ app.get('*', async (c) => {
   }
 });
 
-const port = parseInt(Bun.env['BACKEND_PORT'] || Bun.env['PORT'] || '3001');
+const port = Number.parseInt(
+  Bun.env['BACKEND_PORT'] || Bun.env['PORT'] || '3001'
+);
 
 console.log(`🚀 Server starting on port ${port}`);
 console.log(`📡 API endpoints: http://localhost:${port}/api/*`);

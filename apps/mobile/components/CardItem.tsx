@@ -1,20 +1,20 @@
-import React, { useState, useEffect, useRef } from "react";
+import { Audio } from 'expo-av';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  Alert,
-  Linking,
   ActivityIndicator,
-} from "react-native";
-import type { Card } from "@/lib/api";
-import { apiClient } from "@/lib/api";
-import { borderWidths, colors } from "@/constants/colors";
-import { IconSymbol } from "@/components/ui/IconSymbol";
-import { getFullMediaUrl } from "@/lib/utils";
-import { Audio } from "expo-av";
+  Alert,
+  Image,
+  Linking,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import { borderWidths, colors } from '@/constants/colors';
+import type { Card } from '@/lib/api';
+import { apiClient } from '@/lib/api';
+import { getFullMediaUrl } from '@/lib/utils';
 
 interface CardItemProps {
   card: Card;
@@ -25,7 +25,7 @@ interface CardItemProps {
 const formatDuration = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60);
-  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
 
 export function CardItem({ card, onDelete }: CardItemProps) {
@@ -61,15 +61,13 @@ export function CardItem({ card, onDelete }: CardItemProps) {
   }, [sound]);
 
   const onPlaybackStatusUpdate = (status: any) => {
-    if (!isSeeking.current) {
-      if (status.isLoaded) {
-        setPlaybackPosition(status.positionMillis / 1000);
-        setIsPlaying(status.isPlaying);
-        if (status.didJustFinish) {
-          setIsPlaying(false);
-          setPlaybackPosition(0);
-          sound?.setPositionAsync(0);
-        }
+    if (!isSeeking.current && status.isLoaded) {
+      setPlaybackPosition(status.positionMillis / 1000);
+      setIsPlaying(status.isPlaying);
+      if (status.didJustFinish) {
+        setIsPlaying(false);
+        setPlaybackPosition(0);
+        sound?.setPositionAsync(0);
       }
     }
   };
@@ -93,8 +91,8 @@ export function CardItem({ card, onDelete }: CardItemProps) {
         setSound(newSound);
       }
     } catch (error) {
-      console.error("Failed to play sound", error);
-      Alert.alert("Error", "Could not play audio.");
+      console.error('Failed to play sound', error);
+      Alert.alert('Error', 'Could not play audio.');
     } finally {
       setIsLoading(false);
     }
@@ -116,20 +114,20 @@ export function CardItem({ card, onDelete }: CardItemProps) {
 
   const handleDelete = () => {
     Alert.alert(
-      "Delete Card",
-      "Are you sure you want to delete this card? This action cannot be undone.",
+      'Delete Card',
+      'Are you sure you want to delete this card? This action cannot be undone.',
       [
-        { text: "Cancel", style: "cancel" },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: "Delete",
-          style: "destructive",
+          text: 'Delete',
+          style: 'destructive',
           onPress: async () => {
             try {
               await apiClient.deleteCard(card.id);
               onDelete?.();
             } catch (error) {
-              console.error("Failed to delete card:", error);
-              Alert.alert("Error", "Failed to delete card. Please try again.");
+              console.error('Failed to delete card:', error);
+              Alert.alert('Error', 'Failed to delete card. Please try again.');
             }
           },
         },
@@ -138,9 +136,9 @@ export function CardItem({ card, onDelete }: CardItemProps) {
   };
 
   const handleLongPress = () => {
-    Alert.alert("Card Options", "What would you like to do with this card?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: handleDelete },
+    Alert.alert('Card Options', 'What would you like to do with this card?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: handleDelete },
     ]);
   };
 
@@ -150,24 +148,24 @@ export function CardItem({ card, onDelete }: CardItemProps) {
       if (supported) {
         await Linking.openURL(url);
       } else {
-        Alert.alert("Error", "Unable to open this URL");
+        Alert.alert('Error', 'Unable to open this URL');
       }
     } catch (error) {
-      console.error("Failed to open URL:", error);
-      Alert.alert("Error", "Failed to open URL");
+      console.error('Failed to open URL:', error);
+      Alert.alert('Error', 'Failed to open URL');
     }
   };
 
   // Render content based on card type
   const renderCardContent = () => {
     switch (card.type) {
-      case "image":
+      case 'image': {
         if (!card.data.media_url) return null;
 
         const fullImageUrl = getFullMediaUrl(card.data.media_url);
         if (!fullImageUrl) {
           console.warn(
-            "[CardItem] Could not construct full image URL for:",
+            '[CardItem] Could not construct full image URL for:',
             card.data.media_url
           );
           return null;
@@ -175,67 +173,68 @@ export function CardItem({ card, onDelete }: CardItemProps) {
 
         return (
           <TouchableOpacity
-            style={[styles.card, dynamicStyles.card]}
-            onLongPress={handleLongPress}
             activeOpacity={0.8}
+            onLongPress={handleLongPress}
+            style={[styles.card, dynamicStyles.card]}
           >
             <View>
               <Image
-                source={{ uri: fullImageUrl }}
-                style={styles.image}
-                resizeMode="cover"
                 onError={(error) => {
                   console.error(
-                    "[CardItem] Image load error:",
+                    '[CardItem] Image load error:',
                     error.nativeEvent.error
                   );
-                  console.error("[CardItem] Failed URL:", fullImageUrl);
-                }}
-                onLoadStart={() => {
-                  console.log("[CardItem] Image load started:", fullImageUrl);
+                  console.error('[CardItem] Failed URL:', fullImageUrl);
                 }}
                 onLoadEnd={() => {
-                  console.log("[CardItem] Image load ended:", fullImageUrl);
+                  console.log('[CardItem] Image load ended:', fullImageUrl);
                 }}
+                onLoadStart={() => {
+                  console.log('[CardItem] Image load started:', fullImageUrl);
+                }}
+                resizeMode="cover"
+                source={{ uri: fullImageUrl }}
+                style={styles.image}
               />
             </View>
           </TouchableOpacity>
         );
+      }
 
-      case "video":
+      case 'video':
         return (
           <TouchableOpacity
-            style={[styles.card, dynamicStyles.card]}
-            onLongPress={handleLongPress}
             activeOpacity={0.8}
+            onLongPress={handleLongPress}
+            style={[styles.card, dynamicStyles.card]}
           >
             <View style={styles.videoContainer}>
               {card.data.thumbnail_url ? (
                 <Image
+                  resizeMode="cover"
                   source={{
                     uri:
                       getFullMediaUrl(card.data.thumbnail_url) ||
                       card.data.thumbnail_url,
                   }}
                   style={styles.videoPlaceholder}
-                  resizeMode="cover"
                 />
               ) : card.data.media_url ? (
                 <Image
+                  resizeMode="cover"
                   source={{
                     uri:
                       getFullMediaUrl(card.data.media_url) ||
                       card.data.media_url,
                   }}
                   style={styles.videoPlaceholder}
-                  resizeMode="cover"
                 />
               ) : (
-                <View style={styles.videoPlaceholder}></View>
+                <View style={styles.videoPlaceholder} />
               )}
               <View style={styles.playOverlay}>
                 <View style={styles.playButton}>
-                  <IconSymbol name="play.fill" size={14} color="white" />
+                  <IconSymbol color="white" name="play.fill" size={14} />
                 </View>
               </View>
               {card.data.duration && (
@@ -249,13 +248,13 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           </TouchableOpacity>
         );
 
-      case "audio":
+      case 'audio':
         return (
           <TouchableOpacity
-            style={[styles.card, dynamicStyles.card, styles.cardPadding]}
-            onPress={handleAudioPress}
-            onLongPress={handleLongPress}
             activeOpacity={0.8}
+            onLongPress={handleLongPress}
+            onPress={handleAudioPress}
+            style={[styles.card, dynamicStyles.card, styles.cardPadding]}
           >
             <View style={styles.audioContent}>
               <View
@@ -268,42 +267,42 @@ export function CardItem({ card, onDelete }: CardItemProps) {
                   <ActivityIndicator color="white" />
                 ) : (
                   <IconSymbol
-                    name={isPlaying ? "pause.fill" : "play.fill"}
-                    size={14}
                     color="white"
+                    name={isPlaying ? 'pause.fill' : 'play.fill'}
+                    size={14}
                   />
                 )}
               </View>
               <View style={styles.audioInfo}>
                 <Text style={[styles.audioTime, dynamicStyles.mutedText]}>
-                  {formatDuration(playbackPosition)} /{" "}
+                  {formatDuration(playbackPosition)} /{' '}
                   {card.data.duration
                     ? formatDuration(card.data.duration)
-                    : "--:--"}
+                    : '--:--'}
                 </Text>
               </View>
             </View>
           </TouchableOpacity>
         );
 
-      case "url":
+      case 'url':
         if (!card.data.url) return null;
         return (
           <TouchableOpacity
-            style={[styles.card, dynamicStyles.card, styles.cardPadding]}
-            onPress={() => handleUrlPress(card.data.url)}
-            onLongPress={handleLongPress}
             activeOpacity={0.8}
+            onLongPress={handleLongPress}
+            onPress={() => handleUrlPress(card.data.url)}
+            style={[styles.card, dynamicStyles.card, styles.cardPadding]}
           >
             <View style={styles.urlContent}>
               <IconSymbol
+                color={colors.primary}
                 name="arrow.up.right.square"
                 size={18}
-                color={colors.primary}
               />
               <Text
-                style={[styles.urlText, dynamicStyles.primaryText]}
                 numberOfLines={1}
+                style={[styles.urlText, dynamicStyles.primaryText]}
               >
                 {card.data.title || card.data.url}
               </Text>
@@ -311,13 +310,13 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           </TouchableOpacity>
         );
 
-      case "text":
+      case 'text':
         if (!card.data.content) return null;
         return (
           <TouchableOpacity
-            style={[styles.card, dynamicStyles.card, styles.cardPadding]}
-            onLongPress={handleLongPress}
             activeOpacity={0.8}
+            onLongPress={handleLongPress}
+            style={[styles.card, dynamicStyles.card, styles.cardPadding]}
           >
             <Text style={[dynamicStyles.mutedText]}>{card.data.content}</Text>
           </TouchableOpacity>
@@ -326,9 +325,9 @@ export function CardItem({ card, onDelete }: CardItemProps) {
       default:
         return (
           <TouchableOpacity
-            style={[styles.card, dynamicStyles.card]}
-            onLongPress={handleLongPress}
             activeOpacity={0.8}
+            onLongPress={handleLongPress}
+            style={[styles.card, dynamicStyles.card]}
           >
             <Text style={[dynamicStyles.mutedText]}>
               Unsupported card type: {card.type}
@@ -345,74 +344,74 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 8,
     marginBottom: 8,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
   cardPadding: {
     padding: 12,
   },
   image: {
-    width: "100%",
+    width: '100%',
     height: 120,
   },
   videoContainer: {
-    overflow: "hidden",
-    position: "relative",
+    overflow: 'hidden',
+    position: 'relative',
   },
   video: {
-    width: "100%",
+    width: '100%',
     height: 120,
   },
   videoPlaceholder: {
-    width: "100%",
+    width: '100%',
     height: 120,
-    backgroundColor: "#e5e5e5",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: '#e5e5e5',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   playOverlay: {
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   playButton: {
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 24,
     padding: 12,
   },
   durationBadge: {
-    position: "absolute",
+    position: 'absolute',
     bottom: 8,
     right: 8,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   durationText: {
-    color: "white",
+    color: 'white',
   },
   audioContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   audioPlayButton: {
     borderRadius: 20,
     padding: 12,
   },
   audioInfo: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   audioTime: {
     marginLeft: 4,
   },
   urlContent: {
-    flexDirection: "row",
+    flexDirection: 'row',
   },
   urlText: {
     marginLeft: 5,

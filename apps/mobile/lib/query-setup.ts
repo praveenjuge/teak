@@ -1,9 +1,8 @@
-import { useEffect } from 'react';
-import { AppState, Platform } from 'react-native';
-import type { AppStateStatus } from 'react-native';
-import { focusManager } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
-import React from 'react';
+import { focusManager } from '@tanstack/react-query';
+import React, { useEffect } from 'react';
+import type { AppStateStatus } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 function onAppStateChange(status: AppStateStatus) {
   if (Platform.OS !== 'web') {
@@ -30,6 +29,6 @@ export function useRefreshOnFocus<T>(refetch: () => Promise<T>) {
       }
 
       refetch();
-    }, [refetch]),
+    }, [refetch])
   );
 }

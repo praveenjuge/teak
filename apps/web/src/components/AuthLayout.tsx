@@ -1,13 +1,13 @@
-import { Suspense, lazy } from "react";
-import Logo from "./Logo";
+import { lazy, Suspense } from 'react';
+import Logo from './Logo';
 
 const TopPattern = lazy(() =>
-  import("@/components/patterns/TopPattern").then((m) => ({
+  import('@/components/patterns/TopPattern').then((m) => ({
     default: m.TopPattern,
   }))
 );
 const BottomPattern = lazy(() =>
-  import("@/components/patterns/BottomPattern").then((m) => ({
+  import('@/components/patterns/BottomPattern').then((m) => ({
     default: m.BottomPattern,
   }))
 );

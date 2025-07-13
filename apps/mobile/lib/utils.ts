@@ -5,7 +5,9 @@ import { getStoredApiUrl } from './auth-client';
  * @param mediaUrl - The media URL from the API (could be relative or absolute)
  * @returns Full URL or null if no valid URL can be constructed
  */
-export const getFullMediaUrl = (mediaUrl: string | undefined | null): string | null => {
+export const getFullMediaUrl = (
+  mediaUrl: string | undefined | null
+): string | null => {
   if (!mediaUrl) {
     return null;
   }
@@ -18,7 +20,9 @@ export const getFullMediaUrl = (mediaUrl: string | undefined | null): string | n
   // Get the stored API URL
   const apiUrl = getStoredApiUrl();
   if (!apiUrl) {
-    console.warn('[Utils] No API URL configured, cannot construct full media URL');
+    console.warn(
+      '[Utils] No API URL configured, cannot construct full media URL'
+    );
     return null;
   }
 
@@ -27,7 +31,11 @@ export const getFullMediaUrl = (mediaUrl: string | undefined | null): string | n
   const path = mediaUrl.startsWith('/') ? mediaUrl : `/${mediaUrl}`;
 
   const fullUrl = `${baseUrl}${path}`;
-  console.log('[Utils] Constructed full media URL:', { mediaUrl, apiUrl, fullUrl });
+  console.log('[Utils] Constructed full media URL:', {
+    mediaUrl,
+    apiUrl,
+    fullUrl,
+  });
 
   return fullUrl;
 };

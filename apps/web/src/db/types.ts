@@ -1,7 +1,12 @@
 // Consolidated type definitions - single source of truth
 export * from '../../../../backend/src/db/schema';
 
-import { users, sessions, accounts, verifications } from '../../../../backend/src/db/schema';
+import type {
+  accounts,
+  sessions,
+  users,
+  verifications,
+} from '../../../../backend/src/db/schema';
 
 // Database entity types
 export type User = typeof users.$inferSelect;
@@ -20,8 +25,8 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
-export interface UserResponse extends ApiResponse<{ users: User[] }> { }
-export interface SingleUserResponse extends ApiResponse<{ user: User }> { }
+export interface UserResponse extends ApiResponse<{ users: User[] }> {}
+export interface SingleUserResponse extends ApiResponse<{ user: User }> {}
 
 // Auth form types
 export interface AuthFormData {

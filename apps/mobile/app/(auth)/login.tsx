@@ -1,29 +1,29 @@
-import React, { useState, useEffect } from "react";
+import { reloadAppAsync } from 'expo';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  ScrollView,
-} from "react-native";
+  View,
+} from 'react-native';
+import { borderWidths, colors } from '../../constants/colors';
 import {
   authClient,
-  storeApiUrl,
   getStoredApiUrl,
-} from "../../lib/auth-client";
-import { reloadAppAsync } from "expo";
-import { colors, borderWidths } from "../../constants/colors";
+  storeApiUrl,
+} from '../../lib/auth-client';
 
 export default function Login() {
-  const [step, setStep] = useState<"server" | "login">("server");
+  const [step, setStep] = useState<'server' | 'login'>('server');
   const [apiUrl, setApiUrl] = useState(
-    __DEV__ ? "http://192.168.29.57:3000" : ""
+    __DEV__ ? 'http://192.168.29.57:3000' : ''
   );
-  const [email, setEmail] = useState(__DEV__ ? "hello@praveenjuge.com" : "");
-  const [password, setPassword] = useState(__DEV__ ? "asdfghjkl;'" : "");
+  const [email, setEmail] = useState(__DEV__ ? 'hello@praveenjuge.com' : '');
+  const [password, setPassword] = useState(__DEV__ ? "asdfghjkl;'" : '');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -32,10 +32,10 @@ export default function Login() {
         const storedUrl = getStoredApiUrl();
         if (storedUrl && storedUrl.trim()) {
           setApiUrl(storedUrl);
-          setStep("login");
+          setStep('login');
         }
       } catch (error) {
-        console.error("Error checking stored URL:", error);
+        console.error('Error checking stored URL:', error);
       }
     };
 
@@ -44,25 +44,25 @@ export default function Login() {
 
   const handleServerContinue = async () => {
     if (!apiUrl.trim()) {
-      Alert.alert("Error", "Please enter a server URL");
+      Alert.alert('Error', 'Please enter a server URL');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      console.log("Testing connection to server URL:", apiUrl);
+      console.log('Testing connection to server URL:', apiUrl);
 
       // Validate if this is a Teak server
-      const formattedURL = apiUrl.endsWith("/") ? apiUrl.slice(0, -1) : apiUrl;
+      const formattedURL = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
       const healthCheckUrl = `${formattedURL}/api/health`;
 
-      console.log("Checking server health at:", healthCheckUrl);
+      console.log('Checking server health at:', healthCheckUrl);
 
       const response = await fetch(healthCheckUrl, {
-        method: "GET",
+        method: 'GET',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       });
 
@@ -71,12 +71,12 @@ export default function Login() {
       }
 
       const healthData = await response.json();
-      console.log("Server health response:", healthData);
+      console.log('Server health response:', healthData);
 
       // Check if the response indicates this is a Teak server
-      if (!healthData || healthData.service !== "teak") {
+      if (!healthData || healthData.service !== 'teak') {
         Alert.alert(
-          "Invalid Server",
+          'Invalid Server',
           "This doesn't appear to be a Teak server. Please check your server URL."
         );
         return;
@@ -85,51 +85,51 @@ export default function Login() {
       // Store the API URL for future use
       await storeApiUrl(apiUrl);
 
-      console.log("Stored API URL:", apiUrl);
+      console.log('Stored API URL:', apiUrl);
 
       // Force reload the entire app to reinitialize with new server URL
       await reloadAppAsync();
     } catch (error) {
-      console.error("Server URL error:", error);
+      console.error('Server URL error:', error);
 
       let errorMessage =
-        "Unable to connect to the server. Please check your server URL and network connection.";
+        'Unable to connect to the server. Please check your server URL and network connection.';
 
       if (error instanceof Error) {
-        if (error.message.includes("Network request failed")) {
+        if (error.message.includes('Network request failed')) {
           errorMessage =
-            "Network error. Please check your internet connection and server URL.";
-        } else if (error.message.includes("status: 404")) {
+            'Network error. Please check your internet connection and server URL.';
+        } else if (error.message.includes('status: 404')) {
           errorMessage =
-            "Server not found. This may not be a Teak server or the URL is incorrect.";
-        } else if (error.message.includes("status: 500")) {
+            'Server not found. This may not be a Teak server or the URL is incorrect.';
+        } else if (error.message.includes('status: 500')) {
           errorMessage =
-            "Server error. The Teak server may be experiencing issues.";
+            'Server error. The Teak server may be experiencing issues.';
         }
       }
 
-      Alert.alert("Connection Error", errorMessage);
+      Alert.alert('Connection Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields");
+    if (!(email && password)) {
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      console.log("Attempting login with stored URL");
+      console.log('Attempting login with stored URL');
 
       // Attempt to sign in using the main auth client
       if (!authClient) {
         Alert.alert(
-          "Auth Error",
-          "Authentication client is not initialized. Please check your server URL and try again."
+          'Auth Error',
+          'Authentication client is not initialized. Please check your server URL and try again.'
         );
         return;
       }
@@ -139,20 +139,20 @@ export default function Login() {
         password,
       });
 
-      console.log("Login result:", result);
+      console.log('Login result:', result);
 
       if (result.error) {
-        console.error("Login failed:", result.error);
+        console.error('Login failed:', result.error);
         Alert.alert(
-          "Login Failed",
-          result.error.message || "Invalid credentials"
+          'Login Failed',
+          result.error.message || 'Invalid credentials'
         );
       }
     } catch (error) {
-      console.error("Login error:", error);
+      console.error('Login error:', error);
       Alert.alert(
-        "Connection Error",
-        "Unable to connect to the server. Please check your credentials."
+        'Connection Error',
+        'Unable to connect to the server. Please check your credentials.'
       );
     } finally {
       setIsLoading(false);
@@ -160,14 +160,14 @@ export default function Login() {
   };
 
   const handleBackToServer = () => {
-    setStep("server");
+    setStep('server');
   };
 
-  if (step === "server") {
+  if (step === 'server') {
     return (
       <ScrollView
-        style={{ padding: 20 }}
         contentInsetAdjustmentBehavior="automatic"
+        style={{ padding: 20 }}
       >
         <View style={styles.stepContainer}>
           <Text style={styles.stepTitle}>Connect to Server</Text>
@@ -180,25 +180,25 @@ export default function Login() {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Server URL</Text>
           <TextInput
-            style={styles.input}
-            value={apiUrl}
-            onChangeText={setApiUrl}
-            placeholder="https://teak.example.com"
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
+            onChangeText={setApiUrl}
+            placeholder="https://teak.example.com"
+            style={styles.input}
             textContentType="URL"
+            value={apiUrl}
           />
         </View>
 
         {/* Continue Button */}
         <TouchableOpacity
+          disabled={!apiUrl.trim() || isLoading}
+          onPress={handleServerContinue}
           style={[
             styles.loginButton,
             (!apiUrl.trim() || isLoading) && styles.loginButtonDisabled,
           ]}
-          onPress={handleServerContinue}
-          disabled={!apiUrl.trim() || isLoading}
         >
           {isLoading ? (
             <ActivityIndicator />
@@ -212,8 +212,8 @@ export default function Login() {
 
   return (
     <ScrollView
-      style={{ padding: 20 }}
       contentInsetAdjustmentBehavior="automatic"
+      style={{ padding: 20 }}
     >
       <View style={styles.stepContainer}>
         <Text style={styles.stepTitle}>Sign In</Text>
@@ -227,14 +227,14 @@ export default function Login() {
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Email</Text>
         <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="Enter your email"
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
+          onChangeText={setEmail}
+          placeholder="Enter your email"
+          style={styles.input}
           textContentType="emailAddress"
+          value={email}
         />
       </View>
 
@@ -242,23 +242,23 @@ export default function Login() {
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Password</Text>
         <TextInput
-          style={styles.input}
-          value={password}
           onChangeText={setPassword}
           placeholder="Enter your password"
           secureTextEntry
+          style={styles.input}
           textContentType="password"
+          value={password}
         />
       </View>
 
       {/* Login Button */}
       <TouchableOpacity
+        disabled={!(email && password) || isLoading}
+        onPress={handleLogin}
         style={[
           styles.loginButton,
-          (!email || !password || isLoading) && styles.loginButtonDisabled,
+          (!(email && password) || isLoading) && styles.loginButtonDisabled,
         ]}
-        onPress={handleLogin}
-        disabled={!email || !password || isLoading}
       >
         {isLoading ? (
           <ActivityIndicator color={colors.adaptiveWhite} />
@@ -268,7 +268,7 @@ export default function Login() {
       </TouchableOpacity>
 
       {/* Back Button */}
-      <TouchableOpacity style={styles.backButton} onPress={handleBackToServer}>
+      <TouchableOpacity onPress={handleBackToServer} style={styles.backButton}>
         <Text style={styles.backButtonText}>Change Server</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   stepTitle: {
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginBottom: 6,
     color: colors.label,
   },
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: 8,
     padding: 14,
-    alignItems: "center",
+    alignItems: 'center',
     marginBottom: 12,
   },
   loginButtonDisabled: {
@@ -318,17 +318,17 @@ const styles = StyleSheet.create({
   },
   loginButtonText: {
     color: colors.adaptiveWhite,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   backButton: {
     borderRadius: 8,
     padding: 14,
-    alignItems: "center",
+    alignItems: 'center',
     borderWidth: borderWidths.hairline,
     borderColor: colors.primary,
   },
   backButtonText: {
     color: colors.primary,
-    fontWeight: "600",
+    fontWeight: '600',
   },
 });

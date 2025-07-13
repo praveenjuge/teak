@@ -1,33 +1,33 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { useState } from 'react';
+import { AuthLayout } from '@/components/AuthLayout';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { authClient } from "@/lib/auth-client";
-import { AuthLayout } from "@/components/AuthLayout";
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { authClient } from '@/lib/auth-client';
 
-export const Route = createFileRoute("/(auth)/login")({
+export const Route = createFileRoute('/(auth)/login')({
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError("");
+    setError('');
 
     try {
       const { data, error } = await authClient.signIn.email({
@@ -36,19 +36,19 @@ function RouteComponent() {
       });
 
       if (error) {
-        setError(error.message || "Login failed");
-        console.log("Login error:", error);
+        setError(error.message || 'Login failed');
+        console.log('Login error:', error);
         return;
       }
 
       if (data) {
-        console.log("Login successful:", data);
+        console.log('Login successful:', data);
         // Redirect to home page after successful login
-        navigate({ to: "/" });
+        navigate({ to: '/' });
       }
     } catch (err) {
-      console.error("Login error:", err);
-      setError("An unexpected error occurred");
+      console.error('Login error:', err);
+      setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -62,45 +62,45 @@ function RouteComponent() {
           <CardDescription>Sign in to your account to continue</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form className="space-y-4" onSubmit={handleLogin}>
             {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-600 text-sm">
                 {error}
               </div>
             )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
                 disabled={isLoading}
+                id="email"
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                required
+                type="email"
+                value={email}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
                 disabled={isLoading}
+                id="password"
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                type="password"
+                value={password}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign In"}
+            <Button className="w-full" disabled={isLoading} type="submit">
+              {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
-            <Link to="/forgot-password" className="text-primary flex">
+            <Link className="flex text-primary" to="/forgot-password">
               Forgot your password?
             </Link>
             <div className="text-muted-foreground">
-              Don't have an account?{" "}
-              <Link to="/register" className="text-primary">
+              Don't have an account?{' '}
+              <Link className="text-primary" to="/register">
                 Sign up
               </Link>
             </div>

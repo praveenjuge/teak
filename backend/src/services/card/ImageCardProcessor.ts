@@ -1,6 +1,6 @@
-import { CardProcessor } from './CardProcessor.js';
-import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
 import { LocalFileUploadService } from '../file/LocalFileUploadService.js';
+import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
+import { CardProcessor } from './CardProcessor.js';
 
 export class ImageCardProcessor extends CardProcessor {
   private fileUploadService: LocalFileUploadService;
@@ -15,14 +15,16 @@ export class ImageCardProcessor extends CardProcessor {
       // Handle URL-based image
       const mediaUrl = context.inputData['media_url'];
       if (!mediaUrl) {
-        throw new Error('Image card requires either a file upload or media_url');
+        throw new Error(
+          'Image card requires either a file upload or media_url'
+        );
       }
 
       return {
         data: {
-          media_url: mediaUrl
+          media_url: mediaUrl,
         },
-        metaInfo: context.inputData['metaInfo'] || {}
+        metaInfo: context.inputData['metaInfo'] || {},
       };
     }
 
@@ -30,10 +32,15 @@ export class ImageCardProcessor extends CardProcessor {
     const uploadResult = await this.fileUploadService.uploadFile(context.file, {
       maxSize: 10 * 1024 * 1024, // 10MB for images
       allowedTypes: [
-        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-        'image/svg+xml', 'image/bmp', 'image/tiff'
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/svg+xml',
+        'image/bmp',
+        'image/tiff',
       ],
-      generateUrl: (path) => `/api/uploads/${path}`
+      generateUrl: (path) => `/api/uploads/${path}`,
     });
 
     return {
@@ -41,13 +48,13 @@ export class ImageCardProcessor extends CardProcessor {
         media_url: uploadResult.url,
         original_filename: uploadResult.originalName,
         width: uploadResult.width,
-        height: uploadResult.height
+        height: uploadResult.height,
       },
       metaInfo: {
         file_size: uploadResult.size,
         mime_type: uploadResult.mimeType,
-        uploaded_at: new Date().toISOString()
-      }
+        uploaded_at: new Date().toISOString(),
+      },
     };
   }
 }

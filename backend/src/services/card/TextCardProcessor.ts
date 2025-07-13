@@ -1,5 +1,5 @@
-import { CardProcessor } from './CardProcessor.js';
 import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
+import { CardProcessor } from './CardProcessor.js';
 
 export class TextCardProcessor extends CardProcessor {
   async process(context: ProcessingContext): Promise<ProcessedCardData> {
@@ -18,17 +18,20 @@ export class TextCardProcessor extends CardProcessor {
 
     return {
       data: {
-        content: content.trim()
+        content: content.trim(),
       },
       metaInfo: {
         character_count: content.length,
         word_count: this.countWords(content),
-        created_at: new Date().toISOString()
-      }
+        created_at: new Date().toISOString(),
+      },
     };
   }
 
   private countWords(text: string): number {
-    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+    return text
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 0).length;
   }
 }

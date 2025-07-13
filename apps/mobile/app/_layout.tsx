@@ -1,18 +1,18 @@
-import { Stack } from "expo-router";
-import React from "react";
-import { authClient } from "@/lib/auth-client";
-import SplashScreenController from "@/app/splash";
 import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
-} from "@react-navigation/native";
-import { useColorScheme } from "react-native";
-import { StatusBar } from "expo-status-bar";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/query-client";
-import { useAppStateFocus } from "@/lib/query-setup";
-import { colors } from "@/constants/colors";
+} from '@react-navigation/native';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import React from 'react';
+import { useColorScheme } from 'react-native';
+import SplashScreenController from '@/app/splash';
+import { colors } from '@/constants/colors';
+import { authClient } from '@/lib/auth-client';
+import { queryClient } from '@/lib/query-client';
+import { useAppStateFocus } from '@/lib/query-setup';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -37,7 +37,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider
-        value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
+        value={colorScheme === 'dark' ? CustomDarkTheme : CustomDefaultTheme}
       >
         <SplashScreenController />
         <RootNavigator />
@@ -64,7 +64,7 @@ function RootNavigator() {
           name="(auth)/login"
           options={{
             headerShown: true,
-            title: "Welcome to Teak",
+            title: 'Welcome to Teak',
           }}
         />
       </Stack.Protected>

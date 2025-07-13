@@ -1,21 +1,21 @@
-import { useState, useRef } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { apiClient, type Card as CardType } from "@/lib/api";
-import { Loader2, Mic, Square, FileUp } from "lucide-react";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { FileUp, Loader2, Mic, Square } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { apiClient, type Card as CardType } from '@/lib/api';
 
 function isUrl(text: string): boolean {
   try {
     const url = new URL(text);
-    return url.protocol === "http:" || url.protocol === "https:";
+    return url.protocol === 'http:' || url.protocol === 'https:';
   } catch {
     return false;
   }
 }
 
 function detectCardType(content: string): {
-  type: CardType["type"];
+  type: CardType['type'];
   data: Record<string, any>;
 } {
   const trimmedContent = content.trim();
@@ -24,7 +24,7 @@ function detectCardType(content: string): {
     try {
       const url = new URL(trimmedContent);
       return {
-        type: "url",
+        type: 'url',
         data: {
           url: trimmedContent,
           title: url.hostname,
@@ -34,7 +34,7 @@ function detectCardType(content: string): {
     } catch {
       // Fallback if URL parsing fails
       return {
-        type: "url",
+        type: 'url',
         data: {
           url: trimmedContent,
           title: trimmedContent,
@@ -44,17 +44,17 @@ function detectCardType(content: string): {
   }
 
   return {
-    type: "text",
+    type: 'text',
     data: {
       content: trimmedContent,
       title:
-        trimmedContent.slice(0, 50) + (trimmedContent.length > 50 ? "..." : ""),
+        trimmedContent.slice(0, 50) + (trimmedContent.length > 50 ? '...' : ''),
     },
   };
 }
 
 export function AddCardItem() {
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState('');
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -67,29 +67,29 @@ export function AddCardItem() {
 
   const createCardMutation = useMutation({
     mutationFn: (cardData: {
-      type: CardType["type"];
+      type: CardType['type'];
       data: Record<string, any>;
       metaInfo?: Record<string, any>;
     }) => apiClient.createCard(cardData),
     onMutate: async (newCard) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["cards"] });
+      await queryClient.cancelQueries({ queryKey: ['cards'] });
 
       // Snapshot the previous queries
       const previousQueries = queryClient.getQueriesData({
-        queryKey: ["cards"],
+        queryKey: ['cards'],
       });
 
       // Optimistically update all cards queries
-      queryClient.setQueriesData({ queryKey: ["cards"] }, (oldData: any) => {
-        if (!oldData || !oldData.cards) return oldData;
+      queryClient.setQueriesData({ queryKey: ['cards'] }, (oldData: any) => {
+        if (!(oldData && oldData.cards)) return oldData;
 
         const optimisticCard = {
           id: Date.now(), // Temporary ID
           ...newCard,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          userId: "current-user", // Will be replaced by server response
+          userId: 'current-user', // Will be replaced by server response
         };
 
         return {
@@ -109,18 +109,18 @@ export function AddCardItem() {
           queryClient.setQueryData(queryKey, data);
         });
       }
-      console.error("Failed to save card:", err);
+      console.error('Failed to save card:', err);
     },
     onSuccess: () => {
       // Invalidate and refetch to get the real data from server
-      queryClient.invalidateQueries({ queryKey: ["cards"] });
-      setContent("");
+      queryClient.invalidateQueries({ queryKey: ['cards'] });
+      setContent('');
       // Focus back to textarea for continuous input
       textareaRef.current?.focus();
     },
     onSettled: () => {
       // Always ensure queries are invalidated after mutation completes
-      queryClient.invalidateQueries({ queryKey: ["cards"] });
+      queryClient.invalidateQueries({ queryKey: ['cards'] });
     },
   });
 
@@ -131,18 +131,18 @@ export function AddCardItem() {
     }: {
       file: File;
       cardData?: {
-        type?: CardType["type"];
+        type?: CardType['type'];
         data?: Record<string, any>;
         metaInfo?: Record<string, any>;
       };
     }) => apiClient.createCardWithFile(file, cardData, setUploadProgress),
     onMutate: async ({ file, cardData }) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["cards"] });
+      await queryClient.cancelQueries({ queryKey: ['cards'] });
 
       // Snapshot the previous queries
       const previousQueries = queryClient.getQueriesData({
-        queryKey: ["cards"],
+        queryKey: ['cards'],
       });
 
       // Create placeholder card while uploading
@@ -152,15 +152,15 @@ export function AddCardItem() {
         type: cardData?.type || detectedType,
         data: {
           title: `Uploading ${file.name}...`,
-          ...(detectedType === "image" && {
+          ...(detectedType === 'image' && {
             alt_text: `Uploading image: ${file.name}`,
           }),
-          ...(detectedType === "video" && { duration: 0 }),
-          ...(detectedType === "audio" && { duration: 0 }),
+          ...(detectedType === 'video' && { duration: 0 }),
+          ...(detectedType === 'audio' && { duration: 0 }),
           ...cardData?.data,
         },
         metaInfo: {
-          source: "File Upload",
+          source: 'File Upload',
           uploading: true,
           fileName: file.name,
           fileSize: file.size,
@@ -168,12 +168,12 @@ export function AddCardItem() {
         },
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        userId: "current-user",
+        userId: 'current-user',
       };
 
       // Optimistically update all cards queries
-      queryClient.setQueriesData({ queryKey: ["cards"] }, (oldData: any) => {
-        if (!oldData || !oldData.cards) return oldData;
+      queryClient.setQueriesData({ queryKey: ['cards'] }, (oldData: any) => {
+        if (!(oldData && oldData.cards)) return oldData;
 
         return {
           ...oldData,
@@ -191,17 +191,17 @@ export function AddCardItem() {
           queryClient.setQueryData(queryKey, data);
         });
       }
-      console.error("Failed to upload file:", err);
+      console.error('Failed to upload file:', err);
       setUploadProgress(null);
     },
     onSuccess: () => {
       // Invalidate and refetch to get the real data from server
-      queryClient.invalidateQueries({ queryKey: ["cards"] });
+      queryClient.invalidateQueries({ queryKey: ['cards'] });
       setUploadProgress(null);
     },
     onSettled: () => {
       // Always ensure queries are invalidated and progress is reset
-      queryClient.invalidateQueries({ queryKey: ["cards"] });
+      queryClient.invalidateQueries({ queryKey: ['cards'] });
       setUploadProgress(null);
     },
   });
@@ -212,11 +212,11 @@ export function AddCardItem() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
       // Try to use audio/webm first, fallback to default if not supported
-      let mimeType = "audio/webm";
+      let mimeType = 'audio/webm';
       if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = "audio/webm;codecs=opus";
+        mimeType = 'audio/webm;codecs=opus';
         if (!MediaRecorder.isTypeSupported(mimeType)) {
-          mimeType = ""; // Use browser default
+          mimeType = ''; // Use browser default
         }
       }
 
@@ -233,14 +233,14 @@ export function AddCardItem() {
       };
 
       recorder.onstop = async () => {
-        console.log("Recording stopped, chunks:", chunks.length);
+        console.log('Recording stopped, chunks:', chunks.length);
         // Ensure we create an audio blob, not video
-        const audioMimeType = mimeType || "audio/webm";
+        const audioMimeType = mimeType || 'audio/webm';
         const blob = new Blob(chunks, { type: audioMimeType });
-        console.log("Blob created, size:", blob.size, "type:", blob.type);
+        console.log('Blob created, size:', blob.size, 'type:', blob.type);
 
         // Create file with audio extension and type
-        const fileExtension = audioMimeType.includes("webm") ? "webm" : "wav";
+        const fileExtension = audioMimeType.includes('webm') ? 'webm' : 'wav';
         const file = new File(
           [blob],
           `recording-${Date.now()}.${fileExtension}`,
@@ -248,18 +248,18 @@ export function AddCardItem() {
             type: audioMimeType,
           }
         );
-        console.log("File created:", file.name, file.size, file.type);
+        console.log('File created:', file.name, file.size, file.type);
 
         // Upload the recorded audio
-        console.log("Starting upload mutation...");
+        console.log('Starting upload mutation...');
         createFileCardMutation.mutate({
           file,
           cardData: {
-            type: "audio",
+            type: 'audio',
             metaInfo: {
-              source: "Voice Recording",
-              recordingDuration: recordingDuration,
-              tags: ["voice-recording"],
+              source: 'Voice Recording',
+              recordingDuration,
+              tags: ['voice-recording'],
             },
           },
         });
@@ -278,20 +278,20 @@ export function AddCardItem() {
       // Start duration counter
       const startTime = Date.now();
       const interval = setInterval(() => {
-        if (recorder.state === "recording") {
+        if (recorder.state === 'recording') {
           setRecordingDuration(Math.floor((Date.now() - startTime) / 1000));
         } else {
           clearInterval(interval);
         }
       }, 1000);
     } catch (error) {
-      console.error("Error starting recording:", error);
-      alert("Could not access microphone. Please check permissions.");
+      console.error('Error starting recording:', error);
+      alert('Could not access microphone. Please check permissions.');
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorder && mediaRecorder.state === "recording") {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop();
     }
   };
@@ -308,19 +308,20 @@ export function AddCardItem() {
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  function detectCardTypeFromFile(file: File): CardType["type"] {
-    if (file.type.startsWith("image/")) {
-      return "image";
-    } else if (file.type.startsWith("video/")) {
-      return "video";
-    } else if (file.type.startsWith("audio/")) {
-      return "audio";
-    } else {
-      return "image"; // Default fallback
+  function detectCardTypeFromFile(file: File): CardType['type'] {
+    if (file.type.startsWith('image/')) {
+      return 'image';
     }
+    if (file.type.startsWith('video/')) {
+      return 'video';
+    }
+    if (file.type.startsWith('audio/')) {
+      return 'audio';
+    }
+    return 'image'; // Default fallback
   }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -331,37 +332,37 @@ export function AddCardItem() {
 
     // Validate file type
     const supportedTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/gif",
-      "image/webp",
-      "video/mp4",
-      "video/webm",
-      "video/quicktime",
-      "audio/mpeg",
-      "audio/wav",
-      "audio/ogg",
-      "audio/webm",
-      "audio/mp4",
-      "audio/aac",
-      "audio/flac",
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'video/mp4',
+      'video/webm',
+      'video/quicktime',
+      'audio/mpeg',
+      'audio/wav',
+      'audio/ogg',
+      'audio/webm',
+      'audio/mp4',
+      'audio/aac',
+      'audio/flac',
     ];
 
     if (!supportedTypes.includes(file.type)) {
       alert(
-        "Unsupported file type. Please select an image, video, or audio file."
+        'Unsupported file type. Please select an image, video, or audio file.'
       );
       return;
     }
 
     // Reset file input
-    event.target.value = "";
+    event.target.value = '';
 
     createFileCardMutation.mutate({
       file,
       cardData: {
         metaInfo: {
-          source: "File Upload",
+          source: 'File Upload',
           tags: [],
         },
       },
@@ -378,14 +379,14 @@ export function AddCardItem() {
       type,
       data,
       metaInfo: {
-        source: "Manual Entry",
+        source: 'Manual Entry',
         tags: [],
       },
     });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleSave();
     }
@@ -393,27 +394,27 @@ export function AddCardItem() {
 
   if (isRecording) {
     return (
-      <Card className="min-h-50 p-4 gap-4 flex flex-col items-center justify-center">
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+      <Card className="flex min-h-50 flex-col items-center justify-center gap-4 p-4">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-              <span className="text-sm font-medium text-red-700">
+              <div className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+              <span className="font-medium text-red-700 text-sm">
                 Recording...
               </span>
             </div>
-            <span className="text-sm font-mono text-red-600">
+            <span className="font-mono text-red-600 text-sm">
               {formatDuration(recordingDuration)}
             </span>
           </div>
         </div>
         <Button
-          variant="destructive"
-          size="icon"
-          type="button"
-          onClick={stopRecording}
-          title="Stop recording"
           className="mt-4"
+          onClick={stopRecording}
+          size="icon"
+          title="Stop recording"
+          type="button"
+          variant="destructive"
         >
           <Square className="h-4 w-4" />
         </Button>
@@ -424,16 +425,16 @@ export function AddCardItem() {
   if (uploadProgress !== null) {
     // Only show uploading status while file is uploading
     return (
-      <Card className="min-h-50 p-4 gap-4 flex flex-col items-center justify-center">
-        <CardContent className="p-0 w-full">
+      <Card className="flex min-h-50 flex-col items-center justify-center gap-4 p-4">
+        <CardContent className="w-full p-0">
           <div className="mt-2 w-full">
-            <div className="flex justify-between text-sm text-muted-foreground mb-1">
+            <div className="mb-1 flex justify-between text-muted-foreground text-sm">
               <span>Uploading...</span>
               <span>{Math.round(uploadProgress)}%</span>
             </div>
-            <div className="w-full bg-secondary rounded-full h-2">
+            <div className="h-2 w-full rounded-full bg-secondary">
               <div
-                className="bg-primary h-2 rounded-full transition-all duration-300"
+                className="h-2 rounded-full bg-primary transition-all duration-300"
                 style={{ width: `${uploadProgress}%` }}
               />
             </div>
@@ -444,33 +445,33 @@ export function AddCardItem() {
   }
 
   return (
-    <Card className="min-h-50 gap-0 p-0 focus-within:ring-1 focus-within:ring-primary focus-within:border-primary justify-between">
+    <Card className="min-h-50 justify-between gap-0 p-0 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary">
       <textarea
-        ref={textareaRef}
-        value={content}
+        className="h-full min-h-[80px] w-full flex-1 resize-none p-4 outline-0"
+        disabled={createCardMutation.isPending}
         name="content"
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
-        disabled={createCardMutation.isPending}
         placeholder="Enter your bookmark, URL, or note... (⌘+Enter to save)"
-        className="min-h-[80px] resize-none h-full outline-0 p-4 w-full flex-1"
+        ref={textareaRef}
+        value={content}
       />
-      <CardFooter className="px-4 pb-4 flex justify-between">
+      <CardFooter className="flex justify-between px-4 pb-4">
         <div className="flex gap-2">
           <input
+            accept="image/*,video/*,audio/*"
+            className="hidden"
+            onChange={handleFileUpload}
             ref={fileInputRef}
             type="file"
-            accept="image/*,video/*,audio/*"
-            onChange={handleFileUpload}
-            className="hidden"
           />
           <Button
-            variant="outline"
-            size="icon"
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
             disabled={createFileCardMutation.isPending}
+            onClick={() => fileInputRef.current?.click()}
+            size="icon"
             title="Add file or image"
+            type="button"
+            variant="outline"
           >
             {createFileCardMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -479,22 +480,22 @@ export function AddCardItem() {
             )}
           </Button>
           <Button
-            variant="outline"
-            size="icon"
-            type="button"
-            onClick={handleAudioRecording}
             disabled={
               createFileCardMutation.isPending || uploadProgress !== null
             }
+            onClick={handleAudioRecording}
+            size="icon"
             title="Record audio"
+            type="button"
+            variant="outline"
           >
             <Mic className="h-4 w-4" />
           </Button>
         </div>
         <Button
-          size="sm"
-          onClick={handleSave}
           disabled={!content.trim() || createCardMutation.isPending}
+          onClick={handleSave}
+          size="sm"
         >
           {createCardMutation.isPending ? (
             <Loader2 className="animate-spin" />

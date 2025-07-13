@@ -1,6 +1,6 @@
-import type { Card as CardType } from "@/lib/api";
-import { Card, CardContent } from "@/components/ui/card";
-import { ExternalLink, Trash2, Play, Clock, Pause } from "lucide-react";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Clock, ExternalLink, Pause, Play, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,17 +10,17 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
-import { apiClient } from "@/lib/api";
-import { useState, useRef, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+} from '@/components/ui/context-menu';
+import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
+import type { Card as CardType } from '@/lib/api';
+import { apiClient } from '@/lib/api';
 
 interface CardItemProps {
   card: CardType;
@@ -31,7 +31,7 @@ interface CardItemProps {
 const formatDuration = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
-  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
 
 export function CardItem({ card, onDelete }: CardItemProps) {
@@ -49,16 +49,16 @@ export function CardItem({ card, onDelete }: CardItemProps) {
     mutationFn: (cardId: number) => apiClient.deleteCard(cardId),
     onMutate: async (cardId) => {
       // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({ queryKey: ["cards"] });
+      await queryClient.cancelQueries({ queryKey: ['cards'] });
 
       // Snapshot the previous cards data
       const previousQueries = queryClient.getQueriesData({
-        queryKey: ["cards"],
+        queryKey: ['cards'],
       });
 
       // Optimistically remove the card from all cards queries
-      queryClient.setQueriesData({ queryKey: ["cards"] }, (oldData: any) => {
-        if (!oldData || !oldData.cards) return oldData;
+      queryClient.setQueriesData({ queryKey: ['cards'] }, (oldData: any) => {
+        if (!(oldData && oldData.cards)) return oldData;
 
         return {
           ...oldData,
@@ -77,7 +77,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           queryClient.setQueryData(queryKey, data);
         });
       }
-      console.error("Failed to delete card:", err);
+      console.error('Failed to delete card:', err);
     },
     onSuccess: () => {
       // Close the dialog and call the onDelete callback
@@ -86,7 +86,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
     },
     onSettled: () => {
       // Invalidate and refetch cards to ensure we have the latest data
-      queryClient.invalidateQueries({ queryKey: ["cards"] });
+      queryClient.invalidateQueries({ queryKey: ['cards'] });
     },
   });
 
@@ -105,10 +105,10 @@ export function CardItem({ card, onDelete }: CardItemProps) {
       }
     };
 
-    audio.addEventListener("ended", handleAudioEnded);
+    audio.addEventListener('ended', handleAudioEnded);
 
     return () => {
-      audio.removeEventListener("ended", handleAudioEnded);
+      audio.removeEventListener('ended', handleAudioEnded);
     };
   }, [audioRef, isPlaying, pauseAudio]);
 
@@ -131,13 +131,13 @@ export function CardItem({ card, onDelete }: CardItemProps) {
   };
 
   const handleUrlClick = (url: string) => {
-    window.open(url, "_blank", "noopener,noreferrer");
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   // Render content based on card type
   const renderCardContent = () => {
     switch (card.type) {
-      case "image":
+      case 'image': {
         if (!card.data.media_url) return null;
 
         // Get image dimensions from stored data
@@ -146,70 +146,71 @@ export function CardItem({ card, onDelete }: CardItemProps) {
 
         return (
           <div
-            className="bg-muted rounded overflow-hidden"
+            className="overflow-hidden rounded bg-muted"
             style={{
               aspectRatio: width && height ? `${width} / ${height}` : undefined,
             }}
           >
             <img
-              src={card.data.media_url}
-              alt={card.data.alt_text || "Image"}
-              className="w-full h-full object-cover"
+              alt={card.data.alt_text || 'Image'}
+              className="h-full w-full object-cover"
               loading="lazy"
+              src={card.data.media_url}
             />
           </div>
         );
+      }
 
-      case "video":
+      case 'video':
         return (
-          <div className="aspect-video bg-muted rounded overflow-hidden relative">
+          <div className="relative aspect-video overflow-hidden rounded bg-muted">
             {card.data.media_url ? (
               // For now, we'll show a gray background as video placeholder
               // In the future, this could be a video thumbnail
-              <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"></div>
+              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200" />
             ) : (
-              <div className="w-full h-full bg-muted flex items-center justify-center"></div>
+              <div className="flex h-full w-full items-center justify-center bg-muted" />
             )}
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="bg-black/60 rounded-full p-3">
-                <Play className="size-4 text-white fill-white" />
+              <div className="rounded-full bg-black/60 p-3">
+                <Play className="size-4 fill-white text-white" />
               </div>
             </div>
             {card.data.duration && (
-              <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+              <div className="absolute right-2 bottom-2 rounded bg-black/60 px-2 py-1 text-white text-xs">
                 {formatDuration(card.data.duration)}
               </div>
             )}
           </div>
         );
 
-      case "audio":
+      case 'audio':
         return (
           <button
+            className="flex w-full items-center justify-between space-x-4 p-4"
             onClick={handlePlayPause}
-            className="flex items-center justify-between p-4 w-full space-x-4"
           >
             <audio
+              onTimeUpdate={handleTimeUpdate}
               ref={audioRef}
               src={card.data.media_url}
-              onTimeUpdate={handleTimeUpdate}
             />
-            <div className="bg-primary rounded-full p-1.5">
+            <div className="rounded-full bg-primary p-1.5">
               {isPlaying ? (
-                <Pause className="size-3.5 text-primary-foreground fill-current" />
+                <Pause className="size-3.5 fill-current text-primary-foreground" />
               ) : (
-                <Play className="size-3.5 text-primary-foreground fill-current" />
+                <Play className="size-3.5 fill-current text-primary-foreground" />
               )}
             </div>
-            <div className="flex-grow bg-muted rounded-full h-2">
+            <div className="h-2 flex-grow rounded-full bg-muted">
               <div
+                className="h-full rounded-full bg-border"
                 ref={progressRef}
-                className="bg-border h-full rounded-full"
-              ></div>
+              />
             </div>
             {card.data.duration ? (
               <div className="flex items-center space-x-2 text-muted-foreground">
-                <Clock className="w-4 h-4" />
+                <Clock className="h-4 w-4" />
                 <span className="text-sm">
                   {formatDuration(card.data.duration)}
                 </span>
@@ -218,26 +219,26 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           </button>
         );
 
-      case "url":
+      case 'url':
         if (!card.data.url) return null;
         return (
           <div
-            className="flex items-center p-4 cursor-pointer transition-colors space-x-2 text-primary truncate"
+            className="flex cursor-pointer items-center space-x-2 truncate p-4 text-primary transition-colors"
             onClick={() => handleUrlClick(card.data.url)}
           >
             <ExternalLink className="size-4" />
-            <span className="font-medium truncate max-w-xs">
+            <span className="max-w-xs truncate font-medium">
               {card.data.title || card.data.url}
             </span>
           </div>
         );
 
-      case "text":
+      case 'text':
         if (!card.data.content) return null;
-        return <p className="leading-relaxed p-4">{card.data.content}</p>;
+        return <p className="p-4 leading-relaxed">{card.data.content}</p>;
 
       default:
-        return <p className="leading-relaxed p-4">{card.data.content}</p>;
+        return <p className="p-4 leading-relaxed">{card.data.content}</p>;
     }
   };
 
@@ -250,14 +251,14 @@ export function CardItem({ card, onDelete }: CardItemProps) {
       </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem
-          onClick={() => setShowDeleteDialog(true)}
           disabled={deleteMutation.isPending}
+          onClick={() => setShowDeleteDialog(true)}
         >
           <Trash2 />
           Delete
         </ContextMenuItem>
       </ContextMenuContent>
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog onOpenChange={setShowDeleteDialog} open={showDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Card</AlertDialogTitle>
@@ -269,10 +270,10 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
               disabled={deleteMutation.isPending}
+              onClick={handleDelete}
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

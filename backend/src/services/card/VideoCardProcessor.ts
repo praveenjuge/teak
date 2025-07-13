@@ -1,9 +1,9 @@
-import ffprobe from 'ffprobe-static';
 import { execFile } from 'child_process';
+import ffprobe from 'ffprobe-static';
 import { promisify } from 'util';
-import { CardProcessor } from './CardProcessor.js';
-import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
 import { LocalFileUploadService } from '../file/LocalFileUploadService.js';
+import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
+import { CardProcessor } from './CardProcessor.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -30,14 +30,16 @@ export class VideoCardProcessor extends CardProcessor {
       // Handle URL-based video
       const mediaUrl = context.inputData['media_url'];
       if (!mediaUrl) {
-        throw new Error('Video card requires either a file upload or media_url');
+        throw new Error(
+          'Video card requires either a file upload or media_url'
+        );
       }
 
       return {
         data: {
-          media_url: mediaUrl
+          media_url: mediaUrl,
         },
-        metaInfo: context.inputData['metaInfo'] || {}
+        metaInfo: context.inputData['metaInfo'] || {},
       };
     }
 
@@ -45,11 +47,19 @@ export class VideoCardProcessor extends CardProcessor {
     const uploadResult = await this.fileUploadService.uploadFile(context.file, {
       maxSize: 200 * 1024 * 1024, // 200MB
       allowedTypes: [
-        'video/mp4', 'video/webm', 'video/ogg', 'video/avi',
-        'video/mov', 'video/wmv', 'video/flv', 'video/mkv',
-        'video/m4v', 'video/3gp', 'video/quicktime'
+        'video/mp4',
+        'video/webm',
+        'video/ogg',
+        'video/avi',
+        'video/mov',
+        'video/wmv',
+        'video/flv',
+        'video/mkv',
+        'video/m4v',
+        'video/3gp',
+        'video/quicktime',
       ],
-      generateUrl: (path) => `/api/uploads/${path}`
+      generateUrl: (path) => `/api/uploads/${path}`,
     });
 
     // Extract video metadata
@@ -58,7 +68,7 @@ export class VideoCardProcessor extends CardProcessor {
     return {
       data: {
         media_url: uploadResult.url,
-        original_filename: uploadResult.originalName
+        original_filename: uploadResult.originalName,
       },
       metaInfo: {
         file_size: uploadResult.size,
@@ -70,8 +80,8 @@ export class VideoCardProcessor extends CardProcessor {
         fps: metadata.fps,
         codec: metadata.codec,
         format: metadata.format,
-        uploaded_at: new Date().toISOString()
-      }
+        uploaded_at: new Date().toISOString(),
+      },
     };
   }
 
@@ -79,28 +89,32 @@ export class VideoCardProcessor extends CardProcessor {
     try {
       const fullPath = `./uploads/${filePath}`;
       const { stdout } = await execFileAsync(ffprobe.path, [
-        '-v', 'quiet',
-        '-print_format', 'json',
+        '-v',
+        'quiet',
+        '-print_format',
+        'json',
         '-show_format',
         '-show_streams',
-        fullPath
+        fullPath,
       ]);
 
       const result = JSON.parse(stdout);
-      const videoStream = result.streams?.find((stream: any) => stream.codec_type === 'video');
+      const videoStream = result.streams?.find(
+        (stream: any) => stream.codec_type === 'video'
+      );
 
       if (!videoStream) {
         return {};
       }
 
       return {
-        duration: parseFloat(result.format?.duration) || undefined,
-        bitrate: parseInt(result.format?.bit_rate) || undefined,
-        width: parseInt(videoStream.width) || undefined,
-        height: parseInt(videoStream.height) || undefined,
+        duration: Number.parseFloat(result.format?.duration) || undefined,
+        bitrate: Number.parseInt(result.format?.bit_rate) || undefined,
+        width: Number.parseInt(videoStream.width) || undefined,
+        height: Number.parseInt(videoStream.height) || undefined,
         fps: this.calculateFps(videoStream.r_frame_rate),
         codec: videoStream.codec_name || undefined,
-        format: result.format?.format_name || undefined
+        format: result.format?.format_name || undefined,
       };
     } catch (error) {
       console.warn('Failed to extract video metadata:', error);
@@ -109,7 +123,7 @@ export class VideoCardProcessor extends CardProcessor {
   }
 
   private calculateFps(frameRate?: string): number | undefined {
-    if (!frameRate) return undefined;
+    if (!frameRate) return;
 
     try {
       // Handle frame rates like "30/1" or "24000/1001"
@@ -117,7 +131,7 @@ export class VideoCardProcessor extends CardProcessor {
       const num = numerator ?? 0;
       return denominator ? Math.round((num / denominator) * 100) / 100 : num;
     } catch {
-      return undefined;
+      return;
     }
   }
 }

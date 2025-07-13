@@ -8,7 +8,9 @@ export async function validateBody<T>(c: Context, schema: z.ZodSchema<T>) {
     return schema.parse(body);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      throw new Error(`Validation error: ${error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`);
+      throw new Error(
+        `Validation error: ${error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+      );
     }
     throw error;
   }
@@ -21,7 +23,9 @@ export function validateQuery<T>(c: Context, schema: z.ZodSchema<T>) {
     return schema.parse(query);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      throw new Error(`Query validation error: ${error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`);
+      throw new Error(
+        `Query validation error: ${error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+      );
     }
     throw error;
   }
@@ -34,7 +38,9 @@ export function validateParams<T>(c: Context, schema: z.ZodSchema<T>) {
     return schema.parse(params);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      throw new Error(`Parameter validation error: ${error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`);
+      throw new Error(
+        `Parameter validation error: ${error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+      );
     }
     throw error;
   }
@@ -48,7 +54,9 @@ export async function validateCardData(type: string, data: any) {
     return cardDataSchema.parse({ type, data });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      throw new Error(`Card data validation error: ${error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`);
+      throw new Error(
+        `Card data validation error: ${error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+      );
     }
     throw error;
   }

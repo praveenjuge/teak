@@ -1,8 +1,8 @@
-import { Tabs } from "expo-router";
-import { IconSymbol } from "@/components/ui/IconSymbol";
-import { HapticTab } from "@/components/HapticTab";
-import { Platform } from "react-native";
-import TabBarBackground from "@/components/ui/TabBarBackground";
+import { Tabs } from 'expo-router';
+import { Platform } from 'react-native';
+import { HapticTab } from '@/components/HapticTab';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import TabBarBackground from '@/components/ui/TabBarBackground';
 
 export default function TabLayout() {
   return (
@@ -14,7 +14,7 @@ export default function TabLayout() {
         tabBarStyle: Platform.select({
           ios: {
             // Use a transparent background on iOS to show the blur effect
-            position: "absolute",
+            position: 'absolute',
           },
           default: {},
         }),
@@ -23,12 +23,12 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: 'Home',
           tabBarIcon: ({ color, size, focused }) => (
             <IconSymbol
-              name={focused ? "house.fill" : "house"}
-              size={size}
               color={color}
+              name={focused ? 'house.fill' : 'house'}
+              size={size}
             />
           ),
         }}
@@ -36,13 +36,13 @@ export default function TabLayout() {
       <Tabs.Screen
         name="add"
         options={{
-          title: "Add Card",
-          tabBarLabel: "Add",
+          title: 'Add Card',
+          tabBarLabel: 'Add',
           tabBarIcon: ({ color, size, focused }) => (
             <IconSymbol
-              name={focused ? "plus.circle.fill" : "plus.circle"}
-              size={size}
               color={color}
+              name={focused ? 'plus.circle.fill' : 'plus.circle'}
+              size={size}
             />
           ),
         }}
@@ -50,12 +50,12 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: "Settings",
+          title: 'Settings',
           tabBarIcon: ({ color, size, focused }) => (
             <IconSymbol
-              name={focused ? "gearshape.fill" : "gearshape"}
-              size={size}
               color={color}
+              name={focused ? 'gearshape.fill' : 'gearshape'}
+              size={size}
             />
           ),
         }}

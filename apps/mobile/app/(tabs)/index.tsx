@@ -1,8 +1,8 @@
-import { View, StyleSheet } from "react-native";
-import { CardsGrid } from "../../components/CardsGrid";
-import { SearchInput } from "../../components/SearchInput";
-import { SearchProvider, useSearch } from "../../lib/SearchContext";
-import { useDebouncedValue } from "../../lib/hooks";
+import { StyleSheet, View } from 'react-native';
+import { CardsGrid } from '../../components/CardsGrid';
+import { SearchInput } from '../../components/SearchInput';
+import { useDebouncedValue } from '../../lib/hooks';
+import { SearchProvider, useSearch } from '../../lib/SearchContext';
 
 function HomeContent() {
   const { searchQuery, selectedType } = useSearch();

@@ -13,7 +13,7 @@ healthRoutes.get('/health', (c) => {
     database: 'connected', // Could be enhanced with actual DB health check
     uptime: process.uptime(),
     memory: process.memoryUsage(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
   });
 });
 
@@ -21,7 +21,7 @@ healthRoutes.get('/health', (c) => {
 healthRoutes.get('/ready', (c) => {
   return c.json({
     status: 'ready',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -29,6 +29,6 @@ healthRoutes.get('/ready', (c) => {
 healthRoutes.get('/live', (c) => {
   return c.json({
     status: 'alive',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });

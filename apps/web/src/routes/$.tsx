@@ -1,16 +1,16 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { buttonVariants } from "@/components/ui/button";
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { ArrowLeft } from 'lucide-react';
+import { AuthLayout } from '@/components/AuthLayout';
+import { buttonVariants } from '@/components/ui/button';
 import {
   Card,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { AuthLayout } from "@/components/AuthLayout";
-import { ArrowLeft } from "lucide-react";
+} from '@/components/ui/card';
 
-export const Route = createFileRoute("/$")({
+export const Route = createFileRoute('/$')({
   component: RouteComponent,
 });
 
@@ -26,7 +26,7 @@ function RouteComponent() {
           </CardDescription>
         </CardHeader>
         <CardFooter>
-          <Link to="/" className={buttonVariants({ variant: "outline" })}>
+          <Link className={buttonVariants({ variant: 'outline' })} to="/">
             <ArrowLeft />
             Go Home
           </Link>

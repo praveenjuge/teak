@@ -1,8 +1,8 @@
-import React from "react";
-import { View, TextInput, StyleSheet, Platform } from "react-native";
-import { IconSymbol } from "@/components/ui/IconSymbol";
-import { useSearch } from "@/lib/SearchContext";
-import { colors, borderWidths } from "@/constants/colors";
+import React from 'react';
+import { Platform, StyleSheet, TextInput, View } from 'react-native';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import { borderWidths, colors } from '@/constants/colors';
+import { useSearch } from '@/lib/SearchContext';
 
 export function SearchInput() {
   const { searchQuery, setSearchQuery } = useSearch();
@@ -23,20 +23,20 @@ export function SearchInput() {
   return (
     <View style={[styles.container, dynamicStyles.container]}>
       <IconSymbol
+        color={dynamicStyles.icon.color}
         name="magnifyingglass"
         size={20}
-        color={dynamicStyles.icon.color}
         style={styles.searchIcon}
       />
       <TextInput
-        style={[styles.input, dynamicStyles.input]}
-        placeholder="Search cards..."
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        returnKeyType="search"
-        clearButtonMode="while-editing"
         autoCapitalize="none"
         autoCorrect={false}
+        clearButtonMode="while-editing"
+        onChangeText={setSearchQuery}
+        placeholder="Search cards..."
+        returnKeyType="search"
+        style={[styles.input, dynamicStyles.input]}
+        value={searchQuery}
       />
     </View>
   );
@@ -44,8 +44,8 @@ export function SearchInput() {
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: borderWidths.hairline,

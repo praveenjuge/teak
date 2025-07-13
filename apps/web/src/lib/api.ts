@@ -51,14 +51,16 @@ class ApiClient {
     return data;
   }
 
-  async getCards(params: {
-    limit?: number;
-    offset?: number;
-    q?: string;
-    type?: Card['type'];
-    sort?: 'created_at' | 'updated_at' | 'type';
-    order?: 'asc' | 'desc';
-  } = {}): Promise<CardsResponse> {
+  async getCards(
+    params: {
+      limit?: number;
+      offset?: number;
+      q?: string;
+      type?: Card['type'];
+      sort?: 'created_at' | 'updated_at' | 'type';
+      order?: 'asc' | 'desc';
+    } = {}
+  ): Promise<CardsResponse> {
     const queryParams = new URLSearchParams();
 
     Object.entries(params).forEach(([key, value]) => {
@@ -137,7 +139,9 @@ class ApiClient {
         } else {
           try {
             const errorData = JSON.parse(xhr.responseText);
-            reject(new Error(errorData.error || `HTTP error! status: ${xhr.status}`));
+            reject(
+              new Error(errorData.error || `HTTP error! status: ${xhr.status}`)
+            );
           } catch {
             reject(new Error(`HTTP error! status: ${xhr.status}`));
           }
@@ -158,20 +162,24 @@ class ApiClient {
     // Note: This is only a UI hint - server validates actual file type from content
     if (file.type.startsWith('image/')) {
       return 'image';
-    } else if (file.type.startsWith('video/')) {
-      return 'video';
-    } else if (file.type.startsWith('audio/')) {
-      return 'audio';
-    } else {
-      // Default to letting server determine actual type
-      return 'image';
     }
+    if (file.type.startsWith('video/')) {
+      return 'video';
+    }
+    if (file.type.startsWith('audio/')) {
+      return 'audio';
+    }
+    // Default to letting server determine actual type
+    return 'image';
   }
 
-  async updateCard(id: number, cardData: {
-    data?: Record<string, any>;
-    metaInfo?: Record<string, any>;
-  }): Promise<Card> {
+  async updateCard(
+    id: number,
+    cardData: {
+      data?: Record<string, any>;
+      metaInfo?: Record<string, any>;
+    }
+  ): Promise<Card> {
     return this.request<Card>(`/api/cards/${id}`, {
       method: 'PUT',
       body: JSON.stringify(cardData),
@@ -184,19 +192,24 @@ class ApiClient {
     });
   }
 
-  async searchCards(query: string, params: {
-    limit?: number;
-    offset?: number;
-    type?: Card['type'];
-  } = {}): Promise<CardsResponse & { query: string }> {
+  async searchCards(
+    query: string,
+    params: {
+      limit?: number;
+      offset?: number;
+      type?: Card['type'];
+    } = {}
+  ): Promise<CardsResponse & { query: string }> {
     const queryParams = new URLSearchParams({
       q: query,
-      ...Object.fromEntries(
+      ...(Object.fromEntries(
         Object.entries(params).filter(([_, value]) => value !== undefined)
-      ) as Record<string, string>
+      ) as Record<string, string>),
     });
 
-    return this.request<CardsResponse & { query: string }>(`/api/cards/search?${queryParams}`);
+    return this.request<CardsResponse & { query: string }>(
+      `/api/cards/search?${queryParams}`
+    );
   }
 
   async getCardStats(): Promise<{

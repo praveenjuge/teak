@@ -1,19 +1,22 @@
+import { desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { db, users } from '../db';
-import { desc, eq } from 'drizzle-orm';
 
 const userRoutes = new Hono();
 
 // Get all users (for demo purposes)
 userRoutes.get('/', async (c) => {
   try {
-    const allUsers = await db.select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      emailVerified: users.emailVerified,
-      createdAt: users.createdAt,
-    }).from(users).orderBy(desc(users.createdAt));
+    const allUsers = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        emailVerified: users.emailVerified,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      .orderBy(desc(users.createdAt));
 
     return c.json({ users: allUsers });
   } catch (error) {
@@ -26,13 +29,17 @@ userRoutes.get('/', async (c) => {
 userRoutes.get('/:id', async (c) => {
   try {
     const userId = c.req.param('id');
-    const user = await db.select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      emailVerified: users.emailVerified,
-      createdAt: users.createdAt,
-    }).from(users).where(eq(users.id, userId)).limit(1);
+    const user = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        emailVerified: users.emailVerified,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
 
     if (user.length === 0) {
       return c.json({ error: 'User not found' }, 404);

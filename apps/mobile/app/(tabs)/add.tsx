@@ -1,35 +1,35 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Audio } from 'expo-av';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
+import { useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
   Alert,
   KeyboardAvoidingView,
   Platform,
-} from "react-native";
-import { useState, useRef, useEffect } from "react";
-import * as DocumentPicker from "expo-document-picker";
-import * as ImagePicker from "expo-image-picker";
-import { Audio } from "expo-av";
-import { useCreateCard } from "../../lib/hooks";
-import type { Card } from "../../lib/api";
-import { apiClient } from "../../lib/api";
-import { colors, borderWidths } from "../../constants/colors";
-import { IconSymbol } from "../../components/ui/IconSymbol";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { IconSymbol } from '../../components/ui/IconSymbol';
+import { borderWidths, colors } from '../../constants/colors';
+import type { Card } from '../../lib/api';
+import { apiClient } from '../../lib/api';
+import { useCreateCard } from '../../lib/hooks';
 
 function isUrl(text: string): boolean {
   try {
     const url = new URL(text);
-    return url.protocol === "http:" || url.protocol === "https:";
+    return url.protocol === 'http:' || url.protocol === 'https:';
   } catch {
     return false;
   }
 }
 
 function detectCardType(content: string): {
-  type: Card["type"];
+  type: Card['type'];
   data: Record<string, any>;
 } {
   const trimmedContent = content.trim();
@@ -38,7 +38,7 @@ function detectCardType(content: string): {
     try {
       const url = new URL(trimmedContent);
       return {
-        type: "url",
+        type: 'url',
         data: {
           url: trimmedContent,
           title: url.hostname,
@@ -48,7 +48,7 @@ function detectCardType(content: string): {
     } catch {
       // Fallback if URL parsing fails
       return {
-        type: "url",
+        type: 'url',
         data: {
           url: trimmedContent,
           title: trimmedContent,
@@ -58,17 +58,17 @@ function detectCardType(content: string): {
   }
 
   return {
-    type: "text",
+    type: 'text',
     data: {
       content: trimmedContent,
       title:
-        trimmedContent.slice(0, 50) + (trimmedContent.length > 50 ? "..." : ""),
+        trimmedContent.slice(0, 50) + (trimmedContent.length > 50 ? '...' : ''),
     },
   };
 }
 
 export default function AddScreen() {
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -105,7 +105,7 @@ export default function AddScreen() {
       fileName: string;
       mimeType: string;
       cardData?: {
-        type?: Card["type"];
+        type?: Card['type'];
         data?: Record<string, any>;
         metaInfo?: Record<string, any>;
       };
@@ -119,13 +119,13 @@ export default function AddScreen() {
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cards"] });
-      Alert.alert("Success", "File uploaded successfully!");
+      queryClient.invalidateQueries({ queryKey: ['cards'] });
+      Alert.alert('Success', 'File uploaded successfully!');
       setIsUploading(false);
     },
     onError: (error) => {
-      console.error("Failed to upload file:", error);
-      Alert.alert("Error", "Failed to upload file. Please try again.");
+      console.error('Failed to upload file:', error);
+      Alert.alert('Error', 'Failed to upload file. Please try again.');
       setIsUploading(false);
     },
   });
@@ -133,10 +133,10 @@ export default function AddScreen() {
   async function startRecording() {
     try {
       const { status } = await Audio.requestPermissionsAsync();
-      if (status !== "granted") {
+      if (status !== 'granted') {
         Alert.alert(
-          "Permission required",
-          "Permission to access microphone is required!"
+          'Permission required',
+          'Permission to access microphone is required!'
         );
         return;
       }
@@ -153,8 +153,8 @@ export default function AddScreen() {
       setIsRecording(true);
       setRecordingDuration(0);
     } catch (err) {
-      console.error("Failed to start recording", err);
-      Alert.alert("Error", "Failed to start recording.");
+      console.error('Failed to start recording', err);
+      Alert.alert('Error', 'Failed to start recording.');
     }
   }
 
@@ -171,13 +171,13 @@ export default function AddScreen() {
       createFileCardMutation.mutate({
         fileUri: uri,
         fileName: `recording-${Date.now()}.m4a`,
-        mimeType: "audio/m4a",
+        mimeType: 'audio/m4a',
         cardData: {
-          type: "audio",
+          type: 'audio',
           metaInfo: {
-            source: "Mobile Voice Recording",
-            recordingDuration: recordingDuration,
-            tags: ["voice-note"],
+            source: 'Mobile Voice Recording',
+            recordingDuration,
+            tags: ['voice-note'],
           },
         },
       });
@@ -190,19 +190,19 @@ export default function AddScreen() {
     try {
       // Show options for different types of file selection
       Alert.alert(
-        "Select File Type",
-        "Choose the type of file you want to upload",
+        'Select File Type',
+        'Choose the type of file you want to upload',
         [
           {
-            text: "Photo/Video from Gallery",
+            text: 'Photo/Video from Gallery',
             onPress: async () => {
               const permissionResult =
                 await ImagePicker.requestMediaLibraryPermissionsAsync();
 
               if (permissionResult.granted === false) {
                 Alert.alert(
-                  "Permission required",
-                  "Permission to access camera roll is required!"
+                  'Permission required',
+                  'Permission to access camera roll is required!'
                 );
                 return;
               }
@@ -219,11 +219,11 @@ export default function AddScreen() {
                   fileUri: asset.uri,
                   fileName:
                     asset.fileName ||
-                    `upload_${Date.now()}.${asset.type === "video" ? "mp4" : "jpg"}`,
-                  mimeType: asset.type === "video" ? "video/mp4" : "image/jpeg",
+                    `upload_${Date.now()}.${asset.type === 'video' ? 'mp4' : 'jpg'}`,
+                  mimeType: asset.type === 'video' ? 'video/mp4' : 'image/jpeg',
                   cardData: {
                     metaInfo: {
-                      source: "Mobile Upload",
+                      source: 'Mobile Upload',
                       tags: [],
                     },
                   },
@@ -232,15 +232,15 @@ export default function AddScreen() {
             },
           },
           {
-            text: "Take Photo/Video",
+            text: 'Take Photo/Video',
             onPress: async () => {
               const permissionResult =
                 await ImagePicker.requestCameraPermissionsAsync();
 
               if (permissionResult.granted === false) {
                 Alert.alert(
-                  "Permission required",
-                  "Permission to access camera is required!"
+                  'Permission required',
+                  'Permission to access camera is required!'
                 );
                 return;
               }
@@ -257,11 +257,11 @@ export default function AddScreen() {
                   fileUri: asset.uri,
                   fileName:
                     asset.fileName ||
-                    `capture_${Date.now()}.${asset.type === "video" ? "mp4" : "jpg"}`,
-                  mimeType: asset.type === "video" ? "video/mp4" : "image/jpeg",
+                    `capture_${Date.now()}.${asset.type === 'video' ? 'mp4' : 'jpg'}`,
+                  mimeType: asset.type === 'video' ? 'video/mp4' : 'image/jpeg',
                   cardData: {
                     metaInfo: {
-                      source: "Mobile Camera",
+                      source: 'Mobile Camera',
                       tags: [],
                     },
                   },
@@ -270,11 +270,11 @@ export default function AddScreen() {
             },
           },
           {
-            text: "Other Files",
+            text: 'Other Files',
             onPress: async () => {
               try {
                 const result = await DocumentPicker.getDocumentAsync({
-                  type: ["image/*", "video/*", "audio/*"],
+                  type: ['image/*', 'video/*', 'audio/*'],
                   copyToCacheDirectory: true,
                 });
 
@@ -283,37 +283,37 @@ export default function AddScreen() {
                   createFileCardMutation.mutate({
                     fileUri: asset.uri,
                     fileName: asset.name,
-                    mimeType: asset.mimeType || "application/octet-stream",
+                    mimeType: asset.mimeType || 'application/octet-stream',
                     cardData: {
                       metaInfo: {
-                        source: "Mobile File Picker",
+                        source: 'Mobile File Picker',
                         tags: [],
                       },
                     },
                   });
                 }
               } catch (error) {
-                console.error("Document picker error:", error);
-                Alert.alert("Error", "Failed to pick document");
+                console.error('Document picker error:', error);
+                Alert.alert('Error', 'Failed to pick document');
               }
             },
           },
           {
-            text: "Cancel",
-            style: "cancel",
+            text: 'Cancel',
+            style: 'cancel',
           },
         ]
       );
     } catch (error) {
-      console.error("File upload error:", error);
-      Alert.alert("Error", "Failed to upload file");
+      console.error('File upload error:', error);
+      Alert.alert('Error', 'Failed to upload file');
     }
   };
 
   const handleSave = () => {
     const trimmedContent = content.trim();
     if (!trimmedContent) {
-      Alert.alert("Error", "Please enter some content");
+      Alert.alert('Error', 'Please enter some content');
       return;
     }
 
@@ -324,19 +324,19 @@ export default function AddScreen() {
         type,
         data,
         metaInfo: {
-          source: "Mobile App",
+          source: 'Mobile App',
           tags: [],
         },
       },
       {
         onSuccess: () => {
-          setContent("");
+          setContent('');
           textInputRef.current?.focus();
-          Alert.alert("Success", "Card saved successfully!");
+          Alert.alert('Success', 'Card saved successfully!');
         },
         onError: (error) => {
-          console.error("Failed to save card:", error);
-          Alert.alert("Error", "Failed to save card. Please try again.");
+          console.error('Failed to save card:', error);
+          Alert.alert('Error', 'Failed to save card. Please try again.');
         },
       }
     );
@@ -347,8 +347,8 @@ export default function AddScreen() {
       <View
         style={{
           flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
+          justifyContent: 'center',
+          alignItems: 'center',
           backgroundColor: colors.background,
         }}
       >
@@ -365,17 +365,17 @@ export default function AddScreen() {
           {new Date(recordingDuration * 1000).toISOString().substr(14, 5)}
         </Text>
         <TouchableOpacity
+          onPress={stopRecording}
           style={{
             width: 80,
             height: 80,
             borderRadius: 40,
-            backgroundColor: "red",
-            justifyContent: "center",
-            alignItems: "center",
+            backgroundColor: 'red',
+            justifyContent: 'center',
+            alignItems: 'center',
           }}
-          onPress={stopRecording}
         >
-          <IconSymbol name="stop.fill" size={40} color="white" />
+          <IconSymbol color="white" name="stop.fill" size={40} />
         </TouchableOpacity>
       </View>
     );
@@ -383,14 +383,20 @@ export default function AddScreen() {
 
   return (
     <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
         contentContainerStyle={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
       >
         <TextInput
+          autoCapitalize="sentences"
+          autoCorrect={true}
+          editable={!(createCardMutation.isPending || isUploading)}
+          multiline
+          onChangeText={setContent}
+          placeholder="Enter your bookmark, URL, or note"
           ref={textInputRef}
           style={{
             borderBottomWidth: borderWidths.hairline,
@@ -398,23 +404,19 @@ export default function AddScreen() {
             padding: 16,
             backgroundColor: colors.background,
             minHeight: 150,
-            textAlignVertical: "top",
+            textAlignVertical: 'top',
             color: colors.label,
           }}
-          placeholder="Enter your bookmark, URL, or note"
           value={content}
-          onChangeText={setContent}
-          multiline
-          autoCapitalize="sentences"
-          autoCorrect={true}
-          editable={!createCardMutation.isPending && !isUploading}
         />
 
-        <View style={{ flexDirection: "row", margin: 16, gap: 8 }}>
+        <View style={{ flexDirection: 'row', margin: 16, gap: 8 }}>
           <TouchableOpacity
+            disabled={isUploading}
+            onPress={handleFileUpload}
             style={{
-              alignItems: "center",
-              justifyContent: "center",
+              alignItems: 'center',
+              justifyContent: 'center',
               borderRadius: 12,
               backgroundColor: colors.background,
               borderWidth: borderWidths.hairline,
@@ -423,20 +425,19 @@ export default function AddScreen() {
               height: 50,
               opacity: isUploading ? 0.5 : 1,
             }}
-            onPress={handleFileUpload}
-            disabled={isUploading}
           >
             <IconSymbol
+              color={colors.secondaryLabel}
               name="paperclip"
               size={20}
-              color={colors.secondaryLabel}
             />
           </TouchableOpacity>
 
           <TouchableOpacity
+            onPress={startRecording}
             style={{
-              alignItems: "center",
-              justifyContent: "center",
+              alignItems: 'center',
+              justifyContent: 'center',
               borderRadius: 12,
               backgroundColor: colors.background,
               borderWidth: borderWidths.hairline,
@@ -444,37 +445,36 @@ export default function AddScreen() {
               width: 50,
               height: 50,
             }}
-            onPress={startRecording}
           >
             <IconSymbol
+              color={colors.secondaryLabel}
               name="mic.fill"
               size={20}
-              color={colors.secondaryLabel}
             />
           </TouchableOpacity>
 
           <TouchableOpacity
+            disabled={
+              createCardMutation.isPending || isUploading || !content.trim()
+            }
+            onPress={handleSave}
             style={{
               flex: 1,
               borderRadius: 12,
               height: 50,
-              alignItems: "center",
-              justifyContent: "center",
+              alignItems: 'center',
+              justifyContent: 'center',
               backgroundColor: colors.primary,
               opacity:
                 createCardMutation.isPending || isUploading || !content.trim()
                   ? 0.3
                   : 1,
             }}
-            onPress={handleSave}
-            disabled={
-              createCardMutation.isPending || isUploading || !content.trim()
-            }
           >
-            <Text style={{ fontWeight: "600", color: colors.adaptiveWhite }}>
+            <Text style={{ fontWeight: '600', color: colors.adaptiveWhite }}>
               {createCardMutation.isPending || isUploading
-                ? "Saving..."
-                : "Save Card"}
+                ? 'Saving...'
+                : 'Save Card'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -496,10 +496,10 @@ export default function AddScreen() {
             <Text
               style={{
                 color: colors.label,
-                fontWeight: "500",
+                fontWeight: '500',
               }}
             >
-              {isUrl(content.trim()) ? "🔗 URL Detected" : "📝 Text Note"}
+              {isUrl(content.trim()) ? '🔗 URL Detected' : '📝 Text Note'}
             </Text>
             {isUrl(content.trim()) && (
               <Text

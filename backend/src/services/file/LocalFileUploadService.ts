@@ -1,10 +1,10 @@
-import { mkdir, writeFile, unlink, stat } from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
 import { fileTypeFromBuffer } from 'file-type';
+import { existsSync } from 'fs';
+import { mkdir, stat, unlink, writeFile } from 'fs/promises';
 import imageSize from 'image-size';
-import { FileUploadService } from './FileUploadService.js';
+import path from 'path';
 import type { UploadedFile, UploadOptions } from './FileUploadService.js';
+import { FileUploadService } from './FileUploadService.js';
 
 export class LocalFileUploadService extends FileUploadService {
   private uploadsDir: string;
@@ -17,7 +17,9 @@ export class LocalFileUploadService extends FileUploadService {
   async uploadFile(file: File, options: UploadOptions): Promise<UploadedFile> {
     // Validate file size
     if (file.size > options.maxSize) {
-      throw new Error(`File size ${file.size} bytes exceeds maximum allowed size of ${options.maxSize} bytes`);
+      throw new Error(
+        `File size ${file.size} bytes exceeds maximum allowed size of ${options.maxSize} bytes`
+      );
     }
 
     // Read file buffer
@@ -75,7 +77,7 @@ export class LocalFileUploadService extends FileUploadService {
       mimeType: fileType.mime,
       url,
       width,
-      height
+      height,
     };
   }
 

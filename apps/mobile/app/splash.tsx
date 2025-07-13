@@ -1,5 +1,5 @@
-import { SplashScreen } from "expo-router";
-import { authClient } from "../lib/auth-client";
+import { SplashScreen } from 'expo-router';
+import { authClient } from '../lib/auth-client';
 
 export default function SplashScreenController() {
   const sessionState = authClient?.useSession?.();

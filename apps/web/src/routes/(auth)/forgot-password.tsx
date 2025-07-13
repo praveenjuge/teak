@@ -1,32 +1,32 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { useState } from 'react';
+import { AuthLayout } from '@/components/AuthLayout';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { authClient } from "@/lib/auth-client";
-import { AuthLayout } from "@/components/AuthLayout";
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { authClient } from '@/lib/auth-client';
 
-export const Route = createFileRoute("/(auth)/forgot-password")({
+export const Route = createFileRoute('/(auth)/forgot-password')({
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError("");
+    setError('');
     setSuccess(false);
 
     try {
@@ -36,19 +36,19 @@ function RouteComponent() {
       });
 
       if (error) {
-        setError(error.message || "Failed to send reset email");
-        console.log("Password reset request error:", error);
+        setError(error.message || 'Failed to send reset email');
+        console.log('Password reset request error:', error);
         return;
       }
 
       // For now, since email service is not ready, we'll console.log the reset link
-      console.log("Password reset email would be sent to:", email);
-      console.log("Reset link would redirect to: /reset-password");
+      console.log('Password reset email would be sent to:', email);
+      console.log('Reset link would redirect to: /reset-password');
 
       setSuccess(true);
     } catch (err) {
-      console.error("Password reset request error:", err);
-      setError("An unexpected error occurred");
+      console.error('Password reset request error:', err);
+      setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -65,12 +65,12 @@ function RouteComponent() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md">
+            <div className="rounded-md border border-green-200 bg-green-50 p-3 text-green-600 text-sm">
               Password reset email sent successfully! (Check console for
               development)
             </div>
             <div className="text-center">
-              <Link to="/login" className="text-sm hover:underline">
+              <Link className="text-sm hover:underline" to="/login">
                 Back to Sign In
               </Link>
             </div>
@@ -90,30 +90,30 @@ function RouteComponent() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleForgotPassword} className="space-y-4">
+          <form className="space-y-4" onSubmit={handleForgotPassword}>
             {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-600 text-sm">
                 {error}
               </div>
             )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
                 disabled={isLoading}
+                id="email"
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                required
+                type="email"
+                value={email}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Sending..." : "Send Reset Link"}
+            <Button className="w-full" disabled={isLoading} type="submit">
+              {isLoading ? 'Sending...' : 'Send Reset Link'}
             </Button>
             <div className="text-muted-foreground">
-              Remember your password?{" "}
-              <Link to="/login" className="text-primary">
+              Remember your password?{' '}
+              <Link className="text-primary" to="/login">
                 Sign in
               </Link>
             </div>

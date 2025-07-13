@@ -1,4 +1,12 @@
-import { pgTable, text, serial, pgEnum, timestamp, boolean, jsonb } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  jsonb,
+  pgEnum,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+} from 'drizzle-orm/pg-core';
 
 // Users table for Better Auth
 export const users = pgTable('user', {
@@ -20,7 +28,9 @@ export const sessions = pgTable('session', {
   updatedAt: timestamp('updatedAt').notNull().defaultNow(),
   ipAddress: text('ipAddress'),
   userAgent: text('userAgent'),
-  userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('userId')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
 });
 
 // Accounts table for Better Auth (for OAuth providers)
@@ -28,7 +38,9 @@ export const accounts = pgTable('account', {
   id: text('id').primaryKey(),
   accountId: text('accountId').notNull(),
   providerId: text('providerId').notNull(),
-  userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('userId')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
   accessToken: text('accessToken'),
   refreshToken: text('refreshToken'),
   idToken: text('idToken'),
@@ -50,7 +62,6 @@ export const verifications = pgTable('verification', {
   updatedAt: timestamp('updatedAt').notNull().defaultNow(),
 });
 
-
 // Cards
 // We can have the data part to have core attributes relevant to the card type
 // and the meta_info part to have more non core attributes.
@@ -68,7 +79,7 @@ export const verifications = pgTable('verification', {
 //     "playtime": "00:10:00"
 //   }
 // }
-// 
+//
 // Text
 // {
 //   "type": "text",
@@ -78,7 +89,13 @@ export const verifications = pgTable('verification', {
 //   "meta_info": {}
 // }
 
-export const cardType = pgEnum('cardType', ['audio', 'text', 'url', 'image', 'video'])
+export const cardType = pgEnum('cardType', [
+  'audio',
+  'text',
+  'url',
+  'image',
+  'video',
+]);
 export const cards = pgTable('cards', {
   id: serial('id').primaryKey().notNull(),
   type: cardType('type').notNull(),
@@ -87,5 +104,7 @@ export const cards = pgTable('cards', {
   createdAt: timestamp('createdAt').notNull().defaultNow(),
   updatedAt: timestamp('updatedAt').notNull().defaultNow(),
   deletedAt: timestamp('deletedAt'),
-  userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
-})
+  userId: text('userId')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+});

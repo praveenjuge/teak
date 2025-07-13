@@ -1,12 +1,11 @@
 import { db } from '../../db/index.js';
 import { cards } from '../../db/schema.js';
 import { AudioCardProcessor } from './AudioCardProcessor.js';
-import { VideoCardProcessor } from './VideoCardProcessor.js';
+import type { CardProcessor, ProcessingContext } from './CardProcessor.js';
+import { ImageCardProcessor } from './ImageCardProcessor.js';
 import { TextCardProcessor } from './TextCardProcessor.js';
 import { UrlCardProcessor } from './UrlCardProcessor.js';
-import { ImageCardProcessor } from './ImageCardProcessor.js';
-import { CardProcessor } from './CardProcessor.js';
-import type { ProcessingContext } from './CardProcessor.js';
+import { VideoCardProcessor } from './VideoCardProcessor.js';
 
 export type CardType = 'audio' | 'text' | 'url' | 'image' | 'video';
 
@@ -36,7 +35,7 @@ export class CardService {
       ['video', new VideoCardProcessor()],
       ['text', new TextCardProcessor()],
       ['url', new UrlCardProcessor()],
-      ['image', new ImageCardProcessor()]
+      ['image', new ImageCardProcessor()],
     ] as const);
   }
 
@@ -52,7 +51,7 @@ export class CardService {
     const context: ProcessingContext = {
       userId,
       file: request.file,
-      inputData: request.data
+      inputData: request.data,
     };
 
     try {
@@ -67,9 +66,9 @@ export class CardService {
           data: processed.data,
           metaInfo: {
             ...request.metaInfo,
-            ...processed.metaInfo
+            ...processed.metaInfo,
           },
-          userId
+          userId,
         })
         .returning();
 
@@ -80,20 +79,25 @@ export class CardService {
       return {
         ...newCard,
         data: newCard.data as Record<string, any>,
-        metaInfo: newCard.metaInfo as Record<string, any>
+        metaInfo: newCard.metaInfo as Record<string, any>,
       };
-
     } catch (error) {
       // Handle auto-conversion from text to URL
-      if (error instanceof Error && error.message.startsWith('AUTO_CONVERT_TO_URL:')) {
+      if (
+        error instanceof Error &&
+        error.message.startsWith('AUTO_CONVERT_TO_URL:')
+      ) {
         const url = error.message.split('AUTO_CONVERT_TO_URL:')[1];
 
         // Recursively create URL card
-        return this.createCard({
-          type: 'url',
-          data: { url },
-          metaInfo: request.metaInfo
-        }, userId);
+        return this.createCard(
+          {
+            type: 'url',
+            data: { url },
+            metaInfo: request.metaInfo,
+          },
+          userId
+        );
       }
 
       throw error;

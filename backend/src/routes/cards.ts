@@ -1,18 +1,27 @@
+import { and, eq, isNull } from 'drizzle-orm';
 import { Hono } from 'hono';
-import { eq, and, isNull } from 'drizzle-orm';
 import { db } from '../db';
 import { cards } from '../db/schema';
 import {
-  createCardSchema,
-  updateCardSchema,
-  searchCardsSchema,
+  fileUploadMiddleware,
+  getFormField,
+  getUploadedFile,
+} from '../middleware/fileUpload';
+import {
   cardIdSchema,
+  createCardSchema,
+  searchCardsSchema,
+  updateCardSchema,
 } from '../schemas/cards';
 import { createCardWithFileSchema } from '../schemas/fileUpload';
-import { validateBody, validateQuery, validateParams, validateCardData } from '../utils/validation';
-import { DatabaseSearchService } from '../services/search/DatabaseSearchService';
 import { CardService } from '../services/card/CardService';
-import { fileUploadMiddleware, getUploadedFile, getFormField } from '../middleware/fileUpload';
+import { DatabaseSearchService } from '../services/search/DatabaseSearchService';
+import {
+  validateBody,
+  validateCardData,
+  validateParams,
+  validateQuery,
+} from '../utils/validation';
 
 // Create cards router with type-safe context
 export const cardRoutes = new Hono<{
@@ -21,13 +30,11 @@ export const cardRoutes = new Hono<{
     session: any;
     uploadedFiles: any[];
     formData: FormData;
-  }
+  };
 }>();
 
 // Initialize card service
 const cardService = new CardService();
-
-
 
 // GET /api/cards - List all cards with optional search and filters
 cardRoutes.get('/', async (c) => {
@@ -51,14 +58,18 @@ cardRoutes.get('/', async (c) => {
       offset,
       sort,
       order,
-      userId: user.id
+      userId: user.id,
     });
 
     return c.json(result);
-
   } catch (error) {
     console.error('Error fetching cards:', error);
-    return c.json({ error: error instanceof Error ? error.message : 'Failed to fetch cards' }, 400);
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to fetch cards',
+      },
+      400
+    );
   }
 });
 
@@ -89,10 +100,14 @@ cardRoutes.get('/:id', async (c) => {
     }
 
     return c.json(card);
-
   } catch (error) {
     console.error('Error fetching card:', error);
-    return c.json({ error: error instanceof Error ? error.message : 'Failed to fetch card' }, 400);
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to fetch card',
+      },
+      400
+    );
   }
 });
 
@@ -105,13 +120,13 @@ cardRoutes.post('/', fileUploadMiddleware, async (c) => {
     }
 
     const contentType = c.req.header('content-type');
-    
+
     if (contentType?.includes('multipart/form-data')) {
       // Handle file upload request
       const type = getFormField(c, 'type');
       const dataField = getFormField(c, 'data');
       const metaInfoField = getFormField(c, 'metaInfo');
-      
+
       if (!type) {
         return c.json({ error: 'Card type is required' }, 400);
       }
@@ -120,39 +135,47 @@ cardRoutes.post('/', fileUploadMiddleware, async (c) => {
       const formData = createCardWithFileSchema.parse({
         type,
         data: dataField,
-        metaInfo: metaInfoField
+        metaInfo: metaInfoField,
       });
 
       // Get uploaded file for media types
       const file = getUploadedFile(c, 'file');
-      
-      // Create card using service
-      const newCard = await cardService.createCard({
-        type: formData.type as any,
-        data: formData.data || {},
-        metaInfo: formData.metaInfo,
-        file
-      }, user.id);
-
-      return c.json(newCard, 201);
-
-    } else {
-      // Handle JSON request (backward compatibility)
-      const body = await validateBody(c, createCardSchema);
 
       // Create card using service
-      const newCard = await cardService.createCard({
-        type: body.type,
-        data: body.data,
-        metaInfo: body.metaInfo
-      }, user.id);
+      const newCard = await cardService.createCard(
+        {
+          type: formData.type as any,
+          data: formData.data || {},
+          metaInfo: formData.metaInfo,
+          file,
+        },
+        user.id
+      );
 
       return c.json(newCard, 201);
     }
+    // Handle JSON request (backward compatibility)
+    const body = await validateBody(c, createCardSchema);
 
+    // Create card using service
+    const newCard = await cardService.createCard(
+      {
+        type: body.type,
+        data: body.data,
+        metaInfo: body.metaInfo,
+      },
+      user.id
+    );
+
+    return c.json(newCard, 201);
   } catch (error) {
     console.error('Error creating card:', error);
-    return c.json({ error: error instanceof Error ? error.message : 'Failed to create card' }, 400);
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to create card',
+      },
+      400
+    );
   }
 });
 
@@ -202,10 +225,14 @@ cardRoutes.put('/:id', async (c) => {
       .returning();
 
     return c.json(updatedCard);
-
   } catch (error) {
     console.error('Error updating card:', error);
-    return c.json({ error: error instanceof Error ? error.message : 'Failed to update card' }, 400);
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to update card',
+      },
+      400
+    );
   }
 });
 
@@ -246,10 +273,13 @@ cardRoutes.delete('/:id', async (c) => {
       .where(eq(cards.id, id));
 
     return c.json({ message: 'Card deleted successfully' });
-
   } catch (error) {
     console.error('Error deleting card:', error);
-    return c.json({ error: error instanceof Error ? error.message : 'Failed to delete card' }, 400);
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to delete card',
+      },
+      400
+    );
   }
 });
-

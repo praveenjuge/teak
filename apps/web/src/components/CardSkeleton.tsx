@@ -1,9 +1,9 @@
-import { Card } from "./ui/card";
-import { Skeleton } from "./ui/skeleton";
+import { Card } from './ui/card';
+import { Skeleton } from './ui/skeleton';
 
 export function CardSkeleton() {
   return (
-    <Card className="p-6 min-h-50 flex flex-col justify-between">
+    <Card className="flex min-h-50 flex-col justify-between p-6">
       <div className="space-y-3">
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-full" />
@@ -15,24 +15,24 @@ export function CardSkeleton() {
 
 export function CardsGridSkeleton() {
   const opacities = [
-    "opacity-95",
-    "opacity-90",
-    "opacity-80",
-    "opacity-70",
-    "opacity-60",
-    "opacity-50",
-    "opacity-40",
-    "opacity-35",
-    "opacity-30",
-    "opacity-25",
-    "opacity-20",
-    "opacity-15",
-    "opacity-10",
+    'opacity-95',
+    'opacity-90',
+    'opacity-80',
+    'opacity-70',
+    'opacity-60',
+    'opacity-50',
+    'opacity-40',
+    'opacity-35',
+    'opacity-30',
+    'opacity-25',
+    'opacity-20',
+    'opacity-15',
+    'opacity-10',
   ];
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
       {opacities.map((opacity, i) => (
-        <div key={i} className={opacity}>
+        <div className={opacity} key={i}>
           <CardSkeleton />
         </div>
       ))}

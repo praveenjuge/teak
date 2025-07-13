@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient, type Card, type CardsResponse } from '../api';
 
 export function useCards(params?: {
@@ -43,7 +43,7 @@ export function useCreateCard() {
 
       // Optimistically update all cards queries
       queryClient.setQueriesData({ queryKey: ['cards'] }, (oldData: any) => {
-        if (!oldData || !oldData.cards) return oldData;
+        if (!(oldData && oldData.cards)) return oldData;
 
         const optimisticCard = {
           id: Date.now(), // Temporary ID
@@ -83,8 +83,13 @@ export function useUpdateCard() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: { data?: Record<string, any>; metaInfo?: Record<string, any> } }) =>
-      apiClient.updateCard(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: { data?: Record<string, any>; metaInfo?: Record<string, any> };
+    }) => apiClient.updateCard(id, data),
     onSuccess: (updatedCard) => {
       // Update the specific card in cache
       queryClient.setQueryData(['cards', updatedCard.id], updatedCard);
@@ -102,7 +107,7 @@ export function useDeleteCard() {
     onSuccess: (_, deletedId) => {
       // Remove the card from all cards queries
       queryClient.setQueriesData({ queryKey: ['cards'] }, (oldData: any) => {
-        if (!oldData || !oldData.cards) return oldData;
+        if (!(oldData && oldData.cards)) return oldData;
 
         return {
           ...oldData,
@@ -116,11 +121,14 @@ export function useDeleteCard() {
   });
 }
 
-export function useSearchCards(query: string, params?: {
-  limit?: number;
-  offset?: number;
-  type?: Card['type'];
-}) {
+export function useSearchCards(
+  query: string,
+  params?: {
+    limit?: number;
+    offset?: number;
+    type?: Card['type'];
+  }
+) {
   return useQuery({
     queryKey: ['cards', 'search', query, params],
     queryFn: () => apiClient.searchCards(query, params),

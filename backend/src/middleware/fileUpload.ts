@@ -24,10 +24,16 @@ export async function fileUploadMiddleware(c: Context, next: Next) {
     const uploadedFiles: UploadedFileData[] = [];
 
     for (const [fieldName, value] of formData.entries()) {
-      if (value && typeof value === 'object' && 'name' in value && 'size' in value && 'type' in value) {
+      if (
+        value &&
+        typeof value === 'object' &&
+        'name' in value &&
+        'size' in value &&
+        'type' in value
+      ) {
         uploadedFiles.push({
           file: value as File,
-          fieldName
+          fieldName,
         });
       }
     }
@@ -37,7 +43,6 @@ export async function fileUploadMiddleware(c: Context, next: Next) {
 
     // Also store form data for easy access to other fields
     c.set('formData', formData);
-
   } catch (error) {
     console.error('File upload middleware error:', error);
     return c.json({ error: 'Failed to process file upload' }, 400);
@@ -46,14 +51,20 @@ export async function fileUploadMiddleware(c: Context, next: Next) {
   return next();
 }
 
-export function getUploadedFile(c: Context, fieldName: string): File | undefined {
+export function getUploadedFile(
+  c: Context,
+  fieldName: string
+): File | undefined {
   const uploadedFiles = c.get('uploadedFiles') || [];
-  return uploadedFiles.find(f => f.fieldName === fieldName)?.file;
+  return uploadedFiles.find((f) => f.fieldName === fieldName)?.file;
 }
 
-export function getFormField(c: Context, fieldName: string): string | undefined {
+export function getFormField(
+  c: Context,
+  fieldName: string
+): string | undefined {
   const formData = c.get('formData') as FormData;
-  if (!formData) return undefined;
+  if (!formData) return;
 
   const value = formData.get(fieldName);
   return typeof value === 'string' ? value : undefined;

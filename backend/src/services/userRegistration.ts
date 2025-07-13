@@ -1,5 +1,5 @@
-import { db, users } from '../db';
 import { count } from 'drizzle-orm';
+import { db, users } from '../db';
 
 /**
  * Check if multi-user registration is allowed
@@ -29,16 +29,18 @@ export async function getUserCount(): Promise<number> {
  */
 export async function validateUserRegistration(): Promise<void> {
   const isMultiUserAllowed = isMultiUserRegistrationAllowed();
-  
+
   // If multi-user registration is allowed, no validation needed
   if (isMultiUserAllowed) {
     return;
   }
-  
+
   // Check if any users already exist
   const userCount = await getUserCount();
-  
+
   if (userCount > 0) {
-    throw new Error('Registration is currently closed. Please refer to the documentation on how to enable multi-user registration.');
+    throw new Error(
+      'Registration is currently closed. Please refer to the documentation on how to enable multi-user registration.'
+    );
   }
 }

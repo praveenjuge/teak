@@ -1,22 +1,22 @@
-import React from "react";
+import { useQuery } from '@tanstack/react-query';
+import React from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
   ActivityIndicator,
+  FlatList,
   RefreshControl,
-} from "react-native";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api";
-import type { Card } from "@/lib/api";
-import { CardItem } from "./CardItem";
-import { authClient } from "@/lib/auth-client";
-import { colors } from "../constants/colors";
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import type { Card } from '@/lib/api';
+import { apiClient } from '@/lib/api';
+import { authClient } from '@/lib/auth-client';
+import { colors } from '../constants/colors';
+import { CardItem } from './CardItem';
 
 interface CardsGridProps {
   searchQuery?: string;
-  selectedType?: Card["type"];
+  selectedType?: Card['type'];
 }
 
 export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
@@ -27,17 +27,15 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
     error: sessionError,
   } = authClient?.useSession() || { data: null, isPending: false, error: null };
 
-
   const { data, error, refetch, isLoading, isRefetching } = useQuery({
-    queryKey: ["cards", { searchQuery, selectedType }],
+    queryKey: ['cards', { searchQuery, selectedType }],
     queryFn: async () => {
-
       try {
         const result = await apiClient.getCards({
           q: searchQuery?.trim() || undefined,
           type: selectedType,
-          sort: "created_at",
-          order: "desc",
+          sort: 'created_at',
+          order: 'desc',
           limit: 100,
         });
         return result;
@@ -49,8 +47,6 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
     staleTime: 30 * 1000, // 30 seconds
     refetchOnWindowFocus: false,
   });
-
-
 
   // Define dynamic styles
   const dynamicStyles = {
@@ -91,12 +87,12 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Text style={[styles.emptyTitle, dynamicStyles.emptyTitle]}>
-        {searchQuery ? "No cards found" : "No cards yet"}
+        {searchQuery ? 'No cards found' : 'No cards yet'}
       </Text>
       <Text style={[styles.emptyDescription, dynamicStyles.emptyDescription]}>
         {searchQuery
-          ? `No cards match "${searchQuery}"${selectedType ? ` in ${selectedType} cards` : ""}`
-          : "Start by adding your first card"}
+          ? `No cards match "${searchQuery}"${selectedType ? ` in ${selectedType} cards` : ''}`
+          : 'Start by adding your first card'}
       </Text>
     </View>
   );
@@ -116,7 +112,7 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
           Failed to load cards
         </Text>
         <Text style={[styles.errorDescription, dynamicStyles.errorDescription]}>
-          {error instanceof Error ? error.message : "Something went wrong"}
+          {error instanceof Error ? error.message : 'Something went wrong'}
         </Text>
       </View>
     );
@@ -124,16 +120,16 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
 
   return (
     <FlatList
-      data={data?.cards || []}
-      renderItem={renderCard}
-      keyExtractor={(item) => item.id.toString()}
-      numColumns={2}
-      contentContainerStyle={styles.container}
       columnWrapperStyle={styles.row}
+      contentContainerStyle={styles.container}
+      data={data?.cards || []}
+      keyExtractor={(item) => item.id.toString()}
       ListEmptyComponent={renderEmpty}
+      numColumns={2}
       refreshControl={
-        <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+        <RefreshControl onRefresh={refetch} refreshing={isRefetching} />
       }
+      renderItem={renderCard}
       showsVerticalScrollIndicator={false}
     />
   );
@@ -145,42 +141,42 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   row: {
-    justifyContent: "space-between",
+    justifyContent: 'space-between',
   },
   cardContainer: {
     flex: 1,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
   errorContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
   errorTitle: {
-    fontWeight: "600",
+    fontWeight: '600',
     marginBottom: 8,
   },
   errorDescription: {
-    textAlign: "center",
+    textAlign: 'center',
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 40,
   },
   emptyTitle: {
-    fontWeight: "600",
+    fontWeight: '600',
     marginBottom: 8,
   },
   emptyDescription: {
-    textAlign: "center",
+    textAlign: 'center',
     lineHeight: 20,
   },
 });

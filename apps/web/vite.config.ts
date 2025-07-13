@@ -1,8 +1,8 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import { tanstackRouter } from '@tanstack/router-plugin/vite'
-import path from "path"
+import tailwindcss from '@tailwindcss/vite';
+import { tanstackRouter } from '@tanstack/router-plugin/vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import { defineConfig } from 'vite';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -28,7 +28,7 @@ export default defineConfig({
   optimizeDeps: {
     exclude: [
       '@tanstack/react-router-devtools',
-      '@tanstack/react-query-devtools'
+      '@tanstack/react-query-devtools',
     ],
     include: [
       'react-dom/client',
@@ -39,8 +39,8 @@ export default defineConfig({
       '@radix-ui/react-slot',
       'class-variance-authority',
       'clsx',
-      'tailwind-merge'
-    ]
+      'tailwind-merge',
+    ],
   },
   server: {
     host: '0.0.0.0', // Allow external connections (required for Docker)
@@ -55,8 +55,8 @@ export default defineConfig({
       '/api': {
         target: process.env['VITE_API_URL'] || 'http://backend:3001',
         changeOrigin: true,
-      }
-    }
+      },
+    },
   },
   build: {
     outDir: 'dist',
@@ -64,7 +64,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
-})
+});

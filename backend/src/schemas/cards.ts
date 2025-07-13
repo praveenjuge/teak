@@ -44,14 +44,16 @@ export const videoDataSchema = z.object({
 });
 
 // Meta info schema (common for all card types)
-export const metaInfoSchema = z.object({
-  language: z.string().optional(),
-  playtime: z.string().optional(),
-  file_size: z.number().positive().optional(),
-  created_by: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  source: z.string().optional(),
-}).catchall(z.unknown()); // Allow additional fields
+export const metaInfoSchema = z
+  .object({
+    language: z.string().optional(),
+    playtime: z.string().optional(),
+    file_size: z.number().positive().optional(),
+    created_by: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    source: z.string().optional(),
+  })
+  .catchall(z.unknown()); // Allow additional fields
 
 // Combined data schema based on card type
 export const cardDataSchema = z.discriminatedUnion('type', [

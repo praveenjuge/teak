@@ -11,7 +11,7 @@ export interface ProcessingContext {
 
 export abstract class CardProcessor {
   abstract process(context: ProcessingContext): Promise<ProcessedCardData>;
-  
+
   protected isValidUrl(text: string): boolean {
     try {
       new URL(text);
