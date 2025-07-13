@@ -48,11 +48,13 @@ export default function HomePage() {
             <div className="rounded-lg border border-fd-border bg-fd-card p-6">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-fd-primary/10">
                 <svg
+                  aria-label="Self-hosted icon"
                   className="h-6 w-6 text-fd-primary"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
+                  <title>Self-hosted icon</title>
                   <path
                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                     strokeLinecap="round"
@@ -71,11 +73,13 @@ export default function HomePage() {
             <div className="rounded-lg border border-fd-border bg-fd-card p-6">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-fd-primary/10">
                 <svg
+                  aria-label="Lightning fast icon"
                   className="h-6 w-6 text-fd-primary"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
+                  <title>Lightning fast icon</title>
                   <path
                     d="M13 10V3L4 14h7v7l9-11h-7z"
                     strokeLinecap="round"
@@ -94,11 +98,13 @@ export default function HomePage() {
             <div className="rounded-lg border border-fd-border bg-fd-card p-6">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-fd-primary/10">
                 <svg
+                  aria-label="Cross-platform mobile icon"
                   className="h-6 w-6 text-fd-primary"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
+                  <title>Cross-platform mobile icon</title>
                   <path
                     d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
                     strokeLinecap="round"
@@ -117,11 +123,13 @@ export default function HomePage() {
             <div className="rounded-lg border border-fd-border bg-fd-card p-6">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-fd-primary/10">
                 <svg
+                  aria-label="Smart search icon"
                   className="h-6 w-6 text-fd-primary"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
+                  <title>Smart search icon</title>
                   <path
                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                     strokeLinecap="round"
@@ -140,11 +148,13 @@ export default function HomePage() {
             <div className="rounded-lg border border-fd-border bg-fd-card p-6">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-fd-primary/10">
                 <svg
+                  aria-label="Modern stack icon"
                   className="h-6 w-6 text-fd-primary"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
+                  <title>Modern stack icon</title>
                   <path
                     d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
                     strokeLinecap="round"
@@ -168,6 +178,7 @@ export default function HomePage() {
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
+                  <title>Open Source icon</title>
                   <path
                     d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
                     strokeLinecap="round"
@@ -216,6 +227,7 @@ export default function HomePage() {
                     stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
+                    <title>Check Icon</title>
                     <path
                       d="M5 13l4 4L19 7"
                       strokeLinecap="round"
@@ -232,6 +244,7 @@ export default function HomePage() {
                     stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
+                    <title>Check Icon</title>
                     <path
                       d="M5 13l4 4L19 7"
                       strokeLinecap="round"
@@ -248,6 +261,7 @@ export default function HomePage() {
                     stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
+                    <title>Check Icon</title>
                     <path
                       d="M5 13l4 4L19 7"
                       strokeLinecap="round"
@@ -264,6 +278,7 @@ export default function HomePage() {
                     stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
+                    <title>Check Icon</title>
                     <path
                       d="M5 13l4 4L19 7"
                       strokeLinecap="round"
@@ -280,6 +295,7 @@ export default function HomePage() {
                     stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
+                    <title>Check Icon</title>
                     <path
                       d="M5 13l4 4L19 7"
                       strokeLinecap="round"
@@ -296,6 +312,7 @@ export default function HomePage() {
                     stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
+                    <title>Check Icon</title>
                     <path
                       d="M5 13l4 4L19 7"
                       strokeLinecap="round"
