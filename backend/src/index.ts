@@ -19,8 +19,25 @@ const app = new Hono<{
 
 // Core middleware
 app.use('*', logger());
+
+// Environment-aware CORS configuration
+const isOriginAllowed = (origin: string): boolean => {
+  // Development origins
+  if (process.env.NODE_ENV !== 'production') {
+    return ['http://localhost:3000', 'http://localhost:8081'].includes(origin);
+  }
+  
+  // Production origins from environment variable
+  if (process.env['ALLOWED_ORIGINS']) {
+    const allowedOrigins = process.env['ALLOWED_ORIGINS'].split(',').map(o => o.trim());
+    return allowedOrigins.includes(origin);
+  }
+  
+  return false; // Reject all in production if no allowed origins set
+};
+
 app.use('*', cors({
-  origin: ['http://localhost:3000', 'http://localhost:8081'], // Add Expo development server
+  origin: (origin) => isOriginAllowed(origin) ? origin : null,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
   allowHeaders: ['Content-Type', 'Authorization', 'Range', 'Content-Range', 'Content-Length'],
   credentials: true, // Required for Better Auth cookies

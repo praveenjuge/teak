@@ -41,8 +41,8 @@ export function validateParams<T>(c: Context, schema: z.ZodSchema<T>) {
 }
 
 // Helper to validate card data based on type
-export function validateCardData(type: string, data: any) {
-  const { cardDataSchema } = require('../schemas/cards');
+export async function validateCardData(type: string, data: any) {
+  const { cardDataSchema } = await import('../schemas/cards.js');
 
   try {
     return cardDataSchema.parse({ type, data });

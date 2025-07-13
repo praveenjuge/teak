@@ -75,7 +75,8 @@ export class AudioCardProcessor extends CardProcessor {
 
   private async extractAudioMetadata(filePath: string): Promise<AudioMetadata> {
     try {
-      const fullPath = `./uploads/${filePath}`;
+      const uploadPath = process.env['UPLOAD_PATH'] || './uploads';
+      const fullPath = `${uploadPath}/${filePath}`;
       const { stdout } = await execFileAsync(ffprobe.path, [
         '-v', 'quiet',
         '-print_format', 'json',

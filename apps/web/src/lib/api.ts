@@ -155,6 +155,7 @@ class ApiClient {
   }
 
   private detectCardTypeFromFile(file: File): Card['type'] {
+    // Note: This is only a UI hint - server validates actual file type from content
     if (file.type.startsWith('image/')) {
       return 'image';
     } else if (file.type.startsWith('video/')) {
@@ -162,7 +163,7 @@ class ApiClient {
     } else if (file.type.startsWith('audio/')) {
       return 'audio';
     } else {
-      // Default to image for unknown types
+      // Default to letting server determine actual type
       return 'image';
     }
   }

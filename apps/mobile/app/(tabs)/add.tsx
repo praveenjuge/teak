@@ -147,7 +147,7 @@ export default function AddScreen() {
       });
 
       const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
+        Audio.RecordingOptionsPresets['HIGH_QUALITY']
       );
       setRecording(recording);
       setIsRecording(true);

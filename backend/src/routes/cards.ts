@@ -186,9 +186,9 @@ cardRoutes.put('/:id', async (c) => {
 
     // Validate the card data if type or data is being updated
     if (body.type && body.data) {
-      validateCardData(body.type, body.data);
+      await validateCardData(body.type, body.data);
     } else if (body.data && !body.type) {
-      validateCardData(existingCard.type, body.data);
+      await validateCardData(existingCard.type, body.data);
     }
 
     // Update the card
