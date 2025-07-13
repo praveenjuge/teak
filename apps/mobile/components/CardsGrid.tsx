@@ -20,9 +20,11 @@ interface CardsGridProps {
 
 export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
   // Check authentication state
-  const {
-    isPending: sessionPending,
-  } = authClient?.useSession() || { data: null, isPending: false, error: null };
+  const { isPending: sessionPending } = authClient?.useSession() || {
+    data: null,
+    isPending: false,
+    error: null,
+  };
 
   const { data, error, refetch, isLoading, isRefetching } = useQuery({
     queryKey: ['cards', { searchQuery, selectedType }],
