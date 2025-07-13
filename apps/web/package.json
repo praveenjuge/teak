@@ -5,7 +5,9 @@
     "build": "vite build",
     "dev": "vite",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "bun test",
+    "test:watch": "bun test --watch"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -29,7 +31,9 @@
     "@tailwindcss/vite": "^4.1.11",
     "@tanstack/react-router-devtools": "^1.124.0",
     "@tanstack/router-plugin": "^1.123.2",
+    "@testing-library/react": "^16.2.3",
     "@types/bun": "^1.2.17",
+    "@types/jest": "^29.5.14",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
@@ -39,6 +43,7 @@
     "eslint-plugin-react-hooks": "6.0.0-rc.1",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.2.0",
+    "happy-dom": "^16.8.0",
     "babel-plugin-react-compiler": "rc",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.11",

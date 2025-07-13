@@ -1,0 +1,4 @@
+[test]
+# Test configuration for Bun
+root = "./src"
+timeout = 5000
