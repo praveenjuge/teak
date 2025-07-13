@@ -21,26 +21,20 @@ interface CardsGridProps {
 export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
   // Check authentication state
   const {
-    data: session,
     isPending: sessionPending,
-    error: sessionError,
   } = authClient?.useSession() || { data: null, isPending: false, error: null };
 
   const { data, error, refetch, isLoading, isRefetching } = useQuery({
     queryKey: ['cards', { searchQuery, selectedType }],
     queryFn: async () => {
-      try {
-        const result = await apiClient.getCards({
-          q: searchQuery?.trim() || undefined,
-          type: selectedType,
-          sort: 'created_at',
-          order: 'desc',
-          limit: 100,
-        });
-        return result;
-      } catch (err) {
-        throw err;
-      }
+      const result = await apiClient.getCards({
+        q: searchQuery?.trim() || undefined,
+        type: selectedType,
+        sort: 'created_at',
+        order: 'desc',
+        limit: 100,
+      });
+      return result;
     },
     enabled: !sessionPending, // Don't run query while session is loading
     staleTime: 30 * 1000, // 30 seconds
