@@ -1,0 +1,8 @@
+{
+  "projects": [
+    {
+      "source": "apps/docs",
+      "name": "docs"
+    }
+  ]
+}
