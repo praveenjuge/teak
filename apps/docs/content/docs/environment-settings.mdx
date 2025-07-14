@@ -1,0 +1,60 @@
+---
+title: Environment Settings
+description: Complete guide to configuring environment variables for self-hosted Teak installations
+---
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `NODE_ENV` | Application environment | `development` | Yes |
+| `FRONTEND_PORT` | Frontend server port | `3000` | No |
+| `BACKEND_PORT` | Backend server port | `3001` | No |
+| `PORT` | Production server port | `3000` | No |
+| `POSTGRES_DB` | PostgreSQL database name | `teak_db` | Yes |
+| `POSTGRES_USER` | PostgreSQL username | `teak_user` | Yes |
+| `POSTGRES_PASSWORD` | PostgreSQL password | `teak_db_password` | Yes |
+| `DATABASE_URL` | Database connection string | `postgresql://teak_user:teak_db_password@localhost:5432/teak_db` | Yes |
+| `BETTER_AUTH_SECRET` | Better Auth secret key | None | Yes |
+| `BETTER_AUTH_URL` | Better Auth URL | `http://localhost:3000` | Yes |
+| `ALLOW_MULTI_USER_REGISTRATION` | Allow multiple user registration | `false` | No |
+| `VITE_API_URL` | API base URL for frontend | `http://localhost:3000/api` | No |
+| `VITE_APP_URL` | Application base URL | `http://localhost:3000` | No |
+
+## Docker & Deploymen
+
+Variables for containerized deployments:
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `PORT` | Container port | `3000` | No |
+| `HOST` | Bind address | `0.0.0.0` | No |
+
+## Complete .env.example Reference
+
+```env
+# Application
+NODE_ENV=development
+PORT=3000
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-here
+
+# Database
+DATABASE_URL=postgresql://postgres:password@localhost:5432/teak
+DIRECT_URL=postgresql://postgres:password@localhost:5432/teak
+
+# Authentication (Optional)
+DISABLE_SIGNUP=false
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+
+# File Upload
+UPLOAD_PATH=./uploads
+
+# Security
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+
+# Frontend (Vite)
+VITE_API_URL=http://localhost:3000/api
+VITE_APP_URL=http://localhost:3000
+```
