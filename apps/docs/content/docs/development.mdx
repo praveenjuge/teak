@@ -1,0 +1,218 @@
+---
+title: Development Guide
+description: Complete development setup and workflow guide for Teak
+---
+
+# Development Guide
+
+This guide will help new developers get up and running with the Teak project quickly.
+
+## 🛠️ Prerequisites
+
+Before starting, ensure you have the following installed:
+
+- **Docker & Docker Compose** (for database and containerized development)
+- **Bun 1.0+** (JavaScript runtime)
+
+## 🚀 Quick Setup
+
+### Bootstrap Project (Recommended)
+
+The fastest way to get started:
+
+```bash
+git clone git@github.com:praveenjuge/teak.git
+cd teak
+bun run bootstrap
+```
+
+This single command will:
+- Install all dependencies across workspaces
+- Setup and configure the database
+- Initialize environment files
+- Verify prerequisites
+
+### Manual Setup (Alternative)
+
+If you prefer step-by-step setup:
+
+```bash
+# Install all dependencies
+bun run install:all
+
+# Setup database (starts Docker containers, runs migrations, seeds data)
+bun run setup:db
+
+# Copy environment file
+cp .env.example .env
+```
+
+## 🏗️ Project Architecture
+
+Teak is a monorepo with the following structure:
+
+- **Runtime**: Bun
+- **Backend**: Hono.js API server (@teak/backend)
+- **Web App**: React 19 + Vite (@teak/web)
+- **Mobile App**: React Native with Expo (@teak/mobile)
+- **Database**: PostgreSQL 17 with Drizzle ORM
+- **Containerization**: Docker
+
+## 🔧 Development Commands
+
+### Starting Services
+
+```bash
+# Start full development environment (Docker + all services)
+bun run dev
+
+# Start individual services
+bun run dev:backend    # Backend API server only
+bun run dev:frontend   # React web app only
+bun run dev:mobile     # React Native mobile app
+```
+
+### Building Applications
+
+```bash
+# Build all applications
+bun run build
+
+# Build individual apps
+bun run build:backend
+bun run build:frontend
+```
+
+## 🗄️ Database Development
+
+### Basic Commands
+
+```bash
+# Navigate to backend directory first
+cd backend
+
+bun run db:generate    # Generate database migrations
+bun run db:migrate     # Apply migrations to database
+bun run db:push        # Push schema changes directly
+bun run db:studio      # Open Drizzle Studio (database GUI)
+bun run db:seed        # Seed database with sample data
+```
+
+### Root Level Database Utilities
+
+```bash
+bun run db:connect     # Connect to database via psql
+bun run db:status      # Check database connection status
+bun run db:reset       # Reset database (destructive!)
+```
+
+### Database Connection Details
+
+**Development Database:**
+- **Host**: localhost
+- **Port**: 5432
+- **Database**: `teak_db`
+- **User**: `teak_user`
+- **Password**: `teak_dev_password`
+
+## 🐳 Docker Commands
+
+### Development Environment
+
+```bash
+bun run docker:dev         # Start development containers
+bun run docker:dev:down    # Stop development containers
+bun run docker:dev:clean   # Stop and remove all containers + volumes
+```
+
+### Production Environment
+
+```bash
+bun run docker:prod        # Start production containers
+```
+
+### Manual Docker Commands
+
+```bash
+# Navigate to docker directory
+cd docker
+
+# Start services
+docker-compose up
+
+# Start in background
+docker-compose up -d
+
+# Rebuild and start
+docker-compose up --build
+
+# Stop services
+docker-compose down
+
+# View logs
+docker-compose logs -f
+```
+
+## 🌐 Development Services
+
+Once your development environment is running, you can access:
+
+- **Frontend**: http://localhost:3000 (React 19 + Vite)
+- **Backend API**: http://localhost:3001 (Hono.js)
+- **Database**: localhost:5432 (PostgreSQL 17)
+- **Drizzle Studio**: http://localhost:4983 (when running `db:studio`)
+
+## ⚙️ Environment Configuration
+
+### Required Environment Variables
+
+Create a `.env` file from the template:
+
+```bash
+cp .env.example .env
+```
+
+### Key Development Variables
+
+| Variable        | Default       | Description                  |
+| --------------- | ------------- | ---------------------------- |
+| `NODE_ENV`      | `development` | Node environment             |
+| `FRONTEND_PORT` | `3000`        | Frontend development port    |
+| `BACKEND_PORT`  | `3001`        | Backend development port     |
+| `DATABASE_URL`  | (auto-set)    | PostgreSQL connection string |
+
+### Authentication Variables
+
+| Variable                        | Default                 | Description                               |
+| ------------------------------- | ----------------------- | ----------------------------------------- |
+| `BETTER_AUTH_SECRET`            | (required)              | Secret key for Better Auth (min 32 chars) |
+| `BETTER_AUTH_URL`               | `http://localhost:3000` | Base URL for authentication callbacks     |
+| `ALLOW_MULTI_USER_REGISTRATION` | `false`                 | Allow multiple users to register          |
+
+## 🚦 Development Workflow
+
+1. **Setup**: Run `bun run bootstrap` to initialize the project
+2. **Start**: Use `bun run dev` to start all services
+3. **Code**: Make your changes to the appropriate workspace
+4. **Test**: Verify your changes work in the development environment
+5. **Database**: Use `bun run db:studio` to inspect database changes
+6. **Build**: Run `bun run build` to ensure everything compiles
+
+## 💡 Tips for New Developers
+
+- Use `bun run db:studio` to visually inspect and modify database data
+- The project uses TypeScript throughout - leverage the type system
+- API testing collection is available in the `/postman` directory
+- Each workspace has its own `package.json` for workspace-specific dependencies
+- Docker containers handle database setup automatically
+- Check the `/scripts` directory for additional utility scripts
+
+## 🔍 Troubleshooting
+
+If you encounter issues:
+
+1. **Database connection problems**: Run `bun run db:status` to check connection
+2. **Port conflicts**: Check if ports 3000, 3001, or 5432 are already in use
+3. **Docker issues**: Try `bun run docker:dev:clean` to reset containers
+4. **Dependency issues**: Run `bun run install:all` to reinstall dependencies
+5. **Environment issues**: Verify your `.env` file is properly configured
