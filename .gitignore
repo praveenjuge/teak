@@ -90,3 +90,4 @@ apps/web/bun.lockb
 backend/uploads
 package-lock.json
 improvements/*
+.vercel
