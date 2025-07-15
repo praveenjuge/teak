@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for single-image production deployment
 # Stage 1: Frontend Build
-FROM oven/bun:1-alpine AS frontend-builder
+FROM oven/bun AS frontend-builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ COPY apps/web ./web/
 RUN cd web && bun run build
 
 # Stage 2: Backend Build
-FROM oven/bun:1-alpine AS backend-builder
+FROM oven/bun AS backend-builder
 
 WORKDIR /app
 

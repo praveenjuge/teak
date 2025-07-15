@@ -1,11 +1,8 @@
 services:
-  # Teak Application (Single Image)
   teak:
     build:
       context: ../
       dockerfile: docker/Dockerfile
-    ports:
-      - "80:80"
     environment:
       - BACKEND_PORT=3001
       - DATABASE_URL=postgresql://teak_user:teak_password@db:5432/teak_db
@@ -28,7 +25,7 @@ services:
       start_period: 40s
 
   # PostgreSQL Database
-  db:
+  Database:
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: teak_user

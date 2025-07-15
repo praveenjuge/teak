@@ -7,8 +7,19 @@
 
 import { createAuthClient } from 'better-auth/react';
 
+// Determine the auth base URL based on environment
+const getAuthBaseURL = () => {
+  // In production, use relative URL (same origin)
+  if (import.meta.env.PROD) {
+    return '';
+  }
+  
+  // In development, check for custom API URL or default to localhost
+  return import.meta.env.VITE_API_URL || 'http://localhost:3001';
+};
+
 export const authClient = createAuthClient({
-  baseURL: 'http://localhost:3001',
+  baseURL: getAuthBaseURL(),
   fetchOptions: {
     onError(context) {
       // Log errors for debugging
