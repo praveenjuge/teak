@@ -251,9 +251,7 @@ app.get('*', async (c) => {
   }
 });
 
-const port = Number.parseInt(
-  Bun.env['BACKEND_PORT'] || Bun.env['PORT'] || '3001'
-);
+const port = Number.parseInt(Bun.env['BACKEND_PORT'] || '3001');
 
 console.log(`🚀 Server starting on port ${port}`);
 console.log(`📡 API endpoints: http://localhost:${port}/api/*`);

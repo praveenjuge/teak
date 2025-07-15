@@ -13,7 +13,7 @@ services:
       - teak-dev-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U teak_user -d teak_db" ]
+      test: ["CMD-SHELL", "pg_isready -U teak_user -d teak_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,7 +27,7 @@ services:
     working_dir: /app
     environment:
       - NODE_ENV=development
-      - PORT=3001
+      - BACKEND_PORT=3001
       - DATABASE_URL=postgresql://teak_user:teak_password@db:5432/teak_db
       - BETTER_AUTH_SECRET=dev-secret-key-change-in-production
       - BETTER_AUTH_URL=http://localhost:3001
@@ -46,7 +46,15 @@ services:
       - "3001:3001"
     command: sh -c "bun install && echo 'Waiting for database...' && sleep 5 && echo 'Running migrations...' && bun run db:migrate && echo 'Starting development server...' && bun run db:seed && bun run dev"
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health" ]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3001/api/health",
+        ]
       interval: 30s
       timeout: 30s
       retries: 2
@@ -71,7 +79,15 @@ services:
       - "3000:3000"
     command: sh -c "bun install && bun run dev --host 0.0.0.0"
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000" ]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

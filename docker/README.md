@@ -59,8 +59,7 @@ docker run -p 80:80 \
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PORT` | External port for the application | `80` |
-| `BACKEND_PORT` | Internal backend port | `3001` |
+| `BACKEND_PORT` | Backend server port | `3001` |
 | `NODE_ENV` | Node.js environment | `production` |
 | `BETTER_AUTH_URL` | Base URL for authentication | `http://localhost:80` |
 

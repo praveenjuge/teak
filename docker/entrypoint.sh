@@ -24,13 +24,11 @@ fi
 
 # Set default values for optional variables
 export BACKEND_PORT=${BACKEND_PORT:-3001}
-export PORT=${PORT:-80}
 export NODE_ENV=${NODE_ENV:-production}
-export BETTER_AUTH_URL=${BETTER_AUTH_URL:-"http://localhost:${PORT}"}
+export BETTER_AUTH_URL=${BETTER_AUTH_URL:-"http://localhost:80"}
 
 echo -e "${YELLOW}📋 Configuration:${NC}"
 echo "  NODE_ENV: $NODE_ENV"
-echo "  PORT: $PORT"
 echo "  BACKEND_PORT: $BACKEND_PORT"
 echo "  BETTER_AUTH_URL: $BETTER_AUTH_URL"
 echo "  DATABASE_URL: [REDACTED]"

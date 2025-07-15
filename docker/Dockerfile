@@ -85,7 +85,6 @@ RUN chmod +x /app/entrypoint.sh
 
 # Set environment variables with defaults
 ENV NODE_ENV=production \
-    PORT=80 \
     BACKEND_PORT=3001 \
     DATABASE_URL="" \
     BETTER_AUTH_SECRET="" \
