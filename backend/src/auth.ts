@@ -8,10 +8,7 @@
  * - Using Drizzle ORM adapter for database operations
  *
  * TODO: Add email service integration
- * - Resend (resend.com)
- * - SendGrid
- * - AWS SES
- * - Nodemailer with SMTP
+ * - Resend (resend.com)* - SendGrid* - AWS SES* - Nodemailer with SMTP
  */
 
 import { expo } from '@better-auth/expo';

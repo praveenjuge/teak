@@ -3,10 +3,6 @@ title: Development Guide
 description: Complete development setup and workflow guide for Teak
 ---
 
-# Development Guide
-
-This guide will help new developers get up and running with the Teak project quickly.
-
 ## 🛠️ Prerequisites
 
 Before starting, ensure you have the following installed:
@@ -176,7 +172,6 @@ cp .env.example .env
 
 | Variable        | Default       | Description                  |
 | --------------- | ------------- | ---------------------------- |
-| `NODE_ENV`      | `development` | Node environment             |
 | `BACKEND_PORT`  | `3001`        | Backend server port          |
 | `DATABASE_URL`  | (auto-set)    | PostgreSQL connection string |
 
@@ -196,22 +191,3 @@ cp .env.example .env
 4. **Test**: Verify your changes work in the development environment
 5. **Database**: Use `bun run db:studio` to inspect database changes
 6. **Build**: Run `bun run build` to ensure everything compiles
-
-## 💡 Tips for New Developers
-
-- Use `bun run db:studio` to visually inspect and modify database data
-- The project uses TypeScript throughout - leverage the type system
-- API testing collection is available in the `/postman` directory
-- Each workspace has its own `package.json` for workspace-specific dependencies
-- Docker containers handle database setup automatically
-- Check the `/scripts` directory for additional utility scripts
-
-## 🔍 Troubleshooting
-
-If you encounter issues:
-
-1. **Database connection problems**: Run `bun run db:status` to check connection
-2. **Port conflicts**: Check if ports 3000, 3001, or 5432 are already in use
-3. **Docker issues**: Try `bun run docker:dev:clean` to reset containers
-4. **Dependency issues**: Run `bun run install:all` to reinstall dependencies
-5. **Environment issues**: Verify your `.env` file is properly configured

@@ -84,8 +84,7 @@ RUN rm -f /etc/nginx/conf.d/default.conf.dpkg-dist
 RUN chmod +x /app/entrypoint.sh
 
 # Set environment variables with defaults
-ENV NODE_ENV=production \
-    BACKEND_PORT=3001 \
+ENV BACKEND_PORT=3001 \
     DATABASE_URL="" \
     BETTER_AUTH_SECRET="" \
     BETTER_AUTH_URL=""

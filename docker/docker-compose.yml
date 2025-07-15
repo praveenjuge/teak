@@ -7,7 +7,6 @@ services:
     ports:
       - "80:80"
     environment:
-      - NODE_ENV=production
       - BACKEND_PORT=3001
       - DATABASE_URL=postgresql://teak_user:teak_password@db:5432/teak_db
       - BETTER_AUTH_SECRET=your-super-secret-key-change-this-in-production
@@ -47,8 +46,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    ports:
-      - "5432:5432"  # Optional: Remove in production for security
 
 # Networks
 networks:

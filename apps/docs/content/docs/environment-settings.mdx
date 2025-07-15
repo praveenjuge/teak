@@ -5,7 +5,6 @@ description: Complete guide to configuring environment variables for self-hosted
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `NODE_ENV` | Application environment | `development` | Yes |
 | `BACKEND_PORT` | Backend server port | `3001` | No |
 | `POSTGRES_DB` | PostgreSQL database name | `teak_db` | Yes |
 | `POSTGRES_USER` | PostgreSQL username | `teak_user` | Yes |
@@ -14,45 +13,23 @@ description: Complete guide to configuring environment variables for self-hosted
 | `BETTER_AUTH_SECRET` | Better Auth secret key | None | Yes |
 | `BETTER_AUTH_URL` | Better Auth URL | `http://localhost:3000` | Yes |
 | `ALLOW_MULTI_USER_REGISTRATION` | Allow multiple user registration | `false` | No |
-| `VITE_API_URL` | API base URL for frontend | `http://localhost:3000/api` | No |
-| `VITE_APP_URL` | Application base URL | `http://localhost:3000` | No |
-
-## Docker & Deploymen
-
-Variables for containerized deployments:
-
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `PORT` | Container port | `3000` | No |
-| `HOST` | Bind address | `0.0.0.0` | No |
 
 ## Complete .env.example Reference
 
 ```bash
-# Application
-NODE_ENV=development
-PORT=3000
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-secret-here
+# Development Environment Variables
+BACKEND_PORT=3001
 
-# Database
-DATABASE_URL=postgresql://postgres:password@localhost:5432/teak
-DIRECT_URL=postgresql://postgres:password@localhost:5432/teak
+# PostgreSQL Database Configuration
+POSTGRES_DB=teak_db
+POSTGRES_USER=teak_user
+POSTGRES_PASSWORD=teak_db_password
+DATABASE_URL=postgresql://teak_user:teak_db_password@localhost:5432/teak_db
 
-# Authentication (Optional)
-DISABLE_SIGNUP=false
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GITHUB_CLIENT_ID=
-GITHUB_CLIENT_SECRET=
+# Better Auth Configuration
+BETTER_AUTH_SECRET=your_secure_secret_here_at_least_32_characters_long
+BETTER_AUTH_URL=http://localhost:3000
 
-# File Upload
-UPLOAD_PATH=./uploads
-
-# Security
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
-
-# Frontend (Vite)
-VITE_API_URL=http://localhost:3000/api
-VITE_APP_URL=http://localhost:3000
+# Set to true to allow multiple users to register, false (or omit) to allow only one user
+ALLOW_MULTI_USER_REGISTRATION=false
 ```

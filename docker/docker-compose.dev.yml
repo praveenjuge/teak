@@ -26,7 +26,6 @@ services:
     image: oven/bun:1-alpine
     working_dir: /app
     environment:
-      - NODE_ENV=development
       - BACKEND_PORT=3001
       - DATABASE_URL=postgresql://teak_user:teak_password@db:5432/teak_db
       - BETTER_AUTH_SECRET=dev-secret-key-change-in-production
@@ -64,9 +63,6 @@ services:
   frontend:
     image: oven/bun:1-alpine
     working_dir: /app
-    environment:
-      - NODE_ENV=development
-      - VITE_API_URL=http://backend:3001
     volumes:
       - ../apps/web:/app
       - frontend_node_modules:/app/node_modules
