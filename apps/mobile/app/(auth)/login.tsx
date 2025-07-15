@@ -21,7 +21,7 @@ export default function Login() {
   const [step, setStep] = useState<'server' | 'login'>('server');
   const [apiUrl, setApiUrl] = useState(
     // biome-ignore lint/correctness/noUndeclaredVariables: defined from expo
-    __DEV__ ? 'http://192.168.29.57:3000' : ''
+    __DEV__ ? 'http://172.19.189.105:3000' : ''
   );
   // biome-ignore lint/correctness/noUndeclaredVariables: defined from expo
   const [email, setEmail] = useState(__DEV__ ? 'hello@praveenjuge.com' : '');
@@ -77,7 +77,7 @@ export default function Login() {
       console.log('Server health response:', healthData);
 
       // Check if the response indicates this is a Teak server
-      if (!healthData || healthData.service !== 'teak') {
+      if (!healthData || healthData.service !== 'teak-backend') {
         Alert.alert(
           'Invalid Server',
           "This doesn't appear to be a Teak server. Please check your server URL."
