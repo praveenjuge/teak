@@ -1,7 +1,7 @@
 {
   "name": "@teak/root",
   "version": "0.0.1",
-  "description": "Teak - Modern full-stack monorepo with Hono.js backend, React web, and React Native mobile",
+  "description": "Teak is a streamlined personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations.",
   "keywords": [
     "monorepo",
     "hono",

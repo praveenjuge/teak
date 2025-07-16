@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { serveStatic } from 'hono/bun';
-import { cache } from 'hono/cache';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { auth } from './auth';
@@ -70,14 +69,6 @@ app.use(
   })
 );
 
-// Cache static assets for 1 year
-app.use(
-  '/assets/*',
-  cache({
-    cacheName: 'teak-assets',
-    cacheControl: 'max-age=31536000',
-  })
-);
 
 // Auth middleware - extract user and session from request
 app.use('*', async (c, next) => {
@@ -91,6 +82,15 @@ app.use('*', async (c, next) => {
 // Better Auth handler - handle all HTTP methods
 app.all('/api/auth/*', (c) => auth.handler(c.req.raw));
 
+// Helper function to set audio CORS headers
+const setAudioCorsHeaders = (c: any, contentType: string) => {
+  c.header('Content-Type', contentType);
+  c.header('Accept-Ranges', 'bytes');
+  c.header('Access-Control-Allow-Origin', '*');
+  c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  c.header('Access-Control-Allow-Headers', 'Range, Content-Range, Content-Length');
+};
+
 // API routes
 app.route('/api/users', userRoutes);
 app.route('/api/cards', cardRoutes);
@@ -100,49 +100,20 @@ app.route('/api', healthRoutes);
 app.use('/api/data/*', async (c, next) => {
   const path = c.req.path;
   const filePath = path.replace('/api/data', '');
-
-  console.log(`[Uploads] Serving file: ${filePath}`);
-
-  // Get file extension to determine content type
   const ext = filePath.split('.').pop()?.toLowerCase();
 
   // Set appropriate content type and headers for audio files
-  if (ext === 'm4a' || ext === 'mp4' || ext === 'aac') {
-    c.header('Content-Type', 'audio/mp4');
-    c.header('Accept-Ranges', 'bytes');
-    c.header('Access-Control-Allow-Origin', '*');
-    c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    c.header(
-      'Access-Control-Allow-Headers',
-      'Range, Content-Range, Content-Length'
-    );
-  } else if (ext === 'mp3') {
-    c.header('Content-Type', 'audio/mpeg');
-    c.header('Accept-Ranges', 'bytes');
-    c.header('Access-Control-Allow-Origin', '*');
-    c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    c.header(
-      'Access-Control-Allow-Headers',
-      'Range, Content-Range, Content-Length'
-    );
-  } else if (ext === 'wav') {
-    c.header('Content-Type', 'audio/wav');
-    c.header('Accept-Ranges', 'bytes');
-    c.header('Access-Control-Allow-Origin', '*');
-    c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    c.header(
-      'Access-Control-Allow-Headers',
-      'Range, Content-Range, Content-Length'
-    );
-  } else if (ext === 'ogg') {
-    c.header('Content-Type', 'audio/ogg');
-    c.header('Accept-Ranges', 'bytes');
-    c.header('Access-Control-Allow-Origin', '*');
-    c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    c.header(
-      'Access-Control-Allow-Headers',
-      'Range, Content-Range, Content-Length'
-    );
+  const audioTypes: Record<string, string> = {
+    'm4a': 'audio/mp4',
+    'mp4': 'audio/mp4',
+    'aac': 'audio/mp4',
+    'mp3': 'audio/mpeg',
+    'wav': 'audio/wav',
+    'ogg': 'audio/ogg',
+  };
+
+  if (ext && audioTypes[ext]) {
+    setAudioCorsHeaders(c, audioTypes[ext]);
   }
 
   return next();
@@ -153,7 +124,6 @@ app.use(
   serveStatic({
     root: '/data',
     rewriteRequestPath: (path) => path.replace('/api/data', ''),
-    onNotFound: (path) => console.log(`Upload file not found: ${path}`),
   })
 );
 
@@ -176,54 +146,13 @@ app.get('/api/protected', (c) => {
   });
 });
 
-// Health check endpoint
-app.get('/api/health', (c) => {
-  return c.json({
-    service: 'teak',
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    auth: 'better-auth enabled',
-  });
-});
 
-// Test endpoint to check file serving
-app.get('/api/test-audio/:path', async (c) => {
-  const path = c.req.param('path');
-  const uploadPath = '/data';
-  const fullPath = `${uploadPath}/${path}`;
-
-  try {
-    const file = Bun.file(fullPath);
-    const exists = await file.exists();
-    const size = exists ? file.size : 0;
-
-    return c.json({
-      path,
-      fullPath,
-      exists,
-      size,
-      type: file.type,
-      url: `/api/data/${path}`,
-    });
-  } catch (error) {
-    return c.json(
-      {
-        error: 'Failed to check file',
-        path,
-        fullPath,
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      500
-    );
-  }
-});
 
 // Serve static files with optimized caching
 app.use(
   '/assets/*',
   serveStatic({
     root: './apps/web/dist',
-    onNotFound: (path) => console.log(`Static file not found: ${path}`),
   })
 );
 
