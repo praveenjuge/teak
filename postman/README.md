@@ -5,12 +5,13 @@ This directory contains a comprehensive Postman collection for testing the Teak 
 ## Files
 
 - **`Teak-API.postman_collection.json`** - Main collection with all API endpoints
-- **`Teak-Local.postman_environment.json`** - Environment for local development (localhost:3001)
+- **`Teak-Local.postman_environment.json`** - Environment for local development
 - **`Teak-Production.postman_environment.json`** - Template for production environment
 
 ## How to Import
 
 ### 1. Import Collection
+
 1. Open Postman
 2. Click **Import** button
 3. Select **Upload Files**
@@ -18,6 +19,7 @@ This directory contains a comprehensive Postman collection for testing the Teak 
 5. Click **Import**
 
 ### 2. Import Environment
+
 1. In Postman, click the **Environment** tab
 2. Click **Import**
 3. Select `Teak-Local.postman_environment.json` (or production)
@@ -25,6 +27,7 @@ This directory contains a comprehensive Postman collection for testing the Teak 
 5. Select the imported environment from the dropdown
 
 ### 3. For Production
+
 1. Import `Teak-Production.postman_environment.json`
 2. Update the `baseUrl` variable with your production domain
 3. Update user credentials as needed
@@ -32,12 +35,14 @@ This directory contains a comprehensive Postman collection for testing the Teak 
 ## Collection Structure
 
 ### 🔐 Authentication
+
 - **Sign Up** - Create new user account
 - **Sign In** - Login with email/password
 - **Get Session** - Retrieve current session info
 - **Sign Out** - Logout and clear session
 
 ### 📋 Cards Management
+
 - **List All Cards** - Get paginated list with search/filter
 - **Search Cards** - Advanced full-text search with ranking
 - **Get Card by ID** - Retrieve specific card
@@ -51,31 +56,33 @@ This directory contains a comprehensive Postman collection for testing the Teak 
 - **Get Card Statistics** - View card counts by type
 
 ### 🔧 Utility
+
 - **Health Check** - Verify API status
 - **Protected Route Test** - Test authentication
 
 ## Environment Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `baseUrl` | API base URL | `http://localhost:3001` |
-| `userEmail` | Test user email | `test@example.com` |
-| `userName` | Test user name | `Test User` |
-| `userPassword` | Test password | `password123` |
-| `sessionToken` | Auto-populated session token | (auto-filled) |
-| `cardId` | Card ID for testing | `1` |
-| `lastCreatedCardId` | Last created card ID | (auto-filled) |
-| `limit` | Pagination limit | `10` |
-| `offset` | Pagination offset | `0` |
+| Variable            | Description                  | Example            |
+| ------------------- | ---------------------------- | ------------------ |
+| `userEmail`         | Test user email              | `test@example.com` |
+| `userName`          | Test user name               | `Test User`        |
+| `userPassword`      | Test password                | `password123`      |
+| `sessionToken`      | Auto-populated session token | (auto-filled)      |
+| `cardId`            | Card ID for testing          | `1`                |
+| `lastCreatedCardId` | Last created card ID         | (auto-filled)      |
+| `limit`             | Pagination limit             | `10`               |
+| `offset`            | Pagination offset            | `0`                |
 
 ## Usage Workflow
 
 ### 1. Authentication Flow
+
 1. Run **Sign Up** to create a new user (or use existing)
 2. Session token is automatically saved to environment
 3. All subsequent requests use this token automatically
 
 ### 2. Testing Cards
+
 1. Run **Create Text Card** (or other card types)
 2. The card ID is saved as `lastCreatedCardId`
 3. Test **Update Card** and **Delete Card** using this ID
@@ -83,6 +90,7 @@ This directory contains a comprehensive Postman collection for testing the Teak 
 5. Test **Search Cards** with different queries
 
 ### 3. Search Examples
+
 - Search for "React": `{{baseUrl}}/api/cards/search?q=React`
 - Filter by type: `{{baseUrl}}/api/cards?type=audio`
 - Pagination: `{{baseUrl}}/api/cards?limit=5&offset=10`
@@ -90,6 +98,7 @@ This directory contains a comprehensive Postman collection for testing the Teak 
 ## Card Types & Data Structures
 
 ### Text Card
+
 ```json
 {
   "type": "text",
@@ -105,6 +114,7 @@ This directory contains a comprehensive Postman collection for testing the Teak 
 ```
 
 ### Audio Card
+
 ```json
 {
   "type": "audio",
@@ -122,6 +132,7 @@ This directory contains a comprehensive Postman collection for testing the Teak 
 ```
 
 ### URL Card
+
 ```json
 {
   "type": "url",
@@ -134,6 +145,7 @@ This directory contains a comprehensive Postman collection for testing the Teak 
 ```
 
 ### Image Card
+
 ```json
 {
   "type": "image",
@@ -147,6 +159,7 @@ This directory contains a comprehensive Postman collection for testing the Teak 
 ```
 
 ### Video Card
+
 ```json
 {
   "type": "video",
@@ -162,6 +175,7 @@ This directory contains a comprehensive Postman collection for testing the Teak 
 ## Authentication
 
 The collection uses **Better Auth** session-based authentication:
+
 - Sessions are managed via cookies
 - Session token is automatically extracted and stored
 - All protected routes use the stored session token
@@ -179,11 +193,13 @@ The collection uses **Better Auth** session-based authentication:
 ## Troubleshooting
 
 ### Common Issues
+
 - **401 Unauthorized**: Run Sign In/Sign Up first
 - **404 Not Found**: Check if the API server is running
 - **400 Bad Request**: Verify request body structure matches schema
 
 ### Environment Setup
+
 - Ensure the correct environment is selected
 - Verify `baseUrl` points to running API server
 - Check that user credentials are valid

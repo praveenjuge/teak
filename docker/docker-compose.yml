@@ -4,7 +4,6 @@ services:
       context: ../
       dockerfile: docker/Dockerfile
     environment:
-      - BACKEND_PORT=3001
       - DATABASE_URL=postgresql://teak_user:teak_password@db:5432/teak_db
       - BETTER_AUTH_SECRET=your-super-secret-key-change-this-in-production
       - BETTER_AUTH_URL=http://localhost:80

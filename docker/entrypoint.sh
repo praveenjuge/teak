@@ -23,11 +23,9 @@ if [ -z "$BETTER_AUTH_SECRET" ]; then
 fi
 
 # Set default values for optional variables
-export BACKEND_PORT=${BACKEND_PORT:-3001}
 export BETTER_AUTH_URL=${BETTER_AUTH_URL:-"http://localhost:80"}
 
 echo -e "${YELLOW}📋 Configuration:${NC}"
-echo "  BACKEND_PORT: $BACKEND_PORT"
 echo "  BETTER_AUTH_URL: $BETTER_AUTH_URL"
 echo "  DATABASE_URL: [REDACTED]"
 
@@ -85,9 +83,9 @@ chown -R appuser:appgroup /app/logs
 
 echo -e "${GREEN}🎉 Starting services with supervisord...${NC}"
 echo -e "${YELLOW}📊 You can monitor the application at:${NC}"
-echo -e "  🌐 Frontend: http://localhost:${PORT}"
-echo -e "  🔌 API: http://localhost:${PORT}/api"
-echo -e "  ❤️  Health: http://localhost:${PORT}/health"
+echo -e "  🌐 Frontend: http://localhost:"
+echo -e "  🔌 API: http://localhost:/api"
+echo -e "  ❤️  Health: http://localhost:/health"
 
 # Start supervisord
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
