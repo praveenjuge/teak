@@ -84,7 +84,9 @@ RUN rm -f /etc/nginx/conf.d/default.conf.dpkg-dist
 RUN chmod +x /app/entrypoint.sh
 
 # Set environment variables with defaults
-ENV DATABASE_URL="" \
+ENV POSTGRES_DB="" \
+    POSTGRES_USER="" \
+    POSTGRES_PASSWORD="" \
     BETTER_AUTH_SECRET="" \
     BETTER_AUTH_URL=""
 

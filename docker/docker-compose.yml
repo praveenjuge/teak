@@ -1,56 +1,33 @@
 services:
   teak:
-    build:
-      context: ../
-      dockerfile: docker/Dockerfile
+    image: "praveenjuge/teak:latest"
     environment:
-      - DATABASE_URL=postgresql://teak_user:teak_password@db:5432/teak_db
+      - POSTGRES_DB=teak_db
+      - POSTGRES_USER=teak_user
+      - POSTGRES_PASSWORD=teak_password
       - BETTER_AUTH_SECRET=your-super-secret-key-change-this-in-production
-      - BETTER_AUTH_URL=http://localhost:80
+      - BETTER_AUTH_URL=your-prod-url
       - UPLOAD_PATH=/app/uploads
     volumes:
       - uploads_data:/app/uploads
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - teak-network
-    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/health"]
-      interval: 30s
+      interval: 5s
       timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # PostgreSQL Database
-  Database:
+      retries: 5
+  db:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: teak_user
-      POSTGRES_PASSWORD: teak_password
-      POSTGRES_DB: teak_db
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+      - POSTGRES_DB=teak_db
+      - POSTGRES_USER=teak_user
+      - POSTGRES_PASSWORD=teak_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - teak-network
-    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U teak_user -d teak_db"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
-
-# Networks
-networks:
-  teak-network:
-    driver: bridge
-
-# Volumes
-volumes:
-  postgres_data:
-    driver: local
-  uploads_data:
-    driver: local

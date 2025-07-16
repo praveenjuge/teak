@@ -6,12 +6,10 @@ services:
       POSTGRES_USER: teak_user
       POSTGRES_PASSWORD: teak_password
       POSTGRES_DB: teak_db
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
     networks:
       - teak-dev-network
-    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U teak_user -d teak_db"]
       interval: 10s
@@ -26,7 +24,9 @@ services:
     image: oven/bun
     working_dir: /app
     environment:
-      - DATABASE_URL=postgresql://teak_user:teak_password@db:5432/teak_db
+      - POSTGRES_DB=teak_db
+      - POSTGRES_USER=teak_user
+      - POSTGRES_PASSWORD=teak_password
       - BETTER_AUTH_SECRET=dev-secret-key-change-in-production
       - BETTER_AUTH_URL=http://localhost:3001
       - UPLOAD_PATH=/app/uploads
@@ -39,7 +39,6 @@ services:
         condition: service_healthy
     networks:
       - teak-dev-network
-    restart: unless-stopped
     ports:
       - "3001:3001"
     command: sh -c "bun install && echo 'Waiting for database...' && sleep 5 && echo 'Running migrations...' && bun run db:migrate && echo 'Starting development server...' && bun run db:seed && bun run dev"

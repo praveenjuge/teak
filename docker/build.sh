@@ -127,7 +127,9 @@ echo -e "${YELLOW}🧪 Testing the built image...${NC}"
 # Check if the image can start
 echo "  Testing image startup..."
 CONTAINER_ID=$(docker run -d \
-    -e DATABASE_URL="postgresql://test:test@localhost:5432/test" \
+    -e POSTGRES_DB="test" \
+    -e POSTGRES_USER="test" \
+    -e POSTGRES_PASSWORD="test" \
     -e BETTER_AUTH_SECRET="test-secret-for-build-test" \
     -e BETTER_AUTH_URL="http://localhost:80" \
     "$FULL_IMAGE_NAME" || echo "failed")
@@ -186,14 +188,18 @@ echo "     docker-compose up"
 echo ""
 echo "  2. Run standalone:"
 echo "     docker run -p 80:80 \\"
-echo "       -e DATABASE_URL='postgresql://...' \\"
+echo "       -e POSTGRES_USER='your-user' \\"
+echo "       -e POSTGRES_PASSWORD='your-password' \\"
+echo "       -e POSTGRES_DB='your-db' \\"
 echo "       -e BETTER_AUTH_SECRET='your-secret' \\"
 echo "       $FULL_IMAGE_NAME"
 echo ""
 if [[ "$PUSH_TO_HUB" == "true" ]]; then
     echo "  3. Deploy anywhere:"
     echo "     docker run -p 80:80 \\"
-    echo "       -e DATABASE_URL='postgresql://...' \\"
+    echo "       -e POSTGRES_USER='your-user' \\"
+    echo "       -e POSTGRES_PASSWORD='your-password' \\"
+    echo "       -e POSTGRES_DB='your-db' \\"
     echo "       -e BETTER_AUTH_SECRET='your-secret' \\"
     echo "       $FULL_IMAGE_NAME"
 fi

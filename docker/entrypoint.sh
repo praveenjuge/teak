@@ -10,9 +10,18 @@ NC='\033[0m' # No Color
 echo -e "${GREEN}🚀 Starting Teak Application...${NC}"
 
 # Validate required environment variables
-if [ -z "$DATABASE_URL" ]; then
-    echo -e "${RED}❌ ERROR: DATABASE_URL environment variable is required${NC}"
-    echo "Example: DATABASE_URL=postgresql://user:password@host:5432/database"
+if [ -z "$POSTGRES_USER" ]; then
+    echo -e "${RED}❌ ERROR: POSTGRES_USER environment variable is required${NC}"
+    exit 1
+fi
+
+if [ -z "$POSTGRES_PASSWORD" ]; then
+    echo -e "${RED}❌ ERROR: POSTGRES_PASSWORD environment variable is required${NC}"
+    exit 1
+fi
+
+if [ -z "$POSTGRES_DB" ]; then
+    echo -e "${RED}❌ ERROR: POSTGRES_DB environment variable is required${NC}"
     exit 1
 fi
 
@@ -27,11 +36,14 @@ export BETTER_AUTH_URL=${BETTER_AUTH_URL:-"http://localhost:80"}
 
 echo -e "${YELLOW}📋 Configuration:${NC}"
 echo "  BETTER_AUTH_URL: $BETTER_AUTH_URL"
-echo "  DATABASE_URL: [REDACTED]"
+echo "  POSTGRES_HOST: db"
+echo "  POSTGRES_PORT: 5432"
+echo "  POSTGRES_DB: $POSTGRES_DB"
+echo "  POSTGRES_USER: $POSTGRES_USER"
 
 # Wait for database to be ready
 echo -e "${YELLOW}⏳ Waiting for database to be ready...${NC}"
-until pg_isready -d "$DATABASE_URL" -q; do
+until pg_isready -h "db" -p "5432" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -q; do
     echo "  Database not ready, waiting..."
     sleep 2
 done
