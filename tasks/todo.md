@@ -1,14 +1,14 @@
-# File Upload Docker Persistence Implementation
+# File Data Docker Persistence Implementation
 
 ## Problem Analysis
-Currently, the backend uploads files to `./uploads` directory. In Docker, this directory is inside the container, so when the container is killed/restarted, all uploaded files are lost. We need a solution that:
-- Makes uploads directory persist across Docker restarts
+Currently, the backend uploads files to `./data` directory. In Docker, this directory is inside the container, so when the container is killed/restarted, all uploaded files are lost. We need a solution that:
+- Makes data directory persist across Docker restarts
 - Maintains compatibility with local development
 - Keeps implementation simple
 
 ## Current Implementation
-- Files uploaded to `./uploads` with date-based structure (`uploads/YYYY/MM/DD/filename`)
-- Files served via `/api/uploads/*` endpoint
+- Files uploaded to `./data` with date-based structure (`data/YYYY/MM/DD/filename`)
+- Files served via `/api/data/*` endpoint
 - LocalFileUploadService handles file storage
 - No Docker volume mounting currently exists
 
@@ -19,23 +19,23 @@ Currently, the backend uploads files to `./uploads` directory. In Docker, this d
 - [COMPLETED] Identified LocalFileUploadService and file upload middleware
 - [COMPLETED] Found Docker configuration but no volume mounting
 
-### ⏳ 2. Create docker-compose.yml file with volume mounting for uploads
+### ⏳ 2. Create docker-compose.yml file with volume mounting for data
 - Create docker-compose.yml in project root
-- Add volume mounting for uploads directory
+- Add volume mounting for data directory
 - Configure services for backend and other components
 
-### ⏳ 3. Add environment variable configuration for upload path
-- Add UPLOAD_PATH environment variable support
-- Default to `./uploads` for local development
+### ⏳ 3. Add environment variable configuration for data path
+- Add DATA_PATH environment variable support
+- Default to `./data` for local development
 - Allow Docker to override with mounted path
 
-### ⏳ 4. Update backend to use configurable upload path
+### ⏳ 4. Update backend to use configurable data path
 - Modify LocalFileUploadService to use environment-based path
 - Update static file serving configuration
 - Ensure path resolution works correctly
 
 ### ⏳ 5. Test the solution locally without Docker
-- Verify uploads still work with default `./uploads` path
+- Verify uploads still work with default `./data` path
 - Test file upload and serving endpoints
 - Ensure no regression in local development
 
@@ -60,19 +60,19 @@ Currently, the backend uploads files to `./uploads` directory. In Docker, this d
 ### Changes Made:
 
 #### 1. Docker Compose Configuration (`docker/docker-compose.yml`)
-- Added `UPLOAD_PATH=/app/uploads` environment variable
-- Added volume mounting: `uploads_data:/app/uploads`
-- Created persistent volume: `uploads_data` with local driver
+- Added `DATA_PATH=/app/data` environment variable
+- Added volume mounting: `data_storage:/app/data`
+- Created persistent volume: `data_storage` with local driver
 
 #### 2. Backend Environment Configuration
-- Updated `LocalFileUploadService.ts:14` - Constructor now uses `process.env.UPLOAD_PATH || './uploads'`
-- Updated `index.ts:92` - Static file serving uses `process.env.UPLOAD_PATH || './uploads'`
-- Updated `index.ts:129` - Test endpoint uses configurable upload path
+- Updated `LocalFileUploadService.ts:14` - Constructor now uses `process.env.DATA_PATH || './data'`
+- Updated `index.ts:92` - Static file serving uses `process.env.DATA_PATH || './data'`
+- Updated `index.ts:129` - Test endpoint uses configurable data path
 
 #### 3. File Persistence Solution
-- **Local Development**: Files stored in `./uploads` (default behavior unchanged)
-- **Docker Production**: Files stored in persistent Docker volume mounted at `/app/uploads`
-- **Environment Variable**: `UPLOAD_PATH` allows configuration of upload directory
+- **Local Development**: Files stored in `./data` (default behavior unchanged)
+- **Docker Production**: Files stored in persistent Docker volume mounted at `/app/data`
+- **Environment Variable**: `DATA_PATH` allows configuration of data directory
 
 ### Usage:
 
@@ -80,7 +80,7 @@ Currently, the backend uploads files to `./uploads` directory. In Docker, this d
 ```bash
 cd backend
 bun dev
-# Files uploaded to ./uploads as before
+# Files uploaded to ./data as before
 ```
 
 #### Docker Development/Production:
@@ -94,14 +94,14 @@ docker-compose up --build
 ### Verification:
 - ✅ Local backend tested successfully
 - ✅ Docker compose builds and runs successfully  
-- ✅ Persistent volume `docker_uploads_data` created
-- ✅ Volume mounted at `/app/uploads` in container
+- ✅ Persistent volume `docker_data_storage` created
+- ✅ Volume mounted at `/app/data` in container
 - ✅ Environment variables configured correctly
 
 ### Technical Details:
-- **Volume Location**: `/var/lib/docker/volumes/docker_uploads_data/_data`
-- **Container Path**: `/app/uploads`
-- **Environment Variable**: `UPLOAD_PATH=/app/uploads`
+- **Volume Location**: `/var/lib/docker/volumes/docker_data_storage/_data`
+- **Container Path**: `/app/data`
+- **Environment Variable**: `DATA_PATH=/app/data`
 - **Backward Compatibility**: Maintained for local development
 
 **Status**: ✅ Implementation complete and tested
@@ -125,7 +125,7 @@ Following the persistent file uploads implementation, I created a complete local
 
 2. **Enhanced Backend Configuration**:
    - Fixed TypeScript type errors with proper environment variable access
-   - Updated all `process.env.UPLOAD_PATH` to `process.env['UPLOAD_PATH']`
+   - Updated all `process.env.DATA_PATH` to `process.env['DATA_PATH']`
    - Removed unused imports and variables
 
 3. **Frontend Development Setup**:

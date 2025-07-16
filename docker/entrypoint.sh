@@ -61,11 +61,11 @@ else
     exit 1
 fi
 
-# Create uploads directory if it doesn't exist
-echo -e "${YELLOW}📁 Setting up uploads directory...${NC}"
-mkdir -p /app/backend/uploads/{audio,video,image}
-chown -R appuser:appgroup /app/backend/uploads
-chmod -R 755 /app/backend/uploads
+# Create data directory if it doesn't exist
+echo -e "${YELLOW}📁 Setting up data directory...${NC}"
+mkdir -p /data/{audio,video,image}
+chown -R appuser:appgroup /data
+chmod -R 755 /data
 
 # Verify backend build exists
 if [ ! -f "/app/backend/dist/index.js" ]; then

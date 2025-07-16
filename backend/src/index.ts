@@ -97,9 +97,9 @@ app.route('/api/cards', cardRoutes);
 app.route('/api', healthRoutes);
 
 // Serve uploaded files with proper headers for audio
-app.use('/api/uploads/*', async (c, next) => {
+app.use('/api/data/*', async (c, next) => {
   const path = c.req.path;
-  const filePath = path.replace('/api/uploads', '');
+  const filePath = path.replace('/api/data', '');
 
   console.log(`[Uploads] Serving file: ${filePath}`);
 
@@ -149,10 +149,10 @@ app.use('/api/uploads/*', async (c, next) => {
 });
 
 app.use(
-  '/api/uploads/*',
+  '/api/data/*',
   serveStatic({
-    root: process.env['UPLOAD_PATH'] || './uploads',
-    rewriteRequestPath: (path) => path.replace('/api/uploads', ''),
+    root: process.env['UPLOAD_PATH'] || '/data',
+    rewriteRequestPath: (path) => path.replace('/api/data', ''),
     onNotFound: (path) => console.log(`Upload file not found: ${path}`),
   })
 );
@@ -189,7 +189,7 @@ app.get('/api/health', (c) => {
 // Test endpoint to check file serving
 app.get('/api/test-audio/:path', async (c) => {
   const path = c.req.param('path');
-  const uploadPath = process.env['UPLOAD_PATH'] || './uploads';
+  const uploadPath = process.env['UPLOAD_PATH'] || '/data';
   const fullPath = `${uploadPath}/${path}`;
 
   try {
@@ -203,7 +203,7 @@ app.get('/api/test-audio/:path', async (c) => {
       exists,
       size,
       type: file.type,
-      url: `/api/uploads/${path}`,
+      url: `/api/data/${path}`,
     });
   } catch (error) {
     return c.json(

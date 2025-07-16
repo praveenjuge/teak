@@ -7,9 +7,9 @@ services:
       - POSTGRES_PASSWORD=teak_password
       - BETTER_AUTH_SECRET=your-super-secret-key-change-this-in-production
       - BETTER_AUTH_URL=your-prod-url
-      - UPLOAD_PATH=/app/uploads
+      - UPLOAD_PATH=/data
     volumes:
-      - uploads_data:/app/uploads
+      - data_storage:/data
     depends_on:
       db:
         condition: service_healthy
@@ -31,3 +31,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+volumes:
+  data_storage:
+    driver: local
+  postgres_data:
+    driver: local

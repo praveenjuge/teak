@@ -59,7 +59,7 @@ export class VideoCardProcessor extends CardProcessor {
         'video/3gp',
         'video/quicktime',
       ],
-      generateUrl: (path) => `/api/uploads/${path}`,
+      generateUrl: (path) => `/api/data/${path}`,
     });
 
     // Extract video metadata
@@ -87,7 +87,7 @@ export class VideoCardProcessor extends CardProcessor {
 
   private async extractVideoMetadata(filePath: string): Promise<VideoMetadata> {
     try {
-      const fullPath = `./uploads/${filePath}`;
+      const fullPath = `/data/${filePath}`;
       const { stdout } = await execFileAsync(ffprobe.path, [
         '-v',
         'quiet',

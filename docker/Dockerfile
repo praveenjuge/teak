@@ -55,10 +55,12 @@ RUN addgroup -g 1001 -S appgroup && \
     adduser -S appuser -u 1001 -G appgroup
 
 # Create necessary directories with proper permissions
-RUN mkdir -p /app/frontend /app/backend /app/logs /var/log/supervisor /app/backend/uploads \
+RUN mkdir -p /app/frontend /app/backend /app/logs /var/log/supervisor /data \
     && chown -R appuser:appgroup /app \
     && chmod -R 755 /app \
-    && chown -R appuser:appgroup /var/log/supervisor
+    && chown -R appuser:appgroup /var/log/supervisor \
+    && chown -R appuser:appgroup /data \
+    && chmod -R 755 /data
 
 # Copy built frontend assets from frontend-builder
 COPY --from=frontend-builder --chown=appuser:appgroup /app/web/dist /app/frontend

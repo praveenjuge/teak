@@ -29,11 +29,11 @@ services:
       - POSTGRES_PASSWORD=teak_password
       - BETTER_AUTH_SECRET=dev-secret-key-change-in-production
       - BETTER_AUTH_URL=http://localhost:3001
-      - UPLOAD_PATH=/app/uploads
+      - UPLOAD_PATH=/data
     volumes:
       - ../backend:/app
       - backend_node_modules:/app/node_modules
-      - uploads_dev_data:/app/uploads
+      - data_dev_storage:/data
     depends_on:
       db:
         condition: service_healthy
@@ -96,7 +96,7 @@ networks:
 volumes:
   postgres_dev_data:
     driver: local
-  uploads_dev_data:
+  data_dev_storage:
     driver: local
   backend_node_modules:
     driver: local

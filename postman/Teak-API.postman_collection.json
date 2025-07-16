@@ -569,7 +569,7 @@
                   "",
                   "pm.test('Media URL is accessible', function () {",
                   "    const jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.data.media_url).to.include('/api/uploads/audio/');",
+                  "    pm.expect(jsonData.data.media_url).to.include('/api/data/audio/');",
                   "});"
                 ]
               }
@@ -643,7 +643,7 @@
                   "",
                   "pm.test('Media URL is accessible', function () {",
                   "    const jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.data.media_url).to.include('/api/uploads/video/');",
+                  "    pm.expect(jsonData.data.media_url).to.include('/api/data/video/');",
                   "});",
                   "",
                   "pm.test('Video metadata is extracted', function () {",
@@ -723,7 +723,7 @@
                   "",
                   "pm.test('Media URL is accessible', function () {",
                   "    const jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.data.media_url).to.include('/api/uploads/image/');",
+                  "    pm.expect(jsonData.data.media_url).to.include('/api/data/image/');",
                   "});"
                 ]
               }

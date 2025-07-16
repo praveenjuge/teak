@@ -40,7 +40,7 @@ export class ImageCardProcessor extends CardProcessor {
         'image/bmp',
         'image/tiff',
       ],
-      generateUrl: (path) => `/api/uploads/${path}`,
+      generateUrl: (path) => `/api/data/${path}`,
     });
 
     return {

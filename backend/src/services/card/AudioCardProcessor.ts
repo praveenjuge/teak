@@ -56,7 +56,7 @@ export class AudioCardProcessor extends CardProcessor {
         'audio/x-m4a',
         'video/webm', // Allow video/webm as it's often used for audio-only recordings
       ],
-      generateUrl: (path) => `/api/uploads/${path}`,
+      generateUrl: (path) => `/api/data/${path}`,
     });
 
     // Extract audio metadata
@@ -83,7 +83,7 @@ export class AudioCardProcessor extends CardProcessor {
 
   private async extractAudioMetadata(filePath: string): Promise<AudioMetadata> {
     try {
-      const uploadPath = process.env['UPLOAD_PATH'] || './uploads';
+      const uploadPath = process.env['UPLOAD_PATH'] || '/data';
       const fullPath = `${uploadPath}/${filePath}`;
       const { stdout } = await execFileAsync(ffprobe.path, [
         '-v',
