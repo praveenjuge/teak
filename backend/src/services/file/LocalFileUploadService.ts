@@ -11,7 +11,7 @@ export class LocalFileUploadService extends FileUploadService {
 
   constructor(uploadsDir?: string) {
     super();
-    this.uploadsDir = uploadsDir || process.env['UPLOAD_PATH'] || '/data';
+    this.uploadsDir = uploadsDir || '/data';
   }
 
   async uploadFile(file: File, options: UploadOptions): Promise<UploadedFile> {
