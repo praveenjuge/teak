@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { type Context, Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { serveStatic } from 'hono/bun';
 import { cors } from 'hono/cors';
@@ -82,7 +82,7 @@ app.use('*', async (c, next) => {
 app.all('/api/auth/*', (c) => auth.handler(c.req.raw));
 
 // Helper function to set audio CORS headers
-const setAudioCorsHeaders = (c: any, contentType: string) => {
+const setAudioCorsHeaders = (c: Context, contentType: string) => {
   c.header('Content-Type', contentType);
   c.header('Accept-Ranges', 'bytes');
   c.header('Access-Control-Allow-Origin', '*');

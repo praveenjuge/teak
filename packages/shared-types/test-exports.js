@@ -1,3 +1,3 @@
-import * as types from '@teak/shared-types';
+import index from '@teak/shared-types';
 
-console.log(Object.keys(types));
+console.log(Object.keys(index));

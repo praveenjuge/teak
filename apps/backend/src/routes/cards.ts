@@ -1,4 +1,5 @@
 import {
+  type CardType,
   cardIdSchema,
   createCardSchema,
   createCardWithFileSchema,
@@ -7,14 +8,15 @@ import {
 } from '@teak/shared-types';
 import { and, eq, isNull } from 'drizzle-orm';
 import { Hono } from 'hono';
+import type { auth } from '../auth';
 import { db } from '../db';
 import { cards } from '../db/schema';
 import {
   fileUploadMiddleware,
   getFormField,
   getUploadedFile,
-} from '../middleware/fileUpload';
-import { CardService } from '../services/card/CardService';
+} from '../middleware/file-upload';
+import { CardService } from '../services/card/card-service';
 import { DatabaseSearchService } from '../services/search/DatabaseSearchService';
 import {
   validateBody,
@@ -26,9 +28,9 @@ import {
 // Create cards router with type-safe context
 export const cardRoutes = new Hono<{
   Variables: {
-    user: any;
-    session: any;
-    uploadedFiles: any[];
+    user: typeof auth.$Infer.Session.user | null;
+    session: typeof auth.$Infer.Session.session | null;
+    uploadedFiles: File[];
     formData: FormData;
   };
 }>();
@@ -144,7 +146,7 @@ cardRoutes.post('/', fileUploadMiddleware, async (c) => {
       // Create card using service
       const newCard = await cardService.createCard(
         {
-          type: formData.type as any,
+          type: formData.type as CardType,
           data: formData.data || {},
           metaInfo: formData.metaInfo,
           file,

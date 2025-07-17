@@ -1,6 +1,6 @@
 import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
 import { LocalFileUploadService } from '../file/LocalFileUploadService.js';
-import { CardProcessor } from './CardProcessor.js';
+import { CardProcessor } from './card-processor.js';
 
 export class ImageCardProcessor extends CardProcessor {
   private fileUploadService: LocalFileUploadService;

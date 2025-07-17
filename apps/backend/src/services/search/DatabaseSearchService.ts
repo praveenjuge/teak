@@ -1,8 +1,8 @@
 import type { SearchOptions, SearchResult } from '@teak/shared-types';
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, type SQL, sql } from 'drizzle-orm';
 import { db } from '../../db';
 import { cards } from '../../db/schema';
-import { SearchAndSortService } from './SearchAndSortService';
+import { SearchAndSortService } from './search-and-sort-service';
 
 export class DatabaseSearchService extends SearchAndSortService {
   async searchCards(options: SearchOptions): Promise<SearchResult> {
@@ -26,13 +26,19 @@ export class DatabaseSearchService extends SearchAndSortService {
 
     // Determine if we need full-text search with ranking
     if (query) {
-      return this.searchWithRanking(whereClause, query, limit, offset);
+      return await this.searchWithRanking(whereClause, query, limit, offset);
     }
-    return this.searchWithSorting(whereClause, sort, order, limit, offset);
+    return await this.searchWithSorting(
+      whereClause,
+      sort,
+      order,
+      limit,
+      offset
+    );
   }
 
   private async searchWithRanking(
-    whereClause: any,
+    whereClause: SQL,
     query: string,
     limit: number,
     offset: number
@@ -109,14 +115,14 @@ export class DatabaseSearchService extends SearchAndSortService {
   }
 
   private async searchWithSorting(
-    whereClause: any,
+    whereClause: SQL,
     sort: string,
     order: string,
     limit: number,
     offset: number
   ): Promise<SearchResult> {
     // Regular sorting without search
-    let sortColumn;
+    let sortColumn = cards.createdAt; // Default to created_at
     if (sort === 'created_at') {
       sortColumn = cards.createdAt;
     } else if (sort === 'updated_at') {

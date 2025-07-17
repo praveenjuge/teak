@@ -3,7 +3,7 @@ import { promisify } from 'node:util';
 import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
 import ffprobe from 'ffprobe-static';
 import { LocalFileUploadService } from '../file/LocalFileUploadService.js';
-import { CardProcessor } from './CardProcessor.js';
+import { CardProcessor } from './card-processor.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -15,6 +15,25 @@ interface VideoMetadata {
   fps?: number;
   codec?: string;
   format?: string;
+}
+
+interface FFProbeStream {
+  codec_type: string;
+  codec_name?: string;
+  width?: string;
+  height?: string;
+  r_frame_rate?: string;
+}
+
+interface FFProbeFormat {
+  duration?: string;
+  bit_rate?: string;
+  format_name?: string;
+}
+
+interface FFProbeResult {
+  streams?: FFProbeStream[];
+  format?: FFProbeFormat;
 }
 
 export class VideoCardProcessor extends CardProcessor {
@@ -98,9 +117,9 @@ export class VideoCardProcessor extends CardProcessor {
         fullPath,
       ]);
 
-      const result = JSON.parse(stdout);
+      const result = JSON.parse(stdout) as FFProbeResult;
       const videoStream = result.streams?.find(
-        (stream: any) => stream.codec_type === 'video'
+        (stream: FFProbeStream) => stream.codec_type === 'video'
       );
 
       if (!videoStream) {

@@ -1,4 +1,4 @@
-import type { CardType } from './cards';
+import type { CardType, DbCardResponse } from './cards';
 
 // Search service interfaces
 export interface SearchOptions {
@@ -12,7 +12,7 @@ export interface SearchOptions {
 }
 
 export interface SearchResult {
-  cards: any[];
+  cards: DbCardResponse[];
   total: number;
   limit: number;
   offset: number;

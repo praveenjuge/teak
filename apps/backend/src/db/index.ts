@@ -1,6 +1,13 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import * as schema from './schema';
+import {
+  accounts,
+  cards,
+  cardType,
+  sessions,
+  users,
+  verifications,
+} from './schema';
 
 // Create PostgreSQL connection pool
 const buildConnectionString = () => {
@@ -16,6 +23,7 @@ export const pool = new Pool({
 });
 
 // Create Drizzle database instance
+const schema = { users, sessions, accounts, verifications, cards, cardType };
 export const db = drizzle({ client: pool, schema });
 
 // Export the schema for use in other parts of the application

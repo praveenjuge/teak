@@ -15,7 +15,7 @@ import {
   users as userSchema,
   verifications as verificationSchema,
 } from './db/schema';
-import { validateUserRegistration } from './services/userRegistration';
+import { validateUserRegistration } from './services/user-registration';
 
 export const auth = betterAuth({
   plugins: [expo()],

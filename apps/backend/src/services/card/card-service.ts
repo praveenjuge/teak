@@ -6,10 +6,10 @@ import type {
 } from '@teak/shared-types';
 import { db } from '../../db/index.js';
 import { cards } from '../../db/schema.js';
-import { AudioCardProcessor } from './AudioCardProcessor.js';
-import type { CardProcessor } from './CardProcessor.js';
-import { ImageCardProcessor } from './ImageCardProcessor.js';
-import { TextCardProcessor } from './TextCardProcessor.js';
+import { AudioCardProcessor } from './audio-card-processor.js';
+import type { CardProcessor } from './card-processor.js';
+import { ImageCardProcessor } from './image-card-processor.js';
+import { TextCardProcessor } from './text-card-processor.js';
 import { UrlCardProcessor } from './UrlCardProcessor.js';
 import { VideoCardProcessor } from './VideoCardProcessor.js';
 
@@ -65,8 +65,8 @@ export class CardService {
 
       return {
         ...newCard,
-        data: newCard.data as Record<string, any>,
-        metaInfo: newCard.metaInfo as Record<string, any>,
+        data: newCard.data as Record<string, unknown>,
+        metaInfo: newCard.metaInfo as Record<string, unknown>,
       };
     } catch (error) {
       // Handle auto-conversion from text to URL

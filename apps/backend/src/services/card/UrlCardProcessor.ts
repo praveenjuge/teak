@@ -1,6 +1,6 @@
 import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
-import { parse } from 'node-html-parser';
-import { CardProcessor } from './CardProcessor.js';
+import { type HTMLElement, parse } from 'node-html-parser';
+import { CardProcessor } from './card-processor.js';
 
 interface UrlMetadata {
   title?: string;
@@ -69,7 +69,7 @@ export class UrlCardProcessor extends CardProcessor {
     }
   }
 
-  private extractTitle(root: any): string | undefined {
+  private extractTitle(root: HTMLElement): string | undefined {
     // Try OG title first, then Twitter title, then regular title
     return (
       root
@@ -82,7 +82,7 @@ export class UrlCardProcessor extends CardProcessor {
     );
   }
 
-  private extractDescription(root: any): string | undefined {
+  private extractDescription(root: HTMLElement): string | undefined {
     // Try OG description first, then Twitter description, then meta description
     return (
       root
@@ -95,7 +95,7 @@ export class UrlCardProcessor extends CardProcessor {
     );
   }
 
-  private extractImage(root: any, baseUrl: string): string | undefined {
+  private extractImage(root: HTMLElement, baseUrl: string): string | undefined {
     const image =
       root
         .querySelector('meta[property="og:image"]')
@@ -123,7 +123,7 @@ export class UrlCardProcessor extends CardProcessor {
     }
   }
 
-  private extractSiteName(root: any): string | undefined {
+  private extractSiteName(root: HTMLElement): string | undefined {
     return (
       root
         .querySelector('meta[property="og:site_name"]')
@@ -134,14 +134,14 @@ export class UrlCardProcessor extends CardProcessor {
     );
   }
 
-  private extractType(root: any): string | undefined {
+  private extractType(root: HTMLElement): string | undefined {
     return root
       .querySelector('meta[property="og:type"]')
       ?.getAttribute('content');
   }
 
   private extractCanonicalUrl(
-    root: any,
+    root: HTMLElement,
     fallbackUrl: string
   ): string | undefined {
     return (

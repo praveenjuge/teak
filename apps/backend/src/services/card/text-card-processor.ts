@@ -1,5 +1,5 @@
 import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
-import { CardProcessor } from './CardProcessor.js';
+import { CardProcessor } from './card-processor.js';
 
 const WORD_SPLIT_REGEX = /\s+/;
 
@@ -18,7 +18,7 @@ export class TextCardProcessor extends CardProcessor {
       throw new Error(`AUTO_CONVERT_TO_URL:${singleUrl}`);
     }
 
-    return {
+    return await Promise.resolve({
       data: {
         content: content.trim(),
       },
@@ -27,7 +27,7 @@ export class TextCardProcessor extends CardProcessor {
         word_count: this.countWords(content),
         created_at: new Date().toISOString(),
       },
-    };
+    });
   }
 
   private countWords(text: string): number {

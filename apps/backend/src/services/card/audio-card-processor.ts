@@ -3,7 +3,7 @@ import { promisify } from 'node:util';
 import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
 import ffprobe from 'ffprobe-static';
 import { LocalFileUploadService } from '../file/LocalFileUploadService.js';
-import { CardProcessor } from './CardProcessor.js';
+import { CardProcessor } from './card-processor.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -97,7 +97,7 @@ export class AudioCardProcessor extends CardProcessor {
 
       const result = JSON.parse(stdout);
       const audioStream = result.streams?.find(
-        (stream: any) => stream.codec_type === 'audio'
+        (stream: { codec_type: string }) => stream.codec_type === 'audio'
       );
 
       if (!audioStream) {

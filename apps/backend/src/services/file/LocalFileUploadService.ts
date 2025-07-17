@@ -4,7 +4,7 @@ import path from 'node:path';
 import type { UploadedFile, UploadOptions } from '@teak/shared-types';
 import { fileTypeFromBuffer } from 'file-type';
 import imageSize from 'image-size';
-import { FileUploadService } from './FileUploadService.js';
+import { FileUploadService } from './file-upload-service.js';
 
 export class LocalFileUploadService extends FileUploadService {
   private uploadsDir: string;
