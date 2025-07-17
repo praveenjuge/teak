@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
+import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 import { CardsGrid } from '../../components/CardsGrid';
 import { SearchInput } from '../../components/SearchInput';
-import { useDebouncedValue } from '../../lib/hooks';
 import { SearchProvider, useSearch } from '../../lib/SearchContext';
 
 function HomeContent() {

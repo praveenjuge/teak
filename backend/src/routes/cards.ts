@@ -1,3 +1,10 @@
+import {
+  cardIdSchema,
+  createCardSchema,
+  createCardWithFileSchema,
+  searchCardsSchema,
+  updateCardSchema,
+} from '@teak/shared-types';
 import { and, eq, isNull } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { db } from '../db';
@@ -7,13 +14,6 @@ import {
   getFormField,
   getUploadedFile,
 } from '../middleware/fileUpload';
-import {
-  cardIdSchema,
-  createCardSchema,
-  searchCardsSchema,
-  updateCardSchema,
-} from '../schemas/cards';
-import { createCardWithFileSchema } from '../schemas/fileUpload';
 import { CardService } from '../services/card/CardService';
 import { DatabaseSearchService } from '../services/search/DatabaseSearchService';
 import {

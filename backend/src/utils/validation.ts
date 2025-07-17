@@ -1,3 +1,4 @@
+import { cardDataSchema } from '@teak/shared-types';
 import type { Context } from 'hono';
 import { z } from 'zod';
 
@@ -47,9 +48,7 @@ export function validateParams<T>(c: Context, schema: z.ZodSchema<T>) {
 }
 
 // Helper to validate card data based on type
-export async function validateCardData(type: string, data: unknown) {
-  const { cardDataSchema } = await import('../schemas/cards.js');
-
+export function validateCardData(type: string, data: unknown) {
   try {
     return cardDataSchema.parse({ type, data });
   } catch (error) {
