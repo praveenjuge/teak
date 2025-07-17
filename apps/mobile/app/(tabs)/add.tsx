@@ -147,7 +147,7 @@ export default function AddScreen() {
       });
 
       const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets['HIGH_QUALITY']
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
       setRecording(recording);
       setIsRecording(true);
@@ -159,7 +159,9 @@ export default function AddScreen() {
   }
 
   async function stopRecording() {
-    if (!recording) return;
+    if (!recording) {
+      return;
+    }
 
     setIsRecording(false);
     await recording.stopAndUnloadAsync();

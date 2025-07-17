@@ -119,7 +119,7 @@ export function CardsGrid() {
     // Add all cards
     data.cards.forEach((card: Card) => {
       // Only add valid card objects to prevent WeakMap errors
-      if (card && card.id) {
+      if (card?.id) {
         items.push({ type: 'card', card, onDelete: handleCardDelete });
       }
     });

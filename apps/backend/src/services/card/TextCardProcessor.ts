@@ -1,9 +1,11 @@
 import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
 import { CardProcessor } from './CardProcessor.js';
 
+const WORD_SPLIT_REGEX = /\s+/;
+
 export class TextCardProcessor extends CardProcessor {
   async process(context: ProcessingContext): Promise<ProcessedCardData> {
-    const content = context.inputData['content'];
+    const content = context.inputData.content;
 
     if (!content || typeof content !== 'string') {
       throw new Error('Text card requires content field');
@@ -31,7 +33,7 @@ export class TextCardProcessor extends CardProcessor {
   private countWords(text: string): number {
     return text
       .trim()
-      .split(/\s+/)
+      .split(WORD_SPLIT_REGEX)
       .filter((word) => word.length > 0).length;
   }
 }

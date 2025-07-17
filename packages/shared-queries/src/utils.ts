@@ -8,7 +8,9 @@ export function updateCardsQueryData(
   queryClient.setQueriesData(
     { queryKey: ['cards'] },
     (oldData: CardsResponse | undefined) => {
-      if (!oldData) return oldData;
+      if (!oldData) {
+        return oldData;
+      }
       return updater(oldData);
     }
   );
@@ -114,7 +116,7 @@ export function snapshotQueries(queryClient: QueryClient, queryKey: any[]) {
 
 export function restoreQueries(
   queryClient: QueryClient,
-  snapshot: Array<[readonly unknown[], unknown]>
+  snapshot: [readonly unknown[], unknown][]
 ) {
   snapshot.forEach(([queryKey, data]) => {
     queryClient.setQueryData(queryKey as any[], data);

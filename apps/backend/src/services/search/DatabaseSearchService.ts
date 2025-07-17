@@ -96,7 +96,7 @@ export class DatabaseSearchService extends SearchAndSortService {
       .from(cards)
       .where(effectiveWhereClause);
 
-    const total = countResult && countResult[0] ? countResult[0].count : 0;
+    const total = countResult?.[0] ? countResult[0].count : 0;
 
     return {
       cards: searchResults,
@@ -116,12 +116,14 @@ export class DatabaseSearchService extends SearchAndSortService {
     offset: number
   ): Promise<SearchResult> {
     // Regular sorting without search
-    const sortColumn =
-      sort === 'created_at'
-        ? cards.createdAt
-        : sort === 'updated_at'
-          ? cards.updatedAt
-          : cards.type;
+    let sortColumn;
+    if (sort === 'created_at') {
+      sortColumn = cards.createdAt;
+    } else if (sort === 'updated_at') {
+      sortColumn = cards.updatedAt;
+    } else {
+      sortColumn = cards.type;
+    }
     const orderBy = order === 'asc' ? asc(sortColumn) : desc(sortColumn);
 
     const result = await db
@@ -147,7 +149,7 @@ export class DatabaseSearchService extends SearchAndSortService {
       .from(cards)
       .where(whereClause);
 
-    const total = countResult && countResult[0] ? countResult[0].count : 0;
+    const total = countResult?.[0] ? countResult[0].count : 0;
 
     return {
       cards: result,

@@ -13,7 +13,7 @@ interface UrlMetadata {
 
 export class UrlCardProcessor extends CardProcessor {
   async process(context: ProcessingContext): Promise<ProcessedCardData> {
-    const url = context.inputData['url'];
+    const url = context.inputData.url;
 
     if (!(url && this.isValidUrl(url))) {
       throw new Error('URL card requires a valid url field');
@@ -34,7 +34,7 @@ export class UrlCardProcessor extends CardProcessor {
         og_type: metadata.type,
         canonical_url: metadata.url,
         fetched_at: new Date().toISOString(),
-        ...context.inputData['metaInfo'],
+        ...context.inputData.metaInfo,
       },
     };
   }
@@ -107,7 +107,9 @@ export class UrlCardProcessor extends CardProcessor {
         .querySelector('meta[name="twitter:image:src"]')
         ?.getAttribute('content');
 
-    if (!image) return;
+    if (!image) {
+      return;
+    }
 
     // Convert relative URLs to absolute
     try {

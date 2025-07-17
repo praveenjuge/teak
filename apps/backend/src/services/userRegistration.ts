@@ -5,7 +5,7 @@ import { db, users } from '../db';
  * Check if multi-user registration is allowed
  */
 export function isMultiUserRegistrationAllowed(): boolean {
-  const allowMultiUser = process.env['ALLOW_MULTI_USER_REGISTRATION'];
+  const allowMultiUser = process.env.ALLOW_MULTI_USER_REGISTRATION;
   return allowMultiUser === 'true';
 }
 

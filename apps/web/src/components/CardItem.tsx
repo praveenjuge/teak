@@ -1,5 +1,5 @@
 import { useDeleteCard } from '@teak/shared-queries';
-import type { CardItemProps, Card as CardType } from '@teak/shared-types';
+import type { CardItemProps } from '@teak/shared-types';
 import { Clock, ExternalLink, Pause, Play, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -41,7 +41,9 @@ export function CardItem({ card, onDelete }: CardItemProps) {
   const deleteMutation = useDeleteCard(apiClient);
 
   const handleDelete = () => {
-    if (deleteMutation.isPending) return;
+    if (deleteMutation.isPending) {
+      return;
+    }
     deleteMutation.mutate(card.id, {
       onSuccess: () => {
         setShowDeleteDialog(false);
@@ -52,7 +54,9 @@ export function CardItem({ card, onDelete }: CardItemProps) {
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {
+      return;
+    }
 
     const handleAudioEnded = () => {
       if (isPlaying) {
@@ -65,7 +69,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
     return () => {
       audio.removeEventListener('ended', handleAudioEnded);
     };
-  }, [audioRef, isPlaying, pauseAudio]);
+  }, [isPlaying, pauseAudio]);
 
   const handlePlayPause = () => {
     if (audioRef.current) {
@@ -93,7 +97,9 @@ export function CardItem({ card, onDelete }: CardItemProps) {
   const renderCardContent = () => {
     switch (card.type) {
       case 'image': {
-        if (!card.data.media_url) return null;
+        if (!card.data.media_url) {
+          return null;
+        }
 
         // Get image dimensions from stored data
         const width = card.data.width;
@@ -175,7 +181,9 @@ export function CardItem({ card, onDelete }: CardItemProps) {
         );
 
       case 'url':
-        if (!card.data.url) return null;
+        if (!card.data.url) {
+          return null;
+        }
         return (
           <div
             className="flex cursor-pointer items-center space-x-2 truncate p-4 text-primary transition-colors"
@@ -189,7 +197,9 @@ export function CardItem({ card, onDelete }: CardItemProps) {
         );
 
       case 'text':
-        if (!card.data.content) return null;
+        if (!card.data.content) {
+          return null;
+        }
         return <p className="p-4 leading-relaxed">{card.data.content}</p>;
 
       default:

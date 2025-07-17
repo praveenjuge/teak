@@ -68,10 +68,14 @@ export function CardItem({ card, onDelete }: CardItemProps) {
   };
 
   const playSound = async () => {
-    if (!card.data.media_url) return;
+    if (!card.data.media_url) {
+      return;
+    }
 
     const fullAudioUrl = getFullMediaUrl(card.data.media_url);
-    if (!fullAudioUrl) return;
+    if (!fullAudioUrl) {
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -155,7 +159,9 @@ export function CardItem({ card, onDelete }: CardItemProps) {
   const renderCardContent = () => {
     switch (card.type) {
       case 'image': {
-        if (!card.data.media_url) return null;
+        if (!card.data.media_url) {
+          return null;
+        }
 
         const fullImageUrl = getFullMediaUrl(card.data.media_url);
         if (!fullImageUrl) {
@@ -281,7 +287,9 @@ export function CardItem({ card, onDelete }: CardItemProps) {
         );
 
       case 'url':
-        if (!card.data.url) return null;
+        if (!card.data.url) {
+          return null;
+        }
         return (
           <TouchableOpacity
             activeOpacity={0.8}
@@ -306,7 +314,9 @@ export function CardItem({ card, onDelete }: CardItemProps) {
         );
 
       case 'text':
-        if (!card.data.content) return null;
+        if (!card.data.content) {
+          return null;
+        }
         return (
           <TouchableOpacity
             activeOpacity={0.8}

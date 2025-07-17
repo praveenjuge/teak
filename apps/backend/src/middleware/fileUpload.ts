@@ -64,7 +64,9 @@ export function getFormField(
   fieldName: string
 ): string | undefined {
   const formData = c.get('formData') as FormData;
-  if (!formData) return;
+  if (!formData) {
+    return;
+  }
 
   const value = formData.get(fieldName);
   return typeof value === 'string' ? value : undefined;

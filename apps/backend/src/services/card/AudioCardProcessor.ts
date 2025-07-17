@@ -1,7 +1,7 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
-import { execFile } from 'child_process';
 import ffprobe from 'ffprobe-static';
-import { promisify } from 'util';
 import { LocalFileUploadService } from '../file/LocalFileUploadService.js';
 import { CardProcessor } from './CardProcessor.js';
 
@@ -26,7 +26,7 @@ export class AudioCardProcessor extends CardProcessor {
   async process(context: ProcessingContext): Promise<ProcessedCardData> {
     if (!context.file) {
       // Handle URL-based audio
-      const mediaUrl = context.inputData['media_url'];
+      const mediaUrl = context.inputData.media_url;
       if (!mediaUrl) {
         throw new Error(
           'Audio card requires either a file upload or media_url'
@@ -36,9 +36,9 @@ export class AudioCardProcessor extends CardProcessor {
       return {
         data: {
           media_url: mediaUrl,
-          transcription: context.inputData['transcription'] || '',
+          transcription: context.inputData.transcription || '',
         },
-        metaInfo: context.inputData['metaInfo'] || {},
+        metaInfo: context.inputData.metaInfo || {},
       };
     }
 
@@ -65,7 +65,7 @@ export class AudioCardProcessor extends CardProcessor {
     return {
       data: {
         media_url: uploadResult.url,
-        transcription: context.inputData['transcription'] || '',
+        transcription: context.inputData.transcription || '',
         original_filename: uploadResult.originalName,
       },
       metaInfo: {
@@ -106,9 +106,9 @@ export class AudioCardProcessor extends CardProcessor {
 
       return {
         duration: Number.parseFloat(result.format?.duration) || undefined,
-        bitrate: Number.parseInt(result.format?.bit_rate) || undefined,
-        sampleRate: Number.parseInt(audioStream.sample_rate) || undefined,
-        channels: Number.parseInt(audioStream.channels) || undefined,
+        bitrate: Number.parseInt(result.format?.bit_rate, 10) || undefined,
+        sampleRate: Number.parseInt(audioStream.sample_rate, 10) || undefined,
+        channels: Number.parseInt(audioStream.channels, 10) || undefined,
         format: audioStream.codec_name || undefined,
       };
     } catch (error) {

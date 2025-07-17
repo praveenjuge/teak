@@ -1,9 +1,9 @@
+import { existsSync } from 'node:fs';
+import { mkdir, stat, unlink, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import type { UploadedFile, UploadOptions } from '@teak/shared-types';
 import { fileTypeFromBuffer } from 'file-type';
-import { existsSync } from 'fs';
-import { mkdir, stat, unlink, writeFile } from 'fs/promises';
 import imageSize from 'image-size';
-import path from 'path';
 import { FileUploadService } from './FileUploadService.js';
 
 export class LocalFileUploadService extends FileUploadService {

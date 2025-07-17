@@ -102,8 +102,7 @@ class ApiClient {
       // Try to add session info manually using Better Auth's session data
       if (sessionResult.data?.session?.id) {
         // Some backends expect the session ID in a cookie-like format
-        headers['Cookie'] =
-          `better-auth.session-token=${sessionResult.data.session.id}`;
+        headers.Cookie = `better-auth.session-token=${sessionResult.data.session.id}`;
         console.log('[ApiClient] Added session cookie header');
       }
 
@@ -117,7 +116,7 @@ class ApiClient {
         credentials: config.credentials,
         headers: config.headers,
         hasBody: !!config.body,
-        hasCookieHeader: !!headers['Cookie'],
+        hasCookieHeader: !!headers.Cookie,
       });
 
       try {
@@ -193,7 +192,7 @@ class ApiClient {
       data?: Record<string, any>;
       metaInfo?: Record<string, any>;
     },
-    onProgress?: (progress: number) => void
+    _onProgress?: (progress: number) => void
   ): Promise<Card> {
     const apiBaseUrl = await getStoredApiUrl();
     const url = `${apiBaseUrl}/api/cards`;

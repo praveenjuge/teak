@@ -1,7 +1,7 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
-import { execFile } from 'child_process';
 import ffprobe from 'ffprobe-static';
-import { promisify } from 'util';
 import { LocalFileUploadService } from '../file/LocalFileUploadService.js';
 import { CardProcessor } from './CardProcessor.js';
 
@@ -28,7 +28,7 @@ export class VideoCardProcessor extends CardProcessor {
   async process(context: ProcessingContext): Promise<ProcessedCardData> {
     if (!context.file) {
       // Handle URL-based video
-      const mediaUrl = context.inputData['media_url'];
+      const mediaUrl = context.inputData.media_url;
       if (!mediaUrl) {
         throw new Error(
           'Video card requires either a file upload or media_url'
@@ -39,7 +39,7 @@ export class VideoCardProcessor extends CardProcessor {
         data: {
           media_url: mediaUrl,
         },
-        metaInfo: context.inputData['metaInfo'] || {},
+        metaInfo: context.inputData.metaInfo || {},
       };
     }
 
@@ -109,9 +109,9 @@ export class VideoCardProcessor extends CardProcessor {
 
       return {
         duration: Number.parseFloat(result.format?.duration) || undefined,
-        bitrate: Number.parseInt(result.format?.bit_rate) || undefined,
-        width: Number.parseInt(videoStream.width) || undefined,
-        height: Number.parseInt(videoStream.height) || undefined,
+        bitrate: Number.parseInt(result.format?.bit_rate, 10) || undefined,
+        width: Number.parseInt(videoStream.width, 10) || undefined,
+        height: Number.parseInt(videoStream.height, 10) || undefined,
         fps: this.calculateFps(videoStream.r_frame_rate),
         codec: videoStream.codec_name || undefined,
         format: result.format?.format_name || undefined,
@@ -123,7 +123,9 @@ export class VideoCardProcessor extends CardProcessor {
   }
 
   private calculateFps(frameRate?: string): number | undefined {
-    if (!frameRate) return;
+    if (!frameRate) {
+      return;
+    }
 
     try {
       // Handle frame rates like "30/1" or "24000/1001"

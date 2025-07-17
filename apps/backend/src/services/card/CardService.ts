@@ -95,7 +95,7 @@ export class CardService {
     }
   }
 
-  async validateCardType(type: string): Promise<boolean> {
+  validateCardType(type: string): boolean {
     return this.processors.has(type as CardType);
   }
 

@@ -4,6 +4,9 @@
   "files": {
     "includes": ["**", "!src/routeTree.gen.ts"]
   },
+  "javascript": {
+    "globals": ["Bun"]
+  },
   "linter": {
     "rules": {
       "suspicious": {

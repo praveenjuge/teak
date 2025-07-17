@@ -228,7 +228,7 @@ async function seedUser() {
 
     console.log('💾 Creating demo user (registration required)...');
 
-    const crypto = await import('crypto');
+    const crypto = await import('node:crypto');
     const userId = crypto.randomUUID();
 
     // Create user without password - they'll register through the frontend
@@ -315,9 +315,9 @@ export async function seedCards() {
       {} as Record<string, number>
     );
 
-    Object.entries(cardsByType).forEach(([type, count]) => {
+    for (const [type, count] of Object.entries(cardsByType)) {
       console.log(`   📋 ${type}: ${count} cards`);
-    });
+    }
 
     console.log('🎉 Seeding completed successfully!');
     console.log('');

@@ -73,7 +73,7 @@ export function AddCardItem() {
   // Override the hook's onError and onSuccess to handle progress reset
   const mutateWithProgressReset = (data: any) => {
     createFileCardMutation.mutate(data, {
-      onError: (err) => {
+      onError: (_err) => {
         setUploadProgress(null);
       },
       onSuccess: () => {
@@ -192,7 +192,9 @@ export function AddCardItem() {
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0) {
+      return;
+    }
 
     const file = files[0];
 
@@ -237,7 +239,9 @@ export function AddCardItem() {
 
   const handleSave = () => {
     const trimmedContent = content.trim();
-    if (!trimmedContent) return;
+    if (!trimmedContent) {
+      return;
+    }
 
     const { type, data } = detectCardType(trimmedContent);
 

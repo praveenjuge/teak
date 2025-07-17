@@ -21,7 +21,7 @@ import { authClient } from '@/lib/auth-client';
 export const Route = createFileRoute('/(auth)/reset-password')({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>) => ({
-    token: (search['token'] as string) || '',
+    token: (search.token as string) || '',
   }),
 });
 

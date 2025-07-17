@@ -22,7 +22,9 @@ export const createCardWithFileSchema = z.object({
     .string()
     .optional()
     .transform((str) => {
-      if (!str) return {};
+      if (!str) {
+        return {};
+      }
       try {
         return JSON.parse(str);
       } catch {
@@ -33,7 +35,9 @@ export const createCardWithFileSchema = z.object({
     .string()
     .optional()
     .transform((str) => {
-      if (!str) return {};
+      if (!str) {
+        return {};
+      }
       try {
         return JSON.parse(str);
       } catch {

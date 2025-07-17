@@ -108,7 +108,7 @@ class ApiClient {
           try {
             const response = JSON.parse(xhr.responseText);
             resolve(response);
-          } catch (error) {
+          } catch (_error) {
             reject(new Error('Invalid response format'));
           }
         } else {

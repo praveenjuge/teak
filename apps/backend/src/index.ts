@@ -27,10 +27,10 @@ const isOriginAllowed = (origin: string): boolean => {
   }
 
   // Production origins from environment variable
-  if (process.env['ALLOWED_ORIGINS']) {
-    const allowedOrigins = process.env['ALLOWED_ORIGINS']
-      .split(',')
-      .map((o) => o.trim());
+  if (process.env.ALLOWED_ORIGINS) {
+    const allowedOrigins = process.env.ALLOWED_ORIGINS.split(',').map((o) =>
+      o.trim()
+    );
     return allowedOrigins.includes(origin);
   }
 
@@ -69,7 +69,6 @@ app.use(
   })
 );
 
-
 // Auth middleware - extract user and session from request
 app.use('*', async (c, next) => {
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
@@ -88,7 +87,10 @@ const setAudioCorsHeaders = (c: any, contentType: string) => {
   c.header('Accept-Ranges', 'bytes');
   c.header('Access-Control-Allow-Origin', '*');
   c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-  c.header('Access-Control-Allow-Headers', 'Range, Content-Range, Content-Length');
+  c.header(
+    'Access-Control-Allow-Headers',
+    'Range, Content-Range, Content-Length'
+  );
 };
 
 // API routes
@@ -97,19 +99,19 @@ app.route('/api/cards', cardRoutes);
 app.route('/api', healthRoutes);
 
 // Serve uploaded files with proper headers for audio
-app.use('/api/data/*', async (c, next) => {
+app.use('/api/data/*', (c, next) => {
   const path = c.req.path;
   const filePath = path.replace('/api/data', '');
   const ext = filePath.split('.').pop()?.toLowerCase();
 
   // Set appropriate content type and headers for audio files
   const audioTypes: Record<string, string> = {
-    'm4a': 'audio/mp4',
-    'mp4': 'audio/mp4',
-    'aac': 'audio/mp4',
-    'mp3': 'audio/mpeg',
-    'wav': 'audio/wav',
-    'ogg': 'audio/ogg',
+    m4a: 'audio/mp4',
+    mp4: 'audio/mp4',
+    aac: 'audio/mp4',
+    mp3: 'audio/mpeg',
+    wav: 'audio/wav',
+    ogg: 'audio/ogg',
   };
 
   if (ext && audioTypes[ext]) {
@@ -130,7 +132,9 @@ app.use(
 // Protected session endpoint
 app.get('/api/session', (c) => {
   const user = c.get('user');
-  if (!user) return c.json({ error: 'Not authenticated' }, 401);
+  if (!user) {
+    return c.json({ error: 'Not authenticated' }, 401);
+  }
 
   return c.json({ session: c.get('session'), user });
 });
@@ -138,15 +142,15 @@ app.get('/api/session', (c) => {
 // Protected API example
 app.get('/api/protected', (c) => {
   const user = c.get('user');
-  if (!user) return c.json({ error: 'Authentication required' }, 401);
+  if (!user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
 
   return c.json({
     message: 'This is a protected route',
     user: { id: user.id, email: user.email, name: user.name },
   });
 });
-
-
 
 // Serve static files with optimized caching
 app.use(
