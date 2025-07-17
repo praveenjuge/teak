@@ -1,4 +1,5 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useDeleteCard } from '@teak/shared-queries';
+import type { CardItemProps, Card as CardType } from '@teak/shared-types';
 import { Clock, ExternalLink, Pause, Play, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -19,7 +20,6 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
-import type { Card as CardType, CardItemProps } from '@teak/shared-types';
 import { apiClient } from '@/lib/api';
 
 // Helper function to format duration
@@ -34,60 +34,20 @@ export function CardItem({ card, onDelete }: CardItemProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
-  const queryClient = useQueryClient();
-
   const isPlaying =
     currentlyPlaying !== null && currentlyPlaying === audioRef.current;
 
   // Delete mutation with optimistic updates
-  const deleteMutation = useMutation({
-    mutationFn: (cardId: number) => apiClient.deleteCard(cardId),
-    onMutate: async (cardId) => {
-      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({ queryKey: ['cards'] });
-
-      // Snapshot the previous cards data
-      const previousQueries = queryClient.getQueriesData({
-        queryKey: ['cards'],
-      });
-
-      // Optimistically remove the card from all cards queries
-      queryClient.setQueriesData({ queryKey: ['cards'] }, (oldData: any) => {
-        if (!(oldData && oldData.cards)) return oldData;
-
-        return {
-          ...oldData,
-          cards: oldData.cards.filter((c: CardType) => c.id !== cardId),
-          total: oldData.total - 1,
-        };
-      });
-
-      // Return a context object with the snapshotted value
-      return { previousQueries };
-    },
-    onError: (err, _, context) => {
-      // If the mutation fails, restore all previous queries
-      if (context?.previousQueries) {
-        context.previousQueries.forEach(([queryKey, data]) => {
-          queryClient.setQueryData(queryKey, data);
-        });
-      }
-      console.error('Failed to delete card:', err);
-    },
-    onSuccess: () => {
-      // Close the dialog and call the onDelete callback
-      setShowDeleteDialog(false);
-      onDelete?.();
-    },
-    onSettled: () => {
-      // Invalidate and refetch cards to ensure we have the latest data
-      queryClient.invalidateQueries({ queryKey: ['cards'] });
-    },
-  });
+  const deleteMutation = useDeleteCard(apiClient);
 
   const handleDelete = () => {
     if (deleteMutation.isPending) return;
-    deleteMutation.mutate(card.id);
+    deleteMutation.mutate(card.id, {
+      onSuccess: () => {
+        setShowDeleteDialog(false);
+        onDelete?.();
+      },
+    });
   };
 
   useEffect(() => {

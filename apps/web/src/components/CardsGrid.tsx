@@ -1,9 +1,10 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCards } from '@teak/shared-queries';
+import type { Card } from '@teak/shared-types';
 import { AlertTriangle, Search } from 'lucide-react';
 import { Masonry } from 'masonic';
 import { useCallback, useMemo } from 'react';
 import { useSearch } from '@/contexts/SearchContext';
-import type { Card } from '@/lib/api';
 import { apiClient } from '@/lib/api';
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 import { AddCardItem } from './AddCardItem';
@@ -49,19 +50,12 @@ export function CardsGrid() {
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 200);
   const queryClient = useQueryClient();
 
-  const { data, error, isLoading } = useQuery({
-    queryKey: ['cards', { searchQuery: debouncedSearchQuery, selectedType }],
-    queryFn: () => {
-      return apiClient.getCards({
-        q: debouncedSearchQuery?.trim() || undefined,
-        type: selectedType,
-        sort: 'created_at',
-        order: 'desc',
-        limit: 100,
-      });
-    },
-    staleTime: 30 * 1000, // 30 seconds
-    refetchOnWindowFocus: false,
+  const { data, error, isLoading } = useCards(apiClient, {
+    q: debouncedSearchQuery?.trim() || undefined,
+    type: selectedType,
+    sort: 'created_at',
+    order: 'desc',
+    limit: 100,
   });
 
   // Memoized callback for handling card deletion

@@ -29,6 +29,8 @@ export default defineConfig({
     exclude: [
       '@tanstack/react-router-devtools',
       '@tanstack/react-query-devtools',
+      'react-native',
+      '@react-navigation/native',
     ],
     include: [
       'react-dom/client',
@@ -65,6 +67,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      'react-native': 'react-native-web',
     },
+  },
+  define: {
+    __DEV__: process.env.NODE_ENV === 'development',
   },
 });

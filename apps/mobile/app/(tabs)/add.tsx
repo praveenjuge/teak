@@ -17,7 +17,7 @@ import { IconSymbol } from '../../components/ui/IconSymbol';
 import { borderWidths, colors } from '../../constants/colors';
 import type { Card } from '../../lib/api';
 import { apiClient } from '../../lib/api';
-import { useCreateCard } from '../../lib/hooks';
+import { useBoundCreateCard } from '../../lib/hooks';
 
 function isUrl(text: string): boolean {
   try {
@@ -74,7 +74,7 @@ export default function AddScreen() {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const textInputRef = useRef<TextInput>(null);
-  const createCardMutation = useCreateCard();
+  const createCardMutation = useBoundCreateCard();
   const queryClient = useQueryClient();
 
   useEffect(() => {

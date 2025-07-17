@@ -13,6 +13,7 @@
     "@better-auth/expo": "^1.2.12",
     "@expo/vector-icons": "^14.1.0",
     "@tanstack/react-query": "^5.81.5",
+    "@teak/shared-queries": "workspace:*",
     "@teak/shared-types": "workspace:*",
     "better-auth": "^1.2.12",
     "expo": "53.0.17",

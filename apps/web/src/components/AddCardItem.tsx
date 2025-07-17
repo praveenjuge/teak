@@ -1,9 +1,10 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCreateCard, useCreateCardWithFile } from '@teak/shared-queries';
+import type { Card as CardType } from '@teak/shared-types';
 import { FileUp, Loader2, Mic, Square } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { apiClient, type Card as CardType } from '@/lib/api';
+import { apiClient } from '@/lib/api';
 
 function isUrl(text: string): boolean {
   try {
@@ -63,148 +64,26 @@ export function AddCardItem() {
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const queryClient = useQueryClient();
+  const createCardMutation = useCreateCard(apiClient);
+  const createFileCardMutation = useCreateCardWithFile(
+    apiClient,
+    setUploadProgress
+  );
 
-  const createCardMutation = useMutation({
-    mutationFn: (cardData: {
-      type: CardType['type'];
-      data: Record<string, any>;
-      metaInfo?: Record<string, any>;
-    }) => apiClient.createCard(cardData),
-    onMutate: async (newCard) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['cards'] });
-
-      // Snapshot the previous queries
-      const previousQueries = queryClient.getQueriesData({
-        queryKey: ['cards'],
-      });
-
-      // Optimistically update all cards queries
-      queryClient.setQueriesData({ queryKey: ['cards'] }, (oldData: any) => {
-        if (!(oldData && oldData.cards)) return oldData;
-
-        const optimisticCard = {
-          id: Date.now(), // Temporary ID
-          ...newCard,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          userId: 'current-user', // Will be replaced by server response
-        };
-
-        return {
-          ...oldData,
-          cards: [optimisticCard, ...oldData.cards],
-          total: oldData.total + 1,
-        };
-      });
-
-      // Return a context object with the snapshotted value
-      return { previousQueries };
-    },
-    onError: (err, _, context) => {
-      // If the mutation fails, restore all previous queries
-      if (context?.previousQueries) {
-        context.previousQueries.forEach(([queryKey, data]) => {
-          queryClient.setQueryData(queryKey, data);
-        });
-      }
-      console.error('Failed to save card:', err);
-    },
-    onSuccess: () => {
-      // Invalidate and refetch to get the real data from server
-      queryClient.invalidateQueries({ queryKey: ['cards'] });
-      setContent('');
-      // Focus back to textarea for continuous input
-      textareaRef.current?.focus();
-    },
-    onSettled: () => {
-      // Always ensure queries are invalidated after mutation completes
-      queryClient.invalidateQueries({ queryKey: ['cards'] });
-    },
-  });
-
-  const createFileCardMutation = useMutation({
-    mutationFn: ({
-      file,
-      cardData,
-    }: {
-      file: File;
-      cardData?: {
-        type?: CardType['type'];
-        data?: Record<string, any>;
-        metaInfo?: Record<string, any>;
-      };
-    }) => apiClient.createCardWithFile(file, cardData, setUploadProgress),
-    onMutate: async ({ file, cardData }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['cards'] });
-
-      // Snapshot the previous queries
-      const previousQueries = queryClient.getQueriesData({
-        queryKey: ['cards'],
-      });
-
-      // Create placeholder card while uploading
-      const detectedType = detectCardTypeFromFile(file);
-      const placeholderCard = {
-        id: Date.now(), // Temporary ID
-        type: cardData?.type || detectedType,
-        data: {
-          title: `Uploading ${file.name}...`,
-          ...(detectedType === 'image' && {
-            alt_text: `Uploading image: ${file.name}`,
-          }),
-          ...(detectedType === 'video' && { duration: 0 }),
-          ...(detectedType === 'audio' && { duration: 0 }),
-          ...cardData?.data,
-        },
-        metaInfo: {
-          source: 'File Upload',
-          uploading: true,
-          fileName: file.name,
-          fileSize: file.size,
-          ...cardData?.metaInfo,
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        userId: 'current-user',
-      };
-
-      // Optimistically update all cards queries
-      queryClient.setQueriesData({ queryKey: ['cards'] }, (oldData: any) => {
-        if (!(oldData && oldData.cards)) return oldData;
-
-        return {
-          ...oldData,
-          cards: [placeholderCard, ...oldData.cards],
-          total: oldData.total + 1,
-        };
-      });
-
-      return { previousQueries, placeholderCard };
-    },
-    onError: (err, _, context) => {
-      // If the mutation fails, restore all previous queries
-      if (context?.previousQueries) {
-        context.previousQueries.forEach(([queryKey, data]) => {
-          queryClient.setQueryData(queryKey, data);
-        });
-      }
-      console.error('Failed to upload file:', err);
-      setUploadProgress(null);
-    },
-    onSuccess: () => {
-      // Invalidate and refetch to get the real data from server
-      queryClient.invalidateQueries({ queryKey: ['cards'] });
-      setUploadProgress(null);
-    },
-    onSettled: () => {
-      // Always ensure queries are invalidated and progress is reset
-      queryClient.invalidateQueries({ queryKey: ['cards'] });
-      setUploadProgress(null);
-    },
-  });
+  // Override the hook's onError and onSuccess to handle progress reset
+  const mutateWithProgressReset = (data: any) => {
+    createFileCardMutation.mutate(data, {
+      onError: (err) => {
+        setUploadProgress(null);
+      },
+      onSuccess: () => {
+        setUploadProgress(null);
+      },
+      onSettled: () => {
+        setUploadProgress(null);
+      },
+    });
+  };
 
   // Recording functionality
   const startRecording = async () => {
@@ -252,7 +131,7 @@ export function AddCardItem() {
 
         // Upload the recorded audio
         console.log('Starting upload mutation...');
-        createFileCardMutation.mutate({
+        mutateWithProgressReset({
           file,
           cardData: {
             type: 'audio',
@@ -311,19 +190,6 @@ export function AddCardItem() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  function detectCardTypeFromFile(file: File): CardType['type'] {
-    if (file.type.startsWith('image/')) {
-      return 'image';
-    }
-    if (file.type.startsWith('video/')) {
-      return 'video';
-    }
-    if (file.type.startsWith('audio/')) {
-      return 'audio';
-    }
-    return 'image'; // Default fallback
-  }
-
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -358,7 +224,7 @@ export function AddCardItem() {
     // Reset file input
     event.target.value = '';
 
-    createFileCardMutation.mutate({
+    mutateWithProgressReset({
       file,
       cardData: {
         metaInfo: {
@@ -375,14 +241,22 @@ export function AddCardItem() {
 
     const { type, data } = detectCardType(trimmedContent);
 
-    createCardMutation.mutate({
-      type,
-      data,
-      metaInfo: {
-        source: 'Manual Entry',
-        tags: [],
+    createCardMutation.mutate(
+      {
+        type,
+        data,
+        metaInfo: {
+          source: 'Manual Entry',
+          tags: [],
+        },
       },
-    });
+      {
+        onSuccess: () => {
+          setContent('');
+          textareaRef.current?.focus();
+        },
+      }
+    );
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
