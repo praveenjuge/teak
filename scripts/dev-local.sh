@@ -176,12 +176,12 @@ cd apps/mobile && bun install && cd ../..
 
 # Check if database needs migration
 print_status "Checking database status..."
-cd backend
+cd apps/backend
 if ! bunx drizzle-kit check 2>/dev/null; then
     print_status "Running database migrations..."
     bunx drizzle-kit migrate
 fi
-cd ..
+cd ../..
 
 # Open terminal tabs for development
 print_status "Opening terminal tabs..."

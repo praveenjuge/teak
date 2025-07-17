@@ -47,7 +47,7 @@ WORKDIR /workspace
 
 # Copy workspace package files
 COPY package.json bun.lock ./
-COPY backend/package.json ./backend/
+COPY apps/backend/package.json ./apps/backend/
 COPY packages/shared-types/package.json ./packages/shared-types/
 
 # Copy built shared types from previous stage
@@ -58,10 +58,10 @@ COPY --from=shared-types-builder /workspace/packages/shared-types/package.json .
 RUN bun install
 
 # Copy backend source
-COPY backend ./backend/
+COPY apps/backend ./apps/backend/
 
 # Build backend
-RUN cd backend && bun run build
+RUN cd apps/backend && bun run build
 
 # Stage 4: Final Production Image
 FROM nginx:alpine
@@ -94,13 +94,13 @@ RUN mkdir -p /app/frontend /app/backend /app/logs /var/log/supervisor /data \
 COPY --from=frontend-builder --chown=appuser:appgroup /workspace/apps/web/dist /app/frontend
 
 # Copy built backend from backend-builder
-COPY --from=backend-builder --chown=appuser:appgroup /workspace/backend/dist /app/backend/dist
-COPY --from=backend-builder --chown=appuser:appgroup /workspace/backend/package.json /app/backend/
-COPY --from=backend-builder --chown=appuser:appgroup /workspace/backend/node_modules /app/backend/node_modules
+COPY --from=backend-builder --chown=appuser:appgroup /workspace/apps/backend/dist /app/backend/dist
+COPY --from=backend-builder --chown=appuser:appgroup /workspace/apps/backend/package.json /app/backend/
+COPY --from=backend-builder --chown=appuser:appgroup /workspace/apps/backend/node_modules /app/backend/node_modules
 
 # Copy backend source files needed at runtime
-COPY --chown=appuser:appgroup backend/drizzle /app/backend/drizzle
-COPY --chown=appuser:appgroup backend/drizzle.config.ts /app/backend/
+COPY --chown=appuser:appgroup apps/backend/drizzle /app/backend/drizzle
+COPY --chown=appuser:appgroup apps/backend/drizzle.config.ts /app/backend/
 
 # Copy configuration files
 COPY --chown=appuser:appgroup docker/nginx.conf /etc/nginx/conf.d/default.conf

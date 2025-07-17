@@ -15,7 +15,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Check if we're in the right directory
-if [ ! -f "package.json" ] || [ ! -d "backend" ]; then
+if [ ! -f "package.json" ] || [ ! -d "apps/backend" ]; then
     echo -e "${RED}❌ This script must be run from the project root directory${NC}"
     exit 1
 fi
@@ -65,7 +65,7 @@ else
 fi
 
 # Navigate to backend directory
-cd backend
+cd apps/backend
 
 # Generate migrations if needed
 echo -e "${BLUE}📋 Generating database migrations...${NC}"
@@ -100,7 +100,7 @@ echo "  • Database: ${POSTGRES_DB:-teak_db}"
 echo "  • Username: ${POSTGRES_USER:-teak_user}"
 echo ""
 echo -e "${BLUE}Available database commands:${NC}"
-echo "  • Open Drizzle Studio: ${YELLOW}cd backend && bun run db:studio${NC}"
+echo "  • Open Drizzle Studio: ${YELLOW}cd apps/backend && bun run db:studio${NC}"
 echo "  • Connect to database: ${YELLOW}bun run db:connect${NC}"
 echo "  • Check database status: ${YELLOW}bun run db:status${NC}"
 echo "  • Reset database: ${YELLOW}bun run db:reset${NC}"

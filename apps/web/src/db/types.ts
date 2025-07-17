@@ -4,7 +4,7 @@ import type {
   sessions,
   users,
   verifications,
-} from '../../../../backend/src/db/schema';
+} from '../../../backend/src/db/schema';
 
 // Database entity types inferred from Drizzle schema
 export type DrizzleUser = typeof users.$inferSelect;

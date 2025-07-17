@@ -88,6 +88,7 @@ bun.lockb
 apps/web/bun.lockb
 .gitignore
 backend/uploads
+apps/backend/uploads
 package-lock.json
 improvements/*
 .vercel

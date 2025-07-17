@@ -26,7 +26,7 @@ bun install
 
 # Install backend dependencies
 echo -e "${BLUE}📦 Installing backend dependencies...${NC}"
-cd backend && bun install && cd ..
+cd apps/backend && bun install && cd ../..
 
 # Install web app dependencies
 echo -e "${BLUE}📦 Installing web app dependencies...${NC}"

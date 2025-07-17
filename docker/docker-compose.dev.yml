@@ -17,7 +17,7 @@ services:
   # Backend Development Server
   backend:
     image: oven/bun
-    working_dir: /workspace/backend
+    working_dir: /workspace/apps/backend
     environment:
       - POSTGRES_DB=teak_db
       - POSTGRES_USER=teak_user
@@ -26,14 +26,14 @@ services:
       - BETTER_AUTH_URL=http://localhost:3001
     volumes:
       - ../:/workspace
-      - backend_node_modules:/workspace/backend/node_modules
+      - backend_node_modules:/workspace/apps/backend/node_modules
       - data_dev_storage:/data
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "3001:3001"
-    command: sh -c "cd /workspace && bun install && cd /workspace/backend && echo 'Waiting for database...' && sleep 5 && echo 'Running migrations...' && bun run db:migrate && echo 'Starting development server...' && bun run db:seed && bun run dev"
+    command: sh -c "cd /workspace && bun install && cd /workspace/apps/backend && echo 'Waiting for database...' && sleep 5 && echo 'Running migrations...' && bun run db:migrate && echo 'Starting development server...' && bun run db:seed && bun run dev"
     healthcheck:
       test:
         [
