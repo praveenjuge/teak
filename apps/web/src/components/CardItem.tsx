@@ -19,13 +19,8 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
-import type { Card as CardType } from '@/lib/api';
+import type { Card as CardType, CardItemProps } from '@teak/shared-types';
 import { apiClient } from '@/lib/api';
-
-interface CardItemProps {
-  card: CardType;
-  onDelete?: () => void;
-}
 
 // Helper function to format duration
 const formatDuration = (seconds: number): string => {

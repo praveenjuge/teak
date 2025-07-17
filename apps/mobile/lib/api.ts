@@ -1,27 +1,18 @@
+import type {
+  ApiError,
+  Card,
+  CardStatsResponse,
+  CardsResponse,
+  CreateCardParams,
+  GetCardsParams,
+  SearchCardsParams,
+  SearchResponse,
+  UpdateCardParams,
+} from '@teak/shared-types';
 import { authClient, getStoredApiUrl } from './auth-client';
 
-export interface Card {
-  id: number;
-  type: 'audio' | 'text' | 'url' | 'image' | 'video';
-  data: Record<string, any>;
-  metaInfo: Record<string, any>;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt?: string;
-  userId: string;
-}
-
-export interface CardsResponse {
-  cards: Card[];
-  total: number;
-  limit: number;
-  offset: number;
-  hasMore: boolean;
-}
-
-export interface ApiError {
-  error: string;
-}
+// Re-export types for backward compatibility
+export type { Card, CardsResponse, ApiError };
 
 class ApiClient {
   private async request<T>(
@@ -167,16 +158,7 @@ class ApiClient {
     }
   }
 
-  async getCards(
-    params: {
-      limit?: number;
-      offset?: number;
-      q?: string;
-      type?: Card['type'];
-      sort?: 'created_at' | 'updated_at' | 'type';
-      order?: 'asc' | 'desc';
-    } = {}
-  ): Promise<CardsResponse> {
+  async getCards(params: GetCardsParams = {}): Promise<CardsResponse> {
     const queryParams = new URLSearchParams();
 
     Object.entries(params).forEach(([key, value]) => {
@@ -195,11 +177,7 @@ class ApiClient {
     return this.request<Card>(`/api/cards/${id}`);
   }
 
-  async createCard(cardData: {
-    type: Card['type'];
-    data: Record<string, any>;
-    metaInfo?: Record<string, any>;
-  }): Promise<Card> {
+  async createCard(cardData: CreateCardParams): Promise<Card> {
     return this.request<Card>('/api/cards', {
       method: 'POST',
       body: JSON.stringify(cardData),
@@ -310,13 +288,7 @@ class ApiClient {
     return 'image';
   }
 
-  async updateCard(
-    id: number,
-    cardData: {
-      data?: Record<string, any>;
-      metaInfo?: Record<string, any>;
-    }
-  ): Promise<Card> {
+  async updateCard(id: number, cardData: UpdateCardParams): Promise<Card> {
     return this.request<Card>(`/api/cards/${id}`, {
       method: 'PUT',
       body: JSON.stringify(cardData),
@@ -331,12 +303,8 @@ class ApiClient {
 
   async searchCards(
     query: string,
-    params: {
-      limit?: number;
-      offset?: number;
-      type?: Card['type'];
-    } = {}
-  ): Promise<CardsResponse & { query: string }> {
+    params: SearchCardsParams = {}
+  ): Promise<SearchResponse> {
     const queryParams = new URLSearchParams({
       q: query,
       ...(Object.fromEntries(
@@ -344,19 +312,11 @@ class ApiClient {
       ) as Record<string, string>),
     });
 
-    return this.request<CardsResponse & { query: string }>(
-      `/api/cards/search?${queryParams}`
-    );
+    return this.request<SearchResponse>(`/api/cards/search?${queryParams}`);
   }
 
-  async getCardStats(): Promise<{
-    total: number;
-    by_type: Record<Card['type'], number>;
-  }> {
-    return this.request<{
-      total: number;
-      by_type: Record<Card['type'], number>;
-    }>('/api/cards/stats');
+  async getCardStats(): Promise<CardStatsResponse> {
+    return this.request<CardStatsResponse>('/api/cards/stats');
   }
 }
 

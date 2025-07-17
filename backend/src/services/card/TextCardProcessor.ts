@@ -1,4 +1,4 @@
-import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
+import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
 import { CardProcessor } from './CardProcessor.js';
 
 export class TextCardProcessor extends CardProcessor {

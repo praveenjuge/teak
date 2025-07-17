@@ -1,7 +1,7 @@
+import type { SearchOptions, SearchResult } from '@teak/shared-types';
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../../db';
 import { cards } from '../../db/schema';
-import type { SearchOptions, SearchResult } from './SearchAndSortService';
 import { SearchAndSortService } from './SearchAndSortService';
 
 export class DatabaseSearchService extends SearchAndSortService {

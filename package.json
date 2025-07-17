@@ -16,7 +16,8 @@
   "workspaces": [
     "backend",
     "apps/web",
-    "apps/mobile"
+    "apps/mobile",
+    "packages/*"
   ],
   "scripts": {
     "bootstrap": "./scripts/bootstrap.sh",

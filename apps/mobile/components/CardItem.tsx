@@ -1,5 +1,6 @@
+import type { CardItemProps } from '@teak/shared-types';
 import { Audio } from 'expo-av';
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,14 +13,8 @@ import {
 } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { borderWidths, colors } from '@/constants/colors';
-import type { Card } from '@/lib/api';
 import { apiClient } from '@/lib/api';
 import { getFullMediaUrl } from '@/lib/utils';
-
-interface CardItemProps {
-  card: Card;
-  onDelete?: () => void;
-}
 
 // Helper function to format duration
 const formatDuration = (seconds: number): string => {

@@ -1,6 +1,4 @@
-// Consolidated type definitions - single source of truth
-export * from '../../../../backend/src/db/schema';
-
+// Database schema imports for Drizzle operations
 import type {
   accounts,
   sessions,
@@ -8,37 +6,21 @@ import type {
   verifications,
 } from '../../../../backend/src/db/schema';
 
-// Database entity types
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
-export type Session = typeof sessions.$inferSelect;
-export type NewSession = typeof sessions.$inferInsert;
-export type Account = typeof accounts.$inferSelect;
-export type NewAccount = typeof accounts.$inferInsert;
-export type Verification = typeof verifications.$inferSelect;
-export type NewVerification = typeof verifications.$inferInsert;
+// Database entity types inferred from Drizzle schema
+export type DrizzleUser = typeof users.$inferSelect;
+export type NewDrizzleUser = typeof users.$inferInsert;
+export type DrizzleSession = typeof sessions.$inferSelect;
+export type NewDrizzleSession = typeof sessions.$inferInsert;
+export type DrizzleAccount = typeof accounts.$inferSelect;
+export type NewDrizzleAccount = typeof accounts.$inferInsert;
+export type DrizzleVerification = typeof verifications.$inferSelect;
+export type NewDrizzleVerification = typeof verifications.$inferInsert;
 
-// API response types
-export interface ApiResponse<T> {
-  data?: T;
-  error?: string;
-  message?: string;
-}
+// Re-export shared types - everything else is now in shared-types
+export * from '@teak/shared-types';
+
+// Response types specific to user endpoints
+import type { ApiResponse, User } from '@teak/shared-types';
 
 export interface UserResponse extends ApiResponse<{ users: User[] }> {}
 export interface SingleUserResponse extends ApiResponse<{ user: User }> {}
-
-// Auth form types
-export interface AuthFormData {
-  email: string;
-  password: string;
-  confirmPassword?: string;
-  name?: string;
-}
-
-// Common UI state types
-export interface AsyncState {
-  isLoading: boolean;
-  error: string;
-  success: boolean;
-}

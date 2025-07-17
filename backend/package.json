@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@better-auth/expo": "^1.2.12",
+    "@teak/shared-types": "workspace:*",
     "@types/image-size": "^0.8.0",
     "better-auth": "^1.2.12",
     "drizzle-orm": "^0.44.2",

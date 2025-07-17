@@ -1,0 +1,29 @@
+{
+  "name": "@teak/shared-types",
+  "version": "0.0.1",
+  "description": "Shared TypeScript types for Teak monorepo",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node --format esm && bunx tsc --emitDeclarationOnly --outDir dist",
+    "dev": "bun build src/index.ts --outdir dist --target node --format esm --watch",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "zod": "^3.22.0"
+  }
+}

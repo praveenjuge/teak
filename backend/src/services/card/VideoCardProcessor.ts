@@ -1,8 +1,8 @@
+import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
 import { execFile } from 'child_process';
 import ffprobe from 'ffprobe-static';
 import { promisify } from 'util';
 import { LocalFileUploadService } from '../file/LocalFileUploadService.js';
-import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
 import { CardProcessor } from './CardProcessor.js';
 
 const execFileAsync = promisify(execFile);
@@ -59,7 +59,7 @@ export class VideoCardProcessor extends CardProcessor {
         'video/3gp',
         'video/quicktime',
       ],
-      generateUrl: (path) => `/api/data/${path}`,
+      generateUrl: (path: string) => `/api/data/${path}`,
     });
 
     // Extract video metadata

@@ -1,13 +1,6 @@
+import type { Card, SearchContextType } from '@teak/shared-types';
 import type { ReactNode } from 'react';
 import { createContext, useContext, useState } from 'react';
-import type { Card } from './api';
-
-interface SearchContextType {
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  selectedType: Card['type'] | undefined;
-  setSelectedType: (type: Card['type'] | undefined) => void;
-}
 
 const SearchContext = createContext<SearchContextType | undefined>(undefined);
 

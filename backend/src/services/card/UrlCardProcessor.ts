@@ -1,5 +1,5 @@
+import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
 import { parse } from 'node-html-parser';
-import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
 import { CardProcessor } from './CardProcessor.js';
 
 interface UrlMetadata {

@@ -1,19 +1,4 @@
-export interface UploadedFile {
-  filename: string;
-  originalName: string;
-  path: string;
-  size: number;
-  mimeType: string;
-  url: string;
-  width?: number; // Image width in pixels
-  height?: number; // Image height in pixels
-}
-
-export interface UploadOptions {
-  maxSize: number;
-  allowedTypes?: string[];
-  generateUrl: (path: string) => string;
-}
+import type { UploadedFile, UploadOptions } from '@teak/shared-types';
 
 export abstract class FileUploadService {
   abstract uploadFile(

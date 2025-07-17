@@ -1,30 +1,17 @@
+import type {
+  CardType,
+  CreateCardRequest,
+  CreateCardResponse,
+  ProcessingContext,
+} from '@teak/shared-types';
 import { db } from '../../db/index.js';
 import { cards } from '../../db/schema.js';
 import { AudioCardProcessor } from './AudioCardProcessor.js';
-import type { CardProcessor, ProcessingContext } from './CardProcessor.js';
+import type { CardProcessor } from './CardProcessor.js';
 import { ImageCardProcessor } from './ImageCardProcessor.js';
 import { TextCardProcessor } from './TextCardProcessor.js';
 import { UrlCardProcessor } from './UrlCardProcessor.js';
 import { VideoCardProcessor } from './VideoCardProcessor.js';
-
-export type CardType = 'audio' | 'text' | 'url' | 'image' | 'video';
-
-export interface CreateCardRequest {
-  type: CardType;
-  data: Record<string, any>;
-  metaInfo?: Record<string, any>;
-  file?: File;
-}
-
-export interface CreateCardResponse {
-  id: number;
-  type: CardType;
-  data: Record<string, any>;
-  metaInfo: Record<string, any>;
-  createdAt: Date;
-  updatedAt: Date;
-  userId: string;
-}
 
 export class CardService {
   private processors: Map<CardType, CardProcessor>;
@@ -88,6 +75,10 @@ export class CardService {
         error.message.startsWith('AUTO_CONVERT_TO_URL:')
       ) {
         const url = error.message.split('AUTO_CONVERT_TO_URL:')[1];
+
+        if (!url) {
+          throw new Error('Invalid URL conversion error format');
+        }
 
         // Recursively create URL card
         return this.createCard(

@@ -1,8 +1,8 @@
+import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
 import { execFile } from 'child_process';
 import ffprobe from 'ffprobe-static';
 import { promisify } from 'util';
 import { LocalFileUploadService } from '../file/LocalFileUploadService.js';
-import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
 import { CardProcessor } from './CardProcessor.js';
 
 const execFileAsync = promisify(execFile);
@@ -56,7 +56,7 @@ export class AudioCardProcessor extends CardProcessor {
         'audio/x-m4a',
         'video/webm', // Allow video/webm as it's often used for audio-only recordings
       ],
-      generateUrl: (path) => `/api/data/${path}`,
+      generateUrl: (path: string) => `/api/data/${path}`,
     });
 
     // Extract audio metadata

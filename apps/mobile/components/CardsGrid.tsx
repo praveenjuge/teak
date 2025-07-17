@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import type { Card, CardsGridProps } from '@teak/shared-types';
 import {
   ActivityIndicator,
   FlatList,
@@ -7,16 +8,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import type { Card } from '@/lib/api';
 import { apiClient } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
 import { colors } from '../constants/colors';
 import { CardItem } from './CardItem';
-
-interface CardsGridProps {
-  searchQuery?: string;
-  selectedType?: Card['type'];
-}
 
 export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
   // Check authentication state

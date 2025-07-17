@@ -1,5 +1,5 @@
+import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
 import { LocalFileUploadService } from '../file/LocalFileUploadService.js';
-import type { ProcessedCardData, ProcessingContext } from './CardProcessor.js';
 import { CardProcessor } from './CardProcessor.js';
 
 export class ImageCardProcessor extends CardProcessor {
@@ -40,7 +40,7 @@ export class ImageCardProcessor extends CardProcessor {
         'image/bmp',
         'image/tiff',
       ],
-      generateUrl: (path) => `/api/data/${path}`,
+      generateUrl: (path: string) => `/api/data/${path}`,
     });
 
     return {

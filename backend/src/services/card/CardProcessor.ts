@@ -1,13 +1,4 @@
-export interface ProcessedCardData {
-  data: Record<string, any>;
-  metaInfo: Record<string, any>;
-}
-
-export interface ProcessingContext {
-  userId: string;
-  file?: File;
-  inputData: Record<string, any>;
-}
+import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
 
 export abstract class CardProcessor {
   abstract process(context: ProcessingContext): Promise<ProcessedCardData>;
