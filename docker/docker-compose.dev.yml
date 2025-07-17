@@ -19,6 +19,7 @@ services:
     image: oven/bun
     working_dir: /workspace/apps/backend
     environment:
+      - NODE_ENV=development
       - POSTGRES_DB=teak_db
       - POSTGRES_USER=teak_user
       - POSTGRES_PASSWORD=teak_password
@@ -44,8 +45,8 @@ services:
           "--spider",
           "http://localhost:3001/api/health",
         ]
-      interval: 30s
-      timeout: 30s
+      interval: 10s
+      timeout: 10s
       retries: 2
 
   # Frontend Development Server
@@ -70,10 +71,9 @@ services:
           "--spider",
           "http://localhost:3000",
         ]
-      interval: 30s
+      interval: 10s
       timeout: 10s
       retries: 3
-      start_period: 40s
 
 # Volumes
 volumes:

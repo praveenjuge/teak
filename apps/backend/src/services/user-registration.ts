@@ -38,7 +38,7 @@ export async function validateUserRegistration(): Promise<void> {
   // Check if any users already exist
   const userCount = await getUserCount();
 
-  if (userCount > 1) {
+  if (userCount > 0) {
     throw new Error(
       'Registration is currently closed. Please refer to the documentation on how to enable multi-user registration.'
     );

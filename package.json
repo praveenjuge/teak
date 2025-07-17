@@ -22,7 +22,7 @@
   "scripts": {
     "bootstrap": "./scripts/bootstrap.sh",
     "install:all": "./scripts/install-deps.sh",
-    "dev": "./scripts/dev-local.sh",
+    "dev": "docker-compose -f docker/docker-compose.dev.yml up --remove-orphans",
     "dev:backend": "cd apps/backend && bun run dev",
     "dev:frontend": "cd apps/web && bun run dev",
     "dev:mobile": "cd apps/mobile && bun run start",
@@ -32,10 +32,10 @@
     "format": "bunx ultracite@latest format",
     "lint": "bunx ultracite@latest lint",
     "docker:prod": "docker-compose -f docker/docker-compose.yml up --build",
-    "docker:dev": "docker-compose -f docker/docker-compose.dev.yml up --build",
     "docker:dev:down": "docker-compose -f docker/docker-compose.dev.yml down",
     "docker:dev:logs": "docker-compose -f docker/docker-compose.dev.yml logs -f",
-    "docker:dev:clean": "docker-compose -f docker/docker-compose.dev.yml down -v && docker-compose -f docker/docker-compose.dev.yml up --build"
+    "docker:dev:clean": "docker-compose -f docker/docker-compose.dev.yml down -v && docker-compose -f docker/docker-compose.dev.yml up --build",
+    "docker:reset": "docker-compose -f docker/docker-compose.dev.yml down -v && docker-compose -f docker/docker-compose.yml down -v && docker volume prune -f && docker system prune -f"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,jsonc,css,scss,md,mdx}": [

@@ -15,12 +15,6 @@ Teak is a streamlined personal knowledge hub designed to help creative minds eff
 teak/
 ├── apps/
 │   ├── backend/             # Backend API server (@teak/backend)
-│   │   ├── src/
-│   │   │   ├── index.ts     # Hono.js server entry point
-│   │   │   ├── routes/      # API route handlers
-│   │   │   ├── services/    # Business logic services
-│   │   │   ├── db/          # Database schema & connection
-│   │   │   └── auth.ts      # Better Auth configuration
 │   ├── web/                 # React 19 frontend (@teak/web)
 │   └── mobile/              # React Native Expo mobile app (@teak/mobile)
 ├── docker/                  # Docker configurations

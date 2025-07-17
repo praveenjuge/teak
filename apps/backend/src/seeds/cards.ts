@@ -1,6 +1,7 @@
+import { hashPassword } from 'better-auth/crypto';
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
-import { cards, users } from '../db/schema';
+import { accounts, cards, users } from '../db/schema';
 
 // Sample card data for different types
 const sampleCards = [
@@ -220,16 +221,67 @@ async function seedUser() {
     if (existingUser) {
       console.log('✅ Demo user already exists');
       console.log('📧 Email: demo@teak.dev');
-      console.log(
-        '💡 Register this user through the frontend with any password'
-      );
+
+      // Check if we're in development mode
+      const isDevelopment = process.env.NODE_ENV !== 'production';
+
+      if (isDevelopment) {
+        console.log('🔑 Password: demo@teak.dev (development mode)');
+      } else {
+        console.log(
+          '💡 Register this user through the frontend with any password'
+        );
+      }
+
       return existingUser;
     }
 
-    console.log('💾 Creating demo user (registration required)...');
-
     const crypto = await import('node:crypto');
     const userId = crypto.randomUUID();
+
+    // Check if we're in development mode
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+
+    if (isDevelopment) {
+      console.log(
+        '🔧 Development mode detected - creating user with preset password...'
+      );
+
+      // Hash the password in development mode
+      const hashedPassword = await hashPassword('demo@teak.dev');
+
+      // Create user with password in development
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          id: userId,
+          name: 'Demo User',
+          email: 'demo@teak.dev',
+          emailVerified: true, // Pre-verified in development
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      // Insert the password hash into the accounts table (Better Auth structure)
+      await db.insert(accounts).values({
+        id: crypto.randomUUID(),
+        userId: newUser.id,
+        accountId: newUser.id,
+        providerId: 'credential',
+        password: hashedPassword,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      console.log('✅ Demo user created successfully');
+      console.log('📧 Email: demo@teak.dev');
+      console.log('🔑 Password: demo@teak.dev');
+      console.log('💡 You can now login directly with these credentials');
+
+      return newUser;
+    }
+    console.log('💾 Creating demo user (registration required)...');
 
     // Create user without password - they'll register through the frontend
     const [newUser] = await db
@@ -323,10 +375,16 @@ export async function seedCards() {
     console.log('');
     console.log('🎯 To access the demo data:');
     console.log('📧 Email: demo@teak.dev');
-    console.log(
-      '💡 Register this email through the frontend with any password'
-    );
-    console.log('🔗 The cards will automatically appear after registration!');
+
+    // Check if we're in development mode
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+
+    if (isDevelopment) {
+      console.log('🔑 Password: demo@teak.dev');
+      console.log('💡 You can now login directly with these credentials');
+    }
+
+    console.log('🔗 The cards will automatically appear after login!');
   } catch (error) {
     console.error('❌ Error during seeding:', error);
     throw error;
