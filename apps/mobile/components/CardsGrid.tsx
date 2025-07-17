@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import type { Card, CardsGridProps } from '@teak/shared-types';
 import {
   ActivityIndicator,
-  FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -66,13 +66,43 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
     );
   }
 
-  const renderCard = ({ item, index }: { item: Card; index: number }) => (
-    <View
-      style={[styles.cardContainer, { marginRight: index % 2 === 0 ? 8 : 0 }]}
-    >
-      <CardItem card={item} onDelete={refetch} />
-    </View>
-  );
+  const renderMasonryLayout = () => {
+    const cards = data?.cards || [];
+    if (cards.length === 0) {
+      return null;
+    }
+
+    const leftColumn: Card[] = [];
+    const rightColumn: Card[] = [];
+
+    // Simple alternating distribution for masonry effect
+    cards.forEach((card, index) => {
+      if (index % 2 === 0) {
+        leftColumn.push(card);
+      } else {
+        rightColumn.push(card);
+      }
+    });
+
+    return (
+      <View style={styles.masonryContainer}>
+        <View style={styles.column}>
+          {leftColumn.map((card) => (
+            <View key={card.id} style={styles.cardContainer}>
+              <CardItem card={card} onDelete={refetch} />
+            </View>
+          ))}
+        </View>
+        <View style={styles.column}>
+          {rightColumn.map((card) => (
+            <View key={card.id} style={styles.cardContainer}>
+              <CardItem card={card} onDelete={refetch} />
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  };
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
@@ -108,33 +138,37 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
     );
   }
 
+  if ((data?.cards || []).length === 0) {
+    return renderEmpty();
+  }
+
   return (
-    <FlatList
-      columnWrapperStyle={styles.row}
+    <ScrollView
       contentContainerStyle={styles.container}
-      data={data?.cards || []}
-      keyExtractor={(item) => item.id.toString()}
-      ListEmptyComponent={renderEmpty}
-      numColumns={2}
       refreshControl={
         <RefreshControl onRefresh={refetch} refreshing={isRefetching} />
       }
-      renderItem={renderCard}
       showsVerticalScrollIndicator={false}
-    />
+    >
+      {renderMasonryLayout()}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 100,
   },
-  row: {
-    justifyContent: 'space-between',
+  masonryContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  column: {
+    flex: 1,
   },
   cardContainer: {
-    flex: 1,
+    marginBottom: 0,
   },
   loadingContainer: {
     flex: 1,
