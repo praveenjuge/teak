@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/context-menu';
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
 import { apiClient } from '@/lib/api';
+import { CardDetailsModal } from './CardDetailsModal';
 
 // Helper function to format duration
 const formatDuration = (seconds: number): string => {
@@ -32,6 +33,7 @@ const formatDuration = (seconds: number): string => {
 export function CardItem({ card, onDelete }: CardItemProps) {
   const { playAudio, pauseAudio, currentlyPlaying } = useAudioPlayer();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const isPlaying =
@@ -93,6 +95,20 @@ export function CardItem({ card, onDelete }: CardItemProps) {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't open modal if clicking on interactive elements (but audio and URL cards now open modal)
+    if (
+      e.target instanceof HTMLElement &&
+      (e.target.closest('button') || 
+       e.target.closest('a') ||
+       e.target.tagName === 'BUTTON' ||
+       e.target.tagName === 'A')
+    ) {
+      return;
+    }
+    setShowDetailsModal(true);
+  };
+
   // Render content based on card type
   const renderCardContent = () => {
     switch (card.type) {
@@ -147,10 +163,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
 
       case 'audio':
         return (
-          <button
-            className="flex w-full items-center justify-between space-x-4 p-4"
-            onClick={handlePlayPause}
-          >
+          <div className="flex w-full items-center justify-between space-x-4 p-4">
             <audio
               onTimeUpdate={handleTimeUpdate}
               ref={audioRef}
@@ -177,7 +190,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
                 </span>
               </div>
             ) : null}
-          </button>
+          </div>
         );
 
       case 'url':
@@ -185,10 +198,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           return null;
         }
         return (
-          <div
-            className="cursor-pointer transition-colors"
-            onClick={() => handleUrlClick(card.data.url)}
-          >
+          <div>
             {card.data.screenshot_url ? (
               <img
                 alt={card.data.title || 'Website preview'}
@@ -258,12 +268,16 @@ export function CardItem({ card, onDelete }: CardItemProps) {
   };
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger>
-        <Card className="relative overflow-hidden p-0">
-          <CardContent className="p-0">{renderCardContent()}</CardContent>
-        </Card>
-      </ContextMenuTrigger>
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger>
+          <Card 
+            className="relative cursor-pointer overflow-hidden p-0 transition-shadow hover:shadow-md"
+            onClick={handleCardClick}
+          >
+            <CardContent className="p-0">{renderCardContent()}</CardContent>
+          </Card>
+        </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem
           disabled={deleteMutation.isPending}
@@ -293,6 +307,13 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </ContextMenu>
+      </ContextMenu>
+      
+      <CardDetailsModal
+        card={card}
+        open={showDetailsModal}
+        onOpenChange={setShowDetailsModal}
+      />
+    </>
   );
 }
