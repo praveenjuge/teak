@@ -192,21 +192,16 @@ export function CardItem({ card, onDelete }: CardItemProps) {
             {card.data.screenshot_url ? (
               <img
                 alt={card.data.title || 'Website preview'}
-                className="h-28 w-full rounded-t object-cover"
+                className="h-30 w-full rounded-t object-cover"
                 loading="lazy"
                 src={card.data.screenshot_url}
               />
-            ) : null}
-            <div className="flex min-w-0 flex-1 flex-col space-y-1 truncate p-4 text-primary">
-              <p className="truncate font-medium">
-                {card.data.title || card.data.url}
-              </p>
-              {card.data.description && (
-                <p className="truncate text-muted-foreground">
-                  {card.data.description}
-                </p>
-              )}
-            </div>
+            ) : (
+              <div className="h-30 w-full rounded-t bg-muted" />
+            )}
+            <p className="min-w-0 truncate p-4 font-medium text-primary">
+              {card.data.title || card.data.url}
+            </p>
           </div>
         );
 

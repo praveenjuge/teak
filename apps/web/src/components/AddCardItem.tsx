@@ -29,7 +29,6 @@ function detectCardType(content: string): {
         data: {
           url: trimmedContent,
           title: url.hostname,
-          description: `Saved from ${url.hostname}`,
         },
       };
     } catch {
