@@ -11,6 +11,9 @@
     "rules": {
       "suspicious": {
         "noConsole": "off"
+      },
+      "performance": {
+        "noImgElement": "off"
       }
     }
   }
