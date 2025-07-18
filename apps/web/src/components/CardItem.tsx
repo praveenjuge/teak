@@ -1,6 +1,6 @@
 import { useDeleteCard } from '@teak/shared-queries';
 import type { CardItemProps } from '@teak/shared-types';
-import { Clock, ExternalLink, Pause, Play, Trash2 } from 'lucide-react';
+import { Clock, Download, FileText, Pause, Play, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
   AlertDialog,
@@ -210,6 +210,47 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           return null;
         }
         return <p className="p-4 leading-relaxed">{card.data.content}</p>;
+
+      case 'pdf':
+        return (
+          <div className="p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="rounded-full bg-red-100 p-2">
+                  <FileText className="size-5 text-red-600" />
+                </div>
+                <div>
+                  <h4 className="font-medium">
+                    {card.data.title ||
+                      card.data.original_filename ||
+                      'PDF Document'}
+                  </h4>
+                  <div className="flex items-center space-x-3 text-muted-foreground text-sm">
+                    {card.data.page_count && (
+                      <span>{card.data.page_count} pages</span>
+                    )}
+                    {card.metaInfo?.file_size && (
+                      <span>
+                        {Math.round(
+                          (card.metaInfo.file_size / 1024 / 1024) * 100
+                        ) / 100}{' '}
+                        MB
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {card.data.media_url && (
+                <button
+                  className="rounded-full bg-muted p-2 hover:bg-muted/80"
+                  onClick={() => handleUrlClick(card.data.media_url)}
+                >
+                  <Download className="size-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        );
 
       default:
         return <p className="p-4 leading-relaxed">{card.data.content}</p>;

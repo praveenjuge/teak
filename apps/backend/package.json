@@ -26,6 +26,7 @@
     "hono": "^4.8.3",
     "image-size": "^2.0.2",
     "node-html-parser": "^7.0.1",
+    "pdf-lib": "^1.17.1",
     "pg": "^8.16.3",
     "puppeteer": "^23.9.0",
     "zod": "^3.25.71"

@@ -95,6 +95,7 @@ export const cardType = pgEnum('cardType', [
   'url',
   'image',
   'video',
+  'pdf',
 ]);
 export const cards = pgTable('cards', {
   id: serial('id').primaryKey().notNull(),

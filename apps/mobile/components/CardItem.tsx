@@ -366,6 +366,50 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           </TouchableOpacity>
         );
 
+      case 'pdf':
+        return (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onLongPress={handleLongPress}
+            onPress={() => {
+              if (card.data.media_url) {
+                handleUrlPress(card.data.media_url);
+              }
+            }}
+            style={[styles.card, dynamicStyles.card, styles.cardPadding]}
+          >
+            <View style={styles.pdfContent}>
+              <View style={styles.pdfHeader}>
+                <View style={styles.pdfIcon}>
+                  <IconSymbol color="white" name="doc.fill" size={20} />
+                </View>
+                <View style={styles.pdfInfo}>
+                  <Text style={[styles.pdfTitle, dynamicStyles.text]}>
+                    {card.data.title || card.data.original_filename || 'PDF Document'}
+                  </Text>
+                  <View style={styles.pdfMeta}>
+                    {card.data.page_count && (
+                      <Text style={[styles.pdfMetaText, dynamicStyles.mutedText]}>
+                        {card.data.page_count} pages
+                      </Text>
+                    )}
+                    {card.data.page_count && card.metaInfo?.file_size && (
+                      <Text style={[styles.pdfMetaText, dynamicStyles.mutedText]}>
+                        {' • '}
+                      </Text>
+                    )}
+                    {card.metaInfo?.file_size && (
+                      <Text style={[styles.pdfMetaText, dynamicStyles.mutedText]}>
+                        {Math.round(card.metaInfo.file_size / 1024 / 1024 * 100) / 100} MB
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        );
+
       default:
         return (
           <TouchableOpacity
@@ -489,5 +533,34 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 12,
     lineHeight: 16,
+  },
+  pdfContent: {
+    flexDirection: 'column',
+  },
+  pdfHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  pdfIcon: {
+    backgroundColor: '#dc2626',
+    borderRadius: 20,
+    padding: 8,
+    marginRight: 12,
+  },
+  pdfInfo: {
+    flex: 1,
+  },
+  pdfTitle: {
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  pdfMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  pdfMetaText: {
+    fontSize: 12,
   },
 });

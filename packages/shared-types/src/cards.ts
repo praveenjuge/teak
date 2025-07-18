@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Card type enum
-export const cardTypeEnum = z.enum(['audio', 'text', 'url', 'image', 'video']);
+export const cardTypeEnum = z.enum(['audio', 'text', 'url', 'image', 'video', 'pdf']);
 export type CardType = z.infer<typeof cardTypeEnum>;
 
 // Card data schemas for different types
@@ -45,6 +45,15 @@ export const videoDataSchema = z.object({
   original_filename: z.string().optional(),
 });
 
+export const pdfDataSchema = z.object({
+  media_url: z.string().optional(),
+  extracted_text: z.string().optional(),
+  title: z.string().optional(),
+  original_filename: z.string().optional(),
+  page_count: z.number().int().positive().optional(),
+  keywords: z.array(z.string()).optional(),
+});
+
 // Meta info schema (common for all card types)
 export const metaInfoSchema = z
   .object({
@@ -78,6 +87,10 @@ export const cardDataSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('video'),
     data: videoDataSchema,
+  }),
+  z.object({
+    type: z.literal('pdf'),
+    data: pdfDataSchema,
   }),
 ]);
 
@@ -136,6 +149,7 @@ export type TextData = z.infer<typeof textDataSchema>;
 export type UrlData = z.infer<typeof urlDataSchema>;
 export type ImageData = z.infer<typeof imageDataSchema>;
 export type VideoData = z.infer<typeof videoDataSchema>;
+export type PdfData = z.infer<typeof pdfDataSchema>;
 export type MetaInfo = z.infer<typeof metaInfoSchema>;
 export type CreateCard = z.infer<typeof createCardSchema>;
 export type UpdateCard = z.infer<typeof updateCardSchema>;
@@ -144,4 +158,4 @@ export type DbCardResponse = z.infer<typeof dbCardSchema>;
 export type CardsListResponse = z.infer<typeof cardsListResponseSchema>;
 
 // Union type for card data
-export type CardData = AudioData | TextData | UrlData | ImageData | VideoData;
+export type CardData = AudioData | TextData | UrlData | ImageData | VideoData | PdfData;

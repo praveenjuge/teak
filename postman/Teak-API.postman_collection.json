@@ -771,6 +771,81 @@
           }
         },
         {
+          "name": "Create PDF Card with File Upload",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has created card', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.type).to.equal('pdf');",
+                  "    pm.expect(jsonData.data).to.have.property('media_url');",
+                  "});",
+                  "",
+                  "pm.test('Response includes PDF metadata', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('extracted_text');",
+                  "    pm.expect(jsonData.data).to.have.property('page_count');",
+                  "    pm.expect(jsonData.metaInfo).to.have.property('file_size');",
+                  "    pm.expect(jsonData.metaInfo).to.have.property('mime_type');",
+                  "});",
+                  "",
+                  "pm.test('Media URL is accessible', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.media_url).to.include('/api/data/');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "better-auth.session_token={{sessionToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "type",
+                  "value": "pdf",
+                  "type": "text"
+                },
+                {
+                  "key": "data",
+                  "value": "{\n  \"title\": \"Sample PDF Document - File Upload\",\n  \"subject\": \"This PDF was uploaded using the multipart/form-data endpoint, demonstrating the file upload capabilities of the Teak API.\"\n}",
+                  "type": "text"
+                },
+                {
+                  "key": "metaInfo",
+                  "value": "{\n  \"source\": \"Postman PDF Upload Test\",\n  \"tags\": [\"pdf\", \"file-upload\", \"sample\", \"test\"]\n}",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards"]
+            },
+            "description": "Create a new PDF card with file upload. This example demonstrates the multipart/form-data functionality for uploading PDF files. The API will automatically extract text content, metadata such as page count, author, subject, and file information. The uploaded file will be stored locally and a media_url will be generated for download."
+          }
+        },
+        {
           "name": "Update Card",
           "event": [
             {

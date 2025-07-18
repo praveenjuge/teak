@@ -34,7 +34,19 @@ export class LocalFileUploadService extends FileUploadService {
 
     // Validate file type if restrictions provided
     if (options.allowedTypes && !options.allowedTypes.includes(fileType.mime)) {
-      throw new Error(`File type ${fileType.mime} is not allowed`);
+      // Special handling for PDF files - check if it's a PDF by extension as fallback
+      const isPdfFile = file.name.toLowerCase().endsWith('.pdf');
+      const isPdfAccepted = options.allowedTypes.some(type => 
+        type.includes('pdf') || type.includes('application/pdf')
+      );
+      
+      if (isPdfFile && isPdfAccepted) {
+        console.log(`Allowing PDF file with detected MIME type: ${fileType.mime}`);
+        // Continue with PDF processing
+      } else {
+        console.log(`File type detected: ${fileType.mime}, allowed types:`, options.allowedTypes);
+        throw new Error(`File type ${fileType.mime} is not allowed`);
+      }
     }
 
     // Generate paths

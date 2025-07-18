@@ -213,11 +213,12 @@ export function AddCardItem() {
       'audio/mp4',
       'audio/aac',
       'audio/flac',
+      'application/pdf',
     ];
 
     if (!supportedTypes.includes(file.type)) {
       alert(
-        'Unsupported file type. Please select an image, video, or audio file.'
+        'Unsupported file type. Please select an image, video, audio, or PDF file.'
       );
       return;
     }
@@ -225,9 +226,36 @@ export function AddCardItem() {
     // Reset file input
     event.target.value = '';
 
+    // Determine card type based on file MIME type
+    let cardType: string;
+    if (file.type.startsWith('image/')) {
+      cardType = 'image';
+    } else if (file.type.startsWith('video/')) {
+      cardType = 'video';
+    } else if (file.type.startsWith('audio/')) {
+      cardType = 'audio';
+    } else if (file.type === 'application/pdf') {
+      cardType = 'pdf';
+    } else {
+      // Fallback to detect by file extension
+      const fileName = file.name.toLowerCase();
+      if (fileName.endsWith('.pdf')) {
+        cardType = 'pdf';
+      } else if (fileName.match(/\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)$/)) {
+        cardType = 'image';
+      } else if (fileName.match(/\.(mp4|webm|mov|avi|mkv|flv|wmv)$/)) {
+        cardType = 'video';
+      } else if (fileName.match(/\.(mp3|wav|ogg|aac|flac|m4a)$/)) {
+        cardType = 'audio';
+      } else {
+        cardType = 'image'; // Default fallback
+      }
+    }
+
     mutateWithProgressReset({
       file,
       cardData: {
+        type: cardType,
         metaInfo: {
           source: 'File Upload',
           tags: [],
@@ -336,7 +364,7 @@ export function AddCardItem() {
       <CardFooter className="flex justify-between px-4 pb-4">
         <div className="flex gap-2">
           <input
-            accept="image/*,video/*,audio/*"
+            accept="image/*,video/*,audio/*,application/pdf"
             className="hidden"
             onChange={handleFileUpload}
             ref={fileInputRef}

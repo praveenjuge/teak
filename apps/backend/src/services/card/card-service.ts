@@ -9,6 +9,7 @@ import { cards } from '../../db/schema.js';
 import { AudioCardProcessor } from './audio-card-processor.js';
 import type { CardProcessor } from './card-processor.js';
 import { ImageCardProcessor } from './image-card-processor.js';
+import { PdfCardProcessor } from './pdf-card-processor.js';
 import { TextCardProcessor } from './text-card-processor.js';
 import { UrlCardProcessor } from './UrlCardProcessor.js';
 import { VideoCardProcessor } from './VideoCardProcessor.js';
@@ -17,13 +18,13 @@ export class CardService {
   private processors: Map<CardType, CardProcessor>;
 
   constructor() {
-    this.processors = new Map<CardType, CardProcessor>([
-      ['audio', new AudioCardProcessor()],
-      ['video', new VideoCardProcessor()],
-      ['text', new TextCardProcessor()],
-      ['url', new UrlCardProcessor()],
-      ['image', new ImageCardProcessor()],
-    ] as const);
+    this.processors = new Map<CardType, CardProcessor>();
+    this.processors.set('audio', new AudioCardProcessor());
+    this.processors.set('video', new VideoCardProcessor());
+    this.processors.set('text', new TextCardProcessor());
+    this.processors.set('url', new UrlCardProcessor());
+    this.processors.set('image', new ImageCardProcessor());
+    this.processors.set('pdf', new PdfCardProcessor());
   }
 
   async createCard(
