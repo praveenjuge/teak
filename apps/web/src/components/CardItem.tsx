@@ -186,13 +186,27 @@ export function CardItem({ card, onDelete }: CardItemProps) {
         }
         return (
           <div
-            className="flex cursor-pointer items-center space-x-2 truncate p-4 text-primary transition-colors"
+            className="cursor-pointer transition-colors"
             onClick={() => handleUrlClick(card.data.url)}
           >
-            <ExternalLink className="size-4" />
-            <span className="max-w-xs truncate font-medium">
-              {card.data.title || card.data.url}
-            </span>
+            {card.data.screenshot_url ? (
+              <img
+                alt={card.data.title || 'Website preview'}
+                className="h-28 w-full rounded-t object-cover"
+                loading="lazy"
+                src={card.data.screenshot_url}
+              />
+            ) : null}
+            <div className="flex min-w-0 flex-1 flex-col space-y-1 truncate p-4 text-primary">
+              <p className="truncate font-medium">
+                {card.data.title || card.data.url}
+              </p>
+              {card.data.description && (
+                <p className="truncate text-muted-foreground">
+                  {card.data.description}
+                </p>
+              )}
+            </div>
           </div>
         );
 

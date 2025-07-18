@@ -1,5 +1,6 @@
 import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
 import { type HTMLElement, parse } from 'node-html-parser';
+import { ScreenshotService } from '../screenshot/ScreenshotService.js';
 import { CardProcessor } from './card-processor.js';
 
 interface UrlMetadata {
@@ -12,6 +13,13 @@ interface UrlMetadata {
 }
 
 export class UrlCardProcessor extends CardProcessor {
+  private screenshotService: ScreenshotService;
+
+  constructor() {
+    super();
+    this.screenshotService = new ScreenshotService();
+  }
+
   async process(context: ProcessingContext): Promise<ProcessedCardData> {
     const url = context.inputData.url;
 
@@ -22,12 +30,46 @@ export class UrlCardProcessor extends CardProcessor {
     // Extract metadata from the URL
     const metadata = await this.extractUrlMetadata(url);
 
+    // Generate screenshot or use OG image
+    let screenshotUrl = '';
+    try {
+      if (metadata.image) {
+        console.log(`Found OG image for ${url}: ${metadata.image}`);
+        // If there's an OG image, download and save it instead of taking a screenshot
+        const ogImageResult =
+          await this.screenshotService.downloadAndSaveOgImage(
+            metadata.image,
+            url
+          );
+        screenshotUrl = ogImageResult.url;
+        console.log(`OG image saved as: ${screenshotUrl}`);
+      } else {
+        console.log(`No OG image found for ${url}, taking screenshot`);
+        // If no OG image, take a screenshot
+        const screenshotResult = await this.screenshotService.takeScreenshot(
+          url,
+          {
+            width: 1200,
+            height: 800,
+            format: 'jpeg',
+            quality: 85,
+          }
+        );
+        screenshotUrl = screenshotResult.url;
+        console.log(`Screenshot saved as: ${screenshotUrl}`);
+      }
+    } catch (error) {
+      console.warn(`Failed to generate screenshot for ${url}:`, error);
+      // Continue without screenshot - not a fatal error
+    }
+
     return {
       data: {
         url,
         title: metadata.title || '',
         description: metadata.description || '',
         image: metadata.image || '',
+        screenshot_url: screenshotUrl,
       },
       metaInfo: {
         site_name: metadata.siteName,

@@ -23,6 +23,7 @@ export const urlDataSchema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
   image: z.string().optional(),
+  screenshot_url: z.string().optional(),
 });
 
 export const imageDataSchema = z.object({

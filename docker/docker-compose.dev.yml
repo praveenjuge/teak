@@ -16,7 +16,9 @@ services:
 
   # Backend Development Server
   backend:
-    image: oven/bun
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     working_dir: /workspace/apps/backend
     environment:
       - NODE_ENV=development
@@ -34,7 +36,6 @@ services:
         condition: service_healthy
     ports:
       - "3001:3001"
-    command: sh -c "cd /workspace && bun install && cd /workspace/apps/backend && echo 'Waiting for database...' && sleep 5 && echo 'Running migrations...' && bun run db:migrate && echo 'Starting development server...' && bun run db:seed && bun run dev"
     healthcheck:
       test:
         [
@@ -60,7 +61,7 @@ services:
       - backend
     ports:
       - "3000:3000"
-    command: sh -c "cd /workspace && bun install && cd /workspace/apps/web && bun run dev --host 0.0.0.0"
+    command: sh -c "cd /workspace && bun install && cd /workspace/apps/web && rm -rf node_modules/.vite && bun run dev --host 0.0.0.0"
     healthcheck:
       test:
         [

@@ -295,20 +295,59 @@ export function CardItem({ card, onDelete }: CardItemProps) {
             activeOpacity={0.8}
             onLongPress={handleLongPress}
             onPress={() => handleUrlPress(card.data.url)}
-            style={[styles.card, dynamicStyles.card, styles.cardPadding]}
+            style={[styles.card, dynamicStyles.card]}
           >
-            <View style={styles.urlContent}>
-              <IconSymbol
-                color={colors.primary}
-                name="arrow.up.right.square"
-                size={18}
-              />
-              <Text
-                numberOfLines={1}
-                style={[styles.urlText, dynamicStyles.primaryText]}
-              >
-                {card.data.title || card.data.url}
-              </Text>
+            {card.data.screenshot_url ? (
+              <View style={styles.urlWithScreenshot}>
+                <Image
+                  resizeMode="cover"
+                  source={{
+                    uri:
+                      getFullMediaUrl(card.data.screenshot_url) ||
+                      card.data.screenshot_url,
+                  }}
+                  style={styles.urlScreenshot}
+                />
+                <View style={styles.urlScreenshotOverlay}>
+                  <View style={styles.urlScreenshotBadge}>
+                    <IconSymbol
+                      color="white"
+                      name="arrow.up.right.square"
+                      size={14}
+                    />
+                  </View>
+                </View>
+              </View>
+            ) : null}
+            <View
+              style={[
+                styles.urlContent,
+                card.data.screenshot_url && styles.urlContentWithScreenshot,
+              ]}
+            >
+              {!card.data.screenshot_url && (
+                <IconSymbol
+                  color={colors.primary}
+                  name="arrow.up.right.square"
+                  size={18}
+                />
+              )}
+              <View style={styles.urlTextContainer}>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.urlTitle, dynamicStyles.primaryText]}
+                >
+                  {card.data.title || card.data.url}
+                </Text>
+                {card.data.description && (
+                  <Text
+                    numberOfLines={2}
+                    style={[styles.urlDescription, dynamicStyles.mutedText]}
+                  >
+                    {card.data.description}
+                  </Text>
+                )}
+              </View>
             </View>
           </TouchableOpacity>
         );
@@ -415,10 +454,40 @@ const styles = StyleSheet.create({
   audioTime: {
     marginLeft: 4,
   },
+  urlWithScreenshot: {
+    position: 'relative',
+  },
+  urlScreenshot: {
+    width: '100%',
+    height: 120,
+  },
+  urlScreenshotOverlay: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  urlScreenshotBadge: {
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 12,
+    padding: 6,
+  },
   urlContent: {
     flexDirection: 'row',
+    padding: 12,
   },
-  urlText: {
-    marginLeft: 5,
+  urlContentWithScreenshot: {
+    paddingTop: 12,
+  },
+  urlTextContainer: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  urlTitle: {
+    fontWeight: '600',
+  },
+  urlDescription: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 16,
   },
 });

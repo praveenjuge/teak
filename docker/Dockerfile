@@ -66,7 +66,7 @@ RUN cd apps/backend && bun run build
 # Stage 4: Final Production Image
 FROM nginx:alpine
 
-# Install supervisor, bun, and other dependencies
+# Install supervisor, bun, Chrome, and other dependencies
 RUN apk add --no-cache \
     supervisor \
     bash \
@@ -75,6 +75,12 @@ RUN apk add --no-cache \
     netcat-openbsd \
     nodejs \
     npm \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
     && curl -fsSL https://bun.sh/install | bash \
     && ln -s /root/.bun/bin/bun /usr/local/bin/bun
 

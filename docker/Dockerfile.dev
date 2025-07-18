@@ -1,0 +1,19 @@
+# Development Dockerfile with Chrome support
+FROM oven/bun:alpine
+
+# Install Chrome and dependencies
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    bash \
+    curl
+
+# Create working directory
+WORKDIR /workspace
+
+# Set up development environment
+CMD ["sh", "-c", "cd /workspace && bun install && cd /workspace/apps/backend && echo 'Waiting for database...' && sleep 5 && echo 'Running migrations...' && bun run db:migrate && echo 'Starting development server...' && bun run db:seed && bun run dev"]
