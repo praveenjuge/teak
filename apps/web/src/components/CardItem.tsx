@@ -99,10 +99,10 @@ export function CardItem({ card, onDelete }: CardItemProps) {
     // Don't open modal if clicking on interactive elements (but audio and URL cards now open modal)
     if (
       e.target instanceof HTMLElement &&
-      (e.target.closest('button') || 
-       e.target.closest('a') ||
-       e.target.tagName === 'BUTTON' ||
-       e.target.tagName === 'A')
+      (e.target.closest('button') ||
+        e.target.closest('a') ||
+        e.target.tagName === 'BUTTON' ||
+        e.target.tagName === 'A')
     ) {
       return;
     }
@@ -215,52 +215,39 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           </div>
         );
 
+      case 'pdf':
+        return (
+          <div className="flex items-center justify-between space-x-2 p-4">
+            <div className="rounded-full bg-red-100 p-2">
+              <FileText className="size-5 text-red-600" />
+            </div>
+            <div>
+              <h4 className="font-medium">
+                {card.data.title ||
+                  card.data.original_filename ||
+                  'PDF Document'}
+              </h4>
+              <div className="flex items-center space-x-3 text-muted-foreground text-sm">
+                {card.data.page_count && (
+                  <span>{card.data.page_count} pages</span>
+                )}
+                {card.metaInfo?.file_size && (
+                  <span>
+                    {Math.round((card.metaInfo.file_size / 1024 / 1024) * 100) /
+                      100}{' '}
+                    MB
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+
       case 'text':
         if (!card.data.content) {
           return null;
         }
         return <p className="p-4 leading-relaxed">{card.data.content}</p>;
-
-      case 'pdf':
-        return (
-          <div className="p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="rounded-full bg-red-100 p-2">
-                  <FileText className="size-5 text-red-600" />
-                </div>
-                <div>
-                  <h4 className="font-medium">
-                    {card.data.title ||
-                      card.data.original_filename ||
-                      'PDF Document'}
-                  </h4>
-                  <div className="flex items-center space-x-3 text-muted-foreground text-sm">
-                    {card.data.page_count && (
-                      <span>{card.data.page_count} pages</span>
-                    )}
-                    {card.metaInfo?.file_size && (
-                      <span>
-                        {Math.round(
-                          (card.metaInfo.file_size / 1024 / 1024) * 100
-                        ) / 100}{' '}
-                        MB
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              {card.data.media_url && (
-                <button
-                  className="rounded-full bg-muted p-2 hover:bg-muted/80"
-                  onClick={() => handleUrlClick(card.data.media_url)}
-                >
-                  <Download className="size-4" />
-                </button>
-              )}
-            </div>
-          </div>
-        );
 
       default:
         return <p className="p-4 leading-relaxed">{card.data.content}</p>;
@@ -271,48 +258,48 @@ export function CardItem({ card, onDelete }: CardItemProps) {
     <>
       <ContextMenu>
         <ContextMenuTrigger>
-          <Card 
+          <Card
             className="relative cursor-pointer overflow-hidden p-0 transition-shadow hover:shadow-md"
             onClick={handleCardClick}
           >
             <CardContent className="p-0">{renderCardContent()}</CardContent>
           </Card>
         </ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem
-          disabled={deleteMutation.isPending}
-          onClick={() => setShowDeleteDialog(true)}
-        >
-          <Trash2 />
-          Delete
-        </ContextMenuItem>
-      </ContextMenuContent>
-      <AlertDialog onOpenChange={setShowDeleteDialog} open={showDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Card</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this card? This action cannot be
-              undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={deleteMutation.isPending}
-              onClick={handleDelete}
-            >
-              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <ContextMenuContent>
+          <ContextMenuItem
+            disabled={deleteMutation.isPending}
+            onClick={() => setShowDeleteDialog(true)}
+          >
+            <Trash2 />
+            Delete
+          </ContextMenuItem>
+        </ContextMenuContent>
+        <AlertDialog onOpenChange={setShowDeleteDialog} open={showDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Card</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this card? This action cannot be
+                undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={deleteMutation.isPending}
+                onClick={handleDelete}
+              >
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </ContextMenu>
-      
+
       <CardDetailsModal
         card={card}
-        open={showDetailsModal}
         onOpenChange={setShowDetailsModal}
+        open={showDetailsModal}
       />
     </>
   );
