@@ -1,19 +1,15 @@
-# Development Dockerfile with Chrome support
-FROM oven/bun:alpine
+FROM oven/bun
 
-# Install Chrome and dependencies
-RUN apk add --no-cache \
-    chromium \
-    nss \
-    freetype \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont \
-    bash \
-    curl
-
-# Create working directory
 WORKDIR /workspace
 
-# Set up development environment
-CMD ["sh", "-c", "cd /workspace && bun install && cd /workspace/apps/backend && echo 'Waiting for database...' && sleep 5 && echo 'Running migrations...' && bun run db:migrate && echo 'Starting development server...' && bun run db:seed && bun run dev"]
+# Install development dependencies using apt (bun image is based on Ubuntu)
+RUN apt-get update && apt-get install -y \
+    bash \
+    curl \
+    postgresql-client \
+    netcat-openbsd \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Development command will be handled by docker-compose volumes and command
+CMD ["sleep", "infinity"]

@@ -50,6 +50,12 @@ logs
 # Testing
 coverage
 .nyc_output
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+__tests__
+tests
 
 # Temporary files
 .tmp
