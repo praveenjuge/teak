@@ -259,7 +259,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
       <ContextMenu>
         <ContextMenuTrigger>
           <Card
-            className="relative cursor-pointer overflow-hidden p-0 transition-shadow hover:shadow-md"
+            className="relative cursor-pointer overflow-hidden p-0"
             onClick={handleCardClick}
           >
             <CardContent className="p-0">{renderCardContent()}</CardContent>
