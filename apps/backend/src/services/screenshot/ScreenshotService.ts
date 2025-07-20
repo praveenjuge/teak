@@ -31,6 +31,7 @@ export class ScreenshotService {
 
   async takeScreenshot(
     url: string,
+    userId: string,
     options: ScreenshotOptions = {}
   ): Promise<ScreenshotResult> {
     const {
@@ -156,7 +157,7 @@ export class ScreenshotService {
       const timestamp = Date.now();
       const random = Math.random().toString(36).substring(2, 8);
       const filename = `screenshot-${timestamp}-${random}.${format}`;
-      const datePath = this.createDatePath();
+      const datePath = this.createDatePath(userId);
       const relativePath = path.join(datePath, filename);
       const fullPath = path.join(this.uploadsDir, relativePath);
       const dirPath = path.dirname(fullPath);
@@ -195,7 +196,8 @@ export class ScreenshotService {
 
   async downloadAndSaveOgImage(
     imageUrl: string,
-    sourceUrl: string
+    sourceUrl: string,
+    userId: string
   ): Promise<ScreenshotResult> {
     try {
       // Fetch the image
@@ -226,7 +228,7 @@ export class ScreenshotService {
       const timestamp = Date.now();
       const random = Math.random().toString(36).substring(2, 8);
       const filename = `og-image-${timestamp}-${random}.${format}`;
-      const datePath = this.createDatePath();
+      const datePath = this.createDatePath(userId);
       const relativePath = path.join(datePath, filename);
       const fullPath = path.join(this.uploadsDir, relativePath);
       const dirPath = path.dirname(fullPath);
@@ -260,7 +262,7 @@ export class ScreenshotService {
 
   private async initializeBrowser(): Promise<void> {
     try {
-      const executablePath = '/usr/bin/chromium';
+      const executablePath = '/usr/bin/chromium-browser';
 
       console.log(`Attempting to launch browser at: ${executablePath}`);
 
@@ -285,11 +287,13 @@ export class ScreenshotService {
 
         // Try common Chrome/Chromium paths
         const commonPaths = [
+          '/usr/bin/chromium-browser', // Alpine Linux
           '/usr/bin/chromium',
-          '/usr/bin/chromium-browser',
           '/usr/bin/google-chrome',
           '/usr/bin/google-chrome-stable',
           '/opt/google/chrome/chrome',
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', // macOS
+          '/usr/bin/google-chrome-unstable', // Additional Linux path
         ];
 
         let foundPath = null;
@@ -331,12 +335,12 @@ export class ScreenshotService {
     }
   }
 
-  private createDatePath(): string {
+  private createDatePath(userId: string): string {
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
-    return `${year}/${month}/${day}`;
+    return `${userId}/${year}/${month}/${day}`;
   }
 
   async cleanup(): Promise<void> {

@@ -21,7 +21,7 @@ export class UrlCardProcessor extends CardProcessor {
   }
 
   async process(context: ProcessingContext): Promise<ProcessedCardData> {
-    const url = context.inputData.url;
+    const url = context.inputData.url as string;
 
     if (!(url && this.isValidUrl(url))) {
       throw new Error('URL card requires a valid url field');
@@ -39,7 +39,8 @@ export class UrlCardProcessor extends CardProcessor {
         const ogImageResult =
           await this.screenshotService.downloadAndSaveOgImage(
             metadata.image,
-            url
+            url,
+            context.userId
           );
         screenshotUrl = ogImageResult.url;
         console.log(`OG image saved as: ${screenshotUrl}`);
@@ -48,6 +49,7 @@ export class UrlCardProcessor extends CardProcessor {
         // If no OG image, take a screenshot
         const screenshotResult = await this.screenshotService.takeScreenshot(
           url,
+          context.userId,
           {
             width: 1200,
             height: 800,
@@ -76,7 +78,7 @@ export class UrlCardProcessor extends CardProcessor {
         og_type: metadata.type,
         canonical_url: metadata.url,
         fetched_at: new Date().toISOString(),
-        ...context.inputData.metaInfo,
+        ...(context.inputData.metaInfo as Record<string, unknown> || {}),
       },
     };
   }

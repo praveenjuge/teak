@@ -80,7 +80,7 @@ LABEL org.opencontainers.image.title="Teak Application" \
       org.opencontainers.image.vendor="praveenjuge" \
       maintainer="hello@praveenjuge.com"
 
-# Install supervisor, bun, and essential dependencies
+# Install supervisor, bun, chromium and essential dependencies
 RUN apk add --no-cache \
     supervisor \
     bash \
@@ -88,6 +88,13 @@ RUN apk add --no-cache \
     postgresql-client \
     netcat-openbsd \
     ca-certificates \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
     && curl -fsSL https://bun.sh/install | bash \
     && ln -s /root/.bun/bin/bun /usr/local/bin/bun
 
