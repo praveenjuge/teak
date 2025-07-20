@@ -5,6 +5,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { auth } from './auth';
 import { healthRoutes } from './health';
+import { adminRoutes } from './routes/admin';
 import { cardRoutes } from './routes/cards';
 import { jobRoutes } from './routes/jobs';
 import { userRoutes } from './routes/users';
@@ -95,6 +96,7 @@ const setAudioCorsHeaders = (c: Context, contentType: string) => {
 };
 
 // API routes
+app.route('/api/admin', adminRoutes);
 app.route('/api/users', userRoutes);
 app.route('/api/cards', cardRoutes);
 app.route('/api/jobs', jobRoutes);

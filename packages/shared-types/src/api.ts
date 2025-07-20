@@ -35,6 +35,50 @@ export interface CardStatsResponse {
   by_type: Record<Card['type'], number>;
 }
 
+// Admin stats response (system-wide statistics)
+export interface AdminStatsResponse {
+  overview: {
+    totalUsers: number;
+    totalCards: number;
+    totalJobs: number;
+    storageUsed: string;
+  };
+  cards: {
+    total: number;
+    byType: Record<Card['type'], number>;
+    byUser: Array<{
+      userId: string;
+      userName: string;
+      userEmail: string;
+      cardCount: number;
+    }>;
+    recentActivity: Array<{
+      date: string;
+      count: number;
+    }>;
+  };
+  users: {
+    total: number;
+    recentRegistrations: Array<{
+      date: string;
+      count: number;
+    }>;
+    activeUsers: Array<{
+      userId: string;
+      userName: string;
+      userEmail: string;
+      lastActivity: string;
+      cardCount: number;
+    }>;
+  };
+  jobs: {
+    total: number;
+    byStatus: Record<'pending' | 'processing' | 'completed' | 'failed', number>;
+    byType: Record<'refetch-og-images' | 'refetch-screenshots' | 'process-card', number>;
+    successRate: number;
+  };
+}
+
 // Search response
 export interface SearchResponse extends CardsResponse {
   query: string;

@@ -1,4 +1,5 @@
 import type {
+  AdminStatsResponse,
   Card,
   CardStatsResponse,
   CardsResponse,
@@ -59,6 +60,9 @@ export interface ApiClient {
   getJobs(): Promise<Job[]>;
   createRefetchOgImagesJob(): Promise<Job>;
   createRefetchScreenshotsJob(): Promise<Job>;
+
+  // Admin methods
+  getAdminStats(): Promise<AdminStatsResponse>;
 }
 
 export interface UseCardsParams {

@@ -181,3 +181,12 @@ export function useRefetchScreenshots(apiClient: ApiClient) {
     },
   });
 }
+
+// Admin hooks
+export function useAdminStats(apiClient: ApiClient) {
+  return useQuery({
+    queryKey: ['admin', 'stats'],
+    queryFn: () => apiClient.getAdminStats(),
+    refetchInterval: 30000, // Refetch every 30 seconds for live stats
+  });
+}

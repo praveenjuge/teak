@@ -2,6 +2,7 @@
 
 // Core query hooks
 export {
+  useAdminStats,
   useCard,
   useCardStats,
   useCards,

@@ -1,4 +1,5 @@
 import type {
+  AdminStatsResponse,
   Card,
   CardStatsResponse,
   CardsResponse,
@@ -195,6 +196,11 @@ class ApiClient {
     return this.request<Job>('/api/jobs/refetch-screenshots', {
       method: 'POST',
     });
+  }
+
+  // Admin methods
+  async getAdminStats(): Promise<AdminStatsResponse> {
+    return this.request<AdminStatsResponse>('/api/admin/stats');
   }
 }
 
