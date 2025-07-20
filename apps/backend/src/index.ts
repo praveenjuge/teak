@@ -6,6 +6,7 @@ import { logger } from 'hono/logger';
 import { auth } from './auth';
 import { healthRoutes } from './health';
 import { cardRoutes } from './routes/cards';
+import { jobRoutes } from './routes/jobs';
 import { userRoutes } from './routes/users';
 
 // App with type-safe context
@@ -96,6 +97,7 @@ const setAudioCorsHeaders = (c: Context, contentType: string) => {
 // API routes
 app.route('/api/users', userRoutes);
 app.route('/api/cards', cardRoutes);
+app.route('/api/jobs', jobRoutes);
 app.route('/api', healthRoutes);
 
 // Serve uploaded files with proper headers for audio

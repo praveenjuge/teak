@@ -148,3 +148,36 @@ export function useCreateCardWithFile(
     },
   });
 }
+
+// Job hooks
+export function useJobs(apiClient: ApiClient) {
+  return useQuery({
+    queryKey: ['jobs'],
+    queryFn: () => apiClient.getJobs(),
+    refetchInterval: 5000, // Refetch every 5 seconds to show job progress
+  });
+}
+
+export function useRefetchOgImages(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => apiClient.createRefetchOgImagesJob(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['cards'] });
+    },
+  });
+}
+
+export function useRefetchScreenshots(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => apiClient.createRefetchScreenshotsJob(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['cards'] });
+    },
+  });
+}

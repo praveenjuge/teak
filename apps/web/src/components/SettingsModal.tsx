@@ -1,19 +1,75 @@
-import { LogOut, Settings } from 'lucide-react';
+import {
+  useJobs,
+  useRefetchOgImages,
+  useRefetchScreenshots,
+} from '@teak/shared-queries';
+import {
+  BarChart3,
+  Bot,
+  Briefcase,
+  Key,
+  LogOut,
+  RefreshCw,
+  Settings,
+  User,
+  Users,
+} from 'lucide-react';
 import { useState } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { apiClient } from '@/lib/api';
 import { authClient, useSession } from '@/lib/auth-client';
+import { cn } from '@/lib/utils';
+
+type SettingsSection =
+  | 'general'
+  | 'ai'
+  | 'api-keys'
+  | 'users'
+  | 'statistics'
+  | 'jobs';
+
+interface NavigationItem {
+  id: SettingsSection;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+interface NavigationGroup {
+  title: string;
+  items: NavigationItem[];
+}
 
 export default function SettingsModal() {
   const { data: session } = useSession();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activeSection, setActiveSection] =
+    useState<SettingsSection>('general');
+
+  // Job-related hooks
+  const { data: jobs, isLoading: jobsLoading } = useJobs(apiClient);
+  const refetchOgImagesMutation = useRefetchOgImages(apiClient);
+  const refetchScreenshotsMutation = useRefetchScreenshots(apiClient);
+
+  const navigationGroups: NavigationGroup[] = [
+    {
+      title: '',
+      items: [
+        { id: 'general', label: 'General', icon: User },
+        { id: 'ai', label: 'AI', icon: Bot },
+        { id: 'api-keys', label: 'API Keys', icon: Key },
+      ],
+    },
+    {
+      title: 'SUPER ADMIN',
+      items: [
+        { id: 'statistics', label: 'Statistics', icon: BarChart3 },
+        { id: 'users', label: 'Users', icon: Users },
+        { id: 'jobs', label: 'Jobs', icon: Briefcase },
+      ],
+    },
+  ];
 
   const handleSignOut = async () => {
     try {
@@ -25,6 +81,190 @@ export default function SettingsModal() {
     }
   };
 
+  const renderSectionContent = () => {
+    switch (activeSection) {
+      case 'general':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-4 font-medium text-lg">General Settings</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-sm">Email</span>
+                  <span className="text-sm">{session?.user.email}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-sm">Theme</span>
+                  <ThemeToggle />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-sm">
+                    You Are Logged In
+                  </span>
+                  <Button onClick={handleSignOut} size="sm" variant="outline">
+                    <LogOut className="mr-2 size-4" />
+                    Logout
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      case 'ai':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-4 font-medium text-lg">AI Settings</h3>
+              <div className="space-y-4">
+                <p className="text-muted-foreground text-sm">
+                  AI configuration and preferences will be available here.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      case 'api-keys':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-4 font-medium text-lg">API Keys</h3>
+              <div className="space-y-4">
+                <p className="text-muted-foreground text-sm">
+                  Manage your API keys and authentication settings.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      case 'users':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-4 font-medium text-lg">User Management</h3>
+              <div className="space-y-4">
+                <p className="text-muted-foreground text-sm">
+                  Manage users and permissions.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      case 'statistics':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-4 font-medium text-lg">Statistics</h3>
+              <div className="space-y-4">
+                <p className="text-muted-foreground text-sm">
+                  View system statistics and analytics.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      case 'jobs':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-4 font-medium text-lg">Jobs</h3>
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <Button
+                    disabled={refetchOgImagesMutation.isPending}
+                    onClick={() => refetchOgImagesMutation.mutate()}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <RefreshCw className="mr-2 size-4" />
+                    {refetchOgImagesMutation.isPending
+                      ? 'Starting...'
+                      : 'Refetch OG Images'}
+                  </Button>
+                  <Button
+                    disabled={refetchScreenshotsMutation.isPending}
+                    onClick={() => refetchScreenshotsMutation.mutate()}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <RefreshCw className="mr-2 size-4" />
+                    {refetchScreenshotsMutation.isPending
+                      ? 'Starting...'
+                      : 'Refetch Screenshots'}
+                  </Button>
+                </div>
+
+                <div className="rounded-lg border">
+                  <div className="border-b p-3">
+                    <h4 className="font-medium text-sm">Recent Jobs</h4>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {jobsLoading ? (
+                      <div className="p-4 text-center text-muted-foreground text-sm">
+                        Loading jobs...
+                      </div>
+                    ) : jobs && jobs.length > 0 ? (
+                      <div className="divide-y">
+                        {jobs.map((job) => (
+                          <div className="p-3" key={job.id}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className={cn(
+                                    'size-2 rounded-full',
+                                    job.status === 'completed' &&
+                                      'bg-green-500',
+                                    job.status === 'processing' &&
+                                      'bg-blue-500',
+                                    job.status === 'pending' && 'bg-yellow-500',
+                                    job.status === 'failed' && 'bg-red-500'
+                                  )}
+                                />
+                                <span className="font-medium text-sm">
+                                  {job.type === 'refetch-og-images' &&
+                                    'Refetch OG Images'}
+                                  {job.type === 'refetch-screenshots' &&
+                                    'Refetch Screenshots'}
+                                  {job.type === 'process-card' &&
+                                    'Process Card'}
+                                </span>
+                              </div>
+                              <span className="text-muted-foreground text-xs">
+                                {new Date(job.createdAt).toLocaleTimeString()}
+                              </span>
+                            </div>
+                            {job.status === 'completed' &&
+                              job.result &&
+                              typeof job.result === 'object' &&
+                              'processed' in job.result && (
+                                <div className="mt-1 text-muted-foreground text-xs">
+                                  Processed {job.result.processed} of{' '}
+                                  {job.result.total} items
+                                </div>
+                              )}
+                            {job.status === 'failed' && job.error && (
+                              <div className="mt-1 text-red-500 text-xs">
+                                Error: {job.error}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 text-center text-muted-foreground text-sm">
+                        No jobs found. Start a job using the buttons above.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <Dialog onOpenChange={setSettingsOpen} open={settingsOpen}>
       <DialogTrigger asChild>
@@ -33,26 +273,48 @@ export default function SettingsModal() {
           <span className="sr-only">Settings</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div className="flex h-8 items-center justify-between">
-            <span className="text-muted-foreground">Email</span>
-            <span>{session?.user.email}</span>
+      <DialogContent className="h-[600px] p-0 md:max-w-3xl">
+        <div className="flex h-full">
+          {/* Sidebar Navigation */}
+          <div className="w-54 border-r bg-muted/30 p-4">
+            <h2 className="mb-2 font-semibold">Settings</h2>
+
+            <div className="space-y-6">
+              {navigationGroups.map((group) => (
+                <div key={group.title}>
+                  <h3 className="mb-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                    {group.title}
+                  </h3>
+                  <div className="space-y-1">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeSection === item.id;
+
+                      return (
+                        <button
+                          className={cn(
+                            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                            isActive
+                              ? 'bg-orange-100 font-medium text-orange-700'
+                              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                          )}
+                          key={item.id}
+                          onClick={() => setActiveSection(item.id)}
+                          type="button"
+                        >
+                          <Icon className="size-3.5 stroke-2" />
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="flex h-8 items-center justify-between">
-            <span className="text-muted-foreground">Theme</span>
-            <ThemeToggle />
-          </div>
-          <div className="flex h-8 items-center justify-between">
-            <span className="text-muted-foreground">You are Logged In</span>
-            <Button onClick={handleSignOut} size="sm" variant="outline">
-              <LogOut />
-              Logout
-            </Button>
-          </div>
+
+          {/* Content Area */}
+          <div className="flex-1 p-6">{renderSectionContent()}</div>
         </div>
       </DialogContent>
     </Dialog>

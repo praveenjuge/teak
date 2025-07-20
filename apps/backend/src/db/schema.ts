@@ -109,3 +109,32 @@ export const cards = pgTable('cards', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
 });
+
+// Jobs table for tracking background tasks
+export const jobType = pgEnum('jobType', [
+  'refetch-og-images',
+  'refetch-screenshots',
+  'process-card',
+]);
+
+export const jobStatus = pgEnum('jobStatus', [
+  'pending',
+  'processing',
+  'completed',
+  'failed',
+]);
+
+export const jobs = pgTable('jobs', {
+  id: serial('id').primaryKey().notNull(),
+  type: jobType('type').notNull(),
+  status: jobStatus('status').notNull().default('pending'),
+  payload: jsonb('payload').default({}), // contains job-specific data
+  result: jsonb('result').default({}), // contains job results or error details
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  startedAt: timestamp('startedAt'),
+  completedAt: timestamp('completedAt'),
+  error: text('error'),
+  userId: text('userId')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+});

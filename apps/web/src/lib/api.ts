@@ -4,6 +4,7 @@ import type {
   CardsResponse,
   CreateCardParams,
   GetCardsParams,
+  Job,
   SearchCardsParams,
   SearchResponse,
   UpdateCardParams,
@@ -177,6 +178,23 @@ class ApiClient {
 
   async getCardStats(): Promise<CardStatsResponse> {
     return this.request<CardStatsResponse>('/api/cards/stats');
+  }
+
+  // Job management methods
+  async getJobs(): Promise<Job[]> {
+    return this.request<Job[]>('/api/jobs');
+  }
+
+  async createRefetchOgImagesJob(): Promise<Job> {
+    return this.request<Job>('/api/jobs/refetch-og-images', {
+      method: 'POST',
+    });
+  }
+
+  async createRefetchScreenshotsJob(): Promise<Job> {
+    return this.request<Job>('/api/jobs/refetch-screenshots', {
+      method: 'POST',
+    });
   }
 }
 

@@ -2,6 +2,7 @@ import type {
   Card,
   CardStatsResponse,
   CardsResponse,
+  Job,
   SearchResponse,
 } from '@teak/shared-types';
 
@@ -53,6 +54,11 @@ export interface ApiClient {
     },
     onUploadProgress?: (progress: number) => void
   ): Promise<Card>;
+
+  // Job management
+  getJobs(): Promise<Job[]>;
+  createRefetchOgImagesJob(): Promise<Job>;
+  createRefetchScreenshotsJob(): Promise<Job>;
 }
 
 export interface UseCardsParams {
