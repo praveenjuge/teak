@@ -121,6 +121,24 @@ app.use('/api/data/*', (c, next) => {
   return next();
 });
 
+// Protected file serving - ensure users can only access their own files
+app.use('/api/data/*', async (c, next) => {
+  const user = c.get('user');
+  if (!user) {
+    return c.json({ error: 'Authentication required to access files' }, 401);
+  }
+
+  const requestPath = c.req.path.replace('/api/data/', '');
+  const pathParts = requestPath.split('/');
+  
+  // Check if the requested file belongs to the authenticated user
+  if (pathParts.length > 0 && pathParts[0] !== user.id) {
+    return c.json({ error: 'Access denied' }, 403);
+  }
+
+  return next();
+});
+
 app.use(
   '/api/data/*',
   serveStatic({

@@ -50,6 +50,7 @@ export class PdfCardProcessor extends CardProcessor {
         'text/x-pdf',
       ],
       generateUrl: (path: string) => `/api/data/${path}`,
+      userId: context.userId,
     });
 
     // Extract PDF content and metadata

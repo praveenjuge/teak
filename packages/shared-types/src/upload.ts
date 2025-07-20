@@ -62,6 +62,7 @@ export interface UploadOptions {
   maxSize: number;
   allowedTypes?: string[];
   generateUrl: (path: string) => string;
+  userId: string;
 }
 
 // Type exports

@@ -79,6 +79,7 @@ export class VideoCardProcessor extends CardProcessor {
         'video/quicktime',
       ],
       generateUrl: (path: string) => `/api/data/${path}`,
+      userId: context.userId,
     });
 
     // Extract video metadata

@@ -57,6 +57,7 @@ export class AudioCardProcessor extends CardProcessor {
         'video/webm', // Allow video/webm as it's often used for audio-only recordings
       ],
       generateUrl: (path: string) => `/api/data/${path}`,
+      userId: context.userId,
     });
 
     // Extract audio metadata

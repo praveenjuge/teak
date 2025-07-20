@@ -41,6 +41,7 @@ export class ImageCardProcessor extends CardProcessor {
         'image/tiff',
       ],
       generateUrl: (path: string) => `/api/data/${path}`,
+      userId: context.userId,
     });
 
     return {

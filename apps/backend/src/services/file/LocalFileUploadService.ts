@@ -50,7 +50,7 @@ export class LocalFileUploadService extends FileUploadService {
     }
 
     // Generate paths
-    const datePath = this.createDatePath();
+    const datePath = this.createDatePath(options.userId);
     const filename = this.generateUniqueFilename(file.name);
     const relativePath = path.join(datePath, filename);
     const fullPath = path.join(this.uploadsDir, relativePath);
