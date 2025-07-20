@@ -109,9 +109,7 @@ export function CardDetailsModal({
               </div>
             )}
             {card.data.description && (
-              <p className="text-muted-foreground text-sm">
-                {card.data.description}
-              </p>
+              <p className="text-muted-foreground">{card.data.description}</p>
             )}
           </div>
         );
@@ -131,7 +129,7 @@ export function CardDetailsModal({
                       'Audio File'}
                   </h3>
                   {card.data.duration && (
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-muted-foreground">
                       Duration: {formatDuration(card.data.duration)}
                     </p>
                   )}
@@ -150,7 +148,7 @@ export function CardDetailsModal({
               <div className="space-y-2">
                 <h4 className="font-medium">Transcription</h4>
                 <div className="rounded-lg bg-muted/50 p-4">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                  <p className="whitespace-pre-wrap leading-relaxed">
                     {card.data.transcription}
                   </p>
                 </div>
@@ -174,7 +172,7 @@ export function CardDetailsModal({
                       'Video File'}
                   </h3>
                   {card.data.duration && (
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-muted-foreground">
                       Duration: {formatDuration(card.data.duration)}
                     </p>
                   )}
@@ -197,7 +195,7 @@ export function CardDetailsModal({
               <div className="space-y-2">
                 <h4 className="font-medium">Transcription</h4>
                 <div className="rounded-lg bg-muted/50 p-4">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                  <p className="whitespace-pre-wrap leading-relaxed">
                     {card.data.transcription}
                   </p>
                 </div>
@@ -230,7 +228,7 @@ export function CardDetailsModal({
                     {card.data.title || 'Website'}
                   </h3>
                   <a
-                    className="block truncate text-primary text-sm hover:underline"
+                    className="block truncate text-primary hover:underline"
                     href={card.data.url}
                     rel="noopener noreferrer"
                     target="_blank"
@@ -241,7 +239,7 @@ export function CardDetailsModal({
               </div>
 
               {card.data.description && (
-                <p className="text-muted-foreground text-sm leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   {card.data.description}
                 </p>
               )}
@@ -264,7 +262,7 @@ export function CardDetailsModal({
                         card.data.original_filename ||
                         'PDF Document'}
                     </h3>
-                    <div className="flex items-center space-x-4 text-muted-foreground text-sm">
+                    <div className="flex items-center space-x-4 text-muted-foreground">
                       {card.data.page_count && (
                         <span>{card.data.page_count} pages</span>
                       )}
@@ -292,7 +290,7 @@ export function CardDetailsModal({
               <div className="space-y-2">
                 <h4 className="font-medium">Extracted Text</h4>
                 <div className="max-h-96 overflow-y-auto rounded-lg bg-muted/50 p-4">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                  <p className="whitespace-pre-wrap leading-relaxed">
                     {card.data.extracted_text}
                   </p>
                 </div>
@@ -335,27 +333,25 @@ export function CardDetailsModal({
       <div className="space-y-3">
         <div className="flex items-center space-x-3">
           <CardTypeIcon className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium text-sm capitalize">{card.type}</span>
+          <span className="font-medium capitalize">{card.type}</span>
         </div>
 
         <div className="flex items-center space-x-3">
           <Calendar className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm">{formatDate(card.createdAt)}</span>
+          <span>{formatDate(card.createdAt)}</span>
         </div>
 
         {card.data.duration && (
           <div className="flex items-center space-x-3">
             <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm">
-              {formatDuration(card.data.duration)}
-            </span>
+            <span>{formatDuration(card.data.duration)}</span>
           </div>
         )}
 
         {card.data.original_filename && (
           <div>
-            <span className="font-medium text-sm">Filename:</span>
-            <p className="text-muted-foreground text-sm">
+            <span className="font-medium">Filename:</span>
+            <p className="text-muted-foreground">
               {card.data.original_filename}
             </p>
           </div>
@@ -363,8 +359,8 @@ export function CardDetailsModal({
 
         {card.metaInfo?.file_size && (
           <div>
-            <span className="font-medium text-sm">File Size:</span>
-            <p className="text-muted-foreground text-sm">
+            <span className="font-medium">File Size:</span>
+            <p className="text-muted-foreground">
               {formatFileSize(card.metaInfo.file_size)}
             </p>
           </div>
@@ -372,8 +368,8 @@ export function CardDetailsModal({
 
         {card.data.width && card.data.height && (
           <div>
-            <span className="font-medium text-sm">Dimensions:</span>
-            <p className="text-muted-foreground text-sm">
+            <span className="font-medium">Dimensions:</span>
+            <p className="text-muted-foreground">
               {card.data.width} × {card.data.height}
             </p>
           </div>

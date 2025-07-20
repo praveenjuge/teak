@@ -304,11 +304,9 @@ export function AddCardItem() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-              <span className="font-medium text-red-700 text-sm">
-                Recording...
-              </span>
+              <span className="font-medium text-red-700">Recording...</span>
             </div>
-            <span className="font-mono text-red-600 text-sm">
+            <span className="font-mono text-red-600">
               {formatDuration(recordingDuration)}
             </span>
           </div>
@@ -333,7 +331,7 @@ export function AddCardItem() {
       <Card className="flex min-h-50 flex-col items-center justify-center gap-4 p-4">
         <CardContent className="w-full p-0">
           <div className="mt-2 w-full">
-            <div className="mb-1 flex justify-between text-muted-foreground text-sm">
+            <div className="mb-1 flex justify-between text-muted-foreground">
               <span>Uploading...</span>
               <span>{Math.round(uploadProgress)}%</span>
             </div>

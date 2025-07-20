@@ -15,11 +15,17 @@ import {
   Settings,
   User,
   Users,
+  X,
 } from 'lucide-react';
 import { useState } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { apiClient } from '@/lib/api';
 import { authClient, useSession } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
@@ -147,7 +153,7 @@ export default function SettingsModal() {
         return (
           <div className="space-y-6">
             <div>
-              <h3 className="mb-4 font-medium text-lg">User Management</h3>
+              <h3 className="mb-4 font-medium text-lg">Users</h3>
 
               {usersLoading ? (
                 <div className="text-center text-muted-foreground">
@@ -218,7 +224,7 @@ export default function SettingsModal() {
         return (
           <div className="space-y-6">
             <div>
-              <h3 className="mb-4 font-medium text-lg">System Statistics</h3>
+              <h3 className="mb-4 font-medium text-lg">Statistics</h3>
 
               {adminStatsLoading ? (
                 <div className="text-center text-muted-foreground">
@@ -357,7 +363,7 @@ export default function SettingsModal() {
                   </Button>
                 </div>
 
-{jobsLoading ? (
+                {jobsLoading ? (
                   <div className="text-center text-muted-foreground">
                     Loading jobs...
                   </div>
@@ -366,9 +372,13 @@ export default function SettingsModal() {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b bg-muted/30">
-                          <th className="p-3 text-left font-medium">Job Type</th>
+                          <th className="p-3 text-left font-medium">
+                            Job Type
+                          </th>
                           <th className="p-3 text-left font-medium">Status</th>
-                          <th className="p-3 text-left font-medium">Created At</th>
+                          <th className="p-3 text-left font-medium">
+                            Created At
+                          </th>
                           <th className="p-3 text-left font-medium">Results</th>
                         </tr>
                       </thead>
@@ -376,8 +386,10 @@ export default function SettingsModal() {
                         {jobs.map((job) => (
                           <tr className="hover:bg-muted/20" key={job.id}>
                             <td className="p-3 font-medium">
-                              {job.type === 'refetch-og-images' && 'Refetch OG Images'}
-                              {job.type === 'refetch-screenshots' && 'Refetch Screenshots'}
+                              {job.type === 'refetch-og-images' &&
+                                'Refetch OG Images'}
+                              {job.type === 'refetch-screenshots' &&
+                                'Refetch Screenshots'}
                               {job.type === 'process-card' && 'Process Card'}
                             </td>
                             <td className="p-3">
@@ -385,8 +397,10 @@ export default function SettingsModal() {
                                 <div
                                   className={cn(
                                     'size-2 rounded-full',
-                                    job.status === 'completed' && 'bg-green-500',
-                                    job.status === 'processing' && 'bg-blue-500',
+                                    job.status === 'completed' &&
+                                      'bg-green-500',
+                                    job.status === 'processing' &&
+                                      'bg-blue-500',
                                     job.status === 'pending' && 'bg-yellow-500',
                                     job.status === 'failed' && 'bg-red-500'
                                   )}
@@ -402,17 +416,19 @@ export default function SettingsModal() {
                                 job.result &&
                                 typeof job.result === 'object' &&
                                 'processed' in job.result && (
-                                  <span className="text-muted-foreground text-sm">
-                                    {job.result.processed}/{job.result.total} items
+                                  <span className="text-muted-foreground">
+                                    {job.result.processed}/{job.result.total}{' '}
+                                    items
                                   </span>
                                 )}
                               {job.status === 'failed' && job.error && (
-                                <span className="text-red-500 text-sm">
+                                <span className="text-red-500">
                                   {job.error}
                                 </span>
                               )}
-                              {(job.status === 'pending' || job.status === 'processing') && (
-                                <span className="text-muted-foreground text-sm">—</span>
+                              {(job.status === 'pending' ||
+                                job.status === 'processing') && (
+                                <span className="text-muted-foreground">—</span>
                               )}
                             </td>
                           </tr>
@@ -442,50 +458,51 @@ export default function SettingsModal() {
           <span className="sr-only">Settings</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="h-[600px] p-0 md:max-w-3xl">
-        <div className="flex h-full overflow-hidden">
-          {/* Sidebar Navigation */}
-          <div className="w-54 border-r bg-muted/30 p-4">
-            <h2 className="mb-2 font-semibold">Settings</h2>
+      <DialogContent
+        className="flex h-[600px] overflow-hidden border-0 bg-muted p-4 md:max-w-4xl"
+        showCloseButton={false}
+      >
+        {/* Sidebar Navigation */}
+        <div className="w-40">
+          <DialogClose asChild>
+            <Button size="icon" type="button" variant="ghost">
+              <X className="size-4" />
+            </Button>
+          </DialogClose>
 
-            <div className="space-y-6">
-              {navigationGroups.map((group) => (
-                <div key={group.title}>
-                  <h3 className="mb-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                    {group.title}
-                  </h3>
-                  <div className="space-y-1">
-                    {group.items.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = activeSection === item.id;
+          <div className="space-y-6">
+            {navigationGroups.map((group) => (
+              <div key={group.title}>
+                <h3 className="mb-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                  {group.title}
+                </h3>
+                <div className="space-y-1">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeSection === item.id;
 
-                      return (
-                        <button
-                          className={cn(
-                            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors',
-                            isActive
-                              ? 'bg-orange-100 font-medium text-orange-700'
-                              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-                          )}
-                          key={item.id}
-                          onClick={() => setActiveSection(item.id)}
-                          type="button"
-                        >
-                          <Icon className="size-3.5 stroke-2" />
-                          {item.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                    return (
+                      <Button
+                        className="w-full justify-start"
+                        key={item.id}
+                        onClick={() => setActiveSection(item.id)}
+                        size="sm"
+                        variant={isActive ? 'outline' : 'ghost'}
+                      >
+                        <Icon className="size-3.5 stroke-2" />
+                        {item.label}
+                      </Button>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
+        </div>
 
-          {/* Content Area */}
-          <div className="flex-1 overflow-y-auto p-6">
-            {renderSectionContent()}
-          </div>
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto rounded-lg border bg-background p-4">
+          {renderSectionContent()}
         </div>
       </DialogContent>
     </Dialog>

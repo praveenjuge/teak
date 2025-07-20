@@ -185,9 +185,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
             {card.data.duration ? (
               <div className="flex items-center space-x-2 text-muted-foreground">
                 <Clock className="h-4 w-4" />
-                <span className="text-sm">
-                  {formatDuration(card.data.duration)}
-                </span>
+                <span>{formatDuration(card.data.duration)}</span>
               </div>
             ) : null}
           </div>
@@ -227,7 +225,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
                   card.data.original_filename ||
                   'PDF Document'}
               </h4>
-              <div className="flex items-center space-x-3 text-muted-foreground text-sm">
+              <div className="flex items-center space-x-3 text-muted-foreground">
                 {card.data.page_count && (
                   <span>{card.data.page_count} pages</span>
                 )}
