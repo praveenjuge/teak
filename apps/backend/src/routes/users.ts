@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { db, users } from '../db';
 
@@ -16,7 +16,7 @@ userRoutes.get('/', async (c) => {
         createdAt: users.createdAt,
       })
       .from(users)
-      .orderBy(desc(users.createdAt));
+      .orderBy(asc(users.createdAt));
 
     return c.json({ users: allUsers });
   } catch (error) {

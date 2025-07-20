@@ -3,6 +3,7 @@ import {
   useJobs,
   useRefetchOgImages,
   useRefetchScreenshots,
+  useUsers,
 } from '@teak/shared-queries';
 import {
   BarChart3,
@@ -56,6 +57,7 @@ export default function SettingsModal() {
   // Admin hooks
   const { data: adminStats, isLoading: adminStatsLoading } =
     useAdminStats(apiClient);
+  const { data: users, isLoading: usersLoading } = useUsers(apiClient);
 
   const navigationGroups: NavigationGroup[] = [
     {
@@ -67,7 +69,7 @@ export default function SettingsModal() {
       ],
     },
     {
-      title: 'SUPER ADMIN',
+      title: 'ADMIN',
       items: [
         { id: 'statistics', label: 'Statistics', icon: BarChart3 },
         { id: 'users', label: 'Users', icon: Users },
@@ -96,7 +98,7 @@ export default function SettingsModal() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Email</span>
-                  <span className="text-sm">{session?.user.email}</span>
+                  <span>{session?.user.email}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Theme</span>
@@ -146,11 +148,69 @@ export default function SettingsModal() {
           <div className="space-y-6">
             <div>
               <h3 className="mb-4 font-medium text-lg">User Management</h3>
-              <div className="space-y-4">
-                <p className="text-muted-foreground">
-                  Manage users and permissions.
-                </p>
-              </div>
+
+              {usersLoading ? (
+                <div className="text-center text-muted-foreground">
+                  Loading users...
+                </div>
+              ) : users && users.length > 0 ? (
+                <div className="rounded-lg border">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b bg-muted/30">
+                        <th className="p-3 text-left font-medium">Name</th>
+                        <th className="p-3 text-left font-medium">Email</th>
+                        <th className="p-3 text-left font-medium">Role</th>
+                        <th className="p-3 text-left font-medium">Status</th>
+                        <th className="p-3 text-left font-medium">Joined</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {users.map((user, index) => (
+                        <tr className="hover:bg-muted/20" key={user.id}>
+                          <td className="p-3 font-medium">{user.name}</td>
+                          <td className="p-3 text-muted-foreground">
+                            {user.email}
+                          </td>
+                          <td className="p-3">
+                            {index === 0 ? (
+                              <span className="rounded bg-orange-100 px-2 py-1 font-medium text-orange-700 text-xs">
+                                Admin
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">
+                                User
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={cn(
+                                  'size-2 rounded-full',
+                                  user.emailVerified
+                                    ? 'bg-green-500'
+                                    : 'bg-yellow-500'
+                                )}
+                              />
+                              <span>
+                                {user.emailVerified ? 'Verified' : 'Unverified'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-3 text-muted-foreground">
+                            {new Date(user.createdAt).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center text-muted-foreground">
+                  No users found.
+                </div>
+              )}
             </div>
           </div>
         );
@@ -297,69 +357,74 @@ export default function SettingsModal() {
                   </Button>
                 </div>
 
-                <div className="rounded-lg border">
-                  <div className="border-b p-3">
-                    <h4 className="font-medium">Recent Jobs</h4>
+{jobsLoading ? (
+                  <div className="text-center text-muted-foreground">
+                    Loading jobs...
                   </div>
-                  <div className="max-h-64 overflow-y-auto">
-                    {jobsLoading ? (
-                      <div className="p-4 text-center text-muted-foreground">
-                        Loading jobs...
-                      </div>
-                    ) : jobs && jobs.length > 0 ? (
-                      <div className="divide-y">
+                ) : jobs && jobs.length > 0 ? (
+                  <div className="rounded-lg border">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b bg-muted/30">
+                          <th className="p-3 text-left font-medium">Job Type</th>
+                          <th className="p-3 text-left font-medium">Status</th>
+                          <th className="p-3 text-left font-medium">Created At</th>
+                          <th className="p-3 text-left font-medium">Results</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
                         {jobs.map((job) => (
-                          <div className="p-3" key={job.id}>
-                            <div className="flex items-center justify-between">
+                          <tr className="hover:bg-muted/20" key={job.id}>
+                            <td className="p-3 font-medium">
+                              {job.type === 'refetch-og-images' && 'Refetch OG Images'}
+                              {job.type === 'refetch-screenshots' && 'Refetch Screenshots'}
+                              {job.type === 'process-card' && 'Process Card'}
+                            </td>
+                            <td className="p-3">
                               <div className="flex items-center gap-2">
                                 <div
                                   className={cn(
                                     'size-2 rounded-full',
-                                    job.status === 'completed' &&
-                                      'bg-green-500',
-                                    job.status === 'processing' &&
-                                      'bg-blue-500',
+                                    job.status === 'completed' && 'bg-green-500',
+                                    job.status === 'processing' && 'bg-blue-500',
                                     job.status === 'pending' && 'bg-yellow-500',
                                     job.status === 'failed' && 'bg-red-500'
                                   )}
                                 />
-                                <span className="font-medium">
-                                  {job.type === 'refetch-og-images' &&
-                                    'Refetch OG Images'}
-                                  {job.type === 'refetch-screenshots' &&
-                                    'Refetch Screenshots'}
-                                  {job.type === 'process-card' &&
-                                    'Process Card'}
+                                <span className="capitalize">{job.status}</span>
+                              </div>
+                            </td>
+                            <td className="p-3 text-muted-foreground">
+                              {new Date(job.createdAt).toLocaleString()}
+                            </td>
+                            <td className="p-3">
+                              {job.status === 'completed' &&
+                                job.result &&
+                                typeof job.result === 'object' &&
+                                'processed' in job.result && (
+                                  <span className="text-muted-foreground text-sm">
+                                    {job.result.processed}/{job.result.total} items
+                                  </span>
+                                )}
+                              {job.status === 'failed' && job.error && (
+                                <span className="text-red-500 text-sm">
+                                  {job.error}
                                 </span>
-                              </div>
-                              <span className="text-muted-foreground text-xs">
-                                {new Date(job.createdAt).toLocaleTimeString()}
-                              </span>
-                            </div>
-                            {job.status === 'completed' &&
-                              job.result &&
-                              typeof job.result === 'object' &&
-                              'processed' in job.result && (
-                                <div className="mt-1 text-muted-foreground text-xs">
-                                  Processed {job.result.processed} of{' '}
-                                  {job.result.total} items
-                                </div>
                               )}
-                            {job.status === 'failed' && job.error && (
-                              <div className="mt-1 text-red-500 text-xs">
-                                Error: {job.error}
-                              </div>
-                            )}
-                          </div>
+                              {(job.status === 'pending' || job.status === 'processing') && (
+                                <span className="text-muted-foreground text-sm">—</span>
+                              )}
+                            </td>
+                          </tr>
                         ))}
-                      </div>
-                    ) : (
-                      <div className="p-4 text-center text-muted-foreground">
-                        No jobs found. Start a job using the buttons above.
-                      </div>
-                    )}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
+                ) : (
+                  <div className="text-center text-muted-foreground">
+                    No jobs found. Start a job using the buttons above.
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -190,3 +190,10 @@ export function useAdminStats(apiClient: ApiClient) {
     refetchInterval: 30000, // Refetch every 30 seconds for live stats
   });
 }
+
+export function useUsers(apiClient: ApiClient) {
+  return useQuery({
+    queryKey: ['admin', 'users'],
+    queryFn: () => apiClient.getUsers(),
+  });
+}

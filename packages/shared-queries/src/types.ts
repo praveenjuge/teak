@@ -5,6 +5,7 @@ import type {
   CardsResponse,
   Job,
   SearchResponse,
+  User,
 } from '@teak/shared-types';
 
 export interface ApiClient {
@@ -63,6 +64,7 @@ export interface ApiClient {
 
   // Admin methods
   getAdminStats(): Promise<AdminStatsResponse>;
+  getUsers(): Promise<User[]>;
 }
 
 export interface UseCardsParams {

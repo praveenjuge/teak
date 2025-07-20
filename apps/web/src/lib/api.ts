@@ -9,6 +9,7 @@ import type {
   SearchCardsParams,
   SearchResponse,
   UpdateCardParams,
+  User,
 } from '@teak/shared-types';
 
 // For development, use relative URLs so Vite proxy can handle them
@@ -201,6 +202,11 @@ class ApiClient {
   // Admin methods
   async getAdminStats(): Promise<AdminStatsResponse> {
     return this.request<AdminStatsResponse>('/api/admin/stats');
+  }
+
+  async getUsers(): Promise<User[]> {
+    const response = await this.request<{ users: User[] }>('/api/users');
+    return response.users;
   }
 }
 
