@@ -1,6 +1,14 @@
 // Job types for background task management
 
-export type JobType = 'refetch-og-images' | 'refetch-screenshots' | 'process-card';
+export type JobType =
+  | 'refetch-og-images'
+  | 'refetch-screenshots'
+  | 'process-card'
+  | 'ai-enrich-text'
+  | 'ai-enrich-image'
+  | 'ai-enrich-pdf'
+  | 'ai-enrich-audio'
+  | 'ai-enrich-url';
 
 export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed';
 

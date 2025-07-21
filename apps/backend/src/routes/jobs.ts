@@ -100,3 +100,32 @@ jobRoutes.post('/refetch-screenshots', async (c) => {
     );
   }
 });
+
+// POST /api/jobs/refresh-ai-data - Start AI data refresh job
+jobRoutes.post('/refresh-ai-data', async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user) {
+      return c.json({ error: 'Authentication required' }, 401);
+    }
+
+    const job = await jobService.createJob({
+      type: 'refresh-ai-data',
+      userId: user.id,
+      payload: {},
+    });
+
+    // Start the job processing asynchronously
+    jobService.processJob(job.id).catch(console.error);
+
+    return c.json(job, 201);
+  } catch (error) {
+    console.error('Error creating AI data refresh job:', error);
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to create job',
+      },
+      400
+    );
+  }
+});

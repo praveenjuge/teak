@@ -7,6 +7,11 @@ export interface Card {
   type: CardType;
   data: CardData;
   metaInfo: MetaInfo;
+  // AI enrichment fields
+  aiSummary?: string | null;
+  aiTags?: string[] | null;
+  aiTranscript?: string | null;
+  aiProcessedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;
@@ -74,7 +79,10 @@ export interface AdminStatsResponse {
   jobs: {
     total: number;
     byStatus: Record<'pending' | 'processing' | 'completed' | 'failed', number>;
-    byType: Record<'refetch-og-images' | 'refetch-screenshots' | 'process-card', number>;
+    byType: Record<
+      'refetch-og-images' | 'refetch-screenshots' | 'process-card',
+      number
+    >;
     successRate: number;
   };
 }
@@ -124,6 +132,11 @@ export interface CreateCardResponse {
   type: CardType;
   data: CardData;
   metaInfo: MetaInfo;
+  // AI enrichment fields
+  aiSummary?: string | null;
+  aiTags?: string[] | null;
+  aiTranscript?: string | null;
+  aiProcessedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   userId: string;

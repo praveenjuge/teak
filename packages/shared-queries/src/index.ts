@@ -3,6 +3,7 @@
 // Core query hooks
 export {
   useAdminStats,
+  useAiSettings,
   useCard,
   useCardStats,
   useCards,
@@ -12,7 +13,9 @@ export {
   useJobs,
   useRefetchOgImages,
   useRefetchScreenshots,
+  useRefreshAiData,
   useSearchCards,
+  useUpdateAiSettings,
   useUpdateCard,
   useUsers,
 } from './hooks';

@@ -5,9 +5,12 @@ import {
   Download,
   FileText,
   Globe,
+  Hash,
   Image,
   Music,
   Play,
+  Sparkles,
+  Tag,
   Type,
   Video,
   X,
@@ -49,34 +52,12 @@ const formatDate = (dateString: string): string => {
   });
 };
 
-// Get icon for card type
-const getCardTypeIcon = (type: Card['type']) => {
-  switch (type) {
-    case 'text':
-      return Type;
-    case 'image':
-      return Image;
-    case 'audio':
-      return Music;
-    case 'video':
-      return Video;
-    case 'url':
-      return Globe;
-    case 'pdf':
-      return FileText;
-    default:
-      return FileText;
-  }
-};
-
 export function CardDetailsModal({
   card,
   open,
   onOpenChange,
 }: CardDetailsModalProps) {
   if (!card) return null;
-
-  const CardTypeIcon = getCardTypeIcon(card.type);
 
   // Render expanded content based on card type
   const renderExpandedContent = () => {
@@ -108,16 +89,13 @@ export function CardDetailsModal({
                 <Image className="h-12 w-12 text-muted-foreground" />
               </div>
             )}
-            {card.data.description && (
-              <p className="text-muted-foreground">{card.data.description}</p>
-            )}
           </div>
         );
 
       case 'audio':
         return (
           <div className="space-y-4">
-            <div className="rounded-lg bg-muted/50 p-6">
+            <div className="rounded-lg bg-muted/50 p-4">
               <div className="mb-4 flex items-center space-x-3">
                 <div className="rounded-full bg-primary p-3">
                   <Music className="h-6 w-6 text-primary-foreground" />
@@ -144,12 +122,12 @@ export function CardDetailsModal({
               )}
             </div>
 
-            {card.data.transcription && (
+            {card.aiTranscript && (
               <div className="space-y-2">
-                <h4 className="font-medium">Transcription</h4>
+                <h4 className="font-medium">AI Transcript</h4>
                 <div className="rounded-lg bg-muted/50 p-4">
                   <p className="whitespace-pre-wrap leading-relaxed">
-                    {card.data.transcription}
+                    {card.aiTranscript}
                   </p>
                 </div>
               </div>
@@ -217,95 +195,53 @@ export function CardDetailsModal({
                 />
               </div>
             )}
-
-            <div className="rounded-lg bg-muted/50 p-6">
-              <div className="mb-4 flex items-center space-x-3">
-                <div className="rounded-full bg-primary p-3">
-                  <Globe className="h-6 w-6 text-primary-foreground" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-medium">
-                    {card.data.title || 'Website'}
-                  </h3>
-                  <a
-                    className="block truncate text-primary hover:underline"
-                    href={card.data.url}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    {card.data.url}
-                  </a>
-                </div>
-              </div>
-
-              {card.data.description && (
-                <p className="text-muted-foreground leading-relaxed">
-                  {card.data.description}
-                </p>
-              )}
-            </div>
           </div>
         );
 
       case 'pdf':
         return (
           <div className="space-y-4">
-            <div className="rounded-lg bg-muted/50 p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="rounded-full bg-red-100 p-3">
-                    <FileText className="h-6 w-6 text-red-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium">
-                      {card.data.title ||
-                        card.data.original_filename ||
-                        'PDF Document'}
-                    </h3>
-                    <div className="flex items-center space-x-4 text-muted-foreground">
-                      {card.data.page_count && (
-                        <span>{card.data.page_count} pages</span>
-                      )}
-                      {card.metaInfo?.file_size && (
-                        <span>{formatFileSize(card.metaInfo.file_size)}</span>
-                      )}
-                    </div>
+            <div className="flex items-center justify-between rounded-lg bg-muted/50 p-4">
+              <div className="flex items-center space-x-3">
+                <div className="rounded-full bg-red-100 p-3">
+                  <FileText className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium">
+                    {card.data.title ||
+                      card.data.original_filename ||
+                      'PDF Document'}
+                  </h3>
+                  <div className="flex items-center space-x-4 text-muted-foreground">
+                    {card.data.page_count && (
+                      <span>{card.data.page_count} pages</span>
+                    )}
+                    {card.metaInfo?.file_size && (
+                      <span>{formatFileSize(card.metaInfo.file_size)}</span>
+                    )}
                   </div>
                 </div>
-
-                {card.data.media_url && (
-                  <Button
-                    onClick={() => window.open(card.data.media_url, '_blank')}
-                    size="sm"
-                    variant="outline"
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download
-                  </Button>
-                )}
               </div>
+
+              {card.data.media_url && (
+                <Button
+                  onClick={() => window.open(card.data.media_url, '_blank')}
+                  size="sm"
+                  variant="outline"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download
+                </Button>
+              )}
             </div>
 
             {card.data.extracted_text && (
               <div className="space-y-2">
-                <h4 className="font-medium">Extracted Text</h4>
+                <h4 className="font-medium">AI Extracted Content</h4>
                 <div className="max-h-96 overflow-y-auto rounded-lg bg-muted/50 p-4">
-                  <p className="whitespace-pre-wrap leading-relaxed">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
                     {card.data.extracted_text}
                   </p>
-                </div>
-              </div>
-            )}
-
-            {card.data.keywords && card.data.keywords.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="font-medium">Keywords</h4>
-                <div className="flex flex-wrap gap-2">
-                  {card.data.keywords.map((keyword, index) => (
-                    <Badge key={index} variant="secondary">
-                      {keyword}
-                    </Badge>
-                  ))}
                 </div>
               </div>
             )}
@@ -321,74 +257,151 @@ export function CardDetailsModal({
     }
   };
 
-  // Render metadata panel
-  const renderMetadata = () => (
-    <div className="space-y-6">
-      <h2 className="font-semibold">
-        {card.data.title ||
-          `${card.type.charAt(0).toUpperCase() + card.type.slice(1)} Card`}
-      </h2>
-
-      <h3 className="mb-3 font-medium">Details</h3>
-      <div className="space-y-3">
-        <div className="flex items-center space-x-3">
-          <CardTypeIcon className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium capitalize">{card.type}</span>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          <span>{formatDate(card.createdAt)}</span>
-        </div>
-
-        {card.data.duration && (
-          <div className="flex items-center space-x-3">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span>{formatDuration(card.data.duration)}</span>
-          </div>
-        )}
-
-        {card.data.original_filename && (
-          <div>
-            <span className="font-medium">Filename:</span>
-            <p className="text-muted-foreground">
-              {card.data.original_filename}
-            </p>
-          </div>
-        )}
-
-        {card.metaInfo?.file_size && (
-          <div>
-            <span className="font-medium">File Size:</span>
-            <p className="text-muted-foreground">
-              {formatFileSize(card.metaInfo.file_size)}
-            </p>
-          </div>
-        )}
-
-        {card.data.width && card.data.height && (
-          <div>
-            <span className="font-medium">Dimensions:</span>
-            <p className="text-muted-foreground">
-              {card.data.width} × {card.data.height}
-            </p>
-          </div>
+  // Metadata row component for consistent display
+  const MetadataRow = ({ icon: Icon, label, value, className = '' }) => (
+    <div className={`flex space-x-2.5 ${className}`}>
+      <Icon className="mt-1 size-3.5 stroke-2 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <span className="font-medium text-foreground">{label}</span>
+        {typeof value === 'string' ? (
+          <p className="break-words text-muted-foreground">{value}</p>
+        ) : (
+          <div>{value}</div>
         )}
       </div>
-
-      {card.metaInfo?.tags && card.metaInfo.tags.length > 0 && (
-        <div>
-          <h4 className="mb-2 font-medium">Tags</h4>
-          <div className="flex flex-wrap gap-2">
-            {card.metaInfo.tags.map((tag, index) => (
-              <Badge key={index} variant="outline">
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
+  );
+
+  // Render metadata panel
+  const renderMetadata = () => (
+    <>
+      {/* Card Title */}
+      <MetadataRow
+        icon={Hash}
+        label="Title"
+        value={
+          card.data.title ||
+          `${card.type.charAt(0).toUpperCase() + card.type.slice(1)} Card`
+        }
+      />
+
+      <MetadataRow
+        icon={Calendar}
+        label="Created"
+        value={formatDate(card.createdAt)}
+      />
+
+      {card.data.duration && (
+        <MetadataRow
+          icon={Clock}
+          label="Duration"
+          value={formatDuration(card.data.duration)}
+        />
+      )}
+
+      {card.type === 'url' && card.data.url && (
+        <MetadataRow
+          icon={Globe}
+          label="URL"
+          value={
+            <a
+              className="break-all text-primary hover:underline"
+              href={card.data.url}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {card.data.url}
+            </a>
+          }
+        />
+      )}
+
+      {card.type === 'url' && card.data.description && (
+        <MetadataRow
+          icon={Type}
+          label="Description"
+          value={card.data.description}
+        />
+      )}
+
+      {/* File Details */}
+      {(card.data.original_filename ||
+        card.metaInfo?.file_size ||
+        (card.data.width && card.data.height)) && (
+        <>
+          {card.data.original_filename && (
+            <MetadataRow
+              icon={FileText}
+              label="Filename"
+              value={card.data.original_filename}
+            />
+          )}
+
+          {card.metaInfo?.file_size && (
+            <MetadataRow
+              icon={FileText}
+              label="File Size"
+              value={formatFileSize(card.metaInfo.file_size)}
+            />
+          )}
+
+          {card.data.width && card.data.height && (
+            <MetadataRow
+              icon={Image}
+              label="Dimensions"
+              value={`${card.data.width} × ${card.data.height}`}
+            />
+          )}
+        </>
+      )}
+
+      {/* AI Content */}
+      {(card.aiSummary ||
+        card.aiTags?.length > 0 ||
+        card.metaInfo?.tags?.length > 0) && (
+        <>
+          {card.aiSummary && (
+            <MetadataRow
+              icon={Sparkles}
+              label="AI Summary"
+              value={card.aiSummary}
+            />
+          )}
+
+          {card.aiTags && card.aiTags.length > 0 && (
+            <MetadataRow
+              icon={Sparkles}
+              label="AI Tags"
+              value={
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {card.aiTags.map((tag, index) => (
+                    <Badge className="text-xs" key={index} variant="secondary">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              }
+            />
+          )}
+
+          {card.metaInfo?.tags && card.metaInfo.tags.length > 0 && (
+            <MetadataRow
+              icon={Tag}
+              label="Tags"
+              value={
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {card.metaInfo.tags.map((tag, index) => (
+                    <Badge className="text-xs" key={index} variant="outline">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              }
+            />
+          )}
+        </>
+      )}
+    </>
   );
 
   return (
@@ -400,7 +413,9 @@ export function CardDetailsModal({
         </div>
 
         {/* Right side - Metadata with title and close button */}
-        <div className="w-80 overflow-y-auto p-4">{renderMetadata()}</div>
+        <div className="w-80 space-y-6 overflow-y-auto p-4">
+          {renderMetadata()}
+        </div>
       </DialogContent>
     </Dialog>
   );

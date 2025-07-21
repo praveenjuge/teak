@@ -1,5 +1,6 @@
 // Re-export all types from submodules
 
+export * from './ai';
 export * from './api';
 export * from './auth';
 export * from './cards';

@@ -1,4 +1,5 @@
 import type { ProcessedCardData, ProcessingContext } from '@teak/shared-types';
+import { AiEnrichmentService } from '../ai/ai-enrichment-service.js';
 import { LocalFileUploadService } from '../file/LocalFileUploadService.js';
 import { CardProcessor } from './card-processor.js';
 
@@ -14,10 +15,12 @@ interface PdfMetadata {
 
 export class PdfCardProcessor extends CardProcessor {
   private fileUploadService: LocalFileUploadService;
+  private aiEnrichmentService: AiEnrichmentService;
 
   constructor() {
     super();
     this.fileUploadService = new LocalFileUploadService();
+    this.aiEnrichmentService = new AiEnrichmentService();
   }
 
   async process(context: ProcessingContext): Promise<ProcessedCardData> {
@@ -25,9 +28,7 @@ export class PdfCardProcessor extends CardProcessor {
       // Handle URL-based PDF
       const mediaUrl = context.inputData.media_url;
       if (!mediaUrl) {
-        throw new Error(
-          'PDF card requires either a file upload or media_url'
-        );
+        throw new Error('PDF card requires either a file upload or media_url');
       }
 
       return {
@@ -54,7 +55,10 @@ export class PdfCardProcessor extends CardProcessor {
     });
 
     // Extract PDF content and metadata
-    const pdfData = await this.extractPdfData(uploadResult.path);
+    const pdfData = await this.extractPdfData(
+      uploadResult.path,
+      context.userId
+    );
 
     return {
       data: {
@@ -63,7 +67,10 @@ export class PdfCardProcessor extends CardProcessor {
         extracted_text: pdfData.text,
         title: pdfData.metadata.title || context.inputData.title,
         page_count: pdfData.metadata.pageCount,
-        keywords: pdfData.metadata.keywords?.split(',').map(k => k.trim()).filter(k => k.length > 0),
+        keywords: pdfData.metadata.keywords
+          ?.split(',')
+          .map((k) => k.trim())
+          .filter((k) => k.length > 0),
       },
       metaInfo: {
         file_size: uploadResult.size,
@@ -77,15 +84,18 @@ export class PdfCardProcessor extends CardProcessor {
     };
   }
 
-  private async extractPdfData(filePath: string): Promise<{ text: string; metadata: PdfMetadata }> {
+  private async extractPdfData(
+    filePath: string,
+    userId: string
+  ): Promise<{ text: string; metadata: PdfMetadata }> {
     try {
       const fullPath = `/data/${filePath}`;
       const dataBuffer = await Bun.file(fullPath).arrayBuffer();
-      
+
       // Use pdf-lib for PDF parsing (more compatible with Bun)
       const { PDFDocument } = await import('pdf-lib');
       const pdfDoc = await PDFDocument.load(dataBuffer);
-      
+
       // Get basic metadata
       const pageCount = pdfDoc.getPageCount();
       const title = pdfDoc.getTitle();
@@ -95,9 +105,27 @@ export class PdfCardProcessor extends CardProcessor {
       const creationDate = pdfDoc.getCreationDate();
       const modificationDate = pdfDoc.getModificationDate();
 
-      // Note: pdf-lib doesn't extract text content, so we'll store empty text
-      // This can be enhanced later with OCR or other text extraction methods
-      const extractedText = '';
+      // Extract text content using AI
+      let extractedText = '';
+      try {
+        const aiService =
+          await this.aiEnrichmentService.getAiServiceForUser(userId);
+        if (aiService) {
+          console.log('🤖 Using AI to extract PDF content');
+          extractedText = await aiService.extractPdfContent(
+            Buffer.from(dataBuffer)
+          );
+          console.log(
+            `✅ AI extracted ${extractedText.length} characters from PDF`
+          );
+        } else {
+          console.log(
+            '⚠️ No AI service configured for user, PDF text extraction skipped'
+          );
+        }
+      } catch (error) {
+        console.warn('Failed to extract PDF text with AI:', error);
+      }
 
       // Extract metadata
       const metadata: PdfMetadata = {

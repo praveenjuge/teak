@@ -86,7 +86,20 @@ cardRoutes.get('/:id', async (c) => {
     const { id } = validateParams(c, cardIdSchema);
 
     const [card] = await db
-      .select()
+      .select({
+        id: cards.id,
+        type: cards.type,
+        data: cards.data,
+        metaInfo: cards.metaInfo,
+        createdAt: cards.createdAt,
+        updatedAt: cards.updatedAt,
+        deletedAt: cards.deletedAt,
+        userId: cards.userId,
+        aiSummary: cards.aiSummary,
+        aiTags: cards.aiTags,
+        aiTranscript: cards.aiTranscript,
+        aiProcessedAt: cards.aiProcessedAt,
+      })
       .from(cards)
       .where(
         and(
@@ -194,7 +207,20 @@ cardRoutes.put('/:id', async (c) => {
 
     // Check if card exists and belongs to user
     const [existingCard] = await db
-      .select()
+      .select({
+        id: cards.id,
+        type: cards.type,
+        data: cards.data,
+        metaInfo: cards.metaInfo,
+        createdAt: cards.createdAt,
+        updatedAt: cards.updatedAt,
+        deletedAt: cards.deletedAt,
+        userId: cards.userId,
+        aiSummary: cards.aiSummary,
+        aiTags: cards.aiTags,
+        aiTranscript: cards.aiTranscript,
+        aiProcessedAt: cards.aiProcessedAt,
+      })
       .from(cards)
       .where(
         and(
@@ -250,7 +276,20 @@ cardRoutes.delete('/:id', async (c) => {
 
     // Check if card exists and belongs to user
     const [existingCard] = await db
-      .select()
+      .select({
+        id: cards.id,
+        type: cards.type,
+        data: cards.data,
+        metaInfo: cards.metaInfo,
+        createdAt: cards.createdAt,
+        updatedAt: cards.updatedAt,
+        deletedAt: cards.deletedAt,
+        userId: cards.userId,
+        aiSummary: cards.aiSummary,
+        aiTags: cards.aiTags,
+        aiTranscript: cards.aiTranscript,
+        aiProcessedAt: cards.aiProcessedAt,
+      })
       .from(cards)
       .where(
         and(

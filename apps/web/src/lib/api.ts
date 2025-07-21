@@ -199,6 +199,12 @@ class ApiClient {
     });
   }
 
+  async createRefreshAiDataJob(): Promise<Job> {
+    return this.request<Job>('/api/jobs/refresh-ai-data', {
+      method: 'POST',
+    });
+  }
+
   // Admin methods
   async getAdminStats(): Promise<AdminStatsResponse> {
     return this.request<AdminStatsResponse>('/api/admin/stats');
@@ -207,6 +213,20 @@ class ApiClient {
   async getUsers(): Promise<User[]> {
     const response = await this.request<{ users: User[] }>('/api/users');
     return response.users;
+  }
+
+  // AI Settings methods
+  async getAiSettings(): Promise<Record<string, any>> {
+    return this.request<Record<string, any>>('/api/ai-settings');
+  }
+
+  async updateAiSettings(
+    settings: Record<string, any>
+  ): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>('/api/ai-settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
   }
 }
 

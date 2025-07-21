@@ -6,6 +6,7 @@ import type {
 } from '@teak/shared-types';
 import { db } from '../../db/index.js';
 import { cards } from '../../db/schema.js';
+import { JobService } from '../job/job-service.js';
 import { AudioCardProcessor } from './audio-card-processor.js';
 import type { CardProcessor } from './card-processor.js';
 import { ImageCardProcessor } from './image-card-processor.js';
@@ -16,6 +17,7 @@ import { VideoCardProcessor } from './VideoCardProcessor.js';
 
 export class CardService {
   private processors: Map<CardType, CardProcessor>;
+  private jobService: JobService;
 
   constructor() {
     this.processors = new Map<CardType, CardProcessor>();
@@ -25,6 +27,7 @@ export class CardService {
     this.processors.set('url', new UrlCardProcessor());
     this.processors.set('image', new ImageCardProcessor());
     this.processors.set('pdf', new PdfCardProcessor());
+    this.jobService = new JobService();
   }
 
   async createCard(
@@ -64,6 +67,16 @@ export class CardService {
         throw new Error('Failed to create card');
       }
 
+      // Schedule AI enrichment job in the background
+      this.scheduleAiEnrichment(newCard.id, request.type, userId).catch(
+        (error) => {
+          console.error(
+            `Failed to schedule AI enrichment for card ${newCard.id}:`,
+            error
+          );
+        }
+      );
+
       return {
         ...newCard,
         data: newCard.data as Record<string, unknown>,
@@ -102,5 +115,60 @@ export class CardService {
 
   getSupportedTypes(): CardType[] {
     return Array.from(this.processors.keys());
+  }
+
+  private async scheduleAiEnrichment(
+    cardId: number,
+    cardType: CardType,
+    userId: string
+  ): Promise<void> {
+    console.log(
+      `🗓️ Scheduling AI enrichment for card ${cardId}, type: ${cardType}, user: ${userId}`
+    );
+
+    // Map card type to AI enrichment job type
+    const jobTypeMap: Record<CardType, string> = {
+      text: 'ai-enrich-text',
+      image: 'ai-enrich-image',
+      pdf: 'ai-enrich-pdf',
+      audio: 'ai-enrich-audio',
+      url: 'ai-enrich-url',
+      video: 'ai-enrich-audio', // Video cards might have audio transcription
+    };
+
+    const jobType = jobTypeMap[cardType];
+    if (!jobType) {
+      console.log(`❌ No AI enrichment job type for card type: ${cardType}`);
+      return;
+    }
+
+    console.log(`📋 Creating job of type: ${jobType}`);
+
+    try {
+      const job = await this.jobService.createJob({
+        type: jobType as any, // TypeScript needs this cast due to the union type
+        userId,
+        payload: {
+          cardId,
+          cardType,
+        },
+      });
+
+      console.log(
+        `✅ Successfully scheduled ${jobType} job for card ${cardId}, job ID: ${job.id}`
+      );
+
+      // Start the job processing asynchronously
+      console.log(`🚀 Triggering job processing for job ${job.id}`);
+      this.jobService.processJob(job.id).catch((error) => {
+        console.error(`❌ Failed to process job ${job.id}:`, error);
+      });
+    } catch (error) {
+      console.error(
+        `Failed to schedule AI enrichment job for card ${cardId}:`,
+        error
+      );
+      throw error;
+    }
   }
 }

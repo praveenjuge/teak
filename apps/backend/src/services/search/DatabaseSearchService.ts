@@ -66,6 +66,10 @@ export class DatabaseSearchService extends SearchAndSortService {
         updatedAt: cards.updatedAt,
         deletedAt: cards.deletedAt,
         userId: cards.userId,
+        aiSummary: cards.aiSummary,
+        aiTags: cards.aiTags,
+        aiTranscript: cards.aiTranscript,
+        aiProcessedAt: cards.aiProcessedAt,
         rank: sql<number>`
           ts_rank(
             to_tsvector('english', 
@@ -142,6 +146,10 @@ export class DatabaseSearchService extends SearchAndSortService {
         updatedAt: cards.updatedAt,
         deletedAt: cards.deletedAt,
         userId: cards.userId,
+        aiSummary: cards.aiSummary,
+        aiTags: cards.aiTags,
+        aiTranscript: cards.aiTranscript,
+        aiProcessedAt: cards.aiProcessedAt,
       })
       .from(cards)
       .where(whereClause)

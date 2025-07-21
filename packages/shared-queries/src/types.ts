@@ -61,10 +61,17 @@ export interface ApiClient {
   getJobs(): Promise<Job[]>;
   createRefetchOgImagesJob(): Promise<Job>;
   createRefetchScreenshotsJob(): Promise<Job>;
+  createRefreshAiDataJob(): Promise<Job>;
 
   // Admin methods
   getAdminStats(): Promise<AdminStatsResponse>;
   getUsers(): Promise<User[]>;
+
+  // AI Settings methods
+  getAiSettings(): Promise<Record<string, any>>;
+  updateAiSettings(
+    settings: Record<string, any>
+  ): Promise<{ success: boolean }>;
 }
 
 export interface UseCardsParams {

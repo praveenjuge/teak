@@ -102,6 +102,11 @@ export const cards = pgTable('cards', {
   type: cardType('type').notNull(),
   data: jsonb('data').default({}), // contains content, url, transcription, media_url based on type
   metaInfo: jsonb('metaInfo').default({}),
+  // AI enrichment fields
+  aiSummary: text('aiSummary'), // Two-line AI-generated description
+  aiTags: jsonb('aiTags'), // Array of AI-generated tags
+  aiTranscript: text('aiTranscript'), // AI transcription for audio/PDF
+  aiProcessedAt: timestamp('aiProcessedAt'), // When AI processing completed
   createdAt: timestamp('createdAt').notNull().defaultNow(),
   updatedAt: timestamp('updatedAt').notNull().defaultNow(),
   deletedAt: timestamp('deletedAt'),
@@ -110,11 +115,34 @@ export const cards = pgTable('cards', {
     .references(() => users.id, { onDelete: 'cascade' }),
 });
 
+// AI Settings table for per-user AI configuration
+export const aiSettings = pgTable('aiSettings', {
+  id: serial('id').primaryKey().notNull(),
+  userId: text('userId')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  openaiBaseUrl: text('openaiBaseUrl'),
+  openaiApiKey: text('openaiApiKey'),
+  aiTextModelName: text('aiTextModelName'),
+  aiImageTextModelName: text('aiImageTextModelName'),
+  embeddingModelName: text('embeddingModelName'),
+  audioTranscriptModelName: text('audioTranscriptModelName'),
+  fileTranscriptModelName: text('fileTranscriptModelName'),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+});
+
 // Jobs table for tracking background tasks
 export const jobType = pgEnum('jobType', [
   'refetch-og-images',
   'refetch-screenshots',
+  'refresh-ai-data',
   'process-card',
+  'ai-enrich-text',
+  'ai-enrich-image',
+  'ai-enrich-pdf',
+  'ai-enrich-audio',
+  'ai-enrich-url',
 ]);
 
 export const jobStatus = pgEnum('jobStatus', [

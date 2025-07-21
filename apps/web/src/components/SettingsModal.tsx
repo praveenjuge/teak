@@ -1,8 +1,11 @@
 import {
   useAdminStats,
+  useAiSettings,
   useJobs,
   useRefetchOgImages,
   useRefetchScreenshots,
+  useRefreshAiData,
+  useUpdateAiSettings,
   useUsers,
 } from '@teak/shared-queries';
 import {
@@ -17,7 +20,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +29,8 @@ import {
   DialogContent,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { apiClient } from '@/lib/api';
 import { authClient, useSession } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
@@ -59,11 +64,50 @@ export default function SettingsModal() {
   const { data: jobs, isLoading: jobsLoading } = useJobs(apiClient);
   const refetchOgImagesMutation = useRefetchOgImages(apiClient);
   const refetchScreenshotsMutation = useRefetchScreenshots(apiClient);
+  const refreshAiDataMutation = useRefreshAiData(apiClient);
 
   // Admin hooks
   const { data: adminStats, isLoading: adminStatsLoading } =
     useAdminStats(apiClient);
   const { data: users, isLoading: usersLoading } = useUsers(apiClient);
+
+  // AI Settings hooks
+  const { data: aiSettings, isLoading: aiSettingsLoading } =
+    useAiSettings(apiClient);
+  const updateAiSettingsMutation = useUpdateAiSettings(apiClient);
+  const [aiFormData, setAiFormData] = useState({
+    openaiBaseUrl: '',
+    openaiApiKey: '',
+    aiTextModelName: '',
+    aiImageTextModelName: '',
+    embeddingModelName: '',
+    audioTranscriptModelName: '',
+    fileTranscriptModelName: '',
+  });
+
+  // Sync form data with loaded AI settings
+  useEffect(() => {
+    if (aiSettings) {
+      setAiFormData({
+        openaiBaseUrl: aiSettings.openaiBaseUrl || '',
+        openaiApiKey: aiSettings.openaiApiKey || '',
+        aiTextModelName: aiSettings.aiTextModelName || '',
+        aiImageTextModelName: aiSettings.aiImageTextModelName || '',
+        embeddingModelName: aiSettings.embeddingModelName || '',
+        audioTranscriptModelName: aiSettings.audioTranscriptModelName || '',
+        fileTranscriptModelName: aiSettings.fileTranscriptModelName || '',
+      });
+    }
+  }, [aiSettings]);
+
+  const handleAiSettingsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateAiSettingsMutation.mutateAsync(aiFormData);
+    } catch (error) {
+      console.error('Failed to update AI settings:', error);
+    }
+  };
 
   const navigationGroups: NavigationGroup[] = [
     {
@@ -128,11 +172,138 @@ export default function SettingsModal() {
           <div className="space-y-6">
             <div>
               <h3 className="mb-4 font-medium text-lg">AI Settings</h3>
-              <div className="space-y-4">
-                <p className="text-muted-foreground">
-                  AI configuration and preferences will be available here.
-                </p>
-              </div>
+
+              {aiSettingsLoading ? (
+                <div className="text-center text-muted-foreground">
+                  Loading AI settings...
+                </div>
+              ) : (
+                <form className="space-y-4" onSubmit={handleAiSettingsSubmit}>
+                  <div className="space-y-2">
+                    <Label htmlFor="openaiBaseUrl">OpenAI Base URL</Label>
+                    <Input
+                      id="openaiBaseUrl"
+                      onChange={(e) =>
+                        setAiFormData({
+                          ...aiFormData,
+                          openaiBaseUrl: e.target.value,
+                        })
+                      }
+                      placeholder="https://api.openai.com/v1"
+                      type="url"
+                      value={aiFormData.openaiBaseUrl}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="openaiApiKey">OpenAI API Key</Label>
+                    <Input
+                      id="openaiApiKey"
+                      onChange={(e) =>
+                        setAiFormData({
+                          ...aiFormData,
+                          openaiApiKey: e.target.value,
+                        })
+                      }
+                      placeholder="sk-..."
+                      type="password"
+                      value={aiFormData.openaiApiKey}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="aiTextModelName">Text Model Name</Label>
+                    <Input
+                      id="aiTextModelName"
+                      onChange={(e) =>
+                        setAiFormData({
+                          ...aiFormData,
+                          aiTextModelName: e.target.value,
+                        })
+                      }
+                      placeholder="gpt-4o"
+                      value={aiFormData.aiTextModelName}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="aiImageTextModelName">
+                      Image Text Model Name
+                    </Label>
+                    <Input
+                      id="aiImageTextModelName"
+                      onChange={(e) =>
+                        setAiFormData({
+                          ...aiFormData,
+                          aiImageTextModelName: e.target.value,
+                        })
+                      }
+                      placeholder="gpt-4o"
+                      value={aiFormData.aiImageTextModelName}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="embeddingModelName">
+                      Embedding Model Name
+                    </Label>
+                    <Input
+                      id="embeddingModelName"
+                      onChange={(e) =>
+                        setAiFormData({
+                          ...aiFormData,
+                          embeddingModelName: e.target.value,
+                        })
+                      }
+                      placeholder="text-embedding-3-small"
+                      value={aiFormData.embeddingModelName}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="audioTranscriptModelName">
+                      Audio Transcript Model Name
+                    </Label>
+                    <Input
+                      id="audioTranscriptModelName"
+                      onChange={(e) =>
+                        setAiFormData({
+                          ...aiFormData,
+                          audioTranscriptModelName: e.target.value,
+                        })
+                      }
+                      placeholder="whisper-1"
+                      value={aiFormData.audioTranscriptModelName}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="fileTranscriptModelName">
+                      File Transcript Model Name
+                    </Label>
+                    <Input
+                      id="fileTranscriptModelName"
+                      onChange={(e) =>
+                        setAiFormData({
+                          ...aiFormData,
+                          fileTranscriptModelName: e.target.value,
+                        })
+                      }
+                      placeholder="gpt-4o"
+                      value={aiFormData.fileTranscriptModelName}
+                    />
+                  </div>
+
+                  <Button
+                    disabled={updateAiSettingsMutation.isPending}
+                    type="submit"
+                  >
+                    {updateAiSettingsMutation.isPending
+                      ? 'Saving...'
+                      : 'Save Settings'}
+                  </Button>
+                </form>
+              )}
             </div>
           </div>
         );
@@ -360,6 +531,17 @@ export default function SettingsModal() {
                     {refetchScreenshotsMutation.isPending
                       ? 'Starting...'
                       : 'Refetch Screenshots'}
+                  </Button>
+                  <Button
+                    disabled={refreshAiDataMutation.isPending}
+                    onClick={() => refreshAiDataMutation.mutate()}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <RefreshCw className="mr-2 size-4" />
+                    {refreshAiDataMutation.isPending
+                      ? 'Starting...'
+                      : 'Refresh AI Data'}
                   </Button>
                 </div>
 

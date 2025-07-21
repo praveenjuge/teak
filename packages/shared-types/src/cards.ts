@@ -1,7 +1,14 @@
 import { z } from 'zod';
 
 // Card type enum
-export const cardTypeEnum = z.enum(['audio', 'text', 'url', 'image', 'video', 'pdf']);
+export const cardTypeEnum = z.enum([
+  'audio',
+  'text',
+  'url',
+  'image',
+  'video',
+  'pdf',
+]);
 export type CardType = z.infer<typeof cardTypeEnum>;
 
 // Card data schemas for different types
@@ -130,6 +137,11 @@ export const dbCardSchema = z.object({
   type: cardTypeEnum,
   data: z.record(z.unknown()),
   metaInfo: z.record(z.unknown()),
+  // AI enrichment fields
+  aiSummary: z.string().nullable().optional(),
+  aiTags: z.array(z.string()).nullable().optional(),
+  aiTranscript: z.string().nullable().optional(),
+  aiProcessedAt: z.date().nullable().optional(),
   createdAt: z.date(),
   updatedAt: z.date(),
   deletedAt: z.date().nullable(),
@@ -158,4 +170,10 @@ export type DbCardResponse = z.infer<typeof dbCardSchema>;
 export type CardsListResponse = z.infer<typeof cardsListResponseSchema>;
 
 // Union type for card data
-export type CardData = AudioData | TextData | UrlData | ImageData | VideoData | PdfData;
+export type CardData =
+  | AudioData
+  | TextData
+  | UrlData
+  | ImageData
+  | VideoData
+  | PdfData;

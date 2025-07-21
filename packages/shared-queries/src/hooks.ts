@@ -182,12 +182,24 @@ export function useRefetchScreenshots(apiClient: ApiClient) {
   });
 }
 
+export function useRefreshAiData(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => apiClient.createRefreshAiDataJob(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['cards'] });
+    },
+  });
+}
+
 // Admin hooks
 export function useAdminStats(apiClient: ApiClient) {
   return useQuery({
     queryKey: ['admin', 'stats'],
     queryFn: () => apiClient.getAdminStats(),
-    refetchInterval: 30000, // Refetch every 30 seconds for live stats
+    refetchInterval: 30_000, // Refetch every 30 seconds for live stats
   });
 }
 
@@ -195,5 +207,25 @@ export function useUsers(apiClient: ApiClient) {
   return useQuery({
     queryKey: ['admin', 'users'],
     queryFn: () => apiClient.getUsers(),
+  });
+}
+
+// AI Settings hooks
+export function useAiSettings(apiClient: ApiClient) {
+  return useQuery({
+    queryKey: ['ai-settings'],
+    queryFn: () => apiClient.getAiSettings(),
+  });
+}
+
+export function useUpdateAiSettings(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (settings: Record<string, any>) =>
+      apiClient.updateAiSettings(settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-settings'] });
+    },
   });
 }
