@@ -399,6 +399,7 @@ export function AddCardItem() {
           disabled={!content.trim() || createCardMutation.isPending}
           onClick={handleSave}
           size="sm"
+          variant="outline"
         >
           {createCardMutation.isPending ? (
             <Loader2 className="animate-spin" />
