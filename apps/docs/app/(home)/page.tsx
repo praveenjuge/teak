@@ -1,4 +1,71 @@
 import Link from 'next/link';
+import { FeatureCard } from '../../components/FeatureCard';
+import { ChecklistItem } from '../../components/ChecklistItem';
+import { FAQItem } from '../../components/FAQItem';
+
+const features = [
+  {
+    icon: 'shield' as const,
+    title: 'Self-Hosted',
+    description: 'Keep your data private and secure. Host Teak on your own infrastructure with full control over your personal knowledge.'
+  },
+  {
+    icon: 'lightning' as const,
+    title: 'Lightning Fast',
+    description: 'Built with modern technologies like Bun, React 19, and PostgreSQL for exceptional performance and responsiveness.'
+  },
+  {
+    icon: 'mobile' as const,
+    title: 'Cross-Platform',
+    description: 'Access your knowledge hub from anywhere with web, mobile, and desktop applications built with React Native and Expo.'
+  },
+  {
+    icon: 'search' as const,
+    title: 'Smart Search',
+    description: 'Quickly find and rediscover your ideas with powerful search capabilities that understand your content.'
+  },
+  {
+    icon: 'stack' as const,
+    title: 'Modern Stack',
+    description: 'Built with the latest technologies including Hono.js, Drizzle ORM, and containerized with Docker for easy deployment.'
+  },
+  {
+    icon: 'heart' as const,
+    title: 'Open Source',
+    description: 'Free and open source software that you can modify, extend, and contribute to. MIT licensed for maximum flexibility.'
+  }
+];
+
+const faqs = [
+  {
+    question: 'What is Teak?',
+    answer: "Teak is a self-hosted personal knowledge hub that helps you collect, organize, and rediscover your ideas and inspirations. It's designed for creative minds who want to maintain their own private digital brain."
+  },
+  {
+    question: 'Is it really free?',
+    answer: 'Yes! Teak is completely free and open source under the MIT license. You only pay for your own hosting infrastructure, which can be as little as $5/month on a VPS or even free if you host it locally.'
+  },
+  {
+    question: 'How do I self-host Teak?',
+    answer: 'Teak comes with Docker configuration for easy deployment. Simply clone the repository, configure your environment variables, and run `docker-compose up`. Detailed setup instructions are available in our documentation.'
+  },
+  {
+    question: 'What technologies does Teak use?',
+    answer: 'Teak is built with modern technologies: Bun runtime, Hono.js API server, React 19 with Vite for the web app, React Native with Expo for mobile, PostgreSQL 17 with Drizzle ORM, and Docker for containerization.'
+  },
+  {
+    question: 'Can I access my data from mobile devices?',
+    answer: 'Yes! Teak includes cross-platform applications: a web app, mobile apps for iOS and Android built with React Native and Expo, ensuring you can access your knowledge hub from any device.'
+  },
+  {
+    question: 'How do I contribute to Teak?',
+    answer: "Teak is open source and welcomes contributions! Visit our GitHub repository to report issues, suggest features, or submit pull requests. We have a friendly community that's happy to help newcomers get started."
+  },
+  {
+    question: 'What are the system requirements?',
+    answer: "Teak requires Docker and Docker Compose for the easiest setup. For development, you'll need Bun 1.0+. The system is lightweight and can run on a modest VPS with 1GB RAM and 1 CPU core."
+  }
+];
 
 export default function HomePage() {
   return (
@@ -45,154 +112,14 @@ export default function HomePage() {
           </div>
 
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            <div className="rounded-lg border border-fd-border bg-fd-card p-6">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-fd-primary/10">
-                <svg
-                  aria-label="Self-hosted icon"
-                  className="h-6 w-6 text-fd-primary"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <title>Self-hosted icon</title>
-                  <path
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
-              </div>
-              <h3 className="mb-2 font-semibold text-xl">Self-Hosted</h3>
-              <p className="text-fd-muted-foreground">
-                Keep your data private and secure. Host Teak on your own
-                infrastructure with full control over your personal knowledge.
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-fd-border bg-fd-card p-6">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-fd-primary/10">
-                <svg
-                  aria-label="Lightning fast icon"
-                  className="h-6 w-6 text-fd-primary"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <title>Lightning fast icon</title>
-                  <path
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
-              </div>
-              <h3 className="mb-2 font-semibold text-xl">Lightning Fast</h3>
-              <p className="text-fd-muted-foreground">
-                Built with modern technologies like Bun, React 19, and
-                PostgreSQL for exceptional performance and responsiveness.
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-fd-border bg-fd-card p-6">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-fd-primary/10">
-                <svg
-                  aria-label="Cross-platform mobile icon"
-                  className="h-6 w-6 text-fd-primary"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <title>Cross-platform mobile icon</title>
-                  <path
-                    d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
-              </div>
-              <h3 className="mb-2 font-semibold text-xl">Cross-Platform</h3>
-              <p className="text-fd-muted-foreground">
-                Access your knowledge hub from anywhere with web, mobile, and
-                desktop applications built with React Native and Expo.
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-fd-border bg-fd-card p-6">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-fd-primary/10">
-                <svg
-                  aria-label="Smart search icon"
-                  className="h-6 w-6 text-fd-primary"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <title>Smart search icon</title>
-                  <path
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
-              </div>
-              <h3 className="mb-2 font-semibold text-xl">Smart Search</h3>
-              <p className="text-fd-muted-foreground">
-                Quickly find and rediscover your ideas with powerful search
-                capabilities that understand your content.
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-fd-border bg-fd-card p-6">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-fd-primary/10">
-                <svg
-                  aria-label="Modern stack icon"
-                  className="h-6 w-6 text-fd-primary"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <title>Modern stack icon</title>
-                  <path
-                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
-              </div>
-              <h3 className="mb-2 font-semibold text-xl">Modern Stack</h3>
-              <p className="text-fd-muted-foreground">
-                Built with the latest technologies including Hono.js, Drizzle
-                ORM, and containerized with Docker for easy deployment.
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-fd-border bg-fd-card p-6">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-fd-primary/10">
-                <svg
-                  className="h-6 w-6 text-fd-primary"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <title>Open Source icon</title>
-                  <path
-                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
-              </div>
-              <h3 className="mb-2 font-semibold text-xl">Open Source</h3>
-              <p className="text-fd-muted-foreground">
-                Free and open source software that you can modify, extend, and
-                contribute to. MIT licensed for maximum flexibility.
-              </p>
-            </div>
+            {features.map((feature, index) => (
+              <FeatureCard
+                key={index}
+                icon={feature.icon}
+                title={feature.title}
+                description={feature.description}
+              />
+            ))}
           </div>
         </div>
       </section>
@@ -220,108 +147,12 @@ export default function HomePage() {
                 </span>
               </div>
               <ul className="mb-8 space-y-3 text-left">
-                <li className="flex items-center">
-                  <svg
-                    className="mr-3 h-5 w-5 text-green-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <title>Check Icon</title>
-                    <path
-                      d="M5 13l4 4L19 7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                    />
-                  </svg>
-                  Complete source code access
-                </li>
-                <li className="flex items-center">
-                  <svg
-                    className="mr-3 h-5 w-5 text-green-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <title>Check Icon</title>
-                    <path
-                      d="M5 13l4 4L19 7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                    />
-                  </svg>
-                  Host on your own infrastructure
-                </li>
-                <li className="flex items-center">
-                  <svg
-                    className="mr-3 h-5 w-5 text-green-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <title>Check Icon</title>
-                    <path
-                      d="M5 13l4 4L19 7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                    />
-                  </svg>
-                  Web, mobile, and desktop apps
-                </li>
-                <li className="flex items-center">
-                  <svg
-                    className="mr-3 h-5 w-5 text-green-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <title>Check Icon</title>
-                    <path
-                      d="M5 13l4 4L19 7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                    />
-                  </svg>
-                  Docker containerization
-                </li>
-                <li className="flex items-center">
-                  <svg
-                    className="mr-3 h-5 w-5 text-green-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <title>Check Icon</title>
-                    <path
-                      d="M5 13l4 4L19 7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                    />
-                  </svg>
-                  MIT License - modify freely
-                </li>
-                <li className="flex items-center">
-                  <svg
-                    className="mr-3 h-5 w-5 text-green-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <title>Check Icon</title>
-                    <path
-                      d="M5 13l4 4L19 7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                    />
-                  </svg>
-                  Community support
-                </li>
+                <ChecklistItem>Complete source code access</ChecklistItem>
+                <ChecklistItem>Host on your own infrastructure</ChecklistItem>
+                <ChecklistItem>Web, mobile, and desktop apps</ChecklistItem>
+                <ChecklistItem>Docker containerization</ChecklistItem>
+                <ChecklistItem>MIT License - modify freely</ChecklistItem>
+                <ChecklistItem>Community support</ChecklistItem>
               </ul>
               <Link
                 className="inline-flex w-full items-center justify-center rounded-lg bg-fd-primary px-6 py-3 font-medium text-fd-primary-foreground transition-colors hover:bg-fd-primary/90"
@@ -347,89 +178,9 @@ export default function HomePage() {
           </div>
 
           <div className="mx-auto max-w-3xl space-y-6">
-            <details className="rounded-lg border border-fd-border bg-fd-card p-6">
-              <summary className="cursor-pointer font-semibold text-lg">
-                What is Teak?
-              </summary>
-              <p className="mt-4 text-fd-muted-foreground">
-                Teak is a self-hosted personal knowledge hub that helps you
-                collect, organize, and rediscover your ideas and inspirations.
-                It&apos;s designed for creative minds who want to maintain their
-                own private digital brain.
-              </p>
-            </details>
-
-            <details className="rounded-lg border border-fd-border bg-fd-card p-6">
-              <summary className="cursor-pointer font-semibold text-lg">
-                Is it really free?
-              </summary>
-              <p className="mt-4 text-fd-muted-foreground">
-                Yes! Teak is completely free and open source under the MIT
-                license. You only pay for your own hosting infrastructure, which
-                can be as little as $5/month on a VPS or even free if you host
-                it locally.
-              </p>
-            </details>
-
-            <details className="rounded-lg border border-fd-border bg-fd-card p-6">
-              <summary className="cursor-pointer font-semibold text-lg">
-                How do I self-host Teak?
-              </summary>
-              <p className="mt-4 text-fd-muted-foreground">
-                Teak comes with Docker configuration for easy deployment. Simply
-                clone the repository, configure your environment variables, and
-                run `docker-compose up`. Detailed setup instructions are
-                available in our documentation.
-              </p>
-            </details>
-
-            <details className="rounded-lg border border-fd-border bg-fd-card p-6">
-              <summary className="cursor-pointer font-semibold text-lg">
-                What technologies does Teak use?
-              </summary>
-              <p className="mt-4 text-fd-muted-foreground">
-                Teak is built with modern technologies: Bun runtime, Hono.js API
-                server, React 19 with Vite for the web app, React Native with
-                Expo for mobile, PostgreSQL 17 with Drizzle ORM, and Docker for
-                containerization.
-              </p>
-            </details>
-
-            <details className="rounded-lg border border-fd-border bg-fd-card p-6">
-              <summary className="cursor-pointer font-semibold text-lg">
-                Can I access my data from mobile devices?
-              </summary>
-              <p className="mt-4 text-fd-muted-foreground">
-                Yes! Teak includes cross-platform applications: a web app,
-                mobile apps for iOS and Android built with React Native and
-                Expo, ensuring you can access your knowledge hub from any
-                device.
-              </p>
-            </details>
-
-            <details className="rounded-lg border border-fd-border bg-fd-card p-6">
-              <summary className="cursor-pointer font-semibold text-lg">
-                How do I contribute to Teak?
-              </summary>
-              <p className="mt-4 text-fd-muted-foreground">
-                Teak is open source and welcomes contributions! Visit our GitHub
-                repository to report issues, suggest features, or submit pull
-                requests. We have a friendly community that&apos;s happy to help
-                newcomers get started.
-              </p>
-            </details>
-
-            <details className="rounded-lg border border-fd-border bg-fd-card p-6">
-              <summary className="cursor-pointer font-semibold text-lg">
-                What are the system requirements?
-              </summary>
-              <p className="mt-4 text-fd-muted-foreground">
-                Teak requires Docker and Docker Compose for the easiest setup.
-                For development, you&apos;ll need Bun 1.0+. The system is
-                lightweight and can run on a modest VPS with 1GB RAM and 1 CPU
-                core.
-              </p>
-            </details>
+            {faqs.map((faq, index) => (
+              <FAQItem key={index} question={faq.question} answer={faq.answer} />
+            ))}
           </div>
         </div>
       </section>

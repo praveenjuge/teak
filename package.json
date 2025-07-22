@@ -26,6 +26,7 @@
     "dev:backend": "cd apps/backend && bun run dev",
     "dev:frontend": "cd apps/web && bun run dev",
     "dev:mobile": "cd apps/mobile && bun run start",
+    "dev:docs": "cd apps/docs && bun run dev",
     "build": "bun run build:backend && bun run build:frontend",
     "build:backend": "cd apps/backend && bun run build",
     "build:frontend": "cd apps/web && bun run build",

@@ -1,0 +1,146 @@
+---
+title: Self-Hosting with Coolify
+description: This guide will help you deploy Teak on your own server using Coolify, a self-hosted alternative to Heroku and Vercel.
+---
+
+## Prerequisites
+
+- A server running Linux (Ubuntu 20.04+ recommended)
+- [Coolify installed](https://coolify.io/docs/installation) on your server
+- Docker and Docker Compose available
+- Domain name pointed to your server (optional but recommended)
+
+## Deployment Steps
+
+### 1. Create a New Service
+
+1. Log into your Coolify dashboard
+2. Navigate to your project or create a new one
+3. Click "Add New Service" → "Docker Compose"
+
+### 2. Configure Docker Compose
+
+Use the following Docker Compose configuration:
+
+```yaml
+services:
+  teak:
+    image: "praveenjuge/teak:latest"
+    environment:
+      - POSTGRES_DB=teak_db
+      - POSTGRES_USER=teak_user
+      - POSTGRES_PASSWORD=teak_password
+      - BETTER_AUTH_SECRET=your-super-secret-key-change-this-in-production
+      - BETTER_AUTH_URL=your-prod-url
+    volumes:
+      - data_storage:/data
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+  db:
+    image: postgres:17-alpine
+    environment:
+      - POSTGRES_DB=teak_db
+      - POSTGRES_USER=teak_user
+      - POSTGRES_PASSWORD=teak_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  data_storage:
+  postgres_data:
+```
+
+### 3. Set Environment Variables
+
+In Coolify, configure the following environment variables:
+
+#### Required Variables
+
+- `POSTGRES_DB`: Database name (default: `teak_db`)
+- `POSTGRES_USER`: Database user (default: `teak_user`)
+- `POSTGRES_PASSWORD`: **Change this!** Strong password for database
+- `BETTER_AUTH_SECRET`: **Change this!** Strong secret key for authentication
+- `BETTER_AUTH_URL`: Your production URL (e.g., `https://teak.yourdomain.com`)
+
+#### Optional Variables
+
+You may need additional environment variables based on your configuration. Check the [Environment Settings](/docs/environment-settings) guide for more details.
+
+### 4. Configure Domain (Optional)
+
+1. In Coolify, go to your service settings
+2. Add your custom domain in the "Domains" section
+3. Enable SSL/TLS certificate generation
+4. Update `BETTER_AUTH_URL` to match your domain
+
+### 5. Deploy
+
+1. Click "Deploy" in Coolify
+2. Monitor the deployment logs
+3. Once both services are healthy, your Teak instance will be available
+
+## Post-Deployment
+
+### Health Check
+
+Visit `https://yourdomain.com/health` to verify your deployment is working correctly.
+
+### First Admin User
+
+Create your first admin user by registering through the web interface. The first registered user automatically becomes an admin.
+
+### Backup Strategy
+
+Set up regular backups of your PostgreSQL database and uploaded files:
+
+- Database: Use `pg_dump` to backup the PostgreSQL database
+- Files: Backup the `data_storage` volume which contains uploaded files
+
+## Troubleshooting
+
+### Service Won't Start
+
+1. Check the logs in Coolify dashboard
+2. Verify all environment variables are set correctly
+3. Ensure the database connection is working
+
+### Database Connection Issues
+
+1. Verify PostgreSQL container is healthy
+2. Check that database credentials match between services
+3. Ensure the database is fully initialized before the main app starts
+
+### File Upload Issues
+
+1. Verify the `data_storage` volume is properly mounted
+2. Check disk space on your server
+3. Ensure proper permissions on the volume
+
+## Security Considerations
+
+- Use strong, unique passwords for `POSTGRES_PASSWORD`
+- Generate a secure random string for `BETTER_AUTH_SECRET`
+- Keep your Docker images updated
+- Enable SSL/TLS for your domain
+- Consider setting up a reverse proxy with rate limiting
+
+## Updates
+
+To update your Teak installation:
+
+1. In Coolify, go to your service
+2. Update the image tag or pull the latest version
+3. Redeploy the service
+
+The database will automatically migrate to the latest schema on startup.
