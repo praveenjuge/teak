@@ -3,6 +3,7 @@
 export type JobType =
   | 'refetch-og-images'
   | 'refetch-screenshots'
+  | 'refresh-ai-data'
   | 'process-card'
   | 'ai-enrich-text'
   | 'ai-enrich-image'

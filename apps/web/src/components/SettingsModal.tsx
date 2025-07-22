@@ -8,6 +8,7 @@ import {
   useUpdateAiSettings,
   useUsers,
 } from '@teak/shared-queries';
+import type { Job, JobType } from '@teak/shared-types';
 import {
   BarChart3,
   Bot,
@@ -43,6 +44,64 @@ type SettingsSection =
   | 'statistics'
   | 'jobs';
 
+type JobFilter = 'all' | 'user-initiated' | 'ai-processing';
+
+// Helper function to get friendly job type names
+const getJobTypeName = (type: JobType): string => {
+  switch (type) {
+    case 'refetch-og-images':
+      return 'Refetch OG Images';
+    case 'refetch-screenshots':
+      return 'Refetch Screenshots';
+    case 'refresh-ai-data':
+      return 'Refresh AI Data';
+    case 'process-card':
+      return 'Process Card';
+    case 'ai-enrich-text':
+      return 'AI Enrich Text';
+    case 'ai-enrich-image':
+      return 'AI Enrich Image';
+    case 'ai-enrich-pdf':
+      return 'AI Enrich PDF';
+    case 'ai-enrich-audio':
+      return 'AI Enrich Audio';
+    case 'ai-enrich-url':
+      return 'AI Enrich URL';
+    default:
+      return type;
+  }
+};
+
+// Helper function to categorize job types
+const getJobCategory = (type: JobType): JobFilter => {
+  const userInitiatedTypes: JobType[] = [
+    'refetch-og-images',
+    'refetch-screenshots',
+    'refresh-ai-data',
+  ];
+  const aiProcessingTypes: JobType[] = [
+    'ai-enrich-text',
+    'ai-enrich-image',
+    'ai-enrich-pdf',
+    'ai-enrich-audio',
+    'ai-enrich-url',
+  ];
+
+  if (userInitiatedTypes.includes(type)) {
+    return 'user-initiated';
+  }
+  if (aiProcessingTypes.includes(type)) {
+    return 'ai-processing';
+  }
+  return 'all';
+};
+
+// Helper function to filter jobs
+const filterJobs = (jobs: Job[], filter: JobFilter): Job[] => {
+  if (filter === 'all') return jobs;
+  return jobs.filter((job) => getJobCategory(job.type) === filter);
+};
+
 interface NavigationItem {
   id: SettingsSection;
   label: string;
@@ -59,6 +118,7 @@ export default function SettingsModal() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeSection, setActiveSection] =
     useState<SettingsSection>('general');
+  const [jobFilter, setJobFilter] = useState<JobFilter>('user-initiated');
 
   // Job-related hooks
   const { data: jobs, isLoading: jobsLoading } = useJobs(apiClient);
@@ -509,6 +569,34 @@ export default function SettingsModal() {
             <div>
               <h3 className="mb-4 font-medium text-lg">Jobs</h3>
               <div className="space-y-4">
+                {/* Job Filter Buttons */}
+                <div className="flex gap-2 border-b pb-3">
+                  <Button
+                    onClick={() => setJobFilter('user-initiated')}
+                    size="sm"
+                    variant={
+                      jobFilter === 'user-initiated' ? 'default' : 'outline'
+                    }
+                  >
+                    My Jobs
+                  </Button>
+                  <Button
+                    onClick={() => setJobFilter('ai-processing')}
+                    size="sm"
+                    variant={
+                      jobFilter === 'ai-processing' ? 'default' : 'outline'
+                    }
+                  >
+                    AI Processing
+                  </Button>
+                  <Button
+                    onClick={() => setJobFilter('all')}
+                    size="sm"
+                    variant={jobFilter === 'all' ? 'default' : 'outline'}
+                  >
+                    All Jobs
+                  </Button>
+                </div>
                 <div className="flex gap-2">
                   <Button
                     disabled={refetchOgImagesMutation.isPending}
@@ -550,74 +638,107 @@ export default function SettingsModal() {
                     Loading jobs...
                   </div>
                 ) : jobs && jobs.length > 0 ? (
-                  <div className="rounded-lg border">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b bg-muted/30">
-                          <th className="p-3 text-left font-medium">
-                            Job Type
-                          </th>
-                          <th className="p-3 text-left font-medium">Status</th>
-                          <th className="p-3 text-left font-medium">
-                            Created At
-                          </th>
-                          <th className="p-3 text-left font-medium">Results</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {jobs.map((job) => (
-                          <tr className="hover:bg-muted/20" key={job.id}>
-                            <td className="p-3 font-medium">
-                              {job.type === 'refetch-og-images' &&
-                                'Refetch OG Images'}
-                              {job.type === 'refetch-screenshots' &&
-                                'Refetch Screenshots'}
-                              {job.type === 'process-card' && 'Process Card'}
-                            </td>
-                            <td className="p-3">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className={cn(
-                                    'size-2 rounded-full',
-                                    job.status === 'completed' &&
-                                      'bg-green-500',
-                                    job.status === 'processing' &&
-                                      'bg-blue-500',
-                                    job.status === 'pending' && 'bg-yellow-500',
-                                    job.status === 'failed' && 'bg-red-500'
+                  (() => {
+                    const filteredJobs = filterJobs(jobs, jobFilter);
+                    return filteredJobs.length > 0 ? (
+                      <div className="rounded-lg border">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b bg-muted/30">
+                              <th className="p-3 text-left font-medium">
+                                Job Type
+                              </th>
+                              <th className="p-3 text-left font-medium">
+                                Status
+                              </th>
+                              <th className="p-3 text-left font-medium">
+                                Created At
+                              </th>
+                              <th className="p-3 text-left font-medium">
+                                Results
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {filteredJobs.map((job) => (
+                              <tr className="hover:bg-muted/20" key={job.id}>
+                                <td className="p-3">
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className={cn(
+                                        'size-2 rounded-full',
+                                        getJobCategory(job.type) ===
+                                          'user-initiated' && 'bg-blue-500',
+                                        getJobCategory(job.type) ===
+                                          'ai-processing' && 'bg-purple-500',
+                                        getJobCategory(job.type) === 'all' &&
+                                          'bg-gray-500'
+                                      )}
+                                    />
+                                    <span className="font-medium">
+                                      {getJobTypeName(job.type)}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="p-3">
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className={cn(
+                                        'size-2 rounded-full',
+                                        job.status === 'completed' &&
+                                          'bg-green-500',
+                                        job.status === 'processing' &&
+                                          'bg-blue-500',
+                                        job.status === 'pending' &&
+                                          'bg-yellow-500',
+                                        job.status === 'failed' && 'bg-red-500'
+                                      )}
+                                    />
+                                    <span className="capitalize">
+                                      {job.status}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="p-3 text-muted-foreground">
+                                  {new Date(job.createdAt).toLocaleString()}
+                                </td>
+                                <td className="p-3">
+                                  {job.status === 'completed' &&
+                                    job.result &&
+                                    typeof job.result === 'object' &&
+                                    'processed' in job.result && (
+                                      <span className="text-muted-foreground">
+                                        {job.result.processed}/
+                                        {job.result.total} items
+                                      </span>
+                                    )}
+                                  {job.status === 'failed' && job.error && (
+                                    <span className="text-red-500">
+                                      {job.error}
+                                    </span>
                                   )}
-                                />
-                                <span className="capitalize">{job.status}</span>
-                              </div>
-                            </td>
-                            <td className="p-3 text-muted-foreground">
-                              {new Date(job.createdAt).toLocaleString()}
-                            </td>
-                            <td className="p-3">
-                              {job.status === 'completed' &&
-                                job.result &&
-                                typeof job.result === 'object' &&
-                                'processed' in job.result && (
-                                  <span className="text-muted-foreground">
-                                    {job.result.processed}/{job.result.total}{' '}
-                                    items
-                                  </span>
-                                )}
-                              {job.status === 'failed' && job.error && (
-                                <span className="text-red-500">
-                                  {job.error}
-                                </span>
-                              )}
-                              {(job.status === 'pending' ||
-                                job.status === 'processing') && (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                                  {(job.status === 'pending' ||
+                                    job.status === 'processing') && (
+                                    <span className="text-muted-foreground">
+                                      —
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="text-center text-muted-foreground">
+                        No{' '}
+                        {jobFilter === 'all' ? '' : jobFilter.replace('-', ' ')}{' '}
+                        jobs found.
+                        {jobFilter === 'user-initiated' &&
+                          ' Start a job using the buttons above.'}
+                      </div>
+                    );
+                  })()
                 ) : (
                   <div className="text-center text-muted-foreground">
                     No jobs found. Start a job using the buttons above.
