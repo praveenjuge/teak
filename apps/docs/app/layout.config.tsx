@@ -35,8 +35,6 @@ export const baseOptions: BaseLayoutProps = {
     {
       text: 'Docs',
       url: '/docs',
-      // secondary items will be displayed differently on navbar
-      secondary: false,
     },
   ],
   githubUrl: 'https://github.com/praveenjuge/teak',
