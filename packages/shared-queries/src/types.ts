@@ -5,6 +5,7 @@ import type {
   CardsResponse,
   Job,
   SearchResponse,
+  TagsResponse,
   User,
 } from '@teak/shared-types';
 
@@ -14,11 +15,14 @@ export interface ApiClient {
     offset?: number;
     q?: string;
     type?: Card['type'];
+    tags?: string;
     sort?: 'created_at' | 'updated_at' | 'type';
     order?: 'asc' | 'desc';
   }): Promise<CardsResponse>;
 
   getCard(id: number): Promise<Card>;
+
+  getTags(): Promise<TagsResponse>;
 
   createCard(cardData: {
     type: Card['type'];
@@ -79,6 +83,7 @@ export interface UseCardsParams {
   offset?: number;
   q?: string;
   type?: Card['type'];
+  tags?: string;
   sort?: 'created_at' | 'updated_at' | 'type';
   order?: 'asc' | 'desc';
 }

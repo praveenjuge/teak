@@ -119,6 +119,7 @@ export const updateCardSchema = z.object({
 export const searchCardsSchema = z.object({
   q: z.string().optional(),
   type: cardTypeEnum.optional(),
+  tags: z.string().optional(), // Comma-separated tag filter
   limit: z.coerce.number().int().min(1).optional(),
   offset: z.coerce.number().int().min(0).default(0),
   sort: z.enum(['created_at', 'updated_at', 'type']).default('created_at'),

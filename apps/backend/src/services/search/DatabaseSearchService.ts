@@ -9,6 +9,7 @@ export class DatabaseSearchService extends SearchAndSortService {
     const {
       query,
       type,
+      tags,
       limit = 20,
       offset = 0,
       sort = 'created_at',
@@ -22,6 +23,22 @@ export class DatabaseSearchService extends SearchAndSortService {
     // Add type filter if specified
     if (type) {
       whereClause = and(whereClause, eq(cards.type, type));
+    }
+
+    // Add tag filter if specified
+    if (tags && tags.length > 0) {
+      // Create tag filter for both AI tags and regular tags
+      const tagFilter = sql`(
+        EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(${cards.aiTags}) as ai_tag
+          WHERE ai_tag = ANY(${sql.raw(`ARRAY[${tags.map((tag: string) => `'${tag.replace(/'/g, "''")}'`).join(',')}]`)})
+        ) OR 
+        EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(${cards.metaInfo}->'tags') as regular_tag
+          WHERE regular_tag = ANY(${sql.raw(`ARRAY[${tags.map((tag: string) => `'${tag.replace(/'/g, "''")}'`).join(',')}]`)})
+        )
+      )`;
+      whereClause = and(whereClause, tagFilter);
     }
 
     // Determine if we need full-text search with ranking

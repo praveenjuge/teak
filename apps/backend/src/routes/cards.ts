@@ -6,7 +6,7 @@ import {
   searchCardsSchema,
   updateCardSchema,
 } from '@teak/shared-types';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import type { auth } from '../auth';
 import { db } from '../db';
@@ -47,7 +47,15 @@ cardRoutes.get('/', async (c) => {
     }
 
     const query = validateQuery(c, searchCardsSchema);
-    const { q, type, limit, offset, sort, order } = query;
+    const { q, type, tags, limit, offset, sort, order } = query;
+
+    // Parse tags from comma-separated string to array
+    const parsedTags = tags
+      ? tags
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter(Boolean)
+      : undefined;
 
     // Initialize search service
     const searchService = new DatabaseSearchService();
@@ -56,6 +64,7 @@ cardRoutes.get('/', async (c) => {
     const result = await searchService.searchCards({
       query: q,
       type,
+      tags: parsedTags,
       limit,
       offset,
       sort,
@@ -69,6 +78,67 @@ cardRoutes.get('/', async (c) => {
     return c.json(
       {
         error: error instanceof Error ? error.message : 'Failed to fetch cards',
+      },
+      400
+    );
+  }
+});
+
+// GET /api/cards/tags - Get all available tags with counts
+cardRoutes.get('/tags', async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user) {
+      return c.json({ error: 'Authentication required' }, 401);
+    }
+
+    // Query to get all tags from both AI tags and regular tags
+    const result = await db
+      .select({
+        id: cards.id,
+        aiTags: cards.aiTags,
+        metaInfoTags: sql<string>`${cards.metaInfo}->>'tags'`,
+      })
+      .from(cards)
+      .where(and(eq(cards.userId, user.id), isNull(cards.deletedAt)));
+
+    // Process results to count tags
+    const tagCounts = new Map<string, number>();
+
+    result.forEach((card) => {
+      // Process AI tags
+      if (card.aiTags && Array.isArray(card.aiTags)) {
+        card.aiTags.forEach((tag: string) => {
+          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+        });
+      }
+
+      // Process regular tags
+      if (card.metaInfoTags) {
+        try {
+          const regularTags = JSON.parse(card.metaInfoTags);
+          if (Array.isArray(regularTags)) {
+            regularTags.forEach((tag: string) => {
+              tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+            });
+          }
+        } catch (e) {
+          // Ignore JSON parse errors
+        }
+      }
+    });
+
+    // Convert map to array and sort by count (desc) then by name (asc)
+    const tags = Array.from(tagCounts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+    return c.json({ tags });
+  } catch (error) {
+    console.error('Error fetching tags:', error);
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to fetch tags',
       },
       400
     );

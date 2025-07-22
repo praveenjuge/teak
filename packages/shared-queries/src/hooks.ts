@@ -118,6 +118,13 @@ export function useCardStats(apiClient: ApiClient) {
   });
 }
 
+export function useTags(apiClient: ApiClient) {
+  return useQuery({
+    queryKey: ['cards', 'tags'],
+    queryFn: () => apiClient.getTags(),
+  });
+}
+
 export function useCreateCardWithFile(
   apiClient: ApiClient,
   onUploadProgress?: (progress: number) => void

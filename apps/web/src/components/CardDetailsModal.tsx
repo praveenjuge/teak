@@ -1,3 +1,4 @@
+import { useUpdateCard } from '@teak/shared-queries';
 import type { Card } from '@teak/shared-types';
 import {
   Calendar,
@@ -13,9 +14,11 @@ import {
   Type,
   Video,
 } from 'lucide-react';
+import { TagAutocomplete } from '@/components/TagAutocomplete';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { apiClient } from '@/lib/api';
 
 interface CardDetailsModalProps {
   card: Card | null;
@@ -50,12 +53,43 @@ const formatDate = (dateString: string): string => {
   });
 };
 
+// Tag Management Component
+function TagManager({
+  card,
+  onTagsUpdate,
+}: {
+  card: Card;
+  onTagsUpdate: (tags: string[]) => void;
+}) {
+  const currentTags = card.metaInfo?.tags || [];
+
+  return (
+    <div className="mt-1">
+      <TagAutocomplete onTagsChange={onTagsUpdate} selectedTags={currentTags} />
+    </div>
+  );
+}
+
 export function CardDetailsModal({
   card,
   open,
   onOpenChange,
 }: CardDetailsModalProps) {
+  const updateCard = useUpdateCard(apiClient);
+
   if (!card) return null;
+
+  const handleTagsUpdate = (tags: string[]) => {
+    updateCard.mutate({
+      id: card.id,
+      data: {
+        metaInfo: {
+          ...card.metaInfo,
+          tags,
+        },
+      },
+    });
+  };
 
   // Render expanded content based on card type
   const renderExpandedContent = () => {
@@ -348,51 +382,36 @@ export function CardDetailsModal({
       )}
 
       {/* AI Content */}
-      {(card.aiSummary ||
-        card.aiTags?.length > 0 ||
-        card.metaInfo?.tags?.length > 0) && (
-        <>
-          {card.aiSummary && (
-            <MetadataRow
-              icon={Sparkles}
-              label="AI Summary"
-              value={card.aiSummary}
-            />
-          )}
-
-          {card.aiTags && card.aiTags.length > 0 && (
-            <MetadataRow
-              icon={Sparkles}
-              label="AI Tags"
-              value={
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  {card.aiTags.map((tag, index) => (
-                    <Badge className="text-xs" key={index} variant="secondary">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              }
-            />
-          )}
-
-          {card.metaInfo?.tags && card.metaInfo.tags.length > 0 && (
-            <MetadataRow
-              icon={Tag}
-              label="Tags"
-              value={
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  {card.metaInfo.tags.map((tag, index) => (
-                    <Badge className="text-xs" key={index} variant="outline">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              }
-            />
-          )}
-        </>
+      {card.aiSummary && (
+        <MetadataRow
+          icon={Sparkles}
+          label="AI Summary"
+          value={card.aiSummary}
+        />
       )}
+
+      {card.aiTags && card.aiTags.length > 0 && (
+        <MetadataRow
+          icon={Sparkles}
+          label="AI Tags"
+          value={
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {card.aiTags.map((tag, index) => (
+                <Badge className="text-xs" key={index} variant="secondary">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          }
+        />
+      )}
+
+      {/* Regular Tags - Always shown for tag management */}
+      <MetadataRow
+        icon={Tag}
+        label="Tags"
+        value={<TagManager card={card} onTagsUpdate={handleTagsUpdate} />}
+      />
     </>
   );
 

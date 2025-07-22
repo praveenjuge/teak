@@ -15,6 +15,7 @@ export {
   useRefetchScreenshots,
   useRefreshAiData,
   useSearchCards,
+  useTags,
   useUpdateAiSettings,
   useUpdateCard,
   useUsers,

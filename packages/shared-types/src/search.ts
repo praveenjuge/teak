@@ -4,6 +4,7 @@ import type { CardType, DbCardResponse } from './cards';
 export interface SearchOptions {
   query?: string;
   type?: CardType;
+  tags?: string[]; // Array of tags to filter by
   limit?: number;
   offset?: number;
   sort?: 'created_at' | 'updated_at' | 'type';

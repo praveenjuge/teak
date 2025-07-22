@@ -92,12 +92,23 @@ export interface SearchResponse extends CardsResponse {
   query: string;
 }
 
+// Tags response
+export interface TagWithCount {
+  name: string;
+  count: number;
+}
+
+export interface TagsResponse {
+  tags: TagWithCount[];
+}
+
 // API parameters for card operations
 export interface GetCardsParams {
   limit?: number;
   offset?: number;
   q?: string;
   type?: Card['type'];
+  tags?: string; // Comma-separated tags for filtering
   sort?: 'created_at' | 'updated_at' | 'type';
   order?: 'asc' | 'desc';
 }

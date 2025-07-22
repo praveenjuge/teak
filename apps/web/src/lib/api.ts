@@ -8,6 +8,7 @@ import type {
   Job,
   SearchCardsParams,
   SearchResponse,
+  TagsResponse,
   UpdateCardParams,
   User,
 } from '@teak/shared-types';
@@ -59,6 +60,10 @@ class ApiClient {
 
   async getCard(id: number): Promise<Card> {
     return this.request<Card>(`/api/cards/${id}`);
+  }
+
+  async getTags(): Promise<TagsResponse> {
+    return this.request<TagsResponse>('/api/cards/tags');
   }
 
   async createCard(cardData: CreateCardParams): Promise<Card> {
