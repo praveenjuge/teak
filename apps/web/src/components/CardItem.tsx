@@ -163,31 +163,21 @@ export function CardItem({ card, onDelete }: CardItemProps) {
 
       case 'audio':
         return (
-          <div className="flex w-full items-center justify-between space-x-4 p-4">
-            <audio
-              onTimeUpdate={handleTimeUpdate}
-              ref={audioRef}
-              src={card.data.media_url}
-            />
-            <div className="rounded-full bg-primary p-1.5">
-              {isPlaying ? (
-                <Pause className="size-3.5 fill-current text-primary-foreground" />
-              ) : (
-                <Play className="size-3.5 fill-current text-primary-foreground" />
-              )}
-            </div>
-            <div className="h-2 flex-grow rounded-full bg-muted">
+          <div className="flex h-16 items-center justify-between space-x-0.5 p-4">
+            {/* Generate audio wave bars */}
+            {Array.from({ length: 55 }).map((_, i) => (
               <div
-                className="h-full rounded-full bg-border"
-                ref={progressRef}
+                className={`rounded bg-muted-foreground transition-all duration-300 ${
+                  isPlaying ? 'animate-pulse' : ''
+                }`}
+                key={i}
+                style={{
+                  width: '2px',
+                  height: `${Math.random() * 60 + 20}%`,
+                  animationDelay: `${i * 50}ms`,
+                }}
               />
-            </div>
-            {card.data.duration ? (
-              <div className="flex items-center space-x-2 text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                <span>{formatDuration(card.data.duration)}</span>
-              </div>
-            ) : null}
+            ))}
           </div>
         );
 
@@ -215,29 +205,27 @@ export function CardItem({ card, onDelete }: CardItemProps) {
 
       case 'pdf':
         return (
-          <div className="flex items-center justify-between space-x-2 p-4">
-            <div className="rounded-full bg-red-100 p-2">
-              <FileText className="size-5 text-red-600" />
-            </div>
-            <div>
-              <h4 className="font-medium">
-                {card.data.title ||
-                  card.data.original_filename ||
-                  'PDF Document'}
-              </h4>
-              <div className="flex items-center space-x-3 text-muted-foreground">
-                {card.data.page_count && (
-                  <span>{card.data.page_count} pages</span>
-                )}
-                {card.metaInfo?.file_size && (
-                  <span>
-                    {Math.round((card.metaInfo.file_size / 1024 / 1024) * 100) /
-                      100}{' '}
-                    MB
-                  </span>
-                )}
+          <div>
+            {card.data.media_url ? (
+              <div className="h-32 w-full overflow-hidden rounded-t">
+                <embed
+                  className="pointer-events-none select-none"
+                  height="100%"
+                  src={`${card.data.media_url}#page=1&view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
+                  type="application/pdf"
+                  width="100%"
+                />
               </div>
-            </div>
+            ) : (
+              <div className="flex h-32 w-full items-center justify-center rounded-t bg-gradient-to-br from-red-50 to-red-100">
+                <div className="rounded-full bg-red-100 p-3">
+                  <FileText className="size-8 text-red-600" />
+                </div>
+              </div>
+            )}
+            <p className="min-w-0 truncate p-4 font-medium">
+              {card.data.title || card.data.original_filename || 'PDF Document'}
+            </p>
           </div>
         );
 

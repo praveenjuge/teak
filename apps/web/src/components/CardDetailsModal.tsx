@@ -7,13 +7,11 @@ import {
   Globe,
   Hash,
   Image,
-  Music,
   Play,
   Sparkles,
   Tag,
   Type,
   Video,
-  X,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -96,24 +94,6 @@ export function CardDetailsModal({
         return (
           <div className="space-y-4">
             <div className="rounded-lg bg-muted/50 p-4">
-              <div className="mb-4 flex items-center space-x-3">
-                <div className="rounded-full bg-primary p-3">
-                  <Music className="h-6 w-6 text-primary-foreground" />
-                </div>
-                <div>
-                  <h3 className="font-medium">
-                    {card.data.title ||
-                      card.data.original_filename ||
-                      'Audio File'}
-                  </h3>
-                  {card.data.duration && (
-                    <p className="text-muted-foreground">
-                      Duration: {formatDuration(card.data.duration)}
-                    </p>
-                  )}
-                </div>
-              </div>
-
               {card.data.media_url && (
                 <audio className="w-full" controls>
                   <source src={card.data.media_url} />
@@ -184,7 +164,7 @@ export function CardDetailsModal({
 
       case 'url':
         return (
-          <div className="space-y-4">
+          <>
             {card.data.screenshot_url && (
               <div className="overflow-hidden rounded-lg">
                 <img
@@ -195,57 +175,24 @@ export function CardDetailsModal({
                 />
               </div>
             )}
-          </div>
+          </>
         );
 
       case 'pdf':
         return (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-lg bg-muted/50 p-4">
-              <div className="flex items-center space-x-3">
-                <div className="rounded-full bg-red-100 p-3">
-                  <FileText className="h-6 w-6 text-red-600" />
-                </div>
-                <div>
-                  <h3 className="font-medium">
-                    {card.data.title ||
-                      card.data.original_filename ||
-                      'PDF Document'}
-                  </h3>
-                  <div className="flex items-center space-x-4 text-muted-foreground">
-                    {card.data.page_count && (
-                      <span>{card.data.page_count} pages</span>
-                    )}
-                    {card.metaInfo?.file_size && (
-                      <span>{formatFileSize(card.metaInfo.file_size)}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {card.data.media_url && (
-                <Button
-                  onClick={() => window.open(card.data.media_url, '_blank')}
-                  size="sm"
-                  variant="outline"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download
-                </Button>
-              )}
-            </div>
-
-            {card.data.extracted_text && (
-              <div className="space-y-2">
-                <h4 className="font-medium">AI Extracted Content</h4>
-                <div className="max-h-96 overflow-y-auto rounded-lg bg-muted/50 p-4">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {card.data.extracted_text}
-                  </p>
-                </div>
+          <>
+            {card.data.media_url ? (
+              <iframe
+                className="h-full w-full rounded"
+                src={`${card.data.media_url}#toolbar=0`}
+                title="PDF Preview"
+              />
+            ) : (
+              <div className="flex h-96 items-center justify-center rounded-lg bg-muted">
+                <FileText className="h-12 w-12 text-muted-foreground" />
               </div>
             )}
-          </div>
+          </>
         );
 
       default:
@@ -350,6 +297,51 @@ export function CardDetailsModal({
               icon={Image}
               label="Dimensions"
               value={`${card.data.width} × ${card.data.height}`}
+            />
+          )}
+        </>
+      )}
+
+      {/* PDF-specific metadata */}
+      {card.type === 'pdf' && (
+        <>
+          {card.data.page_count && (
+            <MetadataRow
+              icon={FileText}
+              label="Pages"
+              value={`${card.data.page_count} pages`}
+            />
+          )}
+
+          {card.data.media_url && (
+            <MetadataRow
+              icon={Download}
+              label="Download"
+              value={
+                <Button
+                  className="h-8 px-3"
+                  onClick={() => window.open(card.data.media_url, '_blank')}
+                  size="sm"
+                  variant="outline"
+                >
+                  <Download className="mr-2 h-3 w-3" />
+                  Download PDF
+                </Button>
+              }
+            />
+          )}
+
+          {card.data.extracted_text && (
+            <MetadataRow
+              icon={Sparkles}
+              label="AI Extracted Text"
+              value={
+                <div className="max-h-48 overflow-y-auto rounded bg-muted/50 p-3">
+                  <p className="whitespace-pre-wrap text-xs leading-relaxed">
+                    {card.data.extracted_text}
+                  </p>
+                </div>
+              }
             />
           )}
         </>
