@@ -17,6 +17,7 @@
     "apps/backend",
     "apps/web",
     "apps/mobile",
+    "apps/browser-extension",
     "packages/*"
   ],
   "scripts": {
@@ -27,6 +28,7 @@
     "dev:frontend": "cd apps/web && bun run dev",
     "dev:mobile": "cd apps/mobile && bun run start",
     "dev:docs": "cd apps/docs && bun run dev",
+    "dev:extension": "cd apps/browser-extension && bun run dev",
     "build": "bun run build:backend && bun run build:frontend",
     "build:backend": "cd apps/backend && bun run build",
     "build:frontend": "cd apps/web && bun run build",
@@ -44,9 +46,9 @@
     ]
   },
   "devDependencies": {
-    "@biomejs/biome": "2.0.6",
+    "@biomejs/biome": "2.1.2",
     "@types/bun": "latest",
     "lint-staged": "^16.1.2",
-    "ultracite": "5.0.32"
+    "ultracite": "5.0.47"
   }
 }

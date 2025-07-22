@@ -67,6 +67,7 @@ export const auth = betterAuth({
     'http://localhost:3000', // Frontend
     'http://localhost:3001', // Backend
     'teak://', // Mobile app scheme
+    'chrome-extension://jeeggjljhpafpnnolmhkpdhaccjodebb', // Chrome extension
   ],
 
   // Advanced security settings

@@ -36,6 +36,10 @@ cd apps/web && bun install && cd ../..
 echo -e "${BLUE}📦 Installing mobile app dependencies...${NC}"
 cd apps/mobile && bun install && cd ../..
 
+# Install browser extension dependencies
+echo -e "${BLUE}📦 Installing browser extension dependencies...${NC}"
+cd apps/browser-extension && bun install && cd ../..
+
 echo -e "${GREEN}✅ All dependencies installed successfully!${NC}"
 echo ""
 echo -e "${BLUE}Installed packages for:${NC}"
@@ -43,3 +47,4 @@ echo "  • Root workspace (@teak/root)"
 echo "  • Backend (@teak/backend)" 
 echo "  • Web app (@teak/web)"
 echo "  • Mobile app (@teak/mobile)"
+echo "  • Browser extension (@teak/browser-extension)"
