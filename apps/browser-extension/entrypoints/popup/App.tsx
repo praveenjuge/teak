@@ -1,7 +1,17 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { AuthenticatedView } from './components/AuthenticatedView';
 import { LoginForm } from './components/LoginForm';
 import { authClient } from './lib/auth-client';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
 interface User {
   id: string;
@@ -38,10 +48,6 @@ function App() {
     checkAuthStatus();
   };
 
-  const handleLogout = () => {
-    setUser(null);
-  };
-
   if (isLoading) {
     return (
       <div className="loading">
@@ -51,13 +57,15 @@ function App() {
   }
 
   return (
-    <div className="app">
-      {user ? (
-        <AuthenticatedView onLogout={handleLogout} user={user} />
-      ) : (
-        <LoginForm onLoginSuccess={handleLoginSuccess} />
-      )}
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <div className="app">
+        {user ? (
+          <AuthenticatedView user={user} />
+        ) : (
+          <LoginForm onLoginSuccess={handleLoginSuccess} />
+        )}
+      </div>
+    </QueryClientProvider>
   );
 }
 

@@ -4,6 +4,7 @@ import type {
   CreateCardResponse,
   ProcessingContext,
 } from '@teak/shared-types';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { cards } from '../../db/schema.js';
 import { JobService } from '../job/job-service.js';
@@ -48,6 +49,33 @@ export class CardService {
     try {
       // Process the card based on its type
       const processed = await processor.process(context);
+
+      // Check for duplicate URLs before inserting (excluding deleted cards)
+      if (request.type === 'url' && processed.data.url) {
+        const urlToCheck = processed.data.url as string;
+        
+        // Get all URL cards for this user that are not deleted
+        const existingUrlCards = await db
+          .select()
+          .from(cards)
+          .where(
+            and(
+              eq(cards.type, 'url'),
+              eq(cards.userId, userId),
+              isNull(cards.deletedAt)
+            )
+          );
+
+        // Check if any of them have the same URL
+        const duplicateFound = existingUrlCards.some(card => {
+          const cardData = card.data as { url?: string };
+          return cardData.url === urlToCheck;
+        });
+
+        if (duplicateFound) {
+          throw new Error('URL already exists in your cards');
+        }
+      }
 
       // Insert into database
       const [newCard] = await db

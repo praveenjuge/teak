@@ -13,6 +13,9 @@
     "zip:firefox": "wxt zip -b firefox"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.83.0",
+    "@teak/shared-queries": "workspace:*",
+    "@teak/shared-types": "workspace:*",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@wxt-dev/module-react": "^1.1.3",
