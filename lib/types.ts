@@ -1,32 +1,24 @@
-import { Doc } from "../convex/_generated/dataModel";
-import { cardTypes } from "../convex/schema";
-
-// Use Convex-generated types
-export type CardData = Doc<"cards">;
-export type CardType = (typeof cardTypes)[number];
-export const CARD_TYPES = [...cardTypes] as CardType[];
-
-export const CARD_TYPE_LABELS: Record<CardType, string> = {
-  text: "text",
-  link: "links",
-  image: "images",
-  video: "videos",
-  audio: "audios",
-  document: "documents",
-};
-
-export interface TypeaheadOption {
-  value: CardType | "favorites" | "trash";
-  label: string;
-}
-
-export const RESERVED_KEYWORDS: TypeaheadOption[] = [
-  { value: "text", label: "Text" },
-  { value: "link", label: "Links" },
-  { value: "image", label: "Images" },
-  { value: "video", label: "Videos" },
-  { value: "audio", label: "Audio" },
-  { value: "document", label: "Documents" },
-  { value: "favorites", label: "Favorites" },
-  { value: "trash", label: "Trash" },
-];
+// Re-export all types from consolidated convex types
+export {
+  type CardData,
+  type CardType,
+  type CardId,
+  type StorageId,
+  type CardMetadata,
+  type CreateCardInput,
+  type UpdateCardInput,
+  type CardWithUrls,
+  type CardFilterOptions,
+  type CardSearchParams,
+  type LinkMetadata,
+  type FileMetadata,
+  type MediaMetadata,
+  type TypeaheadOption,
+  CARD_TYPES,
+  CARD_TYPE_LABELS,
+  CARD_TYPE_ICONS,
+  RESERVED_KEYWORDS,
+  isCardType,
+  isCardDeleted,
+  isCardFavorited,
+} from "./convex-types";

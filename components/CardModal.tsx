@@ -202,6 +202,7 @@ export function CardModal({
   onToggleFavorite,
 }: CardModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(card?.isFavorited || false);
 
   // Form data initialized with card data
   const [title, setTitle] = useState(card?.title || "");
@@ -220,6 +221,7 @@ export function CardModal({
       setTags(card.tags || []);
       setTagInput("");
       setNotes(card.notes || "");
+      setIsFavorited(card.isFavorited || false);
     }
   }, [card]);
 
@@ -278,6 +280,7 @@ export function CardModal({
 
   const handleToggleFavorite = () => {
     if (card) {
+      setIsFavorited(!isFavorited);
       onToggleFavorite?.(card._id);
     }
   };
@@ -542,10 +545,10 @@ export function CardModal({
                 >
                   <Heart
                     className={`${
-                      card.isFavorited ? "fill-red-500 text-red-500" : ""
+                      isFavorited ? "fill-red-500 text-red-500" : ""
                     }`}
                   />
-                  {card.isFavorited ? "Unfavorite" : "Favorite"}
+                  {isFavorited ? "Unfavorite" : "Favorite"}
                 </Button>
                 <Button
                   variant="destructive"

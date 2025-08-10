@@ -33,10 +33,13 @@ export function Dashboard() {
   const [typeaheadSelectedIndex, setTypeaheadSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const cards = useQuery(
-    showTrashOnly ? api.cards.getDeletedCards : api.cards.getCards,
-    showTrashOnly ? {} : { favoritesOnly: showFavoritesOnly },
+  const deletedCards = useQuery(api.cards.getDeletedCards, showTrashOnly ? {} : "skip");
+  const regularCards = useQuery(
+    api.cards.getCards, 
+    showTrashOnly ? "skip" : { favoritesOnly: showFavoritesOnly }
   );
+  
+  const cards = showTrashOnly ? deletedCards : regularCards;
 
   const deleteCard = useMutation(api.cards.deleteCard);
   const restoreCard = useMutation(api.cards.restoreCard);
