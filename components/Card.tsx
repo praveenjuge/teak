@@ -83,6 +83,8 @@ export function Card({ card, onClick, onDelete, onToggleFavorite }: CardProps) {
               <GridImagePreview
                 fileId={card.fileId as Id<"_storage">}
                 altText={card.title || card.content}
+                width={card.metadata?.width}
+                height={card.metadata?.height}
               />
             )}
 
@@ -144,11 +146,50 @@ export function Card({ card, onClick, onDelete, onToggleFavorite }: CardProps) {
   );
 }
 
-function GridImagePreview(
-  { fileId, altText }: { fileId: Id<"_storage"> | undefined; altText?: string },
-) {
+function GridImagePreview({
+  fileId,
+  altText,
+  width,
+  height,
+}: {
+  fileId: Id<"_storage"> | undefined;
+  altText?: string;
+  width?: number;
+  height?: number;
+}) {
   const fileUrl = useQuery(api.cards.getFileUrl, fileId ? { fileId } : "skip");
   if (!fileUrl) return null;
+
+  // Calculate aspect ratio if dimensions are available
+  const aspectRatio = width && height ? width / height : undefined;
+
+  // Use a container div to maintain aspect ratio for better masonry layout
+  if (aspectRatio && width && height) {
+    // Calculate the actual height based on the container's potential width
+    return (
+      <div
+        style={{
+          width: "100%",
+          aspectRatio: aspectRatio.toString(),
+          minHeight: "100px", // Prevent collapse during loading
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={fileUrl}
+          alt={altText}
+          className="w-full h-full object-cover"
+          style={{
+            aspectRatio: aspectRatio.toString(),
+            display: "block", // Prevent inline spacing issues
+          }}
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+
+  // Fallback for images without dimension metadata
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={fileUrl} alt={altText} className="w-full object-cover" />

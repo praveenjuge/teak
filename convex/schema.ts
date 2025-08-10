@@ -26,6 +26,8 @@ export const metadataValidator = v.optional(
     fileName: v.optional(v.string()),
     mimeType: v.optional(v.string()),
     duration: v.optional(v.number()),
+    width: v.optional(v.number()),
+    height: v.optional(v.number()),
   })
 );
 

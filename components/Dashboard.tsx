@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { UserButton } from "@clerk/nextjs";
 import { AddCardForm } from "./AddCardForm";
@@ -15,6 +15,7 @@ import { SearchTypeahead } from "./SearchTypeahead";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { Masonry } from "react-plock";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 
@@ -180,42 +181,84 @@ export function Dashboard() {
     setShowFavoritesOnly(false);
   };
 
-  const filteredCards = cards?.filter((card) => {
-    // Filter by keyword tags (OR logic - match any keyword)
-    if (keywordTags.length > 0) {
-      const hasKeywordMatch = keywordTags.some((keyword) =>
-        card.title?.toLowerCase().includes(keyword) ||
-        card.content.toLowerCase().includes(keyword) ||
-        card.notes?.toLowerCase().includes(keyword) ||
-        card.tags?.some((tag) => tag.toLowerCase().includes(keyword))
-      );
-      if (!hasKeywordMatch) return false;
-    }
-
-    // Filter by filter tags (must match at least one filter type)
-    if (filterTags.length > 0) {
-      if (!filterTags.includes(card.type)) return false;
-    }
-
-    // Also include current search query for real-time filtering
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      // Check if it's a favorites search
-      if (
-        ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
-      ) {
-        return card.isFavorited === true;
+  const filteredCards = useMemo(() => {
+    return cards?.filter((card) => {
+      // Filter by keyword tags (OR logic - match any keyword)
+      if (keywordTags.length > 0) {
+        const hasKeywordMatch = keywordTags.some((keyword) =>
+          card.title?.toLowerCase().includes(keyword) ||
+          card.content.toLowerCase().includes(keyword) ||
+          card.notes?.toLowerCase().includes(keyword) ||
+          card.tags?.some((tag) => tag.toLowerCase().includes(keyword))
+        );
+        if (!hasKeywordMatch) return false;
       }
+
+      // Filter by filter tags (must match at least one filter type)
+      if (filterTags.length > 0) {
+        if (!filterTags.includes(card.type)) return false;
+      }
+
+      // Also include current search query for real-time filtering
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        // Check if it's a favorites search
+        if (
+          ["fav", "favs", "favorites", "favourite", "favourites"].includes(
+            query,
+          )
+        ) {
+          return card.isFavorited === true;
+        }
+        return (
+          card.title?.toLowerCase().includes(query) ||
+          card.content.toLowerCase().includes(query) ||
+          card.notes?.toLowerCase().includes(query) ||
+          card.tags?.some((tag) => tag.toLowerCase().includes(query))
+        );
+      }
+
+      return true;
+    }) || [];
+  }, [cards, keywordTags, filterTags, searchQuery]);
+
+  // Create masonry items combining AddCardForm and filtered cards
+  const masonryItems = useMemo(() => {
+    const items: Array<
+      { type: "addForm" | "card"; data?: CardData; id: string }
+    > = [];
+
+    // Always include the AddCardForm as the first item
+    items.push({ type: "addForm", id: "add-form" });
+
+    // Add filtered cards
+    filteredCards.forEach((card) => {
+      items.push({ type: "card", data: card, id: card._id });
+    });
+
+    return items;
+  }, [filteredCards]);
+
+  // Masonry render function for react-plock
+  const renderMasonryItem = (item: typeof masonryItems[0], index: number) => {
+    if (item.type === "addForm") {
+      return <AddCardForm key={item.id} />;
+    }
+
+    if (item.type === "card" && item.data) {
       return (
-        card.title?.toLowerCase().includes(query) ||
-        card.content.toLowerCase().includes(query) ||
-        card.notes?.toLowerCase().includes(query) ||
-        card.tags?.some((tag) => tag.toLowerCase().includes(query))
+        <Card
+          key={item.data._id}
+          card={item.data}
+          onClick={handleCardClick}
+          onDelete={handleDeleteCard}
+          onToggleFavorite={handleToggleFavorite}
+        />
       );
     }
 
-    return true;
-  }) || [];
+    return null;
+  };
 
   return (
     <div>
@@ -266,11 +309,17 @@ export function Dashboard() {
       {filteredCards.length === 0 && keywordTags.length === 0 &&
           filterTags.length === 0 && !showFavoritesOnly && !searchQuery
         ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* Add Card Form as first item in grid */}
-            <AddCardForm />
-
-            <div className="text-center py-12 col-span-full">
+          <div>
+            <Masonry
+              items={[{ type: "addForm" as const, id: "add-form" }]}
+              config={{
+                columns: [1, 2, 5],
+                gap: [16, 16, 16],
+                media: [640, 768, 1024],
+              }}
+              render={renderMasonryItem}
+            />
+            <div className="text-center py-12">
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   No content yet
@@ -309,20 +358,15 @@ export function Dashboard() {
           </div>
         )
         : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* Add Card Form as first item in grid */}
-            <AddCardForm />
-
-            {filteredCards.map((card) => (
-              <Card
-                key={card._id}
-                card={card}
-                onClick={handleCardClick}
-                onDelete={handleDeleteCard}
-                onToggleFavorite={handleToggleFavorite}
-              />
-            ))}
-          </div>
+          <Masonry
+            items={masonryItems}
+            config={{
+              columns: [1, 2, 5],
+              gap: [16, 16, 16],
+              media: [640, 768, 1024],
+            }}
+            render={renderMasonryItem}
+          />
         )}
 
       {/* Card Modal */}

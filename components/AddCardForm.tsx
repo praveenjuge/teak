@@ -20,6 +20,26 @@ const getFileCardType = (file: File): CardType => {
   return "document";
 };
 
+// Get image dimensions
+const getImageDimensions = (file: File): Promise<{ width: number; height: number }> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Failed to load image'));
+    };
+    
+    img.src = objectUrl;
+  });
+};
+
 interface AddCardFormProps {
   onSuccess?: () => void;
 }
@@ -184,11 +204,23 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
           });
           const { storageId } = await result.json();
 
-          const metadata = {
+          const metadata: any = {
             fileName: file.name,
             fileSize: file.size,
             mimeType: file.type,
           };
+
+          // Get image dimensions if it's an image file
+          const fileType = getFileCardType(file);
+          if (fileType === "image") {
+            try {
+              const dimensions = await getImageDimensions(file);
+              metadata.width = dimensions.width;
+              metadata.height = dimensions.height;
+            } catch (error) {
+              console.warn("Failed to get image dimensions:", error);
+            }
+          }
 
           await createCard({
             content: "",
