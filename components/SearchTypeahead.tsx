@@ -63,7 +63,7 @@ export function SearchTypeahead({
           onClick={() => onSelect(option)}
           onMouseEnter={() => setSelectedIndex(index)}
         >
-          <span className="text-sm font-medium text-purple-600">
+          <span className="font-medium text-purple-600">
             {option.value === "favorites" ? "Show:" : "Filter:"}
           </span>
           <span>{option.label}</span>

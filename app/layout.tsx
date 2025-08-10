@@ -5,7 +5,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 
 export const metadata: Metadata = {
   title: "Teak",
-  description: "Teak - Universal Content Capture App",
+  description: "Teak",
 };
 
 export default function RootLayout({
@@ -15,8 +15,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased text-sm min-h-screen">
-        <ClerkProvider dynamic>
+      <body className="antialiased text-sm">
+        <ClerkProvider
+          dynamic
+          signInUrl="/login"
+          signUpUrl="/register"
+        >
           <ConvexClientProvider>{children}</ConvexClientProvider>
         </ClerkProvider>
       </body>

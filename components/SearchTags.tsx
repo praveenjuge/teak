@@ -2,6 +2,7 @@ import { Filter, Hash, Heart, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { type CardType } from "@/lib/types";
+import { Card, CardContent } from "./ui/card";
 
 interface KeywordTagProps {
   keyword: string;
@@ -10,16 +11,16 @@ interface KeywordTagProps {
 
 export function KeywordTag({ keyword, onRemove }: KeywordTagProps) {
   return (
-    <Badge className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 transition-colors">
-      <Hash className="h-3 w-3 mr-1" />
-      <span className="mr-2 font-medium">{keyword}</span>
+    <Badge variant="outline">
+      <Hash />
+      <span>{keyword}</span>
       <Button
+        size="icon"
         variant="ghost"
-        size="sm"
-        className="h-auto p-0 hover:bg-blue-200/50 rounded-full"
+        className="size-4"
         onClick={() => onRemove(keyword)}
       >
-        <X className="h-3 w-3" />
+        <X />
       </Button>
     </Badge>
   );
@@ -41,16 +42,16 @@ const FILTER_LABELS: Record<CardType, string> = {
 
 export function FilterTag({ filter, onRemove }: FilterTagProps) {
   return (
-    <Badge className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 transition-colors">
-      <Filter className="h-3 w-3 mr-1" />
-      <span className="mr-2 font-medium">{FILTER_LABELS[filter]}</span>
+    <Badge variant="outline">
+      <Filter className="fill-current" />
+      <span>{FILTER_LABELS[filter]}</span>
       <Button
+        size="icon"
         variant="ghost"
-        size="sm"
-        className="h-auto p-0 hover:bg-purple-200/50 rounded-full"
+        className="size-4"
         onClick={() => onRemove(filter)}
       >
-        <X className="h-3 w-3" />
+        <X />
       </Button>
     </Badge>
   );
@@ -62,16 +63,16 @@ interface FavoritesTagProps {
 
 export function FavoritesTag({ onRemove }: FavoritesTagProps) {
   return (
-    <Badge className="bg-red-50 text-red-700 border-red-200 hover:bg-red-100 transition-colors">
-      <Heart className="h-3 w-3 mr-1 fill-current" />
-      <span className="mr-2 font-medium">Favorites</span>
+    <Badge variant="destructive">
+      <Heart className="fill-current" />
+      <span>Favorites</span>
       <Button
+        size="icon"
         variant="ghost"
-        size="sm"
-        className="h-auto p-0 hover:bg-red-200/50 rounded-full"
+        className="size-4"
         onClick={onRemove}
       >
-        <X className="h-3 w-3" />
+        <X />
       </Button>
     </Badge>
   );
@@ -104,8 +105,8 @@ export function TagContainer({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3 p-4 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-lg border border-gray-100">
-      <div className="flex flex-wrap gap-2">
+    <Card className="p-0 shadow-none mb-4 border-0">
+      <CardContent className="p-0 flex flex-wrap gap-2">
         {keywordTags.map((keyword) => (
           <KeywordTag
             key={keyword}
@@ -121,15 +122,14 @@ export function TagContainer({
           />
         ))}
         {showFavoritesOnly && <FavoritesTag onRemove={onRemoveFavorites} />}
-      </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onClearAll}
-        className="text-gray-500 hover:text-gray-700 hover:bg-white/50 ml-auto"
-      >
-        Clear all
-      </Button>
-    </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onClearAll}
+        >
+          Clear
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

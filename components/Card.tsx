@@ -1,12 +1,7 @@
 import { ExternalLink, Heart, Trash2 } from "lucide-react";
-import {
-  AudioCard,
-  DocumentCard,
-  ImageCard,
-  LinkCard,
-  TextCard,
-  VideoCard,
-} from "./CardTypes";
+import { useQuery } from "convex/react";
+import { api } from "../convex/_generated/api";
+import { Id } from "../convex/_generated/dataModel";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -14,14 +9,8 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import {
-  Card as UICard,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card as UICard, CardContent } from "@/components/ui/card";
 import { type CardData } from "@/lib/types";
-
 
 interface CardProps {
   card: CardData;
@@ -53,37 +42,75 @@ export function Card({ card, onClick, onDelete, onToggleFavorite }: CardProps) {
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <UICard
-          className="hover:shadow-md transition-shadow cursor-pointer p-3 relative"
+          className="cursor-pointer relative p-0 shadow-none overflow-hidden"
           onClick={handleClick}
         >
           {card.isFavorited && (
-            <div className="absolute top-2 right-2 z-10">
-              <Heart className="h-4 w-4 fill-red-500 text-red-500" />
+            <div className="absolute top-3 right-3 z-10">
+              <Heart className="size-4 fill-red-500 text-red-500" />
             </div>
           )}
 
-          {card.title && (
-            <CardHeader className="p-0 pb-2">
-              <CardTitle className="truncate text-base pr-6">
-                {card.title}
-              </CardTitle>
-            </CardHeader>
-          )}
-
           <CardContent className="p-0 space-y-2">
-            {card.type === "text" && <TextCard card={card} />}
-            {card.type === "link" && <LinkCard card={card} preview={true} />}
-            {card.type === "image" && <ImageCard card={card} />}
-            {card.type === "video" && <VideoCard card={card} />}
-            {card.type === "audio" && <AudioCard card={card} preview={true} />}
-            {card.type === "document" && (
-              <DocumentCard card={card} preview={true} />
+            {card.type === "text" && (
+              <p className="whitespace-pre-wrap p-4 line-clamp-6">
+                {card.content}
+              </p>
             )}
 
-            {card.description && (
-              <p className="text-muted-foreground text-xs">
-                {card.description}
-              </p>
+            {card.type === "link" && (
+              <div className="space-y-2 p-4">
+                <h4 className="font-medium line-clamp-1">
+                  {card.metadata?.linkTitle || card.title || "Link"}
+                </h4>
+                {card.url && (
+                  <p className="text-muted-foreground truncate">
+                    {card.url}
+                  </p>
+                )}
+                {card.metadata?.linkImage && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={card.metadata.linkImage}
+                    alt=""
+                    className="w-full h-28 object-cover rounded"
+                  />
+                )}
+              </div>
+            )}
+
+            {card.type === "image" && (
+              <GridImagePreview
+                fileId={card.fileId as Id<"_storage">}
+                altText={card.title || card.content}
+              />
+            )}
+
+            {card.type === "video" && (
+              <div className="w-full h-32 bg-black flex items-center justify-center text-white/60">
+                Video
+              </div>
+            )}
+
+            {card.type === "audio" && (
+              <div className="flex h-16 items-center justify-between space-x-0.5 p-4">
+                {Array.from({ length: 45 }).map((_, i) => (
+                  <div
+                    className="rounded-full bg-muted-foreground"
+                    key={i}
+                    style={{
+                      width: "2px",
+                      height: `${Math.random() * 60 + 20}%`,
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {card.type === "document" && (
+              <div className="p-4">
+                {card.metadata?.fileName || card.content}
+              </div>
             )}
           </CardContent>
         </UICard>
@@ -93,29 +120,37 @@ export function Card({ card, onClick, onDelete, onToggleFavorite }: CardProps) {
         {card.url && (
           <>
             <ContextMenuItem onClick={openLink}>
-              <ExternalLink className="mr-2 h-4 w-4" />
+              <ExternalLink />
               Open Link
             </ContextMenuItem>
-            <ContextMenuSeparator />
           </>
         )}
         <ContextMenuItem onClick={handleToggleFavorite}>
           <Heart
-            className={`mr-2 h-4 w-4 ${
-              card.isFavorited ? "fill-red-500 text-red-500" : ""
-            }`}
+            className={`${card.isFavorited ? "fill-red-500 text-red-500" : ""}`}
           />
-          {card.isFavorited ? "Remove from Favorites" : "Add to Favorites"}
+          {card.isFavorited ? "Unfavorite" : "Favorite"}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
           onClick={handleDelete}
           className="text-red-600 focus:text-red-600"
         >
-          <Trash2 className="mr-2 h-4 w-4" />
+          <Trash2 />
           Delete
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
+  );
+}
+
+function GridImagePreview(
+  { fileId, altText }: { fileId: Id<"_storage"> | undefined; altText?: string },
+) {
+  const fileUrl = useQuery(api.cards.getFileUrl, fileId ? { fileId } : "skip");
+  if (!fileUrl) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={fileUrl} alt={altText} className="w-full object-cover" />
   );
 }

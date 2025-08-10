@@ -18,6 +18,8 @@ import { Search } from "lucide-react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 
+// Legacy shim removed after migration
+
 export function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [keywordTags, setKeywordTags] = useState<string[]>([]);
@@ -184,7 +186,7 @@ export function Dashboard() {
       const hasKeywordMatch = keywordTags.some((keyword) =>
         card.title?.toLowerCase().includes(keyword) ||
         card.content.toLowerCase().includes(keyword) ||
-        card.description?.toLowerCase().includes(keyword) ||
+        card.notes?.toLowerCase().includes(keyword) ||
         card.tags?.some((tag) => tag.toLowerCase().includes(keyword))
       );
       if (!hasKeywordMatch) return false;
@@ -207,7 +209,7 @@ export function Dashboard() {
       return (
         card.title?.toLowerCase().includes(query) ||
         card.content.toLowerCase().includes(query) ||
-        card.description?.toLowerCase().includes(query) ||
+        card.notes?.toLowerCase().includes(query) ||
         card.tags?.some((tag) => tag.toLowerCase().includes(query))
       );
     }
@@ -218,53 +220,53 @@ export function Dashboard() {
   return (
     <div>
       {/* Filters and Search */}
-      <div className="mb-6 space-y-4">
-        {/* Search and User */}
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              ref={inputRef}
-              type="text"
-              placeholder="Search your content or type filter keywords..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              onKeyDown={handleKeyDown}
-              className="pl-10"
-            />
-            <SearchTypeahead
-              searchValue={searchQuery}
-              isVisible={showTypeahead}
-              onSelect={handleTypeaheadSelect}
-              onClose={() => {
-                setShowTypeahead(false);
-                setTypeaheadSelectedIndex(0);
-              }}
-              inputRef={inputRef}
-              selectedIndex={typeaheadSelectedIndex}
-              setSelectedIndex={setTypeaheadSelectedIndex}
-            />
-          </div>
-          <UserButton />
+      {/* Search and User */}
+      <div className="flex items-center gap-4 h-14">
+        <div className="relative flex-1 h-full">
+          <Search className="absolute left-0 top-1/2 transform -translate-y-1/2 text-muted-foreground size-4 select-auto pointer-events-none" />
+          <Input
+            ref={inputRef}
+            type="search"
+            placeholder="Search for anything..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            onKeyDown={handleKeyDown}
+            className="pl-7 rounded-none border-0 w-full focus-visible:outline-none focus-visible:ring-0 h-full"
+            autoCapitalize="off"
+            autoCorrect="off"
+          />
+          <SearchTypeahead
+            searchValue={searchQuery}
+            isVisible={showTypeahead}
+            onSelect={handleTypeaheadSelect}
+            onClose={() => {
+              setShowTypeahead(false);
+              setTypeaheadSelectedIndex(0);
+            }}
+            inputRef={inputRef}
+            selectedIndex={typeaheadSelectedIndex}
+            setSelectedIndex={setTypeaheadSelectedIndex}
+          />
         </div>
-
-        {/* Tag Container */}
-        <TagContainer
-          keywordTags={keywordTags}
-          filterTags={filterTags}
-          showFavoritesOnly={showFavoritesOnly}
-          onRemoveKeyword={handleRemoveKeyword}
-          onRemoveFilter={handleRemoveFilter}
-          onRemoveFavorites={handleRemoveFavorites}
-          onClearAll={handleClearAllTags}
-        />
+        <UserButton />
       </div>
+
+      {/* Tag Container */}
+      <TagContainer
+        keywordTags={keywordTags}
+        filterTags={filterTags}
+        showFavoritesOnly={showFavoritesOnly}
+        onRemoveKeyword={handleRemoveKeyword}
+        onRemoveFilter={handleRemoveFilter}
+        onRemoveFavorites={handleRemoveFavorites}
+        onClearAll={handleClearAllTags}
+      />
 
       {/* Cards Display */}
       {filteredCards.length === 0 && keywordTags.length === 0 &&
           filterTags.length === 0 && !showFavoritesOnly && !searchQuery
         ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Add Card Form as first item in grid */}
             <AddCardForm />
 
@@ -273,7 +275,7 @@ export function Dashboard() {
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   No content yet
                 </h3>
-                <p className="text-gray-500 mb-4">
+                <p className="text-muted-foreground mb-4">
                   Start capturing your thoughts, links, and media using the form
                   above
                 </p>
@@ -285,10 +287,10 @@ export function Dashboard() {
         ? (
           <div className="text-center py-12">
             {cards === undefined
-              ? <p className="text-gray-500">Loading your content...</p>
+              ? <p className="text-muted-foreground">Loading your content...</p>
               : (
                 <div>
-                  <p className="text-gray-500 mb-2">
+                  <p className="text-muted-foreground mb-2">
                     No content found matching your filters
                   </p>
                   <Button
@@ -307,7 +309,7 @@ export function Dashboard() {
           </div>
         )
         : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Add Card Form as first item in grid */}
             <AddCardForm />
 

@@ -29,6 +29,9 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingType, setUploadingType] = useState<"none" | "audio" | "file">(
+    "none",
+  );
 
   // Form data
   const [content, setContent] = useState("");
@@ -115,6 +118,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
 
   const autoSaveAudio = async (blob: Blob) => {
     try {
+      setUploadingType("audio");
       setIsSubmitting(true);
 
       // Upload the audio file
@@ -136,7 +140,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
       };
 
       await createCard({
-        content: "Audio Recording",
+        content: "",
         type: "audio",
         fileId: storageId as Id<"_storage">,
         metadata,
@@ -153,6 +157,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
       setError("Failed to save audio recording.");
     } finally {
       setIsSubmitting(false);
+      setUploadingType("none");
     }
   };
 
@@ -165,6 +170,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
       if (file) {
         // Auto-upload immediately
         try {
+          setUploadingType("file");
           setIsSubmitting(true);
 
           const uploadUrl = await generateUploadUrl({
@@ -185,7 +191,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
           };
 
           await createCard({
-            content: file.name,
+            content: "",
             type: getFileCardType(file),
             fileId: storageId as Id<"_storage">,
             metadata,
@@ -197,6 +203,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
           setError("Failed to upload file.");
         } finally {
           setIsSubmitting(false);
+          setUploadingType("none");
         }
       }
     };
@@ -254,38 +261,26 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
   // Recording mode - full screen recording interface
   if (isRecording) {
     return (
-      <Card className="mb-6 border-red-200">
-        <CardContent className="text-center space-y-6">
-          <div>
-            <h3 className="text-xl font-medium text-gray-900">Recording...</h3>
-            <p className="text-sm text-gray-500 mt-1">Speak now</p>
-          </div>
-
-          <div className="text-4xl font-mono text-red-600">
-            {formatTime(recordingTime)}
-          </div>
+      <Card className="shadow-none p-4 border-red-200">
+        <CardContent className="text-center flex flex-col gap-4 h-full justify-center items-center p-0">
+          <p className="font-medium text-destructive">Recording...</p>
 
           <Button
             type="button"
             onClick={stopRecording}
-            size="lg"
             variant="destructive"
-            className="rounded-full w-24 h-24 p-0 hover:scale-105 transition-transform"
             disabled={isSubmitting}
+            className="gap-0 space-x-0"
           >
-            <Square className="w-10 h-10" />
+            <Square />
           </Button>
 
-          <p className="text-sm text-gray-600">
-            Click to stop and save automatically
+          <p className="font-mono font-medium text-destructive">
+            {formatTime(recordingTime)}
           </p>
 
-          {isSubmitting && (
-            <p className="text-sm text-blue-600">Saving your recording...</p>
-          )}
-
           {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-600 text-sm text-center">
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-destructive text-center">
               {error}
             </div>
           )}
@@ -294,64 +289,77 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
     );
   }
 
-  return (
-    <Card className="border-dashed">
-      <CardContent className="text-center space-y-3">
-        {/* Text Input Form */}
-        <form onSubmit={handleTextSubmit} className="space-y-3">
-          <div>
-            <Textarea
-              id="content"
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Write text or paste a link..."
-              className="text-sm min-h-[80px] resize-none"
-            />
+  // Uploading mode - full card feedback while files/audio are being uploaded
+  if (isSubmitting && uploadingType !== "none") {
+    return (
+      <Card className="shadow-none p-4 border-blue-200">
+        <CardContent className="text-center flex flex-col gap-4 h-full justify-center items-center p-0">
+          <h3 className="font-medium text-blue-600">
+            {uploadingType === "audio"
+              ? "Uploading audio..."
+              : "Uploading file..."}
+          </h3>
+          <div className="text-muted-foreground">
+            Please keep this tab open.
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-0 shadow-none">
+      <CardContent className="p-0 h-full">
+        <form
+          onSubmit={handleTextSubmit}
+          className="flex flex-col flex-1 h-full"
+        >
+          <Textarea
+            id="content"
+            ref={textareaRef}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Write or paste a link..."
+            className="min-h-[80px] flex-1 h-full resize-none border-0 shadow-none rounded-none p-4 focus-visible:outline-none focus-visible:ring-0"
+          />
 
           {/* Action Buttons Row */}
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleFileUpload}
-              disabled={isSubmitting}
-              className="text-xs"
-            >
-              <Upload className="w-3 h-3 mr-1" />
-              Upload
-            </Button>
+          <div className="flex gap-2 justify-between p-4">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleFileUpload}
+                disabled={isSubmitting}
+              >
+                <Upload />
+              </Button>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={startRecording}
-              disabled={isSubmitting}
-              className="text-xs"
-            >
-              <Mic className="w-3 h-3 mr-1" />
-              Record
-            </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={startRecording}
+                disabled={isSubmitting}
+              >
+                <Mic />
+              </Button>
+            </div>
+            {content.trim() && (
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                size="sm"
+              >
+                {isSubmitting ? "Saving..." : "Save"}
+              </Button>
+            )}
           </div>
-
-          {/* Submit Button - Only show if there's text content */}
-          {content.trim() && (
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              size="sm"
-              className="w-full text-xs"
-            >
-              {isSubmitting ? "Saving..." : "Save Content"}
-            </Button>
-          )}
         </form>
 
         {error && (
-          <div className="p-2 bg-red-50 border border-red-200 rounded text-red-600 text-xs">
+          <div className="p-2 bg-red-50 border border-red-200 rounded text-red-600">
             {error}
           </div>
         )}

@@ -2,6 +2,13 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { cardTypeValidator, metadataValidator } from "./schema";
 
+function getLegacyDescription(
+  card: Record<string, unknown>
+): string | undefined {
+  const value = (card as { description?: unknown }).description;
+  return typeof value === "string" ? value : undefined;
+}
+
 export const createCard = mutation({
   args: {
     title: v.optional(v.string()),
@@ -11,7 +18,7 @@ export const createCard = mutation({
     fileId: v.optional(v.id("_storage")),
     thumbnailId: v.optional(v.id("_storage")),
     tags: v.optional(v.array(v.string())),
-    description: v.optional(v.string()),
+    notes: v.optional(v.string()),
     metadata: metadataValidator,
   },
   handler: async (ctx, args) => {
@@ -76,7 +83,7 @@ export const updateCard = mutation({
     content: v.optional(v.string()),
     url: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
-    description: v.optional(v.string()),
+    notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
@@ -160,6 +167,34 @@ export const toggleFavorite = mutation({
       isFavorited: newFavoriteStatus,
       updatedAt: Date.now(),
     });
+  },
+});
+
+// One-time migration: copy legacy `description` into `notes` if present
+export const migrateDescriptionToNotes = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const cards = await ctx.db.query("cards").collect();
+    let updatedCount = 0;
+    for (const card of cards) {
+      const legacyDescription = getLegacyDescription(
+        card as unknown as Record<string, unknown>
+      );
+      const needsCopy = legacyDescription && !card.notes;
+      const hasLegacyField = Object.prototype.hasOwnProperty.call(
+        card as Record<string, unknown>,
+        "description"
+      );
+      if (needsCopy || hasLegacyField) {
+        const patch: any = {};
+        if (needsCopy) patch.notes = legacyDescription;
+        // Signal removal of legacy field (Convex removes optional fields set to undefined)
+        patch.description = undefined;
+        await ctx.db.patch(card._id, patch);
+        if (needsCopy) updatedCount += 1;
+      }
+    }
+    return { updated: updatedCount };
   },
 });
 

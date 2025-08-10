@@ -2,10 +2,19 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 // Card types as literals for validator
-export const cardTypes = ["text", "link", "image", "video", "audio", "document"] as const;
+export const cardTypes = [
+  "text",
+  "link",
+  "image",
+  "video",
+  "audio",
+  "document",
+] as const;
 
 // Reusable validators
-export const cardTypeValidator = v.union(...cardTypes.map((type) => v.literal(type)));
+export const cardTypeValidator = v.union(
+  ...cardTypes.map((type) => v.literal(type))
+);
 
 export const metadataValidator = v.optional(
   v.object({
@@ -29,7 +38,7 @@ export const cardValidator = v.object({
   fileId: v.optional(v.id("_storage")),
   thumbnailId: v.optional(v.id("_storage")),
   tags: v.optional(v.array(v.string())),
-  description: v.optional(v.string()),
+  notes: v.optional(v.string()),
   isFavorited: v.optional(v.boolean()),
   metadata: metadataValidator,
   createdAt: v.number(),
