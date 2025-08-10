@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { ExternalLink, Heart, Trash2, X } from "lucide-react";
 import { api } from "../convex/_generated/api";
+import { Id } from "../convex/_generated/dataModel";
 import type { CardData } from "@/lib/types";
 import {
   AudioCard,
@@ -73,7 +74,7 @@ export function CardModal({
     setIsSubmitting(true);
     try {
       await updateCard({
-        id: card._id as any,
+        id: card._id as Id<"cards">,
         ...updates,
       });
     } catch (error) {

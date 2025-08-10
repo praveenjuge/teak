@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { api } from "../convex/_generated/api";
+import { Id } from "../convex/_generated/dataModel";
 import type { CardData } from "@/lib/types";
 
 // File type categorization for documents
@@ -144,7 +145,7 @@ export function ImageCard({ card }: { card: CardData }) {
   const [isLoading, setIsLoading] = useState(true);
   const fileUrl = useQuery(
     api.cards.getFileUrl,
-    card.fileId ? { fileId: card.fileId as any } : "skip",
+    card.fileId ? { fileId: card.fileId as Id<"_storage"> } : "skip",
   );
 
   if (!fileUrl) return null;
@@ -179,7 +180,7 @@ export function ImageCard({ card }: { card: CardData }) {
 export function VideoCard({ card }: { card: CardData }) {
   const fileUrl = useQuery(
     api.cards.getFileUrl,
-    card.fileId ? { fileId: card.fileId as any } : "skip",
+    card.fileId ? { fileId: card.fileId as Id<"_storage"> } : "skip",
   );
 
   if (!fileUrl) return null;
@@ -219,7 +220,7 @@ export function AudioCard(
 
   const fileUrl = useQuery(
     api.cards.getFileUrl,
-    card.fileId ? { fileId: card.fileId as any } : "skip",
+    card.fileId ? { fileId: card.fileId as Id<"_storage"> } : "skip",
   );
 
   if (!fileUrl) return null;
@@ -326,7 +327,7 @@ export function DocumentCard(
   const fileUrl = useQuery(
     api.cards.getFileUrl,
     card.fileId
-      ? { fileId: card.fileId as any, cardId: card._id as any }
+      ? { fileId: card.fileId as Id<"_storage">, cardId: card._id as Id<"cards"> }
       : "skip",
   );
 

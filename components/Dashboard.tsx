@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { api } from "../convex/_generated/api";
+import { Id } from "../convex/_generated/dataModel";
 
 export function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,7 +38,7 @@ export function Dashboard() {
   const handleDeleteCard = async (cardId: string) => {
     if (confirm("Are you sure you want to delete this card?")) {
       try {
-        await deleteCard({ id: cardId as any }); // TODO: Fix Convex types
+        await deleteCard({ id: cardId as Id<"cards"> });
       } catch (error) {
         console.error("Failed to delete card:", error);
       }
@@ -46,7 +47,7 @@ export function Dashboard() {
 
   const handleToggleFavorite = async (cardId: string) => {
     try {
-      await toggleFavorite({ id: cardId as any }); // TODO: Fix Convex types
+      await toggleFavorite({ id: cardId as Id<"cards"> });
     } catch (error) {
       console.error("Failed to toggle favorite:", error);
     }
