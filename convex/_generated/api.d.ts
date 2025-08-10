@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as cards from "../cards.js";
+import type * as crons from "../crons.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -25,6 +26,7 @@ import type * as cards from "../cards.js";
  */
 declare const fullApi: ApiFromModules<{
   cards: typeof cards;
+  crons: typeof crons;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

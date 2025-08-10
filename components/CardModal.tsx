@@ -14,6 +14,8 @@ import {
   File,
   FileText,
   Heart,
+  RotateCcw,
+  Trash,
   Trash2,
   X,
 } from "lucide-react";
@@ -184,7 +186,10 @@ interface CardModalProps {
   open: boolean;
   onCancel?: () => void;
   onDelete?: (cardId: string) => void;
+  onRestore?: (cardId: string) => void;
+  onPermanentDelete?: (cardId: string) => void;
   onToggleFavorite?: (cardId: string) => void;
+  isTrashMode?: boolean;
 }
 
 export function CardModal({
@@ -192,6 +197,8 @@ export function CardModal({
   open,
   onCancel,
   onDelete,
+  onRestore,
+  onPermanentDelete,
   onToggleFavorite,
 }: CardModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -249,8 +256,22 @@ export function CardModal({
   };
 
   const handleDelete = () => {
-    if (card && confirm("Are you sure you want to delete this card?")) {
+    if (card) {
       onDelete?.(card._id);
+      onCancel?.();
+    }
+  };
+
+  const handleRestore = () => {
+    if (card) {
+      onRestore?.(card._id);
+      onCancel?.();
+    }
+  };
+
+  const handlePermanentDelete = () => {
+    if (card) {
+      onPermanentDelete?.(card._id);
       onCancel?.();
     }
   };
@@ -513,24 +534,47 @@ export function CardModal({
 
           {/* Action Buttons */}
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handleToggleFavorite}
-            >
-              <Heart
-                className={`${
-                  card.isFavorited ? "fill-red-500 text-red-500" : ""
-                }`}
-              />
-              {card.isFavorited ? "Unfavorite" : "Favorite"}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-            >
-              <Trash2 />
-              Delete
-            </Button>
+            {!card.isDeleted && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleToggleFavorite}
+                >
+                  <Heart
+                    className={`${
+                      card.isFavorited ? "fill-red-500 text-red-500" : ""
+                    }`}
+                  />
+                  {card.isFavorited ? "Unfavorite" : "Favorite"}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDelete}
+                >
+                  <Trash2 />
+                  Delete
+                </Button>
+              </>
+            )}
+
+            {card.isDeleted && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleRestore}
+                >
+                  <RotateCcw />
+                  Restore
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handlePermanentDelete}
+                >
+                  <Trash />
+                  Delete Forever
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </DialogContent>

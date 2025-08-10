@@ -16,7 +16,7 @@ export const CARD_TYPE_LABELS: Record<CardType, string> = {
 };
 
 export interface TypeaheadOption {
-  value: CardType | "favorites";
+  value: CardType | "favorites" | "trash";
   label: string;
 }
 
@@ -28,4 +28,5 @@ export const RESERVED_KEYWORDS: TypeaheadOption[] = [
   { value: "audio", label: "Audio" },
   { value: "document", label: "Documents" },
   { value: "favorites", label: "Favorites" },
+  { value: "trash", label: "Trash" },
 ];

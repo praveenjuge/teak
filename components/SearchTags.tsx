@@ -1,4 +1,4 @@
-import { Filter, Hash, Heart, X } from "lucide-react";
+import { Filter, Hash, Heart, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { type CardType } from "@/lib/types";
@@ -78,13 +78,36 @@ export function FavoritesTag({ onRemove }: FavoritesTagProps) {
   );
 }
 
+interface TrashTagProps {
+  onRemove: () => void;
+}
+
+export function TrashTag({ onRemove }: TrashTagProps) {
+  return (
+    <Badge variant="outline">
+      <Trash2 />
+      <span>Trash</span>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="size-4"
+        onClick={onRemove}
+      >
+        <X />
+      </Button>
+    </Badge>
+  );
+}
+
 interface TagContainerProps {
   keywordTags: string[];
   filterTags: CardType[];
   showFavoritesOnly: boolean;
+  showTrashOnly: boolean;
   onRemoveKeyword: (keyword: string) => void;
   onRemoveFilter: (filter: CardType) => void;
   onRemoveFavorites: () => void;
+  onRemoveTrash: () => void;
   onClearAll: () => void;
 }
 
@@ -92,13 +115,15 @@ export function TagContainer({
   keywordTags,
   filterTags,
   showFavoritesOnly,
+  showTrashOnly,
   onRemoveKeyword,
   onRemoveFilter,
   onRemoveFavorites,
+  onRemoveTrash,
   onClearAll,
 }: TagContainerProps) {
   const hasAnyTags = keywordTags.length > 0 || filterTags.length > 0 ||
-    showFavoritesOnly;
+    showFavoritesOnly || showTrashOnly;
 
   if (!hasAnyTags) {
     return null;
@@ -122,6 +147,7 @@ export function TagContainer({
           />
         ))}
         {showFavoritesOnly && <FavoritesTag onRemove={onRemoveFavorites} />}
+        {showTrashOnly && <TrashTag onRemove={onRemoveTrash} />}
         <Button
           size="sm"
           variant="outline"

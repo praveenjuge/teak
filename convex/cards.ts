@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { cardTypeValidator, metadataValidator } from "./schema";
 
 function getLegacyDescription(
@@ -52,14 +52,17 @@ export const getCards = query({
 
     let query = ctx.db
       .query("cards")
-      .withIndex("by_user", (q) => q.eq("userId", user.subject));
+      .withIndex("by_user_deleted", (q) =>
+        q.eq("userId", user.subject).eq("isDeleted", undefined)
+      );
 
     if (args.type) {
       query = ctx.db
         .query("cards")
         .withIndex("by_user_type", (q) =>
           q.eq("userId", user.subject).eq("type", args.type!)
-        );
+        )
+        .filter((q) => q.neq(q.field("isDeleted"), true));
     }
 
     if (args.favoritesOnly) {
@@ -67,10 +70,33 @@ export const getCards = query({
         .query("cards")
         .withIndex("by_user_favorites", (q) =>
           q.eq("userId", user.subject).eq("isFavorited", true)
-        );
+        )
+        .filter((q) => q.neq(q.field("isDeleted"), true));
     }
 
     const cards = await query.order("desc").take(args.limit || 50);
+
+    return cards;
+  },
+});
+
+export const getDeletedCards = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      return [];
+    }
+
+    const cards = await ctx.db
+      .query("cards")
+      .withIndex("by_user_deleted", (q) =>
+        q.eq("userId", user.subject).eq("isDeleted", true)
+      )
+      .order("desc")
+      .take(args.limit || 50);
 
     return cards;
   },
@@ -129,6 +155,68 @@ export const deleteCard = mutation({
       throw new Error("Not authorized to delete this card");
     }
 
+    // Soft delete - mark as deleted instead of removing
+    return await ctx.db.patch(args.id, {
+      isDeleted: true,
+      deletedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const restoreCard = mutation({
+  args: {
+    id: v.id("cards"),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      throw new Error("User must be authenticated");
+    }
+
+    const card = await ctx.db.get(args.id);
+
+    if (!card) {
+      throw new Error("Card not found");
+    }
+
+    if (card.userId !== user.subject) {
+      throw new Error("Not authorized to restore this card");
+    }
+
+    if (!card.isDeleted) {
+      throw new Error("Card is not deleted");
+    }
+
+    // Restore card by removing deletion fields
+    return await ctx.db.patch(args.id, {
+      isDeleted: undefined,
+      deletedAt: undefined,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const permanentDeleteCard = mutation({
+  args: {
+    id: v.id("cards"),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      throw new Error("User must be authenticated");
+    }
+
+    const card = await ctx.db.get(args.id);
+
+    if (!card) {
+      throw new Error("Card not found");
+    }
+
+    if (card.userId !== user.subject) {
+      throw new Error("Not authorized to permanently delete this card");
+    }
+
     // Delete associated files if they exist
     if (card.fileId) {
       await ctx.storage.delete(card.fileId);
@@ -137,6 +225,7 @@ export const deleteCard = mutation({
       await ctx.storage.delete(card.thumbnailId);
     }
 
+    // Permanently remove from database
     return await ctx.db.delete(args.id);
   },
 });
@@ -239,5 +328,49 @@ export const getFileUrl = query({
     }
 
     return await ctx.storage.getUrl(args.fileId);
+  },
+});
+
+// Internal mutation for scheduled cleanup
+export const cleanupOldDeletedCards = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+
+    // Find cards that were soft-deleted more than 30 days ago
+    const cardsToCleanup = await ctx.db
+      .query("cards")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("isDeleted"), true),
+          q.lt(q.field("deletedAt"), thirtyDaysAgo)
+        )
+      )
+      .collect();
+
+    let cleanedCount = 0;
+
+    for (const card of cardsToCleanup) {
+      try {
+        // Delete associated files if they exist
+        if (card.fileId) {
+          await ctx.storage.delete(card.fileId);
+        }
+        if (card.thumbnailId) {
+          await ctx.storage.delete(card.thumbnailId);
+        }
+
+        // Permanently delete from database
+        await ctx.db.delete(card._id);
+        cleanedCount++;
+      } catch (error) {
+        console.error(`Failed to cleanup card ${card._id}:`, error);
+      }
+    }
+
+    console.log(
+      `Cleaned up ${cleanedCount} cards that were deleted more than 30 days ago`
+    );
+    return { cleanedCount };
   },
 });

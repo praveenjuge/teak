@@ -18,6 +18,7 @@ import { Search } from "lucide-react";
 import { Masonry } from "react-plock";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
+import { toast } from "sonner";
 
 // Legacy shim removed after migration
 
@@ -26,25 +27,49 @@ export function Dashboard() {
   const [keywordTags, setKeywordTags] = useState<string[]>([]);
   const [filterTags, setFilterTags] = useState<CardType[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [showTrashOnly, setShowTrashOnly] = useState(false);
   const [editingCard, setEditingCard] = useState<CardData | null>(null);
   const [showTypeahead, setShowTypeahead] = useState(false);
   const [typeaheadSelectedIndex, setTypeaheadSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const cards = useQuery(api.cards.getCards, {
-    favoritesOnly: showFavoritesOnly,
-  });
+  const cards = useQuery(
+    showTrashOnly ? api.cards.getDeletedCards : api.cards.getCards,
+    showTrashOnly ? {} : { favoritesOnly: showFavoritesOnly },
+  );
 
   const deleteCard = useMutation(api.cards.deleteCard);
+  const restoreCard = useMutation(api.cards.restoreCard);
+  const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
   const toggleFavorite = useMutation(api.cards.toggleFavorite);
 
   const handleDeleteCard = async (cardId: string) => {
-    if (confirm("Are you sure you want to delete this card?")) {
-      try {
-        await deleteCard({ id: cardId as Id<"cards"> });
-      } catch (error) {
-        console.error("Failed to delete card:", error);
-      }
+    try {
+      await deleteCard({ id: cardId as Id<"cards"> });
+      toast("Card deleted. Find it by searching 'trash'");
+    } catch (error) {
+      console.error("Failed to delete card:", error);
+      toast.error("Failed to delete card");
+    }
+  };
+
+  const handleRestoreCard = async (cardId: string) => {
+    try {
+      await restoreCard({ id: cardId as Id<"cards"> });
+      toast("Card restored");
+    } catch (error) {
+      console.error("Failed to restore card:", error);
+      toast.error("Failed to restore card");
+    }
+  };
+
+  const handlePermanentDeleteCard = async (cardId: string) => {
+    try {
+      await permanentDeleteCard({ id: cardId as Id<"cards"> });
+      toast("Card permanently deleted");
+    } catch (error) {
+      console.error("Failed to permanently delete card:", error);
+      toast.error("Failed to permanently delete card");
     }
   };
 
@@ -91,6 +116,10 @@ export function Dashboard() {
             const selectedOption = filteredOptions[typeaheadSelectedIndex];
             if (selectedOption.value === "favorites") {
               setShowFavoritesOnly(true);
+              setShowTrashOnly(false);
+            } else if (selectedOption.value === "trash") {
+              setShowTrashOnly(true);
+              setShowFavoritesOnly(false);
             } else if (!filterTags.includes(selectedOption.value as CardType)) {
               setFilterTags((
                 prev,
@@ -116,6 +145,17 @@ export function Dashboard() {
         ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
       ) {
         setShowFavoritesOnly(true);
+        setShowTrashOnly(false);
+        setSearchQuery("");
+        return;
+      }
+
+      // Check if it's a trash keyword
+      if (
+        ["trash", "deleted", "bin", "recycle", "trashed"].includes(query)
+      ) {
+        setShowTrashOnly(true);
+        setShowFavoritesOnly(false);
         setSearchQuery("");
         return;
       }
@@ -129,10 +169,13 @@ export function Dashboard() {
       }
     } else if (
       e.key === "Backspace" && searchQuery === "" &&
-      (keywordTags.length > 0 || filterTags.length > 0 || showFavoritesOnly)
+      (keywordTags.length > 0 || filterTags.length > 0 || showFavoritesOnly ||
+        showTrashOnly)
     ) {
       // Remove last tag when backspacing on empty input
-      if (showFavoritesOnly) {
+      if (showTrashOnly) {
+        setShowTrashOnly(false);
+      } else if (showFavoritesOnly) {
         setShowFavoritesOnly(false);
       } else if (filterTags.length > 0) {
         setFilterTags((prev) => prev.slice(0, -1));
@@ -156,6 +199,10 @@ export function Dashboard() {
   const handleTypeaheadSelect = (option: TypeaheadOption) => {
     if (option.value === "favorites") {
       setShowFavoritesOnly(true);
+      setShowTrashOnly(false);
+    } else if (option.value === "trash") {
+      setShowTrashOnly(true);
+      setShowFavoritesOnly(false);
     } else if (!filterTags.includes(option.value as CardType)) {
       setFilterTags((prev) => [...prev, option.value as CardType]);
     }
@@ -175,10 +222,15 @@ export function Dashboard() {
     setShowFavoritesOnly(false);
   };
 
+  const handleRemoveTrash = () => {
+    setShowTrashOnly(false);
+  };
+
   const handleClearAllTags = () => {
     setKeywordTags([]);
     setFilterTags([]);
     setShowFavoritesOnly(false);
+    setShowTrashOnly(false);
   };
 
   const filteredCards = useMemo(() => {
@@ -210,6 +262,12 @@ export function Dashboard() {
         ) {
           return card.isFavorited === true;
         }
+        // Check if it's a trash search
+        if (
+          ["trash", "deleted", "bin", "recycle", "trashed"].includes(query)
+        ) {
+          return card.isDeleted === true;
+        }
         return (
           card.title?.toLowerCase().includes(query) ||
           card.content.toLowerCase().includes(query) ||
@@ -228,8 +286,10 @@ export function Dashboard() {
       { type: "addForm" | "card"; data?: CardData; id: string }
     > = [];
 
-    // Always include the AddCardForm as the first item
-    items.push({ type: "addForm", id: "add-form" });
+    // Only include the AddCardForm when not in trash mode
+    if (!showTrashOnly) {
+      items.push({ type: "addForm", id: "add-form" });
+    }
 
     // Add filtered cards
     filteredCards.forEach((card) => {
@@ -237,7 +297,7 @@ export function Dashboard() {
     });
 
     return items;
-  }, [filteredCards]);
+  }, [filteredCards, showTrashOnly]);
 
   // Masonry render function for react-plock
   const renderMasonryItem = (item: typeof masonryItems[0], index: number) => {
@@ -252,7 +312,10 @@ export function Dashboard() {
           card={item.data}
           onClick={handleCardClick}
           onDelete={handleDeleteCard}
+          onRestore={handleRestoreCard}
+          onPermanentDelete={handlePermanentDeleteCard}
           onToggleFavorite={handleToggleFavorite}
+          isTrashMode={showTrashOnly}
         />
       );
     }
@@ -299,15 +362,18 @@ export function Dashboard() {
         keywordTags={keywordTags}
         filterTags={filterTags}
         showFavoritesOnly={showFavoritesOnly}
+        showTrashOnly={showTrashOnly}
         onRemoveKeyword={handleRemoveKeyword}
         onRemoveFilter={handleRemoveFilter}
         onRemoveFavorites={handleRemoveFavorites}
+        onRemoveTrash={handleRemoveTrash}
         onClearAll={handleClearAllTags}
       />
 
       {/* Cards Display */}
       {filteredCards.length === 0 && keywordTags.length === 0 &&
-          filterTags.length === 0 && !showFavoritesOnly && !searchQuery
+          filterTags.length === 0 && !showFavoritesOnly && !showTrashOnly &&
+          !searchQuery
         ? (
           <div>
             <Masonry
@@ -349,6 +415,7 @@ export function Dashboard() {
                       setKeywordTags([]);
                       setFilterTags([]);
                       setShowFavoritesOnly(false);
+                      setShowTrashOnly(false);
                     }}
                   >
                     Clear filters
@@ -375,7 +442,10 @@ export function Dashboard() {
         open={!!editingCard}
         onCancel={handleEditCancel}
         onDelete={handleDeleteCard}
+        onRestore={handleRestoreCard}
+        onPermanentDelete={handlePermanentDeleteCard}
         onToggleFavorite={handleToggleFavorite}
+        isTrashMode={showTrashOnly}
       />
     </div>
   );

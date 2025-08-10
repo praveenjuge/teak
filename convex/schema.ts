@@ -42,6 +42,8 @@ export const cardValidator = v.object({
   tags: v.optional(v.array(v.string())),
   notes: v.optional(v.string()),
   isFavorited: v.optional(v.boolean()),
+  isDeleted: v.optional(v.boolean()),
+  deletedAt: v.optional(v.number()),
   metadata: metadataValidator,
   createdAt: v.number(),
   updatedAt: v.number(),
@@ -52,5 +54,6 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_type", ["userId", "type"])
     .index("by_user_favorites", ["userId", "isFavorited"])
+    .index("by_user_deleted", ["userId", "isDeleted"])
     .index("by_created", ["userId", "createdAt"]),
 });

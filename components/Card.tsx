@@ -1,4 +1,4 @@
-import { ExternalLink, Heart, Trash2 } from "lucide-react";
+import { ExternalLink, Heart, RotateCcw, Trash, Trash2 } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
@@ -16,16 +16,34 @@ interface CardProps {
   card: CardData;
   onClick?: (card: CardData) => void;
   onDelete?: (cardId: string) => void;
+  onRestore?: (cardId: string) => void;
+  onPermanentDelete?: (cardId: string) => void;
   onToggleFavorite?: (cardId: string) => void;
+  isTrashMode?: boolean;
 }
 
-export function Card({ card, onClick, onDelete, onToggleFavorite }: CardProps) {
+export function Card({
+  card,
+  onClick,
+  onDelete,
+  onRestore,
+  onPermanentDelete,
+  onToggleFavorite,
+}: CardProps) {
   const handleClick = () => {
     onClick?.(card);
   };
 
   const handleDelete = () => {
     onDelete?.(card._id);
+  };
+
+  const handleRestore = () => {
+    onRestore?.(card._id);
+  };
+
+  const handlePermanentDelete = () => {
+    onPermanentDelete?.(card._id);
   };
 
   const handleToggleFavorite = () => {
@@ -42,7 +60,9 @@ export function Card({ card, onClick, onDelete, onToggleFavorite }: CardProps) {
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <UICard
-          className="cursor-pointer relative p-0 shadow-none overflow-hidden"
+          className={`cursor-pointer relative p-0 shadow-none overflow-hidden ${
+            card.isDeleted ? "opacity-60" : ""
+          }`}
           onClick={handleClick}
         >
           {card.isFavorited && (
@@ -127,20 +147,44 @@ export function Card({ card, onClick, onDelete, onToggleFavorite }: CardProps) {
             </ContextMenuItem>
           </>
         )}
-        <ContextMenuItem onClick={handleToggleFavorite}>
-          <Heart
-            className={`${card.isFavorited ? "fill-red-500 text-red-500" : ""}`}
-          />
-          {card.isFavorited ? "Unfavorite" : "Favorite"}
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          onClick={handleDelete}
-          className="text-red-600 focus:text-red-600"
-        >
-          <Trash2 />
-          Delete
-        </ContextMenuItem>
+
+        {!card.isDeleted && (
+          <>
+            <ContextMenuItem onClick={handleToggleFavorite}>
+              <Heart
+                className={`${
+                  card.isFavorited ? "fill-red-500 text-red-500" : ""
+                }`}
+              />
+              {card.isFavorited ? "Unfavorite" : "Favorite"}
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onClick={handleDelete}
+              className="text-red-600 focus:text-red-600"
+            >
+              <Trash2 />
+              Delete
+            </ContextMenuItem>
+          </>
+        )}
+
+        {card.isDeleted && (
+          <>
+            <ContextMenuItem onClick={handleRestore}>
+              <RotateCcw />
+              Restore
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onClick={handlePermanentDelete}
+              className="text-red-600 focus:text-red-600"
+            >
+              <Trash />
+              Delete Forever
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );
