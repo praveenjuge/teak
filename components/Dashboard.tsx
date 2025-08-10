@@ -1,23 +1,22 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+import { UserButton } from "@clerk/nextjs";
 import { AddCardForm } from "./AddCardForm";
-import { EditCardForm } from "./EditCardForm";
-import { Card, type CardType, type CardData } from "./Card";
+import { CardModal } from "./CardModal";
+import { Card, type CardData, type CardType } from "./Card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import {
-  Search,
-  Grid3X3,
-  List,
   FileText,
-  Link as LinkIcon,
+  Grid3X3,
   Image as ImageIcon,
-  Video,
+  Link as LinkIcon,
   Mic,
+  Search,
+  Video,
 } from "lucide-react";
 import { api } from "../convex/_generated/api";
-
-type ViewMode = "grid" | "list";
 
 const CARD_TYPE_FILTERS = [
   { type: null, label: "All", icon: Grid3X3 },
@@ -32,13 +31,12 @@ const CARD_TYPE_FILTERS = [
 export function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<CardType | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [editingCard, setEditingCard] = useState<CardData | null>(null);
-  
+
   const cards = useQuery(api.cards.getCards, {
     type: selectedType || undefined,
   });
-  
+
   const deleteCard = useMutation(api.cards.deleteCard);
 
   const handleDeleteCard = async (cardId: string) => {
@@ -51,48 +49,46 @@ export function Dashboard() {
     }
   };
 
-  const handleEditCard = (card: CardData) => {
+  const handleCardClick = (card: CardData) => {
     setEditingCard(card);
   };
 
-  const handleEditSuccess = () => {
-    setEditingCard(null);
-  };
 
   const handleEditCancel = () => {
     setEditingCard(null);
   };
 
-  const filteredCards = cards?.filter((card) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      card.title?.toLowerCase().includes(query) ||
-      card.content.toLowerCase().includes(query) ||
-      card.description?.toLowerCase().includes(query) ||
-      card.tags?.some(tag => tag.toLowerCase().includes(query))
-    );
-  }) || [];
+  const filteredCards =
+    cards?.filter((card) => {
+      if (!searchQuery) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        card.title?.toLowerCase().includes(query) ||
+        card.content.toLowerCase().includes(query) ||
+        card.description?.toLowerCase().includes(query) ||
+        card.tags?.some((tag) => tag.toLowerCase().includes(query))
+      );
+    }) || [];
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      {/* Add Card Form */}
-      <AddCardForm />
-      
       {/* Filters and Search */}
       <div className="mb-6 space-y-4">
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            type="text"
-            placeholder="Search your content..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+        {/* Search and User */}
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              type="text"
+              placeholder="Search your content..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <UserButton />
         </div>
-        
+
         {/* Type Filters */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2">
           {CARD_TYPE_FILTERS.map((filter) => {
@@ -112,40 +108,37 @@ export function Dashboard() {
             );
           })}
         </div>
-        
-        {/* View Mode Toggle */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1">
-            <Button
-              variant={viewMode === "grid" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setViewMode("grid")}
-            >
-              <Grid3X3 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setViewMode("list")}
-            >
-              <List className="w-4 h-4" />
-            </Button>
-          </div>
-          
-          <p className="text-sm text-gray-500">
-            {filteredCards.length} {filteredCards.length === 1 ? "item" : "items"}
-          </p>
-        </div>
       </div>
 
+      <Separator className="my-4" />
+
       {/* Cards Display */}
-      {filteredCards.length === 0 ? (
+      {filteredCards.length === 0 && !searchQuery && !selectedType ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Add Card Form as first item in grid */}
+          <AddCardForm />
+
+          <div className="text-center py-12 col-span-full">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No content yet
+              </h3>
+              <p className="text-gray-500 mb-4">
+                Start capturing your thoughts, links, and media using the form
+                above
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : filteredCards.length === 0 ? (
         <div className="text-center py-12">
           {cards === undefined ? (
             <p className="text-gray-500">Loading your content...</p>
-          ) : searchQuery || selectedType ? (
+          ) : (
             <div>
-              <p className="text-gray-500 mb-2">No content found matching your filters</p>
+              <p className="text-gray-500 mb-2">
+                No content found matching your filters
+              </p>
               <Button
                 variant="outline"
                 onClick={() => {
@@ -156,53 +149,31 @@ export function Dashboard() {
                 Clear filters
               </Button>
             </div>
-          ) : (
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No content yet
-              </h3>
-              <p className="text-gray-500 mb-4">
-                Start capturing your thoughts, links, and media by clicking &quot;Add new content&quot; above
-              </p>
-            </div>
           )}
         </div>
       ) : (
-        <div
-          className={
-            viewMode === "grid"
-              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-              : "space-y-4"
-          }
-        >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Add Card Form as first item in grid */}
+          <AddCardForm />
+
           {filteredCards.map((card) => (
             <Card
               key={card._id}
               card={card}
-              onEdit={handleEditCard}
+              onClick={handleCardClick}
               onDelete={handleDeleteCard}
             />
           ))}
         </div>
       )}
-      
-      {/* Load More (if needed in the future) */}
-      {filteredCards.length >= 50 && (
-        <div className="text-center mt-8">
-          <Button variant="outline">
-            Load More
-          </Button>
-        </div>
-      )}
 
-      {/* Edit Card Modal */}
-      {editingCard && (
-        <EditCardForm
-          card={editingCard}
-          onSuccess={handleEditSuccess}
-          onCancel={handleEditCancel}
-        />
-      )}
+      {/* Card Modal */}
+      <CardModal
+        card={editingCard}
+        open={!!editingCard}
+        onCancel={handleEditCancel}
+        onDelete={handleDeleteCard}
+      />
     </div>
   );
 }

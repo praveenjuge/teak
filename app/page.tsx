@@ -1,17 +1,13 @@
 "use client";
 
 import { Authenticated, Unauthenticated } from "convex/react";
-import { SignUpButton, SignInButton, UserButton } from "@clerk/nextjs";
+import { SignUpButton, SignInButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Dashboard } from "@/components/Dashboard";
 
 export default function Home() {
   return (
     <>
-      <header className="p-4 border-b flex justify-between items-center bg-white">
-        <h1 className="text-xl font-bold">Teak</h1>
-        <UserButton />
-      </header>
       <main className="min-h-screen bg-gray-50">
         <Authenticated>
           <Dashboard />

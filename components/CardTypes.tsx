@@ -1,7 +1,17 @@
 import { useState } from "react";
 import { useQuery } from "convex/react";
-import { Play, Pause, ExternalLink, Download, FileText, Archive, Code, Music, File } from "lucide-react";
+import {
+  Archive,
+  Code,
+  Download,
+  ExternalLink,
+  File,
+  FileText,
+  Pause,
+  Play,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { api } from "../convex/_generated/api";
 import type { CardData } from "./Card";
 
@@ -9,24 +19,50 @@ import type { CardData } from "./Card";
 const getDocumentIcon = (fileName: string, mimeType: string) => {
   const name = fileName.toLowerCase();
   const mime = mimeType.toLowerCase();
-  
-  if (mime.includes('pdf')) return <FileText className="w-8 h-8 text-red-500" />;
-  if (mime.includes('word') || name.endsWith('.doc') || name.endsWith('.docx')) return <FileText className="w-8 h-8 text-blue-500" />;
-  if (mime.includes('excel') || name.endsWith('.xls') || name.endsWith('.xlsx')) return <FileText className="w-8 h-8 text-green-500" />;
-  if (mime.includes('powerpoint') || name.endsWith('.ppt') || name.endsWith('.pptx')) return <FileText className="w-8 h-8 text-orange-500" />;
-  if (mime.includes('zip') || mime.includes('rar') || name.endsWith('.7z') || name.endsWith('.tar.gz')) return <Archive className="w-8 h-8 text-yellow-500" />;
-  if (name.endsWith('.js') || name.endsWith('.ts') || name.endsWith('.py') || name.endsWith('.html') || name.endsWith('.css') || name.endsWith('.json') || name.endsWith('.xml')) return <Code className="w-8 h-8 text-green-500" />;
-  if (name.endsWith('.txt') || name.endsWith('.md') || name.endsWith('.rtf')) return <FileText className="w-8 h-8 text-gray-500" />;
-  
+
+  if (mime.includes("pdf")) {
+    return <FileText className="w-8 h-8 text-red-500" />;
+  }
+  if (mime.includes("word") || name.endsWith(".doc") || name.endsWith(".docx"))
+    return <FileText className="w-8 h-8 text-blue-500" />;
+  if (mime.includes("excel") || name.endsWith(".xls") || name.endsWith(".xlsx"))
+    return <FileText className="w-8 h-8 text-green-500" />;
+  if (
+    mime.includes("powerpoint") ||
+    name.endsWith(".ppt") ||
+    name.endsWith(".pptx")
+  )
+    return <FileText className="w-8 h-8 text-orange-500" />;
+  if (
+    mime.includes("zip") ||
+    mime.includes("rar") ||
+    name.endsWith(".7z") ||
+    name.endsWith(".tar.gz")
+  )
+    return <Archive className="w-8 h-8 text-yellow-500" />;
+  if (
+    name.endsWith(".js") ||
+    name.endsWith(".ts") ||
+    name.endsWith(".py") ||
+    name.endsWith(".html") ||
+    name.endsWith(".css") ||
+    name.endsWith(".json") ||
+    name.endsWith(".xml")
+  )
+    return <Code className="w-8 h-8 text-green-500" />;
+  if (name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".rtf")) {
+    return <FileText className="w-8 h-8 text-gray-500" />;
+  }
+
   return <File className="w-8 h-8 text-gray-500" />;
 };
 
 const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return "0 Bytes";
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
 // Text Card Component
@@ -41,23 +77,23 @@ export function TextCard({ card }: { card: CardData }) {
 }
 
 // Link Card Component
-export function LinkCard({ card }: { card: CardData }) {
+export function LinkCard({ card, preview = false }: { card: CardData; preview?: boolean }) {
   const openLink = () => {
     if (card.url) {
-      window.open(card.url, '_blank', 'noopener,noreferrer');
+      window.open(card.url, "_blank", "noopener,noreferrer");
     }
   };
 
   return (
     <div className="space-y-3">
       {/* Link Preview */}
-      <div 
-        onClick={openLink}
-        className="border border-gray-200 rounded-lg p-3 cursor-pointer hover:bg-gray-50 transition-colors"
+      <div
+        onClick={preview ? undefined : openLink}
+        className={`border border-gray-200 rounded-lg p-3 ${preview ? '' : 'cursor-pointer hover:bg-gray-50 transition-colors'}`}
       >
         <div className="flex items-start gap-3">
           {card.metadata?.linkFavicon && (
-            <img 
+            <img
               src={card.metadata.linkFavicon}
               alt=""
               className="w-4 h-4 mt-0.5 flex-shrink-0"
@@ -72,24 +108,20 @@ export function LinkCard({ card }: { card: CardData }) {
                 {card.metadata.linkDescription}
               </p>
             )}
-            <p className="text-gray-400 text-xs mt-1 truncate">
-              {card.url}
-            </p>
+            <p className="text-gray-400 text-xs mt-1 truncate">{card.url}</p>
           </div>
           <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
         </div>
         {card.metadata?.linkImage && (
-          <img 
+          <img
             src={card.metadata.linkImage}
             alt=""
             className="w-full h-32 object-cover rounded mt-3"
           />
         )}
       </div>
-      
-      {card.content && (
-        <p className="text-gray-700 text-sm">{card.content}</p>
-      )}
+
+      {card.content && <p className="text-gray-700 text-sm">{card.content}</p>}
     </div>
   );
 }
@@ -97,8 +129,9 @@ export function LinkCard({ card }: { card: CardData }) {
 // Image Card Component
 export function ImageCard({ card }: { card: CardData }) {
   const [isLoading, setIsLoading] = useState(true);
-  const fileUrl = useQuery(api.cards.getFileUrl, 
-    card.fileId ? { fileId: card.fileId as any } : "skip"
+  const fileUrl = useQuery(
+    api.cards.getFileUrl,
+    card.fileId ? { fileId: card.fileId as any } : "skip",
   );
 
   if (!fileUrl) return null;
@@ -117,11 +150,9 @@ export function ImageCard({ card }: { card: CardData }) {
           onError={() => setIsLoading(false)}
         />
       </div>
-      
-      {card.content && (
-        <p className="text-gray-700 text-sm">{card.content}</p>
-      )}
-      
+
+      {card.content && <p className="text-gray-700 text-sm">{card.content}</p>}
+
       {card.metadata?.fileSize && (
         <p className="text-gray-400 text-xs">
           {(card.metadata.fileSize / (1024 * 1024)).toFixed(1)} MB
@@ -133,8 +164,9 @@ export function ImageCard({ card }: { card: CardData }) {
 
 // Video Card Component
 export function VideoCard({ card }: { card: CardData }) {
-  const fileUrl = useQuery(api.cards.getFileUrl, 
-    card.fileId ? { fileId: card.fileId as any } : "skip"
+  const fileUrl = useQuery(
+    api.cards.getFileUrl,
+    card.fileId ? { fileId: card.fileId as any } : "skip",
   );
 
   if (!fileUrl) return null;
@@ -149,11 +181,9 @@ export function VideoCard({ card }: { card: CardData }) {
         <source src={fileUrl} type={card.metadata?.mimeType} />
         Your browser does not support the video tag.
       </video>
-      
-      {card.content && (
-        <p className="text-gray-700 text-sm">{card.content}</p>
-      )}
-      
+
+      {card.content && <p className="text-gray-700 text-sm">{card.content}</p>}
+
       <div className="flex items-center gap-4 text-xs text-gray-400">
         {card.metadata?.fileSize && (
           <span>{(card.metadata.fileSize / (1024 * 1024)).toFixed(1)} MB</span>
@@ -167,19 +197,22 @@ export function VideoCard({ card }: { card: CardData }) {
 }
 
 // Audio Card Component
-export function AudioCard({ card }: { card: CardData }) {
+export function AudioCard({ card, preview = false }: { card: CardData; preview?: boolean }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  
-  const fileUrl = useQuery(api.cards.getFileUrl, 
-    card.fileId ? { fileId: card.fileId as any } : "skip"
+
+  const fileUrl = useQuery(
+    api.cards.getFileUrl,
+    card.fileId ? { fileId: card.fileId as any } : "skip",
   );
 
   if (!fileUrl) return null;
 
   const togglePlayPause = () => {
-    const audio = document.getElementById(`audio-${card._id}`) as HTMLAudioElement;
+    const audio = document.getElementById(
+      `audio-${card._id}`,
+    ) as HTMLAudioElement;
     if (audio) {
       if (isPlaying) {
         audio.pause();
@@ -192,12 +225,12 @@ export function AudioCard({ card }: { card: CardData }) {
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
   const downloadAudio = () => {
     if (fileUrl) {
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = fileUrl;
       a.download = card.metadata?.fileName || `audio-${card._id}.webm`;
       a.click();
@@ -211,36 +244,40 @@ export function AudioCard({ card }: { card: CardData }) {
           <Button
             type="button"
             size="sm"
-            onClick={togglePlayPause}
+            onClick={preview ? undefined : togglePlayPause}
+            disabled={preview}
             className="rounded-full w-10 h-10 p-0"
           >
-            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            {isPlaying ? (
+              <Pause className="w-4 h-4" />
+            ) : (
+              <Play className="w-4 h-4" />
+            )}
           </Button>
-          
+
           <div className="flex-1">
             <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
               <span>{formatTime(currentTime)}</span>
               <span>{formatTime(duration)}</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-500 h-2 rounded-full transition-all"
-                style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
-              />
-            </div>
+            <Progress
+              value={duration > 0 ? (currentTime / duration) * 100 : 0}
+              className="w-full"
+            />
           </div>
-          
+
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            onClick={downloadAudio}
+            onClick={preview ? undefined : downloadAudio}
+            disabled={preview}
             className="p-2"
           >
             <Download className="w-4 h-4" />
           </Button>
         </div>
-        
+
         <audio
           id={`audio-${card._id}`}
           src={fileUrl}
@@ -255,14 +292,12 @@ export function AudioCard({ card }: { card: CardData }) {
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onEnded={() => setIsPlaying(false)}
-          style={{ display: 'none' }}
+          style={{ display: "none" }}
         />
       </div>
-      
-      {card.content && (
-        <p className="text-gray-700 text-sm">{card.content}</p>
-      )}
-      
+
+      {card.content && <p className="text-gray-700 text-sm">{card.content}</p>}
+
       {card.metadata?.fileSize && (
         <p className="text-gray-400 text-xs">
           {(card.metadata.fileSize / (1024 * 1024)).toFixed(1)} MB
@@ -272,14 +307,17 @@ export function AudioCard({ card }: { card: CardData }) {
   );
 }
 // Document Card Component
-export function DocumentCard({ card }: { card: CardData }) {
-  const fileUrl = useQuery(api.cards.getFileUrl, 
-    card.fileId ? { fileId: card.fileId as any, cardId: card._id as any } : "skip"
+export function DocumentCard({ card, preview = false }: { card: CardData; preview?: boolean }) {
+  const fileUrl = useQuery(
+    api.cards.getFileUrl,
+    card.fileId
+      ? { fileId: card.fileId as any, cardId: card._id as any }
+      : "skip",
   );
 
   const handleDownload = () => {
     if (fileUrl) {
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = fileUrl;
       a.download = card.metadata?.fileName || `document-${card._id}`;
       a.click();
@@ -288,64 +326,66 @@ export function DocumentCard({ card }: { card: CardData }) {
 
   const handleView = () => {
     if (fileUrl) {
-      window.open(fileUrl, '_blank', 'noopener,noreferrer');
+      window.open(fileUrl, "_blank", "noopener,noreferrer");
     }
   };
 
   return (
     <div className="space-y-3">
-      <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+      <div className={`border border-gray-200 rounded-lg p-4 ${preview ? '' : 'hover:bg-gray-50 transition-colors'}`}>
         <div className="flex items-start gap-3">
           {/* File Icon */}
           <div className="flex-shrink-0">
             {getDocumentIcon(
               card.metadata?.fileName || card.content,
-              card.metadata?.mimeType || ''
+              card.metadata?.mimeType || "",
             )}
           </div>
-          
+
           {/* File Info */}
           <div className="flex-1 min-w-0">
             <h4 className="font-medium text-gray-900 text-sm truncate">
               {card.metadata?.fileName || card.content}
             </h4>
-            
+
             {card.metadata?.fileSize && (
               <p className="text-gray-500 text-xs mt-1">
                 {formatFileSize(card.metadata.fileSize)}
               </p>
             )}
-            
+
             {card.metadata?.mimeType && (
               <p className="text-gray-400 text-xs capitalize">
-                {card.metadata.mimeType.split('/')[1] || 'document'}
+                {card.metadata.mimeType.split("/")[1] || "document"}
               </p>
             )}
           </div>
-          
+
           {/* Action Buttons */}
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleView}
-              className="text-xs"
-            >
-              <ExternalLink className="w-3 h-3 mr-1" />
-              View
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleDownload}
-              className="text-xs"
-            >
-              <Download className="w-3 h-3 mr-1" />
-              Download
-            </Button>
-          </div>
+          {!preview && (
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleView}
+                className="text-xs"
+              >
+                <ExternalLink className="w-3 h-3 mr-1" />
+                View
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleDownload}
+                className="text-xs"
+              >
+                <Download className="w-3 h-3 mr-1" />
+                Download
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,148 +1,234 @@
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { FileUpload } from "./FileUpload";
-import { AudioRecorder } from "./AudioRecorder";
-import {
-  Type,
-  Link as LinkIcon,
-  Upload,
-  Mic,
-  Plus,
-  X,
-} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Mic, Square, Upload } from "lucide-react";
 import { api } from "../convex/_generated/api";
 import type { CardType } from "./Card";
 
-// File type categorization (shared with FileUpload)
+// File type categorization
 const getFileCardType = (file: File): CardType => {
   const mimeType = file.type.toLowerCase();
-  const fileName = file.name.toLowerCase();
-  
-  if (mimeType.startsWith('image/')) return 'image';
-  if (mimeType.startsWith('video/')) return 'video';
-  if (mimeType.startsWith('audio/')) return 'audio';
-  
+
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("audio/")) return "audio";
+
   // Everything else becomes a document card
-  return 'document';
+  return "document";
 };
 
 interface AddCardFormProps {
   onSuccess?: () => void;
 }
 
-type CombinedTab = "text" | "upload" | "audio";
-
 export function AddCardForm({ onSuccess }: AddCardFormProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [activeTab, setActiveTab] = useState<CombinedTab>("text");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
   // Form data
   const [content, setContent] = useState("");
   const [url, setUrl] = useState("");
-  
-  // File handling
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  
+
   const createCard = useMutation(api.cards.createCard);
   const generateUploadUrl = useMutation(api.cards.generateUploadUrl);
-  
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate required fields based on combined tab type
-    if (activeTab === "text" && !content.trim()) return;
-    if (activeTab === "upload" && !uploadedFile) return;
-    if (activeTab === "audio" && !audioBlob) return;
-    
-    setIsSubmitting(true);
-    
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const startRecording = async () => {
     try {
-      let fileId: string | undefined;
-      let metadata: Record<string, string | number> = {};
+      setError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: "audio/webm;codecs=opus",
+      });
+      mediaRecorderRef.current = mediaRecorder;
+
+      const chunks: Blob[] = [];
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: "audio/webm;codecs=opus" });
+        stream.getTracks().forEach((track) => track.stop());
+
+        // Auto-save immediately
+        await autoSaveAudio(blob);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      // Start timer
+      timerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Error starting recording:", err);
+      setError(
+        "Failed to start recording. Please check your microphone permissions.",
+      );
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+  };
+
+  const autoSaveAudio = async (blob: Blob) => {
+    try {
+      setIsSubmitting(true);
+
+      // Upload the audio file
+      const uploadUrl = await generateUploadUrl({
+        fileName: `recording_${Date.now()}.webm`,
+        fileType: blob.type,
+      });
+      const result = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": blob.type },
+        body: blob,
+      });
+      const { storageId } = await result.json();
+
+      const metadata = {
+        fileName: `recording_${Date.now()}.webm`,
+        fileSize: blob.size,
+        mimeType: blob.type,
+      };
+
+      await createCard({
+        content: "Audio Recording",
+        type: "audio",
+        fileId: storageId as any,
+        metadata,
+      });
+
+      // Reset form
+      setContent("");
+      setUrl("");
+      setRecordingTime(0);
+
+      onSuccess?.();
+    } catch (error) {
+      console.error("Failed to auto-save audio:", error);
+      setError("Failed to save audio recording.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleFileUpload = async () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "*/*";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        // Auto-upload immediately
+        try {
+          setIsSubmitting(true);
+
+          const uploadUrl = await generateUploadUrl({
+            fileName: file.name,
+            fileType: file.type,
+          });
+          const result = await fetch(uploadUrl, {
+            method: "POST",
+            headers: { "Content-Type": file.type },
+            body: file,
+          });
+          const { storageId } = await result.json();
+
+          const metadata = {
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type,
+          };
+
+          await createCard({
+            content: file.name,
+            type: getFileCardType(file),
+            fileId: storageId as any,
+            metadata,
+          });
+
+          onSuccess?.();
+        } catch (error) {
+          console.error("Failed to auto-save file:", error);
+          setError("Failed to upload file.");
+        } finally {
+          setIsSubmitting(false);
+        }
+      }
+    };
+    input.click();
+  };
+
+  const handleTextSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Only handle text content here
+    if (!content.trim()) return;
+
+    setIsSubmitting(true);
+
+    try {
       let finalContent = content;
       let finalUrl = url;
       let cardType: CardType;
-      
-      // Determine actual card type based on content
-      if (activeTab === "text") {
-        // Smart detection: if content is only a URL, make it a link card
-        const trimmedContent = content.trim();
-        const urlPattern = /^https?:\/\/[^\s]+$/;
-        
-        if (urlPattern.test(trimmedContent)) {
-          cardType = "link";
-          finalUrl = trimmedContent;
-          finalContent = trimmedContent; // Keep URL as content for link cards
-        } else {
-          cardType = "text";
-          // Extract URL from text content if present
-          const urlMatch = trimmedContent.match(/(https?:\/\/[^\s]+)/);
-          if (urlMatch) {
-            finalUrl = urlMatch[1];
-          }
-        }
-      } else if (activeTab === "upload") {
-        // Determine type based on file MIME type
-        cardType = getFileCardType(uploadedFile!);
+
+      // Smart detection: if content is only a URL, make it a link card
+      const trimmedContent = content.trim();
+      const urlPattern = /^https?:\/\/[^\s]+$/;
+
+      if (urlPattern.test(trimmedContent)) {
+        cardType = "link";
+        finalUrl = trimmedContent;
+        finalContent = trimmedContent;
       } else {
-        cardType = "audio";
-      }
-      
-      // Handle file upload
-      if (uploadedFile && activeTab === "upload") {
-        const uploadUrl = await generateUploadUrl({
-          fileName: uploadedFile.name,
-          fileType: uploadedFile.type,
-        });
-        const result = await fetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": uploadedFile.type },
-          body: uploadedFile,
-        });
-        const { storageId } = await result.json();
-        fileId = storageId;
-        
-        metadata = {
-          fileName: uploadedFile.name,
-          fileSize: uploadedFile.size,
-          mimeType: uploadedFile.type,
-        };
-        
-        if (!finalContent) {
-          finalContent = uploadedFile.name;
-        }
-      }
-      
-      // Handle audio recording
-      if (audioBlob && activeTab === "audio") {
-        const uploadUrl = await generateUploadUrl({
-          fileName: `recording_${Date.now()}.webm`,
-          fileType: audioBlob.type,
-        });
-        const result = await fetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": audioBlob.type },
-          body: audioBlob,
-        });
-        const { storageId } = await result.json();
-        fileId = storageId;
-        
-        metadata = {
-          fileName: `recording_${Date.now()}.webm`,
-          fileSize: audioBlob.size,
-          mimeType: audioBlob.type,
-        };
-        
-        if (!finalContent) {
-          finalContent = "Audio Recording";
+        cardType = "text";
+        // Extract URL from text content if present
+        const urlMatch = trimmedContent.match(/(https?:\/\/[^\s]+)/);
+        if (urlMatch) {
+          finalUrl = urlMatch[1];
         }
       }
 
@@ -150,18 +236,12 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
         content: finalContent,
         type: cardType,
         url: finalUrl || undefined,
-        fileId: fileId as any, // TODO: Fix Convex types
-        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
       });
 
       // Reset form
       setContent("");
       setUrl("");
-      setUploadedFile(null);
-      setAudioBlob(null);
-      setIsExpanded(false);
-      setActiveTab("text");
-      
+
       onSuccess?.();
     } catch (error) {
       console.error("Failed to create card:", error);
@@ -170,127 +250,115 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
     }
   };
 
-
-  const getTabIcon = (type: CombinedTab) => {
-    switch (type) {
-      case "text": return <Type className="w-4 h-4" />;
-      case "upload": return <Upload className="w-4 h-4" />;
-      case "audio": return <Mic className="w-4 h-4" />;
-    }
-  };
-
-  if (!isExpanded) {
+  // Recording mode - full screen recording interface
+  if (isRecording) {
     return (
-      <div className="mb-6">
-        <Button
-          onClick={() => {
-            setIsExpanded(true);
-            setTimeout(() => textareaRef.current?.focus(), 100);
-          }}
-          variant="outline"
-          className="w-full justify-start h-12 text-muted-foreground"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add new content...
-        </Button>
-      </div>
+      <Card className="mb-6 border-red-200">
+        <CardContent className="text-center space-y-6">
+          <div>
+            <h3 className="text-xl font-medium text-gray-900">Recording...</h3>
+            <p className="text-sm text-gray-500 mt-1">Speak now</p>
+          </div>
+
+          <div className="text-4xl font-mono text-red-600">
+            {formatTime(recordingTime)}
+          </div>
+
+          <Button
+            type="button"
+            onClick={stopRecording}
+            size="lg"
+            variant="destructive"
+            className="rounded-full w-24 h-24 p-0 hover:scale-105 transition-transform"
+            disabled={isSubmitting}
+          >
+            <Square className="w-10 h-10" />
+          </Button>
+
+          <p className="text-sm text-gray-600">
+            Click to stop and save automatically
+          </p>
+
+          {isSubmitting && (
+            <p className="text-sm text-blue-600">Saving your recording...</p>
+          )}
+
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-600 text-sm text-center">
+              {error}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-6 bg-white border border-gray-200 rounded-lg p-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-medium text-gray-900">Add New Content</h3>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsExpanded(false)}
-          className="h-8 w-8"
-        >
-          <X className="w-4 h-4" />
-        </Button>
-      </div>
+    <Card className="border-dashed hover:border-solid transition-colors cursor-pointer">
+      <CardContent className="text-center space-y-3">
+        <div className="text-sm font-medium text-muted-foreground mb-3">
+          Add new content
+        </div>
 
-      {/* Content Type Tabs */}
-      <div className="flex space-x-1 mb-4 bg-gray-100 rounded-md p-1">
-        {(["text", "upload", "audio"] as CombinedTab[]).map((type) => (
-          <button
-            key={type}
-            type="button"
-            onClick={() => setActiveTab(type)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === type
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            {getTabIcon(type)}
-            <span className="capitalize">{type}</span>
-          </button>
-        ))}
-      </div>
-
-
-      {/* Content based on type */}
-      <div className="space-y-4">
-        {activeTab === "text" && (
+        {/* Text Input Form */}
+        <form onSubmit={handleTextSubmit} className="space-y-3">
           <div>
-            <Label htmlFor="content">Text or Link</Label>
             <Textarea
               id="content"
               ref={textareaRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Write text or paste a link..."
-              className="mt-1 min-h-[120px]"
-              required
+              className="text-sm min-h-[80px] resize-none"
             />
           </div>
-        )}
 
-        {activeTab === "upload" && (
-          <div>
-            <Label>Upload Files</Label>
-            <FileUpload
-              accept="*/*"
-              onFileSelect={setUploadedFile}
-              selectedFile={uploadedFile}
-              className="mt-1"
-              maxSize={200 * 1024 * 1024} // 200MB for documents
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              Supports images, videos, documents, PDFs, archives, and more
-            </p>
+          {/* Action Buttons Row */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleFileUpload}
+              disabled={isSubmitting}
+              className="text-xs"
+            >
+              <Upload className="w-3 h-3 mr-1" />
+              Upload
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={startRecording}
+              disabled={isSubmitting}
+              className="text-xs"
+            >
+              <Mic className="w-3 h-3 mr-1" />
+              Record
+            </Button>
+          </div>
+
+          {/* Submit Button - Only show if there's text content */}
+          {content.trim() && (
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              size="sm"
+              className="w-full text-xs"
+            >
+              {isSubmitting ? "Saving..." : "Save Content"}
+            </Button>
+          )}
+        </form>
+
+        {error && (
+          <div className="p-2 bg-red-50 border border-red-200 rounded text-red-600 text-xs">
+            {error}
           </div>
         )}
-
-        {activeTab === "audio" && (
-          <div>
-            <Label>Record Audio</Label>
-            <AudioRecorder
-              onRecordingComplete={setAudioBlob}
-              audioBlob={audioBlob}
-              className="mt-1"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Submit Button */}
-      <div className="flex justify-end gap-2 mt-6">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setIsExpanded(false)}
-        >
-          Cancel
-        </Button>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Saving..." : "Save Content"}
-        </Button>
-      </div>
-    </form>
+      </CardContent>
+    </Card>
   );
 }
