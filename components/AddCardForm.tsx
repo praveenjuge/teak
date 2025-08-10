@@ -204,7 +204,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
           });
           const { storageId } = await result.json();
 
-          const metadata: any = {
+          const metadata: Record<string, unknown> = {
             fileName: file.name,
             fileSize: file.size,
             mimeType: file.type,
