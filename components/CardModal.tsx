@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { ExternalLink, Heart, Trash2, X } from "lucide-react";
 import { api } from "../convex/_generated/api";
-import type { CardData } from "./Card";
+import type { CardData } from "@/lib/types";
 import {
   AudioCard,
   DocumentCard,

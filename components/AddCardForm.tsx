@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Mic, Square, Upload } from "lucide-react";
 import { api } from "../convex/_generated/api";
-import type { CardType } from "./Card";
+import type { CardType } from "@/lib/types";
 
 // File type categorization
 const getFileCardType = (file: File): CardType => {

@@ -3,7 +3,13 @@ import { useMutation, useQuery } from "convex/react";
 import { UserButton } from "@clerk/nextjs";
 import { AddCardForm } from "./AddCardForm";
 import { CardModal } from "./CardModal";
-import { Card, type CardData, type CardType } from "./Card";
+import { Card } from "./Card";
+import {
+  type CardData,
+  type CardType,
+  RESERVED_KEYWORDS,
+  type TypeaheadOption,
+} from "@/lib/types";
 import { TagContainer } from "./SearchTags";
 import { SearchTypeahead } from "./SearchTypeahead";
 import { Button } from "@/components/ui/button";
@@ -55,17 +61,7 @@ export function Dashboard() {
   };
 
   const getFilteredTypeaheadOptions = () => {
-    const reservedKeywords = [
-      { value: "text" as CardType, label: "text" },
-      { value: "link" as CardType, label: "links" },
-      { value: "image" as CardType, label: "images" },
-      { value: "video" as CardType, label: "videos" },
-      { value: "audio" as CardType, label: "audios" },
-      { value: "document" as CardType, label: "documents" },
-      { value: "favorites" as const, label: "favorites" },
-    ];
-
-    return reservedKeywords.filter((option) =>
+    return RESERVED_KEYWORDS.filter((option) =>
       option.label.toLowerCase().includes(searchQuery.toLowerCase())
     );
   };
@@ -153,9 +149,7 @@ export function Dashboard() {
     setTypeaheadSelectedIndex(0);
   };
 
-  const handleTypeaheadSelect = (
-    option: { value: CardType | "favorites"; label: string },
-  ) => {
+  const handleTypeaheadSelect = (option: TypeaheadOption) => {
     if (option.value === "favorites") {
       setShowFavoritesOnly(true);
     } else if (!filterTags.includes(option.value as CardType)) {

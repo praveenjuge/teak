@@ -1,52 +1,35 @@
-import { useState, useRef, useEffect } from "react";
-import { type CardType } from "./Card";
-
-interface TypeaheadOption {
-  value: CardType | "favorites";
-  label: string;
-}
-
-const RESERVED_KEYWORDS: TypeaheadOption[] = [
-  { value: "text", label: "text" },
-  { value: "link", label: "links" },
-  { value: "image", label: "images" },
-  { value: "video", label: "videos" },
-  { value: "audio", label: "audios" },
-  { value: "document", label: "documents" },
-  { value: "favorites", label: "favorites" }
-];
+import { useEffect, useRef } from "react";
+import { RESERVED_KEYWORDS, type TypeaheadOption } from "@/lib/types";
 
 interface SearchTypeaheadProps {
   searchValue: string;
   isVisible: boolean;
   onSelect: (option: TypeaheadOption) => void;
   onClose: () => void;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   selectedIndex: number;
   setSelectedIndex: (index: number) => void;
 }
 
-export function SearchTypeahead({ 
-  searchValue, 
-  isVisible, 
-  onSelect, 
-  onClose, 
+export function SearchTypeahead({
+  searchValue,
+  isVisible,
+  onSelect,
+  onClose,
   inputRef,
   selectedIndex,
-  setSelectedIndex
+  setSelectedIndex,
 }: SearchTypeaheadProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const filteredOptions = RESERVED_KEYWORDS.filter(option =>
+  const filteredOptions = RESERVED_KEYWORDS.filter((option) =>
     option.label.toLowerCase().includes(searchValue.toLowerCase())
   );
-
-
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
-        dropdownRef.current && 
+        dropdownRef.current &&
         !dropdownRef.current.contains(e.target as Node) &&
         inputRef.current &&
         !inputRef.current.contains(e.target as Node)
@@ -57,7 +40,8 @@ export function SearchTypeahead({
 
     if (isVisible) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isVisible, onClose, inputRef]);
 

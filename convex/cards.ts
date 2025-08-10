@@ -1,33 +1,29 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { CARD_TYPES } from "../lib/types";
 
 export const createCard = mutation({
   args: {
     title: v.optional(v.string()),
     content: v.string(),
-    type: v.union(
-      v.literal("text"),
-      v.literal("link"),
-      v.literal("image"),
-      v.literal("video"),
-      v.literal("audio"),
-      v.literal("document")
-    ),
+    type: v.union(...CARD_TYPES.map((type) => v.literal(type))),
     url: v.optional(v.string()),
     fileId: v.optional(v.id("_storage")),
     thumbnailId: v.optional(v.id("_storage")),
     tags: v.optional(v.array(v.string())),
     description: v.optional(v.string()),
-    metadata: v.optional(v.object({
-      linkTitle: v.optional(v.string()),
-      linkDescription: v.optional(v.string()),
-      linkImage: v.optional(v.string()),
-      linkFavicon: v.optional(v.string()),
-      fileSize: v.optional(v.number()),
-      fileName: v.optional(v.string()),
-      mimeType: v.optional(v.string()),
-      duration: v.optional(v.number()),
-    })),
+    metadata: v.optional(
+      v.object({
+        linkTitle: v.optional(v.string()),
+        linkDescription: v.optional(v.string()),
+        linkImage: v.optional(v.string()),
+        linkFavicon: v.optional(v.string()),
+        fileSize: v.optional(v.number()),
+        fileName: v.optional(v.string()),
+        mimeType: v.optional(v.string()),
+        duration: v.optional(v.number()),
+      })
+    ),
   },
   handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
@@ -36,7 +32,7 @@ export const createCard = mutation({
     }
 
     const now = Date.now();
-    
+
     return await ctx.db.insert("cards", {
       userId: user.subject,
       ...args,
@@ -48,14 +44,7 @@ export const createCard = mutation({
 
 export const getCards = query({
   args: {
-    type: v.optional(v.union(
-      v.literal("text"),
-      v.literal("link"),
-      v.literal("image"),
-      v.literal("video"),
-      v.literal("audio"),
-      v.literal("document")
-    )),
+    type: v.optional(v.union(...CARD_TYPES.map((type) => v.literal(type)))),
     favoritesOnly: v.optional(v.boolean()),
     limit: v.optional(v.number()),
   },
@@ -72,7 +61,7 @@ export const getCards = query({
     if (args.type) {
       query = ctx.db
         .query("cards")
-        .withIndex("by_user_type", (q) => 
+        .withIndex("by_user_type", (q) =>
           q.eq("userId", user.subject).eq("type", args.type!)
         );
     }
@@ -80,14 +69,12 @@ export const getCards = query({
     if (args.favoritesOnly) {
       query = ctx.db
         .query("cards")
-        .withIndex("by_user_favorites", (q) => 
+        .withIndex("by_user_favorites", (q) =>
           q.eq("userId", user.subject).eq("isFavorited", true)
         );
     }
 
-    const cards = await query
-      .order("desc")
-      .take(args.limit || 50);
+    const cards = await query.order("desc").take(args.limit || 50);
 
     return cards;
   },
@@ -110,11 +97,11 @@ export const updateCard = mutation({
 
     const { id, ...updates } = args;
     const card = await ctx.db.get(id);
-    
+
     if (!card) {
       throw new Error("Card not found");
     }
-    
+
     if (card.userId !== user.subject) {
       throw new Error("Not authorized to update this card");
     }
@@ -137,11 +124,11 @@ export const deleteCard = mutation({
     }
 
     const card = await ctx.db.get(args.id);
-    
+
     if (!card) {
       throw new Error("Card not found");
     }
-    
+
     if (card.userId !== user.subject) {
       throw new Error("Not authorized to delete this card");
     }
@@ -169,11 +156,11 @@ export const toggleFavorite = mutation({
     }
 
     const card = await ctx.db.get(args.id);
-    
+
     if (!card) {
       throw new Error("Card not found");
     }
-    
+
     if (card.userId !== user.subject) {
       throw new Error("Not authorized to update this card");
     }
@@ -197,14 +184,16 @@ export const generateUploadUrl = mutation({
     if (!user) {
       throw new Error("User must be authenticated");
     }
-    
+
     // Generate upload URL - Convex handles storage internally
     // File organization is managed through the cards table with userId
     const uploadUrl = await ctx.storage.generateUploadUrl();
-    
+
     // Log upload request for debugging/monitoring (optional)
-    console.log(`User ${user.subject} uploading file: ${args.fileName || 'unknown'} (${args.fileType || 'unknown type'})`);
-    
+    console.log(
+      `User ${user.subject} uploading file: ${args.fileName || "unknown"} (${args.fileType || "unknown type"})`
+    );
+
     return uploadUrl;
   },
 });
@@ -216,7 +205,7 @@ export const getFileUrl = query({
   },
   handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
-    
+
     // If cardId is provided, verify the user owns the card that references this file
     if (args.cardId && user) {
       const card = await ctx.db.get(args.cardId);
@@ -224,7 +213,7 @@ export const getFileUrl = query({
         throw new Error("Unauthorized access to file");
       }
     }
-    
+
     return await ctx.storage.getUrl(args.fileId);
   },
 });

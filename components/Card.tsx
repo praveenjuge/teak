@@ -20,40 +20,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { type CardData } from "@/lib/types";
 
-export type CardType =
-  | "text"
-  | "link"
-  | "image"
-  | "video"
-  | "audio"
-  | "document";
-
-export interface CardData {
-  _id: string;
-  userId: string;
-  title?: string;
-  content: string;
-  type: CardType;
-  url?: string;
-  fileId?: string;
-  thumbnailId?: string;
-  tags?: string[];
-  description?: string;
-  isFavorited?: boolean;
-  metadata?: {
-    linkTitle?: string;
-    linkDescription?: string;
-    linkImage?: string;
-    linkFavicon?: string;
-    fileSize?: number;
-    fileName?: string;
-    mimeType?: string;
-    duration?: number;
-  };
-  createdAt: number;
-  updatedAt: number;
-}
 
 interface CardProps {
   card: CardData;

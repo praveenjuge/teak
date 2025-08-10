@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { api } from "../convex/_generated/api";
-import type { CardData } from "./Card";
+import type { CardData } from "@/lib/types";
 
 // File type categorization for documents
 const getDocumentIcon = (fileName: string, mimeType: string) => {
@@ -23,23 +23,31 @@ const getDocumentIcon = (fileName: string, mimeType: string) => {
   if (mime.includes("pdf")) {
     return <FileText className="w-8 h-8 text-red-500" />;
   }
-  if (mime.includes("word") || name.endsWith(".doc") || name.endsWith(".docx"))
+  if (
+    mime.includes("word") || name.endsWith(".doc") || name.endsWith(".docx")
+  ) {
     return <FileText className="w-8 h-8 text-blue-500" />;
-  if (mime.includes("excel") || name.endsWith(".xls") || name.endsWith(".xlsx"))
+  }
+  if (
+    mime.includes("excel") || name.endsWith(".xls") || name.endsWith(".xlsx")
+  ) {
     return <FileText className="w-8 h-8 text-green-500" />;
+  }
   if (
     mime.includes("powerpoint") ||
     name.endsWith(".ppt") ||
     name.endsWith(".pptx")
-  )
+  ) {
     return <FileText className="w-8 h-8 text-orange-500" />;
+  }
   if (
     mime.includes("zip") ||
     mime.includes("rar") ||
     name.endsWith(".7z") ||
     name.endsWith(".tar.gz")
-  )
+  ) {
     return <Archive className="w-8 h-8 text-yellow-500" />;
+  }
   if (
     name.endsWith(".js") ||
     name.endsWith(".ts") ||
@@ -48,8 +56,9 @@ const getDocumentIcon = (fileName: string, mimeType: string) => {
     name.endsWith(".css") ||
     name.endsWith(".json") ||
     name.endsWith(".xml")
-  )
+  ) {
     return <Code className="w-8 h-8 text-green-500" />;
+  }
   if (name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".rtf")) {
     return <FileText className="w-8 h-8 text-gray-500" />;
   }
@@ -77,7 +86,9 @@ export function TextCard({ card }: { card: CardData }) {
 }
 
 // Link Card Component
-export function LinkCard({ card, preview = false }: { card: CardData; preview?: boolean }) {
+export function LinkCard(
+  { card, preview = false }: { card: CardData; preview?: boolean },
+) {
   const openLink = () => {
     if (card.url) {
       window.open(card.url, "_blank", "noopener,noreferrer");
@@ -89,7 +100,9 @@ export function LinkCard({ card, preview = false }: { card: CardData; preview?: 
       {/* Link Preview */}
       <div
         onClick={preview ? undefined : openLink}
-        className={`border border-gray-200 rounded-lg p-3 ${preview ? '' : 'cursor-pointer hover:bg-gray-50 transition-colors'}`}
+        className={`border border-gray-200 rounded-lg p-3 ${
+          preview ? "" : "cursor-pointer hover:bg-gray-50 transition-colors"
+        }`}
       >
         <div className="flex items-start gap-3">
           {card.metadata?.linkFavicon && (
@@ -197,7 +210,9 @@ export function VideoCard({ card }: { card: CardData }) {
 }
 
 // Audio Card Component
-export function AudioCard({ card, preview = false }: { card: CardData; preview?: boolean }) {
+export function AudioCard(
+  { card, preview = false }: { card: CardData; preview?: boolean },
+) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -248,11 +263,9 @@ export function AudioCard({ card, preview = false }: { card: CardData; preview?:
             disabled={preview}
             className="rounded-full w-10 h-10 p-0"
           >
-            {isPlaying ? (
-              <Pause className="w-4 h-4" />
-            ) : (
-              <Play className="w-4 h-4" />
-            )}
+            {isPlaying
+              ? <Pause className="w-4 h-4" />
+              : <Play className="w-4 h-4" />}
           </Button>
 
           <div className="flex-1">
@@ -307,7 +320,9 @@ export function AudioCard({ card, preview = false }: { card: CardData; preview?:
   );
 }
 // Document Card Component
-export function DocumentCard({ card, preview = false }: { card: CardData; preview?: boolean }) {
+export function DocumentCard(
+  { card, preview = false }: { card: CardData; preview?: boolean },
+) {
   const fileUrl = useQuery(
     api.cards.getFileUrl,
     card.fileId
@@ -332,7 +347,11 @@ export function DocumentCard({ card, preview = false }: { card: CardData; previe
 
   return (
     <div className="space-y-3">
-      <div className={`border border-gray-200 rounded-lg p-4 ${preview ? '' : 'hover:bg-gray-50 transition-colors'}`}>
+      <div
+        className={`border border-gray-200 rounded-lg p-4 ${
+          preview ? "" : "hover:bg-gray-50 transition-colors"
+        }`}
+      >
         <div className="flex items-start gap-3">
           {/* File Icon */}
           <div className="flex-shrink-0">
