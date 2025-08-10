@@ -1,43 +1,32 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { UserButton } from "@clerk/nextjs";
 import { AddCardForm } from "./AddCardForm";
 import { CardModal } from "./CardModal";
 import { Card, type CardData, type CardType } from "./Card";
+import { TagContainer } from "./SearchTags";
+import { SearchTypeahead } from "./SearchTypeahead";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import {
-  FileText,
-  Grid3X3,
-  Image as ImageIcon,
-  Link as LinkIcon,
-  Mic,
-  Search,
-  Video,
-} from "lucide-react";
+import { Search } from "lucide-react";
 import { api } from "../convex/_generated/api";
-
-const CARD_TYPE_FILTERS = [
-  { type: null, label: "All", icon: Grid3X3 },
-  { type: "text" as CardType, label: "Text", icon: FileText },
-  { type: "link" as CardType, label: "Links", icon: LinkIcon },
-  { type: "image" as CardType, label: "Images", icon: ImageIcon },
-  { type: "video" as CardType, label: "Videos", icon: Video },
-  { type: "audio" as CardType, label: "Audio", icon: Mic },
-  { type: "document" as CardType, label: "Documents", icon: FileText },
-];
 
 export function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedType, setSelectedType] = useState<CardType | null>(null);
+  const [keywordTags, setKeywordTags] = useState<string[]>([]);
+  const [filterTags, setFilterTags] = useState<CardType[]>([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [editingCard, setEditingCard] = useState<CardData | null>(null);
+  const [showTypeahead, setShowTypeahead] = useState(false);
+  const [typeaheadSelectedIndex, setTypeaheadSelectedIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const cards = useQuery(api.cards.getCards, {
-    type: selectedType || undefined,
+    favoritesOnly: showFavoritesOnly,
   });
 
   const deleteCard = useMutation(api.cards.deleteCard);
+  const toggleFavorite = useMutation(api.cards.toggleFavorite);
 
   const handleDeleteCard = async (cardId: string) => {
     if (confirm("Are you sure you want to delete this card?")) {
@@ -49,29 +38,190 @@ export function Dashboard() {
     }
   };
 
+  const handleToggleFavorite = async (cardId: string) => {
+    try {
+      await toggleFavorite({ id: cardId as any }); // TODO: Fix Convex types
+    } catch (error) {
+      console.error("Failed to toggle favorite:", error);
+    }
+  };
+
   const handleCardClick = (card: CardData) => {
     setEditingCard(card);
   };
-
 
   const handleEditCancel = () => {
     setEditingCard(null);
   };
 
-  const filteredCards =
-    cards?.filter((card) => {
-      if (!searchQuery) return true;
+  const getFilteredTypeaheadOptions = () => {
+    const reservedKeywords = [
+      { value: "text" as CardType, label: "text" },
+      { value: "link" as CardType, label: "links" },
+      { value: "image" as CardType, label: "images" },
+      { value: "video" as CardType, label: "videos" },
+      { value: "audio" as CardType, label: "audios" },
+      { value: "document" as CardType, label: "documents" },
+      { value: "favorites" as const, label: "favorites" },
+    ];
+
+    return reservedKeywords.filter((option) =>
+      option.label.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const filteredOptions = getFilteredTypeaheadOptions();
+
+    if (showTypeahead && filteredOptions.length > 0) {
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setTypeaheadSelectedIndex((prev) =>
+            prev < filteredOptions.length - 1 ? prev + 1 : prev
+          );
+          return;
+        case "ArrowUp":
+          e.preventDefault();
+          setTypeaheadSelectedIndex((prev) => prev > 0 ? prev - 1 : prev);
+          return;
+        case "Enter":
+          e.preventDefault();
+          if (filteredOptions[typeaheadSelectedIndex]) {
+            const selectedOption = filteredOptions[typeaheadSelectedIndex];
+            if (selectedOption.value === "favorites") {
+              setShowFavoritesOnly(true);
+            } else if (!filterTags.includes(selectedOption.value as CardType)) {
+              setFilterTags((
+                prev,
+              ) => [...prev, selectedOption.value as CardType]);
+            }
+            setSearchQuery("");
+            setShowTypeahead(false);
+            setTypeaheadSelectedIndex(0);
+          }
+          return;
+        case "Escape":
+          setShowTypeahead(false);
+          setTypeaheadSelectedIndex(0);
+          return;
+      }
+    }
+
+    if (e.key === "Enter" && searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+
+      // Check if it's a favorites keyword
+      if (
+        ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
+      ) {
+        setShowFavoritesOnly(true);
+        setSearchQuery("");
+        return;
+      }
+
+      // Only add as keyword if typeahead is not showing or has no matches
+      if (!showTypeahead || filteredOptions.length === 0) {
+        if (!keywordTags.includes(query)) {
+          setKeywordTags((prev) => [...prev, query]);
+        }
+        setSearchQuery("");
+      }
+    } else if (
+      e.key === "Backspace" && searchQuery === "" &&
+      (keywordTags.length > 0 || filterTags.length > 0 || showFavoritesOnly)
+    ) {
+      // Remove last tag when backspacing on empty input
+      if (showFavoritesOnly) {
+        setShowFavoritesOnly(false);
+      } else if (filterTags.length > 0) {
+        setFilterTags((prev) => prev.slice(0, -1));
+      } else if (keywordTags.length > 0) {
+        setKeywordTags((prev) => prev.slice(0, -1));
+      }
+    }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+
+    // Show typeahead if typing reserved keyword
+    const filteredOptions = getFilteredTypeaheadOptions();
+    const hasMatch = filteredOptions.length > 0 && value.length > 0;
+    setShowTypeahead(hasMatch);
+    setTypeaheadSelectedIndex(0);
+  };
+
+  const handleTypeaheadSelect = (
+    option: { value: CardType | "favorites"; label: string },
+  ) => {
+    if (option.value === "favorites") {
+      setShowFavoritesOnly(true);
+    } else if (!filterTags.includes(option.value as CardType)) {
+      setFilterTags((prev) => [...prev, option.value as CardType]);
+    }
+    setSearchQuery("");
+    setShowTypeahead(false);
+  };
+
+  const handleRemoveKeyword = (keyword: string) => {
+    setKeywordTags((prev) => prev.filter((tag) => tag !== keyword));
+  };
+
+  const handleRemoveFilter = (filter: CardType) => {
+    setFilterTags((prev) => prev.filter((tag) => tag !== filter));
+  };
+
+  const handleRemoveFavorites = () => {
+    setShowFavoritesOnly(false);
+  };
+
+  const handleClearAllTags = () => {
+    setKeywordTags([]);
+    setFilterTags([]);
+    setShowFavoritesOnly(false);
+  };
+
+  const filteredCards = cards?.filter((card) => {
+    // Filter by keyword tags (OR logic - match any keyword)
+    if (keywordTags.length > 0) {
+      const hasKeywordMatch = keywordTags.some((keyword) =>
+        card.title?.toLowerCase().includes(keyword) ||
+        card.content.toLowerCase().includes(keyword) ||
+        card.description?.toLowerCase().includes(keyword) ||
+        card.tags?.some((tag) => tag.toLowerCase().includes(keyword))
+      );
+      if (!hasKeywordMatch) return false;
+    }
+
+    // Filter by filter tags (must match at least one filter type)
+    if (filterTags.length > 0) {
+      if (!filterTags.includes(card.type)) return false;
+    }
+
+    // Also include current search query for real-time filtering
+    if (searchQuery) {
       const query = searchQuery.toLowerCase();
+      // Check if it's a favorites search
+      if (
+        ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
+      ) {
+        return card.isFavorited === true;
+      }
       return (
         card.title?.toLowerCase().includes(query) ||
         card.content.toLowerCase().includes(query) ||
         card.description?.toLowerCase().includes(query) ||
         card.tags?.some((tag) => tag.toLowerCase().includes(query))
       );
-    }) || [];
+    }
+
+    return true;
+  }) || [];
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div>
       {/* Filters and Search */}
       <div className="mb-6 space-y-4">
         {/* Search and User */}
@@ -79,93 +229,104 @@ export function Dashboard() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
+              ref={inputRef}
               type="text"
-              placeholder="Search your content..."
+              placeholder="Search your content or type filter keywords..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
+              onKeyDown={handleKeyDown}
               className="pl-10"
+            />
+            <SearchTypeahead
+              searchValue={searchQuery}
+              isVisible={showTypeahead}
+              onSelect={handleTypeaheadSelect}
+              onClose={() => {
+                setShowTypeahead(false);
+                setTypeaheadSelectedIndex(0);
+              }}
+              inputRef={inputRef}
+              selectedIndex={typeaheadSelectedIndex}
+              setSelectedIndex={setTypeaheadSelectedIndex}
             />
           </div>
           <UserButton />
         </div>
 
-        {/* Type Filters */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2">
-          {CARD_TYPE_FILTERS.map((filter) => {
-            const Icon = filter.icon;
-            const isActive = selectedType === filter.type;
-            return (
-              <Button
-                key={filter.label}
-                variant={isActive ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedType(filter.type)}
-                className="flex items-center gap-2 whitespace-nowrap"
-              >
-                <Icon className="w-4 h-4" />
-                {filter.label}
-              </Button>
-            );
-          })}
-        </div>
+        {/* Tag Container */}
+        <TagContainer
+          keywordTags={keywordTags}
+          filterTags={filterTags}
+          showFavoritesOnly={showFavoritesOnly}
+          onRemoveKeyword={handleRemoveKeyword}
+          onRemoveFilter={handleRemoveFilter}
+          onRemoveFavorites={handleRemoveFavorites}
+          onClearAll={handleClearAllTags}
+        />
       </div>
 
-      <Separator className="my-4" />
-
       {/* Cards Display */}
-      {filteredCards.length === 0 && !searchQuery && !selectedType ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Add Card Form as first item in grid */}
-          <AddCardForm />
+      {filteredCards.length === 0 && keywordTags.length === 0 &&
+          filterTags.length === 0 && !showFavoritesOnly && !searchQuery
+        ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Add Card Form as first item in grid */}
+            <AddCardForm />
 
-          <div className="text-center py-12 col-span-full">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No content yet
-              </h3>
-              <p className="text-gray-500 mb-4">
-                Start capturing your thoughts, links, and media using the form
-                above
-              </p>
+            <div className="text-center py-12 col-span-full">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No content yet
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  Start capturing your thoughts, links, and media using the form
+                  above
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      ) : filteredCards.length === 0 ? (
-        <div className="text-center py-12">
-          {cards === undefined ? (
-            <p className="text-gray-500">Loading your content...</p>
-          ) : (
-            <div>
-              <p className="text-gray-500 mb-2">
-                No content found matching your filters
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearchQuery("");
-                  setSelectedType(null);
-                }}
-              >
-                Clear filters
-              </Button>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Add Card Form as first item in grid */}
-          <AddCardForm />
+        )
+        : filteredCards.length === 0
+        ? (
+          <div className="text-center py-12">
+            {cards === undefined
+              ? <p className="text-gray-500">Loading your content...</p>
+              : (
+                <div>
+                  <p className="text-gray-500 mb-2">
+                    No content found matching your filters
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setKeywordTags([]);
+                      setFilterTags([]);
+                      setShowFavoritesOnly(false);
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                </div>
+              )}
+          </div>
+        )
+        : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Add Card Form as first item in grid */}
+            <AddCardForm />
 
-          {filteredCards.map((card) => (
-            <Card
-              key={card._id}
-              card={card}
-              onClick={handleCardClick}
-              onDelete={handleDeleteCard}
-            />
-          ))}
-        </div>
-      )}
+            {filteredCards.map((card) => (
+              <Card
+                key={card._id}
+                card={card}
+                onClick={handleCardClick}
+                onDelete={handleDeleteCard}
+                onToggleFavorite={handleToggleFavorite}
+              />
+            ))}
+          </div>
+        )}
 
       {/* Card Modal */}
       <CardModal
@@ -173,6 +334,7 @@ export function Dashboard() {
         open={!!editingCard}
         onCancel={handleEditCancel}
         onDelete={handleDeleteCard}
+        onToggleFavorite={handleToggleFavorite}
       />
     </div>
   );

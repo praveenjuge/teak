@@ -19,6 +19,7 @@ export default defineSchema({
     thumbnailId: v.optional(v.id("_storage")),
     tags: v.optional(v.array(v.string())),
     description: v.optional(v.string()),
+    isFavorited: v.optional(v.boolean()),
     metadata: v.optional(v.object({
       linkTitle: v.optional(v.string()),
       linkDescription: v.optional(v.string()),
@@ -34,5 +35,6 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_type", ["userId", "type"])
+    .index("by_user_favorites", ["userId", "isFavorited"])
     .index("by_created", ["userId", "createdAt"]),
 });

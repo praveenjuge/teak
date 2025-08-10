@@ -1,8 +1,12 @@
+import { ExternalLink, Heart, Trash2 } from "lucide-react";
 import {
-  Trash2,
-  ExternalLink,
-} from "lucide-react";
-import { TextCard, LinkCard, ImageCard, VideoCard, AudioCard, DocumentCard } from "./CardTypes";
+  AudioCard,
+  DocumentCard,
+  ImageCard,
+  LinkCard,
+  TextCard,
+  VideoCard,
+} from "./CardTypes";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -17,7 +21,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export type CardType = "text" | "link" | "image" | "video" | "audio" | "document";
+export type CardType =
+  | "text"
+  | "link"
+  | "image"
+  | "video"
+  | "audio"
+  | "document";
 
 export interface CardData {
   _id: string;
@@ -30,6 +40,7 @@ export interface CardData {
   thumbnailId?: string;
   tags?: string[];
   description?: string;
+  isFavorited?: boolean;
   metadata?: {
     linkTitle?: string;
     linkDescription?: string;
@@ -48,9 +59,10 @@ interface CardProps {
   card: CardData;
   onClick?: (card: CardData) => void;
   onDelete?: (cardId: string) => void;
+  onToggleFavorite?: (cardId: string) => void;
 }
 
-export function Card({ card, onClick, onDelete }: CardProps) {
+export function Card({ card, onClick, onDelete, onToggleFavorite }: CardProps) {
   const handleClick = () => {
     onClick?.(card);
   };
@@ -59,22 +71,34 @@ export function Card({ card, onClick, onDelete }: CardProps) {
     onDelete?.(card._id);
   };
 
+  const handleToggleFavorite = () => {
+    onToggleFavorite?.(card._id);
+  };
+
   const openLink = () => {
     if (card.url) {
-      window.open(card.url, '_blank', 'noopener,noreferrer');
+      window.open(card.url, "_blank", "noopener,noreferrer");
     }
   };
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <UICard 
-          className="hover:shadow-md transition-shadow cursor-pointer p-3" 
+        <UICard
+          className="hover:shadow-md transition-shadow cursor-pointer p-3 relative"
           onClick={handleClick}
         >
+          {card.isFavorited && (
+            <div className="absolute top-2 right-2 z-10">
+              <Heart className="h-4 w-4 fill-red-500 text-red-500" />
+            </div>
+          )}
+
           {card.title && (
             <CardHeader className="p-0 pb-2">
-              <CardTitle className="truncate text-base">{card.title}</CardTitle>
+              <CardTitle className="truncate text-base pr-6">
+                {card.title}
+              </CardTitle>
             </CardHeader>
           )}
 
@@ -84,15 +108,19 @@ export function Card({ card, onClick, onDelete }: CardProps) {
             {card.type === "image" && <ImageCard card={card} />}
             {card.type === "video" && <VideoCard card={card} />}
             {card.type === "audio" && <AudioCard card={card} preview={true} />}
-            {card.type === "document" && <DocumentCard card={card} preview={true} />}
-            
+            {card.type === "document" && (
+              <DocumentCard card={card} preview={true} />
+            )}
+
             {card.description && (
-              <p className="text-muted-foreground text-xs">{card.description}</p>
+              <p className="text-muted-foreground text-xs">
+                {card.description}
+              </p>
             )}
           </CardContent>
         </UICard>
       </ContextMenuTrigger>
-      
+
       <ContextMenuContent className="w-48">
         {card.url && (
           <>
@@ -103,7 +131,19 @@ export function Card({ card, onClick, onDelete }: CardProps) {
             <ContextMenuSeparator />
           </>
         )}
-        <ContextMenuItem onClick={handleDelete} className="text-red-600 focus:text-red-600">
+        <ContextMenuItem onClick={handleToggleFavorite}>
+          <Heart
+            className={`mr-2 h-4 w-4 ${
+              card.isFavorited ? "fill-red-500 text-red-500" : ""
+            }`}
+          />
+          {card.isFavorited ? "Remove from Favorites" : "Add to Favorites"}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onClick={handleDelete}
+          className="text-red-600 focus:text-red-600"
+        >
           <Trash2 className="mr-2 h-4 w-4" />
           Delete
         </ContextMenuItem>

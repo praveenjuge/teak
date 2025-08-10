@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { ExternalLink, Trash2, X } from "lucide-react";
+import { ExternalLink, Heart, Trash2, X } from "lucide-react";
 import { api } from "../convex/_generated/api";
 import type { CardData } from "./Card";
 import {
@@ -23,6 +23,7 @@ interface CardModalProps {
   open: boolean;
   onCancel?: () => void;
   onDelete?: (cardId: string) => void;
+  onToggleFavorite?: (cardId: string) => void;
 }
 
 export function CardModal({
@@ -30,6 +31,7 @@ export function CardModal({
   open,
   onCancel,
   onDelete,
+  onToggleFavorite,
 }: CardModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -53,11 +55,19 @@ export function CardModal({
     }
   }, [card]);
 
-
   const updateCard = useMutation(api.cards.updateCard);
 
-
-  const saveCard = async (updates: Partial<{ title: string; content: string; url: string; tags: string[]; description: string }>) => {
+  const saveCard = async (
+    updates: Partial<
+      {
+        title: string;
+        content: string;
+        url: string;
+        tags: string[];
+        description: string;
+      }
+    >,
+  ) => {
     if (!card) return;
 
     setIsSubmitting(true);
@@ -81,6 +91,12 @@ export function CardModal({
     if (card && confirm("Are you sure you want to delete this card?")) {
       onDelete?.(card._id);
       onCancel?.();
+    }
+  };
+
+  const handleToggleFavorite = () => {
+    if (card) {
+      onToggleFavorite?.(card._id);
     }
   };
 
@@ -156,10 +172,10 @@ export function CardModal({
                 <Textarea
                   value={content}
                   onChange={(e) => {
-                const newContent = e.target.value;
-                setContent(newContent);
-                saveCard({ content: newContent.trim() });
-              }}
+                    const newContent = e.target.value;
+                    setContent(newContent);
+                    saveCard({ content: newContent.trim() });
+                  }}
                   placeholder="Add your notes about this link..."
                   className="mt-1 min-h-[100px]"
                 />
@@ -185,10 +201,10 @@ export function CardModal({
                 <Textarea
                   value={content}
                   onChange={(e) => {
-                const newContent = e.target.value;
-                setContent(newContent);
-                saveCard({ content: newContent.trim() });
-              }}
+                    const newContent = e.target.value;
+                    setContent(newContent);
+                    saveCard({ content: newContent.trim() });
+                  }}
                   placeholder="Add a description for this video..."
                   className="mt-1 min-h-[100px]"
                 />
@@ -201,7 +217,9 @@ export function CardModal({
         return (
           <div className="space-y-4">
             <div className="text-center">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Audio Recording</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Audio Recording
+              </h3>
               <AudioCard card={card} />
             </div>
           </div>
@@ -321,7 +339,9 @@ export function CardModal({
                   onChange={(e) => {
                     const newDescription = e.target.value;
                     setDescription(newDescription);
-                    saveCard({ description: newDescription.trim() || undefined });
+                    saveCard({
+                      description: newDescription.trim() || undefined,
+                    });
                   }}
                   placeholder="Add a description or additional notes..."
                   className="mt-1"
@@ -402,12 +422,24 @@ export function CardModal({
               {/* Action Buttons */}
               <div className="flex gap-2">
                 <Button
+                  variant="outline"
+                  onClick={handleToggleFavorite}
+                  className="flex-1"
+                >
+                  <Heart
+                    className={`w-4 h-4 mr-2 ${
+                      card.isFavorited ? "fill-red-500 text-red-500" : ""
+                    }`}
+                  />
+                  {card.isFavorited ? "Unfavorite" : "Favorite"}
+                </Button>
+                <Button
                   variant="destructive"
                   onClick={handleDelete}
-                  className="w-full"
+                  className="flex-1"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Card
+                  Delete
                 </Button>
               </div>
             </div>
@@ -417,4 +449,3 @@ export function CardModal({
     </Dialog>
   );
 }
-

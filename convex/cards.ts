@@ -56,6 +56,7 @@ export const getCards = query({
       v.literal("audio"),
       v.literal("document")
     )),
+    favoritesOnly: v.optional(v.boolean()),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -73,6 +74,14 @@ export const getCards = query({
         .query("cards")
         .withIndex("by_user_type", (q) => 
           q.eq("userId", user.subject).eq("type", args.type!)
+        );
+    }
+
+    if (args.favoritesOnly) {
+      query = ctx.db
+        .query("cards")
+        .withIndex("by_user_favorites", (q) => 
+          q.eq("userId", user.subject).eq("isFavorited", true)
         );
     }
 
@@ -146,6 +155,35 @@ export const deleteCard = mutation({
     }
 
     return await ctx.db.delete(args.id);
+  },
+});
+
+export const toggleFavorite = mutation({
+  args: {
+    id: v.id("cards"),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      throw new Error("User must be authenticated");
+    }
+
+    const card = await ctx.db.get(args.id);
+    
+    if (!card) {
+      throw new Error("Card not found");
+    }
+    
+    if (card.userId !== user.subject) {
+      throw new Error("Not authorized to update this card");
+    }
+
+    const newFavoriteStatus = !card.isFavorited;
+
+    return await ctx.db.patch(args.id, {
+      isFavorited: newFavoriteStatus,
+      updatedAt: Date.now(),
+    });
   },
 });
 

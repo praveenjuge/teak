@@ -294,12 +294,8 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
   }
 
   return (
-    <Card className="border-dashed hover:border-solid transition-colors cursor-pointer">
+    <Card className="border-dashed">
       <CardContent className="text-center space-y-3">
-        <div className="text-sm font-medium text-muted-foreground mb-3">
-          Add new content
-        </div>
-
         {/* Text Input Form */}
         <form onSubmit={handleTextSubmit} className="space-y-3">
           <div>
