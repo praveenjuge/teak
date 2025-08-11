@@ -10,11 +10,11 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Card as UICard, CardContent } from "@/components/ui/card";
-import { type CardData } from "@/lib/types";
+import { type Doc } from "../convex/_generated/dataModel";
 
 interface CardProps {
-  card: CardData;
-  onClick?: (card: CardData) => void;
+  card: Doc<"cards">;
+  onClick?: (card: Doc<"cards">) => void;
   onDelete?: (cardId: string) => void;
   onRestore?: (cardId: string) => void;
   onPermanentDelete?: (cardId: string) => void;
@@ -101,7 +101,7 @@ export function Card({
 
             {card.type === "image" && (
               <GridImagePreview
-                fileId={card.fileId as Id<"_storage">}
+                fileId={card.fileId}
                 altText={card.title || card.content}
                 width={card.metadata?.width}
                 height={card.metadata?.height}

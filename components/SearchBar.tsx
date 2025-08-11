@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { SearchTypeahead } from "./SearchTypeahead";
 import { UserButton } from "@clerk/nextjs";
-import { type TypeaheadOption } from "@/lib/types";
+import { type TypeaheadOption } from "@/lib/constants";
 
 interface SearchBarProps {
   searchQuery: string;

@@ -2,14 +2,17 @@ import { Masonry } from "react-plock";
 import { AddCardForm } from "./AddCardForm";
 import { Button } from "@/components/ui/button";
 
+import { type Doc } from "../convex/_generated/dataModel";
+import { type CardType } from "@/lib/constants";
+
 interface EmptyStateProps {
-  filteredCards: any[];
+  filteredCards: Doc<"cards">[];
   keywordTags: string[];
-  filterTags: any[];
+  filterTags: CardType[];
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
   searchQuery: string;
-  cards: any;
+  cards: Doc<"cards">[] | undefined;
   onClearFilters: () => void;
 }
 

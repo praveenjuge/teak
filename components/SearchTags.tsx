@@ -1,7 +1,7 @@
 import { Filter, Hash, Heart, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { type CardType } from "@/lib/types";
+import { type CardType, CARD_TYPE_LABELS } from "@/lib/constants";
 import { Card, CardContent } from "./ui/card";
 
 interface KeywordTagProps {
@@ -31,20 +31,12 @@ interface FilterTagProps {
   onRemove: (filter: CardType) => void;
 }
 
-const FILTER_LABELS: Record<CardType, string> = {
-  text: "Text",
-  link: "Links",
-  image: "Images",
-  video: "Videos",
-  audio: "Audio",
-  document: "Documents",
-};
 
 export function FilterTag({ filter, onRemove }: FilterTagProps) {
   return (
     <Badge variant="outline">
       <Filter className="fill-current" />
-      <span>{FILTER_LABELS[filter]}</span>
+      <span>{CARD_TYPE_LABELS[filter]}</span>
       <Button
         size="icon"
         variant="ghost"

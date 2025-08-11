@@ -2,16 +2,16 @@ import { useMemo } from "react";
 import { Masonry } from "react-plock";
 import { AddCardForm } from "./AddCardForm";
 import { Card } from "./Card";
-import { type CardData } from "@/lib/types";
+import { type Doc } from "../convex/_generated/dataModel";
 
 interface MasonryGridProps {
-  filteredCards: CardData[];
+  filteredCards: Doc<"cards">[];
   showTrashOnly: boolean;
-  onCardClick: (card: CardData) => void;
-  onDeleteCard: (cardId: string) => Promise<void>;
-  onRestoreCard: (cardId: string) => Promise<void>;
-  onPermanentDeleteCard: (cardId: string) => Promise<void>;
-  onToggleFavorite: (cardId: string) => Promise<void>;
+  onCardClick: (card: Doc<"cards">) => void;
+  onDeleteCard: (cardId: string) => void;
+  onRestoreCard: (cardId: string) => void;
+  onPermanentDeleteCard: (cardId: string) => void;
+  onToggleFavorite: (cardId: string) => void;
 }
 
 export function MasonryGrid({
@@ -25,7 +25,7 @@ export function MasonryGrid({
 }: MasonryGridProps) {
   const masonryItems = useMemo(() => {
     const items: Array<
-      { type: "addForm" | "card"; data?: CardData; id: string }
+      { type: "addForm" | "card"; data?: Doc<"cards">; id: string }
     > = [];
 
     if (!showTrashOnly) {

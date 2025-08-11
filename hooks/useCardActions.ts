@@ -9,9 +9,9 @@ export function useCardActions() {
   const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
   const toggleFavorite = useMutation(api.cards.toggleFavorite);
 
-  const handleDeleteCard = async (cardId: string) => {
+  const handleDeleteCard = async (cardId: Id<"cards">) => {
     try {
-      await deleteCard({ id: cardId as Id<"cards"> });
+      await deleteCard({ id: cardId });
       toast("Card deleted. Find it by searching 'trash'");
     } catch (error) {
       console.error("Failed to delete card:", error);
@@ -19,9 +19,9 @@ export function useCardActions() {
     }
   };
 
-  const handleRestoreCard = async (cardId: string) => {
+  const handleRestoreCard = async (cardId: Id<"cards">) => {
     try {
-      await restoreCard({ id: cardId as Id<"cards"> });
+      await restoreCard({ id: cardId });
       toast("Card restored");
     } catch (error) {
       console.error("Failed to restore card:", error);
@@ -29,9 +29,9 @@ export function useCardActions() {
     }
   };
 
-  const handlePermanentDeleteCard = async (cardId: string) => {
+  const handlePermanentDeleteCard = async (cardId: Id<"cards">) => {
     try {
-      await permanentDeleteCard({ id: cardId as Id<"cards"> });
+      await permanentDeleteCard({ id: cardId });
       toast("Card permanently deleted");
     } catch (error) {
       console.error("Failed to permanently delete card:", error);
@@ -39,9 +39,9 @@ export function useCardActions() {
     }
   };
 
-  const handleToggleFavorite = async (cardId: string) => {
+  const handleToggleFavorite = async (cardId: Id<"cards">) => {
     try {
-      await toggleFavorite({ id: cardId as Id<"cards"> });
+      await toggleFavorite({ id: cardId });
     } catch (error) {
       console.error("Failed to toggle favorite:", error);
     }

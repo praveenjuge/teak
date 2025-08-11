@@ -6,14 +6,14 @@ import { EmptyState } from "./EmptyState";
 import { TagContainer } from "./SearchTags";
 import { useSearchFilters } from "@/hooks/useSearchFilters";
 import { useCardActions } from "@/hooks/useCardActions";
-import { type CardData } from "@/lib/types";
+import { type Doc, type Id } from "../convex/_generated/dataModel";
 
 export function Dashboard() {
-  const [editingCard, setEditingCard] = useState<CardData | null>(null);
+  const [editingCard, setEditingCard] = useState<Doc<"cards"> | null>(null);
   const searchFilters = useSearchFilters();
   const cardActions = useCardActions();
 
-  const handleCardClick = (card: CardData) => {
+  const handleCardClick = (card: Doc<"cards">) => {
     setEditingCard(card);
   };
 
@@ -73,10 +73,14 @@ export function Dashboard() {
           filteredCards={searchFilters.filteredCards}
           showTrashOnly={searchFilters.showTrashOnly}
           onCardClick={handleCardClick}
-          onDeleteCard={cardActions.handleDeleteCard}
-          onRestoreCard={cardActions.handleRestoreCard}
-          onPermanentDeleteCard={cardActions.handlePermanentDeleteCard}
-          onToggleFavorite={cardActions.handleToggleFavorite}
+          onDeleteCard={(cardId) =>
+            cardActions.handleDeleteCard(cardId as Id<"cards">)}
+          onRestoreCard={(cardId) =>
+            cardActions.handleRestoreCard(cardId as Id<"cards">)}
+          onPermanentDeleteCard={(cardId) =>
+            cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)}
+          onToggleFavorite={(cardId) =>
+            cardActions.handleToggleFavorite(cardId as Id<"cards">)}
         />
       )}
 
@@ -84,10 +88,14 @@ export function Dashboard() {
         card={editingCard}
         open={!!editingCard}
         onCancel={handleEditCancel}
-        onDelete={cardActions.handleDeleteCard}
-        onRestore={cardActions.handleRestoreCard}
-        onPermanentDelete={cardActions.handlePermanentDeleteCard}
-        onToggleFavorite={cardActions.handleToggleFavorite}
+        onDelete={(cardId) =>
+          cardActions.handleDeleteCard(cardId as Id<"cards">)}
+        onRestore={(cardId) =>
+          cardActions.handleRestoreCard(cardId as Id<"cards">)}
+        onPermanentDelete={(cardId) =>
+          cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)}
+        onToggleFavorite={(cardId) =>
+          cardActions.handleToggleFavorite(cardId as Id<"cards">)}
         isTrashMode={searchFilters.showTrashOnly}
       />
     </div>

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { RESERVED_KEYWORDS, type TypeaheadOption } from "@/lib/types";
+import { RESERVED_KEYWORDS, type TypeaheadOption } from "@/lib/constants";
 import { Command, CommandItem, CommandList } from "@/components/ui/command";
 import {
   File,

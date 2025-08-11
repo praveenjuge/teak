@@ -20,8 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { api } from "../convex/_generated/api";
-import { Id } from "../convex/_generated/dataModel";
-import type { CardData } from "@/lib/types";
+import { type Doc } from "../convex/_generated/dataModel";
 
 // Legacy shim removed after migration
 
@@ -75,7 +74,7 @@ function getDocumentIcon(fileName: string, mimeType: string) {
   return <File className="w-10 h-10 text-muted-foreground" />;
 }
 
-function ModalLinkPreview({ card }: { card: CardData }) {
+function ModalLinkPreview({ card }: { card: Doc<"cards"> }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start gap-3">
@@ -111,10 +110,10 @@ function ModalLinkPreview({ card }: { card: CardData }) {
   );
 }
 
-function ModalImagePreview({ card }: { card: CardData }) {
+function ModalImagePreview({ card }: { card: Doc<"cards"> }) {
   const fileUrl = useQuery(
     api.cards.getFileUrl,
-    card.fileId ? { fileId: card.fileId as Id<"_storage"> } : "skip",
+    card.fileId ? { fileId: card.fileId } : "skip",
   );
   if (!fileUrl) return null;
   return (
@@ -129,10 +128,10 @@ function ModalImagePreview({ card }: { card: CardData }) {
   );
 }
 
-function ModalVideoPreview({ card }: { card: CardData }) {
+function ModalVideoPreview({ card }: { card: Doc<"cards"> }) {
   const fileUrl = useQuery(
     api.cards.getFileUrl,
-    card.fileId ? { fileId: card.fileId as Id<"_storage"> } : "skip",
+    card.fileId ? { fileId: card.fileId } : "skip",
   );
   if (!fileUrl) return null;
   return (
@@ -147,10 +146,10 @@ function ModalVideoPreview({ card }: { card: CardData }) {
   );
 }
 
-function ModalAudioPreview({ card }: { card: CardData }) {
+function ModalAudioPreview({ card }: { card: Doc<"cards"> }) {
   const fileUrl = useQuery(
     api.cards.getFileUrl,
-    card.fileId ? { fileId: card.fileId as Id<"_storage"> } : "skip",
+    card.fileId ? { fileId: card.fileId } : "skip",
   );
   if (!fileUrl) return null;
   return (
@@ -163,7 +162,7 @@ function ModalAudioPreview({ card }: { card: CardData }) {
   );
 }
 
-function ModalDocumentPreview({ card }: { card: CardData }) {
+function ModalDocumentPreview({ card }: { card: Doc<"cards"> }) {
   const fileName = card.metadata?.fileName || card.content || "Document";
   const mimeType = card.metadata?.mimeType || "";
   return (
@@ -182,7 +181,7 @@ function ModalDocumentPreview({ card }: { card: CardData }) {
 }
 
 interface CardModalProps {
-  card: CardData | null;
+  card: Doc<"cards"> | null;
   open: boolean;
   onCancel?: () => void;
   onDelete?: (cardId: string) => void;
@@ -243,7 +242,7 @@ export function CardModal({
     setIsSubmitting(true);
     try {
       await updateCard({
-        id: card._id as Id<"cards">,
+        id: card._id,
         ...updates,
       });
     } catch (error) {

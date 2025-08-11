@@ -5,8 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Mic, Square, Upload } from "lucide-react";
 import { api } from "../convex/_generated/api";
-import { Id } from "../convex/_generated/dataModel";
-import type { CardType } from "@/lib/types";
+import type { CardType } from "@/lib/constants";
 
 // File type categorization
 const getFileCardType = (file: File): CardType => {
@@ -162,7 +161,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
       await createCard({
         content: "",
         type: "audio",
-        fileId: storageId as Id<"_storage">,
+        fileId: storageId,
         metadata,
       });
 
@@ -225,7 +224,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
           await createCard({
             content: "",
             type: getFileCardType(file),
-            fileId: storageId as Id<"_storage">,
+            fileId: storageId,
             metadata,
           });
 

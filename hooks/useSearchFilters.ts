@@ -4,7 +4,7 @@ import {
   type CardType,
   RESERVED_KEYWORDS,
   type TypeaheadOption,
-} from "@/lib/types";
+} from "@/lib/constants";
 import { api } from "../convex/_generated/api";
 
 export function useSearchFilters() {
