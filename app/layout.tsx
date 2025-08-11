@@ -4,6 +4,7 @@ import ConvexClientProvider from "@/components/ConvexClientProvider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { shadcn } from "@clerk/themes";
 
 export const metadata: Metadata = {
   title: "Teak",
@@ -17,7 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="text-sm antialiased caret-primary accent-primary selection:bg-primary selection:text-primary-foreground [font-feature-settings:&quot;ss02&quot;,_&quot;ss03&quot;,_&quot;ss04&quot;,_&quot;ss07&quot;,_&quot;ss08&quot;,_&quot;ss09&quot;] [text-rendering:optimizeLegibility] [touch-action:manipulation]">
+      <body className='text-sm antialiased caret-primary accent-primary selection:bg-primary selection:text-primary-foreground [font-feature-settings:"ss02",_"ss03",_"ss04",_"ss07",_"ss08",_"ss09"] [text-rendering:optimizeLegibility] [touch-action:manipulation]'>
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
@@ -28,7 +29,7 @@ export default function RootLayout({
             signInUrl="/login"
             signUpUrl="/register"
             appearance={{
-              theme: "simple",
+              baseTheme: shadcn,
             }}
           >
             <ConvexClientProvider>{children}</ConvexClientProvider>
