@@ -2,13 +2,13 @@
   "name": "teak",
   "version": "0.0.1",
   "scripts": {
-    "dev": "npm-run-all --parallel dev:frontend dev:backend",
-    "dev:frontend": "next dev --turbopack",
-    "dev:backend": "convex dev",
-    "predev": "convex dev --until-success && convex dashboard",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "predev": "convex dev --until-success && convex dashboard",
+    "dev": "npm-run-all --parallel dev:frontend dev:backend",
+    "dev:backend": "convex dev",
+    "dev:frontend": "next dev --turbopack",
+    "lint": "next lint",
+    "start": "next start"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.40.0",
