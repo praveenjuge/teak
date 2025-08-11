@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { cardTypeValidator, metadataValidator } from "./schema";
 
 function getLegacyDescription(
@@ -29,12 +30,19 @@ export const createCard = mutation({
 
     const now = Date.now();
 
-    return await ctx.db.insert("cards", {
+    const cardId = await ctx.db.insert("cards", {
       userId: user.subject,
       ...args,
       createdAt: now,
       updatedAt: now,
     });
+
+    // Schedule AI metadata generation
+    await ctx.scheduler.runAfter(0, internal.ai.generateAiMetadata, {
+      cardId,
+    });
+
+    return cardId;
   },
 });
 
@@ -128,10 +136,19 @@ export const updateCard = mutation({
       throw new Error("Not authorized to update this card");
     }
 
-    return await ctx.db.patch(id, {
+    const result = await ctx.db.patch(id, {
       ...updates,
       updatedAt: Date.now(),
     });
+
+    // If content was updated, regenerate AI metadata
+    if (updates.content !== undefined) {
+      await ctx.scheduler.runAfter(0, internal.ai.generateAiMetadata, {
+        cardId: id,
+      });
+    }
+
+    return result;
   },
 });
 
@@ -308,6 +325,69 @@ export const generateUploadUrl = mutation({
     );
 
     return uploadUrl;
+  },
+});
+
+// Remove specific AI tag from a card
+export const removeAiTag = mutation({
+  args: {
+    cardId: v.id("cards"),
+    tagToRemove: v.string(),
+  },
+  handler: async (ctx, { cardId, tagToRemove }) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      throw new Error("User must be authenticated");
+    }
+
+    const card = await ctx.db.get(cardId);
+    if (!card) {
+      throw new Error("Card not found");
+    }
+
+    if (card.userId !== user.subject) {
+      throw new Error("Not authorized to modify this card");
+    }
+
+    if (!card.aiTags) {
+      return; // No AI tags to remove
+    }
+
+    // Remove the specific tag
+    const updatedAiTags = card.aiTags.filter((tag) => tag !== tagToRemove);
+
+    return await ctx.db.patch(cardId, {
+      aiTags: updatedAiTags.length > 0 ? updatedAiTags : undefined,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// Update AI summary (user can edit it)
+export const updateAiSummary = mutation({
+  args: {
+    cardId: v.id("cards"),
+    newSummary: v.string(),
+  },
+  handler: async (ctx, { cardId, newSummary }) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      throw new Error("User must be authenticated");
+    }
+
+    const card = await ctx.db.get(cardId);
+    if (!card) {
+      throw new Error("Card not found");
+    }
+
+    if (card.userId !== user.subject) {
+      throw new Error("Not authorized to modify this card");
+    }
+
+    return await ctx.db.patch(cardId, {
+      aiSummary: newSummary.trim() || undefined,
+      updatedAt: Date.now(),
+    });
   },
 });
 

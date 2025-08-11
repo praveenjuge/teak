@@ -9,12 +9,15 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import {
   Archive,
+  ChevronDown,
+  ChevronUp,
   Code,
   ExternalLink,
   File,
   FileText,
   Heart,
   RotateCcw,
+  Sparkles,
   Trash,
   Trash2,
   X,
@@ -147,17 +150,46 @@ function ModalVideoPreview({ card }: { card: Doc<"cards"> }) {
 }
 
 function ModalAudioPreview({ card }: { card: Doc<"cards"> }) {
+  const [isTranscriptCollapsed, setIsTranscriptCollapsed] = useState(false);
   const fileUrl = useQuery(
     api.cards.getFileUrl,
     card.fileId ? { fileId: card.fileId } : "skip",
   );
+
   if (!fileUrl) return null;
+
   return (
-    <div className="p-2">
+    <div className="p-2 space-y-4">
       <audio controls className="w-full">
         <source src={fileUrl} type={card.metadata?.mimeType} />
         Your browser does not support the audio element.
       </audio>
+
+      {/* Transcript Section */}
+      {card.transcript && (
+        <div className="border rounded-lg">
+          <button
+            onClick={() => setIsTranscriptCollapsed(!isTranscriptCollapsed)}
+            className="w-full p-3 flex items-center justify-between text-left bg-gray-50 hover:bg-gray-100 rounded-t-lg transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-blue-500" />
+              <span className="font-medium">Transcript</span>
+            </div>
+            {isTranscriptCollapsed
+              ? <ChevronDown className="w-4 h-4" />
+              : <ChevronUp className="w-4 h-4" />}
+          </button>
+
+          {!isTranscriptCollapsed && (
+            <div className="p-3 max-h-64 overflow-y-auto">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                {card.transcript}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -210,6 +242,7 @@ export function CardModal({
   const [tags, setTags] = useState<string[]>(card?.tags || []);
   const [tagInput, setTagInput] = useState("");
   const [notes, setNotes] = useState(card?.notes || "");
+  const [aiSummary, setAiSummary] = useState(card?.aiSummary || "");
 
   // Reset form when card changes
   useEffect(() => {
@@ -220,11 +253,14 @@ export function CardModal({
       setTags(card.tags || []);
       setTagInput("");
       setNotes(card.notes || "");
+      setAiSummary(card.aiSummary || "");
       setIsFavorited(card.isFavorited || false);
     }
   }, [card]);
 
   const updateCard = useMutation(api.cards.updateCard);
+  const removeAiTag = useMutation(api.cards.removeAiTag);
+  const updateAiSummary = useMutation(api.cards.updateAiSummary);
 
   const saveCard = async (
     updates: Partial<
@@ -287,6 +323,30 @@ export function CardModal({
   const openLink = () => {
     if (card?.url) {
       window.open(card.url, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const handleRemoveAiTag = async (tagToRemove: string) => {
+    if (!card) return;
+    try {
+      await removeAiTag({
+        cardId: card._id,
+        tagToRemove,
+      });
+    } catch (error) {
+      console.error("Error removing AI tag:", error);
+    }
+  };
+
+  const handleUpdateAiSummary = async (newSummary: string) => {
+    if (!card) return;
+    try {
+      await updateAiSummary({
+        cardId: card._id,
+        newSummary,
+      });
+    } catch (error) {
+      console.error("Error updating AI summary:", error);
     }
   };
 
@@ -496,6 +556,59 @@ export function CardModal({
               className="mt-1"
             />
           </div>
+
+          {/* AI Tags & Summary */}
+          {(card.aiTags?.length || card.aiSummary) && (
+            <div className="space-y-3">
+              {/* AI Tags */}
+              {card.aiTags && card.aiTags.length > 0 && (
+                <div>
+                  <Label>
+                    Teak Tags
+                  </Label>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {card.aiTags.map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant="outline"
+                      >
+                        <Sparkles className="size-3" />
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAiTag(tag)}
+                          title="Remove AI tag"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* AI Summary */}
+              {card.aiSummary && (
+                <div>
+                  <Label htmlFor="ai-summary">
+                    Teak Summary
+                  </Label>
+                  <Textarea
+                    id="ai-summary"
+                    value={aiSummary}
+                    onChange={(e) => {
+                      const newSummary = e.target.value;
+                      setAiSummary(newSummary);
+                    }}
+                    onBlur={() => handleUpdateAiSummary(aiSummary)}
+                    placeholder="AI generated summary..."
+                    className="mt-1"
+                    rows={3}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           <Separator />
 

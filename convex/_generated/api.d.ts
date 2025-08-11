@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as ai from "../ai.js";
 import type * as cards from "../cards.js";
 import type * as crons from "../crons.js";
 
@@ -25,6 +26,7 @@ import type * as crons from "../crons.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  ai: typeof ai;
   cards: typeof cards;
   crons: typeof crons;
 }>;

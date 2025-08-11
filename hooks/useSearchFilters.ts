@@ -177,7 +177,11 @@ export function useSearchFilters() {
               card.title?.toLowerCase().includes(keyword) ||
               card.content.toLowerCase().includes(keyword) ||
               card.notes?.toLowerCase().includes(keyword) ||
-              card.tags?.some((tag) => tag.toLowerCase().includes(keyword))
+              card.tags?.some((tag) => tag.toLowerCase().includes(keyword)) ||
+              // Include AI-generated fields in search
+              card.aiTags?.some((tag) => tag.toLowerCase().includes(keyword)) ||
+              card.aiSummary?.toLowerCase().includes(keyword) ||
+              card.transcript?.toLowerCase().includes(keyword)
           );
           if (!hasKeywordMatch) return false;
         }
@@ -204,7 +208,11 @@ export function useSearchFilters() {
             card.title?.toLowerCase().includes(query) ||
             card.content.toLowerCase().includes(query) ||
             card.notes?.toLowerCase().includes(query) ||
-            card.tags?.some((tag) => tag.toLowerCase().includes(query))
+            card.tags?.some((tag) => tag.toLowerCase().includes(query)) ||
+            // Include AI-generated fields in search
+            card.aiTags?.some((tag) => tag.toLowerCase().includes(query)) ||
+            card.aiSummary?.toLowerCase().includes(query) ||
+            card.transcript?.toLowerCase().includes(query)
           );
         }
 

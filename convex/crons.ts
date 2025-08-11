@@ -12,4 +12,13 @@ crons.daily(
   {}
 );
 
+// Generate AI metadata for cards that don't have it yet
+// Runs every 6 hours to catch any cards that failed generation
+crons.interval(
+  "ai-metadata-backfill",
+  { hours: 6 },
+  internal.ai.enqueueMissingAiGeneration,
+  {}
+);
+
 export default crons;

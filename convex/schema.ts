@@ -45,6 +45,18 @@ export const cardValidator = v.object({
   isDeleted: v.optional(v.boolean()),
   deletedAt: v.optional(v.number()),
   metadata: metadataValidator,
+  // AI-generated fields
+  aiTags: v.optional(v.array(v.string())),
+  aiSummary: v.optional(v.string()),
+  transcript: v.optional(v.string()),
+  aiGeneratedAt: v.optional(v.number()),
+  aiModelMeta: v.optional(
+    v.object({
+      provider: v.string(),
+      model: v.string(),
+      version: v.optional(v.string()),
+    })
+  ),
   createdAt: v.number(),
   updatedAt: v.number(),
 });
