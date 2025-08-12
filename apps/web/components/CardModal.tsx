@@ -74,6 +74,8 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
   };
 
   const renderPreview = () => {
+    if (!card) return null;
+    
     switch (card.type) {
       case "text":
         return <TextPreview card={card} onContentChange={updateContent} />;

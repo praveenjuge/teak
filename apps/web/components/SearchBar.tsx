@@ -9,7 +9,6 @@ import {
   Heart,
   Trash2,
   X,
-  DotIcon,
   CreditCard,
 } from "lucide-react";
 import { SearchTypeahead } from "./SearchTypeahead";

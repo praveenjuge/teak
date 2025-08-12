@@ -32,8 +32,6 @@ const SkeletonImage = () => (
 
 export function LinkPreview({ card }: LinkPreviewProps) {
   const isLoading = card.metadataStatus === "pending";
-  const hasFailed = card.metadataStatus === "failed";
-  const hasMetadata = card.metadata?.linkTitle || card.metadata?.linkDescription || card.metadata?.linkImage;
 
   return (
     <div className="flex flex-col gap-4">
