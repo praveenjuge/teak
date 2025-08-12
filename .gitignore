@@ -46,3 +46,6 @@ package-lock.json
 # clerk configuration (can include secrets)
 /.clerk/
 bun.lock
+
+apps/web/.next
+apps/web/node_modules

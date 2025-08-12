@@ -1,4 +1,5 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
@@ -13,20 +14,20 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "composite": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
     "baseUrl": ".",
     "paths": {
-      "@teak/shared": ["./packages/shared/src"],
-      "@teak/shared/*": ["./packages/shared/src/*"],
-      "@teak/convex": ["./packages/backend/convex/_generated/api"],
-      "@teak/convex/*": ["./packages/backend/convex/*"]
+      "@/*": ["./*"],
+      "@teak/shared": ["../../packages/shared/src"],
+      "@teak/shared/*": ["../../packages/shared/src/*"],
+      "@teak/convex": ["../../packages/backend/convex/_generated/api"],
+      "@teak/convex/*": ["../../packages/backend/convex/*"]
     }
   },
-  "references": [
-    { "path": "./apps/web" },
-    { "path": "./packages/shared" },
-    { "path": "./packages/backend/convex" }
-  ],
-  "files": [],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }

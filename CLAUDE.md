@@ -6,32 +6,43 @@ code in this repository.
 ## Development Commands
 
 ```bash
+# Install dependencies
+bun install
+
 # Start development (runs both frontend and backend in parallel)
-npm run dev
+bun run dev
 
 # Start frontend only (Next.js with Turbopack)
-npm run dev:frontend
+bun run dev:frontend
 
 # Start Convex backend only
-npm run dev:backend
+bun run dev:backend
 
 # Initialize Convex dev environment and open dashboard
-npm run predev
+bun run predev
 
 # Build production
-npm run build
+bun run build
 
 # Start production server
-npm run start
+bun run start
 
 # Run linting
-npm run lint
+bun run lint
+
+# Add new dependencies
+bun add <package-name>
+
+# Add dev dependencies
+bun add --dev <package-name>
+
+# Remove dependencies
+bun remove <package-name>
 ```
 
 ## Architecture Overview
 
-Teak is a card management application built with a modern full-stack
-architecture:
+Teak is a card management application built with a modern monorepo architecture:
 
 ### Core Stack
 
@@ -40,6 +51,20 @@ architecture:
 - **Authentication**: Clerk with JWT integration
 - **UI Components**: shadcn/ui with Radix primitives
 - **File Storage**: Convex Storage for user uploads
+
+### Monorepo Structure
+
+```
+teak-convex-nextjs/
+├── apps/
+│   ├── web/              # Next.js frontend app
+│   └── mobile/           # Future Expo mobile app
+├── packages/
+│   ├── shared/           # Shared utilities, constants, types
+│   └── backend/          # Backend services and configuration
+│       └── convex/       # Convex functions and database
+└── package.json          # Root workspace configuration
+```
 
 ### Key Architecture Patterns
 
@@ -57,6 +82,12 @@ architecture:
 3. Convex functions handle all server-side logic with automatic auth context
 4. Real-time updates propagate automatically to connected clients
 
+#### Import Structure
+
+- **Convex API**: `import { api } from "@teak/convex"`
+- **Convex Types**: `import { Doc } from "@teak/convex/_generated/dataModel"`
+- **Shared Constants**: `import { CARD_TYPES } from "@teak/shared/constants"`
+
 ## Card Management Domain
 
 The application centers around a flexible card system:
@@ -70,7 +101,7 @@ The application centers around a flexible card system:
 - `audio`: Audio recordings
 - `document`: File attachments
 
-### Card Schema (convex/schema.ts)
+### Card Schema (packages/backend/convex/schema.ts)
 
 - User-scoped with `userId` field
 - Soft deletion with `isDeleted` and `deletedAt`
@@ -87,33 +118,50 @@ The application centers around a flexible card system:
 
 ## Project Structure
 
-### Frontend (Next.js App Router)
+### Frontend (apps/web/)
 
 ```
-app/
-├── (auth)/           # Authentication routes
-├── globals.css       # Global styles with custom CSS variables
-├── layout.tsx        # Root layout with providers
-└── page.tsx          # Main dashboard page
-
-components/
-├── ui/               # shadcn/ui components
-├── patterns/         # Background pattern components
-├── Dashboard.tsx     # Main dashboard orchestrator
-├── CardModal.tsx     # Card editing/viewing modal
-├── MasonryGrid.tsx   # Card display grid
-└── AddCardForm.tsx   # Card creation form
+apps/web/
+├── app/
+│   ├── (auth)/           # Authentication routes
+│   ├── globals.css       # Global styles with custom CSS variables
+│   ├── layout.tsx        # Root layout with providers
+│   └── page.tsx          # Main dashboard page
+├── components/
+│   ├── ui/               # shadcn/ui components
+│   ├── patterns/         # Background pattern components
+│   ├── Dashboard.tsx     # Main dashboard orchestrator
+│   ├── CardModal.tsx     # Card editing/viewing modal
+│   ├── MasonryGrid.tsx   # Card display grid
+│   └── AddCardForm.tsx   # Card creation form
+├── hooks/                # Custom React hooks
+└── package.json          # Web app dependencies
 ```
 
-### Backend (Convex)
+### Backend (packages/backend/)
 
 ```
-convex/
-├── _generated/       # Auto-generated Convex types
-├── schema.ts         # Database schema definitions
-├── cards.ts          # Card CRUD operations
-├── auth.config.ts    # Clerk authentication config
-└── crons.ts          # Scheduled cleanup jobs
+packages/backend/
+├── convex/
+│   ├── _generated/   # Auto-generated Convex types
+│   ├── schema.ts     # Database schema definitions
+│   ├── cards.ts      # Card CRUD operations
+│   ├── auth.config.ts # Clerk authentication config
+│   ├── crons.ts      # Scheduled cleanup jobs
+│   └── package.json  # Convex package config
+├── .env.local        # Backend environment variables
+└── package.json      # Backend workspace config
+```
+
+### Shared Code (packages/shared/)
+
+```
+packages/shared/
+├── src/
+│   ├── constants.ts  # Shared constants and types
+│   ├── utils.ts      # Shared utility functions
+│   └── index.ts      # Package exports
+└── package.json      # Shared package config
 ```
 
 ## Authentication Flow
@@ -142,12 +190,20 @@ Implemented in `useSearchFilters` hook:
 
 ## Development Notes
 
+### Monorepo Specifics
+
+- **Workspaces**: npm workspaces manage dependencies across packages
+- **TypeScript**: Project references for efficient compilation
+- **Imports**: Use `@teak/convex` and `@teak/shared` workspace packages
+- **Scripts**: Run from root with workspace targeting
+
 ### Convex Specifics
 
 - Functions are deployed automatically on save during development
 - Schema changes require database migrations
 - Use indexes for efficient queries (defined in schema.ts)
 - Scheduled functions run via crons.ts
+- Config located at `packages/backend/convex/convex.config.ts`
 
 ### Component Patterns
 

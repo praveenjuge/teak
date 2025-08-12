@@ -1,0 +1,13 @@
+{
+  "name": "@teak/backend",
+  "version": "0.0.1",
+  "description": "Backend services and configuration for Teak",
+  "dependencies": {
+    "convex": "^1.25.4",
+    "@convex-dev/polar": "^0.6.2",
+    "@ai-sdk/openai": "^2.0.9",
+    "ai": "^5.0.9",
+    "zod": "^3.25.76",
+    "@teak/shared": "file:../../packages/shared"
+  }
+}
