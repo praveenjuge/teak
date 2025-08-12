@@ -1,14 +1,48 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 import { cardTypeValidator, metadataValidator } from "./schema";
+import { FREE_TIER_LIMIT } from "../lib/constants";
 
-function getLegacyDescription(
-  card: Record<string, unknown>
-): string | undefined {
-  const value = (card as { description?: unknown }).description;
-  return typeof value === "string" ? value : undefined;
-}
+export const getCardCount = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      return 0;
+    }
+
+    const cards = await ctx.db
+      .query("cards")
+      .withIndex("by_user_deleted", (q) =>
+        q.eq("userId", user.subject).eq("isDeleted", undefined)
+      )
+      .collect();
+
+    return cards.length;
+  },
+});
+
+export const canCreateCard = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      return false;
+    }
+
+    // Get current card count
+    const cardCount = await ctx.db
+      .query("cards")
+      .withIndex("by_user_deleted", (q) =>
+        q.eq("userId", user.subject).eq("isDeleted", undefined)
+      )
+      .collect();
+
+    // Return true if user has less than FREE_TIER_LIMIT cards (free tier limit)
+    return cardCount.length < FREE_TIER_LIMIT;
+  },
+});
 
 export const createCard = mutation({
   args: {
@@ -26,6 +60,23 @@ export const createCard = mutation({
     const user = await ctx.auth.getUserIdentity();
     if (!user) {
       throw new Error("User must be authenticated");
+    }
+
+    // Check if user can create a card (respects free tier limits)
+    const cardCount = await ctx.db
+      .query("cards")
+      .withIndex("by_user_deleted", (q) =>
+        q.eq("userId", user.subject).eq("isDeleted", undefined)
+      )
+      .collect();
+
+    // For free users, enforce the FREE_TIER_LIMIT card limit
+    if (cardCount.length >= FREE_TIER_LIMIT) {
+      // Need to check if user has premium - use the existing userHasPremium query
+      const hasPremium = await ctx.runQuery(api.polar.userHasPremium);
+      if (!hasPremium) {
+        throw new Error("Card limit reached. Please upgrade to Pro for unlimited cards.");
+      }
     }
 
     const now = Date.now();
@@ -273,34 +324,6 @@ export const toggleFavorite = mutation({
       isFavorited: newFavoriteStatus,
       updatedAt: Date.now(),
     });
-  },
-});
-
-// One-time migration: copy legacy `description` into `notes` if present
-export const migrateDescriptionToNotes = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const cards = await ctx.db.query("cards").collect();
-    let updatedCount = 0;
-    for (const card of cards) {
-      const legacyDescription = getLegacyDescription(
-        card as unknown as Record<string, unknown>
-      );
-      const needsCopy = legacyDescription && !card.notes;
-      const hasLegacyField = Object.prototype.hasOwnProperty.call(
-        card as Record<string, unknown>,
-        "description"
-      );
-      if (needsCopy || hasLegacyField) {
-        const patch: any = {};
-        if (needsCopy) patch.notes = legacyDescription;
-        // Signal removal of legacy field (Convex removes optional fields set to undefined)
-        patch.description = undefined;
-        await ctx.db.patch(card._id, patch);
-        if (needsCopy) updatedCount += 1;
-      }
-    }
-    return { updated: updatedCount };
   },
 });
 

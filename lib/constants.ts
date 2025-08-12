@@ -4,6 +4,13 @@ import { cardTypes } from "../convex/schema";
 
 export type CardType = (typeof cardTypes)[number];
 
+// === App Configuration Constants ===
+
+/**
+ * Maximum number of cards allowed for free tier users
+ */
+export const FREE_TIER_LIMIT = 25;
+
 /**
  * All card types as readonly array
  */
@@ -14,7 +21,7 @@ export const CARD_TYPES = [...cardTypes] as readonly CardType[];
  */
 export const CARD_TYPE_LABELS: Record<CardType, string> = {
   text: "Text",
-  link: "Links", 
+  link: "Links",
   image: "Images",
   video: "Videos",
   audio: "Audio",
@@ -26,7 +33,7 @@ export const CARD_TYPE_LABELS: Record<CardType, string> = {
  */
 export const CARD_TYPE_ICONS: Record<CardType, string> = {
   text: "FileText",
-  link: "Link", 
+  link: "Link",
   image: "Image",
   video: "Video",
   audio: "Volume2",

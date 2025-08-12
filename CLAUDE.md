@@ -98,7 +98,7 @@ app/
 
 components/
 ├── ui/               # shadcn/ui components
-├── patterns/         # Background pattern components  
+├── patterns/         # Background pattern components
 ├── Dashboard.tsx     # Main dashboard orchestrator
 ├── CardModal.tsx     # Card editing/viewing modal
 ├── MasonryGrid.tsx   # Card display grid

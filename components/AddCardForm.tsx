@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,21 +20,23 @@ const getFileCardType = (file: File): CardType => {
 };
 
 // Get image dimensions
-const getImageDimensions = (file: File): Promise<{ width: number; height: number }> => {
+const getImageDimensions = (
+  file: File
+): Promise<{ width: number; height: number }> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
-    
+
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
       resolve({ width: img.naturalWidth, height: img.naturalHeight });
     };
-    
+
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      reject(new Error('Failed to load image'));
+      reject(new Error("Failed to load image"));
     };
-    
+
     img.src = objectUrl;
   });
 };
@@ -49,7 +51,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
   const [recordingTime, setRecordingTime] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [uploadingType, setUploadingType] = useState<"none" | "audio" | "file">(
-    "none",
+    "none"
   );
 
   // Form data
@@ -58,6 +60,12 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
 
   const createCard = useMutation(api.cards.createCard);
   const generateUploadUrl = useMutation(api.cards.generateUploadUrl);
+  const canCreateCardBasic = useQuery(api.cards.canCreateCard);
+  const cardCount = useQuery(api.cards.getCardCount);
+  const isSubscribed = useQuery(api.polar.userHasPremium);
+
+  // Combine subscription status with basic card limit check
+  const canCreateCard = !!isSubscribed || !!canCreateCardBasic;
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -118,7 +126,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
     } catch (err) {
       console.error("Error starting recording:", err);
       setError(
-        "Failed to start recording. Please check your microphone permissions.",
+        "Failed to start recording. Please check your microphone permissions."
       );
     }
   };
@@ -173,7 +181,11 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
       onSuccess?.();
     } catch (error) {
       console.error("Failed to auto-save audio:", error);
-      setError("Failed to save audio recording.");
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to save audio recording";
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
       setUploadingType("none");
@@ -231,7 +243,9 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
           onSuccess?.();
         } catch (error) {
           console.error("Failed to auto-save file:", error);
-          setError("Failed to upload file.");
+          const errorMessage =
+            error instanceof Error ? error.message : "Failed to upload file";
+          setError(errorMessage);
         } finally {
           setIsSubmitting(false);
           setUploadingType("none");
@@ -284,6 +298,9 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
       onSuccess?.();
     } catch (error) {
       console.error("Failed to create card:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create card";
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -350,8 +367,13 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
             ref={textareaRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Write or paste a link..."
+            placeholder={
+              canCreateCard === false
+                ? "Card limit reached. Upgrade to Pro for unlimited cards."
+                : "Write or paste a link..."
+            }
             className="min-h-[80px] flex-1 h-full resize-none border-0 shadow-none rounded-none p-4 focus-visible:outline-none focus-visible:ring-0"
+            disabled={canCreateCard === false}
           />
 
           {/* Action Buttons Row */}
@@ -362,7 +384,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
                 variant="outline"
                 size="sm"
                 onClick={handleFileUpload}
-                disabled={isSubmitting}
+                disabled={isSubmitting || canCreateCard === false}
               >
                 <Upload />
               </Button>
@@ -372,7 +394,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
                 variant="outline"
                 size="sm"
                 onClick={startRecording}
-                disabled={isSubmitting}
+                disabled={isSubmitting || canCreateCard === false}
               >
                 <Mic />
               </Button>
@@ -380,7 +402,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
             {content.trim() && (
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || canCreateCard === false}
                 size="sm"
               >
                 {isSubmitting ? "Saving..." : "Save"}
