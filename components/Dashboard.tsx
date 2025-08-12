@@ -3,7 +3,6 @@ import { CardModal } from "./CardModal";
 import { SearchBar } from "./SearchBar";
 import { MasonryGrid } from "./MasonryGrid";
 import { EmptyState } from "./EmptyState";
-import { TagContainer } from "./SearchTags";
 import { useSearchFilters } from "@/hooks/useSearchFilters";
 import { useCardActions } from "@/hooks/useCardActions";
 import { type Doc, type Id } from "../convex/_generated/dataModel";
@@ -43,9 +42,6 @@ export function Dashboard() {
         }}
         typeaheadSelectedIndex={searchFilters.typeaheadSelectedIndex}
         setTypeaheadSelectedIndex={searchFilters.setTypeaheadSelectedIndex}
-      />
-
-      <TagContainer
         keywordTags={searchFilters.keywordTags}
         filterTags={searchFilters.filterTags}
         showFavoritesOnly={searchFilters.showFavoritesOnly}

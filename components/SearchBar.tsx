@@ -1,9 +1,15 @@
 import { useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Search, Filter, Hash, Heart, Trash2, X } from "lucide-react";
 import { SearchTypeahead } from "./SearchTypeahead";
 import { UserButton } from "@clerk/nextjs";
-import { type TypeaheadOption } from "@/lib/constants";
+import {
+  type TypeaheadOption,
+  type CardType,
+  CARD_TYPE_LABELS,
+} from "@/lib/constants";
 
 interface SearchBarProps {
   searchQuery: string;
@@ -14,6 +20,15 @@ interface SearchBarProps {
   onTypeaheadClose: () => void;
   typeaheadSelectedIndex: number;
   setTypeaheadSelectedIndex: (index: number) => void;
+  keywordTags: string[];
+  filterTags: CardType[];
+  showFavoritesOnly: boolean;
+  showTrashOnly: boolean;
+  onRemoveKeyword: (keyword: string) => void;
+  onRemoveFilter: (filter: CardType) => void;
+  onRemoveFavorites: () => void;
+  onRemoveTrash: () => void;
+  onClearAll: () => void;
 }
 
 export function SearchBar({
@@ -25,21 +40,107 @@ export function SearchBar({
   onTypeaheadClose,
   typeaheadSelectedIndex,
   setTypeaheadSelectedIndex,
+  keywordTags,
+  filterTags,
+  showFavoritesOnly,
+  showTrashOnly,
+  onRemoveKeyword,
+  onRemoveFilter,
+  onRemoveFavorites,
+  onRemoveTrash,
+  onClearAll,
 }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const hasAnyTags =
+    keywordTags.length > 0 ||
+    filterTags.length > 0 ||
+    showFavoritesOnly ||
+    showTrashOnly;
+
   return (
-    <div className="flex items-center gap-4 h-14">
-      <div className="relative flex-1 h-full">
-        <Search className="absolute left-0 top-1/2 transform -translate-y-1/2 text-muted-foreground size-4 select-auto pointer-events-none" />
+    <div className="flex items-center h-14">
+      <div className="flex items-center gap-2">
+        <Search className="text-muted-foreground size-4" />
+
+        {keywordTags.map((keyword) => (
+          <Badge
+            key={keyword}
+            variant="outline"
+            className="flex items-center gap-1"
+          >
+            <Hash className="size-3" />
+            <span>{keyword}</span>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-4 p-0"
+              onClick={() => onRemoveKeyword(keyword)}
+            >
+              <X className="size-3" />
+            </Button>
+          </Badge>
+        ))}
+
+        {filterTags.map((filter) => (
+          <Badge
+            key={filter}
+            variant="outline"
+            className="flex items-center gap-1"
+          >
+            <Filter className="size-3 fill-current" />
+            <span>{CARD_TYPE_LABELS[filter]}</span>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-4 p-0"
+              onClick={() => onRemoveFilter(filter)}
+            >
+              <X className="size-3" />
+            </Button>
+          </Badge>
+        ))}
+
+        {showFavoritesOnly && (
+          <Badge variant="destructive" className="flex items-center gap-1">
+            <Heart className="size-3 fill-current" />
+            <span>Favorites</span>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-4 p-0"
+              onClick={onRemoveFavorites}
+            >
+              <X className="size-3" />
+            </Button>
+          </Badge>
+        )}
+
+        {showTrashOnly && (
+          <Badge variant="outline" className="flex items-center gap-1">
+            <Trash2 className="size-3" />
+            <span>Trash</span>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-4 p-0"
+              onClick={onRemoveTrash}
+            >
+              <X className="size-3" />
+            </Button>
+          </Badge>
+        )}
+      </div>
+
+      <div className="relative flex-1">
         <Input
           ref={inputRef}
-          type="search"
+          type="text"
           placeholder="Search for anything..."
           value={searchQuery}
           onChange={onSearchChange}
           onKeyDown={onKeyDown}
-          className="pl-7 rounded-none border-0 w-full focus-visible:outline-none focus-visible:ring-0 h-full"
+          className="border-0 focus-visible:outline-none focus-visible:ring-0 h-14 rounded-none"
           autoCapitalize="off"
           autoCorrect="off"
         />
@@ -53,6 +154,18 @@ export function SearchBar({
           setSelectedIndex={setTypeaheadSelectedIndex}
         />
       </div>
+
+      {hasAnyTags && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onClearAll}
+          className="mr-3"
+        >
+          Clear
+        </Button>
+      )}
+
       <UserButton />
     </div>
   );
