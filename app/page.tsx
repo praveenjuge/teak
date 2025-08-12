@@ -2,7 +2,6 @@
 
 import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
 import { Dashboard } from "@/components/Dashboard";
-import { Loader2Icon } from "lucide-react";
 import { RedirectToSignIn } from "@clerk/clerk-react";
 import { Loading } from "@/components/Loading";
 
