@@ -159,5 +159,4 @@ Implemented in `useSearchFilters` hook:
 ### State Management
 
 - Convex handles all server state automatically
-- Local UI state managed with React hooks
 - Real-time updates without additional setup
