@@ -44,6 +44,7 @@ export const cardValidator = v.object({
   isDeleted: v.optional(v.boolean()),
   deletedAt: v.optional(v.number()),
   metadata: metadataValidator,
+  metadataStatus: v.optional(v.union(v.literal("pending"), v.literal("completed"), v.literal("failed"))),
   // AI-generated fields
   aiTags: v.optional(v.array(v.string())),
   aiSummary: v.optional(v.string()),

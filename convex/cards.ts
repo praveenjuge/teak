@@ -80,17 +80,29 @@ export const createCard = mutation({
 
     const now = Date.now();
 
-    const cardId = await ctx.db.insert("cards", {
+    // Set initial metadataStatus for link cards
+    const cardData = {
       userId: user.subject,
       ...args,
       createdAt: now,
       updatedAt: now,
-    });
+      // Set pending status for link cards that need metadata extraction
+      ...(args.type === "link" && { metadataStatus: "pending" as const }),
+    };
+
+    const cardId = await ctx.db.insert("cards", cardData);
 
     // Schedule AI metadata generation
     await ctx.scheduler.runAfter(0, internal.ai.generateAiMetadata, {
       cardId,
     });
+
+    // Schedule link metadata extraction for link cards
+    if (args.type === "link") {
+      await ctx.scheduler.runAfter(0, internal.linkMetadata.extractLinkMetadata, {
+        cardId,
+      });
+    }
 
     return cardId;
   },
@@ -473,27 +485,27 @@ export const updateCardField = mutation({
           ctx.scheduler.runAfter(0, internal.ai.generateAiMetadata, { cardId });
         }
         break;
-      
+
       case "url":
         updateData.url = typeof value === "string" ? value.trim() || undefined : value;
         break;
-      
+
       case "notes":
         updateData.notes = typeof value === "string" ? value.trim() || undefined : value;
         break;
-      
+
       case "tags":
         updateData.tags = Array.isArray(value) && value.length > 0 ? value : undefined;
         break;
-      
+
       case "aiSummary":
         updateData.aiSummary = typeof value === "string" ? value.trim() || undefined : value;
         break;
-      
+
       case "isFavorited":
         updateData.isFavorited = !card.isFavorited;
         break;
-      
+
       case "removeAiTag":
         if (!tagToRemove || !card.aiTags) {
           return card; // No-op if no tag to remove or no AI tags
@@ -501,7 +513,7 @@ export const updateCardField = mutation({
         const updatedAiTags = card.aiTags.filter((tag) => tag !== tagToRemove);
         updateData.aiTags = updatedAiTags.length > 0 ? updatedAiTags : undefined;
         break;
-      
+
       default:
         throw new Error(`Unsupported field: ${field}`);
     }

@@ -61,7 +61,6 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
   const createCard = useMutation(api.cards.createCard);
   const generateUploadUrl = useMutation(api.cards.generateUploadUrl);
   const canCreateCardBasic = useQuery(api.cards.canCreateCard);
-  const cardCount = useQuery(api.cards.getCardCount);
   const isSubscribed = useQuery(api.polar.userHasPremium);
 
   // Combine subscription status with basic card limit check

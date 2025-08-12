@@ -12,6 +12,7 @@ import type * as ai from "../ai.js";
 import type * as cards from "../cards.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
+import type * as linkMetadata from "../linkMetadata.js";
 import type * as polar from "../polar.js";
 
 import type {
@@ -33,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   cards: typeof cards;
   crons: typeof crons;
   http: typeof http;
+  linkMetadata: typeof linkMetadata;
   polar: typeof polar;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
