@@ -27,7 +27,15 @@ export default function Payments() {
   return (
     <div className="container mx-auto p-6 max-w-2xl space-y-6">
       <div className="space-y-2">
-        <Link href="/">Go Back</Link>
+        <Link
+          href="/"
+          className={buttonVariants({
+            variant: "outline",
+            size: "sm",
+          })}
+        >
+          ← Go Back
+        </Link>
         <h1 className="text-2xl font-bold">Subscription Status</h1>
         {isSubscribed ? (
           <Badge>Pro Plan</Badge>

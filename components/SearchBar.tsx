@@ -2,7 +2,16 @@ import { useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Hash, Heart, Trash2, X } from "lucide-react";
+import {
+  Search,
+  Filter,
+  Hash,
+  Heart,
+  Trash2,
+  X,
+  DotIcon,
+  CreditCard,
+} from "lucide-react";
 import { SearchTypeahead } from "./SearchTypeahead";
 import { UserButton } from "@clerk/nextjs";
 import {
@@ -166,7 +175,15 @@ export function SearchBar({
         </Button>
       )}
 
-      <UserButton />
+      <UserButton>
+        <UserButton.MenuItems>
+          <UserButton.Link
+            label="Subscription & Billing"
+            labelIcon={<CreditCard className="size-3.5 stroke-2 mt-0.5" />}
+            href="/subscription"
+          />
+        </UserButton.MenuItems>
+      </UserButton>
     </div>
   );
 }
