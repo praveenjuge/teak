@@ -99,11 +99,22 @@ export const updateCardMetadata = internalMutation({
       ...metadata,
     };
 
-    return await ctx.db.patch(cardId, {
+    // Also populate the flattened metadata fields for search indexing
+    const updateFields: any = {
       metadata: updatedMetadata,
       metadataStatus: status,
       updatedAt: Date.now(),
-    });
+    };
+
+    // Extract title and description for search indexes
+    if (metadata.linkTitle) {
+      updateFields.metadataTitle = metadata.linkTitle;
+    }
+    if (metadata.linkDescription) {
+      updateFields.metadataDescription = metadata.linkDescription;
+    }
+
+    return await ctx.db.patch(cardId, updateFields);
   },
 });
 
@@ -115,7 +126,7 @@ export const extractLinkMetadata = internalAction({
     try {
       // Get card data
       const card = await ctx.runQuery(internal.linkMetadata.getCardForMetadata, { cardId });
-      
+
       if (!card || card.type !== "link" || !card.url) {
         console.error(`Card ${cardId} is not a valid link card`);
         await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
@@ -125,9 +136,9 @@ export const extractLinkMetadata = internalAction({
         });
         return;
       }
-      
+
       console.log(`Extracting metadata for card ${cardId}, URL: ${card.url}`);
-      
+
       // Normalize URL
       const normalizedUrl = normalizeUrl(card.url);
       const baseUrl = getBaseUrl(normalizedUrl);

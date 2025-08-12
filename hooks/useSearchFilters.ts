@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "convex/react";
 import {
   type CardType,
@@ -16,16 +16,23 @@ export function useSearchFilters() {
   const [showTypeahead, setShowTypeahead] = useState(false);
   const [typeaheadSelectedIndex, setTypeaheadSelectedIndex] = useState(0);
 
-  const deletedCards = useQuery(
-    api.cards.getDeletedCards,
-    showTrashOnly ? {} : "skip"
-  );
-  const regularCards = useQuery(
-    api.cards.getCards,
-    showTrashOnly ? "skip" : { favoritesOnly: showFavoritesOnly }
-  );
+  // Build search query for server-side filtering
+  const searchTerms = [
+    ...keywordTags,
+    ...(searchQuery.trim() ? [searchQuery.trim()] : [])
+  ].join(" ");
 
-  const cards = showTrashOnly ? deletedCards : regularCards;
+  // Use new server-side search query
+  const cards = useQuery(api.cards.searchCards, {
+    searchQuery: searchTerms || undefined,
+    types: filterTags.length > 0 ? filterTags : undefined,
+    favoritesOnly: showFavoritesOnly || undefined,
+    showTrashOnly: showTrashOnly || undefined,
+    limit: 100,
+  });
+
+  // Server handles all filtering, so filteredCards is just cards
+  const filteredCards = cards || [];
 
   const getFilteredTypeaheadOptions = () => {
     return RESERVED_KEYWORDS.filter((option) =>
@@ -168,58 +175,6 @@ export function useSearchFilters() {
     setShowTrashOnly(false);
   };
 
-  const filteredCards = useMemo(() => {
-    return (
-      cards?.filter((card) => {
-        if (keywordTags.length > 0) {
-          const hasKeywordMatch = keywordTags.some(
-            (keyword) =>
-              card.metadata?.linkTitle?.toLowerCase().includes(keyword) ||
-              card.content.toLowerCase().includes(keyword) ||
-              card.notes?.toLowerCase().includes(keyword) ||
-              card.tags?.some((tag) => tag.toLowerCase().includes(keyword)) ||
-              // Include AI-generated fields in search
-              card.aiTags?.some((tag) => tag.toLowerCase().includes(keyword)) ||
-              card.aiSummary?.toLowerCase().includes(keyword) ||
-              card.transcript?.toLowerCase().includes(keyword)
-          );
-          if (!hasKeywordMatch) return false;
-        }
-
-        if (filterTags.length > 0) {
-          if (!filterTags.includes(card.type)) return false;
-        }
-
-        if (searchQuery) {
-          const query = searchQuery.toLowerCase();
-          if (
-            ["fav", "favs", "favorites", "favourite", "favourites"].includes(
-              query
-            )
-          ) {
-            return card.isFavorited === true;
-          }
-          if (
-            ["trash", "deleted", "bin", "recycle", "trashed"].includes(query)
-          ) {
-            return card.isDeleted === true;
-          }
-          return (
-            card.metadata?.linkTitle?.toLowerCase().includes(query) ||
-            card.content.toLowerCase().includes(query) ||
-            card.notes?.toLowerCase().includes(query) ||
-            card.tags?.some((tag) => tag.toLowerCase().includes(query)) ||
-            // Include AI-generated fields in search
-            card.aiTags?.some((tag) => tag.toLowerCase().includes(query)) ||
-            card.aiSummary?.toLowerCase().includes(query) ||
-            card.transcript?.toLowerCase().includes(query)
-          );
-        }
-
-        return true;
-      }) || []
-    );
-  }, [cards, keywordTags, filterTags, searchQuery]);
 
   return {
     searchQuery,

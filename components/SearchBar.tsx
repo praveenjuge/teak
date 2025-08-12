@@ -144,7 +144,7 @@ export function SearchBar({
       <div className="relative flex-1">
         <Input
           ref={inputRef}
-          type="text"
+          type="search"
           placeholder="Search for anything..."
           value={searchQuery}
           onChange={onSearchChange}

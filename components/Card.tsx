@@ -24,8 +24,8 @@ interface CardProps {
 
 // Simple seeded random function for consistent wave patterns
 function seededRandom(seed: string, index: number): number {
-  const hash = seed.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0);
+  const hash = seed.split("").reduce((a, b) => {
+    a = (a << 5) - a + b.charCodeAt(0);
     return a & a;
   }, index);
   return Math.abs(Math.sin(hash)) * 0.6 + 0.2; // Returns value between 0.2 and 0.8
@@ -88,23 +88,23 @@ export function Card({
             )}
 
             {card.type === "link" && (
-              <div className="space-y-2 p-4">
-                <h4 className="font-medium line-clamp-1">
-                  {card.metadata?.linkTitle || "Link"}
-                </h4>
-                {card.url && (
-                  <p className="text-muted-foreground truncate">
-                    {card.url}
-                  </p>
-                )}
+              <div>
                 {card.metadata?.linkImage && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={card.metadata.linkImage}
                     alt=""
-                    className="w-full h-28 object-cover rounded"
+                    className="w-full h-28 object-cover"
                   />
                 )}
+                <div className="p-4">
+                  <h4 className="font-medium line-clamp-1">
+                    {card.metadata?.linkTitle || "Link"}
+                  </h4>
+                  {card.url && (
+                    <p className="text-muted-foreground truncate">{card.url}</p>
+                  )}
+                </div>
               </div>
             )}
 

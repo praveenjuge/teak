@@ -45,6 +45,9 @@ export const cardValidator = v.object({
   deletedAt: v.optional(v.number()),
   metadata: metadataValidator,
   metadataStatus: v.optional(v.union(v.literal("pending"), v.literal("completed"), v.literal("failed"))),
+  // Searchable metadata fields (flattened for search indexes)
+  metadataTitle: v.optional(v.string()),
+  metadataDescription: v.optional(v.string()),
   // AI-generated fields
   aiTags: v.optional(v.array(v.string())),
   aiSummary: v.optional(v.string()),
@@ -67,5 +70,38 @@ export default defineSchema({
     .index("by_user_type", ["userId", "type"])
     .index("by_user_favorites", ["userId", "isFavorited"])
     .index("by_user_deleted", ["userId", "isDeleted"])
-    .index("by_created", ["userId", "createdAt"]),
+    .index("by_created", ["userId", "createdAt"])
+    // Search indexes for efficient full-text search
+    .searchIndex("search_content", {
+      searchField: "content",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    })
+    .searchIndex("search_notes", {
+      searchField: "notes",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    })
+    .searchIndex("search_tags", {
+      searchField: "tags",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    })
+    .searchIndex("search_ai_tags", {
+      searchField: "aiTags",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    })
+    .searchIndex("search_ai_summary", {
+      searchField: "aiSummary",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    })
+    .searchIndex("search_transcript", {
+      searchField: "transcript",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    })
+    .searchIndex("search_metadata_title", {
+      searchField: "metadataTitle",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    })
+    .searchIndex("search_metadata_description", {
+      searchField: "metadataDescription",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    }),
 });
