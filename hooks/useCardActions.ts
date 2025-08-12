@@ -8,6 +8,7 @@ export function useCardActions() {
   const restoreCard = useMutation(api.cards.restoreCard);
   const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
   const toggleFavorite = useMutation(api.cards.toggleFavorite);
+  const updateCardField = useMutation(api.cards.updateCardField);
 
   const handleDeleteCard = async (cardId: Id<"cards">) => {
     try {
@@ -47,10 +48,31 @@ export function useCardActions() {
     }
   };
 
+  // New unified field update method
+  const updateField = async (
+    cardId: Id<"cards">,
+    field: "content" | "url" | "notes" | "tags" | "aiSummary" | "isFavorited" | "removeAiTag",
+    value?: any,
+    tagToRemove?: string
+  ) => {
+    try {
+      await updateCardField({
+        cardId,
+        field,
+        value,
+        tagToRemove,
+      });
+    } catch (error) {
+      console.error(`Failed to update ${field}:`, error);
+      toast.error(`Failed to update ${field}`);
+    }
+  };
+
   return {
     handleDeleteCard,
     handleRestoreCard,
     handlePermanentDeleteCard,
     handleToggleFavorite,
+    updateField, // New unified update method
   };
 }

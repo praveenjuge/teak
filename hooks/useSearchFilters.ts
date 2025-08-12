@@ -174,7 +174,7 @@ export function useSearchFilters() {
         if (keywordTags.length > 0) {
           const hasKeywordMatch = keywordTags.some(
             (keyword) =>
-              card.title?.toLowerCase().includes(keyword) ||
+              card.metadata?.linkTitle?.toLowerCase().includes(keyword) ||
               card.content.toLowerCase().includes(keyword) ||
               card.notes?.toLowerCase().includes(keyword) ||
               card.tags?.some((tag) => tag.toLowerCase().includes(keyword)) ||
@@ -205,7 +205,7 @@ export function useSearchFilters() {
             return card.isDeleted === true;
           }
           return (
-            card.title?.toLowerCase().includes(query) ||
+            card.metadata?.linkTitle?.toLowerCase().includes(query) ||
             card.content.toLowerCase().includes(query) ||
             card.notes?.toLowerCase().includes(query) ||
             card.tags?.some((tag) => tag.toLowerCase().includes(query)) ||

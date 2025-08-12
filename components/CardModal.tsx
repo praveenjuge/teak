@@ -1,20 +1,12 @@
-import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  Archive,
-  ChevronDown,
-  ChevronUp,
-  Code,
   ExternalLink,
-  File,
-  FileText,
   Heart,
   RotateCcw,
   Sparkles,
@@ -22,386 +14,52 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { api } from "../convex/_generated/api";
-import { type Doc, type Id } from "../convex/_generated/dataModel";
-
-// Legacy shim removed after migration
-
-// Large/rich previews for the modal
-function getDocumentIcon(fileName: string, mimeType: string) {
-  const name = (fileName || "").toLowerCase();
-  const mime = (mimeType || "").toLowerCase();
-
-  if (mime.includes("pdf")) {
-    return <FileText className="w-10 h-10 text-red-500" />;
-  }
-  if (
-    mime.includes("word") ||
-    name.endsWith(".doc") ||
-    name.endsWith(".docx")
-  ) {
-    return <FileText className="w-10 h-10 text-blue-500" />;
-  }
-  if (
-    mime.includes("excel") ||
-    name.endsWith(".xls") ||
-    name.endsWith(".xlsx")
-  ) {
-    return <FileText className="w-10 h-10 text-green-500" />;
-  }
-  if (
-    mime.includes("powerpoint") ||
-    name.endsWith(".ppt") ||
-    name.endsWith(".pptx")
-  ) {
-    return <FileText className="w-10 h-10 text-orange-500" />;
-  }
-  if (
-    mime.includes("zip") ||
-    mime.includes("rar") ||
-    name.endsWith(".7z") ||
-    name.endsWith(".tar.gz")
-  ) {
-    return <Archive className="w-10 h-10 text-yellow-500" />;
-  }
-  if (
-    name.endsWith(".js") ||
-    name.endsWith(".ts") ||
-    name.endsWith(".py") ||
-    name.endsWith(".html") ||
-    name.endsWith(".css") ||
-    name.endsWith(".json") ||
-    name.endsWith(".xml")
-  ) {
-    return <Code className="w-10 h-10 text-green-500" />;
-  }
-  if (name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".rtf")) {
-    return <FileText className="w-10 h-10 text-muted-foreground" />;
-  }
-  return <File className="w-10 h-10 text-muted-foreground" />;
-}
-
-function ModalLinkPreview({ card }: { card: Doc<"cards"> }) {
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-start gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`https://www.google.com/s2/favicons?domain=${card.url}`}
-          alt=""
-          className="w-5 h-5 mt-0.5 flex-shrink-0"
-        />
-        <div className="min-w-0 flex-1">
-          <h2 className="font-semibold text-lg leading-tight line-clamp-2">
-            {card.metadata?.linkTitle || card.url || "Link"}
-          </h2>
-          {card.url && (
-            <p className="text-muted-foreground truncate">{card.url}</p>
-          )}
-        </div>
-      </div>
-      {card.metadata?.linkImage && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={card.metadata.linkImage}
-          alt=""
-          className="w-full max-h-[60vh] object-cover rounded"
-        />
-      )}
-      {card.notes && (
-        <p className="text-base text-muted-foreground whitespace-pre-wrap">
-          {card.notes}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function ModalImagePreview({ card }: { card: Doc<"cards"> }) {
-  const fileUrl = useQuery(
-    api.cards.getFileUrl,
-    card.fileId ? { fileId: card.fileId } : "skip"
-  );
-  if (!fileUrl) return null;
-  return (
-    <div className="w-full h-full flex items-center justify-center">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={fileUrl}
-        alt={card.content}
-        className="max-h-[70vh] max-w-full object-contain"
-      />
-    </div>
-  );
-}
-
-function ModalVideoPreview({ card }: { card: Doc<"cards"> }) {
-  const fileUrl = useQuery(
-    api.cards.getFileUrl,
-    card.fileId ? { fileId: card.fileId } : "skip"
-  );
-  if (!fileUrl) return null;
-  return (
-    <video controls className="w-full bg-black max-h-[70vh]" preload="metadata">
-      <source src={fileUrl} type={card.metadata?.mimeType} />
-      Your browser does not support the video tag.
-    </video>
-  );
-}
-
-function ModalAudioPreview({ card }: { card: Doc<"cards"> }) {
-  const [isTranscriptCollapsed, setIsTranscriptCollapsed] = useState(false);
-  const fileUrl = useQuery(
-    api.cards.getFileUrl,
-    card.fileId ? { fileId: card.fileId } : "skip"
-  );
-
-  if (!fileUrl) return null;
-
-  return (
-    <div className="p-2 space-y-4">
-      <audio controls className="w-full">
-        <source src={fileUrl} type={card.metadata?.mimeType} />
-        Your browser does not support the audio element.
-      </audio>
-
-      {/* Transcript Section */}
-      {card.transcript && (
-        <div className="border rounded-lg">
-          <button
-            onClick={() => setIsTranscriptCollapsed(!isTranscriptCollapsed)}
-            className="w-full p-3 flex items-center justify-between text-left bg-gray-50 hover:bg-gray-100 rounded-t-lg transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-blue-500" />
-              <span className="font-medium">Transcript</span>
-            </div>
-            {isTranscriptCollapsed ? (
-              <ChevronDown className="w-4 h-4" />
-            ) : (
-              <ChevronUp className="w-4 h-4" />
-            )}
-          </button>
-
-          {!isTranscriptCollapsed && (
-            <div className="p-3 max-h-64 overflow-y-auto">
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                {card.transcript}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ModalDocumentPreview({ card }: { card: Doc<"cards"> }) {
-  const fileName = card.metadata?.fileName || card.content || "Document";
-  const mimeType = card.metadata?.mimeType || "";
-  return (
-    <div className="flex items-center gap-4 p-4">
-      <div className="flex-shrink-0">{getDocumentIcon(fileName, mimeType)}</div>
-      <div className="min-w-0">
-        <p className="font-medium text-lg truncate">{fileName}</p>
-        {mimeType && (
-          <p className="text-muted-foreground truncate">{mimeType}</p>
-        )}
-      </div>
-    </div>
-  );
-}
+import { useCardModal } from "@/hooks/useCardModal";
+import {
+  LinkPreview,
+  ImagePreview,
+  VideoPreview,
+  AudioPreview,
+  DocumentPreview,
+  TextPreview,
+} from "./card-previews";
 
 interface CardModalProps {
   cardId: string | null;
   open: boolean;
   onCancel?: () => void;
-  onDelete?: (cardId: string) => void;
-  onRestore?: (cardId: string) => void;
-  onPermanentDelete?: (cardId: string) => void;
-  onToggleFavorite?: (cardId: string) => void;
-  isTrashMode?: boolean;
 }
 
-export function CardModal({
-  cardId,
-  open,
-  onCancel,
-  onDelete,
-  onRestore,
-  onPermanentDelete,
-  onToggleFavorite,
-}: CardModalProps) {
-  const card = useQuery(
-    api.cards.getCard,
-    cardId ? { id: cardId as Id<"cards"> } : "skip"
-  );
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(card?.isFavorited || false);
-  const [optimisticRemovedAiTags, setOptimisticRemovedAiTags] = useState<Set<string>>(new Set());
-
-  // Form data initialized with card data
-  const [content, setContent] = useState(card?.content || "");
-  const [url, setUrl] = useState(card?.url || "");
-  const [tags, setTags] = useState<string[]>(card?.tags || []);
-  const [tagInput, setTagInput] = useState("");
-  const [notes, setNotes] = useState(card?.notes || "");
-  const [aiSummary, setAiSummary] = useState(card?.aiSummary || "");
-
-  // Reset form when card changes
-  useEffect(() => {
-    if (card) {
-      setContent(card.content || "");
-      setUrl(card.url || "");
-      setTags(card.tags || []);
-      setTagInput("");
-      setNotes(card.notes || "");
-      setAiSummary(card.aiSummary || "");
-      setIsFavorited(card.isFavorited || false);
-      setOptimisticRemovedAiTags(new Set());
-    }
-  }, [card]);
-
-  // Clean up optimistic removals when real data confirms the changes
-  useEffect(() => {
-    if (card?.aiTags) {
-      setOptimisticRemovedAiTags(prev => {
-        const newSet = new Set<string>();
-        // Only keep optimistic removals for tags that still exist in the real data
-        prev.forEach(tag => {
-          if (card.aiTags?.includes(tag)) {
-            newSet.add(tag);
-          }
-        });
-        return newSet;
-      });
-    }
-  }, [card?.aiTags]);
-
-  const updateCard = useMutation(api.cards.updateCard);
-  const removeAiTag = useMutation(api.cards.removeAiTag);
-  const updateAiSummary = useMutation(api.cards.updateAiSummary);
-
-  const saveCard = async (
-    updates: Partial<{
-      content: string;
-      url: string;
-      tags: string[];
-      notes: string;
-    }>
-  ) => {
-    if (!cardId) return;
-
-    setIsSubmitting(true);
-    try {
-      await updateCard({
-        id: cardId as Id<"cards">,
-        ...updates,
-      });
-    } catch (error) {
-      console.error("Failed to update card:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+export function CardModal({ cardId, open, onCancel }: CardModalProps) {
+  const {
+    // State
+    card,
+    tagInput,
+    setTagInput,
+    
+    // Field updates
+    updateContent,
+    updateUrl,
+    updateNotes,
+    updateAiSummary,
+    toggleFavorite,
+    removeAiTag,
+    
+    // Tag management
+    removeTag,
+    
+    // Actions
+    handleDelete,
+    handleRestore,
+    handlePermanentDelete,
+    
+    // Utilities
+    openLink,
+    handleKeyDown,
+  } = useCardModal(cardId);
 
   const handleClose = () => {
     onCancel?.();
-  };
-
-  const handleDelete = () => {
-    if (cardId) {
-      onDelete?.(cardId);
-      onCancel?.();
-    }
-  };
-
-  const handleRestore = () => {
-    if (cardId) {
-      onRestore?.(cardId);
-      onCancel?.();
-    }
-  };
-
-  const handlePermanentDelete = () => {
-    if (cardId) {
-      onPermanentDelete?.(cardId);
-      onCancel?.();
-    }
-  };
-
-  const handleToggleFavorite = () => {
-    if (cardId) {
-      setIsFavorited(!isFavorited);
-      onToggleFavorite?.(cardId);
-    }
-  };
-
-  const openLink = () => {
-    if (card?.url) {
-      window.open(card.url, "_blank", "noopener,noreferrer");
-    }
-  };
-
-  const handleRemoveAiTag = async (tagToRemove: string) => {
-    if (!cardId) return;
-    
-    // Optimistic update - remove tag from UI immediately
-    setOptimisticRemovedAiTags(prev => new Set([...prev, tagToRemove]));
-    
-    try {
-      await removeAiTag({
-        cardId: cardId as Id<"cards">,
-        tagToRemove,
-      });
-      // Keep the tag in optimistic state until the real data updates
-    } catch (error) {
-      console.error("Error removing AI tag:", error);
-      // Revert optimistic update on error
-      setOptimisticRemovedAiTags(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(tagToRemove);
-        return newSet;
-      });
-    }
-  };
-
-  const handleUpdateAiSummary = async (newSummary: string) => {
-    if (!cardId) return;
-    try {
-      await updateAiSummary({
-        cardId: cardId as Id<"cards">,
-        newSummary,
-      });
-    } catch (error) {
-      console.error("Error updating AI summary:", error);
-    }
-  };
-
-  const addTag = () => {
-    const tag = tagInput.trim().toLowerCase();
-    if (tag && !tags.includes(tag)) {
-      const newTags = [...tags, tag];
-      setTags(newTags);
-      setTagInput("");
-      saveCard({ tags: newTags.length > 0 ? newTags : undefined });
-    }
-  };
-
-  const removeTag = (tagToRemove: string) => {
-    const newTags = tags.filter((tag) => tag !== tagToRemove);
-    setTags(newTags);
-    saveCard({ tags: newTags.length > 0 ? newTags : undefined });
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && tagInput.trim()) {
-      e.preventDefault();
-      addTag();
-    } else if (e.key === "Escape") {
-      handleClose();
-    }
   };
 
   // Don't render if no card
@@ -420,34 +78,17 @@ export function CardModal({
   const renderPreview = () => {
     switch (card.type) {
       case "text":
-        return (
-          <Textarea
-            value={content}
-            onChange={(e) => {
-              const newContent = e.target.value;
-              setContent(newContent);
-              saveCard({ content: newContent.trim() });
-            }}
-            placeholder="Enter your text..."
-            className="h-full resize-none text-base leading-relaxed"
-          />
-        );
-
+        return <TextPreview card={card} onContentChange={updateContent} />;
       case "link":
-        return <ModalLinkPreview card={{ ...card, content }} />;
-
+        return <LinkPreview card={card} />;
       case "image":
-        return <ModalImagePreview card={card} />;
-
+        return <ImagePreview card={card} />;
       case "video":
-        return <ModalVideoPreview card={card} />;
-
+        return <VideoPreview card={card} />;
       case "audio":
-        return <ModalAudioPreview card={card} />;
-
+        return <AudioPreview card={card} />;
       case "document":
-        return <ModalDocumentPreview card={card} />;
-
+        return <DocumentPreview card={card} />;
       default:
         return <div>Unknown card type</div>;
     }
@@ -471,9 +112,6 @@ export function CardModal({
               {card.type.charAt(0).toUpperCase() + card.type.slice(1)} Card
             </DialogTitle>
             <div className="flex items-center gap-2">
-              {isSubmitting && (
-                <span className="text-primary font-medium">Saving...</span>
-              )}
               {card.url && (
                 <Button variant="outline" size="sm" onClick={openLink}>
                   <ExternalLink />
@@ -493,12 +131,8 @@ export function CardModal({
               <Input
                 id="modal-url"
                 type="url"
-                value={url}
-                onChange={(e) => {
-                  const newUrl = e.target.value;
-                  setUrl(newUrl);
-                  saveCard({ url: newUrl.trim() || undefined });
-                }}
+                value={card.url || ""}
+                onChange={(e) => updateUrl(e.target.value)}
                 placeholder="https://example.com"
                 className="mt-1"
               />
@@ -510,14 +144,8 @@ export function CardModal({
             <Label htmlFor="modal-notes">Notes</Label>
             <Input
               id="modal-notes"
-              value={notes}
-              onChange={(e) => {
-                const newNotes = e.target.value;
-                setNotes(newNotes);
-                saveCard({
-                  notes: newNotes.trim() || undefined,
-                });
-              }}
+              value={card.notes || ""}
+              onChange={(e) => updateNotes(e.target.value)}
               placeholder="Add notes..."
               className="mt-1"
             />
@@ -527,21 +155,21 @@ export function CardModal({
           <div>
             <Label htmlFor="modal-tags">Tags</Label>
             <div className="flex flex-wrap gap-1 my-1.5">
-              {tags.map((tag) => (
+              {card.tags?.map((tag) => (
                 <Badge key={tag} variant="outline" className="flex items-center gap-1">
                   {tag}
                   <button type="button" onClick={() => removeTag(tag)}>
                     <X className="w-3 h-3" />
                   </button>
                 </Badge>
-              ))}
-              {card.aiTags?.filter(tag => !optimisticRemovedAiTags.has(tag)).map((tag) => (
+              )) || []}
+              {card.aiTags?.map((tag) => (
                 <Badge key={`ai-${tag}`} variant="outline" className="flex items-center gap-1">
                   <Sparkles className="w-3 h-3" />
                   {tag}
                   <button
                     type="button"
-                    onClick={() => handleRemoveAiTag(tag)}
+                    onClick={() => removeAiTag(tag)}
                     title="Remove AI tag"
                   >
                     <X className="w-3 h-3" />
@@ -553,7 +181,7 @@ export function CardModal({
               id="modal-tags"
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={handleKeyDown}
+              onKeyDown={(e) => handleKeyDown(e, handleClose)}
               placeholder="Add tags (press Enter)"
               className="mt-1"
             />
@@ -565,12 +193,8 @@ export function CardModal({
               <Label htmlFor="ai-summary">Teak Summary</Label>
               <Textarea
                 id="ai-summary"
-                value={aiSummary}
-                onChange={(e) => {
-                  const newSummary = e.target.value;
-                  setAiSummary(newSummary);
-                }}
-                onBlur={() => handleUpdateAiSummary(aiSummary)}
+                value={card.aiSummary || ""}
+                onChange={(e) => updateAiSummary(e.target.value)}
                 placeholder="AI generated summary..."
                 className="mt-1"
                 rows={3}
@@ -619,15 +243,15 @@ export function CardModal({
           <div className="flex gap-2">
             {!card.isDeleted && (
               <>
-                <Button variant="outline" onClick={handleToggleFavorite}>
+                <Button variant="outline" onClick={toggleFavorite}>
                   <Heart
                     className={`${
-                      isFavorited ? "fill-red-500 text-red-500" : ""
+                      card.isFavorited ? "fill-red-500 text-red-500" : ""
                     }`}
                   />
-                  {isFavorited ? "Unfavorite" : "Favorite"}
+                  {card.isFavorited ? "Unfavorite" : "Favorite"}
                 </Button>
-                <Button variant="destructive" onClick={handleDelete}>
+                <Button variant="destructive" onClick={() => handleDelete(handleClose)}>
                   <Trash2 />
                   Delete
                 </Button>
@@ -636,11 +260,11 @@ export function CardModal({
 
             {card.isDeleted && (
               <>
-                <Button variant="outline" onClick={handleRestore}>
+                <Button variant="outline" onClick={() => handleRestore(handleClose)}>
                   <RotateCcw />
                   Restore
                 </Button>
-                <Button variant="destructive" onClick={handlePermanentDelete}>
+                <Button variant="destructive" onClick={() => handlePermanentDelete(handleClose)}>
                   <Trash />
                   Delete Forever
                 </Button>

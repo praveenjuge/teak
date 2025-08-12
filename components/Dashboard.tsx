@@ -91,15 +91,6 @@ export function Dashboard() {
         cardId={editingCardId}
         open={!!editingCardId}
         onCancel={handleEditCancel}
-        onDelete={(cardId) =>
-          cardActions.handleDeleteCard(cardId as Id<"cards">)}
-        onRestore={(cardId) =>
-          cardActions.handleRestoreCard(cardId as Id<"cards">)}
-        onPermanentDelete={(cardId) =>
-          cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)}
-        onToggleFavorite={(cardId) =>
-          cardActions.handleToggleFavorite(cardId as Id<"cards">)}
-        isTrashMode={searchFilters.showTrashOnly}
       />
     </div>
   );
