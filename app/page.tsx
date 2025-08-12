@@ -1,8 +1,7 @@
 "use client";
 
-import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
+import { Authenticated, AuthLoading } from "convex/react";
 import { Dashboard } from "@/components/Dashboard";
-import { RedirectToSignIn } from "@clerk/clerk-react";
 import { Loading } from "@/components/Loading";
 
 export default function Home() {
@@ -14,9 +13,6 @@ export default function Home() {
       <Authenticated>
         <Dashboard />
       </Authenticated>
-      <Unauthenticated>
-        <RedirectToSignIn />
-      </Unauthenticated>
     </main>
   );
 }
