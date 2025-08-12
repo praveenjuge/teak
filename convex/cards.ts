@@ -46,7 +46,6 @@ export const canCreateCard = query({
 
 export const createCard = mutation({
   args: {
-    title: v.optional(v.string()),
     content: v.string(),
     type: cardTypeValidator,
     url: v.optional(v.string()),
@@ -164,7 +163,6 @@ export const getDeletedCards = query({
 export const updateCard = mutation({
   args: {
     id: v.id("cards"),
-    title: v.optional(v.string()),
     content: v.optional(v.string()),
     url: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),

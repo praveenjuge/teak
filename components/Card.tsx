@@ -81,7 +81,7 @@ export function Card({
             {card.type === "link" && (
               <div className="space-y-2 p-4">
                 <h4 className="font-medium line-clamp-1">
-                  {card.metadata?.linkTitle || card.title || "Link"}
+                  {card.metadata?.linkTitle || "Link"}
                 </h4>
                 {card.url && (
                   <p className="text-muted-foreground truncate">
@@ -102,7 +102,7 @@ export function Card({
             {card.type === "image" && (
               <GridImagePreview
                 fileId={card.fileId}
-                altText={card.title || card.content}
+                altText={card.content}
                 width={card.metadata?.width}
                 height={card.metadata?.height}
               />

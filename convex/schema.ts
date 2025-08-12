@@ -33,7 +33,6 @@ export const metadataValidator = v.optional(
 
 export const cardValidator = v.object({
   userId: v.string(),
-  title: v.optional(v.string()),
   content: v.string(),
   type: cardTypeValidator,
   url: v.optional(v.string()),

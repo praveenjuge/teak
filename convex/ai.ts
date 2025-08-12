@@ -230,7 +230,7 @@ export const generateAiMetadata = internalAction({
       // Process based on card type
       switch (card.type) {
         case "text": {
-          const result = await generateTextMetadata(card.content, card.title);
+          const result = await generateTextMetadata(card.content);
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
           break;
@@ -240,7 +240,7 @@ export const generateAiMetadata = internalAction({
           if (card.fileId) {
             const imageUrl = await ctx.storage.getUrl(card.fileId);
             if (imageUrl) {
-              const result = await generateImageMetadata(imageUrl, card.title);
+              const result = await generateImageMetadata(imageUrl);
               aiTags = result.aiTags;
               aiSummary = result.aiSummary;
             }
@@ -261,8 +261,7 @@ export const generateAiMetadata = internalAction({
                 transcript = transcriptResult;
                 // Generate metadata from transcript
                 const result = await generateTextMetadata(
-                  transcriptResult,
-                  card.title
+                  transcriptResult
                 );
                 aiTags = result.aiTags;
                 aiSummary = result.aiSummary;
@@ -275,7 +274,6 @@ export const generateAiMetadata = internalAction({
         case "link": {
           // For links, use the existing metadata or content
           const contentToAnalyze = [
-            card.title,
             card.metadata?.linkTitle,
             card.metadata?.linkDescription,
             card.content,
@@ -300,8 +298,7 @@ export const generateAiMetadata = internalAction({
 
           if (contentToAnalyze.trim()) {
             const result = await generateTextMetadata(
-              contentToAnalyze,
-              card.title
+              contentToAnalyze
             );
             aiTags = result.aiTags;
             aiSummary = result.aiSummary;
