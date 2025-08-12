@@ -3,6 +3,7 @@ import { CardModal } from "./CardModal";
 import { SearchBar } from "./SearchBar";
 import { MasonryGrid } from "./MasonryGrid";
 import { EmptyState } from "./EmptyState";
+import { Loading } from "./Loading";
 import { useSearchFilters } from "@/hooks/useSearchFilters";
 import { useCardActions } from "@/hooks/useCardActions";
 import { type Doc, type Id } from "../convex/_generated/dataModel";
@@ -53,31 +54,37 @@ export function Dashboard() {
         onClearAll={searchFilters.handleClearAllTags}
       />
 
-      <EmptyState
-        filteredCards={searchFilters.filteredCards}
-        keywordTags={searchFilters.keywordTags}
-        filterTags={searchFilters.filterTags}
-        showFavoritesOnly={searchFilters.showFavoritesOnly}
-        showTrashOnly={searchFilters.showTrashOnly}
-        searchQuery={searchFilters.searchQuery}
-        cards={searchFilters.cards}
-        onClearFilters={handleClearFilters}
-      />
+      {searchFilters.cards === undefined ? (
+        <Loading />
+      ) : (
+        <>
+          <EmptyState
+            filteredCards={searchFilters.filteredCards}
+            keywordTags={searchFilters.keywordTags}
+            filterTags={searchFilters.filterTags}
+            showFavoritesOnly={searchFilters.showFavoritesOnly}
+            showTrashOnly={searchFilters.showTrashOnly}
+            searchQuery={searchFilters.searchQuery}
+            cards={searchFilters.cards}
+            onClearFilters={handleClearFilters}
+          />
 
-      {searchFilters.filteredCards.length > 0 && (
-        <MasonryGrid
-          filteredCards={searchFilters.filteredCards}
-          showTrashOnly={searchFilters.showTrashOnly}
-          onCardClick={handleCardClick}
-          onDeleteCard={(cardId) =>
-            cardActions.handleDeleteCard(cardId as Id<"cards">)}
-          onRestoreCard={(cardId) =>
-            cardActions.handleRestoreCard(cardId as Id<"cards">)}
-          onPermanentDeleteCard={(cardId) =>
-            cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)}
-          onToggleFavorite={(cardId) =>
-            cardActions.handleToggleFavorite(cardId as Id<"cards">)}
-        />
+          {searchFilters.filteredCards.length > 0 && (
+            <MasonryGrid
+              filteredCards={searchFilters.filteredCards}
+              showTrashOnly={searchFilters.showTrashOnly}
+              onCardClick={handleCardClick}
+              onDeleteCard={(cardId) =>
+                cardActions.handleDeleteCard(cardId as Id<"cards">)}
+              onRestoreCard={(cardId) =>
+                cardActions.handleRestoreCard(cardId as Id<"cards">)}
+              onPermanentDeleteCard={(cardId) =>
+                cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)}
+              onToggleFavorite={(cardId) =>
+                cardActions.handleToggleFavorite(cardId as Id<"cards">)}
+            />
+          )}
+        </>
       )}
 
       <CardModal
