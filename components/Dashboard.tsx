@@ -9,16 +9,16 @@ import { useCardActions } from "@/hooks/useCardActions";
 import { type Doc, type Id } from "../convex/_generated/dataModel";
 
 export function Dashboard() {
-  const [editingCard, setEditingCard] = useState<Doc<"cards"> | null>(null);
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const searchFilters = useSearchFilters();
   const cardActions = useCardActions();
 
   const handleCardClick = (card: Doc<"cards">) => {
-    setEditingCard(card);
+    setEditingCardId(card._id);
   };
 
   const handleEditCancel = () => {
-    setEditingCard(null);
+    setEditingCardId(null);
   };
 
   const handleClearFilters = () => {
@@ -88,8 +88,8 @@ export function Dashboard() {
       )}
 
       <CardModal
-        card={editingCard}
-        open={!!editingCard}
+        cardId={editingCardId}
+        open={!!editingCardId}
         onCancel={handleEditCancel}
         onDelete={(cardId) =>
           cardActions.handleDeleteCard(cardId as Id<"cards">)}

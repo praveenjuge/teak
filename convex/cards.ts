@@ -138,6 +138,25 @@ export const getCards = query({
   },
 });
 
+export const getCard = query({
+  args: {
+    id: v.id("cards"),
+  },
+  handler: async (ctx, { id }) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      return null;
+    }
+
+    const card = await ctx.db.get(id);
+    if (!card || card.userId !== user.subject) {
+      return null;
+    }
+
+    return card;
+  },
+});
+
 export const getDeletedCards = query({
   args: {
     limit: v.optional(v.number()),

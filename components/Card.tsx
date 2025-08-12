@@ -22,6 +22,15 @@ interface CardProps {
   isTrashMode?: boolean;
 }
 
+// Simple seeded random function for consistent wave patterns
+function seededRandom(seed: string, index: number): number {
+  const hash = seed.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, index);
+  return Math.abs(Math.sin(hash)) * 0.6 + 0.2; // Returns value between 0.2 and 0.8
+}
+
 export function Card({
   card,
   onClick,
@@ -122,7 +131,7 @@ export function Card({
                     key={i}
                     style={{
                       width: "2px",
-                      height: `${Math.random() * 60 + 20}%`,
+                      height: `${seededRandom(card._id, i) * 60 + 20}%`,
                     }}
                   />
                 ))}

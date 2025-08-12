@@ -23,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { api } from "../convex/_generated/api";
-import { type Doc } from "../convex/_generated/dataModel";
+import { type Doc, type Id } from "../convex/_generated/dataModel";
 
 // Legacy shim removed after migration
 
@@ -213,7 +213,7 @@ function ModalDocumentPreview({ card }: { card: Doc<"cards"> }) {
 }
 
 interface CardModalProps {
-  card: Doc<"cards"> | null;
+  cardId: string | null;
   open: boolean;
   onCancel?: () => void;
   onDelete?: (cardId: string) => void;
@@ -224,7 +224,7 @@ interface CardModalProps {
 }
 
 export function CardModal({
-  card,
+  cardId,
   open,
   onCancel,
   onDelete,
@@ -232,8 +232,14 @@ export function CardModal({
   onPermanentDelete,
   onToggleFavorite,
 }: CardModalProps) {
+  const card = useQuery(
+    api.cards.getCard,
+    cardId ? { id: cardId as Id<"cards"> } : "skip"
+  );
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFavorited, setIsFavorited] = useState(card?.isFavorited || false);
+  const [optimisticRemovedAiTags, setOptimisticRemovedAiTags] = useState<Set<string>>(new Set());
 
   // Form data initialized with card data
   const [content, setContent] = useState(card?.content || "");
@@ -253,8 +259,25 @@ export function CardModal({
       setNotes(card.notes || "");
       setAiSummary(card.aiSummary || "");
       setIsFavorited(card.isFavorited || false);
+      setOptimisticRemovedAiTags(new Set());
     }
   }, [card]);
+
+  // Clean up optimistic removals when real data confirms the changes
+  useEffect(() => {
+    if (card?.aiTags) {
+      setOptimisticRemovedAiTags(prev => {
+        const newSet = new Set<string>();
+        // Only keep optimistic removals for tags that still exist in the real data
+        prev.forEach(tag => {
+          if (card.aiTags?.includes(tag)) {
+            newSet.add(tag);
+          }
+        });
+        return newSet;
+      });
+    }
+  }, [card?.aiTags]);
 
   const updateCard = useMutation(api.cards.updateCard);
   const removeAiTag = useMutation(api.cards.removeAiTag);
@@ -268,12 +291,12 @@ export function CardModal({
       notes: string;
     }>
   ) => {
-    if (!card) return;
+    if (!cardId) return;
 
     setIsSubmitting(true);
     try {
       await updateCard({
-        id: card._id,
+        id: cardId as Id<"cards">,
         ...updates,
       });
     } catch (error) {
@@ -288,30 +311,30 @@ export function CardModal({
   };
 
   const handleDelete = () => {
-    if (card) {
-      onDelete?.(card._id);
+    if (cardId) {
+      onDelete?.(cardId);
       onCancel?.();
     }
   };
 
   const handleRestore = () => {
-    if (card) {
-      onRestore?.(card._id);
+    if (cardId) {
+      onRestore?.(cardId);
       onCancel?.();
     }
   };
 
   const handlePermanentDelete = () => {
-    if (card) {
-      onPermanentDelete?.(card._id);
+    if (cardId) {
+      onPermanentDelete?.(cardId);
       onCancel?.();
     }
   };
 
   const handleToggleFavorite = () => {
-    if (card) {
+    if (cardId) {
       setIsFavorited(!isFavorited);
-      onToggleFavorite?.(card._id);
+      onToggleFavorite?.(cardId);
     }
   };
 
@@ -322,22 +345,33 @@ export function CardModal({
   };
 
   const handleRemoveAiTag = async (tagToRemove: string) => {
-    if (!card) return;
+    if (!cardId) return;
+    
+    // Optimistic update - remove tag from UI immediately
+    setOptimisticRemovedAiTags(prev => new Set([...prev, tagToRemove]));
+    
     try {
       await removeAiTag({
-        cardId: card._id,
+        cardId: cardId as Id<"cards">,
         tagToRemove,
       });
+      // Keep the tag in optimistic state until the real data updates
     } catch (error) {
       console.error("Error removing AI tag:", error);
+      // Revert optimistic update on error
+      setOptimisticRemovedAiTags(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(tagToRemove);
+        return newSet;
+      });
     }
   };
 
   const handleUpdateAiSummary = async (newSummary: string) => {
-    if (!card) return;
+    if (!cardId) return;
     try {
       await updateAiSummary({
-        cardId: card._id,
+        cardId: cardId as Id<"cards">,
         newSummary,
       });
     } catch (error) {
@@ -494,16 +528,16 @@ export function CardModal({
             <Label htmlFor="modal-tags">Tags</Label>
             <div className="flex flex-wrap gap-1 my-1.5">
               {tags.map((tag) => (
-                <Badge key={tag} variant="outline">
+                <Badge key={tag} variant="outline" className="flex items-center gap-1">
                   {tag}
                   <button type="button" onClick={() => removeTag(tag)}>
                     <X className="w-3 h-3" />
                   </button>
                 </Badge>
               ))}
-              {card.aiTags?.map((tag) => (
-                <Badge key={`ai-${tag}`} variant="outline">
-                  <Sparkles />
+              {card.aiTags?.filter(tag => !optimisticRemovedAiTags.has(tag)).map((tag) => (
+                <Badge key={`ai-${tag}`} variant="outline" className="flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
                   {tag}
                   <button
                     type="button"
