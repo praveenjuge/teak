@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import { useSignUp } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, borderWidths } from "../../constants/colors";
 
 export default function SignUpScreen() {
@@ -97,78 +96,22 @@ export default function SignUpScreen() {
 
   if (pendingVerification) {
     return (
-      <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.keyboardAvoidingView}
-        >
-          <View style={styles.content}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Verification Code</Text>
-              <TextInput
-                style={styles.textInput}
-                value={code}
-                placeholder="Enter 6-digit code"
-                placeholderTextColor={colors.secondaryLabel}
-                keyboardType="number-pad"
-                maxLength={6}
-                autoComplete="one-time-code"
-                onChangeText={setCode}
-                editable={!isLoading}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.primaryButton,
-                (isLoading || !code.trim()) && styles.disabledButton,
-              ]}
-              onPress={onVerifyPress}
-              disabled={isLoading || !code.trim()}
-            >
-              <Text style={[styles.primaryButtonText]}>
-                {isLoading ? "Verifying..." : "Verify Email"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    );
-  }
-
-  return (
-    <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardAvoidingView}
       >
         <View style={styles.content}>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Email</Text>
+            <Text style={styles.inputLabel}>Verification Code</Text>
             <TextInput
               style={styles.textInput}
-              autoCapitalize="none"
-              autoComplete="email"
-              autoCorrect={false}
-              keyboardType="email-address"
-              value={emailAddress}
-              placeholder="Enter your email"
+              value={code}
+              placeholder="Enter 6-digit code"
               placeholderTextColor={colors.secondaryLabel}
-              onChangeText={setEmailAddress}
-              editable={!isLoading}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Password</Text>
-            <TextInput
-              style={styles.textInput}
-              value={password}
-              placeholder="Enter your password (min. 8 characters)"
-              placeholderTextColor={colors.secondaryLabel}
-              secureTextEntry={true}
-              autoComplete="new-password"
-              onChangeText={setPassword}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoComplete="one-time-code"
+              onChangeText={setCode}
               editable={!isLoading}
             />
           </View>
@@ -176,37 +119,86 @@ export default function SignUpScreen() {
           <TouchableOpacity
             style={[
               styles.primaryButton,
-              (isLoading || !emailAddress.trim() || !password.trim()) &&
-                styles.disabledButton,
+              (isLoading || !code.trim()) && styles.disabledButton,
             ]}
-            onPress={onSignUpPress}
-            disabled={isLoading || !emailAddress.trim() || !password.trim()}
+            onPress={onVerifyPress}
+            disabled={isLoading || !code.trim()}
           >
             <Text style={[styles.primaryButtonText]}>
-              {isLoading ? "Creating Account..." : "Create Account"}
+              {isLoading ? "Verifying..." : "Verify Email"}
             </Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    );
+  }
+
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.keyboardAvoidingView}
+    >
+      <View style={styles.content}>
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Email</Text>
+          <TextInput
+            style={styles.textInput}
+            autoCapitalize="none"
+            autoComplete="email"
+            autoCorrect={false}
+            keyboardType="email-address"
+            value={emailAddress}
+            placeholder="Enter your email"
+            placeholderTextColor={colors.secondaryLabel}
+            onChangeText={setEmailAddress}
+            editable={!isLoading}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Password</Text>
+          <TextInput
+            style={styles.textInput}
+            value={password}
+            placeholder="Enter your password (min. 8 characters)"
+            placeholderTextColor={colors.secondaryLabel}
+            secureTextEntry={true}
+            autoComplete="new-password"
+            onChangeText={setPassword}
+            editable={!isLoading}
+          />
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.primaryButton,
+            (isLoading || !emailAddress.trim() || !password.trim()) &&
+              styles.disabledButton,
+          ]}
+          onPress={onSignUpPress}
+          disabled={isLoading || !emailAddress.trim() || !password.trim()}
+        >
+          <Text style={[styles.primaryButtonText]}>
+            {isLoading ? "Creating Account..." : "Create Account"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   keyboardAvoidingView: {
     flex: 1,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    padding: 24,
     gap: 24,
     marginBottom: 32,
   },
   inputGroup: {
-    gap: 8,
+    gap: 6,
   },
   inputLabel: {
     fontWeight: "500",

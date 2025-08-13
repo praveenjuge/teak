@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import React from "react";
 import { colors, borderWidths } from "../../constants/colors";
 
@@ -62,58 +61,56 @@ export default function SignInScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardAvoidingView}
-      >
-        <View style={styles.content}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Email</Text>
-            <TextInput
-              style={styles.textInput}
-              autoCapitalize="none"
-              autoComplete="email"
-              autoCorrect={false}
-              keyboardType="email-address"
-              value={emailAddress}
-              placeholder="Enter your email"
-              placeholderTextColor={colors.secondaryLabel}
-              onChangeText={setEmailAddress}
-              editable={!isLoading}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Password</Text>
-            <TextInput
-              style={styles.textInput}
-              value={password}
-              placeholder="Enter your password"
-              placeholderTextColor={colors.secondaryLabel}
-              secureTextEntry={true}
-              autoComplete="current-password"
-              onChangeText={setPassword}
-              editable={!isLoading}
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              (isLoading || !emailAddress.trim() || !password.trim()) &&
-                styles.disabledButton,
-            ]}
-            onPress={onSignInPress}
-            disabled={isLoading || !emailAddress.trim() || !password.trim()}
-          >
-            <Text style={[styles.primaryButtonText]}>
-              {isLoading ? "Signing in..." : "Sign In"}
-            </Text>
-          </TouchableOpacity>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.keyboardAvoidingView}
+    >
+      <View style={styles.content}>
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Email</Text>
+          <TextInput
+            style={styles.textInput}
+            autoCapitalize="none"
+            autoComplete="email"
+            autoCorrect={false}
+            keyboardType="email-address"
+            value={emailAddress}
+            placeholder="Enter your email"
+            placeholderTextColor={colors.secondaryLabel}
+            onChangeText={setEmailAddress}
+            editable={!isLoading}
+          />
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Password</Text>
+          <TextInput
+            style={styles.textInput}
+            value={password}
+            placeholder="Enter your password"
+            placeholderTextColor={colors.secondaryLabel}
+            secureTextEntry={true}
+            autoComplete="current-password"
+            onChangeText={setPassword}
+            editable={!isLoading}
+          />
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.primaryButton,
+            (isLoading || !emailAddress.trim() || !password.trim()) &&
+              styles.disabledButton,
+          ]}
+          onPress={onSignInPress}
+          disabled={isLoading || !emailAddress.trim() || !password.trim()}
+        >
+          <Text style={[styles.primaryButtonText]}>
+            {isLoading ? "Signing in..." : "Sign In"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -126,12 +123,12 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    padding: 24,
     gap: 24,
     marginBottom: 32,
   },
   inputGroup: {
-    gap: 8,
+    gap: 6,
   },
   inputLabel: {
     fontWeight: "500",

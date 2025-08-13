@@ -30,8 +30,8 @@ export default function OnboardingScreen() {
             <View style={styles.textContainer}>
               <Text style={styles.title}>Save Anything. Anywhere.</Text>
               <Text style={styles.subtitle}>
-                Your personal card management system. Organize, save, and access
-                all your important content in one place.
+                Your personal everything management system. Organize, save, and
+                access all your text, images, and documents in one place.
               </Text>
             </View>
           </View>
@@ -66,7 +66,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
+    bottom: 0,
     height: "100%",
+    width: "100%",
+    zIndex: -1,
   },
   content: {
     flex: 1,
