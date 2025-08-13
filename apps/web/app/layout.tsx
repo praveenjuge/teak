@@ -25,7 +25,6 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <ClerkProvider
-            dynamic
             signInUrl="/login"
             signUpUrl="/register"
             appearance={{
