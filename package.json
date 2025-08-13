@@ -10,7 +10,8 @@
     "predev": "cd packages/backend && bunx convex dev --until-success && bunx convex dashboard",
     "dev": "concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
     "dev:backend": "cd packages/backend && bunx convex dev",
-    "dev:frontend": "cd apps/web && bun run dev",
+    "dev:frontend": "cd apps/web && bun dev",
+    "dev:mobile": "cd apps/mobile && bun dev",
     "lint": "cd apps/web && bun run lint",
     "start": "cd apps/web && bun run start"
   },
