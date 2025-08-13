@@ -10,9 +10,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { borderWidths, colors } from "@/constants/colors";
+import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
 import { api } from "@teak/convex";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 
@@ -62,8 +63,8 @@ export function CardItem({ card, onDelete }: CardItemProps) {
   // For audio files, use the media URL
   const audioUrl = card.type === "audio" ? mediaUrl : null;
 
-  // Convex mutations
-  const deleteCardMutation = useMutation(api.cards.deleteCard);
+  // Card actions
+  const cardActions = useCardActions();
 
   const dynamicStyles = {
     card: {
@@ -151,13 +152,8 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-            try {
-              await deleteCardMutation({ id: card._id });
-              onDelete?.();
-            } catch (error) {
-              console.error("Failed to delete card:", error);
-              Alert.alert("Error", "Failed to delete card. Please try again.");
-            }
+            await cardActions.handleDeleteCard(card._id);
+            onDelete?.();
           },
         },
       ]

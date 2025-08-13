@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useCreateCard, useCreateCardWithFile } from '@/lib/hooks/useCards';
+import { useCreateCard, useCreateCardWithFile } from '@teak/shared';
 import { IconSymbol } from '../../components/ui/IconSymbol';
 import { borderWidths, colors } from '../../constants/colors';
 import type { Doc } from '@teak/convex/_generated/dataModel';
