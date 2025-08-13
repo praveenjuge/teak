@@ -18,6 +18,9 @@ bun run dev:frontend
 # Start Convex backend only
 bun run dev:backend
 
+# Start mobile app (Expo)
+bun run dev:mobile
+
 # Initialize Convex dev environment and open dashboard
 bun run predev
 
@@ -46,10 +49,11 @@ Teak is a card management application built with a modern monorepo architecture:
 
 ### Core Stack
 
-- **Frontend**: Next.js 15 with App Router, TypeScript, TailwindCSS
+- **Web Frontend**: Next.js 15 with App Router, TypeScript, TailwindCSS
+- **Mobile App**: Expo with React Native, TypeScript, Clerk authentication
 - **Backend**: Convex (real-time database with serverless functions)
-- **Authentication**: Clerk with JWT integration
-- **UI Components**: shadcn/ui with Radix primitives
+- **Authentication**: Clerk with JWT integration (web + mobile)
+- **UI Components**: shadcn/ui with Radix primitives (web), Expo components (mobile)
 - **File Storage**: Convex Storage for user uploads
 
 ### Monorepo Structure
@@ -58,7 +62,7 @@ Teak is a card management application built with a modern monorepo architecture:
 teak-convex-nextjs/
 ├── apps/
 │   ├── web/              # Next.js frontend app
-│   └── mobile/           # Future Expo mobile app
+│   └── mobile/           # Expo React Native mobile app
 ├── packages/
 │   ├── shared/           # Shared utilities, constants, types
 │   └── backend/          # Backend services and configuration
@@ -77,7 +81,7 @@ teak-convex-nextjs/
 
 #### Data Flow
 
-1. Next.js frontend renders UI components
+1. Frontend (Next.js web or Expo mobile) renders UI components
 2. ConvexClientProvider wraps app with Clerk authentication
 3. Convex functions handle all server-side logic with automatic auth context
 4. Real-time updates propagate automatically to connected clients
@@ -118,7 +122,7 @@ The application centers around a flexible card system:
 
 ## Project Structure
 
-### Frontend (apps/web/)
+### Web Frontend (apps/web/)
 
 ```
 apps/web/
@@ -136,6 +140,26 @@ apps/web/
 │   └── AddCardForm.tsx   # Card creation form
 ├── hooks/                # Custom React hooks
 └── package.json          # Web app dependencies
+```
+
+### Mobile App (apps/mobile/)
+
+```
+apps/mobile/
+├── app/
+│   ├── (auth)/           # Authentication screens
+│   ├── (tabs)/           # Tab navigation screens
+│   │   ├── index.tsx     # Home screen with cards grid
+│   │   ├── add.tsx       # Add card screen
+│   │   └── settings.tsx  # Settings screen
+│   └── _layout.tsx       # Root navigation layout
+├── components/
+│   ├── ui/               # Expo-specific UI components
+│   ├── CardItem.tsx      # Individual card component
+│   ├── CardsGrid.tsx     # Cards grid layout
+│   └── SearchInput.tsx   # Search functionality
+├── lib/hooks/            # Mobile-specific hooks
+└── package.json          # Mobile app dependencies
 ```
 
 ### Backend (packages/backend/)
@@ -166,10 +190,19 @@ packages/shared/
 
 ## Authentication Flow
 
+### Web Authentication
+
 1. Clerk handles user registration/login at `/login` and `/register`
 2. JWT tokens are automatically passed to Convex functions
 3. Middleware protects all routes except auth pages
 4. Convex functions access user context via `ctx.auth.getUserIdentity()`
+
+### Mobile Authentication
+
+1. Clerk Expo SDK handles authentication screens
+2. SecureStore manages token persistence
+3. ConvexClientProvider automatically includes auth tokens
+4. Same Convex auth context as web application
 
 ## File Upload Pattern
 
