@@ -123,6 +123,9 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
 }
 
 const styles = StyleSheet.create({
+  cardContainer: {
+    flex: 1,
+  },
   container: {
     padding: 16,
     paddingBottom: 100,
