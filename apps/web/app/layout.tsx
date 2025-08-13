@@ -30,6 +30,10 @@ export default function RootLayout({
             signUpUrl="/register"
             appearance={{
               baseTheme: shadcn,
+              elements: {
+                cardBox: "!w-full !shadow-none !border",
+                footer: "[&>div:nth-child(2)]:hidden",
+              },
             }}
           >
             <ConvexClientProvider>{children}</ConvexClientProvider>

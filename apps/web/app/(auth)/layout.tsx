@@ -1,5 +1,7 @@
 import { lazy, Suspense } from "react";
 import Logo from "@/components/Logo";
+import { ClerkLoaded, ClerkLoading } from "@clerk/nextjs";
+import { Loading } from "@/components/Loading";
 
 const TopPattern = lazy(() =>
   import("@/components/patterns/TopPattern").then((m) => ({
@@ -20,8 +22,13 @@ export default function RootLayout({
   return (
     <>
       <main className="mx-auto flex max-w-xs flex-col items-center justify-center space-y-8 py-14 md:h-screen">
-        <Logo />
-        <section className="w-full space-y-5">{children}</section>
+        <ClerkLoading>
+          <Loading />
+        </ClerkLoading>
+        <ClerkLoaded>
+          <Logo />
+          <section className="w-full">{children}</section>
+        </ClerkLoaded>
       </main>
 
       {/* Lazy load patterns for better performance */}
