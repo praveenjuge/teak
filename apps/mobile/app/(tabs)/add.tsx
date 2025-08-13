@@ -309,17 +309,8 @@ export default function AddScreen() {
           backgroundColor: colors.background,
         }}
       >
-        <Text style={{ fontSize: 24, color: colors.label, marginBottom: 20 }}>
+        <Text style={{ color: colors.label, marginBottom: 40 }}>
           Recording...
-        </Text>
-        <Text
-          style={{
-            fontSize: 20,
-            color: colors.secondaryLabel,
-            marginBottom: 40,
-          }}
-        >
-          {new Date(recordingDuration * 1000).toISOString().substr(14, 5)}
         </Text>
         <TouchableOpacity
           onPress={stopRecording}
@@ -330,10 +321,18 @@ export default function AddScreen() {
             backgroundColor: "red",
             justifyContent: "center",
             alignItems: "center",
+            marginBottom: 40,
           }}
         >
-          <IconSymbol color="white" name="stop.fill" size={40} />
+          <IconSymbol color="white" name="stop.fill" />
         </TouchableOpacity>
+        <Text
+          style={{
+            color: colors.secondaryLabel,
+          }}
+        >
+          {new Date(recordingDuration * 1000).toISOString().substr(14, 5)}
+        </Text>
       </View>
     );
   }

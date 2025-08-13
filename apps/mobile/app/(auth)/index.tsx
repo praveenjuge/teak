@@ -90,7 +90,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
     color: "white",
-    textAlign: "center",
     marginBottom: 10,
   },
   subtitle: {
@@ -108,22 +107,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 48,
+    minHeight: 50,
   },
   primaryButtonText: {
     color: "black",
     fontWeight: "600",
   },
   secondaryButton: {
-    backgroundColor: "transparent",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 48,
+    minHeight: 50,
   },
   secondaryButtonText: {
     color: "white",
-    fontWeight: "500",
+    fontWeight: "600",
   },
 });

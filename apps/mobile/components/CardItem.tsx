@@ -267,7 +267,10 @@ export function CardItem({ card, onDelete }: CardItemProps) {
               </View>
               <View style={styles.audioInfo}>
                 <Text style={[styles.audioTime, dynamicStyles.mutedText]}>
-                  Audio
+                  {formatDuration(playbackPosition)} /{" "}
+                  {card.metadata?.duration
+                    ? formatDuration(card.metadata.duration)
+                    : "--:--"}
                 </Text>
               </View>
             </View>
@@ -439,13 +442,18 @@ const styles = StyleSheet.create({
   audioContent: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
   },
   audioPlayButton: {
     borderRadius: 20,
     padding: 8,
   },
+  audioInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   audioTime: {
-    marginLeft: 12,
+    marginLeft: 4,
   },
   urlScreenshot: {
     width: "100%",
@@ -458,6 +466,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
   },
+  urlTitle: {},
   urlDescription: {
     marginTop: 4,
     fontSize: 12,
@@ -474,15 +483,20 @@ const styles = StyleSheet.create({
   pdfIcon: {
     backgroundColor: "#dc2626",
     borderRadius: 20,
-    padding: 6,
+    padding: 8,
     marginRight: 12,
   },
   pdfInfo: {
     flex: 1,
   },
+  pdfTitle: {
+    fontWeight: "600",
+    fontSize: 16,
+  },
   pdfMeta: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 4,
+    marginTop: 2,
   },
+  pdfMetaText: {},
 });
