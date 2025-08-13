@@ -54,10 +54,23 @@ function RootNavigator() {
       </Stack.Protected>
       <Stack.Protected guard={!userId}>
         <Stack.Screen
-          name="/(auth)/sign-in"
+          name="(auth)/index"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="(auth)/sign-in"
           options={{
             headerShown: true,
-            title: "Welcome to Teak",
+            title: "Welcome Back",
+          }}
+        />
+        <Stack.Screen
+          name="(auth)/sign-up"
+          options={{
+            headerShown: true,
+            title: "Create an Account",
           }}
         />
       </Stack.Protected>

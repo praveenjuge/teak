@@ -11,7 +11,7 @@ export const SignOutButton = () => {
     try {
       await signOut();
       // Redirect to your desired page
-      router.replace("/");
+      router.replace("/(auth)");
     } catch (err) {
       // See https://clerk.com/docs/custom-flows/error-handling
       // for more info on error handling
@@ -20,7 +20,14 @@ export const SignOutButton = () => {
   };
 
   return (
-    <TouchableOpacity onPress={handleSignOut}>
+    <TouchableOpacity
+      onPress={handleSignOut}
+      style={{
+        padding: 12,
+        backgroundColor: "red",
+        borderRadius: 8,
+      }}
+    >
       <Text>Sign out</Text>
     </TouchableOpacity>
   );

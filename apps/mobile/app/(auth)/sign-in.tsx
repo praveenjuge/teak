@@ -1,12 +1,25 @@
 import { useSignIn } from "@clerk/clerk-expo";
-import { Link, useRouter } from "expo-router";
-import { Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useRouter } from "expo-router";
+import {
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import React from "react";
+import { colors, borderWidths } from "../../constants/colors";
 
-export default function Page() {
+export default function SignInScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
   const router = useRouter();
+  const [isLoading, setIsLoading] = React.useState(false);
 
+  // if dev, email and password is hello@praveenjuge.com
   const [emailAddress, setEmailAddress] = React.useState(
     "hello@praveenjuge.com"
   );
@@ -14,56 +27,140 @@ export default function Page() {
 
   // Handle the submission of the sign-in form
   const onSignInPress = async () => {
-    if (!isLoaded) return;
+    if (!isLoaded || isLoading) return;
 
-    // Start the sign-in process using the email and password provided
+    if (!emailAddress.trim() || !password.trim()) {
+      Alert.alert("Error", "Please enter both email and password.");
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
       const signInAttempt = await signIn.create({
-        identifier: emailAddress,
+        identifier: emailAddress.trim(),
         password,
       });
 
-      // If sign-in process is complete, set the created session as active
-      // and redirect the user
       if (signInAttempt.status === "complete") {
         await setActive({ session: signInAttempt.createdSessionId });
         router.replace("/(tabs)");
       } else {
-        // If the status isn't complete, check why. User might need to
-        // complete further steps.
         console.error(JSON.stringify(signInAttempt, null, 2));
+        Alert.alert("Error", "Sign in incomplete. Please try again.");
       }
-    } catch (err) {
-      // See https://clerk.com/docs/custom-flows/error-handling
-      // for more info on error handling
+    } catch (err: any) {
       console.error(JSON.stringify(err, null, 2));
+      Alert.alert(
+        "Sign In Failed",
+        err.errors?.[0]?.message ||
+          "Invalid email or password. Please try again."
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <View>
-      <Text>Sign in</Text>
-      <TextInput
-        autoCapitalize="none"
-        value={emailAddress}
-        placeholder="Enter email"
-        onChangeText={(emailAddress) => setEmailAddress(emailAddress)}
-      />
-      <TextInput
-        value={password}
-        placeholder="Enter password"
-        secureTextEntry={true}
-        onChangeText={(password) => setPassword(password)}
-      />
-      <TouchableOpacity onPress={onSignInPress}>
-        <Text>Continue</Text>
-      </TouchableOpacity>
-      <View style={{ display: "flex", flexDirection: "row", gap: 3 }}>
-        <Text>Don't have an account?</Text>
-        <Link href="/sign-up">
-          <Text>Sign up</Text>
-        </Link>
-      </View>
-    </View>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardAvoidingView}
+      >
+        <View style={styles.content}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Email</Text>
+            <TextInput
+              style={styles.textInput}
+              autoCapitalize="none"
+              autoComplete="email"
+              autoCorrect={false}
+              keyboardType="email-address"
+              value={emailAddress}
+              placeholder="Enter your email"
+              placeholderTextColor={colors.secondaryLabel}
+              onChangeText={setEmailAddress}
+              editable={!isLoading}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Password</Text>
+            <TextInput
+              style={styles.textInput}
+              value={password}
+              placeholder="Enter your password"
+              placeholderTextColor={colors.secondaryLabel}
+              secureTextEntry={true}
+              autoComplete="current-password"
+              onChangeText={setPassword}
+              editable={!isLoading}
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              (isLoading || !emailAddress.trim() || !password.trim()) &&
+                styles.disabledButton,
+            ]}
+            onPress={onSignInPress}
+            disabled={isLoading || !emailAddress.trim() || !password.trim()}
+          >
+            <Text style={[styles.primaryButtonText]}>
+              {isLoading ? "Signing in..." : "Sign In"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    gap: 24,
+    marginBottom: 32,
+  },
+  inputGroup: {
+    gap: 8,
+  },
+  inputLabel: {
+    fontWeight: "500",
+    color: colors.label,
+  },
+  textInput: {
+    backgroundColor: colors.adaptiveWhite,
+    borderColor: colors.border,
+    borderWidth: borderWidths.hairline,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    color: colors.label,
+    minHeight: 48,
+    overflow: "hidden",
+  },
+  primaryButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+    marginTop: 8,
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  primaryButtonText: {
+    color: "white",
+    fontWeight: "600",
+  },
+});

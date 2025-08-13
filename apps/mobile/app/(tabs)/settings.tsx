@@ -11,16 +11,14 @@ export default function SettingsScreen() {
       <Text style={styles.labelTitle}>
         {user?.primaryEmailAddress?.emailAddress || "Not logged in"}
       </Text>
-      <Text style={styles.labelTitle}>ID: {user?.id || "Not logged in"}</Text>
       <SignOutButton />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: { padding: 20, flex: 1 },
+  scrollContent: { padding: 24, gap: 24, flex: 1 },
   labelTitle: {
     color: colors.label,
-    marginBottom: 8,
   },
 });

@@ -1,7 +1,7 @@
-import { Audio } from 'expo-av';
-import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useRef, useState } from 'react';
+import { Audio } from "expo-av";
+import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -11,11 +11,11 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { useCreateCard, useCreateCardWithFile } from '@teak/shared';
-import { IconSymbol } from '../../components/ui/IconSymbol';
-import { borderWidths, colors } from '../../constants/colors';
-import type { Doc } from '@teak/convex/_generated/dataModel';
+} from "react-native";
+import { useCreateCard, useCreateCardWithFile } from "@teak/shared";
+import { IconSymbol } from "../../components/ui/IconSymbol";
+import { borderWidths, colors } from "../../constants/colors";
+import type { Doc } from "@teak/convex/_generated/dataModel";
 
 type Card = Doc<"cards">;
 
@@ -29,19 +29,19 @@ function isValidUrl(string: string): boolean {
   }
 }
 
-function getCardTypeFromMimeType(mimeType: string): Card['type'] {
-  if (mimeType.startsWith('image/')) return 'image';
-  if (mimeType.startsWith('video/')) return 'video';
-  if (mimeType.startsWith('audio/')) return 'audio';
-  if (mimeType === 'application/pdf') return 'document';
-  return 'text';
+function getCardTypeFromMimeType(mimeType: string): Card["type"] {
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("audio/")) return "audio";
+  if (mimeType === "application/pdf") return "document";
+  return "text";
 }
 
 // Use the utility function
 const isUrl = isValidUrl;
 
 function detectCardType(content: string): {
-  type: Card['type'];
+  type: Card["type"];
   content: string;
   url?: string;
 } {
@@ -49,20 +49,20 @@ function detectCardType(content: string): {
 
   if (isUrl(trimmedContent)) {
     return {
-      type: 'link',
+      type: "link",
       content: trimmedContent,
       url: trimmedContent,
     };
   }
 
   return {
-    type: 'text',
+    type: "text",
     content: trimmedContent,
   };
 }
 
 export default function AddScreen() {
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -87,17 +87,23 @@ export default function AddScreen() {
     };
   }, [isRecording, recording]);
 
-  const { uploadFile, createCard: createCardWithFile } = useCreateCardWithFile();
+  const { uploadFile, createCard: createCardWithFile } =
+    useCreateCardWithFile();
 
-  const handleFileUpload = async (fileUri: string, fileName: string, mimeType: string, cardType: string = 'image') => {
+  const handleFileUpload = async (
+    fileUri: string,
+    fileName: string,
+    mimeType: string,
+    cardType: string = "image"
+  ) => {
     setIsUploading(true);
     try {
       // Upload file to Convex storage
       const fileId = await uploadFile(fileUri, fileName, mimeType);
-      
+
       // Determine card type based on MIME type
       const type = getCardTypeFromMimeType(mimeType);
-      
+
       // Create card with file reference
       await createCardWithFile({
         type,
@@ -109,11 +115,11 @@ export default function AddScreen() {
           mimeType,
         },
       });
-      
-      Alert.alert('Success', 'File uploaded successfully!');
+
+      Alert.alert("Success", "File uploaded successfully!");
     } catch (error) {
-      console.error('Failed to upload file:', error);
-      Alert.alert('Error', 'Failed to upload file. Please try again.');
+      console.error("Failed to upload file:", error);
+      Alert.alert("Error", "Failed to upload file. Please try again.");
     } finally {
       setIsUploading(false);
     }
@@ -122,10 +128,10 @@ export default function AddScreen() {
   async function startRecording() {
     try {
       const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') {
+      if (status !== "granted") {
         Alert.alert(
-          'Permission required',
-          'Permission to access microphone is required!'
+          "Permission required",
+          "Permission to access microphone is required!"
         );
         return;
       }
@@ -142,8 +148,8 @@ export default function AddScreen() {
       setIsRecording(true);
       setRecordingDuration(0);
     } catch (err) {
-      console.error('Failed to start recording', err);
-      Alert.alert('Error', 'Failed to start recording.');
+      console.error("Failed to start recording", err);
+      Alert.alert("Error", "Failed to start recording.");
     }
   }
 
@@ -159,7 +165,7 @@ export default function AddScreen() {
     });
     const uri = recording.getURI();
     if (uri) {
-      await handleFileUpload(uri, `recording-${Date.now()}.m4a`, 'audio/m4a');
+      await handleFileUpload(uri, `recording-${Date.now()}.m4a`, "audio/m4a");
     }
     setRecording(null);
     setRecordingDuration(0);
@@ -169,19 +175,19 @@ export default function AddScreen() {
     try {
       // Show options for different types of file selection
       Alert.alert(
-        'Select File Type',
-        'Choose the type of file you want to upload',
+        "Select File Type",
+        "Choose the type of file you want to upload",
         [
           {
-            text: 'Photo/Video from Gallery',
+            text: "Photo/Video from Gallery",
             onPress: async () => {
               const permissionResult =
                 await ImagePicker.requestMediaLibraryPermissionsAsync();
 
               if (permissionResult.granted === false) {
                 Alert.alert(
-                  'Permission required',
-                  'Permission to access camera roll is required!'
+                  "Permission required",
+                  "Permission to access camera roll is required!"
                 );
                 return;
               }
@@ -196,22 +202,23 @@ export default function AddScreen() {
                 const asset = result.assets[0];
                 await handleFileUpload(
                   asset.uri,
-                  asset.fileName || `upload_${Date.now()}.${asset.type === 'video' ? 'mp4' : 'jpg'}`,
-                  asset.type === 'video' ? 'video/mp4' : 'image/jpeg'
+                  asset.fileName ||
+                    `upload_${Date.now()}.${asset.type === "video" ? "mp4" : "jpg"}`,
+                  asset.type === "video" ? "video/mp4" : "image/jpeg"
                 );
               }
             },
           },
           {
-            text: 'Take Photo/Video',
+            text: "Take Photo/Video",
             onPress: async () => {
               const permissionResult =
                 await ImagePicker.requestCameraPermissionsAsync();
 
               if (permissionResult.granted === false) {
                 Alert.alert(
-                  'Permission required',
-                  'Permission to access camera is required!'
+                  "Permission required",
+                  "Permission to access camera is required!"
                 );
                 return;
               }
@@ -226,18 +233,19 @@ export default function AddScreen() {
                 const asset = result.assets[0];
                 await handleFileUpload(
                   asset.uri,
-                  asset.fileName || `capture_${Date.now()}.${asset.type === 'video' ? 'mp4' : 'jpg'}`,
-                  asset.type === 'video' ? 'video/mp4' : 'image/jpeg'
+                  asset.fileName ||
+                    `capture_${Date.now()}.${asset.type === "video" ? "mp4" : "jpg"}`,
+                  asset.type === "video" ? "video/mp4" : "image/jpeg"
                 );
               }
             },
           },
           {
-            text: 'Other Files',
+            text: "Other Files",
             onPress: async () => {
               try {
                 const result = await DocumentPicker.getDocumentAsync({
-                  type: ['image/*', 'video/*', 'audio/*'],
+                  type: ["image/*", "video/*", "audio/*"],
                   copyToCacheDirectory: true,
                 });
 
@@ -246,31 +254,31 @@ export default function AddScreen() {
                   await handleFileUpload(
                     asset.uri,
                     asset.name,
-                    asset.mimeType || 'application/octet-stream'
+                    asset.mimeType || "application/octet-stream"
                   );
                 }
               } catch (error) {
-                console.error('Document picker error:', error);
-                Alert.alert('Error', 'Failed to pick document');
+                console.error("Document picker error:", error);
+                Alert.alert("Error", "Failed to pick document");
               }
             },
           },
           {
-            text: 'Cancel',
-            style: 'cancel',
+            text: "Cancel",
+            style: "cancel",
           },
         ]
       );
     } catch (error) {
-      console.error('File upload error:', error);
-      Alert.alert('Error', 'Failed to upload file');
+      console.error("File upload error:", error);
+      Alert.alert("Error", "Failed to upload file");
     }
   };
 
   const handleSave = async () => {
     const trimmedContent = content.trim();
     if (!trimmedContent) {
-      Alert.alert('Error', 'Please enter some content');
+      Alert.alert("Error", "Please enter some content");
       return;
     }
 
@@ -281,13 +289,13 @@ export default function AddScreen() {
         ...cardData,
         metadata: {}, // Empty metadata, let server populate
       });
-      
-      setContent('');
+
+      setContent("");
       textInputRef.current?.focus();
-      Alert.alert('Success', 'Card saved successfully!');
+      Alert.alert("Success", "Card saved successfully!");
     } catch (error) {
-      console.error('Failed to save card:', error);
-      Alert.alert('Error', 'Failed to save card. Please try again.');
+      console.error("Failed to save card:", error);
+      Alert.alert("Error", "Failed to save card. Please try again.");
     }
   };
 
@@ -296,8 +304,8 @@ export default function AddScreen() {
       <View
         style={{
           flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
+          justifyContent: "center",
+          alignItems: "center",
           backgroundColor: colors.background,
         }}
       >
@@ -319,9 +327,9 @@ export default function AddScreen() {
             width: 80,
             height: 80,
             borderRadius: 40,
-            backgroundColor: 'red',
-            justifyContent: 'center',
-            alignItems: 'center',
+            backgroundColor: "red",
+            justifyContent: "center",
+            alignItems: "center",
           }}
         >
           <IconSymbol color="white" name="stop.fill" size={40} />
@@ -332,7 +340,7 @@ export default function AddScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
       <ScrollView
@@ -353,19 +361,19 @@ export default function AddScreen() {
             padding: 16,
             backgroundColor: colors.background,
             minHeight: 150,
-            textAlignVertical: 'top',
+            textAlignVertical: "top",
             color: colors.label,
           }}
           value={content}
         />
 
-        <View style={{ flexDirection: 'row', margin: 16, gap: 8 }}>
+        <View style={{ flexDirection: "row", margin: 16, gap: 8 }}>
           <TouchableOpacity
             disabled={isUploading}
             onPress={handleFilePicker}
             style={{
-              alignItems: 'center',
-              justifyContent: 'center',
+              alignItems: "center",
+              justifyContent: "center",
               borderRadius: 12,
               backgroundColor: colors.background,
               borderWidth: borderWidths.hairline,
@@ -385,8 +393,8 @@ export default function AddScreen() {
           <TouchableOpacity
             onPress={startRecording}
             style={{
-              alignItems: 'center',
-              justifyContent: 'center',
+              alignItems: "center",
+              justifyContent: "center",
               borderRadius: 12,
               backgroundColor: colors.background,
               borderWidth: borderWidths.hairline,
@@ -409,14 +417,14 @@ export default function AddScreen() {
               flex: 1,
               borderRadius: 12,
               height: 50,
-              alignItems: 'center',
-              justifyContent: 'center',
+              alignItems: "center",
+              justifyContent: "center",
               backgroundColor: colors.primary,
               opacity: isUploading || !content.trim() ? 0.3 : 1,
             }}
           >
-            <Text style={{ fontWeight: '600', color: colors.adaptiveWhite }}>
-              {isUploading ? 'Saving...' : 'Save Card'}
+            <Text style={{ fontWeight: "600", color: colors.adaptiveWhite }}>
+              {isUploading ? "Saving..." : "Save"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -438,10 +446,10 @@ export default function AddScreen() {
             <Text
               style={{
                 color: colors.label,
-                fontWeight: '500',
+                fontWeight: "500",
               }}
             >
-              {isUrl(content.trim()) ? '🔗 URL Detected' : '📝 Text Note'}
+              {isUrl(content.trim()) ? "🔗 URL Detected" : "📝 Text Note"}
             </Text>
             {isUrl(content.trim()) && (
               <Text

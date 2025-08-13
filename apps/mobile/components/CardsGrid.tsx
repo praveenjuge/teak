@@ -5,12 +5,12 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import { useQuery } from 'convex/react';
-import { api } from '@teak/convex';
-import type { Doc } from '@teak/convex/_generated/dataModel';
-import { colors } from '../constants/colors';
-import { CardItem } from './CardItem';
+} from "react-native";
+import { useQuery } from "convex/react";
+import { api } from "@teak/convex";
+import type { Doc } from "@teak/convex/_generated/dataModel";
+import { colors } from "../constants/colors";
+import { CardItem } from "./CardItem";
 
 type Card = Doc<"cards">;
 
@@ -90,12 +90,12 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Text style={[styles.emptyTitle, dynamicStyles.emptyTitle]}>
-        {searchQuery ? 'No cards found' : 'No cards yet'}
+        {searchQuery ? "No cards found" : "No cards yet"}
       </Text>
       <Text style={[styles.emptyDescription, dynamicStyles.emptyDescription]}>
         {searchQuery
-          ? `No cards match "${searchQuery}"${selectedType ? ` in ${selectedType} cards` : ''}`
-          : 'Start by adding your first card'}
+          ? `No cards match "${searchQuery}"${selectedType ? ` in ${selectedType} cards` : ""}`
+          : "Start by adding your first card"}
       </Text>
     </View>
   );
@@ -128,46 +128,43 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   masonryContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   column: {
     flex: 1,
   },
-  cardContainer: {
-    marginBottom: 0,
-  },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   errorTitle: {
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 8,
   },
   errorDescription: {
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 40,
   },
   emptyTitle: {
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 8,
   },
   emptyDescription: {
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 20,
   },
 });

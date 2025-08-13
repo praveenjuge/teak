@@ -34,13 +34,13 @@ const formatDuration = (seconds: number): string => {
 
 // Helper function to format file size
 const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  
+  if (bytes === 0) return "0 Bytes";
+
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
 export function CardItem({ card, onDelete }: CardItemProps) {
@@ -54,10 +54,6 @@ export function CardItem({ card, onDelete }: CardItemProps) {
   const mediaUrl = useQuery(
     api.cards.getFileUrl,
     card.fileId ? { fileId: card.fileId } : "skip"
-  );
-  const thumbnailUrl = useQuery(
-    api.cards.getFileUrl,
-    card.thumbnailId ? { fileId: card.thumbnailId } : "skip"
   );
 
   // For audio files, use the media URL
@@ -227,21 +223,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
             style={[styles.card, dynamicStyles.card]}
           >
             <View style={styles.videoContainer}>
-              {thumbnailUrl ? (
-                <Image
-                  resizeMode="cover"
-                  source={{ uri: thumbnailUrl }}
-                  style={styles.videoPlaceholder}
-                />
-              ) : mediaUrl ? (
-                <Image
-                  resizeMode="cover"
-                  source={{ uri: mediaUrl }}
-                  style={styles.videoPlaceholder}
-                />
-              ) : (
-                <View style={styles.videoPlaceholder} />
-              )}
+              <View style={styles.videoPlaceholder} />
               <View style={styles.playOverlay}>
                 <View style={styles.playButton}>
                   <IconSymbol color="white" name="play.fill" size={14} />
@@ -285,10 +267,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
               </View>
               <View style={styles.audioInfo}>
                 <Text style={[styles.audioTime, dynamicStyles.mutedText]}>
-                  {formatDuration(playbackPosition)} /{" "}
-                  {card.metadata?.duration
-                    ? formatDuration(card.metadata.duration)
-                    : "--:--"}
+                  Audio
                 </Text>
               </View>
             </View>
@@ -306,37 +285,12 @@ export function CardItem({ card, onDelete }: CardItemProps) {
             onPress={() => handleUrlPress(card.url!)}
             style={[styles.card, dynamicStyles.card]}
           >
-            {thumbnailUrl ? (
-              <View style={styles.urlWithScreenshot}>
-                <Image
-                  resizeMode="cover"
-                  source={{ uri: thumbnailUrl }}
-                  style={styles.urlScreenshot}
-                />
-                <View style={styles.urlScreenshotOverlay}>
-                  <View style={styles.urlScreenshotBadge}>
-                    <IconSymbol
-                      color="white"
-                      name="arrow.up.right.square"
-                      size={14}
-                    />
-                  </View>
-                </View>
-              </View>
-            ) : null}
-            <View
-              style={[
-                styles.urlContent,
-                thumbnailUrl && styles.urlContentWithScreenshot,
-              ]}
-            >
-              {!thumbnailUrl && (
-                <IconSymbol
-                  color={colors.primary}
-                  name="arrow.up.right.square"
-                  size={18}
-                />
-              )}
+            <View style={[styles.urlContent]}>
+              <Image
+                resizeMode="cover"
+                source={{ uri: card.metadata?.linkImage }}
+                style={styles.urlScreenshot}
+              />
               <View style={styles.urlTextContainer}>
                 <Text
                   numberOfLines={1}
@@ -485,49 +439,24 @@ const styles = StyleSheet.create({
   audioContent: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
   },
   audioPlayButton: {
     borderRadius: 20,
-    padding: 12,
-  },
-  audioInfo: {
-    flexDirection: "row",
-    alignItems: "center",
+    padding: 8,
   },
   audioTime: {
-    marginLeft: 4,
-  },
-  urlWithScreenshot: {
-    position: "relative",
+    marginLeft: 12,
   },
   urlScreenshot: {
     width: "100%",
-    height: 120,
-  },
-  urlScreenshotOverlay: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-  },
-  urlScreenshotBadge: {
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    borderRadius: 12,
-    padding: 6,
+    height: 48,
   },
   urlContent: {
-    flexDirection: "row",
-    padding: 12,
-  },
-  urlContentWithScreenshot: {
-    paddingTop: 12,
+    flexDirection: "column",
   },
   urlTextContainer: {
     flex: 1,
-    marginLeft: 8,
-  },
-  urlTitle: {
-    fontWeight: "600",
+    padding: 12,
   },
   urlDescription: {
     marginTop: 4,
@@ -545,22 +474,15 @@ const styles = StyleSheet.create({
   pdfIcon: {
     backgroundColor: "#dc2626",
     borderRadius: 20,
-    padding: 8,
+    padding: 6,
     marginRight: 12,
   },
   pdfInfo: {
     flex: 1,
   },
-  pdfTitle: {
-    fontWeight: "600",
-    fontSize: 16,
-  },
   pdfMeta: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 2,
-  },
-  pdfMetaText: {
-    fontSize: 12,
+    marginTop: 4,
   },
 });
