@@ -3,6 +3,8 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with
 code in this repository.
 
+Teak ia a streamlined personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations.
+
 ## Development Commands
 
 ```bash
@@ -45,7 +47,7 @@ bun remove <package-name>
 
 ## Architecture Overview
 
-Teak is a card management application built with a modern monorepo architecture:
+Built with a modern monorepo architecture:
 
 ### Core Stack
 
