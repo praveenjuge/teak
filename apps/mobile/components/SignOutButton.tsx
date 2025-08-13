@@ -21,14 +21,19 @@ export const SignOutButton = () => {
 
   return (
     <TouchableOpacity
-      onPress={handleSignOut}
       style={{
         padding: 12,
         backgroundColor: "red",
         borderRadius: 8,
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: 48,
+      }}
+      onPress={() => {
+        handleSignOut();
       }}
     >
-      <Text>Sign out</Text>
+      <Text style={{ color: "white", fontWeight: "bold" }}>Sign Out</Text>
     </TouchableOpacity>
   );
 };
