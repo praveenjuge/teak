@@ -1,9 +1,4 @@
-import {
-  Archive,
-  Code,
-  File,
-  FileText,
-} from "lucide-react";
+import { Archive, Code, File, FileText } from "lucide-react";
 import { type Doc } from "@teak/convex/_generated/dataModel";
 
 // Large/rich previews for the modal
@@ -12,7 +7,7 @@ function getDocumentIcon(fileName: string, mimeType: string) {
   const mime = (mimeType || "").toLowerCase();
 
   if (mime.includes("pdf")) {
-    return <FileText className="w-10 h-10 text-red-500" />;
+    return <FileText className="w-10 h-10 text-destructive" />;
   }
   if (
     mime.includes("word") ||
@@ -67,7 +62,7 @@ interface DocumentPreviewProps {
 export function DocumentPreview({ card }: DocumentPreviewProps) {
   const fileName = card.metadata?.fileName || card.content || "Document";
   const mimeType = card.metadata?.mimeType || "";
-  
+
   return (
     <div className="flex items-center gap-4 p-4">
       <div className="flex-shrink-0">{getDocumentIcon(fileName, mimeType)}</div>

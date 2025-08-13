@@ -56,9 +56,9 @@ export default function Payments() {
         </div>
         <Progress value={progressPercentage} className="h-2" />
         {!isSubscribed && (cardCount || 0) >= FREE_TIER_LIMIT && (
-          <p className="text-sm text-red-600">
-            You&apos;ve reached your free tier limit. Upgrade to Pro for unlimited
-            cards.
+          <p className="text-sm text-destructive">
+            You&apos;ve reached your free tier limit. Upgrade to Pro for
+            unlimited cards.
           </p>
         )}
         {!isSubscribed && (cardCount || 0) < FREE_TIER_LIMIT && (

@@ -339,16 +339,13 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
   // Uploading mode - full card feedback while files/audio are being uploaded
   if (isSubmitting && uploadingType !== "none") {
     return (
-      <Card className="shadow-none p-4 border-blue-200">
+      <Card className="shadow-none p-4 border-primary">
         <CardContent className="text-center flex flex-col gap-4 h-full justify-center items-center p-0">
-          <h3 className="font-medium text-blue-600">
+          <h3 className="font-medium text-primary">
             {uploadingType === "audio"
               ? "Uploading audio..."
               : "Uploading file..."}
           </h3>
-          <div className="text-muted-foreground">
-            Please keep this tab open.
-          </div>
         </CardContent>
       </Card>
     );
@@ -411,7 +408,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
         </form>
 
         {error && (
-          <div className="p-2 bg-red-50 border border-red-200 rounded text-red-600">
+          <div className="p-2 bg-red-50 border border-red-200 rounded text-destructive">
             {error}
           </div>
         )}

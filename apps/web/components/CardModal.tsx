@@ -75,7 +75,7 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
 
   const renderPreview = () => {
     if (!card) return null;
-    
+
     switch (card.type) {
       case "text":
         return <TextPreview card={card} onContentChange={updateContent} />;
@@ -261,7 +261,9 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                     <Button variant="outline" onClick={toggleFavorite}>
                       <Heart
                         className={`${
-                          card.isFavorited ? "fill-red-500 text-red-500" : ""
+                          card.isFavorited
+                            ? "fill-destructive text-destructive"
+                            : ""
                         }`}
                       />
                       {card.isFavorited ? "Unfavorite" : "Favorite"}

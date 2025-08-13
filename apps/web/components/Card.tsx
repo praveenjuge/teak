@@ -76,7 +76,7 @@ export function Card({
         >
           {card.isFavorited && (
             <div className="absolute top-3 right-3 z-10">
-              <Heart className="size-4 fill-red-500 text-red-500" />
+              <Heart className="size-4 fill-destructive text-destructive" />
             </div>
           )}
 
@@ -162,7 +162,7 @@ export function Card({
             <ContextMenuItem onClick={handleToggleFavorite}>
               <Heart
                 className={`${
-                  card.isFavorited ? "fill-red-500 text-red-500" : ""
+                  card.isFavorited ? "fill-destructive text-destructive" : ""
                 }`}
               />
               {card.isFavorited ? "Unfavorite" : "Favorite"}
@@ -170,7 +170,7 @@ export function Card({
             <ContextMenuSeparator />
             <ContextMenuItem
               onClick={handleDelete}
-              className="text-red-600 focus:text-red-600"
+              className="text-destructive focus:text-destructive"
             >
               <Trash2 />
               Delete
@@ -187,7 +187,7 @@ export function Card({
             <ContextMenuSeparator />
             <ContextMenuItem
               onClick={handlePermanentDelete}
-              className="text-red-600 focus:text-red-600"
+              className="text-destructive focus:text-destructive"
             >
               <Trash />
               Delete Forever
