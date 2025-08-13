@@ -1,13 +1,33 @@
-import { CountButton } from "~features/count-button"
+import { useAuth } from "@clerk/chrome-extension"
+import { createMemoryRouter, RouterProvider } from "react-router-dom"
+
+import RootLayout from "~layouts/RootLayout"
+import Home from "~routes/Home"
+import SignIn from "~routes/SignIn"
 
 import "~style.css"
 
+const router = createMemoryRouter([
+  {
+    path: "/",
+    element: <RootLayout />,
+    children: [
+      {
+        index: true,
+        element: <AuthenticatedRoute />
+      }
+    ]
+  }
+])
+
+function AuthenticatedRoute() {
+  const { isSignedIn } = useAuth()
+  
+  return isSignedIn ? <Home /> : <SignIn />
+}
+
 function IndexPopup() {
-  return (
-    <div className="plasmo-flex plasmo-items-center plasmo-justify-center plasmo-h-16 plasmo-w-40">
-      <CountButton />
-    </div>
-  )
+  return <RouterProvider router={router} />
 }
 
 export default IndexPopup
