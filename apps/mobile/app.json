@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Teak",
+    "slug": "teak",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.teak.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.teak.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "scheme": "teak",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Teak to access your microphone for voice recordings."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

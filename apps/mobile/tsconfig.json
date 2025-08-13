@@ -1,0 +1,14 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": ["./*"],
+      "@teak/shared": ["../../packages/shared/src"],
+      "@teak/shared/*": ["../../packages/shared/src/*"],
+      "@teak/convex": ["../../packages/backend/convex/_generated/api"],
+      "@teak/convex/*": ["../../packages/backend/convex/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+}
