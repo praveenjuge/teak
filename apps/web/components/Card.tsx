@@ -82,7 +82,7 @@ export function Card({
 
           <CardContent className="p-0 space-y-2">
             {card.type === "text" && (
-              <p className="whitespace-pre-wrap p-4 line-clamp-6">
+              <p className="whitespace-pre-wrap p-4 line-clamp-3">
                 {card.content}
               </p>
             )}

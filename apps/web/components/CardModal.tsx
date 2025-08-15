@@ -118,17 +118,9 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                 <DialogTitle className="text-lg font-semibold">
                   {card.type.charAt(0).toUpperCase() + card.type.slice(1)} Card
                 </DialogTitle>
-                <div className="flex items-center gap-2">
-                  {card.url && (
-                    <Button variant="outline" size="sm" onClick={openLink}>
-                      <ExternalLink />
-                      Open
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="icon" onClick={handleClose}>
-                    <X />
-                  </Button>
-                </div>
+                <Button variant="ghost" size="icon" onClick={handleClose}>
+                  <X />
+                </Button>
               </div>
 
               {/* URL (for links or any card with URL) */}
@@ -157,6 +149,21 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                   className="mt-1"
                 />
               </div>
+
+              {/* AI Summary */}
+              {card.aiSummary && (
+                <div>
+                  <Label htmlFor="ai-summary">Teak Summary</Label>
+                  <Textarea
+                    id="ai-summary"
+                    value={card.aiSummary || ""}
+                    onChange={(e) => updateAiSummary(e.target.value)}
+                    placeholder="AI generated summary..."
+                    className="mt-1"
+                    rows={3}
+                  />
+                </div>
+              )}
 
               {/* Tags */}
               <div>
@@ -202,21 +209,6 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                 />
               </div>
 
-              {/* AI Summary */}
-              {card.aiSummary && (
-                <div>
-                  <Label htmlFor="ai-summary">Teak Summary</Label>
-                  <Textarea
-                    id="ai-summary"
-                    value={card.aiSummary || ""}
-                    onChange={(e) => updateAiSummary(e.target.value)}
-                    placeholder="AI generated summary..."
-                    className="mt-1"
-                    rows={3}
-                  />
-                </div>
-              )}
-
               <Separator />
 
               {/* File Metadata (read-only) */}
@@ -252,13 +244,22 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                 )}
               </div>
 
-              <Separator />
-
               {/* Action Buttons */}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                {card.url && (
+                  <Button variant="outline" size="sm" onClick={openLink}>
+                    <ExternalLink />
+                    Open Link
+                  </Button>
+                )}
+
                 {!card.isDeleted && (
                   <>
-                    <Button variant="outline" onClick={toggleFavorite}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={toggleFavorite}
+                    >
                       <Heart
                         className={`${
                           card.isFavorited
@@ -270,6 +271,7 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                     </Button>
                     <Button
                       variant="destructive"
+                      size="sm"
                       onClick={() => handleDelete(handleClose)}
                     >
                       <Trash2 />
@@ -282,6 +284,7 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                   <>
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={() => handleRestore(handleClose)}
                     >
                       <RotateCcw />
@@ -289,6 +292,7 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                     </Button>
                     <Button
                       variant="destructive"
+                      size="sm"
                       onClick={() => handlePermanentDelete(handleClose)}
                     >
                       <Trash />
