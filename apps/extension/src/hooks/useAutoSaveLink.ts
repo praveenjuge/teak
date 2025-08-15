@@ -35,7 +35,10 @@ const isValidUrl = (url: string): boolean => {
   return url.startsWith("http://") || url.startsWith("https://");
 };
 
-export const useAutoSaveLink = (isAuthenticated: boolean = false): UseAutoSaveLinkResult => {
+export const useAutoSaveLink = (
+  isAuthenticated: boolean = false, 
+  contextMenuState?: { status: string; url?: string } | null
+): UseAutoSaveLinkResult => {
   const [state, setState] = useState<AutoSaveState>("idle");
   const [error, setError] = useState<string>();
   const [currentUrl, setCurrentUrl] = useState<string>();
@@ -44,6 +47,13 @@ export const useAutoSaveLink = (isAuthenticated: boolean = false): UseAutoSaveLi
   useEffect(() => {
     // Only run if user is authenticated
     if (!isAuthenticated) {
+      setState("idle");
+      return;
+    }
+
+    // Skip auto-save if there's any active context menu state
+    // This means the popup was opened from a context menu action, not from clicking the extension icon
+    if (contextMenuState) {
       setState("idle");
       return;
     }
@@ -96,8 +106,37 @@ export const useAutoSaveLink = (isAuthenticated: boolean = false): UseAutoSaveLi
       }
     };
 
-    saveCurrentTab();
-  }, [createCard, isAuthenticated]);
+    // Check directly with background script for context menu state to avoid React state race conditions
+    const checkContextMenuAndSave = async () => {
+      try {
+        // Check background script directly for context menu state
+        const backgroundState = await chrome.runtime.sendMessage({ type: 'GET_CONTEXT_MENU_STATE' });
+        
+        // Check if state is recent (within last 30 seconds) - same logic as useContextMenuState
+        const isRecentContextMenuState = backgroundState && (Date.now() - backgroundState.timestamp) < 30000;
+        
+        // If there's recent context menu state, don't auto-save
+        if (isRecentContextMenuState) {
+          setState("idle");
+          return;
+        }
+        
+        // No recent context menu state, proceed with auto-save
+        await saveCurrentTab();
+      } catch (error) {
+        console.error("Failed to check context menu state:", error);
+        // If we can't check context menu state, proceed with auto-save as fallback
+        await saveCurrentTab();
+      }
+    };
+
+    // Add a small delay to ensure background state is set if this was triggered by context menu
+    const timeoutId = setTimeout(checkContextMenuAndSave, 50);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [createCard, isAuthenticated, contextMenuState]);
 
   return {
     state,

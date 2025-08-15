@@ -12,6 +12,7 @@ import { ConvexReactClient, useQuery } from "convex/react"
 import { ConvexProviderWithClerk } from "convex/react-clerk"
 
 import { useAutoSaveLink } from "./hooks/useAutoSaveLink"
+import { useContextMenuState } from "./hooks/useContextMenuState"
 
 import "~style.css"
 
@@ -33,10 +34,14 @@ const EXTENSION_URL = chrome.runtime.getURL(".")
 function UserInfo() {
   const { isLoaded, user } = useUser()
   const cardCount = useQuery(api.cards.getCardCount)
+  const { state: contextMenuState, clearState } = useContextMenuState()
 
   // Only use the auto-save hook when user is fully loaded and authenticated
   const shouldAutoSave = isLoaded && !!user
-  const { state, error, currentUrl } = useAutoSaveLink(shouldAutoSave)
+  const { state, error, currentUrl } = useAutoSaveLink(
+    shouldAutoSave, 
+    contextMenuState
+  )
 
   if (!isLoaded) {
     return (
@@ -46,7 +51,94 @@ function UserInfo() {
     )
   }
 
-  const renderSaveStatus = () => {
+  const renderContextMenuStatus = () => {
+    if (!contextMenuState) return null;
+
+    const actionLabels = {
+      saveUrl: "Page",
+      saveImage: "Image", 
+      saveText: "Text"
+    };
+
+    const actionLabel = actionLabels[contextMenuState.action as keyof typeof actionLabels] || "Item";
+
+    switch (contextMenuState.status) {
+      case 'loading':
+        return (
+          <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
+            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-sm text-blue-700">Saving {actionLabel.toLowerCase()} to Teak...</span>
+          </div>
+        );
+
+      case 'success':
+        return (
+          <div className="flex items-center justify-between gap-2 p-3 bg-green-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <svg
+                className="w-4 h-4 text-green-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              <span className="text-sm text-green-700">{actionLabel} saved to Teak!</span>
+            </div>
+            <button 
+              onClick={clearState}
+              className="text-green-400 hover:text-green-600 text-xs"
+            >
+              ×
+            </button>
+          </div>
+        );
+
+      case 'error':
+        return (
+          <div className="flex items-center justify-between gap-2 p-3 bg-red-50 rounded-lg">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <svg
+                  className="w-4 h-4 text-red-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+                <span className="text-sm text-red-700">Failed to save {actionLabel.toLowerCase()}</span>
+              </div>
+              {contextMenuState.error && (
+                <span className="text-xs text-red-600">{contextMenuState.error}</span>
+              )}
+            </div>
+            <button 
+              onClick={clearState}
+              className="text-red-400 hover:text-red-600 text-xs"
+            >
+              ×
+            </button>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const renderAutoSaveStatus = () => {
+    // Don't show auto-save status if we're showing context menu state
+    if (contextMenuState) return null;
+
     switch (state) {
       case "loading":
         return (
@@ -120,7 +212,8 @@ function UserInfo() {
   return (
     <div className="flex flex-col items-center gap-3 p-4">
       <UserButton />
-      {renderSaveStatus()}
+      {renderContextMenuStatus()}
+      {renderAutoSaveStatus()}
       <span className="text-sm font-medium">{cardCount} Cards</span>
     </div>
   )
