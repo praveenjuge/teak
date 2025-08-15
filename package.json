@@ -4,7 +4,6 @@
   "workspaces": [
     "apps/web",
     "apps/mobile",
-    "apps/extension",
     "packages/*"
   ],
   "scripts": {
@@ -15,6 +14,8 @@
     "dev:frontend": "cd apps/web && bun dev",
     "dev:mobile": "cd apps/mobile && bun dev",
     "dev:extension": "cd apps/extension && bun dev",
+    "build:extension": "cd apps/extension && bun run build",
+    "package:extension": "cd apps/extension && bun run package",
     "lint": "cd apps/web && bun run lint",
     "start": "cd apps/web && bun run start"
   },
