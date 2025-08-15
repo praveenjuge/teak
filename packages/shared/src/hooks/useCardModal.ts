@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@teak/convex";
 import { type Id } from "@teak/convex/_generated/dataModel";
@@ -6,31 +6,90 @@ import { useCardActions } from "./useCardActions";
 
 export interface CardModalConfig {
   onError?: (error: Error, operation: string) => void;
+  onSuccess?: (message: string) => void;
   onOpenLink?: (url: string) => void;
   onClose?: () => void;
 }
 
+interface PendingChanges {
+  content?: string;
+  url?: string;
+  notes?: string;
+  aiSummary?: string;
+}
+
 export function useCardModal(cardId: string | null, config: CardModalConfig = {}) {
   const [tagInput, setTagInput] = useState("");
-  
+  const [pendingChanges, setPendingChanges] = useState<PendingChanges>({});
+  const [isSaved, setIsSaved] = useState(false);
+
   // Queries
   const card = useQuery(
     api.cards.getCard,
     cardId ? { id: cardId as Id<"cards"> } : "skip"
   );
-  
+
   // Mutations
   const updateCardField = useMutation(api.cards.updateCardField);
   const cardActions = useCardActions(config);
-  
-  // Update field with automatic error handling
+
+  // Check if there are unsaved changes
+  const hasUnsavedChanges = useMemo(() => {
+    if (!card) return false;
+    return Object.keys(pendingChanges).some(key => {
+      const pendingValue = pendingChanges[key as keyof PendingChanges];
+      const currentValue = card[key as keyof typeof card];
+      return pendingValue !== undefined && pendingValue !== currentValue;
+    });
+  }, [card, pendingChanges]);
+
+  // Save all pending changes
+  const saveChanges = useCallback(async () => {
+    if (!cardId || !hasUnsavedChanges) return;
+
+    const updates = Object.entries(pendingChanges)
+      .filter(([_, value]) => value !== undefined)
+      .map(([field, value]) => ({ field, value }));
+
+    // Store current pending changes for error recovery
+    const currentPendingChanges = { ...pendingChanges };
+
+    // Optimistic update: immediately clear pending changes and show saved state
+    setPendingChanges({});
+    setIsSaved(true);
+
+    try {
+      // Save all pending changes
+      for (const { field, value } of updates) {
+        await updateCardField({
+          cardId: cardId as Id<"cards">,
+          field: field as "content" | "url" | "notes" | "aiSummary",
+          value,
+        });
+      }
+
+      // Hide the "Saved!" button after 2 seconds
+      setTimeout(() => {
+        setIsSaved(false);
+      }, 2000);
+
+    } catch (error) {
+      console.error('Failed to save changes:', error);
+      // Restore pending changes on error so save button reappears
+      setPendingChanges(currentPendingChanges);
+      setIsSaved(false);
+      config.onError?.(error as Error, 'save changes');
+    }
+  }, [cardId, hasUnsavedChanges, pendingChanges, updateCardField, config]);
+
+  // Update field with automatic error handling (for immediate saves like tags/favorites)
   const updateField = useCallback(async (
-    field: "content" | "url" | "notes" | "tags" | "aiSummary" | "isFavorited" | "removeAiTag",
+    field: "tags" | "isFavorited" | "removeAiTag",
     value?: any,
     tagToRemove?: string
   ) => {
     if (!cardId) return;
-    
+
     try {
       await updateCardField({
         cardId: cardId as Id<"cards">,
@@ -44,22 +103,22 @@ export function useCardModal(cardId: string | null, config: CardModalConfig = {}
     }
   }, [cardId, updateCardField, config]);
 
-  // Specialized update functions
+  // Specialized update functions for fields that need local state (pending save)
   const updateContent = useCallback((content: string) => {
-    updateField("content", content);
-  }, [updateField]);
+    setPendingChanges(prev => ({ ...prev, content }));
+  }, []);
 
   const updateUrl = useCallback((url: string) => {
-    updateField("url", url);
-  }, [updateField]);
+    setPendingChanges(prev => ({ ...prev, url }));
+  }, []);
 
   const updateNotes = useCallback((notes: string) => {
-    updateField("notes", notes);
-  }, [updateField]);
+    setPendingChanges(prev => ({ ...prev, notes }));
+  }, []);
 
   const updateAiSummary = useCallback((summary: string) => {
-    updateField("aiSummary", summary);
-  }, [updateField]);
+    setPendingChanges(prev => ({ ...prev, aiSummary: summary }));
+  }, []);
 
   const toggleFavorite = useCallback(() => {
     updateField("isFavorited");
@@ -73,7 +132,7 @@ export function useCardModal(cardId: string | null, config: CardModalConfig = {}
   const addTag = useCallback(() => {
     const tag = tagInput.trim().toLowerCase();
     const currentTags = card?.tags || [];
-    
+
     if (tag && !currentTags.includes(tag)) {
       const newTags = [...currentTags, tag];
       setTagInput("");
@@ -125,12 +184,17 @@ export function useCardModal(cardId: string | null, config: CardModalConfig = {}
     }
   }, [tagInput, addTag, config]);
 
+  // Get the current value for form fields (pending changes take priority)
+  const getCurrentValue = useCallback((field: keyof PendingChanges) => {
+    return pendingChanges[field] !== undefined ? pendingChanges[field] : card?.[field];
+  }, [card, pendingChanges]);
+
   return {
     // State
     card,
     tagInput,
     setTagInput,
-    
+
     // Field updates
     updateContent,
     updateUrl,
@@ -138,18 +202,24 @@ export function useCardModal(cardId: string | null, config: CardModalConfig = {}
     updateAiSummary,
     toggleFavorite,
     removeAiTag,
-    
+
     // Tag management
     addTag,
     removeTag,
-    
+
     // Actions
     handleDelete,
     handleRestore,
     handlePermanentDelete,
-    
+
     // Utilities
     openLink,
     handleKeyDown,
+
+    // Save functionality
+    saveChanges,
+    hasUnsavedChanges,
+    getCurrentValue,
+    isSaved,
   };
 }

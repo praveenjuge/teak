@@ -3,12 +3,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Check,
   ExternalLink,
   Heart,
   RotateCcw,
+  Save,
   Sparkles,
   Trash,
   Trash2,
@@ -57,6 +58,12 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
     // Utilities
     openLink,
     handleKeyDown,
+
+    // Save functionality
+    saveChanges,
+    hasUnsavedChanges,
+    getCurrentValue,
+    isSaved,
   } = useCardModal(cardId);
 
   const handleClose = () => {
@@ -78,7 +85,13 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
 
     switch (card.type) {
       case "text":
-        return <TextPreview card={card} onContentChange={updateContent} />;
+        return (
+          <TextPreview
+            card={card}
+            onContentChange={updateContent}
+            getCurrentValue={getCurrentValue}
+          />
+        );
       case "link":
         return <LinkPreview card={card} />;
       case "image":
@@ -97,7 +110,7 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
   return (
     <Dialog open={open} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent
-        className="md:max-w-6xl max-h-[90vh] p-3 flex h-[80vh] outline-0 border-0 overflow-hidden gap-3"
+        className="md:max-w-6xl max-h-[90vh] p-3 flex h-[80vh] outline-0 border-0 overflow-hidden gap-4"
         showCloseButton={false}
       >
         {!card ? (
@@ -108,19 +121,41 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
         ) : (
           <>
             {/* Preview Area (Left 2/3) */}
-            <div className="flex-[2] p-1 overflow-y-auto h-full">
+            <div className="flex-[2] p-3 border rounded-md bg-muted/50 overflow-y-auto h-full">
               <div className="flex-1 h-full">{renderPreview()}</div>
             </div>
 
             {/* Metadata Panel (Right 1/3) */}
-            <div className="flex-1 flex flex-col p-3 border rounded-md bg-gray-50/50 overflow-y-auto gap-5">
+            <div className="flex-1 flex flex-col overflow-y-auto px-1 gap-5">
               <div className="flex items-center justify-between">
-                <DialogTitle className="text-lg font-semibold">
+                <DialogTitle className="text-sm font-semibold">
                   {card.type.charAt(0).toUpperCase() + card.type.slice(1)} Card
                 </DialogTitle>
-                <Button variant="ghost" size="icon" onClick={handleClose}>
-                  <X />
-                </Button>
+                <div className="flex items-center gap-2">
+                  {(hasUnsavedChanges || isSaved) && (
+                    <Button
+                      variant={isSaved ? "outline" : "default"}
+                      size="sm"
+                      onClick={saveChanges}
+                      disabled={isSaved}
+                    >
+                      {isSaved ? (
+                        <>
+                          <Check />
+                          Saved!
+                        </>
+                      ) : (
+                        <>
+                          <Save />
+                          Save
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" onClick={handleClose}>
+                    <X />
+                  </Button>
+                </div>
               </div>
 
               {/* URL (for links or any card with URL) */}
@@ -130,7 +165,7 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                   <Input
                     id="modal-url"
                     type="url"
-                    value={card.url || ""}
+                    value={getCurrentValue("url") || ""}
                     onChange={(e) => updateUrl(e.target.value)}
                     placeholder="https://example.com"
                     className="mt-1"
@@ -143,7 +178,7 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                 <Label htmlFor="modal-notes">Notes</Label>
                 <Input
                   id="modal-notes"
-                  value={card.notes || ""}
+                  value={getCurrentValue("notes") || ""}
                   onChange={(e) => updateNotes(e.target.value)}
                   placeholder="Add notes..."
                   className="mt-1"
@@ -156,7 +191,7 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                   <Label htmlFor="ai-summary">Teak Summary</Label>
                   <Textarea
                     id="ai-summary"
-                    value={card.aiSummary || ""}
+                    value={getCurrentValue("aiSummary") || ""}
                     onChange={(e) => updateAiSummary(e.target.value)}
                     placeholder="AI generated summary..."
                     className="mt-1"
@@ -208,8 +243,6 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                   className="mt-1"
                 />
               </div>
-
-              <Separator />
 
               {/* File Metadata (read-only) */}
               <div className="space-y-2 text-muted-foreground">
