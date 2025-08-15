@@ -39,7 +39,9 @@
     ],
     "permissions": [
       "storage",
-      "cookies"
+      "cookies",
+      "activeTab",
+      "tabs"
     ]
   }
 }
