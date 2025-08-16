@@ -23,6 +23,15 @@ bun run dev:backend
 # Start mobile app (Expo)
 bun run dev:mobile
 
+# Start browser extension (Plasmo)
+bun run dev:extension
+
+# Build browser extension
+bun run build:extension
+
+# Package browser extension for distribution
+bun run package:extension
+
 # Initialize Convex dev environment and open dashboard
 bun run predev
 
@@ -53,8 +62,9 @@ Built with a modern monorepo architecture:
 
 - **Web Frontend**: Next.js 15 with App Router, TypeScript, TailwindCSS
 - **Mobile App**: Expo with React Native, TypeScript, Clerk authentication
+- **Browser Extension**: Plasmo framework with Chrome APIs, TypeScript, TailwindCSS
 - **Backend**: Convex (real-time database with serverless functions)
-- **Authentication**: Clerk with JWT integration (web + mobile)
+- **Authentication**: Clerk with JWT integration (web + mobile + extension)
 - **UI Components**: shadcn/ui with Radix primitives (web), Expo components (mobile)
 - **File Storage**: Convex Storage for user uploads
 
@@ -64,7 +74,8 @@ Built with a modern monorepo architecture:
 teak-convex-nextjs/
 ├── apps/
 │   ├── web/              # Next.js frontend app
-│   └── mobile/           # Expo React Native mobile app
+│   ├── mobile/           # Expo React Native mobile app
+│   └── extension/        # Chrome browser extension (Plasmo)
 ├── packages/
 │   ├── shared/           # Shared utilities, constants, types
 │   └── backend/          # Backend services and configuration
@@ -83,7 +94,7 @@ teak-convex-nextjs/
 
 #### Data Flow
 
-1. Frontend (Next.js web or Expo mobile) renders UI components
+1. Frontend (Next.js web, Expo mobile, Plasmo extension) renders UI components
 2. ConvexClientProvider wraps app with Clerk authentication
 3. Convex functions handle all server-side logic with automatic auth context
 4. Real-time updates propagate automatically to connected clients
@@ -164,6 +175,27 @@ apps/mobile/
 └── package.json          # Mobile app dependencies
 ```
 
+### Browser Extension (apps/extension/)
+
+```
+apps/extension/
+├── src/
+│   ├── background.ts     # Background script for context menus and events
+│   ├── content.tsx       # Content script for page interaction
+│   ├── popup.tsx         # Extension popup UI with authentication
+│   ├── hooks/            # Extension-specific hooks
+│   │   ├── useAutoSaveLink.ts    # Auto-save active tab functionality
+│   │   ├── useContextMenuSave.ts # Context menu save operations
+│   │   └── useContextMenuState.ts # Context menu state management
+│   ├── types/
+│   │   └── contextMenu.ts # Context menu type definitions
+│   └── style.css         # TailwindCSS styles
+├── assets/
+│   └── icon.png          # Extension icon
+├── package.json          # Extension dependencies
+└── tsconfig.json         # TypeScript configuration
+```
+
 ### Backend (packages/backend/)
 
 ```
@@ -206,6 +238,13 @@ packages/shared/
 3. ConvexClientProvider automatically includes auth tokens
 4. Same Convex auth context as web application
 
+### Extension Authentication
+
+1. Clerk Chrome Extension SDK handles authentication in popup
+2. Chrome storage API manages token persistence
+3. Background script maintains authentication state
+4. Content scripts access authenticated Convex functions
+
 ## File Upload Pattern
 
 1. Generate upload URL: `generateUploadUrl()` mutation
@@ -243,9 +282,10 @@ Implemented in `useSearchFilters` hook:
 ### Component Patterns
 
 - Heavy use of compound components (CardModal, SearchBar)
-- Custom hooks for business logic (useCardActions, useSearchFilters)
-- Always use shadcn/ui components for consistent design system
+- Custom hooks for business logic (useCardActions, useSearchFilters, useAutoSaveLink)
+- Always use shadcn/ui components for consistent design system (web)
 - Masonry grid layout for card display
+- Card preview components for different content types (text, link, image, video, audio, document)
 
 ### State Management
 
