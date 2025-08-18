@@ -1,6 +1,5 @@
-import { memo } from 'react';
-
-export const BottomPattern = memo(() => (
+export function BottomPattern() {
+  return (
   <svg
     aria-hidden="true"
     className="pointer-events-none absolute right-0 bottom-0 z-[-1] select-none"
@@ -118,6 +117,5 @@ export const BottomPattern = memo(() => (
       </clipPath>
     </defs>
   </svg>
-));
-
-BottomPattern.displayName = 'BottomPattern';
+  );
+}

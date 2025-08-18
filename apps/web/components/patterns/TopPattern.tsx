@@ -1,6 +1,5 @@
-import { memo } from 'react';
-
-export const TopPattern = memo(() => (
+export function TopPattern() {
+  return (
   <svg
     aria-hidden="true"
     className="pointer-events-none absolute top-0 left-0 z-[-1] hidden select-none md:block"
@@ -118,6 +117,5 @@ export const TopPattern = memo(() => (
       </clipPath>
     </defs>
   </svg>
-));
-
-TopPattern.displayName = 'TopPattern';
+  );
+}

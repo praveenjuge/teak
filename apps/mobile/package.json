@@ -13,7 +13,6 @@
     "@clerk/clerk-expo": "^2.14.17",
     "@expo/vector-icons": "^14.1.0",
     "@shopify/flash-list": "1.7.6",
-    "@teak/convex": "file:../../packages/backend",
     "convex": "^1.25.4",
     "expo": "53.0.20",
     "expo-audio": "^0.4.8",
