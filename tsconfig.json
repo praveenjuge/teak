@@ -23,7 +23,6 @@
     }
   },
   "references": [
-    { "path": "./apps/web" },
     { "path": "./packages/shared" },
     { "path": "./packages/backend/convex" }
   ],
