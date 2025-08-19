@@ -3,8 +3,6 @@
   "version": "0.0.1",
   "workspaces": [
     "apps/web",
-    "apps/mobile",
-    "apps/extension",
     "packages/*"
   ],
   "scripts": {
