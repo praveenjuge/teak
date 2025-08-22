@@ -244,6 +244,74 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                 />
               </div>
 
+              {/* Link Metadata (read-only) */}
+              {card.type === "link" && card.metadata?.microlinkData?.data && (
+                <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
+                  <h3 className="font-medium text-sm">Link Metadata</h3>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    {card.metadata.microlinkData.data.title && (
+                      <div>
+                        <span className="font-medium">Title:</span>{" "}
+                        {card.metadata.microlinkData.data.title}
+                      </div>
+                    )}
+                    
+                    {card.metadata.microlinkData.data.description && (
+                      <div>
+                        <span className="font-medium">Description:</span>{" "}
+                        <span className="line-clamp-2">
+                          {card.metadata.microlinkData.data.description}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {card.metadata.microlinkData.data.publisher && (
+                      <div>
+                        <span className="font-medium">Publisher:</span>{" "}
+                        {card.metadata.microlinkData.data.publisher}
+                      </div>
+                    )}
+                    
+                    {card.metadata.microlinkData.data.author && (
+                      <div>
+                        <span className="font-medium">Author:</span>{" "}
+                        {card.metadata.microlinkData.data.author}
+                      </div>
+                    )}
+                    
+                    {card.metadata.microlinkData.data.date && (
+                      <div>
+                        <span className="font-medium">Published:</span>{" "}
+                        {new Date(card.metadata.microlinkData.data.date).toLocaleDateString()}
+                      </div>
+                    )}
+                    
+                    {card.metadata.microlinkData.data.lang && (
+                      <div>
+                        <span className="font-medium">Language:</span>{" "}
+                        {card.metadata.microlinkData.data.lang}
+                      </div>
+                    )}
+                    
+                    {card.metadata.microlinkData.data.image && (
+                      <div>
+                        <span className="font-medium">Image:</span>{" "}
+                        <a 
+                          href={card.metadata.microlinkData.data.image.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline text-xs"
+                        >
+                          {card.metadata.microlinkData.data.image.width && card.metadata.microlinkData.data.image.height 
+                            ? `${card.metadata.microlinkData.data.image.width}×${card.metadata.microlinkData.data.image.height}`
+                            : "View image"}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* File Metadata (read-only) */}
               <div className="space-y-2 text-muted-foreground">
                 <div>

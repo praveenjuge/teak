@@ -1,62 +1,64 @@
 import { v } from "convex/values";
-import { internalAction, internalMutation, internalQuery } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 
-// Link metadata extraction result type
-interface LinkMetadata {
+// Microlink.io API response types
+interface MicrolinkImage {
+  url: string;
+  type?: string;
+  size?: number;
+  height?: number;
+  width?: number;
+}
+
+interface MicrolinkLogo {
+  url: string;
+  type?: string;
+  size?: number;
+  height?: number;
+  width?: number;
+}
+
+interface MicrolinkAudio {
+  url: string;
+  type?: string;
+  duration?: number;
+}
+
+interface MicrolinkVideo {
+  url: string;
+  type?: string;
+  duration?: number;
+  width?: number;
+  height?: number;
+}
+
+interface MicrolinkData {
+  title?: string;
+  description?: string;
+  lang?: string;
+  author?: string;
+  publisher?: string;
+  image?: MicrolinkImage;
+  logo?: MicrolinkLogo;
+  date?: string;
+  url?: string;
+  audio?: MicrolinkAudio[];
+  video?: MicrolinkVideo[];
+}
+
+interface MicrolinkResponse {
+  status: string;
+  data?: MicrolinkData;
+}
+
+// Legacy metadata for backward compatibility
+interface LegacyMetadata {
   linkTitle?: string;
   linkDescription?: string;
   linkImage?: string;
   linkFavicon?: string;
 }
-
-// Extract meta tag content
-const extractMetaContent = (html: string, selector: string): string | null => {
-  // Simple regex-based extraction for meta tags
-  const regex = new RegExp(`<meta[^>]*${selector}[^>]*content=["']([^"']+)["'][^>]*>`, 'i');
-  const match = html.match(regex);
-  return match ? match[1] : null;
-};
-
-// Extract title tag content
-const extractTitle = (html: string): string | null => {
-  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  return titleMatch ? titleMatch[1].trim() : null;
-};
-
-// Extract favicon URL
-const extractFavicon = (html: string, baseUrl: string): string | null => {
-  // Look for various favicon formats
-  const iconRegex = /<link[^>]*rel=["'](?:icon|shortcut icon|apple-touch-icon)["'][^>]*href=["']([^"']+)["'][^>]*>/i;
-  const match = html.match(iconRegex);
-
-  if (match) {
-    const href = match[1];
-    // Convert relative URLs to absolute
-    if (href.startsWith('http')) {
-      return href;
-    } else if (href.startsWith('//')) {
-      return `https:${href}`;
-    } else if (href.startsWith('/')) {
-      return `${baseUrl}${href}`;
-    } else {
-      return `${baseUrl}/${href}`;
-    }
-  }
-
-  // Fallback to default favicon
-  return `${baseUrl}/favicon.ico`;
-};
-
-// Normalize URL to get base URL
-const getBaseUrl = (url: string): string => {
-  try {
-    const urlObj = new URL(url);
-    return `${urlObj.protocol}//${urlObj.host}`;
-  } catch {
-    return '';
-  }
-};
 
 // Validate and normalize URL
 const normalizeUrl = (url: string): string => {
@@ -64,6 +66,18 @@ const normalizeUrl = (url: string): string => {
     return `https://${url}`;
   }
   return url;
+};
+
+// Convert Microlink.io data to legacy format for backward compatibility
+const convertToLegacyFormat = (microlinkData?: any): LegacyMetadata => {
+  if (!microlinkData) return {};
+
+  return {
+    linkTitle: microlinkData.title,
+    linkDescription: microlinkData.description,
+    linkImage: microlinkData.image?.url,
+    linkFavicon: microlinkData.logo?.url,
+  };
 };
 
 // Internal query to get card for metadata extraction
@@ -78,40 +92,42 @@ export const getCardForMetadata = internalQuery({
 export const updateCardMetadata = internalMutation({
   args: {
     cardId: v.id("cards"),
-    metadata: v.object({
-      linkTitle: v.optional(v.string()),
-      linkDescription: v.optional(v.string()),
-      linkImage: v.optional(v.string()),
-      linkFavicon: v.optional(v.string()),
-    }),
+    microlinkData: v.optional(v.any()),
     status: v.union(v.literal("completed"), v.literal("failed")),
   },
-  handler: async (ctx, { cardId, metadata, status }) => {
+  handler: async (ctx, { cardId, microlinkData, status }) => {
     const existingCard = await ctx.db.get(cardId);
     if (!existingCard) {
       console.error(`Card ${cardId} not found for metadata update`);
       return;
     }
 
+    // Convert Microlink data to legacy format for backward compatibility
+    const legacyMetadata = convertToLegacyFormat(microlinkData?.data);
+
     // Merge new metadata with existing metadata
     const updatedMetadata = {
       ...existingCard.metadata,
-      ...metadata,
+      ...legacyMetadata,
+      microlinkData,
     };
 
-    // Also populate the flattened metadata fields for search indexing
+    // Prepare update fields
     const updateFields: any = {
       metadata: updatedMetadata,
       metadataStatus: status,
       updatedAt: Date.now(),
     };
 
-    // Extract title and description for search indexes
-    if (metadata.linkTitle) {
-      updateFields.metadataTitle = metadata.linkTitle;
+    // Extract title and description for search indexes (prioritize Microlink data)
+    const title = microlinkData?.data?.title || legacyMetadata.linkTitle;
+    const description = microlinkData?.data?.description || legacyMetadata.linkDescription;
+
+    if (title) {
+      updateFields.metadataTitle = title;
     }
-    if (metadata.linkDescription) {
-      updateFields.metadataDescription = metadata.linkDescription;
+    if (description) {
+      updateFields.metadataDescription = description;
     }
 
     return await ctx.db.patch(cardId, updateFields);
@@ -121,145 +137,268 @@ export const updateCardMetadata = internalMutation({
 export const extractLinkMetadata = internalAction({
   args: {
     cardId: v.id("cards"),
+    retryCount: v.optional(v.number()),
   },
-  handler: async (ctx, { cardId }) => {
+  handler: async (ctx, { cardId, retryCount = 0 }) => {
     try {
       // Get card data
       const card = await ctx.runQuery(internal.linkMetadata.getCardForMetadata, { cardId });
 
       if (!card || card.type !== "link" || !card.url) {
-        console.error(`Card ${cardId} is not a valid link card`);
+        console.error(`[linkMetadata] Card ${cardId} is not a valid link card`);
         await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
           cardId,
-          metadata: {},
+          microlinkData: undefined,
           status: "failed",
         });
         return;
       }
 
-      console.log(`Extracting metadata for card ${cardId}, URL: ${card.url}`);
+      console.log(`[linkMetadata] Extracting metadata for card ${cardId}, URL: ${card.url} (attempt ${retryCount + 1})`);
 
       // Normalize URL
       const normalizedUrl = normalizeUrl(card.url);
-      const baseUrl = getBaseUrl(normalizedUrl);
 
-      // Fetch HTML content with timeout
+      // Call Microlink.io API
+      const microlinkApiUrl = `https://api.microlink.io/?url=${encodeURIComponent(normalizedUrl)}`;
+      console.log(`[linkMetadata] Calling Microlink API: ${microlinkApiUrl}`);
+
+      // Fetch metadata with timeout (increased to 20 seconds for better reliability)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => {
+        console.log(`[linkMetadata] API call timeout after 20s for ${normalizedUrl}`);
+        controller.abort();
+      }, 20000); // 20 second timeout
 
-      const response = await fetch(normalizedUrl, {
+      console.log(`[linkMetadata] Starting fetch for ${normalizedUrl}`);
+      const fetchStartTime = Date.now();
+
+      const response = await fetch(microlinkApiUrl, {
         signal: controller.signal,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; TeakBot/1.0; +https://teakvault.com)',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'Accept-Encoding': 'gzip, deflate',
-          'DNT': '1',
-          'Connection': 'keep-alive',
-          'Cache-Control': 'no-cache',
+          'Accept': 'application/json',
+          'User-Agent': 'TeakApp/1.0 (+https://teakvault.com)',
         },
       });
 
       clearTimeout(timeoutId);
+      const fetchDuration = Date.now() - fetchStartTime;
+      console.log(`[linkMetadata] Fetch completed in ${fetchDuration}ms for ${normalizedUrl}`);
 
       if (!response.ok) {
-        console.warn(`HTTP error ${response.status} for ${normalizedUrl}`);
-        await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
-          cardId,
-          metadata: { linkTitle: card.url },
-          status: "failed",
-        });
-        return;
-      }
+        console.error(`[linkMetadata] Microlink API error ${response.status} ${response.statusText} for ${normalizedUrl}`);
+        console.error(`[linkMetadata] Response headers:`, Object.fromEntries(response.headers.entries()));
 
-      // Check content type
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('text/html')) {
-        console.warn(`Non-HTML content type: ${contentType}`);
-        await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
-          cardId,
-          metadata: { linkTitle: card.url },
-          status: "failed",
-        });
-        return;
-      }
-
-      // Get HTML content (limit to 1MB to prevent memory issues)
-      const html = await response.text();
-      if (html.length > 1024 * 1024) {
-        console.warn(`HTML content too large: ${html.length} bytes`);
-        await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
-          cardId,
-          metadata: { linkTitle: card.url },
-          status: "failed",
-        });
-        return;
-      }
-
-      // Extract metadata
-      const metadata: LinkMetadata = {};
-
-      // Extract title (prefer og:title, fallback to title tag)
-      metadata.linkTitle =
-        extractMetaContent(html, 'property=["\']*og:title["\']') ||
-        extractMetaContent(html, 'name=["\']*twitter:title["\']') ||
-        extractTitle(html) ||
-        card.url;
-
-      // Extract description
-      const description =
-        extractMetaContent(html, 'property=["\']*og:description["\']') ||
-        extractMetaContent(html, 'name=["\']*twitter:description["\']') ||
-        extractMetaContent(html, 'name=["\']*description["\']');
-      metadata.linkDescription = description || undefined;
-
-      // Extract image
-      const imageUrl =
-        extractMetaContent(html, 'property=["\']*og:image["\']') ||
-        extractMetaContent(html, 'name=["\']*twitter:image["\']');
-
-      if (imageUrl) {
-        // Convert relative URLs to absolute
-        if (imageUrl.startsWith('http')) {
-          metadata.linkImage = imageUrl;
-        } else if (imageUrl.startsWith('//')) {
-          metadata.linkImage = `https:${imageUrl}`;
-        } else if (imageUrl.startsWith('/')) {
-          metadata.linkImage = `${baseUrl}${imageUrl}`;
-        } else {
-          metadata.linkImage = `${baseUrl}/${imageUrl}`;
+        // Try to get error response body
+        try {
+          const errorText = await response.text();
+          console.error(`[linkMetadata] Error response body:`, errorText);
+        } catch (e) {
+          console.error(`[linkMetadata] Could not read error response body:`, e);
         }
+
+        await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
+          cardId,
+          microlinkData: {
+            status: "error",
+            data: {
+              title: card.url, // Fallback to URL
+            },
+          },
+          status: "failed",
+        });
+        return;
       }
 
-      // Extract favicon
-      const favicon = extractFavicon(html, baseUrl);
-      metadata.linkFavicon = favicon || undefined;
+      console.log(`[linkMetadata] Response status: ${response.status} ${response.statusText}`);
+      console.log(`[linkMetadata] Response headers:`, Object.fromEntries(response.headers.entries()));
+
+      // Parse JSON response
+      console.log(`[linkMetadata] Parsing JSON response for ${normalizedUrl}`);
+      const microlinkResponse: MicrolinkResponse = await response.json();
+      console.log(`[linkMetadata] Parsed response status: ${microlinkResponse.status}`);
+
+      if (microlinkResponse.status !== "success") {
+        console.warn(`[linkMetadata] Microlink extraction failed for ${normalizedUrl}:`, microlinkResponse);
+        await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
+          cardId,
+          microlinkData: {
+            status: microlinkResponse.status,
+            data: {
+              title: card.url, // Fallback to URL
+            },
+          },
+          status: "failed",
+        });
+        return;
+      }
 
       // Update card with extracted metadata
       await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
         cardId,
-        metadata,
+        microlinkData: microlinkResponse,
         status: "completed",
       });
 
       console.log(`Metadata extracted for card ${cardId} (${normalizedUrl}):`, {
-        title: !!metadata.linkTitle,
-        description: !!metadata.linkDescription,
-        image: !!metadata.linkImage,
-        favicon: !!metadata.linkFavicon,
+        title: !!microlinkResponse.data?.title,
+        description: !!microlinkResponse.data?.description,
+        image: !!microlinkResponse.data?.image?.url,
+        logo: !!microlinkResponse.data?.logo?.url,
+        publisher: !!microlinkResponse.data?.publisher,
+        author: !!microlinkResponse.data?.author,
+        date: !!microlinkResponse.data?.date,
       });
 
     } catch (error) {
-      console.error(`Error extracting metadata for card ${cardId}:`, error);
+      console.error(`[linkMetadata] Error extracting metadata for card ${cardId}:`, error);
+      console.error(`[linkMetadata] Error type:`, error?.constructor?.name);
+      console.error(`[linkMetadata] Error message:`, error?.message);
+      console.error(`[linkMetadata] Error stack:`, error?.stack);
 
-      // Update card with failure status and fallback metadata
+      // Specific handling for different error types
+      let errorStatus = "error";
+      let shouldRetry = false;
+
+      if (error?.name === "AbortError") {
+        console.error(`[linkMetadata] Request was aborted (timeout) for ${card.url}`);
+        errorStatus = "timeout";
+        shouldRetry = retryCount < 2; // Retry up to 2 times for timeouts
+      } else if (error?.name === "TypeError" && error?.message?.includes("fetch")) {
+        console.error(`[linkMetadata] Network error for ${card.url}`);
+        errorStatus = "network_error";
+        shouldRetry = retryCount < 1; // Retry once for network errors
+      }
+
+      // Retry if appropriate
+      if (shouldRetry) {
+        console.log(`[linkMetadata] Retrying metadata extraction for card ${cardId} in 5 seconds (retry ${retryCount + 1})`);
+        await ctx.scheduler.runAfter(5000, internal.linkMetadata.extractLinkMetadata, {
+          cardId,
+          retryCount: retryCount + 1,
+        });
+        return;
+      }
+
+      // Update card with failure status and fallback metadata (no more retries)
+      console.error(`[linkMetadata] Failed to extract metadata after ${retryCount + 1} attempts for card ${cardId}`);
       await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
         cardId,
-        metadata: {
-          linkTitle: undefined, // Let it fallback to URL in the UI
+        microlinkData: {
+          status: errorStatus,
+          data: {
+            title: undefined, // Let it fallback to URL in the UI
+          },
         },
         status: "failed",
       });
     }
+  },
+});
+
+// Internal query to get link cards without Microlink.io metadata
+export const getLinkCardsWithoutMicrolinkData = internalQuery({
+  args: {
+    batchSize: v.optional(v.number()),
+    skip: v.optional(v.number()),
+  },
+  handler: async (ctx, { batchSize = 10, skip = 0 }) => {
+    // Get all cards and filter in JavaScript (simpler for migration)
+    const allCards = await ctx.db.query("cards").collect();
+
+    // Filter to link cards without Microlink data
+    const linkCardsWithoutMicrolink = allCards.filter(card =>
+      card.type === "link" &&
+      !card.isDeleted &&
+      card.url &&
+      !card.metadata?.microlinkData
+    );
+
+    // Apply pagination
+    const paginatedCards = linkCardsWithoutMicrolink.slice(skip, skip + batchSize);
+
+    return {
+      cards: paginatedCards,
+      total: linkCardsWithoutMicrolink.length,
+      hasMore: skip + batchSize < linkCardsWithoutMicrolink.length
+    };
+  },
+});
+
+// Migration function to backfill Microlink.io metadata for existing link cards
+export const backfillMicrolinkMetadata = internalAction({
+  args: {
+    batchSize: v.optional(v.number()),
+    skip: v.optional(v.number()),
+  },
+  handler: async (ctx, { batchSize = 10, skip = 0 }) => {
+    console.log(`[backfillMicrolinkMetadata] Starting batch of ${batchSize} cards (skip: ${skip})...`);
+
+    // Get link cards that don't have Microlink.io metadata yet
+    const result = await ctx.runQuery(internal.linkMetadata.getLinkCardsWithoutMicrolinkData, {
+      batchSize,
+      skip,
+    });
+
+    console.log(`[backfillMicrolinkMetadata] Found ${result.cards.length} cards to process (${result.total} total remaining)`);
+
+    if (result.cards.length === 0) {
+      console.log(`[backfillMicrolinkMetadata] No more cards to process`);
+      return { processed: 0, hasMore: false, total: result.total };
+    }
+
+    let processedCount = 0;
+
+    for (const card of result.cards) {
+      console.log(`[backfillMicrolinkMetadata] Scheduling metadata extraction for card ${card._id}: ${card.url}`);
+
+      // Schedule metadata extraction with a small delay to avoid rate limiting
+      await ctx.scheduler.runAfter(processedCount * 2000, internal.linkMetadata.extractLinkMetadata, {
+        cardId: card._id,
+      });
+
+      processedCount++;
+    }
+
+    console.log(`[backfillMicrolinkMetadata] Scheduled ${processedCount} metadata extractions. HasMore: ${result.hasMore}`);
+
+    // Schedule next batch if there are more cards
+    if (result.hasMore) {
+      const nextSkip = skip + batchSize;
+      console.log(`[backfillMicrolinkMetadata] Scheduling next batch (skip: ${nextSkip})`);
+      await ctx.scheduler.runAfter(batchSize * 2000 + 5000, internal.linkMetadata.backfillMicrolinkMetadata, {
+        batchSize,
+        skip: nextSkip,
+      });
+    }
+
+    return {
+      processed: processedCount,
+      hasMore: result.hasMore,
+      total: result.total,
+      remainingRateLimit: 50 - processedCount // Approximate remaining rate limit
+    };
+  },
+});
+
+// Public mutation to trigger the backfill migration
+export const triggerMicrolinkMetadataBackfill = mutation({
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, { batchSize = 10 }) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      throw new Error("User must be authenticated");
+    }
+
+    console.log(`[triggerMicrolinkMetadataBackfill] User ${user.subject} started metadata backfill with batch size ${batchSize}`);
+
+    // Schedule the first batch immediately
+    await ctx.scheduler.runAfter(0, internal.linkMetadata.backfillMicrolinkMetadata, {
+      batchSize,
+    });
+
+    return { message: `Metadata backfill started with batch size ${batchSize}` };
   },
 });

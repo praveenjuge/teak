@@ -18,16 +18,15 @@ export const cardTypeValidator = v.union(
 
 export const metadataValidator = v.optional(
   v.object({
-    linkTitle: v.optional(v.string()),
-    linkDescription: v.optional(v.string()),
-    linkImage: v.optional(v.string()),
-    linkFavicon: v.optional(v.string()),
+    // File metadata (for non-link cards)
     fileSize: v.optional(v.number()),
     fileName: v.optional(v.string()),
     mimeType: v.optional(v.string()),
     duration: v.optional(v.number()),
     width: v.optional(v.number()),
     height: v.optional(v.number()),
+    // Microlink.io metadata (full response stored as JSON - using v.any() for flexibility)
+    microlinkData: v.optional(v.any()),
   })
 );
 

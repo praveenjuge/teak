@@ -6,10 +6,7 @@ interface LinkPreviewProps {
 
 // Loading skeleton components
 const SkeletonLine = ({ width = "100%" }: { width?: string }) => (
-  <div 
-    className="h-4 bg-gray-200 rounded animate-pulse" 
-    style={{ width }}
-  />
+  <div className="h-4 bg-gray-200 rounded animate-pulse" style={{ width }} />
 );
 
 const SkeletonTitle = () => (
@@ -33,23 +30,36 @@ const SkeletonImage = () => (
 export function LinkPreview({ card }: LinkPreviewProps) {
   const isLoading = card.metadataStatus === "pending";
 
+  // Get metadata with Microlink.io data prioritized, fallback to legacy fields
+  const title = card.metadata?.microlinkData?.data?.title || card.url || "Link";
+  const description = card.metadata?.microlinkData?.data?.description;
+  const image = card.metadata?.microlinkData?.data?.image?.url;
+  const favicon = card.metadata?.microlinkData?.data?.logo?.url;
+  const publisher = card.metadata?.microlinkData?.data?.publisher;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start gap-3">
         {/* Favicon */}
         <div className="w-5 h-5 mt-0.5 flex-shrink-0">
-          {isLoading && !card.metadata?.linkFavicon ? (
+          {isLoading && !favicon ? (
             <div className="w-5 h-5 bg-gray-200 rounded animate-pulse" />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={card.metadata?.linkFavicon || `https://www.google.com/s2/favicons?domain=${card.url}`}
+              src={
+                favicon ||
+                `https://www.google.com/s2/favicons?domain=${card.url}`
+              }
               alt=""
               className="w-5 h-5"
               onError={(e) => {
                 // Fallback to Google favicon API if custom favicon fails
                 const target = e.target as HTMLImageElement;
-                if (target.src !== `https://www.google.com/s2/favicons?domain=${card.url}`) {
+                if (
+                  target.src !==
+                  `https://www.google.com/s2/favicons?domain=${card.url}`
+                ) {
                   target.src = `https://www.google.com/s2/favicons?domain=${card.url}`;
                 }
               }}
@@ -59,48 +69,55 @@ export function LinkPreview({ card }: LinkPreviewProps) {
 
         <div className="min-w-0 flex-1">
           {/* Title */}
-          {isLoading && !card.metadata?.linkTitle ? (
+          {isLoading && !title ? (
             <SkeletonTitle />
           ) : (
             <h2 className="font-semibold text-lg leading-tight line-clamp-2">
-              {card.metadata?.linkTitle || card.url || "Link"}
+              {title}
             </h2>
           )}
 
+          {/* Publisher */}
+          {publisher && (
+            <p className="text-muted-foreground text-xs mt-0.5">{publisher}</p>
+          )}
+
           {/* Description */}
-          {isLoading && !card.metadata?.linkDescription ? (
+          {isLoading && !description ? (
             <div className="mt-1">
               <SkeletonDescription />
             </div>
           ) : (
-            card.metadata?.linkDescription && (
+            description && (
               <p className="text-muted-foreground text-sm mt-1 line-clamp-2">
-                {card.metadata.linkDescription}
+                {description}
               </p>
             )
           )}
 
           {/* URL - always show */}
           {card.url && (
-            <p className="text-muted-foreground text-xs mt-1 truncate">{card.url}</p>
+            <p className="text-muted-foreground text-xs mt-1 truncate">
+              {card.url}
+            </p>
           )}
         </div>
       </div>
 
       {/* OG Image */}
-      {isLoading && !card.metadata?.linkImage ? (
+      {isLoading && !image ? (
         <SkeletonImage />
       ) : (
-        card.metadata?.linkImage && (
+        image && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={card.metadata.linkImage}
+            src={image}
             alt=""
             className="w-full max-h-[60vh] object-cover rounded"
             onError={(e) => {
               // Hide broken images
               const target = e.target as HTMLImageElement;
-              target.style.display = 'none';
+              target.style.display = "none";
             }}
           />
         )

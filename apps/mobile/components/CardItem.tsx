@@ -281,6 +281,19 @@ export function CardItem({ card, onDelete }: CardItemProps) {
         if (!card.url) {
           return null;
         }
+        
+        // Get metadata with Microlink.io data prioritized, fallback to legacy fields
+        const linkTitle = card.metadata?.microlinkData?.data?.title || 
+                         card.metadataTitle || 
+                         card.metadata?.linkTitle || 
+                         card.url;
+        const linkDescription = card.metadata?.microlinkData?.data?.description || 
+                               card.metadataDescription || 
+                               card.metadata?.linkDescription;
+        const linkImage = card.metadata?.microlinkData?.data?.image?.url || 
+                         card.metadata?.linkImage;
+        const publisher = card.metadata?.microlinkData?.data?.publisher;
+        
         return (
           <TouchableOpacity
             activeOpacity={0.8}
@@ -289,25 +302,34 @@ export function CardItem({ card, onDelete }: CardItemProps) {
             style={[styles.card, dynamicStyles.card]}
           >
             <View style={[styles.urlContent]}>
-              <Image
-                resizeMode="cover"
-                source={{ uri: card.metadata?.linkImage }}
-                style={styles.urlScreenshot}
-              />
+              {linkImage && (
+                <Image
+                  resizeMode="cover"
+                  source={{ uri: linkImage }}
+                  style={styles.urlScreenshot}
+                />
+              )}
               <View style={styles.urlTextContainer}>
                 <Text
                   numberOfLines={1}
                   style={[styles.urlTitle, dynamicStyles.primaryText]}
                 >
-                  {card.metadataTitle || card.metadata?.linkTitle || card.url}
+                  {linkTitle}
                 </Text>
-                {(card.metadataDescription ||
-                  card.metadata?.linkDescription) && (
+                {publisher && (
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.urlPublisher, dynamicStyles.mutedText]}
+                  >
+                    {publisher}
+                  </Text>
+                )}
+                {linkDescription && (
                   <Text
                     numberOfLines={2}
                     style={[styles.urlDescription, dynamicStyles.mutedText]}
                   >
-                    {card.metadataDescription || card.metadata?.linkDescription}
+                    {linkDescription}
                   </Text>
                 )}
               </View>
@@ -467,6 +489,11 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   urlTitle: {},
+  urlPublisher: {
+    marginTop: 2,
+    fontSize: 10,
+    lineHeight: 12,
+  },
   urlDescription: {
     marginTop: 4,
     fontSize: 12,
