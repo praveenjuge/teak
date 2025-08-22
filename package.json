@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "build": "cd apps/web && bun run build",
-    "predev": "cd packages/backend && bunx convex dev --until-success && bunx convex dashboard",
+    "predev": "cd packages/backend && bunx convex dev --until-success",
     "dev": "concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
     "dev:backend": "cd packages/backend && bunx convex dev",
     "dev:frontend": "cd apps/web && bun dev",
