@@ -84,21 +84,27 @@ export default function Payments() {
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Available Plans</h2>
           <div className="flex gap-2">
-            {products.map((product) => (
-              <CheckoutLink
-                key={product.id}
-                polarApi={{
-                  generateCheckoutLink: api.polar.generateCheckoutLink,
-                }}
-                productIds={[product.id]}
-                className={buttonVariants()}
-              >
-                <span>
-                  {product.name} — $
-                  {(product.prices[0]?.priceAmount || 0) / 100}
-                </span>
-              </CheckoutLink>
-            ))}
+            {products.map(
+              (product: {
+                id: string;
+                name: string;
+                prices: { id: string; priceAmount?: number }[];
+              }) => (
+                <CheckoutLink
+                  key={product.id}
+                  polarApi={{
+                    generateCheckoutLink: api.polar.generateCheckoutLink,
+                  }}
+                  productIds={[product.id]}
+                  className={buttonVariants()}
+                >
+                  <span>
+                    {product.name} — $
+                    {(product.prices[0]?.priceAmount || 0) / 100}
+                  </span>
+                </CheckoutLink>
+              )
+            )}
           </div>
         </div>
       )}
