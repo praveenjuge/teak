@@ -89,17 +89,17 @@ export function Card({
 
             {card.type === "link" && (
               <div>
-                {card.metadata?.linkImage && (
+                {card.metadata?.microlinkData?.data?.image?.url && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={card.metadata.linkImage}
+                    src={card.metadata.microlinkData.data.image.url}
                     alt=""
                     className="w-full h-28 object-cover"
                   />
                 )}
                 <div className="p-4">
                   <h4 className="font-medium line-clamp-1">
-                    {card.metadata?.linkTitle || "Link"}
+                    {card.metadata?.microlinkData?.data?.title || "Link"}
                   </h4>
                   {card.url && (
                     <p className="text-muted-foreground truncate">{card.url}</p>

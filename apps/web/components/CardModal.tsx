@@ -204,7 +204,7 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
               <div>
                 <Label htmlFor="modal-tags">Tags</Label>
                 <div className="flex flex-wrap gap-1 my-1.5">
-                  {card.tags?.map((tag) => (
+                  {card.tags?.map((tag: string) => (
                     <Badge
                       key={tag}
                       variant="outline"
@@ -216,7 +216,7 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                       </button>
                     </Badge>
                   )) || []}
-                  {card.aiTags?.map((tag) => (
+                  {card.aiTags?.map((tag: string) => (
                     <Badge
                       key={`ai-${tag}`}
                       variant="outline"

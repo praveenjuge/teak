@@ -274,8 +274,8 @@ export const generateAiMetadata = internalAction({
         case "link": {
           // For links, use the existing metadata or content
           const contentToAnalyze = [
-            card.metadata?.linkTitle,
-            card.metadata?.linkDescription,
+            card.metadata?.microlinkData?.data?.title,
+            card.metadata?.microlinkData?.data?.description,
             card.content,
           ]
             .filter(Boolean)

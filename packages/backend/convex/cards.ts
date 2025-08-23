@@ -790,13 +790,13 @@ export const backfillMetadataSearchFields = internalMutation({
         const updateFields: any = { updatedAt: Date.now() };
 
         // Populate metadataTitle if missing
-        if (!card.metadataTitle && card.metadata.linkTitle) {
-          updateFields.metadataTitle = card.metadata.linkTitle;
+        if (!card.metadataTitle && card.metadata.microlinkData?.data?.title) {
+          updateFields.metadataTitle = card.metadata.microlinkData.data.title;
         }
 
         // Populate metadataDescription if missing
-        if (!card.metadataDescription && card.metadata.linkDescription) {
-          updateFields.metadataDescription = card.metadata.linkDescription;
+        if (!card.metadataDescription && card.metadata.microlinkData?.data?.description) {
+          updateFields.metadataDescription = card.metadata.microlinkData.data.description;
         }
 
         // Only update if we have fields to update

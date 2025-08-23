@@ -140,6 +140,7 @@ export const extractLinkMetadata = internalAction({
     retryCount: v.optional(v.number()),
   },
   handler: async (ctx, { cardId, retryCount = 0 }) => {
+    let cardUrl = "";
     try {
       // Get card data
       const card = await ctx.runQuery(internal.linkMetadata.getCardForMetadata, { cardId });
@@ -154,10 +155,11 @@ export const extractLinkMetadata = internalAction({
         return;
       }
 
-      console.log(`[linkMetadata] Extracting metadata for card ${cardId}, URL: ${card.url} (attempt ${retryCount + 1})`);
+      cardUrl = card.url;
+      console.log(`[linkMetadata] Extracting metadata for card ${cardId}, URL: ${cardUrl} (attempt ${retryCount + 1})`);
 
       // Normalize URL
-      const normalizedUrl = normalizeUrl(card.url);
+      const normalizedUrl = normalizeUrl(cardUrl);
 
       // Call Microlink.io API
       const microlinkApiUrl = `https://api.microlink.io/?url=${encodeURIComponent(normalizedUrl)}`;
@@ -202,7 +204,7 @@ export const extractLinkMetadata = internalAction({
           microlinkData: {
             status: "error",
             data: {
-              title: card.url, // Fallback to URL
+              title: cardUrl, // Fallback to URL
             },
           },
           status: "failed",
@@ -225,7 +227,7 @@ export const extractLinkMetadata = internalAction({
           microlinkData: {
             status: microlinkResponse.status,
             data: {
-              title: card.url, // Fallback to URL
+              title: cardUrl, // Fallback to URL
             },
           },
           status: "failed",
@@ -252,20 +254,20 @@ export const extractLinkMetadata = internalAction({
 
     } catch (error) {
       console.error(`[linkMetadata] Error extracting metadata for card ${cardId}:`, error);
-      console.error(`[linkMetadata] Error type:`, error?.constructor?.name);
-      console.error(`[linkMetadata] Error message:`, error?.message);
-      console.error(`[linkMetadata] Error stack:`, error?.stack);
+      console.error(`[linkMetadata] Error type:`, (error as any)?.constructor?.name);
+      console.error(`[linkMetadata] Error message:`, (error as any)?.message);
+      console.error(`[linkMetadata] Error stack:`, (error as any)?.stack);
 
       // Specific handling for different error types
       let errorStatus = "error";
       let shouldRetry = false;
 
-      if (error?.name === "AbortError") {
-        console.error(`[linkMetadata] Request was aborted (timeout) for ${card.url}`);
+      if ((error as any)?.name === "AbortError") {
+        console.error(`[linkMetadata] Request was aborted (timeout) for ${cardUrl}`);
         errorStatus = "timeout";
         shouldRetry = retryCount < 2; // Retry up to 2 times for timeouts
-      } else if (error?.name === "TypeError" && error?.message?.includes("fetch")) {
-        console.error(`[linkMetadata] Network error for ${card.url}`);
+      } else if ((error as any)?.name === "TypeError" && (error as any)?.message?.includes("fetch")) {
+        console.error(`[linkMetadata] Network error for ${cardUrl}`);
         errorStatus = "network_error";
         shouldRetry = retryCount < 1; // Retry once for network errors
       }
@@ -326,12 +328,18 @@ export const getLinkCardsWithoutMicrolinkData = internalQuery({
 });
 
 // Migration function to backfill Microlink.io metadata for existing link cards
+// @ts-ignore - Circular reference due to scheduler calling itself
 export const backfillMicrolinkMetadata = internalAction({
   args: {
     batchSize: v.optional(v.number()),
     skip: v.optional(v.number()),
   },
-  handler: async (ctx, { batchSize = 10, skip = 0 }) => {
+  handler: async (ctx, { batchSize = 10, skip = 0 }): Promise<{
+    processed: number;
+    hasMore: boolean;
+    total: number;
+    remainingRateLimit: number;
+  }> => {
     console.log(`[backfillMicrolinkMetadata] Starting batch of ${batchSize} cards (skip: ${skip})...`);
 
     // Get link cards that don't have Microlink.io metadata yet
@@ -344,7 +352,7 @@ export const backfillMicrolinkMetadata = internalAction({
 
     if (result.cards.length === 0) {
       console.log(`[backfillMicrolinkMetadata] No more cards to process`);
-      return { processed: 0, hasMore: false, total: result.total };
+      return { processed: 0, hasMore: false, total: result.total, remainingRateLimit: 50 };
     }
 
     let processedCount = 0;
