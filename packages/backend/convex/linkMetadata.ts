@@ -84,11 +84,20 @@ export const updateCardMetadata = internalMutation({
       return;
     }
 
-    // Merge new metadata with existing metadata
-    const updatedMetadata = {
-      ...existingCard.metadata,
-      microlinkData,
-    };
+    // For link cards being updated, create clean metadata with only microlinkData
+    // For non-link cards, preserve existing file metadata
+    let updatedMetadata: any = {};
+    
+    if (existingCard.type === "link") {
+      // Link cards: only keep microlinkData, discard legacy fields
+      updatedMetadata = { microlinkData };
+    } else {
+      // Non-link cards: preserve file metadata + add microlinkData
+      updatedMetadata = {
+        ...existingCard.metadata,
+        microlinkData,
+      };
+    }
 
     // Prepare update fields
     const updateFields: any = {
