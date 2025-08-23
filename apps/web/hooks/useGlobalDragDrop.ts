@@ -137,7 +137,7 @@ export function useGlobalDragDrop() {
           await createCard({
             content: "",
             type: fileType,
-            fileId: storageId,
+            fileId: storageId as any,
             metadata,
           });
 
