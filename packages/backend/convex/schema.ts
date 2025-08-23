@@ -25,11 +25,6 @@ export const metadataValidator = v.optional(
     duration: v.optional(v.number()),
     width: v.optional(v.number()),
     height: v.optional(v.number()),
-    // Legacy link metadata fields (for backward compatibility)
-    linkTitle: v.optional(v.string()),
-    linkDescription: v.optional(v.string()),
-    linkImage: v.optional(v.string()),
-    linkFavicon: v.optional(v.string()),
     // Microlink.io metadata (full response stored as JSON - using v.any() for flexibility)
     microlinkData: v.optional(v.any()),
   })
