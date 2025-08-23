@@ -4,14 +4,18 @@ import { SearchBar } from "./SearchBar";
 import { MasonryGrid } from "./MasonryGrid";
 import { EmptyState } from "./EmptyState";
 import { Loading } from "./Loading";
+import { DragOverlay } from "./DragOverlay";
 import { useSearchFilters } from "@/hooks/useSearchFilters";
 import { useCardActions } from "@/hooks/useCardActions";
+import { useGlobalDragDrop } from "@/hooks/useGlobalDragDrop";
 import { type Doc, type Id } from "@teak/convex/_generated/dataModel";
 
 export function Dashboard() {
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const searchFilters = useSearchFilters();
   const cardActions = useCardActions();
+  const { getRootProps, getInputProps, dragDropState, canCreateCard } =
+    useGlobalDragDrop();
 
   const handleCardClick = (card: Doc<"cards">) => {
     setEditingCardId(card._id);
@@ -30,7 +34,8 @@ export function Dashboard() {
   };
 
   return (
-    <div>
+    <div {...getRootProps()} className="relative">
+      <input {...getInputProps()} />
       <SearchBar
         searchQuery={searchFilters.searchQuery}
         onSearchChange={searchFilters.handleSearchChange}
@@ -75,13 +80,17 @@ export function Dashboard() {
               showTrashOnly={searchFilters.showTrashOnly}
               onCardClick={handleCardClick}
               onDeleteCard={(cardId) =>
-                cardActions.handleDeleteCard(cardId as Id<"cards">)}
+                cardActions.handleDeleteCard(cardId as Id<"cards">)
+              }
               onRestoreCard={(cardId) =>
-                cardActions.handleRestoreCard(cardId as Id<"cards">)}
+                cardActions.handleRestoreCard(cardId as Id<"cards">)
+              }
               onPermanentDeleteCard={(cardId) =>
-                cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)}
+                cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)
+              }
               onToggleFavorite={(cardId) =>
-                cardActions.handleToggleFavorite(cardId as Id<"cards">)}
+                cardActions.handleToggleFavorite(cardId as Id<"cards">)
+              }
             />
           )}
         </>
@@ -91,6 +100,11 @@ export function Dashboard() {
         cardId={editingCardId}
         open={!!editingCardId}
         onCancel={handleEditCancel}
+      />
+
+      <DragOverlay
+        dragDropState={dragDropState}
+        canCreateCard={canCreateCard}
       />
     </div>
   );
