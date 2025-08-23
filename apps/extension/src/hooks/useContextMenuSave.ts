@@ -73,11 +73,7 @@ export const useContextMenuSave = () => {
         content: url,
         type: "link",
         url: url,
-        metadata: {
-          linkTitle: pageTitle || undefined,
-          linkDescription: undefined,
-          linkImage: undefined,
-        },
+        metadata: {},
       });
 
       return {

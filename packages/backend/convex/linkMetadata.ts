@@ -52,13 +52,6 @@ interface MicrolinkResponse {
   data?: MicrolinkData;
 }
 
-// Legacy metadata for backward compatibility
-interface LegacyMetadata {
-  linkTitle?: string;
-  linkDescription?: string;
-  linkImage?: string;
-  linkFavicon?: string;
-}
 
 // Validate and normalize URL
 const normalizeUrl = (url: string): string => {
@@ -68,17 +61,6 @@ const normalizeUrl = (url: string): string => {
   return url;
 };
 
-// Convert Microlink.io data to legacy format for backward compatibility
-const convertToLegacyFormat = (microlinkData?: any): LegacyMetadata => {
-  if (!microlinkData) return {};
-
-  return {
-    linkTitle: microlinkData.title,
-    linkDescription: microlinkData.description,
-    linkImage: microlinkData.image?.url,
-    linkFavicon: microlinkData.logo?.url,
-  };
-};
 
 // Internal query to get card for metadata extraction
 export const getCardForMetadata = internalQuery({
@@ -102,13 +84,9 @@ export const updateCardMetadata = internalMutation({
       return;
     }
 
-    // Convert Microlink data to legacy format for backward compatibility
-    const legacyMetadata = convertToLegacyFormat(microlinkData?.data);
-
     // Merge new metadata with existing metadata
     const updatedMetadata = {
       ...existingCard.metadata,
-      ...legacyMetadata,
       microlinkData,
     };
 
@@ -119,9 +97,9 @@ export const updateCardMetadata = internalMutation({
       updatedAt: Date.now(),
     };
 
-    // Extract title and description for search indexes (prioritize Microlink data)
-    const title = microlinkData?.data?.title || legacyMetadata.linkTitle;
-    const description = microlinkData?.data?.description || legacyMetadata.linkDescription;
+    // Extract title and description for search indexes
+    const title = microlinkData?.data?.title;
+    const description = microlinkData?.data?.description;
 
     if (title) {
       updateFields.metadataTitle = title;
@@ -298,115 +276,3 @@ export const extractLinkMetadata = internalAction({
   },
 });
 
-// Internal query to get link cards without Microlink.io metadata
-export const getLinkCardsWithoutMicrolinkData = internalQuery({
-  args: {
-    batchSize: v.optional(v.number()),
-    skip: v.optional(v.number()),
-  },
-  handler: async (ctx, { batchSize = 10, skip = 0 }) => {
-    // Get all cards and filter in JavaScript (simpler for migration)
-    const allCards = await ctx.db.query("cards").collect();
-
-    // Filter to link cards without Microlink data
-    const linkCardsWithoutMicrolink = allCards.filter(card =>
-      card.type === "link" &&
-      !card.isDeleted &&
-      card.url &&
-      !card.metadata?.microlinkData
-    );
-
-    // Apply pagination
-    const paginatedCards = linkCardsWithoutMicrolink.slice(skip, skip + batchSize);
-
-    return {
-      cards: paginatedCards,
-      total: linkCardsWithoutMicrolink.length,
-      hasMore: skip + batchSize < linkCardsWithoutMicrolink.length
-    };
-  },
-});
-
-// Migration function to backfill Microlink.io metadata for existing link cards
-// @ts-ignore - Circular reference due to scheduler calling itself
-export const backfillMicrolinkMetadata = internalAction({
-  args: {
-    batchSize: v.optional(v.number()),
-    skip: v.optional(v.number()),
-  },
-  handler: async (ctx, { batchSize = 10, skip = 0 }): Promise<{
-    processed: number;
-    hasMore: boolean;
-    total: number;
-    remainingRateLimit: number;
-  }> => {
-    console.log(`[backfillMicrolinkMetadata] Starting batch of ${batchSize} cards (skip: ${skip})...`);
-
-    // Get link cards that don't have Microlink.io metadata yet
-    const result = await ctx.runQuery(internal.linkMetadata.getLinkCardsWithoutMicrolinkData, {
-      batchSize,
-      skip,
-    });
-
-    console.log(`[backfillMicrolinkMetadata] Found ${result.cards.length} cards to process (${result.total} total remaining)`);
-
-    if (result.cards.length === 0) {
-      console.log(`[backfillMicrolinkMetadata] No more cards to process`);
-      return { processed: 0, hasMore: false, total: result.total, remainingRateLimit: 50 };
-    }
-
-    let processedCount = 0;
-
-    for (const card of result.cards) {
-      console.log(`[backfillMicrolinkMetadata] Scheduling metadata extraction for card ${card._id}: ${card.url}`);
-
-      // Schedule metadata extraction with a small delay to avoid rate limiting
-      await ctx.scheduler.runAfter(processedCount * 2000, internal.linkMetadata.extractLinkMetadata, {
-        cardId: card._id,
-      });
-
-      processedCount++;
-    }
-
-    console.log(`[backfillMicrolinkMetadata] Scheduled ${processedCount} metadata extractions. HasMore: ${result.hasMore}`);
-
-    // Schedule next batch if there are more cards
-    if (result.hasMore) {
-      const nextSkip = skip + batchSize;
-      console.log(`[backfillMicrolinkMetadata] Scheduling next batch (skip: ${nextSkip})`);
-      await ctx.scheduler.runAfter(batchSize * 2000 + 5000, internal.linkMetadata.backfillMicrolinkMetadata, {
-        batchSize,
-        skip: nextSkip,
-      });
-    }
-
-    return {
-      processed: processedCount,
-      hasMore: result.hasMore,
-      total: result.total,
-      remainingRateLimit: 50 - processedCount // Approximate remaining rate limit
-    };
-  },
-});
-
-// Public mutation to trigger the backfill migration
-export const triggerMicrolinkMetadataBackfill = mutation({
-  args: {
-    batchSize: v.optional(v.number()),
-  },
-  handler: async (ctx, { batchSize = 10 }) => {
-    const user = await ctx.auth.getUserIdentity();
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
-
-    console.log(`[triggerMicrolinkMetadataBackfill] User ${user.subject} started metadata backfill with batch size ${batchSize}`);
-
-    // Schedule the first batch immediately
-    await ctx.scheduler.runAfter(0, internal.linkMetadata.backfillMicrolinkMetadata, {
-      batchSize,
-    });
-
-    return { message: `Metadata backfill started with batch size ${batchSize}` };
-  },
-});

@@ -282,16 +282,13 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           return null;
         }
         
-        // Get metadata with Microlink.io data prioritized, fallback to legacy fields
+        // Get metadata from Microlink.io data
         const linkTitle = card.metadata?.microlinkData?.data?.title || 
                          card.metadataTitle || 
-                         card.metadata?.linkTitle || 
                          card.url;
         const linkDescription = card.metadata?.microlinkData?.data?.description || 
-                               card.metadataDescription || 
-                               card.metadata?.linkDescription;
-        const linkImage = card.metadata?.microlinkData?.data?.image?.url || 
-                         card.metadata?.linkImage;
+                               card.metadataDescription;
+        const linkImage = card.metadata?.microlinkData?.data?.image?.url;
         const publisher = card.metadata?.microlinkData?.data?.publisher;
         
         return (
