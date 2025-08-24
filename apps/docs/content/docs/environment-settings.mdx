@@ -1,0 +1,53 @@
+---
+title: Environment Settings
+description: Environment variables reference for Teak applications
+---
+
+## Required Environment Variables
+
+You need to configure environment variables across three locations:
+
+### `packages/backend/.env.local`
+```bash
+CONVEX_DEPLOYMENT=dev:your-deployment-name-123
+CLERK_SECRET_KEY=sk_test_your_clerk_secret_key_here
+```
+
+### `apps/web/.env.local`
+```bash
+NEXT_PUBLIC_CONVEX_URL=https://your-convex-deployment.convex.cloud
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key_here
+```
+
+### `apps/mobile/.env.local`
+```bash
+EXPO_PUBLIC_CONVEX_URL=https://your-convex-deployment.convex.cloud
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key_here
+```
+
+## Getting Your Values
+
+### Convex URLs
+1. Run `bun run predev` to create your deployment
+2. Copy the deployment URL from the Convex dashboard
+3. Use the deployment name (e.g., `dev:name-123`) for the backend
+4. Use the full URL (e.g., `https://name.convex.cloud`) for frontend apps
+
+### Clerk Keys
+1. Create a Clerk application at [clerk.com](https://clerk.com)
+2. Get your **Publishable Key** (`pk_test_...`) from the dashboard
+3. Get your **Secret Key** (`sk_test_...`) from API Keys section
+4. Configure Clerk in Convex dashboard: Settings → Authentication
+
+## Development vs Production
+
+| Environment | Convex | Clerk Keys | Notes |
+|-------------|--------|------------|--------|
+| Development | `dev:name-123` | `pk_test_...` / `sk_test_...` | Local development |
+| Production | Production deployment | `pk_live_...` / `sk_live_...` | Live environment |
+
+## Security
+
+- Never commit `.env.local` files to version control
+- Use different keys for development and production
+- Rotate keys regularly

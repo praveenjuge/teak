@@ -1,0 +1,208 @@
+---
+title: Development Guide
+description: Development setup and workflow guide for Teak
+---
+
+## Prerequisites
+
+- **Bun 1.0+** - Modern JavaScript runtime
+- **Node.js 18+** - For package compatibility
+- **Git** - Version control
+
+## Quick Start
+
+```bash
+git clone https://github.com/praveenjuge/teak.git
+cd teak-convex-nextjs
+bun install
+bun run predev
+```
+
+This will:
+1. Install dependencies across all workspace packages
+2. Initialize Convex development environment
+3. Open the Convex dashboard for configuration
+
+## Project Structure
+
+```
+teak-convex-nextjs/
+├── apps/
+│   ├── web/              # Next.js frontend app
+│   ├── mobile/           # Expo React Native mobile app
+│   ├── extension/        # Chrome browser extension (Plasmo)
+│   └── docs/             # Documentation site (Fumadocs)
+├── packages/
+│   ├── shared/           # Shared utilities, constants, types
+│   └── backend/          # Backend services and configuration
+│       └── convex/       # Convex functions and database
+└── package.json          # Root workspace configuration
+```
+
+### Core Stack
+
+- **Backend**: Convex (real-time database with serverless functions)
+- **Web**: Next.js 15 with App Router, TypeScript, TailwindCSS
+- **Mobile**: Expo React Native with TypeScript
+- **Extension**: Plasmo framework with Chrome APIs
+- **Authentication**: Clerk with JWT integration
+- **UI Components**: shadcn/ui with Radix primitives
+- **File Storage**: Convex Storage for user uploads
+
+## Development
+
+```bash
+# Start all services (frontend + backend)
+bun run dev
+
+# Individual services
+bun run dev:backend      # Convex backend only
+bun run dev:frontend     # Next.js web app only
+bun run dev:mobile       # Expo mobile app
+bun run dev:extension    # Browser extension with hot reload
+
+# Build commands
+bun run build            # Production web build
+bun run build:extension  # Extension build
+bun run package:extension # Package extension for distribution
+```
+
+## Access Points
+
+- **Web App**: http://localhost:3000
+- **Convex Dashboard**: Opens automatically after `bun run predev`
+- **Mobile App**: Expo Go app or simulator
+- **Extension**: Load unpacked in Chrome developer mode
+
+## Convex & Authentication Setup
+
+### 1. Initialize Convex
+
+```bash
+bun run predev
+```
+
+This will:
+- Create a new Convex deployment
+- Open the Convex dashboard
+- Generate your deployment URL
+
+### 2. Set Up Clerk Authentication
+
+1. **Create Clerk Application**:
+   - Visit [clerk.com](https://clerk.com) and create an account
+   - Create a new application
+   - Choose authentication methods (email/password recommended)
+
+2. **Get Your Keys**:
+   - Publishable Key: `pk_test_...` (for frontend)
+   - Secret Key: `sk_test_...` (for backend)
+
+3. **Configure Clerk in Convex**:
+   - In Convex dashboard: Settings → Authentication
+   - Add Clerk as authentication provider
+   - Enter your Clerk domain
+
+### 3. Environment Configuration
+
+**Backend** (`packages/backend/.env.local`):
+```bash
+CONVEX_DEPLOYMENT=dev:your-deployment-name-123
+CLERK_SECRET_KEY=sk_test_your_clerk_secret_key
+```
+
+**Web App** (`apps/web/.env.local`):
+```bash
+NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
+```
+
+**Mobile App** (`apps/mobile/.env.local`):
+```bash
+EXPO_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
+```
+
+## Database & Functions
+
+Unlike traditional databases, Convex provides:
+- **Real-time queries** with automatic updates
+- **Serverless functions** for business logic
+- **Built-in authentication** integration
+- **File storage** with secure access
+
+### Function Development
+
+```javascript
+// Example query in convex/cards.ts
+export const getCards = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+    
+    return await ctx.db
+      .query("cards")
+      .filter(q => q.eq(q.field("userId"), identity.subject))
+      .collect();
+  },
+});
+```
+
+## Testing
+
+```bash
+# Run web app tests
+cd apps/web && bun run test
+
+# Run linting
+bun run lint
+
+# Type checking
+cd apps/web && bun run typecheck
+```
+
+## Browser Extension Development
+
+### Setup & Installation
+
+1. **Build the extension**:
+   ```bash
+   bun run build:extension
+   ```
+
+2. **Load in Chrome**:
+   - Go to `chrome://extensions/`
+   - Enable "Developer mode"
+   - Click "Load unpacked" and select `apps/extension/build/chrome-mv3-dev`
+
+3. **Development with hot reload**:
+   ```bash
+   bun run dev:extension
+   ```
+
+### Features
+
+- **Context Menu**: Right-click to save selected text, links, and images
+- **Auto-Save**: Click extension icon to save current tab with metadata
+- **Authentication**: Uses same Clerk authentication as web/mobile apps
+
+### Publishing
+
+```bash
+bun run package:extension  # Creates production ZIP for Chrome Web Store
+```
+
+## Deployment
+
+### Convex Backend
+- Functions deploy automatically during development
+- Production deployment via Convex dashboard
+
+### Web Frontend
+- Deploy to Vercel, Netlify, or any Node.js hosting
+- Set environment variables in hosting platform
+
+### Mobile App
+- Build with Expo EAS for app stores
+- Configure push notifications and native features
