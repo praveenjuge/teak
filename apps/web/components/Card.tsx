@@ -6,7 +6,7 @@ import {
   Trash,
   Trash2,
 } from "lucide-react";
-import { useQuery } from "convex/react";
+import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
 import { Id } from "@teak/convex/_generated/dataModel";
 import {

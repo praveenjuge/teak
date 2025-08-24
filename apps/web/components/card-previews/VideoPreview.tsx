@@ -1,4 +1,4 @@
-import { useQuery } from "convex/react";
+import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
 import { type Doc } from "@teak/convex/_generated/dataModel";
 
@@ -11,9 +11,9 @@ export function VideoPreview({ card }: VideoPreviewProps) {
     api.cards.getFileUrl,
     card.fileId ? { fileId: card.fileId } : "skip"
   );
-  
+
   if (!fileUrl) return null;
-  
+
   return (
     <video controls className="w-full bg-black max-h-[70vh]" preload="metadata">
       <source src={fileUrl} type={card.metadata?.mimeType} />

@@ -23,6 +23,7 @@
     "class-variance-authority": "^0.7.1",
     "cmdk": "^1.1.1",
     "convex": "^1.26.1",
+    "convex-helpers": "^0.1.104",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.541.0",
     "next": "canary",

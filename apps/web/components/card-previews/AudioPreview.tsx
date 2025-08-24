@@ -1,4 +1,4 @@
-import { useQuery } from "convex/react";
+import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
 import { type Doc } from "@teak/convex/_generated/dataModel";
 import { Sparkles } from "lucide-react";
