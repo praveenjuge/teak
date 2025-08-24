@@ -363,6 +363,14 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
             ref={textareaRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                if (content.trim()) {
+                  handleTextSubmit(e as any);
+                }
+              }
+            }}
             placeholder={
               canCreateCard === false
                 ? "Card limit reached. Upgrade to Pro for unlimited cards."

@@ -110,7 +110,7 @@ export function SearchBar({
     <div className="bg-background">
       <div className="flex items-center group">
         <div className="flex items-center gap-2">
-          <Search className="text-muted-foreground size-4 group-focus-within:text-primary group-focus-within:stroke-[2.5]" />
+          <Search className="text-muted-foreground size-4 group-focus-within:text-primary group-focus-within:stroke-[2.5] group-hover:text-primary group-hover:stroke-[2.5]" />
 
           {keywordTags.map((keyword) => (
             <Badge
@@ -248,9 +248,6 @@ export function SearchBar({
                     onMouseEnter={() => setTypeaheadSelectedIndex(index)}
                   >
                     <IconComponent />
-                    <span>
-                      {option.value === "favorites" ? "Show" : "Filter"}:
-                    </span>
                     <span>{option.label}</span>
                   </button>
                 </Badge>
