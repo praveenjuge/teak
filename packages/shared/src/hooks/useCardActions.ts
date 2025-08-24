@@ -13,7 +13,6 @@ export function useCardActions(config: CardActionsConfig = {}) {
   const deleteCard = useMutation(api.cards.deleteCard);
   const restoreCard = useMutation(api.cards.restoreCard);
   const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
-  const toggleFavorite = useMutation(api.cards.toggleFavorite);
   const updateCardField = useMutation(api.cards.updateCardField);
 
   const handleDeleteCard = async (cardId: Id<"cards">) => {
@@ -48,7 +47,10 @@ export function useCardActions(config: CardActionsConfig = {}) {
 
   const handleToggleFavorite = async (cardId: Id<"cards">) => {
     try {
-      await toggleFavorite({ id: cardId });
+      await updateCardField({
+        cardId,
+        field: "isFavorited",
+      });
     } catch (error) {
       console.error("Failed to toggle favorite:", error);
       config.onError?.(error as Error, "toggle favorite");

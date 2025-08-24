@@ -16,7 +16,6 @@ export const useContextMenuSave = () => {
         content: url,
         type: "link",
         url: url,
-        metadata: {},
       });
 
       return {
@@ -38,7 +37,6 @@ export const useContextMenuSave = () => {
         content: text,
         type: "text",
         url: sourceUrl,
-        metadata: {},
       });
 
       return {
