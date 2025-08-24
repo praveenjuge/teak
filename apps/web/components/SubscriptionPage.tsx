@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
+import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
 import { CheckoutLink, CustomerPortalLink } from "@convex-dev/polar/react";
 import { buttonVariants } from "@/components/ui/button";
@@ -37,24 +37,16 @@ export default function SubscriptionPage() {
 
       {/* Cards Usage Progress */}
       <div className="space-y-3">
-        <div className="flex justify-between items-center">
-          <h2 className="font-semibold">Cards Usage</h2>
-          <span className="text-muted-foreground">
-            {isSubscribed
-              ? `${cardCount || 0} cards (Unlimited)`
-              : `${cardCount || 0} / ${FREE_TIER_LIMIT} cards`}
-          </span>
-        </div>
+        <h2>
+          {isSubscribed
+            ? `${cardCount || 0} cards used - You have unlimited cards 🎉`
+            : `${cardCount || 0} / ${FREE_TIER_LIMIT} cards used`}
+        </h2>
         <Progress value={progressPercentage} className="h-2" />
         {!isSubscribed && (cardCount || 0) >= FREE_TIER_LIMIT && (
-          <p className="text-destructive text-right">
+          <p className="text-destructive">
             You&apos;ve reached your free tier limit. Upgrade to Pro for
             unlimited cards.
-          </p>
-        )}
-        {!isSubscribed && (cardCount || 0) < FREE_TIER_LIMIT && (
-          <p className="text-muted-foreground text-right">
-            {FREE_TIER_LIMIT - (cardCount || 0)} cards remaining on free plan.
           </p>
         )}
       </div>

@@ -5,6 +5,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { shadcn } from "@clerk/themes";
+import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 
 export const metadata: Metadata = {
   title: "Teak",
@@ -35,7 +36,9 @@ export default function RootLayout({
               },
             }}
           >
-            <ConvexClientProvider>{children}</ConvexClientProvider>
+            <ConvexClientProvider>
+              <ConvexQueryCacheProvider>{children}</ConvexQueryCacheProvider>
+            </ConvexClientProvider>
             <Toaster />
           </ClerkProvider>
         </ThemeProvider>
