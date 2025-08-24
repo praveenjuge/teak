@@ -178,10 +178,7 @@ export function Card({
               {card.isFavorited ? "Unfavorite" : "Favorite"}
             </ContextMenuItem>
             <ContextMenuSeparator />
-            <ContextMenuItem
-              onClick={handleDelete}
-              className="text-destructive focus:text-destructive"
-            >
+            <ContextMenuItem onClick={handleDelete}>
               <Trash2 />
               Delete
             </ContextMenuItem>
@@ -195,10 +192,7 @@ export function Card({
               Restore
             </ContextMenuItem>
             <ContextMenuSeparator />
-            <ContextMenuItem
-              onClick={handlePermanentDelete}
-              className="text-destructive focus:text-destructive"
-            >
+            <ContextMenuItem onClick={handlePermanentDelete}>
               <Trash />
               Delete Forever
             </ContextMenuItem>

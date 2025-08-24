@@ -13,14 +13,14 @@ export function AudioPreview({ card }: AudioPreviewProps) {
     card.fileId ? { fileId: card.fileId } : "skip"
   );
 
-  if (!fileUrl) return null;
-
   return (
     <div className="p-2 space-y-4">
-      <audio controls className="w-full">
-        <source src={fileUrl} type={card.metadata?.mimeType} />
-        Your browser does not support the audio element.
-      </audio>
+      {fileUrl && (
+        <audio controls className="w-full">
+          <source src={fileUrl} type={card.metadata?.mimeType} />
+          Your browser does not support the audio element.
+        </audio>
+      )}
 
       {/* Transcript Section */}
       {card.transcript && (

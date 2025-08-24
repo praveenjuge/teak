@@ -112,7 +112,7 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
   return (
     <Dialog open={open} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent
-        className="md:max-w-6xl max-h-[90vh] p-3 flex flex-col md:flex-row h-[80vh] outline-0 border-0 overflow-hidden gap-4"
+        className="md:max-w-6xl max-h-[90vh] p-3 flex flex-col md:flex-row h-[80vh] outline-0 overflow-hidden gap-4"
         showCloseButton={false}
       >
         {!card ? (

@@ -13,6 +13,7 @@ import {
   Video,
   Volume2,
   File,
+  Moon,
 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import {
@@ -22,6 +23,7 @@ import {
   RESERVED_KEYWORDS,
 } from "@teak/shared/constants";
 import SubscriptionPage from "./SubscriptionPage";
+import { useTheme } from "next-themes";
 
 interface SearchBarProps {
   searchQuery: string;
@@ -82,6 +84,7 @@ export function SearchBar({
   onRemoveTrash,
   onClearAll,
 }: SearchBarProps) {
+  const { setTheme, theme } = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -138,7 +141,7 @@ export function SearchBar({
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            className="border-0 focus-visible:outline-none focus-visible:ring-0 h-16 rounded-none"
+            className="border-0 focus-visible:outline-none focus-visible:ring-0 h-16 rounded-none bg-transparent dark:bg-transparent"
             autoCapitalize="off"
             autoCorrect="off"
           />
@@ -154,6 +157,15 @@ export function SearchBar({
               <SubscriptionPage />
             </Suspense>
           </UserButton.UserProfilePage>
+          <UserButton.MenuItems>
+            <UserButton.Action
+              label={theme === "dark" ? "Light Mode" : "Dark Mode"}
+              labelIcon={<Moon className="size-3.5 stroke-[2.5px] mt-0.5" />}
+              onClick={() =>
+                setTheme((prev) => (prev === "dark" ? "light" : "dark"))
+              }
+            />
+          </UserButton.MenuItems>
         </UserButton>
       </div>
 
