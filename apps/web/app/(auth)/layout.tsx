@@ -3,6 +3,8 @@ import { Loading } from "@/components/Loading";
 import { TopPattern } from "@/components/patterns/TopPattern";
 import { BottomPattern } from "@/components/patterns/BottomPattern";
 
+export const experimental_ppr = true;
+
 export default function RootLayout({
   children,
 }: Readonly<{

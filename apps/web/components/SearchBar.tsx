@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -150,7 +150,9 @@ export function SearchBar({
             url="subscription"
             labelIcon={<CreditCard className="size-3.5 stroke-3 mt-0.5" />}
           >
-            <SubscriptionPage />
+            <Suspense>
+              <SubscriptionPage />
+            </Suspense>
           </UserButton.UserProfilePage>
         </UserButton>
       </div>
