@@ -271,7 +271,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       <Card className="shadow-none p-4 border-primary ring-1 ring-primary w-full relative overflow-hidden">
         <CardContent className="text-center flex flex-col gap-4 h-full justify-center items-center p-0 relative">
           <h3 className="font-medium text-primary">
-            {isRecording ? "Processing audio..." : "Uploading..."}
+            {isRecording ? "Processing audio..." : "Saving..."}
           </h3>
         </CardContent>
         {uploadState.progress > 0 && (
@@ -310,7 +310,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
             placeholder={
               canCreateCard === false
                 ? "Card limit reached. Upgrade to Pro for unlimited cards."
-                : "Write or paste a link..."
+                : "Write or add a link..."
             }
             className="min-h-[80px] flex-1 h-full resize-none border-0 shadow-none rounded-none p-4 focus-visible:outline-none focus-visible:ring-0 bg-transparent dark:bg-transparent"
             disabled={canCreateCard === false}

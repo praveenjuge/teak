@@ -1,5 +1,3 @@
-"use client";
-
 import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
