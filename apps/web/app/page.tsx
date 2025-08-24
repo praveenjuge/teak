@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "convex-helpers/react/cache/hooks";
 import { CardModal } from "@/components/CardModal";
 import { SearchBar } from "@/components/SearchBar";
 import { MasonryGrid } from "@/components/MasonryGrid";
@@ -9,19 +10,127 @@ import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 import { DragOverlay } from "@/components/DragOverlay";
 import { CardsGridSkeleton } from "@/components/CardSkeleton";
-import { useSearchFilters } from "@/hooks/useSearchFilters";
-import { useCardActions } from "@/hooks/useCardActions";
 import { useGlobalDragDrop } from "@/hooks/useGlobalDragDrop";
 import { type Doc, type Id } from "@teak/convex/_generated/dataModel";
+import { type CardType } from "@teak/shared/constants";
+import { useCardActions } from "@teak/shared";
+import { api } from "@teak/convex";
+import { toast } from "sonner";
 
 export const experimental_ppr = true;
 
 export default function Home() {
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const searchFilters = useSearchFilters();
-  const cardActions = useCardActions();
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [keywordTags, setKeywordTags] = useState<string[]>([]);
+  const [filterTags, setFilterTags] = useState<CardType[]>([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [showTrashOnly, setShowTrashOnly] = useState(false);
+
+  // Convex queries and mutations
+  const searchTerms = [
+    ...keywordTags,
+    ...(searchQuery.trim() ? [searchQuery.trim()] : []),
+  ].join(" ");
+
+  const cards = useQuery(api.cards.searchCards, {
+    searchQuery: searchTerms || undefined,
+    types: filterTags.length > 0 ? filterTags : undefined,
+    favoritesOnly: showFavoritesOnly || undefined,
+    showTrashOnly: showTrashOnly || undefined,
+    limit: 100,
+  });
+
+  const cardActions = useCardActions({
+    onDeleteSuccess: (message) => message && toast(message),
+    onRestoreSuccess: (message) => message && toast(message),
+    onPermanentDeleteSuccess: (message) => message && toast(message),
+    onError: (error, operation) => {
+      toast.error(`Failed to ${operation}`);
+    },
+  });
+
   const { getRootProps, getInputProps, dragDropState, canCreateCard } =
     useGlobalDragDrop();
+
+  // Search handlers
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+
+      if (
+        ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
+      ) {
+        setShowFavoritesOnly(!showFavoritesOnly);
+        setSearchQuery("");
+        return;
+      }
+
+      if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
+        setShowTrashOnly(!showTrashOnly);
+        setSearchQuery("");
+        return;
+      }
+
+      if (!keywordTags.includes(query)) {
+        setKeywordTags((prev) => [...prev, query]);
+      }
+      setSearchQuery("");
+    } else if (
+      e.key === "Backspace" &&
+      searchQuery === "" &&
+      (keywordTags.length > 0 ||
+        filterTags.length > 0 ||
+        showFavoritesOnly ||
+        showTrashOnly)
+    ) {
+      if (showTrashOnly) {
+        setShowTrashOnly(false);
+      } else if (showFavoritesOnly) {
+        setShowFavoritesOnly(false);
+      } else if (filterTags.length > 0) {
+        setFilterTags((prev) => prev.slice(0, -1));
+      } else if (keywordTags.length > 0) {
+        setKeywordTags((prev) => prev.slice(0, -1));
+      }
+    }
+  };
+
+  const addFilter = (filter: CardType) => {
+    if (!filterTags.includes(filter)) {
+      setFilterTags((prev) => [...prev, filter]);
+    }
+  };
+
+  const removeFilter = (filter: CardType) => {
+    setFilterTags((prev) => prev.filter((tag) => tag !== filter));
+  };
+
+  const removeKeyword = (keyword: string) => {
+    setKeywordTags((prev) => prev.filter((tag) => tag !== keyword));
+  };
+
+  const toggleFavorites = () => {
+    setShowFavoritesOnly(!showFavoritesOnly);
+  };
+
+  const toggleTrash = () => {
+    setShowTrashOnly(!showTrashOnly);
+  };
+
+  const clearAllFilters = () => {
+    setSearchQuery("");
+    setKeywordTags([]);
+    setFilterTags([]);
+    setShowFavoritesOnly(false);
+    setShowTrashOnly(false);
+  };
 
   const handleCardClick = (card: Doc<"cards">) => {
     setEditingCardId(card._id);
@@ -32,14 +141,16 @@ export default function Home() {
   };
 
   const hasNoFilters =
-    searchFilters.keywordTags.length === 0 &&
-    searchFilters.filterTags.length === 0 &&
-    !searchFilters.showFavoritesOnly &&
-    !searchFilters.showTrashOnly &&
-    !searchFilters.searchQuery;
+    keywordTags.length === 0 &&
+    filterTags.length === 0 &&
+    !showFavoritesOnly &&
+    !showTrashOnly &&
+    !searchQuery;
+
+  const filteredCards = cards || [];
 
   const renderEmptyState = () => {
-    if (searchFilters.filteredCards.length === 0 && hasNoFilters) {
+    if (filteredCards.length === 0 && hasNoFilters) {
       return (
         <div className="text-center flex flex-col items-center max-w-xs mx-auto py-20 gap-5">
           <Logo variant="current" />
@@ -54,13 +165,13 @@ export default function Home() {
       );
     }
 
-    if (searchFilters.filteredCards.length === 0) {
+    if (filteredCards.length === 0) {
       return (
         <div className="text-center py-12 space-y-4">
           <p className="text-muted-foreground">
             Nothing found matching your filters
           </p>
-          <Button variant="outline" onClick={searchFilters.clearAllFilters}>
+          <Button variant="outline" onClick={clearAllFilters}>
             Clear filters
           </Button>
         </div>
@@ -75,27 +186,27 @@ export default function Home() {
       <div {...getRootProps()} className="relative">
         <input {...getInputProps()} />
         <SearchBar
-          searchQuery={searchFilters.searchQuery}
-          onSearchChange={searchFilters.handleSearchChange}
-          onKeyDown={searchFilters.handleKeyDown}
-          keywordTags={searchFilters.keywordTags}
-          filterTags={searchFilters.filterTags}
-          showFavoritesOnly={searchFilters.showFavoritesOnly}
-          showTrashOnly={searchFilters.showTrashOnly}
-          onAddFilter={searchFilters.addFilter}
-          onRemoveFilter={searchFilters.removeFilter}
-          onRemoveKeyword={searchFilters.removeKeyword}
-          onToggleFavorites={searchFilters.toggleFavorites}
-          onToggleTrash={searchFilters.toggleTrash}
-          onClearAll={searchFilters.clearAllFilters}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
+          onKeyDown={handleKeyDown}
+          keywordTags={keywordTags}
+          filterTags={filterTags}
+          showFavoritesOnly={showFavoritesOnly}
+          showTrashOnly={showTrashOnly}
+          onAddFilter={addFilter}
+          onRemoveFilter={removeFilter}
+          onRemoveKeyword={removeKeyword}
+          onToggleFavorites={toggleFavorites}
+          onToggleTrash={toggleTrash}
+          onClearAll={clearAllFilters}
         />
 
-        {searchFilters.cards === undefined ? (
+        {cards === undefined ? (
           <CardsGridSkeleton />
-        ) : searchFilters.filteredCards.length > 0 ? (
+        ) : filteredCards.length > 0 ? (
           <MasonryGrid
-            filteredCards={searchFilters.filteredCards}
-            showTrashOnly={searchFilters.showTrashOnly}
+            filteredCards={filteredCards}
+            showTrashOnly={showTrashOnly}
             onCardClick={handleCardClick}
             onDeleteCard={(cardId) =>
               cardActions.handleDeleteCard(cardId as Id<"cards">)
