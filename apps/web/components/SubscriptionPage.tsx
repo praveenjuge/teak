@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { FREE_TIER_LIMIT } from "@teak/shared/constants";
+import { ExternalLink } from "lucide-react";
 
 export default function SubscriptionPage() {
   const { user } = useUser();
@@ -24,9 +25,9 @@ export default function SubscriptionPage() {
     : Math.min(((cardCount || 0) / FREE_TIER_LIMIT) * 100, 100);
 
   return (
-    <div className="container mx-auto w-2xl space-y-6">
+    <div className="mx-auto md:min-w-2xl space-y-6">
       <div className="space-x-2 flex items-center">
-        <h1 className="text-2xl font-bold">Subscription</h1>
+        <h1 className="text-base font-bold">Subscription</h1>
         {isSubscribed ? (
           <Badge>Pro Plan</Badge>
         ) : (
@@ -37,8 +38,8 @@ export default function SubscriptionPage() {
       {/* Cards Usage Progress */}
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold">Cards Usage</h2>
-          <span className="text-sm text-muted-foreground">
+          <h2 className="font-semibold">Cards Usage</h2>
+          <span className="text-muted-foreground">
             {isSubscribed
               ? `${cardCount || 0} cards (Unlimited)`
               : `${cardCount || 0} / ${FREE_TIER_LIMIT} cards`}
@@ -46,13 +47,13 @@ export default function SubscriptionPage() {
         </div>
         <Progress value={progressPercentage} className="h-2" />
         {!isSubscribed && (cardCount || 0) >= FREE_TIER_LIMIT && (
-          <p className="text-sm text-destructive">
+          <p className="text-destructive text-right">
             You&apos;ve reached your free tier limit. Upgrade to Pro for
             unlimited cards.
           </p>
         )}
         {!isSubscribed && (cardCount || 0) < FREE_TIER_LIMIT && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-right">
             {FREE_TIER_LIMIT - (cardCount || 0)} cards remaining on free plan.
           </p>
         )}
@@ -67,12 +68,13 @@ export default function SubscriptionPage() {
           className={buttonVariants()}
         >
           Manage Subscription
+          <ExternalLink />
         </CustomerPortalLink>
       )}
 
       {!isSubscribed && products && products.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Available Plans</h2>
+          <h2 className="font-semibold">Available Plans</h2>
           <div className="flex gap-2">
             {products.map(
               (product: {
