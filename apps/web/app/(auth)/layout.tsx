@@ -12,7 +12,7 @@ export default function RootLayout({
 }>) {
   return (
     <>
-      <main className="mx-auto flex max-w-xs flex-col items-center justify-center space-y-8 py-14 md:h-screen w-full">
+      <main className="mx-auto grid max-w-xs place-items-center py-14 md:h-screen w-full">
         <ClerkLoading>
           <Loading />
         </ClerkLoading>
