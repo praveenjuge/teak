@@ -10,14 +10,12 @@ export interface CardActionsConfig {
 }
 
 export function useCardActions(config: CardActionsConfig = {}) {
-  const deleteCard = useMutation(api.cards.deleteCard);
-  const restoreCard = useMutation(api.cards.restoreCard);
   const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
   const updateCardField = useMutation(api.cards.updateCardField);
 
   const handleDeleteCard = async (cardId: Id<"cards">) => {
     try {
-      await deleteCard({ id: cardId });
+      await updateCardField({ cardId, field: "delete" });
       config.onDeleteSuccess?.("Card deleted. Find it by searching 'trash'");
     } catch (error) {
       console.error("Failed to delete card:", error);
@@ -27,7 +25,7 @@ export function useCardActions(config: CardActionsConfig = {}) {
 
   const handleRestoreCard = async (cardId: Id<"cards">) => {
     try {
-      await restoreCard({ id: cardId });
+      await updateCardField({ cardId, field: "restore" });
       config.onRestoreSuccess?.("Card restored");
     } catch (error) {
       console.error("Failed to restore card:", error);
@@ -60,7 +58,7 @@ export function useCardActions(config: CardActionsConfig = {}) {
   // New unified field update method
   const updateField = async (
     cardId: Id<"cards">,
-    field: "content" | "url" | "notes" | "tags" | "aiSummary" | "isFavorited" | "removeAiTag",
+    field: "content" | "url" | "notes" | "tags" | "aiSummary" | "isFavorited" | "removeAiTag" | "delete" | "restore",
     value?: any,
     tagToRemove?: string
   ) => {
