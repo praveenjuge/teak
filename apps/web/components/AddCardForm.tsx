@@ -378,7 +378,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
                 ? "Card limit reached. Upgrade to Pro for unlimited cards."
                 : "Write or paste a link..."
             }
-            className="min-h-[80px] flex-1 h-full resize-none border-0 shadow-none rounded-none p-4 focus-visible:outline-none focus-visible:ring-0"
+            className="min-h-[80px] flex-1 h-full resize-none border-0 shadow-none rounded-none p-4 focus-visible:outline-none focus-visible:ring-0 bg-transparent dark:bg-transparent"
             disabled={canCreateCard === false}
           />
 

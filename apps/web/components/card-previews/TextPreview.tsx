@@ -24,7 +24,7 @@ export function TextPreview({
         onContentChange(newContent);
       }}
       placeholder="Enter your text..."
-      className="h-full resize-none text-base leading-relaxed border-0 shadow-none p-0 focus-visible:border-0 focus-visible:ring-0 rounded-none"
+      className="h-full resize-none text-base leading-relaxed border-0 shadow-none p-0 focus-visible:border-0 focus-visible:ring-0 rounded-none bg-transparent dark:bg-transparent"
     />
   );
 }
