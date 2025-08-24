@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Mic, Square, Upload } from "lucide-react";
 import { api } from "@teak/convex";
+import { useFileUpload } from "@teak/shared";
+import { toast } from "sonner";
 
 interface AddCardFormProps {
   onSuccess?: () => void;
@@ -16,21 +18,27 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [uploadingType, setUploadingType] = useState<"none" | "audio" | "file">(
-    "none"
-  );
 
   // Form data
   const [content, setContent] = useState("");
   const [url, setUrl] = useState("");
 
   const createCard = useMutation(api.cards.createCard);
-  const generateUploadUrl = useMutation(api.cards.generateUploadUrl);
   const canCreateCardBasic = useQuery(api.cards.canCreateCard);
   const isSubscribed = useQuery(api.polar.userHasPremium);
 
   // Combine subscription status with basic card limit check
   const canCreateCard = !!isSubscribed || !!canCreateCardBasic;
+
+  // Use shared file upload hook
+  const { uploadFile, state: uploadState } = useFileUpload({
+    onSuccess: () => {
+      onSuccess?.();
+    },
+    onError: (error) => {
+      setError(error);
+    },
+  });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -110,38 +118,30 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
 
   const autoSaveAudio = async (blob: Blob) => {
     try {
-      setUploadingType("audio");
       setIsSubmitting(true);
 
-      // Upload the audio file
-      const uploadUrl = await generateUploadUrl({
-        fileName: `recording_${Date.now()}.webm`,
-        fileType: blob.type,
+      // Convert blob to File for the shared upload hook
+      const file = new File([blob], `recording_${Date.now()}.webm`, {
+        type: blob.type,
       });
-      const result = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": blob.type },
-        body: blob,
-      });
-      const { storageId } = await result.json();
 
-      const metadata = {
-        fileName: `recording_${Date.now()}.webm`,
-      };
-
-      // Create card - server will auto-detect type and extract metadata
-      await createCard({
+      const result = await uploadFile(file, {
         content: "",
-        fileId: storageId,
-        metadata,
+        additionalMetadata: {
+          recordingTimestamp: Date.now(),
+        },
       });
 
-      // Reset form
-      setContent("");
-      setUrl("");
-      setRecordingTime(0);
-
-      onSuccess?.();
+      if (result.success) {
+        // Reset form
+        setContent("");
+        setUrl("");
+        setRecordingTime(0);
+        onSuccess?.();
+        toast.success("Audio recording saved successfully");
+      } else {
+        throw new Error(result.error || "Failed to save audio recording");
+      }
     } catch (error) {
       console.error("Failed to auto-save audio:", error);
       const errorMessage =
@@ -151,7 +151,6 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       setError(errorMessage);
     } finally {
       setIsSubmitting(false);
-      setUploadingType("none");
     }
   };
 
@@ -162,44 +161,20 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
-        // Auto-upload immediately
-        try {
-          setUploadingType("file");
-          setIsSubmitting(true);
+        setIsSubmitting(true);
 
-          const uploadUrl = await generateUploadUrl({
-            fileName: file.name,
-            fileType: file.type,
-          });
-          const result = await fetch(uploadUrl, {
-            method: "POST",
-            headers: { "Content-Type": file.type },
-            body: file,
-          });
-          const { storageId } = await result.json();
+        const result = await uploadFile(file, {
+          content: "",
+        });
 
-          // Prepare basic metadata (server will enhance with file details)
-          const metadata = {
-            fileName: file.name,
-          };
-
-          // Create card - server will auto-detect type and extract metadata
-          await createCard({
-            content: "",
-            fileId: storageId,
-            metadata,
-          });
-
+        if (result.success) {
           onSuccess?.();
-        } catch (error) {
-          console.error("Failed to auto-save file:", error);
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to upload file";
-          setError(errorMessage);
-        } finally {
-          setIsSubmitting(false);
-          setUploadingType("none");
+          toast.success(`${file.name} uploaded successfully`);
+        } else {
+          setError(result.error || "Failed to upload file");
         }
+
+        setIsSubmitting(false);
       }
     };
     input.click();
@@ -291,16 +266,20 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   }
 
   // Uploading mode - full card feedback while files/audio are being uploaded
-  if (isSubmitting && uploadingType !== "none") {
+  if (uploadState.isUploading || isSubmitting) {
     return (
-      <Card className="shadow-none p-4 border-primary ring-1 ring-primary w-full">
-        <CardContent className="text-center flex flex-col gap-4 h-full justify-center items-center p-0">
+      <Card className="shadow-none p-4 border-primary ring-1 ring-primary w-full relative overflow-hidden">
+        <CardContent className="text-center flex flex-col gap-4 h-full justify-center items-center p-0 relative">
           <h3 className="font-medium text-primary">
-            {uploadingType === "audio"
-              ? "Uploading audio..."
-              : "Uploading file..."}
+            {isRecording ? "Processing audio..." : "Uploading..."}
           </h3>
         </CardContent>
+        {uploadState.progress > 0 && (
+          <div
+            className="bg-primary/20 h-full absolute top-0 left-0 bottom-0 transition-all duration-300"
+            style={{ width: `${uploadState.progress}%` }}
+          />
+        )}
       </Card>
     );
   }
@@ -345,7 +324,11 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
                 variant="outline"
                 size="sm"
                 onClick={handleFileUpload}
-                disabled={isSubmitting || canCreateCard === false}
+                disabled={
+                  isSubmitting ||
+                  uploadState.isUploading ||
+                  canCreateCard === false
+                }
               >
                 <Upload />
               </Button>
@@ -355,7 +338,11 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
                 variant="outline"
                 size="sm"
                 onClick={startRecording}
-                disabled={isSubmitting || canCreateCard === false}
+                disabled={
+                  isSubmitting ||
+                  uploadState.isUploading ||
+                  canCreateCard === false
+                }
               >
                 <Mic />
               </Button>
@@ -363,7 +350,11 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
             {content.trim() && (
               <Button
                 type="submit"
-                disabled={isSubmitting || canCreateCard === false}
+                disabled={
+                  isSubmitting ||
+                  uploadState.isUploading ||
+                  canCreateCard === false
+                }
                 size="sm"
               >
                 {isSubmitting ? "Saving..." : "Save"}

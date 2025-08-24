@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useCreateCard, useCreateCardWithFile } from "@teak/shared";
+import { useCreateCard, useFileUpload } from "@teak/shared";
 import { IconSymbol } from "../../components/ui/IconSymbol";
 import { borderWidths, colors } from "../../constants/colors";
 import type { Doc } from "@teak/convex/_generated/dataModel";
@@ -29,13 +29,6 @@ function isValidUrl(string: string): boolean {
   }
 }
 
-function getCardTypeFromMimeType(mimeType: string): Card["type"] {
-  if (mimeType.startsWith("image/")) return "image";
-  if (mimeType.startsWith("video/")) return "video";
-  if (mimeType.startsWith("audio/")) return "audio";
-  if (mimeType === "application/pdf") return "document";
-  return "text";
-}
 
 // Use the utility function
 const isUrl = isValidUrl;
@@ -63,12 +56,21 @@ function detectCardType(content: string): {
 
 export default function AddScreen() {
   const [content, setContent] = useState("");
-  const [isUploading, setIsUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const textInputRef = useRef<TextInput>(null);
   const createCard = useCreateCard();
+
+  // Use shared file upload hook
+  const { uploadFile, state: uploadState } = useFileUpload({
+    onSuccess: (cardId) => {
+      Alert.alert("Success", "File uploaded successfully!");
+    },
+    onError: (error) => {
+      Alert.alert("Error", error);
+    },
+  });
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -87,41 +89,27 @@ export default function AddScreen() {
     };
   }, [isRecording, recording]);
 
-  const { uploadFile, createCard: createCardWithFile } =
-    useCreateCardWithFile();
-
   const handleFileUpload = async (
     fileUri: string,
     fileName: string,
-    mimeType: string,
-    cardType: string = "image"
+    mimeType: string
   ) => {
-    setIsUploading(true);
     try {
-      // Upload file to Convex storage
-      const fileId = await uploadFile(fileUri, fileName, mimeType);
+      // Convert React Native file URI to Blob for the shared upload hook
+      const response = await fetch(fileUri);
+      const blob = await response.blob();
+      const file = new File([blob], fileName, { type: mimeType });
 
-      // Determine card type based on MIME type
-      const type = getCardTypeFromMimeType(mimeType);
-
-      // Create card with file reference
-      await createCardWithFile({
-        type,
+      await uploadFile(file, {
         content: fileName,
-        fileId,
-        metadata: {
-          fileName,
-          fileSize: 0, // We don't have file size from mobile
-          mimeType,
+        additionalMetadata: {
+          originalUri: fileUri,
+          platform: "mobile",
         },
       });
-
-      Alert.alert("Success", "File uploaded successfully!");
     } catch (error) {
       console.error("Failed to upload file:", error);
       Alert.alert("Error", "Failed to upload file. Please try again.");
-    } finally {
-      setIsUploading(false);
     }
   };
 
@@ -349,7 +337,7 @@ export default function AddScreen() {
         <TextInput
           autoCapitalize="sentences"
           autoCorrect={true}
-          editable={!isUploading}
+          editable={!uploadState.isUploading}
           multiline
           onChangeText={setContent}
           placeholder="Enter your bookmark, URL, or note"
@@ -368,7 +356,7 @@ export default function AddScreen() {
 
         <View style={{ flexDirection: "row", margin: 16, gap: 8 }}>
           <TouchableOpacity
-            disabled={isUploading}
+            disabled={uploadState.isUploading}
             onPress={handleFilePicker}
             style={{
               alignItems: "center",
@@ -379,7 +367,7 @@ export default function AddScreen() {
               borderColor: colors.border,
               width: 50,
               height: 50,
-              opacity: isUploading ? 0.5 : 1,
+              opacity: uploadState.isUploading ? 0.5 : 1,
             }}
           >
             <IconSymbol
@@ -410,7 +398,7 @@ export default function AddScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            disabled={isUploading || !content.trim()}
+            disabled={uploadState.isUploading || !content.trim()}
             onPress={handleSave}
             style={{
               flex: 1,
@@ -419,11 +407,11 @@ export default function AddScreen() {
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: colors.primary,
-              opacity: isUploading || !content.trim() ? 0.3 : 1,
+              opacity: uploadState.isUploading || !content.trim() ? 0.3 : 1,
             }}
           >
             <Text style={{ fontWeight: "600", color: colors.adaptiveWhite }}>
-              {isUploading ? "Saving..." : "Save"}
+              {uploadState.isUploading ? "Saving..." : "Save"}
             </Text>
           </TouchableOpacity>
         </View>
