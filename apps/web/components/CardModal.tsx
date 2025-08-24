@@ -154,7 +154,12 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                       )}
                     </Button>
                   )}
-                  <Button variant="ghost" size="icon" onClick={handleClose}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    onClick={handleClose}
+                  >
                     <X />
                   </Button>
                 </div>
@@ -190,7 +195,7 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
               {/* AI Summary */}
               {card.aiSummary && (
                 <div>
-                  <Label htmlFor="ai-summary">Teak Summary</Label>
+                  <Label htmlFor="ai-summary">Summary</Label>
                   <Textarea
                     id="ai-summary"
                     value={getCurrentValue("aiSummary") || ""}
