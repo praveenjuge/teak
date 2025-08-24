@@ -120,6 +120,40 @@ const generateImageMetadata = async (imageUrl: string, title?: string) => {
   }
 };
 
+// Generate AI metadata for link content (using enhanced prompts with microlink data)
+const generateLinkMetadata = async (content: string, url?: string) => {
+  try {
+    const result = await generateObject({
+      model: openai("gpt-5-nano"),
+      system: `You are an expert web content analyzer. Generate relevant tags and a concise summary for the given web page content.
+      
+      Guidelines:
+      - Tags should capture the main topics, categories, and key concepts (2-8 tags)
+      - Include relevant technology, industry, or topic tags where applicable
+      - Summary should be 1-2 sentences capturing the essence and value of the content
+      - Focus on what makes this link useful and searchable
+      - Use clear, specific language that helps with discovery
+      - Consider the source, author, and context when available`,
+      prompt: `Analyze this web page content and generate optimized tags and summary for knowledge management:
+
+${content}
+
+${url ? `\nURL: ${url}` : ''}
+
+Generate tags and summary that will help the user rediscover and understand the value of this content.`,
+      schema: aiMetadataSchema,
+    });
+
+    return {
+      aiTags: result.object.tags,
+      aiSummary: result.object.summary,
+    };
+  } catch (error) {
+    console.error("Error generating link metadata:", error);
+    throw error;
+  }
+};
+
 // Generate transcript for audio content
 const generateTranscript = async (audioUrl: string, mimeHint?: string) => {
   try {
@@ -142,8 +176,8 @@ const generateTranscript = async (audioUrl: string, mimeHint?: string) => {
       mimeType.includes("ogg") || mimeType.includes("oga")
         ? "ogg"
         : mimeType.includes("mp3") ||
-            mimeType.includes("mpeg") ||
-            mimeType.includes("mpga")
+          mimeType.includes("mpeg") ||
+          mimeType.includes("mpga")
           ? "mp3"
           : mimeType.includes("wav")
             ? "wav"
@@ -272,17 +306,49 @@ export const generateAiMetadata = internalAction({
         }
 
         case "link": {
-          // For links, use the existing metadata or content
-          const contentToAnalyze = [
-            card.metadata?.microlinkData?.data?.title,
-            card.metadata?.microlinkData?.data?.description,
-            card.content,
-          ]
-            .filter(Boolean)
-            .join("\n");
+          // Check if microlink data is available - if not, retry later
+          if (!card.metadata?.microlinkData && card.metadataStatus === "pending") {
+            console.log(`Microlink data not yet available for card ${cardId}, retrying in 30 seconds`);
+            await ctx.scheduler.runAfter(30000, internal.ai.generateAiMetadata, {
+              cardId,
+              retryCount,
+            });
+            return;
+          }
+
+          // Build rich content from microlink data
+          const microlinkData = card.metadata?.microlinkData?.data;
+          const contentParts: string[] = [];
+
+          // Primary content
+          if (microlinkData?.title) {
+            contentParts.push(`Title: ${microlinkData.title}`);
+          }
+          if (microlinkData?.description) {
+            contentParts.push(`Description: ${microlinkData.description}`);
+          }
+
+          // Contextual information
+          if (microlinkData?.author) {
+            contentParts.push(`Author: ${microlinkData.author}`);
+          }
+          if (microlinkData?.publisher) {
+            contentParts.push(`Publisher: ${microlinkData.publisher}`);
+          }
+          if (microlinkData?.date) {
+            contentParts.push(`Published: ${microlinkData.date}`);
+          }
+
+          // Fallback to URL content if no microlink data
+          if (contentParts.length === 0 && card.content) {
+            contentParts.push(`URL: ${card.content}`);
+          }
+
+          const contentToAnalyze = contentParts.join("\n");
 
           if (contentToAnalyze.trim()) {
-            const result = await generateTextMetadata(contentToAnalyze);
+            // Use enhanced prompt for links
+            const result = await generateLinkMetadata(contentToAnalyze, card.url || card.content);
             aiTags = result.aiTags;
             aiSummary = result.aiSummary;
           }

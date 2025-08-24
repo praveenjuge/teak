@@ -87,7 +87,7 @@ export const updateCardMetadata = internalMutation({
     // For link cards being updated, create clean metadata with only microlinkData
     // For non-link cards, preserve existing file metadata
     let updatedMetadata: any = {};
-    
+
     if (existingCard.type === "link") {
       // Link cards: only keep microlinkData, discard legacy fields
       updatedMetadata = { microlinkData };
@@ -237,6 +237,12 @@ export const extractLinkMetadata = internalAction({
         publisher: !!microlinkResponse.data?.publisher,
         author: !!microlinkResponse.data?.author,
         date: !!microlinkResponse.data?.date,
+      });
+
+      // Schedule AI generation now that we have rich microlink metadata
+      console.log(`Scheduling AI generation for link card ${cardId} with microlink data`);
+      await ctx.scheduler.runAfter(0, internal.ai.generateAiMetadata, {
+        cardId,
       });
 
     } catch (error) {
