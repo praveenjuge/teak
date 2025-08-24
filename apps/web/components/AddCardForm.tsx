@@ -364,10 +364,12 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 if (content.trim()) {
-                  handleTextSubmit(e as any);
+                  handleTextSubmit(
+                    e as unknown as React.FormEvent<HTMLFormElement>
+                  );
                 }
               }
             }}
