@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+
+# Run lint-staged for file-specific checks
+bunx lint-staged
+
+# Check that TypeScript compiles without errors
+echo "Checking TypeScript compilation..."
+bunx tsc --noEmit
+
+# Check that web app builds successfully  
+echo "Checking web app builds..."
+cd apps/web && bun run build

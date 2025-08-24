@@ -17,10 +17,18 @@
     "build:extension": "cd apps/extension && bun run build",
     "package:extension": "cd apps/extension && bun run package",
     "lint": "cd apps/web && bun run lint",
-    "start": "cd apps/web && bun run start"
+    "start": "cd apps/web && bun run start",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "apps/web/**/*.{js,jsx,ts,tsx}": [
+      "cd apps/web && bun run lint --fix"
+    ]
   },
   "devDependencies": {
     "concurrently": "^9.2.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.5",
     "prettier": "^3.6.2",
     "typescript": "^5.9.2"
   }
