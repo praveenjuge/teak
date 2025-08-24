@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { FREE_TIER_LIMIT } from "@teak/shared/constants";
 import Link from "next/link";
 
-export default function Payments() {
+export default function SubscriptionPage() {
   const { user } = useUser();
 
   const products = useQuery(api.polar.listAllProducts);
@@ -25,18 +25,9 @@ export default function Payments() {
     : Math.min(((cardCount || 0) / FREE_TIER_LIMIT) * 100, 100);
 
   return (
-    <div className="container mx-auto p-6 max-w-2xl space-y-6">
-      <div className="space-y-2">
-        <Link
-          href="/"
-          className={buttonVariants({
-            variant: "outline",
-            size: "sm",
-          })}
-        >
-          ← Go Back
-        </Link>
-        <h1 className="text-2xl font-bold">Subscription Status</h1>
+    <div className="container mx-auto w-2xl space-y-6">
+      <div className="space-x-2 flex items-center">
+        <h1 className="text-2xl font-bold">Subscription</h1>
         {isSubscribed ? (
           <Badge>Pro Plan</Badge>
         ) : (

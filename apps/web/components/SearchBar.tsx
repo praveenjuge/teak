@@ -18,6 +18,7 @@ import {
   type CardType,
   CARD_TYPE_LABELS,
 } from "@teak/shared/constants";
+import SubscriptionPage from "./SubscriptionPage";
 
 interface SearchBarProps {
   searchQuery: string;
@@ -175,13 +176,13 @@ export function SearchBar({
       )}
 
       <UserButton>
-        <UserButton.MenuItems>
-          <UserButton.Link
-            label="Subscription & Billing"
-            labelIcon={<CreditCard className="size-3.5 stroke-2 mt-0.5" />}
-            href="/subscription"
-          />
-        </UserButton.MenuItems>
+        <UserButton.UserProfilePage
+          label="Subscription"
+          url="subscription"
+          labelIcon={<CreditCard className="size-3.5 stroke-3 mt-0.5" />}
+        >
+          <SubscriptionPage />
+        </UserButton.UserProfilePage>
       </UserButton>
     </div>
   );
