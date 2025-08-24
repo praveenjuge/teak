@@ -89,9 +89,9 @@ export function Card({
 
           <CardContent className="p-0 space-y-2">
             {card.type === "text" && (
-              <p className="whitespace-pre-wrap p-4 line-clamp-3">
-                {card.content}
-              </p>
+              <div className="p-4">
+                <p className="line-clamp-3">{card.content}</p>
+              </div>
             )}
 
             {card.type === "link" && (
