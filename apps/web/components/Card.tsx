@@ -1,4 +1,11 @@
-import { ExternalLink, Heart, RotateCcw, Trash, Trash2 } from "lucide-react";
+import {
+  ExternalLink,
+  File,
+  Heart,
+  RotateCcw,
+  Trash,
+  Trash2,
+} from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@teak/convex";
 import { Id } from "@teak/convex/_generated/dataModel";
@@ -124,7 +131,7 @@ export function Card({
             )}
 
             {card.type === "audio" && (
-              <div className="flex h-16 items-center justify-between space-x-0.5 p-4">
+              <div className="flex h-14 items-center justify-between space-x-0.5 px-4 py-2">
                 {Array.from({ length: 45 }).map((_, i) => (
                   <div
                     className="rounded-full bg-muted-foreground"
@@ -139,8 +146,11 @@ export function Card({
             )}
 
             {card.type === "document" && (
-              <div className="p-4">
-                {card.metadata?.fileName || card.content}
+              <div className="p-4 flex gap-2 items-center">
+                <File className="shrink-0 size-4 text-muted-foreground" />
+                <span className="truncate">
+                  {card.metadata?.fileName || card.content}
+                </span>
               </div>
             )}
           </CardContent>
