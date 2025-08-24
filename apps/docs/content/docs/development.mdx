@@ -149,19 +149,6 @@ export const getCards = query({
 });
 ```
 
-## Testing
-
-```bash
-# Run web app tests
-cd apps/web && bun run test
-
-# Run linting
-bun run lint
-
-# Type checking
-cd apps/web && bun run typecheck
-```
-
 ## Browser Extension Development
 
 ### Setup & Installation
@@ -180,29 +167,3 @@ cd apps/web && bun run typecheck
    ```bash
    bun run dev:extension
    ```
-
-### Features
-
-- **Context Menu**: Right-click to save selected text, links, and images
-- **Auto-Save**: Click extension icon to save current tab with metadata
-- **Authentication**: Uses same Clerk authentication as web/mobile apps
-
-### Publishing
-
-```bash
-bun run package:extension  # Creates production ZIP for Chrome Web Store
-```
-
-## Deployment
-
-### Convex Backend
-- Functions deploy automatically during development
-- Production deployment via Convex dashboard
-
-### Web Frontend
-- Deploy to Vercel, Netlify, or any Node.js hosting
-- Set environment variables in hosting platform
-
-### Mobile App
-- Build with Expo EAS for app stores
-- Configure push notifications and native features

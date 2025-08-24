@@ -8,7 +8,6 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { FREE_TIER_LIMIT } from "@teak/shared/constants";
-import Link from "next/link";
 
 export default function SubscriptionPage() {
   const { user } = useUser();

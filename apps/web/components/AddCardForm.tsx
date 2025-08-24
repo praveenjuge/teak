@@ -352,7 +352,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
   }
 
   return (
-    <Card className="p-0 shadow-none">
+    <Card className="p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary">
       <CardContent className="p-0 h-full">
         <form
           onSubmit={handleTextSubmit}
@@ -407,11 +407,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
           </div>
         </form>
 
-        {error && (
-          <div className="p-2 bg-red-50 border border-red-200 rounded text-destructive">
-            {error}
-          </div>
-        )}
+        {error && <div className="p-2 bg-red-50 text-destructive">{error}</div>}
       </CardContent>
     </Card>
   );
