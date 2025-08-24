@@ -2,72 +2,12 @@ import { useMutation } from "convex/react";
 import { api } from "@teak/convex";
 import type { ContextMenuAction, SaveResponse, NotificationData } from "../types/contextMenu";
 
-// Get image dimensions from blob
-const getImageDimensions = (
-  blob: Blob
-): Promise<{ width: number; height: number }> => {
-  return new Promise((resolve, reject) => {
-    // Only process image blobs
-    if (!blob.type.startsWith('image/')) {
-      reject(new Error("Not an image blob"));
-      return;
-    }
-
-    const img = new Image();
-    let objectUrl: string;
-
-    try {
-      objectUrl = URL.createObjectURL(blob);
-    } catch (error) {
-      reject(new Error("Failed to create object URL"));
-      return;
-    }
-
-    const cleanup = () => {
-      try {
-        URL.revokeObjectURL(objectUrl);
-      } catch (error) {
-        console.warn("Failed to revoke object URL:", error);
-      }
-    };
-
-    // Set a timeout to prevent hanging
-    const timeout = setTimeout(() => {
-      cleanup();
-      reject(new Error("Timeout loading image"));
-    }, 10000); // 10 second timeout
-
-    img.onload = () => {
-      clearTimeout(timeout);
-      cleanup();
-      
-      // Validate dimensions
-      const width = img.naturalWidth || img.width;
-      const height = img.naturalHeight || img.height;
-      
-      if (width <= 0 || height <= 0) {
-        reject(new Error("Invalid image dimensions"));
-        return;
-      }
-      
-      resolve({ width, height });
-    };
-
-    img.onerror = (error) => {
-      clearTimeout(timeout);
-      cleanup();
-      reject(new Error("Failed to load image for dimension extraction"));
-    };
-
-    img.src = objectUrl;
-  });
-};
 
 export const useContextMenuSave = () => {
   const createCard = useMutation(api.cards.createCard);
   const generateUploadUrl = useMutation(api.cards.generateUploadUrl);
 
-  const saveUrl = async (url: string, pageTitle?: string): Promise<SaveResponse> => {
+  const saveUrl = async (url: string): Promise<SaveResponse> => {
     try {
       const cardId = await createCard({
         content: url,
@@ -146,7 +86,7 @@ export const useContextMenuSave = () => {
         throw new Error(imageResponse.error || 'Failed to fetch image');
       }
 
-      const { dataUrl, mimeType, size } = imageResponse.data;
+      const { dataUrl, mimeType } = imageResponse.data;
       
       // Convert data URL back to blob for upload
       const response = await fetch(dataUrl);
@@ -181,30 +121,14 @@ export const useContextMenuSave = () => {
 
       const { storageId } = await uploadResponse.json();
 
-      // Get image dimensions (simplified)
-      let dimensions: { width: number; height: number } | undefined;
-      try {
-        dimensions = await getImageDimensions(blob);
-      } catch (error) {
-        console.warn("Failed to get image dimensions:", error);
-      }
-
-      // Create metadata
-      const metadata: Record<string, unknown> = {
+      // Create metadata (server will extract file details and dimensions)
+      const metadata = {
         fileName,
-        fileSize: size,
-        mimeType,
       };
 
-      if (dimensions) {
-        metadata.width = dimensions.width;
-        metadata.height = dimensions.height;
-      }
-
-      // Create card with file reference
+      // Create card - server will auto-detect type and extract metadata
       const cardId = await createCard({
         content: fileName, // Use filename as content
-        type: "image",
         url: sourceUrl, // Use source URL if available
         fileId: storageId,
         metadata,
@@ -226,7 +150,7 @@ export const useContextMenuSave = () => {
   const performSave = async (action: ContextMenuAction, data: any): Promise<SaveResponse> => {
     switch (action) {
       case 'saveUrl':
-        return await saveUrl(data.url, data.pageTitle);
+        return await saveUrl(data.url);
       
       case 'saveText':
         return await saveText(data.selectedText, data.url);

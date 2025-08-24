@@ -5,47 +5,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Mic, Square, Upload } from "lucide-react";
 import { api } from "@teak/convex";
-import type { CardType } from "@teak/shared/constants";
-
-// File type categorization
-const getFileCardType = (file: File): CardType => {
-  const mimeType = file.type.toLowerCase();
-
-  if (mimeType.startsWith("image/")) return "image";
-  if (mimeType.startsWith("video/")) return "video";
-  if (mimeType.startsWith("audio/")) return "audio";
-
-  // Everything else becomes a document card
-  return "document";
-};
-
-// Get image dimensions
-const getImageDimensions = (
-  file: File
-): Promise<{ width: number; height: number }> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("Failed to load image"));
-    };
-
-    img.src = objectUrl;
-  });
-};
 
 interface AddCardFormProps {
   onSuccess?: () => void;
+  autoFocus?: boolean;
 }
 
-export function AddCardForm({ onSuccess }: AddCardFormProps) {
+export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -161,13 +127,11 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
 
       const metadata = {
         fileName: `recording_${Date.now()}.webm`,
-        fileSize: blob.size,
-        mimeType: blob.type,
       };
 
+      // Create card - server will auto-detect type and extract metadata
       await createCard({
         content: "",
-        type: "audio",
         fileId: storageId,
         metadata,
       });
@@ -214,27 +178,14 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
           });
           const { storageId } = await result.json();
 
-          const metadata: Record<string, unknown> = {
+          // Prepare basic metadata (server will enhance with file details)
+          const metadata = {
             fileName: file.name,
-            fileSize: file.size,
-            mimeType: file.type,
           };
 
-          // Get image dimensions if it's an image file
-          const fileType = getFileCardType(file);
-          if (fileType === "image") {
-            try {
-              const dimensions = await getImageDimensions(file);
-              metadata.width = dimensions.width;
-              metadata.height = dimensions.height;
-            } catch (error) {
-              console.warn("Failed to get image dimensions:", error);
-            }
-          }
-
+          // Create card - server will auto-detect type and extract metadata
           await createCard({
             content: "",
-            type: getFileCardType(file),
             fileId: storageId,
             metadata,
           });
@@ -265,30 +216,33 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
     try {
       let finalContent = content;
       let finalUrl = url;
-      let cardType: CardType;
 
       // Smart detection: if content is only a URL, make it a link card
       const trimmedContent = content.trim();
       const urlPattern = /^https?:\/\/[^\s]+$/;
 
       if (urlPattern.test(trimmedContent)) {
-        cardType = "link";
         finalUrl = trimmedContent;
         finalContent = trimmedContent;
+
+        await createCard({
+          content: finalContent,
+          type: "link",
+          url: finalUrl,
+        });
       } else {
-        cardType = "text";
         // Extract URL from text content if present
         const urlMatch = trimmedContent.match(/(https?:\/\/[^\s]+)/);
         if (urlMatch) {
           finalUrl = urlMatch[1];
         }
-      }
 
-      await createCard({
-        content: finalContent,
-        type: cardType,
-        url: finalUrl || undefined,
-      });
+        await createCard({
+          content: finalContent,
+          type: "text",
+          url: finalUrl || undefined,
+        });
+      }
 
       // Reset form
       setContent("");
@@ -308,7 +262,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
   // Recording mode - full screen recording interface
   if (isRecording) {
     return (
-      <Card className="shadow-none p-4 border-red-200">
+      <Card className="shadow-none p-4 border-red-200 w-full">
         <CardContent className="text-center flex flex-col gap-4 h-full justify-center items-center p-0">
           <p className="font-medium text-destructive">Recording...</p>
 
@@ -339,7 +293,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
   // Uploading mode - full card feedback while files/audio are being uploaded
   if (isSubmitting && uploadingType !== "none") {
     return (
-      <Card className="shadow-none p-4 border-primary ring-1 ring-primary">
+      <Card className="shadow-none p-4 border-primary ring-1 ring-primary w-full">
         <CardContent className="text-center flex flex-col gap-4 h-full justify-center items-center p-0">
           <h3 className="font-medium text-primary">
             {uploadingType === "audio"
@@ -352,7 +306,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
   }
 
   return (
-    <Card className="p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden">
+    <Card className="p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden w-full">
       <CardContent className="p-0 h-full">
         <form
           onSubmit={handleTextSubmit}
@@ -373,6 +327,7 @@ export function AddCardForm({ onSuccess }: AddCardFormProps) {
                 }
               }
             }}
+            autoFocus={autoFocus}
             placeholder={
               canCreateCard === false
                 ? "Card limit reached. Upgrade to Pro for unlimited cards."

@@ -2,41 +2,7 @@ import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@teak/convex";
-import type { CardType } from "@teak/shared/constants";
 import { toast } from "sonner";
-
-// File type categorization (reused from AddCardForm)
-const getFileCardType = (file: File): CardType => {
-  const mimeType = file.type.toLowerCase();
-
-  if (mimeType.startsWith("image/")) return "image";
-  if (mimeType.startsWith("video/")) return "video";
-  if (mimeType.startsWith("audio/")) return "audio";
-
-  return "document";
-};
-
-// Get image dimensions (reused from AddCardForm)
-const getImageDimensions = (
-  file: File
-): Promise<{ width: number; height: number }> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("Failed to load image"));
-    };
-
-    img.src = objectUrl;
-  });
-};
 
 export interface DragDropState {
   isDragActive: boolean;
@@ -81,62 +47,27 @@ export function useGlobalDragDrop() {
             fileType: file.type,
           });
 
-          // Upload file with progress tracking
-          const xhr = new XMLHttpRequest();
-
-          const uploadPromise = new Promise<string>((resolve, reject) => {
-            xhr.upload.onprogress = (event) => {
-              if (event.lengthComputable) {
-                const progress = Math.round((event.loaded / event.total) * 100);
-                setUploadProgress(progress);
-              }
-            };
-
-            xhr.onload = () => {
-              if (xhr.status === 200) {
-                try {
-                  const response = JSON.parse(xhr.responseText);
-                  resolve(response.storageId);
-                } catch (e) {
-                  reject(new Error("Invalid response format"));
-                }
-              } else {
-                reject(new Error(`Upload failed with status ${xhr.status}`));
-              }
-            };
-
-            xhr.onerror = () => reject(new Error("Upload failed"));
-
-            xhr.open("POST", uploadUrl);
-            xhr.setRequestHeader("Content-Type", file.type);
-            xhr.send(file);
+          // Simple fetch upload (Convex handles the details)
+          const response = await fetch(uploadUrl, {
+            method: "POST",
+            headers: { "Content-Type": file.type },
+            body: file,
           });
 
-          const storageId = await uploadPromise;
-
-          // Prepare metadata
-          const metadata: Record<string, unknown> = {
-            fileName: file.name,
-            fileSize: file.size,
-            mimeType: file.type,
-          };
-
-          // Get image dimensions if it's an image file
-          const fileType = getFileCardType(file);
-          if (fileType === "image") {
-            try {
-              const dimensions = await getImageDimensions(file);
-              metadata.width = dimensions.width;
-              metadata.height = dimensions.height;
-            } catch (error) {
-              console.warn("Failed to get image dimensions:", error);
-            }
+          if (!response.ok) {
+            throw new Error(`Upload failed with status ${response.status}`);
           }
 
-          // Create card
+          const { storageId } = await response.json();
+
+          // Prepare basic metadata (server will enhance with file details)
+          const metadata = {
+            fileName: file.name,
+          };
+
+          // Create card - server will auto-detect type and extract metadata
           await createCard({
             content: "",
-            type: fileType,
             fileId: storageId as any,
             metadata,
           });

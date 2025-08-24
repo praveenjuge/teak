@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
 import { internal, api } from "./_generated/api";
-import { cardTypeValidator, metadataValidator } from "./schema";
+import { cardTypeValidator } from "./schema";
 import { FREE_TIER_LIMIT } from "@teak/shared/constants";
 
 export const getCardCount = query({
@@ -44,16 +44,28 @@ export const canCreateCard = query({
   },
 });
 
+// Helper function to detect file type from MIME type
+const getFileCardType = (mimeType: string): "image" | "video" | "audio" | "document" => {
+  const normalizedType = mimeType.toLowerCase();
+  
+  if (normalizedType.startsWith("image/")) return "image";
+  if (normalizedType.startsWith("video/")) return "video";
+  if (normalizedType.startsWith("audio/")) return "audio";
+  
+  return "document";
+};
+
+
 export const createCard = mutation({
   args: {
     content: v.string(),
-    type: cardTypeValidator,
+    type: v.optional(cardTypeValidator), // Make type optional for auto-detection
     url: v.optional(v.string()),
     fileId: v.optional(v.id("_storage")),
     thumbnailId: v.optional(v.id("_storage")),
     tags: v.optional(v.array(v.string())),
     notes: v.optional(v.string()),
-    metadata: metadataValidator,
+    metadata: v.optional(v.any()), // Allow any metadata from client, we'll process it
   },
   handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
@@ -79,21 +91,53 @@ export const createCard = mutation({
     }
 
     const now = Date.now();
+    
+    // Determine card type if not provided
+    let cardType = args.type;
+    let processedMetadata = args.metadata || {};
+    
+    if (!cardType && args.fileId) {
+      // Auto-detect type from file metadata
+      const fileMetadata = await ctx.db.system.get(args.fileId);
+      if (fileMetadata?.contentType) {
+        cardType = getFileCardType(fileMetadata.contentType);
+        
+        // Add file metadata
+        processedMetadata = {
+          ...processedMetadata,
+          fileName: processedMetadata.fileName || `file_${now}`,
+          fileSize: fileMetadata.size,
+          mimeType: fileMetadata.contentType,
+        };
+      }
+    }
+
+    // Fallback to text if no type determined
+    if (!cardType) {
+      cardType = "text";
+    }
 
     // Set initial metadataStatus for link cards
     const cardData = {
       userId: user.subject,
-      ...args,
+      content: args.content,
+      type: cardType,
+      url: args.url,
+      fileId: args.fileId,
+      thumbnailId: args.thumbnailId,
+      tags: args.tags,
+      notes: args.notes,
+      metadata: Object.keys(processedMetadata).length > 0 ? processedMetadata : undefined,
       createdAt: now,
       updatedAt: now,
       // Set pending status for link cards that need metadata extraction
-      ...(args.type === "link" && { metadataStatus: "pending" as const }),
+      ...(cardType === "link" && { metadataStatus: "pending" as const }),
     };
 
     const cardId = await ctx.db.insert("cards", cardData);
 
     // Schedule link metadata extraction for link cards (which will trigger AI generation after completion)
-    if (args.type === "link") {
+    if (cardType === "link") {
       await ctx.scheduler.runAfter(0, internal.linkMetadata.extractLinkMetadata, {
         cardId,
       });
