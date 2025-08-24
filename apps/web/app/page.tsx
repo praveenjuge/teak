@@ -30,14 +30,6 @@ export default function Home() {
     setEditingCardId(null);
   };
 
-  const handleClearFilters = () => {
-    searchFilters.setSearchQuery("");
-    searchFilters.setKeywordTags([]);
-    searchFilters.setFilterTags([]);
-    searchFilters.setShowFavoritesOnly(false);
-    searchFilters.setShowTrashOnly(false);
-  };
-
   return (
     <main className="max-w-7xl mx-auto px-4 pb-10">
       <AuthLoading>
@@ -50,23 +42,16 @@ export default function Home() {
             searchQuery={searchFilters.searchQuery}
             onSearchChange={searchFilters.handleSearchChange}
             onKeyDown={searchFilters.handleKeyDown}
-            showTypeahead={searchFilters.showTypeahead}
-            onTypeaheadSelect={searchFilters.handleTypeaheadSelect}
-            onTypeaheadClose={() => {
-              searchFilters.setShowTypeahead(false);
-              searchFilters.setTypeaheadSelectedIndex(0);
-            }}
-            typeaheadSelectedIndex={searchFilters.typeaheadSelectedIndex}
-            setTypeaheadSelectedIndex={searchFilters.setTypeaheadSelectedIndex}
             keywordTags={searchFilters.keywordTags}
             filterTags={searchFilters.filterTags}
             showFavoritesOnly={searchFilters.showFavoritesOnly}
             showTrashOnly={searchFilters.showTrashOnly}
-            onRemoveKeyword={searchFilters.handleRemoveKeyword}
-            onRemoveFilter={searchFilters.handleRemoveFilter}
-            onRemoveFavorites={searchFilters.handleRemoveFavorites}
-            onRemoveTrash={searchFilters.handleRemoveTrash}
-            onClearAll={searchFilters.handleClearAllTags}
+            onAddFilter={searchFilters.addFilter}
+            onRemoveFilter={searchFilters.removeFilter}
+            onRemoveKeyword={searchFilters.removeKeyword}
+            onToggleFavorites={searchFilters.toggleFavorites}
+            onToggleTrash={searchFilters.toggleTrash}
+            onClearAll={searchFilters.clearAllFilters}
           />
 
           {searchFilters.cards === undefined ? (
@@ -81,7 +66,7 @@ export default function Home() {
                 showTrashOnly={searchFilters.showTrashOnly}
                 searchQuery={searchFilters.searchQuery}
                 cards={searchFilters.cards}
-                onClearFilters={handleClearFilters}
+                onClearFilters={searchFilters.clearAllFilters}
               />
 
               {searchFilters.filteredCards.length > 0 && (
