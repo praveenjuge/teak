@@ -26,6 +26,9 @@ bun run dev:mobile
 # Start browser extension (Plasmo)
 bun run dev:extension
 
+# Start documentation site (Fumadocs)
+bun run dev:docs
+
 # Build browser extension
 bun run build:extension
 
@@ -63,6 +66,7 @@ Built with a modern monorepo architecture:
 - **Web Frontend**: Next.js 15 with App Router, TypeScript, TailwindCSS
 - **Mobile App**: Expo with React Native, TypeScript, Clerk authentication
 - **Browser Extension**: Plasmo framework with Chrome APIs, TypeScript, TailwindCSS
+- **Documentation**: Fumadocs with Next.js 15, MDX content, TypeScript
 - **Backend**: Convex (real-time database with serverless functions)
 - **Authentication**: Clerk with JWT integration (web + mobile + extension)
 - **UI Components**: shadcn/ui with Radix primitives (web), Expo components (mobile)
@@ -75,7 +79,8 @@ teak-convex-nextjs/
 ├── apps/
 │   ├── web/              # Next.js frontend app
 │   ├── mobile/           # Expo React Native mobile app
-│   └── extension/        # Chrome browser extension (Plasmo)
+│   ├── extension/        # Chrome browser extension (Plasmo)
+│   └── docs/             # Documentation site (Fumadocs)
 ├── packages/
 │   ├── shared/           # Shared utilities, constants, types
 │   └── backend/          # Backend services and configuration
@@ -94,8 +99,8 @@ teak-convex-nextjs/
 
 #### Data Flow
 
-1. Frontend (Next.js web, Expo mobile, Plasmo extension) renders UI components
-2. ConvexClientProvider wraps app with Clerk authentication
+1. Frontend (Next.js web, Expo mobile, Plasmo extension, Fumadocs docs) renders UI components
+2. ConvexClientProvider wraps app with Clerk authentication (web, mobile, extension)
 3. Convex functions handle all server-side logic with automatic auth context
 4. Real-time updates propagate automatically to connected clients
 
@@ -209,6 +214,26 @@ packages/backend/
 │   └── package.json  # Convex package config
 ├── .env.local        # Backend environment variables
 └── package.json      # Backend workspace config
+```
+
+### Documentation Site (apps/docs/)
+
+```
+apps/docs/
+├── app/
+│   ├── (home)/           # Homepage layout and content
+│   ├── docs/             # Documentation pages
+│   │   ├── [[...slug]]/  # Dynamic documentation routing
+│   │   └── layout.tsx    # Documentation layout
+│   ├── api/              # API routes for search
+│   ├── layout.tsx        # Root application layout
+│   └── global.css        # Global styles
+├── components/           # Documentation UI components
+├── content/              # MDX documentation content
+│   └── docs/             # Organized documentation files
+├── lib/                  # Documentation utilities
+├── source.config.ts      # Fumadocs source configuration
+└── package.json          # Documentation dependencies
 ```
 
 ### Shared Code (packages/shared/)

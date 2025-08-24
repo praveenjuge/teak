@@ -13,6 +13,7 @@
     "dev:frontend": "cd apps/web && bun dev",
     "dev:mobile": "cd apps/mobile && bun dev",
     "dev:extension": "cd apps/extension && bun dev",
+    "dev:docs": "cd apps/docs && bun dev",
     "build:extension": "cd apps/extension && bun run build",
     "package:extension": "cd apps/extension && bun run package",
     "lint": "cd apps/web && bun run lint",
