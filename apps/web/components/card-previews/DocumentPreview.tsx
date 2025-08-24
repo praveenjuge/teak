@@ -7,28 +7,28 @@ function getDocumentIcon(fileName: string, mimeType: string) {
   const mime = (mimeType || "").toLowerCase();
 
   if (mime.includes("pdf")) {
-    return <FileText className="w-10 h-10 text-destructive" />;
+    return <FileText className="size-4 text-destructive" />;
   }
   if (
     mime.includes("word") ||
     name.endsWith(".doc") ||
     name.endsWith(".docx")
   ) {
-    return <FileText className="w-10 h-10 text-blue-500" />;
+    return <FileText className="size-4 text-blue-500" />;
   }
   if (
     mime.includes("excel") ||
     name.endsWith(".xls") ||
     name.endsWith(".xlsx")
   ) {
-    return <FileText className="w-10 h-10 text-green-500" />;
+    return <FileText className="size-4 text-green-500" />;
   }
   if (
     mime.includes("powerpoint") ||
     name.endsWith(".ppt") ||
     name.endsWith(".pptx")
   ) {
-    return <FileText className="w-10 h-10 text-orange-500" />;
+    return <FileText className="size-4 text-orange-500" />;
   }
   if (
     mime.includes("zip") ||
@@ -36,7 +36,7 @@ function getDocumentIcon(fileName: string, mimeType: string) {
     name.endsWith(".7z") ||
     name.endsWith(".tar.gz")
   ) {
-    return <Archive className="w-10 h-10 text-yellow-500" />;
+    return <Archive className="size-4 text-yellow-500" />;
   }
   if (
     name.endsWith(".js") ||
@@ -47,12 +47,12 @@ function getDocumentIcon(fileName: string, mimeType: string) {
     name.endsWith(".json") ||
     name.endsWith(".xml")
   ) {
-    return <Code className="w-10 h-10 text-green-500" />;
+    return <Code className="size-4 text-green-500" />;
   }
   if (name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".rtf")) {
-    return <FileText className="w-10 h-10 text-muted-foreground" />;
+    return <FileText className="size-4 text-muted-foreground" />;
   }
-  return <File className="w-10 h-10 text-muted-foreground" />;
+  return <File className="size-4 text-muted-foreground" />;
 }
 
 interface DocumentPreviewProps {
