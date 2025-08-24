@@ -9,7 +9,8 @@ import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 
 export const metadata: Metadata = {
   title: "Teak",
-  description: "Teak",
+  description:
+    "Teak is a streamlined personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations",
 };
 
 export default function RootLayout({
@@ -37,9 +38,11 @@ export default function RootLayout({
             }}
           >
             <ConvexClientProvider>
-              <ConvexQueryCacheProvider>{children}</ConvexQueryCacheProvider>
+              <ConvexQueryCacheProvider>
+                {children}
+                <Toaster />
+              </ConvexQueryCacheProvider>
             </ConvexClientProvider>
-            <Toaster />
           </ClerkProvider>
         </ThemeProvider>
       </body>
