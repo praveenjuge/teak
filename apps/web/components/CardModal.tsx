@@ -112,7 +112,7 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
   return (
     <Dialog open={open} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent
-        className="md:max-w-6xl max-h-[90vh] p-3 flex h-[80vh] outline-0 border-0 overflow-hidden gap-4"
+        className="md:max-w-6xl max-h-[90vh] p-3 flex flex-col md:flex-row h-[80vh] outline-0 border-0 overflow-hidden gap-4"
         showCloseButton={false}
       >
         {!card ? (
@@ -122,12 +122,12 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
           </>
         ) : (
           <>
-            {/* Preview Area (Left 2/3) */}
-            <div className="flex-[2] p-3 border rounded-md bg-muted/50 overflow-y-auto h-full">
+            {/* Preview Area (Top on mobile, Left 2/3 on desktop) */}
+            <div className="flex-1 md:flex-[2] p-3 border rounded-md bg-muted/50 overflow-y-auto h-full">
               <div className="flex-1 h-full">{renderPreview()}</div>
             </div>
 
-            {/* Metadata Panel (Right 1/3) */}
+            {/* Metadata Panel (Bottom on mobile, Right 1/3 on desktop) */}
             <div className="flex-1 flex flex-col overflow-y-auto px-1 gap-5">
               <div className="flex items-center justify-between">
                 <DialogTitle className="text-sm font-semibold">
