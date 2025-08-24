@@ -1,11 +1,14 @@
 import { useMutation } from "convex/react";
 import { api } from "@teak/convex";
+import { useFileUpload } from "@teak/shared";
 import type { ContextMenuAction, SaveResponse, NotificationData } from "../types/contextMenu";
 
 
 export const useContextMenuSave = () => {
   const createCard = useMutation(api.cards.createCard);
-  const generateUploadUrl = useMutation(api.cards.generateUploadUrl);
+
+  // Use shared file upload hook for image uploads
+  const { uploadFile } = useFileUpload();
 
   const saveUrl = async (url: string): Promise<SaveResponse> => {
     try {
@@ -87,57 +90,41 @@ export const useContextMenuSave = () => {
       }
 
       const { dataUrl, mimeType } = imageResponse.data;
-      
-      // Convert data URL back to blob for upload
+
+      // Convert data URL to blob and then to File for the shared upload hook
       const response = await fetch(dataUrl);
       const blob = await response.blob();
-      
+
       // Generate a filename from the URL or use a default
       const urlParts = imageUrl.split('/');
       let fileName = urlParts[urlParts.length - 1] || `image_${Date.now()}`;
-      
+
       // Add extension if missing
       if (!fileName.includes('.')) {
         const ext = mimeType.split('/')[1] || 'jpg';
         fileName += `.${ext}`;
       }
 
-      // Generate upload URL
-      const uploadUrl = await generateUploadUrl({
-        fileName,
-        fileType: mimeType,
+      const file = new File([blob], fileName, { type: mimeType });
+
+      // Use shared upload hook
+      const result = await uploadFile(file, {
+        content: fileName,
+        additionalMetadata: {
+          sourceUrl: imageUrl,
+          contextUrl: sourceUrl,
+          platform: "extension",
+        },
       });
 
-      // Upload the blob to Convex storage
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': mimeType },
-        body: blob,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error(`Failed to upload image: ${uploadResponse.status} ${uploadResponse.statusText}`);
+      if (result.success) {
+        return {
+          success: true,
+          cardId: result.cardId!
+        };
+      } else {
+        throw new Error(result.error || "Failed to upload image");
       }
-
-      const { storageId } = await uploadResponse.json();
-
-      // Create metadata (server will extract file details and dimensions)
-      const metadata = {
-        fileName,
-      };
-
-      // Create card - server will auto-detect type and extract metadata
-      const cardId = await createCard({
-        content: fileName, // Use filename as content
-        url: sourceUrl, // Use source URL if available
-        fileId: storageId,
-        metadata,
-      });
-
-      return {
-        success: true,
-        cardId: cardId
-      };
     } catch (error) {
       console.error("Failed to save image:", error);
       return {
@@ -151,13 +138,13 @@ export const useContextMenuSave = () => {
     switch (action) {
       case 'saveUrl':
         return await saveUrl(data.url);
-      
+
       case 'saveText':
         return await saveText(data.selectedText, data.url);
-      
+
       case 'saveImage':
         return await saveImage(data.imageUrl, data.url);
-      
+
       default:
         return {
           success: false,

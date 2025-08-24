@@ -47,11 +47,11 @@ export const canCreateCard = query({
 // Helper function to detect file type from MIME type
 const getFileCardType = (mimeType: string): "image" | "video" | "audio" | "document" => {
   const normalizedType = mimeType.toLowerCase();
-  
+
   if (normalizedType.startsWith("image/")) return "image";
   if (normalizedType.startsWith("video/")) return "video";
   if (normalizedType.startsWith("audio/")) return "audio";
-  
+
   return "document";
 };
 
@@ -91,17 +91,17 @@ export const createCard = mutation({
     }
 
     const now = Date.now();
-    
+
     // Determine card type if not provided
     let cardType = args.type;
     let processedMetadata = args.metadata || {};
-    
+
     if (!cardType && args.fileId) {
       // Auto-detect type from file metadata
       const fileMetadata = await ctx.db.system.get(args.fileId);
       if (fileMetadata?.contentType) {
         cardType = getFileCardType(fileMetadata.contentType);
-        
+
         // Add file metadata
         processedMetadata = {
           ...processedMetadata,
@@ -574,6 +574,128 @@ export const toggleFavorite = mutation({
       isFavorited: newFavoriteStatus,
       updatedAt: Date.now(),
     });
+  },
+});
+
+// Unified upload mutation that handles the complete upload-to-card pipeline
+export const uploadAndCreateCard = mutation({
+  args: {
+    fileName: v.string(),
+    fileType: v.string(),
+    fileSize: v.number(),
+    content: v.optional(v.string()),
+    additionalMetadata: v.optional(v.any()),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    cardId: v.optional(v.id("cards")),
+    uploadUrl: v.optional(v.string()),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      return { success: false, error: "User must be authenticated" };
+    }
+
+    try {
+      // Check if user can create a card (respects free tier limits)
+      const cardCount = await ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted", (q) =>
+          q.eq("userId", user.subject).eq("isDeleted", undefined)
+        )
+        .collect();
+
+      // For free users, enforce the FREE_TIER_LIMIT card limit
+      if (cardCount.length >= FREE_TIER_LIMIT) {
+        const hasPremium = await ctx.runQuery(api.polar.userHasPremium);
+        if (!hasPremium) {
+          return { success: false, error: "Card limit reached. Please upgrade to Pro for unlimited cards." };
+        }
+      }
+
+      // Generate upload URL
+      const uploadUrl = await ctx.storage.generateUploadUrl();
+
+      return {
+        success: true,
+        uploadUrl,
+        cardId: undefined // Will be set after successful upload
+      };
+    } catch (error) {
+      console.error("Failed to prepare upload:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to prepare upload"
+      };
+    }
+  },
+});
+
+// Mutation to finalize card creation after successful upload
+export const finalizeUploadedCard = mutation({
+  args: {
+    fileId: v.id("_storage"),
+    fileName: v.string(),
+    content: v.optional(v.string()),
+    additionalMetadata: v.optional(v.any()),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    cardId: v.optional(v.id("cards")),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      return { success: false, error: "User must be authenticated" };
+    }
+
+    try {
+      const now = Date.now();
+
+      // Get file metadata from storage
+      const fileMetadata = await ctx.db.system.get(args.fileId);
+      if (!fileMetadata) {
+        return { success: false, error: "File not found in storage" };
+      }
+
+      // Auto-detect card type from file
+      const cardType = getFileCardType(fileMetadata.contentType || "application/octet-stream");
+
+      // Build comprehensive metadata
+      const metadata = {
+        fileName: args.fileName,
+        fileSize: fileMetadata.size,
+        mimeType: fileMetadata.contentType,
+        ...args.additionalMetadata,
+      };
+
+      // Create the card
+      const cardId = await ctx.db.insert("cards", {
+        userId: user.subject,
+        content: args.content || "",
+        type: cardType,
+        fileId: args.fileId,
+        metadata,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Schedule AI metadata generation
+      await ctx.scheduler.runAfter(0, internal.ai.generateAiMetadata, {
+        cardId,
+      });
+
+      return { success: true, cardId };
+    } catch (error) {
+      console.error("Failed to finalize uploaded card:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to create card"
+      };
+    }
   },
 });
 

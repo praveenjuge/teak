@@ -5,6 +5,7 @@ import {
   RotateCcw,
   Trash,
   Trash2,
+  Video,
 } from "lucide-react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
@@ -125,8 +126,8 @@ export function Card({
             )}
 
             {card.type === "video" && (
-              <div className="w-full h-32 bg-black flex items-center justify-center text-white/60">
-                Video
+              <div className="w-full h-32 flex items-center justify-center">
+                <Video />
               </div>
             )}
 
