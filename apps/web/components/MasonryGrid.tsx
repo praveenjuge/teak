@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Masonry } from "react-plock";
 import { AddCardForm } from "./AddCardForm";
 import { Card } from "./Card";
@@ -23,7 +22,7 @@ export function MasonryGrid({
   onPermanentDeleteCard,
   onToggleFavorite,
 }: MasonryGridProps) {
-  const masonryItems = useMemo(() => {
+  const masonryItems = () => {
     const items: Array<{
       type: "addForm" | "card";
       data?: Doc<"cards">;
@@ -39,9 +38,9 @@ export function MasonryGrid({
     });
 
     return items;
-  }, [filteredCards, showTrashOnly]);
+  };
 
-  const renderMasonryItem = (item: (typeof masonryItems)[0]) => {
+  const renderMasonryItem = (item: ReturnType<typeof masonryItems>[number]) => {
     if (item.type === "addForm") {
       return <AddCardForm key={item.id} />;
     }
@@ -66,7 +65,7 @@ export function MasonryGrid({
 
   return (
     <Masonry
-      items={masonryItems}
+      items={masonryItems()}
       as="article"
       config={{
         columns: [1, 2, 5],
