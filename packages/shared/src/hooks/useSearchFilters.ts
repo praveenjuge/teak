@@ -134,7 +134,7 @@ export function useSearchFilters(config: SearchFiltersConfig = {}) {
     const hasMatch = filteredOptions.length > 0 && value.length > 0;
     setShowTypeahead(hasMatch);
     setTypeaheadSelectedIndex(0);
-    
+
     if (hasMatch) {
       config.onTypeaheadUpdate?.(filteredOptions, 0);
     } else {
@@ -144,11 +144,9 @@ export function useSearchFilters(config: SearchFiltersConfig = {}) {
 
   const handleTypeaheadSelect = (option: TypeaheadOption) => {
     if (option.value === "favorites") {
-      setShowFavoritesOnly(true);
-      setShowTrashOnly(false);
+      setShowFavoritesOnly(!showFavoritesOnly); // Toggle favorites
     } else if (option.value === "trash") {
-      setShowTrashOnly(true);
-      setShowFavoritesOnly(false);
+      setShowTrashOnly(!showTrashOnly); // Toggle trash
     } else if (!filterTags.includes(option.value as CardType)) {
       setFilterTags((prev) => [...prev, option.value as CardType]);
     }
