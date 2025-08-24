@@ -275,7 +275,6 @@ export default function AddScreen() {
     try {
       await createCard({
         ...cardData,
-        metadata: {}, // Empty metadata, let server populate
       });
 
       setContent("");

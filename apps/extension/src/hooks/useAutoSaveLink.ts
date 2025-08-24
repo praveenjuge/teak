@@ -85,7 +85,6 @@ export const useAutoSaveLink = (
           content: currentTab.url,
           type: "link",
           url: currentTab.url,
-          metadata: {},
         });
 
         setState("success");
