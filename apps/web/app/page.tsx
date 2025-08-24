@@ -70,7 +70,7 @@ export default function Home() {
           />
 
           {searchFilters.cards === undefined ? (
-            <Loading />
+            <Loading className="h-96" />
           ) : (
             <>
               <EmptyState
