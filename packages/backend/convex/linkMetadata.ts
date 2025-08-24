@@ -163,11 +163,7 @@ export const extractLinkMetadata = internalAction({
       const fetchStartTime = Date.now();
 
       const response = await fetch(microlinkApiUrl, {
-        signal: controller.signal,
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'TeakApp/1.0 (+https://teakvault.com)',
-        },
+        signal: controller.signal
       });
 
       clearTimeout(timeoutId);
