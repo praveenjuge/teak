@@ -125,7 +125,7 @@ export default function HomePage() {
             Ready to get started?
           </h2>
           <p className="mx-auto mb-8 max-w-xl text-fd-muted-foreground text-lg">
-            Clone the repository, run a few commands, and you'll have your own knowledge hub running in minutes.
+            Clone the repository, run a few commands, and you&apos;ll have your own knowledge hub running in minutes.
           </p>
           <Link
             className="inline-flex items-center justify-center rounded-lg bg-fd-primary px-8 py-4 font-semibold text-fd-primary-foreground transition-colors hover:bg-fd-primary/90"
