@@ -453,67 +453,7 @@ export const updateCard = mutation({
   },
 });
 
-export const deleteCard = mutation({
-  args: {
-    id: v.id("cards"),
-  },
-  handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
 
-    const card = await ctx.db.get(args.id);
-
-    if (!card) {
-      throw new Error("Card not found");
-    }
-
-    if (card.userId !== user.subject) {
-      throw new Error("Not authorized to delete this card");
-    }
-
-    // Soft delete - mark as deleted instead of removing
-    return await ctx.db.patch(args.id, {
-      isDeleted: true,
-      deletedAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-  },
-});
-
-export const restoreCard = mutation({
-  args: {
-    id: v.id("cards"),
-  },
-  handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
-
-    const card = await ctx.db.get(args.id);
-
-    if (!card) {
-      throw new Error("Card not found");
-    }
-
-    if (card.userId !== user.subject) {
-      throw new Error("Not authorized to restore this card");
-    }
-
-    if (!card.isDeleted) {
-      throw new Error("Card is not deleted");
-    }
-
-    // Restore card by removing deletion fields
-    return await ctx.db.patch(args.id, {
-      isDeleted: undefined,
-      deletedAt: undefined,
-      updatedAt: Date.now(),
-    });
-  },
-});
 
 export const permanentDeleteCard = mutation({
   args: {
@@ -548,34 +488,6 @@ export const permanentDeleteCard = mutation({
   },
 });
 
-export const toggleFavorite = mutation({
-  args: {
-    id: v.id("cards"),
-  },
-  handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
-
-    const card = await ctx.db.get(args.id);
-
-    if (!card) {
-      throw new Error("Card not found");
-    }
-
-    if (card.userId !== user.subject) {
-      throw new Error("Not authorized to update this card");
-    }
-
-    const newFavoriteStatus = !card.isFavorited;
-
-    return await ctx.db.patch(args.id, {
-      isFavorited: newFavoriteStatus,
-      updatedAt: Date.now(),
-    });
-  },
-});
 
 // Unified upload mutation that handles the complete upload-to-card pipeline
 export const uploadAndCreateCard = mutation({
@@ -723,68 +635,6 @@ export const generateUploadUrl = mutation({
   },
 });
 
-// Remove specific AI tag from a card
-export const removeAiTag = mutation({
-  args: {
-    cardId: v.id("cards"),
-    tagToRemove: v.string(),
-  },
-  handler: async (ctx, { cardId, tagToRemove }) => {
-    const user = await ctx.auth.getUserIdentity();
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
-
-    const card = await ctx.db.get(cardId);
-    if (!card) {
-      throw new Error("Card not found");
-    }
-
-    if (card.userId !== user.subject) {
-      throw new Error("Not authorized to modify this card");
-    }
-
-    if (!card.aiTags) {
-      return; // No AI tags to remove
-    }
-
-    // Remove the specific tag
-    const updatedAiTags = card.aiTags.filter((tag) => tag !== tagToRemove);
-
-    return await ctx.db.patch(cardId, {
-      aiTags: updatedAiTags.length > 0 ? updatedAiTags : undefined,
-      updatedAt: Date.now(),
-    });
-  },
-});
-
-// Update AI summary (user can edit it)
-export const updateAiSummary = mutation({
-  args: {
-    cardId: v.id("cards"),
-    newSummary: v.string(),
-  },
-  handler: async (ctx, { cardId, newSummary }) => {
-    const user = await ctx.auth.getUserIdentity();
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
-
-    const card = await ctx.db.get(cardId);
-    if (!card) {
-      throw new Error("Card not found");
-    }
-
-    if (card.userId !== user.subject) {
-      throw new Error("Not authorized to modify this card");
-    }
-
-    return await ctx.db.patch(cardId, {
-      aiSummary: newSummary.trim() || undefined,
-      updatedAt: Date.now(),
-    });
-  },
-});
 
 // Unified mutation for updating any card field
 export const updateCardField = mutation({
@@ -797,7 +647,9 @@ export const updateCardField = mutation({
       v.literal("tags"),
       v.literal("aiSummary"),
       v.literal("isFavorited"),
-      v.literal("removeAiTag")
+      v.literal("removeAiTag"),
+      v.literal("delete"),
+      v.literal("restore")
     ),
     value: v.optional(v.any()),
     tagToRemove: v.optional(v.string()), // For removeAiTag operation
@@ -855,6 +707,19 @@ export const updateCardField = mutation({
         }
         const updatedAiTags = card.aiTags.filter((tag) => tag !== tagToRemove);
         updateData.aiTags = updatedAiTags.length > 0 ? updatedAiTags : undefined;
+        break;
+
+      case "delete":
+        updateData.isDeleted = true;
+        updateData.deletedAt = now;
+        break;
+
+      case "restore":
+        if (!card.isDeleted) {
+          throw new Error("Card is not deleted");
+        }
+        updateData.isDeleted = undefined;
+        updateData.deletedAt = undefined;
         break;
 
       default:
