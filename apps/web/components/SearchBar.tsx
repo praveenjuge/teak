@@ -1,13 +1,11 @@
 import { useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Search,
   Hash,
   Heart,
   Trash2,
-  X,
   CreditCard,
   FileText,
   Link,
@@ -74,7 +72,6 @@ export function SearchBar({
   onSearchChange,
   onKeyDown,
   onTypeaheadSelect,
-  setTypeaheadSelectedIndex,
   keywordTags,
   filterTags,
   showFavoritesOnly,
@@ -94,11 +91,29 @@ export function SearchBar({
     showFavoritesOnly ||
     showTrashOnly;
 
-  // Always show all options when focused or typing, don't filter them
-  const filteredOptions = RESERVED_KEYWORDS;
+  // Create arrays for selected and available filters
+  const selectedKeywords = keywordTags;
+  const selectedFilters = filterTags;
 
-  // Show pills when focused or has active filters
-  const shouldShowPills = isFocused || hasAnyTags;
+  // Get available (unselected) filters - exclude already selected ones
+  const availableOptions = RESERVED_KEYWORDS.filter((option) => {
+    // Exclude selected card type filters
+    if (selectedFilters.includes(option.value as CardType)) {
+      return false;
+    }
+    // Exclude favorites if already selected
+    if (option.value === "favorites" && showFavoritesOnly) {
+      return false;
+    }
+    // Exclude trash if already selected
+    if (option.value === "trash" && showTrashOnly) {
+      return false;
+    }
+    return true;
+  });
+
+  // Show filters when focused or when there are active filters
+  const shouldShowFilters = isFocused || hasAnyTags;
 
   // Handle keyboard for adding keywords
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -111,77 +126,6 @@ export function SearchBar({
       <div className="flex items-center group">
         <div className="flex items-center gap-2">
           <Search className="text-muted-foreground size-4 group-focus-within:text-primary group-focus-within:stroke-[2.5] group-hover:text-primary group-hover:stroke-[2.5]" />
-
-          {keywordTags.map((keyword) => (
-            <Badge
-              key={keyword}
-              variant="outline"
-              className="flex items-center gap-1"
-            >
-              <Hash className="size-3" />
-              <span>{keyword}</span>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="size-4 p-0"
-                onClick={() => onRemoveKeyword(keyword)}
-              >
-                <X className="size-3" />
-              </Button>
-            </Badge>
-          ))}
-
-          {filterTags.map((filter) => {
-            const IconComponent = getOptionIcon(filter);
-            return (
-              <Badge
-                key={filter}
-                variant="outline"
-                className="flex items-center gap-1"
-              >
-                <IconComponent className="size-3" />
-                <span>{CARD_TYPE_LABELS[filter]}</span>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="size-4 p-0"
-                  onClick={() => onRemoveFilter(filter)}
-                >
-                  <X className="size-3" />
-                </Button>
-              </Badge>
-            );
-          })}
-
-          {showFavoritesOnly && (
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Heart className="size-3" />
-              <span>Favorites</span>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="size-4 p-0"
-                onClick={onRemoveFavorites}
-              >
-                <X className="size-3" />
-              </Button>
-            </Badge>
-          )}
-
-          {showTrashOnly && (
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Trash2 className="size-3" />
-              <span>Trash</span>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="size-4 p-0"
-                onClick={onRemoveTrash}
-              >
-                <X className="size-3" />
-              </Button>
-            </Badge>
-          )}
         </div>
 
         <div className="relative flex-1">
@@ -200,17 +144,6 @@ export function SearchBar({
           />
         </div>
 
-        {hasAnyTags && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onClearAll}
-            className="mr-3"
-          >
-            Clear
-          </Button>
-        )}
-
         <UserButton>
           <UserButton.UserProfilePage
             label="Subscription"
@@ -222,20 +155,89 @@ export function SearchBar({
         </UserButton>
       </div>
 
-      {/* Search suggestions pills */}
-      {shouldShowPills && (
+      {/* Filter section with new ordering */}
+      {shouldShowFilters && (
         <div
           className="pb-4 animate-in slide-in-from-top-2 fade-in-0 duration-200"
           onMouseDown={(e) => e.preventDefault()}
         >
           <div className="flex flex-wrap gap-2">
-            {filteredOptions.map((option, index) => {
+            {/* Selected keywords first */}
+            {selectedKeywords.map((keyword) => (
+              <Badge
+                key={`keyword-${keyword}`}
+                variant="default"
+                className="cursor-pointer"
+                asChild
+              >
+                <button
+                  type="button"
+                  onClick={() => onRemoveKeyword(keyword)}
+                  className="flex items-center gap-1"
+                >
+                  <Hash />
+                  <span>{keyword}</span>
+                </button>
+              </Badge>
+            ))}
+
+            {/* Selected filters second */}
+            {selectedFilters.map((filter) => {
+              const IconComponent = getOptionIcon(filter);
+              return (
+                <Badge
+                  key={`filter-${filter}`}
+                  variant="default"
+                  className="cursor-pointer"
+                  asChild
+                >
+                  <button
+                    type="button"
+                    onClick={() => onRemoveFilter(filter)}
+                    className="flex items-center gap-1"
+                  >
+                    <IconComponent className="size-3" />
+                    <span>{CARD_TYPE_LABELS[filter]}</span>
+                  </button>
+                </Badge>
+              );
+            })}
+
+            {/* Selected special filters */}
+            {showFavoritesOnly && (
+              <Badge variant="default" className="cursor-pointer" asChild>
+                <button
+                  type="button"
+                  onClick={onRemoveFavorites}
+                  className="flex items-center gap-1"
+                >
+                  <Heart className="size-3" />
+                  <span>Favorites</span>
+                </button>
+              </Badge>
+            )}
+
+            {showTrashOnly && (
+              <Badge variant="default" className="cursor-pointer" asChild>
+                <button
+                  type="button"
+                  onClick={onRemoveTrash}
+                  className="flex items-center gap-1"
+                >
+                  <Trash2 className="size-3" />
+                  <span>Trash</span>
+                </button>
+              </Badge>
+            )}
+
+            {/* Available (unselected) filters */}
+            {availableOptions.map((option) => {
               const IconComponent = getOptionIcon(option.value);
               return (
                 <Badge
-                  key={option.value}
+                  key={`available-${option.value}`}
                   variant="outline"
-                  className="cursor-pointer hover:bg-accent transition-colors"
+                  className="cursor-pointer"
                   asChild
                 >
                   <button
@@ -245,7 +247,6 @@ export function SearchBar({
                       e.stopPropagation();
                       onTypeaheadSelect(option);
                     }}
-                    onMouseEnter={() => setTypeaheadSelectedIndex(index)}
                   >
                     <IconComponent />
                     <span>{option.label}</span>
@@ -253,6 +254,15 @@ export function SearchBar({
                 </Badge>
               );
             })}
+
+            {/* Clear all badge (only if there are selections) */}
+            {hasAnyTags && (
+              <Badge variant="outline" className="cursor-pointer" asChild>
+                <button type="button" onClick={onClearAll}>
+                  Clear All
+                </button>
+              </Badge>
+            )}
           </div>
         </div>
       )}
