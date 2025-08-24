@@ -92,14 +92,14 @@ export const createCard = mutation({
 
     const cardId = await ctx.db.insert("cards", cardData);
 
-    // Schedule AI metadata generation
-    await ctx.scheduler.runAfter(0, internal.ai.generateAiMetadata, {
-      cardId,
-    });
-
-    // Schedule link metadata extraction for link cards
+    // Schedule link metadata extraction for link cards (which will trigger AI generation after completion)
     if (args.type === "link") {
       await ctx.scheduler.runAfter(0, internal.linkMetadata.extractLinkMetadata, {
+        cardId,
+      });
+    } else {
+      // Schedule AI metadata generation for non-link cards immediately
+      await ctx.scheduler.runAfter(0, internal.ai.generateAiMetadata, {
         cardId,
       });
     }
