@@ -77,11 +77,6 @@ export function LinkPreview({ card }: LinkPreviewProps) {
             </h2>
           )}
 
-          {/* Publisher */}
-          {publisher && (
-            <p className="text-muted-foreground text-xs mt-0.5">{publisher}</p>
-          )}
-
           {/* Description */}
           {isLoading && !description ? (
             <div className="mt-1">
@@ -95,11 +90,9 @@ export function LinkPreview({ card }: LinkPreviewProps) {
             )
           )}
 
-          {/* URL - always show */}
-          {card.url && (
-            <p className="text-muted-foreground text-xs mt-1 truncate">
-              {card.url}
-            </p>
+          {/* Publisher */}
+          {publisher && (
+            <p className="text-muted-foreground mt-1">{publisher}</p>
           )}
         </div>
       </div>
