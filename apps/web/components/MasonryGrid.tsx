@@ -24,9 +24,11 @@ export function MasonryGrid({
   onToggleFavorite,
 }: MasonryGridProps) {
   const masonryItems = useMemo(() => {
-    const items: Array<
-      { type: "addForm" | "card"; data?: Doc<"cards">; id: string }
-    > = [];
+    const items: Array<{
+      type: "addForm" | "card";
+      data?: Doc<"cards">;
+      id: string;
+    }> = [];
 
     if (!showTrashOnly) {
       items.push({ type: "addForm", id: "add-form" });
@@ -39,7 +41,7 @@ export function MasonryGrid({
     return items;
   }, [filteredCards, showTrashOnly]);
 
-  const renderMasonryItem = (item: typeof masonryItems[0]) => {
+  const renderMasonryItem = (item: (typeof masonryItems)[0]) => {
     if (item.type === "addForm") {
       return <AddCardForm key={item.id} />;
     }
@@ -65,10 +67,12 @@ export function MasonryGrid({
   return (
     <Masonry
       items={masonryItems}
+      as="article"
       config={{
         columns: [1, 2, 5],
         gap: [16, 16, 16],
         media: [640, 768, 1024],
+        useBalancedLayout: true,
       }}
       render={renderMasonryItem}
     />

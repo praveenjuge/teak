@@ -83,7 +83,7 @@ export function useGlobalDragDrop() {
 
           // Upload file with progress tracking
           const xhr = new XMLHttpRequest();
-          
+
           const uploadPromise = new Promise<string>((resolve, reject) => {
             xhr.upload.onprogress = (event) => {
               if (event.lengthComputable) {
@@ -106,7 +106,7 @@ export function useGlobalDragDrop() {
             };
 
             xhr.onerror = () => reject(new Error("Upload failed"));
-            
+
             xhr.open("POST", uploadUrl);
             xhr.setRequestHeader("Content-Type", file.type);
             xhr.send(file);
