@@ -389,6 +389,87 @@ export function CardItem({ card, onDelete }: CardItemProps) {
         );
 
       default:
+        // Handle palette cards and other text-based cards
+        if (card.type === "palette") {
+          return (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onLongPress={handleLongPress}
+              style={[styles.card, dynamicStyles.card, styles.cardPadding]}
+            >
+              <View style={styles.paletteContent}>
+                <View style={styles.paletteHeader}>
+                  <IconSymbol
+                    color={colors.label}
+                    name="paintpalette.fill"
+                    size={16}
+                  />
+                  <Text style={[styles.paletteTitle, dynamicStyles.text]}>
+                    {card.colors?.length || 0} colors
+                  </Text>
+                </View>
+
+                {/* Color swatches grid */}
+                <View style={styles.colorGrid}>
+                  {card.colors?.slice(0, 8).map((color, index) => (
+                    <View
+                      key={`${color.hex}-${index}`}
+                      style={[
+                        styles.colorSwatch,
+                        { backgroundColor: color.hex },
+                      ]}
+                    />
+                  ))}
+
+                  {/* Show "+X more" if there are more than 8 colors */}
+                  {card.colors && card.colors.length > 8 && (
+                    <View
+                      style={[
+                        styles.colorSwatch,
+                        styles.moreColorsIndicator,
+                        { backgroundColor: colors.background },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.moreColorsText,
+                          { color: colors.secondaryLabel },
+                        ]}
+                      >
+                        +{card.colors.length - 8}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Show first few color hex values */}
+                <Text
+                  style={[
+                    styles.colorHexPreview,
+                    { color: colors.secondaryLabel },
+                  ]}
+                >
+                  {card.colors
+                    ?.slice(0, 2)
+                    .map((color) => color.hex)
+                    .join(" • ")}
+                  {card.colors && card.colors.length > 2 && " • ..."}
+                </Text>
+
+                {/* Show original content text */}
+                {card.content && (
+                  <Text
+                    style={[styles.originalContent, dynamicStyles.text]}
+                    numberOfLines={2}
+                  >
+                    {card.content}
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        }
+
         return (
           <TouchableOpacity
             activeOpacity={0.8}
@@ -525,4 +606,50 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   pdfMetaText: {},
+  // Palette card styles
+  paletteContent: {
+    flex: 1,
+  },
+  paletteHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  paletteTitle: {
+    marginLeft: 8,
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  colorGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    marginBottom: 12,
+  },
+  colorSwatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.1)",
+  },
+  moreColorsIndicator: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  moreColorsText: {
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  colorHexPreview: {
+    fontSize: 11,
+    fontFamily: "menlo", // monospace font
+    lineHeight: 14,
+  },
+  originalContent: {
+    fontSize: 13,
+    marginTop: 8,
+    opacity: 0.8,
+    lineHeight: 18,
+  },
 });

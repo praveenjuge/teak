@@ -9,6 +9,7 @@ export const cardTypes = [
   "video",
   "audio",
   "document",
+  "palette",
 ] as const;
 
 // Reusable validators
@@ -36,6 +37,22 @@ export const metadataValidator = v.optional(
     microlinkData: v.optional(v.any()),
   })
 );
+
+// Color palette validator for palette cards
+export const colorValidator = v.object({
+  hex: v.string(), // Always normalized to hex format
+  name: v.optional(v.string()), // Color name if available
+  rgb: v.optional(v.object({
+    r: v.number(),
+    g: v.number(),
+    b: v.number(),
+  })),
+  hsl: v.optional(v.object({
+    h: v.number(),
+    s: v.number(),
+    l: v.number(),
+  })),
+});
 
 export const cardValidator = v.object({
   userId: v.string(),
@@ -67,6 +84,8 @@ export const cardValidator = v.object({
       generatedAt: v.optional(v.number()),
     })
   ),
+  // Palette-specific fields
+  colors: v.optional(v.array(colorValidator)),
   createdAt: v.number(),
   updatedAt: v.number(),
 });
