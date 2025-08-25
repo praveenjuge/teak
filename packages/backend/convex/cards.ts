@@ -94,22 +94,40 @@ export const createCard = mutation({
 
     // Determine card type if not provided
     let cardType = args.type;
-    let processedMetadata = args.metadata || {};
+    let originalMetadata = args.metadata || {};
+    let fileMetadata: any = undefined;
+
+    // Separate file-related metadata from other metadata
+    let processedMetadata = { ...originalMetadata };
+
+    // Move file-related fields to fileMetadata if present
+    const fileRelatedFields = ['fileName', 'fileSize', 'mimeType', 'duration', 'width', 'height', 'recordingTimestamp'];
+    const extractedFileMetadata: any = {};
+
+    fileRelatedFields.forEach(field => {
+      if (processedMetadata[field] !== undefined) {
+        extractedFileMetadata[field] = processedMetadata[field];
+        delete processedMetadata[field];
+      }
+    });
 
     if (!cardType && args.fileId) {
       // Auto-detect type from file metadata
-      const fileMetadata = await ctx.db.system.get(args.fileId);
-      if (fileMetadata?.contentType) {
-        cardType = getFileCardType(fileMetadata.contentType);
+      const systemFileMetadata = await ctx.db.system.get(args.fileId);
+      if (systemFileMetadata?.contentType) {
+        cardType = getFileCardType(systemFileMetadata.contentType);
 
-        // Add file metadata
-        processedMetadata = {
-          ...processedMetadata,
-          fileName: processedMetadata.fileName || `file_${now}`,
-          fileSize: fileMetadata.size,
-          mimeType: fileMetadata.contentType,
+        // Create file metadata object, merging extracted fields
+        fileMetadata = {
+          fileName: extractedFileMetadata.fileName || `file_${now}`,
+          fileSize: systemFileMetadata.size,
+          mimeType: systemFileMetadata.contentType,
+          ...extractedFileMetadata, // Include any other file-related metadata
         };
       }
+    } else if (Object.keys(extractedFileMetadata).length > 0) {
+      // If we have file metadata but no fileId, still create fileMetadata object
+      fileMetadata = extractedFileMetadata;
     }
 
     // Fallback to text if no type determined
@@ -128,6 +146,7 @@ export const createCard = mutation({
       tags: args.tags,
       notes: args.notes,
       metadata: Object.keys(processedMetadata).length > 0 ? processedMetadata : undefined,
+      fileMetadata: fileMetadata,
       createdAt: now,
       updatedAt: now,
       // Set pending status for link cards that need metadata extraction
@@ -576,13 +595,32 @@ export const finalizeUploadedCard = mutation({
       // Auto-detect card type from file
       const cardType = getFileCardType(fileMetadata.contentType || "application/octet-stream");
 
-      // Build comprehensive metadata
-      const metadata = {
+      // Separate file-related metadata from other metadata
+      const additionalMeta = args.additionalMetadata || {};
+
+      // Build comprehensive file metadata (including any file-related fields from additionalMetadata)
+      const fileMetadataObj = {
         fileName: args.fileName,
         fileSize: fileMetadata.size,
         mimeType: fileMetadata.contentType,
-        ...args.additionalMetadata,
+        // Include file-related fields from additionalMetadata
+        ...(additionalMeta.recordingTimestamp && { recordingTimestamp: additionalMeta.recordingTimestamp }),
+        ...(additionalMeta.duration && { duration: additionalMeta.duration }),
+        ...(additionalMeta.width && { width: additionalMeta.width }),
+        ...(additionalMeta.height && { height: additionalMeta.height }),
       };
+
+      // Build non-file metadata (only keep fields that aren't file-related)
+      const nonFileMetadata = { ...additionalMeta };
+      delete nonFileMetadata.recordingTimestamp;
+      delete nonFileMetadata.duration;
+      delete nonFileMetadata.width;
+      delete nonFileMetadata.height;
+      delete nonFileMetadata.fileName;
+      delete nonFileMetadata.fileSize;
+      delete nonFileMetadata.mimeType;
+
+      const metadata = Object.keys(nonFileMetadata).length > 0 ? nonFileMetadata : undefined;
 
       // Create the card
       const cardId = await ctx.db.insert("cards", {
@@ -590,6 +628,7 @@ export const finalizeUploadedCard = mutation({
         content: args.content || "",
         type: cardType,
         fileId: args.fileId,
+        fileMetadata: fileMetadataObj,
         metadata,
         createdAt: now,
         updatedAt: now,

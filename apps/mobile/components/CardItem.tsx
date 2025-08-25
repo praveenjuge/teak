@@ -229,10 +229,10 @@ export function CardItem({ card, onDelete }: CardItemProps) {
                   <IconSymbol color="white" name="play.fill" size={14} />
                 </View>
               </View>
-              {card.metadata?.duration && (
+              {card.fileMetadata?.duration && (
                 <View style={styles.durationBadge}>
                   <Text style={styles.durationText}>
-                    {formatDuration(card.metadata.duration)}
+                    {formatDuration(card.fileMetadata.duration)}
                   </Text>
                 </View>
               )}
@@ -268,8 +268,8 @@ export function CardItem({ card, onDelete }: CardItemProps) {
               <View style={styles.audioInfo}>
                 <Text style={[styles.audioTime, dynamicStyles.mutedText]}>
                   {formatDuration(playbackPosition)} /{" "}
-                  {card.metadata?.duration
-                    ? formatDuration(card.metadata.duration)
+                  {card.fileMetadata?.duration
+                    ? formatDuration(card.fileMetadata.duration)
                     : "--:--"}
                 </Text>
               </View>
@@ -281,16 +281,18 @@ export function CardItem({ card, onDelete }: CardItemProps) {
         if (!card.url) {
           return null;
         }
-        
+
         // Get metadata from Microlink.io data
-        const linkTitle = card.metadata?.microlinkData?.data?.title || 
-                         card.metadataTitle || 
-                         card.url;
-        const linkDescription = card.metadata?.microlinkData?.data?.description || 
-                               card.metadataDescription;
+        const linkTitle =
+          card.metadata?.microlinkData?.data?.title ||
+          card.metadataTitle ||
+          card.url;
+        const linkDescription =
+          card.metadata?.microlinkData?.data?.description ||
+          card.metadataDescription;
         const linkImage = card.metadata?.microlinkData?.data?.image?.url;
         const publisher = card.metadata?.microlinkData?.data?.publisher;
-        
+
         return (
           <TouchableOpacity
             activeOpacity={0.8}
@@ -368,15 +370,15 @@ export function CardItem({ card, onDelete }: CardItemProps) {
                 <View style={styles.pdfInfo}>
                   <Text style={[styles.pdfTitle, dynamicStyles.text]}>
                     {card.metadataTitle ||
-                      card.metadata?.fileName ||
+                      card.fileMetadata?.fileName ||
                       "Document"}
                   </Text>
                   <View style={styles.pdfMeta}>
-                    {card.metadata?.fileSize && (
+                    {card.fileMetadata?.fileSize && (
                       <Text
                         style={[styles.pdfMetaText, dynamicStyles.mutedText]}
                       >
-                        {formatFileSize(card.metadata.fileSize)}
+                        {formatFileSize(card.fileMetadata.fileSize)}
                       </Text>
                     )}
                   </View>
