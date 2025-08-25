@@ -278,12 +278,12 @@ export const searchCards = query({
           )
           .take(limit),
 
-        // Search transcript
+        // Search AI transcript
         ctx.db
           .query("cards")
-          .withSearchIndex("search_transcript", (q) =>
+          .withSearchIndex("search_ai_transcript", (q) =>
             q
-              .search("transcript", searchQuery)
+              .search("aiTranscript", searchQuery)
               .eq("userId", user.subject)
               .eq("isDeleted", showTrashOnly ? true : undefined)
           )

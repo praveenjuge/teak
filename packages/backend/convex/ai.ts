@@ -31,12 +31,12 @@ export const updateCardAI = internalMutation({
     cardId: v.id("cards"),
     aiTags: v.optional(v.array(v.string())),
     aiSummary: v.optional(v.string()),
-    transcript: v.optional(v.string()),
-    aiGeneratedAt: v.number(),
+    aiTranscript: v.optional(v.string()),
     aiModelMeta: v.object({
       provider: v.string(),
       model: v.string(),
       version: v.optional(v.string()),
+      generatedAt: v.optional(v.number()),
     }),
   },
   handler: async (ctx, args) => {
@@ -259,7 +259,7 @@ export const generateAiMetadata = internalAction({
 
       let aiTags: string[] = [];
       let aiSummary: string = "";
-      let transcript: string | undefined = undefined;
+      let aiTranscript: string | undefined = undefined;
 
       // Process based on card type
       switch (card.type) {
@@ -292,7 +292,7 @@ export const generateAiMetadata = internalAction({
                 card.metadata?.mimeType
               );
               if (transcriptResult) {
-                transcript = transcriptResult;
+                aiTranscript = transcriptResult;
                 // Generate metadata from transcript
                 const result = await generateTextMetadata(
                   transcriptResult
@@ -380,24 +380,24 @@ export const generateAiMetadata = internalAction({
       }
 
       // Update card with AI metadata
-      if (aiTags.length > 0 || aiSummary || transcript) {
+      if (aiTags.length > 0 || aiSummary || aiTranscript) {
         await ctx.runMutation(internal.ai.updateCardAI, {
           cardId,
           aiTags: aiTags.length > 0 ? aiTags : undefined,
           aiSummary: aiSummary || undefined,
-          transcript,
-          aiGeneratedAt: Date.now(),
+          aiTranscript,
           aiModelMeta: {
             provider: "openai",
             model: card.type === "image" ? "gpt-5-nano" : "gpt-5-nano",
             version: "2024-08-06",
+            generatedAt: Date.now(),
           },
         });
 
         console.log(`AI metadata generated for card ${cardId}:`, {
           tags: aiTags.length,
           summary: !!aiSummary,
-          transcript: !!transcript,
+          transcript: !!aiTranscript,
         });
       }
     } catch (error) {
@@ -434,7 +434,7 @@ export const findCardsMissingAi = internalQuery({
         q.and(
           q.neq(q.field("isDeleted"), true),
           q.lt(q.field("createdAt"), fiveMinutesAgo),
-          q.eq(q.field("aiGeneratedAt"), undefined)
+          q.eq(q.field("aiModelMeta"), undefined)
         )
       )
       .take(50); // Process in batches

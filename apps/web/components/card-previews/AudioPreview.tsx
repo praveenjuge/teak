@@ -23,7 +23,7 @@ export function AudioPreview({ card }: AudioPreviewProps) {
       )}
 
       {/* Transcript Section */}
-      {card.transcript && (
+      {card.aiTranscript && (
         <div className="border bg-background rounded-lg">
           <div className="w-full px-3 pt-3 flex items-center text-left gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
@@ -32,7 +32,7 @@ export function AudioPreview({ card }: AudioPreviewProps) {
 
           <div className="p-3 max-h-64 overflow-y-auto">
             <p className="text-sm leading-relaxed whitespace-pre-wrap">
-              {card.transcript}
+              {card.aiTranscript}
             </p>
           </div>
         </div>
