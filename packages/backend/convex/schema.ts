@@ -50,13 +50,13 @@ export const cardValidator = v.object({
   // AI-generated fields
   aiTags: v.optional(v.array(v.string())),
   aiSummary: v.optional(v.string()),
-  transcript: v.optional(v.string()),
-  aiGeneratedAt: v.optional(v.number()),
+  aiTranscript: v.optional(v.string()),
   aiModelMeta: v.optional(
     v.object({
       provider: v.string(),
       model: v.string(),
       version: v.optional(v.string()),
+      generatedAt: v.optional(v.number()),
     })
   ),
   createdAt: v.number(),
@@ -91,8 +91,8 @@ export default defineSchema({
       searchField: "aiSummary",
       filterFields: ["userId", "isDeleted", "type", "isFavorited"],
     })
-    .searchIndex("search_transcript", {
-      searchField: "transcript",
+    .searchIndex("search_ai_transcript", {
+      searchField: "aiTranscript",
       filterFields: ["userId", "isDeleted", "type", "isFavorited"],
     })
     .searchIndex("search_metadata_title", {
