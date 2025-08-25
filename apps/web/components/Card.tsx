@@ -154,6 +154,30 @@ export function Card({
                 </span>
               </div>
             )}
+
+            {card.type === "palette" && (
+              <div>
+                {/* Show original content text */}
+                {card.content && (
+                  <div className="p-3">
+                    <p className="text-muted-foreground line-clamp-1">
+                      {card.content}
+                    </p>
+                  </div>
+                )}
+                {/* Color swatches grid */}
+                <div className="flex">
+                  {card.colors?.slice(0, 12).map((color, index) => (
+                    <div
+                      key={`${color.hex}-${index}`}
+                      className="h-8 flex-1 min-w-0"
+                      style={{ backgroundColor: color.hex }}
+                      title={color.hex}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </UICard>
       </ContextMenuTrigger>

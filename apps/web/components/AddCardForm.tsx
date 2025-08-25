@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Mic, Square, Upload } from "lucide-react";
 import { api } from "@teak/convex";
 import { useFileUpload } from "@teak/shared";
+import { parseColorsFromText } from "@teak/shared";
 import { toast } from "sonner";
 
 interface AddCardFormProps {
@@ -192,31 +193,42 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       let finalContent = content;
       let finalUrl = url;
 
-      // Smart detection: if content is only a URL, make it a link card
-      const trimmedContent = content.trim();
-      const urlPattern = /^https?:\/\/[^\s]+$/;
-
-      if (urlPattern.test(trimmedContent)) {
-        finalUrl = trimmedContent;
-        finalContent = trimmedContent;
-
+      // Smart detection: Check for colors first
+      const colors = parseColorsFromText(content);
+      if (colors.length > 0) {
+        // Create a palette card
         await createCard({
           content: finalContent,
-          type: "link",
-          url: finalUrl,
+          type: "palette",
+          colors: colors,
         });
       } else {
-        // Extract URL from text content if present
-        const urlMatch = trimmedContent.match(/(https?:\/\/[^\s]+)/);
-        if (urlMatch) {
-          finalUrl = urlMatch[1];
-        }
+        // Check if content is only a URL, make it a link card
+        const trimmedContent = content.trim();
+        const urlPattern = /^https?:\/\/[^\s]+$/;
 
-        await createCard({
-          content: finalContent,
-          type: "text",
-          url: finalUrl || undefined,
-        });
+        if (urlPattern.test(trimmedContent)) {
+          finalUrl = trimmedContent;
+          finalContent = trimmedContent;
+
+          await createCard({
+            content: finalContent,
+            type: "link",
+            url: finalUrl,
+          });
+        } else {
+          // Extract URL from text content if present
+          const urlMatch = trimmedContent.match(/(https?:\/\/[^\s]+)/);
+          if (urlMatch) {
+            finalUrl = urlMatch[1];
+          }
+
+          await createCard({
+            content: finalContent,
+            type: "text",
+            url: finalUrl || undefined,
+          });
+        }
       }
 
       // Reset form
@@ -237,7 +249,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   // Recording mode - full screen recording interface
   if (isRecording) {
     return (
-      <Card className="shadow-none p-4 border-red-200 w-full">
+      <Card className="shadow-none p-4 border-red-200 w-full min-h-36">
         <CardContent className="text-center flex flex-col gap-4 h-full justify-center items-center p-0">
           <p className="font-medium text-destructive">Recording...</p>
 
@@ -268,7 +280,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   // Uploading mode - full card feedback while files/audio are being uploaded
   if (uploadState.isUploading || isSubmitting) {
     return (
-      <Card className="shadow-none p-4 border-primary ring-1 ring-primary w-full relative overflow-hidden">
+      <Card className="shadow-none p-4 border-primary ring-1 ring-primary w-full relative overflow-hidden h-full min-h-36">
         <CardContent className="text-center flex flex-col gap-4 h-full justify-center items-center p-0 relative">
           <h3 className="font-medium text-primary">
             {isRecording ? "Processing audio..." : "Saving..."}
@@ -285,7 +297,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   }
 
   return (
-    <Card className="p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden w-full">
+    <Card className="p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden w-full min-h-36">
       <CardContent className="p-0 h-full">
         <form
           onSubmit={handleTextSubmit}

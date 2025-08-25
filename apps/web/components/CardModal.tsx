@@ -24,6 +24,7 @@ import {
   AudioPreview,
   DocumentPreview,
   TextPreview,
+  PalettePreview,
 } from "./card-previews";
 import { Loading } from "./Loading";
 
@@ -104,6 +105,8 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
         return <AudioPreview card={card} />;
       case "document":
         return <DocumentPreview card={card} />;
+      case "palette":
+        return <PalettePreview card={card} />;
       default:
         return <div>Unknown card type</div>;
     }
