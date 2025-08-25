@@ -182,13 +182,13 @@ export function useCardModal(cardId: string | null, config: CardModalConfig = {}
   );
 
   const downloadFile = useCallback(async () => {
-    if (!card?.fileId || !card?.metadata?.fileName || !fileUrl) return;
+    if (!card?.fileId || !card?.fileMetadata?.fileName || !fileUrl) return;
 
     try {
       // Create a temporary anchor element to trigger download
       const link = document.createElement('a');
       link.href = fileUrl;
-      link.download = card.metadata.fileName;
+      link.download = card.fileMetadata.fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -196,7 +196,7 @@ export function useCardModal(cardId: string | null, config: CardModalConfig = {}
       console.error('Failed to download file:', error);
       config.onError?.(error as Error, 'download file');
     }
-  }, [card?.fileId, card?.metadata?.fileName, fileUrl, config]);
+  }, [card?.fileId, card?.fileMetadata?.fileName, fileUrl, config]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent, onClose?: () => void) => {
     if (e.key === "Enter" && tagInput.trim()) {

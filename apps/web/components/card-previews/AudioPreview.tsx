@@ -17,7 +17,7 @@ export function AudioPreview({ card }: AudioPreviewProps) {
     <div className="p-2 space-y-4">
       {fileUrl && (
         <audio controls className="w-full">
-          <source src={fileUrl} type={card.metadata?.mimeType} />
+          <source src={fileUrl} type={card.fileMetadata?.mimeType} />
           Your browser does not support the audio element.
         </audio>
       )}

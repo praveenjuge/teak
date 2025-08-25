@@ -289,7 +289,7 @@ export const generateAiMetadata = internalAction({
               // Generate transcript first
               const transcriptResult = await generateTranscript(
                 audioUrl,
-                card.metadata?.mimeType
+                card.fileMetadata?.mimeType
               );
               if (transcriptResult) {
                 aiTranscript = transcriptResult;
@@ -358,8 +358,8 @@ export const generateAiMetadata = internalAction({
         case "document": {
           // For documents, try to extract text or use filename/content
           let contentToAnalyze = card.content;
-          if (card.metadata?.fileName) {
-            contentToAnalyze = `${card.metadata.fileName}\n${contentToAnalyze}`;
+          if (card.fileMetadata?.fileName) {
+            contentToAnalyze = `${card.fileMetadata.fileName}\n${contentToAnalyze}`;
           }
 
           if (contentToAnalyze.trim()) {

@@ -262,24 +262,24 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                   {formatDate(card.updatedAt)}
                 </div>
 
-                {card.metadata?.fileSize && (
+                {card.fileMetadata?.fileSize && (
                   <div>
                     <span className="font-medium">File Size:</span>{" "}
-                    {(card.metadata.fileSize / (1024 * 1024)).toFixed(2)} MB
+                    {(card.fileMetadata.fileSize / (1024 * 1024)).toFixed(2)} MB
                   </div>
                 )}
 
-                {card.metadata?.fileName && (
+                {card.fileMetadata?.fileName && (
                   <div>
                     <span className="font-medium">File Name:</span>{" "}
-                    {card.metadata.fileName}
+                    {card.fileMetadata.fileName}
                   </div>
                 )}
 
-                {card.metadata?.mimeType && (
+                {card.fileMetadata?.mimeType && (
                   <div>
                     <span className="font-medium">File Type:</span>{" "}
-                    {card.metadata.mimeType}
+                    {card.fileMetadata.mimeType}
                   </div>
                 )}
               </div>

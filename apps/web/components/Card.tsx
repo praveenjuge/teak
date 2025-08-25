@@ -120,8 +120,8 @@ export function Card({
               <GridImagePreview
                 fileId={card.fileId}
                 altText={card.content}
-                width={card.metadata?.width}
-                height={card.metadata?.height}
+                width={card.fileMetadata?.width}
+                height={card.fileMetadata?.height}
               />
             )}
 
@@ -150,7 +150,7 @@ export function Card({
               <div className="p-4 flex gap-2 items-center">
                 <File className="shrink-0 size-4 text-muted-foreground" />
                 <span className="truncate">
-                  {card.metadata?.fileName || card.content}
+                  {card.fileMetadata?.fileName || card.content}
                 </span>
               </div>
             )}

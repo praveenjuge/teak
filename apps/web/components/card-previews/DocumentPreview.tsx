@@ -60,14 +60,14 @@ interface DocumentPreviewProps {
 }
 
 export function DocumentPreview({ card }: DocumentPreviewProps) {
-  const fileName = card.metadata?.fileName || card.content || "Document";
-  const mimeType = card.metadata?.mimeType || "";
+  const fileName = card.fileMetadata?.fileName || card.content || "Document";
+  const mimeType = card.fileMetadata?.mimeType || "";
 
   return (
-    <div className="flex items-center gap-4 p-4">
+    <div className="flex items-center gap-4">
       <div className="flex-shrink-0">{getDocumentIcon(fileName, mimeType)}</div>
       <div className="min-w-0">
-        <p className="font-medium text-lg truncate">{fileName}</p>
+        <p className="font-medium truncate">{fileName}</p>
         {mimeType && (
           <p className="text-muted-foreground truncate">{mimeType}</p>
         )}

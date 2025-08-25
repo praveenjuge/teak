@@ -16,7 +16,7 @@ export const cardTypeValidator = v.union(
   ...cardTypes.map((type) => v.literal(type))
 );
 
-export const metadataValidator = v.optional(
+export const fileMetadataValidator = v.optional(
   v.object({
     // File metadata (for non-link cards)
     fileSize: v.optional(v.number()),
@@ -25,6 +25,13 @@ export const metadataValidator = v.optional(
     duration: v.optional(v.number()),
     width: v.optional(v.number()),
     height: v.optional(v.number()),
+    // Recording-specific metadata
+    recordingTimestamp: v.optional(v.number()),
+  })
+);
+
+export const metadataValidator = v.optional(
+  v.object({
     // Microlink.io metadata (full response stored as JSON - using v.any() for flexibility)
     microlinkData: v.optional(v.any()),
   })
@@ -43,6 +50,7 @@ export const cardValidator = v.object({
   isDeleted: v.optional(v.boolean()),
   deletedAt: v.optional(v.number()),
   metadata: metadataValidator,
+  fileMetadata: fileMetadataValidator,
   metadataStatus: v.optional(v.union(v.literal("pending"), v.literal("completed"), v.literal("failed"))),
   // Searchable metadata fields (flattened for search indexes)
   metadataTitle: v.optional(v.string()),
