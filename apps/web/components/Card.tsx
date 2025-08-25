@@ -77,7 +77,7 @@ export function Card({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <UICard
-          className={`cursor-pointer relative p-0 shadow-none overflow-hidden ${
+          className={`cursor-pointer relative p-0 overflow-hidden ${
             card.isDeleted ? "opacity-60" : ""
           }`}
           onClick={handleClick}
@@ -91,7 +91,7 @@ export function Card({
           <CardContent className="p-0 space-y-2">
             {card.type === "text" && (
               <div className="p-4">
-                <p className="line-clamp-3">{card.content}</p>
+                <p className="line-clamp-3 font-medium">{card.content}</p>
               </div>
             )}
 
@@ -107,11 +107,8 @@ export function Card({
                 )}
                 <div className="p-4">
                   <h4 className="font-medium line-clamp-1">
-                    {card.metadata?.microlinkData?.data?.title || "Link"}
+                    {card.metadata?.microlinkData?.data?.title || card.url}
                   </h4>
-                  {card.url && (
-                    <p className="text-muted-foreground truncate">{card.url}</p>
-                  )}
                 </div>
               </div>
             )}
@@ -149,33 +146,22 @@ export function Card({
             {card.type === "document" && (
               <div className="p-4 flex gap-2 items-center">
                 <File className="shrink-0 size-4 text-muted-foreground" />
-                <span className="truncate">
+                <span className="truncate font-medium">
                   {card.fileMetadata?.fileName || card.content}
                 </span>
               </div>
             )}
 
             {card.type === "palette" && (
-              <div>
-                {/* Show original content text */}
-                {card.content && (
-                  <div className="p-3">
-                    <p className="text-muted-foreground line-clamp-1">
-                      {card.content}
-                    </p>
-                  </div>
-                )}
-                {/* Color swatches grid */}
-                <div className="flex">
-                  {card.colors?.slice(0, 12).map((color, index) => (
-                    <div
-                      key={`${color.hex}-${index}`}
-                      className="h-8 flex-1 min-w-0"
-                      style={{ backgroundColor: color.hex }}
-                      title={color.hex}
-                    />
-                  ))}
-                </div>
+              <div className="flex">
+                {card.colors?.slice(0, 12).map((color, index) => (
+                  <div
+                    key={`${color.hex}-${index}`}
+                    className="h-14 flex-1 min-w-0"
+                    style={{ backgroundColor: color.hex }}
+                    title={color.hex}
+                  />
+                ))}
               </div>
             )}
           </CardContent>
@@ -260,7 +246,7 @@ function GridImagePreview({
         <img
           src={fileUrl}
           alt={altText}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover min-h-6"
           style={{
             aspectRatio: aspectRatio.toString(),
             display: "block", // Prevent inline spacing issues
