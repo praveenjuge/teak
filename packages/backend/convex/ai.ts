@@ -13,7 +13,7 @@ import { Id } from "./_generated/dataModel";
 
 // AI generation result schema
 const aiMetadataSchema = z.object({
-  tags: z.array(z.string()).describe("Relevant tags for the content (max 8)"),
+  tags: z.array(z.string()).describe("5-6 relevant tags for the content, each tag should be 1-2 words maximum"),
   summary: z.string().describe("Brief, helpful summary of the content"),
 });
 
@@ -60,7 +60,7 @@ const generateTextMetadata = async (content: string, title?: string) => {
       system: `You are an expert content analyzer. Generate relevant tags and a concise summary for the given content.
       
       Guidelines:
-      - Tags should be specific, relevant keywords (2-8 tags)
+      - Tags should be 5-6 specific, relevant keywords, each 1-2 words maximum
       - Summary should be 1-2 sentences that capture the essence
       - Focus on the main topics, themes, and key information
       - Use clear, searchable language`,
@@ -86,7 +86,7 @@ const generateImageMetadata = async (imageUrl: string, title?: string) => {
       system: `You are an expert image analyzer. Generate relevant tags and a concise summary for the given image.
       
       Guidelines:
-      - Tags should describe objects, scenes, concepts, emotions in the image (2-8 tags)
+      - Tags should be 5-6 keywords describing objects, scenes, concepts, emotions, each 1-2 words maximum
       - Summary should be 1-2 sentences describing what the image shows
       - Focus on the main visual elements and context
       - Use clear, searchable language`,
@@ -128,7 +128,7 @@ const generateLinkMetadata = async (content: string, url?: string) => {
       system: `You are an expert web content analyzer. Generate relevant tags and a concise summary for the given web page content.
       
       Guidelines:
-      - Tags should capture the main topics, categories, and key concepts (2-8 tags)
+      - Tags should be 5-6 keywords capturing main topics, categories, and key concepts, each 1-2 words maximum
       - Include relevant technology, industry, or topic tags where applicable
       - Summary should be 1-2 sentences capturing the essence and value of the content
       - Focus on what makes this link useful and searchable
