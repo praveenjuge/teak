@@ -23,12 +23,12 @@ export const CARD_TYPES = [...cardTypes] as readonly CardType[];
  */
 export const CARD_TYPE_LABELS: Record<CardType, string> = {
   text: "Text",
-  link: "Links",
-  image: "Images",
-  video: "Videos",
+  link: "Link",
+  image: "Image",
+  video: "Video",
   audio: "Audio",
-  document: "Documents",
-  palette: "Palettes",
+  document: "Document",
+  palette: "Palette",
 } as const;
 
 /**

@@ -140,6 +140,12 @@ export default function Home() {
     setEditingCardId(null);
   };
 
+  const handleCardTypeClick = (cardType: string) => {
+    // Close the modal and add the card type filter
+    setEditingCardId(null);
+    addFilter(cardType as CardType);
+  };
+
   const hasNoFilters =
     keywordTags.length === 0 &&
     filterTags.length === 0 &&
@@ -229,6 +235,7 @@ export default function Home() {
           cardId={editingCardId}
           open={!!editingCardId}
           onCancel={handleEditCancel}
+          onCardTypeClick={handleCardTypeClick}
         />
 
         <DragOverlay
