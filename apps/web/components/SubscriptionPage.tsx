@@ -2,8 +2,7 @@ import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
 import { CheckoutLink, CustomerPortalLink } from "@convex-dev/polar/react";
-import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { FREE_TIER_LIMIT } from "@teak/shared/constants";
 import { ExternalLink } from "lucide-react";
@@ -27,9 +26,13 @@ export default function SubscriptionPage() {
       <div className="space-x-2 flex items-center">
         <h1 className="text-base font-bold">Subscription</h1>
         {isSubscribed ? (
-          <Badge>Pro Plan</Badge>
+          <Button size="sm" variant="outline">
+            You are on Pro Plan
+          </Button>
         ) : (
-          <Badge variant="secondary">Free Plan</Badge>
+          <Button size="sm" variant="outline">
+            You are on Free Plan
+          </Button>
         )}
       </div>
 
