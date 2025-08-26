@@ -44,6 +44,68 @@ export const CARD_TYPE_ICONS: Record<CardType, string> = {
   palette: "Palette",
 } as const;
 
+/**
+ * Card type configuration registry for centralized management
+ */
+export interface CardTypeConfig {
+  label: string;
+  icon: string;
+  searchLabel: string;
+}
+
+export const CARD_TYPE_REGISTRY: Record<CardType, CardTypeConfig> = {
+  text: {
+    label: "Text",
+    icon: "FileText",
+    searchLabel: "Text",
+  },
+  link: {
+    label: "Link", 
+    icon: "Link",
+    searchLabel: "Links",
+  },
+  image: {
+    label: "Image",
+    icon: "Image", 
+    searchLabel: "Images",
+  },
+  video: {
+    label: "Video",
+    icon: "Video",
+    searchLabel: "Videos",
+  },
+  audio: {
+    label: "Audio",
+    icon: "Volume2",
+    searchLabel: "Audio",
+  },
+  document: {
+    label: "Document",
+    icon: "File",
+    searchLabel: "Documents", 
+  },
+  palette: {
+    label: "Palette",
+    icon: "Palette",
+    searchLabel: "Palettes",
+  },
+} as const;
+
+/**
+ * Helper functions for card type configuration
+ */
+export function getCardTypeConfig(cardType: CardType): CardTypeConfig {
+  return CARD_TYPE_REGISTRY[cardType];
+}
+
+export function getCardTypeIcon(cardType: CardType): string {
+  return CARD_TYPE_REGISTRY[cardType].icon;
+}
+
+export function getCardTypeLabel(cardType: CardType): string {
+  return CARD_TYPE_REGISTRY[cardType].label;
+}
+
 // === UI-Specific Types ===
 
 /**
@@ -58,12 +120,10 @@ export interface TypeaheadOption {
  * Reserved keywords for search functionality
  */
 export const RESERVED_KEYWORDS: TypeaheadOption[] = [
-  { value: "text", label: "Text" },
-  { value: "link", label: "Links" },
-  { value: "image", label: "Images" },
-  { value: "video", label: "Videos" },
-  { value: "audio", label: "Audio" },
-  { value: "document", label: "Documents" },
+  ...cardTypes.map((cardType): TypeaheadOption => ({
+    value: cardType,
+    label: CARD_TYPE_REGISTRY[cardType].searchLabel,
+  })),
   { value: "favorites", label: "Favorites" },
   { value: "trash", label: "Trash" },
 ] as const;

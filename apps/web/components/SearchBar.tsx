@@ -17,7 +17,12 @@ import {
   Palette,
 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
-import { type CardType, CARD_TYPE_LABELS } from "@teak/shared/constants";
+import {
+  type CardType,
+  CARD_TYPE_LABELS,
+  getCardTypeIcon,
+  cardTypes,
+} from "@teak/shared/constants";
 import SubscriptionPage from "./SubscriptionPage";
 import { useTheme } from "next-themes";
 
@@ -37,25 +42,20 @@ interface SearchBarProps {
   onClearAll: () => void;
 }
 
+// Icon component mapping for Lucide React icons
+const iconComponentMap = {
+  FileText,
+  Link,
+  Image,
+  Video,
+  Volume2,
+  File,
+  Palette,
+} as const;
+
 const getFilterIcon = (filter: CardType) => {
-  switch (filter) {
-    case "text":
-      return FileText;
-    case "link":
-      return Link;
-    case "image":
-      return Image;
-    case "video":
-      return Video;
-    case "audio":
-      return Volume2;
-    case "document":
-      return File;
-    case "palette":
-      return Palette;
-    default:
-      return FileText;
-  }
+  const iconName = getCardTypeIcon(filter) as keyof typeof iconComponentMap;
+  return iconComponentMap[iconName] || FileText;
 };
 
 export function SearchBar({
@@ -84,16 +84,7 @@ export function SearchBar({
     showTrashOnly;
   const shouldShowFilters = isFocused || hasAnyFilters;
 
-  const availableCardTypes: CardType[] = [
-    "text",
-    "link",
-    "image",
-    "video",
-    "audio",
-    "document",
-    "palette",
-  ];
-  const availableFilters = availableCardTypes.filter(
+  const availableFilters = cardTypes.filter(
     (type) => !filterTags.includes(type)
   );
 

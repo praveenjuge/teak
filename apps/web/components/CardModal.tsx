@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -25,7 +25,11 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useCardModal } from "@/hooks/useCardModal";
-import { type CardType, CARD_TYPE_LABELS } from "@teak/shared/constants";
+import {
+  type CardType,
+  CARD_TYPE_LABELS,
+  getCardTypeIcon,
+} from "@teak/shared/constants";
 import {
   LinkPreview,
   ImagePreview,
@@ -118,25 +122,20 @@ export function CardModal({
     });
   };
 
-  const getCardTypeIcon = (cardType: CardType) => {
-    switch (cardType) {
-      case "text":
-        return FileText;
-      case "link":
-        return Link;
-      case "image":
-        return Image;
-      case "video":
-        return Video;
-      case "audio":
-        return Volume2;
-      case "document":
-        return File;
-      case "palette":
-        return Palette;
-      default:
-        return FileText;
-    }
+  // Icon component mapping for Lucide React icons
+  const iconComponentMap = {
+    FileText,
+    Link,
+    Image,
+    Video,
+    Volume2,
+    File,
+    Palette,
+  } as const;
+
+  const getCardTypeIconComponent = (cardType: CardType) => {
+    const iconName = getCardTypeIcon(cardType) as keyof typeof iconComponentMap;
+    return iconComponentMap[iconName] || FileText;
   };
 
   const renderPreview = () => {
@@ -277,7 +276,7 @@ export function CardModal({
                       onClick={handleCardTypeClick}
                     >
                       {(() => {
-                        const IconComponent = getCardTypeIcon(
+                        const IconComponent = getCardTypeIconComponent(
                           card.type as CardType
                         );
                         return <IconComponent className="size-3.5 stroke-2" />;
@@ -307,17 +306,19 @@ export function CardModal({
                     </Button>
                   )) || []}
                   {card.aiTags?.map((tag: string) => (
-                    <Button size="sm" key={`ai-${tag}`} variant="outline">
+                    <div
+                      key={`ai-${tag}`}
+                      className={buttonVariants({
+                        size: "sm",
+                        variant: "outline",
+                      })}
+                    >
                       <Sparkles className="size-3.5" />
                       {tag}
-                      <button
-                        type="button"
-                        onClick={() => removeAiTag(tag)}
-                        title="Remove tag"
-                      >
+                      <button type="button" title="Remove tag">
                         <X />
                       </button>
-                    </Button>
+                    </div>
                   ))}
 
                   {!showTagInput && (
