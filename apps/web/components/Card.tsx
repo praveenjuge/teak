@@ -95,6 +95,22 @@ export function Card({
               </div>
             )}
 
+            {card.type === "quote" && (
+              <div className="py-4 px-6">
+                <div className="relative">
+                  <p className="line-clamp-3 font-medium italic text-muted-foreground leading-relaxed text-center text-balance">
+                    {card.content}
+                  </p>
+                  <div className="absolute -left-4 -top-3.5 text-4xl text-muted-foreground/20 leading-none">
+                    &ldquo;
+                  </div>
+                  <div className="absolute -right-4 -bottom-7 text-4xl text-muted-foreground/20 leading-none">
+                    &rdquo;
+                  </div>
+                </div>
+              </div>
+            )}
+
             {card.type === "link" && (
               <div>
                 {card.metadata?.microlinkData?.data?.image?.url && (

@@ -15,6 +15,7 @@ import {
   File,
   Moon,
   Palette,
+  Quote,
 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import {
@@ -51,6 +52,7 @@ const iconComponentMap = {
   Volume2,
   File,
   Palette,
+  Quote,
 } as const;
 
 const getFilterIcon = (filter: CardType) => {
