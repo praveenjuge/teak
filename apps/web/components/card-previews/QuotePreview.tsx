@@ -32,7 +32,7 @@ export function QuotePreview({
             onContentChange(newContent);
           }}
           placeholder="Enter your quote..."
-          className="text-xl md:text-2xl font-medium leading-relaxed text-foreground italic text-center resize-none border-0 shadow-none focus-visible:border-0 focus-visible:ring-0 bg-transparent dark:bg-transparent min-h-[200px] text-balance h-auto"
+          className="text-xl md:text-2xl font-medium leading-relaxed text-foreground italic text-center resize-none border-0 shadow-none focus-visible:border-0 focus-visible:ring-0 bg-transparent dark:bg-transparent min-h-[200px] text-balance h-auto font-serif"
           style={{
             lineHeight: "1.6",
           }}
