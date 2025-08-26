@@ -69,7 +69,7 @@ export function MasonryGrid({
       as="article"
       config={{
         columns: [1, 2, 5],
-        gap: [16, 16, 16],
+        gap: [24, 24, 24],
         media: [640, 768, 1024],
         useBalancedLayout: true,
       }}

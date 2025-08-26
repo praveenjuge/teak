@@ -22,7 +22,9 @@ import {
   Volume2,
   File,
   Palette,
+  Plus,
 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 import { useCardModal } from "@/hooks/useCardModal";
 import { type CardType, CARD_TYPE_LABELS } from "@teak/shared/constants";
 import {
@@ -49,6 +51,11 @@ export function CardModal({
   onCancel,
   onCardTypeClick,
 }: CardModalProps) {
+  const [showNotesInput, setShowNotesInput] = useState(false);
+  const [showTagInput, setShowTagInput] = useState(false);
+  const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const tagInputRef = useRef<HTMLInputElement>(null);
+
   const {
     // State
     card,
@@ -84,7 +91,21 @@ export function CardModal({
     isSaved,
   } = useCardModal(cardId, { onCardTypeClick });
 
+  useEffect(() => {
+    if (showNotesInput && notesTextareaRef.current) {
+      notesTextareaRef.current.focus();
+    }
+  }, [showNotesInput]);
+
+  useEffect(() => {
+    if (showTagInput && tagInputRef.current) {
+      tagInputRef.current.focus();
+    }
+  }, [showTagInput]);
+
   const handleClose = () => {
+    setShowNotesInput(false);
+    setShowTagInput(false);
     onCancel?.();
   };
 
@@ -151,7 +172,7 @@ export function CardModal({
   return (
     <Dialog open={open} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent
-        className="md:max-w-7xl max-h-[90vh] p-3 flex flex-col md:flex-row h-[90vh] outline-0 overflow-hidden gap-4 border-0"
+        className="md:max-w-7xl max-h-[90vh] p-4 flex flex-col md:flex-row h-[90vh] outline-0 overflow-hidden gap-4 border-0"
         showCloseButton={false}
       >
         {!card ? (
@@ -162,12 +183,12 @@ export function CardModal({
         ) : (
           <>
             {/* Preview Area (Top on mobile, Left 2/3 on desktop) */}
-            <div className="flex-1 md:flex-[2] p-3 border rounded-md bg-muted/50 overflow-y-auto h-full">
+            <div className="flex-1 md:flex-[2] p-2 border rounded-md bg-muted/50 overflow-y-auto h-full">
               <div className="flex-1 h-full">{renderPreview()}</div>
             </div>
 
             {/* Metadata Panel (Bottom on mobile, Right 1/3 on desktop) */}
-            <div className="flex-1 flex flex-col overflow-y-auto p-1 gap-5">
+            <div className="flex-1 flex flex-col overflow-y-auto gap-5">
               {/* URL (for links or any card with URL) */}
               {(card.type === "link" || card.url) && (
                 <div>
@@ -185,14 +206,29 @@ export function CardModal({
 
               {/* Notes */}
               <div>
-                <Label htmlFor="modal-notes">Notes</Label>
-                <Input
-                  id="modal-notes"
-                  value={getCurrentValue("notes") || ""}
-                  onChange={(e) => updateNotes(e.target.value)}
-                  placeholder="Add notes..."
-                  className="mt-1"
-                />
+                {getCurrentValue("notes") || showNotesInput ? (
+                  <>
+                    <Label htmlFor="modal-notes">Notes</Label>
+                    <Textarea
+                      ref={notesTextareaRef}
+                      id="modal-notes"
+                      value={getCurrentValue("notes") || ""}
+                      onChange={(e) => updateNotes(e.target.value)}
+                      placeholder="Add notes..."
+                      className="mt-1"
+                      rows={3}
+                    />
+                  </>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNotesInput(true)}
+                  >
+                    <Plus />
+                    Add Notes
+                  </Button>
+                )}
               </div>
 
               {/* AI Summary */}
@@ -260,15 +296,30 @@ export function CardModal({
                       </button>
                     </Badge>
                   ))}
+
+                  {!showTagInput && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowTagInput(true)}
+                      className="h-6 text-xs"
+                    >
+                      <Plus className="size-3 stroke-2" />
+                      Add Tags
+                    </Button>
+                  )}
                 </div>
-                <Input
-                  id="modal-tags"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(e, handleClose)}
-                  placeholder="Add tags (press Enter)"
-                  className="mt-1"
-                />
+                {showTagInput && (
+                  <Input
+                    ref={tagInputRef}
+                    id="modal-tags"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, handleClose)}
+                    placeholder="Add tags (press Enter)"
+                    className="mt-1"
+                  />
+                )}
               </div>
 
               {(hasUnsavedChanges || isSaved) && (
@@ -362,7 +413,7 @@ export function CardModal({
                       {card.isFavorited ? "Unfavorite" : "Favorite"}
                     </Button>
                     <Button
-                      variant="destructive"
+                      variant="outline"
                       size="sm"
                       onClick={() => handleDelete(handleClose)}
                     >
