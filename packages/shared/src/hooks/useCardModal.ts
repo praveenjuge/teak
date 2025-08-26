@@ -17,6 +17,7 @@ interface PendingChanges {
   url?: string;
   notes?: string;
   aiSummary?: string;
+  isFavorited?: boolean;
 }
 
 export function useCardModal(cardId: string | null, config: CardModalConfig = {}) {
@@ -34,10 +35,13 @@ export function useCardModal(cardId: string | null, config: CardModalConfig = {}
   const updateCardField = useMutation(api.cards.updateCardField);
   const cardActions = useCardActions(config);
 
-  // Check if there are unsaved changes
+  // Check if there are unsaved changes (exclude isFavorited as it's saved immediately)
   const hasUnsavedChanges = useMemo(() => {
     if (!card) return false;
     return Object.keys(pendingChanges).some(key => {
+      // Exclude isFavorited from unsaved changes since it's saved immediately
+      if (key === 'isFavorited') return false;
+
       const pendingValue = pendingChanges[key as keyof PendingChanges];
       const currentValue = card[key as keyof typeof card];
       return pendingValue !== undefined && pendingValue !== currentValue;
@@ -98,8 +102,25 @@ export function useCardModal(cardId: string | null, config: CardModalConfig = {}
         value,
         tagToRemove,
       });
+
+      // Clear optimistic state after successful server update
+      if (field === "isFavorited") {
+        setPendingChanges(prev => {
+          const { isFavorited, ...rest } = prev;
+          return rest;
+        });
+      }
     } catch (error) {
       console.error(`Failed to update ${field}:`, error);
+
+      // On error, revert optimistic state
+      if (field === "isFavorited") {
+        setPendingChanges(prev => {
+          const { isFavorited, ...rest } = prev;
+          return rest;
+        });
+      }
+
       config.onError?.(error as Error, `update ${field}`);
     }
   }, [cardId, updateCardField, config]);
@@ -122,8 +143,15 @@ export function useCardModal(cardId: string | null, config: CardModalConfig = {}
   }, []);
 
   const toggleFavorite = useCallback(() => {
+    if (!card) return;
+
+    // Optimistic update - immediately flip the favorite state
+    const newFavoriteState = !card.isFavorited;
+    setPendingChanges(prev => ({ ...prev, isFavorited: newFavoriteState }));
+
+    // Make the server call
     updateField("isFavorited");
-  }, [updateField]);
+  }, [card, updateField]);
 
   const removeAiTag = useCallback((tagToRemove: string) => {
     updateField("removeAiTag", undefined, tagToRemove);
@@ -215,14 +243,23 @@ export function useCardModal(cardId: string | null, config: CardModalConfig = {}
     }
   }, [card?.type, config]);
 
-  // Get the current value for form fields (pending changes take priority)
-  const getCurrentValue = useCallback((field: keyof PendingChanges) => {
+  // Get the current value for text form fields (pending changes take priority)
+  const getCurrentValue = useCallback((field: "content" | "url" | "notes" | "aiSummary") => {
     return pendingChanges[field] !== undefined ? pendingChanges[field] : card?.[field];
   }, [card, pendingChanges]);
 
+  // Create a computed card object with optimistic updates applied
+  const cardWithOptimisticUpdates = useMemo(() => {
+    if (!card) return null;
+    return {
+      ...card,
+      isFavorited: pendingChanges.isFavorited !== undefined ? pendingChanges.isFavorited : card.isFavorited,
+    };
+  }, [card, pendingChanges.isFavorited]);
+
   return {
     // State
-    card,
+    card: cardWithOptimisticUpdates,
     tagInput,
     setTagInput,
 
