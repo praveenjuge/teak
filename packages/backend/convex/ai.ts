@@ -372,6 +372,38 @@ export const generateAiMetadata = internalAction({
           break;
         }
 
+        case "quote": {
+          // Generate AI metadata for quotes using the quote content
+          if (card.content?.trim()) {
+            const result = await generateTextMetadata(card.content);
+            aiTags = result.aiTags;
+            aiSummary = result.aiSummary;
+          }
+          break;
+        }
+
+        case "palette": {
+          // Generate AI metadata for color palettes
+          let contentToAnalyze = card.content || "";
+          
+          // Add color information if available
+          if (card.colors && card.colors.length > 0) {
+            const colorInfo = card.colors.map(color => {
+              const parts = [color.hex];
+              if (color.name) parts.push(color.name);
+              return parts.join(" ");
+            }).join(", ");
+            contentToAnalyze = `Colors: ${colorInfo}\n${contentToAnalyze}`;
+          }
+
+          if (contentToAnalyze.trim()) {
+            const result = await generateTextMetadata(contentToAnalyze);
+            aiTags = result.aiTags;
+            aiSummary = result.aiSummary;
+          }
+          break;
+        }
+
         default:
           console.log(
             `AI generation not implemented for card type: ${card.type}`

@@ -1,6 +1,6 @@
 // === Card Types ===
 // NOTE: Keep in sync with packages/convex/schema.ts
-export const cardTypes = ["text", "link", "image", "video", "audio", "document", "palette"] as const;
+export const cardTypes = ["text", "link", "image", "video", "audio", "document", "palette", "quote"] as const;
 
 // === Derived Constants from Schema ===
 
@@ -29,6 +29,7 @@ export const CARD_TYPE_LABELS: Record<CardType, string> = {
   audio: "Audio",
   document: "Document",
   palette: "Palette",
+  quote: "Quote",
 } as const;
 
 /**
@@ -42,6 +43,7 @@ export const CARD_TYPE_ICONS: Record<CardType, string> = {
   audio: "Volume2",
   document: "File",
   palette: "Palette",
+  quote: "Quote",
 } as const;
 
 /**
@@ -60,13 +62,13 @@ export const CARD_TYPE_REGISTRY: Record<CardType, CardTypeConfig> = {
     searchLabel: "Text",
   },
   link: {
-    label: "Link", 
+    label: "Link",
     icon: "Link",
     searchLabel: "Links",
   },
   image: {
     label: "Image",
-    icon: "Image", 
+    icon: "Image",
     searchLabel: "Images",
   },
   video: {
@@ -82,12 +84,17 @@ export const CARD_TYPE_REGISTRY: Record<CardType, CardTypeConfig> = {
   document: {
     label: "Document",
     icon: "File",
-    searchLabel: "Documents", 
+    searchLabel: "Documents",
   },
   palette: {
     label: "Palette",
     icon: "Palette",
     searchLabel: "Palettes",
+  },
+  quote: {
+    label: "Quote",
+    icon: "Quote",
+    searchLabel: "Quotes",
   },
 } as const;
 

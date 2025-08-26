@@ -350,6 +350,25 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           </TouchableOpacity>
         );
 
+      case "quote":
+        if (!card.content) {
+          return null;
+        }
+        return (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onLongPress={handleLongPress}
+            style={[styles.card, dynamicStyles.card, styles.cardPadding]}
+          >
+            <View style={styles.quoteContent}>
+              <Text style={[styles.quoteIcon, dynamicStyles.mutedText]}>"</Text>
+              <Text style={[styles.quoteText, dynamicStyles.text]}>
+                {card.content}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        );
+
       case "document":
         return (
           <TouchableOpacity
@@ -651,5 +670,24 @@ const styles = StyleSheet.create({
     marginTop: 8,
     opacity: 0.8,
     lineHeight: 18,
+  },
+  // Quote card styles
+  quoteContent: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  quoteIcon: {
+    fontSize: 24,
+    fontWeight: "bold",
+    opacity: 0.3,
+    marginRight: 8,
+    marginTop: -4,
+  },
+  quoteText: {
+    flex: 1,
+    fontSize: 15,
+    fontStyle: "italic",
+    lineHeight: 20,
+    opacity: 0.8,
   },
 });

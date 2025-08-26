@@ -10,6 +10,7 @@ export const cardTypes = [
   "audio",
   "document",
   "palette",
+  "quote",
 ] as const;
 
 // Reusable validators

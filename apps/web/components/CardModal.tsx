@@ -22,6 +22,7 @@ import {
   File,
   Palette,
   Plus,
+  Quote,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useCardModal } from "@/hooks/useCardModal";
@@ -38,6 +39,7 @@ import {
   DocumentPreview,
   TextPreview,
   PalettePreview,
+  QuotePreview,
 } from "./card-previews";
 import { Loading } from "./Loading";
 
@@ -71,7 +73,6 @@ export function CardModal({
     updateNotes,
     updateAiSummary,
     toggleFavorite,
-    removeAiTag,
 
     // Tag management
     removeTag,
@@ -131,6 +132,7 @@ export function CardModal({
     Volume2,
     File,
     Palette,
+    Quote,
   } as const;
 
   const getCardTypeIconComponent = (cardType: CardType) => {
@@ -145,6 +147,14 @@ export function CardModal({
       case "text":
         return (
           <TextPreview
+            card={card}
+            onContentChange={updateContent}
+            getCurrentValue={getCurrentValue}
+          />
+        );
+      case "quote":
+        return (
+          <QuotePreview
             card={card}
             onContentChange={updateContent}
             getCurrentValue={getCurrentValue}
