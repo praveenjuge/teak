@@ -98,7 +98,7 @@ export function SearchBar({
   );
 
   return (
-    <div className="bg-background">
+    <div>
       <div className="flex items-center group">
         <div className="flex items-center gap-2">
           <Search className="text-muted-foreground size-4 group-focus-within:text-primary group-focus-within:stroke-[2.5] group-hover:text-primary group-hover:stroke-[2.5]" />
