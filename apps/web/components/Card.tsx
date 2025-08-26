@@ -77,7 +77,7 @@ export function Card({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <UICard
-          className={`cursor-pointer relative p-0 overflow-hidden ${
+          className={`cursor-pointer bg-transparent rounded-none border-0 relative p-0 overflow-hidden ${
             card.isDeleted ? "opacity-60" : ""
           }`}
           onClick={handleClick}
@@ -90,13 +90,13 @@ export function Card({
 
           <CardContent className="p-0 space-y-2">
             {card.type === "text" && (
-              <div className="p-4">
+              <div className="p-4 bg-background rounded-xl border">
                 <p className="line-clamp-3 font-medium">{card.content}</p>
               </div>
             )}
 
             {card.type === "quote" && (
-              <div className="py-4 px-6">
+              <div className="py-4 px-6 bg-background rounded-xl border">
                 <div className="relative">
                   <p className="line-clamp-3 font-medium italic text-muted-foreground leading-relaxed text-center text-balance">
                     {card.content}
@@ -113,19 +113,26 @@ export function Card({
 
             {card.type === "link" && (
               <div>
-                {card.metadata?.microlinkData?.data?.image?.url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={card.metadata.microlinkData.data.image.url}
-                    alt=""
-                    className="w-full h-28 object-cover"
-                  />
+                {card.metadata?.microlinkData?.data?.image?.url ? (
+                  <>
+                    <img
+                      src={card.metadata.microlinkData.data.image.url}
+                      alt=""
+                      className="w-full h-28 object-cover bg-background rounded-xl border"
+                    />
+                    <div className="p-2 pb-0">
+                      <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
+                        {card.metadata?.microlinkData?.data?.title || card.url}
+                      </h4>
+                    </div>
+                  </>
+                ) : (
+                  <div className="p-4 bg-background rounded-xl border">
+                    <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
+                      {card.metadata?.microlinkData?.data?.title || card.url}
+                    </h4>
+                  </div>
                 )}
-                <div className="p-4">
-                  <h4 className="font-medium line-clamp-1">
-                    {card.metadata?.microlinkData?.data?.title || card.url}
-                  </h4>
-                </div>
               </div>
             )}
 
@@ -139,13 +146,13 @@ export function Card({
             )}
 
             {card.type === "video" && (
-              <div className="w-full h-32 flex items-center justify-center">
+              <div className="w-full h-32 flex items-center justify-center bg-background text-muted-foreground rounded-xl border">
                 <Video />
               </div>
             )}
 
             {card.type === "audio" && (
-              <div className="flex h-14 items-center justify-between space-x-0.5 px-4 py-2">
+              <div className="flex h-14 items-center justify-between space-x-0.5 px-4 py-2 bg-background rounded-xl border">
                 {Array.from({ length: 45 }).map((_, i) => (
                   <div
                     className="rounded-full bg-muted-foreground"
@@ -160,7 +167,7 @@ export function Card({
             )}
 
             {card.type === "document" && (
-              <div className="p-4 flex gap-2 items-center">
+              <div className="p-4 flex gap-2 items-center bg-background rounded-xl border">
                 <File className="shrink-0 size-4 text-muted-foreground" />
                 <span className="truncate font-medium">
                   {card.fileMetadata?.fileName || card.content}
@@ -169,7 +176,7 @@ export function Card({
             )}
 
             {card.type === "palette" && (
-              <div className="flex">
+              <div className="flex bg-background rounded-xl border overflow-hidden">
                 {card.colors?.slice(0, 12).map((color, index) => (
                   <div
                     key={`${color.hex}-${index}`}
@@ -257,16 +264,13 @@ function GridImagePreview({
           aspectRatio: aspectRatio.toString(),
           minHeight: "100px", // Prevent collapse during loading
         }}
+        className="bg-background rounded-xl border"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={fileUrl}
           alt={altText}
-          className="w-full h-full object-cover min-h-6"
-          style={{
-            aspectRatio: aspectRatio.toString(),
-            display: "block", // Prevent inline spacing issues
-          }}
+          className="w-full h-full object-cover"
           loading="lazy"
         />
       </div>
@@ -276,6 +280,10 @@ function GridImagePreview({
   // Fallback for images without dimension metadata
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={fileUrl} alt={altText} className="w-full object-cover" />
+    <img
+      src={fileUrl}
+      alt={altText}
+      className="w-full object-cover bg-background rounded-xl border"
+    />
   );
 }
