@@ -1,6 +1,6 @@
 import { Suspense, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Search,
   Hash,
@@ -98,7 +98,7 @@ export function SearchBar({
   );
 
   return (
-    <div>
+    <>
       <div className="flex items-center group">
         <div className="flex items-center gap-2">
           <Search className="text-muted-foreground size-4 group-focus-within:text-primary group-focus-within:stroke-[2.5] group-hover:text-primary group-hover:stroke-[2.5]" />
@@ -144,135 +144,91 @@ export function SearchBar({
 
       {shouldShowFilters && (
         <div
-          className="pb-4 animate-in slide-in-from-top-2 fade-in-0 duration-200"
+          className="pb-5 animate-in slide-in-from-top-2 fade-in-0 duration-200"
           onMouseDown={(e) => e.preventDefault()}
         >
           <div className="flex flex-wrap gap-2">
             {/* Keyword tags */}
             {keywordTags.map((keyword) => (
-              <Badge
+              <Button
                 key={`keyword-${keyword}`}
                 variant="default"
-                className="cursor-pointer"
-                asChild
+                size="sm"
+                onClick={() => onRemoveKeyword(keyword)}
               >
-                <button
-                  type="button"
-                  onClick={() => onRemoveKeyword(keyword)}
-                  className="flex items-center gap-1"
-                >
-                  <Hash className="size-3" />
-                  <span>{keyword}</span>
-                </button>
-              </Badge>
+                <Hash className="size-3.5 stroke-2" />
+                <span>{keyword}</span>
+              </Button>
             ))}
 
             {/* Active filters */}
             {filterTags.map((filter) => {
               const IconComponent = getFilterIcon(filter);
               return (
-                <Badge
+                <Button
                   key={`filter-${filter}`}
                   variant="default"
-                  className="cursor-pointer"
-                  asChild
+                  size="sm"
+                  onClick={() => onRemoveFilter(filter)}
                 >
-                  <button
-                    type="button"
-                    onClick={() => onRemoveFilter(filter)}
-                    className="flex items-center gap-1"
-                  >
-                    <IconComponent className="size-3" />
-                    <span>{CARD_TYPE_LABELS[filter]}</span>
-                  </button>
-                </Badge>
+                  <IconComponent className="size-3.5 stroke-2" />
+                  <span>{CARD_TYPE_LABELS[filter]}</span>
+                </Button>
               );
             })}
 
             {showFavoritesOnly && (
-              <Badge variant="default" className="cursor-pointer" asChild>
-                <button
-                  type="button"
-                  onClick={onToggleFavorites}
-                  className="flex items-center gap-1"
-                >
-                  <Heart className="size-3" />
-                  <span>Favorites</span>
-                </button>
-              </Badge>
+              <Button variant="default" size="sm" onClick={onToggleFavorites}>
+                <Heart className="size-3.5 stroke-2" />
+                <span>Favorites</span>
+              </Button>
             )}
 
             {showTrashOnly && (
-              <Badge variant="default" className="cursor-pointer" asChild>
-                <button
-                  type="button"
-                  onClick={onToggleTrash}
-                  className="flex items-center gap-1"
-                >
-                  <Trash2 className="size-3" />
-                  <span>Trash</span>
-                </button>
-              </Badge>
+              <Button variant="default" size="sm" onClick={onToggleTrash}>
+                <Trash2 className="size-3.5 stroke-2" />
+                <span>Trash</span>
+              </Button>
             )}
 
             {/* Available filters */}
             {availableFilters.map((filter) => {
               const IconComponent = getFilterIcon(filter);
               return (
-                <Badge
+                <Button
                   key={`available-${filter}`}
                   variant="outline"
-                  className="cursor-pointer"
-                  asChild
+                  size="sm"
+                  onClick={() => onAddFilter(filter)}
                 >
-                  <button
-                    type="button"
-                    onClick={() => onAddFilter(filter)}
-                    className="flex items-center gap-1"
-                  >
-                    <IconComponent className="size-3" />
-                    <span>{CARD_TYPE_LABELS[filter]}</span>
-                  </button>
-                </Badge>
+                  <IconComponent className="size-3.5 stroke-2" />
+                  <span>{CARD_TYPE_LABELS[filter]}</span>
+                </Button>
               );
             })}
 
             {!showFavoritesOnly && (
-              <Badge variant="outline" className="cursor-pointer" asChild>
-                <button
-                  type="button"
-                  onClick={onToggleFavorites}
-                  className="flex items-center gap-1"
-                >
-                  <Heart className="size-3" />
-                  <span>Favorites</span>
-                </button>
-              </Badge>
+              <Button variant="outline" size="sm" onClick={onToggleFavorites}>
+                <Heart className="size-3.5 stroke-2" />
+                <span>Favorites</span>
+              </Button>
             )}
 
             {!showTrashOnly && (
-              <Badge variant="outline" className="cursor-pointer" asChild>
-                <button
-                  type="button"
-                  onClick={onToggleTrash}
-                  className="flex items-center gap-1"
-                >
-                  <Trash2 className="size-3" />
-                  <span>Trash</span>
-                </button>
-              </Badge>
+              <Button variant="outline" size="sm" onClick={onToggleTrash}>
+                <Trash2 className="size-3.5 stroke-2" />
+                <span>Trash</span>
+              </Button>
             )}
 
             {hasAnyFilters && (
-              <Badge variant="outline" className="cursor-pointer" asChild>
-                <button type="button" onClick={onClearAll}>
-                  Clear All
-                </button>
-              </Badge>
+              <Button variant="outline" size="sm" onClick={onClearAll}>
+                Clear All
+              </Button>
             )}
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

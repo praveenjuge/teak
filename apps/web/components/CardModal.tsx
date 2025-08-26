@@ -183,24 +183,44 @@ export function CardModal({
         ) : (
           <>
             {/* Preview Area (Top on mobile, Left 2/3 on desktop) */}
-            <div className="flex-1 md:flex-[2] p-2 border rounded-md bg-muted/50 overflow-y-auto h-full">
+            <div className="flex-1 md:flex-[2] p-2 border rounded-md bg-muted/50 overflow-y-auto h-full relative">
               <div className="flex-1 h-full">{renderPreview()}</div>
+              {card.fileId &&
+                (card.type === "document" ||
+                  card.type === "audio" ||
+                  card.type === "video" ||
+                  card.type === "image") && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={downloadFile}
+                    className="absolute bottom-2 right-2"
+                  >
+                    <Download />
+                    Download
+                  </Button>
+                )}
             </div>
 
             {/* Metadata Panel (Bottom on mobile, Right 1/3 on desktop) */}
-            <div className="flex-1 flex flex-col overflow-y-auto gap-5">
+            <div className="flex-1 flex flex-col overflow-y-auto px-1 gap-5">
               {/* URL (for links or any card with URL) */}
               {(card.type === "link" || card.url) && (
                 <div>
                   <Label htmlFor="modal-url">URL</Label>
-                  <Input
-                    id="modal-url"
-                    type="url"
-                    value={getCurrentValue("url") || ""}
-                    onChange={(e) => updateUrl(e.target.value)}
-                    placeholder="https://example.com"
-                    className="mt-1"
-                  />
+                  <div className="mt-1 flex gap-2">
+                    <Input
+                      id="modal-url"
+                      type="url"
+                      value={getCurrentValue("url") || ""}
+                      onChange={(e) => updateUrl(e.target.value)}
+                      placeholder="https://example.com"
+                      className="flex-1"
+                    />
+                    <Button variant="outline" size="icon" onClick={openLink}>
+                      <ExternalLink />
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -252,59 +272,50 @@ export function CardModal({
                 <div className="flex flex-wrap gap-1 my-1.5">
                   {/* Card Type Tag (non-dismissible) */}
                   {card.type && (
-                    <Badge
+                    <Button
+                      size="sm"
                       variant="outline"
-                      className="cursor-pointer flex items-center gap-1"
                       onClick={handleCardTypeClick}
                     >
                       {(() => {
                         const IconComponent = getCardTypeIcon(
                           card.type as CardType
                         );
-                        return <IconComponent className="size-3" />;
+                        return <IconComponent className="size-3.5 stroke-2" />;
                       })()}
                       {CARD_TYPE_LABELS[card.type as CardType]}
-                    </Badge>
+                    </Button>
                   )}
 
                   {card.tags?.map((tag: string) => (
-                    <Badge
-                      key={tag}
-                      variant="outline"
-                      className="flex items-center gap-1"
-                    >
+                    <Button key={tag} size="sm" variant="outline">
                       {tag}
                       <button type="button" onClick={() => removeTag(tag)}>
-                        <X className="size-3" />
+                        <X />
                       </button>
-                    </Badge>
+                    </Button>
                   )) || []}
                   {card.aiTags?.map((tag: string) => (
-                    <Badge
-                      key={`ai-${tag}`}
-                      variant="outline"
-                      className="flex items-center gap-1"
-                    >
-                      <Sparkles className="size-3" />
+                    <Button size="sm" key={`ai-${tag}`} variant="outline">
+                      <Sparkles className="size-3.5" />
                       {tag}
                       <button
                         type="button"
                         onClick={() => removeAiTag(tag)}
-                        title="Remove AI tag"
+                        title="Remove tag"
                       >
-                        <X className="size-3" />
+                        <X />
                       </button>
-                    </Badge>
+                    </Button>
                   ))}
 
                   {!showTagInput && (
                     <Button
-                      variant="outline"
                       size="sm"
+                      variant="outline"
                       onClick={() => setShowTagInput(true)}
-                      className="h-6 text-xs"
                     >
-                      <Plus className="size-3 stroke-2" />
+                      <Plus />
                       Add Tags
                     </Button>
                   )}
@@ -378,24 +389,6 @@ export function CardModal({
 
               {/* Action Buttons */}
               <div className="flex flex-wrap gap-2">
-                {card.url && (
-                  <Button variant="outline" size="sm" onClick={openLink}>
-                    <ExternalLink />
-                    Open Link
-                  </Button>
-                )}
-
-                {card.fileId &&
-                  (card.type === "document" ||
-                    card.type === "audio" ||
-                    card.type === "video" ||
-                    card.type === "image") && (
-                    <Button variant="outline" size="sm" onClick={downloadFile}>
-                      <Download />
-                      Download
-                    </Button>
-                  )}
-
                 {!card.isDeleted && (
                   <>
                     <Button
