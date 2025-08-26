@@ -276,8 +276,7 @@ export function CardModal({
 
               {/* Tags */}
               <div>
-                <Label htmlFor="modal-tags">Tags</Label>
-                <div className="flex flex-wrap gap-1 my-1.5">
+                <div className="flex flex-wrap gap-1">
                   {/* Card Type Tag (non-dismissible) */}
                   {card.type && (
                     <Button

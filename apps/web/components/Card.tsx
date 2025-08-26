@@ -264,7 +264,7 @@ function GridImagePreview({
           aspectRatio: aspectRatio.toString(),
           minHeight: "100px", // Prevent collapse during loading
         }}
-        className="bg-background rounded-xl border"
+        className="bg-background rounded-xl border overflow-hidden"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
