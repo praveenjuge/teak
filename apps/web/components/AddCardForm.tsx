@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Mic, Square, Upload } from "lucide-react";
 import { api } from "@teak/convex";
 import { useFileUpload } from "@teak/shared";
-import { parseColorsFromText } from "@teak/shared";
 import { toast } from "sonner";
 
 interface AddCardFormProps {
@@ -190,46 +189,11 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     setIsSubmitting(true);
 
     try {
-      let finalContent = content;
-      let finalUrl = url;
-
-      // Smart detection: Check for colors first
-      const colors = parseColorsFromText(content);
-      if (colors.length > 0) {
-        // Create a palette card
-        await createCard({
-          content: finalContent,
-          type: "palette",
-          colors: colors,
-        });
-      } else {
-        // Check if content is only a URL, make it a link card
-        const trimmedContent = content.trim();
-        const urlPattern = /^https?:\/\/[^\s]+$/;
-
-        if (urlPattern.test(trimmedContent)) {
-          finalUrl = trimmedContent;
-          finalContent = trimmedContent;
-
-          await createCard({
-            content: finalContent,
-            type: "link",
-            url: finalUrl,
-          });
-        } else {
-          // Extract URL from text content if present
-          const urlMatch = trimmedContent.match(/(https?:\/\/[^\s]+)/);
-          if (urlMatch) {
-            finalUrl = urlMatch[1];
-          }
-
-          await createCard({
-            content: finalContent,
-            type: "text",
-            url: finalUrl || undefined,
-          });
-        }
-      }
+      // Let backend handle type detection and processing
+      await createCard({
+        content: content,
+        url: url || undefined,
+      });
 
       // Reset form
       setContent("");
