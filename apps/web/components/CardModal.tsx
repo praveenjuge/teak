@@ -15,8 +15,16 @@ import {
   Trash,
   Trash2,
   X,
+  FileText,
+  Link,
+  Image,
+  Video,
+  Volume2,
+  File,
+  Palette,
 } from "lucide-react";
 import { useCardModal } from "@/hooks/useCardModal";
+import { type CardType, CARD_TYPE_LABELS } from "@teak/shared/constants";
 import {
   LinkPreview,
   ImagePreview,
@@ -32,9 +40,15 @@ interface CardModalProps {
   cardId: string | null;
   open: boolean;
   onCancel?: () => void;
+  onCardTypeClick?: (cardType: string) => void;
 }
 
-export function CardModal({ cardId, open, onCancel }: CardModalProps) {
+export function CardModal({
+  cardId,
+  open,
+  onCancel,
+  onCardTypeClick,
+}: CardModalProps) {
   const {
     // State
     card,
@@ -61,13 +75,14 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
     openLink,
     downloadFile,
     handleKeyDown,
+    handleCardTypeClick,
 
     // Save functionality
     saveChanges,
     hasUnsavedChanges,
     getCurrentValue,
     isSaved,
-  } = useCardModal(cardId);
+  } = useCardModal(cardId, { onCardTypeClick });
 
   const handleClose = () => {
     onCancel?.();
@@ -81,6 +96,27 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const getCardTypeIcon = (cardType: CardType) => {
+    switch (cardType) {
+      case "text":
+        return FileText;
+      case "link":
+        return Link;
+      case "image":
+        return Image;
+      case "video":
+        return Video;
+      case "audio":
+        return Volume2;
+      case "document":
+        return File;
+      case "palette":
+        return Palette;
+      default:
+        return FileText;
+    }
   };
 
   const renderPreview = () => {
@@ -131,43 +167,7 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
             </div>
 
             {/* Metadata Panel (Bottom on mobile, Right 1/3 on desktop) */}
-            <div className="flex-1 flex flex-col overflow-y-auto px-1 gap-5">
-              <div className="flex items-center justify-between">
-                <DialogTitle className="text-sm font-semibold">
-                  {card.type.charAt(0).toUpperCase() + card.type.slice(1)} Card
-                </DialogTitle>
-                <div className="flex items-center gap-2">
-                  {(hasUnsavedChanges || isSaved) && (
-                    <Button
-                      variant={isSaved ? "outline" : "default"}
-                      size="sm"
-                      onClick={saveChanges}
-                      disabled={isSaved}
-                    >
-                      {isSaved ? (
-                        <>
-                          <Check />
-                          Saved!
-                        </>
-                      ) : (
-                        <>
-                          <Save />
-                          Save
-                        </>
-                      )}
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    onClick={handleClose}
-                  >
-                    <X />
-                  </Button>
-                </div>
-              </div>
-
+            <div className="flex-1 flex flex-col overflow-y-auto p-1 gap-5">
               {/* URL (for links or any card with URL) */}
               {(card.type === "link" || card.url) && (
                 <div>
@@ -214,6 +214,23 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
               <div>
                 <Label htmlFor="modal-tags">Tags</Label>
                 <div className="flex flex-wrap gap-1 my-1.5">
+                  {/* Card Type Tag (non-dismissible) */}
+                  {card.type && (
+                    <Badge
+                      variant="outline"
+                      className="cursor-pointer flex items-center gap-1"
+                      onClick={handleCardTypeClick}
+                    >
+                      {(() => {
+                        const IconComponent = getCardTypeIcon(
+                          card.type as CardType
+                        );
+                        return <IconComponent className="size-3" />;
+                      })()}
+                      {CARD_TYPE_LABELS[card.type as CardType]}
+                    </Badge>
+                  )}
+
                   {card.tags?.map((tag: string) => (
                     <Badge
                       key={tag}
@@ -222,7 +239,7 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                     >
                       {tag}
                       <button type="button" onClick={() => removeTag(tag)}>
-                        <X className="w-3 h-3" />
+                        <X className="size-3" />
                       </button>
                     </Badge>
                   )) || []}
@@ -232,14 +249,14 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                       variant="outline"
                       className="flex items-center gap-1"
                     >
-                      <Sparkles className="w-3 h-3" />
+                      <Sparkles className="size-3" />
                       {tag}
                       <button
                         type="button"
                         onClick={() => removeAiTag(tag)}
                         title="Remove AI tag"
                       >
-                        <X className="w-3 h-3" />
+                        <X className="size-3" />
                       </button>
                     </Badge>
                   ))}
@@ -253,6 +270,27 @@ export function CardModal({ cardId, open, onCancel }: CardModalProps) {
                   className="mt-1"
                 />
               </div>
+
+              {(hasUnsavedChanges || isSaved) && (
+                <Button
+                  variant={isSaved ? "outline" : "default"}
+                  size="sm"
+                  onClick={saveChanges}
+                  disabled={isSaved}
+                >
+                  {isSaved ? (
+                    <>
+                      <Check />
+                      Saved!
+                    </>
+                  ) : (
+                    <>
+                      <Save />
+                      Save
+                    </>
+                  )}
+                </Button>
+              )}
 
               {/* File Metadata (read-only) */}
               <div className="space-y-2 text-muted-foreground">

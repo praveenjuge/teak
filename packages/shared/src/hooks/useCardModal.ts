@@ -9,6 +9,7 @@ export interface CardModalConfig {
   onSuccess?: (message: string) => void;
   onOpenLink?: (url: string) => void;
   onClose?: () => void;
+  onCardTypeClick?: (cardType: string) => void;
 }
 
 interface PendingChanges {
@@ -207,6 +208,13 @@ export function useCardModal(cardId: string | null, config: CardModalConfig = {}
     }
   }, [tagInput, addTag, config]);
 
+  // Handle card type tag click
+  const handleCardTypeClick = useCallback(() => {
+    if (card?.type) {
+      config.onCardTypeClick?.(card.type);
+    }
+  }, [card?.type, config]);
+
   // Get the current value for form fields (pending changes take priority)
   const getCurrentValue = useCallback((field: keyof PendingChanges) => {
     return pendingChanges[field] !== undefined ? pendingChanges[field] : card?.[field];
@@ -239,6 +247,7 @@ export function useCardModal(cardId: string | null, config: CardModalConfig = {}
     openLink,
     downloadFile,
     handleKeyDown,
+    handleCardTypeClick,
 
     // Save functionality
     saveChanges,

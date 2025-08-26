@@ -14,6 +14,7 @@ import {
   Volume2,
   File,
   Moon,
+  Palette,
 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { type CardType, CARD_TYPE_LABELS } from "@teak/shared/constants";
@@ -50,6 +51,8 @@ const getFilterIcon = (filter: CardType) => {
       return Volume2;
     case "document":
       return File;
+    case "palette":
+      return Palette;
     default:
       return FileText;
   }
@@ -88,6 +91,7 @@ export function SearchBar({
     "video",
     "audio",
     "document",
+    "palette",
   ];
   const availableFilters = availableCardTypes.filter(
     (type) => !filterTags.includes(type)
