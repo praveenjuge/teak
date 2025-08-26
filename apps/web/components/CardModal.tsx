@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -287,6 +286,18 @@ export function CardModal({
                     </Button>
                   )}
 
+                  {/* Favorite Button */}
+                  <Button size="sm" variant="outline" onClick={toggleFavorite}>
+                    <Heart
+                      className={`size-3.5 stroke-2 ${
+                        card.isFavorited
+                          ? "fill-destructive text-destructive"
+                          : ""
+                      }`}
+                    />
+                    {card.isFavorited ? "Unfavorite" : "Add to Favorites"}
+                  </Button>
+
                   {card.tags?.map((tag: string) => (
                     <Button key={tag} size="sm" variant="outline">
                       {tag}
@@ -390,30 +401,14 @@ export function CardModal({
               {/* Action Buttons */}
               <div className="flex flex-wrap gap-2">
                 {!card.isDeleted && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={toggleFavorite}
-                    >
-                      <Heart
-                        className={`${
-                          card.isFavorited
-                            ? "fill-destructive text-destructive"
-                            : ""
-                        }`}
-                      />
-                      {card.isFavorited ? "Unfavorite" : "Favorite"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(handleClose)}
-                    >
-                      <Trash2 />
-                      Delete
-                    </Button>
-                  </>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDelete(handleClose)}
+                  >
+                    <Trash2 />
+                    Delete
+                  </Button>
                 )}
 
                 {card.isDeleted && (
