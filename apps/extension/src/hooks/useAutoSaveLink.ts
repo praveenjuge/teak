@@ -23,20 +23,20 @@ const INVALID_URL_PATTERNS = [
 
 const isValidUrl = (url: string): boolean => {
   if (!url) return false;
-  
+
   // Check against invalid patterns
   for (const pattern of INVALID_URL_PATTERNS) {
     if (pattern.test(url)) {
       return false;
     }
   }
-  
+
   // Must be http or https
   return url.startsWith("http://") || url.startsWith("https://");
 };
 
 export const useAutoSaveLink = (
-  isAuthenticated: boolean = false, 
+  isAuthenticated: boolean = false,
   contextMenuState?: { status: string; url?: string } | null
 ): UseAutoSaveLinkResult => {
   const [state, setState] = useState<AutoSaveState>("idle");
@@ -63,7 +63,7 @@ export const useAutoSaveLink = (
         // Get current tab
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         const currentTab = tabs[0];
-        
+
         if (!currentTab?.url) {
           setState("error");
           setError("No active tab found");
@@ -80,15 +80,13 @@ export const useAutoSaveLink = (
 
         setState("loading");
 
-        // Create the link card
+        // Create the card - backend will auto-detect as link
         await createCard({
           content: currentTab.url,
-          type: "link",
-          url: currentTab.url,
         });
 
         setState("success");
-        
+
         // Reset to idle after 2 seconds
         setTimeout(() => {
           setState("idle");
@@ -106,16 +104,16 @@ export const useAutoSaveLink = (
       try {
         // Check background script directly for context menu state
         const backgroundState = await chrome.runtime.sendMessage({ type: 'GET_CONTEXT_MENU_STATE' });
-        
+
         // Check if state is recent (within last 30 seconds) - same logic as useContextMenuState
         const isRecentContextMenuState = backgroundState && (Date.now() - backgroundState.timestamp) < 30000;
-        
+
         // If there's recent context menu state, don't auto-save
         if (isRecentContextMenuState) {
           setState("idle");
           return;
         }
-        
+
         // No recent context menu state, proceed with auto-save
         await saveCurrentTab();
       } catch (error) {

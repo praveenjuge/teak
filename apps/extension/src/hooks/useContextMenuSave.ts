@@ -14,8 +14,6 @@ export const useContextMenuSave = () => {
     try {
       const cardId = await createCard({
         content: url,
-        type: "link",
-        url: url,
       });
 
       return {
@@ -35,7 +33,6 @@ export const useContextMenuSave = () => {
     try {
       const cardId = await createCard({
         content: text,
-        type: "text",
         url: sourceUrl,
       });
 

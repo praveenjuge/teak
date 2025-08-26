@@ -29,31 +29,6 @@ function isValidUrl(string: string): boolean {
   }
 }
 
-
-// Use the utility function
-const isUrl = isValidUrl;
-
-function detectCardType(content: string): {
-  type: Card["type"];
-  content: string;
-  url?: string;
-} {
-  const trimmedContent = content.trim();
-
-  if (isUrl(trimmedContent)) {
-    return {
-      type: "link",
-      content: trimmedContent,
-      url: trimmedContent,
-    };
-  }
-
-  return {
-    type: "text",
-    content: trimmedContent,
-  };
-}
-
 export default function AddScreen() {
   const [content, setContent] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -270,11 +245,10 @@ export default function AddScreen() {
       return;
     }
 
-    const cardData = detectCardType(trimmedContent);
-
     try {
+      // Let backend handle type detection and processing
       await createCard({
-        ...cardData,
+        content: trimmedContent,
       });
 
       setContent("");
@@ -424,7 +398,7 @@ export default function AddScreen() {
               borderRadius: 8,
               marginHorizontal: 20,
               borderLeftWidth: 4,
-              borderLeftColor: isUrl(content.trim())
+              borderLeftColor: isValidUrl(content.trim())
                 ? colors.systemGreen
                 : colors.primary,
             }}
@@ -435,16 +409,16 @@ export default function AddScreen() {
                 fontWeight: "500",
               }}
             >
-              {isUrl(content.trim()) ? "🔗 URL Detected" : "📝 Text Note"}
+              {isValidUrl(content.trim()) ? "🔗 URL Detected" : "📝 Text Note"}
             </Text>
-            {isUrl(content.trim()) && (
+            {isValidUrl(content.trim()) && (
               <Text
                 style={{
                   color: colors.secondaryLabel,
                   marginTop: 4,
                 }}
               >
-                This will be saved as a bookmark
+                This will be automatically saved as a bookmark
               </Text>
             )}
           </View>
