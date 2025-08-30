@@ -15,7 +15,7 @@ const EXTENSION_URL = chrome.runtime.getURL(".");
 
 if (!PUBLISHABLE_KEY) {
   throw new Error(
-    "Please add the PLASMO_PUBLIC_CLERK_PUBLISHABLE_KEY to the .env.development file"
+    "Please add the VITE_PUBLIC_CLERK_PUBLISHABLE_KEY to the .env.local or .env.chrome file"
   );
 }
 
