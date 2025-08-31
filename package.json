@@ -8,7 +8,7 @@
   "scripts": {
     "build": "cd apps/web && bun run build",
     "predev": "cd packages/backend && bunx convex dev --until-success",
-    "dev": "concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
+    "dev": "pkill -f 'port 3000' || true && concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
     "dev:backend": "cd packages/backend && bunx convex dev",
     "dev:frontend": "cd apps/web && bun dev",
     "dev:mobile": "cd apps/mobile && bun dev",
