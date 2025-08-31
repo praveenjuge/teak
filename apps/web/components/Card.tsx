@@ -1,4 +1,5 @@
 import {
+  CheckSquare,
   ExternalLink,
   File,
   Heart,
@@ -18,6 +19,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Card as UICard, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { type Doc } from "@teak/convex/_generated/dataModel";
 
 interface CardProps {
@@ -28,6 +30,10 @@ interface CardProps {
   onPermanentDelete?: (cardId: string) => void;
   onToggleFavorite?: (cardId: string) => void;
   isTrashMode?: boolean;
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
+  onEnterSelectionMode?: (cardId: string) => void;
+  onToggleSelection?: () => void;
 }
 
 // Simple seeded random function for consistent wave patterns
@@ -46,6 +52,10 @@ export function Card({
   onRestore,
   onPermanentDelete,
   onToggleFavorite,
+  isSelectionMode,
+  isSelected,
+  onEnterSelectionMode,
+  onToggleSelection,
 }: CardProps) {
   const handleClick = () => {
     onClick?.(card);
@@ -73,15 +83,27 @@ export function Card({
     }
   };
 
+  const handleSelect = () => {
+    onEnterSelectionMode?.(card._id);
+  };
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <UICard
           className={`cursor-pointer bg-transparent rounded-none border-0 relative p-0 overflow-hidden ${
             card.isDeleted ? "opacity-60" : ""
-          }`}
+          } ${isSelected ? "ring-2 ring-primary rounded-xl" : ""}`}
           onClick={handleClick}
         >
+          {isSelectionMode && (
+            <div className="absolute top-3 left-3 z-10">
+              <Checkbox
+                checked={isSelected}
+                className="select-auto pointer-events-none"
+              />
+            </div>
+          )}
           {card.isFavorited && (
             <div className="absolute top-3 right-3 z-10">
               <Heart className="size-4 fill-destructive text-destructive" />
@@ -203,6 +225,18 @@ export function Card({
 
         {!card.isDeleted && (
           <>
+            {!isSelectionMode && (
+              <ContextMenuItem onClick={handleSelect}>
+                <CheckSquare />
+                Select
+              </ContextMenuItem>
+            )}
+            {isSelectionMode && (
+              <ContextMenuItem onClick={onToggleSelection}>
+                <CheckSquare />
+                {isSelected ? "Deselect" : "Select"}
+              </ContextMenuItem>
+            )}
             <ContextMenuItem onClick={handleToggleFavorite}>
               <Heart
                 className={`${

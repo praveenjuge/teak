@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { Masonry } from "react-plock";
 import { AddCardForm } from "./AddCardForm";
 import { Card } from "./Card";
+import { BulkActionBar } from "./BulkActionBar";
 import { type Doc } from "@teak/convex/_generated/dataModel";
 
 interface MasonryGridProps {
@@ -22,6 +24,90 @@ export function MasonryGrid({
   onPermanentDeleteCard,
   onToggleFavorite,
 }: MasonryGridProps) {
+  // Selection state
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
+
+  // Keyboard event handling for Shift+Click detection
+  const [isShiftPressed, setIsShiftPressed] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Shift") {
+        setIsShiftPressed(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Shift") {
+        setIsShiftPressed(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+
+  // Selection handlers
+  const enterSelectionMode = (cardId?: string) => {
+    setIsSelectionMode(true);
+    if (cardId) {
+      setSelectedCardIds(new Set([cardId]));
+    }
+  };
+
+  const exitSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedCardIds(new Set());
+  };
+
+  const toggleCardSelection = (cardId: string) => {
+    setSelectedCardIds((prev) => {
+      const newSelected = new Set(prev);
+      if (newSelected.has(cardId)) {
+        newSelected.delete(cardId);
+      } else {
+        newSelected.add(cardId);
+      }
+      
+      // Exit selection mode if no cards are selected
+      if (newSelected.size === 0) {
+        setIsSelectionMode(false);
+      }
+      
+      return newSelected;
+    });
+  };
+
+  const handleCardClick = (card: Doc<"cards">) => {
+    if (isSelectionMode) {
+      toggleCardSelection(card._id);
+    } else if (isShiftPressed) {
+      enterSelectionMode(card._id);
+    } else {
+      onCardClick(card);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      // Process deletions sequentially to avoid overwhelming the system
+      for (const cardId of selectedCardIds) {
+        onDeleteCard(cardId);
+      }
+      exitSelectionMode();
+    } catch (error) {
+      console.error("Error during bulk delete:", error);
+      // Note: Individual card deletion errors are handled by the parent component
+      // We still exit selection mode as some deletions may have succeeded
+      exitSelectionMode();
+    }
+  };
   const masonryItems = () => {
     const items: Array<{
       type: "addForm" | "card";
@@ -50,12 +136,16 @@ export function MasonryGrid({
         <Card
           key={item.data._id}
           card={item.data}
-          onClick={onCardClick}
+          onClick={handleCardClick}
           onDelete={onDeleteCard}
           onRestore={onRestoreCard}
           onPermanentDelete={onPermanentDeleteCard}
           onToggleFavorite={onToggleFavorite}
           isTrashMode={showTrashOnly}
+          isSelectionMode={isSelectionMode}
+          isSelected={selectedCardIds.has(item.data._id)}
+          onEnterSelectionMode={enterSelectionMode}
+          onToggleSelection={() => item.data && toggleCardSelection(item.data._id)}
         />
       );
     }
@@ -64,16 +154,26 @@ export function MasonryGrid({
   };
 
   return (
-    <Masonry
-      items={masonryItems()}
-      as="article"
-      config={{
-        columns: [1, 2, 5],
-        gap: [24, 24, 24],
-        media: [640, 768, 1024],
-        useBalancedLayout: true,
-      }}
-      render={renderMasonryItem}
-    />
+    <>
+      <Masonry
+        items={masonryItems()}
+        as="article"
+        className={isSelectionMode ? "select-none" : ""}
+        config={{
+          columns: [1, 2, 5],
+          gap: [24, 24, 24],
+          media: [640, 768, 1024],
+          useBalancedLayout: true,
+        }}
+        render={renderMasonryItem}
+      />
+      {isSelectionMode && (
+        <BulkActionBar
+          selectedCount={selectedCardIds.size}
+          onDelete={handleBulkDelete}
+          onCancel={exitSelectionMode}
+        />
+      )}
+    </>
   );
 }
