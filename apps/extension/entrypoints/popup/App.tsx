@@ -1,11 +1,16 @@
 import { UserButton, useUser } from "@clerk/chrome-extension";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
+import { useContextMenuSave } from "../../hooks/useContextMenuSave";
 
 function App() {
   const { isLoaded, user } = useUser();
+  
+  // Check for recent context menu saves
+  const { state: contextMenuState, isRecentSave } = useContextMenuSave();
 
-  // Only use the auto-save hook when user is fully loaded and authenticated
-  const shouldAutoSave = isLoaded && !!user;
+  // Only use the auto-save hook when user is fully loaded, authenticated, and no recent context menu save
+  const shouldAutoSave = isLoaded && !!user && !isRecentSave;
+  console.log('Popup: shouldAutoSave =', shouldAutoSave, 'isRecentSave =', isRecentSave);
   const { state, error } = useAutoSaveUrl(shouldAutoSave);
 
   if (!isLoaded) {
@@ -15,6 +20,82 @@ function App() {
       </div>
     );
   }
+
+  const renderStatus = () => {
+    // Priority: Show context menu status if recent, otherwise show auto-save status
+    if (isRecentSave) {
+      return renderContextMenuStatus();
+    }
+    return renderAutoSaveStatus();
+  };
+
+  const renderContextMenuStatus = () => {
+    const getContextMenuMessage = () => {
+      switch (contextMenuState.action) {
+        case 'save-page':
+          return 'Page saved!';
+        case 'save-text':
+          return 'Text saved!';
+        case 'save-image':
+          return 'Image saved!';
+        default:
+          return 'Saved to Teak!';
+      }
+    };
+
+    switch (contextMenuState.status) {
+      case "saving":
+        return (
+          <div className="size-96 flex items-center justify-center gap-2 p-3">
+            <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-sm text-red-700">Saving to Teak...</span>
+          </div>
+        );
+      case "success":
+        return (
+          <div className="size-96 flex items-center justify-center gap-2 p-3">
+            <svg
+              className="w-4 h-4 text-green-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="3"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+            <span className="text-sm text-green-700">{getContextMenuMessage()}</span>
+          </div>
+        );
+      case "error":
+        return (
+          <div className="size-96 flex flex-col items-center justify-center gap-1 p-3">
+            <div className="flex items-center justify-center gap-2">
+              <svg
+                className="w-4 h-4 text-red-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+              <span className="text-sm text-red-700">Failed to save</span>
+            </div>
+            {contextMenuState.error && <span className="text-xs text-red-600">{contextMenuState.error}</span>}
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
 
   const renderAutoSaveStatus = () => {
     switch (state) {
@@ -103,7 +184,7 @@ function App() {
         </a>
         <UserButton />
       </div>
-      {renderAutoSaveStatus()}
+      {renderStatus()}
     </div>
   );
 }

@@ -51,6 +51,17 @@ export const useAutoSaveUrl = (
     }
 
     const saveCurrentTab = async () => {
+      // Double-check for context menu state before saving
+      const { contextMenuSave } = await chrome.storage.local.get('contextMenuSave');
+      
+      if (contextMenuSave && contextMenuSave.timestamp) {
+        const timeSinceContextMenu = Date.now() - contextMenuSave.timestamp;
+        if (timeSinceContextMenu < 5000) { // Within 5 seconds of context menu action
+          console.log('Auto-save: Skipping due to recent context menu action');
+          setState("idle");
+          return;
+        }
+      }
       try {
         // Get current tab
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -86,8 +97,8 @@ export const useAutoSaveUrl = (
       }
     };
 
-    // Add a small delay to ensure popup is fully loaded
-    const timeoutId = setTimeout(saveCurrentTab, 100);
+    // Add a longer delay to ensure context menu state is loaded first
+    const timeoutId = setTimeout(saveCurrentTab, 300);
 
     return () => {
       clearTimeout(timeoutId);
