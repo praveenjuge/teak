@@ -20,7 +20,7 @@ bun run dev:backend
 # Start mobile app (Expo)
 bun run dev:mobile
 
-# Start browser extension (Plasmo)
+# Start browser extension (wxt)
 bun run dev:extension
 
 # Start documentation site (Fumadocs)
@@ -62,7 +62,7 @@ Built with a modern monorepo architecture:
 
 - **Web Frontend**: Next.js 15 with App Router, TypeScript, TailwindCSS
 - **Mobile App**: Expo with React Native, TypeScript, Clerk authentication
-- **Browser Extension**: Plasmo framework with Chrome APIs, TypeScript, TailwindCSS
+- **Browser Extension**: Wxt framework with Chrome APIs, TypeScript, TailwindCSS
 - **Documentation**: Fumadocs with Next.js 15, MDX content, TypeScript
 - **Backend**: Convex (real-time database with serverless functions)
 - **Authentication**: Clerk with JWT integration (web + mobile + extension)
@@ -76,7 +76,7 @@ teak-convex-nextjs/
 ├── apps/
 │   ├── web/              # Next.js frontend app
 │   ├── mobile/           # Expo React Native mobile app
-│   ├── extension/        # Chrome browser extension (Plasmo)
+│   ├── extension/        # Chrome browser extension (Wxt)
 │   └── docs/             # Documentation site (Fumadocs)
 ├── packages/
 │   ├── shared/           # Shared utilities, constants, types
@@ -96,7 +96,7 @@ teak-convex-nextjs/
 
 #### Data Flow
 
-1. Frontend (Next.js web, Expo mobile, Plasmo extension, Fumadocs docs) renders UI components
+1. Frontend (Next.js web, Expo mobile, Wxt Browser extension, Fumadocs docs) renders UI components
 2. ConvexClientProvider wraps app with Clerk authentication (web, mobile, extension)
 3. Convex functions handle all server-side logic with automatic auth context
 4. Real-time updates propagate automatically to connected clients
