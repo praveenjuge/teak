@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@clerk/chrome-extension": "^2.5.26",
+    "convex": "^1.26.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
