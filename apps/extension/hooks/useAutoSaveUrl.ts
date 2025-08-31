@@ -79,11 +79,6 @@ export const useAutoSaveUrl = (
 
         setState("success");
 
-        // Reset to idle after 2 seconds
-        setTimeout(() => {
-          setState("idle");
-        }, 2000);
-
       } catch (err) {
         console.error("Failed to save link:", err);
         setState("error");
