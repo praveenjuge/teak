@@ -42,11 +42,6 @@ export default defineBackground(() => {
         contexts: ['selection']
       });
       
-      chrome.contextMenus.create({
-        id: 'save-image',
-        title: 'Save image to Teak',
-        contexts: ['image']
-      });
     });
   }
   
@@ -128,12 +123,6 @@ export default defineBackground(() => {
           }
           break;
           
-        case 'save-image':
-          content = info.srcUrl;
-          if (!content) {
-            errorMessage = 'Could not access image URL';
-          }
-          break;
       }
       
       if (!content) {

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { UserButton, useUser } from "@clerk/chrome-extension";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
 import { useContextMenuSave } from "../../hooks/useContextMenuSave";
@@ -12,6 +13,20 @@ function App() {
   const shouldAutoSave = isLoaded && !!user && !isRecentSave;
   console.log('Popup: shouldAutoSave =', shouldAutoSave, 'isRecentSave =', isRecentSave);
   const { state, error } = useAutoSaveUrl(shouldAutoSave);
+
+  // Auto-close popup after successful save
+  useEffect(() => {
+    const isAutoSaveSuccess = state === "success";
+    const isContextMenuSuccess = isRecentSave && contextMenuState.status === "success";
+    
+    if (isAutoSaveSuccess || isContextMenuSuccess) {
+      const timer = setTimeout(() => {
+        window.close();
+      }, 1500); // Close after 1.5 seconds to allow user to see the success message
+      
+      return () => clearTimeout(timer);
+    }
+  }, [state, isRecentSave, contextMenuState.status]);
 
   if (!isLoaded) {
     return (
@@ -36,8 +51,6 @@ function App() {
           return 'Page saved!';
         case 'save-text':
           return 'Text saved!';
-        case 'save-image':
-          return 'Image saved!';
         default:
           return 'Saved to Teak!';
       }
