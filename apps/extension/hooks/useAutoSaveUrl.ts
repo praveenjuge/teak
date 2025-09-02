@@ -57,7 +57,6 @@ export const useAutoSaveUrl = (
       if (contextMenuSave && contextMenuSave.timestamp) {
         const timeSinceContextMenu = Date.now() - contextMenuSave.timestamp;
         if (timeSinceContextMenu < 5000) { // Within 5 seconds of context menu action
-          console.log('Auto-save: Skipping due to recent context menu action');
           setState("idle");
           return;
         }
@@ -91,7 +90,6 @@ export const useAutoSaveUrl = (
         setState("success");
 
       } catch (err) {
-        console.error("Failed to save link:", err);
         setState("error");
         setError(err instanceof Error ? err.message : "Failed to save link");
       }

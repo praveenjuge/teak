@@ -18,7 +18,6 @@ function isRestrictedUrl(url?: string): boolean {
 }
 
 export default defineBackground(() => {
-  console.log('Teak extension background script started', { id: browser.runtime.id });
   
   // Create context menus when extension starts
   chrome.runtime.onStartup.addListener(createContextMenus);
@@ -58,7 +57,6 @@ export default defineBackground(() => {
     const action = info.menuItemId as ContextMenuAction;
     
     try {
-      console.log('Context menu action started:', action);
       
       // Check if the current page is restricted
       if (isRestrictedUrl(tab.url)) {
@@ -104,19 +102,13 @@ export default defineBackground(() => {
             const result = results[0]?.result;
             if (result?.content) {
               content = result.content;
-              if (result.fallback) {
-                console.log('No text selected, used page title as fallback');
-              }
             } else {
               errorMessage = 'No text selected and could not access page content';
             }
           } catch (scriptError) {
-            console.error('Failed to extract selected text:', scriptError);
-            
             // Fallback: use page title if available
             if (tab.title) {
               content = tab.title;
-              console.log('Script injection failed, using page title as fallback');
             } else {
               errorMessage = 'Could not access page content. Please select text and try again.';
             }
@@ -141,13 +133,10 @@ export default defineBackground(() => {
         contextMenuSave: contextMenuState
       });
       
-      console.log('Context menu content extracted and stored:', contextMenuState);
-      
       // Open popup to show progress and handle saving
       chrome.action.openPopup();
       
     } catch (error) {
-      console.error('Context menu save error:', error);
       
       const errorMessage = error instanceof Error ? error.message : 'Failed to save content';
       

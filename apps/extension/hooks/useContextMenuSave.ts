@@ -26,18 +26,15 @@ export const useContextMenuSave = (): UseContextMenuSaveResult => {
     const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
       if (changes.contextMenuSave?.newValue) {
         const newSave = changes.contextMenuSave.newValue;
-        console.log('Context menu hook: Storage changed', newSave);
         
         // If there's content ready to save, save it (check for duplicates)
         if (newSave.status === 'saving' && newSave.content) {
           const saveId = `${newSave.timestamp}_${newSave.action}`;
           
           if (!processedSaves.has(saveId)) {
-            console.log('Context menu hook: Saving content for', newSave.action);
             processedSaves.add(saveId);
             handleSave(newSave.content, newSave.action, saveId);
           } else {
-            console.log('Context menu hook: Save already processed, skipping duplicate');
             setContextMenuSave(newSave);
           }
         } else {
@@ -52,18 +49,15 @@ export const useContextMenuSave = (): UseContextMenuSaveResult => {
     // Then check for existing state - process saves immediately if found
     chrome.storage.local.get('contextMenuSave').then((result) => {
       if (result.contextMenuSave) {
-        console.log('Context menu hook: Found existing state on mount', result.contextMenuSave);
         
         // Process any pending saves on mount (check for duplicates)
         if (result.contextMenuSave.status === 'saving' && result.contextMenuSave.content) {
           const saveId = `${result.contextMenuSave.timestamp}_${result.contextMenuSave.action}`;
           
           if (!processedSaves.has(saveId)) {
-            console.log('Context menu hook: Processing pending save on mount');
             processedSaves.add(saveId);
             handleSave(result.contextMenuSave.content, result.contextMenuSave.action, saveId);
           } else {
-            console.log('Context menu hook: Save already processed, skipping duplicate');
             setContextMenuSave(result.contextMenuSave);
           }
         } else {
@@ -108,7 +102,6 @@ export const useContextMenuSave = (): UseContextMenuSaveResult => {
       }
 
     } catch (error) {
-      console.error('Context menu save error:', error);
       
       const errorState: ContextMenuSaveState = {
         action: action as any,
