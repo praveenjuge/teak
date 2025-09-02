@@ -1,7 +1,9 @@
 {
-  "name": "teak",
-  "description": "Teak Extension",
-  "version": "0.0.0",
+  "name": "teak-extension",
+  "description": "Teak - Your Personal Knowledge Hub. Save, organize, and rediscover web content, text selections, and ideas effortlessly.",
+  "version": "1.0.0",
+  "author": "Praveen Juge (hi@praveenjuge.com)",
+  "homepage": "https://teakvault.com",
   "type": "module",
   "scripts": {
     "dev": "wxt --port 3003",

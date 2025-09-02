@@ -193,7 +193,7 @@ function App() {
           rel="noopener noreferrer"
           title="Open Teak"
         >
-          <img src="./wxt.svg" alt="Teak Logo" className="size-8" />
+          <img src="./teak-logo.svg" alt="Teak Logo" className="size-8" />
         </a>
         <UserButton />
       </div>
