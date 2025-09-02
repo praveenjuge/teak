@@ -19,6 +19,7 @@
     "@clerk/chrome-extension": "^2.5.26",
     "@tailwindcss/vite": "^4.1.12",
     "convex": "^1.26.2",
+    "lucide-react": "^0.542.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
