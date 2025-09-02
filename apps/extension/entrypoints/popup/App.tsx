@@ -12,12 +12,6 @@ function App() {
 
   // Only use the auto-save hook when user is fully loaded, authenticated, and no recent context menu save
   const shouldAutoSave = isLoaded && !!user && !isRecentSave;
-  console.log(
-    "Popup: shouldAutoSave =",
-    shouldAutoSave,
-    "isRecentSave =",
-    isRecentSave
-  );
   const { state, error } = useAutoSaveUrl(shouldAutoSave);
 
   // Auto-close popup after successful save
