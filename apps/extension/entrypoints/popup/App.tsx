@@ -1,37 +1,44 @@
 import { useEffect } from "react";
 import { UserButton, useUser } from "@clerk/chrome-extension";
+import { Loader2 } from "lucide-react";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
 import { useContextMenuSave } from "../../hooks/useContextMenuSave";
 
 function App() {
   const { isLoaded, user } = useUser();
-  
+
   // Check for recent context menu saves
   const { state: contextMenuState, isRecentSave } = useContextMenuSave();
 
   // Only use the auto-save hook when user is fully loaded, authenticated, and no recent context menu save
   const shouldAutoSave = isLoaded && !!user && !isRecentSave;
-  console.log('Popup: shouldAutoSave =', shouldAutoSave, 'isRecentSave =', isRecentSave);
+  console.log(
+    "Popup: shouldAutoSave =",
+    shouldAutoSave,
+    "isRecentSave =",
+    isRecentSave
+  );
   const { state, error } = useAutoSaveUrl(shouldAutoSave);
 
   // Auto-close popup after successful save
   useEffect(() => {
     const isAutoSaveSuccess = state === "success";
-    const isContextMenuSuccess = isRecentSave && contextMenuState.status === "success";
-    
+    const isContextMenuSuccess =
+      isRecentSave && contextMenuState.status === "success";
+
     if (isAutoSaveSuccess || isContextMenuSuccess) {
       const timer = setTimeout(() => {
         window.close();
-      }, 1500); // Close after 1.5 seconds to allow user to see the success message
-      
+      }, 2000); // Close after 1.5 seconds to allow user to see the success message
+
       return () => clearTimeout(timer);
     }
   }, [state, isRecentSave, contextMenuState.status]);
 
   if (!isLoaded) {
     return (
-      <div className="flex items-center justify-center p-4">
-        <span className="text-sm text-gray-500">Loading...</span>
+      <div className="size-96 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 text-red-500 animate-spin" />
       </div>
     );
   }
@@ -47,12 +54,12 @@ function App() {
   const renderContextMenuStatus = () => {
     const getContextMenuMessage = () => {
       switch (contextMenuState.action) {
-        case 'save-page':
-          return 'Page saved!';
-        case 'save-text':
-          return 'Text saved!';
+        case "save-page":
+          return "Page saved!";
+        case "save-text":
+          return "Text saved!";
         default:
-          return 'Saved to Teak!';
+          return "Saved to Teak!";
       }
     };
 
@@ -60,7 +67,7 @@ function App() {
       case "saving":
         return (
           <div className="size-96 flex items-center justify-center gap-2 p-3">
-            <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+            <Loader2 className="w-4 h-4 text-red-500 animate-spin" />
             <span className="text-sm text-red-700">Saving to Teak...</span>
           </div>
         );
@@ -80,7 +87,9 @@ function App() {
                 d="M5 13l4 4L19 7"
               />
             </svg>
-            <span className="text-sm text-green-700">{getContextMenuMessage()}</span>
+            <span className="text-sm text-green-700">
+              {getContextMenuMessage()}
+            </span>
           </div>
         );
       case "error":
@@ -102,7 +111,11 @@ function App() {
               </svg>
               <span className="text-sm text-red-700">Failed to save</span>
             </div>
-            {contextMenuState.error && <span className="text-xs text-red-600">{contextMenuState.error}</span>}
+            {contextMenuState.error && (
+              <span className="text-xs text-red-600">
+                {contextMenuState.error}
+              </span>
+            )}
           </div>
         );
       default:
@@ -115,7 +128,7 @@ function App() {
       case "loading":
         return (
           <div className="size-96 flex items-center justify-center gap-2 p-3">
-            <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+            <Loader2 className="w-4 h-4 text-red-500 animate-spin" />
             <span className="text-sm text-red-700">Adding to Teak...</span>
           </div>
         );

@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import "tailwindcss/index.css";
+import { Loader2 } from "lucide-react";
 import {
   ClerkLoading,
   ClerkProvider,
@@ -35,13 +36,13 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     >
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
         <ClerkLoading>
-          <div className="size-96 grid place-items-center text-sm">
-            Loading...
+          <div className="size-96 flex items-center justify-center">
+            <Loader2 className="w-6 h-6 text-red-500 animate-spin" />
           </div>
         </ClerkLoading>
         <SignedOut>
           <div className="size-96 flex items-center flex-col justify-center p-4 text-center gap-4">
-            <img src="./wxt.svg" alt="Teak Logo" className="size-10" />
+            <img src="./teak-logo.svg" alt="Teak Logo" className="size-10" />
             <div className="space-y-1">
               <h1 className="text-base font-semibold">
                 Save Anything. Anywhere.
