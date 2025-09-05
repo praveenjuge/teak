@@ -32,7 +32,7 @@ function App() {
   if (!isLoaded) {
     return (
       <div className="size-96 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 text-red-500 animate-spin" />
+        <Loader2 className="w-6 h-6 text-red-600 animate-spin" />
       </div>
     );
   }
@@ -61,7 +61,7 @@ function App() {
       case "saving":
         return (
           <div className="size-96 flex items-center justify-center gap-2 p-3">
-            <Loader2 className="w-4 h-4 text-red-500 animate-spin" />
+            <Loader2 className="w-4 h-4 text-red-600 animate-spin" />
             <span className="text-sm text-red-700">Saving to Teak...</span>
           </div>
         );
@@ -91,7 +91,7 @@ function App() {
           <div className="size-96 flex flex-col items-center justify-center gap-1 p-3">
             <div className="flex items-center justify-center gap-2">
               <svg
-                className="w-4 h-4 text-red-500"
+                className="w-4 h-4 text-red-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -122,7 +122,7 @@ function App() {
       case "loading":
         return (
           <div className="size-96 flex items-center justify-center gap-2 p-3">
-            <Loader2 className="w-4 h-4 text-red-500 animate-spin" />
+            <Loader2 className="w-4 h-4 text-red-600 animate-spin" />
             <span className="text-sm text-red-700">Adding to Teak...</span>
           </div>
         );
@@ -150,7 +150,7 @@ function App() {
           <div className="size-96 flex flex-col items-center justify-center gap-1 p-3">
             <div className="flex items-center justify-center gap-2">
               <svg
-                className="w-4 h-4 text-red-500"
+                className="w-4 h-4 text-red-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -200,7 +200,7 @@ function App() {
           rel="noopener noreferrer"
           title="Open Teak"
         >
-          <img src="./teak-logo.svg" alt="Teak Logo" className="size-8" />
+          <img src="./icon.svg" alt="Teak Logo" className="h-4" />
         </a>
         <UserButton />
       </div>
