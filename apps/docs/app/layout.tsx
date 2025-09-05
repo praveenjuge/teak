@@ -8,13 +8,16 @@ export const metadata: Metadata = {
     template: "%s | Teak Documentation",
     default: "Teak - Personal Knowledge Hub Documentation",
   },
-  description: "Documentation for Teak, a streamlined personal knowledge hub for creative minds. Learn how to set up and use Teak across web, mobile, and browser extension platforms.",
-  metadataBase: new URL("https://teak.dev"),
-  keywords: "teak documentation, personal knowledge management, setup guide, API reference, cross-platform sync",
+  description:
+    "Documentation for Teak, a streamlined personal knowledge hub for creative minds. Learn how to set up and use Teak across web, mobile, and browser extension platforms.",
+  metadataBase: new URL("https://teakvault.com"),
+  keywords:
+    "teak documentation, personal knowledge management, setup guide, API reference, cross-platform sync",
   authors: [{ name: "Teak Team" }],
   openGraph: {
-    title: "Teak Documentation",
-    description: "Complete guide to setting up and using Teak across all platforms",
+    title: "Teak",
+    description:
+      "Complete guide to setting up and using Teak across all platforms",
     type: "website",
     siteName: "Teak",
   },
