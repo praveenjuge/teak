@@ -4,6 +4,7 @@ import { Link } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Logo from "../../components/Logo";
 import { LinearGradient } from "expo-linear-gradient";
+import { colors } from "@/constants/colors";
 
 export default function OnboardingScreen() {
   return (
@@ -13,9 +14,8 @@ export default function OnboardingScreen() {
           "#000000",
           "#000c4f",
           "#5b8183",
-          "#e8cd7e",
           "#ffb244",
-          "#9e4700",
+          colors.primary,
           "#000000",
         ]}
         style={styles.background}

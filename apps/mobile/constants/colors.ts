@@ -23,7 +23,7 @@ const createPlatformColor = (
 };
 
 export const colors = {
-  primary: '#f97316',
+  primary: '#dc2626',
 
   // Background colors
   background: createPlatformColor(
