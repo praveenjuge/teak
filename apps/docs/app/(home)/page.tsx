@@ -163,7 +163,7 @@ export default function HomePage() {
                   <div className="mt-1 text-red-500">❌</div>
                   <p className="text-fd-muted-foreground">
                     <strong>Important links disappear</strong> into bookmark
-                    folders you'll never check again
+                    folders you&apos;ll never check again
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
