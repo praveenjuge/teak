@@ -235,16 +235,12 @@ export default function HomePage() {
 
           <div className="grid gap-8 md:grid-cols-2">
             {features.map((feature, index) => (
-              <div
+              <FeatureCard
                 key={index}
-                className="rounded-lg border border-fd-border bg-fd-card p-6"
-              >
-                <FeatureCard
-                  description={feature.description}
-                  icon={feature.icon}
-                  title={feature.title}
-                />
-              </div>
+                description={feature.description}
+                icon={feature.icon}
+                title={feature.title}
+              />
             ))}
           </div>
         </div>
@@ -303,13 +299,10 @@ export default function HomePage() {
           <div className="grid gap-8 md:grid-cols-3">
             {howItWorksSteps.map((step, index) => (
               <div key={index} className="text-center">
-                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-fd-muted text-2xl">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-fd-muted text-2xl">
                   {step.icon}
                 </div>
-                <div className="mb-2 font-bold text-lg text-fd-primary">
-                  {step.step}
-                </div>
-                <h3 className="mb-4 font-semibold">{step.title}</h3>
+                <h3 className="mb-2 font-semibold">{step.title}</h3>
                 <p className="text-fd-muted-foreground text-sm">
                   {step.description}
                 </p>
@@ -376,63 +369,31 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-fd-border border-t py-12">
+      <footer className="border-fd-border border-t py-8">
         <div className="container mx-auto px-4">
-          <div className="grid gap-8 md:grid-cols-3">
-            <div>
-              <h3 className="mb-4 font-semibold">Teak</h3>
-              <p className="text-fd-muted-foreground text-sm">
-                Your personal knowledge hub for capturing and organizing ideas.
-              </p>
+          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+            <Logo />
+            <div className="flex gap-6 text-fd-muted-foreground text-sm">
+              <Link href="/docs" className="hover:text-fd-foreground">
+                Documentation
+              </Link>
+              <a
+                href="https://github.com/praveenjuge/teak"
+                className="hover:text-fd-foreground"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                GitHub
+              </a>
+              <a
+                href="https://app.teakvault.com"
+                className="hover:text-fd-foreground"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Login
+              </a>
             </div>
-            <div>
-              <h4 className="mb-4 font-semibold text-sm">Resources</h4>
-              <ul className="space-y-2 text-fd-muted-foreground text-sm">
-                <li>
-                  <Link href="/docs" className="hover:text-fd-foreground">
-                    Documentation
-                  </Link>
-                </li>
-                <li>
-                  <a
-                    href="https://github.com/praveenjuge/teak"
-                    className="hover:text-fd-foreground"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    GitHub
-                  </a>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="mb-4 font-semibold text-sm">App</h4>
-              <ul className="space-y-2 text-fd-muted-foreground text-sm">
-                <li>
-                  <a
-                    href="https://app.teakvault.com"
-                    className="hover:text-fd-foreground"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Launch App
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://accounts.teakvault.com/waitlist"
-                    className="hover:text-fd-foreground"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Join Waitlist
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-fd-border border-t mt-8 pt-8 text-center text-fd-muted-foreground text-sm">
-            <p>&copy; 2025 Teak. Open source under MIT License.</p>
           </div>
         </div>
       </footer>
