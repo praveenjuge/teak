@@ -1,26 +1,57 @@
 import Link from "next/link";
+import { Metadata } from "next";
 import { FeatureCard } from "../../components/FeatureCard";
+
+export const metadata: Metadata = {
+  title: "Teak - Personal Knowledge Hub | Capture, Organize & Sync Ideas",
+  description:
+    "A streamlined personal knowledge hub for creative minds. Capture text, links, images, videos, audio, and documents across all your devices with real-time sync.",
+  keywords:
+    "personal knowledge management, note taking, cross-platform, real-time sync, knowledge hub, creative tools, Next.js, Convex",
+  authors: [{ name: "Teak Team" }],
+  openGraph: {
+    title: "Teak - Your Personal Knowledge Hub",
+    description:
+      "Capture, organize, and rediscover your ideas across all your devices. Built with modern web technologies for creative minds who think fast.",
+    type: "website",
+    url: "https://teak.dev",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Teak - Your Personal Knowledge Hub",
+    description:
+      "Capture, organize, and rediscover your ideas across all your devices.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
 
 const features = [
   {
     icon: "lightning" as const,
     title: "Real-Time Sync",
-    description: "Instant updates across web, mobile, and browser extension with Convex real-time database.",
+    description:
+      "Instant updates across web, mobile, and browser extension with Convex real-time database.",
   },
   {
     icon: "mobile" as const,
     title: "Cross-Platform",
-    description: "Web app, iOS/Android mobile apps, and Chrome extension - access your knowledge everywhere.",
+    description:
+      "Web app, iOS/Android mobile apps, and Chrome extension - access your knowledge everywhere.",
   },
   {
     icon: "search" as const,
     title: "Smart Search",
-    description: "Full-text search across all content types with smart tagging and filtering.",
+    description:
+      "Full-text search across all content types with smart tagging and filtering.",
   },
   {
     icon: "heart" as const,
     title: "Open Source",
-    description: "MIT licensed, completely free, and built with modern technologies like Next.js 15 and Convex.",
+    description:
+      "MIT licensed, completely free, and built with modern technologies like Next.js 15 and Convex.",
   },
 ];
 
@@ -30,12 +61,13 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="bg-gradient-to-b from-fd-background to-fd-muted/20 py-20 md:py-32">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="mb-6 bg-gradient-to-r from-fd-primary to-fd-primary/70 bg-clip-text font-bold text-5xl text-transparent md:text-7xl">
+          <h1 className="mb-6 font-bold text-5xl">
             Your Personal Knowledge Hub
           </h1>
           <p className="mx-auto mb-8 max-w-2xl text-fd-muted-foreground text-lg md:text-xl">
-            Capture, organize, and rediscover your ideas across all your devices. 
-            Built with modern web technologies for creative minds who think fast.
+            Capture, organize, and rediscover your ideas across all your
+            devices. Built with modern web technologies for creative minds who
+            think fast.
           </p>
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <Link
@@ -62,7 +94,8 @@ export default function HomePage() {
               Built for the way you think
             </h2>
             <p className="mx-auto max-w-xl text-fd-muted-foreground text-lg">
-              Six content types, real-time sync, and intelligent search across all your platforms.
+              Six content types, real-time sync, and intelligent search across
+              all your platforms.
             </p>
           </div>
 
@@ -86,9 +119,10 @@ export default function HomePage() {
             Save everything that matters
           </h2>
           <p className="mx-auto mb-12 max-w-xl text-fd-muted-foreground text-lg">
-            Text notes, bookmarks, images, videos, audio, and documents - all in one place.
+            Text notes, bookmarks, images, videos, audio, and documents - all in
+            one place.
           </p>
-          
+
           <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-6">
             <div className="rounded-lg border border-fd-border bg-fd-card p-4">
               <div className="mb-2 text-2xl">📝</div>
@@ -125,7 +159,8 @@ export default function HomePage() {
             Ready to get started?
           </h2>
           <p className="mx-auto mb-8 max-w-xl text-fd-muted-foreground text-lg">
-            Clone the repository, run a few commands, and you&apos;ll have your own knowledge hub running in minutes.
+            Clone the repository, run a few commands, and you&apos;ll have your
+            own knowledge hub running in minutes.
           </p>
           <Link
             className="inline-flex items-center justify-center rounded-lg bg-fd-primary px-8 py-4 font-semibold text-fd-primary-foreground transition-colors hover:bg-fd-primary/90"

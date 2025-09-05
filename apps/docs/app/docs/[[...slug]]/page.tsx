@@ -1,13 +1,13 @@
-import { createRelativeLink } from 'fumadocs-ui/mdx';
+import { createRelativeLink } from "fumadocs-ui/mdx";
 import {
   DocsBody,
   DocsDescription,
   DocsPage,
   DocsTitle,
-} from 'fumadocs-ui/page';
-import { notFound } from 'next/navigation';
-import { source } from '@/lib/source';
-import { getMDXComponents } from '@/mdx-components';
+} from "fumadocs-ui/page";
+import { notFound } from "next/navigation";
+import { source } from "@/lib/source";
+import { getMDXComponents } from "@/mdx-components";
 
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
@@ -52,5 +52,22 @@ export async function generateMetadata(props: {
   return {
     title: page.data.title,
     description: page.data.description,
+    keywords: `teak documentation, ${page.data.title.toLowerCase()}, personal knowledge management, setup guide`,
+    authors: [{ name: "Teak Team" }],
+    openGraph: {
+      title: page.data.title,
+      description: page.data.description,
+      type: "article",
+      siteName: "Teak",
+    },
+    twitter: {
+      card: "summary",
+      title: page.data.title,
+      description: page.data.description,
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
   };
 }
