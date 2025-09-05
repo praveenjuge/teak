@@ -28,30 +28,6 @@ export function MasonryGrid({
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
 
-  // Keyboard event handling for Shift+Click detection
-  const [isShiftPressed, setIsShiftPressed] = useState(false);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Shift") {
-        setIsShiftPressed(true);
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === "Shift") {
-        setIsShiftPressed(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, []);
 
   // Selection handlers
   const enterSelectionMode = (cardId?: string) => {
@@ -87,8 +63,6 @@ export function MasonryGrid({
   const handleCardClick = (card: Doc<"cards">) => {
     if (isSelectionMode) {
       toggleCardSelection(card._id);
-    } else if (isShiftPressed) {
-      enterSelectionMode(card._id);
     } else {
       onCardClick(card);
     }
