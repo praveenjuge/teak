@@ -32,8 +32,7 @@ export default function RootLayout({
             appearance={{
               baseTheme: shadcn,
               elements: {
-                cardBox: "!w-full !shadow-none !border",
-                footer: "[&>div:nth-child(2)]:hidden",
+                cardBox: "!w-full !shadow-none",
               },
             }}
           >

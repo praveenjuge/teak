@@ -2,6 +2,7 @@ import { ClerkLoaded, ClerkLoading } from "@clerk/nextjs";
 import { Loading } from "@/components/Loading";
 import { TopPattern } from "@/components/patterns/TopPattern";
 import { BottomPattern } from "@/components/patterns/BottomPattern";
+import { Suspense } from "react";
 
 export const experimental_ppr = true;
 
@@ -13,10 +14,14 @@ export default function RootLayout({
   return (
     <>
       <main className="mx-auto grid max-w-xs place-items-center py-14 md:h-screen w-full">
-        <ClerkLoading>
-          <Loading />
-        </ClerkLoading>
-        <ClerkLoaded>{children}</ClerkLoaded>
+        <Suspense fallback={<Loading />}>
+          <ClerkLoading>
+            <Loading />
+          </ClerkLoading>
+          <ClerkLoaded>
+            <Suspense fallback={<Loading />}>{children}</Suspense>
+          </ClerkLoaded>
+        </Suspense>
       </main>
 
       {/* Background patterns */}
