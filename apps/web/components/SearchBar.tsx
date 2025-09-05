@@ -113,26 +113,28 @@ export function SearchBar({
           />
         </div>
 
-        <UserButton>
-          <UserButton.UserProfilePage
-            label="Subscription"
-            url="subscription"
-            labelIcon={<CreditCard className="size-3.5 stroke-3 mt-0.5" />}
-          >
-            <Suspense>
-              <SubscriptionPage />
-            </Suspense>
-          </UserButton.UserProfilePage>
-          <UserButton.MenuItems>
-            <UserButton.Action
-              label={theme === "dark" ? "Light Mode" : "Dark Mode"}
-              labelIcon={<Moon className="size-3.5 stroke-[2.5px] mt-0.5" />}
-              onClick={() =>
-                setTheme((prev) => (prev === "dark" ? "light" : "dark"))
-              }
-            />
-          </UserButton.MenuItems>
-        </UserButton>
+        <Suspense>
+          <UserButton>
+            <UserButton.UserProfilePage
+              label="Subscription"
+              url="subscription"
+              labelIcon={<CreditCard className="size-3.5 stroke-3 mt-0.5" />}
+            >
+              <Suspense>
+                <SubscriptionPage />
+              </Suspense>
+            </UserButton.UserProfilePage>
+            <UserButton.MenuItems>
+              <UserButton.Action
+                label={theme === "dark" ? "Light Mode" : "Dark Mode"}
+                labelIcon={<Moon className="size-3.5 stroke-[2.5px] mt-0.5" />}
+                onClick={() =>
+                  setTheme((prev) => (prev === "dark" ? "light" : "dark"))
+                }
+              />
+            </UserButton.MenuItems>
+          </UserButton>
+        </Suspense>
       </div>
 
       {shouldShowFilters && (
