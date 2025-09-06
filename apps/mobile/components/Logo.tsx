@@ -1,3 +1,4 @@
+import { colors } from "@/constants/colors";
 import React from "react";
 import { Svg, Path } from "react-native-svg";
 
@@ -17,7 +18,7 @@ export default function Logo({
   const fillColor =
     color ||
     (variant === "primary"
-      ? "#f97316" // orange-500
+      ? colors.primary
       : variant === "white"
         ? "white"
         : variant === "current"
