@@ -303,13 +303,16 @@ export default function AddScreen() {
           placeholder="Enter your bookmark, URL, or note"
           ref={textInputRef}
           style={{
-            borderBottomWidth: borderWidths.hairline,
+            borderWidth: borderWidths.hairline,
             borderColor: colors.border,
             padding: 16,
             backgroundColor: colors.background,
             minHeight: 150,
             textAlignVertical: "top",
             color: colors.label,
+            marginTop: 16,
+            marginHorizontal: 16,
+            borderRadius: 12,
           }}
           value={content}
         />
