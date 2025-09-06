@@ -7,14 +7,13 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
+    "scheme": "teak",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.teak.app"
+      "bundleIdentifier": "com.teak.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -31,7 +30,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "teak",
     "plugins": [
       "expo-router",
       [
@@ -41,7 +39,19 @@
         }
       ],
       "expo-web-browser",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#ffffff",
+          "image": "./assets/splash-icon.png",
+          "dark": {
+            "image": "./assets/splash-icon-dark.png",
+            "backgroundColor": "#000000"
+          },
+          "imageWidth": 100
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
