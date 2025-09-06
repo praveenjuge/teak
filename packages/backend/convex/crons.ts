@@ -8,7 +8,7 @@ const crons = cronJobs();
 crons.daily(
   "cleanup-old-deleted-cards",
   { hourUTC: 2, minuteUTC: 0 },
-  internal.cards.cleanupOldDeletedCards,
+  internal.tasks.cards.cleanup.cleanupOldDeletedCards,
   {}
 );
 
@@ -17,7 +17,7 @@ crons.daily(
 crons.interval(
   "ai-metadata-backfill",
   { hours: 6 },
-  internal.ai.enqueueMissingAiGeneration,
+  internal.tasks.ai.actions.enqueueMissingAiGeneration,
   {}
 );
 
