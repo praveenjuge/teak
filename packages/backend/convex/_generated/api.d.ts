@@ -8,13 +8,35 @@
  * @module
  */
 
-import type * as ai from "../ai.js";
 import type * as cards from "../cards.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as linkMetadata from "../linkMetadata.js";
 import type * as migrations from "../migrations.js";
 import type * as polar from "../polar.js";
+import type * as tasks_ai_actions from "../tasks/ai/actions.js";
+import type * as tasks_ai_index from "../tasks/ai/index.js";
+import type * as tasks_ai_metadata_generators from "../tasks/ai/metadata_generators.js";
+import type * as tasks_ai_mutations from "../tasks/ai/mutations.js";
+import type * as tasks_ai_queries from "../tasks/ai/queries.js";
+import type * as tasks_ai_schemas from "../tasks/ai/schemas.js";
+import type * as tasks_ai_transcript from "../tasks/ai/transcript.js";
+import type * as tasks_cards_cleanup from "../tasks/cards/cleanup.js";
+import type * as tasks_cards_colorUtils from "../tasks/cards/colorUtils.js";
+import type * as tasks_cards_contentDetection from "../tasks/cards/contentDetection.js";
+import type * as tasks_cards_createCard from "../tasks/cards/createCard.js";
+import type * as tasks_cards_deleteCard from "../tasks/cards/deleteCard.js";
+import type * as tasks_cards_fileUtils from "../tasks/cards/fileUtils.js";
+import type * as tasks_cards_generateUploadUrl from "../tasks/cards/generateUploadUrl.js";
+import type * as tasks_cards_getCard from "../tasks/cards/getCard.js";
+import type * as tasks_cards_getCardCount from "../tasks/cards/getCardCount.js";
+import type * as tasks_cards_getCards from "../tasks/cards/getCards.js";
+import type * as tasks_cards_getFileUrl from "../tasks/cards/getFileUrl.js";
+import type * as tasks_cards_index from "../tasks/cards/index.js";
+import type * as tasks_cards_migrations from "../tasks/cards/migrations.js";
+import type * as tasks_cards_updateCard from "../tasks/cards/updateCard.js";
+import type * as tasks_cards_uploadCard from "../tasks/cards/uploadCard.js";
+import type * as tasks_cards_validationUtils from "../tasks/cards/validationUtils.js";
 
 import type {
   ApiFromModules,
@@ -31,13 +53,35 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
-  ai: typeof ai;
   cards: typeof cards;
   crons: typeof crons;
   http: typeof http;
   linkMetadata: typeof linkMetadata;
   migrations: typeof migrations;
   polar: typeof polar;
+  "tasks/ai/actions": typeof tasks_ai_actions;
+  "tasks/ai/index": typeof tasks_ai_index;
+  "tasks/ai/metadata_generators": typeof tasks_ai_metadata_generators;
+  "tasks/ai/mutations": typeof tasks_ai_mutations;
+  "tasks/ai/queries": typeof tasks_ai_queries;
+  "tasks/ai/schemas": typeof tasks_ai_schemas;
+  "tasks/ai/transcript": typeof tasks_ai_transcript;
+  "tasks/cards/cleanup": typeof tasks_cards_cleanup;
+  "tasks/cards/colorUtils": typeof tasks_cards_colorUtils;
+  "tasks/cards/contentDetection": typeof tasks_cards_contentDetection;
+  "tasks/cards/createCard": typeof tasks_cards_createCard;
+  "tasks/cards/deleteCard": typeof tasks_cards_deleteCard;
+  "tasks/cards/fileUtils": typeof tasks_cards_fileUtils;
+  "tasks/cards/generateUploadUrl": typeof tasks_cards_generateUploadUrl;
+  "tasks/cards/getCard": typeof tasks_cards_getCard;
+  "tasks/cards/getCardCount": typeof tasks_cards_getCardCount;
+  "tasks/cards/getCards": typeof tasks_cards_getCards;
+  "tasks/cards/getFileUrl": typeof tasks_cards_getFileUrl;
+  "tasks/cards/index": typeof tasks_cards_index;
+  "tasks/cards/migrations": typeof tasks_cards_migrations;
+  "tasks/cards/updateCard": typeof tasks_cards_updateCard;
+  "tasks/cards/uploadCard": typeof tasks_cards_uploadCard;
+  "tasks/cards/validationUtils": typeof tasks_cards_validationUtils;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 

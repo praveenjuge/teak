@@ -237,7 +237,7 @@ export const extractLinkMetadata = internalAction({
 
       // Schedule AI generation now that we have rich microlink metadata
       console.log(`Scheduling AI generation for link card ${cardId} with microlink data`);
-      await ctx.scheduler.runAfter(0, internal.ai.generateAiMetadata, {
+      await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.generateAiMetadata, {
         cardId,
       });
 
