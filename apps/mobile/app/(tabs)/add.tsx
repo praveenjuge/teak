@@ -15,19 +15,6 @@ import {
 import { useCreateCard, useFileUpload } from "@teak/shared";
 import { IconSymbol } from "../../components/ui/IconSymbol";
 import { borderWidths, colors } from "../../constants/colors";
-import type { Doc } from "@teak/convex/_generated/dataModel";
-
-type Card = Doc<"cards">;
-
-// Utility functions
-function isValidUrl(string: string): boolean {
-  try {
-    new URL(string);
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
 
 export default function AddScreen() {
   const [content, setContent] = useState("");
@@ -39,7 +26,7 @@ export default function AddScreen() {
 
   // Use shared file upload hook
   const { uploadFile, state: uploadState } = useFileUpload({
-    onSuccess: (cardId) => {
+    onSuccess: () => {
       Alert.alert("Success", "File uploaded successfully!");
     },
     onError: (error) => {
@@ -156,7 +143,7 @@ export default function AddScreen() {
               }
 
               const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.All,
+                mediaTypes: ["images", "videos"],
                 allowsEditing: false,
                 quality: 1,
               });
@@ -187,7 +174,7 @@ export default function AddScreen() {
               }
 
               const result = await ImagePicker.launchCameraAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.All,
+                mediaTypes: ["images", "videos"],
                 allowsEditing: false,
                 quality: 1,
               });
@@ -292,7 +279,7 @@ export default function AddScreen() {
             color: colors.secondaryLabel,
           }}
         >
-          {new Date(recordingDuration * 1000).toISOString().substr(14, 5)}
+          {new Date(recordingDuration * 1000).toISOString().substring(14, 19)}
         </Text>
       </View>
     );
@@ -388,41 +375,6 @@ export default function AddScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-
-        {/* Content type indicator */}
-        {content.trim() && (
-          <View
-            style={{
-              backgroundColor: colors.background,
-              padding: 12,
-              borderRadius: 8,
-              marginHorizontal: 20,
-              borderLeftWidth: 4,
-              borderLeftColor: isValidUrl(content.trim())
-                ? colors.systemGreen
-                : colors.primary,
-            }}
-          >
-            <Text
-              style={{
-                color: colors.label,
-                fontWeight: "500",
-              }}
-            >
-              {isValidUrl(content.trim()) ? "🔗 URL Detected" : "📝 Text Note"}
-            </Text>
-            {isValidUrl(content.trim()) && (
-              <Text
-                style={{
-                  color: colors.secondaryLabel,
-                  marginTop: 4,
-                }}
-              >
-                This will be automatically saved as a bookmark
-              </Text>
-            )}
-          </View>
-        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
