@@ -64,6 +64,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: "Welcome Back",
+            headerBackTitle: "Back",
           }}
         />
         <Stack.Screen
@@ -71,6 +72,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: "Create an Account",
+            headerBackTitle: "Back",
           }}
         />
       </Stack.Protected>
