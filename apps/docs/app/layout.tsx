@@ -5,14 +5,14 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | Teak Documentation",
-    default: "Teak - Personal Knowledge Hub Documentation",
+    template: "%s | Teak",
+    default: "Teak - Personal Knowledge Hub",
   },
   description:
-    "Documentation for Teak, a streamlined personal knowledge hub for creative minds. Learn how to set up and use Teak across web, mobile, and browser extension platforms.",
+    "Teak, a streamlined personal knowledge hub for creative minds. Learn how to set up and use Teak across web, mobile, and browser extension platforms.",
   metadataBase: new URL("https://teakvault.com"),
   keywords:
-    "teak documentation, personal knowledge management, setup guide, API reference, cross-platform sync",
+    "teak, personal knowledge management, setup guide, API reference, cross-platform sync",
   authors: [{ name: "Teak Team" }],
   openGraph: {
     title: "Teak",

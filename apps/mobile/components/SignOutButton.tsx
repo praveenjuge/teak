@@ -1,3 +1,4 @@
+import { colors } from "@/constants/colors";
 import { useClerk } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import { Text, TouchableOpacity } from "react-native";
@@ -23,7 +24,7 @@ export const SignOutButton = () => {
     <TouchableOpacity
       style={{
         padding: 12,
-        backgroundColor: "red",
+        backgroundColor: colors.primary,
         borderRadius: 8,
         alignItems: "center",
         justifyContent: "center",

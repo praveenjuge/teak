@@ -52,7 +52,7 @@ export async function generateMetadata(props: {
   return {
     title: page.data.title,
     description: page.data.description,
-    keywords: `teak documentation, ${page.data.title.toLowerCase()}, personal knowledge management, setup guide`,
+    keywords: `teak, ${page.data.title.toLowerCase()}, personal knowledge management, setup guide`,
     authors: [{ name: "Teak Team" }],
     openGraph: {
       title: page.data.title,
