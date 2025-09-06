@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -20,7 +21,7 @@ interface CardsGridProps {
   selectedType?: string;
 }
 
-export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
+const CardsGrid = memo(function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
   // Use Convex query directly
   const cards = useQuery(api.cards.searchCards, {
     searchQuery: searchQuery || undefined,
@@ -57,13 +58,48 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
 
     const leftColumn: Card[] = [];
     const rightColumn: Card[] = [];
+    let leftHeight = 0;
+    let rightHeight = 0;
 
-    // Simple alternating distribution for masonry effect
-    cardsList.forEach((card, index) => {
-      if (index % 2 === 0) {
+    // Estimate card heights for better distribution
+    const estimateCardHeight = (card: Card): number => {
+      switch (card.type) {
+        case "image":
+          // Use aspect ratio if available, otherwise default
+          const aspectRatio = 
+            card.fileMetadata?.width && card.fileMetadata?.height
+              ? card.fileMetadata.width / card.fileMetadata.height
+              : 1.5;
+          return 180 / aspectRatio + 40; // Base width ~180, plus padding
+        case "video":
+          return 160;
+        case "audio":
+          return 88;
+        case "palette":
+          return 88;
+        case "link":
+          return card.metadata?.microlinkData?.data?.image?.url ? 180 : 120;
+        case "text":
+        case "quote":
+          const contentLength = card.content?.length || 0;
+          return Math.min(contentLength / 3 + 80, 200); // Estimate based on content length
+        case "document":
+          return 120;
+        default:
+          return 100;
+      }
+    };
+
+    // Better distribution algorithm
+    cardsList.forEach((card) => {
+      const cardHeight = estimateCardHeight(card);
+      
+      if (leftHeight <= rightHeight) {
         leftColumn.push(card);
+        leftHeight += cardHeight;
       } else {
         rightColumn.push(card);
+        rightHeight += cardHeight;
       }
     });
 
@@ -120,7 +156,9 @@ export function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
       {renderMasonryLayout()}
     </ScrollView>
   );
-}
+});
+
+export { CardsGrid };
 
 const styles = StyleSheet.create({
   cardContainer: {
@@ -132,7 +170,7 @@ const styles = StyleSheet.create({
   },
   masonryContainer: {
     flexDirection: "row",
-    gap: 8,
+    gap: 12,
   },
   column: {
     flex: 1,
