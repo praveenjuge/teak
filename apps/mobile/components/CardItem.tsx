@@ -1,5 +1,5 @@
 import { Audio } from "expo-av";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -32,6 +32,15 @@ const formatDuration = (seconds: number): string => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
 
+// Simple seeded random function for consistent wave patterns
+function seededRandom(seed: string, index: number): number {
+  const hash = seed.split("").reduce((a, b) => {
+    a = (a << 5) - a + b.charCodeAt(0);
+    return a & a;
+  }, index);
+  return Math.abs(Math.sin(hash)) * 0.6 + 0.2; // Returns value between 0.2 and 0.8
+}
+
 // Helper function to format file size
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return "0 Bytes";
@@ -43,7 +52,7 @@ const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
-export function CardItem({ card, onDelete }: CardItemProps) {
+const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -193,19 +202,6 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           >
             <View>
               <Image
-                onError={(error) => {
-                  console.error(
-                    "[CardItem] Image load error:",
-                    error.nativeEvent.error
-                  );
-                  console.error("[CardItem] Failed URL:", mediaUrl);
-                }}
-                onLoadEnd={() => {
-                  console.log("[CardItem] Image load ended:", mediaUrl);
-                }}
-                onLoadStart={() => {
-                  console.log("[CardItem] Image load started:", mediaUrl);
-                }}
                 resizeMode="cover"
                 source={{ uri: mediaUrl }}
                 style={styles.image}
@@ -246,33 +242,21 @@ export function CardItem({ card, onDelete }: CardItemProps) {
             activeOpacity={0.8}
             onLongPress={handleLongPress}
             onPress={handleAudioPress}
-            style={[styles.card, dynamicStyles.card, styles.cardPadding]}
+            style={[styles.card, dynamicStyles.card]}
           >
-            <View style={styles.audioContent}>
-              <View
-                style={[
-                  styles.audioPlayButton,
-                  { backgroundColor: colors.primary },
-                ]}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <IconSymbol
-                    color="white"
-                    name={isPlaying ? "pause.fill" : "play.fill"}
-                    size={14}
-                  />
-                )}
-              </View>
-              <View style={styles.audioInfo}>
-                <Text style={[styles.audioTime, dynamicStyles.mutedText]}>
-                  {formatDuration(playbackPosition)} /{" "}
-                  {card.fileMetadata?.duration
-                    ? formatDuration(card.fileMetadata.duration)
-                    : "--:--"}
-                </Text>
-              </View>
+            <View style={styles.audioWaveform}>
+              {Array.from({ length: 40 }).map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.waveformBar,
+                    {
+                      height: `${seededRandom(card._id, i) * 60 + 20}%`,
+                      backgroundColor: colors.secondaryLabel,
+                    },
+                  ]}
+                />
+              ))}
             </View>
           </TouchableOpacity>
         );
@@ -300,37 +284,21 @@ export function CardItem({ card, onDelete }: CardItemProps) {
             onPress={() => handleUrlPress(card.url!)}
             style={[styles.card, dynamicStyles.card]}
           >
-            <View style={[styles.urlContent]}>
+            <View>
               {linkImage && (
                 <Image
                   resizeMode="cover"
                   source={{ uri: linkImage }}
-                  style={styles.urlScreenshot}
+                  style={styles.urlImage}
                 />
               )}
               <View style={styles.urlTextContainer}>
                 <Text
                   numberOfLines={1}
-                  style={[styles.urlTitle, dynamicStyles.primaryText]}
+                  style={[styles.urlTitle, dynamicStyles.text]}
                 >
                   {linkTitle}
                 </Text>
-                {publisher && (
-                  <Text
-                    numberOfLines={1}
-                    style={[styles.urlPublisher, dynamicStyles.mutedText]}
-                  >
-                    {publisher}
-                  </Text>
-                )}
-                {linkDescription && (
-                  <Text
-                    numberOfLines={2}
-                    style={[styles.urlDescription, dynamicStyles.mutedText]}
-                  >
-                    {linkDescription}
-                  </Text>
-                )}
               </View>
             </View>
           </TouchableOpacity>
@@ -346,7 +314,9 @@ export function CardItem({ card, onDelete }: CardItemProps) {
             onLongPress={handleLongPress}
             style={[styles.card, dynamicStyles.card, styles.cardPadding]}
           >
-            <Text style={[dynamicStyles.mutedText]}>{card.content}</Text>
+            <Text style={[styles.textContent, dynamicStyles.mutedText]} numberOfLines={3}>
+              {card.content}
+            </Text>
           </TouchableOpacity>
         );
 
@@ -362,7 +332,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
           >
             <View style={styles.quoteContent}>
               <Text style={[styles.quoteIcon, dynamicStyles.mutedText]}>"</Text>
-              <Text style={[styles.quoteText, dynamicStyles.text]}>
+              <Text style={[styles.quoteText, dynamicStyles.text]} numberOfLines={3}>
                 {card.content}
               </Text>
             </View>
@@ -387,7 +357,7 @@ export function CardItem({ card, onDelete }: CardItemProps) {
                   <IconSymbol color="white" name="doc.fill" size={20} />
                 </View>
                 <View style={styles.pdfInfo}>
-                  <Text style={[styles.pdfTitle, dynamicStyles.text]}>
+                  <Text style={[styles.pdfTitle, dynamicStyles.text]} numberOfLines={1}>
                     {card.metadataTitle ||
                       card.fileMetadata?.fileName ||
                       "Document"}
@@ -414,76 +384,18 @@ export function CardItem({ card, onDelete }: CardItemProps) {
             <TouchableOpacity
               activeOpacity={0.8}
               onLongPress={handleLongPress}
-              style={[styles.card, dynamicStyles.card, styles.cardPadding]}
+              style={[styles.card, dynamicStyles.card]}
             >
-              <View style={styles.paletteContent}>
-                <View style={styles.paletteHeader}>
-                  <IconSymbol
-                    color={colors.label}
-                    name="paintpalette.fill"
-                    size={16}
+              <View style={styles.paletteStrip}>
+                {card.colors?.slice(0, 12).map((color, index) => (
+                  <View
+                    key={`${color.hex}-${index}`}
+                    style={[
+                      styles.colorStripe,
+                      { backgroundColor: color.hex },
+                    ]}
                   />
-                  <Text style={[styles.paletteTitle, dynamicStyles.text]}>
-                    {card.colors?.length || 0} colors
-                  </Text>
-                </View>
-
-                {/* Color swatches grid */}
-                <View style={styles.colorGrid}>
-                  {card.colors?.slice(0, 8).map((color, index) => (
-                    <View
-                      key={`${color.hex}-${index}`}
-                      style={[
-                        styles.colorSwatch,
-                        { backgroundColor: color.hex },
-                      ]}
-                    />
-                  ))}
-
-                  {/* Show "+X more" if there are more than 8 colors */}
-                  {card.colors && card.colors.length > 8 && (
-                    <View
-                      style={[
-                        styles.colorSwatch,
-                        styles.moreColorsIndicator,
-                        { backgroundColor: colors.background },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.moreColorsText,
-                          { color: colors.secondaryLabel },
-                        ]}
-                      >
-                        +{card.colors.length - 8}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* Show first few color hex values */}
-                <Text
-                  style={[
-                    styles.colorHexPreview,
-                    { color: colors.secondaryLabel },
-                  ]}
-                >
-                  {card.colors
-                    ?.slice(0, 2)
-                    .map((color) => color.hex)
-                    .join(" • ")}
-                  {card.colors && card.colors.length > 2 && " • ..."}
-                </Text>
-
-                {/* Show original content text */}
-                {card.content && (
-                  <Text
-                    style={[styles.originalContent, dynamicStyles.text]}
-                    numberOfLines={2}
-                  >
-                    {card.content}
-                  </Text>
-                )}
+                ))}
               </View>
             </TouchableOpacity>
           );
@@ -504,20 +416,31 @@ export function CardItem({ card, onDelete }: CardItemProps) {
   };
 
   return <>{renderCardContent()}</>;
-}
+});
+
+export { CardItem };
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 8,
-    marginBottom: 8,
+    borderRadius: 12,
+    marginBottom: 12,
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   cardPadding: {
-    padding: 12,
+    padding: 16,
   },
   image: {
     width: "100%",
-    height: 120,
+    aspectRatio: 1.5,
+    minHeight: 100,
   },
   videoContainer: {
     overflow: "hidden",
@@ -560,43 +483,30 @@ const styles = StyleSheet.create({
   durationText: {
     color: "white",
   },
-  audioContent: {
+  audioWaveform: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    height: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
-  audioPlayButton: {
-    borderRadius: 20,
-    padding: 8,
+  waveformBar: {
+    width: 2,
+    borderRadius: 1,
+    minHeight: 4,
   },
-  audioInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  audioTime: {
-    marginLeft: 4,
-  },
-  urlScreenshot: {
+  urlImage: {
     width: "100%",
-    height: 48,
-  },
-  urlContent: {
-    flexDirection: "column",
+    height: 120,
   },
   urlTextContainer: {
-    flex: 1,
-    padding: 12,
+    padding: 16,
   },
-  urlTitle: {},
-  urlPublisher: {
-    marginTop: 2,
-    fontSize: 10,
-    lineHeight: 12,
-  },
-  urlDescription: {
-    marginTop: 4,
-    fontSize: 12,
-    lineHeight: 16,
+  urlTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 18,
   },
   pdfContent: {
     flexDirection: "column",
@@ -617,7 +527,7 @@ const styles = StyleSheet.create({
   },
   pdfTitle: {
     fontWeight: "600",
-    fontSize: 16,
+    fontSize: 14,
   },
   pdfMeta: {
     flexDirection: "row",
@@ -626,50 +536,13 @@ const styles = StyleSheet.create({
   },
   pdfMetaText: {},
   // Palette card styles
-  paletteContent: {
+  paletteStrip: {
+    flexDirection: "row",
+    height: 56,
+  },
+  colorStripe: {
     flex: 1,
-  },
-  paletteHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  paletteTitle: {
-    marginLeft: 8,
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  colorGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 4,
-    marginBottom: 12,
-  },
-  colorSwatch: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.1)",
-  },
-  moreColorsIndicator: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  moreColorsText: {
-    fontSize: 10,
-    fontWeight: "600",
-  },
-  colorHexPreview: {
-    fontSize: 11,
-    fontFamily: "menlo", // monospace font
-    lineHeight: 14,
-  },
-  originalContent: {
-    fontSize: 13,
-    marginTop: 8,
-    opacity: 0.8,
-    lineHeight: 18,
+    minWidth: 0,
   },
   // Quote card styles
   quoteContent: {
@@ -685,9 +558,14 @@ const styles = StyleSheet.create({
   },
   quoteText: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14,
     fontStyle: "italic",
-    lineHeight: 20,
+    lineHeight: 18,
     opacity: 0.8,
+  },
+  // Text content styles
+  textContent: {
+    fontSize: 14,
+    lineHeight: 18,
   },
 });
