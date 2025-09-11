@@ -161,6 +161,7 @@ export function Card({
             {card.type === "image" && (
               <GridImagePreview
                 fileId={card.fileId}
+                thumbnailId={card.thumbnailId}
                 altText={card.content}
                 width={card.fileMetadata?.width}
                 height={card.fileMetadata?.height}
@@ -273,16 +274,24 @@ export function Card({
 
 function GridImagePreview({
   fileId,
+  thumbnailId,
   altText,
   width,
   height,
 }: {
   fileId: Id<"_storage"> | undefined;
+  thumbnailId?: Id<"_storage"> | undefined;
   altText?: string;
   width?: number;
   height?: number;
 }) {
-  const fileUrl = useQuery(api.cards.getFileUrl, fileId ? { fileId } : "skip");
+  // Prefer thumbnail over full image for grid display
+  const preferredFileId = thumbnailId || fileId;
+  const fileUrl = useQuery(
+    api.cards.getFileUrl,
+    preferredFileId ? { fileId: preferredFileId } : "skip"
+  );
+
   if (!fileUrl) return null;
 
   // Calculate aspect ratio if dimensions are available

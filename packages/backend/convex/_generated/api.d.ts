@@ -37,6 +37,8 @@ import type * as tasks_cards_migrations from "../tasks/cards/migrations.js";
 import type * as tasks_cards_updateCard from "../tasks/cards/updateCard.js";
 import type * as tasks_cards_uploadCard from "../tasks/cards/uploadCard.js";
 import type * as tasks_cards_validationUtils from "../tasks/cards/validationUtils.js";
+import type * as tasks_thumbnails_generateThumbnail from "../tasks/thumbnails/generateThumbnail.js";
+import type * as tasks_thumbnails_index from "../tasks/thumbnails/index.js";
 
 import type {
   ApiFromModules,
@@ -82,6 +84,8 @@ declare const fullApi: ApiFromModules<{
   "tasks/cards/updateCard": typeof tasks_cards_updateCard;
   "tasks/cards/uploadCard": typeof tasks_cards_uploadCard;
   "tasks/cards/validationUtils": typeof tasks_cards_validationUtils;
+  "tasks/thumbnails/generateThumbnail": typeof tasks_thumbnails_generateThumbnail;
+  "tasks/thumbnails/index": typeof tasks_thumbnails_index;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 
