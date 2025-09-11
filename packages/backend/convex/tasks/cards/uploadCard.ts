@@ -135,6 +135,13 @@ export const finalizeUploadedCard = mutation({
         cardId,
       });
 
+      // Schedule thumbnail generation for image cards (placeholder implementation)
+      if (cardType === "image") {
+        await ctx.scheduler.runAfter(0, internal.tasks.thumbnails.generateThumbnail.generateThumbnail, {
+          cardId,
+        });
+      }
+
       return { success: true, cardId };
     } catch (error) {
       console.error("Failed to finalize uploaded card:", error);

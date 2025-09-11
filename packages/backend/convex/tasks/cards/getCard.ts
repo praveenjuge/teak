@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query } from "../../_generated/server";
+import { query, internalQuery } from "../../_generated/server";
 
 export const getCard = query({
   args: {
@@ -39,5 +39,20 @@ export const getDeletedCards = query({
       .take(args.limit || 50);
 
     return cards;
+  },
+});
+
+/**
+ * Internal query to get card details for background tasks
+ * Used by thumbnail generation and similar internal processes
+ */
+export const getCardInternal = internalQuery({
+  args: {
+    cardId: v.id("cards"),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const card = await ctx.db.get(args.cardId);
+    return card;
   },
 });
