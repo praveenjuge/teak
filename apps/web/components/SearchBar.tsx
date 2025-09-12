@@ -24,7 +24,6 @@ import {
   getCardTypeIcon,
   cardTypes,
 } from "@teak/shared/constants";
-import SubscriptionPage from "./SubscriptionPage";
 import { useTheme } from "next-themes";
 
 interface SearchBarProps {
@@ -115,16 +114,14 @@ export function SearchBar({
 
         <Suspense>
           <UserButton>
-            <UserButton.UserProfilePage
-              label="Subscription"
-              url="subscription"
-              labelIcon={<CreditCard className="size-3.5 stroke-3 mt-0.5" />}
-            >
-              <Suspense>
-                <SubscriptionPage />
-              </Suspense>
-            </UserButton.UserProfilePage>
             <UserButton.MenuItems>
+              <UserButton.Link
+                label="Subscription & Billing"
+                href="/subscription"
+                labelIcon={
+                  <CreditCard className="size-3.5 stroke-[2.5px] mt-0.5" />
+                }
+              />
               <UserButton.Action
                 label={theme === "dark" ? "Light Mode" : "Dark Mode"}
                 labelIcon={<Moon className="size-3.5 stroke-[2.5px] mt-0.5" />}
