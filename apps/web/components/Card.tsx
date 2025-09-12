@@ -112,15 +112,15 @@ export function Card({
 
           <CardContent className="p-0 space-y-2">
             {card.type === "text" && (
-              <div className="p-4 bg-background rounded-xl border">
-                <p className="line-clamp-3 font-medium">{card.content}</p>
+              <div className="p-4 rounded-xl border bg-card">
+                <p className="line-clamp-2 font-medium">{card.content}</p>
               </div>
             )}
 
             {card.type === "quote" && (
-              <div className="py-4 px-6 bg-background rounded-xl border">
+              <div className="py-4 px-6 rounded-xl border bg-card">
                 <div className="relative">
-                  <p className="line-clamp-3 font-medium italic text-muted-foreground leading-relaxed text-center text-balance">
+                  <p className="line-clamp-2 font-medium italic leading-relaxed text-center text-balance">
                     {card.content}
                   </p>
                   <div className="absolute select-none pointer-events-none -left-4 -top-3.5 text-4xl text-muted-foreground/20 leading-none font-serif">
@@ -140,7 +140,7 @@ export function Card({
                     <img
                       src={card.metadata.microlinkData.data.image.url}
                       alt=""
-                      className="w-full h-28 object-cover bg-background rounded-xl border"
+                      className="w-full h-28 object-cover bg-card rounded-xl border"
                     />
                     <div className="p-2 pb-0">
                       <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
@@ -149,7 +149,7 @@ export function Card({
                     </div>
                   </>
                 ) : (
-                  <div className="p-4 bg-background rounded-xl border">
+                  <div className="p-4 bg-card rounded-xl border">
                     <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
                       {card.metadata?.microlinkData?.data?.title || card.url}
                     </h4>
@@ -169,13 +169,13 @@ export function Card({
             )}
 
             {card.type === "video" && (
-              <div className="w-full h-32 flex items-center justify-center bg-background text-muted-foreground rounded-xl border">
+              <div className="w-full h-32 flex items-center justify-center bg-card text-muted-foreground rounded-xl border">
                 <Video />
               </div>
             )}
 
             {card.type === "audio" && (
-              <div className="flex h-14 items-center justify-between space-x-0.5 px-4 py-2 bg-background rounded-xl border">
+              <div className="flex h-14 items-center justify-between space-x-0.5 px-4 py-2 bg-card rounded-xl border">
                 {Array.from({ length: 45 }).map((_, i) => (
                   <div
                     className="rounded-full bg-muted-foreground"
@@ -190,7 +190,7 @@ export function Card({
             )}
 
             {card.type === "document" && (
-              <div className="p-4 flex gap-2 items-center bg-background rounded-xl border">
+              <div className="p-4 flex gap-2 items-center bg-card rounded-xl border">
                 <File className="shrink-0 size-4 text-muted-foreground" />
                 <span className="truncate font-medium">
                   {card.fileMetadata?.fileName || card.content}
@@ -199,7 +199,7 @@ export function Card({
             )}
 
             {card.type === "palette" && (
-              <div className="flex bg-background rounded-xl border overflow-hidden">
+              <div className="flex bg-card rounded-xl border overflow-hidden">
                 {card.colors?.slice(0, 12).map((color, index) => (
                   <div
                     key={`${color.hex}-${index}`}
@@ -307,7 +307,7 @@ function GridImagePreview({
           aspectRatio: aspectRatio.toString(),
           minHeight: "100px", // Prevent collapse during loading
         }}
-        className="bg-background rounded-xl border overflow-hidden"
+        className="bg-card rounded-xl border overflow-hidden"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -326,7 +326,7 @@ function GridImagePreview({
     <img
       src={fileUrl}
       alt={altText}
-      className="w-full object-cover bg-background rounded-xl border"
+      className="w-full object-cover bg-card rounded-xl border"
     />
   );
 }
