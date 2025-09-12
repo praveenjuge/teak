@@ -7,6 +7,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { shadcn } from "@clerk/themes";
 import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 
+export const experimental_ppr = true;
+
 export const metadata: Metadata = {
   title: "Teak",
   description:
@@ -25,6 +27,7 @@ export default function RootLayout({
           attribute="class"
           defaultTheme="light"
           disableTransitionOnChange
+          enableSystem={false}
         >
           <ClerkProvider
             signInUrl="/login"
