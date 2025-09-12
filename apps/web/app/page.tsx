@@ -153,10 +153,9 @@ export default function Home() {
     !showTrashOnly &&
     !searchQuery;
 
-  const filteredCards = cards || [];
 
   const renderEmptyState = () => {
-    if (filteredCards.length === 0 && hasNoFilters) {
+    if ((cards?.length || 0) === 0 && hasNoFilters) {
       return (
         <div className="text-center flex flex-col items-center max-w-xs mx-auto py-20 gap-5">
           <Logo variant="current" />
@@ -171,7 +170,7 @@ export default function Home() {
       );
     }
 
-    if (filteredCards.length === 0) {
+    if ((cards?.length || 0) === 0) {
       return (
         <div className="text-center py-12 space-y-4">
           <p className="text-muted-foreground">
@@ -209,9 +208,9 @@ export default function Home() {
 
         {cards === undefined ? (
           <CardsGridSkeleton />
-        ) : filteredCards.length > 0 ? (
+        ) : (cards?.length || 0) > 0 ? (
           <MasonryGrid
-            filteredCards={filteredCards}
+            filteredCards={cards}
             showTrashOnly={showTrashOnly}
             onCardClick={handleCardClick}
             onDeleteCard={(cardId) =>
