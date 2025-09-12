@@ -137,6 +137,7 @@ export function Card({
               <div>
                 {card.metadata?.microlinkData?.data?.image?.url ? (
                   <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={card.metadata.microlinkData.data.image.url}
                       alt=""

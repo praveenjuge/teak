@@ -52,7 +52,7 @@ export default function Home() {
     },
   });
 
-  const { getRootProps, getInputProps, dragDropState, canCreateCard } =
+  const { getRootProps, getInputProps, dragDropState, dismissUpgradePrompt, navigateToUpgrade } =
     useGlobalDragDrop();
 
   // Search handlers
@@ -239,7 +239,8 @@ export default function Home() {
 
         <DragOverlay
           dragDropState={dragDropState}
-          canCreateCard={canCreateCard}
+          dismissUpgradePrompt={dismissUpgradePrompt}
+          navigateToUpgrade={navigateToUpgrade}
         />
       </div>
     </main>

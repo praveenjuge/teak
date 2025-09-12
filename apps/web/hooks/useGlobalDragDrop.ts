@@ -1,9 +1,8 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { useQuery } from "convex-helpers/react/cache/hooks";
-import { api } from "@teak/convex";
 import { useFileUpload } from "@teak/shared";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export interface DragDropState {
   isDragActive: boolean;
@@ -11,26 +10,26 @@ export interface DragDropState {
   isDragReject: boolean;
   isUploading: boolean;
   uploadProgress: number;
+  showUpgradePrompt: boolean;
 }
 
 export function useGlobalDragDrop() {
-  const canCreateCardBasic = useQuery(api.cards.canCreateCard);
-  const isSubscribed = useQuery(api.polar.userHasPremium);
-  const canCreateCard = !!isSubscribed || !!canCreateCardBasic;
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const router = useRouter();
 
   const { uploadMultipleFiles, state } = useFileUpload({
     onError: (error) => {
-      toast.error(error);
+      // Check if error is about card limit
+      if (error.includes("Card limit reached") || error.includes("upgrade to Pro")) {
+        setShowUpgradePrompt(true);
+      } else {
+        toast.error(error);
+      }
     },
   });
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
-      if (!canCreateCard) {
-        toast.error("Card limit reached. Upgrade to Pro for unlimited cards.");
-        return;
-      }
-
       if (acceptedFiles.length === 0) {
         toast.error("No valid files to upload");
         return;
@@ -43,11 +42,17 @@ export function useGlobalDragDrop() {
         if (result.success) {
           toast.success(`${result.file} uploaded successfully`);
         } else {
-          toast.error(`Failed to upload ${result.file}: ${result.error}`);
+          const errorMessage = result.error || "Upload failed";
+          // Check if error is about card limit
+          if (errorMessage.includes("Card limit reached") || errorMessage.includes("upgrade to Pro")) {
+            setShowUpgradePrompt(true);
+          } else {
+            toast.error(`Failed to upload ${result.file}: ${errorMessage}`);
+          }
         }
       });
     },
-    [canCreateCard, uploadMultipleFiles]
+    [uploadMultipleFiles, setShowUpgradePrompt]
   );
 
   const {
@@ -66,7 +71,7 @@ export function useGlobalDragDrop() {
       "text/*": [],
     },
     multiple: true,
-    disabled: !canCreateCard,
+    // Remove disabled state - always allow drag and drop optimistically
     noClick: true, // Disable click to upload since we have the AddCardForm for that
     noKeyboard: true, // Disable keyboard activation
   });
@@ -77,12 +82,14 @@ export function useGlobalDragDrop() {
     isDragReject,
     isUploading: state.isUploading,
     uploadProgress: state.progress,
+    showUpgradePrompt,
   };
 
   return {
     getRootProps,
     getInputProps,
     dragDropState,
-    canCreateCard,
+    dismissUpgradePrompt: () => setShowUpgradePrompt(false),
+    navigateToUpgrade: () => router.push("/subscription"),
   };
 }
