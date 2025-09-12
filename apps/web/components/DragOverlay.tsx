@@ -1,21 +1,64 @@
-import { Upload, AlertCircle } from "lucide-react";
+import { Upload, AlertCircle, Sparkles } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import type { DragDropState } from "@/hooks/useGlobalDragDrop";
 
 interface DragOverlayProps {
   dragDropState: DragDropState;
-  canCreateCard: boolean;
+  dismissUpgradePrompt: () => void;
+  navigateToUpgrade: () => void;
 }
 
 export function DragOverlay({
   dragDropState,
-  canCreateCard,
+  dismissUpgradePrompt,
+  navigateToUpgrade,
 }: DragOverlayProps) {
-  const { isDragActive, isDragReject, isUploading, uploadProgress } =
-    dragDropState;
+  const {
+    isDragActive,
+    isDragReject,
+    isUploading,
+    uploadProgress,
+    showUpgradePrompt,
+  } = dragDropState;
 
-  if (!isDragActive && !isUploading) {
+  if (!isDragActive && !isUploading && !showUpgradePrompt) {
     return null;
+  }
+
+  // Upgrade prompt state
+  if (showUpgradePrompt) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background/10 backdrop-blur-sm">
+        <div className="flex h-full items-center justify-center">
+          <div className="bg-background rounded-lg p-8 max-w-md w-full mx-4 text-center space-y-4">
+            <div className="flex items-center justify-center gap-2 text-primary">
+              <Sparkles className="size-4 fill-primary" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-semibold">Unlock Unlimited Cards</h3>
+              <p className="text-muted-foreground">
+                You&apos;ve reached your free tier limit. Upgrade to Pro for
+                unlimited cards.
+              </p>
+            </div>
+            <div className="flex gap-2 justify-center">
+              <Button onClick={navigateToUpgrade} size="sm" className="gap-2">
+                <Sparkles className="size-4" />
+                Upgrade to Pro
+              </Button>
+              <Button
+                onClick={dismissUpgradePrompt}
+                variant="outline"
+                size="sm"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // Uploading state
@@ -41,16 +84,6 @@ export function DragOverlay({
 
   // Drag active state
   const getOverlayContent = () => {
-    if (!canCreateCard) {
-      return {
-        icon: AlertCircle,
-        title: "Cannot upload files",
-        description: "Card limit reached. Upgrade to Pro for unlimited cards.",
-        bgColor: "bg-destructive/10",
-        iconColor: "text-destructive",
-      };
-    }
-
     if (isDragReject) {
       return {
         icon: AlertCircle,

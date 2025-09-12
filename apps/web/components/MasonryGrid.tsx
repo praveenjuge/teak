@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Masonry } from "react-plock";
 import { AddCardForm } from "./AddCardForm";
 import { Card } from "./Card";
@@ -26,8 +26,9 @@ export function MasonryGrid({
 }: MasonryGridProps) {
   // Selection state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
-
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(
+    new Set()
+  );
 
   // Selection handlers
   const enterSelectionMode = (cardId?: string) => {
@@ -50,12 +51,12 @@ export function MasonryGrid({
       } else {
         newSelected.add(cardId);
       }
-      
+
       // Exit selection mode if no cards are selected
       if (newSelected.size === 0) {
         setIsSelectionMode(false);
       }
-      
+
       return newSelected;
     });
   };
@@ -119,7 +120,9 @@ export function MasonryGrid({
           isSelectionMode={isSelectionMode}
           isSelected={selectedCardIds.has(item.data._id)}
           onEnterSelectionMode={enterSelectionMode}
-          onToggleSelection={() => item.data && toggleCardSelection(item.data._id)}
+          onToggleSelection={() =>
+            item.data && toggleCardSelection(item.data._id)
+          }
         />
       );
     }

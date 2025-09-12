@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Mic, Square, Upload } from "lucide-react";
+import { Mic, Square, Upload, Sparkles } from "lucide-react";
 import { api } from "@teak/convex";
 import { useFileUpload } from "@teak/shared";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface AddCardFormProps {
   onSuccess?: () => void;
@@ -18,17 +19,14 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
   // Form data
   const [content, setContent] = useState("");
   const [url, setUrl] = useState("");
 
+  const router = useRouter();
   const createCard = useMutation(api.cards.createCard);
-  const canCreateCardBasic = useQuery(api.cards.canCreateCard);
-  const isSubscribed = useQuery(api.polar.userHasPremium);
-
-  // Combine subscription status with basic card limit check
-  const canCreateCard = !!isSubscribed || !!canCreateCardBasic;
 
   // Use shared file upload hook
   const { uploadFile, state: uploadState } = useFileUpload({
@@ -36,7 +34,15 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       onSuccess?.();
     },
     onError: (error) => {
-      setError(error);
+      // Check if error is about card limit
+      if (
+        error.includes("Card limit reached") ||
+        error.includes("upgrade to Pro")
+      ) {
+        setShowUpgradePrompt(true);
+      } else {
+        setError(error);
+      }
     },
   });
 
@@ -148,7 +154,16 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         error instanceof Error
           ? error.message
           : "Failed to save audio recording";
-      setError(errorMessage);
+
+      // Check if error is about card limit
+      if (
+        errorMessage.includes("Card limit reached") ||
+        errorMessage.includes("upgrade to Pro")
+      ) {
+        setShowUpgradePrompt(true);
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -158,6 +173,8 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "*/*";
+    input.style.display = "none"; // Hide the input element
+
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
@@ -171,12 +188,27 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
           onSuccess?.();
           toast.success(`${file.name} uploaded successfully`);
         } else {
-          setError(result.error || "Failed to upload file");
+          const errorMessage = result.error || "Failed to upload file";
+          // Check if error is about card limit
+          if (
+            errorMessage.includes("Card limit reached") ||
+            errorMessage.includes("upgrade to Pro")
+          ) {
+            setShowUpgradePrompt(true);
+          } else {
+            setError(errorMessage);
+          }
         }
 
         setIsSubmitting(false);
       }
+
+      // Clean up the input element
+      document.body.removeChild(input);
     };
+
+    // Add to DOM temporarily and trigger click
+    document.body.appendChild(input);
     input.click();
   };
 
@@ -204,7 +236,16 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       console.error("Failed to create card:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Failed to create card";
-      setError(errorMessage);
+
+      // Check if error is about card limit
+      if (
+        errorMessage.includes("Card limit reached") ||
+        errorMessage.includes("upgrade to Pro")
+      ) {
+        setShowUpgradePrompt(true);
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -260,6 +301,30 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     );
   }
 
+  // Upgrade prompt mode - show positive upgrade message when limit is hit
+  if (showUpgradePrompt) {
+    return (
+      <Card className="shadow-none p-3 border-primary ring-1 ring-primary w-full min-h-36">
+        <CardContent className="text-center flex flex-col gap-3 h-full justify-center items-center p-0">
+          <div className="flex items-center gap-2 text-primary">
+            <Sparkles className="size-4 fill-primary" />
+            <h3 className="font-medium">Unlock Unlimited Cards</h3>
+          </div>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            You&apos;ve reached your free tier limit. Upgrade to Pro for
+            unlimited cards.
+          </p>
+          <Button
+            onClick={() => router.push("/subscription")}
+            className="w-full"
+          >
+            Upgrade →
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden w-full min-h-36">
       <CardContent className="p-0 h-full">
@@ -283,13 +348,8 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
               }
             }}
             autoFocus={autoFocus}
-            placeholder={
-              canCreateCard === false
-                ? "Card limit reached. Upgrade to Pro for unlimited cards."
-                : "Write or add a link..."
-            }
+            placeholder="Write or add a link..."
             className="min-h-[80px] flex-1 h-full resize-none border-0 shadow-none rounded-none p-4 focus-visible:outline-none focus-visible:ring-0 bg-transparent dark:bg-transparent"
-            disabled={canCreateCard === false}
           />
 
           {/* Action Buttons Row */}
@@ -300,11 +360,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
                 variant="outline"
                 size="sm"
                 onClick={handleFileUpload}
-                disabled={
-                  isSubmitting ||
-                  uploadState.isUploading ||
-                  canCreateCard === false
-                }
+                disabled={isSubmitting || uploadState.isUploading}
               >
                 <Upload />
               </Button>
@@ -314,11 +370,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
                 variant="outline"
                 size="sm"
                 onClick={startRecording}
-                disabled={
-                  isSubmitting ||
-                  uploadState.isUploading ||
-                  canCreateCard === false
-                }
+                disabled={isSubmitting || uploadState.isUploading}
               >
                 <Mic />
               </Button>
@@ -326,11 +378,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
             {content.trim() && (
               <Button
                 type="submit"
-                disabled={
-                  isSubmitting ||
-                  uploadState.isUploading ||
-                  canCreateCard === false
-                }
+                disabled={isSubmitting || uploadState.isUploading}
                 size="sm"
               >
                 {isSubmitting ? "Saving..." : "Save"}
