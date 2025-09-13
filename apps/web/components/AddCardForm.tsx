@@ -285,7 +285,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   // Uploading mode - full card feedback while files/audio are being uploaded
   if (uploadState.isUploading || isSubmitting) {
     return (
-      <Card className="shadow-none p-4 border-primary ring-1 ring-primary w-full relative overflow-hidden h-full min-h-36">
+      <Card className="shadow-none p-4 border-primary ring-1 ring-primary w-full relative overflow-hidden h-36">
         <CardContent className="text-center flex flex-col gap-4 h-full justify-center items-center p-0 relative">
           <h3 className="font-medium text-primary">
             {isRecording ? "Processing audio..." : "Saving..."}

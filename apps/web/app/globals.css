@@ -120,3 +120,16 @@
     @apply bg-gray-50 dark:bg-gray-950 text-foreground;
   }
 }
+
+/* Masonry grid styles for react-masonry-css */
+.masonry-grid {
+  display: flex;
+  margin-left: -16px;
+  width: auto;
+}
+
+.masonry-grid-column {
+  @apply space-y-4;
+  padding-left: 16px;
+  background-clip: padding-box;
+}
