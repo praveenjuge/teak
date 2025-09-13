@@ -14,6 +14,14 @@ export const baseOptions: BaseLayoutProps = {
   // see https://fumadocs.dev/docs/ui/navigation/links
   links: [
     {
+      text: "Pricing",
+      url: "/pricing",
+    },
+    {
+      text: "Changelog",
+      url: "/changelog",
+    },
+    {
       text: "Docs",
       url: "/docs",
     },
