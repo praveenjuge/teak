@@ -1,4 +1,4 @@
-import { useAudioRecorder, RecordingPresets } from "expo-audio";
+import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync } from "expo-audio";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useRef, useState } from "react";
@@ -63,10 +63,6 @@ export default function AddScreen() {
 
       await uploadFile(file, {
         content: fileName,
-        additionalMetadata: {
-          originalUri: fileUri,
-          platform: "mobile",
-        },
       });
     } catch (error) {
       console.error("Failed to upload file:", error);
@@ -76,6 +72,19 @@ export default function AddScreen() {
 
   async function startRecording() {
     try {
+      // Request audio recording permissions
+      const { granted } = await requestRecordingPermissionsAsync();
+      if (!granted) {
+        Alert.alert("Permission Required", "Audio recording permission is required to record audio.");
+        return;
+      }
+
+      // Set audio mode to allow recording on iOS
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+      });
+
       await audioRecorder.prepareToRecordAsync();
       audioRecorder.record();
       setIsRecording(true);
