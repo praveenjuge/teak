@@ -3,6 +3,7 @@ import { FeatureCard } from "../../components/FeatureCard";
 import { CTASection } from "../../components/CTASection";
 import { Footer } from "../../components/Footer";
 import { BackgroundPattern } from "../../components/BackgroundPattern";
+import { Button } from "../../components/ui/button";
 import Image from "next/image";
 import {
   X,
@@ -143,22 +144,24 @@ export default function HomePage() {
               and files live - searchable instantly, synced everywhere.
             </p>
             <div className="flex flex-col justify-center gap-4 sm:flex-row">
-              <a
-                className="inline-flex items-center justify-center rounded-lg bg-primary px-8 py-4 font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                href="https://accounts.teakvault.com/waitlist"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Join Waitlist →
-              </a>
-              <a
-                className="inline-flex items-center justify-center rounded-lg border border-border px-8 py-4 font-medium text-foreground transition-colors hover:bg-muted"
-                href="https://app.teakvault.com"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Login
-              </a>
+              <Button size="lg" asChild>
+                <a
+                  href="https://accounts.teakvault.com/waitlist"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Join Waitlist →
+                </a>
+              </Button>
+              <Button variant="outline" size="lg" asChild>
+                <a
+                  href="https://app.teakvault.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Login
+                </a>
+              </Button>
             </div>
           </div>
 
