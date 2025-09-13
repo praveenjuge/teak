@@ -21,7 +21,7 @@ import {
 export const metadata: Metadata = {
   title: "Teak - Never Lose Another Idea | Ultimate Productivity Hub",
   description:
-    "Stop losing brilliant ideas in scattered apps. Teak unifies your thoughts, links, and files in one searchable hub that syncs instantly across all devices. Join thousands boosting their productivity.",
+    "Teak unifies your thoughts, links, and files in one searchable hub that syncs instantly across all devices. Join thousands boosting their productivity.",
   keywords:
     "productivity app, idea management, note taking, cross-device sync, knowledge management, creative productivity, focus tools, digital workspace, information organization",
   authors: [{ name: "Teak Team" }],
@@ -139,9 +139,8 @@ export default function HomePage() {
               Save fast. Find faster.
             </h1>
             <p className="mx-auto mb-8 max-w-2xl text-muted-foreground text-lg text-balance">
-              Stop juggling multiple apps. Teak is the single hub where all your
-              important thoughts, links, and files live - searchable instantly,
-              synced everywhere.
+              Teak is the single hub where all your important thoughts, links,
+              and files live - searchable instantly, synced everywhere.
             </p>
             <div className="flex flex-col justify-center gap-4 sm:flex-row">
               <a
@@ -316,7 +315,9 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <FileText className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg text-balance">Text Notes</h3>
+              <h3 className="mb-2 font-semibold text-lg text-balance">
+                Text Notes
+              </h3>
               <p className="text-muted-foreground text-sm">
                 Quick thoughts, meeting notes, and detailed documentation all in
                 one searchable place.
@@ -327,7 +328,9 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Link className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg text-balance">Bookmarks</h3>
+              <h3 className="mb-2 font-semibold text-lg text-balance">
+                Bookmarks
+              </h3>
               <p className="text-muted-foreground text-sm">
                 Save articles, tools, and resources with automatic metadata
                 extraction and organization.
@@ -338,7 +341,9 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Camera className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg text-balance">Images</h3>
+              <h3 className="mb-2 font-semibold text-lg text-balance">
+                Images
+              </h3>
               <p className="text-muted-foreground text-sm">
                 Screenshots, photos, and visual references with automatic
                 thumbnail generation.
@@ -349,7 +354,9 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Video className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg text-balance">Videos</h3>
+              <h3 className="mb-2 font-semibold text-lg text-balance">
+                Videos
+              </h3>
               <p className="text-muted-foreground text-sm">
                 Screen recordings, tutorials, and video content with preview
                 thumbnails.
@@ -371,7 +378,9 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <File className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg text-balance">Documents</h3>
+              <h3 className="mb-2 font-semibold text-lg text-balance">
+                Documents
+              </h3>
               <p className="text-muted-foreground text-sm">
                 PDFs, spreadsheets, and files with full-text search and preview
                 capabilities.
@@ -408,7 +417,9 @@ export default function HomePage() {
                     {step.icon}
                   </div>
                 </div>
-                <h3 className="mb-3 font-semibold text-xl text-balance">{step.title}</h3>
+                <h3 className="mb-3 font-semibold text-xl text-balance">
+                  {step.title}
+                </h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">
                   {step.description}
                 </p>
