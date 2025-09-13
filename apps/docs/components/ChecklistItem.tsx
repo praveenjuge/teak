@@ -1,4 +1,4 @@
-import { Icon } from './Icon';
+import { Check } from 'lucide-react';
 
 interface ChecklistItemProps {
   children: React.ReactNode;
@@ -7,7 +7,7 @@ interface ChecklistItemProps {
 export function ChecklistItem({ children }: ChecklistItemProps) {
   return (
     <li className="flex items-center">
-      <Icon className="mr-3 h-5 w-5 text-green-500" name="check" />
+      <Check className="mr-3 h-5 w-5 text-primary" />
       {children}
     </li>
   );

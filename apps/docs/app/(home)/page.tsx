@@ -1,7 +1,22 @@
-import Link from "next/link";
 import { Metadata } from "next";
 import { FeatureCard } from "../../components/FeatureCard";
-import Logo from "@/components/Logo";
+import { CTASection } from "../../components/CTASection";
+import { Footer } from "../../components/Footer";
+import { BackgroundPattern } from "../../components/BackgroundPattern";
+import Image from "next/image";
+import {
+  X,
+  Check,
+  FileText,
+  Link,
+  Camera,
+  Video,
+  Mic,
+  File,
+  Smartphone,
+  FolderOpen,
+  Search,
+} from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Teak - Never Lose Another Idea | Ultimate Productivity Hub",
@@ -62,21 +77,21 @@ const howItWorksSteps = [
     title: "Capture Everything",
     description:
       "Save text, links, images, videos, audio, and documents from anywhere with one click.",
-    icon: "📱",
+    icon: <Smartphone className="h-6 w-6" />,
   },
   {
     step: "2",
     title: "Auto-Organize",
     description:
       "Smart tagging and categorization keeps everything organized without manual effort.",
-    icon: "🗂️",
+    icon: <FolderOpen className="h-6 w-6" />,
   },
   {
     step: "3",
     title: "Rediscover Instantly",
     description:
       "Powerful search and filters help you find exactly what you need, exactly when you need it.",
-    icon: "🔍",
+    icon: <Search className="h-6 w-6" />,
   },
 ];
 
@@ -110,35 +125,56 @@ const faqs = [
 
 export default function HomePage() {
   return (
-    <main className="flex flex-1 flex-col">
+    <main className="flex flex-1 flex-col relative">
+      {/* Background Pattern */}
+      <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden pointer-events-none">
+        <BackgroundPattern />
+      </div>
+
       {/* Hero Section */}
-      <section className="py-20 md:py-32">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="mb-6 font-bold text-4xl md:text-5xl">
-            Never Lose Another Brilliant Idea
-          </h1>
-          <p className="mx-auto mb-8 max-w-2xl text-fd-muted-foreground text-lg">
-            Stop juggling multiple apps. Teak is the single hub where all your
-            important thoughts, links, and files live - searchable instantly,
-            synced everywhere.
-          </p>
-          <div className="flex flex-col justify-center gap-4 sm:flex-row">
-            <a
-              className="inline-flex items-center justify-center rounded-lg bg-fd-primary px-8 py-4 font-semibold text-fd-primary-foreground transition-colors hover:bg-fd-primary/90"
-              href="https://accounts.teakvault.com/waitlist"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Join Waitlist
-            </a>
-            <a
-              className="inline-flex items-center justify-center rounded-lg border border-fd-border px-8 py-4 font-medium text-fd-foreground transition-colors hover:bg-fd-muted"
-              href="https://app.teakvault.com"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Login →
-            </a>
+      <section className="relative py-20 md:py-32">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-24">
+            <h1 className="mb-4 font-bold text-4xl md:text-5xl">
+              Save fast. Find faster.
+            </h1>
+            <p className="mx-auto mb-8 max-w-2xl text-muted-foreground text-lg">
+              Stop juggling multiple apps. Teak is the single hub where all your
+              important thoughts, links, and files live - searchable instantly,
+              synced everywhere.
+            </p>
+            <div className="flex flex-col justify-center gap-4 sm:flex-row">
+              <a
+                className="inline-flex items-center justify-center rounded-lg bg-primary px-8 py-4 font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                href="https://accounts.teakvault.com/waitlist"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Join Waitlist →
+              </a>
+              <a
+                className="inline-flex items-center justify-center rounded-lg border border-border px-8 py-4 font-medium text-foreground transition-colors hover:bg-muted"
+                href="https://app.teakvault.com"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Login
+              </a>
+            </div>
+          </div>
+
+          {/* Hero Image */}
+          <div className="mx-auto max-w-6xl">
+            <div className="relative rounded-lg overflow-hidden">
+              <Image
+                src="/hero-image.png"
+                alt="Teak app interface showing various saved content types"
+                width={1200}
+                height={800}
+                className="w-full h-auto"
+                priority
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -153,64 +189,80 @@ export default function HomePage() {
               </h2>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <div className="mt-1 text-red-500">❌</div>
-                  <p className="text-fd-muted-foreground">
+                  <div className="mt-1 text-destructive">
+                    <X className="h-4 w-4" />
+                  </div>
+                  <p className="text-muted-foreground">
                     <strong>Brilliant ideas vanish</strong> because you saved
                     them in some random notes app you forgot about
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="mt-1 text-red-500">❌</div>
-                  <p className="text-fd-muted-foreground">
+                  <div className="mt-1 text-destructive">
+                    <X className="h-4 w-4" />
+                  </div>
+                  <p className="text-muted-foreground">
                     <strong>Important links disappear</strong> into bookmark
                     folders you&apos;ll never check again
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="mt-1 text-red-500">❌</div>
-                  <p className="text-fd-muted-foreground">
+                  <div className="mt-1 text-destructive">
+                    <X className="h-4 w-4" />
+                  </div>
+                  <p className="text-muted-foreground">
                     <strong>Files scatter everywhere</strong> - some in Drive,
                     some in Dropbox, some on your desktop
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="mt-1 text-red-500">❌</div>
-                  <p className="text-fd-muted-foreground">
+                  <div className="mt-1 text-destructive">
+                    <X className="h-4 w-4" />
+                  </div>
+                  <p className="text-muted-foreground">
                     <strong>Searching takes forever</strong> because your
                     knowledge lives in 10+ different apps
                   </p>
                 </div>
               </div>
             </div>
-            <div className="rounded-lg border border-fd-border bg-fd-card p-8">
+            <div className="rounded-lg border border-border bg-card p-8">
               <h3 className="mb-6 font-bold text-xl">
                 Teak fixes this. One place, everything findable.
               </h3>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <div className="mt-1 text-fd-accent-foreground">✅</div>
-                  <p className="text-fd-card-foreground">
+                  <div className="mt-1 text-primary">
+                    <Check className="h-4 w-4" />
+                  </div>
+                  <p className="text-card-foreground">
                     <strong>Every idea captured</strong> with one-click saving
                     from any app or website
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="mt-1 text-fd-accent-foreground">✅</div>
-                  <p className="text-fd-card-foreground">
+                  <div className="mt-1 text-primary">
+                    <Check className="h-4 w-4" />
+                  </div>
+                  <p className="text-card-foreground">
                     <strong>Everything searchable</strong> - find any content in
                     seconds, not minutes
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="mt-1 text-fd-accent-foreground">✅</div>
-                  <p className="text-fd-card-foreground">
+                  <div className="mt-1 text-primary">
+                    <Check className="h-4 w-4" />
+                  </div>
+                  <p className="text-card-foreground">
                     <strong>Always synchronized</strong> - access from phone,
                     computer, or browser
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="mt-1 text-fd-accent-foreground">✅</div>
-                  <p className="text-fd-card-foreground">
+                  <div className="mt-1 text-primary">
+                    <Check className="h-4 w-4" />
+                  </div>
+                  <p className="text-card-foreground">
                     <strong>Actually organized</strong> - smart tagging means
                     less manual work
                   </p>
@@ -222,13 +274,13 @@ export default function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 md:py-24">
+      <section className="py-20 md:py-24 bg-background">
         <div className="container mx-auto px-4">
           <div className="mb-16 text-center">
             <h2 className="mb-4 font-bold text-3xl">
               Built for the way you think
             </h2>
-            <p className="mx-auto max-w-xl text-fd-muted-foreground">
+            <p className="mx-auto max-w-xl text-muted-foreground">
               Capture, organize, and rediscover everything that matters to you.
             </p>
           </div>
@@ -247,63 +299,117 @@ export default function HomePage() {
       </section>
 
       {/* Content Types Preview */}
-      <section className="bg-fd-muted/20 py-20 md:py-24">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="mb-4 font-bold text-3xl md:text-4xl">
-            Save everything that matters
-          </h2>
-          <p className="mx-auto mb-12 max-w-xl text-fd-muted-foreground text-lg">
-            Text notes, bookmarks, images, videos, audio, and documents - all in
-            one place.
-          </p>
+      <section className="py-20 md:py-24">
+        <div className="container mx-auto px-4">
+          <div className="mb-16 text-center">
+            <h2 className="mb-6 font-bold text-3xl md:text-4xl">
+              Save everything that matters
+            </h2>
+            <p className="mx-auto mb-12 max-w-2xl text-muted-foreground text-lg">
+              From quick thoughts to important documents, Teak handles every
+              type of content you want to preserve and rediscover.
+            </p>
+          </div>
 
-          <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-6">
-            <div className="rounded-lg border border-fd-border bg-fd-card p-4">
-              <div className="mb-2 text-2xl">📝</div>
-              <div className="font-medium">Text</div>
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
+            <div className="group relative rounded-lg border bg-card p-6 transition-all duration-300 hover:-translate-y-1">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <FileText className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="mb-2 font-semibold text-lg">Text Notes</h3>
+              <p className="text-muted-foreground text-sm">
+                Quick thoughts, meeting notes, and detailed documentation all in
+                one searchable place.
+              </p>
             </div>
-            <div className="rounded-lg border border-fd-border bg-fd-card p-4">
-              <div className="mb-2 text-2xl">🔗</div>
-              <div className="font-medium">Links</div>
+
+            <div className="group relative rounded-lg border bg-card p-6 transition-all duration-300 hover:-translate-y-1">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <Link className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="mb-2 font-semibold text-lg">Bookmarks</h3>
+              <p className="text-muted-foreground text-sm">
+                Save articles, tools, and resources with automatic metadata
+                extraction and organization.
+              </p>
             </div>
-            <div className="rounded-lg border border-fd-border bg-fd-card p-4">
-              <div className="mb-2 text-2xl">📷</div>
-              <div className="font-medium">Images</div>
+
+            <div className="group relative rounded-lg border bg-card p-6 transition-all duration-300 hover:-translate-y-1">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <Camera className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="mb-2 font-semibold text-lg">Images</h3>
+              <p className="text-muted-foreground text-sm">
+                Screenshots, photos, and visual references with automatic
+                thumbnail generation.
+              </p>
             </div>
-            <div className="rounded-lg border border-fd-border bg-fd-card p-4">
-              <div className="mb-2 text-2xl">🎥</div>
-              <div className="font-medium">Videos</div>
+
+            <div className="group relative rounded-lg border bg-card p-6 transition-all duration-300 hover:-translate-y-1">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <Video className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="mb-2 font-semibold text-lg">Videos</h3>
+              <p className="text-muted-foreground text-sm">
+                Screen recordings, tutorials, and video content with preview
+                thumbnails.
+              </p>
             </div>
-            <div className="rounded-lg border border-fd-border bg-fd-card p-4">
-              <div className="mb-2 text-2xl">🎤</div>
-              <div className="font-medium">Audio</div>
+
+            <div className="group relative rounded-lg border bg-card p-6 transition-all duration-300 hover:-translate-y-1">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <Mic className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="mb-2 font-semibold text-lg">Audio</h3>
+              <p className="text-muted-foreground text-sm">
+                Voice memos, recordings, and audio notes with waveform
+                visualization.
+              </p>
             </div>
-            <div className="rounded-lg border border-fd-border bg-fd-card p-4">
-              <div className="mb-2 text-2xl">📄</div>
-              <div className="font-medium">Documents</div>
+
+            <div className="group relative rounded-lg border bg-card p-6 transition-all duration-300 hover:-translate-y-1">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <File className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="mb-2 font-semibold text-lg">Documents</h3>
+              <p className="text-muted-foreground text-sm">
+                PDFs, spreadsheets, and files with full-text search and preview
+                capabilities.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20 md:py-24">
+      <section className="py-20 md:py-24 bg-background">
         <div className="container mx-auto px-4">
           <div className="mb-16 text-center">
-            <h2 className="mb-4 font-bold text-3xl">How it works</h2>
-            <p className="mx-auto max-w-xl text-fd-muted-foreground">
-              Three simple steps to organize your ideas.
+            <h2 className="mb-6 font-bold text-3xl md:text-4xl">
+              How it works
+            </h2>
+            <p className="mx-auto mb-12 max-w-2xl text-muted-foreground text-lg">
+              Three simple steps to transform how you capture, organize, and
+              rediscover your most important ideas.
             </p>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-3">
+          <div className="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto">
             {howItWorksSteps.map((step, index) => (
-              <div key={index} className="text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-fd-muted text-2xl">
-                  {step.icon}
+              <div
+                key={index}
+                className="group relative rounded-lg border bg-card p-8 transition-all duration-300 hover:-translate-y-1"
+              >
+                <div className="mb-6 flex items-center">
+                  <div className="mr-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">
+                    {step.step}
+                  </div>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                    {step.icon}
+                  </div>
                 </div>
-                <h3 className="mb-2 font-semibold">{step.title}</h3>
-                <p className="text-fd-muted-foreground text-sm">
+                <h3 className="mb-3 font-semibold text-xl">{step.title}</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
                   {step.description}
                 </p>
               </div>
@@ -319,7 +425,7 @@ export default function HomePage() {
             <h2 className="mb-4 font-bold text-3xl">
               Frequently asked questions
             </h2>
-            <p className="mx-auto max-w-xl text-fd-muted-foreground">
+            <p className="mx-auto max-w-xl text-muted-foreground">
               Everything you need to know about Teak.
             </p>
           </div>
@@ -328,12 +434,12 @@ export default function HomePage() {
             {faqs.map((faq, index) => (
               <div
                 key={index}
-                className="rounded-lg border border-fd-border bg-fd-card p-6"
+                className="rounded-lg border border-border bg-card p-6"
               >
-                <h3 className="mb-3 font-semibold text-fd-foreground">
+                <h3 className="mb-3 font-semibold text-foreground">
                   {faq.question}
                 </h3>
-                <p className="text-fd-muted-foreground text-sm">{faq.answer}</p>
+                <p className="text-muted-foreground text-sm">{faq.answer}</p>
               </div>
             ))}
           </div>
@@ -341,62 +447,21 @@ export default function HomePage() {
       </section>
 
       {/* Final CTA Section */}
-      <section className="border-fd-border border-t bg-fd-muted/20 py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="mb-4 font-bold text-3xl">Ready to get started?</h2>
-          <p className="mx-auto mb-8 max-w-xl text-fd-muted-foreground">
-            Start organizing your ideas with Teak today.
-          </p>
-          <div className="flex flex-col justify-center gap-4 sm:flex-row">
-            <a
-              className="inline-flex items-center justify-center rounded-lg bg-fd-primary px-8 py-4 font-semibold text-fd-primary-foreground transition-colors hover:bg-fd-primary/90"
-              href="https://accounts.teakvault.com/waitlist"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Join Waitlist
-            </a>
-            <a
-              className="inline-flex items-center justify-center rounded-lg border border-fd-border px-8 py-4 font-medium text-fd-foreground transition-colors hover:bg-fd-muted"
-              href="https://app.teakvault.com"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Login →
-            </a>
-          </div>
-        </div>
-      </section>
+      <CTASection
+        title="Ready to get started?"
+        description="Start organizing your ideas with Teak today."
+        primaryCTA={{
+          text: "Join Waitlist",
+          href: "https://accounts.teakvault.com/waitlist",
+        }}
+        secondaryCTA={{
+          text: "Login →",
+          href: "https://app.teakvault.com",
+        }}
+      />
 
       {/* Footer */}
-      <footer className="border-fd-border border-t py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <Logo />
-            <div className="flex gap-6 text-fd-muted-foreground text-sm">
-              <Link href="/docs" className="hover:text-fd-foreground">
-                Documentation
-              </Link>
-              <a
-                href="https://github.com/praveenjuge/teak"
-                className="hover:text-fd-foreground"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                GitHub
-              </a>
-              <a
-                href="https://app.teakvault.com"
-                className="hover:text-fd-foreground"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Login
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
 }
