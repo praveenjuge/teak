@@ -209,10 +209,21 @@ export default async function ChangelogPage() {
   return (
     <div className="container mx-auto max-w-xl py-12 px-4">
       <div className="mb-12">
-        <h1 className="text-4xl font-bold mb-4 text-balance">Changelog</h1>
-        <p className="text-xl text-muted-foreground text-balance">
+        <h1 className="text-3xl font-bold mb-2 text-balance">Changelog</h1>
+        <p className="text-base text-muted-foreground text-balance mb-6">
           Stay updated with the latest changes and improvements to Teak.
         </p>
+        <a
+          href="https://x.com/praveenjuge"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+          </svg>
+          Follow on X
+        </a>
       </div>
 
       {Object.entries(groupedByMonth)
