@@ -11,7 +11,7 @@ config.resolver.unstable_enablePackageExports = true;
 // #1 - Watch all files in the monorepo
 config.watchFolders = [workspaceRoot];
 // #3 - Force resolving nested modules to the folders below
-config.resolver.disableHierarchicalLookup = true;
+config.resolver.disableHierarchicalLookup = false;
 // #2 - Try resolving with project modules first, then workspace modules
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, "node_modules"),
