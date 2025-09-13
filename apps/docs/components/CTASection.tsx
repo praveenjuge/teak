@@ -1,3 +1,5 @@
+import { Button } from "./ui/button";
+
 interface CTASectionProps {
   title: string;
   description: string;
@@ -25,22 +27,24 @@ export function CTASection({
           {description}
         </p>
         <div className="flex flex-col justify-center gap-4 sm:flex-row">
-          <a
-            className="inline-flex items-center justify-center rounded-lg bg-primary px-8 py-4 font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-            href={primaryCTA.href}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {primaryCTA.text}
-          </a>
-          <a
-            className="inline-flex items-center justify-center rounded-lg border border-border px-8 py-4 font-medium text-foreground transition-colors hover:bg-muted"
-            href={secondaryCTA.href}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {secondaryCTA.text}
-          </a>
+          <Button size="lg" asChild>
+            <a
+              href={primaryCTA.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {primaryCTA.text}
+            </a>
+          </Button>
+          <Button variant="outline" size="lg" asChild>
+            <a
+              href={secondaryCTA.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {secondaryCTA.text}
+            </a>
+          </Button>
         </div>
       </div>
     </section>

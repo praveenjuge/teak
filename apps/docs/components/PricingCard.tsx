@@ -1,4 +1,6 @@
 import { Check } from "lucide-react";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
 
 interface PricingCardProps {
   name: string;
@@ -59,17 +61,13 @@ export function PricingCard({
     >
       {popular && (
         <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-          <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
-            Most Popular
-          </span>
+          <Badge>Most Popular</Badge>
         </div>
       )}
 
       {badge && (
         <div className="absolute -top-3 right-4">
-          <span className="bg-accent text-accent-foreground px-2 py-1 rounded-full text-xs font-medium">
-            {badge}
-          </span>
+          <Badge variant="secondary">{badge}</Badge>
         </div>
       )}
 
@@ -90,18 +88,19 @@ export function PricingCard({
         ))}
       </ul>
 
-      <a
-        href={cta.href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`block w-full text-center py-3 px-6 rounded-lg font-medium transition-colors ${
-          cta.primary
-            ? "bg-primary text-primary-foreground hover:bg-primary/90"
-            : "border border-border text-foreground hover:bg-muted"
-        }`}
+      <Button
+        variant={cta.primary ? "default" : "outline"}
+        className="w-full"
+        asChild
       >
-        {cta.text}
-      </a>
+        <a
+          href={cta.href}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {cta.text}
+        </a>
+      </Button>
     </div>
   );
 }
