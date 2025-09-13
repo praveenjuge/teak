@@ -20,9 +20,10 @@ const pricingPlans = [
       "Cross-platform sync",
       "Web, mobile & browser extension",
       "All core features included",
+      "Community support",
     ],
     cta: {
-      text: "Get Started Free",
+      text: "Get Started Free →",
       href: "https://app.teakvault.com",
     },
   },
@@ -44,7 +45,7 @@ const pricingPlans = [
       "Priority support",
     ],
     cta: {
-      text: "Start Pro Trial",
+      text: "Get Started with Pro →",
       href: "https://accounts.teakvault.com/waitlist",
       primary: true,
     },
@@ -53,9 +54,9 @@ const pricingPlans = [
   {
     id: "selfhosted",
     name: "Self-Hosted",
-    price: "Free*",
+    price: "Free",
     description:
-      "Complete control and privacy with unlimited storage on your own infrastructure.",
+      "Complete control with unlimited storage on your own infrastructure.",
     features: [
       "Unlimited cards",
       "Full source code access",
@@ -65,10 +66,9 @@ const pricingPlans = [
       "Community support",
     ],
     cta: {
-      text: "View Setup Guide",
+      text: "View Setup Guide →",
       href: "/docs",
     },
-    badge: "For Developers",
   },
 ];
 
@@ -112,19 +112,18 @@ export default function PricingPageClient() {
     <main className="flex flex-1 flex-col">
       {/* Hero Section */}
       <section className="pt-20 pb-10">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="mb-6 font-bold text-4xl md:text-5xl">
-            Simple, Fair, Transparent Pricing
+        <div className="container mx-auto px-4 text-center max-w-xl">
+          <h1 className="mb-4 font-bold text-4xl text-balance">
+            Start free. Upgrade for unlimited cards.
           </h1>
-          <p className="mx-auto mb-8 max-w-2xl text-muted-foreground text-lg">
-            Start free with 25 cards. Upgrade to Pro for unlimited storage. No
-            hidden fees, no surprises.
+          <p className="mx-auto max-w-2xl text-muted-foreground text-lg text-balance">
+            No hidden fees, no surprises.
           </p>
         </div>
       </section>
 
       {/* Pricing Toggle */}
-      <section className="py-8">
+      <section className="pb-8">
         <div className="container mx-auto px-4">
           <PricingToggle onToggle={setIsYearly} defaultYearly={false} />
         </div>
@@ -144,7 +143,6 @@ export default function PricingPageClient() {
                 cta={plan.cta}
                 popular={plan.popular}
                 isYearly={isYearly}
-                badge={plan.badge}
               />
             ))}
           </div>
@@ -155,10 +153,10 @@ export default function PricingPageClient() {
       <section className="bg-muted/20 py-20 md:py-24">
         <div className="container mx-auto px-4">
           <div className="mx-auto max-w-4xl text-center">
-            <h2 className="mb-6 font-bold text-3xl">
+            <h2 className="mb-6 font-bold text-3xl text-balance">
               Start free, scale when ready
             </h2>
-            <p className="mb-12 text-muted-foreground text-lg">
+            <p className="mb-12 text-muted-foreground text-lg text-balance">
               Most users find 25 cards perfect for getting started. When you
               need more, Pro gives you unlimited storage.
             </p>
@@ -167,7 +165,9 @@ export default function PricingPageClient() {
                 <div className="mb-4 flex justify-center">
                   <Rocket className="h-8 w-8 text-primary" />
                 </div>
-                <h3 className="mb-2 font-semibold">Start Free Today</h3>
+                <h3 className="mb-2 font-semibold text-balance">
+                  Start Free Today
+                </h3>
                 <p className="text-muted-foreground text-sm">
                   25 cards is plenty to organize your most important ideas and
                   see if Teak works for you.
@@ -177,17 +177,21 @@ export default function PricingPageClient() {
                 <div className="mb-4 flex justify-center">
                   <TrendingUp className="h-8 w-8 text-primary" />
                 </div>
-                <h3 className="mb-2 font-semibold">Upgrade When Ready</h3>
+                <h3 className="mb-2 font-semibold text-balance">
+                  Upgrade When Ready
+                </h3>
                 <p className="text-muted-foreground text-sm">
-                  When 25 cards isn&apos;t enough, Pro gives you unlimited storage
-                  for all your ideas.
+                  When 25 cards isn&apos;t enough, Pro gives you unlimited
+                  storage for all your ideas.
                 </p>
               </div>
               <div className="text-center">
                 <div className="mb-4 flex justify-center">
                   <Wrench className="h-8 w-8 text-primary" />
                 </div>
-                <h3 className="mb-2 font-semibold">Self-Host Option</h3>
+                <h3 className="mb-2 font-semibold text-balance">
+                  Self-Host Option
+                </h3>
                 <p className="text-muted-foreground text-sm">
                   Technical users can self-host for free with unlimited cards
                   and complete control.
@@ -202,10 +206,10 @@ export default function PricingPageClient() {
       <section className="py-20 md:py-24">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 font-bold text-3xl">
+            <h2 className="mb-4 font-bold text-3xl text-balance">
               Frequently asked questions
             </h2>
-            <p className="mx-auto max-w-xl text-muted-foreground">
+            <p className="mx-auto max-w-xl text-muted-foreground text-balance">
               Got questions? We&apos;ve got answers.
             </p>
           </div>
