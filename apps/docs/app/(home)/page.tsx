@@ -459,23 +459,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Final CTA Section */}
-      <CTASection
-        title="Ready to get started?"
-        description="Start organizing your ideas with Teak today."
-        primaryCTA={{
-          text: "Join Waitlist",
-          href: "https://accounts.teakvault.com/waitlist",
-        }}
-        secondaryCTA={{
-          text: "Login →",
-          href: "https://app.teakvault.com",
-        }}
-      />
-
-      {/* Footer */}
-      <Footer />
     </main>
   );
 }

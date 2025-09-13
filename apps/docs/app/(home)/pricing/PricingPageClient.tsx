@@ -229,23 +229,6 @@ export default function PricingPageClient() {
           </div>
         </div>
       </section>
-
-      {/* Final CTA */}
-      <CTASection
-        title="Ready to organize your ideas?"
-        description="Start free with 25 cards and see how Teak transforms your productivity."
-        primaryCTA={{
-          text: "Start Free Today",
-          href: "https://app.teakvault.com",
-        }}
-        secondaryCTA={{
-          text: "Join Pro Waitlist",
-          href: "https://accounts.teakvault.com/waitlist",
-        }}
-      />
-
-      {/* Footer */}
-      <Footer />
     </main>
   );
 }
