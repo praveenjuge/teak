@@ -207,7 +207,7 @@ export default async function ChangelogPage() {
   );
 
   return (
-    <div className="container mx-auto max-w-4xl py-12 px-4">
+    <div className="container mx-auto max-w-xl py-12 px-4">
       <div className="mb-12">
         <h1 className="text-4xl font-bold mb-4 text-balance">Changelog</h1>
         <p className="text-xl text-muted-foreground text-balance">
@@ -266,7 +266,9 @@ export default async function ChangelogPage() {
                         </span>
                       </div>
 
-                      <h3 className="font-medium mb-2 text-balance">{entry.description}</h3>
+                      <h3 className="font-medium mb-2 text-balance">
+                        {entry.description}
+                      </h3>
 
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <a
