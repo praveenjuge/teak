@@ -7,7 +7,10 @@ interface PricingToggleProps {
   defaultYearly?: boolean;
 }
 
-export function PricingToggle({ onToggle, defaultYearly = false }: PricingToggleProps) {
+export function PricingToggle({
+  onToggle,
+  defaultYearly = false,
+}: PricingToggleProps) {
   const [isYearly, setIsYearly] = useState(defaultYearly);
 
   const handleToggle = (yearly: boolean) => {
@@ -23,8 +26,8 @@ export function PricingToggle({ onToggle, defaultYearly = false }: PricingToggle
             onClick={() => handleToggle(false)}
             className={`relative px-4 py-2 text-sm font-medium rounded-md transition-all ${
               !isYearly
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Monthly
@@ -33,19 +36,13 @@ export function PricingToggle({ onToggle, defaultYearly = false }: PricingToggle
             onClick={() => handleToggle(true)}
             className={`relative px-4 py-2 text-sm font-medium rounded-md transition-all ${
               isYearly
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Yearly
           </button>
         </div>
-        
-        {isYearly && (
-          <span className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium">
-            Save 35%
-          </span>
-        )}
       </div>
     </div>
   );

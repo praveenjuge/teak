@@ -209,8 +209,8 @@ export default async function ChangelogPage() {
   return (
     <div className="container mx-auto max-w-4xl py-12 px-4">
       <div className="mb-12">
-        <h1 className="text-4xl font-bold mb-4">Changelog</h1>
-        <p className="text-xl text-muted-foreground">
+        <h1 className="text-4xl font-bold mb-4 text-balance">Changelog</h1>
+        <p className="text-xl text-muted-foreground text-balance">
           Stay updated with the latest changes and improvements to Teak.
         </p>
       </div>
@@ -219,7 +219,7 @@ export default async function ChangelogPage() {
         .sort(([a], [b]) => b.localeCompare(a))
         .map(([monthKey, month]) => (
           <div key={monthKey} className="mb-12">
-            <h2 className="text-2xl font-semibold mb-6 border-b pb-2">
+            <h2 className="text-2xl font-semibold mb-6 border-b pb-2 text-balance">
               {month.name}
             </h2>
 
@@ -266,7 +266,7 @@ export default async function ChangelogPage() {
                         </span>
                       </div>
 
-                      <h3 className="font-medium mb-2">{entry.description}</h3>
+                      <h3 className="font-medium mb-2 text-balance">{entry.description}</h3>
 
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <a

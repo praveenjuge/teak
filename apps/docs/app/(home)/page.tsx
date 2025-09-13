@@ -135,10 +135,10 @@ export default function HomePage() {
       <section className="relative py-20 md:py-32">
         <div className="container mx-auto px-4">
           <div className="text-center mb-24">
-            <h1 className="mb-4 font-bold text-4xl md:text-5xl">
+            <h1 className="mb-4 font-bold text-4xl md:text-5xl text-balance">
               Save fast. Find faster.
             </h1>
-            <p className="mx-auto mb-8 max-w-2xl text-muted-foreground text-lg">
+            <p className="mx-auto mb-8 max-w-2xl text-muted-foreground text-lg text-balance">
               Stop juggling multiple apps. Teak is the single hub where all your
               important thoughts, links, and files live - searchable instantly,
               synced everywhere.
@@ -184,7 +184,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="mb-6 font-bold text-3xl md:text-4xl">
+              <h2 className="mb-6 font-bold text-3xl md:text-4xl text-balance">
                 Tired of losing your best ideas in a sea of scattered apps?
               </h2>
               <div className="space-y-4">
@@ -227,7 +227,7 @@ export default function HomePage() {
               </div>
             </div>
             <div className="rounded-lg border border-border bg-card p-8">
-              <h3 className="mb-6 font-bold text-xl">
+              <h3 className="mb-6 font-bold text-xl text-balance">
                 Teak fixes this. One place, everything findable.
               </h3>
               <div className="space-y-4">
@@ -277,10 +277,10 @@ export default function HomePage() {
       <section className="py-20 md:py-24 bg-background">
         <div className="container mx-auto px-4">
           <div className="mb-16 text-center">
-            <h2 className="mb-4 font-bold text-3xl">
+            <h2 className="mb-4 font-bold text-3xl text-balance">
               Built for the way you think
             </h2>
-            <p className="mx-auto max-w-xl text-muted-foreground">
+            <p className="mx-auto max-w-xl text-muted-foreground text-balance">
               Capture, organize, and rediscover everything that matters to you.
             </p>
           </div>
@@ -302,10 +302,10 @@ export default function HomePage() {
       <section className="py-20 md:py-24">
         <div className="container mx-auto px-4">
           <div className="mb-16 text-center">
-            <h2 className="mb-6 font-bold text-3xl md:text-4xl">
+            <h2 className="mb-6 font-bold text-3xl md:text-4xl text-balance">
               Save everything that matters
             </h2>
-            <p className="mx-auto mb-12 max-w-2xl text-muted-foreground text-lg">
+            <p className="mx-auto mb-12 max-w-2xl text-muted-foreground text-lg text-balance">
               From quick thoughts to important documents, Teak handles every
               type of content you want to preserve and rediscover.
             </p>
@@ -316,7 +316,7 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <FileText className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg">Text Notes</h3>
+              <h3 className="mb-2 font-semibold text-lg text-balance">Text Notes</h3>
               <p className="text-muted-foreground text-sm">
                 Quick thoughts, meeting notes, and detailed documentation all in
                 one searchable place.
@@ -327,7 +327,7 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Link className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg">Bookmarks</h3>
+              <h3 className="mb-2 font-semibold text-lg text-balance">Bookmarks</h3>
               <p className="text-muted-foreground text-sm">
                 Save articles, tools, and resources with automatic metadata
                 extraction and organization.
@@ -338,7 +338,7 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Camera className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg">Images</h3>
+              <h3 className="mb-2 font-semibold text-lg text-balance">Images</h3>
               <p className="text-muted-foreground text-sm">
                 Screenshots, photos, and visual references with automatic
                 thumbnail generation.
@@ -349,7 +349,7 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Video className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg">Videos</h3>
+              <h3 className="mb-2 font-semibold text-lg text-balance">Videos</h3>
               <p className="text-muted-foreground text-sm">
                 Screen recordings, tutorials, and video content with preview
                 thumbnails.
@@ -360,7 +360,7 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Mic className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg">Audio</h3>
+              <h3 className="mb-2 font-semibold text-lg text-balance">Audio</h3>
               <p className="text-muted-foreground text-sm">
                 Voice memos, recordings, and audio notes with waveform
                 visualization.
@@ -371,7 +371,7 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <File className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg">Documents</h3>
+              <h3 className="mb-2 font-semibold text-lg text-balance">Documents</h3>
               <p className="text-muted-foreground text-sm">
                 PDFs, spreadsheets, and files with full-text search and preview
                 capabilities.
@@ -385,10 +385,10 @@ export default function HomePage() {
       <section className="py-20 md:py-24 bg-background">
         <div className="container mx-auto px-4">
           <div className="mb-16 text-center">
-            <h2 className="mb-6 font-bold text-3xl md:text-4xl">
+            <h2 className="mb-6 font-bold text-3xl md:text-4xl text-balance">
               How it works
             </h2>
-            <p className="mx-auto mb-12 max-w-2xl text-muted-foreground text-lg">
+            <p className="mx-auto mb-12 max-w-2xl text-muted-foreground text-lg text-balance">
               Three simple steps to transform how you capture, organize, and
               rediscover your most important ideas.
             </p>
@@ -408,7 +408,7 @@ export default function HomePage() {
                     {step.icon}
                   </div>
                 </div>
-                <h3 className="mb-3 font-semibold text-xl">{step.title}</h3>
+                <h3 className="mb-3 font-semibold text-xl text-balance">{step.title}</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">
                   {step.description}
                 </p>
@@ -422,10 +422,10 @@ export default function HomePage() {
       <section className="py-20 md:py-24">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 font-bold text-3xl">
+            <h2 className="mb-4 font-bold text-3xl text-balance">
               Frequently asked questions
             </h2>
-            <p className="mx-auto max-w-xl text-muted-foreground">
+            <p className="mx-auto max-w-xl text-muted-foreground text-balance">
               Everything you need to know about Teak.
             </p>
           </div>
