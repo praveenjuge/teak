@@ -64,38 +64,34 @@ function RootNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      {/* Protected authenticated routes */}
-      <Stack.Protected guard={isSignedIn}>
-        <Stack.Screen name="(tabs)" />
-      </Stack.Protected>
-
-      {/* Protected unauthenticated routes */}
-      <Stack.Protected guard={!isSignedIn}>
-        <Stack.Screen
-          name="(auth)/index"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="(auth)/sign-in"
-          options={{
-            headerShown: true,
-            title: "Welcome Back",
-            headerBackTitle: "Back",
-            presentation: "modal",
-          }}
-        />
-        <Stack.Screen
-          name="(auth)/sign-up"
-          options={{
-            headerShown: true,
-            title: "Create an Account",
-            headerBackTitle: "Back",
-            presentation: "modal",
-          }}
-        />
-      </Stack.Protected>
+      <Stack.Screen name="(tabs)" redirect={!isSignedIn} />
+      <Stack.Screen
+        name="(auth)/index"
+        options={{
+          headerShown: false,
+        }}
+        redirect={isSignedIn}
+      />
+      <Stack.Screen
+        name="(auth)/sign-in"
+        options={{
+          headerShown: true,
+          title: "Welcome Back",
+          headerBackTitle: "Back",
+          presentation: "modal",
+        }}
+        redirect={isSignedIn}
+      />
+      <Stack.Screen
+        name="(auth)/sign-up"
+        options={{
+          headerShown: true,
+          title: "Create an Account",
+          headerBackTitle: "Back",
+          presentation: "modal",
+        }}
+        redirect={isSignedIn}
+      />
     </Stack>
   );
 }

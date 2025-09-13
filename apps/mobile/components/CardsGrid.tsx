@@ -1,7 +1,6 @@
 import { memo } from "react";
 import {
   ActivityIndicator,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,

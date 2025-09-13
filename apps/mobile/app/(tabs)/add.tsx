@@ -1,4 +1,4 @@
-import { Audio } from "expo-av";
+import { useAudioRecorder, RecordingPresets } from "expo-audio";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useRef, useState } from "react";
@@ -19,10 +19,10 @@ import { borderWidths, colors } from "../../constants/colors";
 export default function AddScreen() {
   const [content, setContent] = useState("");
   const [isRecording, setIsRecording] = useState(false);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const textInputRef = useRef<TextInput>(null);
   const createCard = useCreateCard();
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   // Use shared file upload hook
   const { uploadFile, state: uploadState } = useFileUpload({
@@ -37,10 +37,9 @@ export default function AddScreen() {
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
     if (isRecording) {
-      interval = setInterval(async () => {
-        const status = await recording?.getStatusAsync();
-        if (status?.isRecording) {
-          setRecordingDuration(status.durationMillis / 1000);
+      interval = setInterval(() => {
+        if (audioRecorder.isRecording) {
+          setRecordingDuration(audioRecorder.currentTime);
         }
       }, 1000);
     }
@@ -49,7 +48,7 @@ export default function AddScreen() {
         clearInterval(interval);
       }
     };
-  }, [isRecording, recording]);
+  }, [isRecording, audioRecorder]);
 
   const handleFileUpload = async (
     fileUri: string,
@@ -77,24 +76,8 @@ export default function AddScreen() {
 
   async function startRecording() {
     try {
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission required",
-          "Permission to access microphone is required!"
-        );
-        return;
-      }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      setRecording(recording);
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
       setIsRecording(true);
       setRecordingDuration(0);
     } catch (err) {
@@ -104,20 +87,17 @@ export default function AddScreen() {
   }
 
   async function stopRecording() {
-    if (!recording) {
+    if (!audioRecorder.isRecording) {
       return;
     }
 
     setIsRecording(false);
-    await recording.stopAndUnloadAsync();
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-    });
-    const uri = recording.getURI();
+    await audioRecorder.stop();
+    
+    const uri = audioRecorder.uri;
     if (uri) {
       await handleFileUpload(uri, `recording-${Date.now()}.m4a`, "audio/m4a");
     }
-    setRecording(null);
     setRecordingDuration(0);
   }
 

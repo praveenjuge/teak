@@ -1,7 +1,6 @@
-import { Audio } from "expo-av";
-import { memo, useEffect, useRef, useState } from "react";
+import { useAudioPlayer } from "expo-audio";
+import { memo } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Linking,
@@ -53,11 +52,6 @@ const formatFileSize = (bytes: number): string => {
 };
 
 const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [playbackPosition, setPlaybackPosition] = useState(0);
-  const isSeeking = useRef(false);
 
   // Get file URLs from Convex
   const mediaUrl = useQuery(
@@ -67,6 +61,9 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
 
   // For audio files, use the media URL
   const audioUrl = card.type === "audio" ? mediaUrl : null;
+  
+  // Use the new expo-audio hook
+  const player = useAudioPlayer(audioUrl ? { uri: audioUrl } : null);
 
   // Card actions
   const cardActions = useCardActions();
@@ -88,62 +85,15 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
     },
   };
 
-  useEffect(() => {
-    return sound
-      ? () => {
-          sound.unloadAsync();
-        }
-      : undefined;
-  }, [sound]);
-
-  const onPlaybackStatusUpdate = (status: any) => {
-    if (!isSeeking.current && status.isLoaded) {
-      setPlaybackPosition(status.positionMillis / 1000);
-      setIsPlaying(status.isPlaying);
-      if (status.didJustFinish) {
-        setIsPlaying(false);
-        setPlaybackPosition(0);
-        sound?.setPositionAsync(0);
-      }
-    }
-  };
-
-  const playSound = async () => {
-    if (!audioUrl) {
+  const handleAudioPress = () => {
+    if (!player) {
       return;
     }
 
-    setIsLoading(true);
-    try {
-      if (sound) {
-        await sound.playAsync();
-      } else {
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          { uri: audioUrl },
-          { shouldPlay: true },
-          onPlaybackStatusUpdate
-        );
-        setSound(newSound);
-      }
-    } catch (error) {
-      console.error("Failed to play sound", error);
-      Alert.alert("Error", "Could not play audio.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const pauseSound = async () => {
-    if (sound) {
-      await sound.pauseAsync();
-    }
-  };
-
-  const handleAudioPress = () => {
-    if (isPlaying) {
-      pauseSound();
+    if (player.playing) {
+      player.pause();
     } else {
-      playSound();
+      player.play();
     }
   };
 
@@ -271,11 +221,7 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
           card.metadata?.microlinkData?.data?.title ||
           card.metadataTitle ||
           card.url;
-        const linkDescription =
-          card.metadata?.microlinkData?.data?.description ||
-          card.metadataDescription;
         const linkImage = card.metadata?.microlinkData?.data?.image?.url;
-        const publisher = card.metadata?.microlinkData?.data?.publisher;
 
         return (
           <TouchableOpacity
@@ -331,7 +277,7 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
             style={[styles.card, dynamicStyles.card, styles.cardPadding]}
           >
             <View style={styles.quoteContent}>
-              <Text style={[styles.quoteIcon, dynamicStyles.mutedText]}>"</Text>
+              <Text style={[styles.quoteIcon, dynamicStyles.mutedText]}>&ldquo;</Text>
               <Text style={[styles.quoteText, dynamicStyles.text]} numberOfLines={3}>
                 {card.content}
               </Text>
