@@ -20,24 +20,24 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Teak - Never Lose Another Idea | Ultimate Productivity Hub",
+  title: "The Bookmarking Tool Made for Designers | Teak",
   description:
-    "Teak unifies your thoughts, links, and files in one searchable hub that syncs instantly across all devices. Join thousands boosting their productivity.",
+    "Teak helps designers and developers bookmark, organize, and manage design inspiration—so creative ideas are always at your fingertips.",
   keywords:
-    "productivity app, idea management, note taking, cross-device sync, knowledge management, creative productivity, focus tools, digital workspace, information organization",
+    "visual bookmarking, design inspiration management, design bookmarks, visual inspiration, design system, pattern library, developer resources, design workflow, creative bookmarking",
   authors: [{ name: "Teak Team" }],
   openGraph: {
-    title: "Teak - Never Lose Another Idea",
+    title: "The Bookmarking Tool Made for Designers",
     description:
-      "The productivity hub that captures everything important and helps you find it instantly. Stop juggling multiple apps - centralize your digital life.",
+      "Bookmark, organize, and manage design inspiration with Teak. Perfect for designers and developers who need visual bookmarking at their fingertips.",
     type: "website",
     url: "https://teakvault.com",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Teak - Never Lose Another Idea",
+    title: "The Bookmarking Tool Made for Designers",
     description:
-      "The productivity hub that captures everything important and helps you find it instantly.",
+      "Bookmark, organize, and manage design inspiration with Teak. Perfect for designers and developers.",
   },
   robots: {
     index: true,
@@ -50,77 +50,82 @@ const features = [
     icon: "lightning" as const,
     title: "Real-Time Sync",
     description:
-      "Instant updates across web, mobile, and browser extension with Convex real-time database.",
+      "Instantly sync bookmarked inspiration across all devices. Bookmark on desktop, access on mobile, reference anywhere.",
   },
   {
     icon: "mobile" as const,
     title: "Cross-Platform",
     description:
-      "Web app, iOS/Android mobile apps, and Chrome extension - access your knowledge everywhere.",
+      "Web app, mobile apps, and browser extension - bookmark inspiration whether you're browsing, designing, or on the go.",
   },
   {
     icon: "search" as const,
-    title: "Smart Search",
+    title: "Visual Search",
     description:
-      "Full-text search across all content types with smart tagging and filtering.",
+      "Find bookmarked inspiration instantly with smart search across images, links, and content with visual previews.",
   },
   {
     icon: "heart" as const,
     title: "Open Source",
     description:
-      "MIT licensed, completely free, and built with modern technologies like Next.js 15 and Convex.",
+      "MIT licensed and free for designers and developers. Built with modern tech stack for reliability.",
   },
 ];
 
 const howItWorksSteps = [
   {
     step: "1",
-    title: "Capture Everything",
+    title: "Collect Inspiration",
     description:
-      "Save text, links, images, videos, audio, and documents from anywhere with one click.",
+      "Bookmark design inspiration, code snippets, and visual ideas from anywhere with one click.",
     icon: <Smartphone className="h-6 w-6" />,
   },
   {
     step: "2",
-    title: "Auto-Organize",
+    title: "Visual Organization",
     description:
-      "Smart tagging and categorization keeps everything organized without manual effort.",
+      "Smart tagging and visual grids automatically organize your bookmarked inspiration by project, style, or type.",
     icon: <FolderOpen className="h-6 w-6" />,
   },
   {
     step: "3",
-    title: "Rediscover Instantly",
+    title: "Find & Reference",
     description:
-      "Powerful search and filters help you find exactly what you need, exactly when you need it.",
+      "Instantly search and filter to find the perfect bookmarked inspiration when designing or developing.",
     icon: <Search className="h-6 w-6" />,
   },
 ];
 
 const faqs = [
   {
-    question: "Is Teak really free?",
+    question: "What types of content can I save as cards?",
     answer:
-      "Yes! Teak is open source and MIT licensed. You can use it completely free or self-host your own instance. We believe great productivity tools shouldn't have paywalls.",
+      "Six card types: text notes for design decisions, links with auto-metadata, images with drag-and-drop, videos with built-in player, voice memos, and document files like PDFs.",
   },
   {
-    question: "How is my data protected?",
+    question: "How is my design work protected?",
     answer:
-      "Your privacy is paramount. All data is encrypted in transit and at rest. Being open source means you can audit the code yourself, and self-hosting gives you complete control.",
+      "Your creative work is secure. All data is encrypted in transit and at rest. Being open source means you can audit the code, and self-hosting gives complete control over client work.",
   },
   {
-    question: "What devices and platforms work?",
+    question: "What devices work for capturing inspiration?",
     answer:
-      "Teak works everywhere: web app, iOS/Android mobile apps, and Chrome browser extension. Everything syncs instantly across all your devices.",
+      "Capture inspiration everywhere: web dashboard, iOS/Android mobile apps, and Chrome browser extension. Everything syncs instantly with real-time updates.",
   },
   {
-    question: "Can I import my existing notes?",
+    question: "Can I organize cards with tags and favorites?",
     answer:
-      "Yes! We support importing from most popular note-taking apps. Your existing knowledge can seamlessly move to Teak without losing anything.",
+      "Yes! Smart tagging automatically organizes your cards, plus you can manually tag and favorite important items. Visual masonry grid layout makes browsing effortless.",
   },
   {
-    question: "How fast is the sync?",
+    question: "What happens if I accidentally delete something?",
     answer:
-      "Instant. Built on Convex's real-time infrastructure, changes appear across all devices in milliseconds. No more refresh-and-pray.",
+      "Cards use soft deletion - they're marked as deleted but recoverable. You can restore accidentally deleted cards or permanently remove them from trash.",
+  },
+  {
+    question: "How does visual search work?",
+    answer:
+      "Find bookmarked inspiration instantly by searching text, tags, or visual content. Perfect for finding 'that button style' or 'that color palette' from months ago.",
   },
 ];
 
@@ -135,13 +140,14 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="relative py-20 md:py-32">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-24">
-            <h1 className="mb-4 font-bold text-4xl md:text-5xl text-balance">
-              Save fast. Find faster.
+          <div className="text-center mb-24 mx-auto max-w-2xl">
+            <h1 className="mb-4 font-bold text-4xl md:text-5xl text-balance tracking-tight">
+              The bookmarking tool made for designers
             </h1>
             <p className="mx-auto mb-8 max-w-2xl text-muted-foreground text-lg text-balance">
-              Teak is the single hub where all your important thoughts, links,
-              and files live - searchable instantly, synced everywhere.
+              Teak helps designers and developers bookmark, organize, and manage
+              design inspiration—so creative ideas are always at your
+              fingertips.
             </p>
             <div className="flex flex-col justify-center gap-4 sm:flex-row">
               <Button size="lg" asChild>
@@ -187,7 +193,8 @@ export default function HomePage() {
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
               <h2 className="mb-6 font-bold text-3xl md:text-4xl text-balance">
-                Tired of losing your best ideas in a sea of scattered apps?
+                Tired of losing design inspiration in scattered bookmarks and
+                folders?
               </h2>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
@@ -195,8 +202,8 @@ export default function HomePage() {
                     <X className="h-4 w-4" />
                   </div>
                   <p className="text-muted-foreground">
-                    <strong>Brilliant ideas vanish</strong> because you saved
-                    them in some random notes app you forgot about
+                    <strong>Perfect design inspiration disappears</strong> into
+                    random bookmark folders you'll never check again
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -204,8 +211,8 @@ export default function HomePage() {
                     <X className="h-4 w-4" />
                   </div>
                   <p className="text-muted-foreground">
-                    <strong>Important links disappear</strong> into bookmark
-                    folders you&apos;ll never check again
+                    <strong>Visual inspiration gets lost</strong> across
+                    Pinterest boards, browser tabs, and scattered screenshots
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -213,8 +220,8 @@ export default function HomePage() {
                     <X className="h-4 w-4" />
                   </div>
                   <p className="text-muted-foreground">
-                    <strong>Files scatter everywhere</strong> - some in Drive,
-                    some in Dropbox, some on your desktop
+                    <strong>Design assets fragment</strong> across Figma, Sketch
+                    files, local folders, and cloud storage
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -222,15 +229,18 @@ export default function HomePage() {
                     <X className="h-4 w-4" />
                   </div>
                   <p className="text-muted-foreground">
-                    <strong>Searching takes forever</strong> because your
-                    knowledge lives in 10+ different apps
+                    <strong>
+                      Finding that perfect inspiration takes forever
+                    </strong>{" "}
+                    when it's buried across multiple design tools and apps
                   </p>
                 </div>
               </div>
             </div>
             <div className="rounded-lg border border-border bg-card p-8">
               <h3 className="mb-6 font-bold text-xl text-balance">
-                Teak fixes this. One place, everything findable.
+                Teak fixes this. One visual bookmarking hub for all your design
+                inspiration.
               </h3>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
@@ -238,8 +248,8 @@ export default function HomePage() {
                     <Check className="h-4 w-4" />
                   </div>
                   <p className="text-card-foreground">
-                    <strong>Every idea captured</strong> with one-click saving
-                    from any app or website
+                    <strong>Every design inspiration bookmarked</strong> with
+                    one-click saving from any website or design tool
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -247,8 +257,8 @@ export default function HomePage() {
                     <Check className="h-4 w-4" />
                   </div>
                   <p className="text-card-foreground">
-                    <strong>Everything searchable</strong> - find any content in
-                    seconds, not minutes
+                    <strong>Everything visually searchable</strong> - find that
+                    perfect inspiration in seconds, not hours
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -256,8 +266,8 @@ export default function HomePage() {
                     <Check className="h-4 w-4" />
                   </div>
                   <p className="text-card-foreground">
-                    <strong>Always synchronized</strong> - access from phone,
-                    computer, or browser
+                    <strong>Always synchronized</strong> - access your
+                    bookmarked inspiration from any device, anywhere
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -265,8 +275,8 @@ export default function HomePage() {
                     <Check className="h-4 w-4" />
                   </div>
                   <p className="text-card-foreground">
-                    <strong>Actually organized</strong> - smart tagging means
-                    less manual work
+                    <strong>Visually organized</strong> - smart tagging and
+                    visual grids make finding bookmarked inspiration effortless
                   </p>
                 </div>
               </div>
@@ -280,10 +290,11 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="mb-16 text-center">
             <h2 className="mb-4 font-bold text-3xl text-balance">
-              Built for the way you think
+              Built for visual bookmarking
             </h2>
             <p className="mx-auto max-w-xl text-muted-foreground text-balance">
-              Capture, organize, and rediscover everything that matters to you.
+              Bookmark, organize, and rediscover design inspiration exactly when
+              you need it.
             </p>
           </div>
 
@@ -305,11 +316,11 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="mb-16 text-center">
             <h2 className="mb-6 font-bold text-3xl md:text-4xl text-balance">
-              Save everything that matters
+              Capture every type of design card
             </h2>
             <p className="mx-auto mb-12 max-w-2xl text-muted-foreground text-lg text-balance">
-              From quick thoughts to important documents, Teak handles every
-              type of content you want to preserve and rediscover.
+              From visual inspiration to code snippets, Teak handles every type
+              of card designers and developers need.
             </p>
           </div>
 
@@ -319,11 +330,11 @@ export default function HomePage() {
                 <FileText className="h-6 w-6 text-primary" />
               </div>
               <h3 className="mb-2 font-semibold text-lg text-balance">
-                Text Notes
+                Design Notes
               </h3>
               <p className="text-muted-foreground text-sm">
-                Quick thoughts, meeting notes, and detailed documentation all in
-                one searchable place.
+                Design decisions, feedback notes, and project documentation
+                organized and searchable.
               </p>
             </div>
 
@@ -332,11 +343,11 @@ export default function HomePage() {
                 <Link className="h-6 w-6 text-primary" />
               </div>
               <h3 className="mb-2 font-semibold text-lg text-balance">
-                Bookmarks
+                Design Resources
               </h3>
               <p className="text-muted-foreground text-sm">
-                Save articles, tools, and resources with automatic metadata
-                extraction and organization.
+                Save design inspiration, tools, libraries, and tutorials with
+                automatic previews and metadata.
               </p>
             </div>
 
@@ -345,11 +356,11 @@ export default function HomePage() {
                 <Camera className="h-6 w-6 text-primary" />
               </div>
               <h3 className="mb-2 font-semibold text-lg text-balance">
-                Images
+                Visual References
               </h3>
               <p className="text-muted-foreground text-sm">
-                Screenshots, photos, and visual references with automatic
-                thumbnail generation.
+                Screenshots, mockups, mood boards, and design inspiration with
+                smart visual organization.
               </p>
             </div>
 
@@ -358,11 +369,11 @@ export default function HomePage() {
                 <Video className="h-6 w-6 text-primary" />
               </div>
               <h3 className="mb-2 font-semibold text-lg text-balance">
-                Videos
+                Design Videos
               </h3>
               <p className="text-muted-foreground text-sm">
-                Screen recordings, tutorials, and video content with preview
-                thumbnails.
+                Animation references, design tutorials, and process videos with
+                instant previews.
               </p>
             </div>
 
@@ -370,10 +381,12 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Mic className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg text-balance">Audio</h3>
+              <h3 className="mb-2 font-semibold text-lg text-balance">
+                Audio Notes
+              </h3>
               <p className="text-muted-foreground text-sm">
-                Voice memos, recordings, and audio notes with waveform
-                visualization.
+                Voice memos for design ideas, client feedback, and quick notes
+                with waveform preview.
               </p>
             </div>
 
@@ -382,11 +395,11 @@ export default function HomePage() {
                 <File className="h-6 w-6 text-primary" />
               </div>
               <h3 className="mb-2 font-semibold text-lg text-balance">
-                Documents
+                Design Files
               </h3>
               <p className="text-muted-foreground text-sm">
-                PDFs, spreadsheets, and files with full-text search and preview
-                capabilities.
+                Design systems, brand guidelines, and project files with
+                full-text search and previews.
               </p>
             </div>
           </div>
@@ -401,8 +414,8 @@ export default function HomePage() {
               How it works
             </h2>
             <p className="mx-auto mb-12 max-w-2xl text-muted-foreground text-lg text-balance">
-              Three simple steps to transform how you capture, organize, and
-              rediscover your most important ideas.
+              Three simple steps to transform how you collect, organize, and use
+              design inspiration.
             </p>
           </div>
 
@@ -440,7 +453,7 @@ export default function HomePage() {
               Frequently asked questions
             </h2>
             <p className="mx-auto max-w-xl text-muted-foreground text-balance">
-              Everything you need to know about Teak.
+              Everything designers and developers need to know about Teak.
             </p>
           </div>
 

@@ -13,7 +13,7 @@ const pricingPlans = [
     name: "Free",
     price: "Free",
     description:
-      "Perfect for getting started with Teak and organizing your first ideas.",
+      "Perfect for getting started with visual bookmarking and organizing your first design cards.",
     features: [
       "25 cards maximum",
       "Full-text search",
@@ -35,7 +35,7 @@ const pricingPlans = [
       yearly: { amount: "$99", period: "year" },
     },
     description:
-      "Unlimited storage for all your ideas, thoughts, and inspiration.",
+      "Unlimited visual bookmarking for all your design cards, mood boards, and creative ideas.",
     features: [
       "Unlimited cards",
       "Full-text search",
@@ -56,7 +56,7 @@ const pricingPlans = [
     name: "Self-Hosted",
     price: "Free",
     description:
-      "Complete control with unlimited storage on your own infrastructure.",
+      "Complete control with unlimited cards on your own infrastructure.",
     features: [
       "Unlimited cards",
       "Full source code access",
@@ -76,7 +76,7 @@ const faqs = [
   {
     question: "Why is there a 25-card limit on the free plan?",
     answer:
-      "The 25-card limit helps us provide reliable free service while encouraging users who love Teak to upgrade to Pro for unlimited storage.",
+      "The 25-card limit helps us provide reliable free visual bookmarking service while encouraging designers who love Teak to upgrade to Pro for unlimited cards.",
   },
   {
     question: "What's the difference between Pro and Self-hosted?",
@@ -86,22 +86,22 @@ const faqs = [
   {
     question: "Can I switch between monthly and yearly Pro plans?",
     answer:
-      "Yes! You can switch anytime. Yearly subscribers save 35% compared to monthly pricing.",
+      "Yes! You can switch anytime. Yearly subscribers save 35% compared to monthly pricing - perfect for design teams.",
   },
   {
     question: "Do you offer refunds?",
     answer:
-      "Yes, we offer full refunds within 30 days, no questions asked. We're confident you'll love Teak.",
+      "Yes, we offer full refunds within 30 days, no questions asked. We're confident Teak will improve your design workflow.",
   },
   {
     question: "Is self-hosting really free?",
     answer:
-      "Yes! Teak is open source (MIT license), so you can self-host for free. You'll need technical knowledge to set up and maintain your own server.",
+      "Yes! Teak is open source (MIT license), so you can self-host for free. Perfect for agencies with client confidentiality requirements.",
   },
   {
     question: "What happens if I exceed 25 cards on the free plan?",
     answer:
-      "You won't lose any data, but you'll need to upgrade to Pro or self-host to add more cards. All existing cards remain accessible.",
+      "You won't lose any cards, but you'll need to upgrade to Pro or self-host to add more. All existing cards remain accessible.",
   },
 ];
 
@@ -117,7 +117,8 @@ export default function PricingPageClient() {
             Start free. Upgrade for unlimited cards.
           </h1>
           <p className="mx-auto max-w-2xl text-muted-foreground text-lg text-balance">
-            No hidden fees, no surprises.
+            Perfect for visual bookmarking and design inspiration management. No
+            hidden fees, no surprises.
           </p>
         </div>
       </section>
@@ -157,8 +158,8 @@ export default function PricingPageClient() {
               Start free, scale when ready
             </h2>
             <p className="mb-12 text-muted-foreground text-lg text-balance">
-              Most users find 25 cards perfect for getting started. When you
-              need more, Pro gives you unlimited storage.
+              Most designers find 25 cards perfect for getting started.
+              When your collection grows, Pro gives you unlimited cards.
             </p>
             <div className="grid gap-8 md:grid-cols-3">
               <div className="text-center">
@@ -169,8 +170,8 @@ export default function PricingPageClient() {
                   Start Free Today
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  25 cards is plenty to organize your most important ideas and
-                  see if Teak works for you.
+                  25 cards is plenty to organize your most important design
+                  inspiration and see if Teak fits your creative workflow.
                 </p>
               </div>
               <div className="text-center">
@@ -182,7 +183,7 @@ export default function PricingPageClient() {
                 </h3>
                 <p className="text-muted-foreground text-sm">
                   When 25 cards isn&apos;t enough, Pro gives you unlimited
-                  storage for all your ideas.
+                  cards for all your design inspiration.
                 </p>
               </div>
               <div className="text-center">
@@ -193,8 +194,8 @@ export default function PricingPageClient() {
                   Self-Host Option
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  Technical users can self-host for free with unlimited cards
-                  and complete control.
+                  Technical users can self-host for free with unlimited
+                  cards and complete control over their inspiration library.
                 </p>
               </div>
             </div>
@@ -210,7 +211,8 @@ export default function PricingPageClient() {
               Frequently asked questions
             </h2>
             <p className="mx-auto max-w-xl text-muted-foreground text-balance">
-              Got questions? We&apos;ve got answers.
+              Got questions about pricing for your visual bookmarking needs?
+              We&apos;ve got answers.
             </p>
           </div>
 

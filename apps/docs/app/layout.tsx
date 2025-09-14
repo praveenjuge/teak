@@ -6,18 +6,18 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: {
     template: "%s | Teak",
-    default: "Teak - Personal Knowledge Hub",
+    default: "Teak - Visual Bookmarking & Design Inspiration Manager",
   },
   description:
-    "Teak, a streamlined personal knowledge hub for creative minds. Learn how to set up and use Teak across web, mobile, and browser extension platforms.",
+    "Teak, the visual bookmarking tool made for designers and developers. Learn how to organize design inspiration and manage visual bookmarks across all platforms.",
   metadataBase: new URL("https://teakvault.com"),
   keywords:
-    "teak, personal knowledge management, setup guide, API reference, cross-platform sync",
+    "teak, visual bookmarking, design inspiration management, design bookmarks, visual inspiration, design workflow, developer resources",
   authors: [{ name: "Teak Team" }],
   openGraph: {
-    title: "Teak",
+    title: "Teak - Visual Bookmarking & Design Inspiration Manager",
     description:
-      "Complete guide to setting up and using Teak across all platforms",
+      "Complete guide to setting up and using Teak for visual bookmarking and design inspiration management across all platforms",
     type: "website",
     siteName: "Teak",
   },
