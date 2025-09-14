@@ -1,7 +1,5 @@
 import { Metadata } from "next";
 import { FeatureCard } from "../../components/FeatureCard";
-import { CTASection } from "../../components/CTASection";
-import { Footer } from "../../components/Footer";
 import { BackgroundPattern } from "../../components/BackgroundPattern";
 import { Button } from "../../components/ui/button";
 import Image from "next/image";
@@ -203,7 +201,7 @@ export default function HomePage() {
                   </div>
                   <p className="text-muted-foreground">
                     <strong>Perfect design inspiration disappears</strong> into
-                    random bookmark folders you'll never check again
+                    random bookmark folders you&apos;ll never check again
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -232,7 +230,7 @@ export default function HomePage() {
                     <strong>
                       Finding that perfect inspiration takes forever
                     </strong>{" "}
-                    when it's buried across multiple design tools and apps
+                    when it&apos;s buried across multiple design tools and apps
                   </p>
                 </div>
               </div>

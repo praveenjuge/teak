@@ -4,8 +4,6 @@ import { useState } from "react";
 import { Rocket, TrendingUp, Wrench } from "lucide-react";
 import { PricingCard } from "../../../components/PricingCard";
 import { PricingToggle } from "../../../components/PricingToggle";
-import { CTASection } from "../../../components/CTASection";
-import { Footer } from "../../../components/Footer";
 
 const pricingPlans = [
   {
