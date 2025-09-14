@@ -118,7 +118,7 @@ const faqs = [
   {
     question: "What happens if I accidentally delete something?",
     answer:
-      "Cards use soft deletion - they're marked as deleted but recoverable. You can restore accidentally deleted cards or permanently remove them from trash.",
+      "Cards use soft deletion - they're marked as deleted but recoverable for 30 days. You can restore accidentally deleted cards or permanently remove them from trash.",
   },
   {
     question: "How does visual search work?",
