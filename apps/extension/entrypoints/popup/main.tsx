@@ -1,7 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
-import "tailwindcss/index.css";
+import "../../style.css";
+
 import { Loader2 } from "lucide-react";
 import {
   ClerkLoading,
