@@ -13,9 +13,34 @@ export const cardTypes = [
   "quote",
 ] as const;
 
+export type CardType = (typeof cardTypes)[number];
+
 // Reusable validators
 export const cardTypeValidator = v.union(
   ...cardTypes.map((type) => v.literal(type))
+);
+
+const stageStatusValidator = v.object({
+  status: v.union(
+    v.literal("pending"),
+    v.literal("in_progress"),
+    v.literal("completed"),
+    v.literal("failed")
+  ),
+  startedAt: v.optional(v.number()),
+  completedAt: v.optional(v.number()),
+  confidence: v.optional(v.number()),
+  error: v.optional(v.string()),
+});
+
+export const processingStatusObjectValidator = v.object({
+  classify: v.optional(stageStatusValidator),
+  metadata: v.optional(stageStatusValidator),
+  renderables: v.optional(stageStatusValidator),
+});
+
+export const processingStatusValidator = v.optional(
+  processingStatusObjectValidator
 );
 
 export const fileMetadataValidator = v.optional(
@@ -87,6 +112,8 @@ export const cardValidator = v.object({
   ),
   // Palette-specific fields
   colors: v.optional(v.array(colorValidator)),
+  // Pipeline processing status per stage
+  processingStatus: processingStatusValidator,
   createdAt: v.number(),
   updatedAt: v.number(),
 });

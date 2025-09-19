@@ -1,15 +1,18 @@
-import { type Color, extractColorsFromContent } from './colorUtils';
-import { extractAndValidateUrl, extractQuoteContent } from './validationUtils';
+import { type Color, extractColorsFromContent } from "./colorUtils";
+import { extractAndValidateUrl, extractQuoteContent } from "./validationUtils";
 
-// Main type detection function
-export function detectCardTypeFromContent(content: string): {
+type DetectedCardType = {
   type: "text" | "link" | "palette" | "quote";
   processedContent: string;
   url?: string;
   colors?: Color[];
-} {
+  confidence: number;
+};
+
+// Main type detection function
+export function detectCardTypeFromContent(content: string): DetectedCardType {
   if (!content || !content.trim()) {
-    return { type: "text", processedContent: content };
+    return { type: "text", processedContent: content, confidence: 0.2 };
   }
 
   // First check for quotes
@@ -17,7 +20,8 @@ export function detectCardTypeFromContent(content: string): {
   if (quoteAnalysis.isQuote) {
     return {
       type: "quote",
-      processedContent: quoteAnalysis.extractedQuote!
+      processedContent: quoteAnalysis.extractedQuote!,
+      confidence: 0.95,
     };
   }
 
@@ -27,7 +31,8 @@ export function detectCardTypeFromContent(content: string): {
     return {
       type: "palette",
       processedContent: content.trim(),
-      colors: colors
+      colors: colors,
+      confidence: 0.9,
     };
   }
 
@@ -37,7 +42,8 @@ export function detectCardTypeFromContent(content: string): {
     return {
       type: "link",
       processedContent: urlAnalysis.cleanContent,
-      url: urlAnalysis.extractedUrl
+      url: urlAnalysis.extractedUrl,
+      confidence: 0.9,
     };
   }
 
@@ -46,13 +52,15 @@ export function detectCardTypeFromContent(content: string): {
     return {
       type: "text",
       processedContent: urlAnalysis.cleanContent,
-      url: urlAnalysis.extractedUrl
+      url: urlAnalysis.extractedUrl,
+      confidence: 0.6,
     };
   }
 
   // Default to text
   return {
     type: "text",
-    processedContent: content.trim()
+    processedContent: content.trim(),
+    confidence: 0.4,
   };
 }
