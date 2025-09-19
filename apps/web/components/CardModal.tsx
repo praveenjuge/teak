@@ -143,12 +143,30 @@ export function CardModal({
   const renderPreview = () => {
     if (!card) return null;
 
-    const classificationStatus = card.processingStatus?.classify?.status;
-    const isClassifying =
-      classificationStatus === "pending" ||
-      classificationStatus === "in_progress";
+    const stagePending = (stage?: { status?: string }) =>
+      stage?.status === "pending" || stage?.status === "in_progress";
 
-    if (isClassifying) {
+    const processingStatus = card.processingStatus;
+    const isProcessingPending =
+      stagePending(processingStatus?.classify) ||
+      stagePending(processingStatus?.categorize) ||
+      stagePending(processingStatus?.metadata) ||
+      stagePending(processingStatus?.renderables);
+
+    const metadataStatusPending = card.metadataStatus === "pending";
+    const linkPreview =
+      card.metadata?.linkPreview?.status === "success"
+        ? card.metadata.linkPreview
+        : undefined;
+    const screenshotPending =
+      card.type === "link" &&
+      linkPreview &&
+      !linkPreview.screenshotStorageId;
+
+    const isAnalyzing =
+      isProcessingPending || metadataStatusPending || screenshotPending;
+
+    if (isAnalyzing) {
       return (
         <div className="flex h-full items-center justify-center text-muted-foreground">
           <div className="flex flex-col items-center gap-2">

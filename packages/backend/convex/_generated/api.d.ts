@@ -16,6 +16,7 @@ import type * as migrations from "../migrations.js";
 import type * as polar from "../polar.js";
 import type * as tasks_ai_actions from "../tasks/ai/actions.js";
 import type * as tasks_ai_index from "../tasks/ai/index.js";
+import type * as tasks_ai_linkCategorization from "../tasks/ai/linkCategorization.js";
 import type * as tasks_ai_metadata_generators from "../tasks/ai/metadata_generators.js";
 import type * as tasks_ai_mutations from "../tasks/ai/mutations.js";
 import type * as tasks_ai_queries from "../tasks/ai/queries.js";
@@ -62,6 +63,7 @@ declare const fullApi: ApiFromModules<{
   polar: typeof polar;
   "tasks/ai/actions": typeof tasks_ai_actions;
   "tasks/ai/index": typeof tasks_ai_index;
+  "tasks/ai/linkCategorization": typeof tasks_ai_linkCategorization;
   "tasks/ai/metadata_generators": typeof tasks_ai_metadata_generators;
   "tasks/ai/mutations": typeof tasks_ai_mutations;
   "tasks/ai/queries": typeof tasks_ai_queries;

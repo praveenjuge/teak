@@ -15,6 +15,7 @@ import { borderWidths, colors } from "@/constants/colors";
 import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
 import { api } from "@teak/convex";
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { LINK_CATEGORY_LABELS } from "@teak/shared";
 
 type Card = Doc<"cards">;
 
@@ -68,9 +69,13 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
   const cardActions = useCardActions();
 
   const classificationStatus = card.processingStatus?.classify?.status;
+  const categorizeStatus = card.processingStatus?.categorize?.status;
   const isClassifying =
     classificationStatus === "pending" ||
     classificationStatus === "in_progress";
+  const isCategorizing =
+    categorizeStatus === "pending" || categorizeStatus === "in_progress";
+  const isAnalyzing = isClassifying || isCategorizing;
 
   const dynamicStyles = {
     card: {
@@ -142,7 +147,7 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
 
   // Render content based on card type
   const renderCardContent = () => {
-    if (isClassifying) {
+    if (isAnalyzing) {
       return (
         <View style={[styles.card, dynamicStyles.card, styles.pendingCard]}>
           <Text style={[styles.pendingText, dynamicStyles.mutedText]}>
@@ -242,6 +247,7 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
         const linkImage =
           linkPreview?.imageUrl ||
           card.metadata?.microlinkData?.data?.image?.url;
+        const linkCategory = card.metadata?.linkCategory;
 
         return (
           <TouchableOpacity
@@ -265,6 +271,14 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
                 >
                   {linkTitle}
                 </Text>
+                {linkCategory && (
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.urlCategory, dynamicStyles.mutedText]}
+                  >
+                    {LINK_CATEGORY_LABELS[linkCategory.category]}
+                  </Text>
+                )}
               </View>
             </View>
           </TouchableOpacity>
@@ -490,6 +504,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     lineHeight: 18,
+  },
+  urlCategory: {
+    marginTop: 6,
+    fontSize: 12,
   },
   pdfContent: {
     flexDirection: "column",

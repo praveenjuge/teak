@@ -13,6 +13,7 @@ import { generateTextMetadata, generateImageMetadata, generateLinkMetadata } fro
 import { generateTranscript } from "./transcript";
 import {
   buildInitialProcessingStatus,
+  shouldRunCategorizeStage,
   shouldRunRenderablesStage,
   stageCompleted,
   stageFailed,
@@ -28,8 +29,10 @@ import {
   paletteExtractionSchema,
 } from "./schemas";
 import type { CardType } from "../../schema";
+import { classifyLinkCategory, enrichLinkCategory } from "./linkCategorization";
 
 const CLASSIFY_RETRY_DELAYS = [5000, 30000, 120000];
+const CATEGORY_RETRY_DELAYS = [5000, 20000, 60000];
 const METADATA_RETRY_DELAYS = [5000, 20000, 60000];
 const RENDER_RETRY_DELAYS = [5000, 15000];
 const MAX_PALETTE_COLORS = 12;
@@ -215,6 +218,16 @@ const ensureProcessingStatus = async (
     mutated = true;
   }
 
+  if (!processing.categorize) {
+    const shouldCategorize = shouldRunCategorizeStage(card.type as CardType);
+    processing = withStageStatus(
+      processing,
+      "categorize",
+      shouldCategorize ? stagePending() : stageCompleted(now, 1)
+    );
+    mutated = true;
+  }
+
   if (!processing.metadata) {
     processing = withStageStatus(processing, "metadata", stagePending());
     mutated = true;
@@ -250,6 +263,17 @@ const scheduleNextStage = async (
   if (stageNeedsWork(classifyStatus)) {
     if (!stageRunning(classifyStatus)) {
       await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.runClassificationStage, {
+        cardId,
+        retryCount: 0,
+      });
+    }
+    return;
+  }
+
+  const categorizeStatus = processing.categorize;
+  if (stageNeedsWork(categorizeStatus)) {
+    if (!stageRunning(categorizeStatus)) {
+      await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.runCategorizationStage, {
         cardId,
         retryCount: 0,
       });
@@ -474,6 +498,15 @@ export const runClassificationStage = internalAction({
           stagePending()
         );
 
+        const categorizeShouldRun = shouldRunCategorizeStage(normalizedType);
+        processingForUpdate = withStageStatus(
+          processingForUpdate,
+          "categorize",
+          categorizeShouldRun
+            ? stagePending()
+            : stageCompleted(stageUpdateTimestamp, 1)
+        );
+
         const requiresRenderables = shouldRunRenderablesStage(normalizedType);
         processingForUpdate = withStageStatus(
           processingForUpdate,
@@ -521,6 +554,118 @@ export const runClassificationStage = internalAction({
       if (retryCount < CLASSIFY_RETRY_DELAYS.length) {
         const delay = CLASSIFY_RETRY_DELAYS[retryCount];
         await ctx.scheduler.runAfter(delay, internal.tasks.ai.actions.runClassificationStage, {
+          cardId,
+          retryCount: retryCount + 1,
+        });
+      }
+    }
+  },
+});
+
+export const runCategorizationStage = internalAction({
+  args: {
+    cardId: v.id("cards"),
+    retryCount: v.optional(v.number()),
+  },
+  handler: async (ctx, { cardId, retryCount = 0 }) => {
+    const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
+      cardId,
+    });
+
+    if (!card) {
+      console.warn(`[pipeline] Card ${cardId} missing for categorization stage`);
+      return;
+    }
+
+    let processing = await ensureProcessingStatus(ctx, card, {
+      classificationFallback: "completed",
+    });
+
+    if (stageNeedsWork(processing.classify)) {
+      await scheduleNextStage(ctx, cardId, processing);
+      return;
+    }
+
+    const stageStatus = processing.categorize;
+    if (!stageNeedsWork(stageStatus)) {
+      await scheduleNextStage(ctx, cardId, processing);
+      return;
+    }
+
+    if (stageRunning(stageStatus)) {
+      return;
+    }
+
+    if (card.type !== "link") {
+      const completed = await upsertStageStatus(
+        ctx,
+        cardId,
+        processing,
+        "categorize",
+        completeStage(stageStatus, Date.now(), 1),
+        { type: card.type as CardType }
+      );
+      await scheduleNextStage(ctx, cardId, completed);
+      return;
+    }
+
+    const existingCategory = card.metadata?.linkCategory;
+    if (existingCategory?.category && existingCategory.sourceUrl === (card.url || existingCategory.sourceUrl)) {
+      const completed = await upsertStageStatus(
+        ctx,
+        cardId,
+        processing,
+        "categorize",
+        completeStage(stageStatus, Date.now(), existingCategory.confidence ?? 0.9)
+      );
+      await scheduleNextStage(ctx, cardId, completed);
+      return;
+    }
+
+    const now = Date.now();
+    processing = await upsertStageStatus(
+      ctx,
+      cardId,
+      processing,
+      "categorize",
+      stageInProgress(now, stageStatus)
+    );
+
+    try {
+      const classification = await classifyLinkCategory(card);
+      if (!classification) {
+        throw new Error("Unable to determine link category");
+      }
+
+      const metadata = await enrichLinkCategory(card, classification);
+
+      await ctx.runMutation(internal.tasks.ai.mutations.updateCardCategory, {
+        cardId,
+        category: metadata,
+      });
+
+      const updatedProcessing = await upsertStageStatus(
+        ctx,
+        cardId,
+        processing,
+        "categorize",
+        completeStage(stageStatus, Date.now(), classification.confidence ?? 0.8)
+      );
+
+      await scheduleNextStage(ctx, cardId, updatedProcessing);
+    } catch (error) {
+      console.error(`[pipeline] Categorization failed for ${cardId}:`, error);
+      processing = await upsertStageStatus(
+        ctx,
+        cardId,
+        processing,
+        "categorize",
+        stageFailed(Date.now(), error instanceof Error ? error.message : String(error), stageStatus)
+      );
+
+      if (retryCount < CATEGORY_RETRY_DELAYS.length) {
+        const delay = CATEGORY_RETRY_DELAYS[retryCount];
+        await ctx.scheduler.runAfter(delay, internal.tasks.ai.actions.runCategorizationStage, {
           cardId,
           retryCount: retryCount + 1,
         });

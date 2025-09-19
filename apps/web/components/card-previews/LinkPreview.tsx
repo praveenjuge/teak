@@ -1,13 +1,14 @@
+import { useMemo } from "react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
 import { type Doc } from "@teak/convex/_generated/dataModel";
+import { Separator } from "@/components/ui/separator";
 
 interface LinkPreviewProps {
   card: Doc<"cards">;
   showScreenshot?: boolean;
 }
 
-// Loading skeleton components
 const SkeletonLine = ({ width = "100%" }: { width?: string }) => (
   <div className="h-4 bg-gray-200 rounded animate-pulse" style={{ width }} />
 );
@@ -30,31 +31,33 @@ const SkeletonImage = () => (
   <div className="w-full h-48 bg-gray-200 rounded animate-pulse" />
 );
 
+const stagePending = (stage?: { status?: string }) =>
+  stage?.status === "pending" || stage?.status === "in_progress";
+
 export function LinkPreview({
   card,
   showScreenshot = false,
 }: LinkPreviewProps) {
-  const isLoading = card.metadataStatus === "pending";
-
+  const processingStatus = card.processingStatus;
   const linkPreview =
     card.metadata?.linkPreview?.status === "success"
       ? card.metadata.linkPreview
       : undefined;
   const legacyMicrolink = card.metadata?.microlinkData?.data;
 
-  const title =
+  const linkTitle =
     linkPreview?.title ||
     card.metadataTitle ||
     legacyMicrolink?.title ||
     card.url ||
     "Link";
-  const description =
+  const linkDescription =
     linkPreview?.description ||
     card.metadataDescription ||
     legacyMicrolink?.description;
-  const image = linkPreview?.imageUrl || legacyMicrolink?.image?.url;
-  const favicon = linkPreview?.faviconUrl || legacyMicrolink?.logo?.url;
-  const publisher =
+  const linkImage = linkPreview?.imageUrl || legacyMicrolink?.image?.url;
+  const linkFavicon = linkPreview?.faviconUrl || legacyMicrolink?.logo?.url;
+  const linkPublisher =
     linkPreview?.publisher ||
     linkPreview?.siteName ||
     legacyMicrolink?.publisher;
@@ -67,79 +70,107 @@ export function LinkPreview({
       : "skip"
   );
 
+  const isProcessingPending =
+    stagePending(processingStatus?.classify) ||
+    stagePending(processingStatus?.categorize) ||
+    stagePending(processingStatus?.metadata) ||
+    stagePending(processingStatus?.renderables);
+
+  const metadataStatusPending = card.metadataStatus === "pending";
+  const screenshotPending =
+    card.type === "link" &&
+    linkPreview?.status === "success" &&
+    !linkPreview?.screenshotStorageId;
+
+  const isAnalyzing =
+    isProcessingPending || metadataStatusPending || screenshotPending;
+
+  const faviconUrl = useMemo(() => {
+    if (linkFavicon) return linkFavicon;
+    if (!card.url) return undefined;
+    return `https://www.google.com/s2/favicons?domain=${card.url}`;
+  }, [card.url, linkFavicon]);
+
+  const categoryMetadata = card.metadata?.linkCategory;
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <div className="flex items-start gap-3">
-        {/* Favicon */}
         <div className="w-5 h-5 mt-0.5 flex-shrink-0">
-          {isLoading && !favicon ? (
+          {isAnalyzing && !faviconUrl ? (
             <div className="w-5 h-5 bg-gray-200 rounded animate-pulse" />
           ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={
-                favicon ||
-                `https://www.google.com/s2/favicons?domain=${card.url}`
-              }
-              alt=""
-              className="w-5 h-5"
-              onError={(e) => {
-                // Fallback to Google favicon API if custom favicon fails
-                const target = e.target as HTMLImageElement;
-                if (
-                  target.src !==
-                  `https://www.google.com/s2/favicons?domain=${card.url}`
-                ) {
-                  target.src = `https://www.google.com/s2/favicons?domain=${card.url}`;
-                }
-              }}
-            />
+            faviconUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={faviconUrl}
+                alt=""
+                className="w-5 h-5"
+                onError={(event) => {
+                  const target = event.currentTarget;
+                  if (card.url && !target.dataset.fallback) {
+                    target.dataset.fallback = "true";
+                    target.src = `https://www.google.com/s2/favicons?domain=${card.url}`;
+                  } else {
+                    target.style.display = "none";
+                  }
+                }}
+              />
+            )
           )}
         </div>
 
-        <div className="min-w-0 flex-1">
-          {/* Title */}
-          {isLoading && !title ? (
+        <div className="min-w-0 flex-1 space-y-2">
+          {isAnalyzing && !linkTitle ? (
             <SkeletonTitle />
           ) : (
             <h2 className="font-semibold text-lg leading-tight line-clamp-2">
-              {title}
+              {linkTitle}
             </h2>
           )}
 
-          {/* Description */}
-          {isLoading && !description ? (
+          {isAnalyzing && !linkDescription ? (
             <div className="mt-1">
               <SkeletonDescription />
             </div>
           ) : (
-            description && (
-              <p className="text-muted-foreground text-sm mt-1 line-clamp-2">
-                {description}
+            linkDescription && (
+              <p className="text-muted-foreground text-sm mt-1 line-clamp-3">
+                {linkDescription}
               </p>
             )
           )}
 
-          {/* Publisher */}
-          {publisher && (
-            <p className="text-muted-foreground mt-1">{publisher}</p>
+          {linkPublisher && (
+            <p className="text-muted-foreground text-sm">{linkPublisher}</p>
           )}
+
+          {categoryMetadata?.facts?.length ? (
+            <div className="space-y-1 text-sm text-muted-foreground border-t pt-3">
+              {categoryMetadata.facts.map((fact) => (
+                <div key={`${fact.label}-${fact.value}`} className="flex gap-2">
+                  <span className="font-medium text-foreground">{fact.label}:</span>
+                  <span className="text-balance">{fact.value}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {/* OG Image */}
-      {isLoading && !image ? (
+      {linkImage && !linkPreview?.imageUrl && <Separator />}
+
+      {isAnalyzing && !linkImage ? (
         <SkeletonImage />
       ) : (
-        image && (
+        linkImage && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={image}
+            src={linkImage}
             alt=""
             className="w-full max-h-[60vh] object-cover rounded"
-            onError={(e) => {
-              // Hide broken images
-              const target = e.target as HTMLImageElement;
+            onError={(event) => {
+              const target = event.currentTarget;
               target.style.display = "none";
             }}
           />
@@ -160,11 +191,31 @@ export function LinkPreview({
         </div>
       )}
 
-      {/* Notes */}
+      {showScreenshot && linkImage && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">
+            Preview Image
+          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={linkImage}
+            alt="Open Graph preview"
+            className="w-full max-h-[70vh] object-contain rounded border"
+            onError={(event) => {
+              const target = event.currentTarget;
+              target.style.display = "none";
+            }}
+          />
+        </div>
+      )}
+
       {card.notes && (
-        <p className="text-base text-muted-foreground whitespace-pre-wrap">
-          {card.notes}
-        </p>
+        <div className="space-y-2">
+          <Separator />
+          <p className="text-base text-muted-foreground whitespace-pre-wrap">
+            {card.notes}
+          </p>
+        </div>
       )}
     </div>
   );
