@@ -1,10 +1,11 @@
 import { useState, useCallback } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@teak/convex";
+import { type CardErrorCode } from "../constants";
 
 export interface UnifiedFileUploadConfig {
   onSuccess?: (cardId: string) => void;
-  onError?: (error: string) => void;
+  onError?: (error: FileUploadError) => void;
   onProgress?: (progress: number) => void;
 }
 
@@ -12,12 +13,20 @@ export interface FileUploadState {
   isUploading: boolean;
   progress: number;
   error: string | null;
+  errorCode?: CardErrorCode;
 }
+
+export interface FileUploadError {
+  message: string;
+  code?: CardErrorCode;
+}
+
+type CodedError = Error & { code?: CardErrorCode };
 
 export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FileUploadError | null>(null);
 
   const uploadAndCreateCard = useMutation(api.cards.uploadAndCreateCard);
   const finalizeUploadedCard = useMutation(api.cards.finalizeUploadedCard);
@@ -45,7 +54,13 @@ export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
         });
 
         if (!uploadResult.success || !uploadResult.uploadUrl) {
-          throw new Error(uploadResult.error || "Failed to prepare upload");
+          const errorInfo: FileUploadError = {
+            message: uploadResult.error || "Failed to prepare upload",
+            code: uploadResult.errorCode as CardErrorCode | undefined,
+          };
+          const codedError = new Error(errorInfo.message) as CodedError;
+          codedError.code = errorInfo.code;
+          throw codedError;
         }
 
         // Step 2: Upload file to Convex storage
@@ -76,7 +91,13 @@ export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
         });
 
         if (!finalizeResult.success || !finalizeResult.cardId) {
-          throw new Error(finalizeResult.error || "Failed to create card");
+          const errorInfo: FileUploadError = {
+            message: finalizeResult.error || "Failed to create card",
+            code: finalizeResult.errorCode as CardErrorCode | undefined,
+          };
+          const codedError = new Error(errorInfo.message) as CodedError;
+          codedError.code = errorInfo.code;
+          throw codedError;
         }
 
         config.onProgress?.(100);
@@ -86,9 +107,22 @@ export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
         return { success: true, cardId: finalizeResult.cardId };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Upload failed";
-        setError(errorMessage);
-        config.onError?.(errorMessage);
-        return { success: false, error: errorMessage };
+        const fileError: FileUploadError = {
+          message: errorMessage,
+          code: undefined,
+        };
+
+        if (
+          error instanceof Error &&
+          "code" in error &&
+          typeof (error as CodedError).code !== "undefined"
+        ) {
+          fileError.code = (error as CodedError).code;
+        }
+
+        setError(fileError);
+        config.onError?.(fileError);
+        return { success: false, error: fileError.message, errorCode: fileError.code };
       } finally {
         setIsUploading(false);
         // Reset progress after a short delay
@@ -126,7 +160,8 @@ export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
   const state: FileUploadState = {
     isUploading,
     progress,
-    error,
+    error: error?.message ?? null,
+    errorCode: error?.code,
   };
 
   return {
@@ -136,6 +171,7 @@ export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
     // Convenience getters
     isUploading,
     progress,
-    error,
+    error: error?.message ?? null,
+    errorCode: error?.code,
   };
 }

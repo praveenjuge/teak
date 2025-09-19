@@ -1,10 +1,10 @@
 import { v } from "convex/values";
 import { mutation } from "../../_generated/server";
-import { internal, api } from "../../_generated/api";
+import { internal } from "../../_generated/api";
 import { cardTypeValidator, colorValidator } from "../../schema";
-import { FREE_TIER_LIMIT } from "@teak/shared/constants";
 import { detectCardTypeFromContent } from "./contentDetection";
 import { getFileCardType } from "./fileUtils";
+import { ensureCardCreationAllowed } from "./cardLimit";
 
 export const createCard = mutation({
   args: {
@@ -24,22 +24,7 @@ export const createCard = mutation({
       throw new Error("User must be authenticated");
     }
 
-    // Check if user can create a card (respects free tier limits)
-    const cardCount = await ctx.db
-      .query("cards")
-      .withIndex("by_user_deleted", (q) =>
-        q.eq("userId", user.subject).eq("isDeleted", undefined)
-      )
-      .collect();
-
-    // For free users, enforce the FREE_TIER_LIMIT card limit
-    if (cardCount.length >= FREE_TIER_LIMIT) {
-      // Need to check if user has premium - use the existing userHasPremium query
-      const hasPremium = await ctx.runQuery(api.polar.userHasPremium);
-      if (!hasPremium) {
-        throw new Error("Card limit reached. Please upgrade to Pro for unlimited cards.");
-      }
-    }
+    await ensureCardCreationAllowed(ctx, user.subject);
 
     const now = Date.now();
 

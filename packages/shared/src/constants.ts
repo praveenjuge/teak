@@ -13,6 +13,20 @@ export type CardType = (typeof cardTypes)[number];
  */
 export const FREE_TIER_LIMIT = 25;
 
+// === Error Codes & Messages ===
+
+export const CARD_ERROR_CODES = {
+  CARD_LIMIT_REACHED: "CARD_LIMIT_REACHED",
+} as const;
+
+export type CardErrorCode =
+  (typeof CARD_ERROR_CODES)[keyof typeof CARD_ERROR_CODES];
+
+export const CARD_ERROR_MESSAGES: Record<CardErrorCode, string> = {
+  CARD_LIMIT_REACHED:
+    "Card limit reached. Please upgrade to Pro for unlimited cards.",
+} as const;
+
 /**
  * All card types as readonly array
  */

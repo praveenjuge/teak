@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { useFileUpload } from "@teak/shared";
+import { useFileUpload, CARD_ERROR_CODES } from "@teak/shared";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -19,11 +19,10 @@ export function useGlobalDragDrop() {
 
   const { uploadMultipleFiles, state } = useFileUpload({
     onError: (error) => {
-      // Check if error is about card limit
-      if (error.includes("Card limit reached") || error.includes("upgrade to Pro")) {
+      if (error.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
         setShowUpgradePrompt(true);
       } else {
-        toast.error(error);
+        toast.error(error.message);
       }
     },
   });
@@ -43,8 +42,7 @@ export function useGlobalDragDrop() {
           toast.success(`${result.file} uploaded successfully`);
         } else {
           const errorMessage = result.error || "Upload failed";
-          // Check if error is about card limit
-          if (errorMessage.includes("Card limit reached") || errorMessage.includes("upgrade to Pro")) {
+          if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
             setShowUpgradePrompt(true);
           } else {
             toast.error(`Failed to upload ${result.file}: ${errorMessage}`);

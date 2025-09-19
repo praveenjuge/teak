@@ -5,6 +5,7 @@ export * from './colorUtils';
 export * from './contentDetection';
 export * from './fileUtils';
 export * from './validationUtils';
+export * from './cardLimit';
 
 // Query functions
 export * from './getCards';

@@ -1,4 +1,9 @@
-import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync } from "expo-audio";
+import {
+  useAudioRecorder,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+} from "expo-audio";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useRef, useState } from "react";
@@ -12,7 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useCreateCard, useFileUpload } from "@teak/shared";
+import { useCreateCard, useFileUpload, CARD_ERROR_CODES } from "@teak/shared";
 import { IconSymbol } from "../../components/ui/IconSymbol";
 import { borderWidths, colors } from "../../constants/colors";
 
@@ -30,7 +35,11 @@ export default function AddScreen() {
       Alert.alert("Success", "File uploaded successfully!");
     },
     onError: (error) => {
-      Alert.alert("Error", error);
+      if (error.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
+        Alert.alert("Upgrade Required", error.message);
+      } else {
+        Alert.alert("Error", error.message);
+      }
     },
   });
 
@@ -75,7 +84,10 @@ export default function AddScreen() {
       // Request audio recording permissions
       const { granted } = await requestRecordingPermissionsAsync();
       if (!granted) {
-        Alert.alert("Permission Required", "Audio recording permission is required to record audio.");
+        Alert.alert(
+          "Permission Required",
+          "Audio recording permission is required to record audio."
+        );
         return;
       }
 
@@ -102,7 +114,7 @@ export default function AddScreen() {
 
     setIsRecording(false);
     await audioRecorder.stop();
-    
+
     const uri = audioRecorder.uri;
     if (uri) {
       await handleFileUpload(uri, `recording-${Date.now()}.m4a`, "audio/m4a");
