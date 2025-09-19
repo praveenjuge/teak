@@ -2,8 +2,7 @@ import { v } from "convex/values";
 import { mutation } from "../../_generated/server";
 import { internal } from "../../_generated/api";
 import { cardTypeValidator, colorValidator } from "../../schema";
-import { detectCardTypeFromContent } from "./contentDetection";
-import { getFileCardType } from "./fileUtils";
+import { extractUrlFromContent } from "./validationUtils";
 import { ensureCardCreationAllowed } from "./cardLimit";
 import {
   buildInitialProcessingStatus,
@@ -33,21 +32,16 @@ export const createCard = mutation({
 
     const now = Date.now();
 
-    // Determine card type and process content
-    let cardType = args.type;
+    const providedType = args.type;
+    let cardType = providedType ?? "text";
     let finalContent = args.content;
     let finalUrl = args.url;
-    let detectedColors = args.colors;
     let originalMetadata = args.metadata || {};
     let fileMetadata: any = undefined;
-    let detectionConfidence: number | undefined;
-    let classificationStatus = stagePending();
-    let classificationNeeded = true;
-
-    if (args.type) {
-      classificationStatus = stageCompleted(now, 1);
-      classificationNeeded = false;
-    }
+    const classificationRequired = !providedType;
+    const classificationStatus = classificationRequired
+      ? stagePending()
+      : stageCompleted(now, 1);
 
     // Separate file-related metadata from other metadata
     let processedMetadata = { ...originalMetadata };
@@ -63,58 +57,25 @@ export const createCard = mutation({
       }
     });
 
-    if (!cardType && args.fileId) {
-      // Auto-detect type from file metadata
+    if (args.fileId) {
       const systemFileMetadata = await ctx.db.system.get(args.fileId);
       if (systemFileMetadata?.contentType) {
-        cardType = getFileCardType(systemFileMetadata.contentType);
-
-        // Create file metadata object, merging extracted fields
         fileMetadata = {
           fileName: extractedFileMetadata.fileName || `file_${now}`,
           fileSize: systemFileMetadata.size,
           mimeType: systemFileMetadata.contentType,
-          ...extractedFileMetadata, // Include any other file-related metadata
+          ...extractedFileMetadata,
         };
-
-        classificationStatus = stageCompleted(now, 1);
-        classificationNeeded = false;
       }
     } else if (Object.keys(extractedFileMetadata).length > 0) {
       // If we have file metadata but no fileId, still create fileMetadata object
       fileMetadata = extractedFileMetadata;
     }
 
-    // Auto-detect card type from content if not provided and no file
-    if (!cardType && !args.fileId && args.content?.trim()) {
-      const detection = detectCardTypeFromContent(args.content);
-      cardType = detection.type;
-      finalContent = detection.processedContent;
-      detectionConfidence = detection.confidence;
-
-      // Use detected URL if no URL was provided
-      if (!finalUrl && detection.url) {
-        finalUrl = detection.url;
-      }
-
-      // Use detected colors if no colors were provided
-      if (!detectedColors && detection.colors) {
-        detectedColors = detection.colors;
-      }
-
-      if (detection.confidence >= 0.85) {
-        classificationStatus = stageCompleted(now, detection.confidence);
-        classificationNeeded = false;
-      }
-    }
-
-    // Fallback to text if no type determined
-    if (!cardType) {
-      cardType = "text";
-    }
-
-    if (classificationNeeded && detectionConfidence !== undefined) {
-      classificationStatus = { ...stagePending(), confidence: detectionConfidence };
+    if (!finalUrl && args.content?.trim()) {
+      const urlExtraction = extractUrlFromContent(args.content);
+      finalUrl = urlExtraction.url ?? finalUrl;
+      finalContent = urlExtraction.cleanedContent;
     }
 
     // Set initial metadataStatus for link cards
@@ -129,7 +90,7 @@ export const createCard = mutation({
       notes: args.notes,
       metadata: Object.keys(processedMetadata).length > 0 ? processedMetadata : undefined,
       fileMetadata: fileMetadata,
-      colors: detectedColors, // Use detected or provided colors
+      colors: args.colors,
       processingStatus: buildInitialProcessingStatus({
         now,
         cardType,
@@ -152,7 +113,7 @@ export const createCard = mutation({
 
     await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.startProcessingPipeline, {
       cardId,
-      classificationRequired: classificationStatus.status === "pending",
+      classificationRequired,
     });
 
     return cardId;

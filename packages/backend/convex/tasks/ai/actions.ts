@@ -300,9 +300,18 @@ export const runClassificationStage = internalAction({
 
       const resultType = classification.object.type as CardType;
       const resultConfidence = classification.object.confidence ?? 0.8;
+      const trimmedContent = typeof card.content === "string" ? card.content.trim() : "";
+      const urlOnlyCard =
+        !!card.url &&
+        !card.fileId &&
+        (trimmedContent.length === 0 || trimmedContent === card.url);
+
+      const normalizedType = urlOnlyCard && resultType !== "link" ? "link" : resultType;
       const normalizedConfidence = Math.max(0, Math.min(resultConfidence, 1));
+      const shouldForceLink = urlOnlyCard && card.type !== "link";
       const shouldUpdateType =
-        resultType !== card.type && normalizedConfidence >= 0.6;
+        shouldForceLink ||
+        (normalizedType !== card.type && normalizedConfidence >= 0.6);
 
       let processingForUpdate = processing;
       const stageUpdateTimestamp = Date.now();
@@ -312,14 +321,14 @@ export const runClassificationStage = internalAction({
       } = {};
 
       if (shouldUpdateType) {
-        extraUpdates.type = resultType;
+        extraUpdates.type = normalizedType;
         processingForUpdate = withStageStatus(
           processingForUpdate,
           "metadata",
           stagePending()
         );
 
-        const requiresRenderables = shouldRunRenderablesStage(resultType);
+        const requiresRenderables = shouldRunRenderablesStage(normalizedType);
         processingForUpdate = withStageStatus(
           processingForUpdate,
           "renderables",
@@ -328,7 +337,7 @@ export const runClassificationStage = internalAction({
             : stageCompleted(stageUpdateTimestamp, 1)
         );
 
-        if (resultType === "link") {
+        if (normalizedType === "link") {
           extraUpdates.metadataStatus = "pending";
         }
       }
@@ -342,7 +351,7 @@ export const runClassificationStage = internalAction({
         extraUpdates
       );
 
-      if (shouldUpdateType && resultType === "link") {
+      if (shouldUpdateType && normalizedType === "link") {
         await ctx.scheduler.runAfter(
           0,
           internal.linkMetadata.extractLinkMetadata,

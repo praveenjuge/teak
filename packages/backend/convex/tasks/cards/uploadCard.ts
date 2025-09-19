@@ -2,10 +2,9 @@ import { ConvexError, v } from "convex/values";
 import { mutation } from "../../_generated/server";
 import { internal } from "../../_generated/api";
 import { ensureCardCreationAllowed } from "./cardLimit";
-import { getFileCardType } from "./fileUtils";
 import {
   buildInitialProcessingStatus,
-  stageCompleted,
+  stagePending,
 } from "./processingStatus";
 
 // Unified upload mutation that handles the complete upload-to-card pipeline
@@ -91,8 +90,8 @@ export const finalizeUploadedCard = mutation({
         return { success: false, error: "File not found in storage" };
       }
 
-      // Auto-detect card type from file
-      const cardType = getFileCardType(fileMetadata.contentType || "application/octet-stream");
+      // Default to text and let AI classification update the type
+      const cardType = "text" as const;
 
       // Separate file-related metadata from other metadata
       const additionalMeta = args.additionalMetadata || {};
@@ -132,7 +131,7 @@ export const finalizeUploadedCard = mutation({
         processingStatus: buildInitialProcessingStatus({
           now,
           cardType,
-          classificationStatus: stageCompleted(now, 1),
+          classificationStatus: stagePending(),
         }),
         createdAt: now,
         updatedAt: now,
@@ -140,7 +139,7 @@ export const finalizeUploadedCard = mutation({
 
       await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.startProcessingPipeline, {
         cardId,
-        classificationRequired: false,
+        classificationRequired: true,
       });
 
       return { success: true, cardId };
