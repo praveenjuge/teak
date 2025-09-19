@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
 import {
   cardTypeValidator,
+  colorValidator,
   processingStatusObjectValidator,
   processingStatusValidator,
 } from "../../schema";
@@ -52,6 +53,19 @@ export const updateCardProcessing = internalMutation({
       processingStatus,
       ...(metadataStatus ? { metadataStatus } : {}),
       ...(metadata !== undefined ? { metadata } : {}),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const updateCardColors = internalMutation({
+  args: {
+    cardId: v.id("cards"),
+    colors: v.optional(v.array(colorValidator)),
+  },
+  handler: async (ctx, { cardId, colors }) => {
+    await ctx.db.patch(cardId, {
+      colors,
       updatedAt: Date.now(),
     });
   },
