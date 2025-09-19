@@ -20,7 +20,10 @@ interface CardsGridProps {
   selectedType?: string;
 }
 
-const CardsGrid = memo(function CardsGrid({ searchQuery, selectedType }: CardsGridProps) {
+const CardsGrid = memo(function CardsGrid({
+  searchQuery,
+  selectedType,
+}: CardsGridProps) {
   // Use Convex query directly
   const cards = useQuery(api.cards.searchCards, {
     searchQuery: searchQuery || undefined,
@@ -65,7 +68,7 @@ const CardsGrid = memo(function CardsGrid({ searchQuery, selectedType }: CardsGr
       switch (card.type) {
         case "image":
           // Use aspect ratio if available, otherwise default
-          const aspectRatio = 
+          const aspectRatio =
             card.fileMetadata?.width && card.fileMetadata?.height
               ? card.fileMetadata.width / card.fileMetadata.height
               : 1.5;
@@ -77,7 +80,11 @@ const CardsGrid = memo(function CardsGrid({ searchQuery, selectedType }: CardsGr
         case "palette":
           return 88;
         case "link":
-          return card.metadata?.microlinkData?.data?.image?.url ? 180 : 120;
+          return (card.metadata?.linkPreview?.status === "success" &&
+            card.metadata.linkPreview.imageUrl) ||
+            card.metadata?.microlinkData?.data?.image?.url
+            ? 180
+            : 120;
         case "text":
         case "quote":
           const contentLength = card.content?.length || 0;
@@ -92,7 +99,7 @@ const CardsGrid = memo(function CardsGrid({ searchQuery, selectedType }: CardsGr
     // Better distribution algorithm
     cardsList.forEach((card) => {
       const cardHeight = estimateCardHeight(card);
-      
+
       if (leftHeight <= rightHeight) {
         leftColumn.push(card);
         leftHeight += cardHeight;

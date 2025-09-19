@@ -161,7 +161,21 @@ const buildClassificationPrompt = (
     );
   }
 
-  if (card.metadata?.microlinkData?.data) {
+  const linkPreview =
+    card.metadata?.linkPreview?.status === "success"
+      ? card.metadata.linkPreview
+      : undefined;
+
+  if (linkPreview) {
+    const { title, description, publisher, author } = linkPreview;
+    sections.push(
+      `Link metadata: ${JSON.stringify(
+        { title, description, publisher, author },
+        null,
+        2
+      )}`
+    );
+  } else if (card.metadata?.microlinkData?.data) {
     const { title, description, publisher, author } =
       card.metadata.microlinkData.data;
     sections.push(
@@ -396,6 +410,7 @@ export const runMetadataStage = internalAction({
     // For link cards, ensure metadata extraction finished first
     if (
       card.type === "link" &&
+      !card.metadata?.linkPreview &&
       !card.metadata?.microlinkData &&
       card.metadataStatus === "pending"
     ) {
@@ -464,26 +479,45 @@ export const runMetadataStage = internalAction({
           break;
         }
         case "link": {
-          const microlinkData = card.metadata?.microlinkData?.data;
+          const linkPreviewMetadata =
+            card.metadata?.linkPreview?.status === "success"
+              ? card.metadata.linkPreview
+              : undefined;
+          const legacyLinkMetadata = card.metadata?.microlinkData?.data;
           const contentParts: string[] = [];
-          if (microlinkData?.title) {
-            contentParts.push(`Title: ${microlinkData.title}`);
+
+          const title = linkPreviewMetadata?.title || legacyLinkMetadata?.title;
+          if (title) {
+            contentParts.push(`Title: ${title}`);
           }
-          if (microlinkData?.description) {
-            contentParts.push(`Description: ${microlinkData.description}`);
+
+          const description =
+            linkPreviewMetadata?.description || legacyLinkMetadata?.description;
+          if (description) {
+            contentParts.push(`Description: ${description}`);
           }
-          if (microlinkData?.author) {
-            contentParts.push(`Author: ${microlinkData.author}`);
+
+          const author = linkPreviewMetadata?.author || legacyLinkMetadata?.author;
+          if (author) {
+            contentParts.push(`Author: ${author}`);
           }
-          if (microlinkData?.publisher) {
-            contentParts.push(`Publisher: ${microlinkData.publisher}`);
+
+          const publisher =
+            linkPreviewMetadata?.publisher || legacyLinkMetadata?.publisher;
+          if (publisher) {
+            contentParts.push(`Publisher: ${publisher}`);
           }
-          if (microlinkData?.date) {
-            contentParts.push(`Published: ${microlinkData.date}`);
+
+          const publishedAt =
+            linkPreviewMetadata?.publishedAt || legacyLinkMetadata?.date;
+          if (publishedAt) {
+            contentParts.push(`Published: ${publishedAt}`);
           }
+
           if (contentParts.length === 0 && card.content) {
             contentParts.push(`URL: ${card.content}`);
           }
+
           const contentToAnalyze = contentParts.join("\n");
           if (contentToAnalyze.trim()) {
             const result = await generateLinkMetadata(
@@ -562,6 +596,12 @@ export const runMetadataStage = internalAction({
         },
         processingStatus: updatedProcessing,
       });
+
+      if (card.type === "link") {
+        await ctx.scheduler.runAfter(0, internal.linkMetadata.generateLinkScreenshot, {
+          cardId,
+        });
+      }
 
       await scheduleNextStage(ctx, cardId, updatedProcessing);
     } catch (error) {

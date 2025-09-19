@@ -26,15 +26,27 @@ export const backfillMetadataSearchFields = internalMutation({
     for (const card of cards) {
       if (card.metadata) {
         const updateFields: any = { updatedAt: Date.now() };
+        const linkPreview =
+          card.metadata.linkPreview?.status === "success"
+            ? card.metadata.linkPreview
+            : undefined;
+        const legacyLink = card.metadata.microlinkData?.data;
 
         // Populate metadataTitle if missing
-        if (!card.metadataTitle && card.metadata.microlinkData?.data?.title) {
-          updateFields.metadataTitle = card.metadata.microlinkData.data.title;
+        if (!card.metadataTitle) {
+          const title = linkPreview?.title || legacyLink?.title;
+          if (title) {
+            updateFields.metadataTitle = title;
+          }
         }
 
         // Populate metadataDescription if missing
-        if (!card.metadataDescription && card.metadata.microlinkData?.data?.description) {
-          updateFields.metadataDescription = card.metadata.microlinkData.data.description;
+        if (!card.metadataDescription) {
+          const description =
+            linkPreview?.description || legacyLink?.description;
+          if (description) {
+            updateFields.metadataDescription = description;
+          }
         }
 
         // Only update if we have fields to update

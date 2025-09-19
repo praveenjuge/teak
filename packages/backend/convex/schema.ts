@@ -59,8 +59,37 @@ export const fileMetadataValidator = v.optional(
 
 export const metadataValidator = v.optional(
   v.object({
-    // Microlink.io metadata (full response stored as JSON - using v.any() for flexibility)
+    // Legacy Microlink.io metadata (kept for backward compatibility)
     microlinkData: v.optional(v.any()),
+    // Cloudflare Browser Rendering metadata for link previews
+    linkPreview: v.optional(
+      v.object({
+        source: v.optional(v.string()),
+        status: v.optional(v.union(v.literal("success"), v.literal("error"))),
+        fetchedAt: v.optional(v.number()),
+        url: v.optional(v.string()),
+        finalUrl: v.optional(v.string()),
+        canonicalUrl: v.optional(v.string()),
+        title: v.optional(v.string()),
+        description: v.optional(v.string()),
+        imageUrl: v.optional(v.string()),
+        faviconUrl: v.optional(v.string()),
+        siteName: v.optional(v.string()),
+        author: v.optional(v.string()),
+        publisher: v.optional(v.string()),
+        publishedAt: v.optional(v.string()),
+        screenshotStorageId: v.optional(v.id("_storage")),
+        screenshotUpdatedAt: v.optional(v.number()),
+        error: v.optional(
+          v.object({
+            type: v.optional(v.string()),
+            message: v.optional(v.string()),
+            details: v.optional(v.any()),
+          })
+        ),
+        raw: v.optional(v.any()),
+      })
+    ),
   })
 );
 
