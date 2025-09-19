@@ -52,7 +52,6 @@ const formatFileSize = (bytes: number): string => {
 };
 
 const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
-
   // Get file URLs from Convex
   const mediaUrl = useQuery(
     api.cards.getFileUrl,
@@ -61,7 +60,7 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
 
   // For audio files, use the media URL
   const audioUrl = card.type === "audio" ? mediaUrl : null;
-  
+
   // Use the new expo-audio hook
   const player = useAudioPlayer(audioUrl ? { uri: audioUrl } : null);
 
@@ -216,12 +215,18 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
           return null;
         }
 
-        // Get metadata from Microlink.io data
+        const linkPreview =
+          card.metadata?.linkPreview?.status === "success"
+            ? card.metadata.linkPreview
+            : undefined;
         const linkTitle =
-          card.metadata?.microlinkData?.data?.title ||
+          linkPreview?.title ||
           card.metadataTitle ||
+          card.metadata?.microlinkData?.data?.title ||
           card.url;
-        const linkImage = card.metadata?.microlinkData?.data?.image?.url;
+        const linkImage =
+          linkPreview?.imageUrl ||
+          card.metadata?.microlinkData?.data?.image?.url;
 
         return (
           <TouchableOpacity
@@ -260,7 +265,10 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
             onLongPress={handleLongPress}
             style={[styles.card, dynamicStyles.card, styles.cardPadding]}
           >
-            <Text style={[styles.textContent, dynamicStyles.mutedText]} numberOfLines={3}>
+            <Text
+              style={[styles.textContent, dynamicStyles.mutedText]}
+              numberOfLines={3}
+            >
               {card.content}
             </Text>
           </TouchableOpacity>
@@ -277,8 +285,13 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
             style={[styles.card, dynamicStyles.card, styles.cardPadding]}
           >
             <View style={styles.quoteContent}>
-              <Text style={[styles.quoteIcon, dynamicStyles.mutedText]}>&ldquo;</Text>
-              <Text style={[styles.quoteText, dynamicStyles.text]} numberOfLines={3}>
+              <Text style={[styles.quoteIcon, dynamicStyles.mutedText]}>
+                &ldquo;
+              </Text>
+              <Text
+                style={[styles.quoteText, dynamicStyles.text]}
+                numberOfLines={3}
+              >
                 {card.content}
               </Text>
             </View>
@@ -303,7 +316,10 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
                   <IconSymbol color="white" name="doc.fill" size={20} />
                 </View>
                 <View style={styles.pdfInfo}>
-                  <Text style={[styles.pdfTitle, dynamicStyles.text]} numberOfLines={1}>
+                  <Text
+                    style={[styles.pdfTitle, dynamicStyles.text]}
+                    numberOfLines={1}
+                  >
                     {card.metadataTitle ||
                       card.fileMetadata?.fileName ||
                       "Document"}
@@ -336,10 +352,7 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
                 {card.colors?.slice(0, 12).map((color, index) => (
                   <View
                     key={`${color.hex}-${index}`}
-                    style={[
-                      styles.colorStripe,
-                      { backgroundColor: color.hex },
-                    ]}
+                    style={[styles.colorStripe, { backgroundColor: color.hex }]}
                   />
                 ))}
               </View>

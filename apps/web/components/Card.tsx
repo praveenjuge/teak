@@ -87,6 +87,18 @@ export function Card({
     onEnterSelectionMode?.(card._id);
   };
 
+  const linkPreview =
+    card.metadata?.linkPreview?.status === "success"
+      ? card.metadata.linkPreview
+      : undefined;
+  const legacyMicrolink = card.metadata?.microlinkData?.data;
+  const linkCardTitle =
+    linkPreview?.title ||
+    card.metadataTitle ||
+    legacyMicrolink?.title ||
+    card.url;
+  const linkCardImage = linkPreview?.imageUrl || legacyMicrolink?.image?.url;
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -135,24 +147,24 @@ export function Card({
 
             {card.type === "link" && (
               <div>
-                {card.metadata?.microlinkData?.data?.image?.url ? (
+                {linkCardImage ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={card.metadata.microlinkData.data.image.url}
+                      src={linkCardImage}
                       alt=""
                       className="w-full h-28 object-cover bg-card rounded-xl border"
                     />
                     <div className="p-2 pb-0">
                       <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
-                        {card.metadata?.microlinkData?.data?.title || card.url}
+                        {linkCardTitle}
                       </h4>
                     </div>
                   </>
                 ) : (
                   <div className="p-4 bg-card rounded-xl border">
                     <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
-                      {card.metadata?.microlinkData?.data?.title || card.url}
+                      {linkCardTitle}
                     </h4>
                   </div>
                 )}

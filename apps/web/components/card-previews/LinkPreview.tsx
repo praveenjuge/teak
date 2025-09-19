@@ -1,7 +1,10 @@
+import { useQuery } from "convex-helpers/react/cache/hooks";
+import { api } from "@teak/convex";
 import { type Doc } from "@teak/convex/_generated/dataModel";
 
 interface LinkPreviewProps {
   card: Doc<"cards">;
+  showScreenshot?: boolean;
 }
 
 // Loading skeleton components
@@ -27,15 +30,42 @@ const SkeletonImage = () => (
   <div className="w-full h-48 bg-gray-200 rounded animate-pulse" />
 );
 
-export function LinkPreview({ card }: LinkPreviewProps) {
+export function LinkPreview({
+  card,
+  showScreenshot = false,
+}: LinkPreviewProps) {
   const isLoading = card.metadataStatus === "pending";
 
-  // Get metadata with Microlink.io data prioritized, fallback to legacy fields
-  const title = card.metadata?.microlinkData?.data?.title || card.url || "Link";
-  const description = card.metadata?.microlinkData?.data?.description;
-  const image = card.metadata?.microlinkData?.data?.image?.url;
-  const favicon = card.metadata?.microlinkData?.data?.logo?.url;
-  const publisher = card.metadata?.microlinkData?.data?.publisher;
+  const linkPreview =
+    card.metadata?.linkPreview?.status === "success"
+      ? card.metadata.linkPreview
+      : undefined;
+  const legacyMicrolink = card.metadata?.microlinkData?.data;
+
+  const title =
+    linkPreview?.title ||
+    card.metadataTitle ||
+    legacyMicrolink?.title ||
+    card.url ||
+    "Link";
+  const description =
+    linkPreview?.description ||
+    card.metadataDescription ||
+    legacyMicrolink?.description;
+  const image = linkPreview?.imageUrl || legacyMicrolink?.image?.url;
+  const favicon = linkPreview?.faviconUrl || legacyMicrolink?.logo?.url;
+  const publisher =
+    linkPreview?.publisher ||
+    linkPreview?.siteName ||
+    legacyMicrolink?.publisher;
+
+  const screenshotStorageId = linkPreview?.screenshotStorageId;
+  const screenshotUrl = useQuery(
+    api.cards.getFileUrl,
+    showScreenshot && screenshotStorageId
+      ? { fileId: screenshotStorageId, cardId: card._id }
+      : "skip"
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -114,6 +144,20 @@ export function LinkPreview({ card }: LinkPreviewProps) {
             }}
           />
         )
+      )}
+
+      {showScreenshot && screenshotUrl && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">
+            Screenshot
+          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={screenshotUrl}
+            alt="Rendered webpage screenshot"
+            className="w-full max-h-[70vh] object-contain rounded border"
+          />
+        </div>
       )}
 
       {/* Notes */}

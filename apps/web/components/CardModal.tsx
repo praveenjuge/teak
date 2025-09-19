@@ -161,7 +161,7 @@ export function CardModal({
           />
         );
       case "link":
-        return <LinkPreview card={card} />;
+        return <LinkPreview card={card} showScreenshot />;
       case "image":
         return <ImagePreview card={card} />;
       case "video":
