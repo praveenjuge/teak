@@ -5,6 +5,11 @@ import { cardTypeValidator, colorValidator } from "../../schema";
 import { detectCardTypeFromContent } from "./contentDetection";
 import { getFileCardType } from "./fileUtils";
 import { ensureCardCreationAllowed } from "./cardLimit";
+import {
+  buildInitialProcessingStatus,
+  stageCompleted,
+  stagePending,
+} from "./processingStatus";
 
 export const createCard = mutation({
   args: {
@@ -35,6 +40,14 @@ export const createCard = mutation({
     let detectedColors = args.colors;
     let originalMetadata = args.metadata || {};
     let fileMetadata: any = undefined;
+    let detectionConfidence: number | undefined;
+    let classificationStatus = stagePending();
+    let classificationNeeded = true;
+
+    if (args.type) {
+      classificationStatus = stageCompleted(now, 1);
+      classificationNeeded = false;
+    }
 
     // Separate file-related metadata from other metadata
     let processedMetadata = { ...originalMetadata };
@@ -63,6 +76,9 @@ export const createCard = mutation({
           mimeType: systemFileMetadata.contentType,
           ...extractedFileMetadata, // Include any other file-related metadata
         };
+
+        classificationStatus = stageCompleted(now, 1);
+        classificationNeeded = false;
       }
     } else if (Object.keys(extractedFileMetadata).length > 0) {
       // If we have file metadata but no fileId, still create fileMetadata object
@@ -74,6 +90,7 @@ export const createCard = mutation({
       const detection = detectCardTypeFromContent(args.content);
       cardType = detection.type;
       finalContent = detection.processedContent;
+      detectionConfidence = detection.confidence;
 
       // Use detected URL if no URL was provided
       if (!finalUrl && detection.url) {
@@ -84,11 +101,20 @@ export const createCard = mutation({
       if (!detectedColors && detection.colors) {
         detectedColors = detection.colors;
       }
+
+      if (detection.confidence >= 0.85) {
+        classificationStatus = stageCompleted(now, detection.confidence);
+        classificationNeeded = false;
+      }
     }
 
     // Fallback to text if no type determined
     if (!cardType) {
       cardType = "text";
+    }
+
+    if (classificationNeeded && detectionConfidence !== undefined) {
+      classificationStatus = { ...stagePending(), confidence: detectionConfidence };
     }
 
     // Set initial metadataStatus for link cards
@@ -104,6 +130,11 @@ export const createCard = mutation({
       metadata: Object.keys(processedMetadata).length > 0 ? processedMetadata : undefined,
       fileMetadata: fileMetadata,
       colors: detectedColors, // Use detected or provided colors
+      processingStatus: buildInitialProcessingStatus({
+        now,
+        cardType,
+        classificationStatus,
+      }),
       createdAt: now,
       updatedAt: now,
       // Set pending status for link cards that need metadata extraction
@@ -117,12 +148,12 @@ export const createCard = mutation({
       await ctx.scheduler.runAfter(0, internal.linkMetadata.extractLinkMetadata, {
         cardId,
       });
-    } else {
-      // Schedule AI metadata generation for non-link cards immediately
-      await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.generateAiMetadata, {
-        cardId,
-      });
     }
+
+    await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.startProcessingPipeline, {
+      cardId,
+      classificationRequired: classificationStatus.status === "pending",
+    });
 
     return cardId;
   },

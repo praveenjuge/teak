@@ -35,6 +35,7 @@ import type * as tasks_cards_getCards from "../tasks/cards/getCards.js";
 import type * as tasks_cards_getFileUrl from "../tasks/cards/getFileUrl.js";
 import type * as tasks_cards_index from "../tasks/cards/index.js";
 import type * as tasks_cards_migrations from "../tasks/cards/migrations.js";
+import type * as tasks_cards_processingStatus from "../tasks/cards/processingStatus.js";
 import type * as tasks_cards_updateCard from "../tasks/cards/updateCard.js";
 import type * as tasks_cards_uploadCard from "../tasks/cards/uploadCard.js";
 import type * as tasks_cards_validationUtils from "../tasks/cards/validationUtils.js";
@@ -83,6 +84,7 @@ declare const fullApi: ApiFromModules<{
   "tasks/cards/getFileUrl": typeof tasks_cards_getFileUrl;
   "tasks/cards/index": typeof tasks_cards_index;
   "tasks/cards/migrations": typeof tasks_cards_migrations;
+  "tasks/cards/processingStatus": typeof tasks_cards_processingStatus;
   "tasks/cards/updateCard": typeof tasks_cards_updateCard;
   "tasks/cards/uploadCard": typeof tasks_cards_uploadCard;
   "tasks/cards/validationUtils": typeof tasks_cards_validationUtils;

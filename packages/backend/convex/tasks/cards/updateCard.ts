@@ -1,6 +1,12 @@
 import { v } from "convex/values";
 import { mutation } from "../../_generated/server";
 import { internal } from "../../_generated/api";
+import {
+  buildInitialProcessingStatus,
+  stagePending,
+  withStageStatus,
+  type ProcessingStatus,
+} from "./processingStatus";
 
 export const updateCard = mutation({
   args: {
@@ -27,15 +33,31 @@ export const updateCard = mutation({
       throw new Error("Not authorized to update this card");
     }
 
+    const now = Date.now();
+    let processingStatus = card.processingStatus as ProcessingStatus | undefined;
+
+    if (updates.content !== undefined) {
+      processingStatus = processingStatus
+        ? withStageStatus(processingStatus, "metadata", stagePending())
+        : buildInitialProcessingStatus({
+            now,
+            cardType: card.type,
+            classificationStatus: stagePending(),
+          });
+    }
+
     const result = await ctx.db.patch(id, {
       ...updates,
-      updatedAt: Date.now(),
+      ...(processingStatus ? { processingStatus } : {}),
+      updatedAt: now,
     });
 
     // If content was updated, regenerate AI metadata
     if (updates.content !== undefined) {
-      await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.generateAiMetadata, {
+      await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.startProcessingPipeline, {
         cardId: id,
+        classificationRequired:
+          processingStatus?.classify?.status === "pending",
       });
     }
 
@@ -78,13 +100,24 @@ export const updateCardField = mutation({
 
     const now = Date.now();
     let updateData: any = { updatedAt: now };
+    let processingStatus = card.processingStatus as ProcessingStatus | undefined;
+    let shouldSchedulePipeline = false;
+    let classificationRequired = false;
 
     switch (field) {
       case "content":
         updateData.content = typeof value === "string" ? value.trim() : value;
-        // Trigger AI metadata regeneration if content changed
         if (updateData.content !== card.content) {
-          ctx.scheduler.runAfter(0, internal.tasks.ai.actions.generateAiMetadata, { cardId });
+          processingStatus = processingStatus
+            ? withStageStatus(processingStatus, "metadata", stagePending())
+            : buildInitialProcessingStatus({
+                now,
+                cardType: card.type,
+                classificationStatus: stagePending(),
+              });
+          shouldSchedulePipeline = true;
+          classificationRequired =
+            processingStatus?.classify?.status === "pending";
         }
         break;
 
@@ -133,6 +166,19 @@ export const updateCardField = mutation({
         throw new Error(`Unsupported field: ${field}`);
     }
 
-    return await ctx.db.patch(cardId, updateData);
+    if (processingStatus) {
+      updateData.processingStatus = processingStatus;
+    }
+
+    const result = await ctx.db.patch(cardId, updateData);
+
+    if (shouldSchedulePipeline) {
+      await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.startProcessingPipeline, {
+        cardId,
+        classificationRequired,
+      });
+    }
+
+    return result;
   },
 });

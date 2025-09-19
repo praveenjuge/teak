@@ -2,43 +2,436 @@ import { v } from "convex/values";
 import { action, internalAction } from "../../_generated/server";
 import { internal } from "../../_generated/api";
 import { Id } from "../../_generated/dataModel";
+import { generateObject } from "ai";
+import { openai } from "@ai-sdk/openai";
 import { generateTextMetadata, generateImageMetadata, generateLinkMetadata } from "./metadata_generators";
 import { generateTranscript } from "./transcript";
+import {
+  buildInitialProcessingStatus,
+  shouldRunRenderablesStage,
+  stageCompleted,
+  stageFailed,
+  stageInProgress,
+  stagePending,
+  withStageStatus,
+  type ProcessingStageKey,
+  type ProcessingStageStatus,
+  type ProcessingStatus,
+} from "../cards/processingStatus";
+import { cardClassificationSchema } from "./schemas";
+import type { CardType } from "../../schema";
 
-// Main AI metadata generation action
-export const generateAiMetadata = internalAction({
+const CLASSIFY_RETRY_DELAYS = [5000, 30000, 120000];
+const METADATA_RETRY_DELAYS = [5000, 20000, 60000];
+const RENDER_RETRY_DELAYS = [5000, 15000];
+
+const stageNeedsWork = (status?: ProcessingStageStatus) =>
+  !status || status.status === "pending" || status.status === "failed";
+
+const stageRunning = (status?: ProcessingStageStatus) =>
+  status?.status === "in_progress";
+
+const completeStage = (
+  previous: ProcessingStageStatus | undefined,
+  now: number,
+  confidence: number
+): ProcessingStageStatus => ({
+  ...stageCompleted(now, confidence),
+  startedAt: previous?.startedAt ?? previous?.completedAt ?? now,
+});
+
+const ensureProcessingStatus = async (
+  ctx: any,
+  card: any,
+  options: { classificationFallback: "pending" | "completed" }
+): Promise<ProcessingStatus> => {
+  const now = Date.now();
+  let processing: ProcessingStatus = card.processingStatus ||
+    buildInitialProcessingStatus({
+      now,
+      cardType: card.type as CardType,
+      classificationStatus:
+        options.classificationFallback === "pending"
+          ? stagePending()
+          : stageCompleted(now, 1),
+    });
+
+  let mutated = false;
+
+  if (!processing.classify) {
+    processing = withStageStatus(
+      processing,
+      "classify",
+      options.classificationFallback === "pending"
+        ? stagePending()
+        : stageCompleted(now, 1)
+    );
+    mutated = true;
+  }
+
+  if (!processing.metadata) {
+    processing = withStageStatus(processing, "metadata", stagePending());
+    mutated = true;
+  }
+
+  if (!processing.renderables) {
+    const shouldRender = shouldRunRenderablesStage(card.type as CardType);
+    processing = withStageStatus(
+      processing,
+      "renderables",
+      shouldRender ? stagePending() : stageCompleted(now, 1)
+    );
+    mutated = true;
+  }
+
+  if (mutated) {
+    await ctx.runMutation(internal.tasks.ai.mutations.updateCardProcessing, {
+      cardId: card._id,
+      processingStatus: processing,
+      type: card.type as CardType,
+    });
+  }
+
+  return processing;
+};
+
+const scheduleNextStage = async (
+  ctx: any,
+  cardId: Id<"cards">,
+  processing: ProcessingStatus
+) => {
+  const classifyStatus = processing.classify;
+  if (stageNeedsWork(classifyStatus)) {
+    if (!stageRunning(classifyStatus)) {
+      await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.runClassificationStage, {
+        cardId,
+        retryCount: 0,
+      });
+    }
+    return;
+  }
+
+  const metadataStatus = processing.metadata;
+  if (stageNeedsWork(metadataStatus)) {
+    if (!stageRunning(metadataStatus)) {
+      await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.runMetadataStage, {
+        cardId,
+        retryCount: 0,
+      });
+    }
+    return;
+  }
+
+  const renderablesStatus = processing.renderables;
+  if (stageNeedsWork(renderablesStatus)) {
+    if (!stageRunning(renderablesStatus)) {
+      await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.runRenderablesStage, {
+        cardId,
+        retryCount: 0,
+      });
+    }
+  }
+};
+
+const buildClassificationPrompt = (
+  card: any,
+  stageStatus?: ProcessingStageStatus
+): string => {
+  const sections: string[] = [];
+  sections.push(`Existing type guess: ${card.type}`);
+  sections.push(
+    `Heuristic confidence: ${stageStatus?.confidence !== undefined
+      ? stageStatus.confidence.toFixed(2)
+      : "unknown"
+    }`
+  );
+
+  if (card.url) {
+    sections.push(`URL: ${card.url}`);
+  }
+
+  if (card.fileMetadata) {
+    const { mimeType, fileSize, duration, width, height } = card.fileMetadata;
+    sections.push(
+      `File metadata: ${JSON.stringify(
+        { mimeType, fileSize, duration, width, height },
+        null,
+        2
+      )}`
+    );
+  }
+
+  if (card.metadata?.microlinkData?.data) {
+    const { title, description, publisher, author } =
+      card.metadata.microlinkData.data;
+    sections.push(
+      `Link metadata: ${JSON.stringify(
+        { title, description, publisher, author },
+        null,
+        2
+      )}`
+    );
+  }
+
+  if (card.colors?.length) {
+    sections.push(
+      `Palette colors: ${card.colors
+        .map((color: any) => `${color.hex}${color.name ? ` (${color.name})` : ""}`)
+        .join(", ")}`
+    );
+  }
+
+  if (card.content) {
+    const trimmed = card.content.length > 4000
+      ? `${card.content.slice(0, 4000)}…`
+      : card.content;
+    sections.push(`Content Preview:\n${trimmed}`);
+  }
+
+  return sections.join("\n\n");
+};
+
+const upsertStageStatus = async (
+  ctx: any,
+  cardId: Id<"cards">,
+  processing: ProcessingStatus,
+  stage: ProcessingStageKey,
+  status: ProcessingStageStatus,
+  extra: { type?: CardType; metadataStatus?: string; metadata?: any } = {}
+) => {
+  const updated = withStageStatus(processing, stage, status);
+  await ctx.runMutation(internal.tasks.ai.mutations.updateCardProcessing, {
+    cardId,
+    processingStatus: updated,
+    ...(extra.type ? { type: extra.type } : {}),
+    ...(extra.metadataStatus ? { metadataStatus: extra.metadataStatus } : {}),
+    ...(extra.metadata !== undefined ? { metadata: extra.metadata } : {}),
+  });
+  return updated;
+};
+
+export const startProcessingPipeline = internalAction({
+  args: {
+    cardId: v.id("cards"),
+    classificationRequired: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { cardId, classificationRequired }) => {
+    const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
+      cardId,
+    });
+
+    if (!card) {
+      console.warn(`[pipeline] Card ${cardId} not found when starting pipeline`);
+      return;
+    }
+
+    let processing = card.processingStatus as ProcessingStatus | undefined;
+    if (!processing) {
+      processing = await ensureProcessingStatus(ctx, card, {
+        classificationFallback: classificationRequired ? "pending" : "completed",
+      });
+    }
+
+    await scheduleNextStage(ctx, cardId, processing);
+  },
+});
+
+export const runClassificationStage = internalAction({
   args: {
     cardId: v.id("cards"),
     retryCount: v.optional(v.number()),
   },
   handler: async (ctx, { cardId, retryCount = 0 }) => {
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY = [5000, 30000, 120000]; // 5s, 30s, 2m
+    const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
+      cardId,
+    });
+
+    if (!card) {
+      console.warn(`[pipeline] Card ${cardId} missing for classification`);
+      return;
+    }
+
+    let processing = await ensureProcessingStatus(ctx, card, {
+      classificationFallback: "pending",
+    });
+
+    const stageStatus = processing.classify;
+    if (!stageNeedsWork(stageStatus)) {
+      await scheduleNextStage(ctx, cardId, processing);
+      return;
+    }
+
+    if (stageRunning(stageStatus)) {
+      return;
+    }
+
+    const now = Date.now();
+    processing = await upsertStageStatus(
+      ctx,
+      cardId,
+      processing,
+      "classify",
+      stageInProgress(now, stageStatus)
+    );
 
     try {
-      // Get card data
-      const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, { cardId });
+      const prompt = buildClassificationPrompt(card, stageStatus);
+      const classification = await generateObject({
+        model: openai("gpt-5-nano"),
+        system:
+          "You classify cards into one of: text, link, image, video, audio, document, palette, quote. Use the provided clues and be decisive.",
+        prompt,
+        schema: cardClassificationSchema,
+      });
 
-      if (!card) {
-        console.error(`Card ${cardId} not found`);
-        return;
+      const resultType = classification.object.type as CardType;
+      const resultConfidence = classification.object.confidence ?? 0.8;
+      const normalizedConfidence = Math.max(0, Math.min(resultConfidence, 1));
+      const shouldUpdateType =
+        resultType !== card.type && normalizedConfidence >= 0.6;
+
+      let processingForUpdate = processing;
+      const stageUpdateTimestamp = Date.now();
+      const extraUpdates: {
+        type?: CardType;
+        metadataStatus?: "pending" | "completed" | "failed";
+      } = {};
+
+      if (shouldUpdateType) {
+        extraUpdates.type = resultType;
+        processingForUpdate = withStageStatus(
+          processingForUpdate,
+          "metadata",
+          stagePending()
+        );
+
+        const requiresRenderables = shouldRunRenderablesStage(resultType);
+        processingForUpdate = withStageStatus(
+          processingForUpdate,
+          "renderables",
+          requiresRenderables
+            ? stagePending()
+            : stageCompleted(stageUpdateTimestamp, 1)
+        );
+
+        if (resultType === "link") {
+          extraUpdates.metadataStatus = "pending";
+        }
       }
 
-      console.log(`Generating AI metadata for card ${cardId} (${card.type})`);
+      processing = await upsertStageStatus(
+        ctx,
+        cardId,
+        processingForUpdate,
+        "classify",
+        completeStage(stageStatus, stageUpdateTimestamp, normalizedConfidence),
+        extraUpdates
+      );
 
+      if (shouldUpdateType && resultType === "link") {
+        await ctx.scheduler.runAfter(
+          0,
+          internal.linkMetadata.extractLinkMetadata,
+          { cardId }
+        );
+      }
+
+      await scheduleNextStage(ctx, cardId, processing);
+    } catch (error) {
+      console.error(`[pipeline] Classification failed for ${cardId}:`, error);
+      processing = await upsertStageStatus(
+        ctx,
+        cardId,
+        processing,
+        "classify",
+        stageFailed(Date.now(), error instanceof Error ? error.message : String(error), stageStatus),
+        { type: card.type as CardType }
+      );
+
+      if (retryCount < CLASSIFY_RETRY_DELAYS.length) {
+        const delay = CLASSIFY_RETRY_DELAYS[retryCount];
+        await ctx.scheduler.runAfter(delay, internal.tasks.ai.actions.runClassificationStage, {
+          cardId,
+          retryCount: retryCount + 1,
+        });
+      }
+    }
+  },
+});
+
+export const runMetadataStage = internalAction({
+  args: {
+    cardId: v.id("cards"),
+    retryCount: v.optional(v.number()),
+  },
+  handler: async (ctx, { cardId, retryCount = 0 }) => {
+    const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
+      cardId,
+    });
+
+    if (!card) {
+      console.warn(`[pipeline] Card ${cardId} missing for metadata stage`);
+      return;
+    }
+
+    let processing = await ensureProcessingStatus(ctx, card, {
+      classificationFallback: "completed",
+    });
+
+    if (stageNeedsWork(processing.classify)) {
+      await scheduleNextStage(ctx, cardId, processing);
+      return;
+    }
+
+    const stageStatus = processing.metadata;
+    if (!stageNeedsWork(stageStatus)) {
+      await scheduleNextStage(ctx, cardId, processing);
+      return;
+    }
+
+    if (stageRunning(stageStatus)) {
+      return;
+    }
+
+    // For link cards, ensure metadata extraction finished first
+    if (
+      card.type === "link" &&
+      !card.metadata?.microlinkData &&
+      card.metadataStatus === "pending"
+    ) {
+      if (retryCount < METADATA_RETRY_DELAYS.length) {
+        const delay = METADATA_RETRY_DELAYS[Math.min(retryCount, METADATA_RETRY_DELAYS.length - 1)];
+        await ctx.scheduler.runAfter(delay, internal.tasks.ai.actions.runMetadataStage, {
+          cardId,
+          retryCount: retryCount + 1,
+        });
+      }
+      return;
+    }
+
+    const now = Date.now();
+    processing = await upsertStageStatus(
+      ctx,
+      cardId,
+      processing,
+      "metadata",
+      stageInProgress(now, stageStatus)
+    );
+
+    try {
       let aiTags: string[] = [];
-      let aiSummary: string = "";
-      let aiTranscript: string | undefined = undefined;
+      let aiSummary = "";
+      let aiTranscript: string | undefined;
+      let confidence = 0.9;
 
-      // Process based on card type
-      switch (card.type) {
+      switch (card.type as CardType) {
         case "text": {
           const result = await generateTextMetadata(card.content);
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
+          confidence = 0.95;
           break;
         }
-
         case "image": {
           if (card.fileId) {
             const imageUrl = await ctx.storage.getUrl(card.fileId);
@@ -46,58 +439,39 @@ export const generateAiMetadata = internalAction({
               const result = await generateImageMetadata(imageUrl);
               aiTags = result.aiTags;
               aiSummary = result.aiSummary;
+              confidence = 0.9;
             }
           }
           break;
         }
-
         case "audio": {
           if (card.fileId) {
             const audioUrl = await ctx.storage.getUrl(card.fileId);
             if (audioUrl) {
-              // Generate transcript first
               const transcriptResult = await generateTranscript(
                 audioUrl,
                 card.fileMetadata?.mimeType
               );
               if (transcriptResult) {
                 aiTranscript = transcriptResult;
-                // Generate metadata from transcript
-                const result = await generateTextMetadata(
-                  transcriptResult
-                );
+                const result = await generateTextMetadata(transcriptResult);
                 aiTags = result.aiTags;
                 aiSummary = result.aiSummary;
+                confidence = 0.85;
               }
             }
           }
           break;
         }
-
         case "link": {
-          // Check if microlink data is available - if not, retry later
-          if (!card.metadata?.microlinkData && card.metadataStatus === "pending") {
-            console.log(`Microlink data not yet available for card ${cardId}, retrying in 30 seconds`);
-            await ctx.scheduler.runAfter(30000, internal.tasks.ai.actions.generateAiMetadata, {
-              cardId,
-              retryCount,
-            });
-            return;
-          }
-
-          // Build rich content from microlink data
           const microlinkData = card.metadata?.microlinkData?.data;
           const contentParts: string[] = [];
-
-          // Primary content
           if (microlinkData?.title) {
             contentParts.push(`Title: ${microlinkData.title}`);
           }
           if (microlinkData?.description) {
             contentParts.push(`Description: ${microlinkData.description}`);
           }
-
-          // Contextual information
           if (microlinkData?.author) {
             contentParts.push(`Author: ${microlinkData.author}`);
           }
@@ -107,122 +481,198 @@ export const generateAiMetadata = internalAction({
           if (microlinkData?.date) {
             contentParts.push(`Published: ${microlinkData.date}`);
           }
-
-          // Fallback to URL content if no microlink data
           if (contentParts.length === 0 && card.content) {
             contentParts.push(`URL: ${card.content}`);
           }
-
           const contentToAnalyze = contentParts.join("\n");
-
           if (contentToAnalyze.trim()) {
-            // Use enhanced prompt for links
-            const result = await generateLinkMetadata(contentToAnalyze, card.url || card.content);
+            const result = await generateLinkMetadata(
+              contentToAnalyze,
+              card.url || card.content
+            );
             aiTags = result.aiTags;
             aiSummary = result.aiSummary;
+            confidence = 0.9;
           }
           break;
         }
-
         case "document": {
-          // For documents, try to extract text or use filename/content
           let contentToAnalyze = card.content;
           if (card.fileMetadata?.fileName) {
             contentToAnalyze = `${card.fileMetadata.fileName}\n${contentToAnalyze}`;
           }
-
-          if (contentToAnalyze.trim()) {
-            const result = await generateTextMetadata(
-              contentToAnalyze
-            );
-            aiTags = result.aiTags;
-            aiSummary = result.aiSummary;
-          }
-          break;
-        }
-
-        case "quote": {
-          // Generate AI metadata for quotes using the quote content
-          if (card.content?.trim()) {
-            const result = await generateTextMetadata(card.content);
-            aiTags = result.aiTags;
-            aiSummary = result.aiSummary;
-          }
-          break;
-        }
-
-        case "palette": {
-          // Generate AI metadata for color palettes
-          let contentToAnalyze = card.content || "";
-          
-          // Add color information if available
-          if (card.colors && card.colors.length > 0) {
-            const colorInfo = card.colors.map(color => {
-              const parts = [color.hex];
-              if (color.name) parts.push(color.name);
-              return parts.join(" ");
-            }).join(", ");
-            contentToAnalyze = `Colors: ${colorInfo}\n${contentToAnalyze}`;
-          }
-
           if (contentToAnalyze.trim()) {
             const result = await generateTextMetadata(contentToAnalyze);
             aiTags = result.aiTags;
             aiSummary = result.aiSummary;
+            confidence = 0.85;
           }
           break;
         }
-
+        case "quote": {
+          if (card.content?.trim()) {
+            const result = await generateTextMetadata(card.content);
+            aiTags = result.aiTags;
+            aiSummary = result.aiSummary;
+            confidence = 0.95;
+          }
+          break;
+        }
+        case "palette": {
+          let contentToAnalyze = card.content || "";
+          if (card.colors && card.colors.length > 0) {
+            const colorInfo = card.colors
+              .map((color: any) => `${color.hex}${color.name ? ` (${color.name})` : ""}`)
+              .join(", ");
+            contentToAnalyze = `Colors: ${colorInfo}\n${contentToAnalyze}`;
+          }
+          if (contentToAnalyze.trim()) {
+            const result = await generateTextMetadata(contentToAnalyze);
+            aiTags = result.aiTags;
+            aiSummary = result.aiSummary;
+            confidence = 0.9;
+          }
+          break;
+        }
         default:
-          console.log(
-            `AI generation not implemented for card type: ${card.type}`
-          );
-          return;
+          break;
       }
 
-      // Update card with AI metadata
-      if (aiTags.length > 0 || aiSummary || aiTranscript) {
-        await ctx.runMutation(internal.tasks.ai.mutations.updateCardAI, {
-          cardId,
-          aiTags: aiTags.length > 0 ? aiTags : undefined,
-          aiSummary: aiSummary || undefined,
-          aiTranscript,
-          aiModelMeta: {
-            provider: "openai",
-            model: card.type === "image" ? "gpt-5-nano" : "gpt-5-nano",
-            version: "2024-08-06",
-            generatedAt: Date.now(),
-          },
-        });
-
-        console.log(`AI metadata generated for card ${cardId}:`, {
-          tags: aiTags.length,
-          summary: !!aiSummary,
-          transcript: !!aiTranscript,
-        });
+      if (aiTags.length === 0 && !aiSummary && !aiTranscript) {
+        // Nothing generated, mark as failed so we can inspect later
+        throw new Error("No AI metadata generated for card");
       }
+
+      const updatedProcessing = withStageStatus(
+        processing,
+        "metadata",
+        completeStage(stageStatus, Date.now(), confidence)
+      );
+
+      await ctx.runMutation(internal.tasks.ai.mutations.updateCardAI, {
+        cardId,
+        aiTags: aiTags.length > 0 ? aiTags : undefined,
+        aiSummary: aiSummary || undefined,
+        aiTranscript,
+        aiModelMeta: {
+          provider: "openai",
+          model: card.type === "image" ? "gpt-5-nano" : "gpt-5-nano",
+          version: "2024-08-06",
+          generatedAt: Date.now(),
+        },
+        processingStatus: updatedProcessing,
+      });
+
+      await scheduleNextStage(ctx, cardId, updatedProcessing);
     } catch (error) {
-      console.error(`Error generating AI metadata for card ${cardId}:`, error);
+      console.error(`[pipeline] Metadata stage failed for ${cardId}:`, error);
+      const failedProcessing = await upsertStageStatus(
+        ctx,
+        cardId,
+        processing,
+        "metadata",
+        stageFailed(Date.now(), error instanceof Error ? error.message : String(error), stageStatus)
+      );
 
-      // Implement retry logic with exponential backoff
-      if (retryCount < MAX_RETRIES) {
-        const delay = RETRY_DELAY[retryCount] || 120000;
-        console.log(
-          `Scheduling retry ${retryCount + 1}/${MAX_RETRIES} in ${delay}ms`
-        );
-
-        await ctx.scheduler.runAfter(delay, internal.tasks.ai.actions.generateAiMetadata, {
+      if (retryCount < METADATA_RETRY_DELAYS.length) {
+        const delay = METADATA_RETRY_DELAYS[retryCount];
+        await ctx.scheduler.runAfter(delay, internal.tasks.ai.actions.runMetadataStage, {
           cardId,
           retryCount: retryCount + 1,
         });
-      } else {
-        console.error(`Max retries exceeded for card ${cardId}`);
       }
     }
   },
 });
 
-// Cron job helper to find cards missing AI metadata
+export const runRenderablesStage = internalAction({
+  args: {
+    cardId: v.id("cards"),
+    retryCount: v.optional(v.number()),
+  },
+  handler: async (ctx, { cardId, retryCount = 0 }) => {
+    const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
+      cardId,
+    });
+
+    if (!card) {
+      console.warn(`[pipeline] Card ${cardId} missing for renderables stage`);
+      return;
+    }
+
+    let processing = await ensureProcessingStatus(ctx, card, {
+      classificationFallback: "completed",
+    });
+
+    const stageStatus = processing.renderables;
+    if (!stageNeedsWork(stageStatus)) {
+      await scheduleNextStage(ctx, cardId, processing);
+      return;
+    }
+
+    if (!shouldRunRenderablesStage(card.type as CardType)) {
+      processing = await upsertStageStatus(
+        ctx,
+        cardId,
+        processing,
+        "renderables",
+        completeStage(stageStatus, Date.now(), 1)
+      );
+      await scheduleNextStage(ctx, cardId, processing);
+      return;
+    }
+
+    if (stageRunning(stageStatus)) {
+      return;
+    }
+
+    const now = Date.now();
+    processing = await upsertStageStatus(
+      ctx,
+      cardId,
+      processing,
+      "renderables",
+      stageInProgress(now, stageStatus)
+    );
+
+    try {
+      if (card.type === "image" && card.fileId) {
+        await ctx.runAction(
+          internal.tasks.thumbnails.generateThumbnail.generateThumbnail,
+          { cardId }
+        );
+      }
+
+      const completedProcessing = await upsertStageStatus(
+        ctx,
+        cardId,
+        processing,
+        "renderables",
+        completeStage(stageStatus, Date.now(), 0.95)
+      );
+
+      await scheduleNextStage(ctx, cardId, completedProcessing);
+    } catch (error) {
+      console.error(`[pipeline] Renderables stage failed for ${cardId}:`, error);
+      const failedProcessing = await upsertStageStatus(
+        ctx,
+        cardId,
+        processing,
+        "renderables",
+        stageFailed(Date.now(), error instanceof Error ? error.message : String(error), stageStatus)
+      );
+
+      if (retryCount < RENDER_RETRY_DELAYS.length) {
+        const delay = RENDER_RETRY_DELAYS[retryCount];
+        await ctx.scheduler.runAfter(delay, internal.tasks.ai.actions.runRenderablesStage, {
+          cardId,
+          retryCount: retryCount + 1,
+        });
+      }
+    }
+  },
+});
+
 export const enqueueMissingAiGeneration = internalAction({
   args: {},
   handler: async (ctx): Promise<{ enqueuedCount: number; error?: string }> => {
@@ -232,24 +682,20 @@ export const enqueueMissingAiGeneration = internalAction({
         {}
       );
 
-      console.log(`Found ${cardsToProcess.length} cards missing AI metadata`);
-
-      // Schedule AI generation for each card
       for (const { cardId } of cardsToProcess) {
-        await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.generateAiMetadata, {
+        await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.startProcessingPipeline, {
           cardId,
         });
       }
 
       return { enqueuedCount: cardsToProcess.length };
     } catch (error) {
-      console.error("Error in AI metadata backfill:", error);
+      console.error("[pipeline] Error enqueueing AI metadata backfill:", error);
       return { enqueuedCount: 0, error: String(error) };
     }
   },
 });
 
-// Public action to manually trigger AI generation (admin use)
 export const manuallyGenerateAI = action({
   args: { cardId: v.id("cards") },
   handler: async (ctx, { cardId }) => {
@@ -258,7 +704,6 @@ export const manuallyGenerateAI = action({
       throw new Error("Authentication required");
     }
 
-    // Verify user owns the card
     const verification = await ctx.runQuery(
       internal.tasks.ai.queries.getCardForVerification,
       {
@@ -271,8 +716,9 @@ export const manuallyGenerateAI = action({
       throw new Error("Card not found or access denied");
     }
 
-    // Schedule AI generation
-    await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.generateAiMetadata, { cardId });
+    await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.startProcessingPipeline, {
+      cardId,
+    });
 
     return { success: true };
   },

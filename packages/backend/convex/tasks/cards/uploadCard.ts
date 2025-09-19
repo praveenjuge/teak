@@ -3,6 +3,10 @@ import { mutation } from "../../_generated/server";
 import { internal } from "../../_generated/api";
 import { ensureCardCreationAllowed } from "./cardLimit";
 import { getFileCardType } from "./fileUtils";
+import {
+  buildInitialProcessingStatus,
+  stageCompleted,
+} from "./processingStatus";
 
 // Unified upload mutation that handles the complete upload-to-card pipeline
 export const uploadAndCreateCard = mutation({
@@ -125,21 +129,19 @@ export const finalizeUploadedCard = mutation({
         fileId: args.fileId,
         fileMetadata: fileMetadataObj,
         metadata,
+        processingStatus: buildInitialProcessingStatus({
+          now,
+          cardType,
+          classificationStatus: stageCompleted(now, 1),
+        }),
         createdAt: now,
         updatedAt: now,
       });
 
-      // Schedule AI metadata generation
-      await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.generateAiMetadata, {
+      await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.startProcessingPipeline, {
         cardId,
+        classificationRequired: false,
       });
-
-      // Schedule thumbnail generation for image cards (placeholder implementation)
-      if (cardType === "image") {
-        await ctx.scheduler.runAfter(0, internal.tasks.thumbnails.generateThumbnail.generateThumbnail, {
-          cardId,
-        });
-      }
 
       return { success: true, cardId };
     } catch (error) {
