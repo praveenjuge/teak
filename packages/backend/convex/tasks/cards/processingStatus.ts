@@ -10,6 +10,7 @@ export type ProcessingStageStatus = {
 
 export type ProcessingStatus = {
   classify?: ProcessingStageStatus;
+  categorize?: ProcessingStageStatus;
   metadata?: ProcessingStageStatus;
   renderables?: ProcessingStageStatus;
 };
@@ -63,6 +64,10 @@ export const shouldRunRenderablesStage = (cardType: CardType): boolean => {
   return cardType === "image" || cardType === "video" || cardType === "document";
 };
 
+export const shouldRunCategorizeStage = (cardType: CardType): boolean => {
+  return cardType === "link";
+};
+
 export const buildInitialProcessingStatus = (
   params: {
     now: number;
@@ -70,6 +75,7 @@ export const buildInitialProcessingStatus = (
     classificationStatus?: ProcessingStageStatus;
     metadataStageNeeded?: boolean;
     renderablesStageOverride?: boolean;
+    categorizeStageOverride?: boolean;
   }
 ): ProcessingStatus => {
   const { now: timestamp, cardType, classificationStatus, metadataStageNeeded = true } = params;
@@ -78,6 +84,11 @@ export const buildInitialProcessingStatus = (
   if (classificationStatus) {
     result.classify = classificationStatus;
   }
+
+  const shouldCategorize =
+    params.categorizeStageOverride ?? shouldRunCategorizeStage(cardType);
+
+  result.categorize = shouldCategorize ? stagePending() : stageCompleted(timestamp, 1);
 
   result.metadata = metadataStageNeeded ? stagePending() : stageCompleted(timestamp, 1);
 

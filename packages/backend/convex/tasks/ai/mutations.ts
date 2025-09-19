@@ -3,6 +3,7 @@ import { internalMutation } from "../../_generated/server";
 import {
   cardTypeValidator,
   colorValidator,
+  linkCategoryMetadataValidator,
   processingStatusObjectValidator,
   processingStatusValidator,
 } from "../../schema";
@@ -66,6 +67,33 @@ export const updateCardColors = internalMutation({
   handler: async (ctx, { cardId, colors }) => {
     await ctx.db.patch(cardId, {
       colors,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const updateCardCategory = internalMutation({
+  args: {
+    cardId: v.id("cards"),
+    category: v.optional(linkCategoryMetadataValidator),
+  },
+  handler: async (ctx, { cardId, category }) => {
+    const card = await ctx.db.get(cardId);
+    if (!card) {
+      return;
+    }
+
+    const existingMetadata = card.metadata ?? {};
+    const nextMetadata = { ...existingMetadata };
+
+    if (category) {
+      nextMetadata.linkCategory = category;
+    } else {
+      delete nextMetadata.linkCategory;
+    }
+
+    await ctx.db.patch(cardId, {
+      metadata: Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined,
       updatedAt: Date.now(),
     });
   },

@@ -9,6 +9,8 @@ import {
   Trash2,
   Video,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import type { SyntheticEvent } from "react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
 import { Id } from "@teak/convex/_generated/dataModel";
@@ -88,10 +90,25 @@ export function Card({
     onEnterSelectionMode?.(card._id);
   };
 
-  const classificationStatus = card.processingStatus?.classify?.status;
-  const isClassifying =
-    classificationStatus === "pending" ||
-    classificationStatus === "in_progress";
+  const stagePending = (stage?: { status?: string }) =>
+    stage?.status === "pending" || stage?.status === "in_progress";
+
+  const processingStatus = card.processingStatus;
+  const isProcessingPending =
+    stagePending(processingStatus?.classify) ||
+    stagePending(processingStatus?.categorize) ||
+    stagePending(processingStatus?.metadata) ||
+    stagePending(processingStatus?.renderables);
+
+  const metadataStatusPending = card.metadataStatus === "pending";
+  const linkPreviewStatus = card.metadata?.linkPreview?.status;
+  const screenshotPending =
+    card.type === "link" &&
+    linkPreviewStatus === "success" &&
+    !card.metadata?.linkPreview?.screenshotStorageId;
+
+  const isAnalyzing =
+    isProcessingPending || metadataStatusPending || screenshotPending;
 
   const linkPreview =
     card.metadata?.linkPreview?.status === "success"
@@ -104,6 +121,33 @@ export function Card({
     legacyMicrolink?.title ||
     card.url;
   const linkCardImage = linkPreview?.imageUrl || legacyMicrolink?.image?.url;
+  const screenshotStorageId = linkPreview?.screenshotStorageId;
+  const screenshotUrl = useQuery(
+    api.cards.getFileUrl,
+    screenshotStorageId
+      ? { fileId: screenshotStorageId, cardId: card._id }
+      : "skip"
+  );
+  const resolvedScreenshotUrl =
+    typeof screenshotUrl === "string" ? screenshotUrl : undefined;
+  const [useFallbackImage, setUseFallbackImage] = useState(false);
+
+  useEffect(() => {
+    setUseFallbackImage(false);
+  }, [card._id, linkCardImage, resolvedScreenshotUrl]);
+
+  const displayLinkImage = useFallbackImage
+    ? resolvedScreenshotUrl ?? undefined
+    : linkCardImage ?? resolvedScreenshotUrl;
+
+  const handleLinkImageError = (event: SyntheticEvent<HTMLImageElement>) => {
+    const target = event.currentTarget;
+    if (!useFallbackImage && resolvedScreenshotUrl && target.src !== resolvedScreenshotUrl) {
+      setUseFallbackImage(true);
+    } else {
+      target.style.display = "none";
+    }
+  };
 
   return (
     <ContextMenu>
@@ -129,14 +173,14 @@ export function Card({
           )}
 
           <CardContent className="p-0 space-y-2">
-            {isClassifying && (
+            {isAnalyzing && (
               <div className="p-4 rounded-xl border bg-card flex flex-col items-center justify-center gap-1 text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
                 <span className="text-xs font-medium">Analyzing...</span>
               </div>
             )}
 
-            {!isClassifying && (
+            {!isAnalyzing && (
               <>
                 {card.type === "text" && (
                   <div className="p-4 rounded-xl border bg-card">
@@ -162,13 +206,14 @@ export function Card({
 
                 {card.type === "link" && (
                   <div>
-                    {linkCardImage ? (
+                    {displayLinkImage ? (
                       <>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={linkCardImage}
+                          src={displayLinkImage}
                           alt=""
                           className="w-full h-28 object-cover bg-card rounded-xl border"
+                          onError={handleLinkImageError}
                         />
                         <div className="p-2 pb-0">
                           <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">

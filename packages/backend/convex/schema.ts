@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { LINK_CATEGORIES } from "@teak/shared";
 
 // Card types as literals for validator
 export const cardTypes = [
@@ -14,6 +15,14 @@ export const cardTypes = [
 ] as const;
 
 export type CardType = (typeof cardTypes)[number];
+
+export const linkCategoryLiterals = [...LINK_CATEGORIES] as const;
+
+export type LinkCategory = (typeof linkCategoryLiterals)[number];
+
+export const linkCategoryValidator = v.union(
+  ...linkCategoryLiterals.map((category) => v.literal(category))
+);
 
 // Reusable validators
 export const cardTypeValidator = v.union(
@@ -35,6 +44,7 @@ const stageStatusValidator = v.object({
 
 export const processingStatusObjectValidator = v.object({
   classify: v.optional(stageStatusValidator),
+  categorize: v.optional(stageStatusValidator),
   metadata: v.optional(stageStatusValidator),
   renderables: v.optional(stageStatusValidator),
 });
@@ -42,6 +52,23 @@ export const processingStatusObjectValidator = v.object({
 export const processingStatusValidator = v.optional(
   processingStatusObjectValidator
 );
+
+const linkCategoryFactValidator = v.object({
+  label: v.string(),
+  value: v.string(),
+  icon: v.optional(v.string()),
+});
+
+export const linkCategoryMetadataValidator = v.object({
+  category: linkCategoryValidator,
+  confidence: v.optional(v.number()),
+  detectedProvider: v.optional(v.string()),
+  fetchedAt: v.number(),
+  sourceUrl: v.string(),
+  imageUrl: v.optional(v.string()),
+  facts: v.optional(v.array(linkCategoryFactValidator)),
+  raw: v.optional(v.any()),
+});
 
 export const fileMetadataValidator = v.optional(
   v.object({
@@ -90,6 +117,7 @@ export const metadataValidator = v.optional(
         raw: v.optional(v.any()),
       })
     ),
+    linkCategory: v.optional(linkCategoryMetadataValidator),
   })
 );
 

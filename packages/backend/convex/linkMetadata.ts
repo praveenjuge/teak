@@ -107,12 +107,18 @@ export const updateCardMetadata = internalMutation({
     // For non-link cards, preserve existing metadata while layering the new field
     let updatedMetadata: Record<string, any> = {};
 
+    const existingCategory = existingCard.metadata?.linkCategory;
+
     if (existingCard.type === "link") {
-      updatedMetadata = nextLinkPreview ? { linkPreview: nextLinkPreview } : {};
+      updatedMetadata = {
+        ...(nextLinkPreview ? { linkPreview: nextLinkPreview } : {}),
+        ...(existingCategory ? { linkCategory: existingCategory } : {}),
+      };
     } else {
       updatedMetadata = {
         ...existingCard.metadata,
         ...(nextLinkPreview !== undefined ? { linkPreview: nextLinkPreview } : {}),
+        ...(existingCategory ? { linkCategory: existingCategory } : {}),
       };
     }
 
@@ -271,6 +277,37 @@ const FINAL_URL_SOURCES: SelectorSource[] = [
   { selector: "meta[name='twitter:url']", attribute: "content" },
 ];
 
+const GITHUB_SOURCES: SelectorSource[] = [
+  { selector: "a[href$='/stargazers']", attribute: "text" },
+  { selector: "a[href$='/network/members']", attribute: "text" },
+  { selector: "a[href$='/watchers']", attribute: "text" },
+  { selector: "span[itemprop='programmingLanguage']", attribute: "text" },
+  { selector: "relative-time", attribute: "text" },
+];
+
+const GOODREADS_SOURCES: SelectorSource[] = [
+  { selector: "meta[property='books:rating:average']", attribute: "content" },
+  { selector: "meta[property='books:rating:count']", attribute: "content" },
+  { selector: "meta[property='books:isbn']", attribute: "content" },
+];
+
+const AMAZON_SOURCES: SelectorSource[] = [
+  { selector: "meta[property='og:price:amount']", attribute: "content" },
+  { selector: "meta[property='og:price:currency']", attribute: "content" },
+  { selector: "meta[name='price']", attribute: "content" },
+  { selector: "#priceblock_ourprice", attribute: "text" },
+  { selector: "#priceblock_dealprice", attribute: "text" },
+  { selector: ".a-price .a-offscreen", attribute: "text" },
+];
+
+const IMDB_SOURCES: SelectorSource[] = [
+  { selector: "meta[name='imdb:rating']", attribute: "content" },
+  { selector: "meta[name='imdb:votes']", attribute: "content" },
+  { selector: "meta[property='video:release_date']", attribute: "content" },
+  { selector: "span[data-testid='hero-rating-bar__aggregate-rating__score']", attribute: "text" },
+  { selector: "span[data-testid='title-techspec_runtime'] span", attribute: "text" },
+];
+
 const SCRAPE_ELEMENTS = Array.from(
   new Map(
     [
@@ -284,6 +321,10 @@ const SCRAPE_ELEMENTS = Array.from(
       ...PUBLISHED_TIME_SOURCES,
       ...CANONICAL_SOURCES,
       ...FINAL_URL_SOURCES,
+      ...GITHUB_SOURCES,
+      ...GOODREADS_SOURCES,
+      ...AMAZON_SOURCES,
+      ...IMDB_SOURCES,
     ].map((source) => [source.selector, { selector: source.selector }])
   ).values()
 );

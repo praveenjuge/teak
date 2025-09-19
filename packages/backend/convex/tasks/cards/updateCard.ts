@@ -40,10 +40,14 @@ export const updateCard = mutation({
       processingStatus = processingStatus
         ? withStageStatus(processingStatus, "metadata", stagePending())
         : buildInitialProcessingStatus({
-            now,
-            cardType: card.type,
-            classificationStatus: stagePending(),
-          });
+          now,
+          cardType: card.type,
+          classificationStatus: stagePending(),
+        });
+
+      if (card.type === "link" && processingStatus) {
+        processingStatus = withStageStatus(processingStatus, "categorize", stagePending());
+      }
     }
 
     const result = await ctx.db.patch(id, {
@@ -111,10 +115,13 @@ export const updateCardField = mutation({
           processingStatus = processingStatus
             ? withStageStatus(processingStatus, "metadata", stagePending())
             : buildInitialProcessingStatus({
-                now,
-                cardType: card.type,
-                classificationStatus: stagePending(),
-              });
+              now,
+              cardType: card.type,
+              classificationStatus: stagePending(),
+            });
+          if (card.type === "link" && processingStatus) {
+            processingStatus = withStageStatus(processingStatus, "categorize", stagePending());
+          }
           shouldSchedulePipeline = true;
           classificationRequired =
             processingStatus?.classify?.status === "pending";
@@ -123,6 +130,30 @@ export const updateCardField = mutation({
 
       case "url":
         updateData.url = typeof value === "string" ? value.trim() || undefined : value;
+        if (updateData.url !== card.url) {
+          const baseStatus = processingStatus
+            ? withStageStatus(processingStatus, "classify", stagePending())
+            : buildInitialProcessingStatus({
+              now,
+              cardType: card.type,
+              classificationStatus: stagePending(),
+            });
+
+          processingStatus = withStageStatus(baseStatus, "metadata", stagePending());
+          processingStatus = withStageStatus(processingStatus, "categorize", stagePending());
+          shouldSchedulePipeline = true;
+          classificationRequired = true;
+
+          const nextMetadata = { ...(card.metadata ?? {}) };
+          if ("linkPreview" in nextMetadata) {
+            delete (nextMetadata as Record<string, unknown>).linkPreview;
+          }
+          if ("linkCategory" in nextMetadata) {
+            delete (nextMetadata as Record<string, unknown>).linkCategory;
+          }
+          updateData.metadata = Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined;
+          updateData.metadataStatus = "pending";
+        }
         break;
 
       case "notes":

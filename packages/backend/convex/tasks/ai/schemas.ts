@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { cardTypes } from "../../schema";
+import { LINK_CATEGORIES } from "@teak/shared";
 
 // AI generation result schema
 export const aiMetadataSchema = z.object({
@@ -17,6 +18,25 @@ export const cardClassificationSchema = z.object({
   reasoning: z
     .string()
     .describe("Short explanation of the classification decision")
+    .optional(),
+});
+
+export const linkCategoryClassificationSchema = z.object({
+  category: z.enum(LINK_CATEGORIES).describe("Link category label"),
+  confidence: z
+    .number()
+    .min(0)
+    .max(1)
+    .describe("Confidence score between 0 and 1")
+    .optional(),
+  providerHint: z
+    .string()
+    .describe("Optional hint about the content source, e.g. 'github', 'imdb'")
+    .optional(),
+  tags: z
+    .array(z.string())
+    .max(10)
+    .describe("Optional supporting keywords")
     .optional(),
 });
 
