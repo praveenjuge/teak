@@ -143,6 +143,22 @@ export function CardModal({
   const renderPreview = () => {
     if (!card) return null;
 
+    const classificationStatus = card.processingStatus?.classify?.status;
+    const isClassifying =
+      classificationStatus === "pending" ||
+      classificationStatus === "in_progress";
+
+    if (isClassifying) {
+      return (
+        <div className="flex h-full items-center justify-center text-muted-foreground">
+          <div className="flex flex-col items-center gap-2">
+            <Sparkles className="size-5 animate-pulse" />
+            <span className="text-sm font-medium">Analyzing...</span>
+          </div>
+        </div>
+      );
+    }
+
     switch (card.type) {
       case "text":
         return (

@@ -3,6 +3,7 @@ import {
   ExternalLink,
   File,
   Heart,
+  Loader2,
   RotateCcw,
   Trash,
   Trash2,
@@ -87,6 +88,11 @@ export function Card({
     onEnterSelectionMode?.(card._id);
   };
 
+  const classificationStatus = card.processingStatus?.classify?.status;
+  const isClassifying =
+    classificationStatus === "pending" ||
+    classificationStatus === "in_progress";
+
   const linkPreview =
     card.metadata?.linkPreview?.status === "success"
       ? card.metadata.linkPreview
@@ -123,105 +129,116 @@ export function Card({
           )}
 
           <CardContent className="p-0 space-y-2">
-            {card.type === "text" && (
-              <div className="p-4 rounded-xl border bg-card">
-                <p className="line-clamp-2 font-medium">{card.content}</p>
+            {isClassifying && (
+              <div className="p-4 rounded-xl border bg-card flex flex-col items-center justify-center gap-1 text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                <span className="text-xs font-medium">Analyzing...</span>
               </div>
             )}
 
-            {card.type === "quote" && (
-              <div className="py-4 px-6 rounded-xl border bg-card">
-                <div className="relative">
-                  <p className="line-clamp-2 font-medium italic leading-relaxed text-center text-balance">
-                    {card.content}
-                  </p>
-                  <div className="absolute select-none pointer-events-none -left-4 -top-3.5 text-4xl text-muted-foreground/20 leading-none font-serif">
-                    &ldquo;
-                  </div>
-                  <div className="absolute select-none pointer-events-none -right-4 -bottom-7 text-4xl text-muted-foreground/20 leading-none font-serif">
-                    &rdquo;
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {card.type === "link" && (
-              <div>
-                {linkCardImage ? (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={linkCardImage}
-                      alt=""
-                      className="w-full h-28 object-cover bg-card rounded-xl border"
-                    />
-                    <div className="p-2 pb-0">
-                      <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
-                        {linkCardTitle}
-                      </h4>
-                    </div>
-                  </>
-                ) : (
-                  <div className="p-4 bg-card rounded-xl border">
-                    <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
-                      {linkCardTitle}
-                    </h4>
+            {!isClassifying && (
+              <>
+                {card.type === "text" && (
+                  <div className="p-4 rounded-xl border bg-card">
+                    <p className="line-clamp-2 font-medium">{card.content}</p>
                   </div>
                 )}
-              </div>
-            )}
 
-            {card.type === "image" && (
-              <GridImagePreview
-                fileId={card.fileId}
-                thumbnailId={card.thumbnailId}
-                altText={card.content}
-                width={card.fileMetadata?.width}
-                height={card.fileMetadata?.height}
-              />
-            )}
+                {card.type === "quote" && (
+                  <div className="py-4 px-6 rounded-xl border bg-card">
+                    <div className="relative">
+                      <p className="line-clamp-2 font-medium italic leading-relaxed text-center text-balance">
+                        {card.content}
+                      </p>
+                      <div className="absolute select-none pointer-events-none -left-4 -top-3.5 text-4xl text-muted-foreground/20 leading-none font-serif">
+                        &ldquo;
+                      </div>
+                      <div className="absolute select-none pointer-events-none -right-4 -bottom-7 text-4xl text-muted-foreground/20 leading-none font-serif">
+                        &rdquo;
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-            {card.type === "video" && (
-              <div className="w-full h-32 flex items-center justify-center bg-card text-muted-foreground rounded-xl border">
-                <Video />
-              </div>
-            )}
+                {card.type === "link" && (
+                  <div>
+                    {linkCardImage ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={linkCardImage}
+                          alt=""
+                          className="w-full h-28 object-cover bg-card rounded-xl border"
+                        />
+                        <div className="p-2 pb-0">
+                          <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
+                            {linkCardTitle}
+                          </h4>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="p-4 bg-card rounded-xl border">
+                        <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
+                          {linkCardTitle}
+                        </h4>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-            {card.type === "audio" && (
-              <div className="flex h-14 items-center justify-between space-x-0.5 px-4 py-2 bg-card rounded-xl border">
-                {Array.from({ length: 45 }).map((_, i) => (
-                  <div
-                    className="rounded-full bg-muted-foreground"
-                    key={i}
-                    style={{
-                      width: "2px",
-                      height: `${seededRandom(card._id, i) * 60 + 20}%`,
-                    }}
+                {card.type === "image" && (
+                  <GridImagePreview
+                    fileId={card.fileId}
+                    thumbnailId={card.thumbnailId}
+                    altText={card.content}
+                    width={card.fileMetadata?.width}
+                    height={card.fileMetadata?.height}
                   />
-                ))}
-              </div>
-            )}
+                )}
 
-            {card.type === "document" && (
-              <div className="p-4 flex gap-2 items-center bg-card rounded-xl border">
-                <File className="shrink-0 size-4 text-muted-foreground" />
-                <span className="truncate font-medium">
-                  {card.fileMetadata?.fileName || card.content}
-                </span>
-              </div>
-            )}
+                {card.type === "video" && (
+                  <div className="w-full h-32 flex items-center justify-center bg-card text-muted-foreground rounded-xl border">
+                    <Video />
+                  </div>
+                )}
 
-            {card.type === "palette" && (
-              <div className="flex bg-card rounded-xl border overflow-hidden">
-                {card.colors?.slice(0, 12).map((color, index) => (
-                  <div
-                    key={`${color.hex}-${index}`}
-                    className="h-14 flex-1 min-w-0"
-                    style={{ backgroundColor: color.hex }}
-                    title={color.hex}
-                  />
-                ))}
-              </div>
+                {card.type === "audio" && (
+                  <div className="flex h-14 items-center justify-between space-x-0.5 px-4 py-2 bg-card rounded-xl border">
+                    {Array.from({ length: 45 }).map((_, i) => (
+                      <div
+                        className="rounded-full bg-muted-foreground"
+                        key={i}
+                        style={{
+                          width: "2px",
+                          height: `${seededRandom(card._id, i) * 60 + 20}%`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {card.type === "document" && (
+                  <div className="p-4 flex gap-2 items-center bg-card rounded-xl border">
+                    <File className="shrink-0 size-4 text-muted-foreground" />
+                    <span className="truncate font-medium">
+                      {card.fileMetadata?.fileName || card.content}
+                    </span>
+                  </div>
+                )}
+
+                {card.type === "palette" && (
+                  <div className="flex bg-card rounded-xl border overflow-hidden">
+                    {card.colors?.slice(0, 12).map((color, index) => (
+                      <div
+                        key={`${color.hex}-${index}`}
+                        className="h-14 flex-1 min-w-0"
+                        style={{ backgroundColor: color.hex }}
+                        title={color.hex}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </UICard>
