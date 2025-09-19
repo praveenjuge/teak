@@ -168,18 +168,24 @@ const COLOR_NAMES: Record<string, string> = {
 
 // Convert hex to RGB
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  // Remove # if present
-  hex = hex.replace(/^#/, '');
+  let normalized = hex.replace(/^#/, '');
 
-  // Handle 3-character hex (#RGB -> #RRGGBB)
-  if (hex.length === 3) {
-    hex = hex
+  if (normalized.length === 3 || normalized.length === 4) {
+    normalized = normalized
       .split('')
-      .map(char => char + char)
+      .map((char) => char + char)
       .join('');
   }
 
-  const result = /^([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (normalized.length === 8) {
+    normalized = normalized.slice(0, 6);
+  }
+
+  if (normalized.length !== 6) {
+    return null;
+  }
+
+  const result = /^([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(normalized);
   return result
     ? {
       r: parseInt(result[1], 16),
@@ -268,22 +274,31 @@ function rgbToHex(r: number, g: number, b: number): string {
 }
 
 // Parse a single color from text
-function parseColor(colorText: string): Color | null {
+export function parseColorString(colorText: string): Color | null {
   const text = colorText.trim().toLowerCase();
 
-  // Try hex format (#FF5733 or #f53)
-  const hexMatch = text.match(/^#([a-f0-9]{3}|[a-f0-9]{6})$/i);
+  // Try hex format (#FF5733, #f53, #abcd, #97f9f9ff)
+  const hexMatch = text.match(/^#([a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})$/i);
   if (hexMatch) {
-    let hex = hexMatch[1];
-    if (hex.length === 3) {
-      hex = hex.split('').map(char => char + char).join('');
+    let raw = hexMatch[1];
+    if (raw.length === 3 || raw.length === 4) {
+      raw = raw
+        .split('')
+        .map((char) => char + char)
+        .join('');
     }
-    hex = `#${hex.toUpperCase()}`;
-    const rgb = hexToRgb(hex);
+
+    const rgbHex = raw.slice(0, 6);
+    const alpha = raw.length === 8 ? raw.slice(6) : undefined;
+    const rgb = hexToRgb(rgbHex);
     const hsl = rgb ? rgbToHsl(rgb.r, rgb.g, rgb.b) : undefined;
+    const baseHex = `#${rgbHex.toUpperCase()}`;
+    const hex = alpha ? `#${(rgbHex + alpha).toUpperCase()}` : baseHex;
+    const name = alpha ? undefined : getColorName(baseHex);
 
     return {
       hex,
+      ...(name ? { name } : {}),
       rgb: rgb || undefined,
       hsl,
     };
@@ -357,29 +372,77 @@ export function parseColorsFromText(text: string): Color[] {
     const trimmedPart = part.trim();
     if (!trimmedPart) continue;
 
-    const color = parseColor(trimmedPart);
-    if (color && !seenHex.has(color.hex)) {
-      colors.push(color);
-      seenHex.add(color.hex);
+    const color = parseColorString(trimmedPart);
+    if (color) {
+      const normalizedHex = color.hex.toUpperCase();
+      if (!seenHex.has(normalizedHex)) {
+        colors.push({ ...color, hex: normalizedHex });
+        seenHex.add(normalizedHex);
+      }
     }
   }
 
   // Also try to extract colors from within longer text
   const allMatches = [
-    ...text.matchAll(/#([a-f0-9]{3}|[a-f0-9]{6})\b/gi),
+    ...text.matchAll(/#([a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})\b/gi),
     ...text.matchAll(/rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*[\d.]+\s*)?\)/gi),
     ...text.matchAll(/hsla?\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*(?:,\s*[\d.]+\s*)?\)/gi),
   ];
 
   for (const match of allMatches) {
-    const color = parseColor(match[0]);
-    if (color && !seenHex.has(color.hex)) {
-      colors.push(color);
-      seenHex.add(color.hex);
+    const color = parseColorString(match[0]);
+    if (color) {
+      const normalizedHex = color.hex.toUpperCase();
+      if (!seenHex.has(normalizedHex)) {
+        colors.push({ ...color, hex: normalizedHex });
+        seenHex.add(normalizedHex);
+      }
     }
   }
 
   return colors;
+}
+
+function formatPaletteName(slug: string): string | undefined {
+  const cleaned = slug.replace(/[_-]+/g, ' ').trim();
+  if (!cleaned) return undefined;
+  return cleaned.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+export function extractPaletteColors(text: string): Color[] {
+  const result = new Map<string, Color>();
+
+  const addColor = (color: Color | null, inferredName?: string) => {
+    if (!color) return;
+    const normalizedHex = color.hex.toUpperCase();
+    const existing = result.get(normalizedHex);
+    const name = inferredName?.trim() || color.name;
+
+    if (existing) {
+      if (!existing.name && name) {
+        result.set(normalizedHex, { ...existing, name });
+      }
+      return;
+    }
+
+    result.set(normalizedHex, {
+      ...color,
+      hex: normalizedHex,
+      ...(name ? { name } : {}),
+    });
+  };
+
+  for (const match of text.matchAll(/--([a-z0-9_-]+)\s*:\s*([^;{}\n]+)[;}]?/gi)) {
+    const [, slug, value] = match;
+    const parsed = parseColorString(value.trim());
+    addColor(parsed, formatPaletteName(slug));
+  }
+
+  for (const color of parseColorsFromText(text)) {
+    addColor(color, color.name);
+  }
+
+  return Array.from(result.values());
 }
 
 // Get color name from hex if it matches a known color

@@ -19,3 +19,20 @@ export const cardClassificationSchema = z.object({
     .describe("Short explanation of the classification decision")
     .optional(),
 });
+
+export const paletteExtractionSchema = z.object({
+  colors: z
+    .array(
+      z.object({
+        hex: z
+          .string()
+          .describe("Hex colour expressed as #RRGGBB or #RRGGBBAA"),
+        name: z
+          .string()
+          .describe("Optional descriptive label captured from the card")
+          .optional(),
+      })
+    )
+    .max(12)
+    .describe("Unique colours present in the palette card"),
+});

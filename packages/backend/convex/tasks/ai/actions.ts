@@ -4,6 +4,11 @@ import { internal } from "../../_generated/api";
 import { Id } from "../../_generated/dataModel";
 import { generateObject } from "ai";
 import { openai } from "@ai-sdk/openai";
+import {
+  extractPaletteColors,
+  parseColorString,
+  type Color,
+} from "@teak/shared/utils/colorUtils";
 import { generateTextMetadata, generateImageMetadata, generateLinkMetadata } from "./metadata_generators";
 import { generateTranscript } from "./transcript";
 import {
@@ -18,12 +23,153 @@ import {
   type ProcessingStageStatus,
   type ProcessingStatus,
 } from "../cards/processingStatus";
-import { cardClassificationSchema } from "./schemas";
+import {
+  cardClassificationSchema,
+  paletteExtractionSchema,
+} from "./schemas";
 import type { CardType } from "../../schema";
 
 const CLASSIFY_RETRY_DELAYS = [5000, 30000, 120000];
 const METADATA_RETRY_DELAYS = [5000, 20000, 60000];
 const RENDER_RETRY_DELAYS = [5000, 15000];
+const MAX_PALETTE_COLORS = 12;
+
+type DbColor = {
+  hex: string;
+  name?: string;
+  rgb?: { r: number; g: number; b: number };
+  hsl?: { h: number; s: number; l: number };
+};
+
+const toDbColor = (color: Color): DbColor => ({
+  hex: color.hex.toUpperCase(),
+  ...(color.name ? { name: color.name } : {}),
+  ...(color.rgb ? { rgb: color.rgb } : {}),
+  ...(color.hsl ? { hsl: color.hsl } : {}),
+});
+
+const colorsMatch = (
+  existing: readonly DbColor[] | undefined,
+  next: readonly DbColor[],
+): boolean => {
+  if (!existing) {
+    return next.length === 0;
+  }
+
+  if (existing.length !== next.length) {
+    return false;
+  }
+
+  return next.every((color, index) => {
+    const candidate = existing[index];
+    if (!candidate) return false;
+
+    const hexMatch = candidate.hex?.toUpperCase() === color.hex.toUpperCase();
+    const nameMatch = (candidate.name ?? "") === (color.name ?? "");
+    const rgbMatch =
+      (!candidate.rgb && !color.rgb) ||
+      (candidate.rgb &&
+        color.rgb &&
+        candidate.rgb.r === color.rgb.r &&
+        candidate.rgb.g === color.rgb.g &&
+        candidate.rgb.b === color.rgb.b);
+    const hslMatch =
+      (!candidate.hsl && !color.hsl) ||
+      (candidate.hsl &&
+        color.hsl &&
+        candidate.hsl.h === color.hsl.h &&
+        candidate.hsl.s === color.hsl.s &&
+        candidate.hsl.l === color.hsl.l);
+
+    return hexMatch && nameMatch && rgbMatch && hslMatch;
+  });
+};
+
+const buildPaletteAnalysisText = (card: any): string => {
+  const sections: string[] = [];
+
+  if (typeof card.content === "string" && card.content.trim()) {
+    sections.push(card.content);
+  }
+
+  if (typeof card.notes === "string" && card.notes.trim()) {
+    sections.push(`Notes: ${card.notes}`);
+  }
+
+  if (Array.isArray(card.tags) && card.tags.length > 0) {
+    sections.push(`Tags: ${card.tags.join(", ")}`);
+  }
+
+  return sections.join("\n").trim();
+};
+
+const extractPaletteWithAi = async (
+  card: any,
+  text: string,
+): Promise<Color[]> => {
+  if (!text) {
+    return [];
+  }
+
+  try {
+    const result = await generateObject({
+      model: openai("gpt-5-nano"),
+      system:
+        "You extract colour palettes from user notes or CSS snippets. Only return colours that are explicitly present and prefer hex codes.",
+      prompt: `Extract up to ${MAX_PALETTE_COLORS} unique colours (with their hex codes) from the following palette card. Preserve any provided names:\n\n${text}`,
+      schema: paletteExtractionSchema,
+    });
+
+    const colors = result.object.colors ?? [];
+    return colors
+      .map((entry) => {
+        const parsed = parseColorString(entry.hex ?? "");
+        if (!parsed) {
+          return null;
+        }
+        if (entry.name) {
+          parsed.name = entry.name.trim();
+        }
+        return parsed;
+      })
+      .filter((color): color is Color => !!color);
+  } catch (error) {
+    console.error(`[pipeline] Palette extraction failed for ${card._id}:`, error);
+    return [];
+  }
+};
+
+const maybeUpdatePaletteColors = async (
+  ctx: any,
+  card: any,
+  normalizedType: CardType,
+  cardId: Id<"cards">,
+) => {
+  if (normalizedType !== "palette") {
+    return;
+  }
+
+  const paletteSource = buildPaletteAnalysisText(card);
+  let colors = extractPaletteColors(paletteSource).slice(0, MAX_PALETTE_COLORS);
+
+  if (colors.length === 0) {
+    colors = (await extractPaletteWithAi(card, paletteSource)).slice(0, MAX_PALETTE_COLORS);
+  }
+
+  if (colors.length === 0) {
+    return;
+  }
+
+  const colorsForDb = colors.map(toDbColor);
+  if (colorsMatch(card.colors, colorsForDb)) {
+    return;
+  }
+
+  await ctx.runMutation(internal.tasks.ai.mutations.updateCardColors, {
+    cardId,
+    colors: colorsForDb,
+  });
+};
 
 const stageNeedsWork = (status?: ProcessingStageStatus) =>
   !status || status.status === "pending" || status.status === "failed";
@@ -359,6 +505,7 @@ export const runClassificationStage = internalAction({
         );
       }
 
+      await maybeUpdatePaletteColors(ctx, card, normalizedType, cardId);
       await scheduleNextStage(ctx, cardId, processing);
     } catch (error) {
       console.error(`[pipeline] Classification failed for ${cardId}:`, error);
