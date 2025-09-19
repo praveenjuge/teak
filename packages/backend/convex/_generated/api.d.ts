@@ -21,6 +21,7 @@ import type * as tasks_ai_mutations from "../tasks/ai/mutations.js";
 import type * as tasks_ai_queries from "../tasks/ai/queries.js";
 import type * as tasks_ai_schemas from "../tasks/ai/schemas.js";
 import type * as tasks_ai_transcript from "../tasks/ai/transcript.js";
+import type * as tasks_cards_cardLimit from "../tasks/cards/cardLimit.js";
 import type * as tasks_cards_cleanup from "../tasks/cards/cleanup.js";
 import type * as tasks_cards_colorUtils from "../tasks/cards/colorUtils.js";
 import type * as tasks_cards_contentDetection from "../tasks/cards/contentDetection.js";
@@ -68,6 +69,7 @@ declare const fullApi: ApiFromModules<{
   "tasks/ai/queries": typeof tasks_ai_queries;
   "tasks/ai/schemas": typeof tasks_ai_schemas;
   "tasks/ai/transcript": typeof tasks_ai_transcript;
+  "tasks/cards/cardLimit": typeof tasks_cards_cardLimit;
   "tasks/cards/cleanup": typeof tasks_cards_cleanup;
   "tasks/cards/colorUtils": typeof tasks_cards_colorUtils;
   "tasks/cards/contentDetection": typeof tasks_cards_contentDetection;

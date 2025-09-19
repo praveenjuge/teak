@@ -1,7 +1,7 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation } from "../../_generated/server";
-import { internal, api } from "../../_generated/api";
-import { FREE_TIER_LIMIT } from "@teak/shared/constants";
+import { internal } from "../../_generated/api";
+import { ensureCardCreationAllowed } from "./cardLimit";
 import { getFileCardType } from "./fileUtils";
 
 // Unified upload mutation that handles the complete upload-to-card pipeline
@@ -18,6 +18,7 @@ export const uploadAndCreateCard = mutation({
     cardId: v.optional(v.id("cards")),
     uploadUrl: v.optional(v.string()),
     error: v.optional(v.string()),
+    errorCode: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
@@ -26,21 +27,7 @@ export const uploadAndCreateCard = mutation({
     }
 
     try {
-      // Check if user can create a card (respects free tier limits)
-      const cardCount = await ctx.db
-        .query("cards")
-        .withIndex("by_user_deleted", (q) =>
-          q.eq("userId", user.subject).eq("isDeleted", undefined)
-        )
-        .collect();
-
-      // For free users, enforce the FREE_TIER_LIMIT card limit
-      if (cardCount.length >= FREE_TIER_LIMIT) {
-        const hasPremium = await ctx.runQuery(api.polar.userHasPremium);
-        if (!hasPremium) {
-          return { success: false, error: "Card limit reached. Please upgrade to Pro for unlimited cards." };
-        }
-      }
+      await ensureCardCreationAllowed(ctx, user.subject);
 
       // Generate upload URL
       const uploadUrl = await ctx.storage.generateUploadUrl();
@@ -51,6 +38,16 @@ export const uploadAndCreateCard = mutation({
         cardId: undefined // Will be set after successful upload
       };
     } catch (error) {
+      if (error instanceof ConvexError && typeof error.data === "object" && error.data) {
+        const { code, message } = error.data as { code?: string; message?: string };
+        if (code) {
+          return {
+            success: false,
+            errorCode: code,
+            error: message,
+          };
+        }
+      }
       console.error("Failed to prepare upload:", error);
       return {
         success: false,
@@ -72,6 +69,7 @@ export const finalizeUploadedCard = mutation({
     success: v.boolean(),
     cardId: v.optional(v.id("cards")),
     error: v.optional(v.string()),
+    errorCode: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
@@ -81,6 +79,7 @@ export const finalizeUploadedCard = mutation({
 
     try {
       const now = Date.now();
+      await ensureCardCreationAllowed(ctx, user.subject);
 
       // Get file metadata from storage
       const fileMetadata = await ctx.db.system.get(args.fileId);
@@ -144,6 +143,16 @@ export const finalizeUploadedCard = mutation({
 
       return { success: true, cardId };
     } catch (error) {
+      if (error instanceof ConvexError && typeof error.data === "object" && error.data) {
+        const { code, message } = error.data as { code?: string; message?: string };
+        if (code) {
+          return {
+            success: false,
+            errorCode: code,
+            error: message,
+          };
+        }
+      }
       console.error("Failed to finalize uploaded card:", error);
       return {
         success: false,

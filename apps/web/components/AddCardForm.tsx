@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Mic, Square, Upload, Sparkles } from "lucide-react";
 import { api } from "@teak/convex";
-import { useFileUpload } from "@teak/shared";
+import { useFileUpload, CARD_ERROR_CODES } from "@teak/shared";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -34,17 +34,38 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       onSuccess?.();
     },
     onError: (error) => {
-      // Check if error is about card limit
-      if (
-        error.includes("Card limit reached") ||
-        error.includes("upgrade to Pro")
-      ) {
+      if (error.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
         setShowUpgradePrompt(true);
       } else {
-        setError(error);
+        setError(error.message);
       }
     },
   });
+
+  const isCardLimitError = (err: unknown): boolean => {
+    if (!err || typeof err !== "object") {
+      return false;
+    }
+
+    const maybeError = err as {
+      code?: string;
+      message?: string;
+      data?: { code?: string };
+    };
+
+    if (maybeError.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
+      return true;
+    }
+
+    if (
+      maybeError.data &&
+      maybeError.data.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED
+    ) {
+      return true;
+    }
+
+    return false;
+  };
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -146,6 +167,11 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         onSuccess?.();
         toast.success("Audio recording saved successfully");
       } else {
+        if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
+          setShowUpgradePrompt(true);
+          return;
+        }
+
         throw new Error(result.error || "Failed to save audio recording");
       }
     } catch (error) {
@@ -155,11 +181,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
           ? error.message
           : "Failed to save audio recording";
 
-      // Check if error is about card limit
-      if (
-        errorMessage.includes("Card limit reached") ||
-        errorMessage.includes("upgrade to Pro")
-      ) {
+      if (isCardLimitError(error)) {
         setShowUpgradePrompt(true);
       } else {
         setError(errorMessage);
@@ -189,11 +211,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
           toast.success(`${file.name} uploaded successfully`);
         } else {
           const errorMessage = result.error || "Failed to upload file";
-          // Check if error is about card limit
-          if (
-            errorMessage.includes("Card limit reached") ||
-            errorMessage.includes("upgrade to Pro")
-          ) {
+          if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
             setShowUpgradePrompt(true);
           } else {
             setError(errorMessage);
@@ -237,11 +255,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to create card";
 
-      // Check if error is about card limit
-      if (
-        errorMessage.includes("Card limit reached") ||
-        errorMessage.includes("upgrade to Pro")
-      ) {
+      if (isCardLimitError(error)) {
         setShowUpgradePrompt(true);
       } else {
         setError(errorMessage);
