@@ -94,21 +94,13 @@ export function Card({
     stage?.status === "pending" || stage?.status === "in_progress";
 
   const processingStatus = card.processingStatus;
-  const isProcessingPending =
+  // Only wait for AI classification and categorization to complete
+  // Don't wait for metadata extraction or thumbnail generation (renderables)
+  const isAIProcessingPending =
     stagePending(processingStatus?.classify) ||
-    stagePending(processingStatus?.categorize) ||
-    stagePending(processingStatus?.metadata) ||
-    stagePending(processingStatus?.renderables);
+    stagePending(processingStatus?.categorize);
 
-  const metadataStatusPending = card.metadataStatus === "pending";
-  const linkPreviewStatus = card.metadata?.linkPreview?.status;
-  const screenshotPending =
-    card.type === "link" &&
-    linkPreviewStatus === "success" &&
-    !card.metadata?.linkPreview?.screenshotStorageId;
-
-  const isAnalyzing =
-    isProcessingPending || metadataStatusPending || screenshotPending;
+  const isAnalyzing = isAIProcessingPending;
 
   const linkPreview =
     card.metadata?.linkPreview?.status === "success"
