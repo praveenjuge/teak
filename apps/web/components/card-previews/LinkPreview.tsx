@@ -57,10 +57,6 @@ export function LinkPreview({
     legacyMicrolink?.description;
   const linkImage = linkPreview?.imageUrl || legacyMicrolink?.image?.url;
   const linkFavicon = linkPreview?.faviconUrl || legacyMicrolink?.logo?.url;
-  const linkPublisher =
-    linkPreview?.publisher ||
-    linkPreview?.siteName ||
-    legacyMicrolink?.publisher;
 
   const screenshotStorageId = linkPreview?.screenshotStorageId;
   const screenshotUrl = useQuery(
@@ -123,26 +119,22 @@ export function LinkPreview({
           )}
 
           {isAnalyzing && !linkDescription ? (
-            <div className="mt-1">
-              <SkeletonDescription />
-            </div>
+            <SkeletonDescription />
           ) : (
             linkDescription && (
-              <p className="text-muted-foreground text-sm mt-1 line-clamp-3">
+              <p className="text-muted-foreground text-sm line-clamp-3">
                 {linkDescription}
               </p>
             )
-          )}
-
-          {linkPublisher && (
-            <p className="text-muted-foreground text-sm">{linkPublisher}</p>
           )}
 
           {categoryMetadata?.facts?.length ? (
             <div className="space-y-1 text-sm text-muted-foreground border-t pt-3">
               {categoryMetadata.facts.map((fact) => (
                 <div key={`${fact.label}-${fact.value}`} className="flex gap-2">
-                  <span className="font-medium text-foreground">{fact.label}:</span>
+                  <span className="font-medium text-foreground">
+                    {fact.label}:
+                  </span>
                   <span className="text-balance">{fact.value}</span>
                 </div>
               ))}
@@ -153,38 +145,7 @@ export function LinkPreview({
 
       {linkImage && !linkPreview?.imageUrl && <Separator />}
 
-      {isAnalyzing && !linkImage ? (
-        <SkeletonImage />
-      ) : (
-        linkImage && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={linkImage}
-            alt=""
-            className="w-full max-h-[60vh] object-cover rounded"
-            onError={(event) => {
-              const target = event.currentTarget;
-              target.style.display = "none";
-            }}
-          />
-        )
-      )}
-
-      {showScreenshot && screenshotUrl && (
-        <div className="space-y-2">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">
-            Screenshot
-          </p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={screenshotUrl}
-            alt="Rendered webpage screenshot"
-            className="w-full max-h-[70vh] object-contain rounded border"
-          />
-        </div>
-      )}
-
-      {showScreenshot && linkImage && (
+      {!isAnalyzing && linkImage && (
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground uppercase tracking-wide">
             Preview Image
@@ -198,6 +159,20 @@ export function LinkPreview({
               const target = event.currentTarget;
               target.style.display = "none";
             }}
+          />
+        </div>
+      )}
+
+      {showScreenshot && screenshotUrl && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">
+            Screenshot
+          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={screenshotUrl}
+            alt="Rendered webpage screenshot"
+            className="w-full max-h-[70vh] object-contain rounded border"
           />
         </div>
       )}

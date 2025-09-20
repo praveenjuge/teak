@@ -146,6 +146,14 @@ export default function Home() {
     addFilter(cardType as CardType);
   };
 
+  const handleTagClick = (tag: string) => {
+    // Close the modal and add the tag to keyword filters
+    setEditingCardId(null);
+    if (!keywordTags.includes(tag)) {
+      setKeywordTags((prev) => [...prev, tag]);
+    }
+  };
+
   const hasNoFilters =
     keywordTags.length === 0 &&
     filterTags.length === 0 &&
@@ -235,6 +243,7 @@ export default function Home() {
           open={!!editingCardId}
           onCancel={handleEditCancel}
           onCardTypeClick={handleCardTypeClick}
+          onTagClick={handleTagClick}
         />
 
         <DragOverlay

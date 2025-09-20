@@ -1,15 +1,11 @@
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Check,
   Download,
   ExternalLink,
   Heart,
   RotateCcw,
-  Save,
   Sparkles,
   Trash,
   Trash2,
@@ -21,11 +17,13 @@ import {
   Volume2,
   File,
   Palette,
-  Plus,
   Quote,
   Loader2,
+  Info,
+  Tag,
+  Edit,
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useCardModal } from "@/hooks/useCardModal";
 import {
   type CardType,
@@ -43,12 +41,16 @@ import {
   QuotePreview,
 } from "./card-previews";
 import { Loading } from "./Loading";
+import { TagManagementModal } from "./TagManagementModal";
+import { MoreInformationModal } from "./MoreInformationModal";
+import { NotesEditModal } from "./NotesEditModal";
 
 interface CardModalProps {
   cardId: string | null;
   open: boolean;
   onCancel?: () => void;
   onCardTypeClick?: (cardType: string) => void;
+  onTagClick?: (tag: string) => void;
 }
 
 export function CardModal({
@@ -56,11 +58,11 @@ export function CardModal({
   open,
   onCancel,
   onCardTypeClick,
+  onTagClick,
 }: CardModalProps) {
-  const [showNotesInput, setShowNotesInput] = useState(false);
-  const [showTagInput, setShowTagInput] = useState(false);
-  const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const tagInputRef = useRef<HTMLInputElement>(null);
+  const [showTagManagementModal, setShowTagManagementModal] = useState(false);
+  const [showMoreInfoModal, setShowMoreInfoModal] = useState(false);
+  const [showNotesEditModal, setShowNotesEditModal] = useState(false);
 
   const {
     // State
@@ -76,7 +78,9 @@ export function CardModal({
     toggleFavorite,
 
     // Tag management
+    addTag,
     removeTag,
+    removeAiTag,
 
     // Actions
     handleDelete,
@@ -96,21 +100,10 @@ export function CardModal({
     isSaved,
   } = useCardModal(cardId, { onCardTypeClick });
 
-  useEffect(() => {
-    if (showNotesInput && notesTextareaRef.current) {
-      notesTextareaRef.current.focus();
-    }
-  }, [showNotesInput]);
-
-  useEffect(() => {
-    if (showTagInput && tagInputRef.current) {
-      tagInputRef.current.focus();
-    }
-  }, [showTagInput]);
-
   const handleClose = () => {
-    setShowNotesInput(false);
-    setShowTagInput(false);
+    setShowTagManagementModal(false);
+    setShowMoreInfoModal(false);
+    setShowNotesEditModal(false);
     onCancel?.();
   };
 
@@ -214,259 +207,243 @@ export function CardModal({
           </>
         ) : (
           <>
-            {/* Preview Area (Top on mobile, Left 2/3 on desktop) */}
-            <div className="flex-1 md:flex-[2] p-2 border rounded-md bg-muted/50 overflow-y-auto h-full relative">
-              <div className="flex-1 h-full">{renderPreview()}</div>
-              {card.fileId &&
-                (card.type === "document" ||
-                  card.type === "audio" ||
-                  card.type === "video" ||
-                  card.type === "image") && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={downloadFile}
-                    className="absolute bottom-2 right-2"
-                  >
-                    <Download />
-                    Download
-                  </Button>
-                )}
+            {/* Mobile Header with Close Button */}
+            <div className="md:hidden flex items-center justify-between">
+              <DialogTitle>
+                {CARD_TYPE_LABELS[card.type as CardType] || "Card"}
+              </DialogTitle>
+              <Button variant="outline" size="sm" onClick={handleClose}>
+                <X />
+                Close
+              </Button>
             </div>
 
-            {/* Metadata Panel (Bottom on mobile, Right 1/3 on desktop) */}
-            <div className="flex-1 flex flex-col overflow-y-auto px-1 gap-5">
-              {/* URL (for links or any card with URL) */}
-              {(card.type === "link" || card.url) && (
-                <div>
-                  <Label htmlFor="modal-url">URL</Label>
-                  <div className="mt-1 flex gap-2">
-                    <Input
-                      id="modal-url"
-                      type="url"
-                      value={getCurrentValue("url") || ""}
-                      onChange={(e) => updateUrl(e.target.value)}
-                      placeholder="https://example.com"
-                      className="flex-1"
-                    />
-                    <Button variant="outline" size="icon" onClick={openLink}>
-                      <ExternalLink />
-                    </Button>
-                  </div>
-                </div>
-              )}
+            {/* Desktop Hidden Title */}
+            <DialogTitle className="sr-only">
+              {CARD_TYPE_LABELS[card.type as CardType] || "Card"}
+            </DialogTitle>
 
-              {/* Notes */}
-              <div>
-                {getCurrentValue("notes") || showNotesInput ? (
-                  <>
-                    <Label htmlFor="modal-notes">Notes</Label>
-                    <Textarea
-                      ref={notesTextareaRef}
-                      id="modal-notes"
-                      value={getCurrentValue("notes") || ""}
-                      onChange={(e) => updateNotes(e.target.value)}
-                      placeholder="Add notes..."
-                      className="mt-1"
-                      rows={3}
-                    />
-                  </>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowNotesInput(true)}
-                  >
-                    <Plus />
-                    Add Notes
-                  </Button>
-                )}
+            {/* Main Content Area */}
+            <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-1 overflow-hidden">
+              {/* Preview Area */}
+              <div className="flex-1 md:flex-[2] border rounded-md bg-muted/50 overflow-hidden flex flex-col min-h-0">
+                <div className="flex-1 p-2 overflow-y-auto">
+                  {renderPreview()}
+                </div>
               </div>
 
-              {/* AI Summary */}
-              {card.aiSummary && (
-                <div>
-                  <Label htmlFor="ai-summary">Summary</Label>
-                  <Textarea
-                    id="ai-summary"
-                    value={getCurrentValue("aiSummary") || ""}
-                    onChange={(e) => updateAiSummary(e.target.value)}
-                    placeholder="AI generated summary..."
-                    className="mt-1"
-                    rows={3}
-                  />
-                </div>
-              )}
-
-              {/* Tags */}
-              <div>
-                <div className="flex flex-wrap gap-1">
-                  {/* Card Type Tag (non-dismissible) */}
-                  {card.type && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleCardTypeClick}
-                    >
-                      {(() => {
-                        const IconComponent = getCardTypeIconComponent(
-                          card.type as CardType
-                        );
-                        return <IconComponent className="size-3.5 stroke-2" />;
-                      })()}
-                      {CARD_TYPE_LABELS[card.type as CardType]}
-                    </Button>
-                  )}
-
-                  {/* Favorite Button */}
-                  <Button size="sm" variant="outline" onClick={toggleFavorite}>
-                    <Heart
-                      className={`size-3.5 stroke-2 ${
-                        card.isFavorited
-                          ? "fill-destructive text-destructive"
-                          : ""
-                      }`}
-                    />
-                    {card.isFavorited ? "Unfavorite" : "Add to Favorites"}
-                  </Button>
-
-                  {card.tags?.map((tag: string) => (
-                    <Button key={tag} size="sm" variant="outline">
-                      {tag}
-                      <button type="button" onClick={() => removeTag(tag)}>
-                        <X />
-                      </button>
-                    </Button>
-                  )) || []}
-                  {card.aiTags?.map((tag: string) => (
-                    <div
-                      key={`ai-${tag}`}
-                      className={buttonVariants({
-                        size: "sm",
-                        variant: "outline",
-                      })}
-                    >
-                      <Sparkles className="size-3.5" />
-                      {tag}
-                      <button type="button" title="Remove tag">
-                        <X />
-                      </button>
+              {/* Metadata Panel */}
+              <div className="flex-1 md:flex-[1] flex flex-col overflow-hidden min-h-0">
+                <div className="flex-1 overflow-y-auto px-1 gap-3 md:gap-5 flex flex-col">
+                  {/* Notes (read-only) */}
+                  {getCurrentValue("notes") && (
+                    <div>
+                      <Label>Notes</Label>
+                      <div className="mt-1 p-3 bg-muted/50 rounded-md text-sm whitespace-pre-wrap max-h-24 overflow-y-auto">
+                        {getCurrentValue("notes")}
+                      </div>
                     </div>
-                  ))}
-
-                  {!showTagInput && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setShowTagInput(true)}
-                    >
-                      <Plus />
-                      Add Tags
-                    </Button>
                   )}
-                </div>
-                {showTagInput && (
-                  <Input
-                    ref={tagInputRef}
-                    id="modal-tags"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(e, handleClose)}
-                    placeholder="Add tags (press Enter)"
-                    className="mt-1"
-                  />
-                )}
-              </div>
 
-              {(hasUnsavedChanges || isSaved) && (
-                <Button
-                  variant={isSaved ? "outline" : "default"}
-                  size="sm"
-                  onClick={saveChanges}
-                  disabled={isSaved}
-                >
-                  {isSaved ? (
-                    <>
-                      <Check />
-                      Saved!
-                    </>
-                  ) : (
-                    <>
-                      <Save />
-                      Save
-                    </>
+                  {/* AI Summary (read-only) */}
+                  {card.aiSummary && (
+                    <div>
+                      <Label>Summary</Label>
+                      <div className="mt-1 p-3 bg-muted/50 rounded-md text-sm whitespace-pre-wrap max-h-24 overflow-y-auto">
+                        {getCurrentValue("aiSummary")}
+                      </div>
+                    </div>
                   )}
-                </Button>
-              )}
 
-              {/* File Metadata (read-only) */}
-              <div className="space-y-2 text-muted-foreground">
-                <div>
-                  <span className="font-medium">Created:</span>{" "}
-                  {formatDate(card.createdAt)}
-                </div>
-                <div>
-                  <span className="font-medium">Updated:</span>{" "}
-                  {formatDate(card.updatedAt)}
-                </div>
+                  {/* Tags */}
+                  <div className="flex flex-wrap gap-1">
+                    {/* Card Type Tag (non-dismissible) */}
+                    {card.type && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCardTypeClick}
+                      >
+                        {(() => {
+                          const IconComponent = getCardTypeIconComponent(
+                            card.type as CardType
+                          );
+                          return <IconComponent />;
+                        })()}
+                        {CARD_TYPE_LABELS[card.type as CardType]}
+                      </Button>
+                    )}
 
-                {card.fileMetadata?.fileSize && (
-                  <div>
-                    <span className="font-medium">File Size:</span>{" "}
-                    {(card.fileMetadata.fileSize / (1024 * 1024)).toFixed(2)} MB
+                    {/* User Tags (clickable) */}
+                    {card.tags?.map((tag: string) => (
+                      <Button
+                        key={tag}
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onTagClick?.(tag)}
+                      >
+                        {tag}
+                      </Button>
+                    )) || []}
+
+                    {/* AI Tags (clickable) */}
+                    {card.aiTags?.map((tag: string) => (
+                      <Button
+                        key={`ai-${tag}`}
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onTagClick?.(tag)}
+                      >
+                        <Sparkles />
+                        {tag}
+                      </Button>
+                    ))}
                   </div>
-                )}
 
-                {card.fileMetadata?.fileName && (
-                  <div>
-                    <span className="font-medium">File Name:</span>{" "}
-                    {card.fileMetadata.fileName}
-                  </div>
-                )}
-
-                {card.fileMetadata?.mimeType && (
-                  <div>
-                    <span className="font-medium">File Type:</span>{" "}
-                    {card.fileMetadata.mimeType}
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-2">
-                {!card.isDeleted && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(handleClose)}
-                  >
-                    <Trash2 />
-                    Delete
-                  </Button>
-                )}
-
-                {card.isDeleted && (
-                  <>
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap gap-1">
+                    {/* Info Button */}
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleRestore(handleClose)}
+                      onClick={() => setShowMoreInfoModal(true)}
                     >
-                      <RotateCcw />
-                      Restore
+                      <Info />
+                      <span>Info</span>
                     </Button>
+
+                    {/* Favorite Button */}
                     <Button
-                      variant="destructive"
                       size="sm"
-                      onClick={() => handlePermanentDelete(handleClose)}
+                      variant="outline"
+                      onClick={toggleFavorite}
                     >
-                      <Trash />
-                      Delete Forever
+                      <Heart
+                        className={`size-3 md:size-4 ${
+                          card.isFavorited
+                            ? "fill-destructive text-destructive"
+                            : ""
+                        }`}
+                      />
+                      <span>
+                        {card.isFavorited ? "Unfavorite" : "Favorite"}
+                      </span>
                     </Button>
-                  </>
-                )}
+
+                    {/* Open Link Button */}
+                    {card.url && (
+                      <Button variant="outline" size="sm" onClick={openLink}>
+                        <ExternalLink />
+                        <span>Open Link</span>
+                      </Button>
+                    )}
+
+                    {/* Download Button */}
+                    {card.fileId &&
+                      (card.type === "document" ||
+                        card.type === "audio" ||
+                        card.type === "video" ||
+                        card.type === "image") && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={downloadFile}
+                        >
+                          <Download />
+                          <span>Download</span>
+                        </Button>
+                      )}
+
+                    {/* Edit/Add Notes Button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowNotesEditModal(true)}
+                    >
+                      <Edit />
+                      <span>
+                        {getCurrentValue("notes") ? "Edit Notes" : "Add Notes"}
+                      </span>
+                    </Button>
+
+                    {/* Manage Tags Button */}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowTagManagementModal(true)}
+                    >
+                      <Tag />
+                      <span>Manage Tags</span>
+                    </Button>
+
+                    {/* Delete Actions */}
+                    {!card.isDeleted && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(handleClose)}
+                      >
+                        <Trash2 />
+                        <span>Delete</span>
+                      </Button>
+                    )}
+
+                    {card.isDeleted && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRestore(handleClose)}
+                        >
+                          <RotateCcw />
+                          <span>Restore</span>
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handlePermanentDelete(handleClose)}
+                        >
+                          <Trash />
+                          <span>Delete Forever</span>
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
+
+            {/* Tag Management Modal */}
+            <TagManagementModal
+              open={showTagManagementModal}
+              onOpenChange={setShowTagManagementModal}
+              userTags={card?.tags || []}
+              aiTags={card?.aiTags || []}
+              tagInput={tagInput}
+              setTagInput={setTagInput}
+              onAddTag={addTag}
+              onRemoveTag={removeTag}
+              onRemoveAiTag={removeAiTag}
+              onKeyDown={(e) =>
+                handleKeyDown(e, () => setShowTagManagementModal(false))
+              }
+            />
+
+            {/* More Information Modal */}
+            <MoreInformationModal
+              open={showMoreInfoModal}
+              onOpenChange={setShowMoreInfoModal}
+              card={card}
+            />
+
+            {/* Notes Edit Modal */}
+            <NotesEditModal
+              open={showNotesEditModal}
+              onOpenChange={setShowNotesEditModal}
+              notes={getCurrentValue("notes") || ""}
+              onSave={(notes) => updateNotes(notes)}
+              onCancel={() => {}}
+            />
           </>
         )}
       </DialogContent>
