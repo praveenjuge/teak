@@ -88,11 +88,11 @@ export default function SubscriptionPage() {
           </Card>
 
           {/* Usage Card */}
-          <Card className="gap-4">
+          <Card className="gap-3">
             <CardHeader>
               <CardTitle>Cards Usage</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               <Progress value={progressPercentage} className="h-1.5" />
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>
@@ -120,7 +120,7 @@ export default function SubscriptionPage() {
 
           {/* Available Plans Section */}
           {!isSubscribed && products && products.length > 0 && (
-            <Card>
+            <Card className="gap-4">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Sparkles className="size-4 fill-primary text-primary" />
@@ -146,12 +146,7 @@ export default function SubscriptionPage() {
                           <h3 className="font-medium text-foreground">
                             {product.name}
                           </h3>
-                          <p className="text-sm text-muted-foreground">
-                            Unlimited cards, priority support, and more
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
+                          <div>
                             <span className="text-2xl font-bold text-foreground">
                               ${(product.prices[0]?.priceAmount || 0) / 100}
                             </span>
@@ -159,19 +154,17 @@ export default function SubscriptionPage() {
                               /month
                             </span>
                           </div>
-                          <CheckoutLink
-                            polarApi={{
-                              generateCheckoutLink:
-                                api.polar.generateCheckoutLink,
-                            }}
-                            productIds={[product.id]}
-                            className={buttonVariants({
-                              className: "min-w-32",
-                            })}
-                          >
-                            Upgrade Now
-                          </CheckoutLink>
                         </div>
+                        <CheckoutLink
+                          polarApi={{
+                            generateCheckoutLink:
+                              api.polar.generateCheckoutLink,
+                          }}
+                          productIds={[product.id]}
+                          className={buttonVariants({})}
+                        >
+                          Upgrade Now
+                        </CheckoutLink>
                       </div>
                     )
                   )}
@@ -197,7 +190,7 @@ export default function SubscriptionPage() {
                   <div className="flex items-center gap-2">
                     <div className="size-1.5 bg-primary rounded-full" />
                     <span className="text-sm text-foreground">
-                      Unlimited card creation
+                      Unlimited cards
                     </span>
                   </div>
                   <div className="flex items-center gap-2">

@@ -23,6 +23,7 @@ import {
   Palette,
   Plus,
   Quote,
+  Loader2,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useCardModal } from "@/hooks/useCardModal";
@@ -159,9 +160,7 @@ export function CardModal({
         ? card.metadata.linkPreview
         : undefined;
     const screenshotPending =
-      card.type === "link" &&
-      linkPreview &&
-      !linkPreview.screenshotStorageId;
+      card.type === "link" && linkPreview && !linkPreview.screenshotStorageId;
 
     const isAnalyzing =
       isProcessingPending || metadataStatusPending || screenshotPending;
@@ -170,8 +169,8 @@ export function CardModal({
       return (
         <div className="flex h-full items-center justify-center text-muted-foreground">
           <div className="flex flex-col items-center gap-2">
-            <Sparkles className="size-5 animate-pulse" />
-            <span className="text-sm font-medium">Analyzing...</span>
+            <Loader2 className="size-4 animate-spin" />
+            <span className="font-medium">Analyzing...</span>
           </div>
         </div>
       );
