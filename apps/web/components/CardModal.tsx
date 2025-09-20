@@ -148,22 +148,13 @@ export function CardModal({
       stage?.status === "pending" || stage?.status === "in_progress";
 
     const processingStatus = card.processingStatus;
-    const isProcessingPending =
+    // Only wait for AI classification and categorization to complete
+    // Don't wait for metadata extraction or thumbnail generation (renderables)
+    const isAIProcessingPending =
       stagePending(processingStatus?.classify) ||
-      stagePending(processingStatus?.categorize) ||
-      stagePending(processingStatus?.metadata) ||
-      stagePending(processingStatus?.renderables);
+      stagePending(processingStatus?.categorize);
 
-    const metadataStatusPending = card.metadataStatus === "pending";
-    const linkPreview =
-      card.metadata?.linkPreview?.status === "success"
-        ? card.metadata.linkPreview
-        : undefined;
-    const screenshotPending =
-      card.type === "link" && linkPreview && !linkPreview.screenshotStorageId;
-
-    const isAnalyzing =
-      isProcessingPending || metadataStatusPending || screenshotPending;
+    const isAnalyzing = isAIProcessingPending;
 
     if (isAnalyzing) {
       return (

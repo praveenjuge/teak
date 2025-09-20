@@ -70,20 +70,13 @@ export function LinkPreview({
       : "skip"
   );
 
-  const isProcessingPending =
+  // Only wait for AI classification and categorization to complete
+  // Don't wait for metadata extraction or thumbnail generation (renderables)
+  const isAIProcessingPending =
     stagePending(processingStatus?.classify) ||
-    stagePending(processingStatus?.categorize) ||
-    stagePending(processingStatus?.metadata) ||
-    stagePending(processingStatus?.renderables);
+    stagePending(processingStatus?.categorize);
 
-  const metadataStatusPending = card.metadataStatus === "pending";
-  const screenshotPending =
-    card.type === "link" &&
-    linkPreview?.status === "success" &&
-    !linkPreview?.screenshotStorageId;
-
-  const isAnalyzing =
-    isProcessingPending || metadataStatusPending || screenshotPending;
+  const isAnalyzing = isAIProcessingPending;
 
   const faviconUrl = useMemo(() => {
     if (linkFavicon) return linkFavicon;
