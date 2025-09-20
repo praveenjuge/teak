@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -8,7 +7,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Save, X } from "lucide-react";
+import { Save } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 interface NotesEditModalProps {
@@ -100,7 +99,7 @@ export function NotesEditModal({
           <Button variant="outline" onClick={handleCancel}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!hasChanges && notes}>
+          <Button onClick={handleSave} disabled={!hasChanges && !!notes}>
             <Save />
             {notes ? "Update" : "Add"}
           </Button>

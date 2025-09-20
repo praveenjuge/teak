@@ -20,7 +20,6 @@ interface TagManagementModalProps {
   onAddTag: () => void;
   onRemoveTag: (tag: string) => void;
   onRemoveAiTag: (tag: string) => void;
-  onKeyDown: (e: React.KeyboardEvent) => void;
 }
 
 export function TagManagementModal({
@@ -33,7 +32,6 @@ export function TagManagementModal({
   onAddTag,
   onRemoveTag,
   onRemoveAiTag,
-  onKeyDown,
 }: TagManagementModalProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
