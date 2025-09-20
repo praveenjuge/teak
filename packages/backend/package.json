@@ -8,13 +8,13 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.23",
+    "@ai-sdk/openai": "^2.0.32",
     "@cf-wasm/photon": "^0.1.31",
     "@convex-dev/migrations": "^0.2.9",
-    "@convex-dev/polar": "^0.6.3",
+    "@convex-dev/polar": "^0.6.4",
     "@teak/shared": "workspace:*",
-    "ai": "^5.0.28",
-    "convex": "^1.26.2",
+    "ai": "^5.0.47",
+    "convex": "^1.27.1",
     "zod": "^3.25.76"
   }
 }

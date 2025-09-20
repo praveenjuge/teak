@@ -137,12 +137,16 @@ export function Card({
   }, [card._id, linkCardImage, resolvedScreenshotUrl]);
 
   const displayLinkImage = useFallbackImage
-    ? resolvedScreenshotUrl ?? undefined
-    : linkCardImage ?? resolvedScreenshotUrl;
+    ? (resolvedScreenshotUrl ?? undefined)
+    : (linkCardImage ?? resolvedScreenshotUrl);
 
   const handleLinkImageError = (event: SyntheticEvent<HTMLImageElement>) => {
     const target = event.currentTarget;
-    if (!useFallbackImage && resolvedScreenshotUrl && target.src !== resolvedScreenshotUrl) {
+    if (
+      !useFallbackImage &&
+      resolvedScreenshotUrl &&
+      target.src !== resolvedScreenshotUrl
+    ) {
       setUseFallbackImage(true);
     } else {
       target.style.display = "none";
@@ -176,7 +180,7 @@ export function Card({
             {isAnalyzing && (
               <div className="p-4 rounded-xl border bg-card flex flex-col items-center justify-center gap-1 text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
-                <span className="text-xs font-medium">Analyzing...</span>
+                <span className="font-medium">Analyzing...</span>
               </div>
             )}
 
@@ -212,10 +216,10 @@ export function Card({
                         <img
                           src={displayLinkImage}
                           alt=""
-                          className="w-full h-28 object-cover bg-card rounded-xl border"
+                          className="w-full h-28 object-cover bg-card rounded-xl"
                           onError={handleLinkImageError}
                         />
-                        <div className="p-2 pb-0">
+                        <div className="p-1 pb-0">
                           <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
                             {linkCardTitle}
                           </h4>
