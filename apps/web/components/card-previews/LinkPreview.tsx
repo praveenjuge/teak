@@ -27,9 +27,6 @@ const SkeletonDescription = () => (
   </div>
 );
 
-const SkeletonImage = () => (
-  <div className="w-full h-48 bg-gray-200 rounded animate-pulse" />
-);
 
 const stagePending = (stage?: { status?: string }) =>
   stage?.status === "pending" || stage?.status === "in_progress";

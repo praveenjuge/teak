@@ -72,9 +72,7 @@ export function CardModal({
 
     // Field updates
     updateContent,
-    updateUrl,
     updateNotes,
-    updateAiSummary,
     toggleFavorite,
 
     // Tag management
@@ -90,14 +88,10 @@ export function CardModal({
     // Utilities
     openLink,
     downloadFile,
-    handleKeyDown,
     handleCardTypeClick,
 
     // Save functionality
-    saveChanges,
-    hasUnsavedChanges,
     getCurrentValue,
-    isSaved,
   } = useCardModal(cardId, { onCardTypeClick });
 
   const handleClose = () => {
@@ -105,16 +99,6 @@ export function CardModal({
     setShowMoreInfoModal(false);
     setShowNotesEditModal(false);
     onCancel?.();
-  };
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   // Icon component mapping for Lucide React icons
@@ -424,9 +408,6 @@ export function CardModal({
               onAddTag={addTag}
               onRemoveTag={removeTag}
               onRemoveAiTag={removeAiTag}
-              onKeyDown={(e) =>
-                handleKeyDown(e, () => setShowTagManagementModal(false))
-              }
             />
 
             {/* More Information Modal */}
