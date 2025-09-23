@@ -208,7 +208,7 @@ export function Card({
                         <img
                           src={displayLinkImage}
                           alt=""
-                          className="w-full h-28 object-cover bg-card rounded-xl"
+                          className="w-full h-28 object-cover bg-card rounded-xl border"
                           onError={handleLinkImageError}
                         />
                         <div className="p-1 pb-0">
