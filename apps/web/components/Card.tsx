@@ -201,14 +201,14 @@ export function Card({
                 )}
 
                 {card.type === "link" && (
-                  <div>
+                  <>
                     {displayLinkImage ? (
                       <>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={displayLinkImage}
                           alt=""
-                          className="w-full h-28 object-cover bg-card rounded-xl"
+                          className="w-full h-28 object-cover bg-card rounded-xl border"
                           onError={handleLinkImageError}
                         />
                         <div className="p-1 pb-0">
@@ -224,7 +224,7 @@ export function Card({
                         </h4>
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
 
                 {card.type === "image" && (
