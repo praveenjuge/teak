@@ -106,13 +106,8 @@ export function Card({
     card.metadata?.linkPreview?.status === "success"
       ? card.metadata.linkPreview
       : undefined;
-  const legacyMicrolink = card.metadata?.microlinkData?.data;
-  const linkCardTitle =
-    linkPreview?.title ||
-    card.metadataTitle ||
-    legacyMicrolink?.title ||
-    card.url;
-  const linkCardImage = linkPreview?.imageUrl || legacyMicrolink?.image?.url;
+  const linkCardTitle = linkPreview?.title || card.metadataTitle || card.url;
+  const linkCardImage = linkPreview?.imageUrl;
   const screenshotStorageId = linkPreview?.screenshotStorageId;
   const screenshotUrl = useQuery(
     api.cards.getFileUrl,

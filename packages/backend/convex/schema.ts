@@ -86,8 +86,6 @@ export const fileMetadataValidator = v.optional(
 
 export const metadataValidator = v.optional(
   v.object({
-    // Legacy Microlink.io metadata (kept for backward compatibility)
-    microlinkData: v.optional(v.any()),
     // Cloudflare Browser Rendering metadata for link previews
     linkPreview: v.optional(
       v.object({

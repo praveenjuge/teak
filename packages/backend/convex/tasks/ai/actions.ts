@@ -345,16 +345,6 @@ const buildClassificationPrompt = (
         2
       )}`
     );
-  } else if (card.metadata?.microlinkData?.data) {
-    const { title, description, publisher, author } =
-      card.metadata.microlinkData.data;
-    sections.push(
-      `Link metadata: ${JSON.stringify(
-        { title, description, publisher, author },
-        null,
-        2
-      )}`
-    );
   }
 
   if (card.colors?.length) {
@@ -712,7 +702,6 @@ export const runMetadataStage = internalAction({
     if (
       card.type === "link" &&
       !card.metadata?.linkPreview &&
-      !card.metadata?.microlinkData &&
       card.metadataStatus === "pending"
     ) {
       if (retryCount < METADATA_RETRY_DELAYS.length) {
@@ -784,33 +773,29 @@ export const runMetadataStage = internalAction({
             card.metadata?.linkPreview?.status === "success"
               ? card.metadata.linkPreview
               : undefined;
-          const legacyLinkMetadata = card.metadata?.microlinkData?.data;
           const contentParts: string[] = [];
 
-          const title = linkPreviewMetadata?.title || legacyLinkMetadata?.title;
+          const title = linkPreviewMetadata?.title;
           if (title) {
             contentParts.push(`Title: ${title}`);
           }
 
-          const description =
-            linkPreviewMetadata?.description || legacyLinkMetadata?.description;
+          const description = linkPreviewMetadata?.description;
           if (description) {
             contentParts.push(`Description: ${description}`);
           }
 
-          const author = linkPreviewMetadata?.author || legacyLinkMetadata?.author;
+          const author = linkPreviewMetadata?.author;
           if (author) {
             contentParts.push(`Author: ${author}`);
           }
 
-          const publisher =
-            linkPreviewMetadata?.publisher || legacyLinkMetadata?.publisher;
+          const publisher = linkPreviewMetadata?.publisher;
           if (publisher) {
             contentParts.push(`Publisher: ${publisher}`);
           }
 
-          const publishedAt =
-            linkPreviewMetadata?.publishedAt || legacyLinkMetadata?.date;
+          const publishedAt = linkPreviewMetadata?.publishedAt;
           if (publishedAt) {
             contentParts.push(`Published: ${publishedAt}`);
           }

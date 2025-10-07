@@ -30,11 +30,10 @@ export const backfillMetadataSearchFields = internalMutation({
           card.metadata.linkPreview?.status === "success"
             ? card.metadata.linkPreview
             : undefined;
-        const legacyLink = card.metadata.microlinkData?.data;
 
         // Populate metadataTitle if missing
         if (!card.metadataTitle) {
-          const title = linkPreview?.title || legacyLink?.title;
+          const title = linkPreview?.title;
           if (title) {
             updateFields.metadataTitle = title;
           }
@@ -42,8 +41,7 @@ export const backfillMetadataSearchFields = internalMutation({
 
         // Populate metadataDescription if missing
         if (!card.metadataDescription) {
-          const description =
-            linkPreview?.description || legacyLink?.description;
+          const description = linkPreview?.description;
           if (description) {
             updateFields.metadataDescription = description;
           }

@@ -103,7 +103,7 @@ export const updateCardMetadata = internalMutation({
       }
     }
 
-    // For link cards being updated, move to new linkPreview structure and drop legacy microlink data
+    // For link cards being updated, move to new linkPreview structure
     // For non-link cards, preserve existing metadata while layering the new field
     let updatedMetadata: Record<string, any> = {};
 

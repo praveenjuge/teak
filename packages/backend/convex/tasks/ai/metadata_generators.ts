@@ -74,7 +74,7 @@ export const generateImageMetadata = async (imageUrl: string, title?: string) =>
   }
 };
 
-// Generate AI metadata for link content (using enhanced prompts with microlink data)
+// Generate AI metadata for link content
 export const generateLinkMetadata = async (content: string, url?: string) => {
   try {
     const result = await generateObject({
