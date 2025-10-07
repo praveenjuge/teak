@@ -206,11 +206,9 @@ export function Card({
                           className="w-full h-28 object-cover bg-card rounded-xl border"
                           onError={handleLinkImageError}
                         />
-                        <div className="p-1 pb-0">
-                          <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
-                            {linkCardTitle}
-                          </h4>
-                        </div>
+                        <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
+                          {linkCardTitle}
+                        </h4>
                       </>
                     ) : (
                       <div className="p-4 bg-card rounded-xl border">

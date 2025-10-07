@@ -8,6 +8,13 @@ import {
   type LinkCategoryDetail,
 } from "@teak/shared";
 import { linkCategoryClassificationSchema } from "./schemas";
+import { enrichProvider } from "./links";
+import {
+  formatDate,
+  type ProviderEnrichmentResult,
+  type RawSelectorEntry,
+  type RawSelectorMap,
+} from "./links/common";
 import type { Id } from "../../_generated/dataModel";
 
 const MAX_FETCH_BODY_SIZE = 250_000;
@@ -129,8 +136,8 @@ export const classifyLinkCategory = async (
 
 Categories you may choose from:
 ${Object.entries(LINK_CATEGORY_LABELS)
-        .map(([key, label]) => `- ${label} (${key})`)
-        .join("\n")}
+          .map(([key, label]) => `- ${label} (${key})`)
+          .join("\n")}
 
 Pick the category that best describes the main subject of the URL. Use provider hints when obvious (e.g. github.com → software, imdb.com → movie).`,
       prompt: buildCategorizationPrompt(card),
@@ -302,13 +309,6 @@ const detectProvider = (url?: string, hint?: string): string | undefined => {
   }
 };
 
-type RawSelectorEntry = {
-  text?: string;
-  attributes?: Array<{ name?: string; value?: string }>;
-};
-
-type RawSelectorMap = Map<string, RawSelectorEntry>;
-
 const buildRawSelectorMap = (
   raw?: Array<{ selector: string; results?: RawSelectorEntry[] }>
 ): RawSelectorMap => {
@@ -324,79 +324,6 @@ const buildRawSelectorMap = (
     }
   }
   return map;
-};
-
-const normalizeWhitespace = (value?: string): string | undefined => {
-  if (!value) return undefined;
-  const trimmed = value.replace(/\s+/g, " ").trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-};
-
-const getRawText = (map: RawSelectorMap, selector: string): string | undefined => {
-  return normalizeWhitespace(map.get(selector)?.text);
-};
-
-const getRawAttribute = (
-  map: RawSelectorMap,
-  selector: string,
-  attribute: string
-): string | undefined => {
-  const entry = map.get(selector);
-  if (!entry?.attributes) {
-    return undefined;
-  }
-  const needle = attribute.toLowerCase();
-  for (const attr of entry.attributes) {
-    if (!attr?.name) continue;
-    if (attr.name.toLowerCase() === needle) {
-      return normalizeWhitespace(attr.value);
-    }
-  }
-  return undefined;
-};
-
-const extractNumericToken = (value?: string): string | undefined => {
-  if (!value) return undefined;
-  const trimmed = normalizeWhitespace(value);
-  if (!trimmed) return undefined;
-  const token = trimmed
-    .split(" ")
-    .find((segment) => /\d/.test(segment.replace(/[,\.]/g, "")));
-  return token ?? trimmed;
-};
-
-const parseCountToNumber = (value?: string): number | undefined => {
-  const token = extractNumericToken(value);
-  if (!token) return undefined;
-  const lower = token.toLowerCase();
-  const multiplier = lower.endsWith("k")
-    ? 1_000
-    : lower.endsWith("m")
-    ? 1_000_000
-    : 1;
-  const numericPart = multiplier === 1 ? lower : lower.slice(0, -1);
-  const parsed = Number.parseFloat(numericPart.replace(/,/g, ""));
-  if (Number.isNaN(parsed)) {
-    return undefined;
-  }
-  return Math.round(parsed * multiplier);
-};
-
-const formatCountString = (value?: string): string | undefined => {
-  const number = parseCountToNumber(value);
-  if (number !== undefined) {
-    return number.toLocaleString("en-US");
-  }
-  return normalizeWhitespace(value);
-};
-
-const formatRating = (value?: string): string | undefined => {
-  if (!value) return undefined;
-  const numeric = Number.parseFloat(value);
-  if (Number.isNaN(numeric)) {
-    return normalizeWhitespace(value);
-  }
-  return numeric.toFixed(2);
 };
 
 const mergeFacts = (
@@ -415,233 +342,6 @@ const mergeFacts = (
     }
   }
 };
-
-interface ProviderEnrichmentResult {
-  imageUrl?: string;
-  facts?: LinkCategoryDetail[];
-  raw?: Record<string, unknown>;
-}
-
-const enrichGithubFromRaw = (
-  rawMap: RawSelectorMap,
-): ProviderEnrichmentResult | null => {
-  const stars = formatCountString(getRawText(rawMap, "a[href$='/stargazers']"));
-  const forks = formatCountString(
-    getRawText(rawMap, "a[href$='/network/members']")
-  );
-  const watchers = formatCountString(
-    getRawText(rawMap, "a[href$='/watchers']")
-  );
-  const language = getRawText(rawMap, "span[itemprop='programmingLanguage']");
-  const updatedRaw = getRawText(rawMap, "relative-time");
-
-  const facts: LinkCategoryDetail[] = [];
-  if (stars) facts.push({ label: "Stars", value: stars });
-  if (forks) facts.push({ label: "Forks", value: forks });
-  if (watchers) facts.push({ label: "Watchers", value: watchers });
-  if (language) {
-    facts.push({ label: "Language", value: language });
-  }
-  if (updatedRaw) {
-    const formatted = normalizeWhitespace(updatedRaw.replace(/^on\s+/i, ""));
-    if (formatted) {
-      facts.push({ label: "Updated", value: formatted });
-    }
-  }
-
-  if (facts.length === 0) {
-    return null;
-  }
-
-  return {
-    facts,
-    raw: {
-      stars: stars ?? null,
-      forks: forks ?? null,
-      watchers: watchers ?? null,
-      language: language ?? null,
-      updated: updatedRaw ?? null,
-    },
-  };
-};
-
-const enrichGoodreadsFromRaw = (
-  rawMap: RawSelectorMap
-): ProviderEnrichmentResult | null => {
-  const avg = formatRating(
-    getRawAttribute(rawMap, "meta[property='books:rating:average']", "content")
-  );
-  const count = formatCountString(
-    getRawAttribute(rawMap, "meta[property='books:rating:count']", "content")
-  );
-  const isbn = getRawAttribute(
-    rawMap,
-    "meta[property='books:isbn']",
-    "content"
-  );
-
-  const facts: LinkCategoryDetail[] = [];
-  if (avg) {
-    facts.push({ label: "Average rating", value: `${avg} / 5` });
-  }
-  if (count) {
-    facts.push({ label: "Ratings", value: count });
-  }
-  if (isbn) {
-    facts.push({ label: "ISBN", value: isbn });
-  }
-
-  if (facts.length === 0) {
-    return null;
-  }
-
-  return {
-    facts,
-    raw: {
-      ratingAverage: avg ?? null,
-      ratingCount: count ?? null,
-      isbn: isbn ?? null,
-    },
-  };
-};
-
-const enrichAmazonFromRaw = (
-  rawMap: RawSelectorMap,
-): ProviderEnrichmentResult | null => {
-  const priceText =
-    getRawText(rawMap, "#priceblock_ourprice") ||
-    getRawText(rawMap, "#priceblock_dealprice") ||
-    getRawText(rawMap, ".a-price .a-offscreen") ||
-    normalizeWhitespace(
-      getRawAttribute(rawMap, "meta[name='price']", "content") ||
-        getRawAttribute(rawMap, "meta[property='og:price:amount']", "content")
-    );
-  const currency = getRawAttribute(
-    rawMap,
-    "meta[property='og:price:currency']",
-    "content"
-  );
-
-  if (!priceText && !currency) {
-    return null;
-  }
-
-  const priceLabel = currency
-    ? `${priceText ?? ""} ${currency}`.trim()
-    : priceText;
-
-  return {
-    facts: priceLabel ? [{ label: "Price", value: priceLabel }] : undefined,
-    raw: {
-      price: priceText ?? null,
-      currency: currency ?? null,
-    },
-  };
-};
-
-const enrichImdbFromRaw = (
-  rawMap: RawSelectorMap
-): ProviderEnrichmentResult | null => {
-  const rating = formatRating(
-    getRawAttribute(rawMap, "meta[name='imdb:rating']", "content") ||
-      getRawText(
-        rawMap,
-        "span[data-testid='hero-rating-bar__aggregate-rating__score']"
-      )
-  );
-  const votes = formatCountString(
-    getRawAttribute(rawMap, "meta[name='imdb:votes']", "content")
-  );
-  const runtime = getRawText(
-    rawMap,
-    "span[data-testid='title-techspec_runtime'] span"
-  );
-  const releaseDateRaw = getRawAttribute(
-    rawMap,
-    "meta[property='video:release_date']",
-    "content"
-  );
-  const releaseDate = formatDate(releaseDateRaw ?? "");
-
-  const facts: LinkCategoryDetail[] = [];
-  if (rating) {
-    facts.push({ label: "IMDb rating", value: `${rating} / 10` });
-  }
-  if (votes) {
-    facts.push({ label: "Votes", value: votes });
-  }
-  if (runtime) {
-    facts.push({ label: "Runtime", value: runtime });
-  }
-  if (releaseDate) {
-    facts.push({ label: "Released", value: releaseDate });
-  }
-
-  if (facts.length === 0) {
-    return null;
-  }
-
-  return {
-    facts,
-    raw: {
-      rating: rating ?? null,
-      votes: votes ?? null,
-      runtime: runtime ?? null,
-      releaseDate: releaseDateRaw ?? null,
-    },
-  };
-};
-
-const enrichProvider = (
-  provider: string | undefined,
-  category: LinkCategory,
-  rawMap: RawSelectorMap,
-): ProviderEnrichmentResult | null => {
-  if (!provider) {
-    return null;
-  }
-
-  switch (provider) {
-    case "github":
-      if (category === "software") {
-        return enrichGithubFromRaw(rawMap);
-      }
-      return null;
-    case "goodreads":
-      if (category === "book") {
-        return enrichGoodreadsFromRaw(rawMap);
-      }
-      return null;
-    case "amazon":
-      if (category === "product" || category === "book") {
-        return enrichAmazonFromRaw(rawMap);
-      }
-      return null;
-    case "imdb":
-      if (category === "movie" || category === "tv") {
-        return enrichImdbFromRaw(rawMap);
-      }
-      return null;
-    case "netflix":
-      // Netflix pages typically hide metadata from OG tags; rely on link preview.
-      return null;
-    default:
-      return null;
-  }
-};
-
-function formatDate(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return undefined;
-  }
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 function formatDuration(value: string | undefined): string | undefined {
   if (!value) return undefined;
