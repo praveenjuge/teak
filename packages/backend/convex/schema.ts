@@ -116,6 +116,7 @@ export const metadataValidator = v.optional(
       })
     ),
     linkCategory: v.optional(linkCategoryMetadataValidator),
+    microlinkData: v.optional(v.any()),
   })
 );
 
