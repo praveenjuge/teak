@@ -80,9 +80,8 @@ const CardsGrid = memo(function CardsGrid({
         case "palette":
           return 88;
         case "link":
-          return (card.metadata?.linkPreview?.status === "success" &&
-            card.metadata.linkPreview.imageUrl) ||
-            card.metadata?.microlinkData?.data?.image?.url
+          return card.metadata?.linkPreview?.status === "success" &&
+            card.metadata.linkPreview.imageUrl
             ? 180
             : 120;
         case "text":

@@ -239,14 +239,8 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
           card.metadata?.linkPreview?.status === "success"
             ? card.metadata.linkPreview
             : undefined;
-        const linkTitle =
-          linkPreview?.title ||
-          card.metadataTitle ||
-          card.metadata?.microlinkData?.data?.title ||
-          card.url;
-        const linkImage =
-          linkPreview?.imageUrl ||
-          card.metadata?.microlinkData?.data?.image?.url;
+        const linkTitle = linkPreview?.title || card.metadataTitle || card.url;
+        const linkImage = linkPreview?.imageUrl;
         const linkCategory = card.metadata?.linkCategory;
 
         return (

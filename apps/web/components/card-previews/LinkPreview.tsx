@@ -27,7 +27,6 @@ const SkeletonDescription = () => (
   </div>
 );
 
-
 const stagePending = (stage?: { status?: string }) =>
   stage?.status === "pending" || stage?.status === "in_progress";
 
@@ -40,20 +39,12 @@ export function LinkPreview({
     card.metadata?.linkPreview?.status === "success"
       ? card.metadata.linkPreview
       : undefined;
-  const legacyMicrolink = card.metadata?.microlinkData?.data;
 
   const linkTitle =
-    linkPreview?.title ||
-    card.metadataTitle ||
-    legacyMicrolink?.title ||
-    card.url ||
-    "Link";
-  const linkDescription =
-    linkPreview?.description ||
-    card.metadataDescription ||
-    legacyMicrolink?.description;
-  const linkImage = linkPreview?.imageUrl || legacyMicrolink?.image?.url;
-  const linkFavicon = linkPreview?.faviconUrl || legacyMicrolink?.logo?.url;
+    linkPreview?.title || card.metadataTitle || card.url || "Link";
+  const linkDescription = linkPreview?.description || card.metadataDescription;
+  const linkImage = linkPreview?.imageUrl;
+  const linkFavicon = linkPreview?.faviconUrl;
 
   const screenshotStorageId = linkPreview?.screenshotStorageId;
   const screenshotUrl = useQuery(
@@ -140,24 +131,25 @@ export function LinkPreview({
         </div>
       </div>
 
-      {linkImage && !linkPreview?.imageUrl && <Separator />}
-
       {!isAnalyzing && linkImage && (
-        <div className="space-y-2">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">
-            Preview Image
-          </p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={linkImage}
-            alt="Open Graph preview"
-            className="w-full max-h-[70vh] object-contain rounded border"
-            onError={(event) => {
-              const target = event.currentTarget;
-              target.style.display = "none";
-            }}
-          />
-        </div>
+        <>
+          <Separator />
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">
+              Preview Image
+            </p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={linkImage}
+              alt="Open Graph preview"
+              className="w-full max-h-[70vh] object-contain rounded border"
+              onError={(event) => {
+                const target = event.currentTarget;
+                target.style.display = "none";
+              }}
+            />
+          </div>
+        </>
       )}
 
       {showScreenshot && screenshotUrl && (
