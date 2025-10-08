@@ -136,7 +136,7 @@ export default function HomePage() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative py-20 md:py-32">
+      <section className="relative pt-20 md:pt-32">
         <div className="container mx-auto px-4">
           <div className="text-center mb-24 mx-auto max-w-2xl">
             <h1 className="mb-4 font-bold text-4xl md:text-5xl text-balance tracking-tight">
@@ -187,7 +187,7 @@ export default function HomePage() {
 
       {/* Problem/Solution Section */}
       <section className="py-20 md:py-24">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 max-w-5xl">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
               <h2 className="mb-6 font-bold text-3xl md:text-4xl text-balance">
@@ -285,7 +285,7 @@ export default function HomePage() {
 
       {/* Features Section */}
       <section className="py-20 md:py-24 bg-background">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 max-w-5xl">
           <div className="mb-16 text-center">
             <h2 className="mb-4 font-bold text-3xl text-balance">
               Built for visual bookmarking
@@ -311,7 +311,7 @@ export default function HomePage() {
 
       {/* Content Types Preview */}
       <section className="py-20 md:py-24">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 max-w-5xl">
           <div className="mb-16 text-center">
             <h2 className="mb-6 font-bold text-3xl md:text-4xl text-balance">
               Capture every type of design card
@@ -406,7 +406,7 @@ export default function HomePage() {
 
       {/* How It Works Section */}
       <section className="py-20 md:py-24 bg-background">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 max-w-5xl">
           <div className="mb-16 text-center">
             <h2 className="mb-6 font-bold text-3xl md:text-4xl text-balance">
               How it works
