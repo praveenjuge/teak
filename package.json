@@ -7,18 +7,19 @@
   ],
   "scripts": {
     "build": "cd apps/web && bun run build",
+    "build:extension": "cd apps/extension && bun run build",
     "predev": "cd packages/backend && bunx convex dev --until-success",
     "dev": "pkill -f 'port 3000' || true && concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
     "dev:backend": "cd packages/backend && bunx convex dev",
+    "dev:docs": "cd apps/docs && bun dev",
+    "dev:extension": "cd apps/extension && bun dev",
     "dev:frontend": "cd apps/web && bun dev",
     "dev:mobile": "cd apps/mobile && bun dev",
-    "dev:extension": "cd apps/extension && bun dev",
-    "dev:docs": "cd apps/docs && bun dev",
-    "build:extension": "cd apps/extension && bun run build",
-    "package:extension": "cd apps/extension && bun run package",
     "lint": "cd apps/web && bun run lint",
+    "package:extension": "cd apps/extension && bun run package",
+    "prepare": "husky",
     "start": "cd apps/web && bun run start",
-    "prepare": "husky"
+    "test": "cd apps/web && bun run test:e2e"
   },
   "lint-staged": {
     "apps/web/**/*.{js,jsx,ts,tsx}": [
