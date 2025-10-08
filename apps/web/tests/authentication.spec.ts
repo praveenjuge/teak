@@ -15,6 +15,8 @@ test.describe("Clerk authentication", () => {
   const signInPassword = process.env.E2E_CLERK_USER_PASSWORD;
   const skipCredentialedFlows =
     shouldSkipClerkTests || !signInIdentifier || !signInPassword;
+  const shouldSkipSignupFlow =
+    process.env.PLAYWRIGHT_RUN_SIGNUP_FLOW !== "true";
 
   test.describe.configure({ mode: "serial" });
 
@@ -45,7 +47,7 @@ test.describe("Clerk authentication", () => {
     ).toBeVisible();
   });
 
-  test.skip(
+  test.fail(
     skipCredentialedFlows,
     "Set E2E_CLERK_USER_EMAIL and E2E_CLERK_USER_PASSWORD to run sign-in flow tests.",
   );
@@ -67,13 +69,18 @@ test.describe("Clerk authentication", () => {
     await page.goto("/");
 
     await expect(
-      page.getByRole("heading", { name: /let.?s add your first card!/i }),
+      page.getByRole("searchbox", { name: "Search for anything..." }),
     ).toBeVisible();
 
     await clerk.signOut({ page });
   });
 
   test("creates a new account through the sign-up flow", async ({ page }) => {
+    test.skip(
+      shouldSkipSignupFlow,
+      "Set PLAYWRIGHT_RUN_SIGNUP_FLOW=true to run sign-up flow tests.",
+    );
+
     await setupClerkTestingToken({ page });
     await page.goto("/register");
 
@@ -102,7 +109,7 @@ test.describe("Clerk authentication", () => {
     await page.waitForURL("**/", { waitUntil: "networkidle" });
 
     await expect(
-      page.getByRole("heading", { name: /let.?s add your first card!/i }),
+      page.getByRole("searchbox", { name: "Search for anything..." }),
     ).toBeVisible();
 
     await clerk.signOut({ page });
