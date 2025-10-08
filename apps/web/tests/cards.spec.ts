@@ -39,10 +39,28 @@ test.describe("Text cards", () => {
     const editor = page.getByPlaceholder("Enter your text...");
     await expect(editor).toBeVisible();
     await editor.fill(updatedContent);
-    await page.locator("button:has-text(\"Save changes\"):visible").click();
+    await page.locator('button:has-text("Save changes"):visible').click();
     await expect(editor).toHaveValue(updatedContent);
 
-    await page.locator("button:has-text(\"Close\"):visible").click();
+    const modal = page.getByRole("dialog");
+    const box = await modal.boundingBox();
+    if (!box) {
+      throw new Error("Unable to determine dialog bounds");
+    }
+
+    const viewport = page.viewportSize();
+    const rawOutsideX = box.x > 40 ? box.x - 20 : box.x + box.width + 20;
+    const rawOutsideY = box.y > 40 ? box.y - 20 : box.y + box.height + 20;
+    const outsideX = Math.min(
+      Math.max(rawOutsideX, 5),
+      (viewport?.width ?? rawOutsideX + 5) - 5,
+    );
+    const outsideY = Math.min(
+      Math.max(rawOutsideY, 5),
+      (viewport?.height ?? rawOutsideY + 5) - 5,
+    );
+    await page.mouse.click(outsideX, outsideY);
+
     const updatedCard = page.getByRole("main").getByText(updatedContent);
     await expect(updatedCard).toBeVisible();
 
