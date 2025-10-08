@@ -9,7 +9,6 @@ import {
   Sparkles,
   Trash,
   Trash2,
-  X,
   FileText,
   Link,
   Image,
@@ -202,29 +201,10 @@ export function CardModal({
         ) : (
           <>
             {/* Mobile Header with Close Button */}
-            <div className="md:hidden flex items-center justify-between gap-2">
+            <div className="md:hidden">
               <DialogTitle>
                 {CARD_TYPE_LABELS[card.type as CardType] || "Card"}
               </DialogTitle>
-              <div className="flex items-center gap-2">
-                {hasUnsavedChanges && (
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      void saveChanges();
-                    }}
-                  >
-                    Save changes
-                  </Button>
-                )}
-                {!hasUnsavedChanges && isSaved && (
-                  <span className="text-xs text-muted-foreground">Saved</span>
-                )}
-                <Button variant="outline" size="sm" onClick={() => void handleClose()}>
-                  <X />
-                  Close
-                </Button>
-              </div>
             </div>
 
             {/* Desktop Hidden Title */}
@@ -235,11 +215,15 @@ export function CardModal({
             {/* Main Content Area */}
             <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-1 overflow-hidden">
               {/* Preview Area */}
-              <div className="flex-1 md:flex-[2] border rounded-md bg-muted/50 overflow-hidden flex flex-col min-h-0">
-                <div className="hidden md:flex justify-end items-center gap-3 px-3 py-2">
+              <div className="flex-1 md:flex-[2] border rounded-md bg-muted/50 overflow-hidden flex flex-col min-h-0 relative">
+                <div className="flex-1 p-2 overflow-y-auto">
+                  {renderPreview()}
+                </div>
+                <div className="pointer-events-none absolute bottom-4 right-4 flex flex-col items-end gap-1">
                   {hasUnsavedChanges && (
                     <Button
                       size="sm"
+                      className="px-4 pointer-events-auto"
                       onClick={() => {
                         void saveChanges();
                       }}
@@ -248,21 +232,10 @@ export function CardModal({
                     </Button>
                   )}
                   {!hasUnsavedChanges && isSaved && (
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded-md shadow-sm">
                       Saved
                     </span>
                   )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleClose()}
-                  >
-                    <X />
-                    Close
-                  </Button>
-                </div>
-                <div className="flex-1 p-2 overflow-y-auto">
-                  {renderPreview()}
                 </div>
               </div>
 
