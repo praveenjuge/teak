@@ -1,28 +1,28 @@
 # Repository Guidelines
 
-Refer to `CLAUDE.md` for more information.
+See `CLAUDE.md` for expanded architecture notes and file maps.
 
 ## Project Structure & Module Organization
-
-This Bun workspace monorepo is split into apps and packages. `apps/web` hosts the Next 15 frontend (React 19, Tailwind v4) and consumes shared utilities via the `@/` alias. `apps/mobile` contains the Expo Router client, `apps/extension` ships the WXT browser extension, and `apps/docs` renders the marketing/docs site. Convex backend logic lives in `packages/backend/convex`, with generated APIs in `_generated` (never edit manually) and re-exported through `packages/backend/index.ts`. Shared utilities live in `packages/shared/src`.
+- Bun workspace surfaces live in `apps/` (`web`, `mobile`, `extension`, `docs`); cross-cutting packages stay under `packages/`.
+- Keep Convex logic in `packages/backend/convex`, re-export via `packages/backend/index.ts`, and never touch `_generated`.
+- Shared utilities, constants, and TypeScript types live in `packages/shared/src`; consume them with the `@teak/shared` alias.
+- The `@/` alias resolves to `apps/web`; docs content sits in `apps/docs/content`, and extension assets in `apps/extension/assets`.
 
 ## Build, Test, and Development Commands
-
-- `bun install` syncs all workspace dependencies and prepares Husky hooks.
-- `bun run dev` launches the Convex dev server and web app together; use `bun run dev:backend` or `dev:frontend` to focus on one side.
-- `bun run predev` waits for Convex migrations before starting other tasks.
-- `bun run build` runs the production Next build for `apps/web`; mirror commands exist per workspace (`apps/docs`, `apps/extension`, `apps/mobile`).
-- `bun run lint` enforces Next/ESLint rules; the pre-commit hook also runs `bunx tsc --noEmit` and `bun run build` to catch regressions early.
-- Run `cd apps/extension && bun run dev` or `cd apps/mobile && bun run dev` for targeted work.
+- `bun install` installs all workspace deps and prepares Husky hooks.
+- `bun run dev` boots both Next 15 and Convex; use `bun run dev:frontend`, `dev:backend`, `dev:mobile`, or `dev:extension` for scoped loops.
+- `bun run predev` blocks until Convex migrations settle; call it when schema churns.
+- `bun run build`, `bun run build:extension`, and `bun run package:extension` create production artifacts.
+- `bun run lint` and `bunx tsc --noEmit` mirror the pre-commit checks; run them locally before opening a PR.
 
 ## Coding Style & Naming Conventions
-
-Stick with TypeScript across workspaces, using strict mode and JSX with React Server Components. Let Prettier 3 defaults (2-space indent, semicolons on) format code, and rely on the provided flat ESLint configs (`next/core-web-vitals`, `eslint-config-expo`). Name React components with PascalCase, hooks with `use` prefixes, and co-locate UI primitives in `components/ui`. Use path aliases (`@/`, `@teak/shared`, `@teak/convex`) instead of relative ladders and prefer descriptive folder names that mirror domain concepts.
+Author TypeScript in strict mode with React Server Components on the web. Follow Prettier 3 defaults (2-space indent, semicolons) and the flat ESLint configs declared in `package.json`. Use PascalCase for components, camelCase for utilities, `use` prefixes for hooks, and domain folders such as `cards/` or `search/`. Import internals via `@/`, `@teak/shared`, and `@teak/convex` instead of relative ladders, and co-locate reusable UI under `components/ui`.
 
 ## Testing Guidelines
-
-Automated tests are not yet wired up; type-checking (`bunx tsc --noEmit`) and successful builds are the enforced gates today. When adding coverage, prefer colocated `.test.ts(x)` files using the framework native to the workspace (e.g. Next Testing Library, Expo testing tools) and document any new commands in the relevant `package.json`. Exercise Convex functions through `bunx convex dev --until-success` before shipping backend changes.
+Automated coverage is light today; rely on `bunx tsc --noEmit` and `bun run build` to catch regressions. Place `.test.ts(x)` files beside the source, use Next Testing Library on web, Expo tooling on mobile, and wxt harnesses for the extension. Run `bunx convex dev --until-success` after schema or backend updates to confirm migrations.
 
 ## Commit & Pull Request Guidelines
+Commits follow Conventional Commits (`feat(cards): add pinning`, `fix(docs): update hero`). Keep summaries imperative and under 72 chars, and avoid committing `_generated` artifacts. PRs should link issues, summarize risky areas, and include screenshots or recordings for UI changes while calling out configuration or schema updates explicitly.
 
-Commits follow a conventional `type(scope?): summary` style (`feat:`, `fix(docs):`, etc.) as seen in git history—keep subjects in the imperative and under 72 characters. Run the Husky pre-commit locally if hooks are skipped, and avoid committing generated `_generated` artifacts. PRs should link issues, outline risky areas, and include screenshots or recordings for UI-affecting changes; mention configuration updates in the description.
+## Security & Configuration Tips
+Store secrets in `.env.local` files per workspace and keep them out of version control. Load Clerk and Convex credentials via `bun run predev`, update `packages/backend/convex/convex.config.ts` when adding env keys, and document required values in `README.md`. Apply least privilege to Convex mutations and favor server-side validation in `packages/backend/convex/*`.
