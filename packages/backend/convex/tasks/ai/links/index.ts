@@ -1,4 +1,4 @@
-import type { LinkCategory } from "@teak/shared";
+import type { LinkCategory } from "../../../../shared";
 import type {
   ProviderEnrichmentResult,
   RawSelectorMap,

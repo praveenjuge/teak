@@ -3,7 +3,7 @@ import { api } from "@teak/convex";
 import {
   createCardActions,
   type CardActionsConfig,
-} from "@teak/shared";
+} from "@teak/convex/shared";
 
 export function useCardActions(config: CardActionsConfig = {}) {
   const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);

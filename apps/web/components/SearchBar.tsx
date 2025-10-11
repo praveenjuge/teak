@@ -23,7 +23,7 @@ import {
   CARD_TYPE_LABELS,
   getCardTypeIcon,
   cardTypes,
-} from "@teak/shared/constants";
+} from "@teak/convex/shared/constants";
 import { useTheme } from "next-themes";
 
 interface SearchBarProps {

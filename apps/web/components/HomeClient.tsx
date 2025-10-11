@@ -13,7 +13,7 @@ import { DragOverlay } from "@/components/DragOverlay";
 import { CardsGridSkeleton } from "@/components/CardSkeleton";
 import { useGlobalDragDrop } from "@/hooks/useGlobalDragDrop";
 import { type Doc, type Id } from "@teak/convex/_generated/dataModel";
-import { type CardType } from "@teak/shared/constants";
+import { type CardType } from "@teak/convex/shared/constants";
 import { useCardActions } from "@/hooks/useCardActions";
 import { api } from "@teak/convex";
 import { toast } from "sonner";

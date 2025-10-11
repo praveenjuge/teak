@@ -6,7 +6,7 @@ import {
   type LinkCategory,
   type LinkCategoryMetadata,
   type LinkCategoryDetail,
-} from "@teak/shared";
+} from "@teak/convex/shared";
 import { linkCategoryClassificationSchema } from "./schemas";
 import { enrichProvider } from "./links";
 import {

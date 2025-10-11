@@ -22,10 +22,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
-      "@teak/shared": ["../../packages/shared/src"],
-      "@teak/shared/*": ["../../packages/shared/src/*"],
       "@teak/convex": ["../../packages/backend/convex/_generated/api"],
-      "@teak/convex/*": ["../../packages/backend/convex/*"]
+      "@teak/convex/*": ["../../packages/backend/convex/*"],
+      "@teak/convex/shared": ["../../packages/backend/shared/index.ts"],
+      "@teak/convex/shared/*": ["../../packages/backend/shared/*"]
     }
   },
   "include": [
@@ -33,8 +33,8 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "../../packages/shared/src/**/*",
     "../../packages/backend/convex/**/*",
+    "../../packages/backend/shared/**/*",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": ["node_modules"]

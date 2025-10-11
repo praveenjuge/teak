@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { FREE_TIER_LIMIT } from "@teak/shared/constants";
+import { FREE_TIER_LIMIT } from "@teak/convex/shared/constants";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { SubscriptionActions } from "@/components/subscription/SubscriptionActions";

@@ -105,7 +105,7 @@ teak-convex-nextjs/
 
 - **Convex API**: `import { api } from "@teak/convex"`
 - **Convex Types**: `import { Doc } from "@teak/convex/_generated/dataModel"`
-- **Shared Constants**: `import { CARD_TYPES } from "@teak/shared/constants"`
+- **Shared Constants**: `import { CARD_TYPES } from "@teak/convex/shared/constants"`
 
 ## Card Management Domain
 
@@ -233,15 +233,18 @@ apps/docs/
 └── package.json          # Documentation dependencies
 ```
 
-### Shared Code (packages/shared/)
+### Shared Code (packages/backend/shared/)
 
 ```
-packages/shared/
-├── src/
-│   ├── constants.ts  # Shared constants and types
-│   ├── utils.ts      # Shared utility functions
-│   └── index.ts      # Package exports
-└── package.json      # Shared package config
+packages/backend/shared/
+├── constants.ts             # Shared constants and derived helpers
+├── index.ts                 # Entry point re-exporting shared pieces
+├── linkCategories.ts        # Link categorization constants and types
+├── hooks/
+│   ├── useCardActions.ts    # Shared card action helper factory
+│   └── useFileUpload.ts     # Shared file upload hook core
+└── utils/
+    └── colorUtils.ts        # Color parsing helpers
 ```
 
 ## Authentication Flow
@@ -290,7 +293,7 @@ Implemented in `useSearchFilters` hook:
 
 - **Workspaces**: npm workspaces manage dependencies across packages
 - **TypeScript**: Project references for efficient compilation
-- **Imports**: Use `@teak/convex` and `@teak/shared` workspace packages
+- **Imports**: Use `@teak/convex` (including the `@teak/convex/shared` subpath) workspace packages
 - **Scripts**: Run from root with workspace targeting
 
 ### Convex Specifics

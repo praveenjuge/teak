@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@teak/convex": "file:../../packages/backend",
-    "@teak/shared": "file:../../packages/shared",
     "@clerk/clerk-react": "^5.51.0",
     "@clerk/nextjs": "^6.33.3",
     "@clerk/themes": "^2.4.25",

@@ -59,6 +59,21 @@ export interface FileUploadDependencies {
 
 type CodedError = Error & { code?: CardErrorCode };
 
+export type UploadFileSuccessResult = {
+  success: true;
+  cardId: string;
+};
+
+export type UploadFileErrorResult = {
+  success: false;
+  error: string;
+  errorCode?: CardErrorCode | (string & {});
+};
+
+export type UploadFileResult = UploadFileSuccessResult | UploadFileErrorResult;
+
+export type UploadMultipleFilesResultItem = UploadFileResult & { file: string };
+
 export function useFileUploadCore(
   { uploadAndCreateCard, finalizeUploadedCard }: FileUploadDependencies,
   config: UnifiedFileUploadConfig = {}
@@ -74,7 +89,7 @@ export function useFileUploadCore(
         content?: string;
         additionalMetadata?: any;
       } = {}
-    ) => {
+    ): Promise<UploadFileResult> => {
       setIsUploading(true);
       setProgress(0);
       setError(null);
@@ -158,7 +173,11 @@ export function useFileUploadCore(
 
         setError(fileError);
         config.onError?.(fileError);
-        return { success: false, error: fileError.message, errorCode: fileError.code };
+        return {
+          success: false,
+          error: fileError.message,
+          errorCode: fileError.code,
+        };
       } finally {
         setIsUploading(false);
         // Reset progress after a short delay
@@ -175,8 +194,8 @@ export function useFileUploadCore(
         content?: string;
         additionalMetadata?: any;
       } = {}
-    ) => {
-      const results = [];
+    ): Promise<UploadMultipleFilesResultItem[]> => {
+      const results: UploadMultipleFilesResultItem[] = [];
 
       for (const file of files) {
         const result = await uploadFile(file, options);

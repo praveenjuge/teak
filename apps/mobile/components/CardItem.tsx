@@ -15,7 +15,7 @@ import { borderWidths, colors } from "@/constants/colors";
 import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
 import { api } from "@teak/convex";
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { LINK_CATEGORY_LABELS } from "@teak/shared";
+import { LINK_CATEGORY_LABELS } from "@teak/convex/shared";
 
 type Card = Doc<"cards">;
 

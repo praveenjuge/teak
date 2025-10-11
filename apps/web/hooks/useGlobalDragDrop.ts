@@ -1,7 +1,10 @@
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useFileUpload } from "@/hooks/useFileUpload";
-import { CARD_ERROR_CODES } from "@teak/shared";
+import {
+  CARD_ERROR_CODES,
+  type UploadMultipleFilesResultItem,
+} from "@teak/convex/shared";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -38,7 +41,7 @@ export function useGlobalDragDrop() {
       const results = await uploadMultipleFiles(acceptedFiles);
 
       // Show success/error messages for each file
-      results.forEach(result => {
+      results.forEach((result: UploadMultipleFilesResultItem) => {
         if (result.success) {
           toast.success(`${result.file} uploaded successfully`);
         } else {

@@ -8,7 +8,7 @@ import {
   extractPaletteColors,
   parseColorString,
   type Color,
-} from "@teak/shared/utils/colorUtils";
+} from "@teak/convex/shared/utils/colorUtils";
 import { generateTextMetadata, generateImageMetadata, generateLinkMetadata } from "./metadata_generators";
 import { generateTranscript } from "./transcript";
 import {

@@ -4,10 +4,10 @@
     "strict": true,
     "paths": {
       "@/*": ["./*"],
-      "@teak/shared": ["../../packages/shared/src"],
-      "@teak/shared/*": ["../../packages/shared/src/*"],
       "@teak/convex": ["../../packages/backend/convex/_generated/api"],
-      "@teak/convex/*": ["../../packages/backend/convex/*"]
+      "@teak/convex/*": ["../../packages/backend/convex/*"],
+      "@teak/convex/shared": ["../../packages/backend/shared/index.ts"],
+      "@teak/convex/shared/*": ["../../packages/backend/shared/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]

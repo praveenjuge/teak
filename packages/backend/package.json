@@ -5,17 +5,24 @@
   "main": "index.ts",
   "types": "index.ts",
   "exports": {
-    ".": "./index.ts"
+    ".": "./index.ts",
+    "./shared": "./shared/index.ts",
+    "./shared/constants": "./shared/constants.ts",
+    "./shared/hooks/useCardActions": "./shared/hooks/useCardActions.ts",
+    "./shared/hooks/useFileUpload": "./shared/hooks/useFileUpload.ts",
+    "./shared/linkCategories": "./shared/linkCategories.ts",
+    "./shared/utils/colorUtils": "./shared/utils/colorUtils.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.48",
     "@cf-wasm/photon": "^0.1.31",
     "@convex-dev/migrations": "^0.2.9",
     "@convex-dev/polar": "^0.6.4",
-    "@teak/shared": "file:../shared",
     "@types/node": "^24.7.1",
+    "@types/react": "^19.2.2",
     "ai": "^5.0.68",
     "convex": "^1.27.5",
+    "react": "^19.2.0",
     "zod": "^3.25.76"
   }
 }
