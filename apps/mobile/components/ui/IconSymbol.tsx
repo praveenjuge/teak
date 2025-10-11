@@ -29,6 +29,8 @@ const MAPPING = {
   xmark: "close",
   checkmark: "check",
   "checkmark.circle.fill": "check-circle",
+  hourglass: "hourglass-empty",
+  "exclamationmark.triangle.fill": "warning",
 } as IconMapping;
 
 /**
