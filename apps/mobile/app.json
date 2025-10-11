@@ -32,6 +32,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-share-intent",
       [
         "expo-audio",
         {
