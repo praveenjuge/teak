@@ -3,7 +3,8 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
+import type { Href } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "react-native";
 import { colors } from "@/constants/colors";
@@ -11,7 +12,8 @@ import ConvexClientProvider from "../ConvexClientProvider";
 import { useAuth } from "@clerk/clerk-expo";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { ShareIntentProvider, useShareIntentContext } from "expo-share-intent";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -38,12 +40,22 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <ConvexClientProvider>
-        <ThemeProvider
-          value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
+        <ShareIntentProvider
+          options={{
+            debug: __DEV__,
+            resetOnBackground: true,
+          }}
         >
-          <RootNavigator />
-          <StatusBar style="auto" />
-        </ThemeProvider>
+          <ThemeProvider
+            value={
+              colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme
+            }
+          >
+            <RootNavigator />
+            <ShareIntentNavigator />
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </ShareIntentProvider>
       </ConvexClientProvider>
     </ErrorBoundary>
   );
@@ -104,4 +116,21 @@ function RootNavigator() {
       />
     </Stack>
   );
+}
+
+function ShareIntentNavigator() {
+  const { hasShareIntent } = useShareIntentContext();
+  const router = useRouter();
+  const hasRedirectedRef = useRef(false);
+
+  useEffect(() => {
+    if (hasShareIntent && !hasRedirectedRef.current) {
+      hasRedirectedRef.current = true;
+      router.replace("/shareintent" as Href);
+    } else if (!hasShareIntent) {
+      hasRedirectedRef.current = false;
+    }
+  }, [hasShareIntent, router]);
+
+  return null;
 }
