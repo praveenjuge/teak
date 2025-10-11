@@ -6,7 +6,7 @@ import {
 } from "expo-audio";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -23,28 +23,83 @@ import { useCreateCard } from "../../lib/hooks/useCardOperations";
 import { useFileUpload } from "../../lib/hooks/useFileUpload";
 import { IconSymbol } from "../../components/ui/IconSymbol";
 import { borderWidths, colors } from "../../constants/colors";
+import {
+  setFeedbackStatus,
+  subscribeFeedbackStatus,
+  type FeedbackStatusPayload,
+} from "../../lib/feedbackBridge";
 
 export default function AddScreen() {
   const [content, setContent] = useState("");
+  const [isSavingCard, setIsSavingCard] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const textInputRef = useRef<TextInput>(null);
   const createCard = useCreateCard();
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const feedbackVisibleRef = useRef(false);
 
-  const presentStatusFeedback = (message: string, title?: string) => {
-    router.push({
-      pathname: "/(feedback)",
-      params: { message, title },
+  useEffect(() => {
+    const unsubscribe = subscribeFeedbackStatus((payload) => {
+      if (!payload) {
+        feedbackVisibleRef.current = false;
+      }
     });
-  };
+    return unsubscribe;
+  }, []);
+
+  const showFeedback = useCallback(
+    (payload: FeedbackStatusPayload) => {
+      setFeedbackStatus(payload);
+
+      if (!feedbackVisibleRef.current) {
+        feedbackVisibleRef.current = true;
+        router.push("/(feedback)");
+      }
+    },
+    [router]
+  );
+
+  const showSavedFeedback = useCallback(
+    (message = "Saved Successfully!") => {
+      showFeedback({
+        title: "Save to Teak",
+        message,
+        iconName: "checkmark.circle.fill",
+        dismissAfterMs: 1500,
+      });
+    },
+    [showFeedback]
+  );
+
+  const showErrorFeedback = useCallback(
+    (message: string) => {
+      showFeedback({
+        title: "Unable to Save",
+        message,
+        iconName: "exclamationmark.triangle.fill",
+        accentColor: "#ff3b30",
+        dismissAfterMs: 4000,
+      });
+    },
+    [showFeedback]
+  );
+  const showSavingFeedback = useCallback(() => {
+    showFeedback({
+      title: "Save to Teak",
+      message: "Saving...",
+      iconName: "hourglass",
+      dismissAfterMs: -1,
+    });
+  }, [showFeedback]);
 
   // Use shared file upload hook
   const { uploadFile, state: uploadState } = useFileUpload({
     onSuccess: () => {
-      presentStatusFeedback("File uploaded successfully!", "Save to Teak");
+      showSavedFeedback();
     },
     onError: (error) => {
+      showErrorFeedback(error.message);
       if (error.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
         Alert.alert("Upgrade Required", error.message);
       } else {
@@ -75,6 +130,7 @@ export default function AddScreen() {
     mimeType: string
   ) => {
     try {
+      showSavingFeedback();
       // Convert React Native file URI to Blob for the shared upload hook
       const response = await fetch(fileUri);
       const blob = await response.blob();
@@ -85,11 +141,16 @@ export default function AddScreen() {
       });
     } catch (error) {
       console.error("Failed to upload file:", error);
+      showErrorFeedback("Failed to upload file. Please try again.");
       Alert.alert("Error", "Failed to upload file. Please try again.");
     }
   };
 
   async function startRecording() {
+    if (uploadState.isUploading || isSavingCard) {
+      return;
+    }
+
     try {
       // Request audio recording permissions
       const { granted } = await requestRecordingPermissionsAsync();
@@ -243,6 +304,9 @@ export default function AddScreen() {
       return;
     }
 
+    setIsSavingCard(true);
+    showSavingFeedback();
+
     try {
       // Let backend handle type detection and processing
       await createCard({
@@ -251,10 +315,13 @@ export default function AddScreen() {
 
       setContent("");
       textInputRef.current?.focus();
-      presentStatusFeedback("Saved Successfully!", "Save to Teak");
+      showSavedFeedback();
     } catch (error) {
       console.error("Failed to save card:", error);
+      showErrorFeedback("Failed to save card. Please try again.");
       Alert.alert("Error", "Failed to save card. Please try again.");
+    } finally {
+      setIsSavingCard(false);
     }
   };
 
@@ -308,7 +375,7 @@ export default function AddScreen() {
         <TextInput
           autoCapitalize="sentences"
           autoCorrect={true}
-          editable={!uploadState.isUploading}
+          editable={!uploadState.isUploading && !isSavingCard}
           multiline
           onChangeText={setContent}
           placeholder="Enter your bookmark, URL, or note"
@@ -330,7 +397,7 @@ export default function AddScreen() {
 
         <View style={{ flexDirection: "row", margin: 16, gap: 8 }}>
           <TouchableOpacity
-            disabled={uploadState.isUploading}
+            disabled={uploadState.isUploading || isSavingCard}
             onPress={handleFilePicker}
             style={{
               alignItems: "center",
@@ -341,7 +408,7 @@ export default function AddScreen() {
               borderColor: colors.border,
               width: 50,
               height: 50,
-              opacity: uploadState.isUploading ? 0.5 : 1,
+              opacity: uploadState.isUploading || isSavingCard ? 0.5 : 1,
             }}
           >
             <IconSymbol
@@ -352,6 +419,7 @@ export default function AddScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            disabled={uploadState.isUploading || isSavingCard}
             onPress={startRecording}
             style={{
               alignItems: "center",
@@ -362,6 +430,7 @@ export default function AddScreen() {
               borderColor: colors.border,
               width: 50,
               height: 50,
+              opacity: uploadState.isUploading || isSavingCard ? 0.5 : 1,
             }}
           >
             <IconSymbol
@@ -372,7 +441,9 @@ export default function AddScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            disabled={uploadState.isUploading || !content.trim()}
+            disabled={
+              uploadState.isUploading || isSavingCard || !content.trim()
+            }
             onPress={handleSave}
             style={{
               flex: 1,
@@ -381,11 +452,14 @@ export default function AddScreen() {
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: colors.primary,
-              opacity: uploadState.isUploading || !content.trim() ? 0.3 : 1,
+              opacity:
+                uploadState.isUploading || isSavingCard || !content.trim()
+                  ? 0.3
+                  : 1,
             }}
           >
             <Text style={{ fontWeight: "600", color: colors.adaptiveWhite }}>
-              {uploadState.isUploading ? "Saving..." : "Save"}
+              {uploadState.isUploading || isSavingCard ? "Saving..." : "Save"}
             </Text>
           </TouchableOpacity>
         </View>
