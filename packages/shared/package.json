@@ -9,7 +9,10 @@
     "./utils": "./src/utils.ts"
   },
   "dependencies": {
+    "@types/react": "^19.2.2",
     "clsx": "^2.1.1",
+    "convex": "^1.27.5",
+    "react": "^19.2.0",
     "tailwind-merge": "^3.3.1"
   }
 }

@@ -52,3 +52,4 @@ bun.lock
 
 apps/web/.next
 apps/web/node_modules
+packages/shared/node_modules

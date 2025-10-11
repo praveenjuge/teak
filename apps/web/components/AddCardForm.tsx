@@ -5,7 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Mic, Square, Upload, Sparkles } from "lucide-react";
 import { api } from "@teak/convex";
-import { useFileUpload, CARD_ERROR_CODES } from "@teak/shared";
+import { useFileUpload } from "@/hooks/useFileUpload";
+import { CARD_ERROR_CODES } from "@teak/shared";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 

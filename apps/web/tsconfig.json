@@ -34,7 +34,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "../../packages/shared/src/**/*",
-    "../../packages/backend/convex/**/*"
+    "../../packages/backend/convex/**/*",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }
