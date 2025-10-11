@@ -16,16 +16,13 @@
     "composite": true,
     "baseUrl": ".",
     "paths": {
-      "@teak/shared": ["./packages/shared/src"],
-      "@teak/shared/*": ["./packages/shared/src/*"],
       "@teak/convex": ["./packages/backend/convex/_generated/api"],
-      "@teak/convex/*": ["./packages/backend/convex/*"]
+      "@teak/convex/*": ["./packages/backend/convex/*"],
+      "@teak/convex/shared": ["./packages/backend/shared/index.ts"],
+      "@teak/convex/shared/*": ["./packages/backend/shared/*"]
     }
   },
-  "references": [
-    { "path": "./packages/shared" },
-    { "path": "./packages/backend/convex" }
-  ],
+  "references": [{ "path": "./packages/backend/convex" }],
   "files": [],
   "exclude": ["node_modules"]
 }

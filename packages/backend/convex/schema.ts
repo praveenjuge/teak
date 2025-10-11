@@ -1,6 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { LINK_CATEGORIES } from "@teak/shared";
+import { LINK_CATEGORIES } from "../shared/linkCategories";
 
 // Card types as literals for validator
 export const cardTypes = [

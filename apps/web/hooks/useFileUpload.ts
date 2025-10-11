@@ -5,7 +5,7 @@ import {
   type UploadAndCreateCardArgs,
   type FinalizeUploadedCardArgs,
   useFileUploadCore,
-} from "@teak/shared";
+} from "@teak/convex/shared";
 import { type Id } from "@teak/convex/_generated/dataModel";
 
 export function useFileUpload(config: UnifiedFileUploadConfig = {}) {

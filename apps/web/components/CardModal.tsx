@@ -28,7 +28,7 @@ import {
   type CardType,
   CARD_TYPE_LABELS,
   getCardTypeIcon,
-} from "@teak/shared/constants";
+} from "@teak/convex/shared/constants";
 import {
   LinkPreview,
   ImagePreview,
@@ -184,11 +184,14 @@ export function CardModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(open) => {
-      if (!open) {
-        void handleClose();
-      }
-    }}>
+    <Dialog
+      open={open}
+      onOpenChange={(open) => {
+        if (!open) {
+          void handleClose();
+        }
+      }}
+    >
       <DialogContent
         className="md:max-w-7xl max-h-[90vh] p-4 flex flex-col md:flex-row h-[90vh] outline-0 overflow-hidden gap-4 border-0 dark:border"
         showCloseButton={false}

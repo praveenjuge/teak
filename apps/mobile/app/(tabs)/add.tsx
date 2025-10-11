@@ -17,7 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { CARD_ERROR_CODES } from "@teak/shared";
+import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { useCreateCard } from "../../lib/hooks/useCardOperations";
 import { useFileUpload } from "../../lib/hooks/useFileUpload";
 import { IconSymbol } from "../../components/ui/IconSymbol";

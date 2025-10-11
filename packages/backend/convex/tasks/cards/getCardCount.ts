@@ -1,5 +1,5 @@
 import { query } from "../../_generated/server";
-import { FREE_TIER_LIMIT } from "@teak/shared/constants";
+import { FREE_TIER_LIMIT } from "../../../shared/constants";
 
 export const getCardCount = query({
   args: {},

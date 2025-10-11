@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { cardTypes } from "../../schema";
-import { LINK_CATEGORIES } from "@teak/shared";
+import { LINK_CATEGORIES } from "../../../shared/linkCategories";
 
 // AI generation result schema
 export const aiMetadataSchema = z.object({
