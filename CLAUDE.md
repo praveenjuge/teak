@@ -78,10 +78,10 @@ teak-convex-nextjs/
 │   ├── mobile/           # Expo React Native mobile app
 │   ├── extension/        # Chrome browser extension (Wxt)
 │   └── docs/             # Documentation site (Fumadocs)
-├── packages/
+├── backend/
+│   ├── convex/           # Convex functions and database
 │   ├── shared/           # Shared utilities, constants, types
-│   └── backend/          # Backend services and configuration
-│       └── convex/       # Convex functions and database
+│   └── index.ts          # Re-export surface for consumers
 └── package.json          # Root workspace configuration
 ```
 
@@ -120,7 +120,7 @@ The application centers around a flexible card system:
 - `audio`: Audio recordings
 - `document`: File attachments
 
-### Card Schema (packages/backend/convex/schema.ts)
+### Card Schema (backend/convex/schema.ts)
 
 - User-scoped with `userId` field
 - Soft deletion with `isDeleted` and `deletedAt`
@@ -198,19 +198,21 @@ apps/extension/
 └── tsconfig.json         # TypeScript configuration
 ```
 
-### Backend (packages/backend/)
+### Backend (backend/)
 
 ```
-packages/backend/
+backend/
 ├── convex/
 │   ├── _generated/   # Auto-generated Convex types
 │   ├── schema.ts     # Database schema definitions
 │   ├── cards.ts      # Card CRUD operations
 │   ├── auth.config.ts # Clerk authentication config
 │   ├── crons.ts      # Scheduled cleanup jobs
-│   └── package.json  # Convex package config
+│   └── convex.config.ts # Convex configuration
+├── shared/           # Shared utilities consumed by clients
+├── index.ts          # Package entry point re-exporting backend surface
 ├── .env.local        # Backend environment variables
-└── package.json      # Backend workspace config
+└── package.json      # Backend package config
 ```
 
 ### Documentation Site (apps/docs/)
@@ -233,10 +235,10 @@ apps/docs/
 └── package.json          # Documentation dependencies
 ```
 
-### Shared Code (packages/backend/shared/)
+### Shared Code (backend/shared/)
 
 ```
-packages/backend/shared/
+backend/shared/
 ├── constants.ts             # Shared constants and derived helpers
 ├── index.ts                 # Entry point re-exporting shared pieces
 ├── linkCategories.ts        # Link categorization constants and types
@@ -302,7 +304,7 @@ Implemented in `useSearchFilters` hook:
 - Schema changes require database migrations
 - Use indexes for efficient queries (defined in schema.ts)
 - Scheduled functions run via crons.ts
-- Config located at `packages/backend/convex/convex.config.ts`
+- Config located at `backend/convex/convex.config.ts`
 
 ### Component Patterns
 
