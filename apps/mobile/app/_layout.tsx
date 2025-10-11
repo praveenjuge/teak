@@ -66,6 +66,16 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" redirect={!isSignedIn} />
       <Stack.Screen
+        name="(feedback)/index"
+        options={{
+          headerShown: true,
+          presentation: "modal",
+          headerBackTitle: "Close",
+          headerBackVisible: true,
+        }}
+        redirect={!isSignedIn}
+      />
+      <Stack.Screen
         name="(auth)/index"
         options={{
           headerShown: false,

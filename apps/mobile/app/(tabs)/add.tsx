@@ -18,6 +18,7 @@ import {
   View,
 } from "react-native";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
+import { router } from "expo-router";
 import { useCreateCard } from "../../lib/hooks/useCardOperations";
 import { useFileUpload } from "../../lib/hooks/useFileUpload";
 import { IconSymbol } from "../../components/ui/IconSymbol";
@@ -31,10 +32,17 @@ export default function AddScreen() {
   const createCard = useCreateCard();
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
+  const presentStatusFeedback = (message: string, title?: string) => {
+    router.push({
+      pathname: "/(feedback)",
+      params: { message, title },
+    });
+  };
+
   // Use shared file upload hook
   const { uploadFile, state: uploadState } = useFileUpload({
     onSuccess: () => {
-      Alert.alert("Success", "File uploaded successfully!");
+      presentStatusFeedback("File uploaded successfully!", "Save to Teak");
     },
     onError: (error) => {
       if (error.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
@@ -243,7 +251,7 @@ export default function AddScreen() {
 
       setContent("");
       textInputRef.current?.focus();
-      Alert.alert("Success", "Card saved successfully!");
+      presentStatusFeedback("Saved Successfully!", "Save to Teak");
     } catch (error) {
       console.error("Failed to save card:", error);
       Alert.alert("Error", "Failed to save card. Please try again.");
