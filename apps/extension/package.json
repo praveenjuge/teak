@@ -16,7 +16,7 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "@teak/convex": "file:../../packages/backend",
+    "@teak/convex": "file:../../backend",
     "@clerk/chrome-extension": "^2.7.3",
     "@tailwindcss/vite": "^4.1.14",
     "convex": "^1.27.5",

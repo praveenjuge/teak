@@ -32,10 +32,10 @@ teak-convex-nextjs/
 │   ├── mobile/           # Expo React Native mobile app
 │   ├── extension/        # Chrome browser extension (Wxt)
 │   └── docs/             # Documentation site (Fumadocs)
-├── packages/
+├── backend/
+│   ├── convex/           # Convex functions and database
 │   ├── shared/           # Shared utilities, constants, types
-│   └── backend/          # Backend services and configuration
-│       └── convex/       # Convex functions and database
+│   └── index.ts          # Re-export surface for clients
 └── package.json          # Root workspace configuration
 ```
 
@@ -105,7 +105,7 @@ This will:
 
 ### 3. Environment Configuration
 
-**Backend** (`packages/backend/.env.local`):
+**Backend** (`backend/.env.local`):
 ```bash
 CONVEX_DEPLOYMENT=dev:your-deployment-name-123
 CLERK_SECRET_KEY=sk_test_your_clerk_secret_key

@@ -4,9 +4,9 @@ See `CLAUDE.md` for expanded architecture notes and file maps.
 
 ## Project Structure & Module Organization
 
-- Bun workspace surfaces live in `apps/` (`web`, `mobile`, `extension`, `docs`); cross-cutting packages stay under `packages/`.
-- Keep Convex logic in `packages/backend/convex`, re-export via `packages/backend/index.ts`, and never touch `_generated`.
-- Shared utilities, constants, and TypeScript types now live in `packages/backend/shared`; consume them via the `@teak/convex/shared` entrypoints.
+- Bun workspace surfaces live in `apps/` (`web`, `mobile`, `extension`, `docs`) with the Convex backend consolidated under `backend/`.
+- Keep Convex logic in `backend/convex`, re-export via `backend/index.ts`, and never touch `_generated`.
+- Shared utilities, constants, and TypeScript types now live in `backend/shared`; consume them via the `@teak/convex/shared` entrypoints.
 - The `@/` alias resolves to `apps/web`; docs content sits in `apps/docs/content`, and extension assets in `apps/extension/assets`.
 
 ## Build, Test, and Development Commands
@@ -31,4 +31,4 @@ Commits follow Conventional Commits (`feat(cards): add pinning`, `fix(docs): upd
 
 ## Security & Configuration Tips
 
-Store secrets in `.env.local` files per workspace and keep them out of version control. Load Clerk and Convex credentials via `bun run predev`, update `packages/backend/convex/convex.config.ts` when adding env keys, and document required values in `README.md`. Apply least privilege to Convex mutations and favor server-side validation in `packages/backend/convex/*`.
+Store secrets in `.env.local` files per workspace and keep them out of version control. Load Clerk and Convex credentials via `bun run predev`, update `backend/convex/convex.config.ts` when adding env keys, and document required values in `README.md`. Apply least privilege to Convex mutations and favor server-side validation in `backend/convex/*`.

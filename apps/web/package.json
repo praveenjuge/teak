@@ -10,7 +10,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@teak/convex": "file:../../packages/backend",
+    "@teak/convex": "file:../../backend",
     "@clerk/clerk-react": "^5.51.0",
     "@clerk/nextjs": "^6.33.3",
     "@clerk/themes": "^2.4.25",
