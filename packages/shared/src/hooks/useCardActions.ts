@@ -1,5 +1,3 @@
-import { useMutation } from "convex/react";
-import { api } from "@teak/convex";
 import { Id } from "@teak/convex/_generated/dataModel";
 
 export interface CardActionsConfig {
@@ -9,9 +7,35 @@ export interface CardActionsConfig {
   onError?: (error: Error, operation: string) => void;
 }
 
-export function useCardActions(config: CardActionsConfig = {}) {
-  const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
-  const updateCardField = useMutation(api.cards.updateCardField);
+export type UpdateCardFieldArgs = {
+  cardId: Id<"cards">;
+  field:
+  | "content"
+  | "url"
+  | "notes"
+  | "tags"
+  | "aiSummary"
+  | "isFavorited"
+  | "removeAiTag"
+  | "delete"
+  | "restore";
+  value?: any;
+  tagToRemove?: string;
+};
+
+export type PermanentDeleteCardArgs = {
+  id: Id<"cards">;
+};
+
+export interface CardActionsDependencies {
+  permanentDeleteCard: (args: PermanentDeleteCardArgs) => Promise<unknown>;
+  updateCardField: (args: UpdateCardFieldArgs) => Promise<unknown>;
+}
+
+export function createCardActions(
+  { permanentDeleteCard, updateCardField }: CardActionsDependencies,
+  config: CardActionsConfig = {}
+) {
 
   const handleDeleteCard = async (cardId: Id<"cards">) => {
     try {

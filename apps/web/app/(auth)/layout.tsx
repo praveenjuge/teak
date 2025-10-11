@@ -4,8 +4,6 @@ import { TopPattern } from "@/components/patterns/TopPattern";
 import { BottomPattern } from "@/components/patterns/BottomPattern";
 import { Suspense } from "react";
 
-export const experimental_ppr = true;
-
 export default function RootLayout({
   children,
 }: Readonly<{

@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { useFileUpload, CARD_ERROR_CODES } from "@teak/shared";
+import { useFileUpload } from "@/hooks/useFileUpload";
+import { CARD_ERROR_CODES } from "@teak/shared";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 

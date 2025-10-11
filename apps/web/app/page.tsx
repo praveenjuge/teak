@@ -13,11 +13,9 @@ import { CardsGridSkeleton } from "@/components/CardSkeleton";
 import { useGlobalDragDrop } from "@/hooks/useGlobalDragDrop";
 import { type Doc, type Id } from "@teak/convex/_generated/dataModel";
 import { type CardType } from "@teak/shared/constants";
-import { useCardActions } from "@teak/shared";
+import { useCardActions } from "@/hooks/useCardActions";
 import { api } from "@teak/convex";
 import { toast } from "sonner";
-
-export const experimental_ppr = true;
 
 export default function Home() {
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
@@ -52,8 +50,13 @@ export default function Home() {
     },
   });
 
-  const { getRootProps, getInputProps, dragDropState, dismissUpgradePrompt, navigateToUpgrade } =
-    useGlobalDragDrop();
+  const {
+    getRootProps,
+    getInputProps,
+    dragDropState,
+    dismissUpgradePrompt,
+    navigateToUpgrade,
+  } = useGlobalDragDrop();
 
   // Search handlers
   const handleSearchChange = (value: string) => {
@@ -160,7 +163,6 @@ export default function Home() {
     !showFavoritesOnly &&
     !showTrashOnly &&
     !searchQuery;
-
 
   const renderEmptyState = () => {
     if ((cards?.length || 0) === 0 && hasNoFilters) {

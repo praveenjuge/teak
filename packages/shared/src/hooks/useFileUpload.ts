@@ -1,6 +1,4 @@
 import { useState, useCallback } from "react";
-import { useMutation } from "convex/react";
-import { api } from "@teak/convex";
 import { type CardErrorCode } from "../constants";
 
 export interface UnifiedFileUploadConfig {
@@ -21,15 +19,53 @@ export interface FileUploadError {
   code?: CardErrorCode;
 }
 
+export interface UploadAndCreateCardArgs {
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  content?: string;
+  additionalMetadata?: any;
+}
+
+export interface UploadAndCreateCardResult {
+  success: boolean;
+  uploadUrl?: string;
+  error?: string;
+  errorCode?: CardErrorCode | (string & {});
+}
+
+export interface FinalizeUploadedCardArgs {
+  fileId: string;
+  fileName: string;
+  content?: string;
+  additionalMetadata?: any;
+}
+
+export interface FinalizeUploadedCardResult {
+  success: boolean;
+  cardId?: string;
+  error?: string;
+  errorCode?: CardErrorCode | (string & {});
+}
+
+export interface FileUploadDependencies {
+  uploadAndCreateCard: (
+    args: UploadAndCreateCardArgs
+  ) => Promise<UploadAndCreateCardResult>;
+  finalizeUploadedCard: (
+    args: FinalizeUploadedCardArgs
+  ) => Promise<FinalizeUploadedCardResult>;
+}
+
 type CodedError = Error & { code?: CardErrorCode };
 
-export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
+export function useFileUploadCore(
+  { uploadAndCreateCard, finalizeUploadedCard }: FileUploadDependencies,
+  config: UnifiedFileUploadConfig = {}
+) {
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<FileUploadError | null>(null);
-
-  const uploadAndCreateCard = useMutation(api.cards.uploadAndCreateCard);
-  const finalizeUploadedCard = useMutation(api.cards.finalizeUploadedCard);
 
   const uploadFile = useCallback(
     async (

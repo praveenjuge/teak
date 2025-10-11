@@ -16,10 +16,11 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "@clerk/chrome-extension": "^2.5.26",
-    "@tailwindcss/vite": "^4.1.12",
-    "convex": "^1.26.2",
-    "lucide-react": "^0.542.0",
+    "@teak/convex": "file:../../packages/backend",
+    "@clerk/chrome-extension": "^2.7.3",
+    "@tailwindcss/vite": "^4.1.14",
+    "convex": "^1.27.5",
+    "lucide-react": "^0.545.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

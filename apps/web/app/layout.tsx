@@ -7,8 +7,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { shadcn } from "@clerk/themes";
 import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 
-export const experimental_ppr = true;
-
 export const metadata: Metadata = {
   title: "Teak",
   description:
@@ -40,12 +38,10 @@ export default function RootLayout({
             }}
           >
             <ConvexClientProvider>
-              <ConvexQueryCacheProvider>
-                {children}
-                <Toaster />
-              </ConvexQueryCacheProvider>
+              <ConvexQueryCacheProvider>{children}</ConvexQueryCacheProvider>
             </ConvexClientProvider>
           </ClerkProvider>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
