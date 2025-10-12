@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/table";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import Link from "next/link";
 
 type StageSummary = {
   pending: number;
@@ -140,8 +141,8 @@ export default function AdminPage() {
               typeof rawId === "string"
                 ? rawId
                 : rawId != null
-                ? String(rawId)
-                : "";
+                  ? String(rawId)
+                  : "";
             if (!id) {
               return null;
             }
@@ -163,8 +164,10 @@ export default function AdminPage() {
       missingAiMetadata: Number(summary.missingAiMetadata ?? 0),
       pendingEnrichment: Number(summary.pendingEnrichment ?? 0),
       failedCards: Number(summary.failedCards ?? 0),
-      stageSummaries: (summary.stageSummaries ??
-        {}) as Record<string, StageSummary>,
+      stageSummaries: (summary.stageSummaries ?? {}) as Record<
+        string,
+        StageSummary
+      >,
       missingCards,
     } satisfies NormalizedPipelineSummary;
   }, [overview?.aiPipeline]);
@@ -267,11 +270,88 @@ export default function AdminPage() {
     missingCards,
   } = pipelineSummary;
 
-  const stageEntries = Object.entries(stageSummaries);
+  const totalCards = totals.totalCards ?? 0;
+  const activeCards = totals.activeCards ?? 0;
+  const deletedCards = totals.deletedCards ?? 0;
+  const uniqueUsers = totals.uniqueUsers ?? 0;
+  const newCards7d = growth.createdLastSevenDays ?? 0;
+  const newCards30d = growth.createdLastThirtyDays ?? 0;
+
+  const enrichedCount = Math.max(totalCards - missingAiMetadata, 0);
+  const enrichmentCompletionRate =
+    totalCards > 0 ? Math.round((enrichedCount / totalCards) * 100) : 100;
+  const backlogShare =
+    totalCards > 0 ? Math.round((missingAiMetadata / totalCards) * 100) : 0;
+  const deletedShare =
+    totalCards > 0 ? Math.round((deletedCards / totalCards) * 100) : 0;
+
+  const headlineCards: Array<{
+    title: string;
+    value: string;
+    description: string;
+  }> = [
+    {
+      title: "Total cards",
+      value: formatNumber(totalCards),
+      description: `${formatNumber(uniqueUsers)} unique users`,
+    },
+    {
+      title: "Active cards",
+      value: formatNumber(activeCards),
+      description: `${deletedShare}% in trash (${formatNumber(deletedCards)})`,
+    },
+    {
+      title: "New this week",
+      value: formatNumber(newCards7d),
+      description: `${formatNumber(newCards30d)} added in 30 days`,
+    },
+    {
+      title: "AI-enriched",
+      value: formatNumber(enrichedCount),
+      description: `${enrichmentCompletionRate}% completed`,
+    },
+    {
+      title: "Pending enrichment",
+      value: formatNumber(missingAiMetadata),
+      description: `${backlogShare}% of all cards`,
+    },
+    {
+      title: "In flight",
+      value: formatNumber(pendingEnrichment),
+      description: `${formatNumber(failedCards)} need attention`,
+    },
+  ];
+
+  const metadataItems = [
+    { label: "Completed", value: metadataCounts.completed },
+    { label: "Pending", value: metadataCounts.pending },
+    { label: "Failed", value: metadataCounts.failed },
+    { label: "Not yet processed", value: metadataCounts.unset },
+  ];
+
+  const orderedStages = STAGE_ORDER.map((key) => ({
+    key,
+    label: stageLabelMap[key] ?? key,
+    summary: stageSummaries[key] ?? { pending: 0, inProgress: 0, failed: 0 },
+  }));
+  const extraStages = Object.entries(stageSummaries)
+    .filter(
+      ([key]) => !STAGE_ORDER.includes(key as (typeof STAGE_ORDER)[number])
+    )
+    .map(([key, summary]) => ({
+      key,
+      label: stageLabelMap[key] ?? key,
+      summary: summary ?? { pending: 0, inProgress: 0, failed: 0 },
+    }));
+  const stageList = [...orderedStages, ...extraStages];
 
   return (
     <div className="container mx-auto max-w-5xl space-y-8 py-8 px-4 md:px-6">
       <div className="space-y-2">
+        <Link href="/" className="font-medium text-primary">
+          &larr; Back
+        </Link>
+        <Separator className="my-4" />
         <h1 className="text-lg font-semibold text-foreground">
           Admin Control Center
         </h1>
@@ -289,64 +369,39 @@ export default function AdminPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardDescription>Total Cards</CardDescription>
-            <CardTitle className="text-2xl">
-              {formatNumber(totals.totalCards)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
-            Across {formatNumber(totals.uniqueUsers)} active user
-            {totals.uniqueUsers === 1 ? "" : "s"}.
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Active vs Deleted</CardDescription>
-            <CardTitle className="text-2xl">
-              {formatNumber(totals.activeCards)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
-            {formatNumber(totals.deletedCards)} cards currently in the recycle
-            window.
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>New Cards</CardDescription>
-            <CardTitle className="text-2xl">
-              {formatNumber(growth.createdLastSevenDays)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
-            Created in the past 7 days (
-            {formatNumber(growth.createdLastThirtyDays)} in 30 days).
-          </CardContent>
-        </Card>
-      </div>
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {headlineCards.map((stat) => (
+            <Card key={stat.title} className="h-full">
+              <CardHeader>
+                <CardDescription>{stat.title}</CardDescription>
+                <CardTitle className="text-2xl">{stat.value}</CardTitle>
+              </CardHeader>
+              <CardContent className="text-xs text-muted-foreground">
+                {stat.description}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Card Types</CardTitle>
-            <CardDescription>
-              Distribution of cards by their primary format.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {cardsByTypeEntries.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                No cards available yet.
-              </p>
-            )}
-            <div className="flex flex-wrap gap-2">
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Card Types</CardTitle>
+              <CardDescription>
+                Distribution of cards by their primary format.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {cardsByTypeEntries.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No cards available yet.
+                </p>
+              )}
               {cardsByTypeEntries.map(([type, count]) => (
                 <div
                   key={type}
-                  className="flex items-center justify-between rounded-md border border-border/60 px-2 py-2 gap-3"
+                  className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2"
                 >
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary" className="capitalize">
@@ -358,44 +413,39 @@ export default function AdminPage() {
                   </span>
                 </div>
               ))}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Metadata Status</CardTitle>
-            <CardDescription>
-              AI extraction pipeline outcomes for active cards.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Completed</span>
-              <span className="font-medium">
-                {formatNumber(metadataCounts.completed)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Pending</span>
-              <span className="font-medium">
-                {formatNumber(metadataCounts.pending)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Failed</span>
-              <span className="font-medium">
-                {formatNumber(metadataCounts.failed)}
-              </span>
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Not yet processed</span>
-              <span className="font-medium">
-                {formatNumber(metadataCounts.unset)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Metadata Status</CardTitle>
+              <CardDescription>
+                AI extraction pipeline outcomes for active cards.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {metadataItems.map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <span className="text-muted-foreground">{item.label}</span>
+                  <span className="font-medium">
+                    {formatNumber(item.value)}
+                  </span>
+                </div>
+              ))}
+              <Separator />
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Total tracked</span>
+                <span className="font-medium">
+                  {formatNumber(
+                    metadataItems.reduce((sum, item) => sum + item.value, 0)
+                  )}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <Card>
@@ -432,14 +482,12 @@ export default function AdminPage() {
               Pipeline stage breakdown
             </p>
             <div className="grid gap-2 md:grid-cols-2">
-              {stageEntries.map(([key, summary]) => (
+              {stageList.map(({ key, label, summary }) => (
                 <div
                   key={key}
                   className="rounded-md border border-border/60 px-3 py-2"
                 >
-                  <p className="text-sm font-medium">
-                    {stageLabelMap[key] ?? key}
-                  </p>
+                  <p className="text-sm font-medium">{label}</p>
                   <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
                     <div>
                       <p className="text-muted-foreground">Pending</p>
@@ -482,63 +530,69 @@ export default function AdminPage() {
               All cards are enriched. Great job!
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[120px]">Card</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Metadata</TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    Pipeline Status
-                  </TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {missingCards.map((card) => (
-                  <TableRow key={card.cardId}>
-                    <TableCell className="font-mono text-xs">
-                      {card.cardId.slice(0, 8)}…
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="capitalize">
-                        {card.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(card.createdAt).toLocaleString(undefined, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })}
-                    </TableCell>
-                    <TableCell className="capitalize">
-                      {card.metadataStatus ?? "unset"}
-                    </TableCell>
-                    <TableCell className="hidden text-xs md:table-cell text-muted-foreground">
-                      {formatProcessingSummary(card.processingStatus)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleCardRetry(card.cardId)}
-                        disabled={retryingCardId === card.cardId}
-                      >
-                        {retryingCardId === card.cardId ? (
-                          <span className="inline-flex items-center gap-1">
-                            <Loader2 className="size-3 animate-spin" />
-                            Retrying…
-                          </span>
-                        ) : (
-                          "Retry"
-                        )}
-                      </Button>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[120px]">Card</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Metadata</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Pipeline Status
+                    </TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {missingCards.map((card) => (
+                    <TableRow key={card.cardId}>
+                      <TableCell className="font-mono text-xs">
+                        {card.cardId.slice(0, 8)}…
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="capitalize">
+                          {card.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(card.createdAt).toLocaleString(undefined, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}
+                      </TableCell>
+                      <TableCell className="capitalize">
+                        {card.metadataStatus ?? "unset"}
+                      </TableCell>
+                      <TableCell className="hidden text-xs md:table-cell text-muted-foreground">
+                        {formatProcessingSummary(card.processingStatus)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCardRetry(card.cardId)}
+                          disabled={retryingCardId === card.cardId}
+                        >
+                          {retryingCardId === card.cardId ? (
+                            <span className="inline-flex items-center gap-1">
+                              <Loader2 className="size-3 animate-spin" />
+                              Retrying…
+                            </span>
+                          ) : (
+                            "Retry"
+                          )}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                Recent cards without AI metadata are listed above. Use the retry
+                action to requeue processing without exposing user content.
+              </p>
+            </>
           )}
         </CardContent>
       </Card>
