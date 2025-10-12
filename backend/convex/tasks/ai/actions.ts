@@ -389,8 +389,8 @@ export const startProcessingPipeline = internalAction({
     cardId: v.id("cards"),
     classificationRequired: v.optional(v.boolean()),
   },
-  handler: async (ctx, { cardId, classificationRequired }) => {
-    const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
+  handler: async (ctx, { cardId, classificationRequired: _classificationRequired }) => {
+    let card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
       cardId,
     });
 
@@ -399,12 +399,24 @@ export const startProcessingPipeline = internalAction({
       return;
     }
 
-    let processing = card.processingStatus as ProcessingStatus | undefined;
-    if (!processing) {
-      processing = await ensureProcessingStatus(ctx, card, {
-        classificationFallback: classificationRequired ? "pending" : "completed",
-      });
-    }
+    await ctx.runMutation(internal.tasks.ai.mutations.resetCardAI, {
+      cardId,
+      metadataStatus: "pending",
+    });
+
+    card = {
+      ...card,
+      aiTags: undefined,
+      aiSummary: undefined,
+      aiTranscript: undefined,
+      aiModelMeta: undefined,
+      metadataStatus: "pending",
+      processingStatus: undefined,
+    };
+
+    const processing = await ensureProcessingStatus(ctx, card, {
+      classificationFallback: "pending",
+    });
 
     await scheduleNextStage(ctx, cardId, processing);
   },

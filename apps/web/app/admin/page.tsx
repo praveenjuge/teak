@@ -190,6 +190,10 @@ export default function AdminPage() {
     };
   }, [overview?.metadataStatus]);
 
+  const [pendingRetries, setPendingRetries] = useState<Record<string, number>>(
+    {}
+  );
+
   const formatProcessingSummary = (
     processingStatus?: PipelineProcessingStatus
   ) => {
@@ -213,6 +217,10 @@ export default function AdminPage() {
       return;
     }
     setRetryingCardId(cardId);
+    setPendingRetries((prev) => ({
+      ...prev,
+      [cardId]: (prev[cardId] ?? 0) + 1,
+    }));
     try {
       const result = await retryCardEnrichment({
         cardId: cardId as RetryArgs["cardId"],
@@ -236,6 +244,12 @@ export default function AdminPage() {
       });
     } finally {
       setRetryingCardId(null);
+      setTimeout(() => {
+        setPendingRetries((prev) => {
+          const { [cardId]: _, ...rest } = prev;
+          return rest;
+        });
+      }, 2000);
     }
   };
 
@@ -564,25 +578,34 @@ export default function AdminPage() {
                       <TableCell className="capitalize">
                         {card.metadataStatus ?? "unset"}
                       </TableCell>
-                      <TableCell className="hidden text-xs md:table-cell text-muted-foreground w-40">
-                        {formatProcessingSummary(card.processingStatus)}
+                      <TableCell className="hidden text-xs md:table-cell text-muted-foreground w-48">
+                        {pendingRetries[card.cardId]
+                          ? "Restart queued…"
+                          : formatProcessingSummary(card.processingStatus)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleCardRetry(card.cardId)}
-                          disabled={retryingCardId === card.cardId}
-                        >
-                          {retryingCardId === card.cardId ? (
-                            <span className="inline-flex items-center gap-1">
-                              <Loader2 className="size-3 animate-spin" />
-                              Retrying…
-                            </span>
-                          ) : (
-                            "Retry"
-                          )}
-                        </Button>
+                        {pendingRetries[card.cardId] ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                            <Loader2 className="size-3 animate-spin" />
+                            Refreshing
+                          </span>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCardRetry(card.cardId)}
+                            disabled={retryingCardId === card.cardId}
+                          >
+                            {retryingCardId === card.cardId ? (
+                              <span className="inline-flex items-center gap-1">
+                                <Loader2 className="size-3 animate-spin" />
+                                Retrying…
+                              </span>
+                            ) : (
+                              "Retry"
+                            )}
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
