@@ -28,6 +28,7 @@
     "convex": "^1.27.5",
     "convex-helpers": "^0.1.104",
     "date-fns": "^4.1.0",
+    "linkedom": "^0.18.12",
     "lucide-react": "^0.545.0",
     "next": "beta",
     "next-themes": "^0.4.6",
