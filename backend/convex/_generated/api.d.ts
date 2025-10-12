@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
 import type * as cards from "../cards.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
@@ -61,6 +62,7 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
   cards: typeof cards;
   crons: typeof crons;
   http: typeof http;
