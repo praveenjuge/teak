@@ -33,6 +33,30 @@ export const updateCardAI = internalMutation({
   },
 });
 
+export const resetCardAI = internalMutation({
+  args: {
+    cardId: v.id("cards"),
+    metadataStatus: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("completed"),
+        v.literal("failed")
+      )
+    ),
+  },
+  handler: async (ctx, { cardId, metadataStatus }) => {
+    await ctx.db.patch(cardId, {
+      aiTags: undefined,
+      aiSummary: undefined,
+      aiTranscript: undefined,
+      aiModelMeta: undefined,
+      metadataStatus: metadataStatus ?? "pending",
+      processingStatus: undefined,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
 export const updateCardProcessing = internalMutation({
   args: {
     cardId: v.id("cards"),
