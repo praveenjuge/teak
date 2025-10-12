@@ -68,15 +68,6 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
   // Card actions
   const cardActions = useCardActions();
 
-  const classificationStatus = card.processingStatus?.classify?.status;
-  const categorizeStatus = card.processingStatus?.categorize?.status;
-  const isClassifying =
-    classificationStatus === "pending" ||
-    classificationStatus === "in_progress";
-  const isCategorizing =
-    categorizeStatus === "pending" || categorizeStatus === "in_progress";
-  const isAnalyzing = isClassifying || isCategorizing;
-
   const dynamicStyles = {
     card: {
       backgroundColor: colors.background,
@@ -147,16 +138,6 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
 
   // Render content based on card type
   const renderCardContent = () => {
-    if (isAnalyzing) {
-      return (
-        <View style={[styles.card, dynamicStyles.card, styles.pendingCard]}>
-          <Text style={[styles.pendingText, dynamicStyles.mutedText]}>
-            Analyzing...
-          </Text>
-        </View>
-      );
-    }
-
     switch (card.type) {
       case "image": {
         if (!mediaUrl) {
@@ -415,15 +396,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
-  },
-  pendingCard: {
-    padding: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pendingText: {
-    fontSize: 13,
-    fontWeight: "500",
   },
   cardPadding: {
     padding: 16,

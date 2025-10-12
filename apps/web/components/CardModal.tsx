@@ -17,7 +17,6 @@ import {
   File,
   Palette,
   Quote,
-  Loader2,
   Info,
   Tag,
   Edit,
@@ -125,29 +124,6 @@ export function CardModal({
 
   const renderPreview = () => {
     if (!card) return null;
-
-    const stagePending = (stage?: { status?: string }) =>
-      stage?.status === "pending" || stage?.status === "in_progress";
-
-    const processingStatus = card.processingStatus;
-    // Only wait for AI classification and categorization to complete
-    // Don't wait for metadata extraction or thumbnail generation (renderables)
-    const isAIProcessingPending =
-      stagePending(processingStatus?.classify) ||
-      stagePending(processingStatus?.categorize);
-
-    const isAnalyzing = isAIProcessingPending;
-
-    if (isAnalyzing) {
-      return (
-        <div className="flex h-full items-center justify-center text-muted-foreground">
-          <div className="flex flex-col items-center gap-2">
-            <Loader2 className="size-4 animate-spin" />
-            <span className="font-medium">Analyzing...</span>
-          </div>
-        </div>
-      );
-    }
 
     switch (card.type) {
       case "text":
