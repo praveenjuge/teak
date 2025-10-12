@@ -1,9 +1,6 @@
 {
   "name": "teak-monorepo",
   "version": "0.0.1",
-  "workspaces": [
-    "backend"
-  ],
   "scripts": {
     "build": "cd apps/web && bun run build",
     "build:extension": "cd apps/extension && bun run build",
