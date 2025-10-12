@@ -564,7 +564,7 @@ export default function AdminPage() {
                       <TableCell className="capitalize">
                         {card.metadataStatus ?? "unset"}
                       </TableCell>
-                      <TableCell className="hidden text-xs md:table-cell text-muted-foreground">
+                      <TableCell className="hidden text-xs md:table-cell text-muted-foreground w-40">
                         {formatProcessingSummary(card.processingStatus)}
                       </TableCell>
                       <TableCell className="text-right">
