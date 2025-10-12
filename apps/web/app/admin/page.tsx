@@ -1,0 +1,564 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAction, useQuery } from "convex/react";
+import { api } from "@teak/convex";
+import { useUser } from "@clerk/nextjs";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+type StageSummary = {
+  pending: number;
+  inProgress: number;
+  failed: number;
+};
+
+type OverviewResponse = {
+  generatedAt: number;
+  totals: {
+    totalCards: number;
+    activeCards: number;
+    deletedCards: number;
+    uniqueUsers: number;
+  };
+  growth: {
+    createdLastSevenDays: number;
+    createdLastThirtyDays: number;
+  };
+  cardsByType: Record<string, number>;
+  metadataStatus: Record<string, number>;
+  aiPipeline: {
+    missingAiMetadata: number;
+    pendingEnrichment: number;
+    failedCards: number;
+    stageSummaries: Record<string, StageSummary>;
+    missingCards: Array<Record<string, unknown>>;
+  };
+};
+
+const stageLabelMap: Record<string, string> = {
+  classify: "Classification",
+  categorize: "Categorization",
+  metadata: "Metadata",
+  renderables: "Renderables",
+};
+
+type ConvexCardId = string & { __tableName?: "cards" };
+
+type PipelineStageStatus = {
+  status?: "pending" | "in_progress" | "completed" | "failed";
+};
+
+type PipelineProcessingStatus = Record<string, PipelineStageStatus | undefined>;
+
+type MissingCard = {
+  cardId: ConvexCardId;
+  type: string;
+  createdAt: number;
+  metadataStatus?: "pending" | "completed" | "failed";
+  processingStatus?: PipelineProcessingStatus;
+};
+
+const formatNumber = (value: number) =>
+  Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+
+const STAGE_ORDER = [
+  "classify",
+  "categorize",
+  "metadata",
+  "renderables",
+] as const;
+
+const MAX_PENDING_COUNT = 50;
+
+export default function AdminPage() {
+  const router = useRouter();
+  const { user, isLoaded } = useUser();
+  const shouldCheckAccess = isLoaded && !!user?.id;
+
+  useEffect(() => {
+    if (isLoaded && !user) {
+      router.replace("/");
+    }
+  }, [isLoaded, router, user]);
+
+  const access = useQuery(
+    api.admin.getAccess,
+    shouldCheckAccess ? {} : "skip"
+  ) as { allowed: boolean } | undefined;
+
+  const isAdmin = access?.allowed === true;
+
+  useEffect(() => {
+    if (isLoaded && access && access.allowed === false) {
+      router.replace("/");
+    }
+  }, [access, isLoaded, router]);
+
+  const overview = useQuery(api.admin.getOverview, isAdmin ? {} : "skip") as
+    | OverviewResponse
+    | undefined;
+
+  const retryCardEnrichment = useAction(api.admin.retryCardEnrichment);
+  type RetryArgs = Parameters<typeof retryCardEnrichment>[0];
+  const [retryingCardId, setRetryingCardId] = useState<string | null>(null);
+
+  const pipelineSummary = useMemo(() => {
+    const summary = (overview?.aiPipeline ?? {}) as Partial<{
+      missingAiMetadata: number;
+      pendingEnrichment: number;
+      failedCards: number;
+      stageSummaries: Record<string, StageSummary>;
+      missingCards: Array<Record<string, unknown>>;
+    }>;
+
+    const cards = Array.isArray(summary.missingCards)
+      ? summary.missingCards
+          .map((card: Record<string, unknown>): MissingCard | null => {
+            const rawId = card.cardId;
+            const normalizedIdString =
+              typeof rawId === "string"
+                ? rawId
+                : rawId != null
+                  ? String(rawId)
+                  : "";
+
+            if (!normalizedIdString) {
+              return null;
+            }
+
+            return {
+              cardId: normalizedIdString as ConvexCardId,
+              type: typeof card.type === "string" ? card.type : "unknown",
+              createdAt: Number(card.createdAt ?? 0),
+              metadataStatus:
+                (card.metadataStatus as MissingCard["metadataStatus"]) ??
+                undefined,
+              processingStatus:
+                card.processingStatus as PipelineProcessingStatus,
+            };
+          })
+          .filter((card): card is MissingCard => card !== null)
+      : [];
+
+    return {
+      missingAiMetadata: Number(summary.missingAiMetadata ?? 0),
+      pendingEnrichment: Number(summary.pendingEnrichment ?? 0),
+      failedCards: Number(summary.failedCards ?? 0),
+      stageSummaries: (summary.stageSummaries ?? {}) as Record<
+        string,
+        StageSummary
+      >,
+      missingCards: cards,
+    };
+  }, [overview?.aiPipeline]);
+
+  const formatProcessingSummary = (
+    processingStatus?: PipelineProcessingStatus
+  ) => {
+    if (!processingStatus) {
+      return "Not started";
+    }
+
+    const parts = STAGE_ORDER.map((key) => {
+      const status = processingStatus[key]?.status;
+      if (!status) {
+        return null;
+      }
+      return `${stageLabelMap[key] ?? key}: ${status.replace(/_/g, " ")}`;
+    }).filter(Boolean);
+
+    return parts.length > 0 ? parts.join(" • ") : "Queued";
+  };
+
+  const handleCardRetry = async (cardId: string) => {
+    if (retryingCardId) {
+      return;
+    }
+    setRetryingCardId(cardId);
+    try {
+      const result = await retryCardEnrichment({
+        cardId: cardId as RetryArgs["cardId"],
+      });
+      if (result.success) {
+        toast.success("AI enrichment queued", {
+          description: `Pipeline restarted for card ${cardId.slice(0, 8)}…`,
+        });
+      } else {
+        toast.error("Unable to enqueue enrichment", {
+          description:
+            result.reason === "not_found"
+              ? "That card no longer exists."
+              : "Please try again shortly.",
+        });
+      }
+    } catch (error) {
+      toast.error("Failed to trigger AI enrichment", {
+        description:
+          error instanceof Error ? error.message : "Unknown error occurred.",
+      });
+    } finally {
+      setRetryingCardId(null);
+    }
+  };
+
+  if (!isLoaded || (shouldCheckAccess && access === undefined)) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          <span>Loading admin overview…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          <span>Redirecting…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!overview) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          <span>Fetching metrics…</span>
+        </div>
+      </div>
+    );
+  }
+
+  const { totals, growth, cardsByType, metadataStatus, generatedAt } = overview;
+
+  const typedCardsByType = (cardsByType || {}) as Record<string, number>;
+  const cardsByTypeEntries = Object.entries(typedCardsByType).sort(
+    (a, b) => (b[1] ?? 0) - (a[1] ?? 0)
+  );
+
+  const metadataCounts = {
+    completed: Number(
+      (metadataStatus as Record<string, number> | undefined)?.completed ?? 0
+    ),
+    pending: Number(
+      (metadataStatus as Record<string, number> | undefined)?.pending ?? 0
+    ),
+    failed: Number(
+      (metadataStatus as Record<string, number> | undefined)?.failed ?? 0
+    ),
+    unset: Number(
+      (metadataStatus as Record<string, number> | undefined)?.unset ?? 0
+    ),
+  };
+
+  const {
+    missingAiMetadata,
+    pendingEnrichment,
+    failedCards,
+    stageSummaries,
+    missingCards,
+  } = pipelineSummary;
+
+  const stageEntries = Object.entries(stageSummaries);
+
+  return (
+    <div className="container mx-auto max-w-5xl space-y-8 py-8 px-4 md:px-6">
+      <div className="space-y-2">
+        <h1 className="text-lg font-semibold text-foreground">
+          Admin Control Center
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          High-level health metrics about Teak. All data is aggregated—no
+          personal user information is surfaced here.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Updated{" "}
+          {new Date(generatedAt).toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })}
+          .
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardDescription>Total Cards</CardDescription>
+            <CardTitle className="text-2xl">
+              {formatNumber(totals.totalCards)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-muted-foreground">
+            Across {formatNumber(totals.uniqueUsers)} active user
+            {totals.uniqueUsers === 1 ? "" : "s"}.
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>Active vs Deleted</CardDescription>
+            <CardTitle className="text-2xl">
+              {formatNumber(totals.activeCards)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-muted-foreground">
+            {formatNumber(totals.deletedCards)} cards currently in the recycle
+            window.
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>New Cards</CardDescription>
+            <CardTitle className="text-2xl">
+              {formatNumber(growth.createdLastSevenDays)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-muted-foreground">
+            Created in the past 7 days (
+            {formatNumber(growth.createdLastThirtyDays)} in 30 days).
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Card Types</CardTitle>
+            <CardDescription>
+              Distribution of cards by their primary format.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {cardsByTypeEntries.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No cards available yet.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {cardsByTypeEntries.map(([type, count]) => (
+                <div
+                  key={type}
+                  className="flex items-center justify-between rounded-md border border-border/60 px-2 py-2 gap-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="capitalize">
+                      {type}
+                    </Badge>
+                  </div>
+                  <span className="text-sm font-medium">
+                    {formatNumber(count)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Metadata Status</CardTitle>
+            <CardDescription>
+              AI extraction pipeline outcomes for active cards.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Completed</span>
+              <span className="font-medium">
+                {formatNumber(metadataCounts.completed)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Pending</span>
+              <span className="font-medium">
+                {formatNumber(metadataCounts.pending)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Failed</span>
+              <span className="font-medium">
+                {formatNumber(metadataCounts.failed)}
+              </span>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Not yet processed</span>
+              <span className="font-medium">
+                {formatNumber(metadataCounts.unset)}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-base">AI Enrichment Health</CardTitle>
+          <CardDescription>
+            Track enrichment backlog and spot stuck pipeline stages.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-md border border-border/60 p-3">
+              <p className="text-xs text-muted-foreground">Missing metadata</p>
+              <p className="text-xl font-semibold">
+                {formatNumber(missingAiMetadata)}
+              </p>
+            </div>
+            <div className="rounded-md border border-border/60 p-3">
+              <p className="text-xs text-muted-foreground">In progress</p>
+              <p className="text-xl font-semibold">
+                {formatNumber(pendingEnrichment)}
+              </p>
+            </div>
+            <div className="rounded-md border border-border/60 p-3">
+              <p className="text-xs text-muted-foreground">Needs attention</p>
+              <p className="text-xl font-semibold">
+                {formatNumber(failedCards)}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Pipeline stage breakdown
+            </p>
+            <div className="grid gap-2 md:grid-cols-2">
+              {stageEntries.map(([key, summary]) => (
+                <div
+                  key={key}
+                  className="rounded-md border border-border/60 px-3 py-2"
+                >
+                  <p className="text-sm font-medium">
+                    {stageLabelMap[key] ?? key}
+                  </p>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Pending</p>
+                      <p className="font-semibold">
+                        {formatNumber(summary.pending)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">In progress</p>
+                      <p className="font-semibold">
+                        {formatNumber(summary.inProgress)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Failed</p>
+                      <p className="font-semibold">
+                        {formatNumber(summary.failed)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-base">
+            Cards Pending AI Enrichment
+          </CardTitle>
+          <CardDescription>
+            Showing up to {MAX_PENDING_COUNT} cards awaiting enrichment.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {missingCards.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              All cards are enriched. Great job!
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[120px]">Card</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Metadata</TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    Pipeline Status
+                  </TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {missingCards.map((card) => (
+                  <TableRow key={card.cardId}>
+                    <TableCell className="font-mono text-xs">
+                      {card.cardId.slice(0, 8)}…
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="capitalize">
+                        {card.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(card.createdAt).toLocaleString(undefined, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </TableCell>
+                    <TableCell className="capitalize">
+                      {card.metadataStatus ?? "unset"}
+                    </TableCell>
+                    <TableCell className="hidden text-xs md:table-cell text-muted-foreground">
+                      {formatProcessingSummary(card.processingStatus)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCardRetry(card.cardId)}
+                        disabled={retryingCardId === card.cardId}
+                      >
+                        {retryingCardId === card.cardId ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Loader2 className="size-3 animate-spin" />
+                            Retrying…
+                          </span>
+                        ) : (
+                          "Retry"
+                        )}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
