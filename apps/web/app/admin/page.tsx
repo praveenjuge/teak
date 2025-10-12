@@ -46,13 +46,23 @@ type OverviewResponse = {
   };
   cardsByType: Record<string, number>;
   metadataStatus: Record<string, number>;
-  aiPipeline: {
-    missingAiMetadata: number;
-    pendingEnrichment: number;
-    failedCards: number;
-    stageSummaries: Record<string, StageSummary>;
-    missingCards: Array<Record<string, unknown>>;
-  };
+  aiPipeline: RawPipelineSummary;
+};
+
+type RawPipelineSummary = {
+  missingAiMetadata?: number;
+  pendingEnrichment?: number;
+  failedCards?: number;
+  stageSummaries?: Record<string, StageSummary>;
+  missingCards?: unknown;
+};
+
+type NormalizedPipelineSummary = {
+  missingAiMetadata: number;
+  pendingEnrichment: number;
+  failedCards: number;
+  stageSummaries: Record<string, StageSummary>;
+  missingCards: MissingCard[];
 };
 
 const stageLabelMap: Record<string, string> = {
@@ -62,8 +72,6 @@ const stageLabelMap: Record<string, string> = {
   renderables: "Renderables",
 };
 
-type ConvexCardId = string & { __tableName?: "cards" };
-
 type PipelineStageStatus = {
   status?: "pending" | "in_progress" | "completed" | "failed";
 };
@@ -71,7 +79,7 @@ type PipelineStageStatus = {
 type PipelineProcessingStatus = Record<string, PipelineStageStatus | undefined>;
 
 type MissingCard = {
-  cardId: ConvexCardId;
+  cardId: string;
   type: string;
   createdAt: number;
   metadataStatus?: "pending" | "completed" | "failed";
@@ -122,32 +130,23 @@ export default function AdminPage() {
   type RetryArgs = Parameters<typeof retryCardEnrichment>[0];
   const [retryingCardId, setRetryingCardId] = useState<string | null>(null);
 
-  const pipelineSummary = useMemo(() => {
-    const summary = (overview?.aiPipeline ?? {}) as Partial<{
-      missingAiMetadata: number;
-      pendingEnrichment: number;
-      failedCards: number;
-      stageSummaries: Record<string, StageSummary>;
-      missingCards: Array<Record<string, unknown>>;
-    }>;
-
-    const cards = Array.isArray(summary.missingCards)
-      ? summary.missingCards
-          .map((card: Record<string, unknown>): MissingCard | null => {
+  const pipelineSummary = useMemo<NormalizedPipelineSummary>(() => {
+    const summary = (overview?.aiPipeline ?? {}) as RawPipelineSummary;
+    const missingCards = Array.isArray(summary.missingCards)
+      ? (summary.missingCards as Array<Record<string, unknown>>)
+          .map((card): MissingCard | null => {
             const rawId = card.cardId;
-            const normalizedIdString =
+            const id =
               typeof rawId === "string"
                 ? rawId
                 : rawId != null
-                  ? String(rawId)
-                  : "";
-
-            if (!normalizedIdString) {
+                ? String(rawId)
+                : "";
+            if (!id) {
               return null;
             }
-
             return {
-              cardId: normalizedIdString as ConvexCardId,
+              cardId: id,
               type: typeof card.type === "string" ? card.type : "unknown",
               createdAt: Number(card.createdAt ?? 0),
               metadataStatus:
@@ -164,13 +163,29 @@ export default function AdminPage() {
       missingAiMetadata: Number(summary.missingAiMetadata ?? 0),
       pendingEnrichment: Number(summary.pendingEnrichment ?? 0),
       failedCards: Number(summary.failedCards ?? 0),
-      stageSummaries: (summary.stageSummaries ?? {}) as Record<
-        string,
-        StageSummary
-      >,
-      missingCards: cards,
-    };
+      stageSummaries: (summary.stageSummaries ??
+        {}) as Record<string, StageSummary>,
+      missingCards,
+    } satisfies NormalizedPipelineSummary;
   }, [overview?.aiPipeline]);
+
+  const cardsByTypeEntries = useMemo(
+    () =>
+      Object.entries(overview?.cardsByType ?? {}).sort(
+        (a, b) => (b[1] ?? 0) - (a[1] ?? 0)
+      ),
+    [overview?.cardsByType]
+  );
+
+  const metadataCounts = useMemo(() => {
+    const counts = overview?.metadataStatus ?? {};
+    return {
+      completed: Number(counts.completed ?? 0),
+      pending: Number(counts.pending ?? 0),
+      failed: Number(counts.failed ?? 0),
+      unset: Number(counts.unset ?? 0),
+    };
+  }, [overview?.metadataStatus]);
 
   const formatProcessingSummary = (
     processingStatus?: PipelineProcessingStatus
@@ -221,60 +236,28 @@ export default function AdminPage() {
     }
   };
 
-  if (!isLoaded || (shouldCheckAccess && access === undefined)) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          <span>Loading admin overview…</span>
-        </div>
+  const renderLoading = (message: string) => (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" />
+        <span>{message}</span>
       </div>
-    );
+    </div>
+  );
+
+  if (!isLoaded || (shouldCheckAccess && access === undefined)) {
+    return renderLoading("Loading admin overview…");
   }
 
   if (!isAdmin) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          <span>Redirecting…</span>
-        </div>
-      </div>
-    );
+    return renderLoading("Redirecting…");
   }
 
   if (!overview) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          <span>Fetching metrics…</span>
-        </div>
-      </div>
-    );
+    return renderLoading("Fetching metrics…");
   }
 
-  const { totals, growth, cardsByType, metadataStatus, generatedAt } = overview;
-
-  const typedCardsByType = (cardsByType || {}) as Record<string, number>;
-  const cardsByTypeEntries = Object.entries(typedCardsByType).sort(
-    (a, b) => (b[1] ?? 0) - (a[1] ?? 0)
-  );
-
-  const metadataCounts = {
-    completed: Number(
-      (metadataStatus as Record<string, number> | undefined)?.completed ?? 0
-    ),
-    pending: Number(
-      (metadataStatus as Record<string, number> | undefined)?.pending ?? 0
-    ),
-    failed: Number(
-      (metadataStatus as Record<string, number> | undefined)?.failed ?? 0
-    ),
-    unset: Number(
-      (metadataStatus as Record<string, number> | undefined)?.unset ?? 0
-    ),
-  };
+  const { totals, growth, generatedAt } = overview;
 
   const {
     missingAiMetadata,
