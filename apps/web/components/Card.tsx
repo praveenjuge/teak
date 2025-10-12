@@ -3,7 +3,6 @@ import {
   ExternalLink,
   File,
   Heart,
-  Loader2,
   RotateCcw,
   Trash,
   Trash2,
@@ -102,18 +101,6 @@ export function Card({
     onEnterSelectionMode?.(card._id);
   };
 
-  const stagePending = (stage?: { status?: string }) =>
-    stage?.status === "pending" || stage?.status === "in_progress";
-
-  const processingStatus = card.processingStatus;
-  // Only wait for AI classification and categorization to complete
-  // Don't wait for metadata extraction or thumbnail generation (renderables)
-  const isAIProcessingPending =
-    stagePending(processingStatus?.classify) ||
-    stagePending(processingStatus?.categorize);
-
-  const isAnalyzing = isAIProcessingPending;
-
   const linkPreview =
     card.metadata?.linkPreview?.status === "success"
       ? card.metadata.linkPreview
@@ -176,115 +163,104 @@ export function Card({
           )}
 
           <CardContent className="p-0 space-y-2">
-            {isAnalyzing && (
-              <div className="p-4 rounded-xl border bg-card flex flex-col items-center justify-center gap-1 text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                <span className="font-medium">Analyzing...</span>
+            {card.type === "text" && (
+              <div className="p-4 rounded-xl border bg-card">
+                <p className="line-clamp-2 font-medium">{card.content}</p>
               </div>
             )}
 
-            {!isAnalyzing && (
+            {card.type === "quote" && (
+              <div className="py-4 px-6 rounded-xl border bg-card">
+                <div className="relative">
+                  <p className="line-clamp-2 font-medium italic leading-relaxed text-center text-balance">
+                    {card.content}
+                  </p>
+                  <div className="absolute select-none pointer-events-none -left-4 -top-3.5 text-4xl text-muted-foreground/20 leading-none font-serif">
+                    &ldquo;
+                  </div>
+                  <div className="absolute select-none pointer-events-none -right-4 -bottom-7 text-4xl text-muted-foreground/20 leading-none font-serif">
+                    &rdquo;
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {card.type === "link" && (
               <>
-                {card.type === "text" && (
-                  <div className="p-4 rounded-xl border bg-card">
-                    <p className="line-clamp-2 font-medium">{card.content}</p>
-                  </div>
-                )}
-
-                {card.type === "quote" && (
-                  <div className="py-4 px-6 rounded-xl border bg-card">
-                    <div className="relative">
-                      <p className="line-clamp-2 font-medium italic leading-relaxed text-center text-balance">
-                        {card.content}
-                      </p>
-                      <div className="absolute select-none pointer-events-none -left-4 -top-3.5 text-4xl text-muted-foreground/20 leading-none font-serif">
-                        &ldquo;
-                      </div>
-                      <div className="absolute select-none pointer-events-none -right-4 -bottom-7 text-4xl text-muted-foreground/20 leading-none font-serif">
-                        &rdquo;
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {card.type === "link" && (
+                {displayLinkImage ? (
                   <>
-                    {displayLinkImage ? (
-                      <>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={displayLinkImage}
-                          alt=""
-                          className="w-full h-28 object-cover bg-card rounded-xl border"
-                          onError={handleLinkImageError}
-                        />
-                        <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
-                          {linkCardTitle}
-                        </h4>
-                      </>
-                    ) : (
-                      <div className="p-4 bg-card rounded-xl border">
-                        <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
-                          {linkCardTitle}
-                        </h4>
-                      </div>
-                    )}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={displayLinkImage}
+                      alt=""
+                      className="w-full h-28 object-cover bg-card rounded-xl border"
+                      onError={handleLinkImageError}
+                    />
+                    <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
+                      {linkCardTitle}
+                    </h4>
                   </>
-                )}
-
-                {card.type === "image" && (
-                  <GridImagePreview
-                    fileId={card.fileId}
-                    thumbnailId={card.thumbnailId}
-                    altText={card.content}
-                    width={card.fileMetadata?.width}
-                    height={card.fileMetadata?.height}
-                  />
-                )}
-
-                {card.type === "video" && (
-                  <div className="w-full h-32 flex items-center justify-center bg-card text-muted-foreground rounded-xl border">
-                    <Video />
-                  </div>
-                )}
-
-                {card.type === "audio" && (
-                  <div className="flex h-14 items-center justify-between space-x-0.5 px-4 py-2 bg-card rounded-xl border">
-                    {Array.from({ length: AUDIO_WAVE_BARS }).map((_, i) => (
-                      <div
-                        className="rounded-full bg-muted-foreground"
-                        key={i}
-                        style={{
-                          width: `${AUDIO_WAVE_BAR_WIDTH_PX}px`,
-                          height: getAudioWaveHeight(card._id, i),
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {card.type === "document" && (
-                  <div className="p-4 flex gap-2 items-center bg-card rounded-xl border">
-                    <File className="shrink-0 size-4 text-muted-foreground" />
-                    <span className="truncate font-medium">
-                      {card.fileMetadata?.fileName || card.content}
-                    </span>
-                  </div>
-                )}
-
-                {card.type === "palette" && (
-                  <div className="flex bg-card rounded-xl border overflow-hidden">
-                    {card.colors?.slice(0, 12).map((color, index) => (
-                      <div
-                        key={`${color.hex}-${index}`}
-                        className="h-14 flex-1 min-w-0"
-                        style={{ backgroundColor: color.hex }}
-                        title={color.hex}
-                      />
-                    ))}
+                ) : (
+                  <div className="p-4 bg-card rounded-xl border">
+                    <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
+                      {linkCardTitle}
+                    </h4>
                   </div>
                 )}
               </>
+            )}
+
+            {card.type === "image" && (
+              <GridImagePreview
+                fileId={card.fileId}
+                thumbnailId={card.thumbnailId}
+                altText={card.content}
+                width={card.fileMetadata?.width}
+                height={card.fileMetadata?.height}
+              />
+            )}
+
+            {card.type === "video" && (
+              <div className="w-full h-32 flex items-center justify-center bg-card text-muted-foreground rounded-xl border">
+                <Video />
+              </div>
+            )}
+
+            {card.type === "audio" && (
+              <div className="flex h-14 items-center justify-between space-x-0.5 px-4 py-2 bg-card rounded-xl border">
+                {Array.from({ length: AUDIO_WAVE_BARS }).map((_, i) => (
+                  <div
+                    className="rounded-full bg-muted-foreground"
+                    key={i}
+                    style={{
+                      width: `${AUDIO_WAVE_BAR_WIDTH_PX}px`,
+                      height: getAudioWaveHeight(card._id, i),
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {card.type === "document" && (
+              <div className="p-4 flex gap-2 items-center bg-card rounded-xl border">
+                <File className="shrink-0 size-4 text-muted-foreground" />
+                <span className="truncate font-medium">
+                  {card.fileMetadata?.fileName || card.content}
+                </span>
+              </div>
+            )}
+
+            {card.type === "palette" && (
+              <div className="flex bg-card rounded-xl border overflow-hidden">
+                {card.colors?.slice(0, 12).map((color, index) => (
+                  <div
+                    key={`${color.hex}-${index}`}
+                    className="h-14 flex-1 min-w-0"
+                    style={{ backgroundColor: color.hex }}
+                    title={color.hex}
+                  />
+                ))}
+              </div>
             )}
           </CardContent>
         </UICard>
