@@ -85,6 +85,7 @@ type MissingCard = {
   createdAt: number;
   metadataStatus?: "pending" | "completed" | "failed";
   processingStatus?: PipelineProcessingStatus;
+  reasons: string[];
 };
 
 const formatNumber = (value: number) =>
@@ -155,6 +156,13 @@ export default function AdminPage() {
                 undefined,
               processingStatus:
                 card.processingStatus as PipelineProcessingStatus,
+              reasons: Array.isArray(card.reasons)
+                ? (card.reasons as unknown[])
+                    .map((reason) =>
+                      typeof reason === "string" ? reason : String(reason)
+                    )
+                    .filter((reason) => reason.trim().length > 0)
+                : [],
             };
           })
           .filter((card): card is MissingCard => card !== null)
@@ -168,7 +176,10 @@ export default function AdminPage() {
         string,
         StageSummary
       >,
-      missingCards,
+      missingCards: missingCards.map((card) => ({
+        ...card,
+        reasons: card.reasons.length > 0 ? card.reasons : ["Unknown reason"],
+      })),
     } satisfies NormalizedPipelineSummary;
   }, [overview?.aiPipeline]);
 
@@ -553,6 +564,9 @@ export default function AdminPage() {
                     <TableHead>Created</TableHead>
                     <TableHead>Metadata</TableHead>
                     <TableHead className="hidden md:table-cell">
+                      Issues
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
                       Pipeline Status
                     </TableHead>
                     <TableHead className="text-right">Action</TableHead>
@@ -578,7 +592,16 @@ export default function AdminPage() {
                       <TableCell className="capitalize">
                         {card.metadataStatus ?? "unset"}
                       </TableCell>
-                      <TableCell className="hidden text-xs md:table-cell text-muted-foreground w-48">
+                      <TableCell className="hidden text-xs md:table-cell align-top text-muted-foreground w-60">
+                        <ul className="space-y-1">
+                          {card.reasons.map((reason, index) => (
+                            <li key={`${card.cardId}-reason-${index}`}>
+                              • {reason}
+                            </li>
+                          ))}
+                        </ul>
+                      </TableCell>
+                      <TableCell className="hidden text-xs md:table-cell text-muted-foreground w-48 align-middle">
                         {pendingRetries[card.cardId]
                           ? "Restart queued…"
                           : formatProcessingSummary(card.processingStatus)}

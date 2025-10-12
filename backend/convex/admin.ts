@@ -19,6 +19,7 @@ type MissingCardSummary = {
   createdAt: number;
   metadataStatus?: "pending" | "completed" | "failed";
   processingStatus?: ProcessingStatus;
+  reasons: string[];
 };
 
 const STAGE_KEYS: ProcessingStageKey[] = [
@@ -143,17 +144,39 @@ export const getOverview = query({
         }
       }
 
-      if (!isDeleted && !card.aiModelMeta) {
-        missingAiMetadata += 1;
-        if (missingCards.length < MAX_MISSING_CARDS) {
-          missingCards.push({
-            cardId: card._id,
-            type: card.type,
-            createdAt: card.createdAt,
-            metadataStatus: card.metadataStatus,
-            processingStatus: card.processingStatus,
-          });
+      const reasons: string[] = [];
+
+      if (!card.aiModelMeta) {
+        if (!isDeleted) {
+          missingAiMetadata += 1;
         }
+        reasons.push("AI metadata missing");
+      }
+
+      if (!card.aiSummary) {
+        reasons.push("AI summary missing");
+      }
+
+      if (!card.aiTags || card.aiTags.length === 0) {
+        reasons.push("AI tags missing");
+      }
+
+      if (
+        card.type === "link" &&
+        card.metadataStatus === "pending"
+      ) {
+        reasons.push("Link metadata still pending");
+      }
+
+      if (!isDeleted && reasons.length > 0 && missingCards.length < MAX_MISSING_CARDS) {
+        missingCards.push({
+          cardId: card._id,
+          type: card.type,
+          createdAt: card.createdAt,
+          metadataStatus: card.metadataStatus,
+          processingStatus: card.processingStatus,
+          reasons,
+        });
       }
 
       const processing = card.processingStatus;
