@@ -1,32 +1,23 @@
+"use node";
+
+import dns from "node:dns/promises";
+import { parseHTML } from "linkedom";
 import { v } from "convex/values";
-import { internalAction, internalMutation, internalQuery } from "./_generated/server";
+
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { internalAction } from "./_generated/server";
+import type { ActionCtx } from "./_generated/server";
 
-interface CloudflareScrapeAttribute {
-  name: string;
-  value: string;
-}
+type LinkPreviewSource = "convex_node_fetch";
 
-interface CloudflareScrapeResultItem {
-  text?: string;
-  html?: string;
-  attributes?: CloudflareScrapeAttribute[];
-}
-
-interface CloudflareScrapeSelectorResult {
+interface LinkPreviewDebugEntry {
   selector: string;
-  results: CloudflareScrapeResultItem[];
-}
-
-interface CloudflareScrapeResponse {
-  success: boolean;
-  result?: CloudflareScrapeSelectorResult[];
-  errors?: Array<{ code?: number; message?: string }>;
+  value?: string;
 }
 
 interface LinkPreviewMetadata {
-  source: "cloudflare_browser_rendering";
+  source: LinkPreviewSource;
   status: "success" | "error";
   fetchedAt: number;
   url: string;
@@ -47,154 +38,20 @@ interface LinkPreviewMetadata {
     message?: string;
     details?: any;
   };
-  raw?: CloudflareScrapeSelectorResult[];
+  raw?: LinkPreviewDebugEntry[];
 }
-
-const normalizeUrl = (url: string): string => {
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    return `https://${url}`;
-  }
-  return url;
-};
-
-
-// Internal query to get card for metadata extraction
-export const getCardForMetadata = internalQuery({
-  args: { cardId: v.id("cards") },
-  handler: async (ctx, { cardId }) => {
-    return await ctx.db.get(cardId);
-  },
-});
-
-// Internal mutation to update card with link metadata
-export const updateCardMetadata = internalMutation({
-  args: {
-    cardId: v.id("cards"),
-    linkPreview: v.optional(v.any()),
-    status: v.union(v.literal("completed"), v.literal("failed")),
-  },
-  handler: async (ctx, { cardId, linkPreview, status }) => {
-    const existingCard = await ctx.db.get(cardId);
-    if (!existingCard) {
-      console.error(`Card ${cardId} not found for metadata update`);
-      return;
-    }
-
-    const previousLinkPreview = existingCard.metadata?.linkPreview;
-    let nextLinkPreview = linkPreview ? { ...linkPreview } : undefined;
-
-    if (previousLinkPreview?.screenshotStorageId) {
-      if (
-        nextLinkPreview?.screenshotStorageId &&
-        nextLinkPreview.screenshotStorageId !== previousLinkPreview.screenshotStorageId
-      ) {
-        try {
-          await ctx.storage.delete(previousLinkPreview.screenshotStorageId);
-        } catch (error) {
-          console.error(
-            `[linkMetadata] Failed to delete previous screenshot ${previousLinkPreview.screenshotStorageId} for card ${cardId}:`,
-            error
-          );
-        }
-      } else if (nextLinkPreview && !nextLinkPreview.screenshotStorageId) {
-        nextLinkPreview.screenshotStorageId = previousLinkPreview.screenshotStorageId;
-        nextLinkPreview.screenshotUpdatedAt =
-          nextLinkPreview.screenshotUpdatedAt ?? previousLinkPreview.screenshotUpdatedAt;
-      }
-    }
-
-    // For link cards being updated, move to new linkPreview structure
-    // For non-link cards, preserve existing metadata while layering the new field
-    let updatedMetadata: Record<string, any> = {};
-
-    const existingCategory = existingCard.metadata?.linkCategory;
-
-    if (existingCard.type === "link") {
-      updatedMetadata = {
-        ...(nextLinkPreview ? { linkPreview: nextLinkPreview } : {}),
-        ...(existingCategory ? { linkCategory: existingCategory } : {}),
-      };
-    } else {
-      updatedMetadata = {
-        ...existingCard.metadata,
-        ...(nextLinkPreview !== undefined ? { linkPreview: nextLinkPreview } : {}),
-        ...(existingCategory ? { linkCategory: existingCategory } : {}),
-      };
-    }
-
-    // Prepare update fields
-    const updateFields: any = {
-      metadata: updatedMetadata,
-      metadataStatus: status,
-      updatedAt: Date.now(),
-    };
-
-    // Extract title and description for search indexes
-    const title = nextLinkPreview?.title;
-    const description = nextLinkPreview?.description;
-
-    if (title) {
-      updateFields.metadataTitle = title;
-    }
-    if (description) {
-      updateFields.metadataDescription = description;
-    }
-
-    return await ctx.db.patch(cardId, updateFields);
-  },
-});
-
-export const updateCardScreenshot = internalMutation({
-  args: {
-    cardId: v.id("cards"),
-    screenshotStorageId: v.id("_storage"),
-    screenshotUpdatedAt: v.number(),
-  },
-  handler: async (ctx, { cardId, screenshotStorageId, screenshotUpdatedAt }) => {
-    const card = await ctx.db.get(cardId);
-    if (!card || card.type !== "link") {
-      return;
-    }
-
-    const existingMetadata = card.metadata || {};
-    const existingLinkPreview = existingMetadata.linkPreview || {};
-
-    if (
-      existingLinkPreview.screenshotStorageId &&
-      existingLinkPreview.screenshotStorageId !== screenshotStorageId
-    ) {
-      try {
-        await ctx.storage.delete(existingLinkPreview.screenshotStorageId);
-      } catch (error) {
-        console.error(
-          `[linkMetadata] Failed to delete previous screenshot ${existingLinkPreview.screenshotStorageId} for card ${cardId}:`,
-          error
-        );
-      }
-    }
-
-    const updatedLinkPreview = {
-      ...existingLinkPreview,
-      screenshotStorageId,
-      screenshotUpdatedAt,
-    };
-
-    const updatedMetadata = {
-      ...existingMetadata,
-      linkPreview: updatedLinkPreview,
-    };
-
-    await ctx.db.patch(cardId, {
-      metadata: updatedMetadata,
-      updatedAt: Date.now(),
-    });
-  },
-});
 
 type SelectorSource = {
   selector: string;
   attribute: "content" | "href" | "text";
 };
+
+const LINK_PREVIEW_SOURCE: LinkPreviewSource = "convex_node_fetch";
+const MAX_REDIRECTS = 5;
+const TIMEOUT_MS = 20000;
+const MAX_BYTES = 2_000_000; // 2MB limit for HTML downloads
+const USER_AGENT =
+  process.env.LINK_PREVIEW_USER_AGENT ?? "TeakPreviewBot/1.0 (+https://teak.so/link-preview)";
 
 const TITLE_SOURCES: SelectorSource[] = [
   { selector: "meta[property='og:title']", attribute: "content" },
@@ -308,89 +165,28 @@ const IMDB_SOURCES: SelectorSource[] = [
   { selector: "span[data-testid='title-techspec_runtime'] span", attribute: "text" },
 ];
 
-const SCRAPE_ELEMENTS = Array.from(
-  new Map(
-    [
-      ...TITLE_SOURCES,
-      ...DESCRIPTION_SOURCES,
-      ...IMAGE_SOURCES,
-      ...FAVICON_SOURCES,
-      ...SITE_NAME_SOURCES,
-      ...AUTHOR_SOURCES,
-      ...PUBLISHER_SOURCES,
-      ...PUBLISHED_TIME_SOURCES,
-      ...CANONICAL_SOURCES,
-      ...FINAL_URL_SOURCES,
-      ...GITHUB_SOURCES,
-      ...GOODREADS_SOURCES,
-      ...AMAZON_SOURCES,
-      ...IMDB_SOURCES,
-    ].map((source) => [source.selector, { selector: source.selector }])
-  ).values()
-);
+const ALL_SOURCES: SelectorSource[] = [
+  ...TITLE_SOURCES,
+  ...DESCRIPTION_SOURCES,
+  ...IMAGE_SOURCES,
+  ...FAVICON_SOURCES,
+  ...SITE_NAME_SOURCES,
+  ...AUTHOR_SOURCES,
+  ...PUBLISHER_SOURCES,
+  ...PUBLISHED_TIME_SOURCES,
+  ...CANONICAL_SOURCES,
+  ...FINAL_URL_SOURCES,
+  ...GITHUB_SOURCES,
+  ...GOODREADS_SOURCES,
+  ...AMAZON_SOURCES,
+  ...IMDB_SOURCES,
+];
 
-const toSelectorMap = (
-  results?: CloudflareScrapeSelectorResult[]
-): Map<string, CloudflareScrapeResultItem[]> => {
-  const map = new Map<string, CloudflareScrapeResultItem[]>();
-  if (!results) {
-    return map;
+const normalizeUrl = (url: string): string => {
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    return `https://${url}`;
   }
-  for (const entry of results) {
-    map.set(entry.selector, entry.results ?? []);
-  }
-  return map;
-};
-
-const findAttributeValue = (
-  item: CloudflareScrapeResultItem | undefined,
-  attribute: string
-): string | undefined => {
-  if (!item?.attributes) {
-    return undefined;
-  }
-  const needle = attribute.toLowerCase();
-  const match = item.attributes.find((attr) => attr.name?.toLowerCase() === needle);
-  return match?.value?.trim() || undefined;
-};
-
-const getSelectorValue = (
-  map: Map<string, CloudflareScrapeResultItem[]>,
-  source: SelectorSource
-): string | undefined => {
-  const candidates = map.get(source.selector) ?? [];
-  const primary =
-    candidates.find((item) => {
-      if (source.attribute === "text") {
-        const value = item.text?.trim() || item.html?.trim();
-        return Boolean(value);
-      }
-      const attrValue = findAttributeValue(item, source.attribute);
-      return Boolean(attrValue);
-    }) ?? candidates[0];
-
-  if (!primary) {
-    return undefined;
-  }
-
-  if (source.attribute === "text") {
-    return primary.text?.trim() || primary.html?.trim() || undefined;
-  }
-
-  return findAttributeValue(primary, source.attribute);
-};
-
-const firstFromSources = (
-  map: Map<string, CloudflareScrapeResultItem[]>,
-  sources: SelectorSource[]
-): string | undefined => {
-  for (const source of sources) {
-    const value = getSelectorValue(map, source);
-    if (value && value.trim()) {
-      return value.trim();
-    }
-  }
-  return undefined;
+  return url;
 };
 
 const sanitizeText = (value: string | undefined, maxLength: number): string | undefined => {
@@ -406,6 +202,8 @@ const sanitizeText = (value: string | undefined, maxLength: number): string | un
   }
   return normalized;
 };
+
+const isHttpScheme = (protocol: string) => /^https?:$/i.test(protocol);
 
 const sanitizeUrl = (
   baseUrl: string,
@@ -431,7 +229,7 @@ const sanitizeUrl = (
 
   try {
     const resolved = new URL(trimmed, baseUrl);
-    if (!/^https?:/i.test(resolved.protocol)) {
+    if (!isHttpScheme(resolved.protocol)) {
       return undefined;
     }
     return resolved.toString();
@@ -448,43 +246,334 @@ const sanitizeImageUrl = (baseUrl: string, value: string | undefined): string | 
   if (/^data:/i.test(trimmed)) {
     return trimmed;
   }
-  return sanitizeUrl(baseUrl, trimmed, { allowData: true });
-};
-
-const buildDebugRaw = (
-  results?: CloudflareScrapeSelectorResult[]
-): CloudflareScrapeSelectorResult[] | undefined => {
-  if (!results) {
+  const sanitized = sanitizeUrl(baseUrl, trimmed, { allowData: true });
+  if (!sanitized) {
     return undefined;
   }
-  return results.map((entry) => ({
-    selector: entry.selector,
-    results: (entry.results ?? []).slice(0, 1).map((item) => ({
-      text: item.text,
-      attributes: item.attributes,
-    })),
-  }));
+  return maybeProxyAsset(sanitized);
 };
 
-const parseLinkPreview = (
-  normalizedUrl: string,
-  results?: CloudflareScrapeSelectorResult[]
-) => {
-  const selectorMap = toSelectorMap(results);
+const maybeProxyAsset = (url: string): string => {
+  const proxyOrigin = process.env.LINK_PREVIEW_ASSET_PROXY_ORIGIN;
+  if (!proxyOrigin) {
+    return url;
+  }
+  try {
+    const proxyUrl = new URL(proxyOrigin);
+    proxyUrl.searchParams.set("url", url);
+    return proxyUrl.toString();
+  } catch {
+    return url;
+  }
+};
 
-  const title = sanitizeText(firstFromSources(selectorMap, TITLE_SOURCES), 512);
-  const description = sanitizeText(firstFromSources(selectorMap, DESCRIPTION_SOURCES), 2048);
-  const imageUrl = sanitizeImageUrl(normalizedUrl, firstFromSources(selectorMap, IMAGE_SOURCES));
-  const faviconUrl = sanitizeUrl(normalizedUrl, firstFromSources(selectorMap, FAVICON_SOURCES));
-  const siteName = sanitizeText(firstFromSources(selectorMap, SITE_NAME_SOURCES), 256);
-  const author = sanitizeText(firstFromSources(selectorMap, AUTHOR_SOURCES), 256);
-  const publisher = sanitizeText(firstFromSources(selectorMap, PUBLISHER_SOURCES), 256);
-  const publishedAtRaw = firstFromSources(selectorMap, PUBLISHED_TIME_SOURCES);
-  const publishedAt = publishedAtRaw
-    ? publishedAtRaw.trim().slice(0, 128)
-    : undefined;
-  const canonicalUrl = sanitizeUrl(normalizedUrl, firstFromSources(selectorMap, CANONICAL_SOURCES));
-  const finalUrlCandidate = sanitizeUrl(normalizedUrl, firstFromSources(selectorMap, FINAL_URL_SOURCES));
+const BLOCKED_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+const isPrivateIPv4 = (address: string) => {
+  const parts = address.split(".").map((segment) => Number.parseInt(segment, 10));
+  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part) || part < 0 || part > 255)) {
+    return false;
+  }
+  const [a, b] = parts;
+  if (a === 10) {
+    return true;
+  }
+  if (a === 172 && b >= 16 && b <= 31) {
+    return true;
+  }
+  if (a === 192 && b === 168) {
+    return true;
+  }
+  if (a === 127) {
+    return true;
+  }
+  if (a === 169 && b === 254) {
+    return true;
+  }
+  if (a === 100 && b >= 64 && b <= 127) {
+    return true;
+  }
+  if (a === 198 && (b === 18 || b === 19)) {
+    return true;
+  }
+  return a >= 224;
+};
+
+const isPrivateIPv6 = (address: string) => {
+  const lower = address.toLowerCase();
+  return (
+    lower === "::1" ||
+    lower.startsWith("fe80:") ||
+    lower.startsWith("::ffff:") ||
+    lower.startsWith("fc") ||
+    lower.startsWith("fd")
+  );
+};
+
+const isBlockedAddress = (address: string) => {
+  if (address === "0.0.0.0" || address === "::") {
+    return true;
+  }
+  if (isPrivateIPv4(address)) {
+    return true;
+  }
+  if (isPrivateIPv6(address)) {
+    return true;
+  }
+  return false;
+};
+
+const validateHostnameSafety = async (url: URL) => {
+  const hostname = url.hostname.toLowerCase();
+  if (BLOCKED_HOSTNAMES.has(hostname) || hostname.endsWith(".localhost")) {
+    throw new Error("Blocked hostname");
+  }
+
+  let lookupResults;
+  try {
+    lookupResults = await dns.lookup(hostname, { all: true });
+  } catch (error) {
+    // DNS failures are treated as network errors later in the fetch logic
+    throw Object.assign(new Error("DNS lookup failed"), { cause: error, code: "dns_error" });
+  }
+
+  for (const result of lookupResults) {
+    const address = result.address;
+    if (isBlockedAddress(address)) {
+      throw Object.assign(new Error(`Blocked address ${address}`), { code: "blocked_address" });
+    }
+  }
+};
+
+const concatUint8Arrays = (chunks: Uint8Array[], totalLength: number): Uint8Array => {
+  const buffer = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return buffer;
+};
+
+const isRedirectStatus = (status: number) =>
+  status === 301 ||
+  status === 302 ||
+  status === 303 ||
+  status === 307 ||
+  status === 308;
+
+interface FetchHtmlResult {
+  html: string;
+  finalUrl: string;
+}
+
+const fetchHtml = async (initialUrl: string): Promise<FetchHtmlResult> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  let currentUrl = new URL(initialUrl);
+  let redirectCount = 0;
+
+  try {
+    while (true) {
+      await validateHostnameSafety(currentUrl);
+
+      const response = await fetch(currentUrl.toString(), {
+        method: "GET",
+        redirect: "manual",
+        headers: {
+          "User-Agent": USER_AGENT,
+          Accept: "text/html,application/xhtml+xml;q=0.9",
+        },
+        signal: controller.signal,
+      });
+
+      if (isRedirectStatus(response.status)) {
+        const locationHeader = response.headers.get("location");
+        if (!locationHeader) {
+          throw Object.assign(new Error("Redirect missing location header"), {
+            code: "redirect_error",
+          });
+        }
+
+        if (redirectCount >= MAX_REDIRECTS) {
+          throw Object.assign(new Error("Too many redirects"), { code: "too_many_redirects" });
+        }
+
+        const nextUrl = new URL(locationHeader, currentUrl);
+        if (!isHttpScheme(nextUrl.protocol)) {
+          throw Object.assign(new Error("Blocked redirect scheme"), { code: "blocked_scheme" });
+        }
+
+        currentUrl = nextUrl;
+        redirectCount += 1;
+        continue;
+      }
+
+      if (!response.ok) {
+        throw Object.assign(new Error(`HTTP ${response.status}`), {
+          code: "http_error",
+          status: response.status,
+        });
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+      const isHtml =
+        contentType.includes("text/html") || contentType.includes("application/xhtml+xml");
+      if (!isHtml) {
+        throw Object.assign(new Error("Unsupported content type"), {
+          code: "invalid_content_type",
+          contentType,
+        });
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw Object.assign(new Error("Empty body"), { code: "empty_body" });
+      }
+
+      const chunks: Uint8Array[] = [];
+      let totalBytes = 0;
+      while (true) {
+        const result = await reader.read();
+        if (result.done) {
+          break;
+        }
+        const value = result.value;
+        if (!value) {
+          continue;
+        }
+
+        totalBytes += value.byteLength;
+        if (totalBytes > MAX_BYTES) {
+          throw Object.assign(new Error("Response too large"), { code: "response_too_large" });
+        }
+
+        chunks.push(value);
+      }
+
+      const htmlBuffer = concatUint8Arrays(chunks, totalBytes);
+      const decoder = new TextDecoder("utf-8", { fatal: false });
+      const html = decoder.decode(htmlBuffer);
+
+      return {
+        html,
+        finalUrl: currentUrl.toString(),
+      };
+    }
+  } catch (error) {
+    if ((error as any)?.name === "AbortError") {
+      throw Object.assign(new Error("Request timed out"), { code: "timeout" });
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
+const collectSelectorValues = (document: Document, source: SelectorSource): string[] => {
+  const elements = Array.from(document.querySelectorAll(source.selector));
+  const values: string[] = [];
+
+  for (const element of elements) {
+    if (source.attribute === "text") {
+      const text = element.textContent;
+      if (text && text.trim()) {
+        values.push(text.trim());
+      }
+      continue;
+    }
+
+    const attributeValue = element.getAttribute(source.attribute);
+    if (attributeValue && attributeValue.trim()) {
+      values.push(attributeValue.trim());
+    }
+  }
+
+  return values;
+};
+
+const firstFromSources = (
+  document: Document,
+  sources: SelectorSource[]
+): string | undefined => {
+  for (const source of sources) {
+    const values = collectSelectorValues(document, source);
+    const selected = values.find((value) => value.trim());
+    if (selected) {
+      return selected.trim();
+    }
+  }
+  return undefined;
+};
+
+const pickFallbackImage = (document: Document, baseUrl: string): string | undefined => {
+  const candidates = Array.from(document.querySelectorAll("img"))
+    .map((img) => {
+      const src = img.getAttribute("src") ?? undefined;
+      const sanitized = sanitizeImageUrl(baseUrl, src ?? undefined);
+      if (!sanitized) {
+        return undefined;
+      }
+
+      const width = Number.parseInt(img.getAttribute("width") ?? "", 10);
+      const height = Number.parseInt(img.getAttribute("height") ?? "", 10);
+      const area = Number.isFinite(width) && Number.isFinite(height) ? width * height : 0;
+
+      return {
+        url: sanitized,
+        area,
+      };
+    })
+    .filter((candidate): candidate is { url: string; area: number } => Boolean(candidate));
+
+  if (!candidates.length) {
+    return undefined;
+  }
+
+  candidates.sort((a, b) => b.area - a.area);
+  return candidates[0].url;
+};
+
+const buildDebugEntries = (document: Document): LinkPreviewDebugEntry[] => {
+  const entries: LinkPreviewDebugEntry[] = [];
+  for (const source of ALL_SOURCES.slice(0, 30)) {
+    const value = firstFromSources(document, [source]);
+    if (value) {
+      entries.push({
+        selector: source.selector,
+        value: sanitizeText(value, 200),
+      });
+    }
+  }
+  return entries;
+};
+
+const parseLinkPreview = (normalizedUrl: string, html: string) => {
+  const { document } = parseHTML(html);
+
+  const title = sanitizeText(firstFromSources(document, TITLE_SOURCES), 512);
+  const description = sanitizeText(firstFromSources(document, DESCRIPTION_SOURCES), 2048);
+  const canonicalUrl = sanitizeUrl(normalizedUrl, firstFromSources(document, CANONICAL_SOURCES));
+  const finalUrlCandidate = sanitizeUrl(
+    normalizedUrl,
+    firstFromSources(document, FINAL_URL_SOURCES)
+  );
+
+  let imageUrl = sanitizeImageUrl(normalizedUrl, firstFromSources(document, IMAGE_SOURCES));
+  if (!imageUrl) {
+    imageUrl = pickFallbackImage(document, normalizedUrl);
+  }
+
+  const faviconUrl = sanitizeUrl(normalizedUrl, firstFromSources(document, FAVICON_SOURCES));
+  const siteName = sanitizeText(firstFromSources(document, SITE_NAME_SOURCES), 256);
+  const author = sanitizeText(firstFromSources(document, AUTHOR_SOURCES), 256);
+  const publisher = sanitizeText(firstFromSources(document, PUBLISHER_SOURCES), 256);
+  const publishedAtRaw = firstFromSources(document, PUBLISHED_TIME_SOURCES);
+
+  const publishedAt = publishedAtRaw ? publishedAtRaw.trim().slice(0, 128) : undefined;
+
+  const raw = buildDebugEntries(document);
 
   return {
     title,
@@ -497,7 +586,7 @@ const parseLinkPreview = (
     publishedAt,
     canonicalUrl,
     finalUrl: finalUrlCandidate ?? canonicalUrl ?? normalizedUrl,
-    raw: buildDebugRaw(results),
+    raw,
   };
 };
 
@@ -505,7 +594,7 @@ const buildSuccessPreview = (
   url: string,
   parsed: ReturnType<typeof parseLinkPreview>
 ): LinkPreviewMetadata => ({
-  source: "cloudflare_browser_rendering",
+  source: LINK_PREVIEW_SOURCE,
   status: "success",
   fetchedAt: Date.now(),
   url,
@@ -524,56 +613,41 @@ const buildErrorPreview = (
     screenshotUpdatedAt?: number;
   }
 ): LinkPreviewMetadata => ({
-  source: "cloudflare_browser_rendering",
+  source: LINK_PREVIEW_SOURCE,
   status: "error",
   fetchedAt: Date.now(),
   url,
-  finalUrl: url,
-  ...(extras?.screenshotStorageId
-    ? {
-      screenshotStorageId: extras.screenshotStorageId,
-      screenshotUpdatedAt: extras.screenshotUpdatedAt,
-    }
-    : {}),
   error,
+  ...extras,
 });
 
+
 const captureScreenshot = async (
-  ctx: any,
+  ctx: ActionCtx,
   {
+    url,
     accountId,
     apiToken,
-    url,
-  }: { accountId: string; apiToken: string; url: string }
-): Promise<{
-  screenshotId?: Id<"_storage">;
-  screenshotUpdatedAt?: number;
-  error?: { type: string; message?: string; details?: any };
-}> => {
+  }: {
+    url: string;
+    accountId: string;
+    apiToken: string;
+  }
+) => {
   try {
     const screenshotEndpoint = `https://api.cloudflare.com/client/v4/accounts/${accountId}/browser-rendering/screenshot`;
-    const controller = new AbortController();
-    const timeoutMs = 30000;
-    const timeoutId = setTimeout(() => {
-      console.warn(`[linkMetadata] Screenshot request timeout after ${timeoutMs}ms for ${url}`);
-      controller.abort();
-    }, timeoutMs);
 
-    const requestBody = {
+    const requestPayload = {
       url,
-      gotoOptions: {
-        waitUntil: "networkidle0",
-        timeout: 30000,
-      },
-      viewport: {
-        width: 1280,
-        height: 720,
-      },
-      screenshotOptions: {
-        type: "jpeg",
-        quality: 80,
-      },
+      waitUntil: "networkidle0",
+      viewport: { width: 1280, height: 720 },
+      deviceScaleFactor: 1,
+      format: "webp",
     };
+
+    const controller = new AbortController();
+    const timeoutMs = 45000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     const response = await fetch(screenshotEndpoint, {
       method: "POST",
@@ -581,95 +655,51 @@ const captureScreenshot = async (
         Authorization: `Bearer ${apiToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(requestPayload),
       signal: controller.signal,
     });
 
     clearTimeout(timeoutId);
 
-    const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
-
     if (!response.ok) {
-      let responseDetails: string | undefined;
-      if (contentType.includes("application/json")) {
-        try {
-          const errorJson = await response.json();
-          responseDetails = JSON.stringify(errorJson)?.slice(0, 2000);
-        } catch (jsonError) {
-          console.error(`[linkMetadata] Failed to parse screenshot error JSON for ${url}:`, jsonError);
-        }
-      } else {
-        responseDetails = await response.text().catch(() => "<unavailable>");
-      }
-
-      console.error(
-        `[linkMetadata] Screenshot HTTP error ${response.status} ${response.statusText} for ${url}:`,
-        responseDetails
+      const text = await response.text().catch(() => "<unavailable>");
+      const type = response.status === 429 ? "rate_limit" : "http_error";
+      console.warn(
+        `[linkMetadata] Screenshot capture error ${response.status} for ${url}: ${text.slice(0, 2000)}`
       );
-
-      const errorType = response.status === 429 ? "rate_limit" : "http_error";
       return {
         error: {
-          type: errorType,
-          message: `Screenshot request failed with ${response.status}`,
-          details: responseDetails,
+          type,
+          message: `Screenshot API returned ${response.status}`,
+          details: text?.slice(0, 2000),
         },
       };
     }
 
-    let imageArrayBuffer: ArrayBuffer | undefined;
-    let mimeType = "image/jpeg";
-
-    if (contentType.includes("application/json")) {
-      const payload = await response.json();
-      if (!payload?.success) {
-        console.warn(`[linkMetadata] Screenshot payload indicated failure for ${url}`, payload?.errors);
-        return {
-          error: {
-            type: "api_error",
-            message:
-              payload?.errors?.map((error: any) => error?.message).filter(Boolean).join("; ") ||
-              "Screenshot capture failed",
-            details: payload?.errors,
-          },
-        };
-      }
-
-      const base64Screenshot: string | undefined =
-        payload?.result?.screenshot || payload?.result?.image || payload?.result?.png;
-      if (!base64Screenshot) {
-        console.warn(`[linkMetadata] Screenshot payload missing screenshot data for ${url}`);
-        return {
-          error: {
-            type: "missing_data",
-            message: "Screenshot response did not include image data",
-          },
-        };
-      }
-
-      const buffer = Buffer.from(base64Screenshot, "base64");
-      imageArrayBuffer = buffer.buffer.slice(
-        buffer.byteOffset,
-        buffer.byteOffset + buffer.byteLength
-      );
-      mimeType = payload?.result?.type || mimeType;
-    } else {
-      imageArrayBuffer = await response.arrayBuffer();
-      if (contentType) {
-        mimeType = contentType.split(";")[0];
-      }
-    }
-
-    if (!imageArrayBuffer) {
-      console.warn(`[linkMetadata] Screenshot response did not include image data for ${url}`);
+    const payload = await response.json();
+    if (!payload?.result?.screenshot) {
       return {
         error: {
-          type: "missing_data",
-          message: "Screenshot response did not include image data",
+          type: "invalid_response",
+          message: "Screenshot response missing payload",
+          details: payload,
         },
       };
     }
 
+    const { screenshot } = payload.result;
+    const mimeType = screenshot?.mimeType || "image/webp";
+    const imageBase64 = screenshot?.data;
+    if (!imageBase64) {
+      return {
+        error: {
+          type: "invalid_response",
+          message: "Screenshot image missing data",
+        },
+      };
+    }
+
+    const imageArrayBuffer = Buffer.from(imageBase64, "base64");
     const screenshotBlob = new Blob([imageArrayBuffer], {
       type: mimeType,
     });
@@ -706,7 +736,7 @@ export const generateLinkScreenshot = internalAction({
     retryCount: v.optional(v.number()),
   },
   handler: async (ctx, { cardId, retryCount = 0 }) => {
-    const card = await ctx.runQuery(internal.linkMetadata.getCardForMetadata, { cardId });
+    const card = await ctx.runQuery(internal.linkMetadataDb.getCardForMetadata, { cardId });
 
     if (!card || card.type !== "link" || !card.url) {
       return;
@@ -744,7 +774,7 @@ export const generateLinkScreenshot = internalAction({
     });
 
     if (screenshotResult?.screenshotId) {
-      await ctx.runMutation(internal.linkMetadata.updateCardScreenshot, {
+      await ctx.runMutation(internal.linkMetadataDb.updateCardScreenshot, {
         cardId,
         screenshotStorageId: screenshotResult.screenshotId,
         screenshotUpdatedAt: screenshotResult.screenshotUpdatedAt ?? Date.now(),
@@ -782,7 +812,10 @@ export const generateLinkScreenshot = internalAction({
       return;
     }
 
-    console.warn(`[linkMetadata] Screenshot capture failed for card ${cardId} after ${retryCount + 1} attempt(s):`, screenshotResult.error);
+    console.warn(
+      `[linkMetadata] Screenshot capture failed for card ${cardId} after ${retryCount + 1} attempt(s):`,
+      screenshotResult.error
+    );
   },
 });
 
@@ -795,13 +828,15 @@ export const extractLinkMetadata = internalAction({
     retryCount: v.optional(v.number()),
   },
   handler: async (ctx, { cardId, retryCount = 0 }) => {
+    "use node";
+
     let normalizedUrl = "";
     try {
-      const card = await ctx.runQuery(internal.linkMetadata.getCardForMetadata, { cardId });
+      const card = await ctx.runQuery(internal.linkMetadataDb.getCardForMetadata, { cardId });
 
       if (!card || card.type !== "link" || !card.url) {
         console.error(`[linkMetadata] Card ${cardId} is not a valid link card`);
-        await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
+        await ctx.runMutation(internal.linkMetadataDb.updateCardMetadata, {
           cardId,
           linkPreview: buildErrorPreview(card?.url ?? "", {
             type: "invalid_card",
@@ -813,134 +848,36 @@ export const extractLinkMetadata = internalAction({
       }
 
       normalizedUrl = normalizeUrl(card.url);
-      console.log(`[linkMetadata] Extracting metadata for card ${cardId}, URL: ${normalizedUrl} (attempt ${retryCount + 1})`);
-
-      const accountId = process.env.CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID;
-      const apiToken =
-        process.env.CLOUDFLARE_BROWSER_RENDERING_API_TOKEN ||
-        process.env.CLOUDFLARE_API_TOKEN ||
-        process.env.CLOUDFLARE_API_KEY;
-
-      if (!accountId || !apiToken) {
-        console.error(`[linkMetadata] Missing Cloudflare Browser Rendering credentials (accountId=${accountId ? "set" : "missing"}, apiToken=${apiToken ? "set" : "missing"})`);
-        await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
+      const urlInstance = new URL(normalizedUrl);
+      if (!isHttpScheme(urlInstance.protocol)) {
+        await ctx.runMutation(internal.linkMetadataDb.updateCardMetadata, {
           cardId,
           linkPreview: buildErrorPreview(normalizedUrl, {
-            type: "configuration_error",
-            message: "Cloudflare Browser Rendering credentials are not configured",
+            type: "invalid_url",
+            message: "Only HTTP and HTTPS URLs are supported",
           }),
           status: "failed",
         });
         return;
       }
 
-      const scrapeUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/browser-rendering/scrape`;
+      console.log(
+        `[linkMetadata] Extracting metadata for card ${cardId}, URL: ${normalizedUrl} (attempt ${retryCount + 1})`
+      );
 
-      const controller = new AbortController();
-      const timeoutMs = 25000;
-      const timeoutId = setTimeout(() => {
-        console.warn(`[linkMetadata] Cloudflare request timeout after ${timeoutMs}ms for ${normalizedUrl}`);
-        controller.abort();
-      }, timeoutMs);
-
-      const requestPayload = {
-        url: normalizedUrl,
-        elements: SCRAPE_ELEMENTS,
-        gotoOptions: {
-          waitUntil: "networkidle0",
-          timeout: 30000,
-        },
-      };
-
-      console.log(`[linkMetadata] Calling Cloudflare Browser Rendering /scrape with ${SCRAPE_ELEMENTS.length} selectors`);
       const startedAt = Date.now();
-      const response = await fetch(scrapeUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestPayload),
-        signal: controller.signal,
-      });
+      const { html, finalUrl } = await fetchHtml(normalizedUrl);
 
-      clearTimeout(timeoutId);
-      console.log(`[linkMetadata] Cloudflare response received in ${Date.now() - startedAt}ms with status ${response.status}`);
-
-      if (!response.ok) {
-        const bodyText = await response.text().catch(() => "<unavailable>");
-        console.error(`[linkMetadata] Cloudflare API error ${response.status} ${response.statusText} for ${normalizedUrl}:`, bodyText);
-
-        const isRateLimit = response.status === 429;
-        const shouldRetry =
-          (response.status >= 500 && retryCount < HTTP_MAX_RETRIES) ||
-          (isRateLimit && retryCount < RATE_LIMIT_MAX_RETRIES);
-        if (shouldRetry) {
-          const delay = isRateLimit ? 15000 : 5000;
-          console.log(`[linkMetadata] Scheduling retry ${retryCount + 1} for card ${cardId} after HTTP error ${response.status} (delay ${delay}ms)`);
-          await ctx.scheduler.runAfter(delay, internal.linkMetadata.extractLinkMetadata, {
-            cardId,
-            retryCount: retryCount + 1,
-          });
-          return;
-        }
-
-        await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
-          cardId,
-          linkPreview: buildErrorPreview(
-            normalizedUrl,
-            {
-              type: isRateLimit ? "rate_limit" : "http_error",
-              message: `Cloudflare Browser Rendering returned ${response.status}`,
-              details: bodyText?.slice(0, 2000),
-            }
-          ),
-          status: "failed",
-        });
-        return;
-      }
-
-      const payload: CloudflareScrapeResponse = await response.json();
-
-      if (!payload.success) {
-        console.warn(`[linkMetadata] Cloudflare scrape failed for ${normalizedUrl}`, payload.errors);
-
-        const shouldRetry = retryCount < 2;
-        if (shouldRetry) {
-          await ctx.scheduler.runAfter(5000, internal.linkMetadata.extractLinkMetadata, {
-            cardId,
-            retryCount: retryCount + 1,
-          });
-          return;
-        }
-
-        await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
-          cardId,
-          linkPreview: buildErrorPreview(
-            normalizedUrl,
-            {
-              type: "scrape_error",
-              message:
-                payload.errors?.map((e) => e?.message).filter(Boolean).join("; ") ||
-                "Unknown scrape error",
-              details: payload.errors,
-            }
-          ),
-          status: "failed",
-        });
-        return;
-      }
-
-      const parsed = parseLinkPreview(normalizedUrl, payload.result);
+      const parsed = parseLinkPreview(finalUrl, html);
       const linkPreview = buildSuccessPreview(normalizedUrl, parsed);
 
-      await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
+      await ctx.runMutation(internal.linkMetadataDb.updateCardMetadata, {
         cardId,
         linkPreview,
         status: "completed",
       });
 
-      console.log(`[linkMetadata] Metadata extracted for card ${cardId}`, {
+      console.log(`[linkMetadata] Metadata extracted for card ${cardId} in ${Date.now() - startedAt}ms`, {
         title: Boolean(linkPreview.title),
         description: Boolean(linkPreview.description),
         image: Boolean(linkPreview.imageUrl),
@@ -955,19 +892,55 @@ export const extractLinkMetadata = internalAction({
     } catch (error) {
       console.error(`[linkMetadata] Error extracting metadata for card ${cardId}:`, error);
 
+      const code = (error as any)?.code;
       let errorType = "error";
       let shouldRetry = false;
+      let message = (error as Error)?.message;
+      let details: any;
 
-      if ((error as any)?.name === "AbortError") {
-        errorType = "timeout";
-        shouldRetry = retryCount < 2;
-      } else if ((error as any)?.name === "TypeError" && (error as any)?.message?.includes("fetch")) {
-        errorType = "network_error";
-        shouldRetry = retryCount < 1;
+      switch (code) {
+        case "timeout":
+          errorType = "timeout";
+          shouldRetry = retryCount < 2;
+          break;
+        case "dns_error":
+          errorType = "dns_error";
+          shouldRetry = retryCount < 1;
+          break;
+        case "blocked_address":
+        case "blocked_scheme":
+        case "redirect_error":
+        case "invalid_content_type":
+        case "response_too_large":
+          errorType = code;
+          break;
+        case "http_error":
+          errorType = "http_error";
+          details = { status: (error as any)?.status };
+          shouldRetry =
+            ((error as any)?.status === 429 && retryCount < RATE_LIMIT_MAX_RETRIES) ||
+            ((error as any)?.status &&
+              (error as any)?.status >= 500 &&
+              retryCount < HTTP_MAX_RETRIES);
+          break;
+        case "too_many_redirects":
+          errorType = "too_many_redirects";
+          break;
+        default:
+          if ((error as any)?.name === "AbortError") {
+            errorType = "timeout";
+            shouldRetry = retryCount < 2;
+          } else if ((error as any)?.name === "TypeError" && (error as any)?.message?.includes("fetch")) {
+            errorType = "network_error";
+            shouldRetry = retryCount < 1;
+          }
+          break;
       }
 
       if (shouldRetry) {
-        console.log(`[linkMetadata] Retrying metadata extraction for card ${cardId} in 5 seconds (retry ${retryCount + 1})`);
+        console.log(
+          `[linkMetadata] Retrying metadata extraction for card ${cardId} in 5 seconds (retry ${retryCount + 1})`
+        );
         await ctx.scheduler.runAfter(5000, internal.linkMetadata.extractLinkMetadata, {
           cardId,
           retryCount: retryCount + 1,
@@ -976,13 +949,14 @@ export const extractLinkMetadata = internalAction({
       }
 
       const fallbackUrl = normalizedUrl || "";
-      await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
+      await ctx.runMutation(internal.linkMetadataDb.updateCardMetadata, {
         cardId,
         linkPreview: buildErrorPreview(
           fallbackUrl,
           {
             type: errorType,
-            message: (error as Error)?.message,
+            message,
+            details,
           }
         ),
         status: "failed",
@@ -990,3 +964,13 @@ export const extractLinkMetadata = internalAction({
     }
   },
 });
+
+export const __testExports = {
+  normalizeUrl,
+  sanitizeText,
+  sanitizeUrl,
+  sanitizeImageUrl,
+  parseLinkPreview,
+  pickFallbackImage,
+  isBlockedAddress,
+};

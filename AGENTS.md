@@ -9,6 +9,7 @@ Review `CLAUDE.md` for deep architecture notes and file inventories.
 - Shared types, helpers, and constants stay in `backend/shared` and load via `@teak/convex/shared`.
 - Use the `@/` alias for `apps/web`, keep docs content in `apps/docs/content`, and store extension assets beneath `apps/extension/assets`.
 - Co-locate tests beside sources as `.test.ts`/`.test.tsx` files and prefer domain folders such as `cards/` or `search/`.
+- Everything in `backend/convex/_generated` is auto-generated; avoid manual edits.
 
 ## Build, Test, and Development Commands
 

@@ -13,6 +13,7 @@ import type * as cards from "../cards.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as linkMetadata from "../linkMetadata.js";
+import type * as linkMetadataDb from "../linkMetadataDb.js";
 import type * as migrations from "../migrations.js";
 import type * as polar from "../polar.js";
 import type * as tasks_ai_actions from "../tasks/ai/actions.js";
@@ -67,6 +68,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   http: typeof http;
   linkMetadata: typeof linkMetadata;
+  linkMetadataDb: typeof linkMetadataDb;
   migrations: typeof migrations;
   polar: typeof polar;
   "tasks/ai/actions": typeof tasks_ai_actions;
