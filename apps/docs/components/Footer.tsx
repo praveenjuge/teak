@@ -23,12 +23,12 @@ export function Footer() {
               GitHub
             </a>
             <a
-              href="https://app.teakvault.com"
+              href="https://x.com/praveenjuge"
               className="hover:text-foreground"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Login
+              X (Twitter)
             </a>
           </div>
         </div>
