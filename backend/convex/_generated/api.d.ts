@@ -9,12 +9,12 @@
  */
 
 import type * as admin from "../admin.js";
+import type * as billing from "../billing.js";
 import type * as cards from "../cards.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as linkMetadata from "../linkMetadata.js";
 import type * as migrations from "../migrations.js";
-import type * as polar from "../polar.js";
 import type * as tasks_ai_actions from "../tasks/ai/actions.js";
 import type * as tasks_ai_index from "../tasks/ai/index.js";
 import type * as tasks_ai_linkCategorization from "../tasks/ai/linkCategorization.js";
@@ -63,12 +63,12 @@ import type {
  */
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  billing: typeof billing;
   cards: typeof cards;
   crons: typeof crons;
   http: typeof http;
   linkMetadata: typeof linkMetadata;
   migrations: typeof migrations;
-  polar: typeof polar;
   "tasks/ai/actions": typeof tasks_ai_actions;
   "tasks/ai/index": typeof tasks_ai_index;
   "tasks/ai/linkCategorization": typeof tasks_ai_linkCategorization;

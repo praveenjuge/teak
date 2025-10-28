@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -13,7 +17,6 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "forceConsistentCasingInFileNames": true,
     "plugins": [
       {
         "name": "next"
@@ -21,11 +24,21 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@teak/convex": ["../../backend/convex/_generated/api"],
-      "@teak/convex/*": ["../../backend/convex/*"],
-      "@teak/convex/shared": ["../../backend/shared/index.ts"],
-      "@teak/convex/shared/*": ["../../backend/shared/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@teak/convex": [
+        "../../backend/convex/_generated/api"
+      ],
+      "@teak/convex/*": [
+        "../../backend/convex/*"
+      ],
+      "@teak/convex/shared": [
+        "../../backend/shared/index.ts"
+      ],
+      "@teak/convex/shared/*": [
+        "../../backend/shared/*"
+      ]
     }
   },
   "include": [
@@ -33,9 +46,9 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "../../backend/convex/**/*",
-    "../../backend/shared/**/*",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

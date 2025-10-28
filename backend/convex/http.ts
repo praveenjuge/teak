@@ -1,5 +1,5 @@
 import { httpRouter } from "convex/server";
-import { polar } from "./polar";
+import { polar } from "./billing";
 
 const http = httpRouter();
 
