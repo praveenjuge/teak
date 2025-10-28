@@ -1,4 +1,7 @@
-import { preloadedQueryResult, preloadQuery } from "convex/nextjs";
+"use client";
+
+import { useMemo } from "react";
+import { useQuery } from "convex/react";
 import { api } from "@teak/convex";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -16,38 +19,26 @@ import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { SubscriptionActions } from "@/components/subscription/SubscriptionActions";
 import { PlanCard } from "@/components/subscription/PlanCard";
-import { getAuthToken } from "../auth";
 
-export default async function SubscriptionPage() {
-  const token = await getAuthToken();
+export default function SubscriptionPage() {
+  // @ts-ignore Convex Polar bindings aren't typed in the generated client yet
+  const products = useQuery(api.billing.listAllProducts, {});
+  const subscription = useQuery(api.billing.userHasPremium, {});
+  const cardCountResult = useQuery(api.cards.getCardCount, {});
 
-  // Preload all queries server-side
-  const preloadedProducts = await preloadQuery(
-    // @ts-ignore
-    api.billing.listAllProducts,
-    {},
-    { token }
-  );
-  const preloadedSubscription = await preloadQuery(
-    api.billing.userHasPremium,
-    {},
-    { token }
-  );
-  const preloadedcardCount = await preloadQuery(
-    api.cards.getCardCount,
-    {},
-    { token }
-  );
+  const { isSubscribed, cardCount, progressPercentage } = useMemo(() => {
+    const count = typeof cardCountResult === "number" ? cardCountResult : 0;
+    const subscribed = subscription === true;
+    const progress = subscribed
+      ? 100
+      : Math.min((count / FREE_TIER_LIMIT) * 100, 100);
 
-  // Access the preloaded data to calculate progress
-  const subscription = preloadedQueryResult(preloadedSubscription);
-  const cardCountValue = preloadedQueryResult(preloadedcardCount);
-
-  const cardCount = typeof cardCountValue === "number" ? cardCountValue : 0;
-  const isSubscribed = !!subscription;
-  const progressPercentage = isSubscribed
-    ? 100
-    : Math.min((cardCount / FREE_TIER_LIMIT) * 100, 100);
+    return {
+      isSubscribed: subscribed,
+      cardCount: count,
+      progressPercentage: progress,
+    };
+  }, [cardCountResult, subscription]);
 
   return (
     <div className="container mx-auto max-w-3xl py-8 px-4 space-y-6">
@@ -111,10 +102,7 @@ export default async function SubscriptionPage() {
       </Card>
 
       {/* Available Plans Section */}
-      <PlanCard
-        preloadedProducts={preloadedProducts}
-        preloadedSubscription={preloadedSubscription}
-      />
+      <PlanCard products={products} isSubscribed={isSubscribed} />
 
       {/* Pro Features Section */}
       {isSubscribed && (
