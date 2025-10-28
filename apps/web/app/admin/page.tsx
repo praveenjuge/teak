@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { notFound } from "next/navigation";
-import { useAction, useQuery } from "convex/react";
+import { useQuery } from "convex-helpers/react/cache/hooks";
+import { useAction } from "convex/react";
 import { api } from "@teak/convex";
 import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";

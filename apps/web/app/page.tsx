@@ -75,9 +75,7 @@ export default function HomePage() {
       const query = searchQuery.toLowerCase().trim();
 
       if (
-        ["fav", "favs", "favorites", "favourite", "favourites"].includes(
-          query
-        )
+        ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
       ) {
         setShowFavoritesOnly(!showFavoritesOnly);
         setSearchQuery("");
