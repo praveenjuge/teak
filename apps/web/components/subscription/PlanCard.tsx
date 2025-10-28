@@ -14,8 +14,9 @@ import { Sparkles } from "lucide-react";
 import { api } from "@teak/convex";
 
 interface PlanCardProps {
-  preloadedProducts: Preloaded<typeof api.polar.listAllProducts>;
-  preloadedSubscription: Preloaded<typeof api.polar.userHasPremium>;
+  // @ts-ignore
+  preloadedProducts: Preloaded<typeof api.billing.listAllProducts>;
+  preloadedSubscription: Preloaded<typeof api.billing.userHasPremium>;
 }
 
 export function PlanCard({
@@ -69,7 +70,8 @@ export function PlanCard({
                 </div>
                 <CheckoutLink
                   polarApi={{
-                    generateCheckoutLink: api.polar.generateCheckoutLink,
+                    // @ts-ignore
+                    generateCheckoutLink: api.billing.generateCheckoutLink,
                   }}
                   productIds={[product.id]}
                   className={buttonVariants({})}

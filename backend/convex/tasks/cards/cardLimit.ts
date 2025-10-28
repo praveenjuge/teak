@@ -26,7 +26,7 @@ export async function ensureCardCreationAllowed(
     return;
   }
 
-  const hasPremium = await ctx.runQuery(api.polar.userHasPremium);
+  const hasPremium = await ctx.runQuery(api.billing.userHasPremium);
   if (hasPremium) {
     return;
   }

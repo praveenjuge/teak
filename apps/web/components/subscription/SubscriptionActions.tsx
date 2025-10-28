@@ -9,7 +9,8 @@ export function SubscriptionActions() {
   return (
     <CustomerPortalLink
       polarApi={{
-        generateCustomerPortalUrl: api.polar.generateCustomerPortalUrl,
+        // @ts-ignore
+        generateCustomerPortalUrl: api.billing.generateCustomerPortalUrl,
       }}
       className={buttonVariants({
         variant: "outline",

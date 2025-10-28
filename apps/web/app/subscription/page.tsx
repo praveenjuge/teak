@@ -23,12 +23,13 @@ export default async function SubscriptionPage() {
 
   // Preload all queries server-side
   const preloadedProducts = await preloadQuery(
-    api.polar.listAllProducts,
+    // @ts-ignore
+    api.billing.listAllProducts,
     {},
     { token }
   );
   const preloadedSubscription = await preloadQuery(
-    api.polar.userHasPremium,
+    api.billing.userHasPremium,
     {},
     { token }
   );
