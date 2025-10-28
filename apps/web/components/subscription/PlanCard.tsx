@@ -1,6 +1,5 @@
 "use client";
 
-import { usePreloadedQuery, Preloaded } from "convex/react";
 import { CheckoutLink } from "@convex-dev/polar/react";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -14,20 +13,17 @@ import { Sparkles } from "lucide-react";
 import { api } from "@teak/convex";
 
 interface PlanCardProps {
-  // @ts-ignore
-  preloadedProducts: Preloaded<typeof api.billing.listAllProducts>;
-  preloadedSubscription: Preloaded<typeof api.billing.userHasPremium>;
+  products:
+    | Array<{
+        id: string;
+        name: string;
+        prices: { id: string; priceAmount?: number }[];
+      }>
+    | undefined;
+  isSubscribed: boolean;
 }
 
-export function PlanCard({
-  preloadedProducts,
-  preloadedSubscription,
-}: PlanCardProps) {
-  const products = usePreloadedQuery(preloadedProducts);
-  const subscription = usePreloadedQuery(preloadedSubscription);
-
-  const isSubscribed = !!subscription;
-
+export function PlanCard({ products, isSubscribed }: PlanCardProps) {
   if (isSubscribed || !products || products.length === 0) {
     return null;
   }
