@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useQuery } from "convex-helpers/react/cache/hooks";
 import { toast } from "sonner";
 import { api } from "@teak/convex";
 import { type Id } from "@teak/convex/_generated/dataModel";

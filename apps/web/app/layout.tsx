@@ -7,6 +7,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { shadcn } from "@clerk/themes";
 import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 
+export const dynamic = "force-static";
+
 export const metadata: Metadata = {
   title: "Teak",
   description:
