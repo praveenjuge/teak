@@ -68,7 +68,7 @@ export function MoreInformationModal({
     textClass?: string;
   }) => (
     <div className="space-y-2">
-      <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between">
         <Label className="text-muted-foreground">{label}</Label>
         <Button
           variant="ghost"
