@@ -185,23 +185,16 @@ export default function AdminPage() {
     } satisfies NormalizedPipelineSummary;
   }, [overview?.aiPipeline]);
 
-  const cardsByTypeEntries = useMemo(
-    () =>
-      Object.entries(overview?.cardsByType ?? {}).sort(
-        (a, b) => (b[1] ?? 0) - (a[1] ?? 0)
-      ),
-    [overview?.cardsByType]
+  const cardsByTypeEntries = Object.entries(overview?.cardsByType ?? {}).sort(
+    (a, b) => (b[1] ?? 0) - (a[1] ?? 0)
   );
 
-  const metadataCounts = useMemo(() => {
-    const counts = overview?.metadataStatus ?? {};
-    return {
-      completed: Number(counts.completed ?? 0),
-      pending: Number(counts.pending ?? 0),
-      failed: Number(counts.failed ?? 0),
-      unset: Number(counts.unset ?? 0),
-    };
-  }, [overview?.metadataStatus]);
+  const metadataCounts = {
+    completed: Number(overview?.metadataStatus?.completed ?? 0),
+    pending: Number(overview?.metadataStatus?.pending ?? 0),
+    failed: Number(overview?.metadataStatus?.failed ?? 0),
+    unset: Number(overview?.metadataStatus?.unset ?? 0),
+  };
 
   const [pendingRetries, setPendingRetries] = useState<Record<string, number>>(
     {}
@@ -353,21 +346,22 @@ export default function AdminPage() {
     { label: "Not yet processed", value: metadataCounts.unset },
   ];
 
-  const orderedStages = STAGE_ORDER.map((key) => ({
-    key,
-    label: stageLabelMap[key] ?? key,
-    summary: stageSummaries[key] ?? { pending: 0, inProgress: 0, failed: 0 },
-  }));
-  const extraStages = Object.entries(stageSummaries)
-    .filter(
-      ([key]) => !STAGE_ORDER.includes(key as (typeof STAGE_ORDER)[number])
-    )
-    .map(([key, summary]) => ({
+  const stageList = [
+    ...STAGE_ORDER.map((key) => ({
       key,
       label: stageLabelMap[key] ?? key,
-      summary: summary ?? { pending: 0, inProgress: 0, failed: 0 },
-    }));
-  const stageList = [...orderedStages, ...extraStages];
+      summary: stageSummaries[key] ?? { pending: 0, inProgress: 0, failed: 0 },
+    })),
+    ...Object.entries(stageSummaries)
+      .filter(
+        ([key]) => !STAGE_ORDER.includes(key as (typeof STAGE_ORDER)[number])
+      )
+      .map(([key, summary]) => ({
+        key,
+        label: stageLabelMap[key] ?? key,
+        summary: summary ?? { pending: 0, inProgress: 0, failed: 0 },
+      })),
+  ];
 
   return (
     <div className="container mx-auto max-w-5xl space-y-8 py-8 px-4 md:px-6">
@@ -425,16 +419,12 @@ export default function AdminPage() {
               {cardsByTypeEntries.map(([type, count]) => (
                 <div
                   key={type}
-                  className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2"
+                  className="flex items-center justify-between border rounded-md px-3 py-2"
                 >
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="capitalize">
-                      {type}
-                    </Badge>
-                  </div>
-                  <span className="text-sm font-medium">
-                    {formatNumber(count)}
-                  </span>
+                  <Badge variant="secondary" className="capitalize">
+                    {type}
+                  </Badge>
+                  <span className="font-medium">{formatNumber(count)}</span>
                 </div>
               ))}
             </CardContent>
@@ -446,11 +436,11 @@ export default function AdminPage() {
                 AI extraction pipeline outcomes for active cards.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent>
               {metadataItems.map((item) => (
                 <div
                   key={item.label}
-                  className="flex items-center justify-between text-sm"
+                  className="flex justify-between items-center py-1"
                 >
                   <span className="text-muted-foreground">{item.label}</span>
                   <span className="font-medium">
@@ -458,8 +448,8 @@ export default function AdminPage() {
                   </span>
                 </div>
               ))}
-              <Separator />
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <Separator className="my-2" />
+              <div className="flex justify-between text-muted-foreground">
                 <span>Total tracked</span>
                 <span className="font-medium">
                   {formatNumber(
@@ -479,57 +469,56 @@ export default function AdminPage() {
             Track enrichment backlog and spot stuck pipeline stages.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-md border border-border/60 p-3">
-              <p className="text-xs text-muted-foreground">Missing metadata</p>
-              <p className="text-xl font-semibold">
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-3 mb-6">
+            <div className="text-center p-3 border rounded-md">
+              <p className="text-sm text-muted-foreground">Missing metadata</p>
+              <p className="text-2xl font-semibold">
                 {formatNumber(missingAiMetadata)}
               </p>
             </div>
-            <div className="rounded-md border border-border/60 p-3">
-              <p className="text-xs text-muted-foreground">In progress</p>
-              <p className="text-xl font-semibold">
+            <div className="text-center p-3 border rounded-md">
+              <p className="text-sm text-muted-foreground">In progress</p>
+              <p className="text-2xl font-semibold">
                 {formatNumber(pendingEnrichment)}
               </p>
             </div>
-            <div className="rounded-md border border-border/60 p-3">
-              <p className="text-xs text-muted-foreground">Needs attention</p>
-              <p className="text-xl font-semibold">
+            <div className="text-center p-3 border rounded-md">
+              <p className="text-sm text-muted-foreground">Needs attention</p>
+              <p className="text-2xl font-semibold">
                 {formatNumber(failedCards)}
               </p>
             </div>
           </div>
 
-          <div className="space-y-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wide">
               Pipeline stage breakdown
             </p>
-            <div className="grid gap-2 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               {stageList.map(({ key, label, summary }) => (
-                <div
-                  key={key}
-                  className="rounded-md border border-border/60 px-3 py-2"
-                >
-                  <p className="text-sm font-medium">{label}</p>
-                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                <div key={key} className="border rounded-md p-3">
+                  <p className="font-medium mb-2">{label}</p>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
                     <div>
-                      <p className="text-muted-foreground">Pending</p>
-                      <p className="font-semibold">
+                      <span className="text-muted-foreground">Pending: </span>
+                      <span className="font-semibold">
                         {formatNumber(summary.pending)}
-                      </p>
+                      </span>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">In progress</p>
-                      <p className="font-semibold">
+                      <span className="text-muted-foreground">
+                        In progress:{" "}
+                      </span>
+                      <span className="font-semibold">
                         {formatNumber(summary.inProgress)}
-                      </p>
+                      </span>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Failed</p>
-                      <p className="font-semibold">
+                      <span className="text-muted-foreground">Failed: </span>
+                      <span className="font-semibold">
                         {formatNumber(summary.failed)}
-                      </p>
+                      </span>
                     </div>
                   </div>
                 </div>
