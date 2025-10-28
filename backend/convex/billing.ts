@@ -34,6 +34,7 @@ export const polar = new Polar(components.polar, {
 });
 
 export const {
+  listAllProducts,
   generateCheckoutLink,
   generateCustomerPortalUrl,
 }: any = polar.api();
@@ -53,5 +54,3 @@ export const userHasPremium = query({
     }
   },
 });
-
-export const listAllProducts = polar.api().listAllProducts;
