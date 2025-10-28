@@ -1,4 +1,4 @@
-import { Loader2Icon } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 export function Loading({
   fullScreen,
@@ -11,7 +11,7 @@ export function Loading({
     <div
       className={`grid place-items-center ${fullScreen ? "min-h-screen w-full" : "size-full"} ${className}`}
     >
-      <Loader2Icon className="animate-spin text-muted-foreground" />
+      <Spinner />
     </div>
   );
 }

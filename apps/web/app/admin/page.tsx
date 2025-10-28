@@ -26,6 +26,7 @@ import {
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { Spinner } from "@/components/ui/spinner";
 
 type StageSummary = {
   pending: number;
@@ -264,25 +265,22 @@ export default function AdminPage() {
     }
   };
 
-  const renderLoading = (message: string) => (
+  const renderLoading = () => (
     <div className="flex min-h-[50vh] items-center justify-center">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" />
-        <span>{message}</span>
-      </div>
+      <Spinner />
     </div>
   );
 
   if (!isLoaded || (shouldCheckAccess && access === undefined)) {
-    return renderLoading("Loading admin overview…");
+    return renderLoading();
   }
 
   if (!isAdmin) {
-    return renderLoading("Redirecting…");
+    return renderLoading();
   }
 
   if (!overview) {
-    return renderLoading("Fetching metrics…");
+    return renderLoading();
   }
 
   const { totals, growth, generatedAt } = overview;
