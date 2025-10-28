@@ -35,15 +35,14 @@ export function MoreInformationModal({
 }: MoreInformationModalProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString("en-US", {
+  const formatDate = (timestamp: number) =>
+    new Date(timestamp).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
 
   const handleCopy = async (text: string, fieldName: string) => {
     try {
@@ -57,115 +56,110 @@ export function MoreInformationModal({
 
   if (!card) return null;
 
+  const CopyableSection = ({
+    label,
+    value,
+    fieldName,
+    textClass = "",
+  }: {
+    label: string;
+    value: string;
+    fieldName: string;
+    textClass?: string;
+  }) => (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1">
+        <Label className="text-muted-foreground">{label}</Label>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="p-0 h-0 hover:bg-transparent"
+          onClick={() => handleCopy(value, fieldName)}
+        >
+          <Copy />
+          {copiedField === fieldName ? "Copied!" : "Copy"}
+        </Button>
+      </div>
+      <div className={`flex-1 font-medium ${textClass}`}>{value}</div>
+    </div>
+  );
+
+  const KeyValueSection = ({
+    label,
+    fields,
+  }: {
+    label?: string;
+    fields: { label: string; value: string; valueClass?: string }[];
+  }) => (
+    <div className="space-y-3 text-sm">
+      {fields.map(({ label: fieldLabel, value, valueClass }) => (
+        <div key={fieldLabel} className="flex justify-between">
+          <Label className="text-muted-foreground">{fieldLabel}</Label>
+          <span className={`font-medium ${valueClass || ""}`}>{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Card Information</DialogTitle>
+          <DialogTitle>More Information</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Timestamps */}
-          <div className="space-y-3">
-            <Label className="text-base font-semibold">Timestamps</Label>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Created:</span>
-                <span className="font-medium">
-                  {formatDate(card.createdAt)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Updated:</span>
-                <span className="font-medium">
-                  {formatDate(card.updatedAt)}
-                </span>
-              </div>
-            </div>
-          </div>
+          <KeyValueSection
+            fields={[
+              { label: "Created At", value: formatDate(card.createdAt) },
+              { label: "Updated At", value: formatDate(card.updatedAt) },
+              ...(card.fileMetadata
+                ? [
+                    ...(card.fileMetadata.fileName
+                      ? [
+                          {
+                            label: "File Name",
+                            value: card.fileMetadata.fileName,
+                          },
+                        ]
+                      : []),
+                    ...(card.fileMetadata.fileSize
+                      ? [
+                          {
+                            label: "File Size",
+                            value: `${(card.fileMetadata.fileSize / (1024 * 1024)).toFixed(2)} MB`,
+                          },
+                        ]
+                      : []),
+                    ...(card.fileMetadata.mimeType
+                      ? [
+                          {
+                            label: "File Type",
+                            value: card.fileMetadata.mimeType,
+                          },
+                        ]
+                      : []),
+                  ]
+                : []),
+            ]}
+          />
 
-          {/* URL Information */}
           {card.url && (
-            <div className="space-y-3">
-              <Label className="text-base font-semibold">URL</Label>
-              <div className="p-3 bg-muted/50 rounded-md">
-                <div className="flex items-start gap-2">
-                  <div className="flex-1 break-all text-sm font-mono">
-                    {card.url}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleCopy(card.url!, "url")}
-                    className="flex-shrink-0"
-                  >
-                    <Copy className="size-4" />
-                    {copiedField === "url" ? "Copied!" : "Copy"}
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <CopyableSection
+              label="URL"
+              value={card.url}
+              fieldName="url"
+              textClass="break-all"
+            />
           )}
 
-          {/* Original Content */}
           {card.content && (
-            <div className="space-y-3">
-              <Label className="text-base font-semibold">
-                Original Content
-              </Label>
-              <div className="p-3 bg-muted/50 rounded-md">
-                <div className="flex items-start gap-2">
-                  <div className="flex-1 text-sm whitespace-pre-wrap">
-                    {card.content}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleCopy(card.content!, "content")}
-                    className="flex-shrink-0"
-                  >
-                    <Copy className="size-4" />
-                    {copiedField === "content" ? "Copied!" : "Copy"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* File Metadata */}
-          {card.fileMetadata && (
-            <div className="space-y-3">
-              <Label className="text-base font-semibold">
-                File Information
-              </Label>
-              <div className="space-y-2 text-sm">
-                {card.fileMetadata.fileName && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">File Name:</span>
-                    <span className="font-medium font-mono text-right max-w-[60%] break-all">
-                      {card.fileMetadata.fileName}
-                    </span>
-                  </div>
-                )}
-                {card.fileMetadata.fileSize && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">File Size:</span>
-                    <span className="font-medium">
-                      {(card.fileMetadata.fileSize / (1024 * 1024)).toFixed(2)}{" "}
-                      MB
-                    </span>
-                  </div>
-                )}
-                {card.fileMetadata.mimeType && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">File Type:</span>
-                    <span className="font-medium font-mono">
-                      {card.fileMetadata.mimeType}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
+            <CopyableSection
+              label="Original Content"
+              value={card.content}
+              fieldName="content"
+              textClass="whitespace-pre-wrap"
+            />
           )}
         </div>
       </DialogContent>
