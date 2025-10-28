@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { notFound } from "next/navigation";
 import { useAction, useQuery } from "convex/react";
 import { api } from "@teak/convex";
 import { useUser } from "@clerk/nextjs";
@@ -121,9 +122,9 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (isLoaded && access && access.allowed === false) {
-      router.replace("/");
+      notFound();
     }
-  }, [access, isLoaded, router]);
+  }, [access, isLoaded]);
 
   const overview = useQuery(api.admin.getOverview, isAdmin ? {} : "skip") as
     | OverviewResponse
@@ -266,7 +267,7 @@ export default function AdminPage() {
   };
 
   const renderLoading = () => (
-    <div className="flex min-h-[50vh] items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center">
       <Spinner />
     </div>
   );
