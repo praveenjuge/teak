@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { shadcn } from "@clerk/themes";
 import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
+import AlphaBanner from "@/components/AlphaBanner";
 
 export const dynamic = "force-static";
 
@@ -29,6 +30,7 @@ export default function RootLayout({
           disableTransitionOnChange
           enableSystem={false}
         >
+          <AlphaBanner />
           <ClerkProvider
             signInUrl="/login"
             signUpUrl="/register"
