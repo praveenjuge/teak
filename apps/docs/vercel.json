@@ -1,5 +1,6 @@
 {
   "buildCommand": "bun run build",
   "installCommand": "bun install",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "bunVersion": "1.x"
 }
