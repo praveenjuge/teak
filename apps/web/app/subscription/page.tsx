@@ -83,7 +83,7 @@ export default function SubscriptionPage() {
   return (
     <>
       <div className="relative mx-auto flex min-h-dvh w-full max-w-sm flex-col items-center gap-10 px-4 py-20 text-center">
-        <Link href="/" className="flex items-center gap-2 text-primary">
+        <Link href="/">
           <Logo variant="primary" />
         </Link>
 
