@@ -248,16 +248,27 @@ export function Card({
               </div>
             )}
 
-            {card.type === "palette" && (
-              <div className="flex bg-card rounded-xl border overflow-hidden">
-                {card.colors?.slice(0, 12).map((color, index) => (
-                  <div
-                    key={`${color.hex}-${index}`}
-                    className="h-14 flex-1 min-w-0"
-                    style={{ backgroundColor: color.hex }}
-                    title={color.hex}
-                  />
-                ))}
+            {card.type === "palette" &&
+              (card.colors?.length ? (
+                <div className="flex bg-card rounded-xl border overflow-hidden">
+                  {card.colors?.slice(0, 12).map((color, index) => (
+                    <div
+                      key={`${color.hex}-${index}`}
+                      className="h-14 flex-1 min-w-0"
+                      style={{ backgroundColor: color.hex }}
+                      title={color.hex}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl border bg-card">
+                  <p className="line-clamp-2 font-medium">{card.content}</p>
+                </div>
+              ))}
+
+            {!card.type && (
+              <div className="p-4 rounded-xl border bg-card">
+                <p className="line-clamp-2 font-medium">{card.content}</p>
               </div>
             )}
           </CardContent>

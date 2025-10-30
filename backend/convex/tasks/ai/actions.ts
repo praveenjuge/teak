@@ -106,7 +106,7 @@ const buildPaletteAnalysisText = (card: any): string => {
   return sections.join("\n").trim();
 };
 
-const extractPaletteWithAi = async (
+export const extractPaletteWithAi = async (
   card: any,
   text: string,
 ): Promise<Color[]> => {

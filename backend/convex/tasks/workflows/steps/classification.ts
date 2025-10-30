@@ -13,7 +13,8 @@ import { internal } from "../../../_generated/api";
 import { Id } from "../../../_generated/dataModel";
 import { generateObject } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { cardClassificationSchema, paletteExtractionSchema } from "../../ai/schemas";
+import { cardClassificationSchema } from "../../ai/schemas";
+import { extractPaletteWithAi } from "../../ai/actions";
 import type { CardType } from "../../../schema";
 import {
   parseColorString,
@@ -175,44 +176,7 @@ const buildPaletteAnalysisText = (card: any): string => {
   return sections.join("\n").trim();
 };
 
-/**
- * Extract palette colors using AI
- */
-const extractPaletteWithAi = async (card: any, text: string): Promise<Color[]> => {
-  if (!text) {
-    return [];
-  }
 
-  try {
-    const result = await generateObject({
-      model: openai("gpt-5-nano"),
-      system:
-        "You extract colour palettes from user notes or CSS snippets. Only return colours that are explicitly present and prefer hex codes.",
-      prompt: `Extract up to ${MAX_PALETTE_COLORS} unique colours (with their hex codes) from the following palette card. Preserve any provided names:\n\n${text}`,
-      schema: paletteExtractionSchema,
-    });
-
-    const colors = result.object.colors ?? [];
-    return colors
-      .map((entry) => {
-        const parsed = parseColorString(entry.hex ?? "");
-        if (!parsed) {
-          return null;
-        }
-        if (entry.name) {
-          parsed.name = entry.name.trim();
-        }
-        return parsed;
-      })
-      .filter((color): color is Color => !!color);
-  } catch (error) {
-    console.error(`${CLASSIFY_LOG_PREFIX} Palette extraction failed`, {
-      cardId: card._id,
-      error,
-    });
-    return [];
-  }
-};
 
 /**
  * Update palette colors if card is a palette type
@@ -228,19 +192,18 @@ const maybeUpdatePaletteColors = async (
   }
 
   const text = buildPaletteAnalysisText(card);
-  const aiColors = await extractPaletteWithAi(card, text);
-  const contentColors = extractPaletteColors(card.content ?? "");
-  const allColors = [...aiColors, ...contentColors];
+  let colors = extractPaletteColors(text).slice(0, MAX_PALETTE_COLORS);
 
-  const uniqueColors = allColors.reduce((acc, color) => {
-    const existing = acc.find((c) => c.hex.toUpperCase() === color.hex.toUpperCase());
-    if (!existing) {
-      acc.push(color);
-    }
-    return acc;
-  }, [] as Color[]);
+  // Only use AI extraction as fallback if regex parsing found no colors
+  if (colors.length === 0) {
+    colors = await extractPaletteWithAi(card, text);
+  }
 
-  const dbColors = uniqueColors.slice(0, MAX_PALETTE_COLORS).map(toDbColor);
+  if (colors.length === 0) {
+    return;
+  }
+
+  const dbColors = colors.map(toDbColor);
 
   if (dbColors.length && !colorsMatch(card.colors, dbColors)) {
     await ctx.runMutation(internal.tasks.ai.mutations.updateCardColors, {
