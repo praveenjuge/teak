@@ -9,6 +9,8 @@ import { v } from "convex/values";
 import { internalMutation } from "../../../../_generated/server";
 import { stageCompleted } from "../../../cards/processingStatus";
 
+const CATEGORIZE_MUTATION_LOG_PREFIX = "[workflow/categorize/mutation]";
+
 /**
  * Internal mutation to update card with categorization result
  */
@@ -19,11 +21,17 @@ export const updateCategorization = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { cardId, metadata }) => {
+    console.info(`${CATEGORIZE_MUTATION_LOG_PREFIX} Updating categorization`, {
+      cardId,
+      category: metadata?.category,
+      confidence: metadata?.confidence,
+    });
     const now = Date.now();
 
     // Get current card to update processing status
     const card = await ctx.db.get(cardId);
     if (!card) {
+      console.warn(`${CATEGORIZE_MUTATION_LOG_PREFIX} Card not found`, { cardId });
       throw new Error(`Card ${cardId} not found`);
     }
 
@@ -43,6 +51,12 @@ export const updateCategorization = internalMutation({
     await ctx.db.patch(cardId, {
       metadata: updatedMetadata,
       processingStatus: updatedProcessing,
+    });
+
+    console.info(`${CATEGORIZE_MUTATION_LOG_PREFIX} Categorization stored`, {
+      cardId,
+      facts: metadata?.facts?.length ?? 0,
+      hasImage: !!metadata?.imageUrl,
     });
 
     return null;

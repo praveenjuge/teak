@@ -22,6 +22,8 @@ import { v } from "convex/values";
 import { internalAction } from "../../../../_generated/server";
 import { internal } from "../../../../_generated/api";
 
+const CATEGORIZE_LOG_PREFIX = "[workflow/categorize]";
+
 const MAX_FETCH_BODY_SIZE = 250_000;
 const STRUCTURED_DATA_MAX_ITEMS = 8;
 const STRUCTURED_DATA_FIELDS = [
@@ -157,7 +159,10 @@ Pick the category that best describes the main subject of the URL. Use provider 
       tags,
     };
   } catch (error) {
-    console.error(`[categorize] Failed to classify link for card ${card._id}:`, error);
+    console.error(`${CATEGORIZE_LOG_PREFIX} Failed to classify link`, {
+      cardId: card._id,
+      error,
+    });
     return null;
   }
 };
@@ -206,7 +211,9 @@ const parseStructuredData = (html: string): StructuredDataResult => {
         }
       }
     } catch (error) {
-      console.warn("[categorize] Failed to parse JSON-LD block", error);
+      console.warn(`${CATEGORIZE_LOG_PREFIX} Failed to parse JSON-LD block`, {
+        error,
+      });
     }
   }
 
@@ -224,7 +231,10 @@ const fetchStructuredData = async (url: string): Promise<StructuredDataResult | 
     });
 
     if (!response.ok) {
-      console.warn(`[categorize] Structured data fetch failed for ${url} (${response.status})`);
+      console.warn(`${CATEGORIZE_LOG_PREFIX} Structured data fetch failed`, {
+        url,
+        status: response.status,
+      });
       return null;
     }
 
@@ -239,7 +249,10 @@ const fetchStructuredData = async (url: string): Promise<StructuredDataResult | 
 
     return parseStructuredData(truncated);
   } catch (error) {
-    console.warn(`[categorize] Structured data fetch error for ${url}:`, error);
+    console.warn(`${CATEGORIZE_LOG_PREFIX} Structured data fetch error`, {
+      url,
+      error,
+    });
     return null;
   }
 };
@@ -674,29 +687,47 @@ export const categorize: any = internalAction({
     factsCount: v.number(),
   }),
   handler: async (ctx, { cardId }) => {
+    console.info(`${CATEGORIZE_LOG_PREFIX} Running`, { cardId });
     const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
       cardId,
     });
 
     if (!card) {
+      console.warn(`${CATEGORIZE_LOG_PREFIX} Card not found`, { cardId });
       throw new Error(`Card ${cardId} not found for categorization`);
     }
 
     if (card.type !== "link") {
+      console.warn(`${CATEGORIZE_LOG_PREFIX} Not a link card`, {
+        cardId,
+        cardType: card.type,
+      });
       throw new Error(`Card ${cardId} is not a link card (type: ${card.type})`);
     }
 
     // Classify link category using AI
     const classification = await classifyLinkCategory(card as CategorizationContextCard);
     if (!classification) {
+      console.warn(`${CATEGORIZE_LOG_PREFIX} Classification failed`, { cardId });
       throw new Error(`Failed to classify link category for card ${cardId}`);
     }
+    console.info(`${CATEGORIZE_LOG_PREFIX} Classification result`, {
+      cardId,
+      category: classification.category,
+      confidence: classification.confidence,
+    });
 
     // Enrich category with provider-specific and structured data
     const metadata = await enrichLinkCategory(
       card as CategorizationContextCard,
       classification
     );
+    console.info(`${CATEGORIZE_LOG_PREFIX} Enrichment complete`, {
+      cardId,
+      provider: metadata.detectedProvider,
+      facts: metadata.facts?.length ?? 0,
+      hasImage: !!metadata.imageUrl,
+    });
 
     // Update card with category metadata
     await ctx.runMutation(
@@ -706,12 +737,24 @@ export const categorize: any = internalAction({
         metadata,
       }
     );
+    console.info(`${CATEGORIZE_LOG_PREFIX} Stored categorization`, {
+      cardId,
+      category: metadata.category,
+      confidence: metadata.confidence,
+    });
 
-    return {
+    const result = {
       category: metadata.category,
       confidence: metadata.confidence ?? 0.8,
       imageUrl: metadata.imageUrl,
       factsCount: metadata.facts?.length ?? 0,
     };
+
+    console.info(`${CATEGORIZE_LOG_PREFIX} Completed`, {
+      cardId,
+      result,
+    });
+
+    return result;
   },
 });

@@ -69,3 +69,45 @@ export interface LinkCategoryMetadata {
 }
 
 export const LINK_CATEGORY_DEFAULT_CONFIDENCE = 0.6;
+
+const normalizeVariant = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const buildCategoryLookup = (): Record<string, LinkCategory> => {
+  const map: Record<string, LinkCategory> = {};
+
+  const register = (variant: string | undefined, category: LinkCategory) => {
+    if (!variant) return;
+    const key = normalizeVariant(variant);
+    if (!key) return;
+    map[key] = category;
+  };
+
+  for (const category of LINK_CATEGORIES) {
+    register(category, category);
+
+    const label = LINK_CATEGORY_LABELS[category];
+    register(label, category);
+
+    for (const part of label.split(/[\/,|()-]/)) {
+      register(part, category);
+    }
+  }
+
+  return map;
+};
+
+const LINK_CATEGORY_LOOKUP = buildCategoryLookup();
+
+export const normalizeLinkCategory = (value: string): LinkCategory | null => {
+  const key = normalizeVariant(value);
+  if (!key) {
+    return null;
+  }
+  return LINK_CATEGORY_LOOKUP[key] ?? null;
+};

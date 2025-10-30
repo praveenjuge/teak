@@ -19,6 +19,8 @@ import {
 import { generateTranscript } from "../../ai/transcript";
 import { stageCompleted } from "../../cards/processingStatus";
 
+const METADATA_LOG_PREFIX = "[workflow/metadata]";
+
 /**
  * Workflow Step: Generate AI metadata (tags and summary)
  *
@@ -36,11 +38,13 @@ export const generate: any = internalAction({
     confidence: v.number(),
   }),
   handler: async (ctx, { cardId, cardType }) => {
+    console.info(`${METADATA_LOG_PREFIX} Running`, { cardId, cardType });
     const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
       cardId,
     });
 
     if (!card) {
+      console.warn(`${METADATA_LOG_PREFIX} Card not found`, { cardId });
       throw new Error(`Card ${cardId} not found for metadata generation`);
     }
 
@@ -51,6 +55,9 @@ export const generate: any = internalAction({
       card.metadataStatus === "pending"
     ) {
       // Wait a bit and retry
+      console.info(`${METADATA_LOG_PREFIX} Link metadata still pending`, {
+        cardId,
+      });
       throw new Error(
         `Link metadata extraction not yet complete for card ${cardId}`
       );
@@ -60,6 +67,7 @@ export const generate: any = internalAction({
     let aiSummary = "";
     let aiTranscript: string | undefined;
     let confidence = 0.9;
+    let generationSource: string = "unknown";
 
     switch (cardType as CardType) {
       case "text": {
@@ -67,6 +75,7 @@ export const generate: any = internalAction({
         aiTags = result.aiTags;
         aiSummary = result.aiSummary;
         confidence = 0.95;
+        generationSource = "text";
         break;
       }
       case "image": {
@@ -77,6 +86,7 @@ export const generate: any = internalAction({
             aiTags = result.aiTags;
             aiSummary = result.aiSummary;
             confidence = 0.9;
+            generationSource = "image";
           }
         }
         break;
@@ -95,6 +105,7 @@ export const generate: any = internalAction({
               aiTags = result.aiTags;
               aiSummary = result.aiSummary;
               confidence = 0.85;
+              generationSource = "audio";
             }
           }
         }
@@ -145,6 +156,7 @@ export const generate: any = internalAction({
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
           confidence = 0.9;
+          generationSource = "link";
         }
         break;
       }
@@ -158,6 +170,7 @@ export const generate: any = internalAction({
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
           confidence = 0.85;
+          generationSource = "document";
         }
         break;
       }
@@ -167,6 +180,7 @@ export const generate: any = internalAction({
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
           confidence = 0.95;
+          generationSource = "quote";
         }
         break;
       }
@@ -183,6 +197,7 @@ export const generate: any = internalAction({
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
           confidence = 0.9;
+          generationSource = "palette";
         }
         break;
       }
@@ -190,7 +205,20 @@ export const generate: any = internalAction({
         break;
     }
 
+    console.info(`${METADATA_LOG_PREFIX} Generation summary`, {
+      cardId,
+      cardType,
+      generationSource,
+      aiTags: aiTags.length,
+      hasSummary: !!aiSummary,
+      hasTranscript: !!aiTranscript,
+    });
+
     if (aiTags.length === 0 && !aiSummary && !aiTranscript) {
+      console.warn(`${METADATA_LOG_PREFIX} No metadata generated`, {
+        cardId,
+        cardType,
+      });
       throw new Error("No AI metadata generated for card");
     }
 
@@ -215,9 +243,17 @@ export const generate: any = internalAction({
       },
       processingStatus: updatedProcessing,
     });
+    console.info(`${METADATA_LOG_PREFIX} Metadata stored`, {
+      cardId,
+      aiTags: aiTags.length,
+      hasSummary: !!aiSummary,
+      hasTranscript: !!aiTranscript,
+      generationSource,
+    });
 
     // Trigger link screenshot generation if it's a link
     if (cardType === "link") {
+      console.info(`${METADATA_LOG_PREFIX} Scheduling screenshot`, { cardId });
       await ctx.scheduler.runAfter(0, internal.linkMetadata.generateLinkScreenshot, {
         cardId,
       });

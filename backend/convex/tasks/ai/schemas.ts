@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { cardTypes } from "../../schema";
-import { LINK_CATEGORIES } from "../../../shared/linkCategories";
+import {
+  normalizeLinkCategory,
+  type LinkCategory,
+} from "../../../shared/linkCategories";
 
 // AI generation result schema
 export const aiMetadataSchema = z.object({
@@ -21,8 +24,22 @@ export const cardClassificationSchema = z.object({
     .optional(),
 });
 
+const linkCategoryValueSchema = z
+  .string()
+  .transform((value, ctx): LinkCategory => {
+    const normalized = normalizeLinkCategory(value);
+    if (!normalized) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Invalid category value: ${value}`,
+      });
+      return z.NEVER;
+    }
+    return normalized;
+  });
+
 export const linkCategoryClassificationSchema = z.object({
-  category: z.enum(LINK_CATEGORIES).describe("Link category label"),
+  category: linkCategoryValueSchema.describe("Link category label"),
   confidence: z
     .number()
     .min(0)

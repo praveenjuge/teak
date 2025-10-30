@@ -10,6 +10,8 @@ import { internalMutation } from "../../../_generated/server";
 import type { CardType } from "../../../schema";
 import { stageCompleted, stagePending } from "../../cards/processingStatus";
 
+const CLASSIFY_MUTATION_LOG_PREFIX = "[workflow/classify/mutation]";
+
 /**
  * Internal mutation to update card classification result
  */
@@ -21,11 +23,17 @@ export const updateClassification = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { cardId, type, confidence }) => {
+    console.info(`${CLASSIFY_MUTATION_LOG_PREFIX} Updating classification`, {
+      cardId,
+      type,
+      confidence,
+    });
     const now = Date.now();
 
     // Get current card to update processing status
     const card = await ctx.db.get(cardId);
     if (!card) {
+      console.warn(`${CLASSIFY_MUTATION_LOG_PREFIX} Card not found`, { cardId });
       throw new Error(`Card ${cardId} not found`);
     }
 
@@ -50,6 +58,11 @@ export const updateClassification = internalMutation({
       type: type as CardType,
       processingStatus: updatedProcessing,
       ...(type === "link" ? { metadataStatus: "pending" } : {}),
+    });
+
+    console.info(`${CLASSIFY_MUTATION_LOG_PREFIX} Classification updated`, {
+      cardId,
+      metadataStatus: type === "link" ? "pending" : "completed",
     });
 
     return null;

@@ -24,6 +24,8 @@ import {
   type ProcessingStageStatus,
 } from "../../cards/processingStatus";
 
+const CLASSIFY_LOG_PREFIX = "[workflow/classify]";
+
 const MAX_PALETTE_COLORS = 12;
 
 type ClassificationWorkflowResult = {
@@ -204,7 +206,10 @@ const extractPaletteWithAi = async (card: any, text: string): Promise<Color[]> =
       })
       .filter((color): color is Color => !!color);
   } catch (error) {
-    console.error(`[workflow:classification] Palette extraction failed for ${card._id}:`, error);
+    console.error(`${CLASSIFY_LOG_PREFIX} Palette extraction failed`, {
+      cardId: card._id,
+      error,
+    });
     return [];
   }
 };
@@ -242,6 +247,10 @@ const maybeUpdatePaletteColors = async (
       cardId,
       colors: dbColors,
     });
+    console.info(`${CLASSIFY_LOG_PREFIX} Updated palette colours`, {
+      cardId,
+      count: dbColors.length,
+    });
   }
 };
 
@@ -263,11 +272,13 @@ export const classify = internalAction({
     shouldGenerateRenderables: v.boolean(),
   }),
   handler: async (ctx, { cardId }): Promise<ClassificationWorkflowResult> => {
+    console.info(`${CLASSIFY_LOG_PREFIX} Running`, { cardId });
     const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
       cardId,
     });
 
     if (!card) {
+      console.warn(`${CLASSIFY_LOG_PREFIX} Card not found`, { cardId });
       throw new Error(`Card ${cardId} not found for classification`);
     }
 
@@ -283,6 +294,11 @@ export const classify = internalAction({
 
     const resultType = classification.object.type as CardType;
     const resultConfidence = classification.object.confidence ?? 0.8;
+    console.info(`${CLASSIFY_LOG_PREFIX} Model result`, {
+      cardId,
+      resultType,
+      resultConfidence,
+    });
 
     // Normalize type for URL-only cards
     const trimmedContent = typeof card.content === "string" ? card.content.trim() : "";
@@ -293,6 +309,12 @@ export const classify = internalAction({
 
     const normalizedType = urlOnlyCard && resultType !== "link" ? "link" : resultType;
     const normalizedConfidence = Math.max(0, Math.min(resultConfidence, 1));
+    console.info(`${CLASSIFY_LOG_PREFIX} Normalized result`, {
+      cardId,
+      normalizedType,
+      normalizedConfidence,
+      urlOnlyCard,
+    });
 
     // Determine if type should be updated
     const shouldForceLink = urlOnlyCard && card.type !== "link";
@@ -303,6 +325,12 @@ export const classify = internalAction({
       const now = Date.now();
 
       // Update card type via mutation
+      console.info(`${CLASSIFY_LOG_PREFIX} Updating card type`, {
+        cardId,
+        previousType: card.type,
+        nextType: normalizedType,
+        confidence: normalizedConfidence,
+      });
       await ctx.runMutation((internal as any)["tasks/workflows/steps/classificationMutations"].updateClassification, {
         cardId,
         type: normalizedType,
@@ -315,6 +343,9 @@ export const classify = internalAction({
       // If it's a link and needs metadata extraction, trigger it
       const needsLinkMetadata = normalizedType === "link" && !card.metadata?.linkPreview;
       if (needsLinkMetadata) {
+        console.info(`${CLASSIFY_LOG_PREFIX} Scheduling link metadata extraction`, {
+          cardId,
+        });
         await ctx.scheduler.runAfter(0, internal.linkMetadata.extractLinkMetadata, {
           cardId,
         });
@@ -326,7 +357,7 @@ export const classify = internalAction({
     const shouldGenerateMetadata = true; // Always generate metadata
     const shouldGenerateRenderables = ["image", "video", "document"].includes(normalizedType);
 
-    return {
+    const result: ClassificationWorkflowResult = {
       type: normalizedType,
       confidence: normalizedConfidence,
       needsLinkMetadata: normalizedType === "link" && !card.metadata?.linkPreview,
@@ -334,5 +365,12 @@ export const classify = internalAction({
       shouldGenerateMetadata,
       shouldGenerateRenderables,
     };
+
+    console.info(`${CLASSIFY_LOG_PREFIX} Completed`, {
+      cardId,
+      result,
+    });
+
+    return result;
   },
 });

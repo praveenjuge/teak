@@ -9,11 +9,20 @@
  */
 
 import { v } from "convex/values";
+import type { RetryBehavior } from "@convex-dev/workpool";
 import { workflow } from "./manager";
 import { internal, api } from "../../_generated/api";
 
 // Helper to get properly typed internal references
 const internalWorkflow = internal as any;
+
+const METADATA_STEP_RETRY: RetryBehavior = {
+  maxAttempts: 10,
+  initialBackoffMs: 1000,
+  base: 2,
+};
+
+const PIPELINE_LOG_PREFIX = "[workflow/cardProcessing]";
 
 /**
  * Main Card Processing Workflow
@@ -49,17 +58,28 @@ export const cardProcessingWorkflow: any = workflow.define({
     ),
   }),
   handler: async (step, { cardId }) => {
+    console.info(`${PIPELINE_LOG_PREFIX} Starting workflow`, { cardId });
+
     // Step 1: Classification
     // Determine the card type using AI
+    console.info(`${PIPELINE_LOG_PREFIX} Running classification`, { cardId });
     const classification = await step.runAction(
       internalWorkflow["tasks/workflows/steps/classification"].classify,
       { cardId }
     );
+    console.info(`${PIPELINE_LOG_PREFIX} Classification complete`, {
+      cardId,
+      type: classification.type,
+      confidence: classification.confidence,
+      shouldCategorize: classification.shouldCategorize,
+      shouldGenerateRenderables: classification.shouldGenerateRenderables,
+    });
 
     // Step 2: Categorization (conditional - only for links)
     // Wait for link metadata extraction if needed, then categorize and enrich
     let categorization: { category: string; confidence: number } | undefined;
     if (classification.shouldCategorize) {
+      console.info(`${PIPELINE_LOG_PREFIX} Running categorization`, { cardId });
       // The categorization step will throw if metadata isn't ready yet
       // and workflow will retry automatically with the configured backoff
       const categorizationResult = await step.runAction(
@@ -71,19 +91,39 @@ export const cardProcessingWorkflow: any = workflow.define({
         category: categorizationResult.category,
         confidence: categorizationResult.confidence,
       };
+      console.info(`${PIPELINE_LOG_PREFIX} Categorization complete`, {
+        cardId,
+        category: categorization.category,
+        confidence: categorization.confidence,
+      });
     }
 
     // Step 3: Metadata Generation
     // Generate AI tags and summary for all card types
+    console.info(`${PIPELINE_LOG_PREFIX} Running metadata generation`, {
+      cardId,
+      cardType: classification.type,
+    });
     const metadata = await step.runAction(
       internalWorkflow["tasks/workflows/steps/metadata"].generate,
-      { cardId, cardType: classification.type }
+      { cardId, cardType: classification.type },
+      { retry: METADATA_STEP_RETRY }
     );
+    console.info(`${PIPELINE_LOG_PREFIX} Metadata generation complete`, {
+      cardId,
+      tags: metadata.aiTags.length,
+      hasSummary: !!metadata.aiSummary,
+      hasTranscript: !!metadata.aiTranscript,
+    });
 
     // Step 4: Renderables (conditional - only for image/video/document)
     // Generate thumbnails and other visual assets
     let renderables: { thumbnailGenerated: boolean } | undefined;
     if (classification.shouldGenerateRenderables) {
+      console.info(`${PIPELINE_LOG_PREFIX} Running renderables generation`, {
+        cardId,
+        cardType: classification.type,
+      });
       const renderablesResult = await step.runAction(
         internalWorkflow["tasks/workflows/steps/renderables"].generate,
         { cardId, cardType: classification.type }
@@ -92,9 +132,13 @@ export const cardProcessingWorkflow: any = workflow.define({
       renderables = {
         thumbnailGenerated: renderablesResult.thumbnailGenerated,
       };
+      console.info(`${PIPELINE_LOG_PREFIX} Renderables generation complete`, {
+        cardId,
+        thumbnailGenerated: renderables.thumbnailGenerated,
+      });
     }
 
-    return {
+    const result = {
       success: true,
       classification: {
         type: classification.type,
@@ -108,5 +152,14 @@ export const cardProcessingWorkflow: any = workflow.define({
       },
       renderables,
     };
+
+    console.info(`${PIPELINE_LOG_PREFIX} Workflow completed`, {
+      cardId,
+      classification: result.classification,
+      hasCategorization: !!categorization,
+      hasRenderables: !!renderables,
+    });
+
+    return result;
   },
 });
