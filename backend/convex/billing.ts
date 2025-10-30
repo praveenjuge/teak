@@ -8,9 +8,7 @@ export const getUserInfo = query({
   args: {},
   handler: async (ctx) => {
     const user = await ctx.auth.getUserIdentity();
-    if (!user) {
-      throw new Error("User not found");
-    }
+    if (!user) throw new Error("User not found");
     return user;
   },
 });
@@ -20,11 +18,7 @@ export const polar = new Polar(components.polar, {
     ctx
   ): Promise<{ userId: string; email: string; name?: string }> => {
     const user = await ctx.runQuery(api.billing.getUserInfo);
-    if (!user?.email) {
-      throw new ConvexError(
-        "User not found"
-      );
-    }
+    if (!user?.email) throw new ConvexError("User not found");
 
     return {
       userId: user.subject,
