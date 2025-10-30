@@ -192,7 +192,7 @@ export function useCardModal(
   const removeTag = useCallback(
     (tagToRemove: string) => {
       const currentTags = card?.tags || [];
-      const newTags = currentTags.filter((tag) => tag !== tagToRemove);
+      const newTags = currentTags.filter((tag: string) => tag !== tagToRemove);
       void updateField("tags", newTags);
     },
     [card?.tags, updateField]

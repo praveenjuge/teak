@@ -9,6 +9,7 @@ import {
   stageCompleted,
   stagePending,
 } from "./processingStatus";
+import { workflow } from "../workflows/manager";
 
 export const createCard = mutation({
   args: {
@@ -104,17 +105,23 @@ export const createCard = mutation({
 
     const cardId = await ctx.db.insert("cards", cardData);
 
-    // Schedule link metadata extraction for link cards (which will trigger AI generation after completion)
-    if (cardType === "link") {
+    // For link cards: Start link metadata extraction in parallel with workflow
+    // The workflow will wait for extraction to complete before categorization
+    if (cardType === "link" && finalUrl) {
       await ctx.scheduler.runAfter(0, internal.linkMetadata.extractLinkMetadata, {
         cardId,
       });
     }
 
-    await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.startProcessingPipeline, {
-      cardId,
-      classificationRequired,
-    });
+    // Start the card processing workflow
+    const workflowId = await workflow.start(
+      ctx,
+      (internal as any)["tasks/workflows/cardProcessing"].cardProcessingWorkflow,
+      { cardId }
+    );
+
+    // Store workflowId on card for tracking
+    await ctx.db.patch(cardId, { workflowId });
 
     return cardId;
   },

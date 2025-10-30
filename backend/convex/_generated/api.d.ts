@@ -46,6 +46,22 @@ import type * as tasks_cards_uploadCard from "../tasks/cards/uploadCard.js";
 import type * as tasks_cards_validationUtils from "../tasks/cards/validationUtils.js";
 import type * as tasks_thumbnails_generateThumbnail from "../tasks/thumbnails/generateThumbnail.js";
 import type * as tasks_thumbnails_index from "../tasks/thumbnails/index.js";
+import type * as tasks_workflows_cardProcessing from "../tasks/workflows/cardProcessing.js";
+import type * as tasks_workflows_functionRefs from "../tasks/workflows/functionRefs.js";
+import type * as tasks_workflows_index from "../tasks/workflows/index.js";
+import type * as tasks_workflows_manager from "../tasks/workflows/manager.js";
+import type * as tasks_workflows_steps_categorization_index from "../tasks/workflows/steps/categorization/index.js";
+import type * as tasks_workflows_steps_categorization_mutations from "../tasks/workflows/steps/categorization/mutations.js";
+import type * as tasks_workflows_steps_categorization_providers_amazon from "../tasks/workflows/steps/categorization/providers/amazon.js";
+import type * as tasks_workflows_steps_categorization_providers_common from "../tasks/workflows/steps/categorization/providers/common.js";
+import type * as tasks_workflows_steps_categorization_providers_github from "../tasks/workflows/steps/categorization/providers/github.js";
+import type * as tasks_workflows_steps_categorization_providers_goodreads from "../tasks/workflows/steps/categorization/providers/goodreads.js";
+import type * as tasks_workflows_steps_categorization_providers_imdb from "../tasks/workflows/steps/categorization/providers/imdb.js";
+import type * as tasks_workflows_steps_categorization_providers_index from "../tasks/workflows/steps/categorization/providers/index.js";
+import type * as tasks_workflows_steps_classification from "../tasks/workflows/steps/classification.js";
+import type * as tasks_workflows_steps_classificationMutations from "../tasks/workflows/steps/classificationMutations.js";
+import type * as tasks_workflows_steps_metadata from "../tasks/workflows/steps/metadata.js";
+import type * as tasks_workflows_steps_renderables from "../tasks/workflows/steps/renderables.js";
 
 import type {
   ApiFromModules,
@@ -100,6 +116,22 @@ declare const fullApi: ApiFromModules<{
   "tasks/cards/validationUtils": typeof tasks_cards_validationUtils;
   "tasks/thumbnails/generateThumbnail": typeof tasks_thumbnails_generateThumbnail;
   "tasks/thumbnails/index": typeof tasks_thumbnails_index;
+  "tasks/workflows/cardProcessing": typeof tasks_workflows_cardProcessing;
+  "tasks/workflows/functionRefs": typeof tasks_workflows_functionRefs;
+  "tasks/workflows/index": typeof tasks_workflows_index;
+  "tasks/workflows/manager": typeof tasks_workflows_manager;
+  "tasks/workflows/steps/categorization/index": typeof tasks_workflows_steps_categorization_index;
+  "tasks/workflows/steps/categorization/mutations": typeof tasks_workflows_steps_categorization_mutations;
+  "tasks/workflows/steps/categorization/providers/amazon": typeof tasks_workflows_steps_categorization_providers_amazon;
+  "tasks/workflows/steps/categorization/providers/common": typeof tasks_workflows_steps_categorization_providers_common;
+  "tasks/workflows/steps/categorization/providers/github": typeof tasks_workflows_steps_categorization_providers_github;
+  "tasks/workflows/steps/categorization/providers/goodreads": typeof tasks_workflows_steps_categorization_providers_goodreads;
+  "tasks/workflows/steps/categorization/providers/imdb": typeof tasks_workflows_steps_categorization_providers_imdb;
+  "tasks/workflows/steps/categorization/providers/index": typeof tasks_workflows_steps_categorization_providers_index;
+  "tasks/workflows/steps/classification": typeof tasks_workflows_steps_classification;
+  "tasks/workflows/steps/classificationMutations": typeof tasks_workflows_steps_classificationMutations;
+  "tasks/workflows/steps/metadata": typeof tasks_workflows_steps_metadata;
+  "tasks/workflows/steps/renderables": typeof tasks_workflows_steps_renderables;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 
@@ -716,6 +748,201 @@ export declare const components: {
           next?: Array<string>;
           processed: number;
           state: "inProgress" | "success" | "failed" | "canceled" | "unknown";
+        }
+      >;
+    };
+  };
+  workflow: {
+    journal: {
+      load: FunctionReference<
+        "query",
+        "internal",
+        { workflowId: string },
+        {
+          journalEntries: Array<{
+            _creationTime: number;
+            _id: string;
+            step: {
+              args: any;
+              argsSize: number;
+              completedAt?: number;
+              functionType: "query" | "mutation" | "action";
+              handle: string;
+              inProgress: boolean;
+              name: string;
+              runResult?:
+                | { kind: "success"; returnValue: any }
+                | { error: string; kind: "failed" }
+                | { kind: "canceled" };
+              startedAt: number;
+              workId?: string;
+            };
+            stepNumber: number;
+            workflowId: string;
+          }>;
+          logLevel: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+          ok: boolean;
+          workflow: {
+            _creationTime: number;
+            _id: string;
+            args: any;
+            generationNumber: number;
+            logLevel?: any;
+            name?: string;
+            onComplete?: { context?: any; fnHandle: string };
+            runResult?:
+              | { kind: "success"; returnValue: any }
+              | { error: string; kind: "failed" }
+              | { kind: "canceled" };
+            startedAt?: any;
+            state?: any;
+            workflowHandle: string;
+          };
+        }
+      >;
+      startSteps: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          generationNumber: number;
+          steps: Array<{
+            retry?:
+              | boolean
+              | { base: number; initialBackoffMs: number; maxAttempts: number };
+            schedulerOptions?: { runAt?: number } | { runAfter?: number };
+            step: {
+              args: any;
+              argsSize: number;
+              completedAt?: number;
+              functionType: "query" | "mutation" | "action";
+              handle: string;
+              inProgress: boolean;
+              name: string;
+              runResult?:
+                | { kind: "success"; returnValue: any }
+                | { error: string; kind: "failed" }
+                | { kind: "canceled" };
+              startedAt: number;
+              workId?: string;
+            };
+          }>;
+          workflowId: string;
+          workpoolOptions?: {
+            defaultRetryBehavior?: {
+              base: number;
+              initialBackoffMs: number;
+              maxAttempts: number;
+            };
+            logLevel?: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+            maxParallelism?: number;
+            retryActionsByDefault?: boolean;
+          };
+        },
+        Array<{
+          _creationTime: number;
+          _id: string;
+          step: {
+            args: any;
+            argsSize: number;
+            completedAt?: number;
+            functionType: "query" | "mutation" | "action";
+            handle: string;
+            inProgress: boolean;
+            name: string;
+            runResult?:
+              | { kind: "success"; returnValue: any }
+              | { error: string; kind: "failed" }
+              | { kind: "canceled" };
+            startedAt: number;
+            workId?: string;
+          };
+          stepNumber: number;
+          workflowId: string;
+        }>
+      >;
+    };
+    workflow: {
+      cancel: FunctionReference<
+        "mutation",
+        "internal",
+        { workflowId: string },
+        null
+      >;
+      cleanup: FunctionReference<
+        "mutation",
+        "internal",
+        { workflowId: string },
+        boolean
+      >;
+      complete: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          generationNumber: number;
+          runResult:
+            | { kind: "success"; returnValue: any }
+            | { error: string; kind: "failed" }
+            | { kind: "canceled" };
+          workflowId: string;
+        },
+        null
+      >;
+      create: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          maxParallelism?: number;
+          onComplete?: { context?: any; fnHandle: string };
+          startAsync?: boolean;
+          workflowArgs: any;
+          workflowHandle: string;
+          workflowName: string;
+        },
+        string
+      >;
+      getStatus: FunctionReference<
+        "query",
+        "internal",
+        { workflowId: string },
+        {
+          inProgress: Array<{
+            _creationTime: number;
+            _id: string;
+            step: {
+              args: any;
+              argsSize: number;
+              completedAt?: number;
+              functionType: "query" | "mutation" | "action";
+              handle: string;
+              inProgress: boolean;
+              name: string;
+              runResult?:
+                | { kind: "success"; returnValue: any }
+                | { error: string; kind: "failed" }
+                | { kind: "canceled" };
+              startedAt: number;
+              workId?: string;
+            };
+            stepNumber: number;
+            workflowId: string;
+          }>;
+          logLevel: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+          workflow: {
+            _creationTime: number;
+            _id: string;
+            args: any;
+            generationNumber: number;
+            logLevel?: any;
+            name?: string;
+            onComplete?: { context?: any; fnHandle: string };
+            runResult?:
+              | { kind: "success"; returnValue: any }
+              | { error: string; kind: "failed" }
+              | { kind: "canceled" };
+            startedAt?: any;
+            state?: any;
+            workflowHandle: string;
+          };
         }
       >;
     };
