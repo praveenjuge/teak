@@ -19,7 +19,7 @@ export function QuotePreview({
   return (
     <div className="h-full flex flex-col justify-center items-center p-8 text-center relative">
       {/* Large Opening Quote */}
-      <div className="absolute select-auto pointer-events-none top-4 left-4 text-6xl text-muted-foreground leading-none font-serif">
+      <div className="absolute select-none pointer-events-none top-4 left-4 text-6xl text-muted-foreground leading-none font-serif">
         &ldquo;
       </div>
 
@@ -40,7 +40,7 @@ export function QuotePreview({
       </div>
 
       {/* Large Closing Quote */}
-      <div className="absolute select-auto pointer-events-none bottom-0 right-4 text-6xl text-muted-foreground leading-none font-serif">
+      <div className="absolute select-none pointer-events-none bottom-0 right-4 text-6xl text-muted-foreground leading-none font-serif">
         &rdquo;
       </div>
     </div>
