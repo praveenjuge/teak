@@ -31,7 +31,7 @@ export function DragOverlay({
     return (
       <div className="fixed inset-0 z-50 bg-background/10 backdrop-blur-sm">
         <div className="flex h-full items-center justify-center">
-          <div className="bg-background rounded-lg p-8 max-w-md w-full mx-4 text-center space-y-4">
+          <div className="bg-background rounded-lg p-8 max-w-md w-full mx-4 text-center space-y-4 border">
             <div className="flex items-center justify-center gap-2 text-primary">
               <Sparkles className="size-4 fill-primary" />
             </div>
@@ -66,7 +66,7 @@ export function DragOverlay({
     return (
       <div className="fixed inset-0 z-50 bg-background/10 backdrop-blur-sm">
         <div className="flex h-full items-center justify-center">
-          <div className="bg-background rounded-lg p-8 max-w-md w-full mx-4 text-center space-y-4">
+          <div className="bg-background rounded-lg p-8 max-w-md w-full mx-4 text-center space-y-4 border">
             <Upload className="mx-auto size-6 text-primary animate-pulse" />
             <div className="space-y-1">
               <h3 className="font-semibold">Uploading file...</h3>
@@ -114,7 +114,7 @@ export function DragOverlay({
   return (
     <div className={`fixed inset-0 z-50 ${bgColor} backdrop-blur-sm`}>
       <div className="flex h-full items-center justify-center">
-        <div className="bg-background rounded-lg p-8 max-w-md w-full mx-4 text-center space-y-4">
+        <div className="bg-background rounded-lg p-8 max-w-md w-full mx-4 text-center space-y-4 border">
           <Icon className={`mx-auto size-6 ${iconColor}`} />
           <div className="space-y-1">
             <h3 className="font-semibold">{title}</h3>

@@ -241,7 +241,7 @@ export function CardModal({
                         onClick={handleCardTypeClick}
                         className={cn(
                           badgeVariants({ variant: "outline" }),
-                          "cursor-pointer rounded-full px-2.5 text-sm"
+                          "cursor-pointer rounded-full px-3 py-1 gap-2 text-sm [&_svg]:size-4!"
                         )}
                       >
                         {(() => {
@@ -261,7 +261,7 @@ export function CardModal({
                         onClick={() => onTagClick?.(tag)}
                         className={cn(
                           badgeVariants({ variant: "outline" }),
-                          "cursor-pointer rounded-full px-2.5 text-sm"
+                          "cursor-pointer rounded-full px-3 py-1 gap-2 text-sm [&_svg]:size-4!"
                         )}
                       >
                         {tag}
@@ -275,7 +275,7 @@ export function CardModal({
                         onClick={() => onTagClick?.(tag)}
                         className={cn(
                           badgeVariants({ variant: "outline" }),
-                          "cursor-pointer rounded-full px-2.5 text-sm"
+                          "cursor-pointer rounded-full px-3 py-1 gap-2 text-sm [&_svg]:size-4!"
                         )}
                       >
                         <Sparkles />

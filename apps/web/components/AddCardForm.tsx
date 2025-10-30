@@ -364,7 +364,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
             }}
             autoFocus={autoFocus}
             placeholder="Write or add a link..."
-            className="min-h-[80px] flex-1 h-full resize-none border-0 shadow-none rounded-none p-4 focus-visible:outline-none focus-visible:ring-0 bg-transparent dark:bg-transparent"
+            className="min-h-20 flex-1 h-full resize-none border-0 shadow-none rounded-none p-4 focus-visible:outline-none focus-visible:ring-0 bg-transparent dark:bg-transparent"
           />
 
           {/* Action Buttons Row */}

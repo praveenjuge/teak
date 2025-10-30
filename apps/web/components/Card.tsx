@@ -3,10 +3,10 @@ import {
   ExternalLink,
   File,
   Heart,
+  PlayCircle,
   RotateCcw,
   Trash,
   Trash2,
-  Video,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { SyntheticEvent } from "react";
@@ -165,7 +165,9 @@ export function Card({
           <CardContent className="p-0 space-y-2">
             {card.type === "text" && (
               <div className="p-4 rounded-xl border bg-card">
-                <p className="line-clamp-2 font-medium">{card.content}</p>
+                <p className="line-clamp-2 font-medium">
+                  {card.content || card.fileMetadata?.fileName}
+                </p>
               </div>
             )}
 
@@ -219,8 +221,8 @@ export function Card({
             )}
 
             {card.type === "video" && (
-              <div className="w-full h-32 flex items-center justify-center bg-card text-muted-foreground rounded-xl border">
-                <Video />
+              <div className="w-full h-32 flex items-center justify-center bg-muted text-muted-foreground rounded-xl border">
+                <PlayCircle />
               </div>
             )}
 
@@ -268,7 +270,9 @@ export function Card({
 
             {!card.type && (
               <div className="p-4 rounded-xl border bg-card">
-                <p className="line-clamp-2 font-medium">{card.content}</p>
+                <p className="line-clamp-2 font-medium">
+                  {card.content || card.fileMetadata?.fileName}
+                </p>
               </div>
             )}
           </CardContent>
