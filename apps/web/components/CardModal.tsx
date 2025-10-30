@@ -170,7 +170,7 @@ export function CardModal({
         }
       }}
     >
-      <DialogContent className="md:max-w-7xl max-h-[90vh] p-4 flex flex-col md:flex-row h-[90vh] outline-0 overflow-hidden gap-4 border-0 dark:border">
+      <DialogContent className="md:max-w-7xl max-h-[calc(90vh-80px)] p-4 flex flex-col md:flex-row h-[calc(90vh-80px)] outline-0 overflow-hidden gap-4 border-0 dark:border">
         {!card ? (
           <>
             <DialogTitle className="sr-only">Loading...</DialogTitle>
@@ -178,13 +178,6 @@ export function CardModal({
           </>
         ) : (
           <>
-            {/* Mobile Header with Close Button */}
-            <div className="md:hidden">
-              <DialogTitle>
-                {CARD_TYPE_LABELS[card.type as CardType] || "Card"}
-              </DialogTitle>
-            </div>
-
             {/* Desktop Hidden Title */}
             <DialogTitle className="sr-only">
               {CARD_TYPE_LABELS[card.type as CardType] || "Card"}
