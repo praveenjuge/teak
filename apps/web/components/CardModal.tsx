@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { badgeVariants } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -42,6 +43,7 @@ import { Loading } from "./Loading";
 import { TagManagementModal } from "./TagManagementModal";
 import { MoreInformationModal } from "./MoreInformationModal";
 import { NotesEditModal } from "./NotesEditModal";
+import { cn } from "@/lib/utils";
 
 interface CardModalProps {
   cardId: string | null;
@@ -168,10 +170,7 @@ export function CardModal({
         }
       }}
     >
-      <DialogContent
-        className="md:max-w-7xl max-h-[90vh] p-4 flex flex-col md:flex-row h-[90vh] outline-0 overflow-hidden gap-4 border-0 dark:border"
-        showCloseButton={false}
-      >
+      <DialogContent className="md:max-w-7xl max-h-[90vh] p-4 flex flex-col md:flex-row h-[90vh] outline-0 overflow-hidden gap-4 border-0 dark:border">
         {!card ? (
           <>
             <DialogTitle className="sr-only">Loading...</DialogTitle>
@@ -194,7 +193,7 @@ export function CardModal({
             {/* Main Content Area */}
             <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-1 overflow-hidden">
               {/* Preview Area */}
-              <div className="flex-1 md:flex-[2] border rounded-md bg-muted/50 overflow-hidden flex flex-col min-h-0 relative">
+              <div className="flex-1 md:flex-2 border rounded-md bg-muted/50 overflow-hidden flex flex-col min-h-0 relative">
                 <div className="flex-1 p-2 overflow-y-auto">
                   {renderPreview()}
                 </div>
@@ -219,13 +218,13 @@ export function CardModal({
               </div>
 
               {/* Metadata Panel */}
-              <div className="flex-1 md:flex-[1] flex flex-col overflow-hidden min-h-0">
+              <div className="flex-1 md:flex-1 flex flex-col overflow-hidden min-h-0">
                 <div className="flex-1 overflow-y-auto px-1 gap-3 md:gap-5 flex flex-col">
                   {/* Notes (read-only) */}
                   {getCurrentValue("notes") && (
                     <div>
                       <Label>Notes</Label>
-                      <div className="mt-1 p-3 bg-muted/50 rounded-md text-sm whitespace-pre-wrap max-h-24 overflow-y-auto">
+                      <div className="mt-1 p-3 bg-muted rounded-md whitespace-pre-wrap">
                         {getCurrentValue("notes")}
                       </div>
                     </div>
@@ -235,7 +234,7 @@ export function CardModal({
                   {card.aiSummary && (
                     <div>
                       <Label>Summary</Label>
-                      <div className="mt-1 p-3 bg-muted/50 rounded-md text-sm whitespace-pre-wrap max-h-24 overflow-y-auto">
+                      <div className="mt-1 p-3 bg-muted rounded-md whitespace-pre-wrap">
                         {getCurrentValue("aiSummary")}
                       </div>
                     </div>
@@ -245,10 +244,12 @@ export function CardModal({
                   <div className="flex flex-wrap gap-1">
                     {/* Card Type Tag (non-dismissible) */}
                     {card.type && (
-                      <Button
-                        size="sm"
-                        variant="outline"
+                      <button
                         onClick={handleCardTypeClick}
+                        className={cn(
+                          badgeVariants({ variant: "outline" }),
+                          "cursor-pointer rounded-full px-2.5 text-sm"
+                        )}
                       >
                         {(() => {
                           const IconComponent = getCardTypeIconComponent(
@@ -257,32 +258,36 @@ export function CardModal({
                           return <IconComponent />;
                         })()}
                         {CARD_TYPE_LABELS[card.type as CardType]}
-                      </Button>
+                      </button>
                     )}
 
                     {/* User Tags (clickable) */}
                     {card.tags?.map((tag: string) => (
-                      <Button
+                      <button
                         key={tag}
-                        size="sm"
-                        variant="outline"
                         onClick={() => onTagClick?.(tag)}
+                        className={cn(
+                          badgeVariants({ variant: "outline" }),
+                          "cursor-pointer rounded-full px-2.5 text-sm"
+                        )}
                       >
                         {tag}
-                      </Button>
+                      </button>
                     )) || []}
 
                     {/* AI Tags (clickable) */}
                     {card.aiTags?.map((tag: string) => (
-                      <Button
+                      <button
                         key={`ai-${tag}`}
-                        size="sm"
-                        variant="outline"
                         onClick={() => onTagClick?.(tag)}
+                        className={cn(
+                          badgeVariants({ variant: "outline" }),
+                          "cursor-pointer rounded-full px-2.5 text-sm"
+                        )}
                       >
                         <Sparkles />
                         {tag}
-                      </Button>
+                      </button>
                     ))}
                   </div>
 

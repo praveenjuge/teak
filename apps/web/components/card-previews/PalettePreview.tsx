@@ -41,75 +41,30 @@ export function PalettePreview({ card }: PalettePreviewProps) {
   }
 
   return (
-    <div className="space-y-3">
-      {/* Original Content */}
-      {card.content && <p className="text-muted-foreground">{card.content}</p>}
-
+    <div className="space-y-2">
       {/* Colors */}
       {colors.map((color, index) => (
         <div key={`${color.hex}-${index}`} className="rounded overflow-hidden">
           {/* Color Swatch with values inline */}
           <div
-            className="h-8 w-full flex items-center justify-between px-3 cursor-pointer hover:opacity-90 transition-opacity"
+            className="w-full flex items-center justify-end p-2 cursor-pointer"
             style={{ backgroundColor: color.hex }}
             onClick={() => copyToClipboard(color.hex, color.hex)}
           >
-            <span className="font-medium text-xs text-white drop-shadow">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                copyToClipboard(color.hex, color.hex);
+              }}
+            >
+              <Copy />
               {copiedColor === color.hex ? "Copied!" : color.hex}
-            </span>
-
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-5 px-1 font-mono text-xs text-white hover:bg-white/20"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  copyToClipboard(color.hex, color.hex);
-                }}
-              >
-                <Copy className="w-2 h-2" />
-              </Button>
-
-              {color.rgb && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-5 px-1 font-mono text-xs text-white hover:bg-white/20"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    copyToClipboard(formatRgb(color.rgb) || "", color.hex);
-                  }}
-                >
-                  RGB
-                </Button>
-              )}
-
-              {color.hsl && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-5 px-1 font-mono text-xs text-white hover:bg-white/20"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    copyToClipboard(formatHsl(color.hsl) || "", color.hex);
-                  }}
-                >
-                  HSL
-                </Button>
-              )}
-            </div>
+            </Button>
           </div>
         </div>
       ))}
-
-      {/* Notes */}
-      {card.notes && (
-        <div>
-          <h4 className="font-medium mb-1">Notes</h4>
-          <p className="text-sm text-muted-foreground">{card.notes}</p>
-        </div>
-      )}
     </div>
   );
 }

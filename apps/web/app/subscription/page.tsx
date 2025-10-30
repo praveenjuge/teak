@@ -157,7 +157,7 @@ export default function SubscriptionPage() {
                     <img
                       src="https://github.com/praveenjuge.png"
                       alt="Praveen Juge"
-                      className="size-8 rounded-full"
+                      className="size-7 bg-muted rounded-full"
                     />
                     <svg
                       height="26"
@@ -188,9 +188,9 @@ export default function SubscriptionPage() {
                       <path
                         d="M13.2497 0.75L8.30808 6.525M8.30808 6.525L13.9047 12.8875C14.3331 13.375 13.9406 14.0833 13.2439 14.0833H12.0156C11.7564 14.0833 11.5122 13.9775 11.3539 13.7975L6.52474 8.30833M8.30808 6.525L3.47891 1.03583C3.32058 0.855833 3.07558 0.75 2.81724 0.75H1.58891C0.891411 0.75 0.499745 1.45833 0.928078 1.94583L6.52474 8.30833M1.58308 14.0833L6.52474 8.30833"
                         stroke="#020617"
-                        stroke-width="1.5"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
                     </svg>
                   </Link>
