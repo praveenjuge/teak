@@ -142,7 +142,7 @@ export default function SubscriptionPage() {
                   })
                 )}
               >
-                Manage
+                Manage Subscription
                 <ExternalLink />
               </CustomerPortalLink>
 
