@@ -201,10 +201,8 @@ export function Card({
                     </h4>
                   </>
                 ) : (
-                  <div className="p-4 bg-card rounded-xl border">
-                    <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
-                      {linkCardTitle}
-                    </h4>
+                  <div className="p-4 rounded-xl border bg-card">
+                    <p className="line-clamp-2 font-medium">{linkCardTitle}</p>
                   </div>
                 )}
               </>
