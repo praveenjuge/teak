@@ -6,8 +6,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
-import { Save } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 interface NotesEditModalProps {
@@ -69,20 +69,7 @@ export function NotesEditModal({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{notes ? "Edit Notes" : "Add Notes"}</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <Textarea
-            ref={textareaRef}
-            id="notes-textarea"
-            value={localNotes}
-            onChange={(e) => setLocalNotes(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Add your notes here..."
-            className="mt-1 min-h-[120px]"
-            rows={6}
-          />
-          <div className="text-xs text-muted-foreground">
+          <DialogDescription>
             Press{" "}
             <kbd className="px-1 py-0.5 text-xs font-mono bg-muted rounded">
               Cmd+Enter
@@ -92,15 +79,25 @@ export function NotesEditModal({
               Esc
             </kbd>{" "}
             to cancel
-          </div>
-        </div>
+          </DialogDescription>
+        </DialogHeader>
+
+        <Textarea
+          ref={textareaRef}
+          id="notes-textarea"
+          value={localNotes}
+          onChange={(e) => setLocalNotes(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Add your notes here..."
+          className="mt-1 min-h-[120px]"
+          rows={6}
+        />
 
         <DialogFooter className="md:justify-between">
           <Button variant="outline" onClick={handleCancel}>
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={!hasChanges && !!notes}>
-            <Save />
             {notes ? "Update" : "Add"}
           </Button>
         </DialogFooter>
