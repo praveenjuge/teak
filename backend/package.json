@@ -18,6 +18,7 @@
     "@cf-wasm/photon": "^0.1.31",
     "@convex-dev/migrations": "^0.2.9",
     "@convex-dev/polar": "^0.6.4",
+    "@convex-dev/workflow": "^0.2.7",
     "@types/node": "^24.9.1",
     "@types/react": "^19.2.2",
     "ai": "^5.0.81",

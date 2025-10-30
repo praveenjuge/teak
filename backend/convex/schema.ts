@@ -170,6 +170,8 @@ export const cardValidator = v.object({
   colors: v.optional(v.array(colorValidator)),
   // Pipeline processing status per stage
   processingStatus: processingStatusValidator,
+  // Workflow tracking
+  workflowId: v.optional(v.string()),
   createdAt: v.number(),
   updatedAt: v.number(),
 });
