@@ -28,8 +28,6 @@ export const polar = new Polar(components.polar, {
   },
 });
 
-export const { listAllProducts }: any = polar.api();
-
 export const userHasPremium = query({
   args: {},
   returns: v.boolean(),
