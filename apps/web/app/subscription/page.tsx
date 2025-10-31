@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useQuery } from "convex-helpers/react/cache/hooks";
-import { CheckoutLink, CustomerPortalLink } from "@convex-dev/polar/react";
+import { useAction } from "convex/react";
+import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import { ArrowRight, CheckCircle2, ExternalLink } from "lucide-react";
 import { api } from "@teak/convex";
 import { FREE_TIER_LIMIT } from "@teak/convex/shared/constants";
@@ -11,8 +12,10 @@ import Loading from "../loading";
 import Logo from "@/components/Logo";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { TopPattern } from "@/components/patterns/TopPattern";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const featureList = [
   "Unlimited Cards",
@@ -23,6 +26,100 @@ const featureList = [
   "iOS Mobile App",
   "Android Mobile App",
 ];
+
+interface CheckoutButtonProps {
+  planId: string;
+  className?: string;
+  children: React.ReactNode;
+}
+
+interface CustomerPortalButtonProps {
+  className?: string;
+  children: React.ReactNode;
+}
+
+function CheckoutButton({ planId, className, children }: CheckoutButtonProps) {
+  const [checkoutInstance, setCheckoutInstance] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const createCheckoutLink = useAction(api.billing.createCheckoutLink);
+
+  // Clean up checkout instance on unmount
+  useEffect(() => {
+    return () => {
+      if (checkoutInstance) {
+        checkoutInstance.close();
+      }
+    };
+  }, [checkoutInstance]);
+
+  const handleCheckout = async () => {
+    setIsLoading(true);
+    try {
+      const checkoutUrl = await createCheckoutLink({ productId: planId });
+      const checkout = await PolarEmbedCheckout.create(checkoutUrl, "light");
+
+      setCheckoutInstance(checkout);
+      setIsLoading(false);
+
+      checkout.addEventListener("success", (event: any) => {
+        // Track successful purchase
+        // analytics.track('Purchase Completed', {
+        //   productId: planId,
+        //   // Add other analytics data
+        // });
+
+        // Show success message or redirect
+        if (!event.detail.redirect) {
+          // toast.success(
+          //   "Welcome to Pro! Your subscription has been activated."
+          // );
+        }
+      });
+
+      checkout.addEventListener("close", (event: any) => {
+        // Clean up our reference when checkout is closed
+        setCheckoutInstance(null);
+      });
+    } catch (error) {
+      console.error("Failed to open checkout", error);
+      toast.error("Failed to start checkout. Please try again.");
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <button onClick={handleCheckout} className={className} disabled={isLoading}>
+      {isLoading ? <Spinner /> : children}
+    </button>
+  );
+}
+
+function CustomerPortalButton({
+  className,
+  children,
+}: CustomerPortalButtonProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const createCustomerPortal = useAction(api.billing.createCustomerPortal);
+
+  const handlePortal = async () => {
+    setIsLoading(true);
+    try {
+      const portalUrl = await createCustomerPortal({});
+      window.open(portalUrl, "_blank");
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Failed to open customer portal", error);
+      toast.error("Failed to open customer portal. Please try again.");
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <button onClick={handlePortal} className={className} disabled={isLoading}>
+      {isLoading ? <Spinner /> : children}
+    </button>
+  );
+}
 
 export default function SubscriptionPage() {
   // @ts-ignore Convex Polar bindings aren't typed in the generated client yet
@@ -130,12 +227,7 @@ export default function SubscriptionPage() {
                 ))}
               </ul>
 
-              <CustomerPortalLink
-                polarApi={{
-                  generateCustomerPortalUrl:
-                    // @ts-ignore
-                    api.billing.generateCustomerPortalUrl,
-                }}
+              <CustomerPortalButton
                 className={cn(
                   buttonVariants({
                     variant: "outline",
@@ -144,7 +236,7 @@ export default function SubscriptionPage() {
               >
                 Manage Subscription
                 <ExternalLink />
-              </CustomerPortalLink>
+              </CustomerPortalButton>
 
               <div className="border-t pt-4">
                 <p className="text-muted-foreground">
@@ -279,12 +371,8 @@ function PlanOption({
           <p className="text-muted-foreground pb-1">{intervalLabel}</p>
         </div>
 
-        <CheckoutLink
-          polarApi={{
-            // @ts-ignore
-            generateCheckoutLink: api.billing.generateCheckoutLink,
-          }}
-          productIds={[planId]}
+        <CheckoutButton
+          planId={planId}
           className={cn(
             buttonVariants({
               variant: buttonVariant,
@@ -293,7 +381,7 @@ function PlanOption({
         >
           Continue
           <ArrowRight />
-        </CheckoutLink>
+        </CheckoutButton>
       </div>
     </div>
   );
