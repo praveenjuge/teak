@@ -122,16 +122,18 @@ function CustomerPortalButton({
 }
 
 export default function SubscriptionPage() {
-  // @ts-ignore Convex Polar bindings aren't typed in the generated client yet
-  const products = useQuery(api.billing.listAllProducts, {});
+  const isProduction = process.env.NODE_ENV === "production";
+  const monthlyPlanId = isProduction
+    ? "d46c71a7-61dc-4dc8-b53d-9a73d0204c28"
+    : "a02153cd-c49d-49ae-8be6-464296a39a23";
+  const yearlyPlanId = isProduction
+    ? "6fb24b68-09e0-42c4-b090-f0e03cb7de56"
+    : "f3073c34-8b4d-40b7-8123-2f8cbacbc609";
+
   const subscription = useQuery(api.billing.userHasPremium, {});
   const cardCountResult = useQuery(api.cards.getCardCount, {});
 
-  if (
-    products === undefined ||
-    subscription === undefined ||
-    cardCountResult === undefined
-  ) {
+  if (subscription === undefined || cardCountResult === undefined) {
     return <Loading />;
   }
 
@@ -144,26 +146,6 @@ export default function SubscriptionPage() {
       cardCount: count,
     };
   }, [cardCountResult, subscription]);
-
-  const productList = Array.isArray(products) ? products : [];
-  const sortedProducts = useMemo(() => {
-    return [...productList].sort((a, b) => {
-      const aAmount = a?.prices?.[0]?.priceAmount ?? 0;
-      const bAmount = b?.prices?.[0]?.priceAmount ?? 0;
-      return aAmount - bAmount;
-    });
-  }, [productList]);
-
-  const monthlyProduct =
-    sortedProducts.find((product) => /month/i.test(product?.name || "")) ??
-    sortedProducts[0];
-  const yearlyProduct =
-    sortedProducts.find((product) =>
-      /(year|annual)/i.test(product?.name || "")
-    ) ?? sortedProducts.find((product) => product?.id !== monthlyProduct?.id);
-
-  const monthlyPrice = monthlyProduct?.prices?.[0]?.priceAmount ?? 0;
-  const yearlyPrice = yearlyProduct?.prices?.[0]?.priceAmount ?? 0;
 
   const cardsUsedLabel = useMemo(() => {
     if (cardCountResult === undefined) {
@@ -292,25 +274,21 @@ export default function SubscriptionPage() {
           ) : (
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
               <div className="grid gap-4">
-                {monthlyProduct && (
-                  <PlanOption
-                    planId={monthlyProduct.id}
-                    title="Monthly"
-                    priceAmount={monthlyPrice}
-                    intervalLabel="Per Month"
-                    buttonVariant="outline"
-                  />
-                )}
-                {yearlyProduct && (
-                  <PlanOption
-                    planId={yearlyProduct.id}
-                    title="Yearly"
-                    priceAmount={yearlyPrice}
-                    intervalLabel="Per Year"
-                    badge="Best Value • 20% off"
-                    buttonVariant="destructive"
-                  />
-                )}
+                <PlanOption
+                  planId={monthlyPlanId}
+                  title="Monthly"
+                  priceAmount={1900}
+                  intervalLabel="Per Month"
+                  buttonVariant="outline"
+                />
+                <PlanOption
+                  planId={yearlyPlanId}
+                  title="Yearly"
+                  priceAmount={9900}
+                  intervalLabel="Per Year"
+                  badge="Best Value • 20% off"
+                  buttonVariant="destructive"
+                />
               </div>
 
               <div className="space-y-3 text-left">
