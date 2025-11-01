@@ -976,7 +976,7 @@ export const runRenderablesStage = internalAction({
     try {
       if (card.type === "image" && card.fileId) {
         await ctx.runAction(
-          internal.tasks.thumbnails.generateThumbnail.generateThumbnail,
+          internal.workflows.steps.renderables.generateThumbnail.generateThumbnail,
           { cardId }
         );
       }

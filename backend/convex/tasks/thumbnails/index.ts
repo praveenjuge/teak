@@ -1,1 +1,0 @@
-export { generateThumbnail, manualTriggerThumbnail } from "./generateThumbnail";

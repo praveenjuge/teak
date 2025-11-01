@@ -1,18 +1,23 @@
-import { v } from "convex/values";
-import { internalAction, internalMutation } from "../../_generated/server";
-import { internal } from "../../_generated/api";
+"use node";
+
 import { PhotonImage, SamplingFilter, resize } from "@cf-wasm/photon";
+import { internal } from "../../../_generated/api";
+import { internalAction } from "../../../_generated/server";
+import { v } from "convex/values";
 
 // Maximum thumbnail dimensions
 const THUMBNAIL_MAX_WIDTH = 400;
 const THUMBNAIL_MAX_HEIGHT = 400;
 
-
 /**
  * Determine output quality and format based on file size
  * Use aggressive compression to ensure thumbnails are smaller than originals
  */
-function getOutputSettings(fileSizeBytes: number): { quality: number; useJpeg: boolean; skipThumbnail: boolean } {
+function getOutputSettings(fileSizeBytes: number): {
+  quality: number;
+  useJpeg: boolean;
+  skipThumbnail: boolean;
+} {
   // Skip thumbnail generation for very small files (< 500KB) - they're already optimized
   if (fileSizeBytes < 500_000) {
     return { quality: 100, useJpeg: false, skipThumbnail: true };
@@ -40,7 +45,8 @@ function getOutputSettings(fileSizeBytes: number): { quality: number; useJpeg: b
 }
 
 /**
- * Generate a thumbnail for an image card
+ * Workflow-native thumbnail generation action.
+ * Mirrors the previous tasks-based implementation so the renderables step owns its orchestration.
  */
 export const generateThumbnail = internalAction({
   args: {
@@ -129,32 +135,21 @@ export const generateThumbnail = internalAction({
         targetWidth = Math.round(targetHeight * aspectRatio);
       }
 
-
-      console.log(`Target dimensions: ${targetWidth}x${targetHeight}, output: ${useJpeg ? 'JPEG' : 'WebP'} (quality: ${quality})`);
+      console.log(`Target dimensions: ${targetWidth}x${targetHeight}, output: ${useJpeg ? "JPEG" : "WebP"} (quality: ${quality})`);
 
       // Always resize to thumbnail dimensions (let compression do the heavy lifting for size reduction)
-      const outputImage = resize(
-        inputImage,
-        targetWidth,
-        targetHeight,
-        SamplingFilter.Nearest
-      );
+      const outputImage = resize(inputImage, targetWidth, targetHeight, SamplingFilter.Nearest);
       console.log(`Resized image from ${originalWidth}x${originalHeight} to ${targetWidth}x${targetHeight}`);
 
       // Generate output bytes with appropriate format and quality
-      const outputBytes = useJpeg
-        ? outputImage.get_bytes_jpeg(quality)
-        : outputImage.get_bytes_webp();
+      const outputBytes = useJpeg ? outputImage.get_bytes_jpeg(quality) : outputImage.get_bytes_webp();
 
       // Ensure we provide a standard ArrayBuffer to Blob (avoids TS generic Uint8Array<ArrayBufferLike> incompatibility)
       const outputArrayBuffer =
         outputBytes.buffer instanceof ArrayBuffer
-          ? (outputBytes.byteOffset === 0 && outputBytes.byteLength === outputBytes.buffer.byteLength
+          ? outputBytes.byteOffset === 0 && outputBytes.byteLength === outputBytes.buffer.byteLength
             ? outputBytes.buffer
-            : outputBytes.buffer.slice(
-              outputBytes.byteOffset,
-              outputBytes.byteOffset + outputBytes.byteLength
-            ))
+            : outputBytes.buffer.slice(outputBytes.byteOffset, outputBytes.byteOffset + outputBytes.byteLength)
           : outputBytes.slice().buffer;
 
       const thumbnailBlob = new Blob([outputArrayBuffer], {
@@ -164,11 +159,14 @@ export const generateThumbnail = internalAction({
       // Store the thumbnail in Convex storage
       const thumbnailId = await ctx.storage.store(thumbnailBlob);
 
-      // Update the card with the thumbnail ID
-      await ctx.runMutation(internal.tasks.thumbnails.generateThumbnail.updateCardThumbnail, {
-        cardId: args.cardId,
-        thumbnailId,
-      });
+      // Update the card with the thumbnail via internal mutation to ensure DB access
+      await ctx.runMutation(
+        internal.workflows.steps.renderables.mutations.updateCardThumbnail,
+        {
+          cardId: args.cardId,
+          thumbnailId,
+        }
+      );
 
       console.log(`Thumbnail created for card ${args.cardId} using original image`);
     } catch (error) {
@@ -192,9 +190,12 @@ export const manualTriggerThumbnail = internalAction({
   }),
   handler: async (ctx, args) => {
     try {
-      await ctx.runAction(internal.tasks.thumbnails.generateThumbnail.generateThumbnail, {
-        cardId: args.cardId,
-      });
+      await ctx.runAction(
+        internal.workflows.steps.renderables.generateThumbnail.generateThumbnail,
+        {
+          cardId: args.cardId,
+        }
+      );
       return {
         success: true,
         message: `Thumbnail generation initiated for card ${args.cardId}`,
@@ -202,26 +203,8 @@ export const manualTriggerThumbnail = internalAction({
     } catch (error) {
       return {
         success: false,
-        message: `Failed to generate thumbnail: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: `Failed to generate thumbnail: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
-  },
-});
-
-/**
- * Internal mutation to update a card with its thumbnail ID
- */
-export const updateCardThumbnail = internalMutation({
-  args: {
-    cardId: v.id("cards"),
-    thumbnailId: v.id("_storage"),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.cardId, {
-      thumbnailId: args.thumbnailId,
-      updatedAt: Date.now(),
-    });
-    return null;
   },
 });
