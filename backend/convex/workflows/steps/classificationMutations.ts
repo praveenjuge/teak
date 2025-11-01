@@ -6,9 +6,9 @@
  */
 
 import { v } from "convex/values";
-import { internalMutation } from "../../../_generated/server";
-import type { CardType } from "../../../schema";
-import { stageCompleted, stagePending } from "../../cards/processingStatus";
+import { internalMutation } from "../../_generated/server";
+import type { CardType } from "../../schema";
+import { stageCompleted, stagePending } from "../../tasks/cards/processingStatus";
 
 const CLASSIFY_MUTATION_LOG_PREFIX = "[workflow/classify/mutation]";
 

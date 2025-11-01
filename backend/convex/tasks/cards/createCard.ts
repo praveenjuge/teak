@@ -9,7 +9,7 @@ import {
   stageCompleted,
   stagePending,
 } from "./processingStatus";
-import { workflow } from "../workflows/manager";
+import { workflow } from "../../workflows/manager";
 
 export const createCard = mutation({
   args: {
@@ -116,7 +116,7 @@ export const createCard = mutation({
     // Start the card processing workflow
     const workflowId = await workflow.start(
       ctx,
-      (internal as any)["tasks/workflows/cardProcessing"].cardProcessingWorkflow,
+      (internal as any)["workflows/cardProcessing"].cardProcessingWorkflow,
       { cardId }
     );
 

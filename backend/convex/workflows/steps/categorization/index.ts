@@ -9,7 +9,7 @@ import {
   type LinkCategoryMetadata,
   type LinkCategoryDetail,
 } from "@teak/convex/shared";
-import { linkCategoryClassificationSchema } from "../../../ai/schemas";
+import { linkCategoryClassificationSchema } from "../../../tasks/ai/schemas";
 import { enrichProvider } from "./providers";
 import {
   formatDate,
@@ -17,10 +17,10 @@ import {
   type RawSelectorEntry,
   type RawSelectorMap,
 } from "./providers/common";
-import type { Id } from "../../../../_generated/dataModel";
+import type { Id } from "../../../_generated/dataModel";
 import { v } from "convex/values";
-import { internalAction } from "../../../../_generated/server";
-import { internal } from "../../../../_generated/api";
+import { internalAction } from "../../../_generated/server";
+import { internal } from "../../../_generated/api";
 
 const CATEGORIZE_LOG_PREFIX = "[workflow/categorize]";
 
@@ -731,7 +731,7 @@ export const categorize: any = internalAction({
 
     // Update card with category metadata
     await ctx.runMutation(
-      (internal as any)["tasks/workflows/steps/categorization/mutations"].updateCategorization,
+      (internal as any)["workflows/steps/categorization/mutations"].updateCategorization,
       {
         cardId,
         metadata,
