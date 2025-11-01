@@ -264,6 +264,7 @@ export const retryAiBackfill = action({
     ensureAdmin(identity);
 
     const result = (await ctx.runAction(
+      //@ts-ignore
       internal.tasks.ai.actions.enqueueMissingAiGeneration,
       {}
     )) as EnqueueResult;

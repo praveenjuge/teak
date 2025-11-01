@@ -18,6 +18,7 @@ export const polar = new Polar(components.polar, {
   getUserInfo: async (
     ctx
   ): Promise<{ userId: string; email: string; name?: string }> => {
+    //@ts-ignore
     const user = await ctx.runQuery(api.billing.getUserInfo);
     if (!user?.email) throw new ConvexError("User not found");
 
