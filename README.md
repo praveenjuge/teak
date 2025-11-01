@@ -1,6 +1,6 @@
 # Teak
 
-Teak is a streamlined personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations.
+Teak is a personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations.
 
 - **Backend**: Convex (@teak/backend)
 - **Web App**: React 19 + Vite (@teak/web)
