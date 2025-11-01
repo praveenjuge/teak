@@ -48,7 +48,7 @@ export const generate: any = internalAction({
         fileId: card.fileId,
       });
       await ctx.runAction(
-        internal.tasks.thumbnails.generateThumbnail.generateThumbnail,
+        internal.workflows.steps.renderables.generateThumbnail.generateThumbnail,
         { cardId }
       );
       thumbnailGenerated = true;
