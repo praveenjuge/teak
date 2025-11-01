@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Teak ia a streamlined personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations.
+Teak ia a personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations.
 
 ## Development Commands
 
