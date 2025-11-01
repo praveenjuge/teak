@@ -8,14 +8,14 @@
 "use node";
 
 import { v } from "convex/values";
-import { internalAction } from "../../../_generated/server";
-import { internal } from "../../../_generated/api";
-import { Id } from "../../../_generated/dataModel";
+import { internalAction } from "../../_generated/server";
+import { internal } from "../../_generated/api";
+import { Id } from "../../_generated/dataModel";
 import { generateObject } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { cardClassificationSchema } from "../../ai/schemas";
-import { extractPaletteWithAi } from "../../ai/actions";
-import type { CardType } from "../../../schema";
+import { cardClassificationSchema } from "../../tasks/ai/schemas";
+import { extractPaletteWithAi } from "../../tasks/ai/actions";
+import type { CardType } from "../../schema";
 import {
   parseColorString,
   extractPaletteColors,
@@ -23,7 +23,7 @@ import {
 } from "@teak/convex/shared/utils/colorUtils";
 import {
   type ProcessingStageStatus,
-} from "../../cards/processingStatus";
+} from "../../tasks/cards/processingStatus";
 
 const CLASSIFY_LOG_PREFIX = "[workflow/classify]";
 
@@ -294,7 +294,7 @@ export const classify = internalAction({
         nextType: normalizedType,
         confidence: normalizedConfidence,
       });
-      await ctx.runMutation((internal as any)["tasks/workflows/steps/classificationMutations"].updateClassification, {
+      await ctx.runMutation((internal as any)["workflows/steps/classificationMutations"].updateClassification, {
         cardId,
         type: normalizedType,
         confidence: normalizedConfidence,

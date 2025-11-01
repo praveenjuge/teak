@@ -6,7 +6,7 @@
  */
 
 import { WorkflowManager } from "@convex-dev/workflow";
-import { components } from "../../_generated/api";
+import { components } from "../_generated/api";
 
 /**
  * Workflow manager for card processing pipeline

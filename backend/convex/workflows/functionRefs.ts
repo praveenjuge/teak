@@ -1,0 +1,21 @@
+/**
+ * Function References for Workflow
+ *
+ * Helper to properly type workflow function references
+ */
+
+import { internal } from "../_generated/api";
+
+// Create properly typed references for workflow functions
+type WorkflowFunctionMap = Record<string, unknown>;
+const internalFunctions = internal as Record<string, unknown>;
+
+export const workflowFunctions: WorkflowFunctionMap = {
+  classify: internalFunctions["workflows/steps/classification"],
+  categorize: internalFunctions["workflows/steps/categorization/index"],
+  generateMetadata: internalFunctions["workflows/steps/metadata"],
+  generateRenderables: internalFunctions["workflows/steps/renderables"],
+  updateClassification: internalFunctions["workflows/steps/classificationMutations"],
+  updateCategorization: internalFunctions["workflows/steps/categorization/mutations"],
+  cardProcessingWorkflow: internalFunctions["workflows/cardProcessing"],
+};

@@ -11,7 +11,7 @@
 import { v } from "convex/values";
 import type { RetryBehavior } from "@convex-dev/workpool";
 import { workflow } from "./manager";
-import { internal, api } from "../../_generated/api";
+import { internal, api } from "../_generated/api";
 
 // Helper to get properly typed internal references
 const internalWorkflow = internal as any;
@@ -64,7 +64,7 @@ export const cardProcessingWorkflow: any = workflow.define({
     // Determine the card type using AI
     console.info(`${PIPELINE_LOG_PREFIX} Running classification`, { cardId });
     const classification = await step.runAction(
-      internalWorkflow["tasks/workflows/steps/classification"].classify,
+      internalWorkflow["workflows/steps/classification"].classify,
       { cardId }
     );
     console.info(`${PIPELINE_LOG_PREFIX} Classification complete`, {
@@ -83,7 +83,7 @@ export const cardProcessingWorkflow: any = workflow.define({
       // The categorization step will throw if metadata isn't ready yet
       // and workflow will retry automatically with the configured backoff
       const categorizationResult = await step.runAction(
-        internalWorkflow["tasks/workflows/steps/categorization/index"].categorize,
+        internalWorkflow["workflows/steps/categorization/index"].categorize,
         { cardId }
       );
 
@@ -105,7 +105,7 @@ export const cardProcessingWorkflow: any = workflow.define({
       cardType: classification.type,
     });
     const metadata = await step.runAction(
-      internalWorkflow["tasks/workflows/steps/metadata"].generate,
+      internalWorkflow["workflows/steps/metadata"].generate,
       { cardId, cardType: classification.type },
       { retry: METADATA_STEP_RETRY }
     );
@@ -125,7 +125,7 @@ export const cardProcessingWorkflow: any = workflow.define({
         cardType: classification.type,
       });
       const renderablesResult = await step.runAction(
-        internalWorkflow["tasks/workflows/steps/renderables"].generate,
+        internalWorkflow["workflows/steps/renderables"].generate,
         { cardId, cardType: classification.type }
       );
 

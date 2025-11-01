@@ -8,16 +8,16 @@
 "use node";
 
 import { v } from "convex/values";
-import { internalAction } from "../../../_generated/server";
-import { internal } from "../../../_generated/api";
-import type { CardType } from "../../../schema";
+import { internalAction } from "../../_generated/server";
+import { internal } from "../../_generated/api";
+import type { CardType } from "../../schema";
 import {
   generateTextMetadata,
   generateImageMetadata,
   generateLinkMetadata,
-} from "../../ai/metadata_generators";
-import { generateTranscript } from "../../ai/transcript";
-import { stageCompleted } from "../../cards/processingStatus";
+} from "../../tasks/ai/metadata_generators";
+import { generateTranscript } from "../../tasks/ai/transcript";
+import { stageCompleted } from "../../tasks/cards/processingStatus";
 
 const METADATA_LOG_PREFIX = "[workflow/metadata]";
 
