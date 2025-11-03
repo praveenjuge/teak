@@ -1,4 +1,6 @@
 import Logo from "@/components/Logo";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
 /**
@@ -10,6 +12,7 @@ import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 export const baseOptions: BaseLayoutProps = {
   nav: {
     title: <Logo />,
+    transparentMode: "always",
   },
   // see https://fumadocs.dev/docs/ui/navigation/links
   links: [
@@ -25,6 +28,36 @@ export const baseOptions: BaseLayoutProps = {
       text: "Docs",
       url: "/docs",
     },
+    {
+      type: "custom",
+      children: (
+        <a
+          href="https://app.teakvault.com/login?redirect_url=https%3A%2F%2Fapp.teakvault.com%2F"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(buttonVariants({ variant: "outline" }))}
+        >
+          Login
+        </a>
+      ),
+      secondary: true,
+    },
+    {
+      type: "custom",
+      children: (
+        <a
+          href="https://accounts.teakvault.com/waitlist"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(buttonVariants({ variant: "default" }), "ml-2.5")}
+        >
+          Join Waitlist →
+        </a>
+      ),
+      secondary: true,
+    },
   ],
-  githubUrl: "https://github.com/praveenjuge/teak",
+  themeSwitch: {
+    enabled: false,
+  },
 };

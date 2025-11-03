@@ -7,7 +7,7 @@
 @font-face {
   font-family: "SN Pro";
   src: url("/fonts/SNPro-VariableRegular.woff2") format("woff2-variations"),
-       url("/fonts/SNPro-VariableRegular.woff") format("woff");
+    url("/fonts/SNPro-VariableRegular.woff") format("woff");
   font-weight: 200 900;
   font-style: normal;
   font-display: swap;
@@ -139,4 +139,10 @@
   body {
     @apply bg-gray-50 dark:bg-gray-950 text-foreground;
   }
+}
+
+#nd-nav {
+  border: 0;
+  backdrop-filter: none;
+  font-weight: 500;
 }

@@ -31,7 +31,13 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans flex min-h-screen flex-col antialiased text-sm [font-feature-settings:'ss01'] [text-rendering:optimizeLegibility]">
-        <RootProvider>{children}</RootProvider>
+        <RootProvider
+          search={{
+            enabled: false,
+          }}
+        >
+          {children}
+        </RootProvider>
       </body>
     </html>
   );
