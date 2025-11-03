@@ -10,6 +10,10 @@ export {
   linkMetadataWorkflow,
   startLinkMetadataWorkflow,
 } from "./linkMetadata";
+export {
+  screenshotWorkflow,
+  startScreenshotWorkflow,
+} from "./screenshot";
 export * as classificationStep from "./steps/classification";
 export * as categorizationStep from "./steps/categorization";
 export * as metadataStep from "./steps/metadata";

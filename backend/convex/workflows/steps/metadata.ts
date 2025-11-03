@@ -254,9 +254,11 @@ export const generate: any = internalAction({
     // Trigger link screenshot generation if it's a link
     if (cardType === "link") {
       console.info(`${METADATA_LOG_PREFIX} Scheduling screenshot`, { cardId });
-      await ctx.scheduler.runAfter(0, internal.linkMetadata.generateLinkScreenshot, {
-        cardId,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.workflows.screenshot.startScreenshotWorkflow,
+        { cardId },
+      );
     }
 
     return {
