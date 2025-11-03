@@ -49,6 +49,7 @@ import type * as workflows_functionRefs from "../workflows/functionRefs.js";
 import type * as workflows_index from "../workflows/index.js";
 import type * as workflows_linkMetadata from "../workflows/linkMetadata.js";
 import type * as workflows_manager from "../workflows/manager.js";
+import type * as workflows_screenshot from "../workflows/screenshot.js";
 import type * as workflows_steps_categorization_index from "../workflows/steps/categorization/index.js";
 import type * as workflows_steps_categorization_mutations from "../workflows/steps/categorization/mutations.js";
 import type * as workflows_steps_categorization_providers_amazon from "../workflows/steps/categorization/providers/amazon.js";
@@ -64,6 +65,7 @@ import type * as workflows_steps_metadata from "../workflows/steps/metadata.js";
 import type * as workflows_steps_renderables_generateThumbnail from "../workflows/steps/renderables/generateThumbnail.js";
 import type * as workflows_steps_renderables_mutations from "../workflows/steps/renderables/mutations.js";
 import type * as workflows_steps_renderables from "../workflows/steps/renderables.js";
+import type * as workflows_steps_screenshot_captureScreenshot from "../workflows/steps/screenshot/captureScreenshot.js";
 
 import type {
   ApiFromModules,
@@ -121,6 +123,7 @@ declare const fullApi: ApiFromModules<{
   "workflows/index": typeof workflows_index;
   "workflows/linkMetadata": typeof workflows_linkMetadata;
   "workflows/manager": typeof workflows_manager;
+  "workflows/screenshot": typeof workflows_screenshot;
   "workflows/steps/categorization/index": typeof workflows_steps_categorization_index;
   "workflows/steps/categorization/mutations": typeof workflows_steps_categorization_mutations;
   "workflows/steps/categorization/providers/amazon": typeof workflows_steps_categorization_providers_amazon;
@@ -136,6 +139,7 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/renderables/generateThumbnail": typeof workflows_steps_renderables_generateThumbnail;
   "workflows/steps/renderables/mutations": typeof workflows_steps_renderables_mutations;
   "workflows/steps/renderables": typeof workflows_steps_renderables;
+  "workflows/steps/screenshot/captureScreenshot": typeof workflows_steps_screenshot_captureScreenshot;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 

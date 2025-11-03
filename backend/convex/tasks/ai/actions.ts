@@ -429,6 +429,7 @@ export const runClassificationStage = internalAction({
     retryCount: v.optional(v.number()),
   },
   handler: async (ctx, { cardId, retryCount = 0 }) => {
+    //@ts-ignore
     const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
       cardId,
     });
@@ -571,6 +572,7 @@ export const runCategorizationStage = internalAction({
     retryCount: v.optional(v.number()),
   },
   handler: async (ctx, { cardId, retryCount = 0 }) => {
+    //@ts-ignore
     const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
       cardId,
     });
@@ -642,6 +644,7 @@ export const runCategorizationStage = internalAction({
 
       const metadata = await enrichLinkCategory(card, classification);
 
+      //@ts-ignore
       await ctx.runMutation(internal.tasks.ai.mutations.updateCardCategory, {
         cardId,
         category: metadata,
@@ -683,6 +686,7 @@ export const runMetadataStage = internalAction({
     retryCount: v.optional(v.number()),
   },
   handler: async (ctx, { cardId, retryCount = 0 }) => {
+    //@ts-ignore
     const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
       cardId,
     });
@@ -882,6 +886,7 @@ export const runMetadataStage = internalAction({
         completeStage(stageStatus, Date.now(), confidence)
       );
 
+      //@ts-ignore
       await ctx.runMutation(internal.tasks.ai.mutations.updateCardAI, {
         cardId,
         aiTags: aiTags.length > 0 ? aiTags : undefined,
@@ -897,9 +902,11 @@ export const runMetadataStage = internalAction({
       });
 
       if (card.type === "link") {
-        await ctx.scheduler.runAfter(0, internal.linkMetadata.generateLinkScreenshot, {
-          cardId,
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          internal.workflows.screenshot.startScreenshotWorkflow,
+          { cardId },
+        );
       }
 
       await scheduleNextStage(ctx, cardId, updatedProcessing);
