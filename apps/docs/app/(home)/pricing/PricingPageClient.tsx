@@ -13,7 +13,7 @@ const pricingPlans = [
     description:
       "Perfect for getting started with visual bookmarking and organizing your first design cards.",
     features: [
-      "25 cards maximum",
+      "25 cards",
       "Full-text search",
       "Cross-platform sync",
       "Web, mobile & browser extension",
@@ -33,7 +33,7 @@ const pricingPlans = [
       yearly: { amount: "$99", period: "year" },
     },
     description:
-      "Unlimited visual bookmarking for all your design cards, mood boards, and creative ideas.",
+      "Unlimited visual bookmarking for all your design cards, mood boards, creative ideas and more.",
     features: [
       "Unlimited cards",
       "Full-text search",
@@ -54,7 +54,7 @@ const pricingPlans = [
     name: "Self-Hosted",
     price: "Free",
     description:
-      "Complete control with unlimited cards on your own infrastructure.",
+      "Complete control with unlimited cards on your own infrastructure. So you can self-host for free.",
     features: [
       "Unlimited cards",
       "Full source code access",
@@ -109,9 +109,9 @@ export default function PricingPageClient() {
   return (
     <main className="flex flex-1 flex-col">
       {/* Hero Section */}
-      <section className="pt-20 pb-10">
+      <section className="pt-16 pb-8">
         <div className="container mx-auto px-4 text-center max-w-xl">
-          <h1 className="mb-4 font-bold text-4xl text-balance">
+          <h1 className="mb-4 font-bold text-4xl text-balance tracking-tight">
             Start free. Upgrade for unlimited cards.
           </h1>
           <p className="mx-auto max-w-2xl text-muted-foreground text-lg text-balance">
@@ -122,11 +122,9 @@ export default function PricingPageClient() {
       </section>
 
       {/* Pricing Toggle */}
-      <section className="pb-8">
-        <div className="container mx-auto px-4">
-          <PricingToggle onToggle={setIsYearly} defaultYearly={false} />
-        </div>
-      </section>
+      <div className="container mx-auto px-4 pb-4">
+        <PricingToggle onToggle={setIsYearly} defaultYearly={false} />
+      </div>
 
       {/* Pricing Cards */}
       <section className="pb-20 md:pb-24">
@@ -156,8 +154,8 @@ export default function PricingPageClient() {
               Start free, scale when ready
             </h2>
             <p className="mb-12 text-muted-foreground text-lg text-balance">
-              Most designers find 25 cards perfect for getting started.
-              When your collection grows, Pro gives you unlimited cards.
+              Most designers find 25 cards perfect for getting started. When
+              your collection grows, Pro gives you unlimited cards.
             </p>
             <div className="grid gap-8 md:grid-cols-3">
               <div className="text-center">
@@ -180,8 +178,8 @@ export default function PricingPageClient() {
                   Upgrade When Ready
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  When 25 cards isn&apos;t enough, Pro gives you unlimited
-                  cards for all your design inspiration.
+                  When 25 cards isn&apos;t enough, Pro gives you unlimited cards
+                  for all your design inspiration.
                 </p>
               </div>
               <div className="text-center">
@@ -192,8 +190,8 @@ export default function PricingPageClient() {
                   Self-Host Option
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  Technical users can self-host for free with unlimited
-                  cards and complete control over their inspiration library.
+                  Technical users can self-host for free with unlimited cards
+                  and complete control over their inspiration library.
                 </p>
               </div>
             </div>

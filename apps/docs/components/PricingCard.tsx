@@ -36,7 +36,7 @@ export function PricingCard({
     if (typeof price === "string") {
       return (
         <div className="mb-4">
-          <span className="font-bold text-3xl">{price}</span>
+          <span className="font-bold text-4xl tracking-tight">{price}</span>
           {price !== "Free" && price !== "Free*" && (
             <span className="text-muted-foreground">/month</span>
           )}
@@ -47,7 +47,9 @@ export function PricingCard({
     const currentPrice = isYearly ? price.yearly : price.monthly;
     return (
       <div className="mb-4">
-        <span className="font-bold text-3xl">{currentPrice.amount}</span>
+        <span className="font-bold text-4xl tracking-tight">
+          {currentPrice.amount}
+        </span>
         <span className="text-muted-foreground">/{currentPrice.period}</span>
       </div>
     );
@@ -72,7 +74,9 @@ export function PricingCard({
       )}
 
       <div className="text-center">
-        <h3 className="font-bold text-xl mb-2">{name}</h3>
+        <h3 className="font-semibold text-muted-foreground text-base mb-2">
+          {name}
+        </h3>
         {renderPrice()}
         <p className="text-muted-foreground mb-6">{description}</p>
       </div>
@@ -93,11 +97,7 @@ export function PricingCard({
         className="w-full"
         asChild
       >
-        <a
-          href={cta.href}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a href={cta.href} target="_blank" rel="noopener noreferrer">
           {cta.text}
         </a>
       </Button>

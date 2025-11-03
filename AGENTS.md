@@ -7,6 +7,7 @@ Review `CLAUDE.md` for deep architecture notes and file inventories.
 - Workspace apps live under `apps/`: Next.js web (`web`), Expo mobile (`mobile`), browser extension (`extension`), and docs (`docs`). Convex lives under `backend/`.
 - Backend logic belongs in `backend/convex` and re-exports through `backend/index.ts`; avoid touching `_generated`.
 - Shared types, helpers, and constants stay in `backend/shared` and load via `@teak/convex/shared`.
+- Workflow orchestration for cards lives in `backend/convex/workflows` (classification → categorization → metadata → renderables) and is consumed via `internal.workflows.*` references.
 - Use the `@/` alias for `apps/web`, keep docs content in `apps/docs/content`, and store extension assets beneath `apps/extension/assets`.
 - Co-locate tests beside sources as `.test.ts`/`.test.tsx` files and prefer domain folders such as `cards/` or `search/`.
 - Everything in `backend/convex/_generated` is auto-generated; avoid manual edits.

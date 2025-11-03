@@ -68,6 +68,7 @@ Built with a modern monorepo architecture:
 - **Authentication**: Clerk with JWT integration (web + mobile + extension)
 - **UI Components**: shadcn/ui with Radix primitives (web), Expo components (mobile)
 - **File Storage**: Convex Storage for user uploads
+- **Billing**: Polar checkout + customer portal embedded via Convex actions
 
 ### Monorepo Structure
 
@@ -80,6 +81,10 @@ teak-convex-nextjs/
 │   └── docs/             # Documentation site (Fumadocs)
 ├── backend/
 │   ├── convex/           # Convex functions and database
+│   │   ├── workflows/    # AI card processing pipeline orchestration (classification → renderables)
+│   │   ├── tasks/        # Task helpers, AI utilities, processing status helpers
+│   │   ├── billing.ts    # Polar checkout/customer portal integrations
+│   │   ├── admin.ts      # Admin analytics + pipeline dashboards
 │   ├── shared/           # Shared utilities, constants, types
 │   └── index.ts          # Re-export surface for consumers
 └── package.json          # Root workspace configuration
@@ -89,15 +94,15 @@ teak-convex-nextjs/
 
 #### Client-Server Communication
 
-- **Queries**: Real-time data fetching with `useQuery(api.cards.getCards, args)`
-- **Mutations**: Server actions with `useMutation(api.cards.createCard)`
+- **Queries**: Cached real-time data via `convex-helpers/react/cache` `useQuery`, wrapped by `ConvexQueryCacheProvider`
+- **Mutations**: Server actions with `useMutation` / `useAction` from `@teak/convex`
 - **Authentication**: Clerk JWT tokens passed automatically to Convex functions
 - **File Uploads**: Two-step process - generate upload URL, then upload file
 
 #### Data Flow
 
 1. Frontend (Next.js web, Expo mobile, Wxt Browser extension, Fumadocs docs) renders UI components
-2. ConvexClientProvider wraps app with Clerk authentication (web, mobile, extension)
+2. ConvexClientProvider + ConvexQueryCacheProvider wrap the tree with Clerk auth and cached queries (web, mobile, extension)
 3. Convex functions handle all server-side logic with automatic auth context
 4. Real-time updates propagate automatically to connected clients
 
@@ -119,6 +124,8 @@ The application centers around a flexible card system:
 - `video`: Video files with duration
 - `audio`: Audio recordings
 - `document`: File attachments
+- `palette`: Saved color palettes extracted from text snippets
+- `quote`: Highlighted quote cards with attribution
 
 ### Card Schema (backend/convex/schema.ts)
 
@@ -127,6 +134,8 @@ The application centers around a flexible card system:
 - Rich metadata support for different content types
 - File associations via `fileId` and `thumbnailId`
 - Tagging and favoriting support
+- Link cards store `metadata.linkCategory` with normalized category, provider details, and confidence
+- AI pipeline progress tracked via `processingStatus` stages (`classify`, `categorize`, `metadata`, `renderables`)
 
 ### Key Operations
 
@@ -135,6 +144,29 @@ The application centers around a flexible card system:
 - **Search & Filtering**: Real-time filtering by type, favorites, and tags
 - **Batch Operations**: Restore, permanent delete, toggle favorites
 
+### Link Categorization
+
+- Normalized category constants live in `backend/shared/linkCategories.ts` and power schema validators
+- Workflow categorization step enriches link cards with provider metadata and confidence scores
+- Admin dashboards surface category coverage through pipeline summaries
+
+## AI Processing Pipeline
+
+- Orchestrated by `backend/convex/workflows/cardProcessing.ts` using `@convex-dev/workflow` with retries per step
+- Steps run in sequence: **classification** (detect type + palette colors) → **categorization** (links only, waits for metadata) → **metadata** (AI tags, summary, transcript) → **renderables** (thumbnail generation for media)
+- Workflow helpers live in `backend/convex/workflows/functionRefs.ts` and reuse task utilities in `backend/convex/tasks/ai`
+- Each stage updates `processingStatus` and logs with `[workflow/*]` prefixes surfaced in admin dashboards
+- `workflows/steps/renderables` handles thumbnail generation, skipping tiny originals and writing results through internal mutations
+- Link metadata extraction is handled by `backend/convex/workflows/linkMetadata.ts`, kicked off via `startLinkMetadataWorkflow`; retries for Cloudflare scrape/HTTP failures now live inside the workflow instead of ad-hoc scheduler loops.
+
+## Billing & Subscription
+
+- Polar checkout embeds live in `apps/web/app/subscription/page.tsx` via `@polar-sh/checkout/embed`
+- Environment-aware plan IDs (production vs sandbox) determine the product passed to `createCheckoutLink`
+- `api.billing.createCheckoutLink`/`createCustomerPortal` actions in `backend/convex/billing.ts` coordinate with Polar SDK and Convex `components.polar`
+- `userHasPremium` query caches membership status and pairs with `FREE_TIER_LIMIT` to show usage caps
+- Subscription UI includes usage badge, feature list, and customer portal launcher—keep messaging aligned with `featureList`
+
 ## Project Structure
 
 ### Web Frontend (apps/web/)
@@ -142,18 +174,24 @@ The application centers around a flexible card system:
 ```
 apps/web/
 ├── app/
-│   ├── (auth)/           # Authentication routes
+│   ├── (auth)/           # Authentication routes guarded by ClerkLoaded/ClerkLoading
+│   ├── admin/page.tsx    # Admin insights dashboard with pipeline summaries
+│   ├── subscription/page.tsx # Polar checkout + customer portal entry
 │   ├── globals.css       # Global styles with custom CSS variables
-│   ├── layout.tsx        # Root layout with providers
-│   └── page.tsx          # Main dashboard page
+│   ├── layout.tsx        # Root layout with Clerk, ConvexQueryCacheProvider, AlphaBanner
+│   └── page.tsx          # Main dashboard using cached Convex queries
 ├── components/
-│   ├── ui/               # shadcn/ui components
-│   ├── patterns/         # Background pattern components
-│   ├── Dashboard.tsx     # Main dashboard orchestrator
+│   ├── AlphaBanner.tsx   # Dismissible alpha-state banner
+│   ├── ConvexClientProvider.tsx # Convex + Clerk provider wrapper
+│   ├── card-previews/    # Preview UIs for each card type
+│   ├── DragOverlay.tsx   # Drag-and-drop overlay styling
 │   ├── CardModal.tsx     # Card editing/viewing modal
+│   ├── AddCardForm.tsx   # Card creation form
 │   ├── MasonryGrid.tsx   # Card display grid
-│   └── AddCardForm.tsx   # Card creation form
-├── hooks/                # Custom React hooks
+│   ├── SearchBar.tsx     # Search input with tag/type filters
+│   ├── patterns/         # Background pattern components
+│   └── ui/               # shadcn/ui components
+├── hooks/                # Custom React hooks (useCardActions, useCardModal, useGlobalDragDrop)
 └── package.json          # Web app dependencies
 ```
 
@@ -204,12 +242,16 @@ apps/extension/
 backend/
 ├── convex/
 │   ├── _generated/   # Auto-generated Convex types
+│   ├── workflows/    # Card processing workflow + step actions (classification, categorization, metadata, renderables)
+│   ├── tasks/        # AI helpers, metadata generators, processing status utilities
+│   ├── billing.ts    # Polar checkout & customer portal integrations
+│   ├── admin.ts      # Admin queries/actions for pipeline analytics
 │   ├── schema.ts     # Database schema definitions
 │   ├── cards.ts      # Card CRUD operations
 │   ├── auth.config.ts # Clerk authentication config
 │   ├── crons.ts      # Scheduled cleanup jobs
 │   └── convex.config.ts # Convex configuration
-├── shared/           # Shared utilities consumed by clients
+├── shared/           # Shared utilities consumed by clients (constants, linkCategories, hooks, utils)
 ├── index.ts          # Package entry point re-exporting backend surface
 ├── .env.local        # Backend environment variables
 └── package.json      # Backend package config
@@ -305,6 +347,8 @@ Implemented in `useSearchFilters` hook:
 - Use indexes for efficient queries (defined in schema.ts)
 - Scheduled functions run via crons.ts
 - Config located at `backend/convex/convex.config.ts`
+- Workflow orchestration uses `@convex-dev/workflow`; definitions live in `backend/convex/workflows` and must update `processingStatus` consistently
+- Polar integration depends on `components.polar` and env keys (`POLAR_ACCESS_TOKEN`, `POLAR_SERVER`)—keep them wired in `backend/convex/billing.ts`
 
 ### Component Patterns
 
@@ -313,8 +357,13 @@ Implemented in `useSearchFilters` hook:
 - Always use shadcn/ui components for consistent design system (web)
 - Masonry grid layout for card display
 - Card preview components for different content types (text, link, image, video, audio, document)
+- Root layout composes ThemeProvider, ClerkProvider, ConvexClientProvider, ConvexQueryCacheProvider, AlphaBanner, and Sonner toasts
 
 ### State Management
 
 - Convex handles all server state automatically
-- Real-time updates without additional setup
+- Real-time updates without additional setup, with caching provided by `ConvexQueryCacheProvider` + `convex-helpers` hooks
+
+### Deployment & Security
+
+- `apps/web/next.config.ts` and `apps/docs/next.config.mjs` inject strict security headers (HSTS, X-Frame-Options, etc.)—retain them when modifying Next config

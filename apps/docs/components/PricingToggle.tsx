@@ -20,29 +20,27 @@ export function PricingToggle({
 
   return (
     <div className="flex items-center justify-center mb-8">
-      <div className="flex items-center gap-4">
-        <div className="relative inline-flex rounded-lg bg-muted p-1">
-          <button
-            onClick={() => handleToggle(false)}
-            className={`relative px-4 py-2 text-sm font-medium rounded-md transition-all ${
-              !isYearly
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Monthly
-          </button>
-          <button
-            onClick={() => handleToggle(true)}
-            className={`relative px-4 py-2 text-sm font-medium rounded-md transition-all ${
-              isYearly
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Yearly
-          </button>
-        </div>
+      <div className="relative inline-flex rounded-lg border bg-muted p-px">
+        <button
+          onClick={() => handleToggle(false)}
+          className={`relative px-4 py-1.5 font-medium rounded-md ${
+            !isYearly
+              ? "bg-background text-foreground border"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Monthly
+        </button>
+        <button
+          onClick={() => handleToggle(true)}
+          className={`relative px-4 py-1.5 font-medium rounded-md ${
+            isYearly
+              ? "bg-background text-foreground border"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Yearly
+        </button>
       </div>
     </div>
   );

@@ -129,12 +129,7 @@ const faqs = [
 
 export default function HomePage() {
   return (
-    <main className="flex flex-1 flex-col relative">
-      {/* Background Pattern */}
-      <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden pointer-events-none">
-        <BackgroundPattern />
-      </div>
-
+    <>
       {/* Hero Section */}
       <section className="relative pt-20 md:pt-32">
         <div className="container mx-auto px-4">
@@ -470,6 +465,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-    </main>
+    </>
   );
 }
