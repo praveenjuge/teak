@@ -11,7 +11,7 @@
 import { v } from "convex/values";
 import type { RetryBehavior } from "@convex-dev/workpool";
 import { workflow } from "./manager";
-import { internal, api } from "../_generated/api";
+import { internal } from "../_generated/api";
 
 // Helper to get properly typed internal references
 const internalWorkflow = internal as any;
@@ -19,6 +19,11 @@ const internalWorkflow = internal as any;
 const METADATA_STEP_RETRY: RetryBehavior = {
   maxAttempts: 10,
   initialBackoffMs: 1000,
+  base: 2,
+};
+const LINK_ENRICHMENT_STEP_RETRY: RetryBehavior = {
+  maxAttempts: 5,
+  initialBackoffMs: 5000,
   base: 2,
 };
 
@@ -80,11 +85,40 @@ export const cardProcessingWorkflow: any = workflow.define({
     let categorization: { category: string; confidence: number } | undefined;
     if (classification.shouldCategorize) {
       console.info(`${PIPELINE_LOG_PREFIX} Running categorization`, { cardId });
-      // The categorization step will throw if metadata isn't ready yet
-      // and workflow will retry automatically with the configured backoff
+      const classifyStepResult = await step.runAction(
+        internalWorkflow["workflows/steps/categorization/index"].classifyStep,
+        { cardId },
+        { retry: LINK_ENRICHMENT_STEP_RETRY }
+      );
+
+      let structuredData: unknown = null;
+      if (classifyStepResult.mode === "classified") {
+        const structuredResult = await step.runAction(
+          internalWorkflow["workflows/steps/categorization/index"].fetchStructuredDataStep,
+          {
+            cardId,
+            sourceUrl: classifyStepResult.sourceUrl,
+            shouldFetch: classifyStepResult.shouldFetchStructured,
+          },
+          { retry: LINK_ENRICHMENT_STEP_RETRY }
+        );
+        structuredData = structuredResult.structuredData ?? null;
+      }
+
       const categorizationResult = await step.runAction(
-        internalWorkflow["workflows/steps/categorization/index"].categorize,
-        { cardId }
+        internalWorkflow["workflows/steps/categorization/index"].mergeAndSaveStep,
+        {
+          cardId,
+          card: classifyStepResult.card,
+          sourceUrl: classifyStepResult.sourceUrl,
+          mode: classifyStepResult.mode,
+          classification: classifyStepResult.classification,
+          existingMetadata: classifyStepResult.existingMetadata,
+          structuredData,
+          notifyPipeline: false,
+          triggeredAsync: false,
+        },
+        { retry: LINK_ENRICHMENT_STEP_RETRY }
       );
 
       categorization = {
