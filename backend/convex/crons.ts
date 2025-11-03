@@ -8,7 +8,8 @@ const crons = cronJobs();
 crons.daily(
   "cleanup-old-deleted-cards",
   { hourUTC: 2, minuteUTC: 0 },
-  internal.tasks.cards.cleanup.cleanupOldDeletedCards,
+  //@ts-ignore
+  internal.workflows.cardCleanup.startCardCleanupWorkflow,
   {}
 );
 

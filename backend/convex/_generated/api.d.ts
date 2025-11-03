@@ -30,7 +30,6 @@ import type * as tasks_ai_queries from "../tasks/ai/queries.js";
 import type * as tasks_ai_schemas from "../tasks/ai/schemas.js";
 import type * as tasks_ai_transcript from "../tasks/ai/transcript.js";
 import type * as tasks_cards_cardLimit from "../tasks/cards/cardLimit.js";
-import type * as tasks_cards_cleanup from "../tasks/cards/cleanup.js";
 import type * as tasks_cards_createCard from "../tasks/cards/createCard.js";
 import type * as tasks_cards_deleteCard from "../tasks/cards/deleteCard.js";
 import type * as tasks_cards_generateUploadUrl from "../tasks/cards/generateUploadUrl.js";
@@ -44,6 +43,7 @@ import type * as tasks_cards_processingStatus from "../tasks/cards/processingSta
 import type * as tasks_cards_updateCard from "../tasks/cards/updateCard.js";
 import type * as tasks_cards_uploadCard from "../tasks/cards/uploadCard.js";
 import type * as tasks_cards_validationUtils from "../tasks/cards/validationUtils.js";
+import type * as workflows_cardCleanup from "../workflows/cardCleanup.js";
 import type * as workflows_cardProcessing from "../workflows/cardProcessing.js";
 import type * as workflows_functionRefs from "../workflows/functionRefs.js";
 import type * as workflows_index from "../workflows/index.js";
@@ -104,7 +104,6 @@ declare const fullApi: ApiFromModules<{
   "tasks/ai/schemas": typeof tasks_ai_schemas;
   "tasks/ai/transcript": typeof tasks_ai_transcript;
   "tasks/cards/cardLimit": typeof tasks_cards_cardLimit;
-  "tasks/cards/cleanup": typeof tasks_cards_cleanup;
   "tasks/cards/createCard": typeof tasks_cards_createCard;
   "tasks/cards/deleteCard": typeof tasks_cards_deleteCard;
   "tasks/cards/generateUploadUrl": typeof tasks_cards_generateUploadUrl;
@@ -118,6 +117,7 @@ declare const fullApi: ApiFromModules<{
   "tasks/cards/updateCard": typeof tasks_cards_updateCard;
   "tasks/cards/uploadCard": typeof tasks_cards_uploadCard;
   "tasks/cards/validationUtils": typeof tasks_cards_validationUtils;
+  "workflows/cardCleanup": typeof workflows_cardCleanup;
   "workflows/cardProcessing": typeof workflows_cardProcessing;
   "workflows/functionRefs": typeof workflows_functionRefs;
   "workflows/index": typeof workflows_index;
