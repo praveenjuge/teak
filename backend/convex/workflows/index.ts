@@ -7,6 +7,10 @@
 export { workflow } from "./manager";
 export { cardProcessingWorkflow } from "./cardProcessing";
 export {
+  cardCleanupWorkflow,
+  startCardCleanupWorkflow,
+} from "./cardCleanup";
+export {
   linkMetadataWorkflow,
   startLinkMetadataWorkflow,
 } from "./linkMetadata";
