@@ -47,6 +47,7 @@ import type * as tasks_cards_validationUtils from "../tasks/cards/validationUtil
 import type * as workflows_cardProcessing from "../workflows/cardProcessing.js";
 import type * as workflows_functionRefs from "../workflows/functionRefs.js";
 import type * as workflows_index from "../workflows/index.js";
+import type * as workflows_linkMetadata from "../workflows/linkMetadata.js";
 import type * as workflows_manager from "../workflows/manager.js";
 import type * as workflows_steps_categorization_index from "../workflows/steps/categorization/index.js";
 import type * as workflows_steps_categorization_mutations from "../workflows/steps/categorization/mutations.js";
@@ -58,6 +59,7 @@ import type * as workflows_steps_categorization_providers_imdb from "../workflow
 import type * as workflows_steps_categorization_providers_index from "../workflows/steps/categorization/providers/index.js";
 import type * as workflows_steps_classification from "../workflows/steps/classification.js";
 import type * as workflows_steps_classificationMutations from "../workflows/steps/classificationMutations.js";
+import type * as workflows_steps_linkMetadata_fetchMetadata from "../workflows/steps/linkMetadata/fetchMetadata.js";
 import type * as workflows_steps_metadata from "../workflows/steps/metadata.js";
 import type * as workflows_steps_renderables_generateThumbnail from "../workflows/steps/renderables/generateThumbnail.js";
 import type * as workflows_steps_renderables_mutations from "../workflows/steps/renderables/mutations.js";
@@ -117,6 +119,7 @@ declare const fullApi: ApiFromModules<{
   "workflows/cardProcessing": typeof workflows_cardProcessing;
   "workflows/functionRefs": typeof workflows_functionRefs;
   "workflows/index": typeof workflows_index;
+  "workflows/linkMetadata": typeof workflows_linkMetadata;
   "workflows/manager": typeof workflows_manager;
   "workflows/steps/categorization/index": typeof workflows_steps_categorization_index;
   "workflows/steps/categorization/mutations": typeof workflows_steps_categorization_mutations;
@@ -128,6 +131,7 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/categorization/providers/index": typeof workflows_steps_categorization_providers_index;
   "workflows/steps/classification": typeof workflows_steps_classification;
   "workflows/steps/classificationMutations": typeof workflows_steps_classificationMutations;
+  "workflows/steps/linkMetadata/fetchMetadata": typeof workflows_steps_linkMetadata_fetchMetadata;
   "workflows/steps/metadata": typeof workflows_steps_metadata;
   "workflows/steps/renderables/generateThumbnail": typeof workflows_steps_renderables_generateThumbnail;
   "workflows/steps/renderables/mutations": typeof workflows_steps_renderables_mutations;

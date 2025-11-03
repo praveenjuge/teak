@@ -309,9 +309,11 @@ export const classify = internalAction({
         console.info(`${CLASSIFY_LOG_PREFIX} Scheduling link metadata extraction`, {
           cardId,
         });
-        await ctx.scheduler.runAfter(0, internal.linkMetadata.extractLinkMetadata, {
-          cardId,
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          (internal as any)["workflows/linkMetadata"].startLinkMetadataWorkflow,
+          { cardId },
+        );
       }
     }
 
