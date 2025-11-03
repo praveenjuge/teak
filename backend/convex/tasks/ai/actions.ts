@@ -29,7 +29,6 @@ import {
   paletteExtractionSchema,
 } from "./schemas";
 import type { CardType } from "../../schema";
-import { classifyLinkCategory, enrichLinkCategory } from "./linkCategorization";
 
 const CLASSIFY_RETRY_DELAYS = [5000, 30000, 120000];
 const CATEGORY_RETRY_DELAYS = [5000, 20000, 60000];
@@ -637,26 +636,31 @@ export const runCategorizationStage = internalAction({
     );
 
     try {
-      const classification = await classifyLinkCategory(card);
-      if (!classification) {
-        throw new Error("Unable to determine link category");
+      const workflowResult = await ctx.runMutation(
+        (internal as any)["workflows/linkEnrichment"].startLinkEnrichmentWorkflow,
+        { cardId, startAsync: false }
+      );
+
+      if ("workflowId" in workflowResult) {
+        console.info(`[pipeline] Link enrichment workflow started asynchronously for ${cardId}`, {
+          workflowId: workflowResult.workflowId,
+        });
+        return;
       }
 
-      const metadata = await enrichLinkCategory(card, classification);
-
-      //@ts-ignore
-      await ctx.runMutation(internal.tasks.ai.mutations.updateCardCategory, {
+      console.info(`[pipeline] Link enrichment workflow finished for ${cardId}`, {
         cardId,
-        category: metadata,
+        category: workflowResult.category,
+        confidence: workflowResult.confidence,
+        facts: workflowResult.factsCount,
+        hasImage: !!workflowResult.imageUrl,
       });
 
-      const updatedProcessing = await upsertStageStatus(
-        ctx,
+      //@ts-ignore
+      const updatedCard = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
         cardId,
-        processing,
-        "categorize",
-        completeStage(stageStatus, Date.now(), classification.confidence ?? 0.8)
-      );
+      });
+      const updatedProcessing = updatedCard?.processingStatus ?? processing;
 
       await scheduleNextStage(ctx, cardId, updatedProcessing);
     } catch (error) {

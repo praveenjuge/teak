@@ -15,6 +15,10 @@ export {
   startLinkMetadataWorkflow,
 } from "./linkMetadata";
 export {
+  linkEnrichmentWorkflow,
+  startLinkEnrichmentWorkflow,
+} from "./linkEnrichment";
+export {
   screenshotWorkflow,
   startScreenshotWorkflow,
 } from "./screenshot";

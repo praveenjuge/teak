@@ -8,6 +8,7 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
 import { stageCompleted } from "../../../tasks/cards/processingStatus";
+import { internal } from "../../../_generated/api";
 
 const CATEGORIZE_MUTATION_LOG_PREFIX = "[workflow/categorize/mutation]";
 
@@ -18,9 +19,10 @@ export const updateCategorization = internalMutation({
   args: {
     cardId: v.id("cards"),
     metadata: v.any(), // LinkCategoryMetadata type
+    notifyPipeline: v.optional(v.boolean()),
   },
   returns: v.null(),
-  handler: async (ctx, { cardId, metadata }) => {
+  handler: async (ctx, { cardId, metadata, notifyPipeline }) => {
     console.info(`${CATEGORIZE_MUTATION_LOG_PREFIX} Updating categorization`, {
       cardId,
       category: metadata?.category,
@@ -51,6 +53,7 @@ export const updateCategorization = internalMutation({
     await ctx.db.patch(cardId, {
       metadata: updatedMetadata,
       processingStatus: updatedProcessing,
+      updatedAt: now,
     });
 
     console.info(`${CATEGORIZE_MUTATION_LOG_PREFIX} Categorization stored`, {
@@ -58,6 +61,15 @@ export const updateCategorization = internalMutation({
       facts: metadata?.facts?.length ?? 0,
       hasImage: !!metadata?.imageUrl,
     });
+
+    if (notifyPipeline) {
+      await ctx.scheduler.runAfter(
+        0,
+        //@ts-ignore
+        (internal as any).tasks.ai.actions.runCategorizationStage,
+        { cardId, retryCount: 0 },
+      );
+    }
 
     return null;
   },

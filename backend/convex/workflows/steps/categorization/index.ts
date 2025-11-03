@@ -71,6 +71,39 @@ export interface CategoryClassificationResult {
   tags?: string[];
 }
 
+const resolveCategoryKey = (value: string | undefined): LinkCategory | null => {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const lowercase = trimmed.toLowerCase();
+  for (const [key, label] of Object.entries(LINK_CATEGORY_LABELS)) {
+    if (lowercase === key.toLowerCase()) {
+      return key as LinkCategory;
+    }
+    if (lowercase === label.toLowerCase()) {
+      return key as LinkCategory;
+    }
+  }
+
+  const match = /\(([^)]+)\)\s*$/.exec(trimmed);
+  if (match && match[1]) {
+    const candidate = match[1].trim().toLowerCase();
+    for (const [key] of Object.entries(LINK_CATEGORY_LABELS)) {
+      if (candidate === key.toLowerCase()) {
+        return key as LinkCategory;
+      }
+    }
+  }
+
+  return null;
+};
+
 const safeTrim = (value: string | undefined, maxLength = 4096): string | undefined => {
   if (!value) return undefined;
   const trimmed = value.trim();
@@ -159,6 +192,47 @@ Pick the category that best describes the main subject of the URL. Use provider 
       tags,
     };
   } catch (error) {
+    const classificationValue =
+      (error as any)?.cause?.value ??
+      (error as any)?.value ??
+      undefined;
+    const invalidCategory =
+      classificationValue && typeof classificationValue === "object"
+        ? (classificationValue as any).category
+        : undefined;
+    const mappedCategory = resolveCategoryKey(
+      typeof invalidCategory === "string" ? invalidCategory : undefined
+    );
+
+    if (mappedCategory) {
+      const confidence =
+        typeof (classificationValue as any)?.confidence === "number"
+          ? (classificationValue as any).confidence
+          : LINK_CATEGORY_DEFAULT_CONFIDENCE;
+      const providerHint =
+        typeof (classificationValue as any)?.providerHint === "string"
+          ? (classificationValue as any).providerHint
+          : undefined;
+      const tagsCandidate = (classificationValue as any)?.tags;
+      const tags =
+        Array.isArray(tagsCandidate)
+          ? tagsCandidate.filter((tag) => typeof tag === "string")
+          : undefined;
+
+      console.warn(`${CATEGORIZE_LOG_PREFIX} Classification fallback applied`, {
+        cardId: card._id,
+        originalCategory: invalidCategory,
+        mappedCategory,
+      });
+
+      return {
+        category: mappedCategory,
+        confidence,
+        providerHint,
+        tags,
+      };
+    }
+
     console.error(`${CATEGORIZE_LOG_PREFIX} Failed to classify link`, {
       cardId: card._id,
       error,
@@ -581,7 +655,10 @@ const enrichWithStructuredData = (
 
 export const enrichLinkCategory = async (
   card: CategorizationContextCard,
-  classification: CategoryClassificationResult
+  classification: CategoryClassificationResult,
+  options?: {
+    structuredData?: StructuredDataResult | null;
+  }
 ): Promise<LinkCategoryMetadata> => {
   const linkPreview =
     card.metadata?.linkPreview?.status === "success"
@@ -630,25 +707,30 @@ export const enrichLinkCategory = async (
   }
 
   const hasStructuredData = raw && Object.prototype.hasOwnProperty.call(raw, "structured");
-  const shouldFetchStructured = !!sourceUrl && !hasStructuredData;
+  const providedStructured = options?.structuredData;
+  const shouldFetchStructured =
+    providedStructured === undefined && !!sourceUrl && !hasStructuredData;
 
-  if (shouldFetchStructured) {
-    const structured = await fetchStructuredData(sourceUrl);
-    if (structured?.entities?.length) {
-      const enriched = enrichWithStructuredData(
-        classification.category,
-        structured.entities
-      );
-      if (enriched) {
-        if (enriched.imageUrl && !imageUrl) {
-          imageUrl = enriched.imageUrl;
-        }
-        mergeFacts(facts, enriched.facts);
-        raw = {
-          ...(raw ?? {}),
-          structured: enriched.raw,
-        };
+  const structured = providedStructured === undefined
+    ? shouldFetchStructured
+      ? await fetchStructuredData(sourceUrl)
+      : null
+    : providedStructured;
+
+  if (structured?.entities?.length) {
+    const enriched = enrichWithStructuredData(
+      classification.category,
+      structured.entities
+    );
+    if (enriched) {
+      if (enriched.imageUrl && !imageUrl) {
+        imageUrl = enriched.imageUrl;
       }
+      mergeFacts(facts, enriched.facts);
+      raw = {
+        ...(raw ?? {}),
+        structured: enriched.raw,
+      };
     }
   }
 
@@ -671,23 +753,22 @@ export const enrichLinkCategory = async (
   return metadata;
 };
 
-/**
- * Workflow Step: Categorize link and enrich with provider data
- *
- * @returns Categorization result with category, confidence, and enrichment data
- */
-export const categorize: any = internalAction({
+export const classifyStep: any = internalAction({
   args: {
     cardId: v.id("cards"),
   },
   returns: v.object({
-    category: v.string(),
-    confidence: v.number(),
-    imageUrl: v.optional(v.string()),
-    factsCount: v.number(),
+    mode: v.union(v.literal("classified"), v.literal("skipped")),
+    card: v.any(),
+    sourceUrl: v.string(),
+    classification: v.optional(v.any()),
+    existingMetadata: v.optional(v.any()),
+    shouldFetchStructured: v.boolean(),
   }),
   handler: async (ctx, { cardId }) => {
-    console.info(`${CATEGORIZE_LOG_PREFIX} Running`, { cardId });
+    console.info(`${CATEGORIZE_LOG_PREFIX} classifyStep`, { cardId });
+
+    //@ts-ignore
     const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
       cardId,
     });
@@ -705,56 +786,163 @@ export const categorize: any = internalAction({
       throw new Error(`Card ${cardId} is not a link card (type: ${card.type})`);
     }
 
-    // Classify link category using AI
-    const classification = await classifyLinkCategory(card as CategorizationContextCard);
+    const contextCard = card as CategorizationContextCard;
+    const linkPreview =
+      contextCard.metadata?.linkPreview?.status === "success"
+        ? contextCard.metadata.linkPreview
+        : undefined;
+
+    const sourceUrl =
+      contextCard.url || linkPreview?.finalUrl || linkPreview?.url || "";
+
+    const existingMetadata =
+      contextCard.metadata?.linkCategory ?? undefined;
+
+    if (
+      existingMetadata?.category &&
+      sourceUrl &&
+      existingMetadata.sourceUrl === sourceUrl
+    ) {
+      console.info(`${CATEGORIZE_LOG_PREFIX} Skipping classification (cached)`, {
+        cardId,
+        category: existingMetadata.category,
+      });
+
+      return {
+        mode: "skipped" as const,
+        card: contextCard,
+        sourceUrl,
+        classification: undefined,
+        existingMetadata,
+        shouldFetchStructured: false,
+      };
+    }
+
+    const classification = await classifyLinkCategory(contextCard);
     if (!classification) {
       console.warn(`${CATEGORIZE_LOG_PREFIX} Classification failed`, { cardId });
       throw new Error(`Failed to classify link category for card ${cardId}`);
     }
-    console.info(`${CATEGORIZE_LOG_PREFIX} Classification result`, {
+
+    const shouldFetchStructured = !!sourceUrl && !existingMetadata?.raw?.structured;
+
+    return {
+      mode: "classified" as const,
+      card: contextCard,
+      sourceUrl,
+      classification,
+      existingMetadata,
+      shouldFetchStructured,
+    };
+  },
+});
+
+export const fetchStructuredDataStep: any = internalAction({
+  args: {
+    cardId: v.id("cards"),
+    sourceUrl: v.string(),
+    shouldFetch: v.boolean(),
+  },
+  returns: v.object({
+    structuredData: v.optional(v.any()),
+  }),
+  handler: async (_ctx, { cardId, sourceUrl, shouldFetch }) => {
+    console.info(`${CATEGORIZE_LOG_PREFIX} fetchStructuredDataStep`, {
       cardId,
-      category: classification.category,
-      confidence: classification.confidence,
+      sourceUrl,
+      shouldFetch,
     });
 
-    // Enrich category with provider-specific and structured data
+    if (!shouldFetch || !sourceUrl) {
+      return { structuredData: null };
+    }
+
+    const structuredData = await fetchStructuredData(sourceUrl);
+    return { structuredData };
+  },
+});
+
+export const mergeAndSaveStep: any = internalAction({
+  args: {
+    cardId: v.id("cards"),
+    card: v.any(),
+    sourceUrl: v.string(),
+    mode: v.union(v.literal("classified"), v.literal("skipped")),
+    classification: v.optional(v.any()),
+    existingMetadata: v.optional(v.any()),
+    structuredData: v.optional(v.any()),
+    notifyPipeline: v.optional(v.boolean()),
+    triggeredAsync: v.optional(v.boolean()),
+  },
+  returns: v.object({
+    category: v.string(),
+    confidence: v.number(),
+    imageUrl: v.optional(v.string()),
+    factsCount: v.number(),
+  }),
+  handler: async (ctx, { cardId, card, sourceUrl, mode, classification, existingMetadata, structuredData, notifyPipeline, triggeredAsync }) => {
+    console.info(`${CATEGORIZE_LOG_PREFIX} mergeAndSaveStep`, {
+      cardId,
+      mode,
+    });
+
+    if (mode === "skipped") {
+      if (!existingMetadata) {
+        throw new Error(
+          `Existing metadata required to skip classification for card ${cardId}`
+        );
+      }
+
+      await ctx.runMutation(
+        (internal as any)["workflows/steps/categorization/mutations"].updateCategorization,
+        {
+          cardId,
+          metadata: existingMetadata,
+          notifyPipeline: !!notifyPipeline && !!triggeredAsync,
+        }
+      );
+
+      return {
+        category: existingMetadata.category,
+        confidence: existingMetadata.confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE,
+        imageUrl: existingMetadata.imageUrl,
+        factsCount: existingMetadata.facts?.length ?? 0,
+      };
+    }
+
+    if (!classification) {
+      throw new Error(`Classification result missing for card ${cardId}`);
+    }
+
     const metadata = await enrichLinkCategory(
       card as CategorizationContextCard,
-      classification
+      classification as CategoryClassificationResult,
+      {
+        structuredData,
+      }
     );
     console.info(`${CATEGORIZE_LOG_PREFIX} Enrichment complete`, {
       cardId,
       provider: metadata.detectedProvider,
       facts: metadata.facts?.length ?? 0,
       hasImage: !!metadata.imageUrl,
+      sourceUrl,
     });
 
-    // Update card with category metadata
     await ctx.runMutation(
       (internal as any)["workflows/steps/categorization/mutations"].updateCategorization,
       {
         cardId,
         metadata,
+        notifyPipeline: !!notifyPipeline && !!triggeredAsync,
       }
     );
-    console.info(`${CATEGORIZE_LOG_PREFIX} Stored categorization`, {
-      cardId,
-      category: metadata.category,
-      confidence: metadata.confidence,
-    });
 
-    const result = {
+    return {
       category: metadata.category,
-      confidence: metadata.confidence ?? 0.8,
+      confidence: metadata.confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE,
       imageUrl: metadata.imageUrl,
       factsCount: metadata.facts?.length ?? 0,
     };
-
-    console.info(`${CATEGORIZE_LOG_PREFIX} Completed`, {
-      cardId,
-      result,
-    });
-
-    return result;
   },
 });
