@@ -3,29 +3,29 @@ import { internalAction, internalMutation, internalQuery } from "./_generated/se
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
-interface CloudflareScrapeAttribute {
+export interface CloudflareScrapeAttribute {
   name: string;
   value: string;
 }
 
-interface CloudflareScrapeResultItem {
+export interface CloudflareScrapeResultItem {
   text?: string;
   html?: string;
   attributes?: CloudflareScrapeAttribute[];
 }
 
-interface CloudflareScrapeSelectorResult {
+export interface CloudflareScrapeSelectorResult {
   selector: string;
   results: CloudflareScrapeResultItem[];
 }
 
-interface CloudflareScrapeResponse {
+export interface CloudflareScrapeResponse {
   success: boolean;
   result?: CloudflareScrapeSelectorResult[];
   errors?: Array<{ code?: number; message?: string }>;
 }
 
-interface LinkPreviewMetadata {
+export interface LinkPreviewMetadata {
   source: "cloudflare_browser_rendering";
   status: "success" | "error";
   fetchedAt: number;
@@ -50,7 +50,7 @@ interface LinkPreviewMetadata {
   raw?: CloudflareScrapeSelectorResult[];
 }
 
-const normalizeUrl = (url: string): string => {
+export const normalizeUrl = (url: string): string => {
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     return `https://${url}`;
   }
@@ -191,12 +191,12 @@ export const updateCardScreenshot = internalMutation({
   },
 });
 
-type SelectorSource = {
+export type SelectorSource = {
   selector: string;
   attribute: "content" | "href" | "text";
 };
 
-const TITLE_SOURCES: SelectorSource[] = [
+export const TITLE_SOURCES: SelectorSource[] = [
   { selector: "meta[property='og:title']", attribute: "content" },
   { selector: "meta[name='og:title']", attribute: "content" },
   { selector: "meta[name='twitter:title']", attribute: "content" },
@@ -205,7 +205,7 @@ const TITLE_SOURCES: SelectorSource[] = [
   { selector: "head > title", attribute: "text" },
 ];
 
-const DESCRIPTION_SOURCES: SelectorSource[] = [
+export const DESCRIPTION_SOURCES: SelectorSource[] = [
   { selector: "meta[property='og:description']", attribute: "content" },
   { selector: "meta[name='og:description']", attribute: "content" },
   { selector: "meta[name='description']", attribute: "content" },
@@ -214,7 +214,7 @@ const DESCRIPTION_SOURCES: SelectorSource[] = [
   { selector: "meta[property='twitter:description']", attribute: "content" },
 ];
 
-const IMAGE_SOURCES: SelectorSource[] = [
+export const IMAGE_SOURCES: SelectorSource[] = [
   { selector: "meta[property='og:image:secure_url']", attribute: "content" },
   { selector: "meta[property='og:image:url']", attribute: "content" },
   { selector: "meta[property='og:image']", attribute: "content" },
@@ -227,7 +227,7 @@ const IMAGE_SOURCES: SelectorSource[] = [
   { selector: "meta[name='msapplication-TileImage']", attribute: "content" },
 ];
 
-const FAVICON_SOURCES: SelectorSource[] = [
+export const FAVICON_SOURCES: SelectorSource[] = [
   { selector: "link[rel='icon']", attribute: "href" },
   { selector: "link[rel='shortcut icon']", attribute: "href" },
   { selector: "link[rel='apple-touch-icon']", attribute: "href" },
@@ -235,27 +235,27 @@ const FAVICON_SOURCES: SelectorSource[] = [
   { selector: "link[rel='mask-icon']", attribute: "href" },
 ];
 
-const SITE_NAME_SOURCES: SelectorSource[] = [
+export const SITE_NAME_SOURCES: SelectorSource[] = [
   { selector: "meta[property='og:site_name']", attribute: "content" },
   { selector: "meta[name='og:site_name']", attribute: "content" },
   { selector: "meta[name='application-name']", attribute: "content" },
   { selector: "meta[name='publisher']", attribute: "content" },
 ];
 
-const AUTHOR_SOURCES: SelectorSource[] = [
+export const AUTHOR_SOURCES: SelectorSource[] = [
   { selector: "meta[name='author']", attribute: "content" },
   { selector: "meta[property='article:author']", attribute: "content" },
   { selector: "meta[name='byl']", attribute: "content" },
   { selector: "meta[property='book:author']", attribute: "content" },
 ];
 
-const PUBLISHER_SOURCES: SelectorSource[] = [
+export const PUBLISHER_SOURCES: SelectorSource[] = [
   { selector: "meta[property='article:publisher']", attribute: "content" },
   { selector: "meta[name='publisher']", attribute: "content" },
   { selector: "meta[property='og:site_name']", attribute: "content" },
 ];
 
-const PUBLISHED_TIME_SOURCES: SelectorSource[] = [
+export const PUBLISHED_TIME_SOURCES: SelectorSource[] = [
   { selector: "meta[property='article:published_time']", attribute: "content" },
   { selector: "meta[name='article:published_time']", attribute: "content" },
   { selector: "meta[name='pubdate']", attribute: "content" },
@@ -263,13 +263,13 @@ const PUBLISHED_TIME_SOURCES: SelectorSource[] = [
   { selector: "meta[name='date']", attribute: "content" },
 ];
 
-const CANONICAL_SOURCES: SelectorSource[] = [
+export const CANONICAL_SOURCES: SelectorSource[] = [
   { selector: "link[rel='canonical']", attribute: "href" },
   { selector: "meta[property='og:url']", attribute: "content" },
   { selector: "meta[name='og:url']", attribute: "content" },
 ];
 
-const FINAL_URL_SOURCES: SelectorSource[] = [
+export const FINAL_URL_SOURCES: SelectorSource[] = [
   { selector: "meta[property='og:url']", attribute: "content" },
   { selector: "meta[name='og:url']", attribute: "content" },
   { selector: "meta[property='al:web:url']", attribute: "content" },
@@ -277,7 +277,7 @@ const FINAL_URL_SOURCES: SelectorSource[] = [
   { selector: "meta[name='twitter:url']", attribute: "content" },
 ];
 
-const GITHUB_SOURCES: SelectorSource[] = [
+export const GITHUB_SOURCES: SelectorSource[] = [
   { selector: "a[href$='/stargazers']", attribute: "text" },
   { selector: "a[href$='/network/members']", attribute: "text" },
   { selector: "a[href$='/watchers']", attribute: "text" },
@@ -285,13 +285,13 @@ const GITHUB_SOURCES: SelectorSource[] = [
   { selector: "relative-time", attribute: "text" },
 ];
 
-const GOODREADS_SOURCES: SelectorSource[] = [
+export const GOODREADS_SOURCES: SelectorSource[] = [
   { selector: "meta[property='books:rating:average']", attribute: "content" },
   { selector: "meta[property='books:rating:count']", attribute: "content" },
   { selector: "meta[property='books:isbn']", attribute: "content" },
 ];
 
-const AMAZON_SOURCES: SelectorSource[] = [
+export const AMAZON_SOURCES: SelectorSource[] = [
   { selector: "meta[property='og:price:amount']", attribute: "content" },
   { selector: "meta[property='og:price:currency']", attribute: "content" },
   { selector: "meta[name='price']", attribute: "content" },
@@ -300,7 +300,7 @@ const AMAZON_SOURCES: SelectorSource[] = [
   { selector: ".a-price .a-offscreen", attribute: "text" },
 ];
 
-const IMDB_SOURCES: SelectorSource[] = [
+export const IMDB_SOURCES: SelectorSource[] = [
   { selector: "meta[name='imdb:rating']", attribute: "content" },
   { selector: "meta[name='imdb:votes']", attribute: "content" },
   { selector: "meta[property='video:release_date']", attribute: "content" },
@@ -308,7 +308,7 @@ const IMDB_SOURCES: SelectorSource[] = [
   { selector: "span[data-testid='title-techspec_runtime'] span", attribute: "text" },
 ];
 
-const SCRAPE_ELEMENTS = Array.from(
+export const SCRAPE_ELEMENTS = Array.from(
   new Map(
     [
       ...TITLE_SOURCES,
@@ -329,7 +329,7 @@ const SCRAPE_ELEMENTS = Array.from(
   ).values()
 );
 
-const toSelectorMap = (
+export const toSelectorMap = (
   results?: CloudflareScrapeSelectorResult[]
 ): Map<string, CloudflareScrapeResultItem[]> => {
   const map = new Map<string, CloudflareScrapeResultItem[]>();
@@ -342,7 +342,7 @@ const toSelectorMap = (
   return map;
 };
 
-const findAttributeValue = (
+export const findAttributeValue = (
   item: CloudflareScrapeResultItem | undefined,
   attribute: string
 ): string | undefined => {
@@ -354,7 +354,7 @@ const findAttributeValue = (
   return match?.value?.trim() || undefined;
 };
 
-const getSelectorValue = (
+export const getSelectorValue = (
   map: Map<string, CloudflareScrapeResultItem[]>,
   source: SelectorSource
 ): string | undefined => {
@@ -380,7 +380,7 @@ const getSelectorValue = (
   return findAttributeValue(primary, source.attribute);
 };
 
-const firstFromSources = (
+export const firstFromSources = (
   map: Map<string, CloudflareScrapeResultItem[]>,
   sources: SelectorSource[]
 ): string | undefined => {
@@ -393,7 +393,7 @@ const firstFromSources = (
   return undefined;
 };
 
-const sanitizeText = (value: string | undefined, maxLength: number): string | undefined => {
+export const sanitizeText = (value: string | undefined, maxLength: number): string | undefined => {
   if (!value) {
     return undefined;
   }
@@ -407,7 +407,7 @@ const sanitizeText = (value: string | undefined, maxLength: number): string | un
   return normalized;
 };
 
-const sanitizeUrl = (
+export const sanitizeUrl = (
   baseUrl: string,
   value: string | undefined,
   { allowData }: { allowData?: boolean } = {}
@@ -440,7 +440,7 @@ const sanitizeUrl = (
   }
 };
 
-const sanitizeImageUrl = (baseUrl: string, value: string | undefined): string | undefined => {
+export const sanitizeImageUrl = (baseUrl: string, value: string | undefined): string | undefined => {
   if (!value) {
     return undefined;
   }
@@ -451,7 +451,7 @@ const sanitizeImageUrl = (baseUrl: string, value: string | undefined): string | 
   return sanitizeUrl(baseUrl, trimmed, { allowData: true });
 };
 
-const buildDebugRaw = (
+export const buildDebugRaw = (
   results?: CloudflareScrapeSelectorResult[]
 ): CloudflareScrapeSelectorResult[] | undefined => {
   if (!results) {
@@ -466,7 +466,7 @@ const buildDebugRaw = (
   }));
 };
 
-const parseLinkPreview = (
+export const parseLinkPreview = (
   normalizedUrl: string,
   results?: CloudflareScrapeSelectorResult[]
 ) => {
@@ -501,7 +501,7 @@ const parseLinkPreview = (
   };
 };
 
-const buildSuccessPreview = (
+export const buildSuccessPreview = (
   url: string,
   parsed: ReturnType<typeof parseLinkPreview>
 ): LinkPreviewMetadata => ({
@@ -512,7 +512,7 @@ const buildSuccessPreview = (
   ...parsed,
 });
 
-const buildErrorPreview = (
+export const buildErrorPreview = (
   url: string,
   error: {
     type: string;
@@ -783,264 +783,5 @@ export const generateLinkScreenshot = internalAction({
     }
 
     console.warn(`[linkMetadata] Screenshot capture failed for card ${cardId} after ${retryCount + 1} attempt(s):`, screenshotResult.error);
-  },
-});
-
-const RATE_LIMIT_MAX_RETRIES = 4; // allow up to 5 attempts for 429 responses
-const HTTP_MAX_RETRIES = 3; // allow up to 4 attempts for general 5xx errors
-const SESSION_ERROR_MAX_RETRIES = 4; // allow up to 5 attempts for Cloudflare session issues
-const HTTP_ERROR_RETRY_DELAY_MS = 7000;
-const SESSION_ERROR_RETRY_DELAY_MS = 12000;
-const RATE_LIMIT_RETRY_DELAY_MS = 15000;
-const RATE_LIMIT_MAX_DELAY_MS = 60000;
-
-export const extractLinkMetadata = internalAction({
-  args: {
-    cardId: v.id("cards"),
-    retryCount: v.optional(v.number()),
-  },
-  handler: async (ctx, { cardId, retryCount = 0 }) => {
-    let normalizedUrl = "";
-    try {
-      const card = await ctx.runQuery(internal.linkMetadata.getCardForMetadata, { cardId });
-
-      if (!card || card.type !== "link" || !card.url) {
-        console.error(`[linkMetadata] Card ${cardId} is not a valid link card`);
-        await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
-          cardId,
-          linkPreview: buildErrorPreview(card?.url ?? "", {
-            type: "invalid_card",
-            message: "Card is missing a valid URL",
-          }),
-          status: "failed",
-        });
-        return;
-      }
-
-      normalizedUrl = normalizeUrl(card.url);
-      console.log(`[linkMetadata] Extracting metadata for card ${cardId}, URL: ${normalizedUrl} (attempt ${retryCount + 1})`);
-
-      const accountId = process.env.CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID;
-      const apiToken =
-        process.env.CLOUDFLARE_BROWSER_RENDERING_API_TOKEN ||
-        process.env.CLOUDFLARE_API_TOKEN ||
-        process.env.CLOUDFLARE_API_KEY;
-
-      if (!accountId || !apiToken) {
-        console.error(`[linkMetadata] Missing Cloudflare Browser Rendering credentials (accountId=${accountId ? "set" : "missing"}, apiToken=${apiToken ? "set" : "missing"})`);
-        await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
-          cardId,
-          linkPreview: buildErrorPreview(normalizedUrl, {
-            type: "configuration_error",
-            message: "Cloudflare Browser Rendering credentials are not configured",
-          }),
-          status: "failed",
-        });
-        return;
-      }
-
-      const scrapeUrl = new URL(
-        `https://api.cloudflare.com/client/v4/accounts/${accountId}/browser-rendering/scrape`
-      );
-      scrapeUrl.searchParams.set("cacheTTL", "0");
-
-      const controller = new AbortController();
-      const timeoutMs = 25000;
-      const timeoutId = setTimeout(() => {
-        console.warn(`[linkMetadata] Cloudflare request timeout after ${timeoutMs}ms for ${normalizedUrl}`);
-        controller.abort();
-      }, timeoutMs);
-
-      const requestPayload = {
-        url: normalizedUrl,
-        elements: SCRAPE_ELEMENTS,
-        gotoOptions: {
-          waitUntil: "networkidle0",
-          timeout: 30000,
-        },
-      };
-
-      console.log(`[linkMetadata] Calling Cloudflare Browser Rendering /scrape with ${SCRAPE_ELEMENTS.length} selectors`);
-      const startedAt = Date.now();
-      const response = await fetch(scrapeUrl.toString(), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestPayload),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      console.log(`[linkMetadata] Cloudflare response received in ${Date.now() - startedAt}ms with status ${response.status}`);
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "");
-        let parsedError: CloudflareScrapeResponse | undefined;
-        if (errorText) {
-          try {
-            parsedError = JSON.parse(errorText) as CloudflareScrapeResponse;
-          } catch {
-            // Ignore parse failures; we'll fall back to raw text.
-          }
-        }
-
-        const primaryError = parsedError?.errors?.[0];
-        const errorCode =
-          typeof primaryError?.code === "number" ? primaryError.code : undefined;
-        const errorMessage = primaryError?.message;
-        const isRateLimit = response.status === 429 || errorCode === 2001;
-        const isSessionIssue =
-          errorCode === 2000 ||
-          (errorMessage?.toLowerCase().includes("existing session") ?? false);
-
-        console.error(
-          `[linkMetadata] Cloudflare API error ${response.status} ${response.statusText} for ${normalizedUrl}:`,
-          errorText || parsedError || "<empty>"
-        );
-
-        let delay = HTTP_ERROR_RETRY_DELAY_MS;
-        if (isRateLimit) {
-          const retryAfterHeader = response.headers.get("retry-after");
-          const retryAfterSeconds = retryAfterHeader ? Number.parseInt(retryAfterHeader, 10) : NaN;
-          if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
-            delay = Math.min(retryAfterSeconds * 1000, RATE_LIMIT_MAX_DELAY_MS);
-          } else {
-            delay = RATE_LIMIT_RETRY_DELAY_MS;
-          }
-        } else if (isSessionIssue) {
-          delay = SESSION_ERROR_RETRY_DELAY_MS;
-        }
-
-        let shouldRetry = false;
-        if (isRateLimit) {
-          shouldRetry = retryCount < RATE_LIMIT_MAX_RETRIES;
-        } else if (response.status >= 500) {
-          const maxRetries = isSessionIssue ? SESSION_ERROR_MAX_RETRIES : HTTP_MAX_RETRIES;
-          shouldRetry = retryCount < maxRetries;
-        }
-
-        if (shouldRetry) {
-          console.log(
-            `[linkMetadata] Scheduling retry ${retryCount + 1} for card ${cardId} after HTTP error ${response.status} (delay ${delay}ms)`
-          );
-          await ctx.scheduler.runAfter(delay, internal.linkMetadata.extractLinkMetadata, {
-            cardId,
-            retryCount: retryCount + 1,
-          });
-          return;
-        }
-
-        const errorDetails =
-          parsedError?.errors && parsedError.errors.length > 0
-            ? parsedError.errors
-            : errorText?.slice(0, 2000);
-
-        await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
-          cardId,
-          linkPreview: buildErrorPreview(
-            normalizedUrl,
-            {
-              type: isRateLimit ? "rate_limit" : "http_error",
-              message:
-                errorMessage ||
-                `Cloudflare Browser Rendering returned ${response.status}`,
-              details: errorDetails,
-            }
-          ),
-          status: "failed",
-        });
-        return;
-      }
-
-      const payload: CloudflareScrapeResponse = await response.json();
-
-      if (!payload.success) {
-        console.warn(`[linkMetadata] Cloudflare scrape failed for ${normalizedUrl}`, payload.errors);
-
-        const shouldRetry = retryCount < 2;
-        if (shouldRetry) {
-          await ctx.scheduler.runAfter(5000, internal.linkMetadata.extractLinkMetadata, {
-            cardId,
-            retryCount: retryCount + 1,
-          });
-          return;
-        }
-
-        await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
-          cardId,
-          linkPreview: buildErrorPreview(
-            normalizedUrl,
-            {
-              type: "scrape_error",
-              message:
-                payload.errors?.map((e) => e?.message).filter(Boolean).join("; ") ||
-                "Unknown scrape error",
-              details: payload.errors,
-            }
-          ),
-          status: "failed",
-        });
-        return;
-      }
-
-      const parsed = parseLinkPreview(normalizedUrl, payload.result);
-      const linkPreview = buildSuccessPreview(normalizedUrl, parsed);
-
-      await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
-        cardId,
-        linkPreview,
-        status: "completed",
-      });
-
-      console.log(`[linkMetadata] Metadata extracted for card ${cardId}`, {
-        title: Boolean(linkPreview.title),
-        description: Boolean(linkPreview.description),
-        image: Boolean(linkPreview.imageUrl),
-        favicon: Boolean(linkPreview.faviconUrl),
-        siteName: Boolean(linkPreview.siteName),
-        finalUrl: linkPreview.finalUrl,
-      });
-
-      await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.startProcessingPipeline, {
-        cardId,
-      });
-    } catch (error) {
-      console.error(`[linkMetadata] Error extracting metadata for card ${cardId}:`, error);
-
-      let errorType = "error";
-      let shouldRetry = false;
-
-      if ((error as any)?.name === "AbortError") {
-        errorType = "timeout";
-        shouldRetry = retryCount < 2;
-      } else if ((error as any)?.name === "TypeError" && (error as any)?.message?.includes("fetch")) {
-        errorType = "network_error";
-        shouldRetry = retryCount < 1;
-      }
-
-      if (shouldRetry) {
-        console.log(`[linkMetadata] Retrying metadata extraction for card ${cardId} in 5 seconds (retry ${retryCount + 1})`);
-        await ctx.scheduler.runAfter(5000, internal.linkMetadata.extractLinkMetadata, {
-          cardId,
-          retryCount: retryCount + 1,
-        });
-        return;
-      }
-
-      const fallbackUrl = normalizedUrl || "";
-      await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
-        cardId,
-        linkPreview: buildErrorPreview(
-          fallbackUrl,
-          {
-            type: errorType,
-            message: (error as Error)?.message,
-          }
-        ),
-        status: "failed",
-      });
-    }
   },
 });

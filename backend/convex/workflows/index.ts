@@ -6,6 +6,10 @@
 
 export { workflow } from "./manager";
 export { cardProcessingWorkflow } from "./cardProcessing";
+export {
+  linkMetadataWorkflow,
+  startLinkMetadataWorkflow,
+} from "./linkMetadata";
 export * as classificationStep from "./steps/classification";
 export * as categorizationStep from "./steps/categorization";
 export * as metadataStep from "./steps/metadata";

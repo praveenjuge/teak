@@ -168,6 +168,7 @@ const maybeUpdatePaletteColors = async (
     return;
   }
 
+  //@ts-ignore
   await ctx.runMutation(internal.tasks.ai.mutations.updateCardColors, {
     cardId,
     colors: colorsForDb,
@@ -535,7 +536,7 @@ export const runClassificationStage = internalAction({
       if (shouldUpdateType && normalizedType === "link") {
         await ctx.scheduler.runAfter(
           0,
-          internal.linkMetadata.extractLinkMetadata,
+          (internal as any)["workflows/linkMetadata"].startLinkMetadataWorkflow,
           { cardId }
         );
       }
