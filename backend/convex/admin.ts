@@ -247,15 +247,14 @@ type BackfillSummary = {
   requestedAt: number;
   enqueuedCount: number;
   pendingSampleCount: number;
-  error?: string;
-};
-
-type EnqueueResult = {
-  enqueuedCount: number;
-  error?: string;
+  failedCardIds: Id<"cards">[];
 };
 
 type PendingSample = { cardId: Id<"cards"> };
+type AiBackfillWorkflowResult = {
+  enqueuedCount: number;
+  failedCardIds: Id<"cards">[];
+};
 
 export const retryAiBackfill = action({
   args: {},
@@ -263,11 +262,16 @@ export const retryAiBackfill = action({
     const identity = await ctx.auth.getUserIdentity();
     ensureAdmin(identity);
 
-    const result = (await ctx.runAction(
+    const workflowResult = (await ctx.runMutation(
       //@ts-ignore
-      internal.tasks.ai.actions.enqueueMissingAiGeneration,
-      {}
-    )) as EnqueueResult;
+      internal.workflows.aiBackfill.startAiBackfillWorkflow,
+      { startAsync: false }
+    )) as AiBackfillWorkflowResult | { workflowId: string };
+
+    const normalizedResult: AiBackfillWorkflowResult =
+      "workflowId" in workflowResult
+        ? { enqueuedCount: 0, failedCardIds: [] }
+        : workflowResult;
 
     // Retrieve a sample of outstanding cards to provide context without exposing IDs
     const pendingSample = (await ctx.runQuery(
@@ -277,9 +281,9 @@ export const retryAiBackfill = action({
 
     return {
       requestedAt: Date.now(),
-      enqueuedCount: result.enqueuedCount,
+      enqueuedCount: normalizedResult.enqueuedCount,
       pendingSampleCount: pendingSample.length,
-      error: result.error,
+      failedCardIds: normalizedResult.failedCardIds,
     };
   },
 });

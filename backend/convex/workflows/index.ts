@@ -7,6 +7,10 @@
 export { workflow } from "./manager";
 export { cardProcessingWorkflow } from "./cardProcessing";
 export {
+  aiBackfillWorkflow,
+  startAiBackfillWorkflow,
+} from "./aiBackfill";
+export {
   cardCleanupWorkflow,
   startCardCleanupWorkflow,
 } from "./cardCleanup";
