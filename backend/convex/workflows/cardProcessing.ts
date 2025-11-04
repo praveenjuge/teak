@@ -14,17 +14,18 @@ import { workflow } from "./manager";
 import { internal } from "../_generated/api";
 
 // Helper to get properly typed internal references
+//@ts-ignore
 const internalWorkflow = internal as any;
 
 const METADATA_STEP_RETRY: RetryBehavior = {
-  maxAttempts: 10,
-  initialBackoffMs: 1000,
-  base: 2,
+  maxAttempts: 8,
+  initialBackoffMs: 400,
+  base: 1.8,
 };
 const LINK_ENRICHMENT_STEP_RETRY: RetryBehavior = {
   maxAttempts: 5,
-  initialBackoffMs: 5000,
-  base: 2,
+  initialBackoffMs: 1200,
+  base: 1.6,
 };
 
 const PIPELINE_LOG_PREFIX = "[workflow/cardProcessing]";
@@ -92,13 +93,16 @@ export const cardProcessingWorkflow: any = workflow.define({
       );
 
       let structuredData: unknown = null;
-      if (classifyStepResult.mode === "classified") {
+      if (
+        classifyStepResult.mode === "classified" &&
+        classifyStepResult.shouldFetchStructured
+      ) {
         const structuredResult = await step.runAction(
           internalWorkflow["workflows/steps/categorization/index"].fetchStructuredDataStep,
           {
             cardId,
             sourceUrl: classifyStepResult.sourceUrl,
-            shouldFetch: classifyStepResult.shouldFetchStructured,
+            shouldFetch: true,
           },
           { retry: LINK_ENRICHMENT_STEP_RETRY }
         );
@@ -132,43 +136,72 @@ export const cardProcessingWorkflow: any = workflow.define({
       });
     }
 
-    // Step 3: Metadata Generation
-    // Generate AI tags and summary for all card types
-    console.info(`${PIPELINE_LOG_PREFIX} Running metadata generation`, {
-      cardId,
-      cardType: classification.type,
-    });
-    const metadata = await step.runAction(
-      internalWorkflow["workflows/steps/metadata"].generate,
-      { cardId, cardType: classification.type },
-      { retry: METADATA_STEP_RETRY }
-    );
-    console.info(`${PIPELINE_LOG_PREFIX} Metadata generation complete`, {
-      cardId,
-      tags: metadata.aiTags.length,
-      hasSummary: !!metadata.aiSummary,
-      hasTranscript: !!metadata.aiTranscript,
-    });
+    // Step 3 & 4: Metadata generation and renderables can run in parallel when needed
+    const metadataPromise = classification.shouldGenerateMetadata
+      ? (async () => {
+        console.info(`${PIPELINE_LOG_PREFIX} Running metadata generation`, {
+          cardId,
+          cardType: classification.type,
+        });
+        const result = await step.runAction(
+          internalWorkflow["workflows/steps/metadata"].generate,
+          { cardId, cardType: classification.type },
+          { retry: METADATA_STEP_RETRY }
+        );
+        console.info(`${PIPELINE_LOG_PREFIX} Metadata generation complete`, {
+          cardId,
+          tags: result.aiTags.length,
+          hasSummary: !!result.aiSummary,
+          hasTranscript: !!result.aiTranscript,
+        });
+        return result;
+      })()
+      : Promise.resolve(null);
 
-    // Step 4: Renderables (conditional - only for image/video/document)
-    // Generate thumbnails and other visual assets
-    let renderables: { thumbnailGenerated: boolean } | undefined;
-    if (classification.shouldGenerateRenderables) {
-      console.info(`${PIPELINE_LOG_PREFIX} Running renderables generation`, {
+    const renderablesPromise = classification.shouldGenerateRenderables
+      ? (async () => {
+        console.info(`${PIPELINE_LOG_PREFIX} Running renderables generation`, {
+          cardId,
+          cardType: classification.type,
+        });
+        const result = await step.runAction(
+          internalWorkflow["workflows/steps/renderables"].generate,
+          { cardId, cardType: classification.type }
+        );
+        console.info(`${PIPELINE_LOG_PREFIX} Renderables generation complete`, {
+          cardId,
+          thumbnailGenerated: result.thumbnailGenerated,
+        });
+        return result;
+      })()
+      : Promise.resolve(null);
+
+    const [metadataResult, renderablesResult] = await Promise.all([
+      metadataPromise,
+      renderablesPromise,
+    ]);
+
+    const metadata = metadataResult ?? {
+      aiTags: [],
+      aiSummary: undefined,
+      aiTranscript: undefined,
+    };
+
+    if (!classification.shouldGenerateMetadata) {
+      console.info(`${PIPELINE_LOG_PREFIX} Metadata generation skipped`, {
         cardId,
         cardType: classification.type,
       });
-      const renderablesResult = await step.runAction(
-        internalWorkflow["workflows/steps/renderables"].generate,
-        { cardId, cardType: classification.type }
-      );
+    }
 
-      renderables = {
-        thumbnailGenerated: renderablesResult.thumbnailGenerated,
-      };
-      console.info(`${PIPELINE_LOG_PREFIX} Renderables generation complete`, {
+    const renderables = renderablesResult
+      ? { thumbnailGenerated: renderablesResult.thumbnailGenerated }
+      : undefined;
+
+    if (!classification.shouldGenerateRenderables) {
+      console.info(`${PIPELINE_LOG_PREFIX} Renderables skipped`, {
         cardId,
-        thumbnailGenerated: renderables.thumbnailGenerated,
+        cardType: classification.type,
       });
     }
 
