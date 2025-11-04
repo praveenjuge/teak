@@ -941,6 +941,7 @@ export const runRenderablesStage = internalAction({
     retryCount: v.optional(v.number()),
   },
   handler: async (ctx, { cardId, retryCount = 0 }) => {
+    //@ts-ignore
     const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
       cardId,
     });
@@ -988,6 +989,7 @@ export const runRenderablesStage = internalAction({
     try {
       if (card.type === "image" && card.fileId) {
         await ctx.runAction(
+          //@ts-ignore
           internal.workflows.steps.renderables.generateThumbnail.generateThumbnail,
           { cardId }
         );
@@ -1019,29 +1021,6 @@ export const runRenderablesStage = internalAction({
           retryCount: retryCount + 1,
         });
       }
-    }
-  },
-});
-
-export const enqueueMissingAiGeneration = internalAction({
-  args: {},
-  handler: async (ctx): Promise<{ enqueuedCount: number; error?: string }> => {
-    try {
-      const cardsToProcess: { cardId: Id<"cards"> }[] = await ctx.runQuery(
-        internal.tasks.ai.queries.findCardsMissingAi,
-        {}
-      );
-
-      for (const { cardId } of cardsToProcess) {
-        await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.startProcessingPipeline, {
-          cardId,
-        });
-      }
-
-      return { enqueuedCount: cardsToProcess.length };
-    } catch (error) {
-      console.error("[pipeline] Error enqueueing AI metadata backfill:", error);
-      return { enqueuedCount: 0, error: String(error) };
     }
   },
 });

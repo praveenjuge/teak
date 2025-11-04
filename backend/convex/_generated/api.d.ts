@@ -42,6 +42,7 @@ import type * as tasks_cards_processingStatus from "../tasks/cards/processingSta
 import type * as tasks_cards_updateCard from "../tasks/cards/updateCard.js";
 import type * as tasks_cards_uploadCard from "../tasks/cards/uploadCard.js";
 import type * as tasks_cards_validationUtils from "../tasks/cards/validationUtils.js";
+import type * as workflows_aiBackfill from "../workflows/aiBackfill.js";
 import type * as workflows_cardCleanup from "../workflows/cardCleanup.js";
 import type * as workflows_cardProcessing from "../workflows/cardProcessing.js";
 import type * as workflows_functionRefs from "../workflows/functionRefs.js";
@@ -116,6 +117,7 @@ declare const fullApi: ApiFromModules<{
   "tasks/cards/updateCard": typeof tasks_cards_updateCard;
   "tasks/cards/uploadCard": typeof tasks_cards_uploadCard;
   "tasks/cards/validationUtils": typeof tasks_cards_validationUtils;
+  "workflows/aiBackfill": typeof workflows_aiBackfill;
   "workflows/cardCleanup": typeof workflows_cardCleanup;
   "workflows/cardProcessing": typeof workflows_cardProcessing;
   "workflows/functionRefs": typeof workflows_functionRefs;

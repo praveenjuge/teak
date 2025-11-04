@@ -18,7 +18,8 @@ crons.daily(
 crons.interval(
   "ai-metadata-backfill",
   { hours: 6 },
-  internal.tasks.ai.actions.enqueueMissingAiGeneration,
+  //@ts-ignore
+  internal.workflows.aiBackfill.startAiBackfillWorkflow,
   {}
 );
 
