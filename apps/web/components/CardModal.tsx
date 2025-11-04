@@ -217,9 +217,9 @@ export function CardModal({
                   {getCurrentValue("notes") && (
                     <div>
                       <Label>Notes</Label>
-                      <div className="mt-1 p-3 bg-muted rounded-md whitespace-pre-wrap">
+                      <p className="mt-1.5 px-3 py-2.5 bg-muted rounded-md border whitespace-pre-wrap">
                         {getCurrentValue("notes")}
-                      </div>
+                      </p>
                     </div>
                   )}
 
@@ -227,9 +227,9 @@ export function CardModal({
                   {card.aiSummary && (
                     <div>
                       <Label>Summary</Label>
-                      <div className="mt-1 p-3 bg-muted rounded-md whitespace-pre-wrap">
+                      <p className="mt-1.5 px-3 py-2.5 bg-muted rounded-md border whitespace-pre-wrap">
                         {getCurrentValue("aiSummary")}
-                      </div>
+                      </p>
                     </div>
                   )}
 
