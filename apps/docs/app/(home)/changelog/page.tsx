@@ -237,7 +237,7 @@ export default async function ChangelogPage() {
                   <div className="flex items-start gap-4">
                     <div className="shrink-0">
                       {entry.authorAvatar ? (
-                        <Image
+                        <img
                           src={entry.authorAvatar}
                           alt={entry.author}
                           width={32}
