@@ -58,11 +58,14 @@ export const updateCard = mutation({
 
     // If content was updated, regenerate AI metadata
     if (updates.content !== undefined) {
-      await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.startProcessingPipeline, {
-        cardId: id,
-        classificationRequired:
-          processingStatus?.classify?.status === "pending",
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        //@ts-ignore
+        (internal as any)["workflows/manager"].startCardProcessingWorkflow,
+        {
+          cardId: id,
+        }
+      );
     }
 
     return result;
@@ -106,7 +109,6 @@ export const updateCardField = mutation({
     let updateData: any = { updatedAt: now };
     let processingStatus = card.processingStatus as ProcessingStatus | undefined;
     let shouldSchedulePipeline = false;
-    let classificationRequired = false;
 
     switch (field) {
       case "content":
@@ -123,8 +125,6 @@ export const updateCardField = mutation({
             processingStatus = withStageStatus(processingStatus, "categorize", stagePending());
           }
           shouldSchedulePipeline = true;
-          classificationRequired =
-            processingStatus?.classify?.status === "pending";
         }
         break;
 
@@ -142,7 +142,6 @@ export const updateCardField = mutation({
           processingStatus = withStageStatus(baseStatus, "metadata", stagePending());
           processingStatus = withStageStatus(processingStatus, "categorize", stagePending());
           shouldSchedulePipeline = true;
-          classificationRequired = true;
 
           const nextMetadata = { ...(card.metadata ?? {}) };
           if ("linkPreview" in nextMetadata) {
@@ -204,10 +203,13 @@ export const updateCardField = mutation({
     const result = await ctx.db.patch(cardId, updateData);
 
     if (shouldSchedulePipeline) {
-      await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.startProcessingPipeline, {
-        cardId,
-        classificationRequired,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        (internal as any)["workflows/manager"].startCardProcessingWorkflow,
+        {
+          cardId,
+        }
+      );
     }
 
     return result;

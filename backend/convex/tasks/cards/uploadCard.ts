@@ -137,10 +137,11 @@ export const finalizeUploadedCard = mutation({
         updatedAt: now,
       });
 
-      await ctx.scheduler.runAfter(0, internal.tasks.ai.actions.startProcessingPipeline, {
-        cardId,
-        classificationRequired: true,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        (internal as any)["workflows/manager"].startCardProcessingWorkflow,
+        { cardId }
+      );
 
       return { success: true, cardId };
     } catch (error) {

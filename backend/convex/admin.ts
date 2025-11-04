@@ -313,7 +313,7 @@ export const retryCardEnrichment = action({
 
     await ctx.scheduler.runAfter(
       0,
-      internal.tasks.ai.actions.startProcessingPipeline,
+      (internal as any)["workflows/manager"].startCardProcessingWorkflow,
       { cardId }
     );
 

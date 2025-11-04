@@ -12,6 +12,11 @@
     "jsx": "react-jsx",
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
+    "typeRoots": [
+      "./types",
+      "../node_modules/@types",
+      "../../node_modules/@types"
+    ],
     /* These compiler options are required by Convex */
     "target": "ESNext",
     "lib": [
