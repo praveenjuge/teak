@@ -26,6 +26,7 @@ export function LinkPreview({
 
   const screenshotStorageId = linkPreview?.screenshotStorageId;
   const screenshotUrl = useQuery(
+    //@ts-ignore
     api.cards.getFileUrl,
     showScreenshot && screenshotStorageId
       ? { fileId: screenshotStorageId, cardId: card._id }
@@ -43,7 +44,7 @@ export function LinkPreview({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start gap-3">
-        <div className="w-5 h-5 mt-0.5 flex-shrink-0">
+        <div className="w-5 h-5 mt-0.5 shrink-0">
           {faviconUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -90,24 +91,21 @@ export function LinkPreview({
       </div>
 
       {linkImage && (
-        <>
-          <Separator />
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
-              Preview Image
-            </p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={linkImage}
-              alt="Open Graph preview"
-              className="w-full max-h-[70vh] object-contain rounded border"
-              onError={(event) => {
-                const target = event.currentTarget;
-                target.style.display = "none";
-              }}
-            />
-          </div>
-        </>
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">
+            Preview Image
+          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={linkImage}
+            alt="Open Graph preview"
+            className="w-full max-h-[70vh] object-contain rounded border"
+            onError={(event) => {
+              const target = event.currentTarget;
+              target.style.display = "none";
+            }}
+          />
+        </div>
       )}
 
       {showScreenshot && screenshotUrl && (

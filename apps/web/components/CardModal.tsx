@@ -157,7 +157,7 @@ export function CardModal({
       case "palette":
         return <PalettePreview card={card} />;
       default:
-        return <div>Unknown card type</div>;
+        return <div>{card.content}</div>;
     }
   };
 
@@ -186,7 +186,7 @@ export function CardModal({
             {/* Main Content Area */}
             <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-1 overflow-hidden">
               {/* Preview Area */}
-              <div className="flex-1 md:flex-2 border rounded-md bg-muted/50 overflow-hidden flex flex-col min-h-0 relative">
+              <div className="flex-1 md:flex-2 border rounded-md bg-muted overflow-hidden flex flex-col min-h-0 relative">
                 <div className="flex-1 p-2 overflow-y-auto">
                   {renderPreview()}
                 </div>
