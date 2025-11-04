@@ -167,13 +167,12 @@ export default function HomePage() {
           {/* Hero Image */}
           <div className="mx-auto max-w-6xl">
             <div className="relative rounded-lg overflow-hidden">
-              <Image
+              <img
                 src="/hero-image.png"
                 alt="Teak app interface showing various saved content types"
                 width={1200}
                 height={800}
                 className="w-full h-auto"
-                priority
               />
             </div>
           </div>
