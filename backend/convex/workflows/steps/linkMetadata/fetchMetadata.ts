@@ -243,8 +243,8 @@ export const fetchMetadata = internalAction({
 
       await ctx.scheduler.runAfter(
         0,
-        internal.tasks.ai.actions.startProcessingPipeline,
-        { cardId },
+        (internal as any)["workflows/manager"].startCardProcessingWorkflow,
+        { cardId }
       );
 
       return {

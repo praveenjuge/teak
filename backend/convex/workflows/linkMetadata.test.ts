@@ -1,3 +1,4 @@
+/// <reference path="../types/bun-test.d.ts" />
 import { describe, expect, test } from "bun:test";
 import { parseLinkMetadataRetryableError } from "./linkMetadata";
 import {

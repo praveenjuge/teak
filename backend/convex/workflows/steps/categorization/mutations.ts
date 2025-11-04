@@ -65,9 +65,8 @@ export const updateCategorization = internalMutation({
     if (notifyPipeline) {
       await ctx.scheduler.runAfter(
         0,
-        //@ts-ignore
-        (internal as any).tasks.ai.actions.runCategorizationStage,
-        { cardId, retryCount: 0 },
+        (internal as any)["workflows/manager"].startCardProcessingWorkflow,
+        { cardId }
       );
     }
 
