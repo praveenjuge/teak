@@ -69,7 +69,6 @@ async function fetchCommits(): Promise<GitHubCommit[]> {
           }),
         },
         next: {
-          revalidate: 1800, // Revalidate every 30 minutes
           tags: ["github-commits"], // Enable tag-based revalidation
         },
       }
@@ -236,7 +235,7 @@ export default async function ChangelogPage() {
                   className="border rounded-lg p-6 hover:shadow-md transition-shadow bg-background"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                       {entry.authorAvatar ? (
                         <Image
                           src={entry.authorAvatar}
