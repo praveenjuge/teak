@@ -236,6 +236,7 @@ export const classify = internalAction({
   }),
   handler: async (ctx, { cardId }): Promise<ClassificationWorkflowResult> => {
     console.info(`${CLASSIFY_LOG_PREFIX} Running`, { cardId });
+    //@ts-ignore
     const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
       cardId,
     });
@@ -250,7 +251,7 @@ export const classify = internalAction({
     const classification = await generateObject({
       model: openai("gpt-5-nano"),
       system:
-        "You classify cards into one of: text, link, image, video, audio, document, palette, quote. Use the provided clues and be decisive.",
+        "You classify cards into one of: text, link, image, video, audio, document, palette, quote. Use the provided clues and be decisive. When a text snippet is fully wrapped in quotation marks and has no attribution metadata, treat it as a quote card.",
       prompt,
       schema: cardClassificationSchema,
     });
@@ -270,7 +271,8 @@ export const classify = internalAction({
       !card.fileId &&
       (trimmedContent.length === 0 || trimmedContent === card.url);
 
-    const normalizedType = urlOnlyCard && resultType !== "link" ? "link" : resultType;
+    const normalizedType =
+      urlOnlyCard && resultType !== "link" ? "link" : resultType;
     const normalizedConfidence = Math.max(0, Math.min(resultConfidence, 1));
     console.info(`${CLASSIFY_LOG_PREFIX} Normalized result`, {
       cardId,
