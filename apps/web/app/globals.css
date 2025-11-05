@@ -6,7 +6,7 @@
 @font-face {
   font-family: "SN Pro";
   src: url("/fonts/SNPro-VariableRegular.woff2") format("woff2-variations"),
-       url("/fonts/SNPro-VariableRegular.woff") format("woff");
+    url("/fonts/SNPro-VariableRegular.woff") format("woff");
   font-weight: 200 900;
   font-style: normal;
   font-display: swap;
@@ -143,12 +143,12 @@
 /* Masonry grid styles for react-masonry-css */
 .masonry-grid {
   display: flex;
-  margin-left: -16px;
+  margin-left: -20px;
   width: auto;
 }
 
 .masonry-grid-column {
-  @apply space-y-4;
-  padding-left: 16px;
+  @apply space-y-5;
+  padding-left: 20px;
   background-clip: padding-box;
 }
