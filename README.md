@@ -6,6 +6,11 @@ Teak is a personal knowledge hub designed to help creative minds effortlessly co
 - **Web App**: React 19 + Vite (@teak/web)
 - **Mobile App**: React Native with Expo (@teak/mobile)
 
+<br />
+<a href="https://vercel.com/oss">
+  <img alt="Vercel OSS Program" src="https://vercel.com/oss/program-badge.svg" />
+</a>
+
 ## 📁 Project Structure
 
 ```
