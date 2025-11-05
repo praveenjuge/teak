@@ -109,6 +109,7 @@ export function Card({
   const linkCardImage = linkPreview?.imageUrl;
   const screenshotStorageId = linkPreview?.screenshotStorageId;
   const screenshotUrl = useQuery(
+    //@ts-ignore
     api.cards.getFileUrl,
     screenshotStorageId
       ? { fileId: screenshotStorageId, cardId: card._id }
@@ -189,22 +190,26 @@ export function Card({
 
             {card.type === "link" && (
               <>
-                {displayLinkImage ? (
-                  <>
+                {displayLinkImage && linkCardTitle ? (
+                  <div className="rounded-xl border bg-card overflow-hidden divide-y">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={displayLinkImage}
-                      alt=""
-                      className="w-full h-28 object-cover bg-card rounded-xl border"
+                      alt={linkCardTitle}
+                      className="w-full h-28 object-cover bg-card"
                       onError={handleLinkImageError}
                     />
-                    <h4 className="font-medium truncate text-balance text-center line-clamp-1 text-muted-foreground">
-                      {linkCardTitle}
-                    </h4>
-                  </>
+                    <div className="px-4 py-3">
+                      <p className="line-clamp-1 font-medium truncate">
+                        {linkCardTitle}
+                      </p>
+                    </div>
+                  </div>
                 ) : (
                   <div className="p-4 rounded-xl border bg-card">
-                    <p className="line-clamp-2 font-medium">{linkCardTitle}</p>
+                    <p className="line-clamp-2 font-medium">
+                      {card.content || linkCardTitle}
+                    </p>
                   </div>
                 )}
               </>
