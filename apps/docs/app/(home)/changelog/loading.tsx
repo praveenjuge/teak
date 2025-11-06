@@ -1,15 +1,8 @@
 export default function ChangelogLoading() {
   return (
-    <div className="container mx-auto max-w-4xl py-12 px-4">
-      <div className="mb-12">
-        <div className="h-12 bg-muted rounded-lg animate-pulse mb-4 w-64"></div>
-        <div className="h-6 bg-muted rounded-lg animate-pulse w-96"></div>
-      </div>
-
+    <div className="container mx-auto max-w-xl py-12 px-4">
       {[...Array(3)].map((_, monthIndex) => (
         <div key={monthIndex} className="mb-12">
-          <div className="h-8 bg-muted rounded-lg animate-pulse mb-6 w-48"></div>
-
           <div className="space-y-4">
             {[...Array(5)].map((_, entryIndex) => (
               <div
