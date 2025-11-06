@@ -131,13 +131,13 @@ export default function HomePage() {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative pt-20 md:pt-32">
+      <section className="relative pt-14 md:pt-22">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-24 mx-auto max-w-2xl">
+          <div className="text-center mb-18 mx-auto max-w-2xl">
             <h1 className="mb-4 font-bold text-4xl md:text-5xl text-balance tracking-tight">
-              The bookmarking tool made for designers
+              Bookmarking tool made for designers
             </h1>
-            <p className="mx-auto mb-8 max-w-2xl text-muted-foreground text-lg text-balance">
+            <p className="mx-auto mb-6 max-w-xl text-muted-foreground text-lg text-balance">
               Teak helps designers and developers bookmark, organize, and manage
               design inspiration—so creative ideas are always at your
               fingertips.
@@ -165,7 +165,7 @@ export default function HomePage() {
           </div>
 
           {/* Hero Image */}
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-5xl">
             <div className="relative rounded-lg overflow-hidden">
               <img
                 src="/hero-image.png"
@@ -439,7 +439,7 @@ export default function HomePage() {
 
       {/* FAQ Section */}
       <section className="py-20 md:py-24">
-        <div className="container mx-auto px-4">
+        <div className="max-w-5xl mx-auto px-4">
           <div className="mb-12 text-center">
             <h2 className="mb-4 font-bold text-3xl text-balance">
               Frequently asked questions
@@ -449,7 +449,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="mx-auto max-w-2xl space-y-4">
+          <div className="gap-6 grid grid-cols-1 md:grid-cols-2">
             {faqs.map((faq, index) => (
               <div
                 key={index}

@@ -22,7 +22,7 @@ export function CTASection({
   return (
     <section className="border-border border-t bg-background py-20">
       <div className="container mx-auto px-4 text-center">
-        <h2 className="mb-4 font-bold text-3xl text-balance tracking-tight">
+        <h2 className="mb-4 font-bold text-4xl text-balance tracking-tight max-w-sm mx-auto">
           {title}
         </h2>
         <p className="mx-auto mb-8 max-w-xl text-muted-foreground text-balance">

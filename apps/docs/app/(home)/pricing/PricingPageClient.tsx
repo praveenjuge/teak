@@ -109,9 +109,9 @@ export default function PricingPageClient() {
   return (
     <main className="flex flex-1 flex-col">
       {/* Hero Section */}
-      <section className="pt-16 pb-8">
+      <section className="pt-20 pb-8">
         <div className="container mx-auto px-4 text-center max-w-xl">
-          <h1 className="mb-4 font-bold text-4xl text-balance tracking-tight">
+          <h1 className="mb-4 font-bold text-4xl md:text-5xl text-balance tracking-tight">
             Start free. Upgrade for unlimited cards.
           </h1>
           <p className="mx-auto max-w-2xl text-muted-foreground text-lg text-balance">

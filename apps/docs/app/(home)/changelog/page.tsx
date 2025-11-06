@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import React from "react";
 import {
   Sparkles,
@@ -201,12 +200,14 @@ export default async function ChangelogPage() {
 
   return (
     <div className="container mx-auto max-w-xl py-12 px-4">
-      <div className="mb-12">
-        <h1 className="text-3xl font-bold mb-2 text-balance">Changelog</h1>
+      <div className="mb-12 mt-10 text-center max-w-sm mx-auto">
+        <h1 className="mb-4 font-bold text-4xl md:text-5xl text-balance tracking-tight">
+          Changelog
+        </h1>
         <p className="text-base text-muted-foreground text-balance mb-6">
           Stay updated with the latest changes and improvements to Teak.
         </p>
-        <Button variant="outline" size="sm" asChild>
+        <Button variant="outline" asChild>
           <a
             href="https://x.com/praveenjuge"
             target="_blank"
