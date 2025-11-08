@@ -57,6 +57,7 @@ import type * as workflows_steps_categorization_index from "../workflows/steps/c
 import type * as workflows_steps_categorization_mutations from "../workflows/steps/categorization/mutations.js";
 import type * as workflows_steps_categorization_providers_amazon from "../workflows/steps/categorization/providers/amazon.js";
 import type * as workflows_steps_categorization_providers_common from "../workflows/steps/categorization/providers/common.js";
+import type * as workflows_steps_categorization_providers_dribbble from "../workflows/steps/categorization/providers/dribbble.js";
 import type * as workflows_steps_categorization_providers_github from "../workflows/steps/categorization/providers/github.js";
 import type * as workflows_steps_categorization_providers_goodreads from "../workflows/steps/categorization/providers/goodreads.js";
 import type * as workflows_steps_categorization_providers_imdb from "../workflows/steps/categorization/providers/imdb.js";
@@ -134,6 +135,7 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/categorization/mutations": typeof workflows_steps_categorization_mutations;
   "workflows/steps/categorization/providers/amazon": typeof workflows_steps_categorization_providers_amazon;
   "workflows/steps/categorization/providers/common": typeof workflows_steps_categorization_providers_common;
+  "workflows/steps/categorization/providers/dribbble": typeof workflows_steps_categorization_providers_dribbble;
   "workflows/steps/categorization/providers/github": typeof workflows_steps_categorization_providers_github;
   "workflows/steps/categorization/providers/goodreads": typeof workflows_steps_categorization_providers_goodreads;
   "workflows/steps/categorization/providers/imdb": typeof workflows_steps_categorization_providers_imdb;

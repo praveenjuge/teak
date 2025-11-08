@@ -7,6 +7,7 @@ import { enrichAmazon } from "./amazon";
 import { enrichGithub } from "./github";
 import { enrichGoodreads } from "./goodreads";
 import { enrichImdb } from "./imdb";
+import { enrichDribbble } from "./dribbble";
 
 type ProviderHandler = {
   categories: LinkCategory[];
@@ -29,6 +30,10 @@ const handlers: Record<string, ProviderHandler> = {
   imdb: {
     categories: ["movie", "tv"],
     enrich: enrichImdb,
+  },
+  dribbble: {
+    categories: ["design_portfolio"],
+    enrich: enrichDribbble,
   },
 };
 

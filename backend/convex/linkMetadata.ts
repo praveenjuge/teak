@@ -308,6 +308,36 @@ export const IMDB_SOURCES: SelectorSource[] = [
   { selector: "span[data-testid='title-techspec_runtime'] span", attribute: "text" },
 ];
 
+export const DRIBBBLE_SOURCES: SelectorSource[] = [
+  { selector: "meta[name='twitter:creator']", attribute: "content" },
+  { selector: "meta[name='twitter:label1']", attribute: "content" },
+  { selector: "meta[name='twitter:label2']", attribute: "content" },
+  { selector: "meta[name='twitter:label3']", attribute: "content" },
+  { selector: "meta[name='twitter:label4']", attribute: "content" },
+  { selector: "meta[name='twitter:data1']", attribute: "content" },
+  { selector: "meta[name='twitter:data2']", attribute: "content" },
+  { selector: "meta[name='twitter:data3']", attribute: "content" },
+  { selector: "meta[name='twitter:data4']", attribute: "content" },
+  { selector: "a[rel='author']", attribute: "text" },
+  { selector: ".shot-byline a", attribute: "text" },
+  { selector: "a[href$='/likes']", attribute: "text" },
+  { selector: "[data-testid='shot-likes']", attribute: "text" },
+  { selector: "[data-testid='shot-likes-count']", attribute: "text" },
+  { selector: ".shot-stats [data-label='Likes']", attribute: "text" },
+  { selector: "a[href$='/views']", attribute: "text" },
+  { selector: "[data-testid='shot-views']", attribute: "text" },
+  { selector: "[data-testid='shot-views-count']", attribute: "text" },
+  { selector: ".shot-stats [data-label='Views']", attribute: "text" },
+  { selector: "a[href$='/comments']", attribute: "text" },
+  { selector: "[data-testid='shot-comments']", attribute: "text" },
+  { selector: "[data-testid='shot-comments-count']", attribute: "text" },
+  { selector: ".shot-stats [data-label='Comments']", attribute: "text" },
+  { selector: "meta[name='keywords']", attribute: "content" },
+  { selector: "meta[name='parsely-tags']", attribute: "content" },
+  { selector: "meta[property='article:tag']", attribute: "content" },
+  { selector: "a[rel='tag']", attribute: "text" },
+];
+
 export const SCRAPE_ELEMENTS = Array.from(
   new Map(
     [
@@ -325,6 +355,7 @@ export const SCRAPE_ELEMENTS = Array.from(
       ...GOODREADS_SOURCES,
       ...AMAZON_SOURCES,
       ...IMDB_SOURCES,
+      ...DRIBBBLE_SOURCES,
     ].map((source) => [source.selector, { selector: source.selector }])
   ).values()
 );
