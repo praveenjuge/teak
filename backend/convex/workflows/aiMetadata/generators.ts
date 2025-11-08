@@ -14,7 +14,7 @@ export const generateTextMetadata = async (content: string, title?: string) => {
       system: `You are an expert content analyzer. Generate relevant tags and a concise summary for the given content.
 
 Guidelines:
-- Tags should be 5-6 specific, relevant keywords, each 1-2 words maximum
+- Tags should be 5-6 specific, relevant single words only (no spaces, no hyphens)
 - Summary should be 1-2 sentences that capture the essence
 - Focus on the main topics, themes, and key information
 - Use clear, searchable language`,
@@ -43,7 +43,7 @@ export const generateImageMetadata = async (
       system: `You are an expert image analyzer. Generate relevant tags and a concise summary for the given image.
 
 Guidelines:
-- Tags should be 5-6 keywords describing objects, scenes, concepts, emotions, each 1-2 words maximum
+- Tags should be 5-6 single words describing objects, scenes, concepts, emotions (no spaces, no hyphens)
 - Summary should be 1-2 sentences describing what the image shows
 - Focus on the main visual elements and context
 - Use clear, searchable language`,
@@ -85,7 +85,7 @@ export const generateLinkMetadata = async (content: string, url?: string) => {
       system: `You are an expert web content analyzer. Generate relevant tags and a concise summary for the given web page content.
 
 Guidelines:
-- Tags should be 5-6 keywords capturing main topics, categories, and key concepts, each 1-2 words maximum
+- Tags should be 5-6 single words capturing main topics, categories, and key concepts (no spaces, no hyphens)
 - Include relevant technology, industry, or topic tags where applicable
 - Summary should be 1-2 sentences capturing the essence and value of the content
 - Focus on what makes this link useful and searchable

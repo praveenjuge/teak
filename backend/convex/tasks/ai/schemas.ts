@@ -47,6 +47,8 @@ export const linkCategoryClassificationSchema = z.object({
   tags: z
     .array(z.string())
     .max(10)
-    .describe("Optional supporting keywords")
+    .describe(
+      "Optional supporting keywords, each must be a single word (no spaces, no hyphens)",
+    )
     .optional(),
 });
