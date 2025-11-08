@@ -55,10 +55,17 @@ teak/
 │   │   │   ├── ai/       # AI processing tasks
 │   │   │   └── cards/    # Card-specific tasks
 │   │   ├── workflows/    # Workflow orchestration
-│   │   │   └── steps/    # Individual workflow steps
+│   │   │   ├── steps/    # Individual workflow steps
+│   │   │   ├── aiBackfill.ts # AI backfill workflow
+│   │   │   ├── cardCleanup.ts # Data cleanup workflow
+│   │   │   ├── cardProcessing.ts # Main card processing
+│   │   │   ├── linkEnrichment.ts # Link enrichment
+│   │   │   └── linkMetadata.ts # Link metadata workflow
 │   │   ├── http.ts       # HTTP route handlers
 │   │   ├── migrations.ts # Database migrations
-│   │   └── admin.ts      # Admin functions
+│   │   ├── admin.ts      # Admin functions
+│   │   ├── billing.ts    # Polar billing integration
+│   │   └── auth.config.ts # Clerk authentication config
 │   ├── shared/           # Shared utilities, constants, types
 │   └── index.ts          # Re-export surface for clients
 └── package.json          # Root workspace configuration
@@ -73,6 +80,10 @@ teak/
 - **Authentication**: Clerk with JWT integration
 - **UI Components**: shadcn/ui with Radix primitives
 - **File Storage**: Convex Storage for user uploads
+- **AI Processing**: OpenAI API for content analysis and metadata generation
+- **Screenshot Service**: Cloudflare Browser Rendering API for link previews
+- **Billing**: Polar for subscription management
+- **Testing**: Playwright for e2e testing
 
 ## Development
 
@@ -94,8 +105,8 @@ bun run package:extension # Package extension for distribution
 
 # Testing
 bun run test             # Run e2e tests (web app)
-bun run test:mobile      # Run mobile tests
-bun run test:extension   # Run extension tests
+bun run test:mobile      # Run mobile tests (if available)
+bun run test:extension   # Run extension tests (if available)
 
 # Documentation
 bun run dev:docs         # Documentation development server
@@ -207,10 +218,15 @@ Cards are processed sequentially through these stages:
 
 - **Workflows**: `backend/convex/workflows/cardProcessing.ts` orchestrates the pipeline
 - **Steps**: Each stage in `backend/convex/workflows/steps/` contains mutations and processing logic
+  - **Categorization**: Content categorization with provider-specific handling (Amazon, GitHub, Goodreads, IMDb)
+  - **Link Metadata**: Link metadata extraction using Cloudflare Browser Rendering API
+  - **Renderables**: Thumbnail and visual asset generation for media files
+  - **Screenshot**: Screenshot capture for link previews
 - **Processing Status**: Cards track progress via `processingStatus` field with stage updates
 - **Link Metadata**: Special workflow in `backend/convex/workflows/linkMetadata.ts` handles link enrichment with retries
 - **AI Backfill**: Workflow in `backend/convex/workflows/aiBackfill.ts` for retroactive AI processing
 - **Card Cleanup**: Automated cleanup workflow for maintaining data quality
+- **AI Tasks**: Background AI processing in `backend/convex/tasks/ai/` for content analysis and metadata generation
 
 ## Browser Extension Development
 
@@ -234,8 +250,14 @@ Cards are processed sequentially through these stages:
    ```
 
 4. **Firefox Extension Support**:
+
    ```bash
    bun run dev:firefox      # Firefox extension development
    bun run build:firefox    # Firefox extension build
    bun run zip:firefox      # Firefox extension packaging
+   ```
+
+5. **Extension Testing**:
+   ```bash
+   bun run compile          # TypeScript compilation check
    ```

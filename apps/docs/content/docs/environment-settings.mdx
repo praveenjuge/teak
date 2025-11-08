@@ -16,6 +16,12 @@ OPENAI_API_KEY=sk_your_openai_api_key_here
 POLAR_ACCESS_TOKEN=your_polar_access_token_here
 POLAR_SERVER=sandbox  # or 'production'
 ADMIN_USERIDS=user_id_1,user_id_2  # Comma-separated admin user IDs
+CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID=your_cloudflare_account_id
+CLOUDFLARE_BROWSER_RENDERING_API_TOKEN=your_cloudflare_api_token
+# Alternative Cloudflare credentials
+CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
+CLOUDFLARE_API_KEY=your_cloudflare_api_key
+CLERK_JWT_ISSUER_DOMAIN=your-clerk-domain.clerk.accounts.dev
 ```
 
 ### `apps/web/.env.local`
@@ -81,12 +87,26 @@ VITE_PUBLIC_CLERK_SYNC_HOST=http://localhost:3000
 - `OPENAI_API_KEY` enables AI-powered content classification, summarization, and metadata generation
 - Without this key, cards will be saved but won't receive AI enrichment
 
+### Screenshot & Link Preview Service
+
+- `CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID` and `CLOUDFLARE_BROWSER_RENDERING_API_TOKEN` enable automatic screenshot capture for link previews
+- Alternative: `CLOUDFLARE_API_TOKEN` or `CLOUDFLARE_API_KEY` can be used instead of the browser rendering specific token
+- Without these credentials, link cards won't get automatic screenshots
+
 ### Billing
 
 - `POLAR_ACCESS_TOKEN` and `POLAR_SERVER` enable subscription features
 - `POLAR_SERVER=sandbox` for testing, `POLAR_SERVER=production` for live payments
 
+### Authentication Domain
+
+- `CLERK_JWT_ISSUER_DOMAIN` specifies your Clerk authentication domain for JWT validation
+
 ### Testing
 
 - `E2E_CLERK_USER_EMAIL` and `E2E_CLERK_USER_PASSWORD` for end-to-end test authentication
 - Configure test user credentials for Playwright e2e test suite
+
+### Admin Configuration
+
+- `ADMIN_USERIDS` or `ADMIN_USERID` (legacy) to specify which users have admin access
