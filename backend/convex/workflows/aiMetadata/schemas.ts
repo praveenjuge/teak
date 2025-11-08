@@ -5,7 +5,7 @@ export const aiMetadataSchema = z.object({
   tags: z
     .array(z.string())
     .describe(
-      "5-6 relevant tags for the content, each tag should be 1-2 words maximum",
+      "5-6 relevant tags for the content, each tag must be a single word only (no spaces, no hyphens)",
     ),
   summary: z.string().describe("Brief, helpful summary of the content"),
 });
