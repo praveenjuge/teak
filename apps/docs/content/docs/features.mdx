@@ -13,11 +13,13 @@ import {
   Globe,
   Smartphone,
   Plug,
+  Palette,
+  Quote,
 } from "lucide-react";
 
 ## Content Types
 
-**Six card types for design workflows:**
+**Eight card types for design workflows:**
 
 - <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
     <FileText size={16} /> **Design Notes**
@@ -43,6 +45,14 @@ import {
     <File size={16} /> **Design Files**
   </span>
   - Design systems, brand guidelines, assets
+- <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+    <Palette size={16} /> **Color Palettes**
+  </span>
+  - Extracted color schemes from text snippets and inspiration
+- <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+    <Quote size={16} /> **Quote Cards**
+  </span>
+  - Highlighted quotes with attribution and context
 
 ## Core Capabilities
 
@@ -55,6 +65,12 @@ import {
 **Secure file storage** - Automatic thumbnails and previews for all your design assets
 
 **AI-powered enrichment** - Automatic content analysis including type detection, link categorization, summaries, tags, and media thumbnails
+
+**Admin Dashboard** - Pipeline insights, processing status monitoring, and AI backfill management for administrators
+
+**Feedback System** - Integrated feedback collection across web and mobile platforms for user input and bug reports
+
+**Subscription Management** - Polar billing integration for premium features and usage limits
 
 ## Platforms
 
@@ -75,7 +91,7 @@ import {
 
 - **Backend** - Convex real-time database and serverless functions
 - **Authentication** - Clerk with JWT integration
-- **Frontend** - Next.js 15, React 19, TypeScript, Tailwind CSS
+- **Frontend** - Next.js 16.0.1, React 19.2.0, TypeScript, Tailwind CSS
 - **Mobile** - Expo React Native with TypeScript
 - **Extension** - Wxt framework for Chrome
 
