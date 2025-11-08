@@ -52,9 +52,9 @@ export const aiBackfillWorkflow = workflow.define({
     for (const { cardId } of candidates) {
       try {
         await step.runAction(
-          internalWorkflow["workflows/manager"].startCardProcessingWorkflow,
-          { cardId },
-          { retry: START_PIPELINE_RETRY }
+          internalWorkflow["workflows/aiMetadata"].startAiMetadataWorkflow,
+          { cardId, startAsync: true },
+          { retry: START_PIPELINE_RETRY },
         );
       } catch (error) {
         failedCardIds.push(cardId);

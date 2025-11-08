@@ -10,7 +10,7 @@ export const generateTranscript = async (audioUrl: string, mimeHint?: string) =>
     const response = await fetch(audioUrl);
     if (!response.ok) {
       throw new Error(
-        `Failed to fetch audio: ${response.status} ${response.statusText}`
+        `Failed to fetch audio: ${response.status} ${response.statusText}`,
       );
     }
 
@@ -23,8 +23,8 @@ export const generateTranscript = async (audioUrl: string, mimeHint?: string) =>
       mimeType.includes("ogg") || mimeType.includes("oga")
         ? "ogg"
         : mimeType.includes("mp3") ||
-          mimeType.includes("mpeg") ||
-          mimeType.includes("mpga")
+            mimeType.includes("mpeg") ||
+            mimeType.includes("mpga")
           ? "mp3"
           : mimeType.includes("wav")
             ? "wav"
@@ -55,7 +55,7 @@ export const generateTranscript = async (audioUrl: string, mimeHint?: string) =>
           Authorization: `Bearer ${apiKey}`,
         },
         body: formData,
-      }
+      },
     );
 
     if (openaiResponse.ok) {
@@ -67,7 +67,7 @@ export const generateTranscript = async (audioUrl: string, mimeHint?: string) =>
     // If direct upload fails, fallback to AI SDK transcribe
     const errText = await openaiResponse.text();
     console.warn(
-      `Direct OpenAI transcription failed, falling back to SDK: ${openaiResponse.status} ${openaiResponse.statusText} - ${errText}`
+      `Direct OpenAI transcription failed, falling back to SDK: ${openaiResponse.status} ${openaiResponse.statusText} - ${errText}`,
     );
 
     const file = new File([arrayBuffer], `audio.${ext}`, { type: mimeType });
