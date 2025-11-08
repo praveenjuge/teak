@@ -11,18 +11,17 @@ const pricingPlans = [
     name: "Free",
     price: "Free",
     description:
-      "Perfect for getting started with visual bookmarking and organizing your first design cards.",
+      "Try Teak with your most important inspiration. 25 cards go further than you think.",
     features: [
       "25 cards",
-      "Full-text search",
-      "Cross-platform sync",
-      "Web, mobile & browser extension",
-      "All core features included",
-      "Community support",
+      "Instant search",
+      "Works everywhere",
+      "All core features",
+      "No credit card",
     ],
     cta: {
-      text: "Get Started Free →",
-      href: "https://app.teakvault.com",
+      text: "Join Waitlist →",
+      href: "https://accounts.teakvault.com/waitlist",
     },
   },
   {
@@ -33,17 +32,16 @@ const pricingPlans = [
       yearly: { amount: "$99", period: "year" },
     },
     description:
-      "Unlimited visual bookmarking for all your design cards, mood boards, creative ideas and more.",
+      "Unlimited inspiration for serious designers. Save everything, find anything.",
     features: [
       "Unlimited cards",
-      "Full-text search",
-      "Cross-platform sync",
-      "Web, mobile & browser extension",
-      "All core features included",
+      "Instant search",
+      "Works everywhere",
+      "All core features",
       "Priority support",
     ],
     cta: {
-      text: "Get Started with Pro →",
+      text: "Join Waitlist →",
       href: "https://accounts.teakvault.com/waitlist",
       primary: true,
     },
@@ -54,17 +52,16 @@ const pricingPlans = [
     name: "Self-Hosted",
     price: "Free",
     description:
-      "Complete control with unlimited cards on your own infrastructure. So you can self-host for free.",
+      "Run Teak on your own server. Unlimited cards, complete control, zero cost.",
     features: [
       "Unlimited cards",
-      "Full source code access",
-      "Complete data ownership",
-      "Custom modifications allowed",
-      "No vendor lock-in",
-      "Community support",
+      "Full source code",
+      "Your data stays yours",
+      "Customize anything",
+      "No monthly fees",
     ],
     cta: {
-      text: "View Setup Guide →",
+      text: "Setup Guide →",
       href: "/docs",
     },
   },
@@ -72,34 +69,34 @@ const pricingPlans = [
 
 const faqs = [
   {
-    question: "Why is there a 25-card limit on the free plan?",
+    question: "Why 25 cards on free?",
     answer:
-      "The 25-card limit helps us provide reliable free visual bookmarking service while encouraging designers who love Teak to upgrade to Pro for unlimited cards.",
+      "25 cards cover your most important inspiration. When you need more, Pro gives you unlimited cards for the price of one coffee per week.",
   },
   {
-    question: "What's the difference between Pro and Self-hosted?",
+    question: "Pro vs Self-hosted?",
     answer:
-      "Pro gives you unlimited cards on our managed cloud service. Self-hosted is free but requires you to run and maintain your own server infrastructure.",
+      "Pro: we handle everything, you just use it. Self-hosted: you run the server, keep everything free. Same features, different setup.",
   },
   {
-    question: "Can I switch between monthly and yearly Pro plans?",
+    question: "Can I change plans anytime?",
     answer:
-      "Yes! You can switch anytime. Yearly subscribers save 35% compared to monthly pricing - perfect for design teams.",
+      "Yes. Switch monthly to yearly (save 35%), upgrade, downgrade, or export your data and leave. No lock-in.",
   },
   {
-    question: "Do you offer refunds?",
+    question: "30-day refund?",
     answer:
-      "Yes, we offer full refunds within 30 days, no questions asked. We're confident Teak will improve your design workflow.",
+      "Absolutely. Try Pro risk-free for 30 days. If you don't love it, get a full refund, no questions asked.",
   },
   {
-    question: "Is self-hosting really free?",
+    question: "Self-hosting really free?",
     answer:
-      "Yes! Teak is open source (MIT license), so you can self-host for free. Perfect for agencies with client confidentiality requirements.",
+      "100% free. MIT license means you can run Teak anywhere. Perfect for agencies who need complete data control.",
   },
   {
-    question: "What happens if I exceed 25 cards on the free plan?",
+    question: "What if I hit 25 cards?",
     answer:
-      "You won't lose any cards, but you'll need to upgrade to Pro or self-host to add more. All existing cards remain accessible.",
+      "Your cards stay safe. You just can't add more until you upgrade to Pro or self-host. Never lose your inspiration.",
   },
 ];
 
@@ -112,11 +109,10 @@ export default function PricingPageClient() {
       <section className="pt-20 pb-8">
         <div className="container mx-auto px-4 text-center max-w-xl">
           <h1 className="mb-4 font-bold text-4xl md:text-5xl text-balance tracking-tight">
-            Start free. Upgrade for unlimited cards.
+            Simple pricing for designers
           </h1>
           <p className="mx-auto max-w-2xl text-muted-foreground text-lg text-balance">
-            Perfect for visual bookmarking and design inspiration management. No
-            hidden fees, no surprises.
+            Start free, upgrade when you're hooked. No tricks, no hidden fees.
           </p>
         </div>
       </section>
@@ -151,47 +147,40 @@ export default function PricingPageClient() {
         <div className="container mx-auto px-4">
           <div className="mx-auto max-w-4xl text-center">
             <h2 className="mb-6 font-bold text-3xl text-balance">
-              Start free, scale when ready
+              Pick your path
             </h2>
             <p className="mb-12 text-muted-foreground text-lg text-balance">
-              Most designers find 25 cards perfect for getting started. When
-              your collection grows, Pro gives you unlimited cards.
+              Start with 25 cards free. Upgrade to Pro when you need more. Or
+              self-host for total control.
             </p>
             <div className="grid gap-8 md:grid-cols-3">
               <div className="text-center">
                 <div className="mb-4 flex justify-center">
                   <Rocket className="h-8 w-8 text-primary" />
                 </div>
-                <h3 className="mb-2 font-semibold text-balance">
-                  Start Free Today
-                </h3>
+                <h3 className="mb-2 font-semibold text-balance">Try It Free</h3>
                 <p className="text-muted-foreground text-sm">
-                  25 cards is plenty to organize your most important design
-                  inspiration and see if Teak fits your creative workflow.
+                  25 cards for your most important inspiration. See why
+                  designers love Teak.
                 </p>
               </div>
               <div className="text-center">
                 <div className="mb-4 flex justify-center">
                   <TrendingUp className="h-8 w-8 text-primary" />
                 </div>
-                <h3 className="mb-2 font-semibold text-balance">
-                  Upgrade When Ready
-                </h3>
+                <h3 className="mb-2 font-semibold text-balance">Go Pro</h3>
                 <p className="text-muted-foreground text-sm">
-                  When 25 cards isn&apos;t enough, Pro gives you unlimited cards
-                  for all your design inspiration.
+                  Unlimited cards for serious designers. Less than one coffee
+                  per week.
                 </p>
               </div>
               <div className="text-center">
                 <div className="mb-4 flex justify-center">
                   <Wrench className="h-8 w-8 text-primary" />
                 </div>
-                <h3 className="mb-2 font-semibold text-balance">
-                  Self-Host Option
-                </h3>
+                <h3 className="mb-2 font-semibold text-balance">Self-Host</h3>
                 <p className="text-muted-foreground text-sm">
-                  Technical users can self-host for free with unlimited cards
-                  and complete control over their inspiration library.
+                  Run it yourself. Unlimited cards, zero cost, complete control.
                 </p>
               </div>
             </div>
@@ -204,11 +193,10 @@ export default function PricingPageClient() {
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
             <h2 className="mb-4 font-bold text-3xl text-balance">
-              Frequently asked questions
+              Pricing questions
             </h2>
             <p className="mx-auto max-w-xl text-muted-foreground text-balance">
-              Got questions about pricing for your visual bookmarking needs?
-              We&apos;ve got answers.
+              Quick answers about our plans.
             </p>
           </div>
 
