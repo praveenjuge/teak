@@ -16,24 +16,24 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Never Lose Design Inspiration Again | Teak",
+  title: "Never Lose That Perfect Design Again | Teak",
   description:
-    "Bookmark, organize, and find any design inspiration in seconds. The visual bookmarking tool designers actually use.",
+    "Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again.",
   keywords:
     "design bookmarking, visual inspiration, design organization, creative workflow, designer tools, bookmark manager",
   authors: [{ name: "Teak Team" }],
   openGraph: {
-    title: "Never Lose Design Inspiration Again",
+    title: "Never Lose That Perfect Design Again",
     description:
-      "Bookmark, organize, and find any design inspiration in seconds. The visual bookmarking tool designers actually use.",
+      "Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again.",
     type: "website",
     url: "https://teakvault.com",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Never Lose Design Inspiration Again",
+    title: "Never Lose That Perfect Design Again",
     description:
-      "Bookmark, organize, and find any design inspiration in seconds. The visual bookmarking tool designers actually use.",
+      "Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again.",
   },
   robots: {
     index: true,
@@ -44,84 +44,84 @@ export const metadata: Metadata = {
 const features = [
   {
     icon: "lightning" as const,
-    title: "Find Anything in Seconds",
+    title: "Find That Perfect Button in 2 Seconds",
     description:
-      "Search your entire inspiration library instantly. No more digging through folders or scrolling endlessly.",
+      "Type 'blue button' and find it instantly. No more digging through 27 folders to find that one thing.",
   },
   {
     icon: "mobile" as const,
-    title: "Works Everywhere",
+    title: "Your Inspiration Follows You",
     description:
-      "Web app, mobile apps, browser extension. Capture inspiration wherever you find it.",
+      "Web, iPhone, Android, Chrome. Save on your phone, find it on your laptop. It just works.",
   },
   {
     icon: "search" as const,
-    title: "Visual Organization",
+    title: "It Organizes Itself. Seriously.",
     description:
-      "Smart tagging and visual grids. Your inspiration organizes itself automatically.",
+      "Smart tags and visual grids. You just save, Teak handles the rest. No manual sorting required.",
   },
   {
     icon: "heart" as const,
-    title: "Free to Start",
+    title: "25 Cards Free (Enough for 3 Months)",
     description:
-      "25 cards free, then upgrade when you're hooked. No credit card required.",
+      "Try it with your most important inspiration. Upgrade when you need more. No credit card, no tricks.",
   },
 ];
 
 const howItWorksSteps = [
   {
     step: "1",
-    title: "Save Anything",
+    title: "Save in 1 Click",
     description:
-      "One-click bookmarking from any website. Images, links, notes, files - everything in one place.",
+      "See something you like? Click the extension. That's it. Images, links, notes - all saved forever.",
     icon: <Smartphone className="h-6 w-6" />,
   },
   {
     step: "2",
-    title: "Auto-Organized",
+    title: "It Organizes Itself",
     description:
-      "Smart tagging and visual layouts. Your inspiration stays organized without any work.",
+      "Teak tags everything automatically. No folders, no manual work. Your inspiration just stays organized.",
     icon: <FolderOpen className="h-6 w-6" />,
   },
   {
     step: "3",
-    title: "Find Instantly",
+    title: "Find in 2 Seconds",
     description:
-      "Search everything visually. Find that perfect button style or color palette in seconds.",
+      "Type what you remember. 'Blue gradient button' or 'that Dribbble shot from last month'. Found it.",
     icon: <Search className="h-6 w-6" />,
   },
 ];
 
 const faqs = [
   {
-    question: "What can I save to Teak?",
+    question: "What exactly can I save?",
     answer:
-      "Everything: images, links, text notes, videos, voice memos, files. If you can find it online, you can save it.",
+      "Literally anything. Screenshots, Dribbble shots, CodePen links, voice notes, PDFs, videos. If you can see it, you can save it.",
   },
   {
-    question: "Is my data secure?",
+    question: "Is my stuff actually private?",
     answer:
-      "Yes. Encrypted in transit and at rest. Open source so you can verify the code. Self-hosting available for complete control.",
+      "100% private. Encrypted everywhere. We're open source so you can check the code. Or self-host for total control.",
   },
   {
-    question: "Does it work on mobile?",
+    question: "Will this work on my phone?",
     answer:
-      "Yes. Native iOS/Android apps plus web app and Chrome extension. Your inspiration syncs everywhere instantly.",
+      "Yep. iPhone app, Android app, web app, Chrome extension. Save on your commute, find it at your desk.",
   },
   {
-    question: "How is this different from Pinterest?",
+    question: "How is this not just Pinterest?",
     answer:
-      "Teak is private bookmarking for your professional work. No social features, no algorithms - just your inspiration, perfectly organized.",
+      "Pinterest is for browsing and getting distracted. Teak is for working. No algorithms, no social pressure, just your personal library.",
   },
   {
-    question: "What if I need more than 25 cards?",
+    question: "What happens when I hit 25 cards?",
     answer:
-      "Upgrade to Pro for unlimited cards ($19/month) or self-host for free. All your existing cards stay with you.",
+      "Your cards stay safe forever. You just can't add more until you go Pro ($19/month) or self-host (free). We never delete your stuff.",
   },
   {
-    question: "Can I export my data?",
+    question: "Can I leave if I don't like it?",
     answer:
-      "Yes. You own your data. Export anytime in standard formats. No vendor lock-in.",
+      "Absolutely. Export everything with one click. No lock-in, no tricks. Your data is yours, always.",
   },
 ];
 
@@ -133,11 +133,11 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-18 mx-auto max-w-2xl">
             <h1 className="mb-4 font-bold text-4xl md:text-5xl text-balance tracking-tight">
-              Never lose design inspiration again
+              Never lose that perfect design again
             </h1>
             <p className="mx-auto mb-6 max-w-xl text-muted-foreground text-lg text-balance">
-              Save anything, find everything. The visual bookmarking tool
-              designers actually use every day.
+              Save inspiration in 1 click, find it in 2 seconds. Never lose your
+              best ideas again.
             </p>
             <div className="flex flex-col justify-center gap-4 sm:flex-row">
               <Button size="lg" asChild>
@@ -182,7 +182,7 @@ export default function HomePage() {
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
               <h2 className="mb-6 font-bold text-3xl md:text-4xl text-balance">
-                Your inspiration is scattered everywhere
+                You're wasting hours looking for that one thing
               </h2>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
@@ -190,7 +190,7 @@ export default function HomePage() {
                     <X className="h-4 w-4" />
                   </div>
                   <p className="text-muted-foreground">
-                    <strong>Browser bookmarks you never check</strong>
+                    47 browser bookmarks you'll never check again
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -198,7 +198,7 @@ export default function HomePage() {
                     <X className="h-4 w-4" />
                   </div>
                   <p className="text-muted-foreground">
-                    <strong>Pinterest boards with algorithm noise</strong>
+                    Pinterest showing you wedding dresses instead of UI
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -206,7 +206,7 @@ export default function HomePage() {
                     <X className="h-4 w-4" />
                   </div>
                   <p className="text-muted-foreground">
-                    <strong>Screenshots buried in folders</strong>
+                    23 screenshots named 'Screen Shot 2024-...'
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -214,14 +214,14 @@ export default function HomePage() {
                     <X className="h-4 w-4" />
                   </div>
                   <p className="text-muted-foreground">
-                    <strong>Hours wasted finding that one thing</strong>
+                    That perfect button style you can't find anymore
                   </p>
                 </div>
               </div>
             </div>
             <div className="rounded-lg border border-border bg-card p-8">
               <h3 className="mb-6 font-bold text-xl text-balance">
-                Teak puts everything in one place
+                Teak fixes this. Forever.
               </h3>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
@@ -229,7 +229,7 @@ export default function HomePage() {
                     <Check className="h-4 w-4" />
                   </div>
                   <p className="text-card-foreground">
-                    <strong>Save anything with one click</strong>
+                    Save anything in exactly 1 click
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -237,7 +237,7 @@ export default function HomePage() {
                     <Check className="h-4 w-4" />
                   </div>
                   <p className="text-card-foreground">
-                    <strong>Find everything in seconds</strong>
+                    Find that exact shade of blue in 2 seconds
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -245,7 +245,7 @@ export default function HomePage() {
                     <Check className="h-4 w-4" />
                   </div>
                   <p className="text-card-foreground">
-                    <strong>Works on all your devices</strong>
+                    It works on your phone, laptop, and tablet
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -253,7 +253,7 @@ export default function HomePage() {
                     <Check className="h-4 w-4" />
                   </div>
                   <p className="text-card-foreground">
-                    <strong>Auto-organizes itself</strong>
+                    It organizes itself. You just create.
                   </p>
                 </div>
               </div>
@@ -267,10 +267,10 @@ export default function HomePage() {
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="mb-16 text-center">
             <h2 className="mb-4 font-bold text-3xl text-balance">
-              Why designers choose Teak
+              Why designers are switching to Teak
             </h2>
             <p className="mx-auto max-w-xl text-muted-foreground text-balance">
-              Finally, a bookmarking tool that works the way you do.
+              Finally, a bookmarking tool that doesn't suck.
             </p>
           </div>
 
@@ -292,11 +292,11 @@ export default function HomePage() {
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="mb-16 text-center">
             <h2 className="mb-6 font-bold text-3xl md:text-4xl text-balance">
-              Save everything you find
+              Save everything. Find anything.
             </h2>
             <p className="mx-auto mb-12 max-w-2xl text-muted-foreground text-lg text-balance">
-              Images, links, notes, videos, files. If you can find it, you can
-              save it.
+              That perfect Dribbble shot, that CodePen you'll need later, that
+              voice note about the client's feedback. Save it all.
             </p>
           </div>
 
@@ -309,8 +309,8 @@ export default function HomePage() {
                 Design Notes
               </h3>
               <p className="text-muted-foreground text-sm">
-                Design decisions, feedback notes, and project documentation
-                organized and searchable.
+                Client feedback, design decisions, that brilliant idea you had
+                in the shower. All searchable.
               </p>
             </div>
 
@@ -322,8 +322,8 @@ export default function HomePage() {
                 Design Resources
               </h3>
               <p className="text-muted-foreground text-sm">
-                Save design inspiration, tools, libraries, and tutorials with
-                automatic previews and metadata.
+                That color palette generator, the icon library you'll need next
+                month, the tutorial you'll reference tomorrow.
               </p>
             </div>
 
@@ -335,8 +335,8 @@ export default function HomePage() {
                 Visual References
               </h3>
               <p className="text-muted-foreground text-sm">
-                Screenshots, mockups, mood boards, and design inspiration with
-                smart visual organization.
+                Screenshots, mockups, that perfect landing page you saw. Teak
+                remembers why you saved it.
               </p>
             </div>
 
@@ -348,8 +348,8 @@ export default function HomePage() {
                 Design Videos
               </h3>
               <p className="text-muted-foreground text-sm">
-                Animation references, design tutorials, and process videos with
-                instant previews.
+                That Figma tutorial, the animation reference you'll need next
+                week, the design process video that inspired you.
               </p>
             </div>
 
@@ -361,8 +361,8 @@ export default function HomePage() {
                 Audio Notes
               </h3>
               <p className="text-muted-foreground text-sm">
-                Voice memos for design ideas, client feedback, and quick notes
-                with waveform preview.
+                Client feedback calls, that idea you recorded while driving,
+                quick voice memos. All transcribed and searchable.
               </p>
             </div>
 
@@ -374,8 +374,8 @@ export default function HomePage() {
                 Design Files
               </h3>
               <p className="text-muted-foreground text-sm">
-                Design systems, brand guidelines, and project files with
-                full-text search and previews.
+                Brand guidelines, design systems, project files. Everything
+                searchable with instant previews.
               </p>
             </div>
           </div>
@@ -387,10 +387,10 @@ export default function HomePage() {
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="mb-16 text-center">
             <h2 className="mb-6 font-bold text-3xl md:text-4xl text-balance">
-              Start organizing in 3 steps
+              Master your inspiration in 3 minutes
             </h2>
             <p className="mx-auto mb-12 max-w-2xl text-muted-foreground text-lg text-balance">
-              No learning curve. Just save, organize, find.
+              No tutorial needed. Just save, find, create.
             </p>
           </div>
 
@@ -400,13 +400,8 @@ export default function HomePage() {
                 key={index}
                 className="group relative rounded-lg border bg-card p-8 transition-all duration-300 hover:-translate-y-1"
               >
-                <div className="mb-6 flex items-center">
-                  <div className="mr-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">
-                    {step.step}
-                  </div>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                    {step.icon}
-                  </div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4 text-primary">
+                  {step.icon}
                 </div>
                 <h3 className="mb-3 font-semibold text-xl text-balance">
                   {step.title}
@@ -424,9 +419,11 @@ export default function HomePage() {
       <section className="py-20 md:py-24">
         <div className="max-w-5xl mx-auto px-4">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 font-bold text-3xl text-balance">Questions?</h2>
+            <h2 className="mb-4 font-bold text-3xl text-balance">
+              Still have questions?
+            </h2>
             <p className="mx-auto max-w-xl text-muted-foreground text-balance">
-              Quick answers about Teak.
+              We've got answers. No corporate speak, promise.
             </p>
           </div>
 

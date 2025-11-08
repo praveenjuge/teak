@@ -2,24 +2,24 @@ import { Metadata } from "next";
 import PricingPageClient from "./PricingPageClient";
 
 export const metadata: Metadata = {
-  title: "Simple Pricing for Designers | Teak",
+  title: "25 Cards Free. $19/month After. No Tricks. | Teak",
   description:
-    "Start free with 25 cards. Upgrade to Pro for unlimited inspiration. Self-host for free. No tricks, no hidden fees.",
+    "Try Teak free with 25 cards. Pro is $19/month - less than 2 coffees. Or self-host for free. Simple pricing.",
   keywords:
     "design bookmarking pricing, visual inspiration tool, designer subscription, creative workflow pricing",
   authors: [{ name: "Teak Team" }],
   openGraph: {
-    title: "Simple Pricing for Designers",
+    title: "25 Cards Free. $19/month After. No Tricks.",
     description:
-      "Start free with 25 cards. Upgrade to Pro for unlimited inspiration. Self-host for free.",
+      "Try Teak free with 25 cards. Pro is $19/month - less than 2 coffees. Or self-host for free.",
     type: "website",
     url: "https://teakvault.com/pricing",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Simple Pricing for Designers",
+    title: "25 Cards Free. $19/month After. No Tricks.",
     description:
-      "Start free with 25 cards. Upgrade to Pro for unlimited inspiration. Self-host for free.",
+      "Try Teak free with 25 cards. Pro is $19/month - less than 2 coffees. Or self-host for free.",
   },
   robots: {
     index: true,
