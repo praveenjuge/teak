@@ -14,15 +14,15 @@
     "./shared/utils/colorUtils": "./shared/utils/colorUtils.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.62",
+    "@ai-sdk/openai": "^2.0.64",
     "@cf-wasm/photon": "^0.1.31",
     "@convex-dev/migrations": "^0.2.9",
     "@convex-dev/polar": "^0.6.4",
     "@convex-dev/workflow": "^0.2.7",
-    "@polar-sh/sdk": "^0.40.3",
+    "@polar-sh/sdk": "^0.41.1",
     "@types/node": "^24.10.0",
     "@types/react": "^19.2.2",
-    "ai": "^5.0.87",
+    "ai": "^5.0.89",
     "convex": "^1.28.2",
     "react": "^19.2.0",
     "zod": "^3.25.76"
