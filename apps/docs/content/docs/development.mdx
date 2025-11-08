@@ -19,6 +19,7 @@ bun run predev
 ```
 
 This will:
+
 1. Install dependencies across all workspace packages
 2. Initialize Convex development environment
 3. Open the Convex dashboard for configuration
@@ -83,6 +84,7 @@ bun run predev
 ```
 
 This will:
+
 - Create a new Convex deployment
 - Open the Convex dashboard
 - Generate your deployment URL
@@ -106,18 +108,21 @@ This will:
 ### 3. Environment Configuration
 
 **Backend** (`backend/.env.local`):
+
 ```bash
 CONVEX_DEPLOYMENT=dev:your-deployment-name-123
 CLERK_SECRET_KEY=sk_test_your_clerk_secret_key
 ```
 
 **Web App** (`apps/web/.env.local`):
+
 ```bash
 NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
 ```
 
 **Mobile App** (`apps/mobile/.env.local`):
+
 ```bash
 EXPO_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
@@ -126,6 +131,7 @@ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
 ## Database & Functions
 
 Unlike traditional databases, Convex provides:
+
 - **Real-time queries** with automatic updates
 - **Serverless functions** for business logic
 - **Built-in authentication** integration
@@ -140,20 +146,41 @@ export const getCards = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return [];
-    
+
     return await ctx.db
       .query("cards")
-      .filter(q => q.eq(q.field("userId"), identity.subject))
+      .filter((q) => q.eq(q.field("userId"), identity.subject))
       .collect();
   },
 });
 ```
+
+## Card Processing Workflow
+
+The application uses a workflow-based architecture to process cards through an AI pipeline:
+
+### Pipeline Stages
+
+Cards are processed sequentially through these stages:
+
+1. **Classification** - Detect content type (text, link, image, etc.) and extract color palettes
+2. **Categorization** - For link cards, enrich with provider metadata and category classification
+3. **Metadata** - Generate AI-powered tags, summaries, and transcripts
+4. **Renderables** - Create thumbnails and visual assets for media files
+
+### Key Components
+
+- **Workflows**: `backend/convex/workflows/cardProcessing.ts` orchestrates the pipeline
+- **Steps**: Each stage in `backend/convex/workflows/steps/` contains mutations and processing logic
+- **Processing Status**: Cards track progress via `processingStatus` field with stage updates
+- **Link Metadata**: Special workflow in `backend/convex/workflows/linkMetadata.ts` handles link enrichment with retries
 
 ## Browser Extension Development
 
 ### Setup & Installation
 
 1. **Build the extension**:
+
    ```bash
    bun run build:extension
    ```

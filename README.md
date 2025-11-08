@@ -3,7 +3,7 @@
 Teak is a personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations.
 
 - **Backend**: Convex (@teak/backend)
-- **Web App**: React 19 + Vite (@teak/web)
+- **Web App**: Next.js 16 + React 19 (@teak/web)
 - **Mobile App**: React Native with Expo (@teak/mobile)
 
 <br />
@@ -16,8 +16,10 @@ Teak is a personal knowledge hub designed to help creative minds effortlessly co
 ```
 teak/
 ├── apps/
-│   ├── web/                 # React 19 frontend (@teak/web)
-│   └── mobile/              # React Native Expo mobile app (@teak/mobile)
+│   ├── web/                 # Next.js 16 frontend (@teak/web)
+│   ├── mobile/              # React Native Expo mobile app (@teak/mobile)
+│   ├── extension/           # Chrome browser extension (Wxt)
+│   └── docs/                # Documentation site (Fumadocs)
 ├── .env.example             # Environment variables template
 ├── package.json             # Root monorepo orchestrator (@teak/root)
 └── README.md                # This file
