@@ -2,24 +2,24 @@ import { Metadata } from "next";
 import PricingPageClient from "./PricingPageClient";
 
 export const metadata: Metadata = {
-  title: "Pricing - For Designers & Developers | Teak",
+  title: "Simple Pricing for Designers | Teak",
   description:
-    "Choose the perfect plan for your visual bookmarking needs. Start free, upgrade for unlimited cards, or self-host for complete control. No hidden fees.",
+    "Start free with 25 cards. Upgrade to Pro for unlimited inspiration. Self-host for free. No tricks, no hidden fees.",
   keywords:
-    "teak pricing, visual bookmarking tool, design inspiration management, creative bookmarking, designer tools, developer resources",
+    "design bookmarking pricing, visual inspiration tool, designer subscription, creative workflow pricing",
   authors: [{ name: "Teak Team" }],
   openGraph: {
-    title: "Teak Pricing - For Designers & Developers",
+    title: "Simple Pricing for Designers",
     description:
-      "Start free, upgrade when ready. Transparent pricing for designers and developers.",
+      "Start free with 25 cards. Upgrade to Pro for unlimited inspiration. Self-host for free.",
     type: "website",
     url: "https://teakvault.com/pricing",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Teak Pricing - For Designers & Developers",
+    title: "Simple Pricing for Designers",
     description:
-      "Start free, upgrade when ready. Transparent pricing for designers and developers.",
+      "Start free with 25 cards. Upgrade to Pro for unlimited inspiration. Self-host for free.",
   },
   robots: {
     index: true,

@@ -1,112 +1,91 @@
 ---
 title: Environment Settings
-description: Environment variables reference for Teak applications
+description: Environment variables configuration for Teak
 ---
 
-## Required Environment Variables
+## Quick Setup
 
-You need to configure environment variables across three locations:
+Configure 4 environment files:
 
-### `backend/.env.local`
+### Backend (`backend/.env.local`)
 
 ```bash
-CONVEX_DEPLOYMENT=dev:your-deployment-name-123
-CLERK_SECRET_KEY=sk_test_your_clerk_secret_key_here
-OPENAI_API_KEY=sk_your_openai_api_key_here
-POLAR_ACCESS_TOKEN=your_polar_access_token_here
-POLAR_SERVER=sandbox  # or 'production'
-ADMIN_USERIDS=user_id_1,user_id_2  # Comma-separated admin user IDs
-CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID=your_cloudflare_account_id
-CLOUDFLARE_BROWSER_RENDERING_API_TOKEN=your_cloudflare_api_token
-# Alternative Cloudflare credentials
-CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
-CLOUDFLARE_API_KEY=your_cloudflare_api_key
-CLERK_JWT_ISSUER_DOMAIN=your-clerk-domain.clerk.accounts.dev
+# Required
+CONVEX_DEPLOYMENT=dev:name-123
+CLERK_SECRET_KEY=sk_test_...
+
+# Optional Features
+OPENAI_API_KEY=sk_...                    # AI processing
+POLAR_ACCESS_TOKEN=token                 # Billing
+POLAR_SERVER=sandbox                     # sandbox|production
+ADMIN_USERIDS=id1,id2                    # Admin access
+CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID=id # Screenshots
+CLOUDFLARE_BROWSER_RENDERING_API_TOKEN=token
+CLERK_JWT_ISSUER_DOMAIN=domain.clerk.accounts.dev
 ```
 
-### `apps/web/.env.local`
+### Web (`apps/web/.env.local`)
 
 ```bash
-NEXT_PUBLIC_CONVEX_URL=https://your-convex-deployment.convex.cloud
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key_here
-NEXT_PUBLIC_CLERK_FRONTEND_API_URL=https://your-domain.clerk.accounts.dev
+NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+NEXT_PUBLIC_CLERK_FRONTEND_API_URL=https://domain.clerk.accounts.dev
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/login
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/register
 NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
 NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
 ```
 
-### `apps/mobile/.env.local`
+### Mobile (`apps/mobile/.env.local`)
 
 ```bash
-EXPO_PUBLIC_CONVEX_URL=https://your-convex-deployment.convex.cloud
-EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key_here
-EXPO_PUBLIC_CLERK_FRONTEND_API_URL=https://your-domain.clerk.accounts.dev
+EXPO_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+EXPO_PUBLIC_CLERK_FRONTEND_API_URL=https://domain.clerk.accounts.dev
 ```
 
-### `apps/extension/.env.local`
+### Extension (`apps/extension/.env.local`)
 
 ```bash
-VITE_PUBLIC_CONVEX_URL=https://your-convex-deployment.convex.cloud
-VITE_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key_here
+VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
+VITE_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 VITE_PUBLIC_CLERK_SYNC_HOST=http://localhost:3000
 ```
 
-## Getting Your Values
+## Getting Values
 
-### Convex URLs
+### Convex
 
-1. Run `bun run predev` to create your deployment
-2. Copy the deployment URL from the Convex dashboard
-3. Use the deployment name (e.g., `dev:name-123`) for the backend
-4. Use the full URL (e.g., `https://name.convex.cloud`) for frontend apps
+1. Run `bun run predev` → creates deployment
+2. Backend: `dev:name-123`
+3. Frontend: `https://name.convex.cloud`
 
-### Clerk Keys
+### Clerk
 
-1. Create a Clerk application at [clerk.com](https://clerk.com)
-2. Get your **Publishable Key** (`pk_test_...`) from the dashboard
-3. Get your **Secret Key** (`sk_test_...`) from API Keys section
-4. Configure Clerk in Convex dashboard: Settings → Authentication
+1. Create app at [clerk.com](https://clerk.com)
+2. Frontend: `pk_test_...` (Publishable Key)
+3. Backend: `sk_test_...` (Secret Key)
+4. Configure in Convex dashboard → Settings → Authentication
 
-## Development vs Production
+## Environment Types
 
-| Environment | Convex                | Clerk Keys                    | Notes             |
-| ----------- | --------------------- | ----------------------------- | ----------------- |
-| Development | `dev:name-123`        | `pk_test_...` / `sk_test_...` | Local development |
-| Production  | Production deployment | `pk_live_...` / `sk_live_...` | Live environment  |
+| Environment | Convex                | Clerk Keys                    |
+| ----------- | --------------------- | ----------------------------- |
+| Development | `dev:name-123`        | `pk_test_...` / `sk_test_...` |
+| Production  | Production deployment | `pk_live_...` / `sk_live_...` |
 
-## Optional Configuration
+## Feature Flags
 
-### Admin Features
+| Feature         | Required Env Var                 | What it Enables                      |
+| --------------- | -------------------------------- | ------------------------------------ |
+| AI Processing   | `OPENAI_API_KEY`                 | Auto-tags, summaries, categorization |
+| Screenshots     | `CLOUDFLARE_BROWSER_RENDERING_*` | Link preview thumbnails              |
+| Billing         | `POLAR_ACCESS_TOKEN`             | Subscription management              |
+| Admin Dashboard | `ADMIN_USERIDS`                  | Pipeline insights, monitoring        |
 
-- Set `ADMIN_USERIDS` in backend to enable admin dashboard access for specific users
-- Admin features include pipeline insights, processing status monitoring, and AI backfill management
+## Testing
 
-### AI Processing
-
-- `OPENAI_API_KEY` enables AI-powered content classification, summarization, and metadata generation
-- Without this key, cards will be saved but won't receive AI enrichment
-
-### Screenshot & Link Preview Service
-
-- `CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID` and `CLOUDFLARE_BROWSER_RENDERING_API_TOKEN` enable automatic screenshot capture for link previews
-- Alternative: `CLOUDFLARE_API_TOKEN` or `CLOUDFLARE_API_KEY` can be used instead of the browser rendering specific token
-- Without these credentials, link cards won't get automatic screenshots
-
-### Billing
-
-- `POLAR_ACCESS_TOKEN` and `POLAR_SERVER` enable subscription features
-- `POLAR_SERVER=sandbox` for testing, `POLAR_SERVER=production` for live payments
-
-### Authentication Domain
-
-- `CLERK_JWT_ISSUER_DOMAIN` specifies your Clerk authentication domain for JWT validation
-
-### Testing
-
-- `E2E_CLERK_USER_EMAIL` and `E2E_CLERK_USER_PASSWORD` for end-to-end test authentication
-- Configure test user credentials for Playwright e2e test suite
-
-### Admin Configuration
-
-- `ADMIN_USERIDS` or `ADMIN_USERID` (legacy) to specify which users have admin access
+```bash
+E2E_CLERK_USER_EMAIL=test@example.com
+E2E_CLERK_USER_PASSWORD=password123
+```

@@ -1,13 +1,7 @@
 ---
 title: Development Guide
-description: Development setup and workflow guide for Teak
+description: Setup and development workflow for Teak
 ---
-
-## Prerequisites
-
-- **Bun 1.0+** - Modern JavaScript runtime
-- **Node.js 18+** - For package compatibility
-- **Git** - Version control
 
 ## Quick Start
 
@@ -18,175 +12,137 @@ bun install
 bun run predev
 ```
 
-This will:
-
-1. Install dependencies across all workspace packages
-2. Initialize Convex development environment
-3. Open the Convex dashboard for configuration
+**Prerequisites**: Bun 1.0+, Node.js 18+, Git
 
 ## Project Structure
 
 ```
 teak/
 ├── apps/
-│   ├── web/              # Next.js 16.0.1 frontend app
-│   │   ├── app/          # App Router pages and layouts
-│   │   │   ├── (auth)/   # Authentication routes
-│   │   │   ├── (feedback)/ # Feedback integration
-│   │   │   ├── admin/    # Admin dashboard
-│   │   │   └── subscription/ # Billing pages
-│   │   ├── components/   # React components
-│   │   ├── tests/        # Playwright e2e tests
-│   │   └── playwright.config.ts # E2E test config
-│   ├── mobile/           # Expo React Native mobile app
-│   │   ├── app/          # React Native screens
-│   │   │   ├── (auth)/   # Mobile auth flows
-│   │   │   ├── (feedback)/ # Mobile feedback
-│   │   │   └── (tabs)/   # Main navigation tabs
-│   │   └── lib/feedbackBridge.ts # Feedback system bridge
-│   ├── extension/        # Chrome browser extension (Wxt)
-│   │   ├── entrypoints/  # Extension entry points
-│   │   ├── hooks/        # Custom React hooks
-│   │   └── types/        # TypeScript definitions
-│   └── docs/             # Documentation site (Fumadocs)
+│   ├── web/          # Next.js 16 frontend
+│   ├── mobile/       # Expo React Native
+│   ├── extension/    # Chrome extension (Wxt)
+│   └── docs/         # Documentation site
 ├── backend/
-│   ├── convex/           # Convex functions and database
-│   │   ├── tasks/        # Background task processors
-│   │   │   ├── ai/       # AI processing tasks
-│   │   │   └── cards/    # Card-specific tasks
-│   │   ├── workflows/    # Workflow orchestration
-│   │   │   ├── steps/    # Individual workflow steps
-│   │   │   ├── aiBackfill.ts # AI backfill workflow
-│   │   │   ├── cardCleanup.ts # Data cleanup workflow
-│   │   │   ├── cardProcessing.ts # Main card processing
-│   │   │   ├── linkEnrichment.ts # Link enrichment
-│   │   │   └── linkMetadata.ts # Link metadata workflow
-│   │   ├── http.ts       # HTTP route handlers
-│   │   ├── migrations.ts # Database migrations
-│   │   ├── admin.ts      # Admin functions
-│   │   ├── billing.ts    # Polar billing integration
-│   │   └── auth.config.ts # Clerk authentication config
-│   ├── shared/           # Shared utilities, constants, types
-│   └── index.ts          # Re-export surface for clients
-└── package.json          # Root workspace configuration
+│   ├── convex/       # Database & functions
+│   │   ├── tasks/    # Background processing
+│   │   └── workflows/# AI pipeline orchestration
+│   └── shared/       # Shared utilities
+└── package.json
 ```
 
-### Core Stack
+## Tech Stack
 
-- **Backend**: Convex (real-time database with serverless functions)
-- **Web**: Next.js 16.0.1 with App Router, React 19.2.0, TypeScript, TailwindCSS
-- **Mobile**: Expo React Native with TypeScript
-- **Extension**: Wxt framework with Chrome APIs
-- **Authentication**: Clerk with JWT integration
-- **UI Components**: shadcn/ui with Radix primitives
-- **File Storage**: Convex Storage for user uploads
-- **AI Processing**: OpenAI API for content analysis and metadata generation
-- **Screenshot Service**: Cloudflare Browser Rendering API for link previews
-- **Billing**: Polar for subscription management
-- **Testing**: Playwright for e2e testing
+- **Backend**: Convex (real-time DB + serverless)
+- **Web**: Next.js 16, React 19, TypeScript, TailwindCSS
+- **Mobile**: Expo React Native
+- **Extension**: Wxt framework
+- **Auth**: Clerk with JWT
+- **UI**: shadcn/ui + Radix
+- **AI**: OpenAI API
+- **Screenshots**: Cloudflare Browser Rendering
+- **Billing**: Polar
+- **Testing**: Playwright
 
-## Development
+## Development Commands
 
 ```bash
-# Start all services (frontend + backend)
+# All services
 bun run dev
 
 # Individual services
-bun run dev:backend      # Convex backend only
-bun run dev:frontend     # Next.js web app only
-bun run dev:mobile       # Expo mobile app
-bun run dev:extension    # Browser extension with hot reload
-bun run dev:docs         # Documentation site with hot reload
+bun run dev:backend      # Convex
+bun run dev:frontend     # Next.js web
+bun run dev:mobile       # Expo mobile
+bun run dev:extension    # Browser extension
+bun run dev:docs         # Documentation
 
-# Build commands
-bun run build            # Production web build
+# Build
+bun run build            # Web production
 bun run build:extension  # Extension build
-bun run package:extension # Package extension for distribution
+bun run package:extension # Extension package
 
-# Testing
-bun run test             # Run e2e tests (web app)
-bun run test:mobile      # Run mobile tests (if available)
-bun run test:extension   # Run extension tests (if available)
-
-# Documentation
-bun run dev:docs         # Documentation development server
+# Test
+bun run test             # E2E tests
 ```
 
 ## Access Points
 
 - **Web App**: http://localhost:3000
-- **Admin Dashboard**: http://localhost:3000/admin (for admin users)
-- **Convex Dashboard**: Opens automatically after `bun run predev`
-- **Mobile App**: Expo Go app or simulator
-- **Extension**: Load unpacked in Chrome developer mode
-- **Documentation**: http://localhost:3001 (when running `bun run dev:docs`)
+- **Admin**: http://localhost:3000/admin
+- **Convex Dashboard**: Opens after `bun run predev`
+- **Mobile**: Expo Go/simulator
+- **Extension**: Chrome dev mode
+- **Docs**: http://localhost:3001
 
-## Convex & Authentication Setup
+## Setup
 
-### 1. Initialize Convex
+### 1. Convex & Clerk
 
 ```bash
-bun run predev
+bun run predev  # Creates Convex deployment
 ```
 
-This will:
+1. Create Clerk app at [clerk.com](https://clerk.com)
+2. Get keys: `pk_test_...` (frontend), `sk_test_...` (backend)
+3. Configure Clerk in Convex dashboard → Settings → Authentication
 
-- Create a new Convex deployment
-- Open the Convex dashboard
-- Generate your deployment URL
-
-### 2. Set Up Clerk Authentication
-
-1. **Create Clerk Application**:
-   - Visit [clerk.com](https://clerk.com) and create an account
-   - Create a new application
-   - Choose authentication methods (email/password recommended)
-
-2. **Get Your Keys**:
-   - Publishable Key: `pk_test_...` (for frontend)
-   - Secret Key: `sk_test_...` (for backend)
-
-3. **Configure Clerk in Convex**:
-   - In Convex dashboard: Settings → Authentication
-   - Add Clerk as authentication provider
-   - Enter your Clerk domain
-
-### 3. Environment Configuration
+### 2. Environment Variables
 
 **Backend** (`backend/.env.local`):
 
 ```bash
-CONVEX_DEPLOYMENT=dev:your-deployment-name-123
-CLERK_SECRET_KEY=sk_test_your_clerk_secret_key
+CONVEX_DEPLOYMENT=dev:name-123
+CLERK_SECRET_KEY=sk_test_...
 ```
 
-**Web App** (`apps/web/.env.local`):
+**Web** (`apps/web/.env.local`):
 
 ```bash
-NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
+NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 ```
 
-**Mobile App** (`apps/mobile/.env.local`):
+**Mobile** (`apps/mobile/.env.local`):
 
 ```bash
-EXPO_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
-EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
+EXPO_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 ```
 
-## Database & Functions
+## Card Processing Pipeline
 
-Unlike traditional databases, Convex provides:
+Cards flow through 4 AI-powered stages:
 
-- **Real-time queries** with automatic updates
-- **Serverless functions** for business logic
-- **Built-in authentication** integration
-- **File storage** with secure access
+1. **Classification** - Content type detection & color extraction
+2. **Categorization** - Link enrichment & provider metadata
+3. **Metadata** - AI tags, summaries, transcripts
+4. **Renderables** - Thumbnails & visual assets
 
-### Function Development
+**Key Files**:
+
+- `backend/convex/workflows/cardProcessing.ts` - Main orchestrator
+- `backend/convex/workflows/steps/` - Individual stage logic
+- `backend/convex/tasks/ai/` - Background AI processing
+
+## Extension Development
+
+```bash
+# Development
+bun run dev:extension
+
+# Build
+bun run build:extension
+
+# Chrome: Load unpacked from apps/extension/build/chrome-mv3-dev
+# Firefox: bun run dev:firefox
+```
+
+## Convex Functions
+
+Real-time queries with built-in auth:
 
 ```javascript
-// Example query in convex/cards.ts
 export const getCards = query({
   args: {},
   handler: async (ctx) => {
@@ -200,64 +156,3 @@ export const getCards = query({
   },
 });
 ```
-
-## Card Processing Workflow
-
-The application uses a workflow-based architecture to process cards through an AI pipeline:
-
-### Pipeline Stages
-
-Cards are processed sequentially through these stages:
-
-1. **Classification** - Detect content type (text, link, image, etc.) and extract color palettes
-2. **Categorization** - For link cards, enrich with provider metadata and category classification
-3. **Metadata** - Generate AI-powered tags, summaries, and transcripts
-4. **Renderables** - Create thumbnails and visual assets for media files
-
-### Key Components
-
-- **Workflows**: `backend/convex/workflows/cardProcessing.ts` orchestrates the pipeline
-- **Steps**: Each stage in `backend/convex/workflows/steps/` contains mutations and processing logic
-  - **Categorization**: Content categorization with provider-specific handling (Amazon, GitHub, Goodreads, IMDb)
-  - **Link Metadata**: Link metadata extraction using Cloudflare Browser Rendering API
-  - **Renderables**: Thumbnail and visual asset generation for media files
-  - **Screenshot**: Screenshot capture for link previews
-- **Processing Status**: Cards track progress via `processingStatus` field with stage updates
-- **Link Metadata**: Special workflow in `backend/convex/workflows/linkMetadata.ts` handles link enrichment with retries
-- **AI Backfill**: Workflow in `backend/convex/workflows/aiBackfill.ts` for retroactive AI processing
-- **Card Cleanup**: Automated cleanup workflow for maintaining data quality
-- **AI Tasks**: Background AI processing in `backend/convex/tasks/ai/` for content analysis and metadata generation
-
-## Browser Extension Development
-
-### Setup & Installation
-
-1. **Build the extension**:
-
-   ```bash
-   bun run build:extension
-   ```
-
-2. **Load in Chrome**:
-   - Go to `chrome://extensions/`
-   - Enable "Developer mode"
-   - Click "Load unpacked" and select `apps/extension/build/chrome-mv3-dev`
-
-3. **Development with hot reload**:
-
-   ```bash
-   bun run dev:extension
-   ```
-
-4. **Firefox Extension Support**:
-
-   ```bash
-   bun run dev:firefox      # Firefox extension development
-   bun run build:firefox    # Firefox extension build
-   bun run zip:firefox      # Firefox extension packaging
-   ```
-
-5. **Extension Testing**:
-   ```bash
-   bun run compile          # TypeScript compilation check
-   ```
