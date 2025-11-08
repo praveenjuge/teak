@@ -16,7 +16,6 @@ import type * as http from "../http.js";
 import type * as linkMetadata from "../linkMetadata.js";
 import type * as migrations from "../migrations.js";
 import type * as tasks_ai_actions from "../tasks/ai/actions.js";
-import type * as tasks_ai_index from "../tasks/ai/index.js";
 import type * as tasks_ai_links_amazon from "../tasks/ai/links/amazon.js";
 import type * as tasks_ai_links_common from "../tasks/ai/links/common.js";
 import type * as tasks_ai_links_github from "../tasks/ai/links/github.js";
@@ -34,7 +33,6 @@ import type * as tasks_cards_getCard from "../tasks/cards/getCard.js";
 import type * as tasks_cards_getCardCount from "../tasks/cards/getCardCount.js";
 import type * as tasks_cards_getCards from "../tasks/cards/getCards.js";
 import type * as tasks_cards_getFileUrl from "../tasks/cards/getFileUrl.js";
-import type * as tasks_cards_index from "../tasks/cards/index.js";
 import type * as tasks_cards_migrations from "../tasks/cards/migrations.js";
 import type * as tasks_cards_processingStatus from "../tasks/cards/processingStatus.js";
 import type * as tasks_cards_updateCard from "../tasks/cards/updateCard.js";
@@ -51,7 +49,6 @@ import type * as workflows_aiMetadata_types from "../workflows/aiMetadata/types.
 import type * as workflows_cardCleanup from "../workflows/cardCleanup.js";
 import type * as workflows_cardProcessing from "../workflows/cardProcessing.js";
 import type * as workflows_functionRefs from "../workflows/functionRefs.js";
-import type * as workflows_index from "../workflows/index.js";
 import type * as workflows_linkEnrichment from "../workflows/linkEnrichment.js";
 import type * as workflows_linkMetadata from "../workflows/linkMetadata.js";
 import type * as workflows_manager from "../workflows/manager.js";
@@ -96,7 +93,6 @@ declare const fullApi: ApiFromModules<{
   linkMetadata: typeof linkMetadata;
   migrations: typeof migrations;
   "tasks/ai/actions": typeof tasks_ai_actions;
-  "tasks/ai/index": typeof tasks_ai_index;
   "tasks/ai/links/amazon": typeof tasks_ai_links_amazon;
   "tasks/ai/links/common": typeof tasks_ai_links_common;
   "tasks/ai/links/github": typeof tasks_ai_links_github;
@@ -114,7 +110,6 @@ declare const fullApi: ApiFromModules<{
   "tasks/cards/getCardCount": typeof tasks_cards_getCardCount;
   "tasks/cards/getCards": typeof tasks_cards_getCards;
   "tasks/cards/getFileUrl": typeof tasks_cards_getFileUrl;
-  "tasks/cards/index": typeof tasks_cards_index;
   "tasks/cards/migrations": typeof tasks_cards_migrations;
   "tasks/cards/processingStatus": typeof tasks_cards_processingStatus;
   "tasks/cards/updateCard": typeof tasks_cards_updateCard;
@@ -131,7 +126,6 @@ declare const fullApi: ApiFromModules<{
   "workflows/cardCleanup": typeof workflows_cardCleanup;
   "workflows/cardProcessing": typeof workflows_cardProcessing;
   "workflows/functionRefs": typeof workflows_functionRefs;
-  "workflows/index": typeof workflows_index;
   "workflows/linkEnrichment": typeof workflows_linkEnrichment;
   "workflows/linkMetadata": typeof workflows_linkMetadata;
   "workflows/manager": typeof workflows_manager;
