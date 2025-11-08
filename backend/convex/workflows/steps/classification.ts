@@ -14,7 +14,7 @@ import { Id } from "../../_generated/dataModel";
 import { generateObject } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { cardClassificationSchema } from "../../tasks/ai/schemas";
-import { extractPaletteWithAi } from "../../tasks/ai/actions";
+import { extractPaletteWithAi } from "../aiMetadata/actions";
 import type { CardType } from "../../schema";
 import {
   parseColorString,
@@ -206,10 +206,13 @@ const maybeUpdatePaletteColors = async (
   const dbColors = colors.map(toDbColor);
 
   if (dbColors.length && !colorsMatch(card.colors, dbColors)) {
-    await ctx.runMutation(internal.tasks.ai.mutations.updateCardColors, {
-      cardId,
-      colors: dbColors,
-    });
+    await ctx.runMutation(
+      internal.workflows.aiMetadata.mutations.updateCardColors,
+      {
+        cardId,
+        colors: dbColors,
+      },
+    );
     console.info(`${CLASSIFY_LOG_PREFIX} Updated palette colours`, {
       cardId,
       count: dbColors.length,

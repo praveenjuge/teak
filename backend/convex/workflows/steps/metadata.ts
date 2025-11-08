@@ -15,8 +15,8 @@ import {
   generateTextMetadata,
   generateImageMetadata,
   generateLinkMetadata,
-} from "../../tasks/ai/metadata_generators";
-import { generateTranscript } from "../../tasks/ai/transcript";
+} from "../aiMetadata/generators";
+import { generateTranscript } from "../aiMetadata/transcript";
 import { stageCompleted } from "../../tasks/cards/processingStatus";
 
 const METADATA_LOG_PREFIX = "[workflow/metadata]";
@@ -230,7 +230,7 @@ export const generate: any = internalAction({
       metadata: stageCompleted(now, confidence),
     };
 
-    await ctx.runMutation(internal.tasks.ai.mutations.updateCardAI, {
+    await ctx.runMutation(internal.workflows.aiMetadata.mutations.updateCardAI, {
       cardId,
       aiTags: aiTags.length > 0 ? aiTags : undefined,
       aiSummary: aiSummary || undefined,

@@ -26,6 +26,10 @@ export {
   screenshotWorkflow,
   startScreenshotWorkflow,
 } from "./screenshot";
+export {
+  aiMetadataWorkflow,
+  startAiMetadataWorkflow,
+} from "./aiMetadata";
 export * as classificationStep from "./steps/classification";
 export * as categorizationStep from "./steps/categorization";
 export * as metadataStep from "./steps/metadata";
