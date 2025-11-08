@@ -50,8 +50,9 @@ interface ChangelogEntry {
 }
 
 export const metadata: Metadata = {
-  title: "Changelog",
-  description: "Latest updates and changes to Teak",
+  title: "What's New in Teak",
+  description:
+    "See how we're making Teak better every week. Real updates, no fluff.",
 };
 
 async function fetchCommits(): Promise<GitHubCommit[]> {
@@ -202,10 +203,10 @@ export default async function ChangelogPage() {
     <div className="container mx-auto max-w-xl py-12 px-4">
       <div className="mb-12 mt-10 text-center max-w-sm mx-auto">
         <h1 className="mb-4 font-bold text-4xl md:text-5xl text-balance tracking-tight">
-          Changelog
+          What's New
         </h1>
         <p className="text-base text-muted-foreground text-balance mb-6">
-          Stay updated with the latest changes and improvements to Teak.
+          Real updates that make Teak better. No corporate fluff, promise.
         </p>
         <Button variant="outline" asChild>
           <a
@@ -297,7 +298,7 @@ export default async function ChangelogPage() {
       {changelog.length === 0 && (
         <div className="text-center py-12">
           <p className="text-muted-foreground">
-            No changelog entries available at the moment.
+            No updates this week. We're probably busy building something good.
           </p>
         </div>
       )}

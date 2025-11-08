@@ -9,7 +9,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <HomeLayout {...baseOptions}>
       {/* Background Pattern */}
-      <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden pointer-events-none">
+      <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden pointer-events-none -z-10">
         <BackgroundPattern />
       </div>
       {children}
