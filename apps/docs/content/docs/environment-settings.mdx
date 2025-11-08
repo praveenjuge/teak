@@ -23,6 +23,11 @@ ADMIN_USERIDS=user_id_1,user_id_2  # Comma-separated admin user IDs
 ```bash
 NEXT_PUBLIC_CONVEX_URL=https://your-convex-deployment.convex.cloud
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key_here
+NEXT_PUBLIC_CLERK_FRONTEND_API_URL=https://your-domain.clerk.accounts.dev
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/login
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/register
+NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
+NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
 ```
 
 ### `apps/mobile/.env.local`
@@ -30,6 +35,15 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key_here
 ```bash
 EXPO_PUBLIC_CONVEX_URL=https://your-convex-deployment.convex.cloud
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key_here
+EXPO_PUBLIC_CLERK_FRONTEND_API_URL=https://your-domain.clerk.accounts.dev
+```
+
+### `apps/extension/.env.local`
+
+```bash
+VITE_PUBLIC_CONVEX_URL=https://your-convex-deployment.convex.cloud
+VITE_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key_here
+VITE_PUBLIC_CLERK_SYNC_HOST=http://localhost:3000
 ```
 
 ## Getting Your Values
@@ -71,3 +85,8 @@ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key_here
 
 - `POLAR_ACCESS_TOKEN` and `POLAR_SERVER` enable subscription features
 - `POLAR_SERVER=sandbox` for testing, `POLAR_SERVER=production` for live payments
+
+### Testing
+
+- `E2E_CLERK_USER_EMAIL` and `E2E_CLERK_USER_PASSWORD` for end-to-end test authentication
+- Configure test user credentials for Playwright e2e test suite
