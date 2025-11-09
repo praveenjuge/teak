@@ -3,6 +3,7 @@ import { mutation } from "../../_generated/server";
 import { internal } from "../../_generated/api";
 import { cardTypeValidator, colorValidator } from "../../schema";
 import { extractUrlFromContent } from "./validationUtils";
+import { normalizeQuoteContent } from "./quoteFormatting";
 import { ensureCardCreationAllowed } from "./cardLimit";
 import {
   buildInitialProcessingStatus,
@@ -77,6 +78,17 @@ export const createCard = mutation({
       const urlExtraction = extractUrlFromContent(args.content);
       finalUrl = urlExtraction.url ?? finalUrl;
       finalContent = urlExtraction.cleanedContent;
+    }
+
+    const quoteNormalization = normalizeQuoteContent(finalContent);
+    const shouldDefaultToQuote = !providedType && quoteNormalization.removedQuotes;
+
+    if (shouldDefaultToQuote) {
+      cardType = "quote";
+    }
+
+    if (cardType === "quote" && quoteNormalization.removedQuotes) {
+      finalContent = quoteNormalization.text;
     }
 
     // Set initial metadataStatus for link cards

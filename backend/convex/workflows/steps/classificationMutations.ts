@@ -9,6 +9,7 @@ import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
 import type { CardType } from "../../schema";
 import { stageCompleted, stagePending } from "../../tasks/cards/processingStatus";
+import { normalizeQuoteContent } from "../../tasks/cards/quoteFormatting";
 
 const CLASSIFY_MUTATION_LOG_PREFIX = "[workflow/classify/mutation]";
 
@@ -54,11 +55,20 @@ export const updateClassification = internalMutation({
         : stageCompleted(now, 1),
     };
 
-    await ctx.db.patch(cardId, {
+    const patchData: Record<string, unknown> = {
       type: type as CardType,
       processingStatus: updatedProcessing,
       ...(type === "link" ? { metadataStatus: "pending" } : {}),
-    });
+    };
+
+    if (type === "quote") {
+      const normalization = normalizeQuoteContent(card.content ?? "");
+      if (normalization.removedQuotes && normalization.text !== card.content) {
+        patchData.content = normalization.text;
+      }
+    }
+
+    await ctx.db.patch(cardId, patchData);
 
     console.info(`${CLASSIFY_MUTATION_LOG_PREFIX} Classification updated`, {
       cardId,
