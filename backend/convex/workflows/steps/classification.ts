@@ -24,6 +24,7 @@ import {
 import {
   type ProcessingStageStatus,
 } from "../../tasks/cards/processingStatus";
+import { normalizeQuoteContent } from "../../tasks/cards/quoteFormatting";
 
 const CLASSIFY_LOG_PREFIX = "[workflow/classify]";
 
@@ -247,6 +248,37 @@ export const classify = internalAction({
     if (!card) {
       console.warn(`${CLASSIFY_LOG_PREFIX} Card not found`, { cardId });
       throw new Error(`Card ${cardId} not found for classification`);
+    }
+
+    const quoteNormalization = normalizeQuoteContent(card.content ?? "");
+    const heuristicQuote =
+      quoteNormalization.removedQuotes &&
+      !card.url &&
+      !card.fileId;
+
+    if (heuristicQuote) {
+      console.info(`${CLASSIFY_LOG_PREFIX} Heuristic quote classification`, {
+        cardId,
+      });
+      await ctx.runMutation(
+        (internal as any)["workflows/steps/classificationMutations"].updateClassification,
+        {
+          cardId,
+          type: "quote",
+          confidence: 0.95,
+        }
+      );
+
+      const heuristicResult: ClassificationWorkflowResult = {
+        type: "quote",
+        confidence: 0.95,
+        needsLinkMetadata: false,
+        shouldCategorize: false,
+        shouldGenerateMetadata: true,
+        shouldGenerateRenderables: false,
+      };
+
+      return heuristicResult;
     }
 
     // Build prompt and run AI classification

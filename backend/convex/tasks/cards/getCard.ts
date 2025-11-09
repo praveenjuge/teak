@@ -1,5 +1,9 @@
 import { v } from "convex/values";
 import { query, internalQuery } from "../../_generated/server";
+import {
+  applyQuoteDisplayFormatting,
+  applyQuoteFormattingToList,
+} from "./quoteFormatting";
 
 export const getCard = query({
   args: {
@@ -16,7 +20,7 @@ export const getCard = query({
       return null;
     }
 
-    return card;
+    return applyQuoteDisplayFormatting(card);
   },
 });
 
@@ -38,7 +42,7 @@ export const getDeletedCards = query({
       .order("desc")
       .take(args.limit || 50);
 
-    return cards;
+    return applyQuoteFormattingToList(cards);
   },
 });
 

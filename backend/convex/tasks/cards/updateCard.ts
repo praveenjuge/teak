@@ -7,6 +7,7 @@ import {
   withStageStatus,
   type ProcessingStatus,
 } from "./processingStatus";
+import { normalizeQuoteContent } from "./quoteFormatting";
 
 export const updateCard = mutation({
   args: {
@@ -37,6 +38,9 @@ export const updateCard = mutation({
     let processingStatus = card.processingStatus as ProcessingStatus | undefined;
 
     if (updates.content !== undefined) {
+      if (card.type === "quote") {
+        updates.content = normalizeQuoteContent(updates.content).text;
+      }
       processingStatus = processingStatus
         ? withStageStatus(processingStatus, "metadata", stagePending())
         : buildInitialProcessingStatus({
@@ -111,8 +115,12 @@ export const updateCardField = mutation({
     let shouldSchedulePipeline = false;
 
     switch (field) {
-      case "content":
-        updateData.content = typeof value === "string" ? value.trim() : value;
+      case "content": {
+        let nextContent = typeof value === "string" ? value.trim() : value;
+        if (typeof nextContent === "string" && card.type === "quote") {
+          nextContent = normalizeQuoteContent(nextContent).text;
+        }
+        updateData.content = nextContent;
         if (updateData.content !== card.content) {
           processingStatus = processingStatus
             ? withStageStatus(processingStatus, "metadata", stagePending())
@@ -127,6 +135,7 @@ export const updateCardField = mutation({
           shouldSchedulePipeline = true;
         }
         break;
+      }
 
       case "url":
         updateData.url = typeof value === "string" ? value.trim() || undefined : value;

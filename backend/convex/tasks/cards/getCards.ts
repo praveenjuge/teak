@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query } from "../../_generated/server";
 import { cardTypeValidator } from "../../schema";
+import { applyQuoteFormattingToList } from "./quoteFormatting";
 
 export const getCards = query({
   args: {
@@ -40,7 +41,7 @@ export const getCards = query({
 
     const cards = await query.order("desc").take(args.limit || 50);
 
-    return cards;
+    return applyQuoteFormattingToList(cards);
   },
 });
 
@@ -73,7 +74,7 @@ export const searchCards = query({
 
       // Handle special keywords
       if (["fav", "favs", "favorites", "favourite", "favourites"].includes(query)) {
-        return ctx.db
+        const favorites = await ctx.db
           .query("cards")
           .withIndex("by_user_favorites", (q) =>
             q.eq("userId", user.subject).eq("isFavorited", true)
@@ -81,16 +82,18 @@ export const searchCards = query({
           .filter((q) => q.neq(q.field("isDeleted"), true))
           .order("desc")
           .take(limit);
+        return applyQuoteFormattingToList(favorites);
       }
 
       if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
-        return ctx.db
+        const trashed = await ctx.db
           .query("cards")
           .withIndex("by_user_deleted", (q) =>
             q.eq("userId", user.subject).eq("isDeleted", true)
           )
           .order("desc")
           .take(limit);
+        return applyQuoteFormattingToList(trashed);
       }
 
       // Search across multiple fields using search indexes
@@ -180,9 +183,11 @@ export const searchCards = query({
       }
 
       // Sort by creation date (desc) and limit
-      return filteredResults
+      const limitedResults = filteredResults
         .sort((a, b) => b.createdAt - a.createdAt)
         .slice(0, limit);
+
+      return applyQuoteFormattingToList(limitedResults);
     }
 
     // No search query - use regular indexes with filters
@@ -217,6 +222,6 @@ export const searchCards = query({
     }
 
     const cards = await query.order("desc").take(limit);
-    return cards;
+    return applyQuoteFormattingToList(cards);
   },
 });
