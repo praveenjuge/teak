@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Never Lose That Perfect Design Again | Teak",
+  title: "Never Lose That Perfect Design Again",
   description:
     "Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again.",
   keywords:
