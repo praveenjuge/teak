@@ -71,7 +71,7 @@ export function CardModal({
         }
       }}
     >
-      <DialogContent className="md:max-w-7xl max-h-[calc(90vh-80px)] p-4 flex flex-col md:flex-row h-[calc(90vh-80px)] outline-0 overflow-hidden gap-4 border-0 dark:border">
+      <DialogContent className="md:max-w-7xl max-h-[calc(90vh-80px)] p-0 flex flex-col md:flex-row h-[calc(90vh-80px)] overflow-hidden gap-4 border-0 dark:border outline-0 focus-within:outline-0 shadow-none">
         {!card ? (
           <div className="flex flex-1 items-center justify-center">
             <DialogTitle className="sr-only">Loading...</DialogTitle>
@@ -83,7 +83,7 @@ export function CardModal({
               {CARD_TYPE_LABELS[card.type as CardType] || "Card"}
             </DialogTitle>
 
-            <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-1 overflow-hidden">
+            <div className="flex flex-col md:flex-row gap-0 flex-1 overflow-hidden">
               <CardModalPreview
                 card={card}
                 hasUnsavedChanges={hasUnsavedChanges}
@@ -107,7 +107,8 @@ export function CardModal({
                   showTagManager: () => setShowTagManagementModal(true),
                   deleteCard: () => handleDelete(handleClose),
                   restoreCard: () => handleRestore(handleClose),
-                  permanentlyDeleteCard: () => handlePermanentDelete(handleClose),
+                  permanentlyDeleteCard: () =>
+                    handlePermanentDelete(handleClose),
                 }}
               />
             </div>

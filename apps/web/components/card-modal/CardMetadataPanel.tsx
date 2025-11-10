@@ -47,12 +47,12 @@ export function CardMetadataPanel({
   const iconClass = "size-3 md:size-4";
 
   return (
-    <div className="flex-1 md:flex-1 flex flex-col overflow-hidden min-h-0">
+    <div className="flex-1 md:flex-1 flex flex-col overflow-hidden min-h-0 p-4 bg-muted/50">
       <div className="flex-1 overflow-y-auto px-1 gap-3 md:gap-5 flex flex-col">
         {getCurrentValue("notes") && (
           <div>
             <Label>Notes</Label>
-            <p className="mt-1.5 px-3 py-2.5 bg-muted rounded-md border whitespace-pre-wrap">
+            <p className="mt-1.5 px-3 py-2.5 bg-background rounded-md border whitespace-pre-wrap">
               {getCurrentValue("notes")}
             </p>
           </div>
@@ -61,7 +61,7 @@ export function CardMetadataPanel({
         {card.aiSummary && (
           <div>
             <Label>Summary</Label>
-            <p className="mt-1.5 px-3 py-2.5 bg-muted rounded-md border whitespace-pre-wrap">
+            <p className="mt-1.5 px-3 py-2.5 bg-background rounded-md border whitespace-pre-wrap">
               {getCurrentValue("aiSummary")}
             </p>
           </div>

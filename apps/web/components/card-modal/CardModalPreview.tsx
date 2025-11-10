@@ -68,8 +68,8 @@ export function CardModalPreview({
   getCurrentValue,
 }: CardModalPreviewProps) {
   return (
-    <div className="flex-1 md:flex-2 border rounded-md bg-muted overflow-hidden flex flex-col min-h-0 relative">
-      <div className="flex-1 p-2 overflow-y-auto">
+    <div className="flex-1 md:flex-2 md:border-r overflow-hidden flex flex-col min-h-0 relative">
+      <div className="flex-1 p-4 overflow-y-auto">
         {renderPreviewByType(card, updateContent, getCurrentValue)}
       </div>
       <div className="pointer-events-none absolute bottom-4 right-4 flex flex-col items-end gap-1">
