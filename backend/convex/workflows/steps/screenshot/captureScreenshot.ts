@@ -11,8 +11,7 @@ export type ScreenshotRetryableError = {
   details?: unknown;
 };
 
-export const SCREENSHOT_RETRYABLE_PREFIX =
-  "workflow:screenshot:retryable:";
+export const SCREENSHOT_RETRYABLE_PREFIX = "workflow:screenshot:retryable:";
 
 const throwRetryable = (info: ScreenshotRetryableError): never => {
   throw new Error(`${SCREENSHOT_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
@@ -41,7 +40,10 @@ const captureScreenshotFromCloudflare = async (
       controller.abort();
     }, timeoutMs);
 
-    const requestBody = {
+    const screenshotCss =
+      "html, body { overflow: hidden !important; scrollbar-width: none !important; -ms-overflow-style: none !important; } html::-webkit-scrollbar, body::-webkit-scrollbar { display: none !important; } .cookie-banner, .cookie-consent, .privacy-popup, .newsletter-popup, .modal-overlay, .popup, .ad, .advertisement, .sponsored { display: none !important; visibility: hidden !important; } body { margin: 0 !important; padding: 0 !important; min-height: 100vh !important; } .floating, .sticky, .fixed { display: none !important; }";
+
+    const requestBody: any = {
       url,
       gotoOptions: {
         waitUntil: "networkidle0",
@@ -52,9 +54,14 @@ const captureScreenshotFromCloudflare = async (
         height: 720,
       },
       screenshotOptions: {
-        type: "jpeg" as const,
+        type: "jpeg",
         quality: 80,
       },
+      addStyleTag: [
+        {
+          content: screenshotCss,
+        },
+      ],
     };
 
     const response = await fetch(screenshotEndpoint, {
@@ -69,7 +76,8 @@ const captureScreenshotFromCloudflare = async (
 
     clearTimeout(timeoutId);
 
-    const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+    const contentType =
+      response.headers.get("content-type")?.toLowerCase() ?? "";
 
     if (!response.ok) {
       let responseDetails: string | undefined;
@@ -245,8 +253,7 @@ export const captureScreenshot = internalAction({
       await ctx.runMutation(internal.linkMetadata.updateCardScreenshot, {
         cardId,
         screenshotStorageId: screenshotResult.screenshotId,
-        screenshotUpdatedAt:
-          screenshotResult.screenshotUpdatedAt ?? Date.now(),
+        screenshotUpdatedAt: screenshotResult.screenshotUpdatedAt ?? Date.now(),
       });
       console.log(`[screenshot] Stored screenshot for card ${cardId}`);
       return;
