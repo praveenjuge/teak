@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import PricingPageClient from "./PricingPageClient";
 
 export const metadata: Metadata = {
-  title: "25 Cards Free. $19/month After. No Tricks. | Teak",
+  title: "25 Cards Free. $19/month After. No Tricks.",
   description:
     "Try Teak free with 25 cards. Pro is $19/month - less than 2 coffees. Or self-host for free. Simple pricing.",
   keywords:
