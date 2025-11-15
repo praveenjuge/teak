@@ -11,9 +11,6 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CreditCard, LogOut, Monitor, Moon, Sun } from "lucide-react";
@@ -58,14 +55,37 @@ export function UserProfileDropdown() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Avatar className="size-7 cursor-pointer hover:opacity-80 transition-opacity">
-            <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
+            <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
               {getUserInitials()}
             </AvatarFallback>
           </Avatar>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
+
           <DropdownMenuSeparator />
+
+          <DropdownMenuLabel>Theme</DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={theme || "system"}
+            onValueChange={setTheme}
+          >
+            <DropdownMenuRadioItem value="system">
+              <Monitor />
+              System
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="light">
+              <Sun />
+              Light
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="dark">
+              <Moon />
+              Dark
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+
+          <DropdownMenuSeparator />
+
           <DropdownMenuItem asChild>
             <Link href="/subscription">
               <CreditCard />
@@ -73,39 +93,7 @@ export function UserProfileDropdown() {
             </Link>
           </DropdownMenuItem>
 
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <Monitor />
-              Theme
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              <DropdownMenuRadioGroup
-                value={theme || "system"}
-                onValueChange={setTheme}
-              >
-                <DropdownMenuRadioItem value="system">
-                  <Monitor />
-                  System
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="light">
-                  <Sun />
-                  Light
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="dark">
-                  <Moon />
-                  Dark
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-
-          <DropdownMenuSeparator />
-
-          <DropdownMenuItem
-            onClick={handleSignOut}
-            disabled={signOutLoading}
-            className="cursor-pointer"
-          >
+          <DropdownMenuItem onClick={handleSignOut} disabled={signOutLoading}>
             <LogOut />
             {signOutLoading ? "Signing Out..." : "Sign Out"}
           </DropdownMenuItem>
