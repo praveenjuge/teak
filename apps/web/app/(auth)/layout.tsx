@@ -11,7 +11,7 @@ export default function RootLayout({
 }>) {
   return (
     <>
-      <main className="mx-auto max-w-xs flex flex-col justify-center items-center gap-7 py-14 md:h-screen w-full">
+      <main className="mx-auto max-w-xs flex flex-col items-center gap-6 py-14 md:py-32 md:h-screen w-full">
         {/* @ts-ignore */}
         <Link href="/login">
           <Logo variant="primary" />

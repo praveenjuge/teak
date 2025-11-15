@@ -21,17 +21,19 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className='font-sans text-sm antialiased caret-primary accent-primary selection:bg-primary selection:text-primary-foreground [font-feature-settings:"ss01"] [text-rendering:optimizeLegibility] touch-manipulation'>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          disableTransitionOnChange
-          enableSystem={false}
-        >
-          <ConvexClientProvider>
-            <ConvexQueryCacheProvider>{children}</ConvexQueryCacheProvider>
-          </ConvexClientProvider>
-          <Toaster />
-        </ThemeProvider>
+        <ConvexClientProvider>
+          <ConvexQueryCacheProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              disableTransitionOnChange
+              enableSystem={true}
+            >
+              {children}
+            </ThemeProvider>
+          </ConvexQueryCacheProvider>
+        </ConvexClientProvider>
+        <Toaster />
       </body>
     </html>
   );

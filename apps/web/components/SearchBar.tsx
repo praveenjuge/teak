@@ -1,23 +1,20 @@
 import { Suspense, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+import { UserProfileDropdown } from "@/components/UserProfileDropdown";
 import {
   Search,
   Hash,
   Heart,
   Trash2,
-  CreditCard,
   Link as LinkIcon,
   FileText,
   Image,
   Video,
   Volume2,
   File,
-  Moon,
   Palette,
   Quote,
-  Sun,
 } from "lucide-react";
 import {
   type CardType,
@@ -25,11 +22,6 @@ import {
   getCardTypeIcon,
   cardTypes,
 } from "@teak/convex/shared/constants";
-import { useTheme } from "next-themes";
-import { useQuery } from "convex-helpers/react/cache/hooks";
-import { api } from "@teak/convex";
-import { authClient } from "@/lib/auth-client";
-import Link from "next/link";
 
 interface SearchBarProps {
   searchQuery: string;
@@ -79,12 +71,6 @@ export function SearchBar({
   onToggleTrash,
   onClearAll,
 }: SearchBarProps) {
-  const router = useRouter();
-  //@ts-ignore
-  const user = useQuery(api.auth.getCurrentUser);
-
-  const [signOutLoading, setSignOutLoading] = useState(false);
-  const { setTheme, theme } = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -96,20 +82,8 @@ export function SearchBar({
   const shouldShowFilters = isFocused || hasAnyFilters;
 
   const availableFilters = cardTypes.filter(
-    (type) => !filterTags.includes(type)
+    (type) => !filterTags.includes(type),
   );
-
-  const handleSignOut = async () => {
-    setSignOutLoading(true);
-    await authClient.signOut({
-      fetchOptions: {
-        onSuccess: () => {
-          setSignOutLoading(false);
-          router.push("/"); // redirect to login page
-        },
-      },
-    });
-  };
 
   return (
     <>
@@ -135,33 +109,7 @@ export function SearchBar({
         </div>
 
         <Suspense>
-          <Link href="/subscription">Subscription & Billing</Link>
-          <Button
-            variant="ghost"
-            onClick={() =>
-              setTheme((prev) => (prev === "dark" ? "light" : "dark"))
-            }
-          >
-            {theme === "dark" ? (
-              <>
-                <Sun className="size-4 mr-2" />
-                Light Mode
-              </>
-            ) : (
-              <>
-                <Moon className="size-4 mr-2" />
-                Dark Mode
-              </>
-            )}
-          </Button>
-          {user?.email}
-          <Button
-            variant="destructive"
-            onClick={handleSignOut}
-            disabled={signOutLoading}
-          >
-            {signOutLoading ? "Signing Out..." : "Sign Out"}
-          </Button>
+          <UserProfileDropdown />
         </Suspense>
       </div>
       {shouldShowFilters && (

@@ -64,8 +64,8 @@ export default function ForgotPassword() {
         <Loading fullscreen={false} />
       </AuthLoading>
       <Unauthenticated>
-        <CardHeader>
-          <CardTitle className="text-lg md:text-xl">Forgot password</CardTitle>
+        <CardHeader className="text-center">
+          <CardTitle className="text-lg">Forgot password</CardTitle>
           <CardDescription>
             We'll email you a secure link to create a new password
           </CardDescription>
