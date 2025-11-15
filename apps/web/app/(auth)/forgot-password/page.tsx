@@ -66,71 +66,63 @@ export default function ForgotPassword() {
         <Loading />
       </AuthLoading>
       <Unauthenticated>
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-lg md:text-xl">
-              Forgot password
-            </CardTitle>
-            <CardDescription>
-              We'll email you a secure link to create a new password
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  placeholder="m@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              {error && (
-                <p className="text-sm text-destructive" role="status">
-                  {error}
-                </p>
-              )}
-              {sent && (
-                <p className="text-sm text-muted-foreground" role="status">
-                  If an account exists for{" "}
-                  <span className="font-medium">{email}</span>, a reset link is
-                  on its way.
-                </p>
-              )}
-              <Button
-                type="button"
-                className="w-full"
-                disabled={loading || !email}
-                onClick={handleSubmit}
-              >
-                {loading ? (
-                  <Loader2 className="animate-spin" size={16} />
-                ) : sent ? (
-                  "Resend link"
-                ) : (
-                  "Send reset link"
-                )}
-              </Button>
+        <CardHeader>
+          <CardTitle className="text-lg md:text-xl">Forgot password</CardTitle>
+          <CardDescription>
+            We'll email you a secure link to create a new password
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="m@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
-          </CardContent>
-          <CardFooter>
-            <p className="text-sm text-center w-full">
-              Remembered your password?{" "}
-              <Link
-                //@ts-ignore
-                href="/login"
-                className="underline text-primary hover:text-primary/80"
-              >
-                Back to sign in
-              </Link>
-            </p>
-          </CardFooter>
-        </Card>
+            {error && (
+              <p className="text-sm text-destructive" role="status">
+                {error}
+              </p>
+            )}
+            {sent && (
+              <p className="text-sm text-muted-foreground" role="status">
+                If an account exists for{" "}
+                <span className="font-medium">{email}</span>, a reset link is on
+                its way.
+              </p>
+            )}
+            <Button
+              type="button"
+              className="w-full"
+              disabled={loading || !email}
+              onClick={handleSubmit}
+            >
+              {loading ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : sent ? (
+                "Resend link"
+              ) : (
+                "Send reset link"
+              )}
+            </Button>
+          </div>
+        </CardContent>
+        <CardFooter className="text-center text-primary">
+          <Link
+            //@ts-ignore
+            href="/login"
+          >
+            Back to sign in
+          </Link>
+        </CardFooter>
       </Unauthenticated>
     </>
   );

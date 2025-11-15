@@ -113,104 +113,96 @@ export default function ResetPassword() {
       </AuthLoading>
 
       <Unauthenticated>
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-lg md:text-xl">Reset password</CardTitle>
-            <CardDescription>
-              Choose a new password to secure your account
-            </CardDescription>
-          </CardHeader>
+        <CardHeader>
+          <CardTitle className="text-lg md:text-xl">Reset password</CardTitle>
+          <CardDescription>
+            Choose a new password to secure your account
+          </CardDescription>
+        </CardHeader>
 
-          <CardContent>
-            {success ? (
-              <div className="grid gap-4 text-center">
-                <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
-                <p className="text-sm text-muted-foreground">
-                  Your password has been updated. Sign in with your new
-                  credentials to continue.
-                </p>
-                <Button asChild className="w-full">
-                  <Link
-                    //@ts-ignore
-                    href="/login"
-                  >
-                    Go to sign in
-                  </Link>
-                </Button>
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="password">New password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder="Create a new password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="password_confirmation">
-                    Confirm password
-                  </Label>
-                  <Input
-                    id="password_confirmation"
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder="Re-enter your password"
-                    value={passwordConfirmation}
-                    onChange={(event) =>
-                      setPasswordConfirmation(event.target.value)
-                    }
-                  />
-                </div>
-
-                {helperText && (
-                  <p
-                    className={`text-sm ${
-                      helperText.variant === "error"
-                        ? "text-destructive"
-                        : "text-muted-foreground"
-                    }`}
-                    role="status"
-                  >
-                    {helperText.text}
-                  </p>
-                )}
-
-                <Button
-                  type="button"
-                  className="w-full"
-                  disabled={!canSubmit}
-                  onClick={handleReset}
-                >
-                  {loading ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    "Update password"
-                  )}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-
-          {!success && (
-            <CardFooter>
-              <p className="text-sm text-center w-full">
-                Need a new link?{" "}
+        <CardContent>
+          {success ? (
+            <div className="grid gap-4 text-center">
+              <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
+              <p className="text-sm text-muted-foreground">
+                Your password has been updated. Sign in with your new
+                credentials to continue.
+              </p>
+              <Button asChild className="w-full">
                 <Link
                   //@ts-ignore
-                  href="/forgot-password"
-                  className="underline text-primary hover:text-primary/80"
+                  href="/login"
                 >
-                  Request password reset
+                  Go to sign in
                 </Link>
-              </p>
-            </CardFooter>
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="password">New password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Create a new password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="password_confirmation">Confirm password</Label>
+                <Input
+                  id="password_confirmation"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Re-enter your password"
+                  value={passwordConfirmation}
+                  onChange={(event) =>
+                    setPasswordConfirmation(event.target.value)
+                  }
+                />
+              </div>
+
+              {helperText && (
+                <p
+                  className={`text-sm ${
+                    helperText.variant === "error"
+                      ? "text-destructive"
+                      : "text-muted-foreground"
+                  }`}
+                  role="status"
+                >
+                  {helperText.text}
+                </p>
+              )}
+
+              <Button
+                type="button"
+                className="w-full"
+                disabled={!canSubmit}
+                onClick={handleReset}
+              >
+                {loading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  "Update password"
+                )}
+              </Button>
+            </div>
           )}
-        </Card>
+        </CardContent>
+
+        {!success && (
+          <CardFooter className="text-center text-primary">
+            <Link
+              //@ts-ignore
+              href="/forgot-password"
+            >
+              Need a new link? Request password reset
+            </Link>
+          </CardFooter>
+        )}
       </Unauthenticated>
     </>
   );
