@@ -77,7 +77,9 @@ export default function ResetPassword() {
     password === passwordConfirmation &&
     !loading;
 
-  const handleReset = async () => {
+  const handleReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     if (!token) {
       setError("This link is missing its token. Request a new reset email.");
       return;
@@ -109,7 +111,7 @@ export default function ResetPassword() {
   return (
     <>
       <AuthLoading>
-        <Loading />
+        <Loading fullscreen={false} />
       </AuthLoading>
 
       <Unauthenticated>
@@ -138,7 +140,7 @@ export default function ResetPassword() {
               </Button>
             </div>
           ) : (
-            <div className="grid gap-4">
+            <form onSubmit={handleReset} className="grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="password">New password</Label>
                 <Input
@@ -179,19 +181,14 @@ export default function ResetPassword() {
                 </p>
               )}
 
-              <Button
-                type="button"
-                className="w-full"
-                disabled={!canSubmit}
-                onClick={handleReset}
-              >
+              <Button type="submit" className="w-full" disabled={!canSubmit}>
                 {loading ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
                   "Update password"
                 )}
               </Button>
-            </div>
+            </form>
           )}
         </CardContent>
 

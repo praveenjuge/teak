@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Unauthenticated, AuthLoading, useConvexAuth } from "convex/react";
+import { Spinner } from "@/components/ui/spinner";
 import Loading from "@/app/loading";
 
 export default function SignIn() {
@@ -28,7 +29,7 @@ export default function SignIn() {
   return (
     <>
       <AuthLoading>
-        <Loading />
+        <Loading fullscreen={false} />
       </AuthLoading>
       <Unauthenticated>
         <CardHeader className="text-center">
@@ -38,7 +39,30 @@ export default function SignIn() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4">
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              await authClient.signIn.email(
+                {
+                  email,
+                  password,
+                },
+                {
+                  onRequest: (ctx) => {
+                    setLoading(true);
+                  },
+                  onResponse: (ctx) => {
+                    setLoading(false);
+                  },
+                  onSuccess: (ctx) => {
+                    setLoading(false);
+                    router.push("/");
+                  },
+                }
+              );
+            }}
+            className="grid gap-4"
+          >
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -67,40 +91,16 @@ export default function SignIn() {
               />
             </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading}
-              onClick={async () => {
-                await authClient.signIn.email(
-                  {
-                    email,
-                    password,
-                  },
-                  {
-                    onRequest: (ctx) => {
-                      setLoading(true);
-                    },
-                    onResponse: (ctx) => {
-                      setLoading(false);
-                    },
-                    onSuccess: (ctx) => {
-                      setLoading(false);
-                      router.push("/");
-                    },
-                  }
-                );
-              }}
-            >
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
                 <Loader2 size={16} className="animate-spin" />
               ) : (
                 <p> Login </p>
               )}
             </Button>
-          </div>
+          </form>
         </CardContent>
-        <CardFooter className="flex-col gap-2 text-primary text-center">
+        <CardFooter className="flex-col gap-3 text-primary text-center">
           <Link
             //@ts-ignore
             href="/forgot-password"

@@ -34,7 +34,34 @@ export default function SignUp() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4">
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            await authClient.signUp.email({
+              email,
+              password,
+              name: email,
+              callbackURL: "/",
+              fetchOptions: {
+                onResponse: () => {
+                  setLoading(false);
+                },
+                onRequest: () => {
+                  setLoading(true);
+                },
+                onError: (ctx) => {
+                  setLoading(false);
+                  toast.error(ctx.error.message);
+                },
+                onSuccess: async () => {
+                  setLoading(false);
+                  router.push("/");
+                },
+              },
+            });
+          }}
+          className="grid gap-4"
+        >
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -72,50 +99,18 @@ export default function SignUp() {
               required
             />
           </div>
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={loading}
-            onClick={async () => {
-              await authClient.signUp.email({
-                email,
-                password,
-                name: email,
-                callbackURL: "/",
-                fetchOptions: {
-                  onResponse: () => {
-                    setLoading(false);
-                  },
-                  onRequest: () => {
-                    setLoading(true);
-                  },
-                  onError: (ctx) => {
-                    setLoading(false);
-                    toast.error(ctx.error.message);
-                  },
-                  onSuccess: async () => {
-                    setLoading(false);
-                    router.push("/");
-                  },
-                },
-              });
-            }}
-          >
+          <Button type="submit" className="w-full" disabled={loading}>
             {loading ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
               "Create an account"
             )}
           </Button>
-        </div>
+        </form>
       </CardContent>
-      <CardFooter className="text-center text-primary">
-        <p className="text-sm text-center w-full">
-          Already have an account? {/* @ts-ignore */}
-          <Link href="/login" className="underline">
-            Sign In
-          </Link>
-        </p>
+      <CardFooter className="text-center text-primary justify-center">
+        {/* @ts-ignore */}
+        <Link href="/login">Already have an account? Sign In</Link>
       </CardFooter>
     </>
   );
