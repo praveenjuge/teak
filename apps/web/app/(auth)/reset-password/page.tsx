@@ -116,7 +116,7 @@ export default function ResetPassword() {
         <Card className="w-full">
           <CardHeader>
             <CardTitle className="text-lg md:text-xl">Reset password</CardTitle>
-            <CardDescription className="text-xs md:text-sm">
+            <CardDescription>
               Choose a new password to secure your account
             </CardDescription>
           </CardHeader>
