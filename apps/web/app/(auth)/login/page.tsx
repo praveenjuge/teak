@@ -33,90 +33,88 @@ export default function SignIn() {
         <Loading />
       </AuthLoading>
       <Unauthenticated>
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-lg md:text-xl">Sign In</CardTitle>
-            <CardDescription>
-              Enter your email below to login to your account
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                  }}
-                  value={email}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="password"
-                  autoComplete="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={loading}
-                onClick={async () => {
-                  await authClient.signIn.email(
-                    {
-                      email,
-                      password,
-                    },
-                    {
-                      onRequest: (ctx) => {
-                        setLoading(true);
-                      },
-                      onResponse: (ctx) => {
-                        setLoading(false);
-                      },
-                      onSuccess: (ctx) => {
-                        setLoading(false);
-                        router.push("/");
-                      },
-                    }
-                  );
+        <CardHeader className="text-center">
+          <CardTitle className="text-lg">Sign in to Teak</CardTitle>
+          <CardDescription>
+            Welcome back! Please sign in to continue
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="m@example.com"
+                required
+                onChange={(e) => {
+                  setEmail(e.target.value);
                 }}
-              >
-                {loading ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <p> Login </p>
-                )}
-              </Button>
+                value={email}
+              />
             </div>
-          </CardContent>
-          <CardFooter className="flex-col gap-2 items-start text-primary">
-            <Link
-              //@ts-ignore
-              href="/forgot-password"
+
+            <div className="grid gap-2">
+              <Label htmlFor="password">Password</Label>
+
+              <Input
+                id="password"
+                type="password"
+                placeholder="password"
+                autoComplete="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading}
+              onClick={async () => {
+                await authClient.signIn.email(
+                  {
+                    email,
+                    password,
+                  },
+                  {
+                    onRequest: (ctx) => {
+                      setLoading(true);
+                    },
+                    onResponse: (ctx) => {
+                      setLoading(false);
+                    },
+                    onSuccess: (ctx) => {
+                      setLoading(false);
+                      router.push("/");
+                    },
+                  }
+                );
+              }}
             >
-              Forgot your password?
-            </Link>
-            <Link
-              //@ts-ignore
-              href="/register"
-            >
-              Don't have an account? Sign Up
-            </Link>
-          </CardFooter>
-        </Card>
+              {loading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <p> Login </p>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+        <CardFooter className="flex-col gap-2 text-primary text-center">
+          <Link
+            //@ts-ignore
+            href="/forgot-password"
+          >
+            Forgot your password?
+          </Link>
+          <Link
+            //@ts-ignore
+            href="/register"
+          >
+            Don't have an account? Sign Up
+          </Link>
+        </CardFooter>
       </Unauthenticated>
     </>
   );

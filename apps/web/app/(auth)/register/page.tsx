@@ -26,10 +26,10 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="text-lg md:text-xl">Sign Up</CardTitle>
-        <CardDescription className="text-xs md:text-sm">
+    <>
+      <CardHeader className="text-center">
+        <CardTitle className="text-lg">Sign Up</CardTitle>
+        <CardDescription>
           Enter your information to create an account
         </CardDescription>
       </CardHeader>
@@ -107,7 +107,7 @@ export default function SignUp() {
           </Button>
         </div>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="text-center text-primary">
         <p className="text-sm text-center w-full">
           Already have an account? {/* @ts-ignore */}
           <Link href="/login" className="underline">
@@ -115,6 +115,6 @@ export default function SignUp() {
           </Link>
         </p>
       </CardFooter>
-    </Card>
+    </>
   );
 }

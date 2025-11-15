@@ -1,5 +1,7 @@
 import { TopPattern } from "@/components/patterns/TopPattern";
 import { BottomPattern } from "@/components/patterns/BottomPattern";
+import { Card } from "@/components/ui/card";
+import Logo from "@/components/Logo";
 
 export default function RootLayout({
   children,
@@ -8,8 +10,9 @@ export default function RootLayout({
 }>) {
   return (
     <>
-      <main className="mx-auto grid max-w-xs place-items-center py-14 md:h-screen w-full">
-        {children}
+      <main className="mx-auto max-w-xs flex flex-col justify-center items-center gap-7 py-14 md:h-screen w-full">
+        <Logo variant="primary" />
+        <Card className="w-full">{children}</Card>
       </main>
 
       {/* Background patterns */}
