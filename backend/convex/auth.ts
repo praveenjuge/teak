@@ -4,12 +4,18 @@ import { components } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 import { betterAuth, BetterAuthOptions } from "better-auth";
+import { Resend } from "@convex-dev/resend";
+import { requireActionCtx } from "@convex-dev/better-auth/utils";
 
 const siteUrl = process.env.SITE_URL!;
 
 // The component client has methods needed for integrating Convex with Better Auth,
 // as well as helper methods for general use.
 export const authComponent = createClient<DataModel>(components.betterAuth);
+
+export const resend = new Resend(components.resend, {
+  testMode: false,
+});
 
 export const createAuth = (
   ctx: GenericCtx<DataModel>,
@@ -28,8 +34,13 @@ export const createAuth = (
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
-      async sendResetPassword(data, request) {
-        // Send an email to the user with a link to reset their password
+      sendResetPassword: async ({ user, url }) => {
+        await resend.sendEmail(requireActionCtx(ctx), {
+          from: "Test <hello@teakvault.com>",
+          to: user.email,
+          subject: "Reset your password",
+          html: `<p>Click <a href="${url}">here</a> to reset your password.</p>`,
+        });
       },
     },
     plugins: [
