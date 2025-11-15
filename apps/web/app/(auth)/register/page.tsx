@@ -156,7 +156,7 @@ export default function SignUp() {
       </CardContent>
       <CardFooter className="text-center text-primary justify-center">
         {/* @ts-ignore */}
-        <Link href="/login">Already have an account? Sign In</Link>
+        <Link href="/login">Already have an account? Login</Link>
       </CardFooter>
     </>
   );
