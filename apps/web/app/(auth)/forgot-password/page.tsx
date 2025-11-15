@@ -115,7 +115,7 @@ export default function ForgotPassword() {
             //@ts-ignore
             href="/login"
           >
-            Back to sign in
+            Back to Login
           </Link>
         </CardFooter>
       </Unauthenticated>

@@ -44,7 +44,7 @@ export default function ResetPassword() {
     if (errorCode) {
       setError(
         errorMessages[errorCode] ??
-          "We couldn't verify your reset link. Request a new one.",
+          "We couldn't verify your reset link. Request a new one."
       );
     }
   }, [errorCode]);
@@ -101,7 +101,7 @@ export default function ResetPassword() {
     if (resetError) {
       setError(
         resetError.message ??
-          "We couldn't update your password. Request a new link and try again.",
+          "We couldn't update your password. Request a new link and try again."
       );
       return;
     }
@@ -128,15 +128,15 @@ export default function ResetPassword() {
             <div className="grid gap-4 text-center">
               <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
               <p className="text-sm text-muted-foreground">
-                Your password has been updated. Sign in with your new
-                credentials to continue.
+                Your password has been updated. Login with your new credentials
+                to continue.
               </p>
               <Button asChild className="w-full">
                 <Link
                   //@ts-ignore
                   href="/login"
                 >
-                  Go to sign in
+                  Go to Login
                 </Link>
               </Button>
             </div>
