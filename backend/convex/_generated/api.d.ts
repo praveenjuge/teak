@@ -13,11 +13,11 @@ import type * as billing from "../billing.js";
 import type * as cards from "../cards.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
+import type * as linkMetadata from "../linkMetadata.js";
 import type * as linkMetadata_parsing from "../linkMetadata/parsing.js";
 import type * as linkMetadata_selectors from "../linkMetadata/selectors.js";
 import type * as linkMetadata_types from "../linkMetadata/types.js";
 import type * as linkMetadata_url from "../linkMetadata/url.js";
-import type * as linkMetadata from "../linkMetadata.js";
 import type * as migrations from "../migrations.js";
 import type * as tasks_ai_actions from "../tasks/ai/actions.js";
 import type * as tasks_ai_links_amazon from "../tasks/ai/links/amazon.js";
@@ -71,9 +71,9 @@ import type * as workflows_steps_classification from "../workflows/steps/classif
 import type * as workflows_steps_classificationMutations from "../workflows/steps/classificationMutations.js";
 import type * as workflows_steps_linkMetadata_fetchMetadata from "../workflows/steps/linkMetadata/fetchMetadata.js";
 import type * as workflows_steps_metadata from "../workflows/steps/metadata.js";
+import type * as workflows_steps_renderables from "../workflows/steps/renderables.js";
 import type * as workflows_steps_renderables_generateThumbnail from "../workflows/steps/renderables/generateThumbnail.js";
 import type * as workflows_steps_renderables_mutations from "../workflows/steps/renderables/mutations.js";
-import type * as workflows_steps_renderables from "../workflows/steps/renderables.js";
 import type * as workflows_steps_screenshot_captureScreenshot from "../workflows/steps/screenshot/captureScreenshot.js";
 
 import type {
@@ -82,25 +82,17 @@ import type {
   FunctionReference,
 } from "convex/server";
 
-/**
- * A utility for referencing Convex functions in your app's API.
- *
- * Usage:
- * ```js
- * const myFunctionReference = api.myModule.myFunction;
- * ```
- */
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   billing: typeof billing;
   cards: typeof cards;
   crons: typeof crons;
   http: typeof http;
+  linkMetadata: typeof linkMetadata;
   "linkMetadata/parsing": typeof linkMetadata_parsing;
   "linkMetadata/selectors": typeof linkMetadata_selectors;
   "linkMetadata/types": typeof linkMetadata_types;
   "linkMetadata/url": typeof linkMetadata_url;
-  linkMetadata: typeof linkMetadata;
   migrations: typeof migrations;
   "tasks/ai/actions": typeof tasks_ai_actions;
   "tasks/ai/links/amazon": typeof tasks_ai_links_amazon;
@@ -154,19 +146,35 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/classificationMutations": typeof workflows_steps_classificationMutations;
   "workflows/steps/linkMetadata/fetchMetadata": typeof workflows_steps_linkMetadata_fetchMetadata;
   "workflows/steps/metadata": typeof workflows_steps_metadata;
+  "workflows/steps/renderables": typeof workflows_steps_renderables;
   "workflows/steps/renderables/generateThumbnail": typeof workflows_steps_renderables_generateThumbnail;
   "workflows/steps/renderables/mutations": typeof workflows_steps_renderables_mutations;
-  "workflows/steps/renderables": typeof workflows_steps_renderables;
   "workflows/steps/screenshot/captureScreenshot": typeof workflows_steps_screenshot_captureScreenshot;
 }>;
-declare const fullApiWithMounts: typeof fullApi;
 
+/**
+ * A utility for referencing Convex functions in your app's public API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = api.myModule.myFunction;
+ * ```
+ */
 export declare const api: FilterApi<
-  typeof fullApiWithMounts,
+  typeof fullApi,
   FunctionReference<any, "public">
 >;
+
+/**
+ * A utility for referencing Convex functions in your app's internal API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = internal.myModule.myFunction;
+ * ```
+ */
 export declare const internal: FilterApi<
-  typeof fullApiWithMounts,
+  typeof fullApi,
   FunctionReference<any, "internal">
 >;
 
@@ -215,10 +223,10 @@ export declare const components: {
               priceAmount?: number;
               priceCurrency?: string;
               productId: string;
-              recurringInterval?: "month" | "year" | null;
+              recurringInterval?: "day" | "week" | "month" | "year" | null;
               type?: string;
             }>;
-            recurringInterval?: "month" | "year" | null;
+            recurringInterval?: "day" | "week" | "month" | "year" | null;
           };
         },
         any
@@ -244,7 +252,7 @@ export declare const components: {
             modifiedAt: string | null;
             priceId?: string;
             productId: string;
-            recurringInterval: "month" | "year" | null;
+            recurringInterval: "day" | "week" | "month" | "year" | null;
             startedAt: string | null;
             status: string;
           };
@@ -309,13 +317,13 @@ export declare const components: {
               priceAmount?: number;
               priceCurrency?: string;
               productId: string;
-              recurringInterval?: "month" | "year" | null;
+              recurringInterval?: "day" | "week" | "month" | "year" | null;
               type?: string;
             }>;
-            recurringInterval?: "month" | "year" | null;
+            recurringInterval?: "day" | "week" | "month" | "year" | null;
           };
           productId: string;
-          recurringInterval: "month" | "year" | null;
+          recurringInterval: "day" | "week" | "month" | "year" | null;
           startedAt: string | null;
           status: string;
         } | null
@@ -368,10 +376,10 @@ export declare const components: {
             priceAmount?: number;
             priceCurrency?: string;
             productId: string;
-            recurringInterval?: "month" | "year" | null;
+            recurringInterval?: "day" | "week" | "month" | "year" | null;
             type?: string;
           }>;
-          recurringInterval?: "month" | "year" | null;
+          recurringInterval?: "day" | "week" | "month" | "year" | null;
         } | null
       >;
       getSubscription: FunctionReference<
@@ -395,7 +403,7 @@ export declare const components: {
           modifiedAt: string | null;
           priceId?: string;
           productId: string;
-          recurringInterval: "month" | "year" | null;
+          recurringInterval: "day" | "week" | "month" | "year" | null;
           startedAt: string | null;
           status: string;
         } | null
@@ -427,7 +435,7 @@ export declare const components: {
           modifiedAt: string | null;
           priceId?: string;
           productId: string;
-          recurringInterval: "month" | "year" | null;
+          recurringInterval: "day" | "week" | "month" | "year" | null;
           startedAt: string | null;
           status: string;
         }>
@@ -475,10 +483,10 @@ export declare const components: {
             priceAmount?: number;
             priceCurrency?: string;
             productId: string;
-            recurringInterval?: "month" | "year" | null;
+            recurringInterval?: "day" | "week" | "month" | "year" | null;
             type?: string;
           }>;
-          recurringInterval?: "month" | "year" | null;
+          recurringInterval?: "day" | "week" | "month" | "year" | null;
         }>
       >;
       listUserSubscriptions: FunctionReference<
@@ -539,13 +547,13 @@ export declare const components: {
               priceAmount?: number;
               priceCurrency?: string;
               productId: string;
-              recurringInterval?: "month" | "year" | null;
+              recurringInterval?: "day" | "week" | "month" | "year" | null;
               type?: string;
             }>;
-            recurringInterval?: "month" | "year" | null;
+            recurringInterval?: "day" | "week" | "month" | "year" | null;
           } | null;
           productId: string;
-          recurringInterval: "month" | "year" | null;
+          recurringInterval: "day" | "week" | "month" | "year" | null;
           startedAt: string | null;
           status: string;
         }>
@@ -598,10 +606,10 @@ export declare const components: {
               priceAmount?: number;
               priceCurrency?: string;
               productId: string;
-              recurringInterval?: "month" | "year" | null;
+              recurringInterval?: "day" | "week" | "month" | "year" | null;
               type?: string;
             }>;
-            recurringInterval?: "month" | "year" | null;
+            recurringInterval?: "day" | "week" | "month" | "year" | null;
           };
         },
         any
@@ -649,10 +657,10 @@ export declare const components: {
               priceAmount?: number;
               priceCurrency?: string;
               productId: string;
-              recurringInterval?: "month" | "year" | null;
+              recurringInterval?: "day" | "week" | "month" | "year" | null;
               type?: string;
             }>;
-            recurringInterval?: "month" | "year" | null;
+            recurringInterval?: "day" | "week" | "month" | "year" | null;
           }>;
         },
         any
@@ -678,7 +686,7 @@ export declare const components: {
             modifiedAt: string | null;
             priceId?: string;
             productId: string;
-            recurringInterval: "month" | "year" | null;
+            recurringInterval: "day" | "week" | "month" | "year" | null;
             startedAt: string | null;
             status: string;
           };
@@ -779,30 +787,94 @@ export declare const components: {
     };
   };
   workflow: {
+    event: {
+      create: FunctionReference<
+        "mutation",
+        "internal",
+        { name: string; workflowId: string },
+        string
+      >;
+      send: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          eventId?: string;
+          name?: string;
+          result:
+            | { kind: "success"; returnValue: any }
+            | { error: string; kind: "failed" }
+            | { kind: "canceled" };
+          workflowId?: string;
+          workpoolOptions?: {
+            defaultRetryBehavior?: {
+              base: number;
+              initialBackoffMs: number;
+              maxAttempts: number;
+            };
+            logLevel?: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+            maxParallelism?: number;
+            retryActionsByDefault?: boolean;
+          };
+        },
+        string
+      >;
+    };
     journal: {
       load: FunctionReference<
         "query",
         "internal",
-        { workflowId: string },
+        { shortCircuit?: boolean; workflowId: string },
         {
+          blocked?: boolean;
           journalEntries: Array<{
             _creationTime: number;
             _id: string;
-            step: {
-              args: any;
-              argsSize: number;
-              completedAt?: number;
-              functionType: "query" | "mutation" | "action";
-              handle: string;
-              inProgress: boolean;
-              name: string;
-              runResult?:
-                | { kind: "success"; returnValue: any }
-                | { error: string; kind: "failed" }
-                | { kind: "canceled" };
-              startedAt: number;
-              workId?: string;
-            };
+            step:
+              | {
+                  args: any;
+                  argsSize: number;
+                  completedAt?: number;
+                  functionType: "query" | "mutation" | "action";
+                  handle: string;
+                  inProgress: boolean;
+                  kind?: "function";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                  workId?: string;
+                }
+              | {
+                  args: any;
+                  argsSize: number;
+                  completedAt?: number;
+                  handle: string;
+                  inProgress: boolean;
+                  kind: "workflow";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                  workflowId?: string;
+                }
+              | {
+                  args: { eventId?: string };
+                  argsSize: number;
+                  completedAt?: number;
+                  eventId?: string;
+                  inProgress: boolean;
+                  kind: "event";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                };
             stepNumber: number;
             workflowId: string;
           }>;
@@ -836,21 +908,52 @@ export declare const components: {
               | boolean
               | { base: number; initialBackoffMs: number; maxAttempts: number };
             schedulerOptions?: { runAt?: number } | { runAfter?: number };
-            step: {
-              args: any;
-              argsSize: number;
-              completedAt?: number;
-              functionType: "query" | "mutation" | "action";
-              handle: string;
-              inProgress: boolean;
-              name: string;
-              runResult?:
-                | { kind: "success"; returnValue: any }
-                | { error: string; kind: "failed" }
-                | { kind: "canceled" };
-              startedAt: number;
-              workId?: string;
-            };
+            step:
+              | {
+                  args: any;
+                  argsSize: number;
+                  completedAt?: number;
+                  functionType: "query" | "mutation" | "action";
+                  handle: string;
+                  inProgress: boolean;
+                  kind?: "function";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                  workId?: string;
+                }
+              | {
+                  args: any;
+                  argsSize: number;
+                  completedAt?: number;
+                  handle: string;
+                  inProgress: boolean;
+                  kind: "workflow";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                  workflowId?: string;
+                }
+              | {
+                  args: { eventId?: string };
+                  argsSize: number;
+                  completedAt?: number;
+                  eventId?: string;
+                  inProgress: boolean;
+                  kind: "event";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                };
           }>;
           workflowId: string;
           workpoolOptions?: {
@@ -867,21 +970,52 @@ export declare const components: {
         Array<{
           _creationTime: number;
           _id: string;
-          step: {
-            args: any;
-            argsSize: number;
-            completedAt?: number;
-            functionType: "query" | "mutation" | "action";
-            handle: string;
-            inProgress: boolean;
-            name: string;
-            runResult?:
-              | { kind: "success"; returnValue: any }
-              | { error: string; kind: "failed" }
-              | { kind: "canceled" };
-            startedAt: number;
-            workId?: string;
-          };
+          step:
+            | {
+                args: any;
+                argsSize: number;
+                completedAt?: number;
+                functionType: "query" | "mutation" | "action";
+                handle: string;
+                inProgress: boolean;
+                kind?: "function";
+                name: string;
+                runResult?:
+                  | { kind: "success"; returnValue: any }
+                  | { error: string; kind: "failed" }
+                  | { kind: "canceled" };
+                startedAt: number;
+                workId?: string;
+              }
+            | {
+                args: any;
+                argsSize: number;
+                completedAt?: number;
+                handle: string;
+                inProgress: boolean;
+                kind: "workflow";
+                name: string;
+                runResult?:
+                  | { kind: "success"; returnValue: any }
+                  | { error: string; kind: "failed" }
+                  | { kind: "canceled" };
+                startedAt: number;
+                workflowId?: string;
+              }
+            | {
+                args: { eventId?: string };
+                argsSize: number;
+                completedAt?: number;
+                eventId?: string;
+                inProgress: boolean;
+                kind: "event";
+                name: string;
+                runResult?:
+                  | { kind: "success"; returnValue: any }
+                  | { error: string; kind: "failed" }
+                  | { kind: "canceled" };
+                startedAt: number;
+              };
           stepNumber: number;
           workflowId: string;
         }>
@@ -934,21 +1068,52 @@ export declare const components: {
           inProgress: Array<{
             _creationTime: number;
             _id: string;
-            step: {
-              args: any;
-              argsSize: number;
-              completedAt?: number;
-              functionType: "query" | "mutation" | "action";
-              handle: string;
-              inProgress: boolean;
-              name: string;
-              runResult?:
-                | { kind: "success"; returnValue: any }
-                | { error: string; kind: "failed" }
-                | { kind: "canceled" };
-              startedAt: number;
-              workId?: string;
-            };
+            step:
+              | {
+                  args: any;
+                  argsSize: number;
+                  completedAt?: number;
+                  functionType: "query" | "mutation" | "action";
+                  handle: string;
+                  inProgress: boolean;
+                  kind?: "function";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                  workId?: string;
+                }
+              | {
+                  args: any;
+                  argsSize: number;
+                  completedAt?: number;
+                  handle: string;
+                  inProgress: boolean;
+                  kind: "workflow";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                  workflowId?: string;
+                }
+              | {
+                  args: { eventId?: string };
+                  argsSize: number;
+                  completedAt?: number;
+                  eventId?: string;
+                  inProgress: boolean;
+                  kind: "event";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                };
             stepNumber: number;
             workflowId: string;
           }>;
@@ -969,6 +1134,45 @@ export declare const components: {
             state?: any;
             workflowHandle: string;
           };
+        }
+      >;
+      listSteps: FunctionReference<
+        "query",
+        "internal",
+        {
+          order: "asc" | "desc";
+          paginationOpts: {
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
+          workflowId: string;
+        },
+        {
+          continueCursor: string;
+          isDone: boolean;
+          page: Array<{
+            args: any;
+            completedAt?: number;
+            eventId?: string;
+            kind: "function" | "workflow" | "event";
+            name: string;
+            nestedWorkflowId?: string;
+            runResult?:
+              | { kind: "success"; returnValue: any }
+              | { error: string; kind: "failed" }
+              | { kind: "canceled" };
+            startedAt: number;
+            stepId: string;
+            stepNumber: number;
+            workId?: string;
+            workflowId: string;
+          }>;
+          pageStatus?: "SplitRecommended" | "SplitRequired" | null;
+          splitCursor?: string | null;
         }
       >;
     };

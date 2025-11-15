@@ -5,6 +5,8 @@ import type { Id } from "../../../_generated/dataModel";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import { normalizeUrl } from "../../../linkMetadata";
+const internalFunctions = internal as Record<string, any>;
+const linkMetadataInternal = internalFunctions["linkMetadata"] as Record<string, any>;
 export type ScreenshotRetryableError = {
   type: "rate_limit" | "http_error";
   message?: string;
@@ -209,7 +211,7 @@ export const captureScreenshot = internalAction({
     retryCount: v.optional(v.number()),
   },
   handler: async (ctx, { cardId, retryCount = 0 }) => {
-    const card = await ctx.runQuery(internal.linkMetadata.getCardForMetadata, {
+    const card = await ctx.runQuery(linkMetadataInternal.getCardForMetadata, {
       cardId,
     });
 
@@ -250,7 +252,7 @@ export const captureScreenshot = internalAction({
     });
 
     if (screenshotResult?.screenshotId) {
-      await ctx.runMutation(internal.linkMetadata.updateCardScreenshot, {
+      await ctx.runMutation(linkMetadataInternal.updateCardScreenshot, {
         cardId,
         screenshotStorageId: screenshotResult.screenshotId,
         screenshotUpdatedAt: screenshotResult.screenshotUpdatedAt ?? Date.now(),

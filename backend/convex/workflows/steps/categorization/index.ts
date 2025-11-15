@@ -185,8 +185,18 @@ Pick the category that best describes the main subject of the URL. Use provider 
     });
 
     const { category, confidence, providerHint, tags } = result.object;
+    const normalizedCategory = resolveCategoryKey(category);
+
+    if (!normalizedCategory) {
+      const invalidCategoryError = new Error(
+        `Invalid category returned from classification: ${category ?? "<empty>"}`,
+      );
+      (invalidCategoryError as any).cause = { value: result.object };
+      throw invalidCategoryError;
+    }
+
     return {
-      category,
+      category: normalizedCategory,
       confidence: confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE,
       providerHint,
       tags,
