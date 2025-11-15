@@ -9,7 +9,9 @@ import {
   type LinkMetadataRetryableError,
 } from "./steps/linkMetadata/fetchMetadata";
 
+//@ts-ignore
 const internalWorkflow = internal as Record<string, any>;
+const linkMetadataInternal = internalWorkflow["linkMetadata"] as Record<string, any>;
 
 const LINK_METADATA_RETRY: RetryBehavior = {
   maxAttempts: 5,
@@ -73,7 +75,7 @@ export const linkMetadataWorkflow = workflow.define({
           ? retryable.normalizedUrl
           : "";
 
-      await step.runMutation(internal.linkMetadata.updateCardMetadata, {
+      await step.runMutation(linkMetadataInternal.updateCardMetadata, {
         cardId,
         linkPreview: buildErrorPreview(normalizedUrl, {
           type: retryable.type ?? "error",

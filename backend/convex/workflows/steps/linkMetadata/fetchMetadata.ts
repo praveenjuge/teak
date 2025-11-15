@@ -22,6 +22,10 @@ export type LinkMetadataRetryableError = {
 export const LINK_METADATA_RETRYABLE_PREFIX =
   "workflow:linkMetadata:retryable:";
 
+const internalFunctions = internal as Record<string, any>;
+const linkMetadataInternal = internalFunctions["linkMetadata"] as Record<string, any>;
+const workflowManagerInternal = internalFunctions["workflows/manager"] as Record<string, any>;
+
 const throwRetryable = (info: LinkMetadataRetryableError): never => {
   throw new Error(`${LINK_METADATA_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
 };
@@ -40,7 +44,7 @@ export const fetchMetadata = internalAction({
   handler: async (ctx, { cardId }) => {
     let normalizedUrl: string | undefined;
 
-    const card = await ctx.runQuery(internal.linkMetadata.getCardForMetadata, {
+    const card = await ctx.runQuery(linkMetadataInternal.getCardForMetadata, {
       cardId,
     });
 
@@ -48,7 +52,7 @@ export const fetchMetadata = internalAction({
       console.error(
         `[linkMetadata] Card ${cardId} is not a valid link card (card type = ${card?.type})`,
       );
-      await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
+      await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
         cardId,
         linkPreview: buildErrorPreview(card?.url ?? "", {
           type: "invalid_card",
@@ -78,7 +82,7 @@ export const fetchMetadata = internalAction({
       console.error(
         `[linkMetadata] Missing Cloudflare Browser Rendering credentials (accountId=${accountId ? "set" : "missing"}, apiToken=${apiToken ? "set" : "missing"})`,
       );
-      await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
+      await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
         cardId,
         linkPreview: buildErrorPreview(normalizedUrl, {
           type: "configuration_error",
@@ -180,7 +184,7 @@ export const fetchMetadata = internalAction({
           });
         }
 
-        await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
+        await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
           cardId,
           linkPreview: buildErrorPreview(normalizedUrl, {
             type: isRateLimit ? "rate_limit" : "http_error",
@@ -226,7 +230,7 @@ export const fetchMetadata = internalAction({
       const parsed = parseLinkPreview(normalizedUrl, payload.result);
       const linkPreview = buildSuccessPreview(normalizedUrl, parsed);
 
-      await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
+      await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
         cardId,
         linkPreview,
         status: "completed",
@@ -243,8 +247,8 @@ export const fetchMetadata = internalAction({
 
       await ctx.scheduler.runAfter(
         0,
-        (internal as any)["workflows/manager"].startCardProcessingWorkflow,
-        { cardId }
+        workflowManagerInternal.startCardProcessingWorkflow,
+        { cardId },
       );
 
       return {
@@ -277,7 +281,7 @@ export const fetchMetadata = internalAction({
         });
       }
 
-      await ctx.runMutation(internal.linkMetadata.updateCardMetadata, {
+      await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
         cardId,
         linkPreview: buildErrorPreview(normalizedUrl ?? card.url, {
           type: "error",
