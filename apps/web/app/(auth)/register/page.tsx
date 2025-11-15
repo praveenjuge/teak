@@ -11,8 +11,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
@@ -24,6 +25,7 @@ export default function SignUp() {
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <>
@@ -34,9 +36,16 @@ export default function SignUp() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         <form
           onSubmit={async (e) => {
             e.preventDefault();
+            setError(null);
             await authClient.signUp.email({
               email,
               password,
@@ -51,7 +60,7 @@ export default function SignUp() {
                 },
                 onError: (ctx) => {
                   setLoading(false);
-                  toast.error(ctx.error.message);
+                  setError(ctx.error?.message ?? "Failed to create account");
                 },
                 onSuccess: async () => {
                   setLoading(false);

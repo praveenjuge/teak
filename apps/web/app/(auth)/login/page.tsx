@@ -11,8 +11,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
@@ -25,6 +26,7 @@ export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <>
@@ -39,9 +41,16 @@ export default function SignIn() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           <form
             onSubmit={async (e) => {
               e.preventDefault();
+              setError(null);
               await authClient.signIn.email(
                 {
                   email,
@@ -58,7 +67,11 @@ export default function SignIn() {
                     setLoading(false);
                     router.push("/");
                   },
-                }
+                  onError: (ctx) => {
+                    setLoading(false);
+                    setError(ctx.error?.message ?? "Invalid email or password");
+                  },
+                },
               );
             }}
             className="grid gap-4"

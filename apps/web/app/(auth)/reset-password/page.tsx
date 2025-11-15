@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AuthLoading, Unauthenticated } from "convex/react";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 import {
   Card,
@@ -17,6 +17,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Loading from "@/app/loading";
 import { authClient } from "@/lib/auth-client";
 
@@ -43,7 +44,7 @@ export default function ResetPassword() {
     if (errorCode) {
       setError(
         errorMessages[errorCode] ??
-          "We couldn't verify your reset link. Request a new one."
+          "We couldn't verify your reset link. Request a new one.",
       );
     }
   }, [errorCode]);
@@ -100,7 +101,7 @@ export default function ResetPassword() {
     if (resetError) {
       setError(
         resetError.message ??
-          "We couldn't update your password. Request a new link and try again."
+          "We couldn't update your password. Request a new link and try again.",
       );
       return;
     }
@@ -169,16 +170,16 @@ export default function ResetPassword() {
               </div>
 
               {helperText && (
-                <p
-                  className={`text-sm ${
-                    helperText.variant === "error"
-                      ? "text-destructive"
-                      : "text-muted-foreground"
-                  }`}
-                  role="status"
+                <Alert
+                  variant={
+                    helperText.variant === "error" ? "destructive" : "default"
+                  }
                 >
-                  {helperText.text}
-                </p>
+                  {helperText.variant === "error" && (
+                    <AlertCircle className="h-4 w-4" />
+                  )}
+                  <AlertDescription>{helperText.text}</AlertDescription>
+                </Alert>
               )}
 
               <Button type="submit" className="w-full" disabled={!canSubmit}>
