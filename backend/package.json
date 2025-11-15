@@ -14,17 +14,17 @@
     "./shared/utils/colorUtils": "./shared/utils/colorUtils.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.64",
-    "@cf-wasm/photon": "^0.1.31",
-    "@convex-dev/migrations": "^0.2.9",
-    "@convex-dev/polar": "^0.6.4",
-    "@convex-dev/workflow": "^0.2.7",
-    "@polar-sh/sdk": "^0.41.1",
-    "@types/node": "^24.10.0",
-    "@types/react": "^19.2.2",
-    "ai": "^5.0.89",
-    "convex": "^1.28.2",
+    "@ai-sdk/openai": "^2.0.67",
+    "@cf-wasm/photon": "^0.2.1",
+    "@convex-dev/migrations": "^0.3.0",
+    "@convex-dev/polar": "^0.7.1",
+    "@convex-dev/workflow": "^0.3.1",
+    "@polar-sh/sdk": "^0.41.4",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.5",
+    "ai": "^5.0.93",
+    "convex": "^1.29.1",
     "react": "^19.2.0",
-    "zod": "^3.25.76"
+    "zod": "^4.1.12"
   }
 }

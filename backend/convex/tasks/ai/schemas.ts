@@ -1,9 +1,5 @@
 import { z } from "zod";
 import { cardTypes } from "../../schema";
-import {
-  normalizeLinkCategory,
-  type LinkCategory,
-} from "../../../shared/linkCategories";
 
 export const cardClassificationSchema = z.object({
   type: z.enum(cardTypes).describe("Best matching card type"),
@@ -18,22 +14,12 @@ export const cardClassificationSchema = z.object({
     .optional(),
 });
 
-const linkCategoryValueSchema = z
-  .string()
-  .transform((value, ctx): LinkCategory => {
-    const normalized = normalizeLinkCategory(value);
-    if (!normalized) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Invalid category value: ${value}`,
-      });
-      return z.NEVER;
-    }
-    return normalized;
-  });
-
 export const linkCategoryClassificationSchema = z.object({
-  category: linkCategoryValueSchema.describe("Link category label"),
+  category: z
+    .string()
+    .describe(
+      "Link category label. Prefer canonical slugs such as 'book', 'movie', 'software', or exact labels from the provided category list.",
+    ),
   confidence: z
     .number()
     .min(0)
