@@ -36,9 +36,9 @@ export const createAuth = (
       requireEmailVerification: false,
       sendResetPassword: async ({ user, url }) => {
         await resend.sendEmail(requireActionCtx(ctx), {
-          from: "Test <hello@teakvault.com>",
+          from: "Teak <hello@teakvault.com>",
           to: user.email,
-          subject: "Reset your password",
+          subject: "Reset your Password",
           html: `<p>Click <a href="${url}">here</a> to reset your password.</p>`,
         });
       },
