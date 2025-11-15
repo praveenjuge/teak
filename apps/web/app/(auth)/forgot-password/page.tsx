@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -14,6 +14,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { authClient } from "@/lib/auth-client";
 import { AuthLoading, Unauthenticated } from "convex/react";
 import Loading from "@/app/loading";
@@ -85,16 +86,18 @@ export default function ForgotPassword() {
               />
             </div>
             {error && (
-              <p className="text-sm text-destructive" role="status">
-                {error}
-              </p>
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
             {sent && (
-              <p className="text-sm text-muted-foreground" role="status">
-                If an account exists for{" "}
-                <span className="font-medium">{email}</span>, a reset link is on
-                its way.
-              </p>
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  If an account exists for {email}, a reset link is on its way.
+                </AlertDescription>
+              </Alert>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
