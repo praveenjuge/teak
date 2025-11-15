@@ -146,6 +146,7 @@ export default function ResetPassword() {
                   type="password"
                   autoComplete="new-password"
                   placeholder="Create a new password"
+                  required
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                 />
@@ -157,6 +158,7 @@ export default function ResetPassword() {
                   type="password"
                   autoComplete="new-password"
                   placeholder="Re-enter your password"
+                  required
                   value={passwordConfirmation}
                   onChange={(event) =>
                     setPasswordConfirmation(event.target.value)

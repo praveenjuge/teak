@@ -57,6 +57,7 @@ export default function SignUp() {
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
               placeholder="Password"
+              required
             />
           </div>
           <div className="grid gap-2">
@@ -68,6 +69,7 @@ export default function SignUp() {
               onChange={(e) => setPasswordConfirmation(e.target.value)}
               autoComplete="new-password"
               placeholder="Confirm Password"
+              required
             />
           </div>
           <Button
