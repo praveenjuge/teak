@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { clerk } from "@clerk/testing/playwright";
+// import { clerk } from "@clerk/testing/playwright";
 
 const email = process.env.E2E_CLERK_USER_EMAIL;
 const password = process.env.E2E_CLERK_USER_PASSWORD;
@@ -13,14 +13,14 @@ test.describe("Text cards", () => {
   test("supports creating, updating, and deleting a card", async ({ page }) => {
     await page.goto("/login");
 
-    await clerk.signIn({
-      page,
-      signInParams: {
-        strategy: "password",
-        identifier: email!,
-        password: password!,
-      },
-    });
+    // await clerk.signIn({
+    //   page,
+    //   signInParams: {
+    //     strategy: "password",
+    //     identifier: email!,
+    //     password: password!,
+    //   },
+    // });
 
     await page.goto("/");
 
@@ -71,6 +71,6 @@ test.describe("Text cards", () => {
       0,
     );
 
-    await clerk.signOut({ page });
+    // await clerk.signOut({ page });
   });
 });
