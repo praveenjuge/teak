@@ -57,16 +57,7 @@ export default function SignIn() {
               </div>
 
               <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
-                  <Link
-                    //@ts-ignore
-                    href="/forgot-password"
-                    className="ml-auto inline-block text-sm underline"
-                  >
-                    Forgot your password?
-                  </Link>
-                </div>
+                <Label htmlFor="password">Password</Label>
 
                 <Input
                   id="password"
@@ -111,17 +102,19 @@ export default function SignIn() {
               </Button>
             </div>
           </CardContent>
-          <CardFooter>
-            <p className="text-sm text-center w-full">
-              Don't have an account?{" "}
-              <Link
-                //@ts-ignore
-                href="/register"
-                className={cn("underline text-primary hover:text-primary/80")}
-              >
-                Sign Up
-              </Link>
-            </p>
+          <CardFooter className="flex-col gap-2 items-start text-primary">
+            <Link
+              //@ts-ignore
+              href="/forgot-password"
+            >
+              Forgot your password?
+            </Link>
+            <Link
+              //@ts-ignore
+              href="/register"
+            >
+              Don't have an account? Sign Up
+            </Link>
           </CardFooter>
         </Card>
       </Unauthenticated>
