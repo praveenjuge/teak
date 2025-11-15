@@ -1,14 +1,15 @@
 import { Suspense, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Hash,
   Heart,
   Trash2,
   CreditCard,
+  Link as LinkIcon,
   FileText,
-  Link,
   Image,
   Video,
   Volume2,
@@ -16,8 +17,8 @@ import {
   Moon,
   Palette,
   Quote,
+  Sun,
 } from "lucide-react";
-import { UserButton } from "@clerk/nextjs";
 import {
   type CardType,
   CARD_TYPE_LABELS,
@@ -25,6 +26,10 @@ import {
   cardTypes,
 } from "@teak/convex/shared/constants";
 import { useTheme } from "next-themes";
+import { useQuery } from "convex-helpers/react/cache/hooks";
+import { api } from "@teak/convex";
+import { authClient } from "@/lib/auth-client";
+import Link from "next/link";
 
 interface SearchBarProps {
   searchQuery: string;
@@ -45,7 +50,7 @@ interface SearchBarProps {
 // Icon component mapping for Lucide React icons
 const iconComponentMap = {
   FileText,
-  Link,
+  LinkIcon,
   Image,
   Video,
   Volume2,
@@ -74,6 +79,11 @@ export function SearchBar({
   onToggleTrash,
   onClearAll,
 }: SearchBarProps) {
+  const router = useRouter();
+  //@ts-ignore
+  const user = useQuery(api.auth.getCurrentUser);
+
+  const [signOutLoading, setSignOutLoading] = useState(false);
   const { setTheme, theme } = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -88,6 +98,18 @@ export function SearchBar({
   const availableFilters = cardTypes.filter(
     (type) => !filterTags.includes(type)
   );
+
+  const handleSignOut = async () => {
+    setSignOutLoading(true);
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          setSignOutLoading(false);
+          router.push("/"); // redirect to login page
+        },
+      },
+    });
+  };
 
   return (
     <>
@@ -113,27 +135,35 @@ export function SearchBar({
         </div>
 
         <Suspense>
-          <UserButton>
-            <UserButton.MenuItems>
-              <UserButton.Link
-                label="Subscription & Billing"
-                href="/subscription"
-                labelIcon={
-                  <CreditCard className="size-3.5 stroke-[2.5px] mt-0.5" />
-                }
-              />
-              <UserButton.Action
-                label={theme === "dark" ? "Light Mode" : "Dark Mode"}
-                labelIcon={<Moon className="size-3.5 stroke-[2.5px] mt-0.5" />}
-                onClick={() =>
-                  setTheme((prev) => (prev === "dark" ? "light" : "dark"))
-                }
-              />
-            </UserButton.MenuItems>
-          </UserButton>
+          <Link href="/subscription">Subscription & Billing</Link>
+          <Button
+            variant="ghost"
+            onClick={() =>
+              setTheme((prev) => (prev === "dark" ? "light" : "dark"))
+            }
+          >
+            {theme === "dark" ? (
+              <>
+                <Sun className="size-4 mr-2" />
+                Light Mode
+              </>
+            ) : (
+              <>
+                <Moon className="size-4 mr-2" />
+                Dark Mode
+              </>
+            )}
+          </Button>
+          {user?.email}
+          <Button
+            variant="destructive"
+            onClick={handleSignOut}
+            disabled={signOutLoading}
+          >
+            {signOutLoading ? "Signing Out..." : "Sign Out"}
+          </Button>
         </Suspense>
       </div>
-
       {shouldShowFilters && (
         <div
           className="pb-5 animate-in slide-in-from-top-2 fade-in-0 duration-200"

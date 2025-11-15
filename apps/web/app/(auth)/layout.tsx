@@ -1,5 +1,3 @@
-import { ClerkLoaded, ClerkLoading } from "@clerk/nextjs";
-import { Loading } from "@/components/Loading";
 import { TopPattern } from "@/components/patterns/TopPattern";
 import { BottomPattern } from "@/components/patterns/BottomPattern";
 
@@ -11,10 +9,7 @@ export default function RootLayout({
   return (
     <>
       <main className="mx-auto grid max-w-xs place-items-center py-14 md:h-screen w-full">
-        <ClerkLoading>
-          <Loading />
-        </ClerkLoading>
-        <ClerkLoaded>{children}</ClerkLoaded>
+        {children}
       </main>
 
       {/* Background patterns */}

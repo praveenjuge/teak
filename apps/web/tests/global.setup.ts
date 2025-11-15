@@ -1,9 +1,9 @@
-import { clerkSetup } from "@clerk/testing/playwright";
+// import { clerkSetup } from "@clerk/testing/playwright";
 import type { FullConfig } from "@playwright/test";
 
 export default async function globalSetup(_: FullConfig) {
   try {
-    await clerkSetup();
+    // await clerkSetup();
   } catch (error) {
     process.env.PLAYWRIGHT_CLERK_SETUP_SKIPPED = "true";
     const message =

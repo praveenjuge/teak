@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
-import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
-import { shadcn } from "@clerk/themes";
 import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 
 export const dynamic = "force-static";
@@ -29,20 +27,9 @@ export default function RootLayout({
           disableTransitionOnChange
           enableSystem={false}
         >
-          <ClerkProvider
-            signInUrl="/login"
-            signUpUrl="/register"
-            appearance={{
-              baseTheme: shadcn,
-              elements: {
-                cardBox: "!w-full !shadow-none",
-              },
-            }}
-          >
-            <ConvexClientProvider>
-              <ConvexQueryCacheProvider>{children}</ConvexQueryCacheProvider>
-            </ConvexClientProvider>
-          </ClerkProvider>
+          <ConvexClientProvider>
+            <ConvexQueryCacheProvider>{children}</ConvexQueryCacheProvider>
+          </ConvexClientProvider>
           <Toaster />
         </ThemeProvider>
       </body>
