@@ -32,11 +32,8 @@ export default function ForgotPassword() {
     return `${window.location.origin}/reset-password`;
   }, []);
 
-  const handleSubmit = async () => {
-    if (!email) {
-      setError("Email is required");
-      return;
-    }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
     await authClient.requestPasswordReset({
       email,
@@ -63,7 +60,7 @@ export default function ForgotPassword() {
   return (
     <>
       <AuthLoading>
-        <Loading />
+        <Loading fullscreen={false} />
       </AuthLoading>
       <Unauthenticated>
         <CardHeader>
@@ -73,7 +70,7 @@ export default function ForgotPassword() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4">
+          <form onSubmit={handleSubmit} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -99,12 +96,7 @@ export default function ForgotPassword() {
                 its way.
               </p>
             )}
-            <Button
-              type="button"
-              className="w-full"
-              disabled={loading || !email}
-              onClick={handleSubmit}
-            >
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
                 <Loader2 className="animate-spin" size={16} />
               ) : sent ? (
@@ -113,9 +105,9 @@ export default function ForgotPassword() {
                 "Send reset link"
               )}
             </Button>
-          </div>
+          </form>
         </CardContent>
-        <CardFooter className="text-center text-primary">
+        <CardFooter className="text-center text-primary justify-center">
           <Link
             //@ts-ignore
             href="/login"
