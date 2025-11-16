@@ -68,11 +68,6 @@ export function useAdminDashboardData(): AdminDashboardState {
   useEffect(() => {
     setIsLoaded(true);
   }, []);
-  useEffect(() => {
-    if (isLoaded && !user) {
-      router.replace("/");
-    }
-  }, [isLoaded, router, user]);
 
   const access = useQuery(
     api.admin.getAccess,
