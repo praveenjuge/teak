@@ -210,64 +210,62 @@ export default function HomePage() {
         <Loading />
       </AuthLoading>
       <Authenticated>
-        <main className="max-w-7xl mx-auto px-4 pb-10">
-          <div {...getRootProps()} className="relative">
-            <input {...getInputProps()} />
-            <SearchBar
-              searchQuery={searchQuery}
-              onSearchChange={handleSearchChange}
-              onKeyDown={handleKeyDown}
-              keywordTags={keywordTags}
-              filterTags={filterTags}
-              showFavoritesOnly={showFavoritesOnly}
+        <div {...getRootProps()} className="relative">
+          <input {...getInputProps()} />
+          <SearchBar
+            searchQuery={searchQuery}
+            onSearchChange={handleSearchChange}
+            onKeyDown={handleKeyDown}
+            keywordTags={keywordTags}
+            filterTags={filterTags}
+            showFavoritesOnly={showFavoritesOnly}
+            showTrashOnly={showTrashOnly}
+            onAddFilter={addFilter}
+            onRemoveFilter={removeFilter}
+            onRemoveKeyword={removeKeyword}
+            onToggleFavorites={toggleFavorites}
+            onToggleTrash={toggleTrash}
+            onClearAll={clearAllFilters}
+          />
+
+          {cards === undefined ? (
+            <CardsGridSkeleton />
+          ) : (cards?.length || 0) > 0 ? (
+            <MasonryGrid
+              filteredCards={cards}
               showTrashOnly={showTrashOnly}
-              onAddFilter={addFilter}
-              onRemoveFilter={removeFilter}
-              onRemoveKeyword={removeKeyword}
-              onToggleFavorites={toggleFavorites}
-              onToggleTrash={toggleTrash}
-              onClearAll={clearAllFilters}
+              onCardClick={handleCardClick}
+              onDeleteCard={(cardId) =>
+                cardActions.handleDeleteCard(cardId as Id<"cards">)
+              }
+              onRestoreCard={(cardId) =>
+                cardActions.handleRestoreCard(cardId as Id<"cards">)
+              }
+              onPermanentDeleteCard={(cardId) =>
+                cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)
+              }
+              onToggleFavorite={(cardId) =>
+                cardActions.handleToggleFavorite(cardId as Id<"cards">)
+              }
             />
+          ) : (
+            renderEmptyState()
+          )}
 
-            {cards === undefined ? (
-              <CardsGridSkeleton />
-            ) : (cards?.length || 0) > 0 ? (
-              <MasonryGrid
-                filteredCards={cards}
-                showTrashOnly={showTrashOnly}
-                onCardClick={handleCardClick}
-                onDeleteCard={(cardId) =>
-                  cardActions.handleDeleteCard(cardId as Id<"cards">)
-                }
-                onRestoreCard={(cardId) =>
-                  cardActions.handleRestoreCard(cardId as Id<"cards">)
-                }
-                onPermanentDeleteCard={(cardId) =>
-                  cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)
-                }
-                onToggleFavorite={(cardId) =>
-                  cardActions.handleToggleFavorite(cardId as Id<"cards">)
-                }
-              />
-            ) : (
-              renderEmptyState()
-            )}
+          <CardModal
+            cardId={editingCardId}
+            open={!!editingCardId}
+            onCancel={handleEditCancel}
+            onCardTypeClick={handleCardTypeClick}
+            onTagClick={handleTagClick}
+          />
 
-            <CardModal
-              cardId={editingCardId}
-              open={!!editingCardId}
-              onCancel={handleEditCancel}
-              onCardTypeClick={handleCardTypeClick}
-              onTagClick={handleTagClick}
-            />
-
-            <DragOverlay
-              dragDropState={dragDropState}
-              dismissUpgradePrompt={dismissUpgradePrompt}
-              navigateToUpgrade={navigateToUpgrade}
-            />
-          </div>
-        </main>
+          <DragOverlay
+            dragDropState={dragDropState}
+            dismissUpgradePrompt={dismissUpgradePrompt}
+            navigateToUpgrade={navigateToUpgrade}
+          />
+        </div>
       </Authenticated>
     </>
   );
