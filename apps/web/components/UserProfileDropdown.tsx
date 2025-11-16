@@ -62,6 +62,7 @@ export function UserProfileDropdown() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
+          <DropdownMenuLabel>{user?._id}</DropdownMenuLabel>
 
           <DropdownMenuSeparator />
 
