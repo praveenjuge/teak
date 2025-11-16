@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CreditCard, LogOut, Monitor, Moon, Sun } from "lucide-react";
+import { LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
@@ -87,9 +87,10 @@ export function UserProfileDropdown() {
           <DropdownMenuSeparator />
 
           <DropdownMenuItem asChild>
-            <Link href="/subscription">
-              <CreditCard />
-              Subscription & Billing
+            {/* @ts-ignore */}
+            <Link href="/settings">
+              <Settings />
+              Settings
             </Link>
           </DropdownMenuItem>
 
