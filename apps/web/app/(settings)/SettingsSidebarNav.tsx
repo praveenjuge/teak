@@ -3,7 +3,6 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navItems: { href: Route; label: string }[] = [
@@ -16,7 +15,7 @@ export function SettingsSidebarNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex gap-2">
+    <nav className="flex gap-px">
       {navItems.map((item) => {
         const isActive = pathname === item.href;
 
@@ -25,10 +24,10 @@ export function SettingsSidebarNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              buttonVariants({
-                variant: isActive ? "default" : "ghost",
-                size: "lg",
-              })
+              isActive
+                ? "font-semibold text-primary bg-background border-border!"
+                : "text-muted-foreground hover:text-primary",
+              "px-4 py-2.5 rounded-t-lg font-medium border border-transparent border-b-0"
             )}
             aria-current={isActive ? "page" : undefined}
           >

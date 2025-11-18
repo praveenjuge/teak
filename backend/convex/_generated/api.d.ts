@@ -44,6 +44,7 @@ import type * as tasks_cards_quoteFormatting from "../tasks/cards/quoteFormattin
 import type * as tasks_cards_updateCard from "../tasks/cards/updateCard.js";
 import type * as tasks_cards_uploadCard from "../tasks/cards/uploadCard.js";
 import type * as tasks_cards_validationUtils from "../tasks/cards/validationUtils.js";
+import type * as users from "../users.js";
 import type * as workflows_aiBackfill from "../workflows/aiBackfill.js";
 import type * as workflows_aiMetadata_actions from "../workflows/aiMetadata/actions.js";
 import type * as workflows_aiMetadata_generators from "../workflows/aiMetadata/generators.js";
@@ -120,6 +121,7 @@ declare const fullApi: ApiFromModules<{
   "tasks/cards/updateCard": typeof tasks_cards_updateCard;
   "tasks/cards/uploadCard": typeof tasks_cards_uploadCard;
   "tasks/cards/validationUtils": typeof tasks_cards_validationUtils;
+  users: typeof users;
   "workflows/aiBackfill": typeof workflows_aiBackfill;
   "workflows/aiMetadata/actions": typeof workflows_aiMetadata_actions;
   "workflows/aiMetadata/generators": typeof workflows_aiMetadata_generators;
