@@ -39,6 +39,7 @@ interface CustomerPortalButtonProps {
 function CheckoutButton({ planId, className, children }: CheckoutButtonProps) {
   const [checkoutInstance, setCheckoutInstance] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  // @ts-ignore
   const createCheckoutLink = useAction(api.billing.createCheckoutLink);
 
   // Clean up checkout instance on unmount
@@ -317,7 +318,7 @@ function PlanOption({
   return (
     <div className="flex w-full flex-col justify-between rounded-md border bg-background p-5 text-left gap-4 relative overflow-hidden">
       {badge && (
-        <Badge className="rounded-none absolute top-0 right-0 rounded-bl-md">
+        <Badge className="rounded-none absolute top-0 right-0 rounded-bl-md px-3">
           {badge}
         </Badge>
       )}
