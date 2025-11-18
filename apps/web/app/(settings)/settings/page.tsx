@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { CardDescription, CardTitle } from "@/components/ui/card";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useQuery } from "convex-helpers/react/cache/hooks";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { api } from "@teak/convex";
 import { authClient } from "@/lib/auth-client";
 import { Spinner } from "@/components/ui/spinner";
@@ -29,10 +29,17 @@ export default function ProfileSettingsPage() {
   const user = useQuery(api.auth.getCurrentUser);
   // @ts-ignore
   const deleteAccount = useMutation(api.users.deleteAccount);
+  const prepareAvatarUpload = useMutation(api.users.prepareAvatarUpload);
+  const finalizeAvatarUpload = useAction(api.users.finalizeAvatarUpload);
+  const removeAvatar = useAction(api.users.removeAvatar);
+
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -84,6 +91,70 @@ export default function ProfileSettingsPage() {
   const nameMissing = (user?.name ?? "").trim() === "";
   const displayName = nameMissing ? "" : (user?.name ?? nameInput);
   const isLoading = user === undefined;
+  const avatarUrl = user?.imageUrl ?? user?.image ?? undefined;
+
+  const handleAvatarFileChange = async (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setAvatarError(null);
+    setAvatarUploading(true);
+
+    try {
+      const { uploadUrl } = await prepareAvatarUpload({
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+      });
+
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const { storageId } = await uploadResponse.json();
+
+      await finalizeAvatarUpload({ fileId: storageId });
+      toast.success("Profile picture updated");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while uploading.";
+      setAvatarError(message);
+      toast.error(message);
+    } finally {
+      setAvatarUploading(false);
+      if (event.target) {
+        event.target.value = "";
+      }
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    setAvatarError(null);
+    setAvatarUploading(true);
+    try {
+      await removeAvatar({});
+      toast.success("Profile picture removed");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to remove profile picture.";
+      setAvatarError(message);
+      toast.error(message);
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
 
   const handleResetPassword = async () => {
     setResetError(null);
@@ -170,20 +241,51 @@ export default function ProfileSettingsPage() {
         <CardTitle>Profile Picture</CardTitle>
         <div className="flex flex-wrap items-center gap-2">
           <Avatar className="size-7 text-xs font-semibold">
-            <AvatarImage alt="Profile preview" src={user?.image ?? undefined} />
+            <AvatarImage
+              alt="Profile preview"
+              className="object-cover"
+              src={avatarUrl}
+            />
             <AvatarFallback>{userInitials}</AvatarFallback>
           </Avatar>
-          <div className="flex items-center">
-            <Button size="sm" variant="link">
-              Upload
-            </Button>
-            <span className="text-border">|</span>
-            <Button size="sm" variant="link">
-              Remove
-            </Button>
-          </div>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarFileChange}
+          />
+          <Button
+            size="sm"
+            variant="link"
+            disabled={avatarUploading}
+            onClick={() => avatarInputRef.current?.click()}
+          >
+            {avatarUploading ? <Spinner /> : "Upload"}
+          </Button>
+          {avatarUrl ? (
+            <>
+              <span className="text-border -mx-2">|</span>
+              <Button
+                size="sm"
+                variant="link"
+                disabled={avatarUploading}
+                onClick={handleAvatarRemove}
+              >
+                Remove
+              </Button>
+            </>
+          ) : null}
         </div>
       </div>
+
+      {avatarError ? (
+        <Alert variant="destructive">
+          <AlertCircle />
+          <AlertTitle>Upload failed</AlertTitle>
+          <AlertDescription>{avatarError}</AlertDescription>
+        </Alert>
+      ) : null}
 
       <div className="flex justify-between items-center">
         <CardTitle>Name</CardTitle>
