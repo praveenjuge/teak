@@ -3,6 +3,9 @@ export { api, internal } from "./convex/_generated/api";
 export type { Doc, Id } from "./convex/_generated/dataModel";
 export * from "./shared";
 
+// User management
+export * from "./convex/users";
+
 // Cards domain surface
 export * from "./convex/tasks/cards/cardLimit";
 export * from "./convex/tasks/cards/createCard";

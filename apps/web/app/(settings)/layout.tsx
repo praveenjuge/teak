@@ -18,9 +18,9 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
         </Link>
         <UserProfileDropdown />
       </header>
-      <section className="max-w-3xl mx-auto space-y-4">
+      <section className="max-w-2xl mx-auto -space-y-px">
         <SettingsSidebarNav />
-        <section className="border bg-background p-4 rounded-lg sm:p-8 w-full">
+        <section className="border bg-background rounded-b-lg rounded-tr-lg p-7 w-full">
           {children}
         </section>
       </section>

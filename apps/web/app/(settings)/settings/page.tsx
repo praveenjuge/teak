@@ -17,14 +17,18 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useQuery } from "convex-helpers/react/cache/hooks";
+import { useMutation } from "convex/react";
 import { api } from "@teak/convex";
 import { authClient } from "@/lib/auth-client";
 import { Spinner } from "@/components/ui/spinner";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, AlertTriangle } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function ProfileSettingsPage() {
   // @ts-ignore
   const user = useQuery(api.auth.getCurrentUser);
+  // @ts-ignore
+  const deleteAccount = useMutation(api.users.deleteAccount);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -34,6 +38,11 @@ export default function ProfileSettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isResetting, setIsResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const router = useRouter();
 
   const userInitials = useMemo(() => {
     if (!user?.email) return "U";
@@ -113,19 +122,54 @@ export default function ProfileSettingsPage() {
     }
   };
 
+  const confirmationMatches =
+    deleteConfirmation.trim().toLowerCase() === "delete account";
+
+  const handleDeleteAccount = async () => {
+    if (!confirmationMatches) {
+      toast.error('Type "delete account" to confirm.');
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await deleteAccount({});
+
+      let deleteUserFailed = false;
+      await authClient.deleteUser(undefined, {
+        onSuccess: async () => {
+          //@ts-ignore
+          router.push("/login");
+        },
+        onError: (ctx) => {
+          setDeleteError(ctx.error?.message ?? "Failed to delete account.");
+          deleteUserFailed = true;
+        },
+      });
+
+      if (deleteUserFailed) {
+        return;
+      }
+
+      setDeleteOpen(false);
+      setDeleteConfirmation("");
+    } catch (error) {
+      setDeleteError("Something went wrong while deleting your account.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Profile Settings
-      </h1>
+    <div className="space-y-7">
+      <h1 className="text-xl font-semibold tracking-tight">Profile Settings</h1>
 
       <div className="flex justify-between items-center">
-        <div className="space-y-1">
-          <CardTitle>Profile Picture</CardTitle>
-          <CardDescription>JPG or PNG, at least 512x512px.</CardDescription>
-        </div>
+        <CardTitle>Profile Picture</CardTitle>
         <div className="flex flex-wrap items-center gap-2">
-          <Avatar className="size-10 font-semibold">
+          <Avatar className="size-7 text-xs font-semibold">
             <AvatarImage alt="Profile preview" src={user?.image ?? undefined} />
             <AvatarFallback>{userInitials}</AvatarFallback>
           </Avatar>
@@ -204,7 +248,7 @@ export default function ProfileSettingsPage() {
 
       <div className="flex justify-between items-center">
         <CardTitle>Delete Account</CardTitle>
-        <Button size="sm" variant="link">
+        <Button size="sm" variant="link" onClick={() => setDeleteOpen(true)}>
           Delete
         </Button>
       </div>
@@ -262,15 +306,61 @@ export default function ProfileSettingsPage() {
           </div>
 
           <DialogFooter>
-            <Button
-              variant="ghost"
-              onClick={() => setResetOpen(false)}
-              disabled={isResetting}
-            >
-              Cancel
-            </Button>
             <Button onClick={handleResetPassword} disabled={isResetting}>
               {isResetting ? <Spinner /> : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Account</DialogTitle>
+            <DialogDescription>
+              This action permanently removes your account, cards, and uploaded
+              files.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <Alert variant="destructive">
+              <AlertTriangle />
+              <AlertTitle>Permanent and irreversible</AlertTitle>
+              <AlertDescription>
+                All of your cards, tags, and stored files will be deleted. This
+                cannot be undone.
+              </AlertDescription>
+            </Alert>
+
+            {deleteError ? (
+              <Alert variant="destructive">
+                <AlertCircle />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{deleteError}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            <div className="space-y-2">
+              <Label htmlFor="deleteConfirm">
+                Type "delete account" to proceed
+              </Label>
+              <Input
+                id="deleteConfirm"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                placeholder="delete account"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={!confirmationMatches || isDeleting}
+            >
+              {isDeleting ? <Spinner /> : "Delete account"}
             </Button>
           </DialogFooter>
         </DialogContent>
