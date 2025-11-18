@@ -134,7 +134,7 @@ export default function SubscriptionPage() {
   const cardCountResult = useQuery(api.cards.getCardCount, {});
 
   if (subscription === undefined || cardCountResult === undefined) {
-    return <Loading />;
+    return <Loading fullscreen={false} />;
   }
 
   const { isSubscribed, cardCount } = useMemo(() => {
@@ -160,7 +160,7 @@ export default function SubscriptionPage() {
   }, [cardCount, cardCountResult, isSubscribed]);
 
   return (
-    <div className="flex w-full flex-col items-center gap-8 text-center">
+    <>
       <Badge variant={isSubscribed ? "default" : "outline"}>
         {isSubscribed
           ? `You are on Pro Plan • ${cardsUsedLabel}`
@@ -291,7 +291,7 @@ export default function SubscriptionPage() {
           </div>
         </>
       )}
-    </div>
+    </>
   );
 }
 

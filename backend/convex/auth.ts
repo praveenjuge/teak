@@ -61,6 +61,8 @@ export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
     const user = await authComponent.getAuthUser(ctx);
+    if (!user) return null;
+
     const storageId = getStorageIdFromImage(user.image);
     const imageUrl = storageId
       ? await ctx.storage.getUrl(storageId)

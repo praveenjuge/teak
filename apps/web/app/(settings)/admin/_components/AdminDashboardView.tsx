@@ -44,7 +44,7 @@ export function AdminDashboardView({
   handleCardRetry,
 }: AdminDashboardViewModel) {
   return (
-    <div className="space-y-8">
+    <>
       <AdminIntro generatedAt={generatedAt} />
 
       <HeadlineStatsGrid cards={headlineCards} />
@@ -60,7 +60,7 @@ export function AdminDashboardView({
         retryingCardId={retryingCardId}
         handleCardRetry={handleCardRetry}
       />
-    </div>
+    </>
   );
 }
 
