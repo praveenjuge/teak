@@ -70,7 +70,7 @@ export default function SignUp() {
             await authClient.signUp.email({
               email,
               password,
-              name: email,
+              name: "",
               callbackURL: "/",
               fetchOptions: {
                 onResponse: () => {
