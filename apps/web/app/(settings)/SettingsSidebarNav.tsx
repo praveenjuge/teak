@@ -26,7 +26,7 @@ export function SettingsSidebarNav() {
             href={item.href}
             className={cn(
               buttonVariants({
-                variant: isActive ? "default" : "outline",
+                variant: isActive ? "default" : "ghost",
                 size: "lg",
               })
             )}
