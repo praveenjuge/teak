@@ -23,6 +23,7 @@ import { authClient } from "@/lib/auth-client";
 import { Spinner } from "@/components/ui/spinner";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 
 export default function ProfileSettingsPage() {
   // @ts-ignore
@@ -234,8 +235,8 @@ export default function ProfileSettingsPage() {
   };
 
   return (
-    <div className="space-y-7">
-      <h1 className="text-xl font-semibold tracking-tight">Profile Settings</h1>
+    <>
+      <h1 className="text-xl font-semibold tracking-tight">Profile</h1>
 
       <div className="flex justify-between items-center">
         <CardTitle>Profile Picture</CardTitle>
@@ -355,6 +356,38 @@ export default function ProfileSettingsPage() {
         </Button>
       </div>
 
+      <h1 className="text-xl font-semibold tracking-tight mt-10">
+        Subscription
+      </h1>
+
+      <div className="flex justify-between items-center">
+        <CardTitle>Current Usage</CardTitle>
+        <Button size="sm" variant="ghost" disabled>
+          {useQuery(api.cards.getCardCount, {}) ?? 0} cards used
+        </Button>
+      </div>
+
+      <div className="flex justify-between items-center">
+        <CardTitle>Current Plan</CardTitle>
+        <div className="flex items-center gap-1">
+          {useQuery(api.billing.userHasPremium, {}) ? (
+            <>
+              <Badge>Pro</Badge>
+              <Button size="sm" variant="link">
+                Manage
+              </Button>
+            </>
+          ) : (
+            <>
+              <Badge variant="outline">Free Plan</Badge>
+              <Button size="sm" variant="link">
+                Upgrade
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
         <DialogContent>
           <DialogHeader>
@@ -467,6 +500,6 @@ export default function ProfileSettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
