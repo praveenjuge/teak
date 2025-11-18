@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,6 +55,11 @@ export function UserProfileDropdown() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Avatar className="size-7 cursor-pointer hover:opacity-80 transition-opacity">
+            <AvatarImage
+              alt="Profile"
+              className="object-cover"
+              src={user?.imageUrl ?? user?.image ?? undefined}
+            />
             <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
               {getUserInitials()}
             </AvatarFallback>

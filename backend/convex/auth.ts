@@ -6,6 +6,7 @@ import { query } from "./_generated/server";
 import { betterAuth, BetterAuthOptions } from "better-auth";
 import { Resend } from "@convex-dev/resend";
 import { requireActionCtx } from "@convex-dev/better-auth/utils";
+import { Id } from "./_generated/dataModel";
 
 const siteUrl = process.env.SITE_URL!;
 
@@ -59,6 +60,25 @@ export const createAuth = (
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
-    return authComponent.getAuthUser(ctx);
+    const user = await authComponent.getAuthUser(ctx);
+    const storageId = getStorageIdFromImage(user.image);
+    const imageUrl = storageId
+      ? await ctx.storage.getUrl(storageId)
+      : user.image ?? undefined;
+
+    return {
+      ...user,
+      imageUrl,
+      imageStorageId: storageId,
+    };
   },
 });
+
+const STORAGE_PREFIX = "storage:";
+
+const getStorageIdFromImage = (
+  image?: string | null
+): Id<"_storage"> | null => {
+  if (!image || !image.startsWith(STORAGE_PREFIX)) return null;
+  return image.slice(STORAGE_PREFIX.length) as Id<"_storage">;
+};

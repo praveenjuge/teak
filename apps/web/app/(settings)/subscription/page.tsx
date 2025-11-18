@@ -128,6 +128,7 @@ export default function SubscriptionPage() {
     ? "6fb24b68-09e0-42c4-b090-f0e03cb7de56"
     : "f3073c34-8b4d-40b7-8123-2f8cbacbc609";
 
+  // @ts-ignore
   const subscription = useQuery(api.billing.userHasPremium, {});
   const cardCountResult = useQuery(api.cards.getCardCount, {});
 
@@ -159,10 +160,7 @@ export default function SubscriptionPage() {
 
   return (
     <div className="flex w-full flex-col items-center gap-8 text-center">
-      <Badge
-        className="rounded-full"
-        variant={isSubscribed ? "default" : "outline"}
-      >
+      <Badge variant={isSubscribed ? "default" : "outline"}>
         {isSubscribed
           ? `You are on Pro Plan • ${cardsUsedLabel}`
           : `You are on Free Plan • ${cardsUsedLabel}`}
@@ -263,23 +261,21 @@ export default function SubscriptionPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-            <PlanOption
-              planId={monthlyPlanId}
-              title="Monthly"
-              priceAmount={1900}
-              intervalLabel="Per Month"
-              buttonVariant="outline"
-            />
-            <PlanOption
-              planId={yearlyPlanId}
-              title="Yearly"
-              priceAmount={9900}
-              intervalLabel="Per Year"
-              badge="Best Value • 20% off"
-              buttonVariant="destructive"
-            />
-          </div>
+          <PlanOption
+            planId={monthlyPlanId}
+            title="Monthly"
+            priceAmount={1900}
+            intervalLabel="Per Month"
+            buttonVariant="outline"
+          />
+          <PlanOption
+            planId={yearlyPlanId}
+            title="Yearly"
+            priceAmount={9900}
+            intervalLabel="Per Year"
+            badge="Best Value • 20% off"
+            buttonVariant="destructive"
+          />
 
           <div className="space-y-3 text-left">
             <p className="font-medium text-muted-foreground">Pro Features:</p>
@@ -313,18 +309,19 @@ function PlanOption({
   priceAmount,
   intervalLabel,
   badge,
-  buttonVariant,
 }: PlanOptionProps) {
   const formattedPrice = priceAmount
     ? `${(priceAmount / 100).toLocaleString()}$`
     : "--";
 
   return (
-    <div className="flex h-full flex-col justify-between rounded-md border bg-background p-5 text-left gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <p className="font-medium text-muted-foreground">{title}</p>
-        {badge && <Badge className="rounded-full">{badge}</Badge>}
-      </div>
+    <div className="flex w-full flex-col justify-between rounded-md border bg-background p-5 text-left gap-4 relative overflow-hidden">
+      {badge && (
+        <Badge className="rounded-none absolute top-0 right-0 rounded-bl-md">
+          {badge}
+        </Badge>
+      )}
+      <p className="font-medium text-muted-foreground">{title}</p>
       <div className="flex justify-between items-end">
         <div className="flex gap-2 items-end">
           <p className="text-4xl font-semibold text-foreground">
@@ -337,7 +334,7 @@ function PlanOption({
           planId={planId}
           className={cn(
             buttonVariants({
-              variant: buttonVariant,
+              variant: "outline",
             })
           )}
         >
