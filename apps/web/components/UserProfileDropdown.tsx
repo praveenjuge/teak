@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -13,32 +12,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
+import { Settings } from "lucide-react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
-import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
 
 export function UserProfileDropdown() {
-  const router = useRouter();
-  const [signOutLoading, setSignOutLoading] = useState(false);
-  const { setTheme, theme } = useTheme();
-
   // @ts-ignore
   const user = useQuery(api.auth.getCurrentUser);
-
-  const handleSignOut = async () => {
-    setSignOutLoading(true);
-    await authClient.signOut({
-      fetchOptions: {
-        onSuccess: () => {
-          setSignOutLoading(false);
-          router.push("/");
-        },
-      },
-    });
-  };
 
   const getUserInitials = () => {
     if (!user?.email) return "U";
@@ -70,38 +51,12 @@ export function UserProfileDropdown() {
 
           <DropdownMenuSeparator />
 
-          <DropdownMenuLabel>Theme</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={theme || "system"}
-            onValueChange={setTheme}
-          >
-            <DropdownMenuRadioItem value="system">
-              <Monitor />
-              System
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="light">
-              <Sun />
-              Light
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="dark">
-              <Moon />
-              Dark
-            </DropdownMenuRadioItem>
-          </DropdownMenuRadioGroup>
-
-          <DropdownMenuSeparator />
-
           <DropdownMenuItem asChild>
             {/* @ts-ignore */}
             <Link href="/settings">
               <Settings />
               Settings
             </Link>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem onClick={handleSignOut} disabled={signOutLoading}>
-            <LogOut />
-            {signOutLoading ? "Signing Out..." : "Sign Out"}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
