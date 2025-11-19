@@ -1,5 +1,6 @@
 import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
+import { expo } from '@better-auth/expo'
 import { components } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
@@ -36,6 +37,11 @@ export const createAuth = (
       disabled: optionsOnly,
       level: "debug",
     },
+    trustedOrigins: [
+      siteUrl,
+      "teak://",
+      "http://localhost:3000",
+    ],
     baseURL: siteUrl,
     database: authComponent.adapter(ctx),
     // Configure simple, non-verified email/password to get started
@@ -57,6 +63,7 @@ export const createAuth = (
       }
     },
     plugins: [
+      expo(),
       // The Convex plugin is required for Convex compatibility
       convex(),
     ],
