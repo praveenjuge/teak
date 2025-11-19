@@ -26,6 +26,8 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "next-themes";
 import { SubscriptionSection } from "@/components/subscription-section";
+import Link from "next/link";
+import { Separator } from "@/components/ui/separator";
 
 export default function ProfileSettingsPage() {
   // @ts-ignore
@@ -253,6 +255,12 @@ export default function ProfileSettingsPage() {
 
   return (
     <>
+      <Link href="/" className="text-primary inline-block font-medium">
+        &larr; Back to Teak
+      </Link>
+
+      <Separator />
+
       <h1 className="text-xl font-semibold tracking-tight">Profile</h1>
 
       <div className="flex justify-between items-center">
@@ -337,8 +345,8 @@ export default function ProfileSettingsPage() {
             </>
           ) : (
             <>
-              <Button disabled size="sm" variant="ghost" className="-mr-3">
-                You haven't added a name yet
+              <Button disabled size="sm" variant="ghost" className="-mr-4">
+                No name added yet
               </Button>
               <Button
                 size="sm"
@@ -368,14 +376,20 @@ export default function ProfileSettingsPage() {
 
       <div className="flex justify-between items-center">
         <CardTitle>Theme</CardTitle>
-        <div className="flex items-center gap-1 border rounded-lg p-px">
+        <div className="flex items-center gap-px">
+          <Button
+            variant={theme === "system" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setTheme("system")}
+          >
+            <Monitor />
+          </Button>
           <Button
             variant={theme === "light" ? "secondary" : "ghost"}
             size="sm"
             onClick={() => setTheme("light")}
           >
             <Sun />
-            Light
           </Button>
           <Button
             variant={theme === "dark" ? "secondary" : "ghost"}
@@ -383,15 +397,6 @@ export default function ProfileSettingsPage() {
             onClick={() => setTheme("dark")}
           >
             <Moon />
-            Dark
-          </Button>
-          <Button
-            variant={theme === "system" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setTheme("system")}
-          >
-            <Monitor />
-            System
           </Button>
         </div>
       </div>
@@ -415,9 +420,9 @@ export default function ProfileSettingsPage() {
         </Button>
       </div>
 
-      <h1 className="text-xl font-semibold tracking-tight mt-10">
-        Subscription
-      </h1>
+      <Separator />
+
+      <h1 className="text-xl font-semibold tracking-tight">Subscription</h1>
 
       <div className="flex justify-between items-center">
         <CardTitle>Current Usage</CardTitle>

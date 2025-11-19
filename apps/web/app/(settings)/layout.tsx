@@ -1,9 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
-import Logo from "@/components/Logo";
-import { UserProfileDropdown } from "@/components/UserProfileDropdown";
 import { TopPattern } from "@/components/patterns/TopPattern";
 import { Authenticated, AuthLoading } from "convex/react";
 import Loading from "../loading";
@@ -16,17 +13,7 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
       </AuthLoading>
 
       <Authenticated>
-        <header className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center"
-            aria-label="Return to dashboard"
-          >
-            <Logo variant="primary" />
-          </Link>
-          <UserProfileDropdown />
-        </header>
-        <section className="max-w-xl mx-auto border bg-background rounded-lg p-7 w-full space-y-7">
+        <section className="max-w-lg mx-auto border bg-background rounded-lg p-7 w-full space-y-5 my-10">
           {children}
         </section>
       </Authenticated>
