@@ -24,6 +24,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { SubscriptionSection } from "@/components/subscription-section";
 
 export default function ProfileSettingsPage() {
   // @ts-ignore
@@ -50,6 +51,7 @@ export default function ProfileSettingsPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const router = useRouter();
 
   const userInitials = useMemo(() => {
@@ -373,20 +375,30 @@ export default function ProfileSettingsPage() {
           {useQuery(api.billing.userHasPremium, {}) ? (
             <>
               <Badge>Pro</Badge>
-              <Button size="sm" variant="link">
+              <Button
+                size="sm"
+                variant="link"
+                onClick={() => setSubscriptionOpen(!subscriptionOpen)}
+              >
                 Manage
               </Button>
             </>
           ) : (
             <>
               <Badge variant="outline">Free Plan</Badge>
-              <Button size="sm" variant="link">
+              <Button
+                size="sm"
+                variant="link"
+                onClick={() => setSubscriptionOpen(!subscriptionOpen)}
+              >
                 Upgrade
               </Button>
             </>
           )}
         </div>
       </div>
+
+      <SubscriptionSection open={subscriptionOpen} />
 
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
         <DialogContent>
