@@ -5,7 +5,6 @@ import {
   ShareIntentFile,
   useShareIntentContext,
 } from "expo-share-intent";
-import { useAuth } from "@clerk/clerk-expo";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { useCreateCard } from "@/lib/hooks/useCardOperations";
 import { useFileUpload } from "@/lib/hooks/useFileUpload";
@@ -13,6 +12,7 @@ import {
   setFeedbackStatus,
   type FeedbackStatusPayload,
 } from "@/lib/feedbackBridge";
+import { authClient } from "@/lib/auth-client";
 
 const SUCCESS_ICON = "checkmark.circle.fill";
 const ERROR_ICON = "exclamationmark.triangle.fill";
@@ -100,7 +100,9 @@ async function uploadSharedFile(
 export default function ShareIntentScreen() {
   const { hasShareIntent, shareIntent, resetShareIntent, error } =
     useShareIntentContext();
-  const { isLoaded, isSignedIn } = useAuth();
+  const { data: session, isPending } = authClient.useSession();
+  const isSignedIn = Boolean(session);
+  const isLoaded = !isPending;
   const createCard = useCreateCard();
   const { uploadFile } = useFileUpload();
   const isProcessingRef = useRef(false);

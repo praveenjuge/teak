@@ -41,6 +41,7 @@ export const createAuth = (
       siteUrl,
       "teak://",
       "http://localhost:3000",
+      "exp://*"
     ],
     baseURL: siteUrl,
     database: authComponent.adapter(ctx),
