@@ -1,7 +1,10 @@
 import { Suspense, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { UserProfileDropdown } from "@/components/UserProfileDropdown";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useQuery } from "convex-helpers/react/cache/hooks";
+import { api } from "@teak/convex";
+import Link from "next/link";
 import {
   Search,
   Hash,
@@ -56,6 +59,37 @@ const getFilterIcon = (filter: CardType) => {
   return iconComponentMap[iconName] || FileText;
 };
 
+function UserAvatar() {
+  // @ts-ignore
+  const user = useQuery(api.auth.getCurrentUser);
+
+  const getUserInitials = () => {
+    if (!user?.email) return "U";
+    const email = user.email;
+    const parts = email.split("@")[0].split(".");
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return email.slice(0, 1).toUpperCase();
+  };
+
+  return (
+    // @ts-ignore
+    <Link href="/settings">
+      <Avatar className="size-7 cursor-pointer hover:opacity-80 transition-opacity">
+        <AvatarImage
+          alt="Profile"
+          className="object-cover"
+          src={user?.imageUrl ?? user?.image ?? undefined}
+        />
+        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+          {getUserInitials()}
+        </AvatarFallback>
+      </Avatar>
+    </Link>
+  );
+}
+
 export function SearchBar({
   searchQuery,
   onSearchChange,
@@ -82,7 +116,7 @@ export function SearchBar({
   const shouldShowFilters = isFocused || hasAnyFilters;
 
   const availableFilters = cardTypes.filter(
-    (type) => !filterTags.includes(type),
+    (type) => !filterTags.includes(type)
   );
 
   return (
@@ -109,7 +143,7 @@ export function SearchBar({
         </div>
 
         <Suspense>
-          <UserProfileDropdown />
+          <UserAvatar />
         </Suspense>
       </div>
       {shouldShowFilters && (
