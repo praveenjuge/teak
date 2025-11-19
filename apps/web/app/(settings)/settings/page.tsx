@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from "react";
 import { CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,6 +37,7 @@ import {
   CheckCircle2,
   ArrowRight,
   ExternalLink,
+  type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -49,9 +57,127 @@ const featureList = [
   "Android Mobile App",
 ];
 
+const themeOptions = [
+  { value: "system", icon: Monitor },
+  { value: "light", icon: Sun },
+  { value: "dark", icon: Moon },
+] as const;
+
+type ThemeValue = (typeof themeOptions)[number]["value"];
+
+type AvatarState = {
+  uploading: boolean;
+  error: string | null;
+};
+
+type PasswordState = {
+  open: boolean;
+  current: string;
+  next: string;
+  confirm: string;
+  error: string | null;
+  loading: boolean;
+};
+
+type DeleteState = {
+  open: boolean;
+  confirmation: string;
+  error: string | null;
+  loading: boolean;
+};
+
+type PasswordFieldName = "current" | "next" | "confirm";
+
+const passwordFields: Array<{
+  id: string;
+  label: string;
+  placeholder: string;
+  field: PasswordFieldName;
+}> = [
+  {
+    id: "currentPassword",
+    label: "Current password",
+    placeholder: "Current password",
+    field: "current",
+  },
+  {
+    id: "newPassword",
+    label: "New password",
+    placeholder: "New password",
+    field: "next",
+  },
+  {
+    id: "confirmPassword",
+    label: "Confirm new password",
+    placeholder: "Re-enter new password",
+    field: "confirm",
+  },
+];
+
+function useObjectState<T extends Record<string, any>>(
+  createInitialState: () => T
+) {
+  const [state, setState] = useState<T>(createInitialState);
+  const patch = (patchValue: Partial<T>) =>
+    setState((prev) => ({ ...prev, ...patchValue }));
+  const reset = () => setState(createInitialState());
+  const setField = <K extends keyof T>(key: K, value: T[K]) =>
+    setState((prev) => ({ ...prev, [key]: value }));
+  return { state, patch, reset, setField } as const;
+}
+
+function ErrorAlert({
+  message,
+  title = "Error",
+  icon: Icon = AlertCircle,
+}: {
+  message?: string | null;
+  title?: string;
+  icon?: LucideIcon;
+}) {
+  if (!message) return null;
+
+  return (
+    <Alert variant="destructive">
+      <Icon />
+      <AlertTitle>{title}</AlertTitle>
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
+  );
+}
+
+function SettingRow({
+  title,
+  children,
+  align = "center",
+}: {
+  title: string;
+  children: ReactNode;
+  align?: "center" | "start";
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-wrap justify-between gap-3",
+        align === "start" ? "items-start" : "items-center"
+      )}
+    >
+      <CardTitle>{title}</CardTitle>
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-2 justify-end",
+          align === "start" && "text-right"
+        )}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 interface CustomerPortalButtonProps {
   className?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 function CustomerPortalButton({
@@ -59,7 +185,7 @@ function CustomerPortalButton({
   children,
 }: CustomerPortalButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
-  //@ts-ignore
+  // @ts-ignore
   const createCustomerPortal = useAction(api.billing.createCustomerPortal);
 
   const handlePortal = async () => {
@@ -67,10 +193,10 @@ function CustomerPortalButton({
     try {
       const portalUrl = await createCustomerPortal({});
       window.open(portalUrl, "_blank");
-      setIsLoading(false);
     } catch (error) {
       console.error("Failed to open customer portal", error);
       toast.error("Failed to open customer portal. Please try again.");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -88,7 +214,6 @@ interface PlanOptionProps {
   priceAmount: number;
   intervalLabel: string;
   badge?: string;
-  buttonVariant: "outline" | "destructive";
   isLoading: boolean;
   onCheckout: (planId: string) => void;
 }
@@ -161,6 +286,22 @@ function SubscriptionSection({
     ? "6fb24b68-09e0-42c4-b090-f0e03cb7de56"
     : "f3073c34-8b4d-40b7-8123-2f8cbacbc609";
 
+  const plans = [
+    {
+      planId: monthlyPlanId,
+      title: "Monthly",
+      priceAmount: 1900,
+      intervalLabel: "Per Month",
+    },
+    {
+      planId: yearlyPlanId,
+      title: "Yearly",
+      priceAmount: 9900,
+      intervalLabel: "Per Year",
+      badge: "Best Value • 20% off",
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <DialogHeader>
@@ -170,25 +311,14 @@ function SubscriptionSection({
         </DialogDescription>
       </DialogHeader>
 
-      <PlanOption
-        planId={monthlyPlanId}
-        title="Monthly"
-        priceAmount={1900}
-        intervalLabel="Per Month"
-        buttonVariant="outline"
-        isLoading={loadingPlanId === monthlyPlanId}
-        onCheckout={onCheckout}
-      />
-      <PlanOption
-        planId={yearlyPlanId}
-        title="Yearly"
-        priceAmount={9900}
-        intervalLabel="Per Year"
-        badge="Best Value • 20% off"
-        buttonVariant="destructive"
-        isLoading={loadingPlanId === yearlyPlanId}
-        onCheckout={onCheckout}
-      />
+      {plans.map((plan) => (
+        <PlanOption
+          key={plan.planId}
+          {...plan}
+          isLoading={loadingPlanId === plan.planId}
+          onCheckout={onCheckout}
+        />
+      ))}
 
       <div className="space-y-3 text-left rounded-md bg-muted/30 p-4">
         <p className="font-medium text-sm text-muted-foreground">
@@ -211,39 +341,59 @@ export default function ProfileSettingsPage() {
   // @ts-ignore
   const user = useQuery(api.auth.getCurrentUser);
   // @ts-ignore
+  const cardCount = useQuery(api.cards.getCardCount, {});
+  // @ts-ignore
+  const hasPremium = useQuery(api.billing.userHasPremium, {});
+  // @ts-ignore
   const deleteAccount = useMutation(api.users.deleteAccount);
   const prepareAvatarUpload = useMutation(api.users.prepareAvatarUpload);
   const finalizeAvatarUpload = useAction(api.users.finalizeAvatarUpload);
   const removeAvatar = useAction(api.users.removeAvatar);
-
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [resetOpen, setResetOpen] = useState(false);
-  const [avatarUploading, setAvatarUploading] = useState(false);
-  const [avatarError, setAvatarError] = useState<string | null>(null);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [isResetting, setIsResetting] = useState(false);
-  const [resetError, setResetError] = useState<string | null>(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteConfirmation, setDeleteConfirmation] = useState("");
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [signOutLoading, setSignOutLoading] = useState(false);
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const [checkoutInstance, setCheckoutInstance] = useState<any>(null);
+  const { state: avatarState, patch: patchAvatarState } =
+    useObjectState<AvatarState>(() => ({
+      uploading: false,
+      error: null,
+    }));
+  const {
+    state: passwordState,
+    patch: patchPasswordState,
+    reset: resetPasswordState,
+    setField: setPasswordField,
+  } = useObjectState<PasswordState>(() => ({
+    open: false,
+    current: "",
+    next: "",
+    confirm: "",
+    error: null,
+    loading: false,
+  }));
+  const {
+    state: deleteState,
+    patch: patchDeleteState,
+    reset: resetDeleteState,
+    setField: setDeleteField,
+  } = useObjectState<DeleteState>(() => ({
+    open: false,
+    confirmation: "",
+    error: null,
+    loading: false,
+  }));
   // @ts-ignore
   const createCheckoutLink = useAction(api.billing.createCheckoutLink);
+  const { theme, setTheme } = useTheme();
+  const router = useRouter();
 
   useEffect(() => {
     return () => {
-      if (checkoutInstance) {
-        checkoutInstance.close();
-      }
+      checkoutInstance?.close();
     };
   }, [checkoutInstance]);
 
@@ -264,7 +414,7 @@ export default function ProfileSettingsPage() {
         }
       });
 
-      checkout.addEventListener("close", (event: any) => {
+      checkout.addEventListener("close", () => {
         setCheckoutInstance(null);
       });
     } catch (error) {
@@ -274,9 +424,6 @@ export default function ProfileSettingsPage() {
       setLoadingPlanId(null);
     }
   };
-
-  const { theme, setTheme } = useTheme();
-  const router = useRouter();
 
   const userInitials = useMemo(() => {
     if (!user?.email) return "U";
@@ -326,8 +473,7 @@ export default function ProfileSettingsPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setAvatarError(null);
-    setAvatarUploading(true);
+    patchAvatarState({ error: null, uploading: true });
 
     try {
       const { uploadUrl } = await prepareAvatarUpload({
@@ -355,10 +501,10 @@ export default function ProfileSettingsPage() {
         error instanceof Error
           ? error.message
           : "Something went wrong while uploading.";
-      setAvatarError(message);
+      patchAvatarState({ error: message });
       toast.error(message);
     } finally {
-      setAvatarUploading(false);
+      patchAvatarState({ uploading: false });
       if (event.target) {
         event.target.value = "";
       }
@@ -366,8 +512,7 @@ export default function ProfileSettingsPage() {
   };
 
   const handleAvatarRemove = async () => {
-    setAvatarError(null);
-    setAvatarUploading(true);
+    patchAvatarState({ error: null, uploading: true });
     try {
       await removeAvatar({});
       toast.success("Profile picture removed");
@@ -376,52 +521,66 @@ export default function ProfileSettingsPage() {
         error instanceof Error
           ? error.message
           : "Unable to remove profile picture.";
-      setAvatarError(message);
+      patchAvatarState({ error: message });
       toast.error(message);
     } finally {
-      setAvatarUploading(false);
+      patchAvatarState({ uploading: false });
     }
   };
 
-  const handleResetPassword = async () => {
-    setResetError(null);
+  const handlePasswordFieldChange =
+    (field: PasswordFieldName) => (event: ChangeEvent<HTMLInputElement>) =>
+      setPasswordField(field, event.target.value);
 
-    if (newPassword !== confirmPassword) {
-      setResetError("New password and confirmation do not match.");
+  const handleResetPassword = async () => {
+    patchPasswordState({ error: null });
+
+    if (passwordState.next !== passwordState.confirm) {
+      patchPasswordState({
+        error: "New password and confirmation do not match.",
+      });
       return;
     }
 
-    setIsResetting(true);
+    patchPasswordState({ loading: true });
     try {
       await authClient.changePassword(
         {
-          currentPassword,
-          newPassword,
+          currentPassword: passwordState.current,
+          newPassword: passwordState.next,
           revokeOtherSessions: true,
         },
         {
           onSuccess: () => {
             toast.success("Password updated");
-            setResetOpen(false);
-            setCurrentPassword("");
-            setNewPassword("");
-            setConfirmPassword("");
-            setResetError(null);
+            resetPasswordState();
           },
           onError: (ctx) => {
-            setResetError(ctx.error?.message ?? "Failed to update password");
+            patchPasswordState({
+              error: ctx.error?.message ?? "Failed to update password",
+            });
           },
         }
       );
     } catch (error) {
-      setResetError("Something went wrong while updating your password.");
+      patchPasswordState({
+        error: "Something went wrong while updating your password.",
+      });
     } finally {
-      setIsResetting(false);
+      patchPasswordState({ loading: false });
+    }
+  };
+
+  const handlePasswordDialogChange = (open: boolean) => {
+    if (open) {
+      patchPasswordState({ open: true });
+    } else {
+      resetPasswordState();
     }
   };
 
   const confirmationMatches =
-    deleteConfirmation.trim().toLowerCase() === "delete account";
+    deleteState.confirmation.trim().toLowerCase() === "delete account";
 
   const handleDeleteAccount = async () => {
     if (!confirmationMatches) {
@@ -429,8 +588,7 @@ export default function ProfileSettingsPage() {
       return;
     }
 
-    setIsDeleting(true);
-    setDeleteError(null);
+    patchDeleteState({ loading: true, error: null });
 
     try {
       await deleteAccount({});
@@ -442,7 +600,9 @@ export default function ProfileSettingsPage() {
           router.push("/login");
         },
         onError: (ctx) => {
-          setDeleteError(ctx.error?.message ?? "Failed to delete account.");
+          patchDeleteState({
+            error: ctx.error?.message ?? "Failed to delete account.",
+          });
           deleteUserFailed = true;
         },
       });
@@ -451,26 +611,46 @@ export default function ProfileSettingsPage() {
         return;
       }
 
-      setDeleteOpen(false);
-      setDeleteConfirmation("");
+      resetDeleteState();
     } catch (error) {
-      setDeleteError("Something went wrong while deleting your account.");
+      patchDeleteState({
+        error: "Something went wrong while deleting your account.",
+      });
     } finally {
-      setIsDeleting(false);
+      patchDeleteState({ loading: false });
     }
   };
 
+  const handleDeleteDialogChange = (open: boolean) => {
+    if (open) {
+      patchDeleteState({ open: true });
+    } else {
+      resetDeleteState();
+    }
+  };
+
+  const handleDeleteConfirmationChange = (
+    event: ChangeEvent<HTMLInputElement>
+  ) => setDeleteField("confirmation", event.target.value);
+
   const handleSignOut = async () => {
     setSignOutLoading(true);
-    await authClient.signOut({
-      fetchOptions: {
-        onSuccess: () => {
-          setSignOutLoading(false);
-          router.push("/");
+    try {
+      await authClient.signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            router.push("/");
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      toast.error("Failed to sign out. Please try again.");
+    } finally {
+      setSignOutLoading(false);
+    }
   };
+
+  const handleThemeChange = (value: ThemeValue) => () => setTheme(value);
 
   return (
     <>
@@ -482,146 +662,123 @@ export default function ProfileSettingsPage() {
 
       <h1 className="text-xl font-semibold tracking-tight">Profile</h1>
 
-      <div className="flex justify-between items-center">
-        <CardTitle>Profile Picture</CardTitle>
-        <div className="flex flex-wrap items-center gap-2">
-          <Avatar className="size-7 text-xs font-semibold">
-            <AvatarImage
-              alt="Profile preview"
-              className="object-cover"
-              src={avatarUrl}
-            />
-            <AvatarFallback>{userInitials}</AvatarFallback>
-          </Avatar>
-          <input
-            ref={avatarInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleAvatarFileChange}
+      <SettingRow title="Profile Picture" align="start">
+        <Avatar className="size-7 text-xs font-semibold">
+          <AvatarImage
+            alt="Profile preview"
+            className="object-cover"
+            src={avatarUrl}
           />
-          <Button
-            size="sm"
-            variant="link"
-            disabled={avatarUploading}
-            onClick={() => avatarInputRef.current?.click()}
-          >
-            {avatarUploading ? <Spinner /> : "Upload"}
-          </Button>
-          {avatarUrl ? (
-            <>
-              <span className="text-border -mx-2">|</span>
-              <Button
-                size="sm"
-                variant="link"
-                disabled={avatarUploading}
-                onClick={handleAvatarRemove}
-              >
-                Remove
-              </Button>
-            </>
-          ) : null}
-        </div>
-      </div>
-
-      {avatarError ? (
-        <Alert variant="destructive">
-          <AlertCircle />
-          <AlertTitle>Upload failed</AlertTitle>
-          <AlertDescription>{avatarError}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      <div className="flex justify-between items-center">
-        <CardTitle>Name</CardTitle>
-        <div className="flex items-center gap-2">
-          {isEditingName ? (
-            <>
-              <Input
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                placeholder="Add your name"
-                className="w-48"
-              />
-              <Button size="sm" onClick={handleSaveName} disabled={isSaving}>
-                {isSaving ? <Spinner /> : "Save"}
-              </Button>
-            </>
-          ) : isLoading ? (
-            <Button disabled size="sm" variant="ghost">
-              <Spinner />
+          <AvatarFallback>{userInitials}</AvatarFallback>
+        </Avatar>
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleAvatarFileChange}
+        />
+        <Button
+          size="sm"
+          variant="link"
+          disabled={avatarState.uploading}
+          onClick={() => avatarInputRef.current?.click()}
+        >
+          {avatarState.uploading ? <Spinner /> : "Upload"}
+        </Button>
+        {avatarUrl ? (
+          <>
+            <span className="text-border -mx-2">|</span>
+            <Button
+              size="sm"
+              variant="link"
+              disabled={avatarState.uploading}
+              onClick={handleAvatarRemove}
+            >
+              Remove
             </Button>
-          ) : displayName ? (
-            <>
-              <span className="font-medium">{displayName}</span>
-              <Button
-                size="sm"
-                variant="link"
-                onClick={() => setIsEditingName(true)}
-              >
-                Edit
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button disabled size="sm" variant="ghost" className="-mr-4">
-                No name added yet
-              </Button>
-              <Button
-                size="sm"
-                variant="link"
-                onClick={() => setIsEditingName(true)}
-              >
-                Add
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
+          </>
+        ) : null}
+      </SettingRow>
 
-      <div className="flex justify-between items-center">
-        <CardTitle>Email</CardTitle>
+      <ErrorAlert message={avatarState.error} title="Upload failed" />
+
+      <SettingRow title="Name">
+        {isEditingName ? (
+          <>
+            <Input
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              placeholder="Add your name"
+              className="w-48"
+            />
+            <Button size="sm" onClick={handleSaveName} disabled={isSaving}>
+              {isSaving ? <Spinner /> : "Save"}
+            </Button>
+          </>
+        ) : isLoading ? (
+          <Button disabled size="sm" variant="ghost">
+            <Spinner />
+          </Button>
+        ) : displayName ? (
+          <>
+            <span className="font-medium">{displayName}</span>
+            <Button
+              size="sm"
+              variant="link"
+              onClick={() => setIsEditingName(true)}
+            >
+              Edit
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button disabled size="sm" variant="ghost" className="-mr-4">
+              No name added yet
+            </Button>
+            <Button
+              size="sm"
+              variant="link"
+              onClick={() => setIsEditingName(true)}
+            >
+              Add
+            </Button>
+          </>
+        )}
+      </SettingRow>
+
+      <SettingRow title="Email">
         <Button disabled size="sm" variant="ghost">
           {isLoading ? <Spinner /> : (user?.email ?? "Not available")}
         </Button>
-      </div>
+      </SettingRow>
 
-      <div className="flex justify-between items-center">
-        <CardTitle>Password</CardTitle>
-        <Button size="sm" variant="link" onClick={() => setResetOpen(true)}>
+      <SettingRow title="Password">
+        <Button
+          size="sm"
+          variant="link"
+          onClick={() => patchPasswordState({ open: true })}
+        >
           Reset password
         </Button>
-      </div>
+      </SettingRow>
 
-      <div className="flex justify-between items-center">
-        <CardTitle>Theme</CardTitle>
+      <SettingRow title="Theme">
         <div className="flex items-center gap-px">
-          <Button
-            variant={theme === "system" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setTheme("system")}
-          >
-            <Monitor />
-          </Button>
-          <Button
-            variant={theme === "light" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setTheme("light")}
-          >
-            <Sun />
-          </Button>
-          <Button
-            variant={theme === "dark" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setTheme("dark")}
-          >
-            <Moon />
-          </Button>
+          {themeOptions.map(({ value, icon: Icon }) => (
+            <Button
+              key={value}
+              variant={theme === value ? "secondary" : "ghost"}
+              size="sm"
+              onClick={handleThemeChange(value)}
+            >
+              <Icon />
+            </Button>
+          ))}
         </div>
-      </div>
+      </SettingRow>
 
-      <div className="flex justify-between items-center">
-        <CardTitle>Sign out</CardTitle>
+      <SettingRow title="Sign out">
         <Button
           size="sm"
           variant="link"
@@ -630,53 +787,54 @@ export default function ProfileSettingsPage() {
         >
           {signOutLoading ? <Spinner /> : "Sign out"}
         </Button>
-      </div>
+      </SettingRow>
 
-      <div className="flex justify-between items-center">
-        <CardTitle>Delete Account</CardTitle>
-        <Button size="sm" variant="link" onClick={() => setDeleteOpen(true)}>
+      <SettingRow title="Delete Account">
+        <Button
+          size="sm"
+          variant="link"
+          onClick={() => patchDeleteState({ open: true })}
+        >
           Delete
         </Button>
-      </div>
+      </SettingRow>
 
       <Separator />
 
       <h1 className="text-xl font-semibold tracking-tight">Subscription</h1>
 
-      <div className="flex justify-between items-center">
-        <CardTitle>Current Usage</CardTitle>
+      <SettingRow title="Current Usage">
         <Button size="sm" variant="ghost" disabled>
-          {useQuery(api.cards.getCardCount, {}) ?? 0} cards used
+          {cardCount ?? 0} cards used
         </Button>
-      </div>
+      </SettingRow>
 
-      <div className="flex justify-between items-center">
-        <CardTitle>Current Plan</CardTitle>
-        <div className="flex items-center gap-1">
-          {useQuery(api.billing.userHasPremium, {}) ? (
-            <>
-              <Badge>Pro</Badge>
-              <CustomerPortalButton
-                className={cn(buttonVariants({ variant: "link", size: "sm" }))}
-              >
+      <SettingRow title="Current Plan">
+        {hasPremium ? (
+          <>
+            <Badge>Pro</Badge>
+            <CustomerPortalButton
+              className={cn(buttonVariants({ variant: "link", size: "sm" }))}
+            >
+              <span className="flex items-center gap-1">
                 Manage
-                <ExternalLink />
-              </CustomerPortalButton>
-            </>
-          ) : (
-            <>
-              <Badge variant="outline">Free Plan</Badge>
-              <Button
-                size="sm"
-                variant="link"
-                onClick={() => setSubscriptionOpen(!subscriptionOpen)}
-              >
-                Upgrade
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
+                <ExternalLink className="size-4" />
+              </span>
+            </CustomerPortalButton>
+          </>
+        ) : (
+          <>
+            <Badge variant="outline">Free Plan</Badge>
+            <Button
+              size="sm"
+              variant="link"
+              onClick={() => setSubscriptionOpen(true)}
+            >
+              Upgrade
+            </Button>
+          </>
+        )}
+      </SettingRow>
 
       <Dialog open={subscriptionOpen} onOpenChange={setSubscriptionOpen}>
         <DialogContent className="max-w-3xl">
@@ -687,7 +845,10 @@ export default function ProfileSettingsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+      <Dialog
+        open={passwordState.open}
+        onOpenChange={handlePasswordDialogChange}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reset Password</DialogTitle>
@@ -697,57 +858,34 @@ export default function ProfileSettingsPage() {
           </DialogHeader>
 
           <div className="space-y-4">
-            {resetError ? (
-              <Alert variant="destructive">
-                <AlertCircle />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{resetError}</AlertDescription>
-              </Alert>
-            ) : null}
+            <ErrorAlert message={passwordState.error} />
 
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword">Current password</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Current password"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">New password</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="New password"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm new password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Re-enter new password"
-              />
-            </div>
+            {passwordFields.map(({ id, label, placeholder, field }) => (
+              <div className="space-y-2" key={id}>
+                <Label htmlFor={id}>{label}</Label>
+                <Input
+                  id={id}
+                  type="password"
+                  value={passwordState[field]}
+                  onChange={handlePasswordFieldChange(field)}
+                  placeholder={placeholder}
+                />
+              </div>
+            ))}
           </div>
 
           <DialogFooter>
-            <Button onClick={handleResetPassword} disabled={isResetting}>
-              {isResetting ? <Spinner /> : "Save"}
+            <Button
+              onClick={handleResetPassword}
+              disabled={passwordState.loading}
+            >
+              {passwordState.loading ? <Spinner /> : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <Dialog open={deleteState.open} onOpenChange={handleDeleteDialogChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Account</DialogTitle>
@@ -767,13 +905,7 @@ export default function ProfileSettingsPage() {
               </AlertDescription>
             </Alert>
 
-            {deleteError ? (
-              <Alert variant="destructive">
-                <AlertCircle />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{deleteError}</AlertDescription>
-              </Alert>
-            ) : null}
+            <ErrorAlert message={deleteState.error} />
 
             <div className="space-y-2">
               <Label htmlFor="deleteConfirm">
@@ -781,8 +913,8 @@ export default function ProfileSettingsPage() {
               </Label>
               <Input
                 id="deleteConfirm"
-                value={deleteConfirmation}
-                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                value={deleteState.confirmation}
+                onChange={handleDeleteConfirmationChange}
                 placeholder="delete account"
               />
             </div>
@@ -792,9 +924,9 @@ export default function ProfileSettingsPage() {
             <Button
               variant="destructive"
               onClick={handleDeleteAccount}
-              disabled={!confirmationMatches || isDeleting}
+              disabled={!confirmationMatches || deleteState.loading}
             >
-              {isDeleting ? <Spinner /> : "Delete account"}
+              {deleteState.loading ? <Spinner /> : "Delete account"}
             </Button>
           </DialogFooter>
         </DialogContent>
