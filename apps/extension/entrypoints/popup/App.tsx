@@ -1,18 +1,180 @@
-import { useEffect } from "react";
-import { UserButton, useUser } from "@clerk/chrome-extension";
+import { FormEvent, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
 import { useContextMenuSave } from "../../hooks/useContextMenuSave";
+import { authClient } from "../../lib/auth-client";
+import { getAuthErrorMessage } from "../../utils/getAuthErrorMessage";
+
+type SessionData = NonNullable<
+  ReturnType<typeof authClient.useSession>["data"]
+>;
 
 function App() {
-  const { isLoaded, user } = useUser();
+  const {
+    data: session,
+    isPending,
+    error: sessionError,
+    refetch,
+  } = authClient.useSession();
 
-  // Check for recent context menu saves
+  if (isPending) {
+    return (
+      <div className="size-96 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 text-red-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (sessionError) {
+    return (
+      <SessionErrorState
+        message={getAuthErrorMessage(
+          sessionError,
+          "We couldn't load your session."
+        )}
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
+  if (!session) {
+    return <AuthPanel />;
+  }
+
+  return <AuthenticatedPopup user={session.user} />;
+}
+
+function SessionErrorState({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="size-96 flex flex-col items-center justify-center gap-4 p-5 text-center">
+      <img src="./icon.svg" alt="Teak Logo" className="h-6" />
+      <p className="text-sm text-red-600">{message}</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
+
+function AuthPanel() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    try {
+      const response = await authClient.signIn.email({
+        email: trimmedEmail,
+        password: trimmedPassword,
+      });
+
+      if (response?.error) {
+        setErrorMessage(
+          getAuthErrorMessage(
+            response.error,
+            "Invalid email or password. Please try again."
+          )
+        );
+      }
+    } catch (error) {
+      setErrorMessage(
+        getAuthErrorMessage(
+          error,
+          "Invalid email or password. Please try again."
+        )
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const isSubmitDisabled = isSubmitting || !email.trim() || !password.trim();
+
+  const buttonLabel = isSubmitting ? "Signing in..." : "Sign in";
+
+  return (
+    <div className="size-96 flex flex-col items-center justify-center gap-5 p-5 text-center">
+      <img src="./icon.svg" alt="Teak Logo" className="h-6" />
+      <div className="space-y-1">
+        <h1 className="text-base font-semibold">Save Anything. Anywhere.</h1>
+        <p className="text-sm text-gray-500 text-balance">
+          Your personal everything management system. Organize, save, and access
+          all your text, images, and documents in one place.
+        </p>
+      </div>
+
+      <form className="w-full space-y-3 text-left" onSubmit={handleSubmit}>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-gray-600" htmlFor="email">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-200"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label
+            className="text-xs font-medium text-gray-600"
+            htmlFor="password"
+          >
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-200"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </div>
+
+        {errorMessage && <p className="text-xs text-red-600">{errorMessage}</p>}
+
+        <button
+          type="submit"
+          disabled={isSubmitDisabled}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+          {buttonLabel}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function AuthenticatedPopup({ user }: { user: SessionData["user"] }) {
   const { state: contextMenuState, isRecentSave } = useContextMenuSave();
-
-  // Only use the auto-save hook when user is fully loaded, authenticated, and no recent context menu save
-  const shouldAutoSave = isLoaded && !!user && !isRecentSave;
-  const { state, error } = useAutoSaveUrl(shouldAutoSave);
+  const { state, error } = useAutoSaveUrl(!isRecentSave);
+  const [signOutLoading, setSignOutLoading] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   // Auto-close popup after successful save
   useEffect(() => {
@@ -23,22 +185,33 @@ function App() {
     if (isAutoSaveSuccess || isContextMenuSuccess) {
       const timer = setTimeout(() => {
         window.close();
-      }, 2000); // Close after 1.5 seconds to allow user to see the success message
+      }, 2000);
 
       return () => clearTimeout(timer);
     }
   }, [state, isRecentSave, contextMenuState.status]);
 
-  if (!isLoaded) {
-    return (
-      <div className="size-96 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 text-red-600 animate-spin" />
-      </div>
-    );
-  }
+  const displayName =
+    (user?.name && user.name.trim()) || user?.email || "Signed in";
+  const userInitial = displayName.charAt(0).toUpperCase();
+
+  const handleSignOut = async () => {
+    if (signOutLoading) return;
+    setSignOutLoading(true);
+    setSignOutError(null);
+
+    try {
+      await authClient.signOut();
+    } catch (error) {
+      setSignOutError(
+        getAuthErrorMessage(error, "Unable to sign out. Please try again.")
+      );
+    } finally {
+      setSignOutLoading(false);
+    }
+  };
 
   const renderStatus = () => {
-    // Priority: Show context menu status if recent, otherwise show auto-save status
     if (isRecentSave) {
       return renderContextMenuStatus();
     }
@@ -193,7 +366,7 @@ function App() {
 
   return (
     <div className="size-96 relative">
-      <div className="absolute bottom-0 w-full left-0 right-0 p-3 flex justify-between items-center">
+      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between gap-2 p-3">
         <a
           href="https://app.teakvault.com"
           target="_blank"
@@ -202,9 +375,30 @@ function App() {
         >
           <img src="./icon.svg" alt="Teak Logo" className="h-4" />
         </a>
-        <UserButton />
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1">
+            {user?.email}
+          </div>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            disabled={signOutLoading}
+            className="flex items-center gap-2 rounded-md border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {signOutLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            Sign out
+          </button>
+        </div>
       </div>
+
       {renderStatus()}
+
+      {signOutError && (
+        <p className="absolute left-1/2 top-2 w-11/12 -translate-x-1/2 rounded-lg bg-red-50 px-3 py-2 text-center text-[11px] text-red-600">
+          {signOutError}
+        </p>
+      )}
     </div>
   );
 }

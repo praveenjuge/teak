@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation } from "convex/react";
-import { api } from "@teak/convex";
+import { api } from "../lib/convex-api";
+import type { ContextMenuSaveState } from "../types/contextMenu";
 
 export type AutoSaveState = "idle" | "loading" | "success" | "error" | "invalid-url";
 
@@ -41,6 +42,7 @@ export const useAutoSaveUrl = (
   const [state, setState] = useState<AutoSaveState>("idle");
   const [error, setError] = useState<string>();
   const [currentUrl, setCurrentUrl] = useState<string>();
+  //@ts-ignore
   const createCard = useMutation(api.cards.createCard);
 
   useEffect(() => {
@@ -52,8 +54,10 @@ export const useAutoSaveUrl = (
 
     const saveCurrentTab = async () => {
       // Double-check for context menu state before saving
-      const { contextMenuSave } = await chrome.storage.local.get('contextMenuSave');
-      
+      const { contextMenuSave } = await chrome.storage.local.get<{
+        contextMenuSave?: ContextMenuSaveState;
+      }>("contextMenuSave");
+
       if (contextMenuSave && contextMenuSave.timestamp) {
         const timeSinceContextMenu = Date.now() - contextMenuSave.timestamp;
         if (timeSinceContextMenu < 5000) { // Within 5 seconds of context menu action
@@ -82,7 +86,7 @@ export const useAutoSaveUrl = (
 
         setState("loading");
 
-        // Create the card - backend will auto-detect as link
+        // Create the card
         await createCard({
           content: currentTab.url,
         });
