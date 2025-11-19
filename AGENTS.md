@@ -347,6 +347,11 @@ Implemented in `useSearchFilters` hook:
 - Config located at `backend/convex/convex.config.ts`
 - Workflow orchestration uses `@convex-dev/workflow`; definitions live in `backend/convex/workflows` and must update `processingStatus` consistently
 - Polar integration depends on `components.polar` and env keys (`POLAR_ACCESS_TOKEN`, `POLAR_SERVER`)—keep them wired in `backend/convex/billing.ts`
+- **Registration gate**: `ENABLE_MULTIPLE_USER_REGISTRATION` defaults to `false`/unset, so only the very first account can register and later attempts receive "Registration is currently closed" while existing users continue to sign in. Set it to `true` for local/dev work (`backend/convex/.env.local`) and sync the Convex secret with:
+
+```bash
+cd backend && npx convex env set ENABLE_MULTIPLE_USER_REGISTRATION true
+```
 
 ### Component Patterns
 
