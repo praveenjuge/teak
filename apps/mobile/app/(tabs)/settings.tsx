@@ -1,15 +1,15 @@
 import { ScrollView, StyleSheet, Text } from "react-native";
-import { useUser } from "@clerk/clerk-expo";
 import { colors } from "../../constants/colors";
 import { SignOutButton } from "@/components/SignOutButton";
+import { authClient } from "@/lib/auth-client";
 
 export default function SettingsScreen() {
-  const { user } = useUser();
+  const { data: session } = authClient.useSession();
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
       <Text style={styles.labelTitle}>
-        {user?.primaryEmailAddress?.emailAddress || "Not logged in"}
+        {session?.user?.email ?? "Not logged in"}
       </Text>
       <SignOutButton />
     </ScrollView>
