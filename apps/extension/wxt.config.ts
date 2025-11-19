@@ -28,5 +28,13 @@ export default defineConfig({
   },
   vite: () => ({
     plugins: [tailwindcss()],
+    optimizeDeps: {
+      // Avoid pre-bundling server-side Convex package in the browser, which pulls in Node globals.
+      exclude: ["@teak/convex"],
+    },
+    define: {
+      // Provide a safe stub so dependencies that reference process.env don't throw in the extension runtime.
+      "process.env": {},
+    },
   }),
 });
