@@ -1,26 +1,19 @@
 import { expect, test } from "@playwright/test";
-// import { clerk } from "@clerk/testing/playwright";
 
-const email = process.env.E2E_CLERK_USER_EMAIL;
-const password = process.env.E2E_CLERK_USER_PASSWORD;
+// TODO: wire a Better Auth Playwright helper for sign-in/out.
+const email = process.env.E2E_BETTER_AUTH_USER_EMAIL;
+const password = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
 
 test.skip(
   !email || !password,
-  "Set E2E_CLERK_USER_EMAIL and E2E_CLERK_USER_PASSWORD to run card CRUD tests.",
+  "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run card CRUD tests.",
 );
 
 test.describe("Text cards", () => {
   test("supports creating, updating, and deleting a card", async ({ page }) => {
     await page.goto("/login");
 
-    // await clerk.signIn({
-    //   page,
-    //   signInParams: {
-    //     strategy: "password",
-    //     identifier: email!,
-    //     password: password!,
-    //   },
-    // });
+    // await authHelper.signIn({ page, email: email!, password: password! });
 
     await page.goto("/");
 
@@ -71,6 +64,6 @@ test.describe("Text cards", () => {
       0,
     );
 
-    // await clerk.signOut({ page });
+    // await authHelper.signOut({ page });
   });
 });
