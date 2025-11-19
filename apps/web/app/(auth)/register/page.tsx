@@ -11,11 +11,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, X, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
+
+type RegistrationStatus = {
+  allowed: boolean;
+  message?: string | null;
+};
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
@@ -26,6 +31,30 @@ export default function SignUp() {
   const [error, setError] = useState<string | null>(null);
   const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
+  const [registrationStatus, setRegistrationStatus] =
+    useState<RegistrationStatus | null>(null);
+  const registrationClosed = registrationStatus?.allowed === false;
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadStatus = async () => {
+      try {
+        const response = await fetch("/api/auth/registration-status");
+        const data = (await response.json()) as RegistrationStatus;
+        if (!isMounted) return;
+        setRegistrationStatus(data);
+      } catch (fetchError) {
+        console.warn("Failed to load registration status", fetchError);
+        if (!isMounted) return;
+        setRegistrationStatus({ allowed: true });
+      }
+    };
+
+    loadStatus();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Check if passwords match for real-time validation
   const passwordsMatch = password === passwordConfirmation;
@@ -50,10 +79,27 @@ export default function SignUp() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+        {registrationClosed && (
+          <Alert className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {registrationStatus?.message ??
+                "Registration is currently closed."}
+            </AlertDescription>
+          </Alert>
+        )}
         <form
           onSubmit={async (e) => {
             e.preventDefault();
             setError(null);
+
+            if (registrationClosed) {
+              setError(
+                registrationStatus?.message ??
+                  "Registration is currently closed"
+              );
+              return;
+            }
 
             // Validate passwords match
             if (password !== passwordConfirmation) {
@@ -81,7 +127,15 @@ export default function SignUp() {
                 },
                 onError: (ctx) => {
                   setLoading(false);
-                  setError(ctx.error?.message ?? "Failed to create account");
+                  const message =
+                    ctx.error?.message ?? "Failed to create account";
+                  if (ctx.error?.status === 403) {
+                    setRegistrationStatus({
+                      allowed: false,
+                      message,
+                    });
+                  }
+                  setError(message);
                 },
                 onSuccess: async () => {
                   setLoading(false);
@@ -144,7 +198,12 @@ export default function SignUp() {
           <Button
             type="submit"
             className="w-full"
-            disabled={loading || !passwordsMatch || password.length < 8}
+            disabled={
+              loading ||
+              !passwordsMatch ||
+              password.length < 8 ||
+              registrationClosed
+            }
           >
             {loading ? (
               <Loader2 size={16} className="animate-spin" />

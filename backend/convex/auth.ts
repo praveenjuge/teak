@@ -9,6 +9,13 @@ import { requireActionCtx } from "@convex-dev/better-auth/utils";
 import { Id } from "./_generated/dataModel";
 
 const siteUrl = process.env.SITE_URL!;
+export const REGISTRATION_CLOSED_MESSAGE = "Registration is currently closed";
+
+const isMultipleUserRegistrationEnabled = () => {
+  const raw = process.env.ENABLE_MULTIPLE_USER_REGISTRATION;
+  if (!raw) return false;
+  return raw.trim().toLowerCase() === "true";
+};
 
 // The component client has methods needed for integrating Convex with Better Auth,
 // as well as helper methods for general use.
@@ -55,6 +62,37 @@ export const createAuth = (
     ],
   } satisfies BetterAuthOptions);
 };
+
+export const canRegisterNewUser = query({
+  args: {},
+  handler: async (ctx) => {
+    const multipleRegistrationsEnabled = isMultipleUserRegistrationEnabled();
+    const existingUsers = await ctx.runQuery(
+      authComponent.component.adapter.findMany,
+      {
+        model: "user",
+        limit: 1,
+        paginationOpts: {
+          cursor: null,
+          numItems: 1,
+        },
+      }
+    );
+    const hasAnyUser = Array.isArray(existingUsers?.page)
+      ? existingUsers.page.length > 0
+      : Array.isArray(existingUsers)
+        ? existingUsers.length > 0
+        : false;
+    const allowed = multipleRegistrationsEnabled || !hasAnyUser;
+
+    return {
+      allowed,
+      message: allowed ? null : REGISTRATION_CLOSED_MESSAGE,
+      hasAnyUser,
+      multipleRegistrationsEnabled,
+    };
+  },
+});
 
 // Get the current user
 export const getCurrentUser = query({
