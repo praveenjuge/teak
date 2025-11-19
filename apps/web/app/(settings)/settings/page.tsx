@@ -21,9 +21,10 @@ import { useAction, useMutation } from "convex/react";
 import { api } from "@teak/convex";
 import { authClient } from "@/lib/auth-client";
 import { Spinner } from "@/components/ui/spinner";
-import { AlertCircle, AlertTriangle } from "lucide-react";
+import { AlertCircle, AlertTriangle, Monitor, Moon, Sun } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { useTheme } from "next-themes";
 import { SubscriptionSection } from "@/components/subscription-section";
 
 export default function ProfileSettingsPage() {
@@ -51,7 +52,9 @@ export default function ProfileSettingsPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [signOutLoading, setSignOutLoading] = useState(false);
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
   const router = useRouter();
 
   const userInitials = useMemo(() => {
@@ -236,6 +239,18 @@ export default function ProfileSettingsPage() {
     }
   };
 
+  const handleSignOut = async () => {
+    setSignOutLoading(true);
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          setSignOutLoading(false);
+          router.push("/");
+        },
+      },
+    });
+  };
+
   return (
     <>
       <h1 className="text-xl font-semibold tracking-tight">Profile</h1>
@@ -348,6 +363,48 @@ export default function ProfileSettingsPage() {
         <CardTitle>Password</CardTitle>
         <Button size="sm" variant="link" onClick={() => setResetOpen(true)}>
           Reset password
+        </Button>
+      </div>
+
+      <div className="flex justify-between items-center">
+        <CardTitle>Theme</CardTitle>
+        <div className="flex items-center gap-1 border rounded-lg p-px">
+          <Button
+            variant={theme === "light" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setTheme("light")}
+          >
+            <Sun />
+            Light
+          </Button>
+          <Button
+            variant={theme === "dark" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setTheme("dark")}
+          >
+            <Moon />
+            Dark
+          </Button>
+          <Button
+            variant={theme === "system" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setTheme("system")}
+          >
+            <Monitor />
+            System
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center">
+        <CardTitle>Sign out</CardTitle>
+        <Button
+          size="sm"
+          variant="link"
+          onClick={handleSignOut}
+          disabled={signOutLoading}
+        >
+          {signOutLoading ? <Spinner /> : "Sign out"}
         </Button>
       </div>
 
