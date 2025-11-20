@@ -18,11 +18,8 @@ export default function SignInScreen() {
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
 
-  // if dev, email and password is hello@praveenjuge.com
-  const [emailAddress, setEmailAddress] = React.useState(
-    "hello@praveenjuge.com"
-  );
-  const [password, setPassword] = React.useState("asdfghjkl;'");
+  const [emailAddress, setEmailAddress] = React.useState("");
+  const [password, setPassword] = React.useState("");
 
   // Handle the submission of the sign-in form
   const onSignInPress = async () => {
