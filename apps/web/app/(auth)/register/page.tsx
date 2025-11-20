@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useEffect, useState } from "react";
-import { Loader2, X, AlertCircle } from "lucide-react";
+import { Loader2, X, AlertCircle, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
@@ -33,6 +33,7 @@ export default function SignUp() {
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [registrationStatus, setRegistrationStatus] =
     useState<RegistrationStatus | null>(null);
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const registrationClosed = registrationStatus?.allowed === false;
 
   useEffect(() => {
@@ -77,6 +78,15 @@ export default function SignUp() {
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        {showSuccessAlert && (
+          <Alert className="mb-4">
+            <Mail />
+            <AlertDescription>
+              Registration successful! Please check your email to verify your
+              account.
+            </AlertDescription>
           </Alert>
         )}
         {registrationClosed && (
@@ -139,7 +149,7 @@ export default function SignUp() {
                 },
                 onSuccess: async () => {
                   setLoading(false);
-                  router.push("/");
+                  setShowSuccessAlert(true);
                 },
               },
             });

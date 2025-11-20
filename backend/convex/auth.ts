@@ -50,7 +50,7 @@ export const createAuth = (
     database: authComponent.adapter(ctx),
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: false,
+      requireEmailVerification: true,
       sendResetPassword: async ({ user, url }) => {
         await resend.sendEmail(requireActionCtx(ctx), {
           from: "Teak <hello@teakvault.com>",
@@ -59,6 +59,18 @@ export const createAuth = (
           html: `<p>Click <a href="${url}">here</a> to reset your password.</p>`,
         });
       },
+    },
+    emailVerification: {
+      sendOnSignUp: true,
+      autoSignInAfterVerification: true,
+      sendVerificationEmail: async ({ user, url, token }, request) => {
+        await resend.sendEmail(requireActionCtx(ctx), {
+          from: "Teak <hello@teakvault.com>",
+          to: user.email,
+          subject: 'Verify your email address',
+          text: `Click the link to verify your email: ${url}`
+        })
+      }
     },
     user: {
       deleteUser: {
