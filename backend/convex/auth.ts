@@ -69,7 +69,7 @@ export const createAuth = (
     },
     plugins: [
       expo(),
-      crossDomain({ siteUrl }),
+      // crossDomain({ siteUrl }),
       // The Convex plugin is required for Convex compatibility
       convex(),
     ],
