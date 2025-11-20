@@ -82,9 +82,8 @@ bun run test             # E2E tests
 
 ```bash
 bun run predev  # Creates Convex deployment
-npx convex env set BETTER_AUTH_SECRET $(openssl rand -base64 32)
+npx convex env set BETTER_AUTH_SECRET=$(openssl rand -base64 32)
 npx convex env set SITE_URL http://localhost:3000
-npx convex env set CONVEX_SITE_URL https://name-123.convex.site
 ```
 
 1. `BETTER_AUTH_SECRET` signs Better Auth sessions—set it once per environment.
@@ -93,38 +92,7 @@ npx convex env set CONVEX_SITE_URL https://name-123.convex.site
 
 ### 2. Environment Variables
 
-**Backend** (`backend/.env.local`):
-
-```bash
-CONVEX_DEPLOYMENT=dev:name-123
-CONVEX_URL=https://deployment.convex.cloud
-NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
-SITE_URL=http://localhost:3000
-# Secrets live in Convex via `npx convex env set BETTER_AUTH_SECRET ...`
-```
-
-**Web** (`apps/web/.env.local`):
-
-```bash
-NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
-CONVEX_DEPLOYMENT=dev:name-123
-NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
-SITE_URL=http://localhost:3000
-```
-
-**Mobile** (`apps/mobile/.env.local`):
-
-```bash
-EXPO_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
-EXPO_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
-```
-
-**Extension** (`apps/extension/.env.local`):
-
-```bash
-VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
-VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
-```
+For detailed environment variable configuration, see the **[Environment Settings](./environment-settings)** document.
 
 ## Card Processing Pipeline
 
