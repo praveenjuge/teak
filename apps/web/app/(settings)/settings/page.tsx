@@ -401,7 +401,20 @@ export default function ProfileSettingsPage() {
     setLoadingPlanId(planId);
     try {
       const checkoutUrl = await createCheckoutLink({ productId: planId });
-      const checkout = await PolarEmbedCheckout.create(checkoutUrl, "light");
+      
+      // Determine the effective theme for Polar checkout
+      // Polar only supports "light" or "dark", so we need to resolve "system"
+      let effectiveTheme: "light" | "dark" = "light";
+      if (theme === "dark") {
+        effectiveTheme = "dark";
+      } else if (theme === "system") {
+        // Detect system preference
+        effectiveTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
+      }
+      
+      const checkout = await PolarEmbedCheckout.create(checkoutUrl, effectiveTheme);
 
       setCheckoutInstance(checkout);
       setSubscriptionOpen(false);
