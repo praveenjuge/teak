@@ -2,13 +2,7 @@ import { v } from "convex/values";
 import { action, mutation } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { authComponent } from "./auth";
-
-const STORAGE_PREFIX = "storage:";
-
-const extractStorageId = (image?: string | null): Id<"_storage"> | null => {
-  if (!image || !image.startsWith(STORAGE_PREFIX)) return null;
-  return image.slice(STORAGE_PREFIX.length) as Id<"_storage">;
-};
+import { extractStorageId, STORAGE_PREFIX } from "../shared/utils/storageUtils";
 
 export const prepareAvatarUpload = mutation({
   args: {

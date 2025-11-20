@@ -11,7 +11,8 @@
     "./shared/hooks/useCardActions": "./shared/hooks/useCardActions.ts",
     "./shared/hooks/useFileUpload": "./shared/hooks/useFileUpload.ts",
     "./shared/linkCategories": "./shared/linkCategories.ts",
-    "./shared/utils/colorUtils": "./shared/utils/colorUtils.ts"
+    "./shared/utils/colorUtils": "./shared/utils/colorUtils.ts",
+    "./shared/utils/storageUtils": "./shared/utils/storageUtils.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.67",

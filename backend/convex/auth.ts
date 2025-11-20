@@ -7,7 +7,7 @@ import { query } from "./_generated/server";
 import { betterAuth, BetterAuthOptions } from "better-auth";
 import { Resend } from "@convex-dev/resend";
 import { requireActionCtx } from "@convex-dev/better-auth/utils";
-import { Id } from "./_generated/dataModel";
+import { extractStorageId } from "../shared/utils/storageUtils";
 
 const siteUrl = process.env.SITE_URL!;
 export const REGISTRATION_CLOSED_MESSAGE = "Registration is currently closed";
@@ -110,7 +110,7 @@ export const getCurrentUser = query({
     const user = await authComponent.getAuthUser(ctx);
     if (!user) return null;
 
-    const storageId = getStorageIdFromImage(user.image);
+    const storageId = extractStorageId(user.image);
     const imageUrl = storageId
       ? await ctx.storage.getUrl(storageId)
       : user.image ?? undefined;
@@ -122,12 +122,3 @@ export const getCurrentUser = query({
     };
   },
 });
-
-const STORAGE_PREFIX = "storage:";
-
-const getStorageIdFromImage = (
-  image?: string | null
-): Id<"_storage"> | null => {
-  if (!image || !image.startsWith(STORAGE_PREFIX)) return null;
-  return image.slice(STORAGE_PREFIX.length) as Id<"_storage">;
-};
