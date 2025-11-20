@@ -12,7 +12,6 @@ import { v } from "convex/values";
 import { internalAction } from "../../_generated/server";
 import { internal } from "../../_generated/api";
 import { Id } from "../../_generated/dataModel";
-import { extractPaletteWithAi } from "../aiMetadata/actions";
 import type { CardType } from "../../schema";
 import {
   extractPaletteColors,
@@ -124,9 +123,13 @@ const isProbablyPalette = (card: any): boolean => {
   const colors = extractPaletteColors(text);
   const hint = hasPaletteHint(card);
 
-  // Require stronger evidence: multiple colors, or colors + explicit hint.
-  if (colors.length >= 3) return true;
-  if (colors.length >= 2 && hint) return true;
+  // Palette if multiple colors present.
+  if (colors.length >= 2) return true;
+
+  // Single colour counts as palette when the card is otherwise plain text (no url/file) or an explicit hint exists.
+  if (colors.length === 1 && !card.url && !card.fileId) return true;
+  if (colors.length === 1 && hint) return true;
+
   return false;
 };
 
@@ -285,14 +288,12 @@ const maybeUpdatePaletteColors = async (
   }
 
   const text = buildPaletteAnalysisText(card);
-  let colors = extractPaletteColors(text).slice(0, MAX_PALETTE_COLORS);
-
-  // Only use AI extraction as fallback if regex parsing found no colors
-  if (colors.length === 0) {
-    colors = await extractPaletteWithAi(card, text);
-  }
+  const colors = extractPaletteColors(text, MAX_PALETTE_COLORS);
 
   if (colors.length === 0) {
+    console.info(`${CLASSIFY_LOG_PREFIX} No deterministic palette colours found`, {
+      cardId,
+    });
     return;
   }
 

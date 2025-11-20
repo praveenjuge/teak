@@ -409,11 +409,19 @@ function formatPaletteName(slug: string): string | undefined {
   return cleaned.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-export function extractPaletteColors(text: string): Color[] {
+export function extractPaletteColors(text: string, maxColors = 12): Color[] {
+  // Normalize common escaped delimiters to better handle pasted strings containing literal "\n" etc.
+  const normalizedText = text
+    .replace(/\\n/gi, "\n")
+    .replace(/\\r/gi, "\n")
+    .replace(/\\t/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n");
+
+  const limit = Math.max(1, maxColors);
   const result = new Map<string, Color>();
 
   const addColor = (color: Color | null, inferredName?: string) => {
-    if (!color) return;
+    if (!color || result.size >= limit) return;
     const normalizedHex = color.hex.toUpperCase();
     const existing = result.get(normalizedHex);
     const name = inferredName?.trim() || color.name;
@@ -432,17 +440,40 @@ export function extractPaletteColors(text: string): Color[] {
     });
   };
 
-  for (const match of text.matchAll(/--([a-z0-9_-]+)\s*:\s*([^;{}\n]+)[;}]?/gi)) {
+  // CSS custom properties: infer name from the variable slug
+  for (const match of normalizedText.matchAll(/--([a-z0-9_-]+)\s*:\s*([^;{}\n]+)[;}]?/gi)) {
     const [, slug, value] = match;
     const parsed = parseColorString(value.trim());
     addColor(parsed, formatPaletteName(slug));
   }
 
-  for (const color of parseColorsFromText(text)) {
+  // Labeled pairs like "Primary: #0F4C81" or "Accent - rgb(255, 0, 128)"
+  for (const match of normalizedText.matchAll(/\b([A-Za-z][\w\s-]{0,32}?)\s*[:\-–]\s*(#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})\b|rgba?\([^)]*\)|hsla?\([^)]*\))/gi)) {
+    const [, label, value] = match;
+    const parsed = parseColorString(value.trim());
+    addColor(parsed, label);
+  }
+
+  // CSS property declarations (color, background-color, border-color, fill, stroke, etc.)
+  for (const match of normalizedText.matchAll(/\b(?:color|background-color|border-color|fill|stroke|outline-color)\s*:\s*([^;{}\n]+)/gi)) {
+    const [, value] = match;
+    const parsed = parseColorString(value.trim().split(/\s+/)[0]);
+    addColor(parsed);
+  }
+
+  // Tailwind arbitrary values like bg-[#0fa] or text-[rgba(0,0,0,0.5)]
+  for (const match of normalizedText.matchAll(/\[\s*(#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})|rgba?\([^)]*\)|hsla?\([^)]*\))\s*\]/gi)) {
+    const [, value] = match;
+    const parsed = parseColorString(value.trim());
+    addColor(parsed);
+  }
+
+  // General free-form parsing + inline hex/rgb/hsl matches
+  for (const color of parseColorsFromText(normalizedText)) {
     addColor(color, color.name);
   }
 
-  return Array.from(result.values());
+  return Array.from(result.values()).slice(0, limit);
 }
 
 // Get color name from hex if it matches a known color
