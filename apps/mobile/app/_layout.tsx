@@ -9,11 +9,11 @@ import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "react-native";
 import { colors } from "@/constants/colors";
 import ConvexClientProvider from "../ConvexClientProvider";
-import { useAuth } from "@clerk/clerk-expo";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef } from "react";
 import { ShareIntentProvider, useShareIntentContext } from "expo-share-intent";
+import { authClient } from "@/lib/auth-client";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -62,15 +62,16 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
-  const { isSignedIn, isLoaded } = useAuth();
+  const { data: session, isPending } = authClient.useSession();
+  const isSignedIn = Boolean(session);
 
   useEffect(() => {
-    if (isLoaded) {
+    if (!isPending) {
       SplashScreen.hide();
     }
-  }, [isLoaded]);
+  }, [isPending]);
 
-  if (!isLoaded) {
+  if (isPending) {
     return null;
   }
 

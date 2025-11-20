@@ -1,4 +1,3 @@
-import { useSignIn } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import {
   Text,
@@ -12,21 +11,19 @@ import {
 } from "react-native";
 import React from "react";
 import { colors, borderWidths } from "../../constants/colors";
+import { authClient } from "@/lib/auth-client";
+import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function SignInScreen() {
-  const { signIn, setActive, isLoaded } = useSignIn();
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
 
-  // if dev, email and password is hello@praveenjuge.com
-  const [emailAddress, setEmailAddress] = React.useState(
-    "hello@praveenjuge.com"
-  );
-  const [password, setPassword] = React.useState("hello@praveenjuge.com");
+  const [emailAddress, setEmailAddress] = React.useState("");
+  const [password, setPassword] = React.useState("");
 
   // Handle the submission of the sign-in form
   const onSignInPress = async () => {
-    if (!isLoaded || isLoading) return;
+    if (isLoading) return;
 
     if (!emailAddress.trim() || !password.trim()) {
       Alert.alert("Error", "Please enter both email and password.");
@@ -36,24 +33,29 @@ export default function SignInScreen() {
     setIsLoading(true);
 
     try {
-      const signInAttempt = await signIn.create({
-        identifier: emailAddress.trim(),
+      const response = await authClient.signIn.email({
+        email: emailAddress.trim(),
         password,
       });
-
-      if (signInAttempt.status === "complete") {
-        await setActive({ session: signInAttempt.createdSessionId });
-        router.replace("/(tabs)");
-      } else {
-        console.error(JSON.stringify(signInAttempt, null, 2));
-        Alert.alert("Error", "Sign in incomplete. Please try again.");
+      if (response.error) {
+        Alert.alert(
+          "Sign In Failed",
+          getAuthErrorMessage(
+            response.error,
+            "Invalid email or password. Please try again."
+          )
+        );
+        return;
       }
-    } catch (err: any) {
-      console.error(JSON.stringify(err, null, 2));
+      router.replace("/(tabs)");
+    } catch (error) {
+      console.error(error);
       Alert.alert(
         "Sign In Failed",
-        err.errors?.[0]?.message ||
+        getAuthErrorMessage(
+          error,
           "Invalid email or password. Please try again."
+        )
       );
     } finally {
       setIsLoading(false);

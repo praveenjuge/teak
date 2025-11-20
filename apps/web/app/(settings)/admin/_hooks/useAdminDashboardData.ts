@@ -3,7 +3,6 @@
 import { useAction } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { useRouter, notFound } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@teak/convex";
@@ -60,14 +59,15 @@ const INITIAL_GROWTH = {
 
 export function useAdminDashboardData(): AdminDashboardState {
   const router = useRouter();
-  const { user, isLoaded } = useUser();
-  const shouldCheckAccess = isLoaded && !!user?.id;
+  //@ts-ignore
+  const user = useQuery(api.auth.getCurrentUser);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  const shouldCheckAccess = Boolean(user);
 
   useEffect(() => {
-    if (isLoaded && !user) {
-      router.replace("/");
-    }
-  }, [isLoaded, router, user]);
+    setIsLoaded(true);
+  }, []);
 
   const access = useQuery(
     api.admin.getAccess,
@@ -102,11 +102,11 @@ export function useAdminDashboardData(): AdminDashboardState {
 
   const metadataCounts = overview?.metadataStatus
     ? {
-        completed: Number(overview.metadataStatus.completed ?? 0),
-        pending: Number(overview.metadataStatus.pending ?? 0),
-        failed: Number(overview.metadataStatus.failed ?? 0),
-        unset: Number(overview.metadataStatus.unset ?? 0),
-      }
+      completed: Number(overview.metadataStatus.completed ?? 0),
+      pending: Number(overview.metadataStatus.pending ?? 0),
+      failed: Number(overview.metadataStatus.failed ?? 0),
+      unset: Number(overview.metadataStatus.unset ?? 0),
+    }
     : DEFAULT_METADATA_COUNTS;
 
   const metadataItems: MetadataItem[] = [

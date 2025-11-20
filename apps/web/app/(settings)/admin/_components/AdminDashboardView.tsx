@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,17 +44,13 @@ export function AdminDashboardView({
   handleCardRetry,
 }: AdminDashboardViewModel) {
   return (
-    <div className="container mx-auto max-w-5xl space-y-8 py-8 px-4 md:px-6">
+    <>
       <AdminIntro generatedAt={generatedAt} />
 
       <HeadlineStatsGrid cards={headlineCards} />
 
-      <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2">
-          <CardTypesCard entries={cardsByTypeEntries} />
-          <MetadataStatusCard items={metadataItems} />
-        </div>
-      </div>
+      <CardTypesCard entries={cardsByTypeEntries} />
+      <MetadataStatusCard items={metadataItems} />
 
       <PipelineHealthCard stageList={stageList} summary={pipelineSummary} />
 
@@ -65,27 +60,18 @@ export function AdminDashboardView({
         retryingCardId={retryingCardId}
         handleCardRetry={handleCardRetry}
       />
-    </div>
+    </>
   );
 }
 
 const AdminIntro = ({ generatedAt }: { generatedAt: number }) => (
   <div className="space-y-2">
-    <Link href="/" className="font-medium text-primary">
-      &larr; Back
-    </Link>
-    <Separator className="my-4" />
-    <h1 className="text-lg font-semibold text-foreground">Admin Control Center</h1>
+    <h1 className="text-lg font-semibold text-foreground">
+      Admin Control Center
+    </h1>
     <p className="text-sm text-muted-foreground">
-      High-level health metrics about Teak. All data is aggregated—no personal user information is surfaced here.
-    </p>
-    <p className="text-xs text-muted-foreground">
-      Updated{" "}
-      {new Date(generatedAt).toLocaleString(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      })}
-      .
+      High-level health metrics about Teak. All data is aggregated—no personal
+      user information is surfaced here.
     </p>
   </div>
 );
@@ -106,11 +92,7 @@ const HeadlineStatsGrid = ({ cards }: { cards: HeadlineCard[] }) => (
   </div>
 );
 
-const CardTypesCard = ({
-  entries,
-}: {
-  entries: Array<[string, number]>;
-}) => (
+const CardTypesCard = ({ entries }: { entries: Array<[string, number]> }) => (
   <Card>
     <CardHeader>
       <CardTitle className="text-base">Card Types</CardTitle>
@@ -118,14 +100,14 @@ const CardTypesCard = ({
         Distribution of cards by their primary format.
       </CardDescription>
     </CardHeader>
-    <CardContent className="space-y-2">
+    <CardContent className="gap-2 flex flex-wrap">
       {entries.length === 0 && (
         <p className="text-sm text-muted-foreground">No cards available yet.</p>
       )}
       {entries.map(([type, count]) => (
         <div
           key={type}
-          className="flex items-center justify-between border rounded-md px-3 py-2"
+          className="flex items-center justify-between border rounded-md px-3 py-2 gap-2"
         >
           <Badge variant="secondary" className="capitalize">
             {type}
@@ -147,7 +129,10 @@ const MetadataStatusCard = ({ items }: { items: MetadataItem[] }) => (
     </CardHeader>
     <CardContent>
       {items.map((item) => (
-        <div key={item.label} className="flex justify-between items-center py-1">
+        <div
+          key={item.label}
+          className="flex justify-between items-center py-1"
+        >
           <span className="text-muted-foreground">{item.label}</span>
           <span className="font-medium">{formatNumber(item.value)}</span>
         </div>
@@ -179,7 +164,10 @@ const PipelineHealthCard = ({
     </CardHeader>
     <CardContent>
       <div className="grid gap-4 md:grid-cols-3 mb-6">
-        <MetricChip label="Missing metadata" value={summary.missingAiMetadata} />
+        <MetricChip
+          label="Missing metadata"
+          value={summary.missingAiMetadata}
+        />
         <MetricChip label="In progress" value={summary.pendingEnrichment} />
         <MetricChip label="Needs attention" value={summary.failedCards} />
       </div>
@@ -252,7 +240,9 @@ const MissingCardsCard = ({
                 <TableHead>Created</TableHead>
                 <TableHead>Metadata</TableHead>
                 <TableHead className="hidden md:table-cell">Issues</TableHead>
-                <TableHead className="hidden md:table-cell">Pipeline Status</TableHead>
+                <TableHead className="hidden md:table-cell">
+                  Pipeline Status
+                </TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -319,7 +309,8 @@ const MissingCardsCard = ({
             </TableBody>
           </Table>
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-            Recent cards without AI metadata are listed above. Use the retry action to requeue processing without exposing user content.
+            Recent cards without AI metadata are listed above. Use the retry
+            action to requeue processing without exposing user content.
           </p>
         </>
       )}

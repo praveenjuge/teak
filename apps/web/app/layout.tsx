@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
-import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
-import { shadcn } from "@clerk/themes";
 import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 
 export const dynamic = "force-static";
@@ -23,28 +21,19 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className='font-sans text-sm antialiased caret-primary accent-primary selection:bg-primary selection:text-primary-foreground [font-feature-settings:"ss01"] [text-rendering:optimizeLegibility] touch-manipulation'>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          disableTransitionOnChange
-          enableSystem={false}
-        >
-          <ClerkProvider
-            signInUrl="/login"
-            signUpUrl="/register"
-            appearance={{
-              baseTheme: shadcn,
-              elements: {
-                cardBox: "!w-full !shadow-none",
-              },
-            }}
-          >
-            <ConvexClientProvider>
-              <ConvexQueryCacheProvider>{children}</ConvexQueryCacheProvider>
-            </ConvexClientProvider>
-          </ClerkProvider>
-          <Toaster />
-        </ThemeProvider>
+        <ConvexClientProvider>
+          <ConvexQueryCacheProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              disableTransitionOnChange
+              enableSystem={true}
+            >
+              <main className="max-w-7xl mx-auto px-4 pb-10">{children}</main>
+            </ThemeProvider>
+          </ConvexQueryCacheProvider>
+        </ConvexClientProvider>
+        <Toaster />
       </body>
     </html>
   );

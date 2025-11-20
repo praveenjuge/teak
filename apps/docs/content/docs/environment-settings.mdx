@@ -6,74 +6,73 @@ icon: Settings
 
 ## Quick Setup
 
-Configure 4 environment files:
+Configure 4 environment files and sync Better Auth secrets into the Convex dashboard.
 
 ### Backend (`backend/.env.local`)
 
 ```bash
 # Required
 CONVEX_DEPLOYMENT=dev:name-123
-CLERK_SECRET_KEY=sk_test_...
+CONVEX_URL=https://name-123.convex.cloud
+NEXT_PUBLIC_CONVEX_SITE_URL=https://name-123.convex.site
+SITE_URL=http://localhost:3000
 
 # Optional Features
-OPENAI_API_KEY=sk_...                    # AI processing
-POLAR_ACCESS_TOKEN=token                 # Billing
-POLAR_SERVER=sandbox                     # sandbox|production
-ADMIN_USERIDS=id1,id2                    # Admin access
-CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID=id # Screenshots
+OPENAI_API_KEY=sk_...                       # AI processing
+POLAR_ACCESS_TOKEN=token                    # Billing
+POLAR_SERVER=sandbox                        # sandbox|production
+ADMIN_USERIDS=id1,id2                       # Admin access
+CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID=id  # Screenshots
 CLOUDFLARE_BROWSER_RENDERING_API_TOKEN=token
-CLERK_JWT_ISSUER_DOMAIN=domain.clerk.accounts.dev
 ```
+
+> Better Auth expects the same values inside Convex. Run `npx convex env set BETTER_AUTH_SECRET <secret>`, `npx convex env set SITE_URL http://localhost:3000`, and `npx convex env set CONVEX_SITE_URL https://name-123.convex.site` so cloud functions match your local `.env`.
 
 ### Web (`apps/web/.env.local`)
 
 ```bash
 NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-NEXT_PUBLIC_CLERK_FRONTEND_API_URL=https://domain.clerk.accounts.dev
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/login
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/register
-NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
-NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
+CONVEX_DEPLOYMENT=dev:name-123
+NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+SITE_URL=http://localhost:3000
 ```
 
 ### Mobile (`apps/mobile/.env.local`)
 
 ```bash
 EXPO_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
-EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-EXPO_PUBLIC_CLERK_FRONTEND_API_URL=https://domain.clerk.accounts.dev
+EXPO_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 ```
 
 ### Extension (`apps/extension/.env.local`)
 
 ```bash
 VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
-VITE_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-VITE_PUBLIC_CLERK_SYNC_HOST=http://localhost:3000
+VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 ```
 
 ## Getting Values
 
 ### Convex
 
-1. Run `bun run predev` → creates deployment
-2. Backend: `dev:name-123`
-3. Frontend: `https://name.convex.cloud`
+1. Run `bun run predev` → creates deployment.
+2. Backend CLI uses `dev:name-123` (from `.env.local`).
+3. Frontend clients hit `https://name-123.convex.cloud`.
+4. Site URL for Better Auth: `https://name-123.convex.site`.
 
-### Clerk
+### Better Auth
 
-1. Create app at [clerk.com](https://clerk.com)
-2. Frontend: `pk_test_...` (Publishable Key)
-3. Backend: `sk_test_...` (Secret Key)
-4. Configure in Convex dashboard → Settings → Authentication
+1. Development base URL: `http://localhost:3000`; production: your public domain.
+2. Generate a secret once: `npx convex env set BETTER_AUTH_SECRET $(openssl rand -base64 32)`.
+3. Mirror the base URL in both `SITE_URL` (Next.js + Convex) and `CONVEX_SITE_URL` (Convex site endpoint) and reuse the same `CONVEX_SITE_URL` in mobile/extension env files.
+4. Re-run `npx convex env set` whenever the public domain changes.
 
 ## Environment Types
 
-| Environment | Convex                | Clerk Keys                    |
-| ----------- | --------------------- | ----------------------------- |
-| Development | `dev:name-123`        | `pk_test_...` / `sk_test_...` |
-| Production  | Production deployment | `pk_live_...` / `sk_live_...` |
+| Environment | Convex Deployment     | Better Auth Site URL      |
+| ----------- | --------------------- | ------------------------- |
+| Development | `dev:name-123`        | `http://localhost:3000`   |
+| Production  | Production deployment | `https://your-domain.com` |
 
 ## Feature Flags
 
@@ -87,6 +86,9 @@ VITE_PUBLIC_CLERK_SYNC_HOST=http://localhost:3000
 ## Testing
 
 ```bash
-E2E_CLERK_USER_EMAIL=test@example.com
-E2E_CLERK_USER_PASSWORD=password123
+# Playwright seeds this Better Auth account before running specs
+E2E_BETTER_AUTH_USER_EMAIL=test@example.com
+E2E_BETTER_AUTH_USER_PASSWORD=password123
+E2E_BETTER_AUTH_ADMIN_EMAIL=admin@example.com
+E2E_BETTER_AUTH_ADMIN_PASSWORD=password123
 ```
