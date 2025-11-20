@@ -31,8 +31,6 @@ export const createAuth = (
   { optionsOnly } = { optionsOnly: false },
 ) => {
   return betterAuth({
-    // disable logging when createAuth is called just to generate options.
-    // this is not required, but there's a lot of noise in logs without it.
     logger: {
       disabled: optionsOnly,
       level: "debug",
@@ -49,7 +47,6 @@ export const createAuth = (
     ],
     baseURL: siteUrl,
     database: authComponent.adapter(ctx),
-    // Configure simple, non-verified email/password to get started
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
@@ -69,8 +66,7 @@ export const createAuth = (
     },
     plugins: [
       expo(),
-      // crossDomain({ siteUrl }),
-      // The Convex plugin is required for Convex compatibility
+      crossDomain({ siteUrl }),
       convex(),
     ],
   } satisfies BetterAuthOptions);
