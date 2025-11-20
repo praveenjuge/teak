@@ -149,26 +149,14 @@ function ErrorAlert({
 function SettingRow({
   title,
   children,
-  align = "center",
 }: {
   title: string;
   children: ReactNode;
-  align?: "center" | "start";
 }) {
   return (
-    <div
-      className={cn(
-        "flex flex-wrap justify-between gap-3",
-        align === "start" ? "items-start" : "items-center"
-      )}
-    >
+    <div className="flex flex-wrap justify-between items-center gap-3">
       <CardTitle>{title}</CardTitle>
-      <div
-        className={cn(
-          "flex flex-wrap items-center gap-2 justify-end",
-          align === "start" && "text-right"
-        )}
-      >
+      <div className="flex items-center gap-2 justify-end -mx-2.5 -space-x-2.5">
         {children}
       </div>
     </div>
@@ -401,7 +389,7 @@ export default function ProfileSettingsPage() {
     setLoadingPlanId(planId);
     try {
       const checkoutUrl = await createCheckoutLink({ productId: planId });
-      
+
       // Determine the effective theme for Polar checkout
       // Polar only supports "light" or "dark", so we need to resolve "system"
       let effectiveTheme: "light" | "dark" = "light";
@@ -409,12 +397,16 @@ export default function ProfileSettingsPage() {
         effectiveTheme = "dark";
       } else if (theme === "system") {
         // Detect system preference
-        effectiveTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+        effectiveTheme = window.matchMedia("(prefers-color-scheme: dark)")
+          .matches
           ? "dark"
           : "light";
       }
-      
-      const checkout = await PolarEmbedCheckout.create(checkoutUrl, effectiveTheme);
+
+      const checkout = await PolarEmbedCheckout.create(
+        checkoutUrl,
+        effectiveTheme
+      );
 
       setCheckoutInstance(checkout);
       setSubscriptionOpen(false);
@@ -675,7 +667,7 @@ export default function ProfileSettingsPage() {
 
       <h1 className="text-xl font-semibold tracking-tight">Profile</h1>
 
-      <SettingRow title="Profile Picture" align="start">
+      <SettingRow title="Profile Picture">
         <Avatar className="size-7 text-xs font-semibold">
           <AvatarImage
             alt="Profile preview"
@@ -701,7 +693,7 @@ export default function ProfileSettingsPage() {
         </Button>
         {avatarUrl ? (
           <>
-            <span className="text-border -mx-2">|</span>
+            <span className="text-border">|</span>
             <Button
               size="sm"
               variant="link"
@@ -723,9 +715,9 @@ export default function ProfileSettingsPage() {
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
               placeholder="Add your name"
-              className="w-48"
+              className="w-38 mr-1"
             />
-            <Button size="sm" onClick={handleSaveName} disabled={isSaving}>
+            <Button onClick={handleSaveName} disabled={isSaving}>
               {isSaving ? <Spinner /> : "Save"}
             </Button>
           </>
@@ -746,7 +738,7 @@ export default function ProfileSettingsPage() {
           </>
         ) : (
           <>
-            <Button disabled size="sm" variant="ghost" className="-mr-4">
+            <Button disabled size="sm" variant="ghost">
               No name added yet
             </Button>
             <Button
@@ -829,10 +821,8 @@ export default function ProfileSettingsPage() {
             <CustomerPortalButton
               className={cn(buttonVariants({ variant: "link", size: "sm" }))}
             >
-              <span className="flex items-center gap-1">
-                Manage
-                <ExternalLink className="size-4" />
-              </span>
+              Manage
+              <ExternalLink />
             </CustomerPortalButton>
           </>
         ) : (
