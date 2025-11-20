@@ -11,19 +11,18 @@ Configure 4 environment files and sync Better Auth secrets into the Convex dashb
 ### Backend (`backend/.env.local`)
 
 ```bash
-# Required
-CONVEX_DEPLOYMENT=dev:name-123
-CONVEX_URL=https://name-123.convex.cloud
-NEXT_PUBLIC_CONVEX_SITE_URL=https://name-123.convex.site
 SITE_URL=http://localhost:3000
-
-# Optional Features
-OPENAI_API_KEY=sk_...                       # AI processing
-POLAR_ACCESS_TOKEN=token                    # Billing
-POLAR_SERVER=sandbox                        # sandbox|production
-ADMIN_USERIDS=id1,id2                       # Admin access
-CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID=id  # Screenshots
-CLOUDFLARE_BROWSER_RENDERING_API_TOKEN=token
+ADMIN_USERID=your-user-id                    # Admin access
+BETTER_AUTH_SECRET=your-secret               # Better Auth security
+CLOUDFLARE_API_TOKEN=token                   # Cloudflare API access
+CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID=id   # Screenshots
+ENABLE_MULTIPLE_USER_REGISTRATION=true       # Allow new users
+OPENAI_API_KEY=sk_...                        # AI processing
+POLAR_ACCESS_TOKEN=token                     # Billing
+POLAR_ORGANIZATION_TOKEN=token               # Polar organization
+POLAR_SERVER=sandbox                         # sandbox|production
+POLAR_WEBHOOK_SECRET=secret                  # Polar webhooks
+RESEND_API_KEY=token                         # Email service
 ```
 
 > Better Auth expects the same values inside Convex. Run `npx convex env set BETTER_AUTH_SECRET <secret>`, `npx convex env set SITE_URL http://localhost:3000`, and `npx convex env set CONVEX_SITE_URL https://name-123.convex.site` so cloud functions match your local `.env`.
@@ -31,10 +30,9 @@ CLOUDFLARE_BROWSER_RENDERING_API_TOKEN=token
 ### Web (`apps/web/.env.local`)
 
 ```bash
+CONVEX_DEPLOY_KEY=
 NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
-CONVEX_DEPLOYMENT=dev:name-123
 NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
-SITE_URL=http://localhost:3000
 ```
 
 ### Mobile (`apps/mobile/.env.local`)
@@ -76,12 +74,14 @@ VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 
 ## Feature Flags
 
-| Feature         | Required Env Var                 | What it Enables                      |
-| --------------- | -------------------------------- | ------------------------------------ |
-| AI Processing   | `OPENAI_API_KEY`                 | Auto-tags, summaries, categorization |
-| Screenshots     | `CLOUDFLARE_BROWSER_RENDERING_*` | Link preview thumbnails              |
-| Billing         | `POLAR_ACCESS_TOKEN`             | Subscription management              |
-| Admin Dashboard | `ADMIN_USERIDS`                  | Pipeline insights, monitoring        |
+| Feature           | Required Env Var                                                         | What it Enables                      |
+| ----------------- | ------------------------------------------------------------------------ | ------------------------------------ |
+| AI Processing     | `OPENAI_API_KEY`                                                         | Auto-tags, summaries, categorization |
+| Screenshots       | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID`        | Link preview thumbnails              |
+| Billing           | `POLAR_ACCESS_TOKEN`, `POLAR_ORGANIZATION_TOKEN`, `POLAR_WEBHOOK_SECRET` | Subscription management              |
+| Admin Dashboard   | `ADMIN_USERID`                                                           | Pipeline insights, monitoring        |
+| User Registration | `ENABLE_MULTIPLE_USER_REGISTRATION`                                      | Allow new user signups               |
+| Email Service     | `RESEND_API_KEY`                                                         | Transactional emails                 |
 
 ## Testing
 
