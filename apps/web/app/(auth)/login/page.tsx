@@ -17,7 +17,7 @@ import { Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
-import { Unauthenticated, AuthLoading, useConvexAuth } from "convex/react";
+import { Unauthenticated, AuthLoading } from "convex/react";
 import { Spinner } from "@/components/ui/spinner";
 import Loading from "@/app/loading";
 
