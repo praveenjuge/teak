@@ -9,26 +9,24 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useSignUp } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import { colors, borderWidths } from "../../constants/colors";
+import { authClient } from "@/lib/auth-client";
+import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function SignUpScreen() {
-  const { isLoaded, signUp, setActive } = useSignUp();
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
 
   const [emailAddress, setEmailAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [pendingVerification, setPendingVerification] = React.useState(false);
-  const [code, setCode] = React.useState("");
 
   // Handle submission of sign-up form
   const onSignUpPress = async () => {
-    if (!isLoaded || isLoading) return;
+    if (isLoading) return;
 
     if (!emailAddress.trim() || !password.trim()) {
-      Alert.alert("Error", "Please enter both email and password.");
+      Alert.alert("Error", "Please fill in all fields.");
       return;
     }
 
@@ -40,98 +38,35 @@ export default function SignUpScreen() {
     setIsLoading(true);
 
     try {
-      await signUp.create({
-        emailAddress: emailAddress.trim(),
+      const response = await authClient.signUp.email({
+        email: emailAddress.trim(),
         password,
+        name: "",
       });
-
-      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
-      setPendingVerification(true);
-    } catch (err: any) {
-      console.error(JSON.stringify(err, null, 2));
+      if (response.error) {
+        Alert.alert(
+          "Sign Up Failed",
+          getAuthErrorMessage(
+            response.error,
+            "Failed to create account. Please try again."
+          )
+        );
+        return;
+      }
+      router.replace("/(tabs)");
+    } catch (error) {
+      console.error(error);
       Alert.alert(
         "Sign Up Failed",
-        err.errors?.[0]?.message ||
+        getAuthErrorMessage(
+          error,
           "Failed to create account. Please try again."
+        )
       );
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Handle submission of verification form
-  const onVerifyPress = async () => {
-    if (!isLoaded || isLoading) return;
-
-    if (!code.trim()) {
-      Alert.alert("Error", "Please enter the verification code.");
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const signUpAttempt = await signUp.attemptEmailAddressVerification({
-        code: code.trim(),
-      });
-
-      if (signUpAttempt.status === "complete") {
-        await setActive({ session: signUpAttempt.createdSessionId });
-        router.replace("/(tabs)");
-      } else {
-        console.error(JSON.stringify(signUpAttempt, null, 2));
-        Alert.alert("Error", "Verification incomplete. Please try again.");
-      }
-    } catch (err: any) {
-      console.error(JSON.stringify(err, null, 2));
-      Alert.alert(
-        "Verification Failed",
-        err.errors?.[0]?.message ||
-          "Invalid verification code. Please try again."
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (pendingVerification) {
-    return (
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardAvoidingView}
-      >
-        <View style={styles.content}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Verification Code</Text>
-            <TextInput
-              style={styles.textInput}
-              value={code}
-              placeholder="Enter 6-digit code"
-              placeholderTextColor={colors.secondaryLabel}
-              keyboardType="number-pad"
-              maxLength={6}
-              autoComplete="one-time-code"
-              onChangeText={setCode}
-              editable={!isLoading}
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              (isLoading || !code.trim()) && styles.disabledButton,
-            ]}
-            onPress={onVerifyPress}
-            disabled={isLoading || !code.trim()}
-          >
-            <Text style={[styles.primaryButtonText]}>
-              {isLoading ? "Verifying..." : "Verify Email"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    );
-  }
 
   return (
     <KeyboardAvoidingView

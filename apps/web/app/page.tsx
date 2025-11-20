@@ -16,6 +16,8 @@ import { type CardType } from "@teak/convex/shared/constants";
 import { useCardActions } from "@/hooks/useCardActions";
 import { api } from "@teak/convex";
 import { toast } from "sonner";
+import { Authenticated, AuthLoading } from "convex/react";
+import Loading from "./loading";
 
 const DEFAULT_CARD_LIMIT = 100;
 
@@ -47,6 +49,7 @@ export default function HomePage() {
     [filterTags, searchTerms, showFavoritesOnly, showTrashOnly]
   );
 
+  //@ts-ignore
   const cards = useQuery(api.cards.searchCards, queryArgs);
 
   const cardActions = useCardActions({
@@ -202,63 +205,68 @@ export default function HomePage() {
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-4 pb-10">
-      <div {...getRootProps()} className="relative">
-        <input {...getInputProps()} />
-        <SearchBar
-          searchQuery={searchQuery}
-          onSearchChange={handleSearchChange}
-          onKeyDown={handleKeyDown}
-          keywordTags={keywordTags}
-          filterTags={filterTags}
-          showFavoritesOnly={showFavoritesOnly}
-          showTrashOnly={showTrashOnly}
-          onAddFilter={addFilter}
-          onRemoveFilter={removeFilter}
-          onRemoveKeyword={removeKeyword}
-          onToggleFavorites={toggleFavorites}
-          onToggleTrash={toggleTrash}
-          onClearAll={clearAllFilters}
-        />
-
-        {cards === undefined ? (
-          <CardsGridSkeleton />
-        ) : (cards?.length || 0) > 0 ? (
-          <MasonryGrid
-            filteredCards={cards}
+    <>
+      <AuthLoading>
+        <Loading />
+      </AuthLoading>
+      <Authenticated>
+        <div {...getRootProps()} className="relative">
+          <input {...getInputProps()} />
+          <SearchBar
+            searchQuery={searchQuery}
+            onSearchChange={handleSearchChange}
+            onKeyDown={handleKeyDown}
+            keywordTags={keywordTags}
+            filterTags={filterTags}
+            showFavoritesOnly={showFavoritesOnly}
             showTrashOnly={showTrashOnly}
-            onCardClick={handleCardClick}
-            onDeleteCard={(cardId) =>
-              cardActions.handleDeleteCard(cardId as Id<"cards">)
-            }
-            onRestoreCard={(cardId) =>
-              cardActions.handleRestoreCard(cardId as Id<"cards">)
-            }
-            onPermanentDeleteCard={(cardId) =>
-              cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)
-            }
-            onToggleFavorite={(cardId) =>
-              cardActions.handleToggleFavorite(cardId as Id<"cards">)
-            }
+            onAddFilter={addFilter}
+            onRemoveFilter={removeFilter}
+            onRemoveKeyword={removeKeyword}
+            onToggleFavorites={toggleFavorites}
+            onToggleTrash={toggleTrash}
+            onClearAll={clearAllFilters}
           />
-        ) : (
-          renderEmptyState()
-        )}
 
-        <CardModal
-          cardId={editingCardId}
-          open={!!editingCardId}
-          onCancel={handleEditCancel}
-          onCardTypeClick={handleCardTypeClick}
-          onTagClick={handleTagClick}
-        />
+          {cards === undefined ? (
+            <CardsGridSkeleton />
+          ) : (cards?.length || 0) > 0 ? (
+            <MasonryGrid
+              filteredCards={cards}
+              showTrashOnly={showTrashOnly}
+              onCardClick={handleCardClick}
+              onDeleteCard={(cardId) =>
+                cardActions.handleDeleteCard(cardId as Id<"cards">)
+              }
+              onRestoreCard={(cardId) =>
+                cardActions.handleRestoreCard(cardId as Id<"cards">)
+              }
+              onPermanentDeleteCard={(cardId) =>
+                cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)
+              }
+              onToggleFavorite={(cardId) =>
+                cardActions.handleToggleFavorite(cardId as Id<"cards">)
+              }
+            />
+          ) : (
+            renderEmptyState()
+          )}
 
-        <DragOverlay
-          dragDropState={dragDropState}
-          dismissUpgradePrompt={dismissUpgradePrompt}
-          navigateToUpgrade={navigateToUpgrade}
-        />
-      </div>
-    </main>
+          <CardModal
+            cardId={editingCardId}
+            open={!!editingCardId}
+            onCancel={handleEditCancel}
+            onCardTypeClick={handleCardTypeClick}
+            onTagClick={handleTagClick}
+          />
+
+          <DragOverlay
+            dragDropState={dragDropState}
+            dismissUpgradePrompt={dismissUpgradePrompt}
+            navigateToUpgrade={navigateToUpgrade}
+          />
+        </div>
+      </Authenticated>
+    </>
   );
 }

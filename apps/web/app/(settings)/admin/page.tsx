@@ -8,11 +8,7 @@ export default function AdminPage() {
   const dashboard = useAdminDashboardData();
 
   if (dashboard.status === "loading") {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Spinner />
-      </div>
-    );
+    return <Spinner />;
   }
 
   return <AdminDashboardView {...dashboard.viewModel} />;

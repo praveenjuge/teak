@@ -59,11 +59,11 @@ Built with a modern monorepo architecture:
 ### Core Stack
 
 - **Web Frontend**: Next.js 15 with App Router, TypeScript, TailwindCSS
-- **Mobile App**: Expo with React Native, TypeScript, Clerk authentication
+- **Mobile App**: Expo with React Native, TypeScript, Better Auth
 - **Browser Extension**: Wxt framework with Chrome APIs, TypeScript, TailwindCSS
 - **Documentation**: Fumadocs with Next.js 15, MDX content, TypeScript
 - **Backend**: Convex (real-time database with serverless functions)
-- **Authentication**: Clerk with JWT integration (web + mobile + extension)
+- **Authentication**: Better Auth with Convex integration across web, mobile, and extension
 - **UI Components**: shadcn/ui with Radix primitives (web), Expo components (mobile)
 - **File Storage**: Convex Storage for user uploads
 - **Billing**: Polar checkout + customer portal embedded via Convex actions
@@ -94,13 +94,13 @@ teak-convex-nextjs/
 
 - **Queries**: Cached real-time data via `convex-helpers/react/cache` `useQuery`, wrapped by `ConvexQueryCacheProvider`
 - **Mutations**: Server actions with `useMutation` / `useAction` from `@teak/convex`
-- **Authentication**: Clerk JWT tokens passed automatically to Convex functions
+- **Authentication**: Better Auth sessions passed automatically to Convex functions through `@convex-dev/better-auth`
 - **File Uploads**: Two-step process - generate upload URL, then upload file
 
 #### Data Flow
 
 1. Frontend (Next.js web, Expo mobile, Wxt Browser extension, Fumadocs docs) renders UI components
-2. ConvexClientProvider + ConvexQueryCacheProvider wrap the tree with Clerk auth and cached queries (web, mobile, extension)
+2. ConvexClientProvider + ConvexQueryCacheProvider wrap the tree with Better Auth and cached queries (web, mobile, extension)
 3. Convex functions handle all server-side logic with automatic auth context
 4. Real-time updates propagate automatically to connected clients
 
@@ -172,15 +172,15 @@ The application centers around a flexible card system:
 ```
 apps/web/
 ├── app/
-│   ├── (auth)/           # Authentication routes guarded by ClerkLoaded/ClerkLoading
+│   ├── (auth)/           # Authentication routes (Better Auth email/password)
 │   ├── admin/page.tsx    # Admin insights dashboard with pipeline summaries
 │   ├── subscription/page.tsx # Polar checkout + customer portal entry
 │   ├── globals.css       # Global styles with custom CSS variables
-│   ├── layout.tsx        # Root layout with Clerk, ConvexQueryCacheProvider, AlphaBanner
+│   ├── layout.tsx        # Root layout with Better Auth + Convex providers
 │   └── page.tsx          # Main dashboard using cached Convex queries
 ├── components/
 │   ├── AlphaBanner.tsx   # Dismissible alpha-state banner
-│   ├── ConvexClientProvider.tsx # Convex + Clerk provider wrapper
+│   ├── ConvexClientProvider.tsx # Convex + Better Auth provider wrapper
 │   ├── card-previews/    # Preview UIs for each card type
 │   ├── DragOverlay.tsx   # Drag-and-drop overlay styling
 │   ├── CardModal.tsx     # Card editing/viewing modal
@@ -246,7 +246,7 @@ backend/
 │   ├── admin.ts      # Admin queries/actions for pipeline analytics
 │   ├── schema.ts     # Database schema definitions
 │   ├── cards.ts      # Card CRUD operations
-│   ├── auth.config.ts # Clerk authentication config
+│   ├── auth.config.ts # Better Auth domain configuration for Convex
 │   ├── crons.ts      # Scheduled cleanup jobs
 │   └── convex.config.ts # Convex configuration
 ├── shared/           # Shared utilities consumed by clients (constants, linkCategories, hooks, utils)
@@ -293,24 +293,19 @@ backend/shared/
 
 ### Web Authentication
 
-1. Clerk handles user registration/login at `/login` and `/register`
-2. JWT tokens are automatically passed to Convex functions
-3. Middleware protects all routes except auth pages
-4. Convex functions access user context via `ctx.auth.getUserIdentity()`
+1. Better Auth email/password flows live under `/login`, `/register`, `/forgot-password`, and `/reset-password`.
+2. `ConvexBetterAuthProvider` shares the session with Convex via `@convex-dev/better-auth`.
+3. Middleware and server actions rely on `ctx.auth` from Better Auth.
 
 ### Mobile Authentication
 
-1. Clerk Expo SDK handles authentication screens
-2. SecureStore manages token persistence
-3. ConvexClientProvider automatically includes auth tokens
-4. Same Convex auth context as web application
+1. Better Auth client (`better-auth/react` + `@better-auth/expo/client`) manages the session with SecureStore persistence.
+2. `ConvexBetterAuthProvider` wraps the Expo app so Convex calls carry the auth token.
 
 ### Extension Authentication
 
-1. Clerk Chrome Extension SDK handles authentication in popup
-2. Chrome storage API manages token persistence
-3. Background script maintains authentication state
-4. Content scripts access authenticated Convex functions
+1. The popup bootstraps Better Auth through `createAuthClient` and the cross-domain plugin.
+2. `ConvexBetterAuthProvider` shares the session with Convex React client for background/content interactions.
 
 ## File Upload Pattern
 
@@ -347,6 +342,11 @@ Implemented in `useSearchFilters` hook:
 - Config located at `backend/convex/convex.config.ts`
 - Workflow orchestration uses `@convex-dev/workflow`; definitions live in `backend/convex/workflows` and must update `processingStatus` consistently
 - Polar integration depends on `components.polar` and env keys (`POLAR_ACCESS_TOKEN`, `POLAR_SERVER`)—keep them wired in `backend/convex/billing.ts`
+- **Registration gate**: `ENABLE_MULTIPLE_USER_REGISTRATION` defaults to `false`/unset, so only the very first account can register and later attempts receive "Registration is currently closed" while existing users continue to sign in. Set it to `true` for local/dev work (`backend/convex/.env.local`) and sync the Convex secret with:
+
+```bash
+cd backend && npx convex env set ENABLE_MULTIPLE_USER_REGISTRATION true
+```
 
 ### Component Patterns
 
@@ -355,10 +355,7 @@ Implemented in `useSearchFilters` hook:
 - Always use shadcn/ui components for consistent design system (web)
 - Masonry grid layout for card display
 - Card preview components for different content types (text, link, image, video, audio, document)
-- Root layout composes ThemeProvider, ClerkProvider, ConvexClientProvider, ConvexQueryCacheProvider, AlphaBanner, and Sonner toasts
-
-### State Management
-
+- Root layout composes ThemeProvider, ConvexClientProvider (Better Auth + Convex), ConvexQueryCacheProvider, and Sonner toasts
 - Convex handles all server state automatically
 - Real-time updates without additional setup, with caching provided by `ConvexQueryCacheProvider` + `convex-helpers` hooks
 

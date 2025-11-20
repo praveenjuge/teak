@@ -1,30 +1,30 @@
 import { Suspense, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useQuery } from "convex-helpers/react/cache/hooks";
+import { api } from "@teak/convex";
+import Link from "next/link";
 import {
   Search,
   Hash,
   Heart,
   Trash2,
-  CreditCard,
+  Link as LinkIcon,
   FileText,
-  Link,
   Image,
   Video,
   Volume2,
   File,
-  Moon,
   Palette,
   Quote,
 } from "lucide-react";
-import { UserButton } from "@clerk/nextjs";
 import {
   type CardType,
   CARD_TYPE_LABELS,
   getCardTypeIcon,
   cardTypes,
 } from "@teak/convex/shared/constants";
-import { useTheme } from "next-themes";
 
 interface SearchBarProps {
   searchQuery: string;
@@ -45,7 +45,7 @@ interface SearchBarProps {
 // Icon component mapping for Lucide React icons
 const iconComponentMap = {
   FileText,
-  Link,
+  LinkIcon,
   Image,
   Video,
   Volume2,
@@ -58,6 +58,37 @@ const getFilterIcon = (filter: CardType) => {
   const iconName = getCardTypeIcon(filter) as keyof typeof iconComponentMap;
   return iconComponentMap[iconName] || FileText;
 };
+
+function UserAvatar() {
+  // @ts-ignore
+  const user = useQuery(api.auth.getCurrentUser);
+
+  const getUserInitials = () => {
+    if (!user?.email) return "U";
+    const email = user.email;
+    const parts = email.split("@")[0].split(".");
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return email.slice(0, 1).toUpperCase();
+  };
+
+  return (
+    // @ts-ignore
+    <Link href="/settings">
+      <Avatar className="size-7 cursor-pointer hover:opacity-80 transition-opacity">
+        <AvatarImage
+          alt="Profile"
+          className="object-cover"
+          src={user?.imageUrl ?? user?.image ?? undefined}
+        />
+        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+          {getUserInitials()}
+        </AvatarFallback>
+      </Avatar>
+    </Link>
+  );
+}
 
 export function SearchBar({
   searchQuery,
@@ -74,7 +105,6 @@ export function SearchBar({
   onToggleTrash,
   onClearAll,
 }: SearchBarProps) {
-  const { setTheme, theme } = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -113,27 +143,9 @@ export function SearchBar({
         </div>
 
         <Suspense>
-          <UserButton>
-            <UserButton.MenuItems>
-              <UserButton.Link
-                label="Subscription & Billing"
-                href="/subscription"
-                labelIcon={
-                  <CreditCard className="size-3.5 stroke-[2.5px] mt-0.5" />
-                }
-              />
-              <UserButton.Action
-                label={theme === "dark" ? "Light Mode" : "Dark Mode"}
-                labelIcon={<Moon className="size-3.5 stroke-[2.5px] mt-0.5" />}
-                onClick={() =>
-                  setTheme((prev) => (prev === "dark" ? "light" : "dark"))
-                }
-              />
-            </UserButton.MenuItems>
-          </UserButton>
+          <UserAvatar />
         </Suspense>
       </div>
-
       {shouldShowFilters && (
         <div
           className="pb-5 animate-in slide-in-from-top-2 fade-in-0 duration-200"

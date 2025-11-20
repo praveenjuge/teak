@@ -38,7 +38,7 @@ teak/
 - **Web**: Next.js 16, React 19, TypeScript, TailwindCSS
 - **Mobile**: Expo React Native
 - **Extension**: Wxt framework
-- **Auth**: Clerk with JWT
+- **Auth**: Better Auth
 - **UI**: shadcn/ui + Radix
 - **AI**: OpenAI API
 - **Screenshots**: Cloudflare Browser Rendering
@@ -78,15 +78,18 @@ bun run test             # E2E tests
 
 ## Setup
 
-### 1. Convex & Clerk
+### 1. Convex & Better Auth
 
 ```bash
 bun run predev  # Creates Convex deployment
+npx convex env set BETTER_AUTH_SECRET $(openssl rand -base64 32)
+npx convex env set SITE_URL http://localhost:3000
+npx convex env set CONVEX_SITE_URL https://name-123.convex.site
 ```
 
-1. Create Clerk app at [clerk.com](https://clerk.com)
-2. Get keys: `pk_test_...` (frontend), `sk_test_...` (backend)
-3. Configure Clerk in Convex dashboard → Settings → Authentication
+1. `BETTER_AUTH_SECRET` signs Better Auth sessions—set it once per environment.
+2. `SITE_URL` must match your Next.js origin locally and inside Convex.
+3. `CONVEX_SITE_URL` is the `.site` domain Convex assigns; copy it from the dashboard after `bun run predev`.
 
 ### 2. Environment Variables
 
@@ -94,21 +97,33 @@ bun run predev  # Creates Convex deployment
 
 ```bash
 CONVEX_DEPLOYMENT=dev:name-123
-CLERK_SECRET_KEY=sk_test_...
+CONVEX_URL=https://deployment.convex.cloud
+NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+SITE_URL=http://localhost:3000
+# Secrets live in Convex via `npx convex env set BETTER_AUTH_SECRET ...`
 ```
 
 **Web** (`apps/web/.env.local`):
 
 ```bash
 NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CONVEX_DEPLOYMENT=dev:name-123
+NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+SITE_URL=http://localhost:3000
 ```
 
 **Mobile** (`apps/mobile/.env.local`):
 
 ```bash
 EXPO_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
-EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+EXPO_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+```
+
+**Extension** (`apps/extension/.env.local`):
+
+```bash
+VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
+VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 ```
 
 ## Card Processing Pipeline
