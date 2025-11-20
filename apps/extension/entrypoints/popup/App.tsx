@@ -193,7 +193,6 @@ function AuthenticatedPopup({ user }: { user: SessionData["user"] }) {
 
   const displayName =
     (user?.name && user.name.trim()) || user?.email || "Signed in";
-  const userInitial = displayName.charAt(0).toUpperCase();
 
   const handleSignOut = async () => {
     if (signOutLoading) return;
