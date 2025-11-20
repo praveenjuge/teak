@@ -330,7 +330,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
             unlimited cards.
           </p>
           <Button
-            onClick={() => router.push("/subscription")}
+            onClick={() => router.push("/settings" as any)}
             className="w-full"
           >
             Upgrade →

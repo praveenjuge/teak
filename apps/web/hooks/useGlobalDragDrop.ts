@@ -92,6 +92,6 @@ export function useGlobalDragDrop() {
     getInputProps,
     dragDropState,
     dismissUpgradePrompt: () => setShowUpgradePrompt(false),
-    navigateToUpgrade: () => router.push("/subscription"),
+    navigateToUpgrade: () => router.push("/settings" as any),
   };
 }

@@ -159,7 +159,6 @@ The application centers around a flexible card system:
 
 ## Billing & Subscription
 
-- Polar checkout embeds live in `apps/web/app/subscription/page.tsx` via `@polar-sh/checkout/embed`
 - Environment-aware plan IDs (production vs sandbox) determine the product passed to `createCheckoutLink`
 - `api.billing.createCheckoutLink`/`createCustomerPortal` actions in `backend/convex/billing.ts` coordinate with Polar SDK and Convex `components.polar`
 - `userHasPremium` query caches membership status and pairs with `FREE_TIER_LIMIT` to show usage caps
@@ -174,7 +173,6 @@ apps/web/
 ├── app/
 │   ├── (auth)/           # Authentication routes (Better Auth email/password)
 │   ├── admin/page.tsx    # Admin insights dashboard with pipeline summaries
-│   ├── subscription/page.tsx # Polar checkout + customer portal entry
 │   ├── globals.css       # Global styles with custom CSS variables
 │   ├── layout.tsx        # Root layout with Better Auth + Convex providers
 │   └── page.tsx          # Main dashboard using cached Convex queries
