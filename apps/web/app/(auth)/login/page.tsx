@@ -18,7 +18,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Unauthenticated, AuthLoading } from "convex/react";
-import { Spinner } from "@/components/ui/spinner";
 import Loading from "@/app/loading";
 
 export default function SignIn() {
@@ -69,9 +68,23 @@ export default function SignIn() {
                   },
                   onError: (ctx) => {
                     setLoading(false);
-                    setError(ctx.error?.message ?? "Invalid email or password");
+                    const errorMessage =
+                      ctx.error?.message ?? "Invalid email or password";
+
+                    // Check if the error is related to email verification
+                    if (
+                      errorMessage.toLowerCase().includes("verification") ||
+                      errorMessage.toLowerCase().includes("verify") ||
+                      errorMessage.toLowerCase().includes("unverified")
+                    ) {
+                      setError(
+                        "Please check your email and click the verification link before signing in. If you didn't receive the email, check your spam folder."
+                      );
+                    } else {
+                      setError(errorMessage);
+                    }
                   },
-                },
+                }
               );
             }}
             className="grid gap-4"
