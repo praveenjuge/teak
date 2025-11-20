@@ -39,8 +39,6 @@ const adminIdsEnv =
   process.env.NEXT_PUBLIC_ADMIN_USERID ??
   "";
 
-console.log("Admin IDs:", adminIdsEnv);
-
 const ADMIN_USER_IDS = adminIdsEnv
   .split(",")
   .map((value) => value.trim())
