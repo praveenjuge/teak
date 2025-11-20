@@ -39,6 +39,10 @@ export const createAuth = (
     },
     trustedOrigins: [
       siteUrl,
+      "app.teakvault.com",
+      "https://app.teakvault.com",
+      "teakvault.com",
+      "https://teakvault.com",
       "teak://",
       "http://localhost:3000",
       "exp://*"
