@@ -11,6 +11,7 @@ import {
   stagePending,
 } from "./processingStatus";
 import { workflow } from "../../workflows/manager";
+import { extractPaletteColors } from "@teak/convex/shared/utils/colorUtils";
 
 export const createCard = mutation({
   args: {
@@ -91,6 +92,21 @@ export const createCard = mutation({
       finalContent = quoteNormalization.text;
     }
 
+    // Pre-populate palette colours when explicitly creating a palette card without provided colours
+    let resolvedColors = args.colors;
+    if (!resolvedColors && cardType === "palette") {
+      const paletteText = [
+        finalContent ?? "",
+        args.notes ?? "",
+        Array.isArray(args.tags) ? args.tags.join(" ") : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const parsedColors = extractPaletteColors(paletteText, 12);
+      resolvedColors = parsedColors.length > 0 ? parsedColors : undefined;
+    }
+
     // Set initial metadataStatus for link cards
     const cardData = {
       userId: user.subject,
@@ -103,7 +119,7 @@ export const createCard = mutation({
       notes: args.notes,
       metadata: Object.keys(processedMetadata).length > 0 ? processedMetadata : undefined,
       fileMetadata: fileMetadata,
-      colors: args.colors,
+      colors: resolvedColors,
       processingStatus: buildInitialProcessingStatus({
         now,
         cardType,
