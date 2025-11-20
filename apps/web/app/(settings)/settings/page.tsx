@@ -42,7 +42,6 @@ import {
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "next-themes";
-import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import { cn } from "@/lib/utils";
@@ -659,12 +658,6 @@ export default function ProfileSettingsPage() {
 
   return (
     <>
-      <Link href="/" className="text-primary inline-block font-medium">
-        &larr; Back to Teak
-      </Link>
-
-      <Separator />
-
       <h1 className="text-xl font-semibold tracking-tight">Profile</h1>
 
       <SettingRow title="Profile Picture">
