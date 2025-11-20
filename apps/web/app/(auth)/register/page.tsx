@@ -12,10 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useEffect, useState } from "react";
-import { Loader2, X, AlertCircle, Mail } from "lucide-react";
+import { AlertCircle, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
+import { Spinner } from "@/components/ui/spinner";
 
 type RegistrationStatus = {
   allowed: boolean;
@@ -25,11 +26,9 @@ type RegistrationStatus = {
 export default function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [registrationStatus, setRegistrationStatus] =
     useState<RegistrationStatus | null>(null);
@@ -57,11 +56,7 @@ export default function SignUp() {
     };
   }, []);
 
-  // Check if passwords match for real-time validation
-  const passwordsMatch = password === passwordConfirmation;
   const passwordTooShort = password.length > 0 && password.length < 8;
-  const showPasswordMismatch =
-    confirmPasswordTouched && passwordConfirmation && !passwordsMatch;
   const showPasswordTooShort =
     passwordTouched && password.length > 0 && password.length < 8;
 
@@ -108,12 +103,6 @@ export default function SignUp() {
                 registrationStatus?.message ??
                   "Registration is currently closed"
               );
-              return;
-            }
-
-            // Validate passwords match
-            if (password !== passwordConfirmation) {
-              setError("Passwords do not match");
               return;
             }
 
@@ -188,38 +177,13 @@ export default function SignUp() {
               </p>
             )}
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="password_confirmation">Confirm Password</Label>
-            <Input
-              id="password_confirmation"
-              type="password"
-              value={passwordConfirmation}
-              onChange={(e) => setPasswordConfirmation(e.target.value)}
-              onBlur={() => setConfirmPasswordTouched(true)}
-              autoComplete="new-password"
-              placeholder="Confirm Password"
-              required
-              className={showPasswordMismatch ? "border-destructive" : ""}
-            />
-            {showPasswordMismatch && (
-              <p className="text-sm text-destructive">Passwords do not match</p>
-            )}
-          </div>
+
           <Button
             type="submit"
             className="w-full"
-            disabled={
-              loading ||
-              !passwordsMatch ||
-              password.length < 8 ||
-              registrationClosed
-            }
+            disabled={loading || password.length < 8 || registrationClosed}
           >
-            {loading ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              "Create an account"
-            )}
+            {loading ? <Spinner /> : "Create an account"}
           </Button>
         </form>
       </CardContent>
