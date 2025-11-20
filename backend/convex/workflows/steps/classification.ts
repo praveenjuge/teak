@@ -1,7 +1,8 @@
 /**
  * Classification Step
  *
- * Workflow step that classifies a card's type using AI.
+ * Workflow step that classifies a card's type using deterministic heuristics
+ * (mime type, file metadata, URL clues, color extraction, quotes).
  * Determines if the card is: text, link, image, video, audio, document, palette, or quote.
  */
 
@@ -11,24 +12,22 @@ import { v } from "convex/values";
 import { internalAction } from "../../_generated/server";
 import { internal } from "../../_generated/api";
 import { Id } from "../../_generated/dataModel";
-import { generateObject } from "ai";
-import { openai } from "@ai-sdk/openai";
-import { cardClassificationSchema } from "../../tasks/ai/schemas";
 import { extractPaletteWithAi } from "../aiMetadata/actions";
 import type { CardType } from "../../schema";
 import {
-  parseColorString,
   extractPaletteColors,
   type Color,
 } from "@teak/convex/shared/utils/colorUtils";
-import {
-  type ProcessingStageStatus,
-} from "../../tasks/cards/processingStatus";
 import { normalizeQuoteContent } from "../../tasks/cards/quoteFormatting";
 
 const CLASSIFY_LOG_PREFIX = "[workflow/classify]";
 
 const MAX_PALETTE_COLORS = 12;
+
+const STRONG_CONFIDENCE = 0.97;
+const MEDIUM_CONFIDENCE = 0.9;
+const PALETTE_CONFIDENCE = 0.88;
+const DEFAULT_CONFIDENCE = 0.7;
 
 type ClassificationWorkflowResult = {
   type: CardType;
@@ -91,72 +90,6 @@ const colorsMatch = (
 };
 
 /**
- * Build classification prompt from card data
- */
-const buildClassificationPrompt = (
-  card: any,
-  stageStatus?: ProcessingStageStatus
-): string => {
-  const sections: string[] = [];
-  sections.push(`Existing type guess: ${card.type}`);
-  sections.push(
-    `Heuristic confidence: ${stageStatus?.confidence !== undefined
-      ? stageStatus.confidence.toFixed(2)
-      : "unknown"
-    }`
-  );
-
-  if (card.url) {
-    sections.push(`URL: ${card.url}`);
-  }
-
-  if (card.fileMetadata) {
-    const { mimeType, fileSize, duration, width, height } = card.fileMetadata;
-    sections.push(
-      `File metadata: ${JSON.stringify(
-        { mimeType, fileSize, duration, width, height },
-        null,
-        2
-      )}`
-    );
-  }
-
-  const linkPreview =
-    card.metadata?.linkPreview?.status === "success"
-      ? card.metadata.linkPreview
-      : undefined;
-
-  if (linkPreview) {
-    const { title, description, publisher, author } = linkPreview;
-    sections.push(
-      `Link metadata: ${JSON.stringify(
-        { title, description, publisher, author },
-        null,
-        2
-      )}`
-    );
-  }
-
-  if (card.colors?.length) {
-    sections.push(
-      `Palette colors: ${card.colors
-        .map((color: any) => `${color.hex}${color.name ? ` (${color.name})` : ""}`)
-        .join(", ")}`
-    );
-  }
-
-  if (card.content) {
-    const trimmed =
-      card.content.length > 4000
-        ? `${card.content.slice(0, 4000)}…`
-        : card.content;
-    sections.push(`Content Preview:\n${trimmed}`);
-  }
-
-  return sections.join("\n\n");
-};
-
-/**
  * Build palette analysis text for AI extraction
  */
 const buildPaletteAnalysisText = (card: any): string => {
@@ -175,6 +108,165 @@ const buildPaletteAnalysisText = (card: any): string => {
   }
 
   return sections.join("\n").trim();
+};
+
+const hasPaletteHint = (card: any): boolean => {
+  const text = buildPaletteAnalysisText(card).toLowerCase();
+  const paletteHints = ["palette", "color palette", "brand colors", "brand palette", "swatch", "swatches", "colorway"];
+  const tagHints = (Array.isArray(card.tags) ? card.tags : []).some((tag: string) =>
+    typeof tag === "string" && /palette|color/iu.test(tag)
+  );
+  return paletteHints.some((hint) => text.includes(hint)) || tagHints;
+};
+
+const isProbablyPalette = (card: any): boolean => {
+  const text = buildPaletteAnalysisText(card);
+  const colors = extractPaletteColors(text);
+  const hint = hasPaletteHint(card);
+
+  // Require stronger evidence: multiple colors, or colors + explicit hint.
+  if (colors.length >= 3) return true;
+  if (colors.length >= 2 && hint) return true;
+  return false;
+};
+
+const extensionFromUrl = (url?: string): string | undefined => {
+  if (!url) return undefined;
+  try {
+    const pathname = new URL(url).pathname;
+    const match = /\.([a-zA-Z0-9]+)(?:$|[?#])/u.exec(pathname);
+    return match?.[1]?.toLowerCase();
+  } catch {
+    return undefined;
+  }
+};
+
+const classifyByMime = (
+  mimeType?: string,
+): { type: CardType; confidence: number } | null => {
+  if (!mimeType) return null;
+  const mime = mimeType.toLowerCase();
+
+  if (mime.startsWith("image/")) {
+    return { type: "image", confidence: STRONG_CONFIDENCE };
+  }
+  if (mime.startsWith("video/")) {
+    return { type: "video", confidence: STRONG_CONFIDENCE };
+  }
+  if (mime.startsWith("audio/")) {
+    return { type: "audio", confidence: STRONG_CONFIDENCE };
+  }
+
+  const documentMimes = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/markdown",
+    "text/csv",
+    "application/rtf",
+  ];
+
+  if (documentMimes.some((candidate) => mime.includes(candidate))) {
+    return { type: "document", confidence: STRONG_CONFIDENCE };
+  }
+
+  if (mime.startsWith("text/")) {
+    return { type: "text", confidence: MEDIUM_CONFIDENCE };
+  }
+
+  return null;
+};
+
+const classifyByExtension = (
+  extension?: string,
+): { type: CardType; confidence: number } | null => {
+  if (!extension) return null;
+  const ext = extension.toLowerCase();
+
+  const imageExt = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg", "tiff", "avif", "heic"];
+  const videoExt = ["mp4", "mov", "m4v", "webm", "mkv", "avi", "mpeg", "mpg", "wmv"];
+  const audioExt = ["mp3", "wav", "flac", "m4a", "aac", "ogg", "oga", "opus"];
+  const documentExt = [
+    "pdf",
+    "doc",
+    "docx",
+    "ppt",
+    "pptx",
+    "xls",
+    "xlsx",
+    "csv",
+    "rtf",
+    "md",
+    "txt",
+    "pages",
+    "key",
+    "numbers",
+  ];
+
+  if (imageExt.includes(ext)) return { type: "image", confidence: MEDIUM_CONFIDENCE };
+  if (videoExt.includes(ext)) return { type: "video", confidence: MEDIUM_CONFIDENCE };
+  if (audioExt.includes(ext)) return { type: "audio", confidence: MEDIUM_CONFIDENCE };
+  if (documentExt.includes(ext)) return { type: "document", confidence: MEDIUM_CONFIDENCE };
+
+  return null;
+};
+
+const classifyByFileMetadata = (
+  metadata: any,
+): { type: CardType; confidence: number } | null => {
+  if (!metadata) return null;
+
+  const mimeClassification = classifyByMime(metadata.mimeType);
+  if (mimeClassification) return mimeClassification;
+
+  if (typeof metadata.duration === "number" && metadata.duration > 0) {
+    // Prefer video when dimensions exist, otherwise audio.
+    if (metadata.width || metadata.height) {
+      return { type: "video", confidence: MEDIUM_CONFIDENCE };
+    }
+    return { type: "audio", confidence: MEDIUM_CONFIDENCE };
+  }
+
+  if (metadata.width || metadata.height) {
+    return { type: "image", confidence: MEDIUM_CONFIDENCE };
+  }
+
+  // Any other uploaded file defaults to document
+  return { type: "document", confidence: MEDIUM_CONFIDENCE };
+};
+
+const deterministicClassify = (
+  card: any,
+): { type: CardType; confidence: number } => {
+  // 1) File metadata (strongest signal)
+  const fileMetaResult = classifyByFileMetadata(card.fileMetadata);
+  if (fileMetaResult) return fileMetaResult;
+
+  // 2) URL extension cues
+  const extensionResult = classifyByExtension(extensionFromUrl(card.url));
+  if (extensionResult) return extensionResult;
+
+  // 2b) If a file exists but metadata/extension gave no match, treat as document
+  if (card.fileId) {
+    return { type: "document", confidence: MEDIUM_CONFIDENCE };
+  }
+
+  // 3) Link fallback if a URL exists
+  if (card.url) {
+    return { type: "link", confidence: MEDIUM_CONFIDENCE };
+  }
+
+  // 4) Palette detection (text-driven, only when no link)
+  if (isProbablyPalette(card)) {
+    return { type: "palette", confidence: PALETTE_CONFIDENCE };
+  }
+
+  // 5) Default to text
+  return { type: "text", confidence: DEFAULT_CONFIDENCE };
 };
 
 
@@ -208,6 +300,7 @@ const maybeUpdatePaletteColors = async (
 
   if (dbColors.length && !colorsMatch(card.colors, dbColors)) {
     await ctx.runMutation(
+      //@ts-ignore
       internal.workflows.aiMetadata.mutations.updateCardColors,
       {
         cardId,
@@ -222,7 +315,7 @@ const maybeUpdatePaletteColors = async (
 };
 
 /**
- * Workflow Step: Classify card type using AI
+ * Workflow Step: Classify card type using deterministic heuristics
  *
  * @returns Classification result with type and confidence
  */
@@ -248,6 +341,26 @@ export const classify = internalAction({
     if (!card) {
       console.warn(`${CLASSIFY_LOG_PREFIX} Card not found`, { cardId });
       throw new Error(`Card ${cardId} not found for classification`);
+    }
+
+    // If previously classified as quote and no conflicting signals, keep it sticky
+    if (card.type === "quote" && !card.url && !card.fileId) {
+      const confidence = card.processingStatus?.classify?.confidence ?? 0.95;
+      const stickyResult: ClassificationWorkflowResult = {
+        type: "quote",
+        confidence,
+        needsLinkMetadata: false,
+        shouldCategorize: false,
+        shouldGenerateMetadata: true,
+        shouldGenerateRenderables: false,
+      };
+
+      console.info(`${CLASSIFY_LOG_PREFIX} Sticky quote classification`, {
+        cardId,
+        confidence,
+      });
+
+      return stickyResult;
     }
 
     const quoteNormalization = normalizeQuoteContent(card.content ?? "");
@@ -281,19 +394,9 @@ export const classify = internalAction({
       return heuristicResult;
     }
 
-    // Build prompt and run AI classification
-    const prompt = buildClassificationPrompt(card, { confidence: 0.5 } as ProcessingStageStatus);
-    const classification = await generateObject({
-      model: openai("gpt-5-nano"),
-      system:
-        "You classify cards into one of: text, link, image, video, audio, document, palette, quote. Use the provided clues and be decisive. When a text snippet is fully wrapped in quotation marks and has no attribution metadata, treat it as a quote card.",
-      prompt,
-      schema: cardClassificationSchema,
-    });
-
-    const resultType = classification.object.type as CardType;
-    const resultConfidence = classification.object.confidence ?? 0.8;
-    console.info(`${CLASSIFY_LOG_PREFIX} Model result`, {
+    // Deterministic classification (no external AI call)
+    const { type: resultType, confidence: resultConfidence } = deterministicClassify(card);
+    console.info(`${CLASSIFY_LOG_PREFIX} Heuristic result`, {
       cardId,
       resultType,
       resultConfidence,
