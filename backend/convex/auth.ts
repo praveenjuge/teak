@@ -66,7 +66,7 @@ export const createAuth = (
     },
     plugins: [
       expo(),
-      crossDomain({ siteUrl }),
+      // crossDomain({ siteUrl }),
       convex(),
     ],
   } satisfies BetterAuthOptions);
