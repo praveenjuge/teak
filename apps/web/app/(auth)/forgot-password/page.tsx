@@ -95,7 +95,7 @@ export default function ForgotPassword() {
               <Alert>
                 <CheckCircle className="h-4 w-4" />
                 <AlertDescription>
-                  If an account exists for {email}, a reset link is on its way.
+                  If the email address is registered, a password reset link will be sent.
                 </AlertDescription>
               </Alert>
             )}
