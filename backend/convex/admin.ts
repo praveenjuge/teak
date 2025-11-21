@@ -1,4 +1,4 @@
-import { action, query } from "./_generated/server";
+import { action, query, type ActionCtx, type QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type {
   ProcessingStageKey,
@@ -6,6 +6,7 @@ import type {
 } from "./tasks/cards/processingStatus";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { authComponent } from "./auth";
 
 type StageSummary = {
   pending: number;
@@ -33,23 +34,37 @@ const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_MISSING_CARDS = 50;
 
-const adminIdsEnv =
-  process.env.ADMIN_USERID ??
-  process.env.ADMIN_USERIDS ??
-  process.env.NEXT_PUBLIC_ADMIN_USERID ??
-  "";
+type AdminCtx = QueryCtx | ActionCtx;
 
-const ADMIN_USER_IDS = adminIdsEnv
-  .split(",")
-  .map((value) => value.trim())
-  .filter((value) => value.length > 0);
+const SINGLE_RESULT_PAGE = {
+  cursor: null,
+  numItems: 1,
+} as const;
 
-const ensureAdmin = (identity: any) => {
-  if (!identity || ADMIN_USER_IDS.length === 0) {
+const getFirstUserId = async (ctx: AdminCtx) => {
+  const result = (await ctx.runQuery(
+    authComponent.component.adapter.findMany,
+    {
+      model: "user",
+      sortBy: { field: "createdAt", direction: "asc" },
+      limit: 1,
+      paginationOpts: SINGLE_RESULT_PAGE,
+    }
+  )) as { page?: Array<{ _id: string }> };
+
+  const firstUser = result?.page?.[0];
+  return firstUser?._id ?? null;
+};
+
+const ensureAdmin = async (ctx: AdminCtx) => {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
     throw new Error("Unauthorized");
   }
 
-  if (!ADMIN_USER_IDS.includes(identity.subject)) {
+  const firstUserId = await getFirstUserId(ctx);
+
+  if (!firstUserId || identity.subject !== firstUserId) {
     throw new Error("Unauthorized");
   }
 };
@@ -58,10 +73,12 @@ export const getAccess = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    const allowed =
-      !!identity &&
-      ADMIN_USER_IDS.length > 0 &&
-      ADMIN_USER_IDS.includes(identity.subject);
+    if (!identity) {
+      return { allowed: false } as const;
+    }
+
+    const firstUserId = await getFirstUserId(ctx);
+    const allowed = Boolean(firstUserId && identity.subject === firstUserId);
 
     return {
       allowed,
@@ -72,8 +89,7 @@ export const getAccess = query({
 export const getOverview = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    ensureAdmin(identity);
+    await ensureAdmin(ctx);
 
     const now = Date.now();
     const sevenDaysAgo = now - SEVEN_DAYS_IN_MS;
@@ -259,8 +275,7 @@ type AiBackfillWorkflowResult = {
 export const retryAiBackfill = action({
   args: {},
   handler: async (ctx): Promise<BackfillSummary> => {
-    const identity = await ctx.auth.getUserIdentity();
-    ensureAdmin(identity);
+    await ensureAdmin(ctx);
 
     const workflowResult = (await ctx.runMutation(
       //@ts-ignore
@@ -296,8 +311,7 @@ export const retryCardEnrichment = action({
     ctx,
     { cardId }
   ): Promise<{ requestedAt: number; success: boolean; reason?: "not_found" }> => {
-    const identity = await ctx.auth.getUserIdentity();
-    ensureAdmin(identity);
+    await ensureAdmin(ctx);
 
     const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
       cardId,

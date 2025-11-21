@@ -12,7 +12,6 @@ Configure 4 environment files and sync Better Auth secrets into the Convex dashb
 
 ```bash
 SITE_URL=http://localhost:3000
-ADMIN_USERID=your-user-id                    # Admin access
 BETTER_AUTH_SECRET=your-secret               # Better Auth security
 CLOUDFLARE_API_TOKEN=token                   # Cloudflare API access
 CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID=id   # Screenshots
@@ -79,7 +78,6 @@ VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 | AI Processing     | `OPENAI_API_KEY`                                                         | Auto-tags, summaries, categorization |
 | Screenshots       | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID`        | Link preview thumbnails              |
 | Billing           | `POLAR_ACCESS_TOKEN`, `POLAR_ORGANIZATION_TOKEN`, `POLAR_WEBHOOK_SECRET` | Subscription management              |
-| Admin Dashboard   | `ADMIN_USERID`                                                           | Pipeline insights, monitoring        |
 | User Registration | `ENABLE_MULTIPLE_USER_REGISTRATION`                                      | Allow new user signups               |
 | Email Service     | `RESEND_API_KEY`                                                         | Transactional emails                 |
 
