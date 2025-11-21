@@ -59,7 +59,6 @@ import type * as workflows_linkEnrichment from "../workflows/linkEnrichment.js";
 import type * as workflows_linkMetadata from "../workflows/linkMetadata.js";
 import type * as workflows_manager from "../workflows/manager.js";
 import type * as workflows_screenshot from "../workflows/screenshot.js";
-import type * as workflows_steps_categorization_domainMap from "../workflows/steps/categorization/domainMap.js";
 import type * as workflows_steps_categorization_index from "../workflows/steps/categorization/index.js";
 import type * as workflows_steps_categorization_mutations from "../workflows/steps/categorization/mutations.js";
 import type * as workflows_steps_categorization_providers_amazon from "../workflows/steps/categorization/providers/amazon.js";
@@ -136,7 +135,6 @@ declare const fullApi: ApiFromModules<{
   "workflows/linkMetadata": typeof workflows_linkMetadata;
   "workflows/manager": typeof workflows_manager;
   "workflows/screenshot": typeof workflows_screenshot;
-  "workflows/steps/categorization/domainMap": typeof workflows_steps_categorization_domainMap;
   "workflows/steps/categorization/index": typeof workflows_steps_categorization_index;
   "workflows/steps/categorization/mutations": typeof workflows_steps_categorization_mutations;
   "workflows/steps/categorization/providers/amazon": typeof workflows_steps_categorization_providers_amazon;

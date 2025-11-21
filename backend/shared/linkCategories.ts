@@ -13,6 +13,7 @@ export const LINK_CATEGORIES = [
   "event",
   "software",
   "design_portfolio",
+  "other",
 ] as const;
 
 export type LinkCategory = (typeof LINK_CATEGORIES)[number];
@@ -32,6 +33,7 @@ export const LINK_CATEGORY_LABELS: Record<LinkCategory, string> = {
   event: "Event / Webinar / Meetup",
   software: "Software / App / GitHub Project",
   design_portfolio: "Design Portfolio",
+  other: "Other / Miscellaneous",
 };
 
 export const LINK_CATEGORY_ICONS: Record<LinkCategory, string> = {
@@ -49,6 +51,7 @@ export const LINK_CATEGORY_ICONS: Record<LinkCategory, string> = {
   event: "CalendarDays",
   software: "Code",
   design_portfolio: "Palette",
+  other: "Link",
 };
 
 export interface LinkCategoryDetail {
