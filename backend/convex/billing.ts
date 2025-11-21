@@ -29,21 +29,6 @@ export const polar = new Polar(components.polar, {
   },
 });
 
-export const userHasPremium = query({
-  args: {},
-  returns: v.boolean(),
-  handler: async (ctx) => {
-    const user = await ctx.runQuery(api.billing.getUserInfo);
-
-    try {
-      const subscription = await polar.getCurrentSubscription(ctx, { userId: user.subject });
-      return subscription?.status === 'active';
-    } catch {
-      return false;
-    }
-  },
-});
-
 export const createCheckoutLink = action({
   args: { productId: v.string() },
   returns: v.string(),

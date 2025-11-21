@@ -8,6 +8,8 @@ import { betterAuth, BetterAuthOptions } from "better-auth";
 import { Resend } from "@convex-dev/resend";
 import { requireActionCtx } from "@convex-dev/better-auth/utils";
 import { Id } from "./_generated/dataModel";
+import { polar } from "./billing";
+import { FREE_TIER_LIMIT } from "../shared/constants";
 
 const siteUrl = process.env.SITE_URL!;
 export const REGISTRATION_CLOSED_MESSAGE = "Registration is currently closed";
@@ -123,6 +125,27 @@ export const getCurrentUser = query({
     const user = await authComponent.getAuthUser(ctx);
     if (!user) return null;
 
+    const userId = (user as any).id ?? (user as any)._id ?? (user as any).subject;
+
+    let hasPremium = false;
+    try {
+      const subscription = await polar.getCurrentSubscription(ctx, {
+        userId,
+      });
+      hasPremium = subscription?.status === "active";
+    } catch {
+      hasPremium = false;
+    }
+
+    const cards = await ctx.db
+      .query("cards")
+      .withIndex("by_user_deleted", (q) =>
+        q.eq("userId", userId).eq("isDeleted", undefined),
+      )
+      .collect();
+    const cardCount = cards.length;
+    const canCreateCard = hasPremium || cardCount < FREE_TIER_LIMIT;
+
     const storageId = getStorageIdFromImage(user.image);
     const imageUrl = storageId
       ? await ctx.storage.getUrl(storageId)
@@ -130,6 +153,9 @@ export const getCurrentUser = query({
 
     return {
       ...user,
+      hasPremium,
+      cardCount,
+      canCreateCard,
       imageUrl,
       imageStorageId: storageId,
     };

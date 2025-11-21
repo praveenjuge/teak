@@ -12,7 +12,6 @@ export * from "./convex/tasks/cards/createCard";
 export * from "./convex/tasks/cards/deleteCard";
 export * from "./convex/tasks/cards/generateUploadUrl";
 export * from "./convex/tasks/cards/getCard";
-export * from "./convex/tasks/cards/getCardCount";
 export * from "./convex/tasks/cards/getCards";
 export * from "./convex/tasks/cards/getFileUrl";
 export * from "./convex/tasks/cards/migrations";
