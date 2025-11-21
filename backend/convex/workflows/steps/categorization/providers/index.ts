@@ -40,7 +40,8 @@ const handlers: Record<string, ProviderHandler> = {
 export const enrichProvider = (
   provider: string | undefined,
   category: LinkCategory,
-  rawMap: RawSelectorMap
+  rawMap: RawSelectorMap,
+  allowMismatchedCategory = false
 ): ProviderEnrichmentResult | null => {
   if (!provider) {
     return null;
@@ -51,7 +52,7 @@ export const enrichProvider = (
     return null;
   }
 
-  if (!handler.categories.includes(category)) {
+  if (!handler.categories.includes(category) && !allowMismatchedCategory) {
     return null;
   }
 

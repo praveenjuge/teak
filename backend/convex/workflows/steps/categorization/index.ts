@@ -17,6 +17,7 @@ import {
   type RawSelectorEntry,
   type RawSelectorMap,
 } from "./providers/common";
+import { matchDomainCategory } from "./domainMap";
 import type { Id } from "../../../_generated/dataModel";
 import { v } from "convex/values";
 import { internalAction } from "../../../_generated/server";
@@ -111,6 +112,44 @@ const safeTrim = (value: string | undefined, maxLength = 4096): string | undefin
   return trimmed.length > maxLength ? `${trimmed.slice(0, maxLength)}…` : trimmed;
 };
 
+const normalizeUrlForComparison = (value: string | undefined): string | null => {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    const params = url.searchParams;
+    // Remove tracking parameters to improve cache hits.
+    [
+      "utm_source",
+      "utm_medium",
+      "utm_campaign",
+      "utm_term",
+      "utm_content",
+      "fbclid",
+      "gclid",
+      "igshid",
+      "mc_cid",
+      "mc_eid",
+      "mkt_tok",
+    ].forEach((param) => params.delete(param));
+    url.search = params.toString();
+    // Normalize trailing slash.
+    url.pathname = url.pathname.replace(/\/+$/, "");
+    return url.toString();
+  } catch {
+    return value.trim() || null;
+  }
+};
+
+const normalizeHostname = (value: string | undefined): string | null => {
+  if (!value) return null;
+  try {
+    return new URL(value).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+};
+
 const buildCategorizationPrompt = (card: CategorizationContextCard): string => {
   const sections: string[] = [];
 
@@ -132,15 +171,13 @@ const buildCategorizationPrompt = (card: CategorizationContextCard): string => {
 
   if (linkPreview) {
     const details = {
-      title: linkPreview.title,
-      description: linkPreview.description,
+      title: safeTrim(linkPreview.title, 240),
+      description: safeTrim(linkPreview.description, 320),
       siteName: linkPreview.siteName,
       author: linkPreview.author,
-      publisher: linkPreview.publisher,
       publishedAt: linkPreview.publishedAt,
-      imageUrl: linkPreview.imageUrl,
     };
-    sections.push(`Link preview metadata: ${JSON.stringify(details, null, 2)}`);
+    sections.push(`Link preview metadata (trimmed): ${JSON.stringify(details, null, 2)}`);
   }
 
   if (card.tags?.length) {
@@ -169,7 +206,23 @@ export const classifyLinkCategory = async (
     return null;
   }
 
-  try {
+  // Cheap deterministic routing before LLM.
+  const hostname = normalizeHostname(card.url);
+  const domainMatch = matchDomainCategory(hostname || undefined);
+  if (domainMatch) {
+    console.info(`${CATEGORIZE_LOG_PREFIX} Domain-routed category`, {
+      cardId: card._id,
+      hostname,
+      category: domainMatch.category,
+    });
+    return {
+      category: domainMatch.category,
+      confidence: 0.95,
+      providerHint: domainMatch.provider,
+    };
+  }
+
+  const runLLM = async (retryHint?: string) => {
     const result = await generateObject({
       model: openai("gpt-5-nano"),
       system: `You are an assistant that classifies URLs into content categories. Only respond with the requested JSON schema.
@@ -179,7 +232,7 @@ ${Object.entries(LINK_CATEGORY_LABELS)
           .map(([key, label]) => `- ${label} (${key})`)
           .join("\n")}
 
-Pick the category that best describes the main subject of the URL. Use provider hints when obvious (e.g. github.com → software, imdb.com → movie).`,
+Pick the category that best describes the main subject of the URL. Use provider hints when obvious (e.g. github.com → software, imdb.com → movie).${retryHint ? `\n\nIf unsure, use the closest provider-based category. Hint: ${retryHint}` : ""}`,
       prompt: buildCategorizationPrompt(card),
       schema: linkCategoryClassificationSchema,
     });
@@ -201,6 +254,16 @@ Pick the category that best describes the main subject of the URL. Use provider 
       providerHint,
       tags,
     };
+  };
+
+  try {
+    const firstPass = await runLLM();
+    if ((firstPass.confidence ?? 0) < 0.35) {
+      const retryHint = normalizeHostname(card.url) || "";
+      const secondPass = await runLLM(retryHint);
+      return secondPass;
+    }
+    return firstPass;
   } catch (error) {
     const classificationValue =
       (error as any)?.cause?.value ??
@@ -214,7 +277,18 @@ Pick the category that best describes the main subject of the URL. Use provider 
       typeof invalidCategory === "string" ? invalidCategory : undefined
     );
 
-    if (mappedCategory) {
+    const tagsCandidate = (classificationValue as any)?.tags;
+    const tagMapped =
+      !mappedCategory &&
+        Array.isArray(tagsCandidate)
+        ? resolveCategoryKey(
+          tagsCandidate.find((tag: any) => typeof tag === "string")
+        )
+        : null;
+
+    const resolvedCategory = mappedCategory ?? tagMapped;
+
+    if (resolvedCategory) {
       const confidence =
         typeof (classificationValue as any)?.confidence === "number"
           ? (classificationValue as any).confidence
@@ -223,7 +297,6 @@ Pick the category that best describes the main subject of the URL. Use provider 
         typeof (classificationValue as any)?.providerHint === "string"
           ? (classificationValue as any).providerHint
           : undefined;
-      const tagsCandidate = (classificationValue as any)?.tags;
       const tags =
         Array.isArray(tagsCandidate)
           ? tagsCandidate.filter((tag) => typeof tag === "string")
@@ -232,11 +305,11 @@ Pick the category that best describes the main subject of the URL. Use provider 
       console.warn(`${CATEGORIZE_LOG_PREFIX} Classification fallback applied`, {
         cardId: card._id,
         originalCategory: invalidCategory,
-        mappedCategory,
+        mappedCategory: resolvedCategory,
       });
 
       return {
-        category: mappedCategory,
+        category: resolvedCategory,
         confidence,
         providerHint,
         tags,
@@ -268,6 +341,11 @@ const pickFields = (value: Record<string, any>, fields: string[]): Record<string
 
 interface StructuredDataResult {
   entities: any[];
+  meta?: {
+    etag?: string | null;
+    lastModified?: string | null;
+    fetchedAt: number;
+  };
 }
 
 const parseStructuredData = (html: string): StructuredDataResult => {
@@ -322,6 +400,25 @@ const fetchStructuredData = async (url: string): Promise<StructuredDataResult | 
       return null;
     }
 
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("text/html")) {
+      console.info(`${CATEGORIZE_LOG_PREFIX} Skipping structured data (non-HTML)`, {
+        url,
+        contentType,
+      });
+      return null;
+    }
+
+    const contentLengthHeader = response.headers.get("content-length");
+    const contentLength = contentLengthHeader ? Number(contentLengthHeader) : undefined;
+    if (contentLength && contentLength > MAX_FETCH_BODY_SIZE * 2) {
+      console.info(`${CATEGORIZE_LOG_PREFIX} Skipping structured data (too large)`, {
+        url,
+        contentLength,
+      });
+      return null;
+    }
+
     const text = await response.text();
     if (!text) {
       return null;
@@ -331,7 +428,13 @@ const fetchStructuredData = async (url: string): Promise<StructuredDataResult | 
       ? text.slice(0, MAX_FETCH_BODY_SIZE)
       : text;
 
-    return parseStructuredData(truncated);
+    const parsed = parseStructuredData(truncated);
+    parsed.meta = {
+      etag: response.headers.get("etag"),
+      lastModified: response.headers.get("last-modified"),
+      fetchedAt: Date.now(),
+    };
+    return parsed;
   } catch (error) {
     console.warn(`${CATEGORIZE_LOG_PREFIX} Structured data fetch error`, {
       url,
@@ -689,7 +792,8 @@ export const enrichLinkCategory = async (
   const providerEnrichment = enrichProvider(
     provider,
     classification.category,
-    rawMap
+    rawMap,
+    (classification.confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE) < 0.6
   );
 
   if (providerEnrichment) {
@@ -740,6 +844,7 @@ export const enrichLinkCategory = async (
       raw = {
         ...(raw ?? {}),
         structured: enriched.raw,
+        structuredMeta: structured?.meta,
       };
     }
   }
@@ -802,16 +907,26 @@ export const classifyStep: any = internalAction({
         ? contextCard.metadata.linkPreview
         : undefined;
 
-    const sourceUrl =
+    const rawSourceUrl =
       contextCard.url || linkPreview?.finalUrl || linkPreview?.url || "";
+    const sourceUrl = normalizeUrlForComparison(rawSourceUrl) || rawSourceUrl;
 
     const existingMetadata =
       contextCard.metadata?.linkCategory ?? undefined;
 
+    const METADATA_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
+    const metadataFresh =
+      existingMetadata?.fetchedAt &&
+      Date.now() - existingMetadata.fetchedAt < METADATA_TTL_MS;
+
+    const cachedSourceUrl = normalizeUrlForComparison(existingMetadata?.sourceUrl) || existingMetadata?.sourceUrl;
+
     if (
       existingMetadata?.category &&
       sourceUrl &&
-      existingMetadata.sourceUrl === sourceUrl
+      cachedSourceUrl &&
+      sourceUrl === cachedSourceUrl &&
+      metadataFresh
     ) {
       console.info(`${CATEGORIZE_LOG_PREFIX} Skipping classification (cached)`, {
         cardId,
@@ -834,7 +949,14 @@ export const classifyStep: any = internalAction({
       throw new Error(`Failed to classify link category for card ${cardId}`);
     }
 
-    const shouldFetchStructured = !!sourceUrl && !existingMetadata?.raw?.structured;
+    const structuredFresh =
+      existingMetadata?.raw?.structuredMeta?.fetchedAt &&
+      Date.now() - existingMetadata.raw.structuredMeta.fetchedAt < METADATA_TTL_MS;
+
+    const shouldFetchStructured =
+      !!sourceUrl &&
+      !existingMetadata?.raw?.structured &&
+      !structuredFresh;
 
     return {
       mode: "classified" as const,
