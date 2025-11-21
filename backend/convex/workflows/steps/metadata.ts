@@ -39,6 +39,7 @@ export const generate: any = internalAction({
   }),
   handler: async (ctx, { cardId, cardType }) => {
     console.info(`${METADATA_LOG_PREFIX} Running`, { cardId, cardType });
+    //@ts-ignore
     const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
       cardId,
     });
@@ -230,6 +231,7 @@ export const generate: any = internalAction({
       metadata: stageCompleted(now, confidence),
     };
 
+    //@ts-ignore
     await ctx.runMutation(internal.workflows.aiMetadata.mutations.updateCardAI, {
       cardId,
       aiTags: aiTags.length > 0 ? aiTags : undefined,
@@ -237,7 +239,7 @@ export const generate: any = internalAction({
       aiTranscript,
       aiModelMeta: {
         provider: "openai",
-        model: cardType === "image" ? "gpt-5-nano" : "gpt-5-nano",
+        model: "gpt-5-nano",
         version: "2024-08-06",
         generatedAt: now,
       },

@@ -1,15 +1,12 @@
 "use node";
 
-import { generateObject } from "ai";
-import { openai } from "@ai-sdk/openai";
 import {
   LINK_CATEGORY_DEFAULT_CONFIDENCE,
-  LINK_CATEGORY_LABELS,
   type LinkCategory,
   type LinkCategoryMetadata,
   type LinkCategoryDetail,
+  resolveLinkCategory,
 } from "@teak/convex/shared";
-import { linkCategoryClassificationSchema } from "../../../tasks/ai/schemas";
 import { enrichProvider } from "./providers";
 import {
   formatDate,
@@ -17,7 +14,6 @@ import {
   type RawSelectorEntry,
   type RawSelectorMap,
 } from "./providers/common";
-import { matchDomainCategory } from "./domainMap";
 import type { Id } from "../../../_generated/dataModel";
 import { v } from "convex/values";
 import { internalAction } from "../../../_generated/server";
@@ -69,48 +65,8 @@ export interface CategoryClassificationResult {
   category: LinkCategory;
   confidence: number;
   providerHint?: string;
-  tags?: string[];
+  reason?: string;
 }
-
-const resolveCategoryKey = (value: string | undefined): LinkCategory | null => {
-  if (!value) {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const lowercase = trimmed.toLowerCase();
-  for (const [key, label] of Object.entries(LINK_CATEGORY_LABELS)) {
-    if (lowercase === key.toLowerCase()) {
-      return key as LinkCategory;
-    }
-    if (lowercase === label.toLowerCase()) {
-      return key as LinkCategory;
-    }
-  }
-
-  const match = /\(([^)]+)\)\s*$/.exec(trimmed);
-  if (match && match[1]) {
-    const candidate = match[1].trim().toLowerCase();
-    for (const [key] of Object.entries(LINK_CATEGORY_LABELS)) {
-      if (candidate === key.toLowerCase()) {
-        return key as LinkCategory;
-      }
-    }
-  }
-
-  return null;
-};
-
-const safeTrim = (value: string | undefined, maxLength = 4096): string | undefined => {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  return trimmed.length > maxLength ? `${trimmed.slice(0, maxLength)}…` : trimmed;
-};
 
 const normalizeUrlForComparison = (value: string | undefined): string | null => {
   if (!value) return null;
@@ -141,187 +97,52 @@ const normalizeUrlForComparison = (value: string | undefined): string | null => 
   }
 };
 
-const normalizeHostname = (value: string | undefined): string | null => {
-  if (!value) return null;
-  try {
-    return new URL(value).hostname.toLowerCase();
-  } catch {
-    return null;
-  }
-};
-
-const buildCategorizationPrompt = (card: CategorizationContextCard): string => {
-  const sections: string[] = [];
-
-  if (card.url) {
-    sections.push(`URL: ${card.url}`);
-    try {
-      const url = new URL(card.url);
-      sections.push(`Domain: ${url.hostname}`);
-      sections.push(`Pathname: ${url.pathname}`);
-    } catch {
-      // ignore parsing errors
-    }
-  }
-
+export const classifyLinkCategory = async (
+  card: CategorizationContextCard,
+  sourceUrl?: string
+): Promise<CategoryClassificationResult | null> => {
   const linkPreview =
     card.metadata?.linkPreview?.status === "success"
       ? card.metadata.linkPreview
       : undefined;
 
-  if (linkPreview) {
-    const details = {
-      title: safeTrim(linkPreview.title, 240),
-      description: safeTrim(linkPreview.description, 320),
-      siteName: linkPreview.siteName,
-      author: linkPreview.author,
-      publishedAt: linkPreview.publishedAt,
-    };
-    sections.push(`Link preview metadata (trimmed): ${JSON.stringify(details, null, 2)}`);
-  }
+  const targetUrl =
+    sourceUrl ||
+    card.url ||
+    linkPreview?.finalUrl ||
+    linkPreview?.url ||
+    "";
 
-  if (card.tags?.length) {
-    sections.push(`Existing tags: ${card.tags.join(", ")}`);
-  }
-
-  const combinedNotes = [card.content, card.notes]
-    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-    .join("\n\n");
-  if (combinedNotes) {
-    const trimmed = safeTrim(combinedNotes, 4000);
-    if (trimmed) {
-      sections.push(`User-provided content:\n${trimmed}`);
-    }
-  }
-
-  sections.push(`Select the best fitting category from this list: ${Object.values(LINK_CATEGORY_LABELS).join(", ")}.`);
-
-  return sections.join("\n\n");
-};
-
-export const classifyLinkCategory = async (
-  card: CategorizationContextCard
-): Promise<CategoryClassificationResult | null> => {
-  if (!card.url) {
+  if (!targetUrl) {
     return null;
   }
 
-  // Cheap deterministic routing before LLM.
-  const hostname = normalizeHostname(card.url);
-  const domainMatch = matchDomainCategory(hostname || undefined);
-  if (domainMatch) {
-    console.info(`${CATEGORIZE_LOG_PREFIX} Domain-routed category`, {
+  const resolution = resolveLinkCategory(targetUrl, {
+    siteName: linkPreview?.siteName,
+    title: linkPreview?.title || linkPreview?.description,
+  });
+
+  if (resolution.reason === "fallback") {
+    console.info(`${CATEGORIZE_LOG_PREFIX} Falling back to 'other' category`, {
       cardId: card._id,
-      hostname,
-      category: domainMatch.category,
+      url: targetUrl,
     });
-    return {
-      category: domainMatch.category,
-      confidence: 0.95,
-      providerHint: domainMatch.provider,
-    };
+  } else {
+    console.info(`${CATEGORIZE_LOG_PREFIX} Deterministic category resolved`, {
+      cardId: card._id,
+      url: targetUrl,
+      category: resolution.category,
+      reason: resolution.reason,
+      rule: resolution.rule,
+    });
   }
 
-  const runLLM = async (retryHint?: string) => {
-    const result = await generateObject({
-      model: openai("gpt-5-nano"),
-      system: `You are an assistant that classifies URLs into content categories. Only respond with the requested JSON schema.
-
-Categories you may choose from:
-${Object.entries(LINK_CATEGORY_LABELS)
-          .map(([key, label]) => `- ${label} (${key})`)
-          .join("\n")}
-
-Pick the category that best describes the main subject of the URL. Use provider hints when obvious (e.g. github.com → software, imdb.com → movie).${retryHint ? `\n\nIf unsure, use the closest provider-based category. Hint: ${retryHint}` : ""}`,
-      prompt: buildCategorizationPrompt(card),
-      schema: linkCategoryClassificationSchema,
-    });
-
-    const { category, confidence, providerHint, tags } = result.object;
-    const normalizedCategory = resolveCategoryKey(category);
-
-    if (!normalizedCategory) {
-      const invalidCategoryError = new Error(
-        `Invalid category returned from classification: ${category ?? "<empty>"}`,
-      );
-      (invalidCategoryError as any).cause = { value: result.object };
-      throw invalidCategoryError;
-    }
-
-    return {
-      category: normalizedCategory,
-      confidence: confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE,
-      providerHint,
-      tags,
-    };
+  return {
+    category: resolution.category,
+    confidence: resolution.confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE,
+    providerHint: resolution.provider,
+    reason: resolution.reason,
   };
-
-  try {
-    const firstPass = await runLLM();
-    if ((firstPass.confidence ?? 0) < 0.35) {
-      const retryHint = normalizeHostname(card.url) || "";
-      const secondPass = await runLLM(retryHint);
-      return secondPass;
-    }
-    return firstPass;
-  } catch (error) {
-    const classificationValue =
-      (error as any)?.cause?.value ??
-      (error as any)?.value ??
-      undefined;
-    const invalidCategory =
-      classificationValue && typeof classificationValue === "object"
-        ? (classificationValue as any).category
-        : undefined;
-    const mappedCategory = resolveCategoryKey(
-      typeof invalidCategory === "string" ? invalidCategory : undefined
-    );
-
-    const tagsCandidate = (classificationValue as any)?.tags;
-    const tagMapped =
-      !mappedCategory &&
-        Array.isArray(tagsCandidate)
-        ? resolveCategoryKey(
-          tagsCandidate.find((tag: any) => typeof tag === "string")
-        )
-        : null;
-
-    const resolvedCategory = mappedCategory ?? tagMapped;
-
-    if (resolvedCategory) {
-      const confidence =
-        typeof (classificationValue as any)?.confidence === "number"
-          ? (classificationValue as any).confidence
-          : LINK_CATEGORY_DEFAULT_CONFIDENCE;
-      const providerHint =
-        typeof (classificationValue as any)?.providerHint === "string"
-          ? (classificationValue as any).providerHint
-          : undefined;
-      const tags =
-        Array.isArray(tagsCandidate)
-          ? tagsCandidate.filter((tag) => typeof tag === "string")
-          : undefined;
-
-      console.warn(`${CATEGORIZE_LOG_PREFIX} Classification fallback applied`, {
-        cardId: card._id,
-        originalCategory: invalidCategory,
-        mappedCategory: resolvedCategory,
-      });
-
-      return {
-        category: resolvedCategory,
-        confidence,
-        providerHint,
-        tags,
-      };
-    }
-
-    console.error(`${CATEGORIZE_LOG_PREFIX} Failed to classify link`, {
-      cardId: card._id,
-      error,
-    });
-    return null;
-  }
 };
 
 const toArray = <T>(value: T | T[] | undefined): T[] => {
@@ -943,7 +764,7 @@ export const classifyStep: any = internalAction({
       };
     }
 
-    const classification = await classifyLinkCategory(contextCard);
+    const classification = await classifyLinkCategory(contextCard, sourceUrl);
     if (!classification) {
       console.warn(`${CATEGORIZE_LOG_PREFIX} Classification failed`, { cardId });
       throw new Error(`Failed to classify link category for card ${cardId}`);
