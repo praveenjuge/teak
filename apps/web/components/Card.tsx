@@ -171,7 +171,6 @@ export function Card({
                 </p>
               </div>
             )}
-
             {card.type === "quote" && (
               <div className="py-4 px-6 rounded-xl border bg-card">
                 <div className="relative">
@@ -187,7 +186,6 @@ export function Card({
                 </div>
               </div>
             )}
-
             {card.type === "link" && (
               <>
                 {displayLinkImage && linkCardTitle ? (
@@ -214,7 +212,6 @@ export function Card({
                 )}
               </>
             )}
-
             {card.type === "image" && (
               <GridImagePreview
                 fileId={card.fileId}
@@ -224,13 +221,11 @@ export function Card({
                 height={card.fileMetadata?.height}
               />
             )}
-
             {card.type === "video" && (
               <div className="w-full h-32 flex items-center justify-center bg-muted text-muted-foreground rounded-xl border">
                 <PlayCircle />
               </div>
             )}
-
             {card.type === "audio" && (
               <div className="flex h-14 items-center justify-between space-x-0.5 px-4 py-2 bg-card rounded-xl border">
                 {Array.from({ length: AUDIO_WAVE_BARS }).map((_, i) => (
@@ -245,7 +240,6 @@ export function Card({
                 ))}
               </div>
             )}
-
             {card.type === "document" && (
               <div className="p-4 flex gap-2 items-center bg-card rounded-xl border">
                 <File className="shrink-0 size-4 text-muted-foreground" />
@@ -254,7 +248,6 @@ export function Card({
                 </span>
               </div>
             )}
-
             {card.type === "palette" &&
               (card.colors?.length ? (
                 <div className="flex bg-card rounded-xl border overflow-hidden">
@@ -272,7 +265,6 @@ export function Card({
                   <p className="line-clamp-2 font-medium">{card.content}</p>
                 </div>
               ))}
-
             {!card.type && (
               <div className="p-4 rounded-xl border bg-card">
                 <p className="line-clamp-2 font-medium">
