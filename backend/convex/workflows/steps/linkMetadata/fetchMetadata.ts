@@ -48,7 +48,7 @@ export const fetchMetadata = internalAction({
       cardId,
     });
 
-    if (!card || card.type !== "link" || !card.url) {
+    if (!card || !card.url) {
       console.error(
         `[linkMetadata] Card ${cardId} is not a valid link card (card type = ${card?.type})`,
       );
@@ -64,6 +64,39 @@ export const fetchMetadata = internalAction({
         status: "failed" as const,
         errorType: "invalid_card",
         errorMessage: "Card is missing a valid URL",
+      };
+    }
+
+    const classificationStatus = card.processingStatus?.classify?.status;
+    const classificationPending =
+      !classificationStatus ||
+      classificationStatus === "pending" ||
+      classificationStatus === "in_progress";
+
+    if (card.type !== "link") {
+      if (classificationPending) {
+        throwRetryable({
+          type: "awaiting_classification",
+          normalizedUrl: card.url,
+          message: "Waiting for classification to finish",
+        });
+      }
+
+      console.error(
+        `[linkMetadata] Card ${cardId} is not a valid link card (card type = ${card?.type})`,
+      );
+      await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
+        cardId,
+        linkPreview: buildErrorPreview(card.url ?? "", {
+          type: "invalid_card",
+          message: "Card is not a link",
+        }),
+        status: "failed",
+      });
+      return {
+        status: "failed" as const,
+        errorType: "invalid_card",
+        errorMessage: "Card is not a link",
       };
     }
 
