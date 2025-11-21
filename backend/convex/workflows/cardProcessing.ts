@@ -66,6 +66,26 @@ export const cardProcessingWorkflow: any = workflow.define({
   handler: async (step, { cardId }) => {
     console.info(`${PIPELINE_LOG_PREFIX} Starting workflow`, { cardId });
 
+    // Kick off link metadata immediately so it can run in parallel with classification
+    const initialCard = await step.runQuery(
+      internalWorkflow["linkMetadata"].getCardForMetadata,
+      { cardId }
+    );
+    const shouldStartLinkMetadata =
+      !!initialCard?.url &&
+      initialCard?.metadata?.linkPreview?.status !== "success";
+
+    if (shouldStartLinkMetadata) {
+      console.info(`${PIPELINE_LOG_PREFIX} Starting link metadata workflow`, {
+        cardId,
+        cardType: initialCard?.type,
+      });
+      await step.runMutation(
+        internalWorkflow["workflows/linkMetadata"].startLinkMetadataWorkflow,
+        { cardId, startAsync: true }
+      );
+    }
+
     // Step 1: Classification
     // Determine the card type using AI
     console.info(`${PIPELINE_LOG_PREFIX} Running classification`, { cardId });

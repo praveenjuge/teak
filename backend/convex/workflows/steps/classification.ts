@@ -451,17 +451,6 @@ export const classify = internalAction({
       normalizedType === "link" &&
       card.metadata?.linkPreview?.status !== "success";
 
-    if (needsLinkMetadata) {
-      console.info(`${CLASSIFY_LOG_PREFIX} Scheduling link metadata extraction`, {
-        cardId,
-      });
-      await ctx.scheduler.runAfter(
-        0,
-        (internal as any)["workflows/linkMetadata"].startLinkMetadataWorkflow,
-        { cardId, startAsync: true }
-      );
-    }
-
     // Determine which stages need to run next
     const shouldCategorize = normalizedType === "link";
     const shouldGenerateMetadata = true; // Always generate metadata

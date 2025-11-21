@@ -133,16 +133,6 @@ export const createCard = mutation({
 
     const cardId = await ctx.db.insert("cards", cardData);
 
-    // For link cards: Start link metadata extraction in parallel with workflow
-    // The workflow will wait for extraction to complete before categorization
-    if (cardType === "link" && finalUrl) {
-      await ctx.scheduler.runAfter(
-        0,
-        (internal as any)["workflows/linkMetadata"].startLinkMetadataWorkflow,
-        { cardId },
-      );
-    }
-
     // Start the card processing workflow
     const workflowId = await workflow.start(
       ctx,
