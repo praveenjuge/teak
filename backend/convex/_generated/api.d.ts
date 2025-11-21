@@ -35,7 +35,6 @@ import type * as tasks_cards_createCard from "../tasks/cards/createCard.js";
 import type * as tasks_cards_deleteCard from "../tasks/cards/deleteCard.js";
 import type * as tasks_cards_generateUploadUrl from "../tasks/cards/generateUploadUrl.js";
 import type * as tasks_cards_getCard from "../tasks/cards/getCard.js";
-import type * as tasks_cards_getCardCount from "../tasks/cards/getCardCount.js";
 import type * as tasks_cards_getCards from "../tasks/cards/getCards.js";
 import type * as tasks_cards_getFileUrl from "../tasks/cards/getFileUrl.js";
 import type * as tasks_cards_migrations from "../tasks/cards/migrations.js";
@@ -113,7 +112,6 @@ declare const fullApi: ApiFromModules<{
   "tasks/cards/deleteCard": typeof tasks_cards_deleteCard;
   "tasks/cards/generateUploadUrl": typeof tasks_cards_generateUploadUrl;
   "tasks/cards/getCard": typeof tasks_cards_getCard;
-  "tasks/cards/getCardCount": typeof tasks_cards_getCardCount;
   "tasks/cards/getCards": typeof tasks_cards_getCards;
   "tasks/cards/getFileUrl": typeof tasks_cards_getFileUrl;
   "tasks/cards/migrations": typeof tasks_cards_migrations;

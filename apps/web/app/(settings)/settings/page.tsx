@@ -327,10 +327,8 @@ function SubscriptionSection({
 export default function ProfileSettingsPage() {
   // @ts-ignore
   const user = useQuery(api.auth.getCurrentUser);
-  // @ts-ignore
-  const cardCount = useQuery(api.cards.getCardCount, {});
-  // @ts-ignore
-  const hasPremium = useQuery(api.billing.userHasPremium, {});
+  const cardCount = user?.cardCount ?? 0;
+  const hasPremium = user?.hasPremium;
   // @ts-ignore
   const deleteAccount = useMutation(api.users.deleteAccount);
   const prepareAvatarUpload = useMutation(api.users.prepareAvatarUpload);

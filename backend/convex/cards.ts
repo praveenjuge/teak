@@ -7,7 +7,6 @@ export * from "./tasks/cards/createCard";
 export * from "./tasks/cards/deleteCard";
 export * from "./tasks/cards/generateUploadUrl";
 export * from "./tasks/cards/getCard";
-export * from "./tasks/cards/getCardCount";
 export * from "./tasks/cards/getCards";
 export * from "./tasks/cards/getFileUrl";
 export * from "./tasks/cards/migrations";

@@ -15,18 +15,20 @@ export async function ensureCardCreationAllowed(
   ctx: MutationCtx,
   userId: string,
 ): Promise<void> {
+  const limit = FREE_TIER_LIMIT + 1;
   const existingCards = await ctx.db
     .query("cards")
     .withIndex("by_user_deleted", (q) =>
       q.eq("userId", userId).eq("isDeleted", undefined),
     )
-    .collect();
+    .take(limit);
 
   if (existingCards.length < FREE_TIER_LIMIT) {
     return;
   }
 
-  const hasPremium = await ctx.runQuery(api.billing.userHasPremium);
+  const currentUser = await ctx.runQuery(api.auth.getCurrentUser);
+  const hasPremium = currentUser?.hasPremium === true;
   if (hasPremium) {
     return;
   }
