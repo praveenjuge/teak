@@ -58,10 +58,10 @@ Built with a modern monorepo architecture:
 
 ### Core Stack
 
-- **Web Frontend**: Next.js 15 with App Router, TypeScript, TailwindCSS
+- **Web Frontend**: Next.js with App Router, TypeScript, TailwindCSS
 - **Mobile App**: Expo with React Native, TypeScript, Better Auth
 - **Browser Extension**: Wxt framework with Chrome APIs, TypeScript, TailwindCSS
-- **Documentation**: Fumadocs with Next.js 15, MDX content, TypeScript
+- **Documentation**: Fumadocs with Next.js, MDX content, TypeScript
 - **Backend**: Convex (real-time database with serverless functions)
 - **Authentication**: Better Auth with Convex integration across web, mobile, and extension
 - **UI Components**: shadcn/ui with Radix primitives (web), Expo components (mobile)
