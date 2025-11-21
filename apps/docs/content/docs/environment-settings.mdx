@@ -80,13 +80,3 @@ VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 | Billing           | `POLAR_ACCESS_TOKEN`, `POLAR_ORGANIZATION_TOKEN`, `POLAR_WEBHOOK_SECRET` | Subscription management              |
 | User Registration | `ENABLE_MULTIPLE_USER_REGISTRATION`                                      | Allow new user signups               |
 | Email Service     | `RESEND_API_KEY`                                                         | Transactional emails                 |
-
-## Testing
-
-```bash
-# Playwright seeds this Better Auth account before running specs
-E2E_BETTER_AUTH_USER_EMAIL=test@example.com
-E2E_BETTER_AUTH_USER_PASSWORD=password123
-E2E_BETTER_AUTH_ADMIN_EMAIL=admin@example.com
-E2E_BETTER_AUTH_ADMIN_PASSWORD=password123
-```
