@@ -44,6 +44,13 @@ const nextConfig = {
       },
     ];
   },
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@/.source": "./.source/index.ts",
+    };
+    return config;
+  },
 };
 
 export default withMDX(nextConfig);
