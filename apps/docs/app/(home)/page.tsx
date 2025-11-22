@@ -139,26 +139,15 @@ export default function HomePage() {
               Save inspiration in 1 click, find it in 2 seconds. Never lose your
               best ideas again.
             </p>
-            <div className="flex flex-col justify-center gap-4 sm:flex-row">
-              <Button size="lg" asChild>
-                <a
-                  href="https://accounts.teakvault.com/waitlist"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Join Waitlist →
-                </a>
-              </Button>
-              <Button variant="outline" size="lg" asChild>
-                <a
-                  href="https://app.teakvault.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Login
-                </a>
-              </Button>
-            </div>
+            <Button size="lg" asChild>
+              <a
+                href="https://accounts.teakvault.com/waitlist"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Join Waitlist →
+              </a>
+            </Button>
           </div>
 
           {/* Hero Image */}

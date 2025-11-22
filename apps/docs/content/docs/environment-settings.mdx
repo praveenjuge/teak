@@ -4,10 +4,6 @@ description: Environment variables configuration for Teak
 icon: Settings
 ---
 
-## Quick Setup
-
-Configure 4 environment files and sync Better Auth secrets into the Convex dashboard.
-
 ### Backend (`backend/.env.local`)
 
 ```bash
@@ -23,8 +19,6 @@ POLAR_SERVER=sandbox                         # sandbox|production
 POLAR_WEBHOOK_SECRET=secret                  # Polar webhooks
 RESEND_API_KEY=token                         # Email service
 ```
-
-> Better Auth expects the same values inside Convex. Run `npx convex env set BETTER_AUTH_SECRET <secret>`, `npx convex env set SITE_URL http://localhost:3000`, and `npx convex env set CONVEX_SITE_URL https://name-123.convex.site` so cloud functions match your local `.env`.
 
 ### Web (`apps/web/.env.local`)
 
