@@ -10,3 +10,11 @@ bunx tsc --noEmit
 # Check that web app builds successfully  
 echo "Checking web app builds..."
 cd apps/web && bun run build
+
+# Check that docs builds successfully
+echo "Checking web app builds..."
+cd ../.. && cd apps/docs && bun run build
+
+# Check that extension builds successfully
+echo "Checking web app builds..."
+cd ../.. && cd apps/extension && bun run build
