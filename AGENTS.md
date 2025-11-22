@@ -142,12 +142,6 @@ The application centers around a flexible card system:
 - **Search & Filtering**: Real-time filtering by type, favorites, and tags
 - **Batch Operations**: Restore, permanent delete, toggle favorites
 
-### Link Categorization
-
-- Normalized category constants live in `backend/shared/linkCategories.ts` and power schema validators
-- Workflow categorization step enriches link cards with provider metadata and confidence scores
-- Admin dashboards surface category coverage through pipeline summaries
-
 ## AI Processing Pipeline
 
 - Orchestrated by `backend/convex/workflows/cardProcessing.ts` using `@convex-dev/workflow` with retries per step
@@ -177,7 +171,6 @@ apps/web/
 │   ├── layout.tsx        # Root layout with Better Auth + Convex providers
 │   └── page.tsx          # Main dashboard using cached Convex queries
 ├── components/
-│   ├── AlphaBanner.tsx   # Dismissible alpha-state banner
 │   ├── ConvexClientProvider.tsx # Convex + Better Auth provider wrapper
 │   ├── card-previews/    # Preview UIs for each card type
 │   ├── DragOverlay.tsx   # Drag-and-drop overlay styling
