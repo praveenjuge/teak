@@ -1,3 +1,4 @@
+import type { ComponentType } from "react";
 import { createRelativeLink } from "fumadocs-ui/mdx";
 import {
   DocsBody,
@@ -18,17 +19,24 @@ export default async function Page(props: {
     notFound();
   }
 
-  const MDXContent = page.data.body;
+  // MDX v14 types don't expose compiled body/toc on PageData, but they are present at runtime.
+  const data = page.data as typeof page.data & {
+    body: ComponentType;
+    toc?: unknown;
+    title?: string;
+    description?: string;
+  };
+  const MDXContent = data.body;
 
   return (
     <DocsPage
-      toc={page.data.toc}
+      toc={data.toc}
       tableOfContent={{
         style: "clerk",
       }}
     >
-      <DocsTitle>{page.data.title}</DocsTitle>
-      <DocsDescription>{page.data.description}</DocsDescription>
+      <DocsTitle>{data.title}</DocsTitle>
+      <DocsDescription>{data.description}</DocsDescription>
       <DocsBody>
         <MDXContent
           components={getMDXComponents({
