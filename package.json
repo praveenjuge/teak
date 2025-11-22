@@ -4,6 +4,7 @@
   "scripts": {
     "build": "cd apps/web && bun run build",
     "build:extension": "cd apps/extension && bun run build",
+    "build:docs": "cd apps/docs && bun run build",
     "predev": "cd backend && bunx convex dev --until-success",
     "dev": "pkill -f 'port 3000' || true && concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
     "dev:backend": "cd backend && bunx convex dev",

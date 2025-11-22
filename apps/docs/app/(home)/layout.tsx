@@ -20,10 +20,6 @@ export default function Layout({ children }: { children: ReactNode }) {
           text: "Get Started",
           href: "https://app.teakvault.com",
         }}
-        secondaryCTA={{
-          text: "View Documentation",
-          href: "/docs",
-        }}
       />
       <Footer />
     </HomeLayout>
