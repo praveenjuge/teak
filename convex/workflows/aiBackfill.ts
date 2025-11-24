@@ -35,7 +35,7 @@ export const aiBackfillWorkflow = workflow.define({
     });
 
     const candidates: { cardId: Id<"cards"> }[] = await step.runQuery(
-      internalWorkflow["tasks/ai/queries"].findCardsMissingAi,
+      internalWorkflow["ai/queries"].findCardsMissingAi,
       {}
     );
 

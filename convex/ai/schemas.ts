@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { cardTypes } from "../../schema";
+import { cardTypes } from "../schema";
 
 export const cardClassificationSchema = z.object({
   type: z.enum(cardTypes).describe("Best matching card type"),

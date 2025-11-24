@@ -79,7 +79,7 @@ teak/
 
 - Orchestrated in `convex/workflows/cardProcessing.ts` using `@convex-dev/workflow` with per-step retries.
 - Sequence: classification (detect type + palette colors) → categorization (links; waits for metadata) → metadata (AI tags, summary, transcript) → renderables (media thumbnails; skips tiny originals; writes via internal mutations).
-- Helpers: `convex/workflows/functionRefs.ts` + `convex/tasks/ai`.
+- Helpers: `convex/workflows/functionRefs.ts` + `convex/ai`.
 - Logging: updates `processingStatus` and logs with `[workflow/*]` prefixes for admin dashboards.
 - Link metadata: `convex/workflows/linkMetadata.ts` via `startLinkMetadataWorkflow`; Cloudflare scrape/HTTP retries handled inside the workflow.
 
@@ -95,7 +95,7 @@ teak/
 - **Web (web/)**: `app/(auth)/`, `admin/page.tsx` (pipeline summaries), `globals.css`, `layout.tsx`, `page.tsx`; components include `ConvexClientProvider`, card previews, `DragOverlay`, `CardModal`, `AddCardForm`, `MasonryGrid`, `SearchBar`, patterns, shadcn/ui; hooks (`useCardActions`, `useCardModal`, `useGlobalDragDrop`); `package.json`.
 - **Mobile (mobile/)**: `app/(auth)/`, `app/(tabs)/index.tsx|add.tsx|settings.tsx`, `_layout.tsx`; components (Expo UI, `CardItem`, `CardsGrid`, `SearchInput`); `lib/hooks`; `package.json`.
 - **Extension (extension/)**: `src/background.ts`, `content.tsx`, `popup.tsx`; hooks (`useAutoSaveLink`, `useContextMenuSave`, `useContextMenuState`); types `contextMenu.ts`; `style.css`; assets `icon.png`; `package.json`; `tsconfig.json`.
-- **Backend (root)**: Convex directories `_generated/`, `workflows/`, `tasks/`, `billing.ts`, `admin.ts`, `schema.ts`, `cards.ts`, `auth.config.ts`, `crons.ts`, `convex.config.ts`, entrypoint `convex/index.ts`; shared utils/constants/hooks under `convex/shared/`; `.env.local`; `package.json`.
+- **Backend (root)**: Convex directories `_generated/`, `workflows/`, `ai/`, `card/`, `billing.ts`, `admin.ts`, `schema.ts`, `cards.ts`, `auth.config.ts`, `crons.ts`, `convex.config.ts`, entrypoint `convex/index.ts`; shared utils/constants/hooks under `convex/shared/`; `.env.local`; `package.json`.
 - **Docs (docs/)**: `app/(home)/`, `app/docs/[[...slug]]/` + `layout.tsx`, API routes under `app/api/`, root `layout.tsx`, `global.css`; components; `content/docs/`; `lib/`; `source.config.ts`; `package.json`.
 - **Shared code (convex/shared/)**: `constants.ts`, `index.ts`, `linkCategories.ts`, hooks (`useCardActions.ts`, `useFileUpload.ts`), utils (`colorUtils.ts`).
 - **Monorepo**: npm workspaces; TypeScript project references; imports via `@teak/convex` and `@teak/convex/shared`; run scripts from root with workspace targeting.

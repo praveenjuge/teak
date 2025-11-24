@@ -8,8 +8,8 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
 import type { CardType } from "../../schema";
-import { stageCompleted, stagePending } from "../../tasks/cards/processingStatus";
-import { normalizeQuoteContent } from "../../tasks/cards/quoteFormatting";
+import { stageCompleted, stagePending } from "../../card/processingStatus";
+import { normalizeQuoteContent } from "../../card/quoteFormatting";
 
 const CLASSIFY_MUTATION_LOG_PREFIX = "[workflow/classify/mutation]";
 

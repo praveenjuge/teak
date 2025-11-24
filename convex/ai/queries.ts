@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalQuery } from "../../_generated/server";
+import { internalQuery } from "../_generated/server";
 
 // Internal query to get card data for AI processing
 export const getCardForAI = internalQuery({

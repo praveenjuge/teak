@@ -17,7 +17,7 @@ import {
   extractPaletteColors,
   type Color,
 } from "@teak/convex/shared/utils/colorUtils";
-import { normalizeQuoteContent } from "../../tasks/cards/quoteFormatting";
+import { normalizeQuoteContent } from "../../card/quoteFormatting";
 
 const CLASSIFY_LOG_PREFIX = "[workflow/classify]";
 
@@ -335,7 +335,7 @@ export const classify = internalAction({
   handler: async (ctx, { cardId }): Promise<ClassificationWorkflowResult> => {
     console.info(`${CLASSIFY_LOG_PREFIX} Running`, { cardId });
     //@ts-ignore
-    const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
+    const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
       cardId,
     });
 

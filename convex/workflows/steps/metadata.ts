@@ -17,7 +17,7 @@ import {
   generateLinkMetadata,
 } from "../aiMetadata/generators";
 import { generateTranscript } from "../aiMetadata/transcript";
-import { stageCompleted } from "../../tasks/cards/processingStatus";
+import { stageCompleted } from "../../card/processingStatus";
 
 const METADATA_LOG_PREFIX = "[workflow/metadata]";
 
@@ -40,7 +40,7 @@ export const generate: any = internalAction({
   handler: async (ctx, { cardId, cardType }) => {
     console.info(`${METADATA_LOG_PREFIX} Running`, { cardId, cardType });
     //@ts-ignore
-    const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
+    const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
       cardId,
     });
 

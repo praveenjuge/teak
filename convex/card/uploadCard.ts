@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
-import { mutation } from "../../_generated/server";
-import { internal } from "../../_generated/api";
+import { mutation } from "../_generated/server";
+import { internal } from "../_generated/api";
 import { ensureCardCreationAllowed } from "./cardLimit";
 import {
   buildInitialProcessingStatus,

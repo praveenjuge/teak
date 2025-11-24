@@ -705,7 +705,7 @@ export const classifyStep: any = internalAction({
     console.info(`${CATEGORIZE_LOG_PREFIX} classifyStep`, { cardId });
 
     //@ts-ignore
-    const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
+    const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
       cardId,
     });
 

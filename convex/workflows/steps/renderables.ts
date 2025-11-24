@@ -10,7 +10,7 @@
 import { v } from "convex/values";
 import { internalAction } from "../../_generated/server";
 import { internal } from "../../_generated/api";
-import { stageCompleted } from "../../tasks/cards/processingStatus";
+import { stageCompleted } from "../../card/processingStatus";
 
 const RENDERABLES_LOG_PREFIX = "[workflow/renderables]";
 
@@ -30,7 +30,7 @@ export const generate: any = internalAction({
   }),
   handler: async (ctx, { cardId, cardType }) => {
     console.info(`${RENDERABLES_LOG_PREFIX} Running`, { cardId, cardType });
-    const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
+    const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
       cardId,
     });
 
@@ -69,7 +69,7 @@ export const generate: any = internalAction({
       renderables: stageCompleted(now, 0.95),
     };
 
-    await ctx.runMutation(internal.tasks.ai.mutations.updateCardProcessing, {
+    await ctx.runMutation(internal.ai.mutations.updateCardProcessing, {
       cardId,
       processingStatus: updatedProcessing,
     });

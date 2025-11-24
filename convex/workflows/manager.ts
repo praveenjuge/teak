@@ -14,7 +14,7 @@ import type { Id } from "../_generated/dataModel";
 import {
   buildInitialProcessingStatus,
   stagePending,
-} from "../tasks/cards/processingStatus";
+} from "../card/processingStatus";
 import type { CardType } from "../schema";
 
 // @ts-ignore: Convex internal API types recurse deeply; treat as any for workflow wiring.

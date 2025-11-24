@@ -1,4 +1,4 @@
-import type { LinkCategory } from "../../../shared";
+import type { LinkCategory } from "../../shared";
 import type {
   ProviderEnrichmentResult,
   RawSelectorMap,

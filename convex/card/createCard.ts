@@ -1,7 +1,7 @@
 import { v } from "convex/values";
-import { mutation } from "../../_generated/server";
-import { internal } from "../../_generated/api";
-import { cardTypeValidator, colorValidator } from "../../schema";
+import { mutation } from "../_generated/server";
+import { internal } from "../_generated/api";
+import { cardTypeValidator, colorValidator } from "../schema";
 import { extractUrlFromContent } from "./validationUtils";
 import { normalizeQuoteContent } from "./quoteFormatting";
 import { ensureCardCreationAllowed } from "./cardLimit";
@@ -10,7 +10,7 @@ import {
   stageCompleted,
   stagePending,
 } from "./processingStatus";
-import { workflow } from "../../workflows/manager";
+import { workflow } from "../workflows/manager";
 import { extractPaletteColors } from "@teak/convex/shared/utils/colorUtils";
 
 export const createCard = mutation({

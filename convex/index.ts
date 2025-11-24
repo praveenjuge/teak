@@ -4,23 +4,25 @@ export type { Doc, Id } from "./_generated/dataModel";
 export * from "./shared";
 
 // Cards domain surface
-export * from "./tasks/cards/cardLimit";
-export * from "./tasks/cards/createCard";
-export * from "./tasks/cards/deleteCard";
-export * from "./tasks/cards/generateUploadUrl";
-export * from "./tasks/cards/getCard";
-export * from "./tasks/cards/getCards";
-export * from "./tasks/cards/getFileUrl";
-export * from "./tasks/cards/migrations";
-export * from "./tasks/cards/updateCard";
-export * from "./tasks/cards/uploadCard";
-export * from "./tasks/cards/validationUtils";
+export * from "./card/cardLimit";
+export * from "./card/createCard";
+export * from "./card/deleteCard";
+export * from "./card/generateUploadUrl";
+export * from "./card/getCard";
+export * from "./card/getCards";
+export * from "./card/getFileUrl";
+export * from "./card/migrations";
+export * from "./card/updateCard";
+export * from "./card/uploadCard";
+export * from "./card/validationUtils";
+export * from "./card/processingStatus";
+export * from "./card/quoteFormatting";
 
 // AI task helpers
-export * from "./tasks/ai/actions";
-export * from "./tasks/ai/mutations";
-export * from "./tasks/ai/queries";
-export * from "./tasks/ai/schemas";
+export * from "./ai/actions";
+export * from "./ai/mutations";
+export * from "./ai/queries";
+export * from "./ai/schemas";
 
 // Workflow orchestration
 export { workflow } from "./workflows/manager";

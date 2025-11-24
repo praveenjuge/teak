@@ -20,7 +20,7 @@ const resolveCardType = async (
   }
 
   const card = await step.runQuery(
-    internalWorkflow["tasks/ai/queries"].getCardForAI,
+    internalWorkflow["ai/queries"].getCardForAI,
     { cardId: args.cardId },
   );
 

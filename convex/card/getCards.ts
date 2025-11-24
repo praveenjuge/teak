@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import { query } from "../../_generated/server";
-import { cardTypeValidator } from "../../schema";
+import { query } from "../_generated/server";
+import { cardTypeValidator } from "../schema";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
 
 export const getCards = query({

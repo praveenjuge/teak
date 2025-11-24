@@ -1,4 +1,4 @@
-import type { CardType } from "../../schema";
+import type { CardType } from "../schema";
 
 export type ProcessingStageStatus = {
   status: "pending" | "in_progress" | "completed" | "failed";

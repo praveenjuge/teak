@@ -3,7 +3,7 @@ import { internal } from "./_generated/api";
 import type {
   ProcessingStageKey,
   ProcessingStatus,
-} from "./tasks/cards/processingStatus";
+} from "./card/processingStatus";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { authComponent } from "./auth";
@@ -290,7 +290,7 @@ export const retryAiBackfill = action({
 
     // Retrieve a sample of outstanding cards to provide context without exposing IDs
     const pendingSample = (await ctx.runQuery(
-      internal.tasks.ai.queries.findCardsMissingAi,
+      internal.ai.queries.findCardsMissingAi,
       {}
     )) as PendingSample[];
 
@@ -313,7 +313,7 @@ export const retryCardEnrichment = action({
   ): Promise<{ requestedAt: number; success: boolean; reason?: "not_found" }> => {
     await ensureAdmin(ctx);
 
-    const card = await ctx.runQuery(internal.tasks.ai.queries.getCardForAI, {
+    const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
       cardId,
     });
 

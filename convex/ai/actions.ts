@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import { action } from "../../_generated/server";
-import { internal } from "../../_generated/api";
+import { action } from "../_generated/server";
+import { internal } from "../_generated/api";
 
 export const manuallyGenerateAI = action({
   args: { cardId: v.id("cards") },
@@ -11,7 +11,7 @@ export const manuallyGenerateAI = action({
     }
 
     const verification = await ctx.runQuery(
-      internal.tasks.ai.queries.getCardForVerification,
+      internal.ai.queries.getCardForVerification,
       {
         cardId,
         userId: user.subject,

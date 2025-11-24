@@ -7,7 +7,7 @@
 
 import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
-import { stageCompleted } from "../../../tasks/cards/processingStatus";
+import { stageCompleted } from "../../../card/processingStatus";
 import { internal } from "../../../_generated/api";
 
 const CATEGORIZE_MUTATION_LOG_PREFIX = "[workflow/categorize/mutation]";

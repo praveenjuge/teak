@@ -1,11 +1,11 @@
 import { ConvexError } from "convex/values";
-import type { MutationCtx } from "../../_generated/server";
-import { api } from "../../_generated/api";
+import type { MutationCtx } from "../_generated/server";
+import { api } from "../_generated/api";
 import {
   CARD_ERROR_CODES,
   CARD_ERROR_MESSAGES,
   FREE_TIER_LIMIT,
-} from "../../shared/constants";
+} from "../shared/constants";
 
 /**
  * Ensures the current user can create a new card. Throws a ConvexError when the
