@@ -1,13 +1,12 @@
 import { createClient, type GenericCtx } from "@convex-dev/better-auth";
-import { convex, crossDomain } from "@convex-dev/better-auth/plugins";
+import { convex } from "@convex-dev/better-auth/plugins";
 import { expo } from '@better-auth/expo'
 import { components } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
-import { query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { betterAuth, BetterAuthOptions } from "better-auth";
 import { Resend } from "@convex-dev/resend";
 import { requireActionCtx } from "@convex-dev/better-auth/utils";
-import { Id } from "./_generated/dataModel";
 import { polar } from "./billing";
 import { FREE_TIER_LIMIT } from "../shared/constants";
 
@@ -146,27 +145,41 @@ export const getCurrentUser = query({
     const cardCount = cards.length;
     const canCreateCard = hasPremium || cardCount < FREE_TIER_LIMIT;
 
-    const storageId = getStorageIdFromImage(user.image);
-    const imageUrl = storageId
-      ? await ctx.storage.getUrl(storageId)
-      : user.image ?? undefined;
-
     return {
       ...user,
       hasPremium,
       cardCount,
       canCreateCard,
-      imageUrl,
-      imageStorageId: storageId,
     };
   },
 });
 
-const STORAGE_PREFIX = "storage:";
+export const deleteAccount = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("User must be authenticated");
+    }
 
-const getStorageIdFromImage = (
-  image?: string | null
-): Id<"_storage"> | null => {
-  if (!image || !image.startsWith(STORAGE_PREFIX)) return null;
-  return image.slice(STORAGE_PREFIX.length) as Id<"_storage">;
-};
+    const userId = identity.subject;
+
+    const cards = await ctx.db
+      .query("cards")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    for (const card of cards) {
+      if (card.fileId) {
+        await ctx.storage.delete(card.fileId);
+      }
+      if (card.thumbnailId) {
+        await ctx.storage.delete(card.thumbnailId);
+      }
+
+      await ctx.db.delete(card._id);
+    }
+
+    return { deletedCards: cards.length };
+  },
+});

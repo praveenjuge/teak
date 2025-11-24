@@ -14,7 +14,7 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
       </AuthLoading>
 
       <Authenticated>
-        <section className="max-w-lg mx-auto w-full space-y-5 my-10">
+        <section className="max-w-md mx-auto w-full space-y-5 my-10">
           <Link href="/" className="text-primary inline-block font-medium">
             &larr; Back
           </Link>
