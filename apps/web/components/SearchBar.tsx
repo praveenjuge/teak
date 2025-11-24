@@ -111,11 +111,10 @@ export function SearchBar({
         </div>
 
         <Link
-          // @ts-ignore
           href="/settings"
           className={cn(
             buttonVariants({
-              variant: "ghost",
+              variant: "outline",
               size: "icon",
             })
           )}
