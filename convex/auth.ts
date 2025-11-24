@@ -8,7 +8,7 @@ import { betterAuth, BetterAuthOptions } from "better-auth";
 import { Resend } from "@convex-dev/resend";
 import { requireActionCtx } from "@convex-dev/better-auth/utils";
 import { polar } from "./billing";
-import { FREE_TIER_LIMIT } from "../shared/constants";
+import { FREE_TIER_LIMIT } from "./shared/constants";
 
 const siteUrl = process.env.SITE_URL!;
 export const REGISTRATION_CLOSED_MESSAGE = "Registration is currently closed";

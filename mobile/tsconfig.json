@@ -3,12 +3,27 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@/*": ["./*"],
-      "@teak/convex": ["../backend/convex/_generated/api"],
-      "@teak/convex/*": ["../backend/convex/*"],
-      "@teak/convex/shared": ["../backend/shared/index.ts"],
-      "@teak/convex/shared/*": ["../backend/shared/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@teak/convex": [
+        "../convex/_generated/api"
+      ],
+      "@teak/convex/*": [
+        "../convex/*"
+      ],
+      "@teak/convex/shared": [
+        "../convex/shared/index.ts"
+      ],
+      "@teak/convex/shared/*": [
+        "../convex/shared/*"
+      ]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
 }

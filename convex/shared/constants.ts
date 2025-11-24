@@ -1,5 +1,5 @@
 // === Card Types ===
-// NOTE: Keep in sync with backend/convex/schema.ts
+// NOTE: Keep in sync with convex/schema.ts
 export const cardTypes = ["text", "link", "image", "video", "audio", "document", "palette", "quote"] as const;
 
 // === Derived Constants from Schema ===

@@ -21,22 +21,22 @@
     "baseUrl": ".",
     "paths": {
       "@teak/convex": [
-        "./backend/convex/_generated/api"
+        "./convex/_generated/api"
       ],
       "@teak/convex/*": [
-        "./backend/convex/*"
+        "./convex/*"
       ],
       "@teak/convex/shared": [
-        "./backend/shared/index.ts"
+        "./convex/shared/index.ts"
       ],
       "@teak/convex/shared/*": [
-        "./backend/shared/*"
+        "./convex/shared/*"
       ]
     }
   },
   "references": [
     {
-      "path": "./backend/convex"
+      "path": "./convex"
     }
   ],
   "files": [],

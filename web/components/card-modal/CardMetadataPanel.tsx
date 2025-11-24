@@ -81,7 +81,7 @@ export function CardMetadataPanel({
             </button>
           )}
 
-          {card.tags?.map((tag) => (
+          {card.tags?.map((tag: string) => (
             <button
               key={tag}
               onClick={() => onTagClick?.(tag)}
@@ -94,7 +94,7 @@ export function CardMetadataPanel({
             </button>
           )) || []}
 
-          {card.aiTags?.map((tag) => (
+          {card.aiTags?.map((tag: string) => (
             <button
               key={`ai-${tag}`}
               onClick={() => onTagClick?.(tag)}

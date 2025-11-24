@@ -1,4 +1,4 @@
-import type { LinkCategoryDetail } from "../../../../shared";
+import type { LinkCategoryDetail } from "../../../shared";
 
 export interface ProviderEnrichmentResult {
   imageUrl?: string;

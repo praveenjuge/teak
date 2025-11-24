@@ -28,15 +28,13 @@ bun run predev
 
 ```
 teak/
+├── convex/       # Database, functions, workflows, shared utilities
+│   ├── tasks/    # Background processing
+│   └── workflows/# AI pipeline orchestration
 ├── web/          # Next.js frontend
 ├── mobile/       # Expo React Native
 ├── extension/    # Chrome extension (Wxt)
 ├── docs/         # Documentation site
-├── backend/
-│   ├── convex/       # Database & functions
-│   │   ├── tasks/    # Background processing
-│   │   └── workflows/# AI pipeline orchestration
-│   └── shared/       # Shared utilities
 └── package.json
 ```
 
@@ -91,4 +89,4 @@ npx convex env set SITE_URL http://localhost:3000
 
 ### Environment Variables
 
-See **[Environment Settings](./environment-settings)** for every env var required across web, mobile, extension, and backend.
+See **[Environment Settings](./environment-settings)** for every env var required across web, mobile, extension, and the Convex backend.

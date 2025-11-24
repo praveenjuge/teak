@@ -1,4 +1,4 @@
-import { Id } from "../../convex/_generated/dataModel";
+import { Id } from "../../_generated/dataModel";
 
 export interface CardActionsConfig {
   onDeleteSuccess?: (message?: string) => void;

@@ -50,15 +50,12 @@ bun remove <package-name>
 - **Monorepo structure**
 
 ```
-teak-convex-nextjs/
+teak/
 ├── web/          # Next.js frontend
 ├── mobile/       # Expo RN mobile app
 ├── extension/    # Chrome extension (Wxt)
 ├── docs/         # Documentation site (Fumadocs)
-├── backend/
-│   ├── convex/       # Convex functions & workflows
-│   ├── shared/       # Shared utils/constants/types
-│   └── index.ts      # Re-export surface
+├── convex/       # Convex functions, workflows, shared utils, entrypoint (index.ts)
 └── package.json      # Root workspace config
 ```
 
@@ -75,16 +72,16 @@ teak-convex-nextjs/
 ## Product Domain — Cards
 
 - **Types**: text, link, image, video, audio, document, palette, quote.
-- **Schema highlights (backend/convex/schema.ts)**: user-scoped `userId`; soft delete via `isDeleted`/`deletedAt`; rich type metadata; file links via `fileId`/`thumbnailId`; tagging + favorites; link metadata with normalized category/provider/confidence; `processingStatus` stages (`classify`, `categorize`, `metadata`, `renderables`).
+- **Schema highlights (convex/schema.ts)**: user-scoped `userId`; soft delete via `isDeleted`/`deletedAt`; rich type metadata; file links via `fileId`/`thumbnailId`; tagging + favorites; link metadata with normalized category/provider/confidence; `processingStatus` stages (`classify`, `categorize`, `metadata`, `renderables`).
 - **Operations**: soft delete (30-day cleanup), automatic storage cleanup, real-time search/filtering (type, favorites, tags), batch restore/perma-delete/toggle favorites.
 
 ## AI Processing Pipeline
 
-- Orchestrated in `backend/convex/workflows/cardProcessing.ts` using `@convex-dev/workflow` with per-step retries.
+- Orchestrated in `convex/workflows/cardProcessing.ts` using `@convex-dev/workflow` with per-step retries.
 - Sequence: classification (detect type + palette colors) → categorization (links; waits for metadata) → metadata (AI tags, summary, transcript) → renderables (media thumbnails; skips tiny originals; writes via internal mutations).
-- Helpers: `backend/convex/workflows/functionRefs.ts` + `backend/convex/tasks/ai`.
+- Helpers: `convex/workflows/functionRefs.ts` + `convex/tasks/ai`.
 - Logging: updates `processingStatus` and logs with `[workflow/*]` prefixes for admin dashboards.
-- Link metadata: `backend/convex/workflows/linkMetadata.ts` via `startLinkMetadataWorkflow`; Cloudflare scrape/HTTP retries handled inside the workflow.
+- Link metadata: `convex/workflows/linkMetadata.ts` via `startLinkMetadataWorkflow`; Cloudflare scrape/HTTP retries handled inside the workflow.
 
 ## Authentication
 
@@ -98,11 +95,11 @@ teak-convex-nextjs/
 - **Web (web/)**: `app/(auth)/`, `admin/page.tsx` (pipeline summaries), `globals.css`, `layout.tsx`, `page.tsx`; components include `ConvexClientProvider`, card previews, `DragOverlay`, `CardModal`, `AddCardForm`, `MasonryGrid`, `SearchBar`, patterns, shadcn/ui; hooks (`useCardActions`, `useCardModal`, `useGlobalDragDrop`); `package.json`.
 - **Mobile (mobile/)**: `app/(auth)/`, `app/(tabs)/index.tsx|add.tsx|settings.tsx`, `_layout.tsx`; components (Expo UI, `CardItem`, `CardsGrid`, `SearchInput`); `lib/hooks`; `package.json`.
 - **Extension (extension/)**: `src/background.ts`, `content.tsx`, `popup.tsx`; hooks (`useAutoSaveLink`, `useContextMenuSave`, `useContextMenuState`); types `contextMenu.ts`; `style.css`; assets `icon.png`; `package.json`; `tsconfig.json`.
-- **Backend (backend/)**: Convex directories `_generated/`, `workflows/`, `tasks/`, `billing.ts`, `admin.ts`, `schema.ts`, `cards.ts`, `auth.config.ts`, `crons.ts`, `convex.config.ts`; shared utils/constants/hooks under `shared/`; `index.ts`; `.env.local`; `package.json`.
+- **Backend (root)**: Convex directories `_generated/`, `workflows/`, `tasks/`, `billing.ts`, `admin.ts`, `schema.ts`, `cards.ts`, `auth.config.ts`, `crons.ts`, `convex.config.ts`, entrypoint `convex/index.ts`; shared utils/constants/hooks under `convex/shared/`; `.env.local`; `package.json`.
 - **Docs (docs/)**: `app/(home)/`, `app/docs/[[...slug]]/` + `layout.tsx`, API routes under `app/api/`, root `layout.tsx`, `global.css`; components; `content/docs/`; `lib/`; `source.config.ts`; `package.json`.
-- **Shared code (backend/shared/)**: `constants.ts`, `index.ts`, `linkCategories.ts`, hooks (`useCardActions.ts`, `useFileUpload.ts`), utils (`colorUtils.ts`).
+- **Shared code (convex/shared/)**: `constants.ts`, `index.ts`, `linkCategories.ts`, hooks (`useCardActions.ts`, `useFileUpload.ts`), utils (`colorUtils.ts`).
 - **Monorepo**: npm workspaces; TypeScript project references; imports via `@teak/convex` and `@teak/convex/shared`; run scripts from root with workspace targeting.
-- **Convex**: hot deployment on save; schema changes need migrations; define indexes in `schema.ts`; scheduled functions in `crons.ts`; config in `backend/convex/convex.config.ts`; workflows must keep `processingStatus` consistent; Polar integration depends on `components.polar` + env keys `POLAR_ACCESS_TOKEN`, `POLAR_SERVER`;
+- **Convex**: hot deployment on save; schema changes need migrations; define indexes in `schema.ts`; scheduled functions in `crons.ts`; config in `convex/convex.config.ts`; workflows must keep `processingStatus` consistent; Polar integration depends on `components.polar` + env keys `POLAR_ACCESS_TOKEN`, `POLAR_SERVER`;
 - **Component patterns**: compound components (CardModal, SearchBar), business-logic hooks (`useCardActions`, `useSearchFilters`, `useAutoSaveLink`), shadcn/ui on web, masonry grid for cards, card preview components per type (text/link/image/video/audio/document), root layout composes ThemeProvider + ConvexClientProvider (Better Auth + Convex) + ConvexQueryCacheProvider + Sonner toasts, Convex handles server state + real-time updates via `ConvexQueryCacheProvider` + `convex-helpers` hooks.
-- Actions `api.billing.createCheckoutLink` / `createCustomerPortal` in `backend/convex/billing.ts` coordinate Polar SDK + Convex `components.polar`.
+- Actions `api.billing.createCheckoutLink` / `createCustomerPortal` in `convex/billing.ts` coordinate Polar SDK + Convex `components.polar`.
 - `userHasPremium` query caches membership; pairs with `FREE_TIER_LIMIT` for caps; UI shows usage badge, feature list, and customer portal launcher—keep messaging aligned with `featureList`.
