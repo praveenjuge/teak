@@ -17,6 +17,7 @@
     "build:extension": "cd extension && bun run build",
     "build:docs": "cd docs && bun run build",
     "predev": "bunx convex dev --until-success",
+    "pre-commit": "bunx lint-staged && bunx tsc --noEmit && bun run build && bun run build:docs && bun run build:extension",
     "dev": "pkill -f 'port 3000' || true && concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
     "dev:backend": "bunx convex dev",
     "dev:docs": "cd docs && bun dev",
@@ -25,7 +26,7 @@
     "dev:mobile": "cd mobile && bun dev",
     "lint": "cd web && bun run lint",
     "package:extension": "cd extension && bun run package",
-    "prepare": "husky || true",
+    "prepare": "simple-git-hooks",
     "start": "cd web && bun run start",
     "test": "cd web && bun run test:e2e"
   },
@@ -54,9 +55,12 @@
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
-    "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "prettier": "^3.6.2",
+    "simple-git-hooks": "^2.11.1",
     "typescript": "^5.9.3"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "bun run pre-commit"
   }
 }
