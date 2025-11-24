@@ -164,3 +164,19 @@
 #nd-sidebar-mobile [data-active="true"] svg {
   color: var(--color-primary);
 }
+
+/* Hide mobile TOC/nav and remove its space */
+@media (max-width: 1300px) {
+  :root {
+    --fd-tocnav-height: 0px;
+    --fd-toc-width: 0px;
+  }
+
+  #nd-tocnav {
+    display: none !important;
+  }
+
+  #nd-page {
+    padding-right: 0 !important;
+  }
+}
