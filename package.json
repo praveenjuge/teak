@@ -2,25 +2,25 @@
   "name": "teak-monorepo",
   "version": "0.0.1",
   "scripts": {
-    "build": "cd apps/web && bun run build",
-    "build:extension": "cd apps/extension && bun run build",
-    "build:docs": "cd apps/docs && bun run build",
+    "build": "cd web && bun run build",
+    "build:extension": "cd extension && bun run build",
+    "build:docs": "cd docs && bun run build",
     "predev": "cd backend && bunx convex dev --until-success",
     "dev": "pkill -f 'port 3000' || true && concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
     "dev:backend": "cd backend && bunx convex dev",
-    "dev:docs": "cd apps/docs && bun dev",
-    "dev:extension": "cd apps/extension && bun dev",
-    "dev:frontend": "cd apps/web && bun dev",
-    "dev:mobile": "cd apps/mobile && bun dev",
-    "lint": "cd apps/web && bun run lint",
-    "package:extension": "cd apps/extension && bun run package",
+    "dev:docs": "cd docs && bun dev",
+    "dev:extension": "cd extension && bun dev",
+    "dev:frontend": "cd web && bun dev",
+    "dev:mobile": "cd mobile && bun dev",
+    "lint": "cd web && bun run lint",
+    "package:extension": "cd extension && bun run package",
     "prepare": "husky",
-    "start": "cd apps/web && bun run start",
-    "test": "cd apps/web && bun run test:e2e"
+    "start": "cd web && bun run start",
+    "test": "cd web && bun run test:e2e"
   },
   "lint-staged": {
-    "apps/web/**/*.{js,jsx,ts,tsx}": [
-      "cd apps/web && bun run lint --fix"
+    "web/**/*.{js,jsx,ts,tsx}": [
+      "cd web && bun run lint --fix"
     ]
   },
   "devDependencies": {

@@ -15,11 +15,10 @@ Teak is a personal knowledge hub designed to help creative minds effortlessly co
 
 ```
 teak/
-├── apps/
-│   ├── web/                 # Next.js 16 frontend (@teak/web)
-│   ├── mobile/              # React Native Expo mobile app (@teak/mobile)
-│   ├── extension/           # Chrome browser extension (Wxt)
-│   └── docs/                # Documentation site (Fumadocs)
+├── web/                 # Next.js 16 frontend (@teak/web)
+├── mobile/              # React Native Expo mobile app (@teak/mobile)
+├── extension/           # Chrome browser extension (Wxt)
+├── docs/                # Documentation site (Fumadocs)
 ├── .env.example             # Environment variables template
 ├── package.json             # Root monorepo orchestrator (@teak/root)
 └── README.md                # This file

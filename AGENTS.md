@@ -51,11 +51,10 @@ bun remove <package-name>
 
 ```
 teak-convex-nextjs/
-├── apps/
-│   ├── web/          # Next.js frontend
-│   ├── mobile/       # Expo RN mobile app
-│   ├── extension/    # Chrome extension (Wxt)
-│   └── docs/         # Documentation site (Fumadocs)
+├── web/          # Next.js frontend
+├── mobile/       # Expo RN mobile app
+├── extension/    # Chrome extension (Wxt)
+├── docs/         # Documentation site (Fumadocs)
 ├── backend/
 │   ├── convex/       # Convex functions & workflows
 │   ├── shared/       # Shared utils/constants/types
@@ -96,11 +95,11 @@ teak-convex-nextjs/
 ## App Surfaces
 
 - Search & Filtering implemented in `useSearchFilters` hook: real-time search across content/metadata, tag keyword extraction, type filtering, favorites/trash state filters, typeahead suggestions.
-- **Web (apps/web/)**: `app/(auth)/`, `admin/page.tsx` (pipeline summaries), `globals.css`, `layout.tsx`, `page.tsx`; components include `ConvexClientProvider`, card previews, `DragOverlay`, `CardModal`, `AddCardForm`, `MasonryGrid`, `SearchBar`, patterns, shadcn/ui; hooks (`useCardActions`, `useCardModal`, `useGlobalDragDrop`); `package.json`.
-- **Mobile (apps/mobile/)**: `app/(auth)/`, `app/(tabs)/index.tsx|add.tsx|settings.tsx`, `_layout.tsx`; components (Expo UI, `CardItem`, `CardsGrid`, `SearchInput`); `lib/hooks`; `package.json`.
-- **Extension (apps/extension/)**: `src/background.ts`, `content.tsx`, `popup.tsx`; hooks (`useAutoSaveLink`, `useContextMenuSave`, `useContextMenuState`); types `contextMenu.ts`; `style.css`; assets `icon.png`; `package.json`; `tsconfig.json`.
+- **Web (web/)**: `app/(auth)/`, `admin/page.tsx` (pipeline summaries), `globals.css`, `layout.tsx`, `page.tsx`; components include `ConvexClientProvider`, card previews, `DragOverlay`, `CardModal`, `AddCardForm`, `MasonryGrid`, `SearchBar`, patterns, shadcn/ui; hooks (`useCardActions`, `useCardModal`, `useGlobalDragDrop`); `package.json`.
+- **Mobile (mobile/)**: `app/(auth)/`, `app/(tabs)/index.tsx|add.tsx|settings.tsx`, `_layout.tsx`; components (Expo UI, `CardItem`, `CardsGrid`, `SearchInput`); `lib/hooks`; `package.json`.
+- **Extension (extension/)**: `src/background.ts`, `content.tsx`, `popup.tsx`; hooks (`useAutoSaveLink`, `useContextMenuSave`, `useContextMenuState`); types `contextMenu.ts`; `style.css`; assets `icon.png`; `package.json`; `tsconfig.json`.
 - **Backend (backend/)**: Convex directories `_generated/`, `workflows/`, `tasks/`, `billing.ts`, `admin.ts`, `schema.ts`, `cards.ts`, `auth.config.ts`, `crons.ts`, `convex.config.ts`; shared utils/constants/hooks under `shared/`; `index.ts`; `.env.local`; `package.json`.
-- **Docs (apps/docs/)**: `app/(home)/`, `app/docs/[[...slug]]/` + `layout.tsx`, API routes under `app/api/`, root `layout.tsx`, `global.css`; components; `content/docs/`; `lib/`; `source.config.ts`; `package.json`.
+- **Docs (docs/)**: `app/(home)/`, `app/docs/[[...slug]]/` + `layout.tsx`, API routes under `app/api/`, root `layout.tsx`, `global.css`; components; `content/docs/`; `lib/`; `source.config.ts`; `package.json`.
 - **Shared code (backend/shared/)**: `constants.ts`, `index.ts`, `linkCategories.ts`, hooks (`useCardActions.ts`, `useFileUpload.ts`), utils (`colorUtils.ts`).
 - **Monorepo**: npm workspaces; TypeScript project references; imports via `@teak/convex` and `@teak/convex/shared`; run scripts from root with workspace targeting.
 - **Convex**: hot deployment on save; schema changes need migrations; define indexes in `schema.ts`; scheduled functions in `crons.ts`; config in `backend/convex/convex.config.ts`; workflows must keep `processingStatus` consistent; Polar integration depends on `components.polar` + env keys `POLAR_ACCESS_TOKEN`, `POLAR_SERVER`;

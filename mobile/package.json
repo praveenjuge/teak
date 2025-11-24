@@ -16,7 +16,7 @@
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.0.3",
     "@shopify/flash-list": "2.2.0",
-    "@teak/convex": "file:../../backend",
+    "@teak/convex": "file:../backend",
     "better-auth": "1.3.34",
     "convex": "^1.29.3",
     "expo": "^54.0.25",

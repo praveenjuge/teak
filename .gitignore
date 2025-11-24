@@ -48,5 +48,5 @@ package-lock.json
 
 bun.lock
 
-apps/web/.next
-apps/web/node_modules
+web/.next
+web/node_modules

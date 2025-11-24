@@ -28,16 +28,16 @@
         "./*"
       ],
       "@teak/convex": [
-        "../../backend/convex/_generated/api"
+        "../backend/convex/_generated/api"
       ],
       "@teak/convex/*": [
-        "../../backend/convex/*"
+        "../backend/convex/*"
       ],
       "@teak/convex/shared": [
-        "../../backend/shared/index.ts"
+        "../backend/shared/index.ts"
       ],
       "@teak/convex/shared/*": [
-        "../../backend/shared/*"
+        "../backend/shared/*"
       ]
     }
   },
