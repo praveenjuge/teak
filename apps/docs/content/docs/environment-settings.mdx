@@ -4,7 +4,7 @@ description: Environment variables configuration for Teak
 icon: Settings
 ---
 
-### Backend (`backend/.env.local`)
+## Backend (`backend/.env.local`)
 
 ```bash
 SITE_URL=http://localhost:3000
@@ -20,27 +20,29 @@ POLAR_WEBHOOK_SECRET=secret                  # Polar webhooks
 RESEND_API_KEY=token                         # Email service
 ```
 
-### Web (`apps/web/.env.local`)
+## Clients
 
-```bash
-CONVEX_DEPLOY_KEY=
-NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
-NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
-```
+- **Web (`apps/web/.env.local`)**
 
-### Mobile (`apps/mobile/.env.local`)
+  ```bash
+  CONVEX_DEPLOY_KEY=
+  NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
+  NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+  ```
 
-```bash
-EXPO_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
-EXPO_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
-```
+- **Mobile (`apps/mobile/.env.local`)**
 
-### Extension (`apps/extension/.env.local`)
+  ```bash
+  EXPO_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
+  EXPO_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+  ```
 
-```bash
-VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
-VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
-```
+- **Extension (`apps/extension/.env.local`)**
+
+  ```bash
+  VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
+  VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+  ```
 
 ## Getting Values
 
