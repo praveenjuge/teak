@@ -146,3 +146,21 @@
   backdrop-filter: none;
   font-weight: 500;
 }
+
+#nd-sidebar,
+#nd-sidebar-mobile {
+  border: 0 !important;
+  background: transparent !important;
+}
+
+#nd-sidebar [data-active="true"],
+#nd-sidebar-mobile [data-active="true"] {
+  background: var(--background) !important;
+  color: var(--primary) !important;
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+#nd-sidebar [data-active="true"] svg,
+#nd-sidebar-mobile [data-active="true"] svg {
+  color: var(--color-primary);
+}

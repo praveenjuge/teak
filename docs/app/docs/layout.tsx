@@ -1,18 +1,26 @@
 import { DocsLayout } from "fumadocs-ui/layouts/docs";
+import { Header as HomeHeader } from "fumadocs-ui/layouts/home";
 import type { ReactNode } from "react";
 import { source } from "@/lib/source";
-import Logo from "@/components/Logo";
+import { baseOptions } from "@/app/layout.config";
 
 export default function Layout({ children }: { children: ReactNode }) {
+  const { nav, links: _links, ...restOptions } = baseOptions;
+
   return (
     <DocsLayout
       tree={source.pageTree}
-      githubUrl="https://github.com/praveenjuge/teak"
+      {...restOptions}
+      sidebar={{ collapsible: false }}
+      // Replace the mobile-only docs navbar with the full home header
       nav={{
-        title: <Logo />,
+        ...nav,
+        // Hide logo/title inside the docs sidebar
+        title: null,
+        component: <HomeHeader {...baseOptions} />,
       }}
     >
-      {children}
+      <div className="on-root:[--fd-nav-height:56px]">{children}</div>
     </DocsLayout>
   );
 }

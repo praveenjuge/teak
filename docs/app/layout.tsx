@@ -2,6 +2,7 @@ import "@/app/global.css";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import type { ReactNode } from "react";
 import { Metadata } from "next";
+import { BackgroundPattern } from "@/components/BackgroundPattern";
 
 export const metadata: Metadata = {
   title: {
@@ -39,6 +40,10 @@ export default function Layout({ children }: { children: ReactNode }) {
             enabled: false,
           }}
         >
+          {/* Background Pattern */}
+          <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden pointer-events-none -z-10">
+            <BackgroundPattern />
+          </div>
           {children}
         </RootProvider>
       </body>
