@@ -75,7 +75,7 @@ export default function FeedbackStatusScreen() {
       return;
     }
     router.replace("/(tabs)");
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     return subscribeFeedbackStatus((state) => {

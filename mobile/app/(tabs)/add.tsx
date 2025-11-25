@@ -48,17 +48,14 @@ export default function AddScreen() {
     return unsubscribe;
   }, []);
 
-  const showFeedback = useCallback(
-    (payload: FeedbackStatusPayload) => {
-      setFeedbackStatus(payload);
+  const showFeedback = useCallback((payload: FeedbackStatusPayload) => {
+    setFeedbackStatus(payload);
 
-      if (!feedbackVisibleRef.current) {
-        feedbackVisibleRef.current = true;
-        router.push("/(feedback)");
-      }
-    },
-    [router]
-  );
+    if (!feedbackVisibleRef.current) {
+      feedbackVisibleRef.current = true;
+      router.push("/(feedback)");
+    }
+  }, []);
 
   const showSavedFeedback = useCallback(
     (message = "Saved Successfully!") => {

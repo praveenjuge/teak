@@ -92,6 +92,7 @@
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.0.4",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-expo": "^1.0.0",
     "lint-staged": "^16.2.7",
     "prettier": "^3.6.2",
     "simple-git-hooks": "^2.11.1",

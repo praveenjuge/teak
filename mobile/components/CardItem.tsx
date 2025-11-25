@@ -152,6 +152,7 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
           >
             <View>
               <Image
+                alt={card.metadataTitle || "Card image"}
                 resizeMode="cover"
                 source={{ uri: mediaUrl }}
                 style={styles.image}
@@ -234,6 +235,7 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
             <View>
               {linkImage && (
                 <Image
+                  alt={linkTitle || "Link preview image"}
                   resizeMode="cover"
                   source={{ uri: linkImage }}
                   style={styles.urlImage}

@@ -236,7 +236,7 @@ export default function ShareIntentScreen() {
         });
       } catch (shareError) {
         let message = "Failed to save shared content. Please try again.";
-        let accentColor = "#ff3b30";
+        const accentColor = "#ff3b30";
 
         if (
           shareError &&
