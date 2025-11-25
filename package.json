@@ -1,8 +1,6 @@
 {
   "name": "@teak/convex",
   "version": "0.0.1",
-  "main": "convex/index.ts",
-  "types": "convex/index.ts",
   "exports": {
     ".": "./convex/index.ts",
     "./shared": "./convex/shared/index.ts",
@@ -12,31 +10,37 @@
     "./shared/linkCategories": "./convex/shared/linkCategories.ts",
     "./shared/utils/colorUtils": "./convex/shared/utils/colorUtils.ts"
   },
+  "main": "convex/index.ts",
+  "types": "convex/index.ts",
   "scripts": {
-    "build": "cd web && bun run build",
-    "build:extension": "cd extension && bun run build",
+    "analyze": "next experimental-analyze --serve",
+    "build": "next build",
     "build:docs": "cd docs && bun run build",
+    "build:extension": "cd extension && bun run build",
     "predev": "bunx convex dev --until-success",
-    "pre-commit": "bunx lint-staged && bunx tsc --noEmit && bun run build && bun run build:docs && bun run build:extension",
     "dev": "pkill -f 'port 3000' || true && concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
     "dev:backend": "bunx convex dev",
     "dev:docs": "cd docs && bun dev",
     "dev:extension": "cd extension && bun dev",
-    "dev:frontend": "cd web && bun dev",
+    "dev:frontend": "next dev",
     "dev:mobile": "cd mobile && bun dev",
-    "lint": "cd web && bun run lint",
+    "lint": "eslint src",
     "package:extension": "cd extension && bun run package",
+    "pre-commit": "bunx lint-staged && bunx tsc --noEmit && bun run build && bun run build:docs && bun run build:extension",
     "prepare": "simple-git-hooks",
-    "start": "cd web && bun run start",
-    "test": "cd web && bun run test:e2e"
+    "start": "next start",
+    "test": "playwright test -c src/tests/playwright.config.ts"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "bun run pre-commit"
   },
   "lint-staged": {
-    "web/**/*.{js,jsx,ts,tsx}": [
-      "cd web && bun run lint --fix"
+    "src/**/*.{js,jsx,ts,tsx}": [
+      "bun run lint --fix"
     ]
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.71",
+    "@ai-sdk/openai": "^2.0.72",
     "@better-auth/expo": "1.3.34",
     "@cf-wasm/photon": "^0.2.2",
     "@convex-dev/better-auth": "^0.9.7",
@@ -44,23 +48,58 @@
     "@convex-dev/polar": "^0.7.1",
     "@convex-dev/resend": "^0.1.13",
     "@convex-dev/workflow": "^0.3.2",
+    "@polar-sh/checkout": "^0.1.14",
     "@polar-sh/sdk": "^0.41.5",
-    "@types/node": "^24.10.1",
-    "@types/react": "^19.2.6",
+    "@radix-ui/react-avatar": "^1.1.11",
+    "@radix-ui/react-checkbox": "^1.3.3",
+    "@radix-ui/react-context-menu": "^2.2.16",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-dropdown-menu": "^2.1.16",
+    "@radix-ui/react-label": "^2.1.8",
+    "@radix-ui/react-progress": "^1.1.8",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-separator": "^1.1.8",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-tabs": "^1.1.13",
     "ai": "^5.0.99",
     "better-auth": "1.3.34",
+    "class-variance-authority": "^0.7.1",
+    "cmdk": "^1.1.1",
     "convex": "^1.29.3",
-    "react": "^19.2.0",
+    "convex-helpers": "^0.1.106",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.554.0",
+    "next": "^16.0.2-canary.24",
+    "next-themes": "^0.4.6",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-dropzone": "^14.3.8",
+    "react-masonry-css": "^1.0.16",
+    "sonner": "^2.0.7",
+    "use-callback-ref": "^1.3.3",
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@playwright/test": "^1.56.1",
+    "@tailwindcss/postcss": "^4.1.17",
+    "@types/node": "^24.10.1",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "babel-plugin-react-compiler": "^1.0.0",
     "concurrently": "^9.2.1",
+    "eslint": "^9.39.1",
+    "eslint-config-next": "16.0.4",
     "lint-staged": "^16.2.7",
     "prettier": "^3.6.2",
     "simple-git-hooks": "^2.11.1",
+    "tailwindcss": "^4.1.17",
+    "tw-animate-css": "^1.4.0",
     "typescript": "^5.9.3"
   },
-  "simple-git-hooks": {
-    "pre-commit": "bun run pre-commit"
+  "postcss": {
+    "plugins": [
+      "@tailwindcss/postcss"
+    ]
   }
 }

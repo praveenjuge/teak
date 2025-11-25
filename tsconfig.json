@@ -15,31 +15,45 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
-    "composite": true,
-    "baseUrl": ".",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "baseUrl": "./src",
     "paths": {
+      "@/*": [
+        "./*"
+      ],
       "@teak/convex": [
-        "./convex/_generated/api"
+        "../convex/_generated/api"
       ],
       "@teak/convex/*": [
-        "./convex/*"
+        "../convex/*"
       ],
       "@teak/convex/shared": [
-        "./convex/shared/index.ts"
+        "../convex/shared/index.ts"
       ],
       "@teak/convex/shared/*": [
-        "./convex/shared/*"
+        "../convex/shared/*"
       ]
     }
   },
-  "references": [
-    {
-      "path": "./convex"
-    }
+  "include": [
+    "next-env.d.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/tests/**/*.ts",
+    "src/tests/**/*.tsx",
+    "src/proxy.ts",
+    "next.config.ts",
+    "convex/**/*.ts",
+    "convex/**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ],
-  "files": [],
   "exclude": [
     "node_modules"
   ]

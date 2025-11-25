@@ -47,16 +47,17 @@ bun remove <package-name>
 ## Architecture at a Glance
 
 - **Core stack**: Next.js (App Router, TS, Tailwind), Expo RN, Wxt + Chrome APIs, Fumadocs (Next.js + MDX), Convex backend, Better Auth, shadcn/ui (web) & Expo UI, Convex Storage, Polar billing.
-- **Monorepo structure**
+- **Repo layout**
 
 ```
 teak/
-├── web/          # Next.js frontend
+├── src/          # Next.js frontend (app router, shadcn/ui)
+├── public/       # Next.js static assets
+├── convex/       # Convex functions, workflows, shared utils, entrypoint (index.ts)
 ├── mobile/       # Expo RN mobile app
 ├── extension/    # Chrome extension (Wxt)
 ├── docs/         # Documentation site (Fumadocs)
-├── convex/       # Convex functions, workflows, shared utils, entrypoint (index.ts)
-└── package.json      # Root workspace config
+└── package.json  # Root package + scripts
 ```
 
 ## Client-Server Patterns
@@ -92,13 +93,13 @@ teak/
 ## App Surfaces
 
 - Search & Filtering implemented in `useSearchFilters` hook: real-time search across content/metadata, tag keyword extraction, type filtering, favorites/trash state filters, typeahead suggestions.
-- **Web (web/)**: `app/(auth)/`, `admin/page.tsx` (pipeline summaries), `globals.css`, `layout.tsx`, `page.tsx`; components include `ConvexClientProvider`, card previews, `DragOverlay`, `CardModal`, `AddCardForm`, `MasonryGrid`, `SearchBar`, patterns, shadcn/ui; hooks (`useCardActions`, `useCardModal`, `useGlobalDragDrop`); `package.json`.
+- **Web (src/)**: `app/(auth)/`, `app/(settings)/admin`, `globals.css`, `layout.tsx`, `page.tsx`; components include `ConvexClientProvider`, card previews, `DragOverlay`, `CardModal`, `AddCardForm`, `MasonryGrid`, `SearchBar`, patterns, shadcn/ui; hooks (`useCardActions`, `useCardModal`, `useGlobalDragDrop`); config (`next.config.ts`, `eslint.config.mjs`, `components.json`).
 - **Mobile (mobile/)**: `app/(auth)/`, `app/(tabs)/index.tsx|add.tsx|settings.tsx`, `_layout.tsx`; components (Expo UI, `CardItem`, `CardsGrid`, `SearchInput`); `lib/hooks`; `package.json`.
 - **Extension (extension/)**: `src/background.ts`, `content.tsx`, `popup.tsx`; hooks (`useAutoSaveLink`, `useContextMenuSave`, `useContextMenuState`); types `contextMenu.ts`; `style.css`; assets `icon.png`; `package.json`; `tsconfig.json`.
 - **Backend (root)**: Convex directories `_generated/`, `workflows/`, `ai/`, `card/`, `billing.ts`, `admin.ts`, `schema.ts`, `cards.ts`, `auth.config.ts`, `crons.ts`, `convex.config.ts`, entrypoint `convex/index.ts`; shared utils/constants/hooks under `convex/shared/`; `.env.local`; `package.json`.
 - **Docs (docs/)**: `app/(home)/`, `app/docs/[[...slug]]/` + `layout.tsx`, API routes under `app/api/`, root `layout.tsx`, `global.css`; components; `content/docs/`; `lib/`; `source.config.ts`; `package.json`.
 - **Shared code (convex/shared/)**: `constants.ts`, `index.ts`, `linkCategories.ts`, hooks (`useCardActions.ts`, `useFileUpload.ts`), utils (`colorUtils.ts`).
-- **Monorepo**: npm workspaces; TypeScript project references; imports via `@teak/convex` and `@teak/convex/shared`; run scripts from root with workspace targeting.
+- **Repo**: single root package (no workspaces); TypeScript paths point from `src` to `convex` via `@teak/convex` aliases; root scripts cd into `mobile/`, `extension/`, `docs/` when needed.
 - **Convex**: hot deployment on save; schema changes need migrations; define indexes in `schema.ts`; scheduled functions in `crons.ts`; config in `convex/convex.config.ts`; workflows must keep `processingStatus` consistent; Polar integration depends on `components.polar` + env keys `POLAR_ACCESS_TOKEN`, `POLAR_SERVER`;
 - **Component patterns**: compound components (CardModal, SearchBar), business-logic hooks (`useCardActions`, `useSearchFilters`, `useAutoSaveLink`), shadcn/ui on web, masonry grid for cards, card preview components per type (text/link/image/video/audio/document), root layout composes ThemeProvider + ConvexClientProvider (Better Auth + Convex) + ConvexQueryCacheProvider + Sonner toasts, Convex handles server state + real-time updates via `ConvexQueryCacheProvider` + `convex-helpers` hooks.
 - Actions `api.billing.createCheckoutLink` / `createCustomerPortal` in `convex/billing.ts` coordinate Polar SDK + Convex `components.polar`.

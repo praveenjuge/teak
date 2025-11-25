@@ -45,8 +45,4 @@ next-env.d.ts
 
 # Ignored for the template, you probably want to remove it:
 package-lock.json
-
 bun.lock
-
-web/.next
-web/node_modules
