@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../lib/convex-api";
 import type { ContextMenuSaveState } from "../types/contextMenu";
@@ -12,7 +12,7 @@ export interface UseContextMenuSaveResult {
 const RECENT_SAVE_THRESHOLD = 5000; // 5 seconds
 
 // Track processed saves to prevent duplicates across multiple hook instances
-let processedSaves = new Set<string>();
+const processedSaves = new Set<string>();
 
 const isContextMenuSaveState = (
   value: unknown
@@ -27,7 +27,59 @@ export const useContextMenuSave = (): UseContextMenuSaveResult => {
   const [contextMenuSave, setContextMenuSave] = useState<ContextMenuSaveState>({
     status: 'idle'
   });
+  const [isRecentSave, setIsRecentSave] = useState(false);
   const createCard = useMutation(api.cards.createCard);
+
+  // Save content to Convex - moved before useEffect to avoid access-before-declaration
+  const handleSave = useCallback(async (content: string, action?: string, saveId?: string) => {
+    if (!content) return;
+
+    // Immediately mark as processing to prevent duplicate saves
+    const processingState: ContextMenuSaveState = {
+      action: action as ContextMenuSaveState['action'],
+      timestamp: Date.now(),
+      status: 'saving' // Keep as 'saving' but without content to prevent re-processing
+    };
+
+    await chrome.storage.local.set({ contextMenuSave: processingState });
+    setContextMenuSave(processingState);
+
+    try {
+      await createCard({ content });
+
+      const successState: ContextMenuSaveState = {
+        action: action as ContextMenuSaveState['action'],
+        timestamp: Date.now(),
+        status: 'success'
+      };
+
+      await chrome.storage.local.set({ contextMenuSave: successState });
+      setContextMenuSave(successState);
+
+      // Clean up processed save ID after success
+      if (saveId) {
+        // Clean up old entries to prevent memory leak
+        setTimeout(() => processedSaves.delete(saveId), RECENT_SAVE_THRESHOLD);
+      }
+
+    } catch (error) {
+
+      const errorState: ContextMenuSaveState = {
+        action: action as ContextMenuSaveState['action'],
+        timestamp: Date.now(),
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Failed to save'
+      };
+
+      await chrome.storage.local.set({ contextMenuSave: errorState });
+      setContextMenuSave(errorState);
+
+      // Clean up processed save ID after error
+      if (saveId) {
+        setTimeout(() => processedSaves.delete(saveId), RECENT_SAVE_THRESHOLD);
+      }
+    }
+  }, [createCard]);
 
   useEffect(() => {
     // Handle storage changes for context menu saves
@@ -79,62 +131,25 @@ export const useContextMenuSave = (): UseContextMenuSaveResult => {
       });
 
     return () => chrome.storage.onChanged.removeListener(handleStorageChange);
-  }, []);
+  }, [handleSave]);
 
-  // Save content to Convex
-  const handleSave = async (content: string, action?: string, saveId?: string) => {
-    if (!content) return;
-
-    // Immediately mark as processing to prevent duplicate saves
-    const processingState: ContextMenuSaveState = {
-      action: action as any,
-      timestamp: Date.now(),
-      status: 'saving' // Keep as 'saving' but without content to prevent re-processing
+  // Check if save is recent (within threshold) - compute in effect to avoid impure render
+  useEffect(() => {
+    const checkIsRecent = () => {
+      if (!contextMenuSave.timestamp) {
+        setIsRecentSave(false);
+        return;
+      }
+      const isRecent = (Date.now() - contextMenuSave.timestamp) < RECENT_SAVE_THRESHOLD;
+      setIsRecentSave(isRecent);
     };
 
-    await chrome.storage.local.set({ contextMenuSave: processingState });
-    setContextMenuSave(processingState);
+    checkIsRecent();
 
-    try {
-      await createCard({ content });
-
-      const successState: ContextMenuSaveState = {
-        action: action as any,
-        timestamp: Date.now(),
-        status: 'success'
-      };
-
-      await chrome.storage.local.set({ contextMenuSave: successState });
-      setContextMenuSave(successState);
-
-      // Clean up processed save ID after success
-      if (saveId) {
-        // Clean up old entries to prevent memory leak
-        setTimeout(() => processedSaves.delete(saveId), RECENT_SAVE_THRESHOLD);
-      }
-
-    } catch (error) {
-
-      const errorState: ContextMenuSaveState = {
-        action: action as any,
-        timestamp: Date.now(),
-        status: 'error',
-        error: error instanceof Error ? error.message : 'Failed to save'
-      };
-
-      await chrome.storage.local.set({ contextMenuSave: errorState });
-      setContextMenuSave(errorState);
-
-      // Clean up processed save ID after error
-      if (saveId) {
-        setTimeout(() => processedSaves.delete(saveId), RECENT_SAVE_THRESHOLD);
-      }
-    }
-  };
-
-  // Check if save is recent (within threshold)
-  const isRecentSave = contextMenuSave.timestamp &&
-    (Date.now() - contextMenuSave.timestamp) < RECENT_SAVE_THRESHOLD;
+    // Set up interval to update the recency check
+    const interval = setInterval(checkIsRecent, 1000);
+    return () => clearInterval(interval);
+  }, [contextMenuSave.timestamp]);
 
   // Clear save state
   const clearSave = async () => {
@@ -144,7 +159,7 @@ export const useContextMenuSave = (): UseContextMenuSaveResult => {
 
   return {
     state: contextMenuSave,
-    isRecentSave: Boolean(isRecentSave),
+    isRecentSave,
     clearSave
   };
 };

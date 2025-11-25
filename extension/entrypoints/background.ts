@@ -105,7 +105,7 @@ export default defineBackground(() => {
             } else {
               errorMessage = 'No text selected and could not access page content';
             }
-          } catch (scriptError) {
+          } catch {
             // Fallback: use page title if available
             if (tab.title) {
               content = tab.title;

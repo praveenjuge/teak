@@ -47,7 +47,6 @@ export const useAutoSaveUrl = (
   useEffect(() => {
     // Only run if user is authenticated
     if (!isAuthenticated) {
-      setState("idle");
       return;
     }
 

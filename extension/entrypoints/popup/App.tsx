@@ -53,6 +53,7 @@ function SessionErrorState({
 }) {
   return (
     <div className="size-96 flex flex-col items-center justify-center gap-4 p-5 text-center">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="./icon.svg" alt="Teak Logo" className="h-6" />
       <p className="text-sm text-red-600">{message}</p>
       <button
@@ -114,6 +115,7 @@ function AuthPanel() {
 
   return (
     <div className="size-96 flex flex-col items-center justify-center gap-5 p-5 text-center">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="./icon.svg" alt="Teak Logo" className="h-6" />
       <div className="space-y-1">
         <h1 className="text-base font-semibold">Save Anything. Anywhere.</h1>
@@ -190,9 +192,6 @@ function AuthenticatedPopup({ user }: { user: SessionData["user"] }) {
       return () => clearTimeout(timer);
     }
   }, [state, isRecentSave, contextMenuState.status]);
-
-  const displayName =
-    (user?.name && user.name.trim()) || user?.email || "Signed in";
 
   const handleSignOut = async () => {
     if (signOutLoading) return;
@@ -355,7 +354,9 @@ function AuthenticatedPopup({ user }: { user: SessionData["user"] }) {
                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span className="text-sm text-gray-700">Can't save this page</span>
+            <span className="text-sm text-gray-700">
+              Can&apos;t save this page
+            </span>
           </div>
         );
       default:
@@ -372,6 +373,7 @@ function AuthenticatedPopup({ user }: { user: SessionData["user"] }) {
           rel="noopener noreferrer"
           title="Open Teak"
         >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="./icon.svg" alt="Teak Logo" className="h-4" />
         </a>
 
