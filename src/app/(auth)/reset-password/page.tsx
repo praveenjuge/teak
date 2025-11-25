@@ -40,6 +40,7 @@ export default function ResetPassword() {
 
   useEffect(() => {
     if (errorCode) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError(
         errorMessages[errorCode] ??
           "We couldn't verify your reset link. Request a new one."

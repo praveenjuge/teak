@@ -39,7 +39,7 @@ export const createCard = mutation({
     let cardType = providedType ?? "text";
     let finalContent = args.content;
     let finalUrl = args.url;
-    let originalMetadata = args.metadata || {};
+    const originalMetadata = args.metadata || {};
     let fileMetadata: any = undefined;
     const classificationRequired = !providedType;
     const classificationStatus = classificationRequired
@@ -47,7 +47,7 @@ export const createCard = mutation({
       : stageCompleted(now, 1);
 
     // Separate file-related metadata from other metadata
-    let processedMetadata = { ...originalMetadata };
+    const processedMetadata = { ...originalMetadata };
 
     // Move file-related fields to fileMetadata if present
     const fileRelatedFields = ['fileName', 'fileSize', 'mimeType', 'duration', 'width', 'height', 'recordingTimestamp'];

@@ -329,10 +329,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
             You&apos;ve reached your free tier limit. Upgrade to Pro for
             unlimited cards.
           </p>
-          <Button
-            onClick={() => router.push("/settings" as any)}
-            className="w-full"
-          >
+          <Button onClick={() => router.push("/settings")} className="w-full">
             Upgrade →
           </Button>
         </CardContent>

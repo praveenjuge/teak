@@ -42,7 +42,6 @@ export const useAutoSaveUrl = (
   const [state, setState] = useState<AutoSaveState>("idle");
   const [error, setError] = useState<string>();
   const [currentUrl, setCurrentUrl] = useState<string>();
-  //@ts-ignore
   const createCard = useMutation(api.cards.createCard);
 
   useEffect(() => {

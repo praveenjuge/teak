@@ -8,7 +8,6 @@
 import { v } from "convex/values";
 import { WorkflowManager } from "@convex-dev/workflow";
 import { internalAction, internalMutation } from "../_generated/server";
-// @ts-ignore Convex's generated internal API has recursive types that conflict with strict inference here.
 import { components, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import {
@@ -17,7 +16,6 @@ import {
 } from "../card/processingStatus";
 import type { CardType } from "../schema";
 
-// @ts-ignore: Convex internal API types recurse deeply; treat as any for workflow wiring.
 const internalAny: any = internal as any;
 
 /**

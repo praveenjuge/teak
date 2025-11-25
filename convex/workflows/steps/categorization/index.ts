@@ -704,7 +704,6 @@ export const classifyStep: any = internalAction({
   handler: async (ctx, { cardId }) => {
     console.info(`${CATEGORIZE_LOG_PREFIX} classifyStep`, { cardId });
 
-    //@ts-ignore
     const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
       cardId,
     });

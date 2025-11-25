@@ -81,7 +81,7 @@ export function useCardModal(
     if (!cardId || !hasUnsavedChanges) return;
 
     const updates = Object.entries(pendingChanges)
-      .filter(([_, value]) => value !== undefined)
+      .filter(([, value]) => value !== undefined)
       .map(([field, value]) => ({ field, value }));
 
     const currentPendingChanges = { ...pendingChanges };
@@ -112,7 +112,7 @@ export function useCardModal(
   const updateField = useCallback(
     async (
       field: "tags" | "isFavorited" | "removeAiTag",
-      value?: any,
+      value?: boolean | string[],
       tagToRemove?: string
     ) => {
       if (!cardId) return;
@@ -127,7 +127,8 @@ export function useCardModal(
 
         if (field === "isFavorited") {
           setPendingChanges((prev) => {
-            const { isFavorited, ...rest } = prev;
+            const rest = { ...prev };
+            delete rest.isFavorited;
             return rest;
           });
         }
@@ -136,7 +137,8 @@ export function useCardModal(
 
         if (field === "isFavorited") {
           setPendingChanges((prev) => {
-            const { isFavorited, ...rest } = prev;
+            const rest = { ...prev };
+            delete rest.isFavorited;
             return rest;
           });
         }
@@ -202,7 +204,11 @@ export function useCardModal(
     async (onClose?: () => void) => {
       if (cardId) {
         await cardActions.handleDeleteCard(cardId as Id<"cards">);
-        onClose?.() || config.onClose?.();
+        if (onClose) {
+          onClose();
+        } else {
+          config.onClose?.();
+        }
       }
     },
     [cardId, cardActions, config]
@@ -212,7 +218,11 @@ export function useCardModal(
     async (onClose?: () => void) => {
       if (cardId) {
         await cardActions.handleRestoreCard(cardId as Id<"cards">);
-        onClose?.() || config.onClose?.();
+        if (onClose) {
+          onClose();
+        } else {
+          config.onClose?.();
+        }
       }
     },
     [cardId, cardActions, config]
@@ -222,12 +232,17 @@ export function useCardModal(
     async (onClose?: () => void) => {
       if (cardId) {
         await cardActions.handlePermanentDeleteCard(cardId as Id<"cards">);
-        onClose?.() || config.onClose?.();
+        if (onClose) {
+          onClose();
+        } else {
+          config.onClose?.();
+        }
       }
     },
     [cardId, cardActions, config]
   );
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const openLink = useCallback(() => {
     if (card?.url) {
       if (config.onOpenLink) {
@@ -245,6 +260,7 @@ export function useCardModal(
       : "skip"
   );
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const downloadFile = useCallback(async () => {
     if (!card?.fileId || !card?.fileMetadata?.fileName || !fileUrl) return;
 
@@ -267,12 +283,17 @@ export function useCardModal(
         e.preventDefault();
         addTag();
       } else if (e.key === "Escape") {
-        onClose?.() || config.onClose?.();
+        if (onClose) {
+          onClose();
+        } else {
+          config.onClose?.();
+        }
       }
     },
     [tagInput, addTag, config]
   );
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleCardTypeClick = useCallback(() => {
     if (card?.type) {
       config.onCardTypeClick?.(card.type);

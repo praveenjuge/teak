@@ -39,7 +39,7 @@ export const updateCardMetadata = internalMutation({
     }
 
     const previousLinkPreview = existingCard.metadata?.linkPreview;
-    let nextLinkPreview = linkPreview ? { ...linkPreview } : undefined;
+    const nextLinkPreview = linkPreview ? { ...linkPreview } : undefined;
 
     if (previousLinkPreview?.screenshotStorageId) {
       if (

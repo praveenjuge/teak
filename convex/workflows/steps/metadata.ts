@@ -39,7 +39,6 @@ export const generate: any = internalAction({
   }),
   handler: async (ctx, { cardId, cardType }) => {
     console.info(`${METADATA_LOG_PREFIX} Running`, { cardId, cardType });
-    //@ts-ignore
     const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
       cardId,
     });
@@ -231,7 +230,6 @@ export const generate: any = internalAction({
       metadata: stageCompleted(now, confidence),
     };
 
-    //@ts-ignore
     await ctx.runMutation(internal.workflows.aiMetadata.mutations.updateCardAI, {
       cardId,
       aiTags: aiTags.length > 0 ? aiTags : undefined,

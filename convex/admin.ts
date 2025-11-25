@@ -278,7 +278,6 @@ export const retryAiBackfill = action({
     await ensureAdmin(ctx);
 
     const workflowResult = (await ctx.runMutation(
-      //@ts-ignore
       internal.workflows.aiBackfill.startAiBackfillWorkflow,
       { startAsync: false }
     )) as AiBackfillWorkflowResult | { workflowId: string };

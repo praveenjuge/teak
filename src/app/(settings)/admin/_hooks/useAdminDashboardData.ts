@@ -217,7 +217,8 @@ export function useAdminDashboardData(): AdminDashboardState {
         setRetryingCardId(null);
         setTimeout(() => {
           setPendingRetries((prev) => {
-            const { [cardId]: _, ...rest } = prev;
+            const rest = { ...prev };
+            delete rest[cardId];
             return rest;
           });
         }, 2000);

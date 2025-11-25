@@ -9,7 +9,6 @@ import {
   type LinkMetadataRetryableError,
 } from "./steps/linkMetadata/fetchMetadata";
 
-//@ts-ignore
 const internalWorkflow = internal as Record<string, any>;
 const linkMetadataInternal = internalWorkflow["linkMetadata"] as Record<string, any>;
 

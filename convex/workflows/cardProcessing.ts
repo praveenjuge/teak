@@ -14,7 +14,6 @@ import { workflow } from "./manager";
 import { internal } from "../_generated/api";
 
 // Helper to get properly typed internal references
-//@ts-ignore
 const internalWorkflow = internal as any;
 
 const METADATA_STEP_RETRY: RetryBehavior = {

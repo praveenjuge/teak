@@ -56,8 +56,8 @@ export function DragOverlay({
           <DialogHeader>
             <DialogTitle>Unlock Unlimited Cards</DialogTitle>
             <DialogDescription>
-              You've reached your free tier limit. Upgrade to Pro for unlimited
-              cards.
+              You&apos;ve reached your free tier limit. Upgrade to Pro for
+              unlimited cards.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">

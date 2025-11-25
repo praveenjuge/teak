@@ -28,6 +28,62 @@ interface MoreInformationModalProps {
   card: CardData | null;
 }
 
+type CopyableSectionProps = {
+  label: string;
+  value: string;
+  fieldName: string;
+  textClass?: string;
+  copiedField: string | null;
+  onCopy: (field: string) => void;
+};
+
+function CopyableSection({
+  label,
+  value,
+  fieldName,
+  textClass,
+  copiedField,
+  onCopy,
+}: CopyableSectionProps) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-muted-foreground">{label}</Label>
+      <div className="flex items-center justify-between gap-2">
+        <p className={`font-medium ${textClass || ""}`}>{value}</p>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0"
+          onClick={() => onCopy(fieldName)}
+          aria-label={`Copy ${label}`}
+        >
+          <Copy className="h-4 w-4" />
+        </Button>
+      </div>
+      {copiedField === fieldName && (
+        <p className="text-xs text-muted-foreground">Copied!</p>
+      )}
+    </div>
+  );
+}
+
+function KeyValueSection({
+  fields,
+}: {
+  fields: { label: string; value: string; valueClass?: string }[];
+}) {
+  return (
+    <div className="space-y-3 text-sm">
+      {fields.map(({ label: fieldLabel, value, valueClass }) => (
+        <div key={fieldLabel} className="flex justify-between">
+          <Label className="text-muted-foreground">{fieldLabel}</Label>
+          <span className={`font-medium ${valueClass || ""}`}>{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function MoreInformationModal({
   open,
   onOpenChange,
@@ -55,49 +111,6 @@ export function MoreInformationModal({
   };
 
   if (!card) return null;
-
-  const CopyableSection = ({
-    label,
-    value,
-    fieldName,
-    textClass = "",
-  }: {
-    label: string;
-    value: string;
-    fieldName: string;
-    textClass?: string;
-  }) => (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label className="text-muted-foreground">{label}</Label>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="p-0 h-0 hover:bg-transparent"
-          onClick={() => handleCopy(value, fieldName)}
-        >
-          <Copy />
-          {copiedField === fieldName ? "Copied!" : "Copy"}
-        </Button>
-      </div>
-      <div className={`flex-1 font-medium ${textClass}`}>{value}</div>
-    </div>
-  );
-
-  const KeyValueSection = ({
-    fields,
-  }: {
-    fields: { label: string; value: string; valueClass?: string }[];
-  }) => (
-    <div className="space-y-3 text-sm">
-      {fields.map(({ label: fieldLabel, value, valueClass }) => (
-        <div key={fieldLabel} className="flex justify-between">
-          <Label className="text-muted-foreground">{fieldLabel}</Label>
-          <span className={`font-medium ${valueClass || ""}`}>{value}</span>
-        </div>
-      ))}
-    </div>
-  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -147,6 +160,8 @@ export function MoreInformationModal({
               label="URL"
               value={card.url}
               fieldName="url"
+              copiedField={copiedField}
+              onCopy={(field) => handleCopy(card.url as string, field)}
               textClass="break-all"
             />
           )}
@@ -156,6 +171,8 @@ export function MoreInformationModal({
               label="Original Content"
               value={card.content}
               fieldName="content"
+              copiedField={copiedField}
+              onCopy={(field) => handleCopy(card.content as string, field)}
               textClass="whitespace-pre-wrap"
             />
           )}

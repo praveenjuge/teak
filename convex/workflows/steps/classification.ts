@@ -301,7 +301,6 @@ const maybeUpdatePaletteColors = async (
 
   if (dbColors.length && !colorsMatch(card.colors, dbColors)) {
     await ctx.runMutation(
-      //@ts-ignore
       internal.workflows.aiMetadata.mutations.updateCardColors,
       {
         cardId,
@@ -334,7 +333,6 @@ export const classify = internalAction({
   }),
   handler: async (ctx, { cardId }): Promise<ClassificationWorkflowResult> => {
     console.info(`${CLASSIFY_LOG_PREFIX} Running`, { cardId });
-    //@ts-ignore
     const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
       cardId,
     });

@@ -7,7 +7,6 @@ import { authComponent, createAuth, REGISTRATION_CLOSED_MESSAGE } from "./auth";
 const http = httpRouter();
 
 const enforceRegistrationLimit = httpAction(async (ctx, request) => {
-  //@ts-ignore
   const validation = await ctx.runQuery(api.auth.canRegisterNewUser);
   if (!validation.allowed) {
     const message = validation.message ?? REGISTRATION_CLOSED_MESSAGE;

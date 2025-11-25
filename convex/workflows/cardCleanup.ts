@@ -3,7 +3,6 @@ import { internalQuery, internalMutation } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { workflow } from "./manager";
 
-//@ts-ignore
 const internalWorkflow = internal as Record<string, any>;
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;

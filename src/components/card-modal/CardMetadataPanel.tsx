@@ -1,8 +1,10 @@
+/* eslint-disable react-hooks/static-components */
 import { Button } from "@/components/ui/button";
 import { badgeVariants } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { cn } from "@/lib/utils";
+import { useMemo } from "react";
 import {
   Download,
   Edit,
@@ -43,7 +45,10 @@ export function CardMetadataPanel({
   onTagClick,
   actions,
 }: CardMetadataPanelProps) {
-  const IconComponent = getCardTypeIconComponent(card.type as CardType);
+  const IconComponent = useMemo(
+    () => getCardTypeIconComponent(card.type as CardType),
+    [card.type]
+  );
   const iconClass = "size-3 md:size-4";
 
   return (
@@ -70,6 +75,7 @@ export function CardMetadataPanel({
         <div className="flex flex-wrap gap-1">
           {card.type && (
             <button
+              type="button"
               onClick={onCardTypeClick}
               className={cn(
                 badgeVariants({ variant: "outline" }),
@@ -83,6 +89,7 @@ export function CardMetadataPanel({
 
           {card.tags?.map((tag: string) => (
             <button
+              type="button"
               key={tag}
               onClick={() => onTagClick?.(tag)}
               className={cn(
@@ -96,6 +103,7 @@ export function CardMetadataPanel({
 
           {card.aiTags?.map((tag: string) => (
             <button
+              type="button"
               key={`ai-${tag}`}
               onClick={() => onTagClick?.(tag)}
               className={cn(

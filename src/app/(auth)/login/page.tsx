@@ -127,7 +127,7 @@ export default function SignIn() {
         </CardContent>
         <CardFooter className="flex-col gap-3 text-primary text-center">
           <Link href="/forgot-password">Forgot your password?</Link>
-          <Link href="/register">Don't have an account? Sign Up</Link>
+          <Link href="/register">Don&apos;t have an account? Sign Up</Link>
         </CardFooter>
       </Unauthenticated>
     </>

@@ -7,7 +7,6 @@ import {
   type ScreenshotRetryableError,
 } from "./steps/screenshot/captureScreenshot";
 
-//@ts-ignore
 const internalWorkflow = internal as Record<string, any>;
 
 export const SCREENSHOT_RATE_LIMIT_MAX_RETRIES = 3;

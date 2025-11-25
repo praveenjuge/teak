@@ -12,7 +12,6 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { workflow } from "./manager";
 
-//@ts-ignore
 const internalWorkflow = internal as Record<string, any>;
 
 const LOG_PREFIX = "[workflow/aiBackfill]";

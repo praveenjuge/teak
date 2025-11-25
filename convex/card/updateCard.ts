@@ -64,7 +64,6 @@ export const updateCard = mutation({
     if (updates.content !== undefined) {
       await ctx.scheduler.runAfter(
         0,
-        //@ts-ignore
         (internal as any)["workflows/manager"].startCardProcessingWorkflow,
         {
           cardId: id,
@@ -110,7 +109,7 @@ export const updateCardField = mutation({
     }
 
     const now = Date.now();
-    let updateData: any = { updatedAt: now };
+    const updateData: any = { updatedAt: now };
     let processingStatus = card.processingStatus as ProcessingStatus | undefined;
     let shouldSchedulePipeline = false;
 

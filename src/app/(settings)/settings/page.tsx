@@ -100,7 +100,7 @@ const passwordFields: Array<{
   },
 ];
 
-function useObjectState<T extends Record<string, any>>(
+function useObjectState<T extends Record<string, unknown>>(
   createInitialState: () => T
 ) {
   const [state, setState] = useState<T>(createInitialState);
@@ -318,7 +318,8 @@ export default function ProfileSettingsPage() {
   const [signOutLoading, setSignOutLoading] = useState(false);
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
-  const [checkoutInstance, setCheckoutInstance] = useState<any>(null);
+  const [checkoutInstance, setCheckoutInstance] =
+    useState<PolarEmbedCheckout | null>(null);
   const {
     state: passwordState,
     patch: patchPasswordState,
@@ -379,13 +380,16 @@ export default function ProfileSettingsPage() {
       setCheckoutInstance(checkout);
       setSubscriptionOpen(false);
 
-      checkout.addEventListener("success", (event: any) => {
-        if (!event.detail.redirect) {
-          toast.success(
-            "Welcome to Pro! Your subscription has been activated."
-          );
+      checkout.addEventListener(
+        "success",
+        (event: CustomEvent<{ redirect?: string | boolean }>) => {
+          if (!event.detail.redirect) {
+            toast.success(
+              "Welcome to Pro! Your subscription has been activated."
+            );
+          }
         }
-      });
+      );
 
       checkout.addEventListener("close", () => {
         setCheckoutInstance(null);
@@ -434,7 +438,7 @@ export default function ProfileSettingsPage() {
           },
         }
       );
-    } catch (error) {
+    } catch {
       patchPasswordState({
         error: "Something went wrong while updating your password.",
       });
@@ -483,7 +487,7 @@ export default function ProfileSettingsPage() {
       }
 
       resetDeleteState();
-    } catch (error) {
+    } catch {
       patchDeleteState({
         error: "Something went wrong while deleting your account.",
       });
@@ -514,7 +518,7 @@ export default function ProfileSettingsPage() {
           },
         },
       });
-    } catch (error) {
+    } catch {
       toast.error("Failed to sign out. Please try again.");
     } finally {
       setSignOutLoading(false);
@@ -712,7 +716,7 @@ export default function ProfileSettingsPage() {
 
             <div className="space-y-2">
               <Label htmlFor="deleteConfirm">
-                Type "delete account" to proceed
+                Type &quot;delete account&quot; to proceed
               </Label>
               <Input
                 id="deleteConfirm"

@@ -54,7 +54,7 @@ export function useGlobalDragDrop() {
         }
       });
     },
-    [uploadMultipleFiles, setShowUpgradePrompt]
+    [uploadMultipleFiles]
   );
 
   const {
@@ -92,6 +92,6 @@ export function useGlobalDragDrop() {
     getInputProps,
     dragDropState,
     dismissUpgradePrompt: () => setShowUpgradePrompt(false),
-    navigateToUpgrade: () => router.push("/settings" as any),
+    navigateToUpgrade: () => router.push("/settings"),
   };
 }

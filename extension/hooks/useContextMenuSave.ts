@@ -27,7 +27,6 @@ export const useContextMenuSave = (): UseContextMenuSaveResult => {
   const [contextMenuSave, setContextMenuSave] = useState<ContextMenuSaveState>({
     status: 'idle'
   });
-  //@ts-ignore
   const createCard = useMutation(api.cards.createCard);
 
   useEffect(() => {

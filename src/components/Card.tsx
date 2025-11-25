@@ -119,6 +119,7 @@ export function Card({
   const [useFallbackImage, setUseFallbackImage] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUseFallbackImage(false);
   }, [card._id, linkCardImage, resolvedScreenshotUrl]);
 
