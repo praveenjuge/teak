@@ -24,7 +24,7 @@
     "dev:extension": "cd extension && bun dev",
     "dev:frontend": "next dev",
     "dev:mobile": "cd mobile && bun dev",
-    "lint": "eslint src",
+    "lint": "bunx eslint src --config eslint.config.mjs",
     "package:extension": "cd extension && bun run package",
     "pre-commit": "bunx lint-staged && bunx tsc --noEmit && bun run build && bun run build:docs && bun run build:extension",
     "prepare": "simple-git-hooks",

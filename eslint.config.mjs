@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import nextPlugin from "@next/eslint-plugin-next";
 import tseslint from "typescript-eslint";
 import globals from "globals";
+import { defineConfig } from "eslint/config";
 
 const ignores = [
   "node_modules/**",
@@ -12,20 +13,17 @@ const ignores = [
   "public/**",
   "extension/**",
   "mobile/**",
-  "docs/**",
   "convex/**",
   "next-env.d.ts",
 ];
 
 const nextCore = nextPlugin.configs["core-web-vitals"];
 
-export default [
-  {
-    ignores,
-  },
+export default defineConfig([
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    ignores,
     files: [
       "src/**/*.{ts,tsx}",
       "src/**/*.{js,jsx}",
@@ -50,4 +48,4 @@ export default [
     },
     ...(nextCore.settings ? { settings: nextCore.settings } : {}),
   },
-];
+]);
