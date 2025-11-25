@@ -1,4 +1,4 @@
-/// <reference path="../types/bun-test.d.ts" />
+import "../types/bun-test";
 import { describe, expect, test } from "bun:test";
 import { parseLinkMetadataRetryableError } from "./linkMetadata";
 import {
@@ -21,6 +21,8 @@ describe("linkMetadata workflow retryable error parsing", () => {
   });
 
   test("returns null for non-prefix errors", () => {
-    expect(parseLinkMetadataRetryableError(new Error("random error"))).toBeNull();
+    expect(
+      parseLinkMetadataRetryableError(new Error("random error")),
+    ).toBeNull();
   });
 });

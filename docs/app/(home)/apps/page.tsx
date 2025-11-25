@@ -156,6 +156,7 @@ export default function AppsPage() {
                     rel="noopener noreferrer"
                     className="inline-flex justify-center"
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={card.action.src}
                       alt={card.action.alt}

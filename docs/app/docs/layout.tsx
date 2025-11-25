@@ -5,7 +5,7 @@ import { source } from "@/lib/source";
 import { baseOptions } from "@/app/layout.config";
 
 export default function Layout({ children }: { children: ReactNode }) {
-  const { nav, links: _links, ...restOptions } = baseOptions;
+  const { nav, ...restOptions } = baseOptions;
 
   return (
     <DocsLayout

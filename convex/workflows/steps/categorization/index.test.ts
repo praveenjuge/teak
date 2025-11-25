@@ -1,4 +1,4 @@
-/// <reference path="../../../types/bun-test.d.ts" />
+import "../../../../types/bun-test";
 import { describe, expect, it } from "bun:test";
 import { classifyStep } from "./index";
 

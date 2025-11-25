@@ -153,6 +153,7 @@ export default function HomePage() {
           {/* Hero Image */}
           <div className="mx-auto max-w-5xl">
             <div className="relative rounded-lg overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/hero-image.png"
                 alt="Teak app interface showing various saved content types"
@@ -171,7 +172,7 @@ export default function HomePage() {
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
               <h2 className="mb-6 font-bold text-3xl md:text-4xl text-balance">
-                You're wasting hours looking for that one thing
+                You&apos;re wasting hours looking for that one thing
               </h2>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
@@ -179,7 +180,7 @@ export default function HomePage() {
                     <X className="h-4 w-4" />
                   </div>
                   <p className="text-muted-foreground">
-                    47 browser bookmarks you'll never check again
+                    47 browser bookmarks you&apos;ll never check again
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -195,7 +196,7 @@ export default function HomePage() {
                     <X className="h-4 w-4" />
                   </div>
                   <p className="text-muted-foreground">
-                    23 screenshots named 'Screen Shot 2024-...'
+                    23 screenshots named &apos;Screen Shot 2024-...&apos;
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -203,7 +204,7 @@ export default function HomePage() {
                     <X className="h-4 w-4" />
                   </div>
                   <p className="text-muted-foreground">
-                    That perfect button style you can't find anymore
+                    That perfect button style you can&apos;t find anymore
                   </p>
                 </div>
               </div>
@@ -259,7 +260,7 @@ export default function HomePage() {
               Why designers are switching to Teak
             </h2>
             <p className="mx-auto max-w-xl text-muted-foreground text-balance">
-              Finally, a bookmarking tool that doesn't suck.
+              Finally, a bookmarking tool that doesn&apos;t suck.
             </p>
           </div>
 
@@ -284,8 +285,8 @@ export default function HomePage() {
               Save everything. Find anything.
             </h2>
             <p className="mx-auto mb-12 max-w-2xl text-muted-foreground text-lg text-balance">
-              That perfect Dribbble shot, that CodePen you'll need later, that
-              voice note about the client's feedback. Save it all.
+              That perfect Dribbble shot, that CodePen you&apos;ll need later,
+              that voice note about the client&apos;s feedback. Save it all.
             </p>
           </div>
 
@@ -311,8 +312,8 @@ export default function HomePage() {
                 Design Resources
               </h3>
               <p className="text-muted-foreground text-sm">
-                That color palette generator, the icon library you'll need next
-                month, the tutorial you'll reference tomorrow.
+                That color palette generator, the icon library you&apos;ll need
+                next month, the tutorial you&apos;ll reference tomorrow.
               </p>
             </div>
 
@@ -337,8 +338,8 @@ export default function HomePage() {
                 Design Videos
               </h3>
               <p className="text-muted-foreground text-sm">
-                That Figma tutorial, the animation reference you'll need next
-                week, the design process video that inspired you.
+                That Figma tutorial, the animation reference you&apos;ll need
+                next week, the design process video that inspired you.
               </p>
             </div>
 
@@ -412,7 +413,7 @@ export default function HomePage() {
               Still have questions?
             </h2>
             <p className="mx-auto max-w-xl text-muted-foreground text-balance">
-              We've got answers. No corporate speak, promise.
+              We&apos;ve got answers. No corporate speak, promise.
             </p>
           </div>
 

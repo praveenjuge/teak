@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import type { Metadata } from "next";
 import React from "react";
 import {
@@ -203,7 +204,7 @@ export default async function ChangelogPage() {
     <div className="container mx-auto max-w-xl py-12 px-4">
       <div className="mb-12 mt-10 text-center max-w-sm mx-auto">
         <h1 className="mb-4 font-bold text-4xl md:text-5xl text-balance tracking-tight">
-          What's New
+          What&apos;s New
         </h1>
         <p className="text-base text-muted-foreground text-balance mb-6">
           Real updates that make Teak better. No corporate fluff, promise.
@@ -298,7 +299,8 @@ export default async function ChangelogPage() {
       {changelog.length === 0 && (
         <div className="text-center py-12">
           <p className="text-muted-foreground">
-            No updates this week. We're probably busy building something good.
+            No updates this week. We&apos;re probably busy building something
+            good.
           </p>
         </div>
       )}

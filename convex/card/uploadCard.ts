@@ -23,7 +23,7 @@ export const uploadAndCreateCard = mutation({
     error: v.optional(v.string()),
     errorCode: v.optional(v.string()),
   }),
-  handler: async (ctx, args) => {
+  handler: async (ctx) => {
     const user = await ctx.auth.getUserIdentity();
     if (!user) {
       return { success: false, error: "User must be authenticated" };

@@ -142,19 +142,6 @@ const getFirstAttribute = (
   return undefined;
 };
 
-const getFirstText = (
-  rawMap: RawSelectorMap,
-  selectors: string[],
-): string | undefined => {
-  for (const selector of selectors) {
-    const value = getRawText(rawMap, selector);
-    if (value) {
-      return value;
-    }
-  }
-  return undefined;
-};
-
 const sanitizeDesignerName = (value?: string): string | undefined => {
   let normalized = normalizeWhitespace(value);
   if (!normalized) {

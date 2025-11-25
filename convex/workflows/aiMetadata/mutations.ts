@@ -1,11 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
-import {
-  cardTypeValidator,
-  colorValidator,
-  processingStatusObjectValidator,
-  processingStatusValidator,
-} from "../../schema";
+import { colorValidator, processingStatusValidator } from "../../schema";
 
 // Internal mutation to update card with AI metadata
 export const updateCardAI = internalMutation({

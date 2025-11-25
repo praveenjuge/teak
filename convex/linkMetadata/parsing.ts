@@ -5,23 +5,19 @@ import type {
   SelectorSource,
 } from "./types";
 import {
-  AMAZON_SOURCES,
   AUTHOR_SOURCES,
   CANONICAL_SOURCES,
   DESCRIPTION_SOURCES,
-  DRIBBBLE_SOURCES,
   FAVICON_SOURCES,
   FINAL_URL_SOURCES,
-  GITHUB_SOURCES,
-  GOODREADS_SOURCES,
   IMAGE_SOURCES,
-  IMDB_SOURCES,
   PUBLISHED_TIME_SOURCES,
   PUBLISHER_SOURCES,
-  SCRAPE_ELEMENTS,
   SITE_NAME_SOURCES,
   TITLE_SOURCES,
 } from "./selectors";
+
+
 
 export const toSelectorMap = (
   results?: CloudflareScrapeSelectorResult[]
@@ -220,9 +216,9 @@ export const buildErrorPreview = (
   finalUrl: url,
   ...(extras?.screenshotStorageId
     ? {
-        screenshotStorageId: extras.screenshotStorageId,
-        screenshotUpdatedAt: extras.screenshotUpdatedAt,
-      }
+      screenshotStorageId: extras.screenshotStorageId,
+      screenshotUpdatedAt: extras.screenshotUpdatedAt,
+    }
     : {}),
   error,
 });

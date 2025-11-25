@@ -64,7 +64,7 @@ export const createAuth = (
     emailVerification: {
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
-      sendVerificationEmail: async ({ user, url, token }, request) => {
+      sendVerificationEmail: async ({ user, url }) => {
         await resend.sendEmail(requireActionCtx(ctx), {
           from: "Teak <hello@teakvault.com>",
           to: user.email,

@@ -42,7 +42,6 @@ export const fetchMetadata = internalAction({
     errorMessage: v.optional(v.string()),
   }),
   handler: async (ctx, { cardId }) => {
-    let normalizedUrl: string | undefined;
 
     const card = await ctx.runQuery(linkMetadataInternal.getCardForMetadata, {
       cardId,
@@ -100,7 +99,7 @@ export const fetchMetadata = internalAction({
       };
     }
 
-    normalizedUrl = normalizeUrl(card.url);
+    const normalizedUrl = normalizeUrl(card.url);
     console.log(
       `[linkMetadata] Extracting metadata for card ${cardId}, URL: ${normalizedUrl}`,
     );
