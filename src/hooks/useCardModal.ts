@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { api } from "@teak/convex";
 import { type Id } from "@teak/convex/_generated/dataModel";
 import { useCardActions } from "@/hooks/useCardActions";
+import * as Sentry from "@sentry/nextjs";
 
 export interface CardModalConfig {
   onError?: (error: Error, operation: string) => void;
@@ -103,6 +104,10 @@ export function useCardModal(
       }, 2000);
     } catch (error) {
       console.error("Failed to save changes:", error);
+      Sentry.captureException(error, {
+        tags: { source: "convex", mutation: "cards:updateCardField" },
+        extra: { cardId, fields: Object.keys(currentPendingChanges) },
+      });
       setPendingChanges(currentPendingChanges);
       setIsSaved(false);
       notifyError(error as Error, "save changes");
@@ -134,6 +139,10 @@ export function useCardModal(
         }
       } catch (error) {
         console.error(`Failed to update ${field}:`, error);
+        Sentry.captureException(error, {
+          tags: { source: "convex", mutation: "cards:updateCardField" },
+          extra: { cardId, field },
+        });
 
         if (field === "isFavorited") {
           setPendingChanges((prev) => {
@@ -273,6 +282,10 @@ export function useCardModal(
       document.body.removeChild(link);
     } catch (error) {
       console.error("Failed to download file:", error);
+      Sentry.captureException(error, {
+        tags: { source: "client", operation: "downloadFile" },
+        extra: { cardId, fileName: card?.fileMetadata?.fileName },
+      });
       notifyError(error as Error, "download file");
     }
   }, [card?.fileId, card?.fileMetadata?.fileName, fileUrl, notifyError]);

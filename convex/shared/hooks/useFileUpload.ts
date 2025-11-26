@@ -1,6 +1,14 @@
 import { useState, useCallback } from "react";
 import { type CardErrorCode } from "../constants";
 
+// Sentry capture function - will be injected by platform-specific wrappers
+type SentryCaptureFunction = (error: unknown, context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }) => void;
+let captureException: SentryCaptureFunction = () => { };
+
+export function setFileUploadSentryCaptureFunction(fn: SentryCaptureFunction) {
+  captureException = fn;
+}
+
 export interface UnifiedFileUploadConfig {
   onSuccess?: (cardId: string) => void;
   onError?: (error: FileUploadError) => void;
@@ -170,6 +178,12 @@ export function useFileUploadCore(
         ) {
           fileError.code = (error as CodedError).code;
         }
+
+        // Capture upload errors in Sentry
+        captureException(error, {
+          tags: { source: "convex", operation: "fileUpload" },
+          extra: { fileName: file.name, fileType: file.type, fileSize: file.size, errorCode: fileError.code },
+        });
 
         setError(fileError);
         config.onError?.(fileError);

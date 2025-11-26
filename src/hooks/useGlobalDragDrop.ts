@@ -7,6 +7,7 @@ import {
 } from "@teak/convex/shared";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 
 export interface DragDropState {
   isDragActive: boolean;
@@ -26,6 +27,10 @@ export function useGlobalDragDrop() {
       if (error.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
         setShowUpgradePrompt(true);
       } else {
+        Sentry.captureException(error, {
+          tags: { source: "convex", operation: "dragDropUpload" },
+          extra: { errorCode: error.code },
+        });
         toast.error(error.message);
       }
     },
@@ -49,6 +54,10 @@ export function useGlobalDragDrop() {
           if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
             setShowUpgradePrompt(true);
           } else {
+            Sentry.captureException(new Error(errorMessage), {
+              tags: { source: "convex", operation: "dragDropUpload" },
+              extra: { fileName: result.file, errorCode: result.errorCode },
+            });
             toast.error(`Failed to upload ${result.file}: ${errorMessage}`);
           }
         }

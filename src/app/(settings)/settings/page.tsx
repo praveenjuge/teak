@@ -37,6 +37,7 @@ import { useTheme } from "next-themes";
 import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
+import * as Sentry from "@sentry/nextjs";
 
 const featureList = [
   "Unlimited Cards",
@@ -131,6 +132,9 @@ function CustomerPortalButton({
       window.open(portalUrl, "_blank");
     } catch (error) {
       console.error("Failed to open customer portal", error);
+      Sentry.captureException(error, {
+        tags: { source: "convex", action: "billing:createCustomerPortal" },
+      });
       toast.error("Failed to open customer portal. Please try again.");
     } finally {
       setIsLoading(false);
@@ -346,6 +350,9 @@ export default function ProfileSettingsPage() {
       });
     } catch (error) {
       console.error("Failed to open checkout", error);
+      Sentry.captureException(error, {
+        tags: { source: "convex", action: "billing:createCheckoutLink" },
+      });
       toast.error("Failed to start checkout. Please try again.");
     } finally {
       setLoadingPlanId(null);

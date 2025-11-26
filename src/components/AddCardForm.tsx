@@ -10,6 +10,7 @@ import { useFileUpload } from "@/hooks/useFileUpload";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 
 interface AddCardFormProps {
   onSuccess?: () => void;
@@ -143,6 +144,9 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       }, 1000);
     } catch (err) {
       console.error("Error starting recording:", err);
+      Sentry.captureException(err, {
+        tags: { source: "client", operation: "startRecording" },
+      });
       setError(
         "Failed to start recording. Please check your microphone permissions."
       );
@@ -201,6 +205,12 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       }
     } catch (error) {
       console.error("Failed to auto-save audio:", error);
+
+      // Capture Convex errors in Sentry
+      Sentry.captureException(error, {
+        tags: { source: "convex", mutation: "cards:createCard", type: "audio" },
+      });
+
       const errorMessage =
         error instanceof Error
           ? error.message
@@ -283,6 +293,13 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       onSuccess?.();
     } catch (error) {
       console.error("Failed to create card:", error);
+
+      // Capture Convex errors in Sentry
+      Sentry.captureException(error, {
+        tags: { source: "convex", mutation: "cards:createCard" },
+        extra: { content: content?.slice(0, 100), hasUrl: !!url },
+      });
+
       const errorMessage =
         error instanceof Error ? error.message : "Failed to create card";
 

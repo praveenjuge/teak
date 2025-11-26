@@ -1,5 +1,13 @@
 import { Id } from "../../_generated/dataModel";
 
+// Sentry capture function - will be injected by platform-specific wrappers
+type SentryCaptureFunction = (error: unknown, context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }) => void;
+let captureException: SentryCaptureFunction = () => { };
+
+export function setSentryCaptureFunction(fn: SentryCaptureFunction) {
+  captureException = fn;
+}
+
 export interface CardActionsConfig {
   onDeleteSuccess?: (message?: string) => void;
   onRestoreSuccess?: (message?: string) => void;
@@ -43,6 +51,10 @@ export function createCardActions(
       config.onDeleteSuccess?.("Card deleted. Find it by searching 'trash'");
     } catch (error) {
       console.error("Failed to delete card:", error);
+      captureException(error, {
+        tags: { source: "convex", mutation: "cards:updateCardField", operation: "delete" },
+        extra: { cardId },
+      });
       config.onError?.(error as Error, "delete");
     }
   };
@@ -53,6 +65,10 @@ export function createCardActions(
       config.onRestoreSuccess?.("Card restored");
     } catch (error) {
       console.error("Failed to restore card:", error);
+      captureException(error, {
+        tags: { source: "convex", mutation: "cards:updateCardField", operation: "restore" },
+        extra: { cardId },
+      });
       config.onError?.(error as Error, "restore");
     }
   };
@@ -63,6 +79,10 @@ export function createCardActions(
       config.onPermanentDeleteSuccess?.("Card permanently deleted");
     } catch (error) {
       console.error("Failed to permanently delete card:", error);
+      captureException(error, {
+        tags: { source: "convex", mutation: "cards:permanentDeleteCard" },
+        extra: { cardId },
+      });
       config.onError?.(error as Error, "permanent delete");
     }
   };
@@ -75,6 +95,10 @@ export function createCardActions(
       });
     } catch (error) {
       console.error("Failed to toggle favorite:", error);
+      captureException(error, {
+        tags: { source: "convex", mutation: "cards:updateCardField", operation: "toggleFavorite" },
+        extra: { cardId },
+      });
       config.onError?.(error as Error, "toggle favorite");
     }
   };
@@ -95,6 +119,10 @@ export function createCardActions(
       });
     } catch (error) {
       console.error(`Failed to update ${field}:`, error);
+      captureException(error, {
+        tags: { source: "convex", mutation: "cards:updateCardField", operation: `update_${field}` },
+        extra: { cardId, field, value },
+      });
       config.onError?.(error as Error, `update ${field}`);
     }
   };

@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@teak/convex";
+import * as Sentry from "@sentry/nextjs";
 import {
   MAX_PENDING_COUNT,
   buildStageList,
@@ -209,6 +210,10 @@ export function useAdminDashboardData(): AdminDashboardState {
           });
         }
       } catch (error) {
+        Sentry.captureException(error, {
+          tags: { source: "convex", action: "admin:retryCardEnrichment" },
+          extra: { cardId },
+        });
         toast.error("Failed to trigger AI enrichment", {
           description:
             error instanceof Error ? error.message : "Unknown error occurred.",

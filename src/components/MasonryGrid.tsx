@@ -4,6 +4,7 @@ import { AddCardForm } from "./AddCardForm";
 import { Card } from "./Card";
 import { BulkActionBar } from "./BulkActionBar";
 import { type Doc } from "@teak/convex/_generated/dataModel";
+import * as Sentry from "@sentry/nextjs";
 
 interface MasonryGridProps {
   filteredCards: Doc<"cards">[];
@@ -78,6 +79,10 @@ export function MasonryGrid({
       exitSelectionMode();
     } catch (error) {
       console.error("Error during bulk delete:", error);
+      Sentry.captureException(error, {
+        tags: { source: "convex", operation: "bulkDelete" },
+        extra: { selectedCount: selectedCardIds.size },
+      });
       // Note: Individual card deletion errors are handled by the parent component
       // We still exit selection mode as some deletions may have succeeded
       exitSelectionMode();

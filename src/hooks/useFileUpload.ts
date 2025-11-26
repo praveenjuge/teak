@@ -5,8 +5,15 @@ import {
   type UploadAndCreateCardArgs,
   type FinalizeUploadedCardArgs,
   useFileUploadCore,
+  setFileUploadSentryCaptureFunction,
 } from "@teak/convex/shared";
 import { type Id } from "@teak/convex/_generated/dataModel";
+import * as Sentry from "@sentry/nextjs";
+
+// Inject Sentry capture function into shared hook
+setFileUploadSentryCaptureFunction((error, context) => {
+  Sentry.captureException(error, context);
+});
 
 export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
   const uploadAndCreateCardMutation = useMutation(
