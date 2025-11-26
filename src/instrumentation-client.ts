@@ -25,7 +25,13 @@ Sentry.init({
       showBranding: false,
       showName: false,
       showEmail: false,
-      fontFace: "serif",
+      themeLight: {
+        accentBackground: "var(--primary)",
+
+      },
+      themeDark: {
+        accentBackground: "var(--primary)",
+      },
     }),
   ],
 });
