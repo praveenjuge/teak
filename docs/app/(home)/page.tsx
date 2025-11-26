@@ -259,7 +259,7 @@ export default function HomePage() {
             <h2 className="mb-4 font-bold text-3xl text-balance">
               Why designers are switching to Teak
             </h2>
-            <p className="mx-auto max-w-xl text-muted-foreground text-balance">
+            <p className="mx-auto max-w-xl text-muted-foreground text-balance text-lg">
               Finally, a bookmarking tool that doesn&apos;t suck.
             </p>
           </div>
@@ -298,7 +298,7 @@ export default function HomePage() {
               <h3 className="mb-2 font-semibold text-lg text-balance">
                 Design Notes
               </h3>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground">
                 Client feedback, design decisions, that brilliant idea you had
                 in the shower. All searchable.
               </p>
@@ -311,7 +311,7 @@ export default function HomePage() {
               <h3 className="mb-2 font-semibold text-lg text-balance">
                 Design Resources
               </h3>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground">
                 That color palette generator, the icon library you&apos;ll need
                 next month, the tutorial you&apos;ll reference tomorrow.
               </p>
@@ -324,7 +324,7 @@ export default function HomePage() {
               <h3 className="mb-2 font-semibold text-lg text-balance">
                 Visual References
               </h3>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground">
                 Screenshots, mockups, that perfect landing page you saw. Teak
                 remembers why you saved it.
               </p>
@@ -337,7 +337,7 @@ export default function HomePage() {
               <h3 className="mb-2 font-semibold text-lg text-balance">
                 Design Videos
               </h3>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground">
                 That Figma tutorial, the animation reference you&apos;ll need
                 next week, the design process video that inspired you.
               </p>
@@ -350,7 +350,7 @@ export default function HomePage() {
               <h3 className="mb-2 font-semibold text-lg text-balance">
                 Audio Notes
               </h3>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground">
                 Client feedback calls, that idea you recorded while driving,
                 quick voice memos. All transcribed and searchable.
               </p>
@@ -363,7 +363,7 @@ export default function HomePage() {
               <h3 className="mb-2 font-semibold text-lg text-balance">
                 Design Files
               </h3>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground">
                 Brand guidelines, design systems, project files. Everything
                 searchable with instant previews.
               </p>
@@ -396,7 +396,7 @@ export default function HomePage() {
                 <h3 className="mb-3 font-semibold text-xl text-balance">
                   {step.title}
                 </h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   {step.description}
                 </p>
               </div>
@@ -412,7 +412,7 @@ export default function HomePage() {
             <h2 className="mb-4 font-bold text-3xl text-balance">
               Still have questions?
             </h2>
-            <p className="mx-auto max-w-xl text-muted-foreground text-balance">
+            <p className="mx-auto max-w-xl text-muted-foreground text-balance text-lg">
               We&apos;ve got answers. No corporate speak, promise.
             </p>
           </div>
@@ -426,7 +426,7 @@ export default function HomePage() {
                 <h3 className="mb-3 font-semibold text-foreground">
                   {faq.question}
                 </h3>
-                <p className="text-muted-foreground text-sm">{faq.answer}</p>
+                <p className="text-muted-foreground">{faq.answer}</p>
               </div>
             ))}
           </div>

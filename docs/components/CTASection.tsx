@@ -20,7 +20,7 @@ export function CTASection({
         <h2 className="mb-4 font-bold text-4xl text-balance tracking-tight max-w-sm mx-auto">
           {title}
         </h2>
-        <p className="mx-auto mb-8 max-w-xl text-muted-foreground text-balance">
+        <p className="mx-auto mb-8 max-w-xl text-muted-foreground text-balance text-lg">
           {description}
         </p>
         <Button size="lg" asChild>

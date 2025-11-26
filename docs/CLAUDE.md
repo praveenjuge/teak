@@ -1,6 +1,5 @@
 ## UI Rules
 
-- Use `text-sm` for most text.
 - Use shadcn/ui colors for all colors.
 - Use shadcn/ui components as much as possible.
 - Use `rounded-md` for all rounded corners.

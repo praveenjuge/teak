@@ -56,7 +56,7 @@ const pricingPlans = [
     features: [
       "Unlimited cards",
       "Full source code access",
-      "Your data never leaves your server",
+      "Your data never leaves you",
       "Customize anything you want",
       "Zero monthly fees, forever",
     ],
@@ -160,7 +160,7 @@ export default function PricingPageClient() {
                   <Rocket className="h-8 w-8 text-primary" />
                 </div>
                 <h3 className="mb-2 font-semibold text-balance">Try It Free</h3>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground">
                   25 cards for your most important inspiration. See why
                   designers are switching to Teak.
                 </p>
@@ -170,7 +170,7 @@ export default function PricingPageClient() {
                   <TrendingUp className="h-8 w-8 text-primary" />
                 </div>
                 <h3 className="mb-2 font-semibold text-balance">Go Pro</h3>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground">
                   Unlimited cards for serious designers. Less than 2 coffees per
                   month.
                 </p>
@@ -180,7 +180,7 @@ export default function PricingPageClient() {
                   <Wrench className="h-8 w-8 text-primary" />
                 </div>
                 <h3 className="mb-2 font-semibold text-balance">Self-Host</h3>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground">
                   Run it yourself. Unlimited cards, zero cost, your data never
                   leaves your server.
                 </p>
@@ -211,7 +211,7 @@ export default function PricingPageClient() {
                 <h3 className="mb-3 font-semibold text-foreground">
                   {faq.question}
                 </h3>
-                <p className="text-muted-foreground text-sm">{faq.answer}</p>
+                <p className="text-muted-foreground">{faq.answer}</p>
               </div>
             ))}
           </div>

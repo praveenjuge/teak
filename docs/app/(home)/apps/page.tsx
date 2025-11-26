@@ -130,11 +130,11 @@ export default function AppsPage() {
               key={card.name}
               className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-white p-6 shadow-sm dark:bg-gray-900"
             >
-              <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground/80">
+              <div className="flex items-center gap-2 font-semibold text-muted-foreground/80">
                 <Icon className="size-4 text-primary" />
                 {card.name}
               </div>
-              <p className="text-sm text-muted-foreground">{card.copy}</p>
+              <p className="text-muted-foreground">{card.copy}</p>
               <div className="flex flex-col gap-2 pt-2">
                 {card.action.type === "button" ? (
                   <Button size="lg" asChild>
@@ -167,9 +167,7 @@ export default function AppsPage() {
                   </a>
                 )}
                 {card.footnote && (
-                  <p className="text-xs text-muted-foreground/80">
-                    {card.footnote}
-                  </p>
+                  <p className="text-muted-foreground/80">{card.footnote}</p>
                 )}
               </div>
             </div>

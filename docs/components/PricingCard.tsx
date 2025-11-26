@@ -87,7 +87,7 @@ export function PricingCard({
             <div className="mt-1 text-primary">
               <Check size={16} />
             </div>
-            <span className="text-sm">{feature}</span>
+            <span>{feature}</span>
           </li>
         ))}
       </ul>

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 export default function ChangelogError({
   error,
@@ -33,9 +33,12 @@ export default function ChangelogError({
               />
             </svg>
           </div>
-          <h2 className="text-2xl font-semibold mb-2">Failed to Load Changelog</h2>
+          <h2 className="text-2xl font-semibold mb-2">
+            Failed to Load Changelog
+          </h2>
           <p className="text-muted-foreground mb-6">
-            We encountered an error while fetching the latest updates. This might be due to GitHub API rate limits or network issues.
+            We encountered an error while fetching the latest updates. This
+            might be due to GitHub API rate limits or network issues.
           </p>
         </div>
 
@@ -56,12 +59,12 @@ export default function ChangelogError({
           </a>
         </div>
 
-        {process.env.NODE_ENV === 'development' && (
+        {process.env.NODE_ENV === "development" && (
           <div className="mt-8 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-left max-w-2xl mx-auto">
-            <h3 className="font-semibold text-destructive mb-2">Development Error Details:</h3>
-            <p className="text-destructive/80 text-sm font-mono">
-              {error.message}
-            </p>
+            <h3 className="font-semibold text-destructive mb-2">
+              Development Error Details:
+            </h3>
+            <p className="text-destructive/80 font-mono">{error.message}</p>
           </div>
         )}
       </div>

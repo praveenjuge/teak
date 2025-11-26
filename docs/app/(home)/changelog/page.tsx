@@ -249,7 +249,7 @@ export default async function ChangelogPage() {
                         />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                          <span className="text-sm font-medium">
+                          <span className="font-medium">
                             {entry.author.charAt(0).toUpperCase()}
                           </span>
                         </div>
@@ -257,37 +257,38 @@ export default async function ChangelogPage() {
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Badge
-                          variant={getTypeVariant(entry.type)}
-                          className="gap-1"
-                        >
-                          {getTypeIcon(entry.type)}
-                          {entry.type}
-                          {entry.scope && (
-                            <span className="opacity-75">({entry.scope})</span>
-                          )}
-                        </Badge>
+                      <div className="flex items-center justify-between w-full mb-3">
+                        <div className="flex items-center gap-3">
+                          <Badge
+                            variant={getTypeVariant(entry.type)}
+                            className="gap-1"
+                          >
+                            {getTypeIcon(entry.type)}
+                            {entry.type}
+                            {entry.scope && (
+                              <span className="opacity-75">
+                                ({entry.scope})
+                              </span>
+                            )}
+                          </Badge>
 
-                        <span className="text-sm text-muted-foreground">
-                          by {entry.author}
-                        </span>
-                      </div>
-
-                      <h3 className="font-medium mb-2 text-balance">
-                        {entry.description}
-                      </h3>
-
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span className="text-muted-foreground">
+                            by {entry.author}
+                          </span>
+                        </div>
                         <a
                           href={entry.url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="hover:text-foreground transition-colors"
                         >
-                          View commit →
+                          View →
                         </a>
                       </div>
+
+                      <h3 className="font-medium text-balance">
+                        {entry.description}
+                      </h3>
                     </div>
                   </div>
                 </div>
