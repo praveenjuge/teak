@@ -93,7 +93,17 @@ export const createAuth = (
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.getAuthUser(ctx);
+    // After sign-out the client may still briefly call this query; treat missing
+    // session as a non-error so we don't spam Convex logs with "Unauthenticated".
+    let user;
+    try {
+      user = await authComponent.getAuthUser(ctx);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Unauthenticated") {
+        return null;
+      }
+      throw error;
+    }
     if (!user) return null;
 
     const userId = (user as any).id ?? (user as any)._id ?? (user as any).subject;
