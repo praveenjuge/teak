@@ -312,23 +312,42 @@ const normalizeImage = (value: any): string | undefined => {
   return undefined;
 };
 
+/**
+ * Safely checks if a hostname matches a given domain or is a subdomain of it.
+ * This prevents attacks where malicious domains embed allowed domains as substrings.
+ * e.g., "evil-spotify.com" or "spotify.com.evil.com" won't match "spotify.com"
+ */
+const hostnameMatchesDomain = (hostname: string, domain: string): boolean => {
+  return hostname === domain || hostname.endsWith(`.${domain}`);
+};
+
 const detectProvider = (url?: string, hint?: string): string | undefined => {
   if (hint) return hint;
   if (!url) return undefined;
   try {
     const hostname = new URL(url).hostname.toLowerCase();
-    if (hostname.includes("github.com")) return "github";
-    if (hostname.includes("goodreads.com")) return "goodreads";
-    if (hostname.includes("amazon.")) return "amazon";
-    if (hostname.includes("imdb.com")) return "imdb";
-    if (hostname.includes("netflix.com")) return "netflix";
-    if (hostname.includes("behance.net")) return "behance";
-    if (hostname.includes("dribbble.com")) return "dribbble";
-    if (hostname.includes("spotify.com")) return "spotify";
-    if (hostname.includes("apple.com")) return "apple";
-    if (hostname.includes("youtube.com") || hostname.includes("youtu.be")) return "youtube";
-    if (hostname.includes("medium.com")) return "medium";
-    if (hostname.includes("substack.com")) return "substack";
+    if (hostnameMatchesDomain(hostname, "github.com")) return "github";
+    if (hostnameMatchesDomain(hostname, "goodreads.com")) return "goodreads";
+    // Amazon has multiple TLDs (amazon.com, amazon.co.uk, etc.)
+    if (hostnameMatchesDomain(hostname, "amazon.com") ||
+      hostnameMatchesDomain(hostname, "amazon.co.uk") ||
+      hostnameMatchesDomain(hostname, "amazon.de") ||
+      hostnameMatchesDomain(hostname, "amazon.fr") ||
+      hostnameMatchesDomain(hostname, "amazon.it") ||
+      hostnameMatchesDomain(hostname, "amazon.es") ||
+      hostnameMatchesDomain(hostname, "amazon.ca") ||
+      hostnameMatchesDomain(hostname, "amazon.com.au") ||
+      hostnameMatchesDomain(hostname, "amazon.co.jp") ||
+      hostnameMatchesDomain(hostname, "amazon.in")) return "amazon";
+    if (hostnameMatchesDomain(hostname, "imdb.com")) return "imdb";
+    if (hostnameMatchesDomain(hostname, "netflix.com")) return "netflix";
+    if (hostnameMatchesDomain(hostname, "behance.net")) return "behance";
+    if (hostnameMatchesDomain(hostname, "dribbble.com")) return "dribbble";
+    if (hostnameMatchesDomain(hostname, "spotify.com")) return "spotify";
+    if (hostnameMatchesDomain(hostname, "apple.com")) return "apple";
+    if (hostnameMatchesDomain(hostname, "youtube.com") || hostnameMatchesDomain(hostname, "youtu.be")) return "youtube";
+    if (hostnameMatchesDomain(hostname, "medium.com")) return "medium";
+    if (hostnameMatchesDomain(hostname, "substack.com")) return "substack";
     return hostname;
   } catch {
     return undefined;
