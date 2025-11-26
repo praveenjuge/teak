@@ -1,5 +1,5 @@
 import { loader } from "fumadocs-core/source";
-import { docs } from "fumadocs-mdx:collections/server";
+import { docs, changelog } from "fumadocs-mdx:collections/server";
 import {
   BookOpen,
   Code,
@@ -33,3 +33,6 @@ export const source = loader({
     return null;
   },
 });
+
+// Export changelog collection directly for use in changelog page
+export { changelog };

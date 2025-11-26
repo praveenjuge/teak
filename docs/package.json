@@ -4,9 +4,14 @@
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
-    "postinstall": "fumadocs-mdx"
+    "postinstall": "fumadocs-mdx",
+    "generate:changelog": "bun run scripts/generate-changelog.ts",
+    "regenerate:changelog": "bun run scripts/generate-changelog.ts --force"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^2.0.72",
+    "ai": "^5.0.99",
+    "zod": "^4.1.12",
     "@radix-ui/react-slot": "^1.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
