@@ -49,6 +49,7 @@ import type * as shared_hooks_useCardActions from "../shared/hooks/useCardAction
 import type * as shared_hooks_useFileUpload from "../shared/hooks/useFileUpload.js";
 import type * as shared_index from "../shared/index.js";
 import type * as shared_linkCategories from "../shared/linkCategories.js";
+import type * as shared_rateLimits from "../shared/rateLimits.js";
 import type * as shared_utils_colorUtils from "../shared/utils/colorUtils.js";
 import type * as shared_utils_linkCategoryResolver from "../shared/utils/linkCategoryResolver.js";
 import type * as workflows_aiBackfill from "../workflows/aiBackfill.js";
@@ -132,6 +133,7 @@ declare const fullApi: ApiFromModules<{
   "shared/hooks/useFileUpload": typeof shared_hooks_useFileUpload;
   "shared/index": typeof shared_index;
   "shared/linkCategories": typeof shared_linkCategories;
+  "shared/rateLimits": typeof shared_rateLimits;
   "shared/utils/colorUtils": typeof shared_utils_colorUtils;
   "shared/utils/linkCategoryResolver": typeof shared_utils_linkCategoryResolver;
   "workflows/aiBackfill": typeof workflows_aiBackfill;
@@ -3417,6 +3419,76 @@ export declare const components: {
             | "bounced"
             | "failed";
         },
+        null
+      >;
+    };
+  };
+  ratelimiter: {
+    public: {
+      checkRateLimit: FunctionReference<
+        "query",
+        "internal",
+        {
+          config:
+            | {
+                capacity?: number;
+                kind: "token bucket";
+                maxReserved?: number;
+                period: number;
+                rate: number;
+                shards?: number;
+              }
+            | {
+                capacity?: number;
+                kind: "fixed window";
+                maxReserved?: number;
+                period: number;
+                rate: number;
+                shards?: number;
+                start?: number;
+              };
+          count?: number;
+          key?: string;
+          name: string;
+          reserve?: boolean;
+          throws?: boolean;
+        },
+        { ok: true; retryAfter?: number } | { ok: false; retryAfter: number }
+      >;
+      rateLimit: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          config:
+            | {
+                capacity?: number;
+                kind: "token bucket";
+                maxReserved?: number;
+                period: number;
+                rate: number;
+                shards?: number;
+              }
+            | {
+                capacity?: number;
+                kind: "fixed window";
+                maxReserved?: number;
+                period: number;
+                rate: number;
+                shards?: number;
+                start?: number;
+              };
+          count?: number;
+          key?: string;
+          name: string;
+          reserve?: boolean;
+          throws?: boolean;
+        },
+        { ok: true; retryAfter?: number } | { ok: false; retryAfter: number }
+      >;
+      resetRateLimit: FunctionReference<
+        "mutation",
+        "internal",
+        { key?: string; name: string },
         null
       >;
     };

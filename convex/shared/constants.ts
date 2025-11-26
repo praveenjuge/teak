@@ -17,6 +17,7 @@ export const FREE_TIER_LIMIT = 25;
 
 export const CARD_ERROR_CODES = {
   CARD_LIMIT_REACHED: "CARD_LIMIT_REACHED",
+  RATE_LIMITED: "RATE_LIMITED",
 } as const;
 
 export type CardErrorCode =
@@ -25,6 +26,8 @@ export type CardErrorCode =
 export const CARD_ERROR_MESSAGES: Record<CardErrorCode, string> = {
   CARD_LIMIT_REACHED:
     "Card limit reached. Please upgrade to Pro for unlimited cards.",
+  RATE_LIMITED:
+    "Too many cards created. Please wait a moment and try again.",
 } as const;
 
 /**

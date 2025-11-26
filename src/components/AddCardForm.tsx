@@ -3,7 +3,8 @@ import { useMutation } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Mic, Square, Upload, Sparkles } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Mic, Square, Upload, Sparkles, AlertCircle } from "lucide-react";
 import { api } from "@teak/convex";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
@@ -43,9 +44,9 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     },
   });
 
-  const isCardLimitError = (err: unknown): boolean => {
+  const getCardErrorCode = (err: unknown): string | null => {
     if (!err || typeof err !== "object") {
-      return false;
+      return null;
     }
 
     const maybeError = err as {
@@ -54,18 +55,34 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       data?: { code?: string };
     };
 
-    if (maybeError.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
-      return true;
+    if (
+      maybeError.code &&
+      Object.values(CARD_ERROR_CODES).includes(
+        maybeError.code as (typeof CARD_ERROR_CODES)[keyof typeof CARD_ERROR_CODES]
+      )
+    ) {
+      return maybeError.code;
     }
 
     if (
-      maybeError.data &&
-      maybeError.data.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED
+      maybeError.data?.code &&
+      Object.values(CARD_ERROR_CODES).includes(
+        maybeError.data
+          .code as (typeof CARD_ERROR_CODES)[keyof typeof CARD_ERROR_CODES]
+      )
     ) {
-      return true;
+      return maybeError.data.code;
     }
 
-    return false;
+    return null;
+  };
+
+  const isCardLimitError = (err: unknown): boolean => {
+    return getCardErrorCode(err) === CARD_ERROR_CODES.CARD_LIMIT_REACHED;
+  };
+
+  const isRateLimitError = (err: unknown): boolean => {
+    return getCardErrorCode(err) === CARD_ERROR_CODES.RATE_LIMITED;
   };
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -173,6 +190,13 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
           return;
         }
 
+        if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
+          setError(
+            "Too many cards created. Please wait a moment and try again."
+          );
+          return;
+        }
+
         throw new Error(result.error || "Failed to save audio recording");
       }
     } catch (error) {
@@ -184,6 +208,8 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
 
       if (isCardLimitError(error)) {
         setShowUpgradePrompt(true);
+      } else if (isRateLimitError(error)) {
+        setError("Too many cards created. Please wait a moment and try again.");
       } else {
         setError(errorMessage);
       }
@@ -214,6 +240,10 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
           const errorMessage = result.error || "Failed to upload file";
           if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
             setShowUpgradePrompt(true);
+          } else if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
+            setError(
+              "Too many cards created. Please wait a moment and try again."
+            );
           } else {
             setError(errorMessage);
           }
@@ -258,6 +288,8 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
 
       if (isCardLimitError(error)) {
         setShowUpgradePrompt(true);
+      } else if (isRateLimitError(error)) {
+        setError("Too many cards created. Please wait a moment and try again.");
       } else {
         setError(errorMessage);
       }
@@ -399,7 +431,15 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
           </div>
         </form>
 
-        {error && <div className="p-2 bg-red-50 text-destructive">{error}</div>}
+        {error && (
+          <Alert
+            variant="destructive"
+            className="rounded-none border-0 border-t"
+          >
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
       </CardContent>
     </Card>
   );

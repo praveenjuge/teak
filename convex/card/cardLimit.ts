@@ -6,6 +6,28 @@ import {
   CARD_ERROR_MESSAGES,
   FREE_TIER_LIMIT,
 } from "../shared/constants";
+import { rateLimiter } from "../shared/rateLimits";
+
+/**
+ * Checks rate limit for card creation. Throws a ConvexError if rate limit exceeded.
+ * All users have the same rate limit: 30 cards per minute.
+ */
+export async function checkCardCreationRateLimit(
+  ctx: MutationCtx,
+  userId: string,
+): Promise<void> {
+  const result = await rateLimiter.limit(ctx, "cardCreation", {
+    key: userId,
+    throws: false,
+  });
+
+  if (!result.ok) {
+    throw new ConvexError({
+      code: CARD_ERROR_CODES.RATE_LIMITED,
+      message: CARD_ERROR_MESSAGES.RATE_LIMITED,
+    });
+  }
+}
 
 /**
  * Ensures the current user can create a new card. Throws a ConvexError when the

@@ -4,7 +4,7 @@ import { internal } from "../_generated/api";
 import { cardTypeValidator, colorValidator } from "../schema";
 import { extractUrlFromContent } from "./validationUtils";
 import { normalizeQuoteContent } from "./quoteFormatting";
-import { ensureCardCreationAllowed } from "./cardLimit";
+import { ensureCardCreationAllowed, checkCardCreationRateLimit } from "./cardLimit";
 import {
   buildInitialProcessingStatus,
   stageCompleted,
@@ -31,6 +31,10 @@ export const createCard = mutation({
       throw new Error("User must be authenticated");
     }
 
+    // Check rate limit first (fast fail)
+    await checkCardCreationRateLimit(ctx, user.subject);
+
+    // Then check card count limit
     await ensureCardCreationAllowed(ctx, user.subject);
 
     const now = Date.now();
