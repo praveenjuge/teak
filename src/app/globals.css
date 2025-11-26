@@ -151,3 +151,7 @@
   padding-left: 20px;
   background-clip: padding-box;
 }
+
+#sentry-feedback {
+  --font-family: var(--font-sans);
+}
