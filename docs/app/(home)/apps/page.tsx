@@ -6,7 +6,7 @@ import { Globe, Puzzle, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const WEB_APP_URL = "https://app.teakvault.com";
-const APP_STORE_URL = "https://accounts.teakvault.com/waitlist?platform=ios";
+const APP_STORE_URL = "https://app.teakvault.com/register";
 const CHROME_STORE_URL =
   "https://chromewebstore.google.com/detail/empty-title/negnmfifahnnagnbnfppmlgfajngdpob";
 

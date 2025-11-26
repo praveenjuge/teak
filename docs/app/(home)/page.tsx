@@ -141,11 +141,11 @@ export default function HomePage() {
             </p>
             <Button size="lg" asChild>
               <a
-                href="https://accounts.teakvault.com/waitlist"
+                href="https://app.teakvault.com/register"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Join Waitlist →
+                Start Free
               </a>
             </Button>
           </div>

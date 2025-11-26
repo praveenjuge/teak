@@ -57,12 +57,12 @@ export const baseOptions: BaseLayoutProps = {
       type: "custom",
       children: (
         <a
-          href="https://accounts.teakvault.com/waitlist"
+          href="https://app.teakvault.com/register"
           target="_blank"
           rel="noopener noreferrer"
           className={cn(buttonVariants({ variant: "default" }), "ml-2.5")}
         >
-          Join Waitlist →
+          Start Free
         </a>
       ),
       secondary: true,

@@ -20,8 +20,8 @@ const pricingPlans = [
       "No credit card, ever",
     ],
     cta: {
-      text: "Join Waitlist →",
-      href: "https://accounts.teakvault.com/waitlist",
+      text: "Start Free",
+      href: "https://app.teakvault.com/register",
     },
   },
   {
@@ -41,8 +41,8 @@ const pricingPlans = [
       "Get help in 2 hours, not 2 days",
     ],
     cta: {
-      text: "Join Waitlist →",
-      href: "https://accounts.teakvault.com/waitlist",
+      text: "Get Pro",
+      href: "https://app.teakvault.com/register",
       primary: true,
     },
     popular: true,
