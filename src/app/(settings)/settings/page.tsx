@@ -413,7 +413,8 @@ export default function ProfileSettingsPage() {
       await authClient.signOut({
         fetchOptions: {
           onSuccess: () => {
-            router.push("/");
+            router.refresh();
+            router.push("/login");
           },
         },
       });
