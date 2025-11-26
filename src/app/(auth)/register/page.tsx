@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   CardContent,
   CardDescription,
@@ -11,16 +11,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AlertCircle, Mail } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
 import { Spinner } from "@/components/ui/spinner";
-
-type RegistrationStatus = {
-  allowed: boolean;
-  message?: string | null;
-};
+import { GoogleIcon } from "@/components/icons/GoogleIcon";
+import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
@@ -28,31 +26,31 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [passwordTouched, setPasswordTouched] = useState(false);
-  const [registrationStatus, setRegistrationStatus] =
-    useState<RegistrationStatus | null>(null);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
-  const registrationClosed = registrationStatus?.allowed === false;
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadStatus = async () => {
-      try {
-        const response = await fetch("/api/auth/registration-status");
-        const data = (await response.json()) as RegistrationStatus;
-        if (!isMounted) return;
-        setRegistrationStatus(data);
-      } catch (fetchError) {
-        console.warn("Failed to load registration status", fetchError);
-        if (!isMounted) return;
-        setRegistrationStatus({ allowed: true });
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setGoogleLoading(true);
+    try {
+      const response = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/",
+      });
+      if (response?.error) {
+        setError(
+          response.error.message ??
+            "Failed to sign in with Google. Please try again."
+        );
       }
-    };
-
-    loadStatus();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to sign in with Google"
+      );
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const showPasswordTooShort =
     passwordTouched && password.length > 0 && password.length < 8;
@@ -81,27 +79,38 @@ export default function SignUp() {
             </AlertDescription>
           </Alert>
         )}
-        {registrationClosed && (
-          <Alert className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {registrationStatus?.message ??
-                "Registration is currently closed."}
-            </AlertDescription>
-          </Alert>
-        )}
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={handleGoogleSignIn}
+          disabled={loading || googleLoading}
+        >
+          {googleLoading ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <>
+              <GoogleIcon className="h-4 w-4" />
+              Continue with Google
+            </>
+          )}
+        </Button>
+
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-card px-2 text-muted-foreground">
+              Or register with email
+            </span>
+          </div>
+        </div>
+
         <form
           onSubmit={async (e) => {
             e.preventDefault();
             setError(null);
-
-            if (registrationClosed) {
-              setError(
-                registrationStatus?.message ??
-                  "Registration is currently closed"
-              );
-              return;
-            }
 
             // Validate password length
             if (password.length < 8) {
@@ -125,12 +134,6 @@ export default function SignUp() {
                   setLoading(false);
                   const message =
                     ctx.error?.message ?? "Failed to create account";
-                  if (ctx.error?.status === 403) {
-                    setRegistrationStatus({
-                      allowed: false,
-                      message,
-                    });
-                  }
                   setError(message);
                 },
                 onSuccess: async () => {
@@ -178,14 +181,16 @@ export default function SignUp() {
           <Button
             type="submit"
             className="w-full"
-            disabled={loading || password.length < 8 || registrationClosed}
+            disabled={loading || password.length < 8 || googleLoading}
           >
             {loading ? <Spinner /> : "Create an account"}
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="text-center text-primary justify-center">
-        <Link href="/login">Already have an account? Login</Link>
+      <CardFooter className="flex-col gap-1 -my-2">
+        <Link href="/login" className={cn(buttonVariants({ variant: "link" }))}>
+          Already have an account? Login
+        </Link>
       </CardFooter>
     </>
   );

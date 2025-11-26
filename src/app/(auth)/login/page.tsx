@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   CardContent,
   CardHeader,
@@ -16,120 +16,182 @@ import { Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
-import { Unauthenticated, AuthLoading } from "convex/react";
-import Loading from "@/app/loading";
+import { GoogleIcon } from "@/components/icons/GoogleIcon";
+import { cn } from "@/lib/utils";
 
 export default function SignIn() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setGoogleLoading(true);
+    try {
+      const response = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/",
+      });
+      if (response?.error) {
+        setError(
+          response.error.message ??
+            "Failed to sign in with Google. Please try again."
+        );
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to sign in with Google"
+      );
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   return (
     <>
-      <AuthLoading>
-        <Loading fullscreen={false} />
-      </AuthLoading>
-      <Unauthenticated>
-        <CardHeader className="text-center">
-          <CardTitle className="text-lg">Sign in to Teak</CardTitle>
-          <CardDescription>
-            Welcome back! Please sign in to continue
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+      <CardHeader className="text-center">
+        <CardTitle className="text-lg">Login to Teak</CardTitle>
+        <CardDescription>
+          Welcome back! Please login to continue
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={handleGoogleSignIn}
+          disabled={loading || googleLoading}
+        >
+          {googleLoading ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <>
+              <GoogleIcon className="h-4 w-4" />
+              Continue with Google
+            </>
           )}
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setError(null);
-              await authClient.signIn.email(
-                {
-                  email,
-                  password,
+        </Button>
+
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center">
+            <span className="bg-card px-2 text-muted-foreground">
+              Or login with email
+            </span>
+          </div>
+        </div>
+
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setError(null);
+            await authClient.signIn.email(
+              {
+                email,
+                password,
+              },
+              {
+                onRequest: () => {
+                  setLoading(true);
                 },
-                {
-                  onRequest: () => {
-                    setLoading(true);
-                  },
-                  onResponse: () => {
-                    setLoading(false);
-                  },
-                  onSuccess: () => {
-                    setLoading(false);
-                    router.push("/");
-                  },
-                  onError: (ctx) => {
-                    setLoading(false);
-                    const errorMessage =
-                      ctx.error?.message ?? "Invalid email or password";
+                onResponse: () => {
+                  setLoading(false);
+                },
+                onSuccess: () => {
+                  setLoading(false);
+                  router.push("/");
+                },
+                onError: (ctx) => {
+                  setLoading(false);
+                  const errorMessage =
+                    ctx.error?.message ?? "Invalid email or password";
 
-                    // Check if the error is related to email verification
-                    if (
-                      errorMessage.toLowerCase().includes("verification") ||
-                      errorMessage.toLowerCase().includes("verify") ||
-                      errorMessage.toLowerCase().includes("unverified")
-                    ) {
-                      setError(
-                        "Please check your email and click the verification link before signing in. If you didn't receive the email, check your spam folder."
-                      );
-                    } else {
-                      setError(errorMessage);
-                    }
-                  },
-                }
-              );
-            }}
-            className="grid gap-4"
+                  // Check if the error is related to email verification
+                  if (
+                    errorMessage.toLowerCase().includes("verification") ||
+                    errorMessage.toLowerCase().includes("verify") ||
+                    errorMessage.toLowerCase().includes("unverified")
+                  ) {
+                    setError(
+                      "Please check your email and click the verification link before signing in. If you didn't receive the email, check your spam folder."
+                    );
+                  } else {
+                    setError(errorMessage);
+                  }
+                },
+              }
+            );
+          }}
+          className="grid gap-4"
+        >
+          <div className="grid gap-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="me@example.com"
+              required
+              onChange={(e) => {
+                setEmail(e.target.value);
+              }}
+              value={email}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="password">Password</Label>
+
+            <Input
+              id="password"
+              type="password"
+              placeholder="Password"
+              autoComplete="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={loading || googleLoading}
           >
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="me@example.com"
-                required
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                }}
-                value={email}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
-
-              <Input
-                id="password"
-                type="password"
-                placeholder="Password"
-                autoComplete="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <p> Login </p>
-              )}
-            </Button>
-          </form>
-        </CardContent>
-        <CardFooter className="flex-col gap-3 text-primary text-center">
-          <Link href="/forgot-password">Forgot your password?</Link>
-          <Link href="/register">Don&apos;t have an account? Sign Up</Link>
-        </CardFooter>
-      </Unauthenticated>
+            {loading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <p> Login </p>
+            )}
+          </Button>
+        </form>
+      </CardContent>
+      <CardFooter className="flex-col gap-1 -my-2">
+        <Link
+          href="/forgot-password"
+          className={cn(buttonVariants({ variant: "link" }))}
+        >
+          Forgot your password?
+        </Link>
+        <Link
+          href="/register"
+          className={cn(buttonVariants({ variant: "link" }))}
+        >
+          Register with Email
+        </Link>
+      </CardFooter>
     </>
   );
 }

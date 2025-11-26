@@ -1,12 +1,49 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { Link } from "expo-router";
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { Link, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Logo from "../../components/Logo";
 import { LinearGradient } from "expo-linear-gradient";
-import { colors } from "@/constants/colors";
+import { colors, borderWidths } from "@/constants/colors";
+import GoogleLogo from "@/components/GoogleLogo";
+import { authClient } from "@/lib/auth-client";
+import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function OnboardingScreen() {
+  const router = useRouter();
+  const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
+
+  const onGoogleSignInPress = async () => {
+    if (isGoogleLoading) return;
+    setIsGoogleLoading(true);
+
+    try {
+      const response = await authClient.signIn.social({
+        provider: "google",
+      });
+      if (response.error) {
+        Alert.alert(
+          "Google Sign In Failed",
+          getAuthErrorMessage(
+            response.error,
+            "Failed to sign in with Google. Please try again."
+          )
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert(
+        "Google Sign In Failed",
+        getAuthErrorMessage(
+          error,
+          "Failed to sign in with Google. Please try again."
+        )
+      );
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
   return (
     <>
       <LinearGradient
@@ -42,6 +79,20 @@ export default function OnboardingScreen() {
                 <Text style={styles.primaryButtonText}>Sign Up →</Text>
               </TouchableOpacity>
             </Link>
+
+            <TouchableOpacity
+              style={[
+                styles.googleButton,
+                isGoogleLoading && styles.disabledButton,
+              ]}
+              onPress={onGoogleSignInPress}
+              disabled={isGoogleLoading}
+            >
+              <GoogleLogo width={20} height={20} />
+              <Text style={styles.googleButtonText}>
+                {isGoogleLoading ? "Signing in..." : "Continue with Google"}
+              </Text>
+            </TouchableOpacity>
 
             <Link href="/sign-in" asChild>
               <TouchableOpacity style={styles.secondaryButton}>
@@ -112,6 +163,25 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: "black",
     fontWeight: "600",
+  },
+  googleButton: {
+    backgroundColor: "white",
+    borderColor: colors.border,
+    borderWidth: borderWidths.hairline,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 10,
+    minHeight: 50,
+  },
+  googleButtonText: {
+    color: "black",
+    fontWeight: "600",
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
   secondaryButton: {
     backgroundColor: "rgba(255, 255, 255, 0.1)",

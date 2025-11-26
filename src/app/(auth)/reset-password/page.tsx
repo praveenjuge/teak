@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AuthLoading, Unauthenticated } from "convex/react";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import {
   CardContent,
@@ -14,10 +13,10 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import Loading from "@/app/loading";
 import { authClient } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -110,91 +109,88 @@ export default function ResetPassword() {
 
   return (
     <>
-      <AuthLoading>
-        <Loading fullscreen={false} />
-      </AuthLoading>
+      <CardHeader>
+        <CardTitle className="text-lg md:text-xl">Reset password</CardTitle>
+        <CardDescription>
+          Choose a new password to secure your account
+        </CardDescription>
+      </CardHeader>
 
-      <Unauthenticated>
-        <CardHeader>
-          <CardTitle className="text-lg md:text-xl">Reset password</CardTitle>
-          <CardDescription>
-            Choose a new password to secure your account
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent>
-          {success ? (
-            <div className="grid gap-4 text-center">
-              <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
-              <p className="text-sm text-muted-foreground">
-                Your password has been updated. Login with your new credentials
-                to continue.
-              </p>
-              <Button asChild className="w-full">
-                <Link href="/login">Go to Login</Link>
-              </Button>
+      <CardContent>
+        {success ? (
+          <div className="grid gap-4 text-center">
+            <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
+            <p className="text-sm text-muted-foreground">
+              Your password has been updated. Login with your new credentials to
+              continue.
+            </p>
+            <Button asChild className="w-full">
+              <Link href="/login">Go to Login</Link>
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={handleReset} className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="password">New password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                placeholder="Create a new password"
+                required
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
             </div>
-          ) : (
-            <form onSubmit={handleReset} className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="password">New password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Create a new password"
-                  required
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password_confirmation">Confirm password</Label>
-                <Input
-                  id="password_confirmation"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Re-enter your password"
-                  required
-                  value={passwordConfirmation}
-                  onChange={(event) =>
-                    setPasswordConfirmation(event.target.value)
-                  }
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password_confirmation">Confirm password</Label>
+              <Input
+                id="password_confirmation"
+                type="password"
+                autoComplete="new-password"
+                placeholder="Re-enter your password"
+                required
+                value={passwordConfirmation}
+                onChange={(event) =>
+                  setPasswordConfirmation(event.target.value)
+                }
+              />
+            </div>
 
-              {helperText && (
-                <Alert
-                  variant={
-                    helperText.variant === "error" ? "destructive" : "default"
-                  }
-                >
-                  {helperText.variant === "error" && (
-                    <AlertCircle className="h-4 w-4" />
-                  )}
-                  <AlertDescription>{helperText.text}</AlertDescription>
-                </Alert>
-              )}
-
-              <Button type="submit" className="w-full" disabled={!canSubmit}>
-                {loading ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  "Update password"
+            {helperText && (
+              <Alert
+                variant={
+                  helperText.variant === "error" ? "destructive" : "default"
+                }
+              >
+                {helperText.variant === "error" && (
+                  <AlertCircle className="h-4 w-4" />
                 )}
-              </Button>
-            </form>
-          )}
-        </CardContent>
+                <AlertDescription>{helperText.text}</AlertDescription>
+              </Alert>
+            )}
 
-        {!success && (
-          <CardFooter className="text-center text-primary">
-            <Link href="/forgot-password">
-              Need a new link? Request password reset
-            </Link>
-          </CardFooter>
+            <Button type="submit" className="w-full" disabled={!canSubmit}>
+              {loading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                "Update password"
+              )}
+            </Button>
+          </form>
         )}
-      </Unauthenticated>
+      </CardContent>
+
+      {!success && (
+        <CardFooter className="flex-col gap-1 -my-2">
+          <Link
+            href="/forgot-password"
+            className={cn(buttonVariants({ variant: "link" }))}
+          >
+            Need a new link? Request password reset
+          </Link>
+        </CardFooter>
+      )}
     </>
   );
 }

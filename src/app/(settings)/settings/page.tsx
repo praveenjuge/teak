@@ -56,49 +56,12 @@ const themeOptions = [
 
 type ThemeValue = (typeof themeOptions)[number]["value"];
 
-type PasswordState = {
-  open: boolean;
-  current: string;
-  next: string;
-  confirm: string;
-  error: string | null;
-  loading: boolean;
-};
-
 type DeleteState = {
   open: boolean;
   confirmation: string;
   error: string | null;
   loading: boolean;
 };
-
-type PasswordFieldName = "current" | "next" | "confirm";
-
-const passwordFields: Array<{
-  id: string;
-  label: string;
-  placeholder: string;
-  field: PasswordFieldName;
-}> = [
-  {
-    id: "currentPassword",
-    label: "Current password",
-    placeholder: "Current password",
-    field: "current",
-  },
-  {
-    id: "newPassword",
-    label: "New password",
-    placeholder: "New password",
-    field: "next",
-  },
-  {
-    id: "confirmPassword",
-    label: "Confirm new password",
-    placeholder: "Re-enter new password",
-    field: "confirm",
-  },
-];
 
 function useObjectState<T extends Record<string, unknown>>(
   createInitialState: () => T
@@ -321,19 +284,6 @@ export default function ProfileSettingsPage() {
   const [checkoutInstance, setCheckoutInstance] =
     useState<PolarEmbedCheckout | null>(null);
   const {
-    state: passwordState,
-    patch: patchPasswordState,
-    reset: resetPasswordState,
-    setField: setPasswordField,
-  } = useObjectState<PasswordState>(() => ({
-    open: false,
-    current: "",
-    next: "",
-    confirm: "",
-    error: null,
-    loading: false,
-  }));
-  const {
     state: deleteState,
     patch: patchDeleteState,
     reset: resetDeleteState,
@@ -403,57 +353,6 @@ export default function ProfileSettingsPage() {
   };
 
   const isLoading = user === undefined;
-
-  const handlePasswordFieldChange =
-    (field: PasswordFieldName) => (event: ChangeEvent<HTMLInputElement>) =>
-      setPasswordField(field, event.target.value);
-
-  const handleResetPassword = async () => {
-    patchPasswordState({ error: null });
-
-    if (passwordState.next !== passwordState.confirm) {
-      patchPasswordState({
-        error: "New password and confirmation do not match.",
-      });
-      return;
-    }
-
-    patchPasswordState({ loading: true });
-    try {
-      await authClient.changePassword(
-        {
-          currentPassword: passwordState.current,
-          newPassword: passwordState.next,
-          revokeOtherSessions: true,
-        },
-        {
-          onSuccess: () => {
-            toast.success("Password updated");
-            resetPasswordState();
-          },
-          onError: (ctx) => {
-            patchPasswordState({
-              error: ctx.error?.message ?? "Failed to update password",
-            });
-          },
-        }
-      );
-    } catch {
-      patchPasswordState({
-        error: "Something went wrong while updating your password.",
-      });
-    } finally {
-      patchPasswordState({ loading: false });
-    }
-  };
-
-  const handlePasswordDialogChange = (open: boolean) => {
-    if (open) {
-      patchPasswordState({ open: true });
-    } else {
-      resetPasswordState();
-    }
-  };
 
   const confirmationMatches =
     deleteState.confirmation.trim().toLowerCase() === "delete account";
@@ -534,16 +433,6 @@ export default function ProfileSettingsPage() {
       <SettingRow title="Email">
         <Button disabled size="sm" variant="ghost">
           {isLoading ? <Spinner /> : (user?.email ?? "Not available")}
-        </Button>
-      </SettingRow>
-
-      <SettingRow title="Password">
-        <Button
-          size="sm"
-          variant="link"
-          onClick={() => patchPasswordState({ open: true })}
-        >
-          Reset password
         </Button>
       </SettingRow>
 
@@ -649,46 +538,6 @@ export default function ProfileSettingsPage() {
             onCheckout={handleCheckout}
             loadingPlanId={loadingPlanId}
           />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={passwordState.open}
-        onOpenChange={handlePasswordDialogChange}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reset Password</DialogTitle>
-            <DialogDescription>
-              Enter your current password and choose a new one.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <ErrorAlert message={passwordState.error} />
-
-            {passwordFields.map(({ id, label, placeholder, field }) => (
-              <div className="space-y-2" key={id}>
-                <Label htmlFor={id}>{label}</Label>
-                <Input
-                  id={id}
-                  type="password"
-                  value={passwordState[field]}
-                  onChange={handlePasswordFieldChange(field)}
-                  placeholder={placeholder}
-                />
-              </div>
-            ))}
-          </div>
-
-          <DialogFooter>
-            <Button
-              onClick={handleResetPassword}
-              disabled={passwordState.loading}
-            >
-              {passwordState.loading ? <Spinner /> : "Save"}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
