@@ -1,5 +1,5 @@
 import { experimental_transcribe as transcribe } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { groq } from "@ai-sdk/groq";
 
 // Generate transcript for audio content
 export const generateTranscript = async (audioUrl: string, mimeHint?: string) => {
@@ -18,13 +18,13 @@ export const generateTranscript = async (audioUrl: string, mimeHint?: string) =>
       mimeHint || response.headers.get("content-type") || "audio/webm";
     console.log("Transcription mimeType/ext hint:", mimeType);
 
-    // Infer a reasonable file extension for OpenAI based on the mime type
+    // Infer a reasonable file extension based on the mime type
     const ext =
       mimeType.includes("ogg") || mimeType.includes("oga")
         ? "ogg"
         : mimeType.includes("mp3") ||
-            mimeType.includes("mpeg") ||
-            mimeType.includes("mpga")
+          mimeType.includes("mpeg") ||
+          mimeType.includes("mpga")
           ? "mp3"
           : mimeType.includes("wav")
             ? "wav"
@@ -32,50 +32,19 @@ export const generateTranscript = async (audioUrl: string, mimeHint?: string) =>
               ? "m4a"
               : mimeType.includes("webm")
                 ? "webm"
-                : "mp3";
+                : mimeType.includes("flac")
+                  ? "flac"
+                  : "mp3";
 
     const arrayBuffer = await response.arrayBuffer();
 
-    // First try direct OpenAI API with explicit filename to avoid SDK dropping filename
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error("OPENAI_API_KEY is not set");
-    }
-
-    const formData = new FormData();
-    formData.append("model", "gpt-4o-mini-transcribe");
-    const blob = new Blob([arrayBuffer], { type: mimeType });
-    formData.append("file", blob, `audio.${ext}`);
-
-    const openaiResponse = await fetch(
-      "https://api.openai.com/v1/audio/transcriptions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: formData,
-      },
-    );
-
-    if (openaiResponse.ok) {
-      const data = (await openaiResponse.json()) as { text?: string };
-      console.log("Audio transcription completed successfully (direct)");
-      return data.text || null;
-    }
-
-    // If direct upload fails, fallback to AI SDK transcribe
-    const errText = await openaiResponse.text();
-    console.warn(
-      `Direct OpenAI transcription failed, falling back to SDK: ${openaiResponse.status} ${openaiResponse.statusText} - ${errText}`,
-    );
-
-    const file = new File([arrayBuffer], `audio.${ext}`, { type: mimeType });
+    // Use Groq's whisper-large-v3-turbo for fast, cost-effective transcription
     const { text } = await transcribe({
-      model: openai.transcription("gpt-4o-mini-transcribe"),
-      audio: file as any,
+      model: groq.transcription("whisper-large-v3-turbo"),
+      audio: new Uint8Array(arrayBuffer),
     });
-    console.log("Audio transcription completed successfully (sdk)");
+
+    console.log("Audio transcription completed successfully");
     return text;
   } catch (error) {
     console.error("Error generating transcript:", error);

@@ -1,5 +1,5 @@
 import { generateObject } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { groq } from "@ai-sdk/groq";
 import { aiMetadataSchema } from "./schemas";
 
 // Generate AI metadata for text content
@@ -10,7 +10,7 @@ export const generateTextMetadata = async (content: string, title?: string) => {
 
   try {
     const result = await generateObject({
-      model: openai("gpt-5-nano"),
+      model: groq("openai/gpt-oss-20b"),
       system: `You are an expert content analyzer. Generate relevant tags and a concise summary for the given content.
 
 Guidelines:
@@ -39,7 +39,7 @@ export const generateImageMetadata = async (
 ) => {
   try {
     const result = await generateObject({
-      model: openai("gpt-5-nano"),
+      model: groq("meta-llama/llama-4-scout-17b-16e-instruct"),
       system: `You are an expert image analyzer. Generate relevant tags and a concise summary for the given image.
 
 Guidelines:
@@ -81,7 +81,7 @@ Guidelines:
 export const generateLinkMetadata = async (content: string, url?: string) => {
   try {
     const result = await generateObject({
-      model: openai("gpt-5-nano"),
+      model: groq("openai/gpt-oss-20b"),
       system: `You are an expert web content analyzer. Generate relevant tags and a concise summary for the given web page content.
 
 Guidelines:
