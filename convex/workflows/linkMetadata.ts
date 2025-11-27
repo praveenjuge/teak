@@ -8,7 +8,6 @@ import {
   LINK_METADATA_RETRYABLE_PREFIX,
   type LinkMetadataRetryableError,
 } from "./steps/linkMetadata/fetchMetadata";
-import { Sentry, logger, captureException } from "../sentry";
 
 const internalWorkflow = internal as Record<string, any>;
 const linkMetadataInternal = internalWorkflow["linkMetadata"] as Record<string, any>;
@@ -50,71 +49,48 @@ export const linkMetadataWorkflow = workflow.define({
     errorMessage: v.optional(v.string()),
   }),
   handler: async (step, { cardId }) => {
-    return Sentry.startSpan(
-      {
-        op: "workflow.linkMetadata",
-        name: `Link Metadata: ${cardId}`,
-      },
-      async (span) => {
-        span.setAttribute("cardId", cardId);
+    try {
+      const result = await step.runAction(
+        internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
+          .fetchMetadata,
+        { cardId },
+        { retry: LINK_METADATA_RETRY },
+      );
 
-        try {
-          const result = await step.runAction(
-            internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
-              .fetchMetadata,
-            { cardId },
-            { retry: LINK_METADATA_RETRY },
-          );
-
-          span.setAttribute("status", result.status);
-          logger.info(logger.fmt`Link metadata workflow completed for card ${cardId}`, {
-            status: result.status,
-          });
-
-          return {
-            success: result.status === "success",
-            status: result.status,
-            errorType: result.errorType,
-            errorMessage: result.errorMessage,
-          };
-        } catch (error) {
-          const retryable = parseLinkMetadataRetryableError(error);
-          if (!retryable) {
-            captureException(error, { cardId, operation: "linkMetadataWorkflow" });
-            throw error;
-          }
-
-          const normalizedUrl =
-            typeof retryable.normalizedUrl === "string"
-              ? retryable.normalizedUrl
-              : "";
-
-          await step.runMutation(linkMetadataInternal.updateCardMetadata, {
-            cardId,
-            linkPreview: buildErrorPreview(normalizedUrl, {
-              type: retryable.type ?? "error",
-              message: retryable.message,
-              details: retryable.details,
-            }),
-            status: "failed",
-          });
-
-          span.setAttribute("status", "failed");
-          span.setAttribute("errorType", retryable.type ?? "error");
-          logger.warn(logger.fmt`Link metadata workflow failed for card ${cardId}`, {
-            errorType: retryable.type ?? "error",
-            errorMessage: retryable.message,
-          });
-
-          return {
-            success: false,
-            status: "failed",
-            errorType: retryable.type ?? "error",
-            errorMessage: retryable.message,
-          };
-        }
+      return {
+        success: result.status === "success",
+        status: result.status,
+        errorType: result.errorType,
+        errorMessage: result.errorMessage,
+      };
+    } catch (error) {
+      const retryable = parseLinkMetadataRetryableError(error);
+      if (!retryable) {
+        throw error;
       }
-    );
+
+      const normalizedUrl =
+        typeof retryable.normalizedUrl === "string"
+          ? retryable.normalizedUrl
+          : "";
+
+      await step.runMutation(linkMetadataInternal.updateCardMetadata, {
+        cardId,
+        linkPreview: buildErrorPreview(normalizedUrl, {
+          type: retryable.type ?? "error",
+          message: retryable.message,
+          details: retryable.details,
+        }),
+        status: "failed",
+      });
+
+      return {
+        success: false,
+        status: "failed",
+        errorType: retryable.type ?? "error",
+        errorMessage: retryable.message,
+      };
+    }
   },
 });
 

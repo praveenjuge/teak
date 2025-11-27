@@ -7,7 +7,6 @@ import type {
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { authComponent } from "./auth";
-import { Sentry, logger, captureException } from "./sentry";
 
 type StageSummary = {
   pending: number;
@@ -276,51 +275,30 @@ type AiBackfillWorkflowResult = {
 export const retryAiBackfill = action({
   args: {},
   handler: async (ctx): Promise<BackfillSummary> => {
-    return Sentry.startSpan(
-      {
-        op: "admin.backfill",
-        name: "Retry AI Backfill",
-      },
-      async (span) => {
-        try {
-          await ensureAdmin(ctx);
+    await ensureAdmin(ctx);
 
-          const workflowResult = (await ctx.runMutation(
-            internal.workflows.aiBackfill.startAiBackfillWorkflow,
-            { startAsync: false }
-          )) as AiBackfillWorkflowResult | { workflowId: string };
+    const workflowResult = (await ctx.runMutation(
+      internal.workflows.aiBackfill.startAiBackfillWorkflow,
+      { startAsync: false }
+    )) as AiBackfillWorkflowResult | { workflowId: string };
 
-          const normalizedResult: AiBackfillWorkflowResult =
-            "workflowId" in workflowResult
-              ? { enqueuedCount: 0, failedCardIds: [] }
-              : workflowResult;
+    const normalizedResult: AiBackfillWorkflowResult =
+      "workflowId" in workflowResult
+        ? { enqueuedCount: 0, failedCardIds: [] }
+        : workflowResult;
 
-          // Retrieve a sample of outstanding cards to provide context without exposing IDs
-          const pendingSample = (await ctx.runQuery(
-            internal.ai.queries.findCardsMissingAi,
-            {}
-          )) as PendingSample[];
+    // Retrieve a sample of outstanding cards to provide context without exposing IDs
+    const pendingSample = (await ctx.runQuery(
+      internal.ai.queries.findCardsMissingAi,
+      {}
+    )) as PendingSample[];
 
-          span.setAttribute("enqueuedCount", normalizedResult.enqueuedCount);
-          span.setAttribute("pendingSampleCount", pendingSample.length);
-
-          logger.info("AI backfill triggered", {
-            enqueuedCount: normalizedResult.enqueuedCount,
-            pendingSampleCount: pendingSample.length,
-          });
-
-          return {
-            requestedAt: Date.now(),
-            enqueuedCount: normalizedResult.enqueuedCount,
-            pendingSampleCount: pendingSample.length,
-            failedCardIds: normalizedResult.failedCardIds,
-          };
-        } catch (error) {
-          captureException(error, { operation: "retryAiBackfill" });
-          throw error;
-        }
-      }
-    );
+    return {
+      requestedAt: Date.now(),
+      enqueuedCount: normalizedResult.enqueuedCount,
+      pendingSampleCount: pendingSample.length,
+      failedCardIds: normalizedResult.failedCardIds,
+    };
   },
 });
 
@@ -332,47 +310,29 @@ export const retryCardEnrichment = action({
     ctx,
     { cardId }
   ): Promise<{ requestedAt: number; success: boolean; reason?: "not_found" }> => {
-    return Sentry.startSpan(
-      {
-        op: "admin.enrichment",
-        name: `Retry Card Enrichment: ${cardId}`,
-      },
-      async (span) => {
-        span.setAttribute("cardId", cardId);
+    await ensureAdmin(ctx);
 
-        try {
-          await ensureAdmin(ctx);
+    const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
+      cardId,
+    });
 
-          const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
-            cardId,
-          });
+    if (!card) {
+      return {
+        requestedAt: Date.now(),
+        success: false,
+        reason: "not_found",
+      };
+    }
 
-          if (!card) {
-            logger.warn(logger.fmt`Card not found for enrichment: ${cardId}`);
-            return {
-              requestedAt: Date.now(),
-              success: false,
-              reason: "not_found",
-            };
-          }
-
-          await ctx.scheduler.runAfter(
-            0,
-            (internal as any)["workflows/manager"].startCardProcessingWorkflow,
-            { cardId }
-          );
-
-          logger.info(logger.fmt`Card enrichment triggered for card ${cardId}`);
-
-          return {
-            requestedAt: Date.now(),
-            success: true,
-          };
-        } catch (error) {
-          captureException(error, { cardId, operation: "retryCardEnrichment" });
-          throw error;
-        }
-      }
+    await ctx.scheduler.runAfter(
+      0,
+      (internal as any)["workflows/manager"].startCardProcessingWorkflow,
+      { cardId }
     );
+
+    return {
+      requestedAt: Date.now(),
+      success: true,
+    };
   },
 });

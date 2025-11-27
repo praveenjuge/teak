@@ -18,7 +18,6 @@ import {
   type Color,
 } from "@teak/convex/shared/utils/colorUtils";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
-import { Sentry, logger, captureException } from "../../sentry";
 
 const CLASSIFY_LOG_PREFIX = "[workflow/classify]";
 
@@ -333,155 +332,142 @@ export const classify = internalAction({
     shouldGenerateRenderables: v.boolean(),
   }),
   handler: async (ctx, { cardId }): Promise<ClassificationWorkflowResult> => {
-    return Sentry.startSpan(
-      {
-        op: "ai.classify",
-        name: `Classify Card: ${cardId}`,
-      },
-      async (span) => {
-        span.setAttribute("cardId", cardId);
-        logger.debug(logger.fmt`${CLASSIFY_LOG_PREFIX} Running classification for card ${cardId}`);
+    console.info(`${CLASSIFY_LOG_PREFIX} Running`, { cardId });
+    const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
+      cardId,
+    });
 
-        const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
+    if (!card) {
+      console.warn(`${CLASSIFY_LOG_PREFIX} Card not found`, { cardId });
+      throw new Error(`Card ${cardId} not found for classification`);
+    }
+
+    // If previously classified as quote and no conflicting signals, keep it sticky
+    if (card.type === "quote" && !card.url && !card.fileId) {
+      const confidence = card.processingStatus?.classify?.confidence ?? 0.95;
+      const stickyResult: ClassificationWorkflowResult = {
+        type: "quote",
+        confidence,
+        needsLinkMetadata: false,
+        shouldCategorize: false,
+        shouldGenerateMetadata: true,
+        shouldGenerateRenderables: false,
+      };
+
+      console.info(`${CLASSIFY_LOG_PREFIX} Sticky quote classification`, {
+        cardId,
+        confidence,
+      });
+
+      return stickyResult;
+    }
+
+    const quoteNormalization = normalizeQuoteContent(card.content ?? "");
+    const heuristicQuote =
+      quoteNormalization.removedQuotes &&
+      !card.url &&
+      !card.fileId;
+
+    if (heuristicQuote) {
+      console.info(`${CLASSIFY_LOG_PREFIX} Heuristic quote classification`, {
+        cardId,
+      });
+      await ctx.runMutation(
+        (internal as any)["workflows/steps/classificationMutations"].updateClassification,
+        {
           cardId,
-        });
-
-        if (!card) {
-          logger.warn(logger.fmt`${CLASSIFY_LOG_PREFIX} Card not found: ${cardId}`);
-          const error = new Error(`Card ${cardId} not found for classification`);
-          captureException(error, { cardId });
-          throw error;
+          type: "quote",
+          confidence: 0.95,
         }
+      );
 
-        span.setAttribute("cardType", card.type ?? "unknown");
+      const heuristicResult: ClassificationWorkflowResult = {
+        type: "quote",
+        confidence: 0.95,
+        needsLinkMetadata: false,
+        shouldCategorize: false,
+        shouldGenerateMetadata: true,
+        shouldGenerateRenderables: false,
+      };
 
-        // If previously classified as quote and no conflicting signals, keep it sticky
-        if (card.type === "quote" && !card.url && !card.fileId) {
-          const confidence = card.processingStatus?.classify?.confidence ?? 0.95;
-          const stickyResult: ClassificationWorkflowResult = {
-            type: "quote",
-            confidence,
-            needsLinkMetadata: false,
-            shouldCategorize: false,
-            shouldGenerateMetadata: true,
-            shouldGenerateRenderables: false,
-          };
+      return heuristicResult;
+    }
 
-          logger.info(`${CLASSIFY_LOG_PREFIX} Sticky quote classification`, {
-            cardId,
-            confidence,
-          });
+    // Deterministic classification (no external AI call)
+    const { type: resultType, confidence: resultConfidence } = deterministicClassify(card);
+    console.info(`${CLASSIFY_LOG_PREFIX} Heuristic result`, {
+      cardId,
+      resultType,
+      resultConfidence,
+    });
 
-          return stickyResult;
-        }
+    // Normalize type for URL-only cards
+    const trimmedContent = typeof card.content === "string" ? card.content.trim() : "";
+    const urlOnlyCard =
+      !!card.url &&
+      !card.fileId &&
+      (trimmedContent.length === 0 || trimmedContent === card.url);
 
-        const quoteNormalization = normalizeQuoteContent(card.content ?? "");
-        const heuristicQuote =
-          quoteNormalization.removedQuotes &&
-          !card.url &&
-          !card.fileId;
+    const normalizedType =
+      urlOnlyCard && resultType !== "link" ? "link" : resultType;
+    const normalizedConfidence = Math.max(0, Math.min(resultConfidence, 1));
+    console.info(`${CLASSIFY_LOG_PREFIX} Normalized result`, {
+      cardId,
+      normalizedType,
+      normalizedConfidence,
+      urlOnlyCard,
+    });
 
-        if (heuristicQuote) {
-          logger.info(logger.fmt`${CLASSIFY_LOG_PREFIX} Heuristic quote classification for card ${cardId}`);
-          await ctx.runMutation(
-            (internal as any)["workflows/steps/classificationMutations"].updateClassification,
-            {
-              cardId,
-              type: "quote",
-              confidence: 0.95,
-            }
-          );
+    // Determine if type should be updated
+    const shouldForceLink = urlOnlyCard && card.type !== "link";
+    const shouldUpdateType =
+      shouldForceLink || (normalizedType !== card.type && normalizedConfidence >= 0.6);
 
-          const heuristicResult: ClassificationWorkflowResult = {
-            type: "quote",
-            confidence: 0.95,
-            needsLinkMetadata: false,
-            shouldCategorize: false,
-            shouldGenerateMetadata: true,
-            shouldGenerateRenderables: false,
-          };
-
-          return heuristicResult;
-        }
-
-        // Deterministic classification (no external AI call)
-        const { type: resultType, confidence: resultConfidence } = deterministicClassify(card);
-        logger.debug(`${CLASSIFY_LOG_PREFIX} Heuristic result`, {
+    if (shouldUpdateType) {
+      // Update card type via mutation
+      console.info(`${CLASSIFY_LOG_PREFIX} Updating card type`, {
+        cardId,
+        previousType: card.type,
+        nextType: normalizedType,
+        confidence: normalizedConfidence,
+      });
+      await ctx.runMutation(
+        (internal as any)["workflows/steps/classificationMutations"]
+          .updateClassification,
+        {
           cardId,
-          resultType,
-          resultConfidence,
-        });
-
-        // Normalize type for URL-only cards
-        const trimmedContent = typeof card.content === "string" ? card.content.trim() : "";
-        const urlOnlyCard =
-          !!card.url &&
-          !card.fileId &&
-          (trimmedContent.length === 0 || trimmedContent === card.url);
-
-        const normalizedType =
-          urlOnlyCard && resultType !== "link" ? "link" : resultType;
-        const normalizedConfidence = Math.max(0, Math.min(resultConfidence, 1));
-        logger.debug(`${CLASSIFY_LOG_PREFIX} Normalized result`, {
-          cardId,
-          normalizedType,
-          normalizedConfidence,
-          urlOnlyCard,
-        });
-
-        // Determine if type should be updated
-        const shouldForceLink = urlOnlyCard && card.type !== "link";
-        const shouldUpdateType =
-          shouldForceLink || (normalizedType !== card.type && normalizedConfidence >= 0.6);
-
-        if (shouldUpdateType) {
-          // Update card type via mutation
-          logger.info(`${CLASSIFY_LOG_PREFIX} Updating card type`, {
-            cardId,
-            previousType: card.type,
-            nextType: normalizedType,
-            confidence: normalizedConfidence,
-          });
-          await ctx.runMutation(
-            (internal as any)["workflows/steps/classificationMutations"]
-              .updateClassification,
-            {
-              cardId,
-              type: normalizedType,
-              confidence: normalizedConfidence,
-            }
-          );
-
-          // Update palette colors if needed
-          await maybeUpdatePaletteColors(ctx, card, normalizedType, cardId);
-        }
-
-        const needsLinkMetadata =
-          normalizedType === "link" &&
-          card.metadata?.linkPreview?.status !== "success";
-
-        // Determine which stages need to run next
-        const shouldCategorize = normalizedType === "link";
-        const shouldGenerateMetadata = true; // Always generate metadata
-        const shouldGenerateRenderables = ["image", "video", "document"].includes(normalizedType);
-
-        const result: ClassificationWorkflowResult = {
           type: normalizedType,
           confidence: normalizedConfidence,
-          needsLinkMetadata,
-          shouldCategorize,
-          shouldGenerateMetadata,
-          shouldGenerateRenderables,
-        };
+        }
+      );
 
-        span.setAttribute("resultType", normalizedType);
-        span.setAttribute("confidence", normalizedConfidence);
-        logger.info(logger.fmt`${CLASSIFY_LOG_PREFIX} Completed classification for card ${cardId}`, {
-          result,
-        });
+      // Update palette colors if needed
+      await maybeUpdatePaletteColors(ctx, card, normalizedType, cardId);
+    }
 
-        return result;
-      }
-    );
+    const needsLinkMetadata =
+      normalizedType === "link" &&
+      card.metadata?.linkPreview?.status !== "success";
+
+    // Determine which stages need to run next
+    const shouldCategorize = normalizedType === "link";
+    const shouldGenerateMetadata = true; // Always generate metadata
+    const shouldGenerateRenderables = ["image", "video", "document"].includes(normalizedType);
+
+    const result: ClassificationWorkflowResult = {
+      type: normalizedType,
+      confidence: normalizedConfidence,
+      needsLinkMetadata,
+      shouldCategorize,
+      shouldGenerateMetadata,
+      shouldGenerateRenderables,
+    };
+
+    console.info(`${CLASSIFY_LOG_PREFIX} Completed`, {
+      cardId,
+      result,
+    });
+
+    return result;
   },
 });
