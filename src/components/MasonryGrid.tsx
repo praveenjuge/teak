@@ -1,10 +1,15 @@
-import { useState } from "react";
-import Masonry from "react-masonry-css";
+import { useState, useMemo } from "react";
+import { Masonry } from "antd";
+import type { MasonryProps } from "antd";
 import { AddCardForm } from "./AddCardForm";
 import { Card } from "./Card";
 import { BulkActionBar } from "./BulkActionBar";
 import { type Doc } from "@teak/convex/_generated/dataModel";
 import * as Sentry from "@sentry/nextjs";
+
+// Define the item type for the masonry grid
+type CardItem = Doc<"cards"> | "add-form";
+type MasonryItem = NonNullable<MasonryProps<CardItem>["items"]>[number];
 
 interface MasonryGridProps {
   filteredCards: Doc<"cards">[];
@@ -88,36 +93,64 @@ export function MasonryGrid({
       exitSelectionMode();
     }
   };
+
+  // Build masonry items array
+  const masonryItems: MasonryItem[] = useMemo(() => {
+    const items: MasonryItem[] = [];
+
+    // Add the AddCardForm as the first item if not in trash mode
+    if (!showTrashOnly) {
+      items.push({
+        key: "add-form",
+        data: "add-form" as const,
+      });
+    }
+
+    // Add all cards
+    filteredCards.forEach((card) => {
+      items.push({
+        key: card._id,
+        data: card,
+      });
+    });
+
+    return items;
+  }, [filteredCards, showTrashOnly]);
+
+  // Render function for masonry items
+  const renderItem = (item: MasonryItem & { index: number }) => {
+    if (item.data === "add-form") {
+      return <AddCardForm />;
+    }
+
+    const card = item.data;
+    return (
+      <Card
+        card={card}
+        onClick={handleCardClick}
+        onDelete={onDeleteCard}
+        onRestore={onRestoreCard}
+        onPermanentDelete={onPermanentDeleteCard}
+        onToggleFavorite={onToggleFavorite}
+        isTrashMode={showTrashOnly}
+        isSelectionMode={isSelectionMode}
+        isSelected={selectedCardIds.has(card._id)}
+        onEnterSelectionMode={enterSelectionMode}
+        onToggleSelection={() => toggleCardSelection(card._id)}
+      />
+    );
+  };
+
   return (
     <>
       <Masonry
-        breakpointCols={{
-          default: 5,
-          1024: 5,
-          768: 2,
-          640: 1,
-        }}
-        className={`masonry-grid ${isSelectionMode ? "select-none" : ""}`}
-        columnClassName="masonry-grid-column"
-      >
-        {!showTrashOnly && <AddCardForm key="add-form" />}
-        {filteredCards.map((card) => (
-          <Card
-            key={card._id}
-            card={card}
-            onClick={handleCardClick}
-            onDelete={onDeleteCard}
-            onRestore={onRestoreCard}
-            onPermanentDelete={onPermanentDeleteCard}
-            onToggleFavorite={onToggleFavorite}
-            isTrashMode={showTrashOnly}
-            isSelectionMode={isSelectionMode}
-            isSelected={selectedCardIds.has(card._id)}
-            onEnterSelectionMode={enterSelectionMode}
-            onToggleSelection={() => toggleCardSelection(card._id)}
-          />
-        ))}
-      </Masonry>
+        columns={{ xs: 1, sm: 2, md: 3, lg: 5, xl: 5, xxl: 5 }}
+        gutter={20}
+        items={masonryItems}
+        itemRender={renderItem}
+        fresh
+        className={isSelectionMode ? "select-none" : ""}
+      />
       {isSelectionMode && (
         <BulkActionBar
           selectedCount={selectedCardIds.size}

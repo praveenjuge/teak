@@ -139,19 +139,6 @@
   }
 }
 
-/* Masonry grid styles for react-masonry-css */
-.masonry-grid {
-  display: flex;
-  margin-left: -20px;
-  width: auto;
-}
-
-.masonry-grid-column {
-  @apply space-y-5;
-  padding-left: 20px;
-  background-clip: padding-box;
-}
-
 #sentry-feedback {
   --font-family: var(--font-sans);
 }
