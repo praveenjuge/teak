@@ -11,6 +11,7 @@ import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
+import { metrics } from "@/lib/metrics";
 
 interface AddCardFormProps {
   onSuccess?: () => void;
@@ -182,6 +183,10 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       });
 
       if (result.success) {
+        // Track successful audio recording
+        metrics.audioRecorded(recordingTime, true);
+        metrics.cardCreated("audio");
+
         // Reset form
         setContent("");
         setUrl("");
@@ -190,17 +195,21 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         toast.success("Audio recording saved successfully");
       } else {
         if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
+          metrics.cardLimitReached(0);
+          metrics.upgradePromptShown("audio_recording");
           setShowUpgradePrompt(true);
           return;
         }
 
         if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
+          metrics.rateLimitHit("card_creation");
           setError(
             "Too many cards created. Please wait a moment and try again."
           );
           return;
         }
 
+        metrics.audioRecorded(recordingTime, false);
         throw new Error(result.error || "Failed to save audio recording");
       }
     } catch (error) {
@@ -244,17 +253,24 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         });
 
         if (result.success) {
+          metrics.fileUploaded(file.size, file.type, true);
+          metrics.cardCreated(file.type.split("/")[0] || "document");
           onSuccess?.();
           toast.success(`${file.name} uploaded successfully`);
         } else {
           const errorMessage = result.error || "Failed to upload file";
+          metrics.fileUploaded(file.size, file.type, false);
           if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
+            metrics.cardLimitReached(0);
+            metrics.upgradePromptShown("file_upload");
             setShowUpgradePrompt(true);
           } else if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
+            metrics.rateLimitHit("card_creation");
             setError(
               "Too many cards created. Please wait a moment and try again."
             );
           } else {
+            metrics.errorOccurred("upload", result.errorCode);
             setError(errorMessage);
           }
         }
@@ -285,6 +301,9 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         content: content,
         url: url || undefined,
       });
+
+      // Track card creation
+      metrics.cardCreated(url ? "link" : "text");
 
       // Reset form
       setContent("");

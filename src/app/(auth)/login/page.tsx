@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { cn } from "@/lib/utils";
+import { metrics } from "@/lib/metrics";
 
 export default function SignIn() {
   const router = useRouter();
@@ -36,15 +37,19 @@ export default function SignIn() {
         callbackURL: "/",
       });
       if (response?.error) {
+        metrics.loginFailed("google", response.error.message);
         setError(
           response.error.message ??
             "Failed to sign in with Google. Please try again."
         );
+      } else {
+        metrics.loginSuccess("google");
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to sign in with Google"
-      );
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to sign in with Google";
+      metrics.loginFailed("google", errorMessage);
+      setError(errorMessage);
     } finally {
       setGoogleLoading(false);
     }
@@ -112,12 +117,14 @@ export default function SignIn() {
                 },
                 onSuccess: () => {
                   setLoading(false);
+                  metrics.loginSuccess("email");
                   router.push("/");
                 },
                 onError: (ctx) => {
                   setLoading(false);
                   const errorMessage =
                     ctx.error?.message ?? "Invalid email or password";
+                  metrics.loginFailed("email", errorMessage);
 
                   // Check if the error is related to email verification
                   if (

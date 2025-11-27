@@ -8,6 +8,7 @@ import {
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
+import { metrics } from "@/lib/metrics";
 
 export interface DragDropState {
   isDragActive: boolean;
@@ -45,15 +46,29 @@ export function useGlobalDragDrop() {
 
       const results = await uploadMultipleFiles(acceptedFiles);
 
+      // Track overall drag/drop operation
+      const successCount = results.filter((r: UploadMultipleFilesResultItem) => r.success).length;
+      const failureCount = results.length - successCount;
+
+      metrics.dragDropPerformed(
+        acceptedFiles.length,
+        failureCount === 0,
+        failureCount > 0 ? "partial_failure" : undefined
+      );
+
       // Show success/error messages for each file
       results.forEach((result: UploadMultipleFilesResultItem) => {
         if (result.success) {
+          metrics.cardCreated("file");
           toast.success(`${result.file} uploaded successfully`);
         } else {
           const errorMessage = result.error || "Upload failed";
           if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
+            metrics.cardLimitReached(0);
+            metrics.upgradePromptShown("drag_drop");
             setShowUpgradePrompt(true);
           } else {
+            metrics.errorOccurred("upload", result.errorCode);
             Sentry.captureException(new Error(errorMessage), {
               tags: { source: "convex", operation: "dragDropUpload" },
               extra: { fileName: result.file, errorCode: result.errorCode },

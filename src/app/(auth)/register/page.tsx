@@ -19,6 +19,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { metrics } from "@/lib/metrics";
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
@@ -38,15 +39,19 @@ export default function SignUp() {
         callbackURL: "/",
       });
       if (response?.error) {
+        metrics.registrationFailed("google", response.error.message);
         setError(
           response.error.message ??
             "Failed to sign in with Google. Please try again."
         );
+      } else {
+        metrics.registrationSuccess("google");
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to sign in with Google"
-      );
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to sign in with Google";
+      metrics.registrationFailed("google", errorMessage);
+      setError(errorMessage);
     } finally {
       setGoogleLoading(false);
     }
@@ -134,10 +139,12 @@ export default function SignUp() {
                   setLoading(false);
                   const message =
                     ctx.error?.message ?? "Failed to create account";
+                  metrics.registrationFailed("email", message);
                   setError(message);
                 },
                 onSuccess: async () => {
                   setLoading(false);
+                  metrics.registrationSuccess("email");
                   setShowSuccessAlert(true);
                 },
               },

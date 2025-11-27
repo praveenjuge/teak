@@ -16,6 +16,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import { metrics } from "@/lib/metrics";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -50,6 +51,7 @@ export default function ForgotPassword() {
           setError(ctx.error?.message ?? "We couldn't send the reset email.");
         },
         onSuccess: () => {
+          metrics.passwordResetRequested();
           setSent(true);
         },
       },

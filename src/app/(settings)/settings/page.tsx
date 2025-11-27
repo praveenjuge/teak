@@ -38,6 +38,7 @@ import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
 import * as Sentry from "@sentry/nextjs";
+import { metrics } from "@/lib/metrics";
 
 const featureList = [
   "Unlimited Cards",
@@ -310,6 +311,7 @@ export default function ProfileSettingsPage() {
 
   const handleCheckout = async (planId: string) => {
     setLoadingPlanId(planId);
+    metrics.checkoutInitiated();
     try {
       const checkoutUrl = await createCheckoutLink({ productId: planId });
 
@@ -416,6 +418,7 @@ export default function ProfileSettingsPage() {
 
   const handleSignOut = async () => {
     setSignOutLoading(true);
+    metrics.logout();
     try {
       await authClient.signOut({
         fetchOptions: {
@@ -482,7 +485,10 @@ export default function ProfileSettingsPage() {
             <Button
               size="sm"
               variant="link"
-              onClick={() => setSubscriptionOpen(true)}
+              onClick={() => {
+                metrics.modalOpened("upgrade");
+                setSubscriptionOpen(true);
+              }}
             >
               Upgrade
             </Button>

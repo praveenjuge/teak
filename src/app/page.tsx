@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { CardModal } from "@/components/CardModal";
 import { SearchBar } from "@/components/SearchBar";
@@ -18,6 +18,7 @@ import { api } from "@teak/convex";
 import { toast } from "sonner";
 import { Authenticated, AuthLoading } from "convex/react";
 import Loading from "./loading";
+import { metrics } from "@/lib/metrics";
 
 const DEFAULT_CARD_LIMIT = 100;
 
@@ -50,6 +51,15 @@ export default function HomePage() {
   );
 
   const cards = useQuery(api.cards.searchCards, queryArgs);
+
+  // Track search when results change and filters are active
+  const hasActiveSearch =
+    searchTerms || filterTags.length > 0 || showFavoritesOnly || showTrashOnly;
+  useEffect(() => {
+    if (cards !== undefined && hasActiveSearch) {
+      metrics.searchPerformed(cards.length, filterTags);
+    }
+  }, [cards?.length, hasActiveSearch, filterTags]);
 
   const cardActions = useCardActions({
     onDeleteSuccess: (message) => message && toast(message),
@@ -116,6 +126,7 @@ export default function HomePage() {
 
   const addFilter = (filter: CardType) => {
     if (!filterTags.includes(filter)) {
+      metrics.filterApplied("type");
       setFilterTags((prev) => [...prev, filter]);
     }
   };
@@ -129,10 +140,16 @@ export default function HomePage() {
   };
 
   const toggleFavorites = () => {
+    if (!showFavoritesOnly) {
+      metrics.filterApplied("favorites");
+    }
     setShowFavoritesOnly(!showFavoritesOnly);
   };
 
   const toggleTrash = () => {
+    if (!showTrashOnly) {
+      metrics.filterApplied("trash");
+    }
     setShowTrashOnly(!showTrashOnly);
   };
 
@@ -145,6 +162,7 @@ export default function HomePage() {
   };
 
   const handleCardClick = (card: Doc<"cards">) => {
+    metrics.modalOpened("card");
     setEditingCardId(card._id);
   };
 
