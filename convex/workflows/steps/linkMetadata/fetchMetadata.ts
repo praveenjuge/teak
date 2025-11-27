@@ -1,9 +1,10 @@
 "use node";
 
 import { v } from "convex/values";
+import Kernel from "@onkernel/sdk";
 import { internalAction } from "../../../_generated/server";
 import { internal } from "../../../_generated/api";
-import type { CloudflareScrapeResponse } from "../../../linkMetadata";
+import type { ScrapeResponse } from "../../../linkMetadata";
 import {
   buildErrorPreview,
   buildSuccessPreview,
@@ -28,6 +29,99 @@ const workflowManagerInternal = internalFunctions["workflows/manager"] as Record
 
 const throwRetryable = (info: LinkMetadataRetryableError): never => {
   throw new Error(`${LINK_METADATA_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
+};
+
+const scrapeWithKernel = async (
+  url: string,
+  selectors: { selector: string }[]
+): Promise<ScrapeResponse> => {
+  const kernel = new Kernel();
+  let kernelBrowser: { session_id: string } | undefined;
+
+  try {
+    kernelBrowser = await kernel.browsers.create();
+
+    const selectorStrings = selectors.map(s => s.selector);
+    const code = `
+      await page.goto('${url.replace(/'/g, "\\'")}', { waitUntil: 'networkidle', timeout: 30000 });
+      
+      const selectors = ${JSON.stringify(selectorStrings)};
+      const results = [];
+      
+      for (const selector of selectors) {
+        try {
+          const elements = await page.$$(selector);
+          const selectorResults = [];
+          
+          for (const element of elements) {
+            const text = await element.textContent().catch(() => null);
+            const html = await element.innerHTML().catch(() => null);
+            
+            const attributes = await element.evaluate(el => {
+              return Array.from(el.attributes).map(attr => ({
+                name: attr.name,
+                value: attr.value
+              }));
+            }).catch(() => []);
+            
+            selectorResults.push({
+              text: text?.trim() || undefined,
+              html: html?.trim() || undefined,
+              attributes: attributes.length > 0 ? attributes : undefined
+            });
+          }
+          
+          results.push({
+            selector,
+            results: selectorResults
+          });
+        } catch (e) {
+          results.push({
+            selector,
+            results: []
+          });
+        }
+      }
+      
+      return results;
+    `;
+
+    const response = await kernel.browsers.playwright.execute(
+      kernelBrowser.session_id,
+      {
+        code,
+        timeout_sec: 35,
+      }
+    );
+
+    if (!response.success) {
+      return {
+        success: false,
+        errors: [{ message: response.error || "Playwright execution failed" }],
+      };
+    }
+
+    return {
+      success: true,
+      result: response.result as ScrapeResponse["result"],
+    };
+  } catch (error) {
+    return {
+      success: false,
+      errors: [{ message: (error as Error)?.message || "Unknown error" }],
+    };
+  } finally {
+    if (kernelBrowser?.session_id) {
+      try {
+        await kernel.browsers.deleteByID(kernelBrowser.session_id);
+      } catch (cleanupError) {
+        console.warn(
+          `[linkMetadata] Failed to cleanup browser session:`,
+          cleanupError
+        );
+      }
+    }
+  }
 };
 
 export const fetchMetadata = internalAction({
@@ -104,157 +198,45 @@ export const fetchMetadata = internalAction({
       `[linkMetadata] Extracting metadata for card ${cardId}, URL: ${normalizedUrl}`,
     );
 
-    const accountId = process.env.CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID;
-    const apiToken =
-      process.env.CLOUDFLARE_BROWSER_RENDERING_API_TOKEN ||
-      process.env.CLOUDFLARE_API_TOKEN ||
-      process.env.CLOUDFLARE_API_KEY;
-
-    if (!accountId || !apiToken) {
-      console.error(
-        `[linkMetadata] Missing Cloudflare Browser Rendering credentials (accountId=${accountId ? "set" : "missing"}, apiToken=${apiToken ? "set" : "missing"})`,
-      );
-      await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
-        cardId,
-        linkPreview: buildErrorPreview(normalizedUrl, {
-          type: "configuration_error",
-          message:
-            "Cloudflare Browser Rendering credentials are not configured",
-        }),
-        status: "failed",
-      });
-      return {
-        status: "failed" as const,
-        normalizedUrl,
-        errorType: "configuration_error",
-        errorMessage:
-          "Cloudflare Browser Rendering credentials are not configured",
-      };
-    }
-
     try {
-      const scrapeUrl = new URL(
-        `https://api.cloudflare.com/client/v4/accounts/${accountId}/browser-rendering/scrape`,
-      );
-      scrapeUrl.searchParams.set("cacheTTL", "0");
-
-      const controller = new AbortController();
-      const timeoutMs = 25_000;
-      const timeoutId = setTimeout(() => {
-        console.warn(
-          `[linkMetadata] Cloudflare request timeout after ${timeoutMs}ms for ${normalizedUrl}`,
-        );
-        controller.abort();
-      }, timeoutMs);
-
-      const requestPayload = {
-        url: normalizedUrl,
-        elements: SCRAPE_ELEMENTS,
-        gotoOptions: {
-          waitUntil: "networkidle0",
-          timeout: 30_000,
-        },
-      };
-
       console.log(
-        `[linkMetadata] Calling Cloudflare Browser Rendering /scrape with ${SCRAPE_ELEMENTS.length} selectors`,
+        `[linkMetadata] Calling Kernel Playwright with ${SCRAPE_ELEMENTS.length} selectors`,
       );
       const startedAt = Date.now();
-      const response = await fetch(scrapeUrl.toString(), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestPayload),
-        signal: controller.signal,
-      });
 
-      clearTimeout(timeoutId);
+      const payload = await scrapeWithKernel(normalizedUrl, SCRAPE_ELEMENTS);
+
       console.log(
-        `[linkMetadata] Cloudflare response received in ${Date.now() - startedAt}ms with status ${response.status}`,
+        `[linkMetadata] Kernel response received in ${Date.now() - startedAt}ms`,
       );
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "");
-        let parsedError: CloudflareScrapeResponse | undefined;
-        if (errorText) {
-          try {
-            parsedError = JSON.parse(errorText) as CloudflareScrapeResponse;
-          } catch {
-            // Ignore JSON parse issues; we'll fall back to the raw body.
-          }
-        }
-
-        const primaryError = parsedError?.errors?.[0];
-        const errorCode =
-          typeof primaryError?.code === "number" ? primaryError.code : undefined;
-        const errorMessage = primaryError?.message;
-        const isRateLimit = response.status === 429 || errorCode === 2001;
-        const isSessionIssue =
-          errorCode === 2000 ||
-          (errorMessage?.toLowerCase().includes("existing session") ?? false);
-
-        console.error(
-          `[linkMetadata] Cloudflare API error ${response.status} ${response.statusText} for ${normalizedUrl}:`,
-          errorText || parsedError || "<empty>",
-        );
-
-        if (isRateLimit || response.status >= 500) {
-          const retryType = isRateLimit
-            ? "rate_limit"
-            : isSessionIssue
-              ? "session_error"
-              : "http_error";
-          throwRetryable({
-            type: retryType,
-            normalizedUrl,
-            message:
-              errorMessage ||
-              `Cloudflare Browser Rendering returned ${response.status}`,
-            details: parsedError?.errors ?? errorText?.slice(0, 2000),
-          });
-        }
-
-        await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
-          cardId,
-          linkPreview: buildErrorPreview(normalizedUrl, {
-            type: isRateLimit ? "rate_limit" : "http_error",
-            message:
-              errorMessage ||
-              `Cloudflare Browser Rendering returned ${response.status}`,
-            details:
-              parsedError?.errors ??
-              (errorText ? errorText.slice(0, 2000) : undefined),
-          }),
-          status: "failed",
-        });
-
-        return {
-          status: "failed" as const,
-          normalizedUrl,
-          errorType: isRateLimit ? "rate_limit" : "http_error",
-          errorMessage:
-            errorMessage ||
-            `Cloudflare Browser Rendering returned ${response.status}`,
-        };
-      }
-
-      const payload: CloudflareScrapeResponse = await response.json();
       if (!payload.success) {
+        const errorMessage = payload.errors
+          ?.map((error) => error?.message)
+          .filter(Boolean)
+          .join("; ") || "Unknown scrape error";
+
         console.warn(
-          `[linkMetadata] Cloudflare scrape failed for ${normalizedUrl}`,
+          `[linkMetadata] Kernel scrape failed for ${normalizedUrl}`,
           payload.errors,
         );
+
+        const isRateLimit = errorMessage.toLowerCase().includes("rate") ||
+          errorMessage.toLowerCase().includes("limit");
+
+        if (isRateLimit) {
+          throwRetryable({
+            type: "rate_limit",
+            normalizedUrl,
+            message: errorMessage,
+            details: payload.errors,
+          });
+        }
 
         throwRetryable({
           type: "scrape_error",
           normalizedUrl,
-          message:
-            payload.errors
-              ?.map((error) => error?.message)
-              .filter(Boolean)
-              .join("; ") || "Unknown scrape error",
+          message: errorMessage,
           details: payload.errors,
         });
       }
@@ -293,6 +275,10 @@ export const fetchMetadata = internalAction({
         `[linkMetadata] Error extracting metadata for card ${cardId}:`,
         error,
       );
+
+      if ((error as Error)?.message?.startsWith(LINK_METADATA_RETRYABLE_PREFIX)) {
+        throw error;
+      }
 
       if ((error as any)?.name === "AbortError") {
         throwRetryable({

@@ -1,29 +1,29 @@
 import type { Id } from "../_generated/dataModel";
 
-export interface CloudflareScrapeAttribute {
+export interface ScrapeAttribute {
   name: string;
   value: string;
 }
 
-export interface CloudflareScrapeResultItem {
+export interface ScrapeResultItem {
   text?: string;
   html?: string;
-  attributes?: CloudflareScrapeAttribute[];
+  attributes?: ScrapeAttribute[];
 }
 
-export interface CloudflareScrapeSelectorResult {
+export interface ScrapeSelectorResult {
   selector: string;
-  results: CloudflareScrapeResultItem[];
+  results: ScrapeResultItem[];
 }
 
-export interface CloudflareScrapeResponse {
+export interface ScrapeResponse {
   success: boolean;
-  result?: CloudflareScrapeSelectorResult[];
+  result?: ScrapeSelectorResult[];
   errors?: Array<{ code?: number; message?: string }>;
 }
 
 export interface LinkPreviewMetadata {
-  source: "cloudflare_browser_rendering";
+  source: "kernel_playwright";
   status: "success" | "error";
   fetchedAt: number;
   url: string;
@@ -44,7 +44,7 @@ export interface LinkPreviewMetadata {
     message?: string;
     details?: any;
   };
-  raw?: CloudflareScrapeSelectorResult[];
+  raw?: ScrapeSelectorResult[];
 }
 
 export type SelectorSource = {

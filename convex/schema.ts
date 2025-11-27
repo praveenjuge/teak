@@ -86,7 +86,7 @@ export const fileMetadataValidator = v.optional(
 
 export const metadataValidator = v.optional(
   v.object({
-    // Cloudflare Browser Rendering metadata for link previews
+    // Metadata for link previews
     linkPreview: v.optional(
       v.object({
         source: v.optional(v.string()),

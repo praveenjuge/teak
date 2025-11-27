@@ -1,6 +1,6 @@
 import type {
-  CloudflareScrapeResultItem,
-  CloudflareScrapeSelectorResult,
+  ScrapeResultItem,
+  ScrapeSelectorResult,
   LinkPreviewMetadata,
   SelectorSource,
 } from "./types";
@@ -20,9 +20,9 @@ import {
 
 
 export const toSelectorMap = (
-  results?: CloudflareScrapeSelectorResult[]
-): Map<string, CloudflareScrapeResultItem[]> => {
-  const map = new Map<string, CloudflareScrapeResultItem[]>();
+  results?: ScrapeSelectorResult[]
+): Map<string, ScrapeResultItem[]> => {
+  const map = new Map<string, ScrapeResultItem[]>();
   if (!results) {
     return map;
   }
@@ -33,7 +33,7 @@ export const toSelectorMap = (
 };
 
 export const findAttributeValue = (
-  item: CloudflareScrapeResultItem | undefined,
+  item: ScrapeResultItem | undefined,
   attribute: string
 ): string | undefined => {
   if (!item?.attributes) {
@@ -45,7 +45,7 @@ export const findAttributeValue = (
 };
 
 export const getSelectorValue = (
-  map: Map<string, CloudflareScrapeResultItem[]>,
+  map: Map<string, ScrapeResultItem[]>,
   source: SelectorSource
 ): string | undefined => {
   const candidates = map.get(source.selector) ?? [];
@@ -71,7 +71,7 @@ export const getSelectorValue = (
 };
 
 export const firstFromSources = (
-  map: Map<string, CloudflareScrapeResultItem[]>,
+  map: Map<string, ScrapeResultItem[]>,
   sources: SelectorSource[]
 ): string | undefined => {
   for (const source of sources) {
@@ -142,8 +142,8 @@ export const sanitizeImageUrl = (baseUrl: string, value: string | undefined): st
 };
 
 export const buildDebugRaw = (
-  results?: CloudflareScrapeSelectorResult[]
-): CloudflareScrapeSelectorResult[] | undefined => {
+  results?: ScrapeSelectorResult[]
+): ScrapeSelectorResult[] | undefined => {
   if (!results) {
     return undefined;
   }
@@ -158,7 +158,7 @@ export const buildDebugRaw = (
 
 export const parseLinkPreview = (
   normalizedUrl: string,
-  results?: CloudflareScrapeSelectorResult[]
+  results?: ScrapeSelectorResult[]
 ) => {
   const selectorMap = toSelectorMap(results);
 
@@ -193,7 +193,7 @@ export const buildSuccessPreview = (
   url: string,
   parsed: ReturnType<typeof parseLinkPreview>
 ): LinkPreviewMetadata => ({
-  source: "cloudflare_browser_rendering",
+  source: "kernel_playwright",
   status: "success",
   fetchedAt: Date.now(),
   url,
@@ -209,7 +209,7 @@ export const buildErrorPreview = (
   },
   extras?: Pick<LinkPreviewMetadata, "screenshotStorageId" | "screenshotUpdatedAt">
 ): LinkPreviewMetadata => ({
-  source: "cloudflare_browser_rendering",
+  source: "kernel_playwright",
   status: "error",
   fetchedAt: Date.now(),
   url,

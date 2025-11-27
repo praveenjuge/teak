@@ -49,6 +49,7 @@
     "@convex-dev/ratelimiter": "^0.1.7",
     "@convex-dev/resend": "^0.1.13",
     "@convex-dev/workflow": "^0.3.2",
+    "@onkernel/sdk": "^0.20.0",
     "@polar-sh/checkout": "^0.1.14",
     "@polar-sh/sdk": "^0.41.5",
     "@radix-ui/react-avatar": "^1.1.11",

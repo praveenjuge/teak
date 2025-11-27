@@ -1,6 +1,7 @@
 "use node";
 
 import { v } from "convex/values";
+import Kernel from "@onkernel/sdk";
 import type { Id } from "../../../_generated/dataModel";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
@@ -19,154 +20,77 @@ const throwRetryable = (info: ScreenshotRetryableError): never => {
   throw new Error(`${SCREENSHOT_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
 };
 
-const captureScreenshotFromCloudflare = async (
+const captureScreenshotWithKernel = async (
   ctx: any,
   {
-    accountId,
-    apiToken,
     url,
-  }: { accountId: string; apiToken: string; url: string },
+  }: { url: string },
 ): Promise<{
   screenshotId?: Id<"_storage">;
   screenshotUpdatedAt?: number;
   error?: { type: string; message?: string; details?: any };
 }> => {
+  const kernel = new Kernel();
+  let kernelBrowser: { session_id: string } | undefined;
+
   try {
-    const screenshotEndpoint = `https://api.cloudflare.com/client/v4/accounts/${accountId}/browser-rendering/screenshot`;
-    const controller = new AbortController();
-    const timeoutMs = 30_000;
-    const timeoutId = setTimeout(() => {
-      console.warn(
-        `[screenshot] Screenshot request timeout after ${timeoutMs}ms for ${url}`,
+    // Create a browser session
+    kernelBrowser = await kernel.browsers.create();
+
+    const screenshotCss = `
+      html, body { overflow: hidden !important; scrollbar-width: none !important; -ms-overflow-style: none !important; }
+      html::-webkit-scrollbar, body::-webkit-scrollbar { display: none !important; }
+      .cookie-banner, .cookie-consent, .privacy-popup, .newsletter-popup, .modal-overlay, .popup, .ad, .advertisement, .sponsored { display: none !important; visibility: hidden !important; }
+      body { margin: 0 !important; padding: 0 !important; min-height: 100vh !important; }
+      .floating, .sticky, .fixed { display: none !important; }
+    `;
+
+    // Execute Playwright code to capture screenshot
+    const response = await kernel.browsers.playwright.execute(
+      kernelBrowser.session_id,
+      {
+        code: `
+          await page.setViewportSize({ width: 1280, height: 720 });
+          await page.goto('${url.replace(/'/g, "\\'")}', { waitUntil: 'networkidle', timeout: 30000 });
+          await page.addStyleTag({ content: \`${screenshotCss.replace(/`/g, "\\`")}\` });
+          const screenshot = await page.screenshot({ type: 'jpeg', quality: 80 });
+          return screenshot.toString('base64');
+        `,
+        timeout_sec: 60,
+      },
+    );
+
+    if (!response.success) {
+      console.error(
+        `[screenshot] Kernel Playwright execution failed for ${url}:`,
+        response.error,
       );
-      controller.abort();
-    }, timeoutMs);
 
-    const screenshotCss =
-      "html, body { overflow: hidden !important; scrollbar-width: none !important; -ms-overflow-style: none !important; } html::-webkit-scrollbar, body::-webkit-scrollbar { display: none !important; } .cookie-banner, .cookie-consent, .privacy-popup, .newsletter-popup, .modal-overlay, .popup, .ad, .advertisement, .sponsored { display: none !important; visibility: hidden !important; } body { margin: 0 !important; padding: 0 !important; min-height: 100vh !important; } .floating, .sticky, .fixed { display: none !important; }";
-
-    const requestBody: any = {
-      url,
-      gotoOptions: {
-        waitUntil: "networkidle0",
-        timeout: 30_000,
-      },
-      viewport: {
-        width: 1_280,
-        height: 720,
-      },
-      screenshotOptions: {
-        type: "jpeg",
-        quality: 80,
-      },
-      addStyleTag: [
-        {
-          content: screenshotCss,
-        },
-      ],
-    };
-
-    const response = await fetch(screenshotEndpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    const contentType =
-      response.headers.get("content-type")?.toLowerCase() ?? "";
-
-    if (!response.ok) {
-      let responseDetails: string | undefined;
-      if (contentType.includes("application/json")) {
-        try {
-          const errorJson = await response.json();
-          responseDetails = JSON.stringify(errorJson)?.slice(0, 2_000);
-        } catch (jsonError) {
-          console.error(
-            `[screenshot] Failed to parse screenshot error JSON for ${url}:`,
-            jsonError,
-          );
-        }
-      } else {
-        responseDetails = await response.text().catch(() => "<unavailable>");
+      // Check for rate limiting or HTTP errors
+      const errorMessage = response.error?.toLowerCase() ?? "";
+      if (errorMessage.includes("rate") || errorMessage.includes("limit")) {
+        return {
+          error: {
+            type: "rate_limit",
+            message: response.error,
+            details: response.stderr,
+          },
+        };
       }
 
-      console.error(
-        `[screenshot] Screenshot HTTP error ${response.status} ${response.statusText} for ${url}:`,
-        responseDetails,
-      );
-
-      const errorType = response.status === 429 ? "rate_limit" : "http_error";
       return {
         error: {
-          type: errorType,
-          message: `Screenshot request failed with ${response.status}`,
-          details: responseDetails,
+          type: "http_error",
+          message: response.error || "Playwright execution failed",
+          details: response.stderr,
         },
       };
     }
 
-    let imageArrayBuffer: ArrayBuffer | undefined;
-    let mimeType = "image/jpeg";
-
-    if (contentType.includes("application/json")) {
-      const payload = await response.json();
-      if (!payload?.success) {
-        console.warn(
-          `[screenshot] Screenshot payload indicated failure for ${url}`,
-          payload?.errors,
-        );
-        return {
-          error: {
-            type: "api_error",
-            message:
-              payload?.errors
-                ?.map((error: any) => error?.message)
-                .filter(Boolean)
-                .join("; ") || "Screenshot capture failed",
-            details: payload?.errors,
-          },
-        };
-      }
-
-      const base64Screenshot: string | undefined =
-        payload?.result?.screenshot ||
-        payload?.result?.image ||
-        payload?.result?.png;
-      if (!base64Screenshot) {
-        console.warn(
-          `[screenshot] Screenshot payload missing screenshot data for ${url}`,
-        );
-        return {
-          error: {
-            type: "missing_data",
-            message: "Screenshot response did not include image data",
-          },
-        };
-      }
-
-      const buffer = Buffer.from(base64Screenshot, "base64");
-      imageArrayBuffer = buffer.buffer.slice(
-        buffer.byteOffset,
-        buffer.byteOffset + buffer.byteLength,
-      );
-      mimeType = payload?.result?.type || mimeType;
-    } else {
-      imageArrayBuffer = await response.arrayBuffer();
-      if (contentType) {
-        mimeType = contentType.split(";")[0];
-      }
-    }
-
-    if (!imageArrayBuffer) {
+    const base64Screenshot = response.result as string;
+    if (!base64Screenshot) {
       console.warn(
-        `[screenshot] Screenshot response did not include image data for ${url}`,
+        `[screenshot] Screenshot response missing data for ${url}`,
       );
       return {
         error: {
@@ -176,8 +100,14 @@ const captureScreenshotFromCloudflare = async (
       };
     }
 
+    const buffer = Buffer.from(base64Screenshot, "base64");
+    const imageArrayBuffer = buffer.buffer.slice(
+      buffer.byteOffset,
+      buffer.byteOffset + buffer.byteLength,
+    );
+
     const screenshotBlob = new Blob([imageArrayBuffer], {
-      type: mimeType,
+      type: "image/jpeg",
     });
 
     const screenshotId = await ctx.storage.store(screenshotBlob);
@@ -202,6 +132,18 @@ const captureScreenshotFromCloudflare = async (
         message: (error as Error)?.message,
       },
     };
+  } finally {
+    // Clean up the browser session
+    if (kernelBrowser?.session_id) {
+      try {
+        await kernel.browsers.deleteByID(kernelBrowser.session_id);
+      } catch (cleanupError) {
+        console.warn(
+          `[screenshot] Failed to cleanup browser session:`,
+          cleanupError,
+        );
+      }
+    }
   }
 };
 
@@ -231,23 +173,8 @@ export const captureScreenshot = internalAction({
       return;
     }
 
-    const accountId = process.env.CLOUDFLARE_BROWSER_RENDERING_ACCOUNT_ID;
-    const apiToken =
-      process.env.CLOUDFLARE_BROWSER_RENDERING_API_TOKEN ||
-      process.env.CLOUDFLARE_API_TOKEN ||
-      process.env.CLOUDFLARE_API_KEY;
-
-    if (!accountId || !apiToken) {
-      console.error(
-        `[screenshot] Missing Cloudflare credentials for screenshot of card ${cardId}`,
-      );
-      return;
-    }
-
     const normalizedUrl = normalizeUrl(card.url);
-    const screenshotResult = await captureScreenshotFromCloudflare(ctx, {
-      accountId,
-      apiToken,
+    const screenshotResult = await captureScreenshotWithKernel(ctx, {
       url: normalizedUrl,
     });
 

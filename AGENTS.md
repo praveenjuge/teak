@@ -82,7 +82,7 @@ teak/
 - Sequence: classification (detect type + palette colors) → categorization (links; waits for metadata) → metadata (AI tags, summary, transcript) → renderables (media thumbnails; skips tiny originals; writes via internal mutations).
 - Helpers: `convex/workflows/functionRefs.ts` + `convex/ai`.
 - Logging: updates `processingStatus` and logs with `[workflow/*]` prefixes for admin dashboards.
-- Link metadata: `convex/workflows/linkMetadata.ts` via `startLinkMetadataWorkflow`; Cloudflare scrape/HTTP retries handled inside the workflow.
+- Link metadata: `convex/workflows/linkMetadata.ts` via `startLinkMetadataWorkflow`;
 
 ## Authentication
 
