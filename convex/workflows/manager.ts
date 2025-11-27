@@ -15,6 +15,7 @@ import {
   stagePending,
 } from "../card/processingStatus";
 import type { CardType } from "../schema";
+import { Sentry, logger, captureException } from "../sentry";
 
 const internalAny: any = internal as any;
 
@@ -77,20 +78,40 @@ export const startCardProcessingWorkflow = internalAction({
     workflowId: v.string(),
   }),
   handler: async (ctx, { cardId }: CardIdentifier) => {
-    const workflowRef =
-      internalAny["workflows/cardProcessing"].cardProcessingWorkflow;
-    const workflowId = await workflow.start(
-      ctx,
-      workflowRef,
-      { cardId },
-      { startAsync: true }
-    );
+    return Sentry.startSpan(
+      {
+        op: "workflow.start",
+        name: `Start Card Processing: ${cardId}`,
+      },
+      async (span) => {
+        span.setAttribute("cardId", cardId);
 
-    await ctx.runMutation(
-      internalAny["workflows/manager"].initializeCardProcessingState,
-      { cardId, workflowId }
-    );
+        try {
+          const workflowRef =
+            internalAny["workflows/cardProcessing"].cardProcessingWorkflow;
+          const workflowId = await workflow.start(
+            ctx,
+            workflowRef,
+            { cardId },
+            { startAsync: true }
+          );
 
-    return { workflowId };
+          await ctx.runMutation(
+            internalAny["workflows/manager"].initializeCardProcessingState,
+            { cardId, workflowId }
+          );
+
+          span.setAttribute("workflowId", workflowId);
+          logger.info(logger.fmt`Card processing workflow started for card ${cardId}`, {
+            workflowId,
+          });
+
+          return { workflowId };
+        } catch (error) {
+          captureException(error, { cardId, operation: "startCardProcessingWorkflow" });
+          throw error;
+        }
+      }
+    );
   },
 });

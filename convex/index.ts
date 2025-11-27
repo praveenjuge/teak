@@ -3,6 +3,9 @@ export { api, internal } from "./_generated/api";
 export type { Doc, Id } from "./_generated/dataModel";
 export * from "./shared";
 
+// Sentry integration for error tracking and tracing
+export * from "./sentry";
+
 // Cards domain surface
 export * from "./card/cardLimit";
 export * from "./card/createCard";
