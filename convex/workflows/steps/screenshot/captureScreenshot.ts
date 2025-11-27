@@ -35,7 +35,9 @@ const captureScreenshotWithKernel = async (
 
   try {
     // Create a browser session
-    kernelBrowser = await kernel.browsers.create();
+    kernelBrowser = await kernel.browsers.create({
+      stealth: true,
+    });
 
     const screenshotCss = `
       html, body { overflow: hidden !important; scrollbar-width: none !important; -ms-overflow-style: none !important; }

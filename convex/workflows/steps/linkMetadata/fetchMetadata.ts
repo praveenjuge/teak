@@ -39,7 +39,9 @@ const scrapeWithKernel = async (
   let kernelBrowser: { session_id: string } | undefined;
 
   try {
-    kernelBrowser = await kernel.browsers.create();
+    kernelBrowser = await kernel.browsers.create({
+      stealth: true,
+    });
 
     const selectorStrings = selectors.map(s => s.selector);
     const code = `
