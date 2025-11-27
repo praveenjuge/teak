@@ -43,9 +43,9 @@ export default withSentryConfig(nextConfig, {
   // For all available options, see:
   // https://www.npmjs.com/package/@sentry/webpack-plugin#options
 
-  org: "teak-z6",
+  org: "teakvault",
 
-  project: "teak-prod-web",
+  project: "teak-web-prod",
 
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,
