@@ -235,12 +235,6 @@ export const generate: any = internalAction({
       aiTags: aiTags.length > 0 ? aiTags : undefined,
       aiSummary: aiSummary || undefined,
       aiTranscript,
-      aiModelMeta: {
-        provider: "openai",
-        model: "gpt-5-nano",
-        version: "2024-08-06",
-        generatedAt: now,
-      },
       processingStatus: updatedProcessing,
     });
     console.info(`${METADATA_LOG_PREFIX} Metadata stored`, {

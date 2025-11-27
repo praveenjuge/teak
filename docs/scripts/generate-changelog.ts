@@ -1,5 +1,5 @@
 import { generateObject } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { groq } from "@ai-sdk/groq";
 import { z } from "zod";
 import { existsSync, mkdirSync, writeFileSync, readdirSync, rmSync } from "fs";
 import { join } from "path";
@@ -164,7 +164,7 @@ async function generateBatchSummary(batch: CommitBatch) {
   const commitsText = formatCommitsForPrompt(batch.commits);
 
   const result = await generateObject({
-    model: openai("gpt-5.1"),
+    model: groq("openai/gpt-oss-120b"),
     system: `You are writing short changelog posts for Teak, a personal knowledge hub app.
 Be concise and direct. Focus only on the most important user-facing changes.
 Avoid fluff, marketing speak, or unnecessary detail. Keep everything brief.`,

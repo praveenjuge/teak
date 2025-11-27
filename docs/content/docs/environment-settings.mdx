@@ -10,7 +10,7 @@ icon: Settings
 SITE_URL=http://localhost:3000
 BETTER_AUTH_SECRET=your-secret               # Better Auth security
 KERNEL_API_KEY=token                         # Kernel Browser
-OPENAI_API_KEY=sk_...                        # AI processing
+GROQ_API_KEY=gsk_...                         # AI processing
 POLAR_ACCESS_TOKEN=token                     # Billing
 POLAR_ORGANIZATION_TOKEN=token               # Polar organization
 POLAR_SERVER=sandbox                         # sandbox|production
@@ -69,7 +69,7 @@ RESEND_API_KEY=token                         # Email service
 
 | Feature           | Required Env Var                                                         | What it Enables                      |
 | ----------------- | ------------------------------------------------------------------------ | ------------------------------------ |
-| AI Processing     | `OPENAI_API_KEY`                                                         | Auto-tags, summaries, categorization |
+| AI Processing     | `GROQ_API_KEY`                                                           | Auto-tags, summaries, categorization |
 | Screenshots       | `KERNEL_API_KEY`                                                         | Link preview thumbnails              |
 | Billing           | `POLAR_ACCESS_TOKEN`, `POLAR_ORGANIZATION_TOKEN`, `POLAR_WEBHOOK_SECRET` | Subscription management              |
 | Email Service     | `RESEND_API_KEY`                                                         | Transactional emails                 |
