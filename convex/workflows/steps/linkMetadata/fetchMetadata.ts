@@ -25,7 +25,6 @@ export const LINK_METADATA_RETRYABLE_PREFIX =
 
 const internalFunctions = internal as Record<string, any>;
 const linkMetadataInternal = internalFunctions["linkMetadata"] as Record<string, any>;
-const workflowManagerInternal = internalFunctions["workflows/manager"] as Record<string, any>;
 
 const throwRetryable = (info: LinkMetadataRetryableError): never => {
   throw new Error(`${LINK_METADATA_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
@@ -261,11 +260,9 @@ export const fetchMetadata = internalAction({
         finalUrl: linkPreview.finalUrl,
       });
 
-      await ctx.scheduler.runAfter(
-        0,
-        workflowManagerInternal.startCardProcessingWorkflow,
-        { cardId },
-      );
+      // Note: Do NOT call startCardProcessingWorkflow here.
+      // The main cardProcessingWorkflow already handles link metadata extraction
+      // and will continue with subsequent steps after this completes.
 
       return {
         status: "success" as const,

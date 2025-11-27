@@ -56,7 +56,7 @@ export const generateThumbnail = internalAction({
   handler: async (ctx, args) => {
     try {
       // Get the card to verify it exists and is an image
-      const card = await ctx.runQuery(internal.cards.getCard.getCardInternal, {
+      const card = await ctx.runQuery(internal.card.getCard.getCardInternal, {
         cardId: args.cardId,
       });
 

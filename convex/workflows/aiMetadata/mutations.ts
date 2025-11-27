@@ -9,12 +9,12 @@ export const updateCardAI = internalMutation({
     aiTags: v.optional(v.array(v.string())),
     aiSummary: v.optional(v.string()),
     aiTranscript: v.optional(v.string()),
-    aiModelMeta: v.object({
+    aiModelMeta: v.optional(v.object({
       provider: v.string(),
       model: v.string(),
       version: v.optional(v.string()),
       generatedAt: v.optional(v.number()),
-    }),
+    })),
     processingStatus: processingStatusValidator,
   },
   handler: async (ctx, args) => {
