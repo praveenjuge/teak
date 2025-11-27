@@ -128,6 +128,7 @@ function CustomerPortalButton({
 
   const handlePortal = async () => {
     setIsLoading(true);
+    metrics.customerPortalOpened();
     try {
       const portalUrl = await createCustomerPortal({});
       window.open(portalUrl, "_blank");
@@ -311,7 +312,8 @@ export default function ProfileSettingsPage() {
 
   const handleCheckout = async (planId: string) => {
     setLoadingPlanId(planId);
-    metrics.checkoutInitiated();
+    const planType = planId.includes("monthly") ? "monthly" : "yearly";
+    metrics.checkoutInitiated(planType);
     try {
       const checkoutUrl = await createCheckoutLink({ productId: planId });
 
@@ -339,6 +341,7 @@ export default function ProfileSettingsPage() {
       checkout.addEventListener(
         "success",
         (event: CustomEvent<{ redirect?: string | boolean }>) => {
+          metrics.checkoutCompleted(planType, true);
           if (!event.detail.redirect) {
             toast.success(
               "Welcome to Pro! Your subscription has been activated."
@@ -352,6 +355,7 @@ export default function ProfileSettingsPage() {
       });
     } catch (error) {
       console.error("Failed to open checkout", error);
+      metrics.checkoutCompleted(planType, false);
       Sentry.captureException(error, {
         tags: { source: "convex", action: "billing:createCheckoutLink" },
       });
@@ -380,6 +384,7 @@ export default function ProfileSettingsPage() {
       let deleteUserFailed = false;
       await authClient.deleteUser(undefined, {
         onSuccess: async () => {
+          metrics.accountDeleted();
           router.push("/login");
         },
         onError: (ctx) => {
@@ -406,6 +411,7 @@ export default function ProfileSettingsPage() {
 
   const handleDeleteDialogChange = (open: boolean) => {
     if (open) {
+      metrics.modalOpened("delete_account");
       patchDeleteState({ open: true });
     } else {
       resetDeleteState();
@@ -435,7 +441,10 @@ export default function ProfileSettingsPage() {
     }
   };
 
-  const handleThemeChange = (value: ThemeValue) => () => setTheme(value);
+  const handleThemeChange = (value: ThemeValue) => () => {
+    metrics.themeChanged(value);
+    setTheme(value);
+  };
 
   return (
     <>

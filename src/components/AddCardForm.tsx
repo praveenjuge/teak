@@ -112,6 +112,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   const startRecording = async () => {
     try {
       setError(null);
+      metrics.featureUsed("voice_recording");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
@@ -238,6 +239,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   };
 
   const handleFileUpload = async () => {
+    metrics.featureUsed("file_upload");
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "*/*";
@@ -294,6 +296,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     if (!content.trim()) return;
 
     setIsSubmitting(true);
+    metrics.featureUsed("quick_add");
 
     try {
       // Let backend handle type detection and processing

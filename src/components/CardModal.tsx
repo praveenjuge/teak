@@ -6,6 +6,7 @@ import { Loading } from "./Loading";
 import { CardModalPreview } from "./card-modal/CardModalPreview";
 import { CardMetadataPanel } from "./card-modal/CardMetadataPanel";
 import { CardModalOverlays } from "./card-modal/CardModalOverlays";
+import { metrics } from "@/lib/metrics";
 
 interface CardModalProps {
   cardId: string | null;
@@ -99,12 +100,21 @@ export function CardModal({
                 onCardTypeClick={handleCardTypeClick}
                 onTagClick={onTagClick}
                 actions={{
-                  showMoreInfo: () => setShowMoreInfoModal(true),
+                  showMoreInfo: () => {
+                    metrics.modalOpened("more_info");
+                    setShowMoreInfoModal(true);
+                  },
                   toggleFavorite,
                   openLink: card.url ? openLink : undefined,
                   downloadFile: canDownload ? downloadFile : undefined,
-                  showNotesEditor: () => setShowNotesEditModal(true),
-                  showTagManager: () => setShowTagManagementModal(true),
+                  showNotesEditor: () => {
+                    metrics.modalOpened("notes_edit");
+                    setShowNotesEditModal(true);
+                  },
+                  showTagManager: () => {
+                    metrics.modalOpened("tag_management");
+                    setShowTagManagementModal(true);
+                  },
                   deleteCard: () => handleDelete(handleClose),
                   restoreCard: () => handleRestore(handleClose),
                   permanentlyDeleteCard: () =>

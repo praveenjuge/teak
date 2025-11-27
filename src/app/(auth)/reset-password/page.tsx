@@ -17,6 +17,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import { metrics } from "@/lib/metrics";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -97,6 +98,7 @@ export default function ResetPassword() {
     setLoading(false);
 
     if (resetError) {
+      metrics.passwordResetCompleted(false);
       setError(
         resetError.message ??
           "We couldn't update your password. Request a new link and try again."
@@ -104,6 +106,7 @@ export default function ResetPassword() {
       return;
     }
 
+    metrics.passwordResetCompleted(true);
     setSuccess(true);
   };
 

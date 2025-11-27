@@ -1,5 +1,6 @@
 import { Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { metrics } from "@/lib/metrics";
 
 interface BulkActionBarProps {
   selectedCount: number;
@@ -12,6 +13,11 @@ export function BulkActionBar({
   onDelete,
   onCancel,
 }: BulkActionBarProps) {
+  const handleDelete = () => {
+    metrics.featureUsed("bulk_action");
+    onDelete();
+  };
+
   return (
     <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
       <div className="bg-background border rounded-lg shadow-lg px-4 py-3 flex items-center gap-4">
@@ -22,7 +28,7 @@ export function BulkActionBar({
           <Button
             variant="destructive"
             size="sm"
-            onClick={onDelete}
+            onClick={handleDelete}
             disabled={selectedCount === 0}
           >
             <Trash2 />

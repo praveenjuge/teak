@@ -6,6 +6,7 @@ import { api } from "@teak/convex";
 import { type Id } from "@teak/convex/_generated/dataModel";
 import { useCardActions } from "@/hooks/useCardActions";
 import * as Sentry from "@sentry/nextjs";
+import { metrics } from "@/lib/metrics";
 
 export interface CardModalConfig {
   onError?: (error: Error, operation: string) => void;
@@ -184,6 +185,7 @@ export function useCardModal(
 
   const removeAiTag = useCallback(
     (tagToRemove: string) => {
+      metrics.tagRemoved("ai");
       void updateField("removeAiTag", undefined, tagToRemove);
     },
     [updateField]
@@ -196,6 +198,7 @@ export function useCardModal(
     if (tag && !currentTags.includes(tag)) {
       const newTags = [...currentTags, tag];
       setTagInput("");
+      metrics.tagAdded("user");
       void updateField("tags", newTags);
     }
   }, [card?.tags, tagInput, updateField]);
@@ -204,6 +207,7 @@ export function useCardModal(
     (tagToRemove: string) => {
       const currentTags = card?.tags || [];
       const newTags = currentTags.filter((tag: string) => tag !== tagToRemove);
+      metrics.tagRemoved("user");
       void updateField("tags", newTags);
     },
     [card?.tags, updateField]
@@ -254,13 +258,15 @@ export function useCardModal(
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const openLink = useCallback(() => {
     if (card?.url) {
+      metrics.linkOpened(card.type);
+      metrics.featureUsed("open_link");
       if (config.onOpenLink) {
         config.onOpenLink(card.url);
       } else if (typeof window !== "undefined") {
         window.open(card.url, "_blank", "noopener,noreferrer");
       }
     }
-  }, [card?.url, config]);
+  }, [card?.url, card?.type, config]);
 
   const fileUrl = useQuery(
     api.cards.getFileUrl,
@@ -274,6 +280,9 @@ export function useCardModal(
     if (!card?.fileId || !card?.fileMetadata?.fileName || !fileUrl) return;
 
     try {
+      metrics.fileDownloaded(card.type, card.fileMetadata?.mimeType?.split("/")[0] || "unknown");
+      metrics.featureUsed("download_file");
+
       const link = document.createElement("a");
       link.href = fileUrl;
       link.download = card.fileMetadata.fileName;
@@ -288,7 +297,7 @@ export function useCardModal(
       });
       notifyError(error as Error, "download file");
     }
-  }, [card?.fileId, card?.fileMetadata?.fileName, fileUrl, notifyError]);
+  }, [card?.fileId, card?.fileMetadata?.fileName, card?.fileMetadata?.mimeType, card?.type, fileUrl, notifyError]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, onClose?: () => void) => {

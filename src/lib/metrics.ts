@@ -17,9 +17,12 @@ import * as Sentry from "@sentry/nextjs";
 /**
  * Track card creation events
  */
-export function cardCreated(cardType: string) {
+export function cardCreated(cardType: string, source?: string) {
   Sentry.metrics.count("card.created", 1, {
-    attributes: { card_type: cardType },
+    attributes: {
+      card_type: cardType,
+      ...(source && { source }),
+    },
   });
 }
 
@@ -131,6 +134,29 @@ export function passwordResetRequested() {
   Sentry.metrics.count("auth.password_reset.requested", 1);
 }
 
+/**
+ * Track password reset completion
+ */
+export function passwordResetCompleted(success: boolean) {
+  Sentry.metrics.count("auth.password_reset.completed", 1, {
+    attributes: { success: String(success) },
+  });
+}
+
+/**
+ * Track email verification sent
+ */
+export function emailVerificationSent() {
+  Sentry.metrics.count("auth.email_verification.sent", 1);
+}
+
+/**
+ * Track account deletion
+ */
+export function accountDeleted() {
+  Sentry.metrics.count("auth.account.deleted", 1);
+}
+
 // ============================================================================
 // File Upload Metrics
 // ============================================================================
@@ -221,9 +247,21 @@ export function filterApplied(
 /**
  * Track modal opens
  */
-export function modalOpened(modalType: "card" | "settings" | "upgrade") {
+export function modalOpened(modalType: "card" | "settings" | "upgrade" | "delete_account" | "tag_management" | "more_info" | "notes_edit") {
   Sentry.metrics.count("modal.opened", 1, {
     attributes: { modal_type: modalType },
+  });
+}
+
+/**
+ * Track modal closed
+ */
+export function modalClosed(modalType: string, action?: string) {
+  Sentry.metrics.count("modal.closed", 1, {
+    attributes: {
+      modal_type: modalType,
+      ...(action && { action }),
+    },
   });
 }
 
@@ -254,9 +292,40 @@ export function featureUsed(
     | "quick_add"
     | "bulk_action"
     | "export"
+    | "download_file"
+    | "open_link"
+    | "copy_content"
+    | "share"
 ) {
   Sentry.metrics.count("feature.used", 1, {
     attributes: { feature },
+  });
+}
+
+/**
+ * Track navigation events
+ */
+export function navigationPerformed(from: string, to: string) {
+  Sentry.metrics.count("navigation.performed", 1, {
+    attributes: { from_page: from, to_page: to },
+  });
+}
+
+/**
+ * Track keyboard shortcut usage
+ */
+export function keyboardShortcutUsed(shortcut: string, context: string) {
+  Sentry.metrics.count("keyboard_shortcut.used", 1, {
+    attributes: { shortcut, context },
+  });
+}
+
+/**
+ * Track theme changes
+ */
+export function themeChanged(newTheme: string) {
+  Sentry.metrics.count("settings.theme_changed", 1, {
+    attributes: { theme: newTheme },
   });
 }
 
@@ -276,8 +345,26 @@ export function upgradePromptShown(trigger: string) {
 /**
  * Track checkout initiated
  */
-export function checkoutInitiated() {
-  Sentry.metrics.count("billing.checkout_initiated", 1);
+export function checkoutInitiated(planType?: string) {
+  Sentry.metrics.count("billing.checkout_initiated", 1, {
+    attributes: planType ? { plan_type: planType } : {},
+  });
+}
+
+/**
+ * Track checkout completed
+ */
+export function checkoutCompleted(planType: string, success: boolean) {
+  Sentry.metrics.count("billing.checkout_completed", 1, {
+    attributes: { plan_type: planType, success: String(success) },
+  });
+}
+
+/**
+ * Track customer portal opened
+ */
+export function customerPortalOpened() {
+  Sentry.metrics.count("billing.customer_portal_opened", 1);
 }
 
 /**
@@ -369,6 +456,64 @@ export function sessionStarted(isPremium: boolean) {
   });
 }
 
+/**
+ * Track page views
+ */
+export function pageViewed(pageName: string, referrer?: string) {
+  Sentry.metrics.count("page.viewed", 1, {
+    attributes: {
+      page: pageName,
+      ...(referrer && { referrer }),
+    },
+  });
+}
+
+// ============================================================================
+// Card Interaction Metrics
+// ============================================================================
+
+/**
+ * Track tag operations
+ */
+export function tagAdded(source: "user" | "ai") {
+  Sentry.metrics.count("tag.added", 1, {
+    attributes: { source },
+  });
+}
+
+export function tagRemoved(source: "user" | "ai") {
+  Sentry.metrics.count("tag.removed", 1, {
+    attributes: { source },
+  });
+}
+
+/**
+ * Track content edits
+ */
+export function contentEdited(cardType: string, field: string) {
+  Sentry.metrics.count("content.edited", 1, {
+    attributes: { card_type: cardType, field },
+  });
+}
+
+/**
+ * Track link opened from card
+ */
+export function linkOpened(cardType: string) {
+  Sentry.metrics.count("link.opened", 1, {
+    attributes: { card_type: cardType },
+  });
+}
+
+/**
+ * Track file downloaded
+ */
+export function fileDownloaded(cardType: string, fileCategory: string) {
+  Sentry.metrics.count("file.downloaded", 1, {
+    attributes: { card_type: cardType, file_category: fileCategory },
+  });
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -407,6 +552,9 @@ export const metrics = {
   registrationFailed,
   logout,
   passwordResetRequested,
+  passwordResetCompleted,
+  emailVerificationSent,
+  accountDeleted,
 
   // Files
   fileUploaded,
@@ -419,12 +567,18 @@ export const metrics = {
 
   // Engagement
   modalOpened,
+  modalClosed,
   dragDropPerformed,
   featureUsed,
+  navigationPerformed,
+  keyboardShortcutUsed,
+  themeChanged,
 
   // Billing
   upgradePromptShown,
   checkoutInitiated,
+  checkoutCompleted,
+  customerPortalOpened,
   cardLimitReached,
 
   // Performance
@@ -438,4 +592,12 @@ export const metrics = {
   // Session
   setActiveCardsCount,
   sessionStarted,
+  pageViewed,
+
+  // Card Interactions
+  tagAdded,
+  tagRemoved,
+  contentEdited,
+  linkOpened,
+  fileDownloaded,
 };
