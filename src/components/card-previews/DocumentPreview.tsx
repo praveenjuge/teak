@@ -83,7 +83,7 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
         <iframe
           src={fileUrl}
           title={fileName}
-          className="w-full h-[70vh] border-0 rounded-lg"
+          className="w-full h-full rounded-lg"
         />
       </div>
     );
@@ -93,12 +93,7 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
   return (
     <div className="flex items-center gap-4">
       <div className="shrink-0">{getDocumentIcon(fileName, mimeType)}</div>
-      <div className="min-w-0">
-        <p className="font-medium truncate">{fileName}</p>
-        {mimeType && (
-          <p className="text-muted-foreground truncate">{mimeType}</p>
-        )}
-      </div>
+      <p className="font-medium truncate min-w-0">{fileName}</p>
     </div>
   );
 }
