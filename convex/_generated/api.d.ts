@@ -2338,10 +2338,7 @@ export declare const components: {
               createdAt: string;
               id: string;
               isArchived: boolean;
-              maximumAmount?: number | null;
-              minimumAmount?: number | null;
               modifiedAt: string | null;
-              presetAmount?: number | null;
               priceAmount?: number;
               priceCurrency?: string;
               productId: string;
@@ -2435,10 +2432,7 @@ export declare const components: {
               createdAt: string;
               id: string;
               isArchived: boolean;
-              maximumAmount?: number | null;
-              minimumAmount?: number | null;
               modifiedAt: string | null;
-              presetAmount?: number | null;
               priceAmount?: number;
               priceCurrency?: string;
               productId: string;
@@ -2497,10 +2491,7 @@ export declare const components: {
             createdAt: string;
             id: string;
             isArchived: boolean;
-            maximumAmount?: number | null;
-            minimumAmount?: number | null;
             modifiedAt: string | null;
-            presetAmount?: number | null;
             priceAmount?: number;
             priceCurrency?: string;
             productId: string;
@@ -2607,10 +2598,7 @@ export declare const components: {
             createdAt: string;
             id: string;
             isArchived: boolean;
-            maximumAmount?: number | null;
-            minimumAmount?: number | null;
             modifiedAt: string | null;
-            presetAmount?: number | null;
             priceAmount?: number;
             priceCurrency?: string;
             productId: string;
@@ -2674,10 +2662,7 @@ export declare const components: {
               createdAt: string;
               id: string;
               isArchived: boolean;
-              maximumAmount?: number | null;
-              minimumAmount?: number | null;
               modifiedAt: string | null;
-              presetAmount?: number | null;
               priceAmount?: number;
               priceCurrency?: string;
               productId: string;
@@ -2736,10 +2721,7 @@ export declare const components: {
               createdAt: string;
               id: string;
               isArchived: boolean;
-              maximumAmount?: number | null;
-              minimumAmount?: number | null;
               modifiedAt: string | null;
-              presetAmount?: number | null;
               priceAmount?: number;
               priceCurrency?: string;
               productId: string;
@@ -2790,10 +2772,7 @@ export declare const components: {
               createdAt: string;
               id: string;
               isArchived: boolean;
-              maximumAmount?: number | null;
-              minimumAmount?: number | null;
               modifiedAt: string | null;
-              presetAmount?: number | null;
               priceAmount?: number;
               priceCurrency?: string;
               productId: string;
@@ -2910,7 +2889,6 @@ export declare const components: {
           fnHandle: string;
           name: string;
           next?: Array<{ fnHandle: string; name: string }>;
-          oneBatchOnly?: boolean;
         },
         {
           batchSize?: number;
