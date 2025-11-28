@@ -3,6 +3,7 @@ import {
   ExternalLink,
   File,
   Heart,
+  Loader2,
   PlayCircle,
   RotateCcw,
   Trash,
@@ -23,6 +24,15 @@ import {
 import { Card as UICard, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { type Doc } from "@teak/convex/_generated/dataModel";
+
+// UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx (36 chars with dashes)
+// Convex IDs don't have this format, so we can use this to detect optimistic cards
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isOptimisticCard(cardId: string): boolean {
+  return UUID_REGEX.test(cardId);
+}
 
 interface CardProps {
   card: Doc<"cards">;
@@ -71,23 +81,31 @@ export function Card({
   onEnterSelectionMode,
   onToggleSelection,
 }: CardProps) {
+  const isOptimistic = isOptimisticCard(card._id);
+
   const handleClick = () => {
+    // Don't allow clicking on optimistic cards (not yet saved to server)
+    if (isOptimistic) return;
     onClick?.(card);
   };
 
   const handleDelete = () => {
+    if (isOptimistic) return;
     onDelete?.(card._id);
   };
 
   const handleRestore = () => {
+    if (isOptimistic) return;
     onRestore?.(card._id);
   };
 
   const handlePermanentDelete = () => {
+    if (isOptimistic) return;
     onPermanentDelete?.(card._id);
   };
 
   const handleToggleFavorite = () => {
+    if (isOptimistic) return;
     onToggleFavorite?.(card._id);
   };
 
@@ -98,6 +116,7 @@ export function Card({
   };
 
   const handleSelect = () => {
+    if (isOptimistic) return;
     onEnterSelectionMode?.(card._id);
   };
 
@@ -142,14 +161,19 @@ export function Card({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>
+      <ContextMenuTrigger asChild disabled={isOptimistic}>
         <UICard
-          className={`cursor-pointer bg-transparent rounded-none border-0 relative p-0 overflow-hidden ${
-            card.isDeleted ? "opacity-60" : ""
-          } ${isSelected ? "ring-2 ring-primary rounded-xl" : ""}`}
+          className={`bg-transparent rounded-none border-0 relative p-0 overflow-hidden ${
+            isOptimistic ? "opacity-70 cursor-default" : "cursor-pointer"
+          } ${card.isDeleted ? "opacity-60" : ""} ${isSelected ? "ring-2 ring-primary rounded-xl" : ""}`}
           onClick={handleClick}
         >
-          {isSelectionMode && (
+          {isOptimistic && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center">
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          {isSelectionMode && !isOptimistic && (
             <div className="absolute top-3 left-3 z-10">
               <Checkbox
                 checked={isSelected}
@@ -157,7 +181,7 @@ export function Card({
               />
             </div>
           )}
-          {card.isFavorited && (
+          {card.isFavorited && !isOptimistic && (
             <div className="absolute top-3 right-3 z-10">
               <Heart className="size-4 fill-destructive text-destructive" />
             </div>
