@@ -26,7 +26,7 @@ export const SignOutButton = () => {
         minHeight: 48,
       }}
       onPress={() => {
-        handleSignOut();
+        void handleSignOut();
       }}
     >
       <Text style={{ color: "white", fontWeight: "bold" }}>Sign Out</Text>

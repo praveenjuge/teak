@@ -311,7 +311,7 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
             onLongPress={handleLongPress}
             onPress={() => {
               if (mediaUrl) {
-                handleUrlPress(mediaUrl);
+                void handleUrlPress(mediaUrl);
               }
             }}
             style={[styles.card, dynamicStyles.card, styles.cardPadding]}

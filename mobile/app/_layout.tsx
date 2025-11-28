@@ -15,7 +15,7 @@ import { useEffect, useRef } from "react";
 import { ShareIntentProvider, useShareIntentContext } from "expo-share-intent";
 import { authClient } from "@/lib/auth-client";
 
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

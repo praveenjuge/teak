@@ -134,7 +134,7 @@ export default defineBackground(() => {
       });
 
       // Open popup to show progress and handle saving
-      chrome.action.openPopup();
+      void chrome.action.openPopup();
 
     } catch (error) {
 
@@ -150,10 +150,10 @@ export default defineBackground(() => {
       });
 
       // Open popup to show error
-      chrome.action.openPopup();
+      void chrome.action.openPopup();
     }
   }
 
   // Initialize context menus immediately
-  createContextMenus();
+  void createContextMenus();
 });

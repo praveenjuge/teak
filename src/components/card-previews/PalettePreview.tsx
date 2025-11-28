@@ -39,14 +39,14 @@ export function PalettePreview({ card }: PalettePreviewProps) {
           <div
             className="w-full flex items-center justify-end p-2 cursor-pointer"
             style={{ backgroundColor: color.hex }}
-            onClick={() => copyToClipboard(color.hex, color.hex)}
+            onClick={() => void copyToClipboard(color.hex, color.hex)}
           >
             <Button
               size="sm"
               variant="outline"
               onClick={(e) => {
                 e.stopPropagation();
-                copyToClipboard(color.hex, color.hex);
+                void copyToClipboard(color.hex, color.hex);
               }}
             >
               <Copy />

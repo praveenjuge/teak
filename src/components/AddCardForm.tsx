@@ -1,17 +1,45 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
+import type { OptimisticLocalStore } from "convex/browser";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Mic, Square, Upload, Sparkles, AlertCircle } from "lucide-react";
 import { api } from "@teak/convex";
+import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
 import { metrics } from "@/lib/metrics";
+import Link from "next/link";
+
+// Helper to add a new card optimistically to all matching searchCards queries
+function addCardToSearchQueries(
+  localStore: OptimisticLocalStore,
+  newCard: Doc<"cards">
+) {
+  const allQueries = localStore.getAllQueries(api.cards.searchCards);
+  for (const { args, value } of allQueries) {
+    if (value !== undefined) {
+      // Only add to non-trash queries that match the card's characteristics
+      if (!args.showTrashOnly) {
+        // Check if the card matches the filters
+        const matchesType =
+          !args.types ||
+          args.types.length === 0 ||
+          args.types.includes(newCard.type);
+        const matchesFavorites = !args.favoritesOnly || newCard.isFavorited;
+
+        if (matchesType && matchesFavorites) {
+          // Add to the beginning of the list (most recent first)
+          localStore.setQuery(api.cards.searchCards, args, [newCard, ...value]);
+        }
+      }
+    }
+  }
+}
 
 interface AddCardFormProps {
   onSuccess?: () => void;
@@ -29,8 +57,28 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   const [content, setContent] = useState("");
   const [url, setUrl] = useState("");
 
-  const router = useRouter();
-  const createCard = useMutation(api.cards.createCard);
+  const createCard = useMutation(api.cards.createCard).withOptimisticUpdate(
+    (localStore, args) => {
+      const now = Date.now();
+      // Determine the card type based on content
+      const contentTrimmed = args.content?.trim() || "";
+      const isUrl = args.url || /^https?:\/\//i.test(contentTrimmed);
+
+      // Create an optimistic card with a temporary ID
+      const optimisticCard: Doc<"cards"> = {
+        _id: crypto.randomUUID() as Id<"cards">,
+        _creationTime: now,
+        userId: "", // Will be set by server
+        content: contentTrimmed,
+        type: isUrl ? "link" : "text",
+        url: args.url,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      addCardToSearchQueries(localStore, optimisticCard);
+    }
+  );
 
   // Use shared file upload hook
   const { uploadFile, state: uploadState } = useFileUpload({
@@ -248,8 +296,6 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
-        setIsSubmitting(true);
-
         const result = await uploadFile(file, {
           content: "",
         });
@@ -276,8 +322,6 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
             setError(errorMessage);
           }
         }
-
-        setIsSubmitting(false);
       }
 
       // Clean up the input element
@@ -295,31 +339,39 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     // Only handle text content here
     if (!content.trim()) return;
 
-    setIsSubmitting(true);
     metrics.featureUsed("quick_add");
+
+    // Reset form immediately - card appears optimistically
+    const submittedContent = content;
+    const submittedUrl = url;
+    setContent("");
+    setUrl("");
 
     try {
       // Let backend handle type detection and processing
       await createCard({
-        content: content,
-        url: url || undefined,
+        content: submittedContent,
+        url: submittedUrl || undefined,
       });
 
       // Track card creation
-      metrics.cardCreated(url ? "link" : "text");
-
-      // Reset form
-      setContent("");
-      setUrl("");
+      metrics.cardCreated(submittedUrl ? "link" : "text");
 
       onSuccess?.();
     } catch (error) {
       console.error("Failed to create card:", error);
 
+      // Restore form content on error so user can retry
+      setContent(submittedContent);
+      setUrl(submittedUrl);
+
       // Capture Convex errors in Sentry
       Sentry.captureException(error, {
         tags: { source: "convex", mutation: "cards:createCard" },
-        extra: { content: content?.slice(0, 100), hasUrl: !!url },
+        extra: {
+          content: submittedContent?.slice(0, 100),
+          hasUrl: !!submittedUrl,
+        },
       });
 
       const errorMessage =
@@ -332,8 +384,6 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       } else {
         setError(errorMessage);
       }
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -369,13 +419,11 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   }
 
   // Uploading mode - full card feedback while files/audio are being uploaded
-  if (uploadState.isUploading || isSubmitting) {
+  if (uploadState.isUploading) {
     return (
       <Card className="shadow-none p-4 border-primary ring-1 ring-primary w-full relative overflow-hidden h-36">
         <CardContent className="text-center flex flex-col gap-4 h-full justify-center items-center p-0 relative">
-          <h3 className="font-medium text-primary">
-            {isRecording ? "Processing audio..." : "Saving..."}
-          </h3>
+          <h3 className="font-medium text-primary">Uploading...</h3>
         </CardContent>
         {uploadState.progress > 0 && (
           <div
@@ -383,27 +431,6 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
             style={{ width: `${uploadState.progress}%` }}
           />
         )}
-      </Card>
-    );
-  }
-
-  // Upgrade prompt mode - show positive upgrade message when limit is hit
-  if (showUpgradePrompt) {
-    return (
-      <Card className="shadow-none p-3 border-primary ring-1 ring-primary w-full min-h-36">
-        <CardContent className="text-center flex flex-col gap-3 h-full justify-center items-center p-0">
-          <div className="flex items-center gap-2 text-primary">
-            <Sparkles className="size-4 fill-primary" />
-            <h3 className="font-medium">Unlock Unlimited Cards</h3>
-          </div>
-          <p className="text-sm text-muted-foreground max-w-sm">
-            You&apos;ve reached your free tier limit. Upgrade to Pro for
-            unlimited cards.
-          </p>
-          <Button onClick={() => router.push("/settings")} className="w-full">
-            Upgrade →
-          </Button>
-        </CardContent>
       </Card>
     );
   }
@@ -424,7 +451,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 if (content.trim()) {
-                  handleTextSubmit(
+                  void handleTextSubmit(
                     e as unknown as React.FormEvent<HTMLFormElement>
                   );
                 }
@@ -443,7 +470,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
                 variant="outline"
                 size="sm"
                 onClick={handleFileUpload}
-                disabled={isSubmitting || uploadState.isUploading}
+                disabled={uploadState.isUploading || showUpgradePrompt}
               >
                 <Upload />
               </Button>
@@ -453,7 +480,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
                 variant="outline"
                 size="sm"
                 onClick={startRecording}
-                disabled={isSubmitting || uploadState.isUploading}
+                disabled={uploadState.isUploading || showUpgradePrompt}
               >
                 <Mic />
               </Button>
@@ -461,10 +488,10 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
             {content.trim() && (
               <Button
                 type="submit"
-                disabled={isSubmitting || uploadState.isUploading}
+                disabled={uploadState.isUploading || showUpgradePrompt}
                 size="sm"
               >
-                {isSubmitting ? "Saving..." : "Save"}
+                Save
               </Button>
             )}
           </div>
@@ -478,6 +505,23 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
+        )}
+
+        {showUpgradePrompt && (
+          <Link href="/settings" className="px-1 pb-1 block">
+            <Alert>
+              <Sparkles className="stroke-primary" />
+              <AlertTitle className="text-primary font-medium">
+                Upgrade to Pro →
+              </AlertTitle>
+              <AlertDescription>
+                <span className="text-primary font-medium">
+                  You&apos;ve reached your free tier limit. Upgrade to Pro for
+                  unlimited cards.
+                </span>
+              </AlertDescription>
+            </Alert>
+          </Link>
         )}
       </CardContent>
     </Card>

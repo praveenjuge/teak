@@ -59,6 +59,7 @@ export default function HomePage() {
     if (cards !== undefined && hasActiveSearch) {
       metrics.searchPerformed(cards.length, filterTags);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cards?.length, hasActiveSearch, filterTags]);
 
   const cardActions = useCardActions({

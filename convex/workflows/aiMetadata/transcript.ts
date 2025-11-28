@@ -19,7 +19,7 @@ export const generateTranscript = async (audioUrl: string, mimeHint?: string) =>
     console.log("Transcription mimeType/ext hint:", mimeType);
 
     // Infer a reasonable file extension based on the mime type
-    const ext =
+    const _ext =
       mimeType.includes("ogg") || mimeType.includes("oga")
         ? "ogg"
         : mimeType.includes("mp3") ||

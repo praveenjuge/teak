@@ -213,7 +213,7 @@ export default function ShareIntentScreen() {
 
     isProcessingRef.current = true;
 
-    (async () => {
+    void (async () => {
       try {
         showFeedback({
           title: "Save to Teak",

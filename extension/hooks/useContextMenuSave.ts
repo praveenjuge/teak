@@ -96,7 +96,7 @@ export const useContextMenuSave = (): UseContextMenuSaveResult => {
 
           if (!processedSaves.has(saveId)) {
             processedSaves.add(saveId);
-            handleSave(newSave.content, newSave.action, saveId);
+            void handleSave(newSave.content, newSave.action, saveId);
           } else {
             setContextMenuSave(newSave);
           }
@@ -110,7 +110,7 @@ export const useContextMenuSave = (): UseContextMenuSaveResult => {
     chrome.storage.onChanged.addListener(handleStorageChange);
 
     // Then check for existing state - process saves immediately if found
-    chrome.storage.local
+    void chrome.storage.local
       .get<{ contextMenuSave?: ContextMenuSaveState }>("contextMenuSave")
       .then(({ contextMenuSave }) => {
         if (contextMenuSave && isContextMenuSaveState(contextMenuSave)) {
@@ -120,7 +120,7 @@ export const useContextMenuSave = (): UseContextMenuSaveResult => {
 
             if (!processedSaves.has(saveId)) {
               processedSaves.add(saveId);
-              handleSave(contextMenuSave.content, contextMenuSave.action, saveId);
+              void handleSave(contextMenuSave.content, contextMenuSave.action, saveId);
             } else {
               setContextMenuSave(contextMenuSave);
             }

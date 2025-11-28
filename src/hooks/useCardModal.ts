@@ -1,12 +1,42 @@
 import { useState, useCallback, useMemo } from "react";
 import { useMutation } from "convex/react";
+import type { OptimisticLocalStore } from "convex/browser";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { toast } from "sonner";
 import { api } from "@teak/convex";
-import { type Id } from "@teak/convex/_generated/dataModel";
+import { type Doc, type Id } from "@teak/convex/_generated/dataModel";
 import { useCardActions } from "@/hooks/useCardActions";
 import * as Sentry from "@sentry/nextjs";
 import { metrics } from "@/lib/metrics";
+
+// Helper to update a card in all cached searchCards queries
+function updateCardInSearchQueries(
+  localStore: OptimisticLocalStore,
+  cardId: Id<"cards">,
+  updater: (card: Doc<"cards">) => Doc<"cards">
+) {
+  const allQueries = localStore.getAllQueries(api.cards.searchCards);
+  for (const { args, value } of allQueries) {
+    if (value !== undefined) {
+      const updatedCards = (value as Doc<"cards">[]).map((card: Doc<"cards">) =>
+        card._id === cardId ? updater(card) : card
+      );
+      localStore.setQuery(api.cards.searchCards, args, updatedCards);
+    }
+  }
+}
+
+// Helper to update a single card query (getCard)
+function updateSingleCardQuery(
+  localStore: OptimisticLocalStore,
+  cardId: Id<"cards">,
+  updater: (card: Doc<"cards">) => Doc<"cards">
+) {
+  const currentCard = localStore.getQuery(api.cards.getCard, { id: cardId });
+  if (currentCard) {
+    localStore.setQuery(api.cards.getCard, { id: cardId }, updater(currentCard));
+  }
+}
 
 export interface CardModalConfig {
   onError?: (error: Error, operation: string) => void;
@@ -45,7 +75,66 @@ export function useCardModal(
     cardId ? { id: cardId as Id<"cards"> } : "skip"
   );
 
-  const updateCardField = useMutation(api.cards.updateCardField);
+  const updateCardField = useMutation(api.cards.updateCardField).withOptimisticUpdate(
+    (localStore, args) => {
+      const { cardId: updateCardId, field, value, tagToRemove } = args;
+      // eslint-disable-next-line react-hooks/purity
+      const now = Date.now();
+
+      switch (field) {
+        case "isFavorited": {
+          const toggleFavorite = (card: Doc<"cards">): Doc<"cards"> => ({
+            ...card,
+            isFavorited: !card.isFavorited,
+            updatedAt: now,
+          });
+          updateCardInSearchQueries(localStore, updateCardId, toggleFavorite);
+          updateSingleCardQuery(localStore, updateCardId, toggleFavorite);
+          break;
+        }
+
+        case "tags": {
+          const updateTags = (card: Doc<"cards">): Doc<"cards"> => ({
+            ...card,
+            tags: Array.isArray(value) && value.length > 0 ? value : undefined,
+            updatedAt: now,
+          });
+          updateCardInSearchQueries(localStore, updateCardId, updateTags);
+          updateSingleCardQuery(localStore, updateCardId, updateTags);
+          break;
+        }
+
+        case "removeAiTag": {
+          if (!tagToRemove) break;
+          const removeAiTag = (card: Doc<"cards">): Doc<"cards"> => {
+            const updatedAiTags = card.aiTags?.filter((tag) => tag !== tagToRemove);
+            return {
+              ...card,
+              aiTags: updatedAiTags && updatedAiTags.length > 0 ? updatedAiTags : undefined,
+              updatedAt: now,
+            };
+          };
+          updateCardInSearchQueries(localStore, updateCardId, removeAiTag);
+          updateSingleCardQuery(localStore, updateCardId, removeAiTag);
+          break;
+        }
+
+        case "content":
+        case "url":
+        case "notes":
+        case "aiSummary": {
+          const updateTextField = (card: Doc<"cards">): Doc<"cards"> => ({
+            ...card,
+            [field]: typeof value === "string" ? value.trim() || undefined : value,
+            updatedAt: now,
+          });
+          updateCardInSearchQueries(localStore, updateCardId, updateTextField);
+          updateSingleCardQuery(localStore, updateCardId, updateTextField);
+          break;
+        }
+      }
+    }
+  );
   const cardActions = useCardActions({
     onDeleteSuccess: (message) => {
       if (message) {
@@ -255,7 +344,7 @@ export function useCardModal(
     [cardId, cardActions, config]
   );
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+
   const openLink = useCallback(() => {
     if (card?.url) {
       metrics.linkOpened(card.type);
@@ -275,7 +364,7 @@ export function useCardModal(
       : "skip"
   );
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+
   const downloadFile = useCallback(async () => {
     if (!card?.fileId || !card?.fileMetadata?.fileName || !fileUrl) return;
 
@@ -297,7 +386,7 @@ export function useCardModal(
       });
       notifyError(error as Error, "download file");
     }
-  }, [card?.fileId, card?.fileMetadata?.fileName, card?.fileMetadata?.mimeType, card?.type, fileUrl, notifyError]);
+  }, [card?.fileId, card?.fileMetadata?.fileName, card?.fileMetadata?.mimeType, card?.type, fileUrl, notifyError, cardId]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, onClose?: () => void) => {
@@ -315,7 +404,7 @@ export function useCardModal(
     [tagInput, addTag, config]
   );
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+
   const handleCardTypeClick = useCallback(() => {
     if (card?.type) {
       config.onCardTypeClick?.(card.type);

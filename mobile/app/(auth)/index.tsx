@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
-import { Link, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Logo from "../../components/Logo";
 import { LinearGradient } from "expo-linear-gradient";
@@ -10,7 +10,6 @@ import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function OnboardingScreen() {
-  const router = useRouter();
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
 
   const onGoogleSignInPress = async () => {
