@@ -2,7 +2,7 @@
 
 import { v } from "convex/values";
 import Kernel from "@onkernel/sdk";
-import type { Id } from "../../../_generated/dataModel";
+import type { Id } from "../../../shared/types";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import { normalizeUrl } from "../../../linkMetadata";

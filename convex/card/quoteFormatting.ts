@@ -1,4 +1,4 @@
-import type { Doc } from "../_generated/dataModel";
+import type { Doc } from "../shared/types";
 
 const OPENING_QUOTE_TO_CLOSING = new Map<string, string>([
   ['"', '"'],

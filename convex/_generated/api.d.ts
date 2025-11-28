@@ -50,6 +50,7 @@ import type * as shared_hooks_useFileUpload from "../shared/hooks/useFileUpload.
 import type * as shared_index from "../shared/index.js";
 import type * as shared_linkCategories from "../shared/linkCategories.js";
 import type * as shared_rateLimits from "../shared/rateLimits.js";
+import type * as shared_types from "../shared/types.js";
 import type * as shared_utils_colorUtils from "../shared/utils/colorUtils.js";
 import type * as shared_utils_linkCategoryResolver from "../shared/utils/linkCategoryResolver.js";
 import type * as workflows_aiBackfill from "../workflows/aiBackfill.js";
@@ -134,6 +135,7 @@ declare const fullApi: ApiFromModules<{
   "shared/index": typeof shared_index;
   "shared/linkCategories": typeof shared_linkCategories;
   "shared/rateLimits": typeof shared_rateLimits;
+  "shared/types": typeof shared_types;
   "shared/utils/colorUtils": typeof shared_utils_colorUtils;
   "shared/utils/linkCategoryResolver": typeof shared_utils_linkCategoryResolver;
   "workflows/aiBackfill": typeof workflows_aiBackfill;

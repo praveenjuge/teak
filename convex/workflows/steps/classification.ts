@@ -11,7 +11,7 @@
 import { v } from "convex/values";
 import { internalAction } from "../../_generated/server";
 import { internal } from "../../_generated/api";
-import { Id } from "../../_generated/dataModel";
+import type { Id } from "../../shared/types";
 import type { CardType } from "../../schema";
 import {
   extractPaletteColors,

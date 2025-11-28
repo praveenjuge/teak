@@ -1,4 +1,4 @@
-import type { Id } from "../_generated/dataModel";
+import type { Id } from "../shared/types";
 
 export interface ScrapeAttribute {
   name: string;

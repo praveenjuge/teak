@@ -14,7 +14,7 @@ import {
   type RawSelectorEntry,
   type RawSelectorMap,
 } from "./providers/common";
-import type { Id } from "../../../_generated/dataModel";
+import type { Id } from "../../../shared/types";
 import { v } from "convex/values";
 import { internalAction } from "../../../_generated/server";
 import { internal } from "../../../_generated/api";

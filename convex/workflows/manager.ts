@@ -9,7 +9,7 @@ import { v } from "convex/values";
 import { WorkflowManager } from "@convex-dev/workflow";
 import { internalAction, internalMutation } from "../_generated/server";
 import { components, internal } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
+import type { Id } from "../shared/types";
 import {
   buildInitialProcessingStatus,
   stagePending,

@@ -1,4 +1,4 @@
-import { Id } from "../../_generated/dataModel";
+import type { Id } from "../types";
 
 // Sentry capture function - will be injected by platform-specific wrappers
 type SentryCaptureFunction = (error: unknown, context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }) => void;

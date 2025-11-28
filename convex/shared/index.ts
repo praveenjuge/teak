@@ -4,3 +4,4 @@ export * from "./hooks/useFileUpload";
 export * from "./utils/colorUtils";
 export * from "./linkCategories";
 export * from "./utils/linkCategoryResolver";
+export * from "./types";
