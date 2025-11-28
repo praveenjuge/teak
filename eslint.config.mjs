@@ -3,6 +3,7 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
 import convexPlugin from "@convex-dev/eslint-plugin";
+import tseslint from "typescript-eslint";
 
 export default defineConfig([
   globalIgnores([
@@ -27,6 +28,21 @@ export default defineConfig([
   ...nextTs,
   ...convexPlugin.configs.recommended,
   prettier,
+  // Add no-floating-promises rule to catch unawaited promises (Convex best practice)
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    languageOptions: {
+      parserOptions: {
+        project: true,
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tseslint.plugin,
+    },
+    rules: {
+      "@typescript-eslint/no-floating-promises": "error",
+    },
+  },
   {
     rules: {
       // Allow `any` in Convex server code and generated types.

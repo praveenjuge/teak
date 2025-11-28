@@ -178,9 +178,14 @@ export const cardValidator = v.object({
 
 export default defineSchema({
   cards: defineTable(cardValidator)
-    .index("by_user", ["userId"])
+    // Note: by_user index removed as redundant - by_user_deleted can serve same purpose
+    // with partial index matching (just userId) per Convex best practices
     .index("by_user_type", ["userId", "type"])
+    // Compound index for type filtering with isDeleted to avoid post-index .filter()
+    .index("by_user_type_deleted", ["userId", "type", "isDeleted"])
     .index("by_user_favorites", ["userId", "isFavorited"])
+    // Compound index for favorites filtering with isDeleted to avoid post-index .filter()
+    .index("by_user_favorites_deleted", ["userId", "isFavorited", "isDeleted"])
     .index("by_user_deleted", ["userId", "isDeleted"])
     .index("by_created", ["userId", "createdAt"])
     // Search indexes for efficient full-text search

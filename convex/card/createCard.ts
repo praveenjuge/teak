@@ -25,6 +25,7 @@ export const createCard = mutation({
     metadata: v.optional(v.any()), // Allow any metadata from client, we'll process it
     colors: v.optional(v.array(colorValidator)), // For palette cards
   },
+  returns: v.id("cards"),
   handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
     if (!user) {

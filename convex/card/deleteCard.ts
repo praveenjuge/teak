@@ -5,6 +5,7 @@ export const permanentDeleteCard = mutation({
   args: {
     id: v.id("cards"),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
     if (!user) {
@@ -30,6 +31,7 @@ export const permanentDeleteCard = mutation({
     }
 
     // Permanently remove from database
-    return await ctx.db.delete(args.id);
+    await ctx.db.delete(args.id);
+    return null;
   },
 });

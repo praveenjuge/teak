@@ -17,6 +17,7 @@ export const updateCard = mutation({
     tags: v.optional(v.array(v.string())),
     notes: v.optional(v.string()),
   },
+  returns: v.null(), // db.patch returns void/null
   handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
     if (!user) {
@@ -54,7 +55,7 @@ export const updateCard = mutation({
       }
     }
 
-    const result = await ctx.db.patch(id, {
+    await ctx.db.patch(id, {
       ...updates,
       ...(processingStatus ? { processingStatus } : {}),
       updatedAt: now,
@@ -71,7 +72,7 @@ export const updateCard = mutation({
       );
     }
 
-    return result;
+    return null;
   },
 });
 
@@ -93,6 +94,7 @@ export const updateCardField = mutation({
     value: v.optional(v.any()),
     tagToRemove: v.optional(v.string()), // For removeAiTag operation
   },
+  // Returns the card or null - using v.any() as the return type varies
   handler: async (ctx, { cardId, field, value, tagToRemove }) => {
     const user = await ctx.auth.getUserIdentity();
     if (!user) {

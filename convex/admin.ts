@@ -33,6 +33,9 @@ const STAGE_KEYS: ProcessingStageKey[] = [
 const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_MISSING_CARDS = 50;
+// Maximum cards to process in admin overview to prevent memory issues
+// For larger datasets, consider denormalizing counters or using pagination
+const ADMIN_OVERVIEW_LIMIT = 10000;
 
 type AdminCtx = QueryCtx | ActionCtx;
 
@@ -124,7 +127,10 @@ export const getOverview = query({
 
     const uniqueUsers = new Set<string>();
 
-    const cards = await ctx.db.query("cards").collect();
+    // Use .take() with limit instead of unbounded .collect() to prevent memory issues
+    // For production at scale, consider denormalizing these counts into a separate table
+    const cards = await ctx.db.query("cards").take(ADMIN_OVERVIEW_LIMIT);
+    const isLimitReached = cards.length === ADMIN_OVERVIEW_LIMIT;
 
     for (const card of cards) {
       totalCards += 1;
@@ -255,6 +261,8 @@ export const getOverview = query({
         stageSummaries,
         missingCards,
       },
+      // Warn if we hit the limit - counts may be incomplete
+      isApproximate: isLimitReached,
     };
   },
 });

@@ -146,9 +146,11 @@ export const deleteAccount = mutation({
 
     const userId = identity.subject;
 
+    // Use by_user_deleted index with partial match (just userId)
+    // This works because Convex allows querying on prefix of compound indexes
     const cards = await ctx.db
       .query("cards")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_user_deleted", (q) => q.eq("userId", userId))
       .collect();
 
     for (const card of cards) {

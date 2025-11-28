@@ -1,7 +1,14 @@
 import { v } from "convex/values";
 import { query } from "../_generated/server";
-import { cardTypeValidator } from "../schema";
+import { cardTypeValidator, cardValidator } from "../schema";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
+
+// Return validator for card arrays - includes _id and _creationTime from Convex
+const cardReturnValidator = v.object({
+  ...cardValidator.fields,
+  _id: v.id("cards"),
+  _creationTime: v.number(),
+});
 
 export const getCards = query({
   args: {
@@ -9,6 +16,7 @@ export const getCards = query({
     favoritesOnly: v.optional(v.boolean()),
     limit: v.optional(v.number()),
   },
+  returns: v.array(cardReturnValidator),
   handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
     if (!user) {
@@ -22,21 +30,21 @@ export const getCards = query({
       );
 
     if (args.type) {
+      // Use compound index by_user_type_deleted to avoid post-index .filter()
       query = ctx.db
         .query("cards")
-        .withIndex("by_user_type", (q) =>
-          q.eq("userId", user.subject).eq("type", args.type!)
-        )
-        .filter((q) => q.neq(q.field("isDeleted"), true));
+        .withIndex("by_user_type_deleted", (q) =>
+          q.eq("userId", user.subject).eq("type", args.type!).eq("isDeleted", undefined)
+        );
     }
 
     if (args.favoritesOnly) {
+      // Use compound index by_user_favorites_deleted to avoid post-index .filter()
       query = ctx.db
         .query("cards")
-        .withIndex("by_user_favorites", (q) =>
-          q.eq("userId", user.subject).eq("isFavorited", true)
-        )
-        .filter((q) => q.neq(q.field("isDeleted"), true));
+        .withIndex("by_user_favorites_deleted", (q) =>
+          q.eq("userId", user.subject).eq("isFavorited", true).eq("isDeleted", undefined)
+        );
     }
 
     const cards = await query.order("desc").take(args.limit || 50);
@@ -54,6 +62,7 @@ export const searchCards = query({
     showTrashOnly: v.optional(v.boolean()),
     limit: v.optional(v.number()),
   },
+  returns: v.array(cardReturnValidator),
   handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
     if (!user) {
@@ -74,12 +83,12 @@ export const searchCards = query({
 
       // Handle special keywords
       if (["fav", "favs", "favorites", "favourite", "favourites"].includes(query)) {
+        // Use compound index by_user_favorites_deleted to avoid post-index .filter()
         const favorites = await ctx.db
           .query("cards")
-          .withIndex("by_user_favorites", (q) =>
-            q.eq("userId", user.subject).eq("isFavorited", true)
+          .withIndex("by_user_favorites_deleted", (q) =>
+            q.eq("userId", user.subject).eq("isFavorited", true).eq("isDeleted", undefined)
           )
-          .filter((q) => q.neq(q.field("isDeleted"), true))
           .order("desc")
           .take(limit);
         return applyQuoteFormattingToList(favorites);
@@ -198,19 +207,14 @@ export const searchCards = query({
       );
 
     if (types && types.length === 1) {
-      // Optimize for single type filter
+      // Use compound index by_user_type_deleted to avoid post-index .filter()
       query = ctx.db
         .query("cards")
-        .withIndex("by_user_type", (q) =>
-          q.eq("userId", user.subject).eq("type", types[0])
-        )
-        .filter((q) =>
-          showTrashOnly
-            ? q.eq(q.field("isDeleted"), true)
-            : q.neq(q.field("isDeleted"), true)
+        .withIndex("by_user_type_deleted", (q) =>
+          q.eq("userId", user.subject).eq("type", types[0]).eq("isDeleted", showTrashOnly ? true : undefined)
         );
     } else if (types && types.length > 1) {
-      // Filter by multiple types
+      // Filter by multiple types - must use .filter() for OR conditions across different type values
       query = query.filter((q) => {
         const typeConditions = types.map(type => q.eq(q.field("type"), type));
         return typeConditions.reduce((acc, condition) => q.or(acc, condition));
@@ -218,6 +222,8 @@ export const searchCards = query({
     }
 
     if (favoritesOnly) {
+      // When filtering by favorites on top of existing query, we still need .filter()
+      // because we can't use a different index mid-query
       query = query.filter((q) => q.eq(q.field("isFavorited"), true));
     }
 
