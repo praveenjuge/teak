@@ -10,12 +10,6 @@
 
 import type * as admin from "../admin.js";
 import type * as ai_actions from "../ai/actions.js";
-import type * as ai_links_amazon from "../ai/links/amazon.js";
-import type * as ai_links_common from "../ai/links/common.js";
-import type * as ai_links_github from "../ai/links/github.js";
-import type * as ai_links_goodreads from "../ai/links/goodreads.js";
-import type * as ai_links_imdb from "../ai/links/imdb.js";
-import type * as ai_links_index from "../ai/links/index.js";
 import type * as ai_models from "../ai/models.js";
 import type * as ai_mutations from "../ai/mutations.js";
 import type * as ai_queries from "../ai/queries.js";
@@ -95,12 +89,6 @@ import type {
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   "ai/actions": typeof ai_actions;
-  "ai/links/amazon": typeof ai_links_amazon;
-  "ai/links/common": typeof ai_links_common;
-  "ai/links/github": typeof ai_links_github;
-  "ai/links/goodreads": typeof ai_links_goodreads;
-  "ai/links/imdb": typeof ai_links_imdb;
-  "ai/links/index": typeof ai_links_index;
   "ai/models": typeof ai_models;
   "ai/mutations": typeof ai_mutations;
   "ai/queries": typeof ai_queries;
