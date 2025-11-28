@@ -4,7 +4,6 @@ export type { Doc, Id } from "./_generated/dataModel";
 export * from "./shared";
 
 // Cards domain surface
-export * from "./card/cardLimit";
 export * from "./card/createCard";
 export * from "./card/deleteCard";
 export * from "./card/generateUploadUrl";

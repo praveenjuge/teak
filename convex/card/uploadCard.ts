@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { ensureCardCreationAllowed, checkCardCreationRateLimit } from "./cardLimit";
+import { ensureCardCreationAllowed } from "../auth";
 import {
   buildInitialProcessingStatus,
   stagePending,
@@ -30,10 +30,7 @@ export const uploadAndCreateCard = mutation({
     }
 
     try {
-      // Check rate limit first (fast fail)
-      await checkCardCreationRateLimit(ctx, user.subject);
-
-      // Then check card count limit
+      // Check rate limit and card count limit
       await ensureCardCreationAllowed(ctx, user.subject);
 
       // Generate upload URL
@@ -87,10 +84,7 @@ export const finalizeUploadedCard = mutation({
     try {
       const now = Date.now();
 
-      // Check rate limit first (fast fail)
-      await checkCardCreationRateLimit(ctx, user.subject);
-
-      // Then check card count limit
+      // Check rate limit and card count limit
       await ensureCardCreationAllowed(ctx, user.subject);
 
       // Get file metadata from storage

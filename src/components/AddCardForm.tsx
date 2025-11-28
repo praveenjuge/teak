@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
+import { useQuery } from "convex-helpers/react/cache/hooks";
 import type { OptimisticLocalStore } from "convex/browser";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,6 +57,19 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   // Form data
   const [content, setContent] = useState("");
   const [url, setUrl] = useState("");
+
+  // Check if user can create cards on mount
+  const currentUser = useQuery(api.auth.getCurrentUser);
+  const canCreateCard = currentUser?.canCreateCard ?? true;
+
+  // Show upgrade prompt immediately if user can't create cards
+  useEffect(() => {
+    if (currentUser && !currentUser.canCreateCard) {
+      setShowUpgradePrompt(true);
+      metrics.cardLimitReached(currentUser.cardCount);
+      metrics.upgradePromptShown("page_load");
+    }
+  }, [currentUser]);
 
   const createCard = useMutation(api.cards.createCard).withOptimisticUpdate(
     (localStore, args) => {
@@ -450,7 +464,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
-                if (content.trim()) {
+                if (content.trim() && canCreateCard) {
                   void handleTextSubmit(
                     e as unknown as React.FormEvent<HTMLFormElement>
                   );
@@ -458,7 +472,12 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
               }
             }}
             autoFocus={autoFocus}
-            placeholder="Write or add a link..."
+            disabled={!canCreateCard}
+            placeholder={
+              canCreateCard
+                ? "Write or add a link..."
+                : "Upgrade to Pro to add more cards..."
+            }
             className="min-h-20 flex-1 h-full resize-none border-0 shadow-none rounded-none p-4 focus-visible:outline-none focus-visible:ring-0 bg-transparent dark:bg-transparent"
           />
 
@@ -470,7 +489,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
                 variant="outline"
                 size="sm"
                 onClick={handleFileUpload}
-                disabled={uploadState.isUploading || showUpgradePrompt}
+                disabled={uploadState.isUploading || !canCreateCard}
               >
                 <Upload />
               </Button>
@@ -480,7 +499,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
                 variant="outline"
                 size="sm"
                 onClick={startRecording}
-                disabled={uploadState.isUploading || showUpgradePrompt}
+                disabled={uploadState.isUploading || !canCreateCard}
               >
                 <Mic />
               </Button>
@@ -488,7 +507,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
             {content.trim() && (
               <Button
                 type="submit"
-                disabled={uploadState.isUploading || showUpgradePrompt}
+                disabled={uploadState.isUploading || !canCreateCard}
                 size="sm"
               >
                 Save
@@ -507,7 +526,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
           </Alert>
         )}
 
-        {showUpgradePrompt && (
+        {showUpgradePrompt && !canCreateCard && (
           <Link href="/settings" className="px-1 pb-1 block">
             <Alert>
               <Sparkles className="stroke-primary" />

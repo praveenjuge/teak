@@ -1,14 +1,16 @@
 import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { expo } from '@better-auth/expo'
-import { components } from "./_generated/api";
+import { api, components } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type MutationCtx } from "./_generated/server";
 import { betterAuth, BetterAuthOptions } from "better-auth";
 import { Resend } from "@convex-dev/resend";
 import { requireActionCtx } from "@convex-dev/better-auth/utils";
 import { polar } from "./billing";
-import { FREE_TIER_LIMIT } from "./shared/constants";
+import { FREE_TIER_LIMIT, CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "./shared/constants";
+import { ConvexError } from "convex/values";
+import { rateLimiter } from "./shared/rateLimits";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID!;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET!;
@@ -135,6 +137,43 @@ export const getCurrentUser = query({
     };
   },
 });
+
+/**
+ * Ensures the current user can create a new card.
+ * Checks both rate limits (30 cards/minute) and card count limits (free tier).
+ * Throws a ConvexError with appropriate code when limits are exceeded.
+ */
+export async function ensureCardCreationAllowed(
+  ctx: MutationCtx,
+  userId: string,
+): Promise<void> {
+  // Check rate limit first (fast fail for abuse prevention)
+  const rateLimitResult = await rateLimiter.limit(ctx, "cardCreation", {
+    key: userId,
+    throws: false,
+  });
+
+  if (!rateLimitResult.ok) {
+    throw new ConvexError({
+      code: CARD_ERROR_CODES.RATE_LIMITED,
+      message: CARD_ERROR_MESSAGES.RATE_LIMITED,
+    });
+  }
+
+  // Check card count limit using getCurrentUser (which calculates canCreateCard)
+  const currentUser = await ctx.runQuery(api.auth.getCurrentUser);
+
+  if (!currentUser) {
+    throw new Error("User must be authenticated");
+  }
+
+  if (!currentUser.canCreateCard) {
+    throw new ConvexError({
+      code: CARD_ERROR_CODES.CARD_LIMIT_REACHED,
+      message: CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED,
+    });
+  }
+}
 
 export const deleteAccount = mutation({
   args: {},
