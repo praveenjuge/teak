@@ -112,8 +112,8 @@ export default function ResetPassword() {
 
   return (
     <>
-      <CardHeader>
-        <CardTitle className="text-lg md:text-xl">Reset password</CardTitle>
+      <CardHeader className="text-center">
+        <CardTitle className="text-lg">Reset password</CardTitle>
         <CardDescription>
           Choose a new password to secure your account
         </CardDescription>
@@ -190,7 +190,7 @@ export default function ResetPassword() {
             href="/forgot-password"
             className={cn(buttonVariants({ variant: "link" }))}
           >
-            Need a new link? Request password reset
+            Need a new link? Request Again
           </Link>
         </CardFooter>
       )}

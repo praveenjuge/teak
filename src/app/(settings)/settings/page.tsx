@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent, type ReactNode } from "react";
+import { useState, type ChangeEvent, type ReactNode } from "react";
 import { CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useQuery } from "convex-helpers/react/cache/hooks";
-import { useAction, useMutation } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@teak/convex";
 import { authClient } from "@/lib/auth-client";
 import { Spinner } from "@/components/ui/spinner";
@@ -34,11 +34,10 @@ import {
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "next-themes";
-import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
-import * as Sentry from "@sentry/nextjs";
 import { metrics } from "@/lib/metrics";
+import { CheckoutLink, CustomerPortalLink } from "@convex-dev/polar/react";
 
 const featureList = [
   "Unlimited Cards",
@@ -119,45 +118,13 @@ interface CustomerPortalButtonProps {
   children: ReactNode;
 }
 
-function CustomerPortalButton({
-  className,
-  children,
-}: CustomerPortalButtonProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const createCustomerPortal = useAction(api.billing.createCustomerPortal);
-
-  const handlePortal = async () => {
-    setIsLoading(true);
-    metrics.customerPortalOpened();
-    try {
-      const portalUrl = await createCustomerPortal({});
-      window.open(portalUrl, "_blank");
-    } catch (error) {
-      console.error("Failed to open customer portal", error);
-      Sentry.captureException(error, {
-        tags: { source: "convex", action: "billing:createCustomerPortal" },
-      });
-      toast.error("Failed to open customer portal. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <button onClick={handlePortal} className={className} disabled={isLoading}>
-      {isLoading ? <Spinner /> : children}
-    </button>
-  );
-}
-
 interface PlanOptionProps {
   planId: string;
   title: string;
   priceAmount: number;
   intervalLabel: string;
   badge?: string;
-  isLoading: boolean;
-  onCheckout: (planId: string) => void;
+  onCheckoutClick: (planId: string) => void;
 }
 
 function PlanOption({
@@ -166,8 +133,7 @@ function PlanOption({
   priceAmount,
   intervalLabel,
   badge,
-  isLoading,
-  onCheckout,
+  onCheckoutClick,
 }: PlanOptionProps) {
   const formattedPrice = priceAmount
     ? `${(priceAmount / 100).toLocaleString()}$`
@@ -188,38 +154,30 @@ function PlanOption({
           </p>
           <p className="text-muted-foreground pb-1">{intervalLabel}</p>
         </div>
-
-        <button
-          onClick={() => onCheckout(planId)}
-          className={cn(
-            buttonVariants({
-              variant: "outline",
-            })
-          )}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <Spinner />
-          ) : (
-            <span className="flex items-center gap-2">
-              Continue <ArrowRight className="size-4" />
-            </span>
-          )}
-        </button>
+        <div onClick={() => onCheckoutClick(planId)}>
+          <CheckoutLink
+            polarApi={api.billing}
+            productIds={[planId]}
+            embed={true}
+            className={cn(
+              buttonVariants({
+                variant: "outline",
+              })
+            )}
+          >
+            Continue <ArrowRight />
+          </CheckoutLink>
+        </div>
       </div>
     </div>
   );
 }
 
 interface SubscriptionSectionProps {
-  onCheckout: (planId: string) => void;
-  loadingPlanId: string | null;
+  onCheckoutClick: (planId: string) => void;
 }
 
-function SubscriptionSection({
-  onCheckout,
-  loadingPlanId,
-}: SubscriptionSectionProps) {
+function SubscriptionSection({ onCheckoutClick }: SubscriptionSectionProps) {
   const isProduction = process.env.NODE_ENV === "production";
   const monthlyPlanId = isProduction
     ? "d46c71a7-61dc-4dc8-b53d-9a73d0204c28"
@@ -257,8 +215,7 @@ function SubscriptionSection({
         <PlanOption
           key={plan.planId}
           {...plan}
-          isLoading={loadingPlanId === plan.planId}
-          onCheckout={onCheckout}
+          onCheckoutClick={onCheckoutClick}
         />
       ))}
 
@@ -286,9 +243,7 @@ export default function ProfileSettingsPage() {
   const deleteAccount = useMutation(api.auth.deleteAccount);
   const [signOutLoading, setSignOutLoading] = useState(false);
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
-  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
-  const [checkoutInstance, setCheckoutInstance] =
-    useState<PolarEmbedCheckout | null>(null);
+  const [subscriptionKey, setSubscriptionKey] = useState(0);
   const {
     state: deleteState,
     patch: patchDeleteState,
@@ -300,69 +255,13 @@ export default function ProfileSettingsPage() {
     error: null,
     loading: false,
   }));
-  const createCheckoutLink = useAction(api.billing.createCheckoutLink);
   const { theme, setTheme } = useTheme();
   const router = useRouter();
 
-  useEffect(() => {
-    return () => {
-      checkoutInstance?.close();
-    };
-  }, [checkoutInstance]);
-
-  const handleCheckout = async (planId: string) => {
-    setLoadingPlanId(planId);
+  const handleCheckoutClick = (planId: string) => {
     const planType = planId.includes("monthly") ? "monthly" : "yearly";
     metrics.checkoutInitiated(planType);
-    try {
-      const checkoutUrl = await createCheckoutLink({ productId: planId });
-
-      // Determine the effective theme for Polar checkout
-      // Polar only supports "light" or "dark", so we need to resolve "system"
-      let effectiveTheme: "light" | "dark" = "light";
-      if (theme === "dark") {
-        effectiveTheme = "dark";
-      } else if (theme === "system") {
-        // Detect system preference
-        effectiveTheme = window.matchMedia("(prefers-color-scheme: dark)")
-          .matches
-          ? "dark"
-          : "light";
-      }
-
-      const checkout = await PolarEmbedCheckout.create(
-        checkoutUrl,
-        effectiveTheme
-      );
-
-      setCheckoutInstance(checkout);
-      setSubscriptionOpen(false);
-
-      checkout.addEventListener(
-        "success",
-        (event: CustomEvent<{ redirect?: string | boolean }>) => {
-          metrics.checkoutCompleted(planType, true);
-          if (!event.detail.redirect) {
-            toast.success(
-              "Welcome to Pro! Your subscription has been activated."
-            );
-          }
-        }
-      );
-
-      checkout.addEventListener("close", () => {
-        setCheckoutInstance(null);
-      });
-    } catch (error) {
-      console.error("Failed to open checkout", error);
-      metrics.checkoutCompleted(planType, false);
-      Sentry.captureException(error, {
-        tags: { source: "convex", action: "billing:createCheckoutLink" },
-      });
-      toast.error("Failed to start checkout. Please try again.");
-    } finally {
-      setLoadingPlanId(null);
-    }
+    setSubscriptionOpen(false);
   };
 
   const isLoading = user === undefined;
@@ -481,12 +380,16 @@ export default function ProfileSettingsPage() {
         {hasPremium ? (
           <>
             <Badge>Pro</Badge>
-            <CustomerPortalButton
+            <CustomerPortalLink
+              polarApi={{
+                generateCustomerPortalUrl:
+                  api.billing.generateCustomerPortalUrl,
+              }}
               className={cn(buttonVariants({ variant: "link", size: "sm" }))}
             >
               Manage
               <ExternalLink />
-            </CustomerPortalButton>
+            </CustomerPortalLink>
           </>
         ) : (
           <>
@@ -496,6 +399,7 @@ export default function ProfileSettingsPage() {
               variant="link"
               onClick={() => {
                 metrics.modalOpened("upgrade");
+                setSubscriptionKey((k) => k + 1);
                 setSubscriptionOpen(true);
               }}
             >
@@ -555,12 +459,13 @@ export default function ProfileSettingsPage() {
         </svg>
       </div>
 
-      <Dialog open={subscriptionOpen} onOpenChange={setSubscriptionOpen}>
+      <Dialog
+        key={subscriptionKey}
+        open={subscriptionOpen}
+        onOpenChange={setSubscriptionOpen}
+      >
         <DialogContent className="max-w-3xl">
-          <SubscriptionSection
-            onCheckout={handleCheckout}
-            loadingPlanId={loadingPlanId}
-          />
+          <SubscriptionSection onCheckoutClick={handleCheckoutClick} />
         </DialogContent>
       </Dialog>
 
