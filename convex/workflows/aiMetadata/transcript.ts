@@ -1,5 +1,5 @@
 import { experimental_transcribe as transcribe } from "ai";
-import { groq } from "@ai-sdk/groq";
+import { TRANSCRIPTION_MODEL } from "../../ai/models";
 
 // Generate transcript for audio content
 export const generateTranscript = async (audioUrl: string, mimeHint?: string) => {
@@ -40,7 +40,7 @@ export const generateTranscript = async (audioUrl: string, mimeHint?: string) =>
 
     // Use Groq's whisper-large-v3-turbo for fast, cost-effective transcription
     const { text } = await transcribe({
-      model: groq.transcription("whisper-large-v3-turbo"),
+      model: TRANSCRIPTION_MODEL,
       audio: new Uint8Array(arrayBuffer),
     });
 

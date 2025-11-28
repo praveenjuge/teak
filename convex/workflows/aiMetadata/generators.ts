@@ -1,23 +1,28 @@
 import { generateObject } from "ai";
-import { groq } from "@ai-sdk/groq";
 import { aiMetadataSchema } from "./schemas";
+import {
+  TEXT_METADATA_MODEL,
+  LINK_METADATA_MODEL,
+  IMAGE_METADATA_MODEL,
+  SYSTEM_PROMPTS,
+} from "../../ai/models";
 
-// Generate AI metadata for text content
+/**
+ * Generate AI metadata for text content
+ * Uses prompt caching-enabled model (openai/gpt-oss-20b)
+ */
 export const generateTextMetadata = async (content: string, title?: string) => {
+  // Dynamic content placed last for optimal caching
   const fullContent = title
     ? `Title: ${title}\n\nContent: ${content}`
     : content;
 
   try {
     const result = await generateObject({
-      model: groq("openai/gpt-oss-20b"),
-      system: `You are an expert content analyzer. Generate relevant tags and a concise summary for the given content.
-
-Guidelines:
-- Tags should be 5-6 specific, relevant single words only (no spaces, no hyphens)
-- Summary should be 1-2 sentences that capture the essence
-- Focus on the main topics, themes, and key information
-- Use clear, searchable language`,
+      model: TEXT_METADATA_MODEL,
+      // Static system prompt - will be cached across requests
+      system: SYSTEM_PROMPTS.textAnalysis,
+      // Dynamic content last for cache optimization
       prompt: `Analyze this content and generate tags and summary:\n\n${fullContent}`,
       schema: aiMetadataSchema,
     });
@@ -32,33 +37,33 @@ Guidelines:
   }
 };
 
-// Generate AI metadata for image content (using vision)
+/**
+ * Generate AI metadata for image content (using vision)
+ * Note: Vision model (llama-4-scout) does NOT currently support prompt caching
+ */
 export const generateImageMetadata = async (
   imageUrl: string,
   title?: string,
 ) => {
   try {
     const result = await generateObject({
-      model: groq("meta-llama/llama-4-scout-17b-16e-instruct"),
-      system: `You are an expert image analyzer. Generate relevant tags and a concise summary for the given image.
-
-Guidelines:
-- Tags should be 5-6 single words describing objects, scenes, concepts, emotions (no spaces, no hyphens)
-- Summary should be 1-2 sentences describing what the image shows
-- Focus on the main visual elements and context
-- Use clear, searchable language`,
+      model: IMAGE_METADATA_MODEL,
+      // Static system prompt - structured for potential future caching support
+      system: SYSTEM_PROMPTS.imageAnalysis,
       messages: [
         {
           role: "user",
           content: [
             {
               type: "text",
+              // Dynamic text content
               text: title
                 ? `Image title: ${title}\n\nAnalyze this image and generate tags and summary:`
                 : "Analyze this image and generate tags and summary:",
             },
             {
               type: "image",
+              // Dynamic image content
               image: imageUrl,
             },
           ],
@@ -77,20 +82,17 @@ Guidelines:
   }
 };
 
-// Generate AI metadata for link content
+/**
+ * Generate AI metadata for link content
+ * Uses prompt caching-enabled model (openai/gpt-oss-20b)
+ */
 export const generateLinkMetadata = async (content: string, url?: string) => {
   try {
     const result = await generateObject({
-      model: groq("openai/gpt-oss-20b"),
-      system: `You are an expert web content analyzer. Generate relevant tags and a concise summary for the given web page content.
-
-Guidelines:
-- Tags should be 5-6 single words capturing main topics, categories, and key concepts (no spaces, no hyphens)
-- Include relevant technology, industry, or topic tags where applicable
-- Summary should be 1-2 sentences capturing the essence and value of the content
-- Focus on what makes this link useful and searchable
-- Use clear, specific language that helps with discovery
-- Consider the source, author, and context when available`,
+      model: LINK_METADATA_MODEL,
+      // Static system prompt - will be cached across requests
+      system: SYSTEM_PROMPTS.linkAnalysis,
+      // Dynamic content last for cache optimization
       prompt: `Analyze this web page content and generate optimized tags and summary for knowledge management:
 
 ${content}

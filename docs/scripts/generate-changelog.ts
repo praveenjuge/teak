@@ -7,6 +7,20 @@ import { join } from "path";
 // Configuration
 const COMMITS_PER_BATCH = 40;
 
+/**
+ * Changelog generation model
+ * Uses openai/gpt-oss-120b which supports prompt caching for 50% cost savings
+ */
+const CHANGELOG_MODEL = groq("openai/gpt-oss-120b");
+
+/**
+ * System prompt for changelog generation
+ * Static content - will be cached across batch processing requests
+ */
+const CHANGELOG_SYSTEM_PROMPT = `You are writing short changelog posts for Teak, a personal knowledge hub app.
+Be concise and direct. Focus only on the most important user-facing changes.
+Avoid fluff, marketing speak, or unnecessary detail. Keep everything brief.`;
+
 // Types
 interface GitHubCommit {
   sha: string;
@@ -164,10 +178,10 @@ async function generateBatchSummary(batch: CommitBatch) {
   const commitsText = formatCommitsForPrompt(batch.commits);
 
   const result = await generateObject({
-    model: groq("openai/gpt-oss-120b"),
-    system: `You are writing short changelog posts for Teak, a personal knowledge hub app.
-Be concise and direct. Focus only on the most important user-facing changes.
-Avoid fluff, marketing speak, or unnecessary detail. Keep everything brief.`,
+    model: CHANGELOG_MODEL,
+    // Static system prompt - will be cached across batch requests
+    system: CHANGELOG_SYSTEM_PROMPT,
+    // Dynamic content last for optimal caching
     prompt: `Generate a changelog summary for Teak based on these ${batch.commits.length} commits from ${batch.startDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })} to ${batch.endDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}:
 
 ${commitsText}
