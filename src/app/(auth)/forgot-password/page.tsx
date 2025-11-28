@@ -89,7 +89,7 @@ export default function ForgotPassword() {
           )}
           {sent && (
             <Alert>
-              <CheckCircle className="h-4 w-4" />
+              <CheckCircle />
               <AlertDescription>
                 If the email address is registered, a password reset link will
                 be sent.

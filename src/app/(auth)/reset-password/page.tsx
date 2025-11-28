@@ -112,8 +112,8 @@ export default function ResetPassword() {
 
   return (
     <>
-      <CardHeader>
-        <CardTitle className="text-lg md:text-xl">Reset password</CardTitle>
+      <CardHeader className="text-center">
+        <CardTitle className="text-lg">Reset password</CardTitle>
         <CardDescription>
           Choose a new password to secure your account
         </CardDescription>
@@ -166,16 +166,14 @@ export default function ResetPassword() {
                   helperText.variant === "error" ? "destructive" : "default"
                 }
               >
-                {helperText.variant === "error" && (
-                  <AlertCircle className="h-4 w-4" />
-                )}
+                {helperText.variant === "error" && <AlertCircle />}
                 <AlertDescription>{helperText.text}</AlertDescription>
               </Alert>
             )}
 
             <Button type="submit" className="w-full" disabled={!canSubmit}>
               {loading ? (
-                <Loader2 size={16} className="animate-spin" />
+                <Loader2 className="animate-spin" />
               ) : (
                 "Update password"
               )}
@@ -190,7 +188,7 @@ export default function ResetPassword() {
             href="/forgot-password"
             className={cn(buttonVariants({ variant: "link" }))}
           >
-            Need a new link? Request password reset
+            Need a new link? Request Again
           </Link>
         </CardFooter>
       )}
