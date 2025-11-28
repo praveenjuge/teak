@@ -165,9 +165,6 @@ export const captureScreenshot = internalAction({
 
     const linkPreview = card.metadata?.linkPreview;
     if (!linkPreview || linkPreview.status !== "success") {
-      console.log(
-        `[screenshot] Skipping screenshot for card ${cardId} because link preview metadata is not ready`,
-      );
       return;
     }
 
@@ -186,7 +183,6 @@ export const captureScreenshot = internalAction({
         screenshotStorageId: screenshotResult.screenshotId,
         screenshotUpdatedAt: screenshotResult.screenshotUpdatedAt ?? Date.now(),
       });
-      console.log(`[screenshot] Stored screenshot for card ${cardId}`);
       return;
     }
 

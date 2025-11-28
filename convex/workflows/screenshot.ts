@@ -69,9 +69,6 @@ export const screenshotWorkflow = workflow.define({
           retryable.type === "rate_limit" &&
           retryCount < SCREENSHOT_RATE_LIMIT_MAX_RETRIES
         ) {
-          console.warn(
-            `[screenshot] Rate limited for card ${cardId}, retry ${retryCount + 1} in ${SCREENSHOT_RATE_LIMIT_DELAY_MS}ms`,
-          );
           nextDelayMs = SCREENSHOT_RATE_LIMIT_DELAY_MS;
           retryCount += 1;
           continue;
@@ -81,18 +78,12 @@ export const screenshotWorkflow = workflow.define({
           retryable.type === "http_error" &&
           retryCount < SCREENSHOT_HTTP_MAX_RETRIES
         ) {
-          console.warn(
-            `[screenshot] HTTP error for card ${cardId}, retry ${retryCount + 1} in ${SCREENSHOT_HTTP_RETRY_DELAY_MS}ms`,
-          );
           nextDelayMs = SCREENSHOT_HTTP_RETRY_DELAY_MS;
           retryCount += 1;
           continue;
         }
 
-        console.warn(
-          `[screenshot] Screenshot capture failed for card ${cardId} after ${retryCount + 1} attempt(s)`,
-          retryable,
-        );
+        console.warn(`[screenshot] Failed for card ${cardId}`, retryable.type);
 
         return {
           success: false,

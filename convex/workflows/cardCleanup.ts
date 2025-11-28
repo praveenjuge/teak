@@ -112,9 +112,6 @@ export const cardCleanupWorkflow = workflow.define({
     );
 
     if (candidates.length === 0) {
-      console.info(`${WORKFLOW_LOG_PREFIX} No cards to clean`, {
-        cutoff,
-      });
       return { cleanedCount: 0, hasMore: false };
     }
 
@@ -137,19 +134,15 @@ export const cardCleanupWorkflow = workflow.define({
     const hasMore = candidates.length === BATCH_SIZE;
 
     if (hasMore) {
-      console.info(`${WORKFLOW_LOG_PREFIX} Scheduling follow-up batch`, {
-        cleanedCount,
-      });
       await step.runMutation(
         internalWorkflow["workflows/cardCleanup"].startCardCleanupWorkflow,
         { startAsync: true }
       );
     }
 
-    console.info(`${WORKFLOW_LOG_PREFIX} Batch completed`, {
-      cleanedCount,
-      hasMore,
-    });
+    if (cleanedCount > 0) {
+      console.info(`${WORKFLOW_LOG_PREFIX} Cleaned ${cleanedCount} cards`);
+    }
 
     return {
       cleanedCount,

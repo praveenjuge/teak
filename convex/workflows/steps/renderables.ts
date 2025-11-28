@@ -12,8 +12,6 @@ import { internalAction } from "../../_generated/server";
 import { internal } from "../../_generated/api";
 import { stageCompleted } from "../../card/processingStatus";
 
-const RENDERABLES_LOG_PREFIX = "[workflow/renderables]";
-
 /**
  * Workflow Step: Generate renderables (thumbnails, etc.)
  *
@@ -29,13 +27,11 @@ export const generate: any = internalAction({
     thumbnailGenerated: v.boolean(),
   }),
   handler: async (ctx, { cardId, cardType }) => {
-    console.info(`${RENDERABLES_LOG_PREFIX} Running`, { cardId, cardType });
     const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
       cardId,
     });
 
     if (!card) {
-      console.warn(`${RENDERABLES_LOG_PREFIX} Card not found`, { cardId });
       throw new Error(`Card ${cardId} not found for renderables generation`);
     }
 
@@ -43,22 +39,11 @@ export const generate: any = internalAction({
 
     // Generate thumbnail for image cards
     if (cardType === "image" && card.fileId) {
-      console.info(`${RENDERABLES_LOG_PREFIX} Generating thumbnail`, {
-        cardId,
-        fileId: card.fileId,
-      });
       await ctx.runAction(
         internal.workflows.steps.renderables.generateThumbnail.generateThumbnail,
         { cardId }
       );
       thumbnailGenerated = true;
-    }
-
-    if (!thumbnailGenerated) {
-      console.info(`${RENDERABLES_LOG_PREFIX} No thumbnail generation required`, {
-        cardId,
-        cardType,
-      });
     }
 
     // Update processing status to mark renderables as complete
@@ -72,11 +57,6 @@ export const generate: any = internalAction({
     await ctx.runMutation(internal.ai.mutations.updateCardProcessing, {
       cardId,
       processingStatus: updatedProcessing,
-    });
-
-    console.info(`${RENDERABLES_LOG_PREFIX} Completed`, {
-      cardId,
-      thumbnailGenerated,
     });
 
     return {

@@ -25,8 +25,6 @@ export const linkEnrichmentWorkflow = workflow.define({
     factsCount: v.number(),
   }),
   handler: async (step, { cardId, triggeredAsync }) => {
-    console.info(`${LOG_PREFIX} Starting`, { cardId });
-
     const classifyResult = await step.runAction(
       internalWorkflow["workflows/steps/categorization/index"].classifyStep,
       { cardId },
@@ -63,13 +61,7 @@ export const linkEnrichmentWorkflow = workflow.define({
       { retry: LINK_ENRICHMENT_RETRY },
     );
 
-    console.info(`${LOG_PREFIX} Completed`, {
-      cardId,
-      category: mergeResult.category,
-      confidence: mergeResult.confidence,
-      facts: mergeResult.factsCount,
-      hasImage: !!mergeResult.imageUrl,
-    });
+    console.info(`${LOG_PREFIX} Completed`, { cardId, category: mergeResult.category });
 
     return mergeResult;
   },

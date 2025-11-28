@@ -137,15 +137,11 @@ export const fetchMetadata = internalAction({
     errorMessage: v.optional(v.string()),
   }),
   handler: async (ctx, { cardId }) => {
-
     const card = await ctx.runQuery(linkMetadataInternal.getCardForMetadata, {
       cardId,
     });
 
     if (!card || !card.url) {
-      console.error(
-        `[linkMetadata] Card ${cardId} is not a valid link card (card type = ${card?.type})`,
-      );
       await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
         cardId,
         linkPreview: buildErrorPreview(card?.url ?? "", {
@@ -176,9 +172,6 @@ export const fetchMetadata = internalAction({
         });
       }
 
-      console.error(
-        `[linkMetadata] Card ${cardId} is not a valid link card (card type = ${card?.type})`,
-      );
       await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
         cardId,
         linkPreview: buildErrorPreview(card.url ?? "", {
@@ -195,21 +188,9 @@ export const fetchMetadata = internalAction({
     }
 
     const normalizedUrl = normalizeUrl(card.url);
-    console.log(
-      `[linkMetadata] Extracting metadata for card ${cardId}, URL: ${normalizedUrl}`,
-    );
 
     try {
-      console.log(
-        `[linkMetadata] Calling Kernel Playwright with ${SCRAPE_ELEMENTS.length} selectors`,
-      );
-      const startedAt = Date.now();
-
       const payload = await scrapeWithKernel(normalizedUrl, SCRAPE_ELEMENTS);
-
-      console.log(
-        `[linkMetadata] Kernel response received in ${Date.now() - startedAt}ms`,
-      );
 
       if (!payload.success) {
         const errorMessage = payload.errors
@@ -249,15 +230,6 @@ export const fetchMetadata = internalAction({
         cardId,
         linkPreview,
         status: "completed",
-      });
-
-      console.log(`[linkMetadata] Metadata extracted for card ${cardId}`, {
-        title: Boolean(linkPreview.title),
-        description: Boolean(linkPreview.description),
-        image: Boolean(linkPreview.imageUrl),
-        favicon: Boolean(linkPreview.faviconUrl),
-        siteName: Boolean(linkPreview.siteName),
-        finalUrl: linkPreview.finalUrl,
       });
 
       // Note: Do NOT call startCardProcessingWorkflow here.

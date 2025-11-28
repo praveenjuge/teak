@@ -4,8 +4,6 @@ import { TRANSCRIPTION_MODEL } from "../../ai/models";
 // Generate transcript for audio content
 export const generateTranscript = async (audioUrl: string, mimeHint?: string) => {
   try {
-    console.log("Starting audio transcription for:", audioUrl);
-
     // Fetch the audio so we can provide a proper filename and mime type
     const response = await fetch(audioUrl);
     if (!response.ok) {
@@ -16,7 +14,6 @@ export const generateTranscript = async (audioUrl: string, mimeHint?: string) =>
 
     const mimeType =
       mimeHint || response.headers.get("content-type") || "audio/webm";
-    console.log("Transcription mimeType/ext hint:", mimeType);
 
     // Infer a reasonable file extension based on the mime type
     const _ext =
@@ -44,7 +41,6 @@ export const generateTranscript = async (audioUrl: string, mimeHint?: string) =>
       audio: new Uint8Array(arrayBuffer),
     });
 
-    console.log("Audio transcription completed successfully");
     return text;
   } catch (error) {
     console.error("Error generating transcript:", error);

@@ -9,8 +9,6 @@ import type { AiMetadataResult, AiMetadataWorkflowArgs } from "./types";
 // Typed internal reference map for workflow helpers
 const internalWorkflow = internal as Record<string, any>;
 
-const AI_METADATA_LOG_PREFIX = "[workflow/aiMetadata]";
-
 const resolveCardType = async (
   step: any,
   args: AiMetadataWorkflowArgs,
@@ -26,7 +24,7 @@ const resolveCardType = async (
 
   if (!card?.type) {
     throw new Error(
-      `${AI_METADATA_LOG_PREFIX} Unable to resolve card type for ${args.cardId}`,
+      `Unable to resolve card type for ${args.cardId}`,
     );
   }
 
@@ -46,23 +44,11 @@ export const aiMetadataWorkflow = workflow.define({
   }),
   handler: async (step, args): Promise<AiMetadataResult> => {
     const cardType = await resolveCardType(step, args);
-    console.info(`${AI_METADATA_LOG_PREFIX} Starting`, {
-      cardId: args.cardId,
-      cardType,
-    });
 
     const result = await step.runAction(
       internalWorkflow["workflows/steps/metadata"].generate,
       { cardId: args.cardId, cardType },
     );
-
-    console.info(`${AI_METADATA_LOG_PREFIX} Completed`, {
-      cardId: args.cardId,
-      cardType,
-      tags: result.aiTags.length,
-      hasSummary: !!result.aiSummary,
-      hasTranscript: !!result.aiTranscript,
-    });
 
     return result;
   },

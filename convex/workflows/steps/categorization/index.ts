@@ -19,8 +19,6 @@ import { v } from "convex/values";
 import { internalAction } from "../../../_generated/server";
 import { internal } from "../../../_generated/api";
 
-const CATEGORIZE_LOG_PREFIX = "[workflow/categorize]";
-
 const MAX_FETCH_BODY_SIZE = 250_000;
 const STRUCTURED_DATA_MAX_ITEMS = 8;
 const STRUCTURED_DATA_FIELDS = [
@@ -122,21 +120,6 @@ export const classifyLinkCategory = async (
     title: linkPreview?.title || linkPreview?.description,
   });
 
-  if (resolution.reason === "fallback") {
-    console.info(`${CATEGORIZE_LOG_PREFIX} Falling back to 'other' category`, {
-      cardId: card._id,
-      url: targetUrl,
-    });
-  } else {
-    console.info(`${CATEGORIZE_LOG_PREFIX} Deterministic category resolved`, {
-      cardId: card._id,
-      url: targetUrl,
-      category: resolution.category,
-      reason: resolution.reason,
-      rule: resolution.rule,
-    });
-  }
-
   return {
     category: resolution.category,
     confidence: resolution.confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE,
@@ -193,10 +176,8 @@ const parseStructuredData = (html: string): StructuredDataResult => {
           }
         }
       }
-    } catch (error) {
-      console.warn(`${CATEGORIZE_LOG_PREFIX} Failed to parse JSON-LD block`, {
-        error,
-      });
+    } catch {
+      // Skip invalid JSON-LD blocks
     }
   }
 
@@ -214,29 +195,17 @@ const fetchStructuredData = async (url: string): Promise<StructuredDataResult | 
     });
 
     if (!response.ok) {
-      console.warn(`${CATEGORIZE_LOG_PREFIX} Structured data fetch failed`, {
-        url,
-        status: response.status,
-      });
       return null;
     }
 
     const contentType = response.headers.get("content-type") || "";
     if (!contentType.includes("text/html")) {
-      console.info(`${CATEGORIZE_LOG_PREFIX} Skipping structured data (non-HTML)`, {
-        url,
-        contentType,
-      });
       return null;
     }
 
     const contentLengthHeader = response.headers.get("content-length");
     const contentLength = contentLengthHeader ? Number(contentLengthHeader) : undefined;
     if (contentLength && contentLength > MAX_FETCH_BODY_SIZE * 2) {
-      console.info(`${CATEGORIZE_LOG_PREFIX} Skipping structured data (too large)`, {
-        url,
-        contentLength,
-      });
       return null;
     }
 
@@ -256,11 +225,7 @@ const fetchStructuredData = async (url: string): Promise<StructuredDataResult | 
       fetchedAt: Date.now(),
     };
     return parsed;
-  } catch (error) {
-    console.warn(`${CATEGORIZE_LOG_PREFIX} Structured data fetch error`, {
-      url,
-      error,
-    });
+  } catch {
     return null;
   }
 };
@@ -721,22 +686,15 @@ export const classifyStep: any = internalAction({
     shouldFetchStructured: v.boolean(),
   }),
   handler: async (ctx, { cardId }) => {
-    console.info(`${CATEGORIZE_LOG_PREFIX} classifyStep`, { cardId });
-
     const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
       cardId,
     });
 
     if (!card) {
-      console.warn(`${CATEGORIZE_LOG_PREFIX} Card not found`, { cardId });
       throw new Error(`Card ${cardId} not found for categorization`);
     }
 
     if (card.type !== "link") {
-      console.warn(`${CATEGORIZE_LOG_PREFIX} Not a link card`, {
-        cardId,
-        cardType: card.type,
-      });
       throw new Error(`Card ${cardId} is not a link card (type: ${card.type})`);
     }
 
@@ -767,11 +725,6 @@ export const classifyStep: any = internalAction({
       sourceUrl === cachedSourceUrl &&
       metadataFresh
     ) {
-      console.info(`${CATEGORIZE_LOG_PREFIX} Skipping classification (cached)`, {
-        cardId,
-        category: existingMetadata.category,
-      });
-
       return {
         mode: "skipped" as const,
         card: contextCard,
@@ -784,7 +737,6 @@ export const classifyStep: any = internalAction({
 
     const classification = await classifyLinkCategory(contextCard, sourceUrl);
     if (!classification) {
-      console.warn(`${CATEGORIZE_LOG_PREFIX} Classification failed`, { cardId });
       throw new Error(`Failed to classify link category for card ${cardId}`);
     }
 
@@ -818,12 +770,6 @@ export const fetchStructuredDataStep: any = internalAction({
     structuredData: v.optional(v.any()),
   }),
   handler: async (_ctx, { cardId, sourceUrl, shouldFetch }) => {
-    console.info(`${CATEGORIZE_LOG_PREFIX} fetchStructuredDataStep`, {
-      cardId,
-      sourceUrl,
-      shouldFetch,
-    });
-
     if (!shouldFetch || !sourceUrl) {
       return { structuredData: null };
     }
@@ -852,11 +798,6 @@ export const mergeAndSaveStep: any = internalAction({
     factsCount: v.number(),
   }),
   handler: async (ctx, { cardId, card, sourceUrl, mode, classification, existingMetadata, structuredData, notifyPipeline, triggeredAsync }) => {
-    console.info(`${CATEGORIZE_LOG_PREFIX} mergeAndSaveStep`, {
-      cardId,
-      mode,
-    });
-
     if (mode === "skipped") {
       if (!existingMetadata) {
         throw new Error(
@@ -892,13 +833,6 @@ export const mergeAndSaveStep: any = internalAction({
         structuredData,
       }
     );
-    console.info(`${CATEGORIZE_LOG_PREFIX} Enrichment complete`, {
-      cardId,
-      provider: metadata.detectedProvider,
-      facts: metadata.facts?.length ?? 0,
-      hasImage: !!metadata.imageUrl,
-      sourceUrl,
-    });
 
     await ctx.runMutation(
       (internal as any)["workflows/steps/categorization/mutations"].updateCategorization,

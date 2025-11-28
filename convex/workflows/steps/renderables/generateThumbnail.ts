@@ -61,32 +61,24 @@ export const generateThumbnail = internalAction({
       });
 
       if (!card) {
-        console.log(`Card ${args.cardId} not found, skipping thumbnail generation`);
         return null;
       }
 
       // Only generate thumbnails for image cards
       if (card.type !== "image" || !card.fileId) {
-        console.log(`Card ${args.cardId} is not an image or has no fileId, skipping thumbnail generation`);
         return null;
       }
 
       // Skip if thumbnail already exists
       if (card.thumbnailId) {
-        console.log(`Card ${args.cardId} already has a thumbnail, skipping generation`);
         return null;
       }
 
       // Get the original image URL from storage
       const originalImageUrl = await ctx.storage.getUrl(card.fileId);
       if (!originalImageUrl) {
-        console.log(`No URL available for file ${card.fileId}, skipping thumbnail generation`);
         return null;
       }
-
-      console.log(`Generating thumbnail for card ${args.cardId} from image ${card.fileId}`);
-
-      console.log(`Creating thumbnail from original image for card ${args.cardId}`);
 
       const inputBytes = await fetch(originalImageUrl)
         .then((res) => res.arrayBuffer())
@@ -99,14 +91,11 @@ export const generateThumbnail = internalAction({
       const originalHeight = inputImage.get_height();
       const fileSizeBytes = inputBytes.byteLength;
 
-      console.log(`Original image dimensions: ${originalWidth}x${originalHeight}, size: ${Math.round(fileSizeBytes / 1024)}KB`);
-
       // Get output settings based on file size (primary logic for thumbnail optimization)
       const { quality, useJpeg, skipThumbnail } = getOutputSettings(fileSizeBytes);
 
       // Skip thumbnail generation for very small files
       if (skipThumbnail) {
-        console.log(`File is too small (${Math.round(fileSizeBytes / 1024)}KB), skipping thumbnail generation`);
         return null;
       }
 
@@ -135,11 +124,8 @@ export const generateThumbnail = internalAction({
         targetWidth = Math.round(targetHeight * aspectRatio);
       }
 
-      console.log(`Target dimensions: ${targetWidth}x${targetHeight}, output: ${useJpeg ? "JPEG" : "WebP"} (quality: ${quality})`);
-
       // Always resize to thumbnail dimensions (let compression do the heavy lifting for size reduction)
       const outputImage = resize(inputImage, targetWidth, targetHeight, SamplingFilter.Nearest);
-      console.log(`Resized image from ${originalWidth}x${originalHeight} to ${targetWidth}x${targetHeight}`);
 
       // Generate output bytes with appropriate format and quality
       const outputBytes = useJpeg ? outputImage.get_bytes_jpeg(quality) : outputImage.get_bytes_webp();
@@ -167,8 +153,6 @@ export const generateThumbnail = internalAction({
           thumbnailId,
         }
       );
-
-      console.log(`Thumbnail created for card ${args.cardId} using original image`);
     } catch (error) {
       console.error(`Failed to generate thumbnail for card ${args.cardId}:`, error);
       // Don't throw - thumbnail generation failure shouldn't break the card creation flow

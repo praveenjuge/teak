@@ -19,8 +19,6 @@ import {
 } from "@teak/convex/shared/utils/colorUtils";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
 
-const CLASSIFY_LOG_PREFIX = "[workflow/classify]";
-
 const MAX_PALETTE_COLORS = 12;
 
 const STRONG_CONFIDENCE = 0.97;
@@ -291,9 +289,6 @@ const maybeUpdatePaletteColors = async (
   const colors = extractPaletteColors(text, MAX_PALETTE_COLORS);
 
   if (colors.length === 0) {
-    console.info(`${CLASSIFY_LOG_PREFIX} No deterministic palette colours found`, {
-      cardId,
-    });
     return;
   }
 
@@ -307,10 +302,6 @@ const maybeUpdatePaletteColors = async (
         colors: dbColors,
       },
     );
-    console.info(`${CLASSIFY_LOG_PREFIX} Updated palette colours`, {
-      cardId,
-      count: dbColors.length,
-    });
   }
 };
 
@@ -332,13 +323,11 @@ export const classify = internalAction({
     shouldGenerateRenderables: v.boolean(),
   }),
   handler: async (ctx, { cardId }): Promise<ClassificationWorkflowResult> => {
-    console.info(`${CLASSIFY_LOG_PREFIX} Running`, { cardId });
     const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
       cardId,
     });
 
     if (!card) {
-      console.warn(`${CLASSIFY_LOG_PREFIX} Card not found`, { cardId });
       throw new Error(`Card ${cardId} not found for classification`);
     }
 
@@ -354,11 +343,6 @@ export const classify = internalAction({
         shouldGenerateRenderables: false,
       };
 
-      console.info(`${CLASSIFY_LOG_PREFIX} Sticky quote classification`, {
-        cardId,
-        confidence,
-      });
-
       return stickyResult;
     }
 
@@ -369,9 +353,6 @@ export const classify = internalAction({
       !card.fileId;
 
     if (heuristicQuote) {
-      console.info(`${CLASSIFY_LOG_PREFIX} Heuristic quote classification`, {
-        cardId,
-      });
       await ctx.runMutation(
         (internal as any)["workflows/steps/classificationMutations"].updateClassification,
         {
@@ -395,11 +376,6 @@ export const classify = internalAction({
 
     // Deterministic classification (no external AI call)
     const { type: resultType, confidence: resultConfidence } = deterministicClassify(card);
-    console.info(`${CLASSIFY_LOG_PREFIX} Heuristic result`, {
-      cardId,
-      resultType,
-      resultConfidence,
-    });
 
     // Normalize type for URL-only cards
     const trimmedContent = typeof card.content === "string" ? card.content.trim() : "";
@@ -411,12 +387,6 @@ export const classify = internalAction({
     const normalizedType =
       urlOnlyCard && resultType !== "link" ? "link" : resultType;
     const normalizedConfidence = Math.max(0, Math.min(resultConfidence, 1));
-    console.info(`${CLASSIFY_LOG_PREFIX} Normalized result`, {
-      cardId,
-      normalizedType,
-      normalizedConfidence,
-      urlOnlyCard,
-    });
 
     // Determine if type should be updated
     const shouldForceLink = urlOnlyCard && card.type !== "link";
@@ -425,12 +395,6 @@ export const classify = internalAction({
 
     if (shouldUpdateType) {
       // Update card type via mutation
-      console.info(`${CLASSIFY_LOG_PREFIX} Updating card type`, {
-        cardId,
-        previousType: card.type,
-        nextType: normalizedType,
-        confidence: normalizedConfidence,
-      });
       await ctx.runMutation(
         (internal as any)["workflows/steps/classificationMutations"]
           .updateClassification,
@@ -462,11 +426,6 @@ export const classify = internalAction({
       shouldGenerateMetadata,
       shouldGenerateRenderables,
     };
-
-    console.info(`${CLASSIFY_LOG_PREFIX} Completed`, {
-      cardId,
-      result,
-    });
 
     return result;
   },
