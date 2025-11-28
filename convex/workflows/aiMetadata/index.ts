@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalAction } from "../../_generated/server";
+import { internalMutation } from "../../_generated/server";
 import { workflow } from "../manager";
 import { internal } from "../../_generated/api";
 import { cardTypeValidator } from "../../schema";
@@ -68,7 +68,7 @@ export const aiMetadataWorkflow = workflow.define({
   },
 });
 
-export const startAiMetadataWorkflow = internalAction({
+export const startAiMetadataWorkflow = internalMutation({
   args: {
     cardId: v.id("cards"),
     cardType: v.optional(cardTypeValidator),

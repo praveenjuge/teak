@@ -6,7 +6,6 @@
  */
 
 import { v } from "convex/values";
-import type { RetryBehavior } from "@convex-dev/workpool";
 import { internalMutation } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../shared/types";
@@ -16,11 +15,6 @@ const internalWorkflow = internal as Record<string, any>;
 
 const LOG_PREFIX = "[workflow/aiBackfill]";
 const BATCH_SIZE = 50;
-const START_PIPELINE_RETRY: RetryBehavior = {
-  maxAttempts: 5,
-  initialBackoffMs: 2000,
-  base: 2,
-};
 
 export const aiBackfillWorkflow = workflow.define({
   args: {},
@@ -50,10 +44,9 @@ export const aiBackfillWorkflow = workflow.define({
 
     for (const { cardId } of candidates) {
       try {
-        await step.runAction(
+        await step.runMutation(
           internalWorkflow["workflows/aiMetadata"].startAiMetadataWorkflow,
           { cardId, startAsync: true },
-          { retry: START_PIPELINE_RETRY },
         );
       } catch (error) {
         failedCardIds.push(cardId);
