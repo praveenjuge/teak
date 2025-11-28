@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useCardModal } from "@/hooks/useCardModal";
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { Loading } from "./Loading";
@@ -76,6 +81,9 @@ export function CardModal({
         {!card ? (
           <div className="flex flex-1 items-center justify-center">
             <DialogTitle className="sr-only">Loading...</DialogTitle>
+            <DialogDescription className="sr-only">
+              Loading card details
+            </DialogDescription>
             <Loading />
           </div>
         ) : (
@@ -83,6 +91,9 @@ export function CardModal({
             <DialogTitle className="sr-only">
               {CARD_TYPE_LABELS[card.type as CardType] || "Card"}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              View and edit card details
+            </DialogDescription>
 
             <div className="flex flex-col md:flex-row gap-0 flex-1 overflow-hidden">
               <CardModalPreview
