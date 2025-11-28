@@ -46,6 +46,20 @@ export const generate: any = internalAction({
       thumbnailGenerated = true;
     }
 
+    // Generate thumbnail for PDF documents
+    if (
+      cardType === "document" &&
+      card.fileId &&
+      card.fileMetadata?.mimeType === "application/pdf"
+    ) {
+      await ctx.runAction(
+        internal.workflows.steps.renderables.generatePdfThumbnail
+          .generatePdfThumbnail,
+        { cardId }
+      );
+      thumbnailGenerated = true;
+    }
+
     // Update processing status to mark renderables as complete
     const now = Date.now();
     const processingStatus = card.processingStatus || {};

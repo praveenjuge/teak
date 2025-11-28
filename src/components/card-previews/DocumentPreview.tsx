@@ -1,4 +1,6 @@
 import { Archive, Code, File, FileText } from "lucide-react";
+import { useQuery } from "convex-helpers/react/cache/hooks";
+import { api } from "@teak/convex";
 import { type Doc } from "@teak/convex/_generated/dataModel";
 
 // Large/rich previews for the modal
@@ -55,6 +57,12 @@ function getDocumentIcon(fileName: string, mimeType: string) {
   return <File className="size-4 text-muted-foreground" />;
 }
 
+function isPdf(fileName: string, mimeType: string): boolean {
+  const name = (fileName || "").toLowerCase();
+  const mime = (mimeType || "").toLowerCase();
+  return mime.includes("pdf") || name.endsWith(".pdf");
+}
+
 interface DocumentPreviewProps {
   card: Doc<"cards">;
 }
@@ -63,9 +71,28 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
   const fileName = card.fileMetadata?.fileName || card.content || "Document";
   const mimeType = card.fileMetadata?.mimeType || "";
 
+  const fileUrl = useQuery(
+    api.cards.getFileUrl,
+    card.fileId ? { fileId: card.fileId } : "skip"
+  );
+
+  // For PDFs, show embedded viewer
+  if (isPdf(fileName, mimeType) && fileUrl) {
+    return (
+      <div className="w-full h-full flex flex-col">
+        <iframe
+          src={fileUrl}
+          title={fileName}
+          className="w-full h-[70vh] border-0 rounded-lg"
+        />
+      </div>
+    );
+  }
+
+  // For other documents, show icon and file info
   return (
     <div className="flex items-center gap-4">
-      <div className="flex-shrink-0">{getDocumentIcon(fileName, mimeType)}</div>
+      <div className="shrink-0">{getDocumentIcon(fileName, mimeType)}</div>
       <div className="min-w-0">
         <p className="font-medium truncate">{fileName}</p>
         {mimeType && (

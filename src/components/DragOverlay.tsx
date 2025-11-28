@@ -60,12 +60,12 @@ export function DragOverlay({
               unlimited cards.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
-            <Button onClick={navigateToUpgrade} size="sm" className="gap-2">
+          <DialogFooter>
+            <Button onClick={navigateToUpgrade}>
               <Sparkles />
               Upgrade to Pro
             </Button>
-            <Button onClick={dismissUpgradePrompt} variant="outline" size="sm">
+            <Button onClick={dismissUpgradePrompt} variant="outline">
               Cancel
             </Button>
           </DialogFooter>

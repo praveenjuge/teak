@@ -265,12 +265,10 @@ export function Card({
               </div>
             )}
             {card.type === "document" && (
-              <div className="p-4 flex gap-2 items-center bg-card rounded-xl border">
-                <File className="shrink-0 size-4 text-muted-foreground" />
-                <span className="truncate font-medium">
-                  {card.fileMetadata?.fileName || card.content}
-                </span>
-              </div>
+              <GridDocumentPreview
+                thumbnailId={card.thumbnailId}
+                fileName={card.fileMetadata?.fileName || card.content}
+              />
             )}
             {card.type === "palette" &&
               (card.colors?.length ? (
@@ -414,5 +412,46 @@ function GridImagePreview({
       alt={altText}
       className="w-full object-cover bg-card rounded-xl border"
     />
+  );
+}
+
+function GridDocumentPreview({
+  thumbnailId,
+  fileName,
+}: {
+  thumbnailId?: Id<"_storage"> | undefined;
+  fileName?: string;
+}) {
+  // Only fetch thumbnail URL if we have a thumbnailId
+  const thumbnailUrl = useQuery(
+    api.cards.getFileUrl,
+    thumbnailId ? { fileId: thumbnailId } : "skip"
+  );
+
+  // If we have a thumbnail, show the thumbnail image with filename overlay
+  if (thumbnailId && thumbnailUrl) {
+    return (
+      <div className="rounded-xl border bg-card overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={thumbnailUrl}
+          alt={`Preview of ${fileName || "document"}`}
+          className="w-full object-contain bg-muted"
+          loading="lazy"
+        />
+        <div className="px-4 py-3 border-t flex gap-2 items-center">
+          <File className="shrink-0 size-4 text-muted-foreground" />
+          <span className="truncate font-medium text-sm">{fileName}</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback: show icon-based display (for non-PDF documents or if thumbnail not ready)
+  return (
+    <div className="p-4 flex gap-2 items-center bg-card rounded-xl border">
+      <File className="shrink-0 size-4 text-muted-foreground" />
+      <span className="truncate font-medium">{fileName}</span>
+    </div>
   );
 }
