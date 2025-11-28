@@ -2,7 +2,10 @@
  * Renderables Generation Step
  *
  * Workflow step that generates thumbnails and other visual assets for cards.
- * Currently handles image card thumbnail generation.
+ * Handles thumbnail generation for:
+ * - Image cards (using @cf-wasm/photon for resizing)
+ * - Video cards (using @onkernel/sdk with native HTML5 video + canvas APIs)
+ * - PDF documents (using @onkernel/sdk with pdf.js for rendering)
  */
 
 "use node";
@@ -41,6 +44,16 @@ export const generate: any = internalAction({
     if (cardType === "image" && card.fileId) {
       await ctx.runAction(
         internal.workflows.steps.renderables.generateThumbnail.generateThumbnail,
+        { cardId }
+      );
+      thumbnailGenerated = true;
+    }
+
+    // Generate thumbnail for video cards using MediaBunny
+    if (cardType === "video" && card.fileId) {
+      await ctx.runAction(
+        internal.workflows.steps.renderables.generateVideoThumbnail
+          .generateVideoThumbnail,
         { cardId }
       );
       thumbnailGenerated = true;

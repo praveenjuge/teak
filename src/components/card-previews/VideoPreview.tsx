@@ -15,7 +15,12 @@ export function VideoPreview({ card }: VideoPreviewProps) {
   if (!fileUrl) return null;
 
   return (
-    <video controls className="w-full bg-black max-h-[70vh]" preload="metadata">
+    <video
+      controls
+      className="w-full bg-black h-full object-contain rounded-lg"
+      preload="metadata"
+      autoPlay
+    >
       <source src={fileUrl} type={card.fileMetadata?.mimeType} />
       Your browser does not support the video tag.
     </video>

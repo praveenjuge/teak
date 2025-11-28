@@ -246,9 +246,10 @@ export function Card({
               />
             )}
             {card.type === "video" && (
-              <div className="w-full h-32 flex items-center justify-center bg-muted text-muted-foreground rounded-xl border">
-                <PlayCircle />
-              </div>
+              <GridVideoPreview
+                fileId={card.fileId}
+                thumbnailId={card.thumbnailId}
+              />
             )}
             {card.type === "audio" && (
               <div className="flex h-14 items-center justify-between space-x-0.5 px-4 py-2 bg-card rounded-xl border">
@@ -452,6 +453,47 @@ function GridDocumentPreview({
     <div className="p-4 flex gap-2 items-center bg-card rounded-xl border">
       <File className="shrink-0 size-4 text-muted-foreground" />
       <span className="truncate font-medium">{fileName}</span>
+    </div>
+  );
+}
+
+function GridVideoPreview({
+  fileId,
+  thumbnailId,
+}: {
+  fileId: Id<"_storage"> | undefined;
+  thumbnailId?: Id<"_storage"> | undefined;
+}) {
+  // Prefer thumbnail over video file for grid display
+  const thumbnailUrl = useQuery(
+    api.cards.getFileUrl,
+    thumbnailId ? { fileId: thumbnailId } : "skip"
+  );
+
+  // If we have a thumbnail, show it with a play icon overlay
+  if (thumbnailId && thumbnailUrl) {
+    return (
+      <div className="relative rounded-xl border bg-card overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={thumbnailUrl}
+          alt="Video thumbnail"
+          className="w-full object-cover"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+          <div className="rounded-full bg-black/50 p-2">
+            <PlayCircle className="size-8 text-white" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback: show icon-based display (if thumbnail not ready)
+  return (
+    <div className="w-full h-32 flex items-center justify-center bg-black text-white rounded-xl border">
+      <PlayCircle className="size-8" />
     </div>
   );
 }
