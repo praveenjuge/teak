@@ -3,7 +3,6 @@ import { Loader2, ArrowRight } from "lucide-react";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
 import { useContextMenuSave } from "../../hooks/useContextMenuSave";
 import { useWebAppSession } from "../../hooks/useWebAppSession";
-import { authClient } from "../../lib/auth-client";
 import { getAuthErrorMessage } from "../../utils/getAuthErrorMessage";
 
 // Error code constant for card limit - should match convex/shared/constants.ts

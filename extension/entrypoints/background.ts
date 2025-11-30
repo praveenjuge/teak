@@ -11,7 +11,9 @@ function isRestrictedUrl(url?: string): boolean {
     'edge-extension://',
     'about:',
     'data:',
-    'file://'
+    'file://',
+    'view-source:',
+    'filesystem:'
   ];
 
   return restrictedPrefixes.some(prefix => url.startsWith(prefix));
