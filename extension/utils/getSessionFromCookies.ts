@@ -7,16 +7,24 @@ export async function getSessionTokenFromCookies(): Promise<string | null> {
     ? "http://localhost:3000"
     : "https://app.teakvault.com";
 
+  // Cookie names differ between dev and prod:
+  // - Dev (HTTP): "better-auth.session_token"
+  // - Prod (HTTPS): "__Secure-better-auth.session_token"
+  const cookieName = import.meta.env.DEV
+    ? "better-auth.session_token"
+    : "__Secure-better-auth.session_token";
+
   try {
-    // Better Auth uses 'better-auth.session_token' as the cookie name
     const cookie = await chrome.cookies.get({
       url,
-      name: "better-auth.session_token",
+      name: cookieName,
     });
+
+    console.log("[getSessionTokenFromCookies] Cookie lookup for", cookieName, ":", cookie ? "found" : "not found");
 
     return cookie?.value ?? null;
   } catch (error) {
-    console.error("Failed to get session cookie:", error);
+    console.error("[getSessionTokenFromCookies] Failed to get session cookie:", error);
     return null;
   }
 }
