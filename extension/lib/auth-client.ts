@@ -1,10 +1,11 @@
 import { createAuthClient } from "better-auth/react";
-import {
-  convexClient,
-  crossDomainClient,
-} from "@convex-dev/better-auth/client/plugins";
+import { convexClient } from "@convex-dev/better-auth/client/plugins";
+
+const baseURL = import.meta.env.DEV
+  ? "http://localhost:3000"
+  : "https://app.teakvault.com";
 
 export const authClient = createAuthClient({
-  baseURL: import.meta.env.VITE_PUBLIC_CONVEX_SITE_URL!,
-  plugins: [convexClient(), crossDomainClient()],
+  baseURL,
+  plugins: [convexClient()],
 });
