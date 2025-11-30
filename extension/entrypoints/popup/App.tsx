@@ -1,10 +1,66 @@
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowRight } from "lucide-react";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
 import { useContextMenuSave } from "../../hooks/useContextMenuSave";
 import { useWebAppSession } from "../../hooks/useWebAppSession";
 import { authClient } from "../../lib/auth-client";
 import { getAuthErrorMessage } from "../../utils/getAuthErrorMessage";
+
+// Error code constant for card limit - should match convex/shared/constants.ts
+const CARD_LIMIT_REACHED_CODE = "CARD_LIMIT_REACHED";
+
+// Helper to check if an error is the card limit error
+function isCardLimitError(errorMessage: string | undefined): boolean {
+  return !!errorMessage && errorMessage.includes(CARD_LIMIT_REACHED_CODE);
+}
+
+// Upgrade prompt component for when free tier limit is reached
+function UpgradePrompt() {
+  const baseUrl = import.meta.env.DEV
+    ? "http://localhost:3000"
+    : "https://app.teakvault.com";
+
+  const handleUpgradeClick = () => {
+    chrome.tabs.create({ url: `${baseUrl}/settings` });
+    window.close();
+  };
+
+  return (
+    <div className="w-96 min-h-96 flex flex-col items-center justify-center gap-3 p-6 text-center">
+      <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+        <svg
+          className="w-5 h-5 text-amber-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          />
+        </svg>
+      </div>
+      <div className="space-y-1">
+        <p className="text-sm font-medium text-gray-900">
+          You&apos;ve reached your free tier limit.
+        </p>
+        <p className="text-xs text-gray-600">
+          Upgrade to Pro for unlimited cards.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={handleUpgradeClick}
+        className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
+      >
+        Upgrade to Pro
+        <ArrowRight className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
 
 type SessionUser = {
   id: string;
@@ -201,6 +257,10 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
           </div>
         );
       case "error":
+        // Show upgrade prompt for card limit errors
+        if (isCardLimitError(contextMenuState.error)) {
+          return <UpgradePrompt />;
+        }
         return (
           <div className="w-96 min-h-96 flex flex-col items-center justify-center gap-1 p-3">
             <div className="flex items-center justify-center gap-2">
@@ -260,6 +320,10 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
           </div>
         );
       case "error":
+        // Show upgrade prompt for card limit errors
+        if (isCardLimitError(error)) {
+          return <UpgradePrompt />;
+        }
         return (
           <div className="w-96 min-h-96 flex flex-col items-center justify-center gap-1 p-3">
             <div className="flex items-center justify-center gap-2">
