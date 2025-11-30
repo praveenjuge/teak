@@ -45,13 +45,10 @@ export function useWebAppSession(): UseWebAppSessionResult {
         return;
       }
 
-      // Fetch the session from the web app with the cookie
+      // Let the browser include the Better Auth cookie; setting Cookie manually is forbidden in extension fetch.
       const response = await fetch(`${baseURL}/api/auth/get-session`, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Cookie": `better-auth.session_token=${token}`,
-        },
+        credentials: "include",
       });
 
       if (!response.ok) {
