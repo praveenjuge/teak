@@ -19,7 +19,7 @@ function App() {
 
   if (isPending) {
     return (
-      <div className="size-96 flex items-center justify-center">
+      <div className="w-96 min-h-96 flex items-center justify-center">
         <Loader2 className="w-6 h-6 text-red-600 animate-spin" />
       </div>
     );
@@ -52,7 +52,7 @@ function SessionErrorState({
   onRetry: () => void;
 }) {
   return (
-    <div className="size-96 flex flex-col items-center justify-center gap-4 p-5 text-center">
+    <div className="w-96 min-h-96 flex flex-col items-center justify-center gap-4 p-5 text-center">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="./icon.svg" alt="Teak Logo" className="h-6" />
       <p className="text-sm text-red-600">{message}</p>
@@ -145,67 +145,11 @@ function AuthPanel() {
   const buttonLabel = isSubmitting ? "Signing in..." : "Sign in";
 
   return (
-    <div className="size-96 flex flex-col items-center justify-center gap-5 p-5 text-center">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="./icon.svg" alt="Teak Logo" className="h-6" />
-      <div className="space-y-1">
+    <div className="w-96 min-h-96 flex flex-col items-center justify-center gap-5 p-6 text-center">
+      <div className="space-y-3 flex flex-col items-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="./icon.svg" alt="Teak Logo" className="h-5" />
         <h1 className="text-base font-semibold">Save Anything. Anywhere.</h1>
-        <p className="text-sm text-gray-500 text-balance">
-          Your personal everything management system. Organize, save, and access
-          all your text, images, and documents in one place.
-        </p>
-      </div>
-
-      <form className="w-full space-y-3 text-left" onSubmit={handleSubmit}>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-gray-600" htmlFor="email">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-200"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label
-            className="text-xs font-medium text-gray-600"
-            htmlFor="password"
-          >
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-200"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </div>
-
-        {errorMessage && <p className="text-xs text-red-600">{errorMessage}</p>}
-
-        <button
-          type="submit"
-          disabled={isSubmitDisabled}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          {buttonLabel}
-        </button>
-      </form>
-
-      <div className="relative my-4 flex items-center">
-        <div className="flex-1 border-t border-gray-200" />
-        <span className="px-3 text-xs uppercase text-gray-500">
-          or continue with
-        </span>
-        <div className="flex-1 border-t border-gray-200" />
       </div>
 
       <button
@@ -238,6 +182,56 @@ function AuthPanel() {
         )}
         {isGoogleLoading ? "Signing in..." : "Continue with Google"}
       </button>
+
+      <div className="relative flex items-center">
+        <div className="flex-1 border-t border-gray-200" />
+        <span className="px-3 text-sm text-gray-500">Or login with email</span>
+        <div className="flex-1 border-t border-gray-200" />
+      </div>
+
+      <form className="w-full space-y-3 text-left" onSubmit={handleSubmit}>
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-gray-600" htmlFor="email">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label
+            className="text-sm font-medium text-gray-600"
+            htmlFor="password"
+          >
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </div>
+
+        {errorMessage && <p className="text-xs text-red-600">{errorMessage}</p>}
+
+        <button
+          type="submit"
+          disabled={isSubmitDisabled}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+          {buttonLabel}
+        </button>
+      </form>
     </div>
   );
 }
@@ -301,14 +295,14 @@ function AuthenticatedPopup({ user }: { user: SessionData["user"] }) {
     switch (contextMenuState.status) {
       case "saving":
         return (
-          <div className="size-96 flex items-center justify-center gap-2 p-3">
+          <div className="w-96 min-h-96 flex items-center justify-center gap-2 p-3">
             <Loader2 className="w-4 h-4 text-red-600 animate-spin" />
             <span className="text-sm text-red-700">Saving to Teak...</span>
           </div>
         );
       case "success":
         return (
-          <div className="size-96 flex items-center justify-center gap-2 p-3">
+          <div className="w-96 min-h-96 flex items-center justify-center gap-2 p-3">
             <svg
               className="w-4 h-4 text-green-500"
               fill="none"
@@ -329,7 +323,7 @@ function AuthenticatedPopup({ user }: { user: SessionData["user"] }) {
         );
       case "error":
         return (
-          <div className="size-96 flex flex-col items-center justify-center gap-1 p-3">
+          <div className="w-96 min-h-96 flex flex-col items-center justify-center gap-1 p-3">
             <div className="flex items-center justify-center gap-2">
               <svg
                 className="w-4 h-4 text-red-600"
@@ -362,14 +356,14 @@ function AuthenticatedPopup({ user }: { user: SessionData["user"] }) {
     switch (state) {
       case "loading":
         return (
-          <div className="size-96 flex items-center justify-center gap-2 p-3">
+          <div className="w-96 min-h-96 flex items-center justify-center gap-2 p-3">
             <Loader2 className="w-4 h-4 text-red-600 animate-spin" />
             <span className="text-sm text-red-700">Adding to Teak...</span>
           </div>
         );
       case "success":
         return (
-          <div className="size-96 flex items-center justify-center gap-2 p-3">
+          <div className="w-96 min-h-96 flex items-center justify-center gap-2 p-3">
             <svg
               className="w-4 h-4 text-green-500"
               fill="none"
@@ -388,7 +382,7 @@ function AuthenticatedPopup({ user }: { user: SessionData["user"] }) {
         );
       case "error":
         return (
-          <div className="size-96 flex flex-col items-center justify-center gap-1 p-3">
+          <div className="w-96 min-h-96 flex flex-col items-center justify-center gap-1 p-3">
             <div className="flex items-center justify-center gap-2">
               <svg
                 className="w-4 h-4 text-red-600"
@@ -410,7 +404,7 @@ function AuthenticatedPopup({ user }: { user: SessionData["user"] }) {
         );
       case "invalid-url":
         return (
-          <div className="size-96 flex items-center justify-center gap-2 p-3">
+          <div className="w-96 min-h-96 flex items-center justify-center gap-2 p-3">
             <svg
               className="w-4 h-4 text-gray-500"
               fill="none"
@@ -435,7 +429,7 @@ function AuthenticatedPopup({ user }: { user: SessionData["user"] }) {
   };
 
   return (
-    <div className="size-96 relative">
+    <div className="w-96 min-h-96 relative">
       <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between gap-2 p-3">
         <a
           href="https://app.teakvault.com"
