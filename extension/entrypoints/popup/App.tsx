@@ -192,22 +192,6 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
     }
   }, [state, isRecentSave, contextMenuState.status]);
 
-  const handleSignOut = async () => {
-    if (signOutLoading) return;
-    setSignOutLoading(true);
-    setSignOutError(null);
-
-    try {
-      await authClient.signOut();
-    } catch (error) {
-      setSignOutError(
-        getAuthErrorMessage(error, "Unable to sign out. Please try again.")
-      );
-    } finally {
-      setSignOutLoading(false);
-    }
-  };
-
   const renderStatus = () => {
     if (isRecentSave) {
       return renderContextMenuStatus();
@@ -384,19 +368,8 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
           <img src="./icon.svg" alt="Teak Logo" className="h-4" />
         </a>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1">
-            {user?.email}
-          </div>
-          <button
-            type="button"
-            onClick={handleSignOut}
-            disabled={signOutLoading}
-            className="flex items-center gap-2 rounded-md border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-          >
-            {signOutLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Sign out
-          </button>
+        <div className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1">
+          {user?.email}
         </div>
       </div>
 
