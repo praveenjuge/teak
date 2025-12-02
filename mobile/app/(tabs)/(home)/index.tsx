@@ -1,17 +1,23 @@
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
-import { CardsGrid } from '../../components/CardsGrid';
-import { SearchInput } from '../../components/SearchInput';
+import { useState } from "react";
+import { StyleSheet, View } from "react-native";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { CardsGrid } from "@/components/CardsGrid";
+import { SearchInput } from "@/components/SearchInput";
+import { Stack } from "expo-router";
 
 export default function HomeScreen() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string | undefined>();
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 200);
 
   return (
     <>
-      <SearchInput 
+      <Stack.Screen
+        options={{
+          title: "Home",
+        }}
+      />
+      <SearchInput
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         selectedType={selectedType}

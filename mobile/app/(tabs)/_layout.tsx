@@ -1,65 +1,24 @@
-import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
+import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
+import { colors } from "@/constants/colors";
 
 export default function TabLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        tabBarHideOnKeyboard: true,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size, focused }) => (
-            <IconSymbol
-              color={color}
-              name={focused ? 'house.fill' : 'house'}
-              size={size}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="add"
-        options={{
-          title: 'Add Card',
-          tabBarLabel: 'Add',
-          tabBarIcon: ({ color, size, focused }) => (
-            <IconSymbol
-              color={color}
-              name={focused ? 'plus.circle.fill' : 'plus.circle'}
-              size={size}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, size, focused }) => (
-            <IconSymbol
-              color={color}
-              name={focused ? 'gearshape.fill' : 'gearshape'}
-              size={size}
-            />
-          ),
-        }}
-      />
-    </Tabs>
+    <NativeTabs tintColor={colors.primary}>
+      <NativeTabs.Trigger name="(home)">
+        <Label selectedStyle={{ color: colors.primary }}>Home</Label>
+        <Icon selectedColor={colors.primary} sf="house.fill" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="add">
+        <Label selectedStyle={{ color: colors.primary }}>Add</Label>
+        <Icon selectedColor={colors.primary} sf="plus.circle.fill" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="settings">
+        <Label selectedStyle={{ color: colors.primary }}>Settings</Label>
+        <Icon selectedColor={colors.primary} sf="gearshape.fill" />
+      </NativeTabs.Trigger>
+      {/* <NativeTabs.Trigger name="search" role="search">
+        <Label>Search</Label>
+      </NativeTabs.Trigger> */}
+    </NativeTabs>
   );
 }

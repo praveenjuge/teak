@@ -18,16 +18,16 @@ import {
   View,
 } from "react-native";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
-import { router } from "expo-router";
-import { useCreateCard } from "../../lib/hooks/useCardOperations";
-import { useFileUpload } from "../../lib/hooks/useFileUpload";
-import { IconSymbol } from "../../components/ui/IconSymbol";
-import { borderWidths, colors } from "../../constants/colors";
+import { router, Stack } from "expo-router";
+import { useCreateCard } from "../../../lib/hooks/useCardOperations";
+import { useFileUpload } from "../../../lib/hooks/useFileUpload";
+import { IconSymbol } from "../../../components/ui/IconSymbol";
+import { borderWidths, colors } from "../../../constants/colors";
 import {
   setFeedbackStatus,
   subscribeFeedbackStatus,
   type FeedbackStatusPayload,
-} from "../../lib/feedbackBridge";
+} from "../../../lib/feedbackBridge";
 
 export default function AddScreen() {
   const [content, setContent] = useState("");
@@ -361,106 +361,113 @@ export default function AddScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1 }}
-    >
-      <ScrollView
-        contentContainerStyle={{ flex: 1 }}
-        keyboardShouldPersistTaps="handled"
+    <>
+      <Stack.Screen
+        options={{
+          title: "Add",
+        }}
+      />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
-        <TextInput
-          autoCapitalize="sentences"
-          autoCorrect={true}
-          editable={!uploadState.isUploading && !isSavingCard}
-          multiline
-          onChangeText={setContent}
-          placeholder="Enter your bookmark, URL, or note"
-          ref={textInputRef}
-          style={{
-            borderWidth: borderWidths.hairline,
-            borderColor: colors.border,
-            padding: 16,
-            backgroundColor: colors.background,
-            minHeight: 150,
-            textAlignVertical: "top",
-            color: colors.label,
-            marginTop: 16,
-            marginHorizontal: 16,
-            borderRadius: 12,
-          }}
-          value={content}
-        />
-
-        <View style={{ flexDirection: "row", margin: 16, gap: 8 }}>
-          <TouchableOpacity
-            disabled={uploadState.isUploading || isSavingCard}
-            onPress={handleFilePicker}
+        <ScrollView
+          contentContainerStyle={{ flex: 1 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <TextInput
+            autoCapitalize="sentences"
+            autoCorrect={true}
+            editable={!uploadState.isUploading && !isSavingCard}
+            multiline
+            onChangeText={setContent}
+            placeholder="Enter your bookmark, URL, or note"
+            ref={textInputRef}
             style={{
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 12,
-              backgroundColor: colors.background,
               borderWidth: borderWidths.hairline,
               borderColor: colors.border,
-              width: 50,
-              height: 50,
-              opacity: uploadState.isUploading || isSavingCard ? 0.5 : 1,
-            }}
-          >
-            <IconSymbol
-              color={colors.secondaryLabel}
-              name="paperclip"
-              size={20}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            disabled={uploadState.isUploading || isSavingCard}
-            onPress={startRecording}
-            style={{
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 12,
+              padding: 16,
               backgroundColor: colors.background,
-              borderWidth: borderWidths.hairline,
-              borderColor: colors.border,
-              width: 50,
-              height: 50,
-              opacity: uploadState.isUploading || isSavingCard ? 0.5 : 1,
-            }}
-          >
-            <IconSymbol
-              color={colors.secondaryLabel}
-              name="mic.fill"
-              size={20}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            disabled={
-              uploadState.isUploading || isSavingCard || !content.trim()
-            }
-            onPress={handleSave}
-            style={{
-              flex: 1,
+              minHeight: 150,
+              textAlignVertical: "top",
+              color: colors.label,
+              marginTop: 16,
+              marginHorizontal: 16,
               borderRadius: 12,
-              height: 50,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: colors.primary,
-              opacity:
+            }}
+            value={content}
+          />
+
+          <View style={{ flexDirection: "row", margin: 16, gap: 8 }}>
+            <TouchableOpacity
+              disabled={uploadState.isUploading || isSavingCard}
+              onPress={handleFilePicker}
+              style={{
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 12,
+                backgroundColor: colors.background,
+                borderWidth: borderWidths.hairline,
+                borderColor: colors.border,
+                width: 50,
+                height: 50,
+                opacity: uploadState.isUploading || isSavingCard ? 0.5 : 1,
+              }}
+            >
+              <IconSymbol
+                color={colors.secondaryLabel}
+                name="paperclip"
+                size={20}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              disabled={uploadState.isUploading || isSavingCard}
+              onPress={startRecording}
+              style={{
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 12,
+                backgroundColor: colors.background,
+                borderWidth: borderWidths.hairline,
+                borderColor: colors.border,
+                width: 50,
+                height: 50,
+                opacity: uploadState.isUploading || isSavingCard ? 0.5 : 1,
+              }}
+            >
+              <IconSymbol
+                color={colors.secondaryLabel}
+                name="mic.fill"
+                size={20}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              disabled={
                 uploadState.isUploading || isSavingCard || !content.trim()
-                  ? 0.3
-                  : 1,
-            }}
-          >
-            <Text style={{ fontWeight: "600", color: colors.adaptiveWhite }}>
-              {uploadState.isUploading || isSavingCard ? "Saving..." : "Save"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+              }
+              onPress={handleSave}
+              style={{
+                flex: 1,
+                borderRadius: 12,
+                height: 50,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: colors.primary,
+                opacity:
+                  uploadState.isUploading || isSavingCard || !content.trim()
+                    ? 0.3
+                    : 1,
+              }}
+            >
+              <Text style={{ fontWeight: "600", color: colors.adaptiveWhite }}>
+                {uploadState.isUploading || isSavingCard ? "Saving..." : "Save"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </>
   );
 }
