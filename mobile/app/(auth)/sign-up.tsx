@@ -82,6 +82,7 @@ export default function SignUpScreen() {
     try {
       const response = await authClient.signIn.social({
         provider: "google",
+        callbackURL: "teak://",
       });
       if (response.error) {
         Alert.alert(

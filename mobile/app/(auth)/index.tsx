@@ -19,6 +19,7 @@ export default function OnboardingScreen() {
     try {
       const response = await authClient.signIn.social({
         provider: "google",
+        callbackURL: "teak://",
       });
       if (response.error) {
         Alert.alert(
