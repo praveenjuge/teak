@@ -6,7 +6,6 @@ import {
 import { Stack, useRouter } from "expo-router";
 import type { Href } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useColorScheme } from "react-native";
 import { colors } from "@/constants/colors";
 import ConvexClientProvider from "../ConvexClientProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -14,11 +13,24 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef } from "react";
 import { ShareIntentProvider, useShareIntentContext } from "expo-share-intent";
 import { authClient } from "@/lib/auth-client";
+import {
+  ThemePreferenceProvider,
+  useThemePreference,
+} from "@/lib/theme-preference";
 
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  return (
+    <ThemePreferenceProvider>
+      <RootLayoutContent />
+    </ThemePreferenceProvider>
+  );
+}
+
+function RootLayoutContent() {
+  const { resolvedScheme } = useThemePreference();
+  const isDark = resolvedScheme === "dark";
 
   // Create custom theme with our primary color
   const CustomDefaultTheme = {
@@ -46,14 +58,10 @@ export default function RootLayout() {
             resetOnBackground: true,
           }}
         >
-          <ThemeProvider
-            value={
-              colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme
-            }
-          >
+          <ThemeProvider value={isDark ? CustomDarkTheme : CustomDefaultTheme}>
             <RootNavigator />
             <ShareIntentNavigator />
-            <StatusBar style="auto" />
+            <StatusBar style={isDark ? "light" : "dark"} />
           </ThemeProvider>
         </ShareIntentProvider>
       </ConvexClientProvider>
