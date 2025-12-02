@@ -73,11 +73,7 @@ export default function SettingsScreen() {
         }}
       />
       <ScrollView>
-        <Host
-          matchContents
-          useViewportSizeMeasurement
-          style={{ marginTop: 12 }}
-        >
+        <Host matchContents useViewportSizeMeasurement>
           <List scrollEnabled={false}>
             <Section title="Profile">
               <HStack>
