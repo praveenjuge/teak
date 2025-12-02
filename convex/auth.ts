@@ -38,12 +38,18 @@ export const createAuth = (
       siteUrl,
       "app.teakvault.com",
       "https://app.teakvault.com",
-      "teakvault.com",
-      "https://teakvault.com",
       "teak://",
-      "http://localhost:3000",
-      "exp://172.19.101.182:8081",
-      "chrome-extension://negnmfifahnnagnbnfppmlgfajngdpob"
+      "teak://*",
+      "chrome-extension://negnmfifahnnagnbnfppmlgfajngdpob",
+      ...(process.env.NODE_ENV === "development" ? [
+        "http://localhost:3000",
+        "exp+teak://*",
+        "exp://*/*",                 // Trust all Expo development URLs
+        "exp://10.0.0.*:*/*",        // Trust 10.0.0.x IP range
+        "exp://192.168.*.*:*/*",     // Trust 192.168.x.x IP range
+        "exp://172.*.*.*:*/*",       // Trust 172.x.x.x IP range
+        "exp://localhost:*/*"        // Trust localhost
+      ] : []),
     ],
     baseURL: siteUrl,
     database: authComponent.adapter(ctx),
