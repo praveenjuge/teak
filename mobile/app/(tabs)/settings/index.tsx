@@ -13,6 +13,7 @@ import { colors } from "../../../constants/colors";
 import { authClient } from "@/lib/auth-client";
 import { useThemePreference } from "@/lib/theme-preference";
 import { Stack, useRouter } from "expo-router";
+import { ScrollView } from "react-native";
 
 export default function SettingsScreen() {
   const { data: session } = authClient.useSession();
@@ -77,50 +78,64 @@ export default function SettingsScreen() {
           title: "Settings",
         }}
       />
-      <Host matchContents useViewportSizeMeasurement style={{ marginTop: 16 }}>
-        <List scrollEnabled={false}>
-          <Section title="Profile">
-            <HStack>
-              <Text color="primary">Email</Text>
-              <Spacer />
-              <Text color="secondary">
-                {session?.user?.email ?? "Not logged in"}
-              </Text>
-            </HStack>
-            <Button
-              onPress={() => {
-                void handleSignOut();
-              }}
-              role="destructive"
-            >
-              <HStack spacing={8}>
-                <Text color="primary">Log Out</Text>
+      <ScrollView>
+        <Host
+          matchContents
+          useViewportSizeMeasurement
+          style={{ marginTop: 12 }}
+        >
+          <List scrollEnabled={false}>
+            <Section title="Profile">
+              <HStack>
+                <Text color="primary">Email</Text>
                 <Spacer />
-                <Image systemName="chevron.right" size={14} color="secondary" />
+                <Text color="secondary">
+                  {session?.user?.email ?? "Not logged in"}
+                </Text>
               </HStack>
-            </Button>
-          </Section>
-          <Section title="Appearance">
-            {appearanceOptions.map((option) => {
-              const isSelected = preference === option.value;
-
-              return (
-                <HStack
-                  key={option.value}
-                  onPress={() => setPreference(option.value)}
-                >
-                  <Text>{option.title}</Text>
+              <Button
+                onPress={() => {
+                  void handleSignOut();
+                }}
+                role="destructive"
+              >
+                <HStack spacing={8}>
+                  <Text color="primary">Log Out</Text>
                   <Spacer />
                   <Image
-                    systemName={isSelected ? "checkmark.circle.fill" : "circle"}
-                    color={isSelected ? colors.primary : (colors.border as any)}
+                    systemName="chevron.right"
+                    size={14}
+                    color="secondary"
                   />
                 </HStack>
-              );
-            })}
-          </Section>
-        </List>
-      </Host>
+              </Button>
+            </Section>
+            <Section title="Appearance">
+              {appearanceOptions.map((option) => {
+                const isSelected = preference === option.value;
+
+                return (
+                  <HStack
+                    key={option.value}
+                    onPress={() => setPreference(option.value)}
+                  >
+                    <Text>{option.title}</Text>
+                    <Spacer />
+                    <Image
+                      systemName={
+                        isSelected ? "checkmark.circle.fill" : "circle"
+                      }
+                      color={
+                        isSelected ? colors.primary : (colors.border as any)
+                      }
+                    />
+                  </HStack>
+                );
+              })}
+            </Section>
+          </List>
+        </Host>
+      </ScrollView>
     </>
   );
 }

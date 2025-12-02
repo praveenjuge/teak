@@ -94,7 +94,7 @@ teak/
 
 - Search & Filtering implemented in `useSearchFilters` hook: real-time search across content/metadata, tag keyword extraction, type filtering, favorites/trash state filters, typeahead suggestions.
 - **Web (src/)**: `app/(auth)/`, `app/(settings)/admin`, `globals.css`, `layout.tsx`, `page.tsx`; components include `ConvexClientProvider`, card previews, `DragOverlay`, `CardModal`, `AddCardForm`, `MasonryGrid`, `SearchBar`, patterns, shadcn/ui; hooks (`useCardActions`, `useCardModal`, `useGlobalDragDrop`); config (`next.config.ts`, `eslint.config.mjs`, `components.json`).
-- **Mobile (mobile/)**: `app/(auth)/`, `app/(tabs)/index.tsx|add.tsx|settings.tsx`, `_layout.tsx`; components (Expo UI, `CardItem`, `CardsGrid`, `SearchInput`); `lib/hooks`; `package.json`.
+- **Mobile (mobile/)**: `app/(auth)/`, `app/(tabs)/index.tsx|add.tsx|settings.tsx`, `_layout.tsx`; components (Expo UI, `CardItem`, `CardsGrid`); `lib/hooks`; `package.json`.
 - **Extension (extension/)**: `src/background.ts`, `content.tsx`, `popup.tsx`; hooks (`useAutoSaveLink`, `useContextMenuSave`, `useContextMenuState`); types `contextMenu.ts`; `style.css`; assets `icon.png`; `package.json`; `tsconfig.json`.
 - **Backend (root)**: Convex directories `_generated/`, `workflows/`, `ai/`, `card/`, `billing.ts`, `admin.ts`, `schema.ts`, `cards.ts`, `auth.config.ts`, `crons.ts`, `convex.config.ts`, entrypoint `convex/index.ts`; shared utils/constants/hooks under `convex/shared/`; `.env.local`; `package.json`.
 - **Docs (docs/)**: `app/(home)/`, `app/docs/[[...slug]]/` + `layout.tsx`, API routes under `app/api/`, root `layout.tsx`, `global.css`; components; `content/docs/`; `lib/`; `source.config.ts`; `package.json`.

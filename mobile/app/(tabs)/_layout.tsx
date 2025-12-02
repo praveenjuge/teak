@@ -3,22 +3,23 @@ import { colors } from "@/constants/colors";
 
 export default function TabLayout() {
   return (
-    <NativeTabs tintColor={colors.primary}>
+    <NativeTabs tintColor={colors.primary} iconColor={colors.primary}>
       <NativeTabs.Trigger name="(home)">
-        <Label selectedStyle={{ color: colors.primary }}>Home</Label>
-        <Icon selectedColor={colors.primary} sf="house.fill" />
+        <Label>Home</Label>
+        <Icon selectedColor={colors.primary} sf="house" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="add">
-        <Label selectedStyle={{ color: colors.primary }}>Add</Label>
+        <Label>Add</Label>
         <Icon selectedColor={colors.primary} sf="plus.circle.fill" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">
-        <Label selectedStyle={{ color: colors.primary }}>Settings</Label>
-        <Icon selectedColor={colors.primary} sf="gearshape.fill" />
+        <Label>Settings</Label>
+        <Icon selectedColor={colors.primary} sf="gearshape" />
       </NativeTabs.Trigger>
-      {/* <NativeTabs.Trigger name="search" role="search">
+      <NativeTabs.Trigger name="search" role="search">
         <Label>Search</Label>
-      </NativeTabs.Trigger> */}
+        <Icon selectedColor={colors.primary} sf="magnifyingglass" />
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
