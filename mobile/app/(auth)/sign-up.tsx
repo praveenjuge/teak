@@ -55,6 +55,10 @@ export default function SignUpScreen() {
         );
         return;
       }
+      Alert.alert(
+        "Verify your email",
+        "We just sent you a verification link. Please check your inbox to activate your account."
+      );
       router.replace("/(tabs)");
     } catch (error) {
       console.error(error);

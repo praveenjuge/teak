@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useEffect, useState } from "react";
 import { AlertCircle, Mail } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
@@ -29,6 +29,17 @@ export default function SignUp() {
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    const shouldShow = sessionStorage.getItem("teak-verify-alert");
+    const storedEmail = sessionStorage.getItem("teak-verify-email");
+    if (shouldShow) {
+      setShowSuccessAlert(true);
+      if (storedEmail) setEmail(storedEmail);
+      sessionStorage.removeItem("teak-verify-alert");
+      sessionStorage.removeItem("teak-verify-email");
+    }
+  }, []);
 
   const handleGoogleSignIn = async () => {
     setError(null);
@@ -78,10 +89,13 @@ export default function SignUp() {
         {showSuccessAlert && (
           <Alert className="mb-4">
             <Mail />
-            <AlertDescription>
-              Registration successful! Please check your email to verify your
-              account.
-            </AlertDescription>
+            <div>
+              <AlertTitle>Verify your email</AlertTitle>
+              <AlertDescription>
+                We just sent a verification link to {email || "your email"}.
+                Please open it to activate your account.
+              </AlertDescription>
+            </div>
           </Alert>
         )}
         <Button
@@ -116,6 +130,7 @@ export default function SignUp() {
           onSubmit={async (e) => {
             e.preventDefault();
             setError(null);
+            setShowSuccessAlert(false);
 
             // Validate password length
             if (password.length < 8) {
@@ -123,17 +138,18 @@ export default function SignUp() {
               return;
             }
 
-            await authClient.signUp.email({
-              email,
-              password,
-              name: "",
-              callbackURL: "/",
-              fetchOptions: {
-                onResponse: () => {
-                  setLoading(false);
-                },
+            await authClient.signUp.email(
+              {
+                email,
+                password,
+                name: "",
+              },
+              {
                 onRequest: () => {
                   setLoading(true);
+                },
+                onResponse: () => {
+                  setLoading(false);
                 },
                 onError: (ctx) => {
                   setLoading(false);
@@ -146,9 +162,11 @@ export default function SignUp() {
                   setLoading(false);
                   metrics.registrationSuccess("email");
                   setShowSuccessAlert(true);
+                  sessionStorage.setItem("teak-verify-alert", "1");
+                  sessionStorage.setItem("teak-verify-email", email);
                 },
-              },
-            });
+              }
+            );
           }}
           className="grid gap-4"
         >
