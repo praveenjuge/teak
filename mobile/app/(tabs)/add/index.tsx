@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Text as RNText,
+  ScrollView,
   TouchableOpacity,
   View,
   useWindowDimensions,
@@ -32,24 +33,13 @@ import {
   HStack,
   Image,
   List,
-  Picker,
-  Section,
   Spacer,
   Text as SwiftText,
   TextField,
   VStack,
   type TextFieldRef,
 } from "@expo/ui/swift-ui";
-
-import { SecureField, Form, Text } from "@expo/ui/swift-ui";
-import {
-  background,
-  border,
-  buttonStyle,
-  clipShape,
-  frame,
-  padding,
-} from "@expo/ui/swift-ui/modifiers";
+import { border, frame, padding } from "@expo/ui/swift-ui/modifiers";
 
 export default function AddScreen() {
   const [content, setContent] = useState("");
@@ -408,7 +398,7 @@ export default function AddScreen() {
           title: "Add",
         }}
       />
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView>
         <Host matchContents useViewportSizeMeasurement>
           <List scrollEnabled={false}>
             <Button
@@ -461,7 +451,6 @@ export default function AddScreen() {
             </Button>
           </List>
         </Host>
-
         <Host
           style={{ position: "absolute", width, top: 0, left: 0 }}
           useViewportSizeMeasurement
@@ -511,7 +500,7 @@ export default function AddScreen() {
             </VStack>
           </BottomSheet>
         </Host>
-      </View>
+      </ScrollView>
     </>
   );
 }

@@ -63,9 +63,7 @@ export default function SettingsScreen() {
     },
   ];
 
-  if (!isLoaded) {
-    return null;
-  }
+  if (!isLoaded) return null;
 
   return (
     <>
