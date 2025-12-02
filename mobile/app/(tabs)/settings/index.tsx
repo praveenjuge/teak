@@ -48,22 +48,18 @@ export default function SettingsScreen() {
   const appearanceOptions: {
     value: Parameters<typeof setPreference>[0];
     title: string;
-    subtitle: string;
   }[] = [
     {
       value: "system",
-      title: "Match System",
-      subtitle: "Default",
+      title: "Match Device",
     },
     {
       value: "light",
       title: "Light",
-      subtitle: "Always use light mode",
     },
     {
       value: "dark",
       title: "Dark",
-      subtitle: "Always use dark mode",
     },
   ];
 

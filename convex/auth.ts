@@ -41,8 +41,8 @@ export const createAuth = (
       "teak://",
       "teak://*",
       "chrome-extension://negnmfifahnnagnbnfppmlgfajngdpob",
+      "http://localhost:3000",
       ...(process.env.NODE_ENV === "development" ? [
-        "http://localhost:3000",
         "exp+teak://*",
         "exp://*/*",                 // Trust all Expo development URLs
         "exp://10.0.0.*:*/*",        // Trust 10.0.0.x IP range

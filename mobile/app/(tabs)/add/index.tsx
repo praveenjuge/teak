@@ -9,35 +9,60 @@ import * as ImagePicker from "expo-image-picker";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Text,
-  TextInput,
+  Text as RNText,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { router, Stack } from "expo-router";
 import { useCreateCard } from "../../../lib/hooks/useCardOperations";
 import { useFileUpload } from "../../../lib/hooks/useFileUpload";
 import { IconSymbol } from "../../../components/ui/IconSymbol";
-import { borderWidths, colors } from "../../../constants/colors";
+import { colors } from "../../../constants/colors";
 import {
   setFeedbackStatus,
   subscribeFeedbackStatus,
   type FeedbackStatusPayload,
 } from "../../../lib/feedbackBridge";
+import {
+  BottomSheet,
+  Button,
+  Host,
+  HStack,
+  Image,
+  List,
+  Picker,
+  Section,
+  Spacer,
+  Text as SwiftText,
+  TextField,
+  VStack,
+  type TextFieldRef,
+} from "@expo/ui/swift-ui";
+
+import { SecureField, Form, Text } from "@expo/ui/swift-ui";
+import {
+  background,
+  border,
+  buttonStyle,
+  clipShape,
+  frame,
+  padding,
+} from "@expo/ui/swift-ui/modifiers";
 
 export default function AddScreen() {
   const [content, setContent] = useState("");
   const [isSavingCard, setIsSavingCard] = useState(false);
+  const [isTextSheetOpen, setIsTextSheetOpen] = useState(false);
+  const [textFieldKey, setTextFieldKey] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const textInputRef = useRef<TextInput>(null);
+  const textFieldRef = useRef<TextFieldRef>(null);
   const createCard = useCreateCard();
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const feedbackVisibleRef = useRef(false);
+  const { width } = useWindowDimensions();
 
   useEffect(() => {
     const unsubscribe = subscribeFeedbackStatus((payload) => {
@@ -110,7 +135,7 @@ export default function AddScreen() {
     if (isRecording) {
       interval = setInterval(() => {
         if (audioRecorder.isRecording) {
-          setRecordingDuration(audioRecorder.currentTime);
+          setRecordingDuration(audioRecorder.currentTime ?? 0);
         }
       }, 1000);
     }
@@ -169,6 +194,7 @@ export default function AddScreen() {
       audioRecorder.record();
       setIsRecording(true);
       setRecordingDuration(0);
+      setIsTextSheetOpen(false);
     } catch (err) {
       console.error("Failed to start recording", err);
       Alert.alert("Error", "Failed to start recording.");
@@ -191,6 +217,10 @@ export default function AddScreen() {
   }
 
   const handleFilePicker = async () => {
+    if (uploadState.isUploading || isSavingCard) {
+      return;
+    }
+
     try {
       // Show options for different types of file selection
       Alert.alert(
@@ -294,10 +324,14 @@ export default function AddScreen() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSaveText = useCallback(async () => {
     const trimmedContent = content.trim();
     if (!trimmedContent) {
       Alert.alert("Error", "Please enter some content");
+      return;
+    }
+
+    if (uploadState.isUploading || isSavingCard) {
       return;
     }
 
@@ -305,13 +339,12 @@ export default function AddScreen() {
     showSavingFeedback();
 
     try {
-      // Let backend handle type detection and processing
-      await createCard({
-        content: trimmedContent,
-      });
+      await createCard({ content: trimmedContent });
 
       setContent("");
-      textInputRef.current?.focus();
+      textFieldRef.current?.setText("");
+      setTextFieldKey((value) => value + 1);
+      setIsTextSheetOpen(false);
       showSavedFeedback();
     } catch (error) {
       console.error("Failed to save card:", error);
@@ -320,7 +353,15 @@ export default function AddScreen() {
     } finally {
       setIsSavingCard(false);
     }
-  };
+  }, [
+    content,
+    createCard,
+    isSavingCard,
+    showSavedFeedback,
+    showSavingFeedback,
+    showErrorFeedback,
+    uploadState.isUploading,
+  ]);
 
   if (isRecording) {
     return (
@@ -332,9 +373,9 @@ export default function AddScreen() {
           backgroundColor: colors.background,
         }}
       >
-        <Text style={{ color: colors.label, marginBottom: 40 }}>
+        <RNText style={{ color: colors.label, marginBottom: 40 }}>
           Recording...
-        </Text>
+        </RNText>
         <TouchableOpacity
           onPress={stopRecording}
           style={{
@@ -349,13 +390,13 @@ export default function AddScreen() {
         >
           <IconSymbol color="white" name="stop.fill" />
         </TouchableOpacity>
-        <Text
+        <RNText
           style={{
             color: colors.secondaryLabel,
           }}
         >
           {new Date(recordingDuration * 1000).toISOString().substring(14, 19)}
-        </Text>
+        </RNText>
       </View>
     );
   }
@@ -367,107 +408,110 @@ export default function AddScreen() {
           title: "Add",
         }}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
-          contentContainerStyle={{ flex: 1 }}
-          keyboardShouldPersistTaps="handled"
-        >
-          <TextInput
-            autoCapitalize="sentences"
-            autoCorrect={true}
-            editable={!uploadState.isUploading && !isSavingCard}
-            multiline
-            onChangeText={setContent}
-            placeholder="Enter your bookmark, URL, or note"
-            ref={textInputRef}
-            style={{
-              borderWidth: borderWidths.hairline,
-              borderColor: colors.border,
-              padding: 16,
-              backgroundColor: colors.background,
-              minHeight: 150,
-              textAlignVertical: "top",
-              color: colors.label,
-              marginTop: 16,
-              marginHorizontal: 16,
-              borderRadius: 12,
-            }}
-            value={content}
-          />
-
-          <View style={{ flexDirection: "row", margin: 16, gap: 8 }}>
-            <TouchableOpacity
-              disabled={uploadState.isUploading || isSavingCard}
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <Host matchContents useViewportSizeMeasurement>
+          <List scrollEnabled={false}>
+            <Button
+              onPress={() => setIsTextSheetOpen(true)}
+              disabled={isSavingCard || uploadState.isUploading}
+            >
+              <HStack spacing={8}>
+                <Image
+                  systemName="textformat"
+                  color="primary"
+                  size={18}
+                  modifiers={[frame({ width: 28, height: 28 })]}
+                />
+                <SwiftText color="primary">Text or URL</SwiftText>
+                <Spacer />
+                <Image systemName="chevron.right" size={14} color="secondary" />
+              </HStack>
+            </Button>
+            <Button
               onPress={handleFilePicker}
-              style={{
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 12,
-                backgroundColor: colors.background,
-                borderWidth: borderWidths.hairline,
-                borderColor: colors.border,
-                width: 50,
-                height: 50,
-                opacity: uploadState.isUploading || isSavingCard ? 0.5 : 1,
-              }}
-            >
-              <IconSymbol
-                color={colors.secondaryLabel}
-                name="paperclip"
-                size={20}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
               disabled={uploadState.isUploading || isSavingCard}
+            >
+              <HStack spacing={8}>
+                <Image
+                  systemName="photo"
+                  color="primary"
+                  size={16}
+                  modifiers={[frame({ width: 28, height: 28 })]}
+                />
+                <SwiftText color="primary">Photo, Video or Files</SwiftText>
+                <Spacer />
+                <Image systemName="chevron.right" size={14} color="secondary" />
+              </HStack>
+            </Button>
+            <Button
               onPress={startRecording}
-              style={{
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 12,
-                backgroundColor: colors.background,
-                borderWidth: borderWidths.hairline,
-                borderColor: colors.border,
-                width: 50,
-                height: 50,
-                opacity: uploadState.isUploading || isSavingCard ? 0.5 : 1,
-              }}
+              disabled={uploadState.isUploading || isSavingCard}
             >
-              <IconSymbol
-                color={colors.secondaryLabel}
-                name="mic.fill"
-                size={20}
-              />
-            </TouchableOpacity>
+              <HStack spacing={8}>
+                <Image
+                  systemName="mic.fill"
+                  color="primary"
+                  size={18}
+                  modifiers={[frame({ width: 28, height: 28 })]}
+                />
+                <SwiftText color="primary">Record Audio</SwiftText>
+                <Spacer />
+                <Image systemName="chevron.right" size={14} color="secondary" />
+              </HStack>
+            </Button>
+          </List>
+        </Host>
 
-            <TouchableOpacity
-              disabled={
-                uploadState.isUploading || isSavingCard || !content.trim()
+        <Host
+          style={{ position: "absolute", width, top: 0, left: 0 }}
+          useViewportSizeMeasurement
+        >
+          <BottomSheet
+            isOpened={isTextSheetOpen}
+            onIsOpenedChange={(open) => {
+              setIsTextSheetOpen(open);
+              if (!open) {
+                setContent("");
+                textFieldRef.current?.setText("");
+                setTextFieldKey((value) => value + 1);
               }
-              onPress={handleSave}
-              style={{
-                flex: 1,
-                borderRadius: 12,
-                height: 50,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: colors.primary,
-                opacity:
-                  uploadState.isUploading || isSavingCard || !content.trim()
-                    ? 0.3
-                    : 1,
-              }}
+            }}
+            presentationDetents={["medium", "large"]}
+            presentationDragIndicator="visible"
+            interactiveDismissDisabled={isSavingCard}
+          >
+            <VStack
+              spacing={12}
+              modifiers={[padding({ horizontal: 16, vertical: 16 })]}
             >
-              <Text style={{ fontWeight: "600", color: colors.adaptiveWhite }}>
-                {uploadState.isUploading || isSavingCard ? "Saving..." : "Save"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+              <TextField
+                key={textFieldKey}
+                ref={textFieldRef}
+                defaultValue={content}
+                placeholder="Enter your bookmark, URL, or note"
+                onChangeText={setContent}
+                multiline
+                allowNewlines
+                modifiers={[
+                  border({ color: "#ccc", width: 1 }),
+                  padding({ all: 8 }),
+                ]}
+              />
+              <Button
+                onPress={handleSaveText}
+                disabled={isSavingCard || uploadState.isUploading}
+                variant="glass"
+              >
+                <SwiftText color="primary">
+                  {isSavingCard || uploadState.isUploading
+                    ? "Saving..."
+                    : "Save"}
+                </SwiftText>
+              </Button>
+            </VStack>
+          </BottomSheet>
+        </Host>
+      </View>
     </>
   );
 }
