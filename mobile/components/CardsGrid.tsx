@@ -1,6 +1,6 @@
 import { memo, useCallback } from "react";
 import { Alert } from "react-native";
-import { Host, List, Section, Text } from "@expo/ui/swift-ui";
+import { Host, List, Section, Text, CircularProgress } from "@expo/ui/swift-ui";
 import { useQuery } from "convex/react";
 import { api } from "@teak/convex";
 import type { Doc } from "@teak/convex/_generated/dataModel";
@@ -47,10 +47,8 @@ const CardsGrid = memo(function CardsGrid({
 
   if (cards === undefined) {
     return (
-      <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
-        <List scrollEnabled={false} listStyle="insetGrouped">
-          <Text color={colors.secondaryLabel as any}>Loading cards...</Text>
-        </List>
+      <Host useViewportSizeMeasurement style={{ flex: 1 }}>
+        <CircularProgress />
       </Host>
     );
   }
