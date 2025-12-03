@@ -1,288 +1,201 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { router, Stack } from "expo-router";
-import {
-  ShareIntent,
-  ShareIntentFile,
-  useShareIntentContext,
-} from "expo-share-intent";
+import { ShareIntent, useShareIntentContext } from "expo-share-intent";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { useCreateCard } from "@/lib/hooks/useCardOperations";
 import { useFileUpload } from "@/lib/hooks/useFileUpload";
-import {
-  setFeedbackStatus,
-  type FeedbackStatusPayload,
-} from "@/lib/feedbackBridge";
+import { setFeedbackStatus } from "@/lib/feedbackBridge";
 import { authClient } from "@/lib/auth-client";
 
-const SUCCESS_ICON = "checkmark.circle.fill";
-const ERROR_ICON = "exclamationmark.triangle.fill";
-const SAVING_ICON = "hourglass";
+const ICONS = {
+  success: "checkmark.circle.fill",
+  error: "exclamationmark.triangle.fill",
+  saving: "hourglass",
+} as const;
 
-function normalizePath(path: string | null | undefined) {
-  if (!path) {
-    return null;
-  }
+const ERROR_COLOR = "#ff3b30";
 
-  if (path.startsWith("file://") || path.startsWith("content://")) {
-    return path;
-  }
-
-  return `file://${path}`;
-}
-
-function buildSharedText(intent: ShareIntent) {
-  const pieces = [
-    intent.text?.trim() ?? "",
-    intent.webUrl?.trim() ?? "",
-  ].filter((value) => value.length > 0);
-
-  if (pieces.length === 0) {
-    return undefined;
-  }
-
-  const seen = new Set<string>();
-  const uniquePieces = pieces.filter((piece) => {
-    if (seen.has(piece)) {
-      return false;
-    }
-    seen.add(piece);
-    return true;
-  });
-
-  return uniquePieces.join("\n");
-}
-
-async function uploadSharedFile(
-  file: ShareIntentFile,
-  options: {
-    uploadFile: ReturnType<typeof useFileUpload>["uploadFile"];
-    fallbackContent?: string;
-    metadata?: Record<string, unknown>;
-  }
+function showFeedback(
+  type: "success" | "error" | "saving",
+  message: string,
+  feedbackVisibleRef: React.RefObject<boolean>
 ) {
-  const normalizedPath = normalizePath(file.path);
-  if (!normalizedPath) {
-    throw new Error("Unable to access shared file path");
+  if (!feedbackVisibleRef.current) {
+    feedbackVisibleRef.current = true;
+    router.replace("/(feedback)");
   }
-
-  const response = await fetch(normalizedPath);
-  if (!response.ok) {
-    throw new Error("Unable to read shared file");
-  }
-
-  const blob = await response.blob();
-  const fileName = file.fileName || `shared-${Date.now()}`;
-  const fileType = file.mimeType || blob.type || "application/octet-stream";
-  const rnFile = new File([blob], fileName, { type: fileType });
-
-  const result = await options.uploadFile(rnFile, {
-    content: options.fallbackContent ?? fileName,
-    additionalMetadata: {
-      source: "share_intent",
-      mimeType: file.mimeType,
-      fileSize: file.size ?? blob.size,
-      width: file.width ?? undefined,
-      height: file.height ?? undefined,
-      duration: file.duration ?? undefined,
-      ...options.metadata,
-    },
+  setFeedbackStatus({
+    title: type === "error" ? "Unable to Save" : "Save to Teak",
+    message,
+    iconName: ICONS[type],
+    accentColor: type === "error" ? ERROR_COLOR : undefined,
+    dismissAfterMs: type === "saving" ? -1 : type === "error" ? 4000 : 2000,
   });
+}
 
-  if (!result.success) {
-    const error = new Error(result.error || "Failed to upload shared file");
-    if (result.errorCode) {
-      (error as Error & { code?: string }).code = result.errorCode;
-    }
-    throw error;
+function getSharedText(intent: ShareIntent): string | undefined {
+  const pieces = [intent.text?.trim(), intent.webUrl?.trim()].filter(
+    (v): v is string => !!v
+  );
+  return [...new Set(pieces)].join("\n") || undefined;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    (error as { code?: string }).code === CARD_ERROR_CODES.CARD_LIMIT_REACHED
+  ) {
+    return "You've reached your card limit. Upgrade your plan to keep saving.";
   }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return "Failed to save shared content. Please try again.";
+}
+
+async function processShareIntent(
+  intent: ShareIntent,
+  sharedText: string | undefined,
+  createCard: ReturnType<typeof useCreateCard>,
+  uploadFile: ReturnType<typeof useFileUpload>["uploadFile"]
+): Promise<number> {
+  const files = intent.files?.filter((f) => f.path) ?? [];
+
+  if (files.length === 0) {
+    if (!sharedText) throw new Error("Shared content is empty");
+    await createCard({ content: sharedText });
+    return 1;
+  }
+
+  let savedCount = 0;
+  let lastError: Error | null = null;
+
+  for (const file of files) {
+    try {
+      const path =
+        file.path?.startsWith("file://") || file.path?.startsWith("content://")
+          ? file.path
+          : `file://${file.path}`;
+
+      const response = await fetch(path);
+      if (!response.ok) throw new Error("Unable to read shared file");
+
+      const blob = await response.blob();
+      const result = await uploadFile(
+        new File([blob], file.fileName || `shared-${Date.now()}`, {
+          type: file.mimeType || blob.type || "application/octet-stream",
+        }),
+        {
+          content: sharedText ?? file.fileName ?? "",
+          additionalMetadata: {
+            source: "share_intent",
+            mimeType: file.mimeType,
+            fileSize: file.size ?? blob.size,
+            width: file.width,
+            height: file.height,
+            duration: file.duration,
+          },
+        }
+      );
+
+      if (!result.success) {
+        const err = new Error(result.error || "Failed to upload");
+        if (result.errorCode)
+          (err as Error & { code?: string }).code = result.errorCode;
+        throw err;
+      }
+      savedCount++;
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error("Upload failed");
+    }
+  }
+
+  if (savedCount === 0)
+    throw lastError ?? new Error("Failed to save shared files");
+  return savedCount;
 }
 
 export default function ShareIntentScreen() {
   const { hasShareIntent, shareIntent, resetShareIntent, error } =
     useShareIntentContext();
   const { data: session, isPending } = authClient.useSession();
-  const isSignedIn = Boolean(session);
-  const isLoaded = !isPending;
+  const isSignedIn = !!session;
   const createCard = useCreateCard();
   const { uploadFile } = useFileUpload();
   const isProcessingRef = useRef(false);
   const feedbackVisibleRef = useRef(false);
+  const createCardRef = useRef(createCard);
+  const uploadFileRef = useRef(uploadFile);
 
-  const sharedText = useMemo(
-    () => (shareIntent ? buildSharedText(shareIntent) : undefined),
-    [shareIntent]
-  );
-
-  const showFeedback = useCallback((payload: FeedbackStatusPayload) => {
-    if (!feedbackVisibleRef.current) {
-      feedbackVisibleRef.current = true;
-      router.replace("/(feedback)");
-    }
-    setFeedbackStatus(payload);
-  }, []);
-
-  const handleShareIntent = useCallback(
-    async (intent: ShareIntent) => {
-      const files = intent.files?.filter((file) => !!file.path) ?? [];
-      const metadata: Record<string, unknown> = {
-        sharedVia: "share_sheet",
-      };
-
-      if (intent.meta && Object.keys(intent.meta).length > 0) {
-        metadata.shareMeta = intent.meta;
-      }
-
-      if (intent.webUrl) {
-        metadata.webUrl = intent.webUrl;
-      }
-
-      if (sharedText) {
-        metadata.sharedText = sharedText;
-      }
-
-      if (files.length === 0) {
-        if (!sharedText) {
-          throw new Error("Shared content is empty");
-        }
-        await createCard({
-          content: sharedText,
-        });
-        return 1;
-      }
-
-      let savedCount = 0;
-      let lastError: Error | null = null;
-
-      for (const file of files) {
-        try {
-          await uploadSharedFile(file, {
-            uploadFile,
-            fallbackContent: sharedText,
-          });
-          savedCount += 1;
-        } catch (uploadError) {
-          lastError = uploadError instanceof Error ? uploadError : null;
-        }
-      }
-
-      if (savedCount === 0) {
-        throw lastError ?? new Error("Failed to save shared files");
-      }
-
-      return savedCount;
-    },
-    [createCard, sharedText, uploadFile]
-  );
+  // Keep refs updated
+  createCardRef.current = createCard;
+  uploadFileRef.current = uploadFile;
 
   useEffect(() => {
     if (error) {
-      showFeedback({
-        title: "Unable to Save",
-        message: error,
-        iconName: ERROR_ICON,
-        accentColor: "#ff3b30",
-        dismissAfterMs: 4000,
-      });
+      showFeedback("error", error, feedbackVisibleRef);
       resetShareIntent();
       feedbackVisibleRef.current = false;
     }
-  }, [error, resetShareIntent, showFeedback]);
+  }, [error, resetShareIntent]);
 
   useEffect(() => {
-    if (
-      !hasShareIntent ||
-      !shareIntent ||
-      isProcessingRef.current ||
-      !isLoaded
-    ) {
-      return;
-    }
+    // Wait for auth to load
+    if (isPending) return;
+
+    // No share intent or already processing
+    if (!hasShareIntent || !shareIntent || isProcessingRef.current) return;
 
     if (!isSignedIn) {
-      showFeedback({
-        title: "Save to Teak",
-        message: "Please sign in to save from the share sheet.",
-        iconName: ERROR_ICON,
-        accentColor: "#ff3b30",
-        dismissAfterMs: 4000,
-      });
+      showFeedback(
+        "error",
+        "Please sign in to save from the share sheet.",
+        feedbackVisibleRef
+      );
       resetShareIntent();
       feedbackVisibleRef.current = false;
       return;
     }
 
+    // Mark as processing before any async work
     isProcessingRef.current = true;
+    const sharedText = getSharedText(shareIntent);
 
     void (async () => {
       try {
-        showFeedback({
-          title: "Save to Teak",
-          message: "Saving...",
-          iconName: SAVING_ICON,
-          dismissAfterMs: -1,
-        });
-
-        const savedCount = await handleShareIntent(shareIntent);
-        const message =
-          savedCount > 1
-            ? `Saved ${savedCount} items to Teak!`
-            : "Saved to Teak!";
-
-        showFeedback({
-          title: "Save to Teak",
-          message,
-          iconName: SUCCESS_ICON,
-          dismissAfterMs: 2000,
-        });
-      } catch (shareError) {
-        let message = "Failed to save shared content. Please try again.";
-        const accentColor = "#ff3b30";
-
-        if (
-          shareError &&
-          typeof shareError === "object" &&
-          "code" in shareError &&
-          (shareError as Error & { code?: string }).code ===
-            CARD_ERROR_CODES.CARD_LIMIT_REACHED
-        ) {
-          message =
-            "You've reached your card limit. Upgrade your plan to keep saving.";
-        } else if (shareError instanceof Error && shareError.message) {
-          message = shareError.message;
-        }
-
-        showFeedback({
-          title: "Unable to Save",
-          message,
-          iconName: ERROR_ICON,
-          accentColor,
-          dismissAfterMs: 4000,
-        });
+        showFeedback("saving", "Saving...", feedbackVisibleRef);
+        const count = await processShareIntent(
+          shareIntent,
+          sharedText,
+          createCardRef.current,
+          uploadFileRef.current
+        );
+        showFeedback(
+          "success",
+          count > 1 ? `Saved ${count} items to Teak!` : "Saved to Teak!",
+          feedbackVisibleRef
+        );
+      } catch (e) {
+        showFeedback("error", getErrorMessage(e), feedbackVisibleRef);
       } finally {
         resetShareIntent();
         feedbackVisibleRef.current = false;
         isProcessingRef.current = false;
       }
     })();
-  }, [
-    handleShareIntent,
-    hasShareIntent,
-    isLoaded,
-    isSignedIn,
-    resetShareIntent,
-    shareIntent,
-    showFeedback,
-  ]);
+    // Only depend on stable values - isSignedIn is derived from session
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasShareIntent, shareIntent, isPending, isSignedIn, resetShareIntent]);
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-          presentation: "transparentModal",
-          animation: "none",
-        }}
-      />
-    </>
+    <Stack.Screen
+      options={{
+        headerShown: false,
+        presentation: "transparentModal",
+        animation: "none",
+      }}
+    />
   );
 }
