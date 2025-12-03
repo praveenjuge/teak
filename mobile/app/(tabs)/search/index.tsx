@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  NativeSyntheticEvent,
-  StyleSheet,
-  View,
-  ScrollView,
-} from "react-native";
+import { NativeSyntheticEvent, ScrollView } from "react-native";
 import { Stack } from "expo-router";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { CardsGrid } from "@/components/CardsGrid";
