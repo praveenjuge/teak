@@ -40,7 +40,6 @@
         }
       ],
       "expo-web-browser",
-      "expo-font",
       [
         "expo-splash-screen",
         {

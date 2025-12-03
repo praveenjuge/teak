@@ -17,6 +17,7 @@ import {
   ThemePreferenceProvider,
   useThemePreference,
 } from "@/lib/theme-preference";
+import { Keyboard } from "react-native";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -72,6 +73,11 @@ function RootLayoutContent() {
 function RootNavigator() {
   const { data: session, isPending } = authClient.useSession();
   const isSignedIn = Boolean(session);
+  useEffect(() => {
+    if (isSignedIn) {
+      Keyboard.dismiss();
+    }
+  }, [isSignedIn]);
 
   useEffect(() => {
     if (!isPending) {

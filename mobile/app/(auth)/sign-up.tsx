@@ -1,6 +1,5 @@
 import * as React from "react";
-import { Alert } from "react-native";
-import { useRouter } from "expo-router";
+import { Alert, Keyboard } from "react-native";
 import {
   Button,
   Form,
@@ -13,18 +12,37 @@ import {
   TextField,
   Text,
 } from "@expo/ui/swift-ui";
+import { useFocusEffect } from "expo-router";
 import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function SignUpScreen() {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = React.useState(false);
   const [emailAddress, setEmailAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        Keyboard.dismiss();
+      };
+    }, [])
+  );
+
+  const waitForKeyboardToSettle = React.useCallback(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => setTimeout(resolve, 30));
+      }),
+    []
+  );
 
   // Handle submission of sign-up form
   const onSignUpPress = async () => {
-    if (isLoading) return;
+    if (isSubmitting) return;
+
+    Keyboard.dismiss();
+    await waitForKeyboardToSettle();
 
     if (!emailAddress.trim() || !password.trim()) {
       Alert.alert("Error", "Please fill in all fields.");
@@ -36,7 +54,7 @@ export default function SignUpScreen() {
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
       const response = await authClient.signUp.email({
@@ -54,11 +72,12 @@ export default function SignUpScreen() {
         );
         return;
       }
-      Alert.alert(
-        "Verify your email",
-        "We just sent you a verification link. Please check your inbox to activate your account."
-      );
-      router.replace("/(tabs)/(home)");
+      if (response) {
+        Alert.alert(
+          "Verify your email",
+          "We just sent you a verification link. Please check your inbox to activate your account."
+        );
+      }
     } catch (error) {
       console.error(error);
       Alert.alert(
@@ -69,7 +88,7 @@ export default function SignUpScreen() {
         )
       );
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -97,12 +116,12 @@ export default function SignUpScreen() {
             variant="borderedProminent"
             controlSize="large"
             onPress={onSignUpPress}
-            disabled={isLoading || !emailAddress.trim() || password.length < 8}
+            disabled={isSubmitting}
           >
             <HStack spacing={10} alignment="center">
               <Spacer />
               <Text color="primary" weight="medium" design="rounded">
-                {isLoading ? "Creating Account..." : "Create Account"}
+                {isSubmitting ? "Creating..." : "Create Account"}
               </Text>
               <Spacer />
             </HStack>
