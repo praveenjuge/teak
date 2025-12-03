@@ -1,7 +1,7 @@
 import React from "react";
 import { Alert } from "react-native";
 import { router } from "expo-router";
-import Logo from "../../components/Logo";
+import Logo from "@/components/Logo";
 import GoogleLogo from "@/components/GoogleLogo";
 import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";

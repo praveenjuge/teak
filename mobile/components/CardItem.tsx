@@ -314,7 +314,6 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
                   height: 40,
                   borderRadius: 10,
                   overflow: "hidden",
-                  borderWidth: borderWidths.hairline,
                   borderColor: colors.border as any,
                 }}
               >

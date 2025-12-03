@@ -47,7 +47,7 @@ const CardsGrid = memo(function CardsGrid({
 
   if (cards === undefined) {
     return (
-      <Host matchContents useViewportSizeMeasurement>
+      <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
         <List scrollEnabled={false} listStyle="insetGrouped">
           <Text color={colors.secondaryLabel as any}>Loading cards...</Text>
         </List>
@@ -62,7 +62,7 @@ const CardsGrid = memo(function CardsGrid({
       : "Start by adding your first card";
 
     return (
-      <Host matchContents useViewportSizeMeasurement>
+      <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
         <List scrollEnabled={false} listStyle="insetGrouped">
           <Section>
             <Text weight="semibold" color={colors.label as any}>
@@ -78,13 +78,8 @@ const CardsGrid = memo(function CardsGrid({
   }
 
   return (
-    <Host matchContents useViewportSizeMeasurement>
-      <List
-        listStyle="insetGrouped"
-        scrollEnabled={true}
-        deleteEnabled
-        onDeleteItem={handleDeleteItem}
-      >
+    <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
+      <List scrollEnabled={true} deleteEnabled onDeleteItem={handleDeleteItem}>
         {cards.map((card: Card) => (
           <CardItem key={card._id} card={card} />
         ))}

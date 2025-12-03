@@ -1,4 +1,4 @@
-import { Platform, PlatformColor, StyleSheet } from 'react-native';
+import { Platform, PlatformColor } from 'react-native';
 
 const createPlatformColor = (
   iosColor: string,
@@ -82,12 +82,4 @@ export const colors = {
     '@android:color/system_background_dark',
     '#000000'
   ),
-} as const;
-
-// Border width constants
-export const borderWidths = {
-  // Use native hairline width for consistent platform-appropriate borders
-  hairline: StyleSheet.hairlineWidth,
-  // Standard border width for emphasized borders
-  standard: 1,
 } as const;

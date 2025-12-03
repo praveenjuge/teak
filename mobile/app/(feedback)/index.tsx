@@ -74,7 +74,7 @@ export default function FeedbackStatusScreen() {
       router.back();
       return;
     }
-    router.replace("/(tabs)");
+    router.replace("/(tabs)/(home)");
   }, []);
 
   useEffect(() => {

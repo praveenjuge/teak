@@ -74,7 +74,7 @@ export default function SignUpScreen() {
   };
 
   return (
-    <Host matchContents useViewportSizeMeasurement>
+    <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
       <Form scrollEnabled={false}>
         <Section>
           <LabeledContent label="Email">
