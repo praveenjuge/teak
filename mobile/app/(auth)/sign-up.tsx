@@ -113,7 +113,7 @@ export default function SignUpScreen() {
           </LabeledContent>
 
           <Button
-            variant="borderedProminent"
+            variant="bordered"
             controlSize="large"
             onPress={onSignUpPress}
             disabled={isSubmitting}
