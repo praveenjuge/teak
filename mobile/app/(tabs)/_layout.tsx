@@ -6,19 +6,21 @@ export default function TabLayout() {
     <NativeTabs tintColor={colors.primary} iconColor={colors.primary}>
       <NativeTabs.Trigger name="(home)">
         <Label>Home</Label>
-        <Icon selectedColor={colors.primary} sf="house" />
+        <Icon sf={{ default: "house", selected: "house.fill" }} />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="add">
         <Label>Add</Label>
-        <Icon selectedColor={colors.primary} sf="plus.circle.fill" />
+        <Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">
         <Label>Settings</Label>
-        <Icon selectedColor={colors.primary} sf="gearshape" />
+        <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="search" role="search">
         <Label>Search</Label>
-        <Icon selectedColor={colors.primary} sf="magnifyingglass" />
+        <Icon
+          sf={{ default: "magnifyingglass", selected: "magnifyingglass" }}
+        />
       </NativeTabs.Trigger>
     </NativeTabs>
   );
