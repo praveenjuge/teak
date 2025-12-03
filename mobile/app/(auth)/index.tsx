@@ -1,15 +1,12 @@
 import React from "react";
-import { View, TouchableOpacity, StyleSheet, Alert } from "react-native";
-import { Link } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Alert } from "react-native";
+import { router } from "expo-router";
 import Logo from "../../components/Logo";
-import { LinearGradient } from "expo-linear-gradient";
-import { colors, borderWidths } from "@/constants/colors";
 import GoogleLogo from "@/components/GoogleLogo";
 import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
-import { HStack, VStack, Text, Image, Spacer, Host } from "@expo/ui/swift-ui";
-import { padding } from "@expo/ui/swift-ui/modifiers";
+import { Button, HStack, Host, Spacer, Text, VStack } from "@expo/ui/swift-ui";
+import { frame, padding } from "@expo/ui/swift-ui/modifiers";
 
 export default function OnboardingScreen() {
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
@@ -47,143 +44,75 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View>
-          <View style={styles.logoContainer}>
-            <Logo width={94} />
-          </View>
+    <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
+      <VStack
+        modifiers={[
+          padding({ leading: 28, trailing: 28, top: 32, bottom: 12 }),
+        ]}
+      >
+        <VStack spacing={12} alignment="leading">
+          <HStack modifiers={[frame({ width: 65, height: 37 })]}>
+            <Logo height={24} width={100} variant="primary" />
+          </HStack>
+          <Text weight="bold" size={20} lineLimit={2} design="rounded">
+            Save Anything. Anywhere.
+          </Text>
+          <Text size={16} lineLimit={4} color="secondary" design="rounded">
+            Your personal everything management system. Organize, save, and
+            access all your text, images, and documents in one place.
+          </Text>
+        </VStack>
 
-          <Host matchContents useViewportSizeMeasurement>
-            <Text>Save Anything. Anywhere.</Text>
-            <Text>
-              Your personal everything management system. Organize, save, and
-              access all your text, images, and documents in one place.
-            </Text>
-          </Host>
-        </View>
+        <Spacer />
 
-        <View style={styles.buttonContainer}>
-          <Link href="/sign-up" asChild>
-            <TouchableOpacity style={styles.primaryButton}>
-              <Host matchContents useViewportSizeMeasurement>
-                <Text>Sign Up →</Text>
-              </Host>
-            </TouchableOpacity>
-          </Link>
-
-          <TouchableOpacity
-            style={[
-              styles.googleButton,
-              isGoogleLoading && styles.disabledButton,
-            ]}
-            onPress={onGoogleSignInPress}
-            disabled={isGoogleLoading}
+        <VStack spacing={30}>
+          <VStack spacing={12}>
+            <Button
+              variant="bordered"
+              controlSize="large"
+              onPress={onGoogleSignInPress}
+              disabled={isGoogleLoading}
+            >
+              <HStack spacing={10} alignment="center">
+                <Spacer />
+                <HStack modifiers={[frame({ width: 20, height: 20 })]}>
+                  <GoogleLogo />
+                </HStack>
+                <Text color="primary" weight="medium" design="rounded">
+                  {isGoogleLoading ? "Signing in..." : "Continue with Google"}
+                </Text>
+                <Spacer />
+              </HStack>
+            </Button>
+            <Button
+              variant="bordered"
+              controlSize="large"
+              onPress={() => router.push("/sign-up")}
+            >
+              <HStack spacing={10} alignment="center">
+                <Spacer />
+                <Text color="primary" weight="medium" design="rounded">
+                  Register with Email
+                </Text>
+                <Spacer />
+              </HStack>
+            </Button>
+          </VStack>
+          <Button
+            variant="bordered"
+            controlSize="large"
+            onPress={() => router.push("/sign-in")}
           >
-            <GoogleLogo width={20} height={20} />
-            <Host matchContents useViewportSizeMeasurement>
-              <Text>
-                {isGoogleLoading ? "Signing in..." : "Continue with Google"}
+            <HStack spacing={10} alignment="center">
+              <Spacer />
+              <Text color="primary" weight="medium" design="rounded">
+                Login with Email
               </Text>
-            </Host>
-          </TouchableOpacity>
-
-          <Link href="/sign-in" asChild>
-            <TouchableOpacity style={styles.secondaryButton}>
-              <Host matchContents useViewportSizeMeasurement>
-                <Text>Have an Account? Login</Text>
-              </Host>
-            </TouchableOpacity>
-          </Link>
-        </View>
-      </View>
-    </SafeAreaView>
+              <Spacer />
+            </HStack>
+          </Button>
+        </VStack>
+      </VStack>
+    </Host>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  background: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    height: "100%",
-    width: "100%",
-    zIndex: -1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 34,
-    paddingTop: 48,
-    paddingBottom: 30,
-    justifyContent: "space-between",
-  },
-  logoContainer: {
-    alignItems: "center",
-    marginBottom: 22,
-  },
-  textContainer: {
-    alignItems: "center",
-    marginBottom: 28,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 10,
-  },
-  subtitle: {
-    lineHeight: 20,
-    textAlign: "center",
-    paddingHorizontal: 20,
-  },
-  buttonContainer: {
-    gap: 12,
-  },
-  primaryButton: {
-    backgroundColor: "white",
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 50,
-  },
-  primaryButtonText: {
-    color: "black",
-    fontWeight: "600",
-  },
-  googleButton: {
-    backgroundColor: "white",
-    borderColor: colors.border,
-    borderWidth: borderWidths.hairline,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 10,
-    minHeight: 50,
-  },
-  googleButtonText: {
-    color: "black",
-    fontWeight: "600",
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  secondaryButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 50,
-  },
-  secondaryButtonText: {
-    color: "white",
-    fontWeight: "600",
-  },
-});
