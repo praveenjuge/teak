@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { View, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { Link } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Logo from "../../components/Logo";
@@ -8,6 +8,8 @@ import { colors, borderWidths } from "@/constants/colors";
 import GoogleLogo from "@/components/GoogleLogo";
 import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
+import { HStack, VStack, Text, Image, Spacer, Host } from "@expo/ui/swift-ui";
+import { padding } from "@expo/ui/swift-ui/modifiers";
 
 export default function OnboardingScreen() {
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
@@ -45,66 +47,57 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <>
-      <LinearGradient
-        colors={[
-          "#000000",
-          "#000c4f",
-          "#5b8183",
-          "#ffb244",
-          colors.primary,
-          "#000000",
-        ]}
-        style={styles.background}
-      />
-      <SafeAreaView style={styles.container}>
-        <View style={styles.content}>
-          <View>
-            <View style={styles.logoContainer}>
-              <Logo variant="white" width={94} />
-            </View>
-
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>Save Anything. Anywhere.</Text>
-              <Text style={styles.subtitle}>
-                Your personal everything management system. Organize, save, and
-                access all your text, images, and documents in one place.
-              </Text>
-            </View>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
+        <View>
+          <View style={styles.logoContainer}>
+            <Logo width={94} />
           </View>
 
-          <View style={styles.buttonContainer}>
-            <Link href="/sign-up" asChild>
-              <TouchableOpacity style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>Sign Up →</Text>
-              </TouchableOpacity>
-            </Link>
+          <Host matchContents useViewportSizeMeasurement>
+            <Text>Save Anything. Anywhere.</Text>
+            <Text>
+              Your personal everything management system. Organize, save, and
+              access all your text, images, and documents in one place.
+            </Text>
+          </Host>
+        </View>
 
-            <TouchableOpacity
-              style={[
-                styles.googleButton,
-                isGoogleLoading && styles.disabledButton,
-              ]}
-              onPress={onGoogleSignInPress}
-              disabled={isGoogleLoading}
-            >
-              <GoogleLogo width={20} height={20} />
-              <Text style={styles.googleButtonText}>
+        <View style={styles.buttonContainer}>
+          <Link href="/sign-up" asChild>
+            <TouchableOpacity style={styles.primaryButton}>
+              <Host matchContents useViewportSizeMeasurement>
+                <Text>Sign Up →</Text>
+              </Host>
+            </TouchableOpacity>
+          </Link>
+
+          <TouchableOpacity
+            style={[
+              styles.googleButton,
+              isGoogleLoading && styles.disabledButton,
+            ]}
+            onPress={onGoogleSignInPress}
+            disabled={isGoogleLoading}
+          >
+            <GoogleLogo width={20} height={20} />
+            <Host matchContents useViewportSizeMeasurement>
+              <Text>
                 {isGoogleLoading ? "Signing in..." : "Continue with Google"}
               </Text>
-            </TouchableOpacity>
+            </Host>
+          </TouchableOpacity>
 
-            <Link href="/sign-in" asChild>
-              <TouchableOpacity style={styles.secondaryButton}>
-                <Text style={styles.secondaryButtonText}>
-                  Have an Account? Login
-                </Text>
-              </TouchableOpacity>
-            </Link>
-          </View>
+          <Link href="/sign-in" asChild>
+            <TouchableOpacity style={styles.secondaryButton}>
+              <Host matchContents useViewportSizeMeasurement>
+                <Text>Have an Account? Login</Text>
+              </Host>
+            </TouchableOpacity>
+          </Link>
         </View>
-      </SafeAreaView>
-    </>
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -140,12 +133,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: "700",
-    color: "white",
     marginBottom: 10,
   },
   subtitle: {
     lineHeight: 20,
-    color: "white",
     textAlign: "center",
     paddingHorizontal: 20,
   },

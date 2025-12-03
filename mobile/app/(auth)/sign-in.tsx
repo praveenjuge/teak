@@ -49,7 +49,7 @@ export default function SignInScreen() {
         );
         return;
       }
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/(home)");
     } catch (error) {
       console.error(error);
       Alert.alert(
@@ -61,39 +61,6 @@ export default function SignInScreen() {
       );
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  // Handle Google sign-in
-  const onGoogleSignInPress = async () => {
-    if (isGoogleLoading) return;
-    setIsGoogleLoading(true);
-
-    try {
-      const response = await authClient.signIn.social({
-        provider: "google",
-        callbackURL: "teak://",
-      });
-      if (response.error) {
-        Alert.alert(
-          "Google Sign In Failed",
-          getAuthErrorMessage(
-            response.error,
-            "Failed to sign in with Google. Please try again."
-          )
-        );
-      }
-    } catch (error) {
-      console.error(error);
-      Alert.alert(
-        "Google Sign In Failed",
-        getAuthErrorMessage(
-          error,
-          "Failed to sign in with Google. Please try again."
-        )
-      );
-    } finally {
-      setIsGoogleLoading(false);
     }
   };
 
@@ -154,26 +121,6 @@ export default function SignInScreen() {
             {isLoading ? "Signing in..." : "Sign In"}
           </Text>
         </TouchableOpacity>
-
-        <View style={styles.dividerContainer}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or continue with</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        <TouchableOpacity
-          style={[
-            styles.googleButton,
-            (isLoading || isGoogleLoading) && styles.disabledButton,
-          ]}
-          onPress={onGoogleSignInPress}
-          disabled={isLoading || isGoogleLoading}
-        >
-          <GoogleLogo width={20} height={20} />
-          <Text style={styles.googleButtonText}>
-            {isGoogleLoading ? "Signing in..." : "Continue with Google"}
-          </Text>
-        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -223,38 +170,6 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: "white",
-    fontWeight: "600",
-  },
-  dividerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 8,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  dividerText: {
-    paddingHorizontal: 12,
-    color: colors.secondaryLabel,
-    fontSize: 12,
-    textTransform: "uppercase",
-  },
-  googleButton: {
-    backgroundColor: colors.adaptiveWhite,
-    borderColor: colors.border,
-    borderWidth: borderWidths.hairline,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 10,
-    minHeight: 48,
-  },
-  googleButtonText: {
-    color: colors.label,
     fontWeight: "600",
   },
 });
