@@ -1,6 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { colors } from "@/constants/colors";
+import { Host, VStack, Text, Button, Spacer } from "@expo/ui/swift-ui";
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -53,57 +52,22 @@ function DefaultErrorFallback({
   retry: () => void;
 }) {
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Something went wrong</Text>
-        <Text style={styles.message}>
+    <Host useViewportSizeMeasurement style={{ flex: 1 }}>
+      <VStack spacing={16} alignment="center">
+        <Spacer />
+        <Text weight="semibold" size={20} design="rounded">
+          Something went wrong
+        </Text>
+        <Text color="secondary" size={16} lineLimit={4} design="rounded">
           {error?.message || "An unexpected error occurred"}
         </Text>
-        <TouchableOpacity style={styles.retryButton} onPress={retry}>
-          <Text style={styles.retryButtonText}>Try Again</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+        <Button controlSize="large" variant="bordered" onPress={retry}>
+          <Text weight="medium" design="rounded">
+            Try Again
+          </Text>
+        </Button>
+        <Spacer />
+      </VStack>
+    </Host>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#000000",
-    paddingHorizontal: 20,
-  },
-  content: {
-    alignItems: "center",
-    maxWidth: 300,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "white",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  message: {
-    fontSize: 16,
-    color: "#cccccc",
-    textAlign: "center",
-    marginBottom: 32,
-    lineHeight: 24,
-  },
-  retryButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minWidth: 120,
-  },
-  retryButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-});

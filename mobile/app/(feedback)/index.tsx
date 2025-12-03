@@ -1,15 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  AccessibilityInfo,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-} from "react-native";
+import { AccessibilityInfo, StatusBar, useColorScheme } from "react-native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { colors } from "@/constants/colors";
+import { Host, Spacer, Text, VStack } from "@expo/ui/swift-ui";
+import { frame } from "@expo/ui/swift-ui/modifiers";
 import {
   clearFeedbackStatus,
   getFeedbackStatus,
@@ -185,30 +180,26 @@ function StatusOverlay({
     (colorScheme === "dark" ? colors.systemGreen : colors.primary);
 
   return (
-    <View style={styles.content}>
-      <IconSymbol
-        color={resolvedAccent}
-        name={iconName}
-        size={72}
-        weight="semibold"
-      />
-      <Text style={styles.titleText}>{message}</Text>
-    </View>
+    <Host style={{ flex: 1 }}>
+      <VStack spacing={12} alignment="center">
+        <Spacer />
+        <VStack
+          spacing={8}
+          alignment="center"
+          modifiers={[frame({ width: 34, height: 34 })]}
+        >
+          <IconSymbol
+            color={resolvedAccent}
+            name={iconName}
+            size={24}
+            weight="semibold"
+          />
+        </VStack>
+        <Text weight="semibold" size={20} design="rounded" lineLimit={3}>
+          {message}
+        </Text>
+        <Spacer />
+      </VStack>
+    </Host>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    flex: 1,
-    paddingVertical: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-  },
-  titleText: {
-    marginTop: 4,
-    fontSize: 20,
-    fontWeight: "600",
-    color: colors.label,
-  },
-});

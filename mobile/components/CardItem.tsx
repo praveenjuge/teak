@@ -10,7 +10,7 @@ import {
 import { useQuery } from "convex/react";
 import { api } from "@teak/convex";
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { colors, borderWidths } from "@/constants/colors";
+import { colors } from "@/constants/colors";
 import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
 
 type Card = Doc<"cards">;
