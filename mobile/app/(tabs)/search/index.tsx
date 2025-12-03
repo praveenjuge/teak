@@ -25,21 +25,19 @@ export default function SearchScreen() {
           },
         }}
       />
-      <View style={{ flex: 1 }}>
-        {hasSearchQuery ? (
-          <CardsGrid searchQuery={debouncedSearchQuery} />
-        ) : (
-          <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
-            <HStack alignment="center">
-              <Spacer />
-              <Text weight="semibold" size={16}>
-                Start searching for cards!
-              </Text>
-              <Spacer />
-            </HStack>
-          </Host>
-        )}
-      </View>
+      {hasSearchQuery ? (
+        <CardsGrid searchQuery={debouncedSearchQuery} />
+      ) : (
+        <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
+          <HStack alignment="center">
+            <Spacer />
+            <Text weight="semibold" size={16}>
+              Start searching for cards!
+            </Text>
+            <Spacer />
+          </HStack>
+        </Host>
+      )}
     </>
   );
 }
