@@ -241,22 +241,12 @@ const CardItem = memo(function CardItem({ card, onDelete }: CardItemProps) {
                   style={styles.urlImage}
                 />
               )}
-              <View style={styles.urlTextContainer}>
-                <Text
-                  numberOfLines={1}
-                  style={[styles.urlTitle, dynamicStyles.text]}
-                >
-                  {linkTitle}
-                </Text>
-                {linkCategory && (
-                  <Text
-                    numberOfLines={1}
-                    style={[styles.urlCategory, dynamicStyles.mutedText]}
-                  >
-                    {LINK_CATEGORY_LABELS[linkCategory.category]}
-                  </Text>
-                )}
-              </View>
+              <Text
+                numberOfLines={1}
+                style={[styles.urlTitle, dynamicStyles.text]}
+              >
+                {linkTitle}
+              </Text>
             </View>
           </TouchableOpacity>
         );
