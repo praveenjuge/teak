@@ -1,25 +1,24 @@
 import { useRouter } from "expo-router";
-import {
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  StyleSheet,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
 import React from "react";
-import { colors, borderWidths } from "../../constants/colors";
+import { Alert } from "react-native";
+import {
+  Button,
+  Form,
+  Host,
+  HStack,
+  LabeledContent,
+  Section,
+  SecureField,
+  Spacer,
+  TextField,
+  Text,
+} from "@expo/ui/swift-ui";
 import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
-import GoogleLogo from "@/components/GoogleLogo";
 
 export default function SignInScreen() {
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
-
   const [emailAddress, setEmailAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
 
@@ -65,111 +64,40 @@ export default function SignInScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.keyboardAvoidingView}
-    >
-      <View style={styles.content}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Email</Text>
-          <TextInput
-            style={styles.textInput}
-            autoCapitalize="none"
-            autoComplete="email"
-            autoCorrect={false}
-            keyboardType="email-address"
-            value={emailAddress}
-            placeholder="Enter your email"
-            placeholderTextColor={colors.secondaryLabel}
-            onChangeText={setEmailAddress}
-            editable={!isLoading}
-          />
-        </View>
+    <Host matchContents useViewportSizeMeasurement>
+      <Form scrollEnabled={false}>
+        <Section>
+          <LabeledContent label="Email">
+            <TextField
+              placeholder="Enter your email"
+              keyboardType="email-address"
+              autocorrection={false}
+              onChangeText={setEmailAddress}
+            />
+          </LabeledContent>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Password</Text>
-          <TextInput
-            style={styles.textInput}
-            value={password}
-            placeholder="Enter your password"
-            placeholderTextColor={colors.secondaryLabel}
-            secureTextEntry={true}
-            autoComplete="current-password"
-            onChangeText={setPassword}
-            editable={!isLoading}
-          />
-        </View>
-
-        <TouchableOpacity
-          style={[
-            styles.primaryButton,
-            (isLoading ||
-              isGoogleLoading ||
-              !emailAddress.trim() ||
-              !password.trim()) &&
-              styles.disabledButton,
-          ]}
-          onPress={onSignInPress}
-          disabled={
-            isLoading ||
-            isGoogleLoading ||
-            !emailAddress.trim() ||
-            !password.trim()
-          }
-        >
-          <Text style={[styles.primaryButtonText]}>
-            {isLoading ? "Signing in..." : "Sign In"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          <LabeledContent label="Password">
+            <SecureField
+              placeholder="Enter your password"
+              onChangeText={setPassword}
+            />
+          </LabeledContent>
+          <Button
+            variant="bordered"
+            controlSize="large"
+            onPress={onSignInPress}
+            disabled={isLoading || !emailAddress.trim() || !password.trim()}
+          >
+            <HStack spacing={10} alignment="center">
+              <Spacer />
+              <Text color="primary" weight="medium" design="rounded">
+                {isLoading ? "Signing in..." : "Sign In"}
+              </Text>
+              <Spacer />
+            </HStack>
+          </Button>
+        </Section>
+      </Form>
+    </Host>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  keyboardAvoidingView: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    padding: 24,
-    gap: 24,
-    marginBottom: 32,
-  },
-  inputGroup: {
-    gap: 6,
-  },
-  inputLabel: {
-    fontWeight: "500",
-    color: colors.label,
-  },
-  textInput: {
-    backgroundColor: colors.adaptiveWhite,
-    borderColor: colors.border,
-    borderWidth: borderWidths.hairline,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    color: colors.label,
-    minHeight: 48,
-    overflow: "hidden",
-  },
-  primaryButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 48,
-    marginTop: 8,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  primaryButtonText: {
-    color: "white",
-    fontWeight: "600",
-  },
-});
