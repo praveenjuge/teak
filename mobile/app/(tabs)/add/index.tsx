@@ -33,6 +33,7 @@ import {
   HStack,
   Image,
   List,
+  Section,
   Spacer,
   Text as SwiftText,
   TextField,
@@ -206,111 +207,104 @@ export default function AddScreen() {
     setRecordingDuration(0);
   }
 
-  const handleFilePicker = async () => {
+  const handleGalleryPicker = async () => {
     if (uploadState.isUploading || isSavingCard) {
       return;
     }
 
     try {
-      // Show options for different types of file selection
-      Alert.alert(
-        "Select File Type",
-        "Choose the type of file you want to upload",
-        [
-          {
-            text: "Photo/Video from Gallery",
-            onPress: async () => {
-              const permissionResult =
-                await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-              if (permissionResult.granted === false) {
-                Alert.alert(
-                  "Permission required",
-                  "Permission to access camera roll is required!"
-                );
-                return;
-              }
+      if (permissionResult.granted === false) {
+        Alert.alert(
+          "Permission required",
+          "Permission to access camera roll is required!"
+        );
+        return;
+      }
 
-              const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ["images", "videos"],
-                allowsEditing: false,
-                quality: 1,
-              });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images", "videos"],
+        allowsEditing: false,
+        quality: 1,
+      });
 
-              if (!result.canceled && result.assets[0]) {
-                const asset = result.assets[0];
-                await handleFileUpload(
-                  asset.uri,
-                  asset.fileName ||
-                    `upload_${Date.now()}.${asset.type === "video" ? "mp4" : "jpg"}`,
-                  asset.type === "video" ? "video/mp4" : "image/jpeg"
-                );
-              }
-            },
-          },
-          {
-            text: "Take Photo/Video",
-            onPress: async () => {
-              const permissionResult =
-                await ImagePicker.requestCameraPermissionsAsync();
-
-              if (permissionResult.granted === false) {
-                Alert.alert(
-                  "Permission required",
-                  "Permission to access camera is required!"
-                );
-                return;
-              }
-
-              const result = await ImagePicker.launchCameraAsync({
-                mediaTypes: ["images", "videos"],
-                allowsEditing: false,
-                quality: 1,
-              });
-
-              if (!result.canceled && result.assets[0]) {
-                const asset = result.assets[0];
-                await handleFileUpload(
-                  asset.uri,
-                  asset.fileName ||
-                    `capture_${Date.now()}.${asset.type === "video" ? "mp4" : "jpg"}`,
-                  asset.type === "video" ? "video/mp4" : "image/jpeg"
-                );
-              }
-            },
-          },
-          {
-            text: "Other Files",
-            onPress: async () => {
-              try {
-                const result = await DocumentPicker.getDocumentAsync({
-                  type: ["image/*", "video/*", "audio/*"],
-                  copyToCacheDirectory: true,
-                });
-
-                if (!result.canceled && result.assets[0]) {
-                  const asset = result.assets[0];
-                  await handleFileUpload(
-                    asset.uri,
-                    asset.name,
-                    asset.mimeType || "application/octet-stream"
-                  );
-                }
-              } catch (error) {
-                console.error("Document picker error:", error);
-                Alert.alert("Error", "Failed to pick document");
-              }
-            },
-          },
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ]
-      );
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        await handleFileUpload(
+          asset.uri,
+          asset.fileName ||
+            `upload_${Date.now()}.${asset.type === "video" ? "mp4" : "jpg"}`,
+          asset.type === "video" ? "video/mp4" : "image/jpeg"
+        );
+      }
     } catch (error) {
-      console.error("File upload error:", error);
-      Alert.alert("Error", "Failed to upload file");
+      console.error("Gallery picker error:", error);
+      Alert.alert("Error", "Failed to pick from gallery");
+    }
+  };
+
+  const handleCameraCapture = async () => {
+    if (uploadState.isUploading || isSavingCard) {
+      return;
+    }
+
+    try {
+      const permissionResult =
+        await ImagePicker.requestCameraPermissionsAsync();
+
+      if (permissionResult.granted === false) {
+        Alert.alert(
+          "Permission required",
+          "Permission to access camera is required!"
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images", "videos"],
+        allowsEditing: false,
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        await handleFileUpload(
+          asset.uri,
+          asset.fileName ||
+            `capture_${Date.now()}.${asset.type === "video" ? "mp4" : "jpg"}`,
+          asset.type === "video" ? "video/mp4" : "image/jpeg"
+        );
+      }
+    } catch (error) {
+      console.error("Camera capture error:", error);
+      Alert.alert("Error", "Failed to open camera");
+    }
+  };
+
+  const handleDocumentPicker = async () => {
+    if (uploadState.isUploading || isSavingCard) {
+      return;
+    }
+
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["image/*", "video/*", "audio/*"],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        await handleFileUpload(
+          asset.uri,
+          asset.name,
+          asset.mimeType || "application/octet-stream"
+        );
+      }
+    } catch (error) {
+      console.error("Document picker error:", error);
+      Alert.alert("Error", "Failed to pick document");
     }
   };
 
@@ -401,54 +395,112 @@ export default function AddScreen() {
       <ScrollView>
         <Host matchContents useViewportSizeMeasurement>
           <List scrollEnabled={false}>
-            <Button
-              onPress={() => setIsTextSheetOpen(true)}
-              disabled={isSavingCard || uploadState.isUploading}
-            >
-              <HStack spacing={8}>
-                <Image
-                  systemName="textformat"
-                  color="primary"
-                  size={18}
-                  modifiers={[frame({ width: 28, height: 28 })]}
-                />
-                <SwiftText color="primary">Text or URL</SwiftText>
-                <Spacer />
-                <Image systemName="chevron.right" size={14} color="secondary" />
-              </HStack>
-            </Button>
-            <Button
-              onPress={handleFilePicker}
-              disabled={uploadState.isUploading || isSavingCard}
-            >
-              <HStack spacing={8}>
-                <Image
-                  systemName="photo"
-                  color="primary"
-                  size={16}
-                  modifiers={[frame({ width: 28, height: 28 })]}
-                />
-                <SwiftText color="primary">Photo, Video or Files</SwiftText>
-                <Spacer />
-                <Image systemName="chevron.right" size={14} color="secondary" />
-              </HStack>
-            </Button>
-            <Button
-              onPress={startRecording}
-              disabled={uploadState.isUploading || isSavingCard}
-            >
-              <HStack spacing={8}>
-                <Image
-                  systemName="mic.fill"
-                  color="primary"
-                  size={18}
-                  modifiers={[frame({ width: 28, height: 28 })]}
-                />
-                <SwiftText color="primary">Record Audio</SwiftText>
-                <Spacer />
-                <Image systemName="chevron.right" size={14} color="secondary" />
-              </HStack>
-            </Button>
+            <Section>
+              <Button
+                onPress={() => setIsTextSheetOpen(true)}
+                disabled={isSavingCard || uploadState.isUploading}
+              >
+                <HStack spacing={8}>
+                  <Image
+                    systemName="textformat"
+                    color="primary"
+                    size={18}
+                    modifiers={[frame({ width: 28, height: 28 })]}
+                  />
+                  <SwiftText color="primary">Text or URL</SwiftText>
+                  <Spacer />
+                  <Image
+                    systemName="chevron.right"
+                    size={14}
+                    color="secondary"
+                  />
+                </HStack>
+              </Button>
+              <Button
+                onPress={startRecording}
+                disabled={uploadState.isUploading || isSavingCard}
+              >
+                <HStack spacing={8}>
+                  <Image
+                    systemName="mic.fill"
+                    color="primary"
+                    size={18}
+                    modifiers={[frame({ width: 28, height: 28 })]}
+                  />
+                  <SwiftText color="primary">Record Audio</SwiftText>
+                  <Spacer />
+                  <Image
+                    systemName="chevron.right"
+                    size={14}
+                    color="secondary"
+                  />
+                </HStack>
+              </Button>
+            </Section>
+            <Section>
+              <Button
+                onPress={handleGalleryPicker}
+                disabled={uploadState.isUploading || isSavingCard}
+              >
+                <HStack spacing={8}>
+                  <Image
+                    systemName="photo.on.rectangle"
+                    color="primary"
+                    size={16}
+                    modifiers={[frame({ width: 28, height: 28 })]}
+                  />
+                  <SwiftText color="primary">
+                    Photos/Videos from Gallery
+                  </SwiftText>
+                  <Spacer />
+                  <Image
+                    systemName="chevron.right"
+                    size={14}
+                    color="secondary"
+                  />
+                </HStack>
+              </Button>
+              <Button
+                onPress={handleCameraCapture}
+                disabled={uploadState.isUploading || isSavingCard}
+              >
+                <HStack spacing={8}>
+                  <Image
+                    systemName="camera"
+                    color="primary"
+                    size={18}
+                    modifiers={[frame({ width: 28, height: 28 })]}
+                  />
+                  <SwiftText color="primary">Open Camera</SwiftText>
+                  <Spacer />
+                  <Image
+                    systemName="chevron.right"
+                    size={14}
+                    color="secondary"
+                  />
+                </HStack>
+              </Button>
+              <Button
+                onPress={handleDocumentPicker}
+                disabled={uploadState.isUploading || isSavingCard}
+              >
+                <HStack spacing={8}>
+                  <Image
+                    systemName="tray.and.arrow.up"
+                    color="primary"
+                    size={16}
+                    modifiers={[frame({ width: 28, height: 28 })]}
+                  />
+                  <SwiftText color="primary">Upload Files</SwiftText>
+                  <Spacer />
+                  <Image
+                    systemName="chevron.right"
+                    size={14}
+                    color="secondary"
+                  />
+                </HStack>
+              </Button>
+            </Section>
           </List>
         </Host>
         <Host
