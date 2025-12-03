@@ -22,7 +22,7 @@ export default function SearchScreen() {
           },
         }}
       />
-      <ScrollView style={{ flex: 1, marginTop: 80 }}>
+      <ScrollView>
         <CardsGrid searchQuery={debouncedSearchQuery} />
       </ScrollView>
     </>
