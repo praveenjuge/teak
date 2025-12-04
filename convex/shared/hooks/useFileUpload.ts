@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { type CardErrorCode } from "../constants";
+import { type CardErrorCode, MAX_FILE_SIZE, MAX_FILES_PER_UPLOAD, CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../constants";
 
 // Sentry capture function - will be injected by platform-specific wrappers
 type SentryCaptureFunction = (error: unknown, context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }) => void;
@@ -103,6 +103,17 @@ export function useFileUploadCore(
       setError(null);
 
       try {
+        // Validate file size
+        if (file.size > MAX_FILE_SIZE) {
+          const errorInfo: FileUploadError = {
+            message: CARD_ERROR_MESSAGES.FILE_TOO_LARGE,
+            code: CARD_ERROR_CODES.FILE_TOO_LARGE,
+          };
+          const codedError = new Error(errorInfo.message) as CodedError;
+          codedError.code = errorInfo.code;
+          throw codedError;
+        }
+
         // Step 1: Get upload URL from Convex
         const uploadResult = await uploadAndCreateCard({
           fileName: file.name,
@@ -209,6 +220,22 @@ export function useFileUploadCore(
         additionalMetadata?: any;
       } = {}
     ): Promise<UploadMultipleFilesResultItem[]> => {
+      // Validate file count
+      if (files.length > MAX_FILES_PER_UPLOAD) {
+        const errorInfo: FileUploadError = {
+          message: CARD_ERROR_MESSAGES.TOO_MANY_FILES,
+          code: CARD_ERROR_CODES.TOO_MANY_FILES,
+        };
+        setError(errorInfo);
+        config.onError?.(errorInfo);
+        return files.map(file => ({
+          file: file.name,
+          success: false as const,
+          error: errorInfo.message,
+          errorCode: errorInfo.code,
+        }));
+      }
+
       const results: UploadMultipleFilesResultItem[] = [];
 
       for (const file of files) {

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { SyntheticEvent } from "react";
+import { Image } from "antd";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
 import { Id } from "@teak/convex/_generated/dataModel";
@@ -382,36 +383,16 @@ function GridImagePreview({
   // Calculate aspect ratio if dimensions are available
   const aspectRatio = width && height ? width / height : undefined;
 
-  // Use a container div to maintain aspect ratio for better masonry layout
-  if (aspectRatio && width && height) {
-    // Calculate the actual height based on the container's potential width
-    return (
-      <div
-        style={{
-          width: "100%",
-          aspectRatio: aspectRatio.toString(),
-          minHeight: "100px", // Prevent collapse during loading
-        }}
-        className="bg-card rounded-xl border overflow-hidden"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={fileUrl}
-          alt={altText}
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
-      </div>
-    );
-  }
-
-  // Fallback for images without dimension metadata
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <Image
       src={fileUrl}
       alt={altText}
-      className="w-full object-cover bg-card rounded-xl border"
+      className="h-full w-full object-cover bg-card rounded-xl border overflow-hidden"
+      rootClassName="h-full w-full"
+      style={{ objectFit: "cover", aspectRatio: aspectRatio?.toString() }}
+      preview={false}
+      placeholder
+      loading="lazy"
     />
   );
 }

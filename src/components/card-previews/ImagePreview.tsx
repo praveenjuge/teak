@@ -1,6 +1,7 @@
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
 import { type Doc } from "@teak/convex/_generated/dataModel";
+import { Image } from "antd";
 
 interface ImagePreviewProps {
   card: Doc<"cards">;
@@ -16,11 +17,12 @@ export function ImagePreview({ card }: ImagePreviewProps) {
 
   return (
     <div className="w-full h-full flex items-center justify-center">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <Image
         src={fileUrl}
         alt={card.content}
-        className="max-h-[70vh] max-w-full object-contain"
+        className="max-h-[75vh] max-w-full"
+        preview={false}
+        placeholder
       />
     </div>
   );

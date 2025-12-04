@@ -10,7 +10,12 @@ import { Mic, Square, Upload, Sparkles, AlertCircle } from "lucide-react";
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { useFileUpload } from "@/hooks/useFileUpload";
-import { CARD_ERROR_CODES } from "@teak/convex/shared";
+import {
+  CARD_ERROR_CODES,
+  MAX_FILE_SIZE,
+  MAX_FILES_PER_UPLOAD,
+  CARD_ERROR_MESSAGES,
+} from "@teak/convex/shared";
 import { toast } from "sonner";
 import * as Sentry from "@sentry/nextjs";
 import { metrics } from "@/lib/metrics";
@@ -305,11 +310,37 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "*/*";
+    input.multiple = true;
     input.style.display = "none"; // Hide the input element
 
     input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
+      const files = Array.from((e.target as HTMLInputElement).files || []);
+
+      // Clean up the input element immediately
+      document.body.removeChild(input);
+
+      if (files.length === 0) return;
+
+      // Validate file count
+      if (files.length > MAX_FILES_PER_UPLOAD) {
+        setError(CARD_ERROR_MESSAGES.TOO_MANY_FILES);
+        toast.error(
+          `You can only upload up to ${MAX_FILES_PER_UPLOAD} files at a time`
+        );
+        return;
+      }
+
+      // Validate file sizes
+      const oversizedFiles = files.filter((file) => file.size > MAX_FILE_SIZE);
+      if (oversizedFiles.length > 0) {
+        const fileNames = oversizedFiles.map((f) => f.name).join(", ");
+        setError(`Files too large (max 20MB): ${fileNames}`);
+        toast.error(`Some files exceed the 20MB limit: ${fileNames}`);
+        return;
+      }
+
+      // Upload files
+      for (const file of files) {
         const result = await uploadFile(file, {
           content: "",
         });
@@ -317,7 +348,6 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         if (result.success) {
           metrics.fileUploaded(file.size, file.type, true);
           metrics.cardCreated(file.type.split("/")[0] || "document");
-          onSuccess?.();
           toast.success(`${file.name} uploaded successfully`);
         } else {
           const errorMessage = result.error || "Failed to upload file";
@@ -326,11 +356,13 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
             metrics.cardLimitReached(0);
             metrics.upgradePromptShown("file_upload");
             setShowUpgradePrompt(true);
+            break; // Stop uploading more files
           } else if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
             metrics.rateLimitHit("card_creation");
             setError(
               "Too many cards created. Please wait a moment and try again."
             );
+            break; // Stop uploading more files
           } else {
             metrics.errorOccurred("upload", result.errorCode);
             setError(errorMessage);
@@ -338,8 +370,8 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         }
       }
 
-      // Clean up the input element
-      document.body.removeChild(input);
+      // Call onSuccess if at least one file was uploaded
+      onSuccess?.();
     };
 
     // Add to DOM temporarily and trigger click

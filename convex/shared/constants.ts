@@ -13,11 +13,23 @@ export type CardType = (typeof cardTypes)[number];
  */
 export const FREE_TIER_LIMIT = 25;
 
+/**
+ * Maximum file size for uploads (20MB in bytes)
+ */
+export const MAX_FILE_SIZE = 20 * 1024 * 1024;
+
+/**
+ * Maximum number of files that can be uploaded at once
+ */
+export const MAX_FILES_PER_UPLOAD = 5;
+
 // === Error Codes & Messages ===
 
 export const CARD_ERROR_CODES = {
   CARD_LIMIT_REACHED: "CARD_LIMIT_REACHED",
   RATE_LIMITED: "RATE_LIMITED",
+  FILE_TOO_LARGE: "FILE_TOO_LARGE",
+  TOO_MANY_FILES: "TOO_MANY_FILES",
 } as const;
 
 export type CardErrorCode =
@@ -28,6 +40,10 @@ export const CARD_ERROR_MESSAGES: Record<CardErrorCode, string> = {
     "Card limit reached. Please upgrade to Pro for unlimited cards.",
   RATE_LIMITED:
     "Too many cards created. Please wait a moment and try again.",
+  FILE_TOO_LARGE:
+    "File is too large. Maximum file size is 20MB.",
+  TOO_MANY_FILES:
+    "Too many files selected. You can upload up to 5 files at a time.",
 } as const;
 
 /**
