@@ -33,7 +33,7 @@ export default function RootLayout({
             </ThemeProvider>
           </ConvexQueryCacheProvider>
         </ConvexClientProvider>
-        <Toaster />
+        <Toaster position="bottom-center" />
       </body>
     </html>
   );
