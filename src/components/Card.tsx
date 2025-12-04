@@ -4,7 +4,7 @@ import {
   File,
   Heart,
   Loader2,
-  PlayCircle,
+  Play,
   RotateCcw,
   Trash,
   Trash2,
@@ -215,11 +215,12 @@ export function Card({
               <>
                 {displayLinkImage && linkCardTitle ? (
                   <div className="rounded-xl border bg-card overflow-hidden divide-y">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <Image
                       src={displayLinkImage}
                       alt={linkCardTitle}
                       className="w-full h-28 object-cover bg-card"
+                      preview={false}
+                      placeholder
                       onError={handleLinkImageError}
                     />
                     <div className="px-4 py-3">
@@ -414,11 +415,12 @@ function GridDocumentPreview({
   if (thumbnailId && thumbnailUrl) {
     return (
       <div className="rounded-xl border bg-card overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={thumbnailUrl}
           alt={`Preview of ${fileName || "document"}`}
           className="w-full object-contain bg-muted"
+          preview={false}
+          placeholder
           loading="lazy"
         />
         <div className="px-4 py-3 border-t flex gap-2 items-center">
@@ -455,16 +457,17 @@ function GridVideoPreview({
   if (thumbnailId && thumbnailUrl) {
     return (
       <div className="relative rounded-xl border bg-card overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={thumbnailUrl}
           alt="Video thumbnail"
           className="w-full object-cover"
+          preview={false}
+          placeholder
           loading="lazy"
         />
         <div className="absolute inset-0 flex items-center justify-center bg-black/20">
           <div className="rounded-full bg-black/50 p-2">
-            <PlayCircle className="size-8 text-white" />
+            <Play className="size-6 text-white" />
           </div>
         </div>
       </div>
@@ -474,7 +477,7 @@ function GridVideoPreview({
   // Fallback: show icon-based display (if thumbnail not ready)
   return (
     <div className="w-full h-32 flex items-center justify-center bg-black text-white rounded-xl border">
-      <PlayCircle className="size-8" />
+      <Play className="size-6 text-white" />
     </div>
   );
 }

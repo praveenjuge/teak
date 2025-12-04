@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
+import { Image } from "antd";
 import { api } from "@teak/convex";
 import { type Doc } from "@teak/convex/_generated/dataModel";
 import { Separator } from "@/components/ui/separator";
@@ -94,15 +95,12 @@ export function LinkPreview({
           <p className="text-xs text-muted-foreground uppercase tracking-wide">
             Preview Image
           </p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={linkImage}
             alt="Open Graph preview"
             className="w-full max-h-[70vh] object-contain rounded border"
-            onError={(event) => {
-              const target = event.currentTarget;
-              target.style.display = "none";
-            }}
+            preview={false}
+            placeholder
           />
         </div>
       )}
@@ -112,11 +110,12 @@ export function LinkPreview({
           <p className="text-xs text-muted-foreground uppercase tracking-wide">
             Screenshot
           </p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={screenshotUrl}
             alt="Rendered webpage screenshot"
             className="w-full max-h-[70vh] object-contain rounded border"
+            preview={false}
+            placeholder
           />
         </div>
       )}
