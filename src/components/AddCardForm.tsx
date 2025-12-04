@@ -99,19 +99,8 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     }
   );
 
-  // Use shared file upload hook
-  const { uploadFile, state: uploadState } = useFileUpload({
-    onSuccess: () => {
-      onSuccess?.();
-    },
-    onError: (error) => {
-      if (error.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
-        setShowUpgradePrompt(true);
-      } else {
-        setError(error.message);
-      }
-    },
-  });
+  // Use shared file upload hook (no callbacks - we handle toast updates directly)
+  const { uploadFile } = useFileUpload();
 
   const getCardErrorCode = (err: unknown): string | null => {
     if (!err || typeof err !== "object") {
@@ -235,6 +224,9 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   };
 
   const autoSaveAudio = async (blob: Blob) => {
+    // Create a loading toast that we'll update
+    const toastId = toast.loading("Saving audio recording...");
+
     try {
       setIsSubmitting(true);
 
@@ -260,20 +252,21 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         setUrl("");
         setRecordingTime(0);
         onSuccess?.();
-        toast.success("Audio recording saved successfully");
+        toast.success("Audio recording saved", { id: toastId });
       } else {
         if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
           metrics.cardLimitReached(0);
           metrics.upgradePromptShown("audio_recording");
+          toast.error("Card limit reached", { id: toastId });
           setShowUpgradePrompt(true);
           return;
         }
 
         if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
           metrics.rateLimitHit("card_creation");
-          setError(
-            "Too many cards created. Please wait a moment and try again."
-          );
+          toast.error("Too many cards created. Please wait a moment.", {
+            id: toastId,
+          });
           return;
         }
 
@@ -292,6 +285,8 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         error instanceof Error
           ? error.message
           : "Failed to save audio recording";
+
+      toast.error("Failed to save audio recording", { id: toastId });
 
       if (isCardLimitError(error)) {
         setShowUpgradePrompt(true);
@@ -339,8 +334,11 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         return;
       }
 
-      // Upload files
+      // Upload files with toast progress (non-blocking)
       for (const file of files) {
+        // Create a loading toast that we'll update
+        const toastId = toast.loading(`Uploading ${file.name}...`);
+
         const result = await uploadFile(file, {
           content: "",
         });
@@ -348,30 +346,30 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         if (result.success) {
           metrics.fileUploaded(file.size, file.type, true);
           metrics.cardCreated(file.type.split("/")[0] || "document");
-          toast.success(`${file.name} uploaded successfully`);
+          toast.success(`${file.name} uploaded`, { id: toastId });
+          onSuccess?.();
         } else {
-          const errorMessage = result.error || "Failed to upload file";
           metrics.fileUploaded(file.size, file.type, false);
           if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
             metrics.cardLimitReached(0);
             metrics.upgradePromptShown("file_upload");
+            toast.error("Card limit reached", { id: toastId });
             setShowUpgradePrompt(true);
             break; // Stop uploading more files
           } else if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
             metrics.rateLimitHit("card_creation");
-            setError(
-              "Too many cards created. Please wait a moment and try again."
-            );
+            toast.error("Too many cards created. Please wait a moment.", {
+              id: toastId,
+            });
             break; // Stop uploading more files
           } else {
+            const errorMessage = result.error || "Failed to upload file";
             metrics.errorOccurred("upload", result.errorCode);
+            toast.error(`Failed to upload ${file.name}`, { id: toastId });
             setError(errorMessage);
           }
         }
       }
-
-      // Call onSuccess if at least one file was uploaded
-      onSuccess?.();
     };
 
     // Add to DOM temporarily and trigger click
@@ -464,23 +462,6 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     );
   }
 
-  // Uploading mode - full card feedback while files/audio are being uploaded
-  if (uploadState.isUploading) {
-    return (
-      <Card className="shadow-none p-4 border-primary ring-1 ring-primary w-full relative overflow-hidden h-36">
-        <CardContent className="text-center flex flex-col gap-4 h-full justify-center items-center p-0 relative">
-          <h3 className="font-medium text-primary">Uploading...</h3>
-        </CardContent>
-        {uploadState.progress > 0 && (
-          <div
-            className="bg-primary/20 h-full absolute top-0 left-0 bottom-0 transition-all duration-300"
-            style={{ width: `${uploadState.progress}%` }}
-          />
-        )}
-      </Card>
-    );
-  }
-
   return (
     <Card className="p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden w-full min-h-36">
       <CardContent className="p-0 h-full">
@@ -521,7 +502,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
                 variant="outline"
                 size="sm"
                 onClick={handleFileUpload}
-                disabled={uploadState.isUploading || !canCreateCard}
+                disabled={!canCreateCard}
               >
                 <Upload />
               </Button>
@@ -531,17 +512,13 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
                 variant="outline"
                 size="sm"
                 onClick={startRecording}
-                disabled={uploadState.isUploading || !canCreateCard}
+                disabled={!canCreateCard}
               >
                 <Mic />
               </Button>
             </div>
             {content.trim() && (
-              <Button
-                type="submit"
-                disabled={uploadState.isUploading || !canCreateCard}
-                size="sm"
-              >
+              <Button type="submit" disabled={!canCreateCard} size="sm">
                 Save
               </Button>
             )}
