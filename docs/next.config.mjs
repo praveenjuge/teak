@@ -36,6 +36,15 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: "/docs/environment-settings",
+        destination: "/docs/self-hosting#environment-settings",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

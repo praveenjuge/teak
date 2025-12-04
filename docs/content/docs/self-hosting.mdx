@@ -1,0 +1,94 @@
+---
+title: Self-Hosting
+description: Self-hosting gives you full control over your data and billing while matching the hosted experience.
+icon: Settings
+---
+
+## What you'll need
+
+- Convex CLI (`npm i -g convex`)
+- Access to secrets for the features you want: Groq (AI), Kernel (screenshots), Resend (email), Polar (billing)
+
+## Quickstart (local)
+
+1. Clone the repo and install dependencies:
+
+```bash
+bun install
+```
+
+2. Provision Convex + Better Auth defaults:
+
+```bash
+bun run predev
+```
+
+This creates a dev deployment and prints the `CONVEX_SITE_URL` you will reuse in client env files.
+
+3. Create env files using the values below:
+   - `./.env.local` (web + backend)
+   - `mobile/.env.local`
+   - `extension/.env.local`
+
+4. Start the stack:
+
+```bash
+bun run dev
+```
+
+## Production basics
+
+- Point `SITE_URL` and `CONVEX_SITE_URL` to your public domain.
+- Add email (`RESEND_API_KEY`) and billing (Polar) keys if you need those features.
+- Build and serve:
+
+```bash
+bun run build
+bun run start
+```
+
+## Environment settings
+
+Add these to your env files before running locally or deploying.
+
+### Backend (`.env.local`)
+
+```bash
+SITE_URL=http://localhost:3000
+BETTER_AUTH_SECRET=your-secret               # Better Auth security
+KERNEL_API_KEY=token                         # Kernel Browser
+GROQ_API_KEY=gsk_...                         # AI processing
+POLAR_ACCESS_TOKEN=token                     # Billing
+POLAR_ORGANIZATION_TOKEN=token               # Polar organization
+POLAR_SERVER=sandbox                         # sandbox|production
+POLAR_WEBHOOK_SECRET=secret                  # Polar webhooks
+RESEND_API_KEY=token                         # Email service
+```
+
+### Web (`./.env.local`)
+
+```bash
+CONVEX_DEPLOY_KEY=
+NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
+NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+```
+
+### Mobile (`mobile/.env.local`)
+
+```bash
+EXPO_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
+EXPO_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+```
+
+### Extension (`extension/.env.local`)
+
+```bash
+VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
+VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+```
+
+## Where to get the values
+
+- Convex: run `bun run predev`; it creates the deployment and prints both URLs. Update them when you promote to production.
+- Better Auth: generate a secret once with `npx convex env set BETTER_AUTH_SECRET $(openssl rand -base64 32)`. Keep `SITE_URL` (Next.js + Convex) and `CONVEX_SITE_URL` (Convex site endpoint) in sync with your domain.
+- Optional features: set `GROQ_API_KEY` for AI, `KERNEL_API_KEY` for link previews, Polar keys for billing, and `RESEND_API_KEY` for email.
