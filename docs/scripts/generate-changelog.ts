@@ -48,7 +48,9 @@ interface CommitBatch {
 const changelogSchema = z.object({
   title: z
     .string()
-    .describe("A short, catchy title (4-7 words)"),
+    .describe(
+      "A short, catchy title (4-7 words) that does NOT include months, dates, or years"
+    ),
   summary: z
     .string()
     .describe(
@@ -186,7 +188,7 @@ async function generateBatchSummary(batch: CommitBatch) {
 
 ${commitsText}
 
-Create an engaging title, summary, and highlights that communicate value to users.`,
+Create an engaging title, summary, and highlights that communicate value to users. The title must avoid months, dates, and years (no calendar references) and should read like a compelling headline, not an "updates" label.`,
     schema: changelogSchema,
   });
 

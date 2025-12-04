@@ -37,7 +37,7 @@ export default function ChangelogPage() {
         <h1 className="mb-4 font-bold text-4xl md:text-5xl text-balance tracking-tight">
           What&apos;s New
         </h1>
-        <p className="text-base text-muted-foreground text-balance mb-6">
+        <p className="text-lg text-muted-foreground text-balance mb-6">
           Real updates that make Teak better. No corporate fluff, promise.
         </p>
         <Button variant="outline" asChild>
@@ -62,17 +62,17 @@ export default function ChangelogPage() {
           return (
             <article
               key={data.batchNumber}
-              className="border rounded-xl p-6 bg-background"
+              className="border rounded-xl p-7 bg-background"
             >
-              <p className="text-sm text-muted-foreground mb-2">
+              <p className="text-muted-foreground mb-2">
                 {formatDate(data.endDate)}
               </p>
 
-              <h2 className="text-2xl font-semibold mb-3 text-balance">
+              <h2 className="text-2xl font-semibold mb-4 text-balance">
                 {data.title}
               </h2>
 
-              <div className="prose prose-neutral dark:prose-invert prose-sm max-w-none">
+              <div className="prose max-w-none">
                 <MDXContent />
               </div>
             </article>
