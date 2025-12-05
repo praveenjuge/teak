@@ -139,7 +139,7 @@ export function useFileUploadCore(
 
         const uploadResponse = await fetch(uploadResult.uploadUrl, {
           method: "POST",
-          headers: { "Content-Type": file.type },
+          headers: { "Content-Type": file.type || "application/octet-stream" },
           body: file,
         });
 
