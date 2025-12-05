@@ -289,6 +289,7 @@ export default function ProfileSettingsPage() {
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const [checkoutInstance, setCheckoutInstance] =
     useState<PolarEmbedCheckout | null>(null);
+  const [mounted, setMounted] = useState(false);
   const {
     state: deleteState,
     patch: patchDeleteState,
@@ -303,6 +304,10 @@ export default function ProfileSettingsPage() {
   const createCheckoutLink = useAction(api.billing.createCheckoutLink);
   const { theme, setTheme } = useTheme();
   const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -456,29 +461,18 @@ export default function ProfileSettingsPage() {
         </Button>
       </SettingRow>
 
-      <SettingRow title="Theme">
-        <div className="flex items-center gap-px">
-          {themeOptions.map(({ value, icon: Icon }) => (
-            <Button
-              key={value}
-              variant={theme === value ? "secondary" : "ghost"}
-              size="sm"
-              onClick={handleThemeChange(value)}
-            >
-              <Icon />
-            </Button>
-          ))}
-        </div>
-      </SettingRow>
-
       <SettingRow title="Usage">
         <Button size="sm" variant="ghost" disabled>
-          {cardCount ?? 0} cards used
+          {isLoading ? <Spinner /> : `${cardCount} Cards`}
         </Button>
       </SettingRow>
 
       <SettingRow title="Plan">
-        {hasPremium ? (
+        {isLoading ? (
+          <Button size="sm" variant="ghost" disabled>
+            <Spinner />
+          </Button>
+        ) : hasPremium ? (
           <>
             <Badge>Pro</Badge>
             <CustomerPortalButton
@@ -503,6 +497,21 @@ export default function ProfileSettingsPage() {
             </Button>
           </>
         )}
+      </SettingRow>
+
+      <SettingRow title="Theme">
+        <div className="flex items-center gap-px">
+          {themeOptions.map(({ value, icon: Icon }) => (
+            <Button
+              key={value}
+              variant={mounted && theme === value ? "secondary" : "ghost"}
+              size="sm"
+              onClick={handleThemeChange(value)}
+            >
+              <Icon />
+            </Button>
+          ))}
+        </div>
       </SettingRow>
 
       <SettingRow title="Sign out">

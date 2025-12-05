@@ -76,7 +76,7 @@ const AdminIntro = () => (
 );
 
 const HeadlineStatsGrid = ({ cards }: { cards: HeadlineCard[] }) => (
-  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+  <div className="grid gap-4 md:grid-cols-2">
     {cards.map((stat) => (
       <Card key={stat.title} className="h-full">
         <CardHeader>
@@ -175,7 +175,7 @@ const PipelineHealthCard = ({
         <p className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wide">
           Pipeline stage breakdown
         </p>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3">
           {stageList.map(({ key, label, summary }) => (
             <div key={key} className="border rounded-md p-3">
               <p className="font-medium mb-2">{label}</p>
@@ -234,9 +234,7 @@ const MissingCardsCard = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[120px]">Card</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Created</TableHead>
                 <TableHead>Metadata</TableHead>
                 <TableHead className="hidden md:table-cell">Issues</TableHead>
                 <TableHead className="hidden md:table-cell">
@@ -248,19 +246,10 @@ const MissingCardsCard = ({
             <TableBody>
               {missingCards.map((card) => (
                 <TableRow key={card.cardId}>
-                  <TableCell className="font-mono text-xs">
-                    {card.cardId.slice(0, 8)}…
-                  </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className="capitalize">
                       {card.type}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(card.createdAt).toLocaleString(undefined, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
                   </TableCell>
                   <TableCell className="capitalize">
                     {card.metadataStatus ?? "unset"}
