@@ -21,12 +21,12 @@ export const linkCategoryLiterals = [...LINK_CATEGORIES] as const;
 export type LinkCategory = (typeof linkCategoryLiterals)[number];
 
 export const linkCategoryValidator = v.union(
-  ...linkCategoryLiterals.map((category) => v.literal(category))
+  ...linkCategoryLiterals.map((category) => v.literal(category)),
 );
 
 // Reusable validators
 export const cardTypeValidator = v.union(
-  ...cardTypes.map((type) => v.literal(type))
+  ...cardTypes.map((type) => v.literal(type)),
 );
 
 const stageStatusValidator = v.object({
@@ -34,7 +34,7 @@ const stageStatusValidator = v.object({
     v.literal("pending"),
     v.literal("in_progress"),
     v.literal("completed"),
-    v.literal("failed")
+    v.literal("failed"),
   ),
   startedAt: v.optional(v.number()),
   completedAt: v.optional(v.number()),
@@ -50,7 +50,7 @@ export const processingStatusObjectValidator = v.object({
 });
 
 export const processingStatusValidator = v.optional(
-  processingStatusObjectValidator
+  processingStatusObjectValidator,
 );
 
 const linkCategoryFactValidator = v.object({
@@ -81,7 +81,7 @@ export const fileMetadataValidator = v.optional(
     height: v.optional(v.number()),
     // Recording-specific metadata
     recordingTimestamp: v.optional(v.number()),
-  })
+  }),
 );
 
 export const metadataValidator = v.optional(
@@ -110,30 +110,34 @@ export const metadataValidator = v.optional(
             type: v.optional(v.string()),
             message: v.optional(v.string()),
             details: v.optional(v.any()),
-          })
+          }),
         ),
         raw: v.optional(v.any()),
-      })
+      }),
     ),
     linkCategory: v.optional(linkCategoryMetadataValidator),
     microlinkData: v.optional(v.any()),
-  })
+  }),
 );
 
 // Color palette validator for palette cards
 export const colorValidator = v.object({
   hex: v.string(), // Always normalized to hex format
   name: v.optional(v.string()), // Color name if available
-  rgb: v.optional(v.object({
-    r: v.number(),
-    g: v.number(),
-    b: v.number(),
-  })),
-  hsl: v.optional(v.object({
-    h: v.number(),
-    s: v.number(),
-    l: v.number(),
-  })),
+  rgb: v.optional(
+    v.object({
+      r: v.number(),
+      g: v.number(),
+      b: v.number(),
+    }),
+  ),
+  hsl: v.optional(
+    v.object({
+      h: v.number(),
+      s: v.number(),
+      l: v.number(),
+    }),
+  ),
 });
 
 export const cardValidator = v.object({
@@ -150,7 +154,9 @@ export const cardValidator = v.object({
   deletedAt: v.optional(v.number()),
   metadata: metadataValidator,
   fileMetadata: fileMetadataValidator,
-  metadataStatus: v.optional(v.union(v.literal("pending"), v.literal("completed"), v.literal("failed"))),
+  metadataStatus: v.optional(
+    v.union(v.literal("pending"), v.literal("completed"), v.literal("failed")),
+  ),
   // Searchable metadata fields (flattened for search indexes)
   metadataTitle: v.optional(v.string()),
   metadataDescription: v.optional(v.string()),
@@ -164,7 +170,7 @@ export const cardValidator = v.object({
       model: v.string(),
       version: v.optional(v.string()),
       generatedAt: v.optional(v.number()),
-    })
+    }),
   ),
   // Palette-specific fields
   colors: v.optional(v.array(colorValidator)),
@@ -197,14 +203,7 @@ export default defineSchema({
       searchField: "notes",
       filterFields: ["userId", "isDeleted", "type", "isFavorited"],
     })
-    .searchIndex("search_tags", {
-      searchField: "tags",
-      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
-    })
-    .searchIndex("search_ai_tags", {
-      searchField: "aiTags",
-      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
-    })
+
     .searchIndex("search_ai_summary", {
       searchField: "aiSummary",
       filterFields: ["userId", "isDeleted", "type", "isFavorited"],

@@ -26,7 +26,7 @@ export const getCards = query({
     let query = ctx.db
       .query("cards")
       .withIndex("by_user_deleted", (q) =>
-        q.eq("userId", user.subject).eq("isDeleted", undefined)
+        q.eq("userId", user.subject).eq("isDeleted", undefined),
       );
 
     if (args.type) {
@@ -34,7 +34,10 @@ export const getCards = query({
       query = ctx.db
         .query("cards")
         .withIndex("by_user_type_deleted", (q) =>
-          q.eq("userId", user.subject).eq("type", args.type!).eq("isDeleted", undefined)
+          q
+            .eq("userId", user.subject)
+            .eq("type", args.type!)
+            .eq("isDeleted", undefined),
         );
     }
 
@@ -43,7 +46,10 @@ export const getCards = query({
       query = ctx.db
         .query("cards")
         .withIndex("by_user_favorites_deleted", (q) =>
-          q.eq("userId", user.subject).eq("isFavorited", true).eq("isDeleted", undefined)
+          q
+            .eq("userId", user.subject)
+            .eq("isFavorited", true)
+            .eq("isDeleted", undefined),
         );
     }
 
@@ -82,12 +88,17 @@ export const searchCards = query({
       const query = searchQuery.toLowerCase().trim();
 
       // Handle special keywords
-      if (["fav", "favs", "favorites", "favourite", "favourites"].includes(query)) {
+      if (
+        ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
+      ) {
         // Use compound index by_user_favorites_deleted to avoid post-index .filter()
         const favorites = await ctx.db
           .query("cards")
           .withIndex("by_user_favorites_deleted", (q) =>
-            q.eq("userId", user.subject).eq("isFavorited", true).eq("isDeleted", undefined)
+            q
+              .eq("userId", user.subject)
+              .eq("isFavorited", true)
+              .eq("isDeleted", undefined),
           )
           .order("desc")
           .take(limit);
@@ -98,7 +109,7 @@ export const searchCards = query({
         const trashed = await ctx.db
           .query("cards")
           .withIndex("by_user_deleted", (q) =>
-            q.eq("userId", user.subject).eq("isDeleted", true)
+            q.eq("userId", user.subject).eq("isDeleted", true),
           )
           .order("desc")
           .take(limit);
@@ -114,7 +125,7 @@ export const searchCards = query({
             q
               .search("content", searchQuery)
               .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined)
+              .eq("isDeleted", showTrashOnly ? true : undefined),
           )
           .take(limit),
 
@@ -125,7 +136,7 @@ export const searchCards = query({
             q
               .search("notes", searchQuery)
               .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined)
+              .eq("isDeleted", showTrashOnly ? true : undefined),
           )
           .take(limit),
 
@@ -136,7 +147,7 @@ export const searchCards = query({
             q
               .search("aiSummary", searchQuery)
               .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined)
+              .eq("isDeleted", showTrashOnly ? true : undefined),
           )
           .take(limit),
 
@@ -147,7 +158,7 @@ export const searchCards = query({
             q
               .search("aiTranscript", searchQuery)
               .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined)
+              .eq("isDeleted", showTrashOnly ? true : undefined),
           )
           .take(limit),
 
@@ -158,7 +169,7 @@ export const searchCards = query({
             q
               .search("metadataTitle", searchQuery)
               .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined)
+              .eq("isDeleted", showTrashOnly ? true : undefined),
           )
           .take(limit),
 
@@ -169,26 +180,72 @@ export const searchCards = query({
             q
               .search("metadataDescription", searchQuery)
               .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined)
+              .eq("isDeleted", showTrashOnly ? true : undefined),
           )
           .take(limit),
+
+        // Search tags (using JavaScript filter after getting all cards)
+        (async () => {
+          const allCards = await ctx.db
+            .query("cards")
+            .withIndex("by_user_deleted", (q) =>
+              q
+                .eq("userId", user.subject)
+                .eq("isDeleted", showTrashOnly ? true : undefined),
+            )
+            .take(limit * 2); // Get more to filter down
+
+          const searchTerms = searchQuery.toLowerCase().split(/\s+/);
+          return allCards.filter(
+            (card) =>
+              card.tags &&
+              card.tags.some((tag) =>
+                searchTerms.some((term) => tag.toLowerCase().includes(term)),
+              ),
+          );
+        })(),
+
+        // Search AI tags (using JavaScript filter after getting all cards)
+        (async () => {
+          const allCards = await ctx.db
+            .query("cards")
+            .withIndex("by_user_deleted", (q) =>
+              q
+                .eq("userId", user.subject)
+                .eq("isDeleted", showTrashOnly ? true : undefined),
+            )
+            .take(limit * 2); // Get more to filter down
+
+          const searchTerms = searchQuery.toLowerCase().split(/\s+/);
+          return allCards.filter(
+            (card) =>
+              card.aiTags &&
+              card.aiTags.some((tag) =>
+                searchTerms.some((term) => tag.toLowerCase().includes(term)),
+              ),
+          );
+        })(),
       ]);
 
       // Combine and deduplicate results
       const allResults = searchResults.flat();
       const uniqueResults = Array.from(
-        new Map(allResults.map(card => [card._id, card])).values()
+        new Map(allResults.map((card) => [card._id, card])).values(),
       );
 
       // Apply additional filters
       let filteredResults = uniqueResults;
 
       if (types && types.length > 0) {
-        filteredResults = filteredResults.filter(card => types.includes(card.type));
+        filteredResults = filteredResults.filter((card) =>
+          types.includes(card.type),
+        );
       }
 
       if (favoritesOnly) {
-        filteredResults = filteredResults.filter(card => card.isFavorited === true);
+        filteredResults = filteredResults.filter(
+          (card) => card.isFavorited === true,
+        );
       }
 
       // Sort by creation date (desc) and limit
@@ -203,20 +260,23 @@ export const searchCards = query({
     let query = ctx.db
       .query("cards")
       .withIndex("by_user_deleted", (q) =>
-        q.eq("userId", user.subject).eq("isDeleted", showTrashOnly ? true : undefined)
+        q
+          .eq("userId", user.subject)
+          .eq("isDeleted", showTrashOnly ? true : undefined),
       );
 
     if (types && types.length === 1) {
       // Use compound index by_user_type_deleted to avoid post-index .filter()
-      query = ctx.db
-        .query("cards")
-        .withIndex("by_user_type_deleted", (q) =>
-          q.eq("userId", user.subject).eq("type", types[0]).eq("isDeleted", showTrashOnly ? true : undefined)
-        );
+      query = ctx.db.query("cards").withIndex("by_user_type_deleted", (q) =>
+        q
+          .eq("userId", user.subject)
+          .eq("type", types[0])
+          .eq("isDeleted", showTrashOnly ? true : undefined),
+      );
     } else if (types && types.length > 1) {
       // Filter by multiple types - must use .filter() for OR conditions across different type values
       query = query.filter((q) => {
-        const typeConditions = types.map(type => q.eq(q.field("type"), type));
+        const typeConditions = types.map((type) => q.eq(q.field("type"), type));
         return typeConditions.reduce((acc, condition) => q.or(acc, condition));
       });
     }

@@ -186,7 +186,6 @@ export default function ShareIntentScreen() {
       }
     })();
     // Only depend on stable values - isSignedIn is derived from session
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasShareIntent, shareIntent, isPending, isSignedIn, resetShareIntent]);
 
   return (
