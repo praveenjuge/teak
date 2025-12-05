@@ -191,9 +191,8 @@ export default function HomePage() {
     !searchQuery;
 
   const renderEmptyState = () => {
-    if (cards === undefined) return <CardsGridSkeleton />;
-
-    if (!cards) return <CardsGridSkeleton />;
+    if (cards === undefined || cards === null || !cards)
+      return <CardsGridSkeleton />;
 
     if ((cards?.length || 0) === 0 && hasNoFilters) {
       return (
@@ -245,6 +244,8 @@ export default function HomePage() {
         onClearAll={clearAllFilters}
       />
 
+      <h1 className="">{JSON.stringify(cards, null, 2)}</h1>
+
       {(cards?.length || 0) > 0 ? (
         <MasonryGrid
           filteredCards={cards}
@@ -264,7 +265,12 @@ export default function HomePage() {
           }
         />
       ) : (
-        renderEmptyState()
+        <>
+          <AuthLoading>
+            <CardsGridSkeleton />
+          </AuthLoading>
+          <Authenticated>{renderEmptyState()}</Authenticated>
+        </>
       )}
 
       <CardModal
