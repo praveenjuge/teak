@@ -8,6 +8,7 @@ import type { AiMetadataResult, AiMetadataWorkflowArgs } from "./types";
 
 // Typed internal reference map for workflow helpers
 const internalWorkflow = internal as Record<string, any>;
+const aiMetadataInternal = internalWorkflow["workflows/aiMetadata/index"] as Record<string, any> | undefined;
 
 const resolveCardType = async (
   step: any,
@@ -64,9 +65,15 @@ export const startAiMetadataWorkflow = internalMutation({
     workflowId: v.string(),
   }),
   handler: async (ctx, { cardId, cardType, startAsync }) => {
+    if (!aiMetadataInternal) {
+      throw new Error(
+        "AI metadata workflow handle not found (expected internal.workflows/aiMetadata/index)",
+      );
+    }
+
     const workflowId = await workflow.start(
       ctx,
-      internalWorkflow["workflows/aiMetadata"].aiMetadataWorkflow,
+      aiMetadataInternal.aiMetadataWorkflow,
       { cardId, cardType: cardType ?? undefined },
       { startAsync: startAsync ?? false },
     );

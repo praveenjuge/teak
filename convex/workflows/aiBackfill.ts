@@ -12,6 +12,7 @@ import type { Id } from "../shared/types";
 import { workflow } from "./manager";
 
 const internalWorkflow = internal as Record<string, any>;
+const aiMetadataInternal = internalWorkflow["workflows/aiMetadata/index"] as Record<string, any> | undefined;
 
 const LOG_PREFIX = "[workflow/aiBackfill]";
 const BATCH_SIZE = 50;
@@ -37,10 +38,16 @@ export const aiBackfillWorkflow = workflow.define({
 
     const failedCardIds: Id<"cards">[] = [];
 
+    if (!aiMetadataInternal) {
+      throw new Error(
+        "AI metadata workflow handle not found (expected internal.workflows/aiMetadata/index)",
+      );
+    }
+
     for (const { cardId } of candidates) {
       try {
         await step.runMutation(
-          internalWorkflow["workflows/aiMetadata"].startAiMetadataWorkflow,
+          aiMetadataInternal.startAiMetadataWorkflow,
           { cardId, startAsync: true },
         );
       } catch (error) {
