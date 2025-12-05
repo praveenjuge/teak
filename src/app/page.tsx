@@ -244,8 +244,6 @@ export default function HomePage() {
         onClearAll={clearAllFilters}
       />
 
-      <h1 className="">{JSON.stringify(cards, null, 2)}</h1>
-
       {(cards?.length || 0) > 0 ? (
         <MasonryGrid
           filteredCards={cards}
