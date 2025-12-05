@@ -140,7 +140,8 @@ export default function AddScreen() {
   const handleFileUpload = async (
     fileUri: string,
     fileName: string,
-    mimeType: string
+    mimeType: string,
+    additionalMetadata?: Record<string, unknown>
   ) => {
     try {
       showSavingFeedback();
@@ -151,6 +152,7 @@ export default function AddScreen() {
 
       await uploadFile(file, {
         content: fileName,
+        additionalMetadata,
       });
     } catch (error) {
       console.error("Failed to upload file:", error);
@@ -236,7 +238,12 @@ export default function AddScreen() {
           asset.uri,
           asset.fileName ||
             `upload_${Date.now()}.${asset.type === "video" ? "mp4" : "jpg"}`,
-          asset.type === "video" ? "video/mp4" : "image/jpeg"
+          asset.type === "video" ? "video/mp4" : "image/jpeg",
+          {
+            width: asset.width,
+            height: asset.height,
+            duration: asset.duration,
+          }
         );
       }
     } catch (error) {
@@ -274,7 +281,12 @@ export default function AddScreen() {
           asset.uri,
           asset.fileName ||
             `capture_${Date.now()}.${asset.type === "video" ? "mp4" : "jpg"}`,
-          asset.type === "video" ? "video/mp4" : "image/jpeg"
+          asset.type === "video" ? "video/mp4" : "image/jpeg",
+          {
+            width: asset.width,
+            height: asset.height,
+            duration: asset.duration,
+          }
         );
       }
     } catch (error) {

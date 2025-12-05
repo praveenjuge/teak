@@ -5,6 +5,56 @@ import { type CardErrorCode, MAX_FILE_SIZE, MAX_FILES_PER_UPLOAD, CARD_ERROR_COD
 type SentryCaptureFunction = (error: unknown, context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }) => void;
 let captureException: SentryCaptureFunction = () => { };
 
+// Best-effort image dimension extraction (browser-only).
+// Returns undefined when dimensions cannot be determined or we're in a non-DOM environment.
+async function getImageDimensions(file: File): Promise<{ width: number; height: number } | undefined> {
+  if (
+    typeof window === "undefined" ||
+    typeof document === "undefined" ||
+    typeof Image === "undefined" ||
+    !file.type?.startsWith("image/")
+  ) {
+    return undefined;
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  return new Promise((resolve) => {
+    const img = new Image();
+
+    img.onload = () => {
+      const width = img.naturalWidth || img.width;
+      const height = img.naturalHeight || img.height;
+      URL.revokeObjectURL(objectUrl);
+      resolve(width && height ? { width, height } : undefined);
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(undefined);
+    };
+
+    img.src = objectUrl;
+  });
+}
+
+async function buildAdditionalMetadata(
+  file: File,
+  metadata?: any
+): Promise<any | undefined> {
+  // If caller already provided both dimensions, keep them.
+  if (metadata?.width && metadata?.height) {
+    return metadata;
+  }
+
+  const dimensions = await getImageDimensions(file);
+  if (dimensions) {
+    return { ...dimensions, ...metadata };
+  }
+
+  return metadata;
+}
+
 export function setFileUploadSentryCaptureFunction(fn: SentryCaptureFunction) {
   captureException = fn;
 }
@@ -114,13 +164,19 @@ export function useFileUploadCore(
           throw codedError;
         }
 
+        // Attach image dimensions when possible to avoid layout shifts in grids
+        const mergedAdditionalMetadata = await buildAdditionalMetadata(
+          file,
+          options.additionalMetadata
+        );
+
         // Step 1: Get upload URL from Convex
         const uploadResult = await uploadAndCreateCard({
           fileName: file.name,
           fileType: file.type,
           fileSize: file.size,
           content: options.content,
-          additionalMetadata: options.additionalMetadata,
+          additionalMetadata: mergedAdditionalMetadata,
         });
 
         if (!uploadResult.success || !uploadResult.uploadUrl) {
@@ -157,7 +213,7 @@ export function useFileUploadCore(
           fileId: storageId,
           fileName: file.name,
           content: options.content,
-          additionalMetadata: options.additionalMetadata,
+          additionalMetadata: mergedAdditionalMetadata,
         });
 
         if (!finalizeResult.success || !finalizeResult.cardId) {
