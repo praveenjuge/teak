@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { RetryBehavior } from "@convex-dev/workpool";
 import { internalMutation } from "../../_generated/server";
 import { workflow } from "../manager";
 import { internal } from "../../_generated/api";
@@ -9,6 +10,12 @@ import type { AiMetadataResult, AiMetadataWorkflowArgs } from "./types";
 // Typed internal reference map for workflow helpers
 const internalWorkflow = internal as Record<string, any>;
 const aiMetadataInternal = internalWorkflow["workflows/aiMetadata/index"] as Record<string, any> | undefined;
+
+const METADATA_STEP_RETRY: RetryBehavior = {
+  maxAttempts: 8,
+  initialBackoffMs: 400,
+  base: 1.8,
+};
 
 const resolveCardType = async (
   step: any,
@@ -49,6 +56,7 @@ export const aiMetadataWorkflow = workflow.define({
     const result = await step.runAction(
       internalWorkflow["workflows/steps/metadata"].generate,
       { cardId: args.cardId, cardType },
+      { retry: METADATA_STEP_RETRY },
     );
 
     return result;
