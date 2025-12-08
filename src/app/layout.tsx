@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
 import { Toaster } from "@/components/ui/sonner";
@@ -34,6 +35,7 @@ export default function RootLayout({
           </ConvexQueryCacheProvider>
         </ConvexClientProvider>
         <Toaster position="bottom-center" />
+        <Analytics />
       </body>
     </html>
   );

@@ -11,6 +11,7 @@
   "dependencies": {
     "@ai-sdk/groq": "^2.0.32",
     "@radix-ui/react-slot": "^1.2.4",
+    "@vercel/analytics": "^1.6.1",
     "ai": "^5.0.108",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -36,8 +37,8 @@
     "typescript": "^5.9.3"
   },
   "overrides": {
-    "@types/react": "19.2.2",
-    "@types/react-dom": "19.2.2"
+    "@types/react": "19.2.6",
+    "@types/react-dom": "19.2.3"
   },
   "postcss": {
     "plugins": [
