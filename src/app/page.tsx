@@ -17,7 +17,6 @@ import { useCardActions } from "@/hooks/useCardActions";
 import { api } from "@teak/convex";
 import { toast } from "sonner";
 import { Authenticated, AuthLoading } from "convex/react";
-import Loading from "./loading";
 import { metrics } from "@/lib/metrics";
 
 const DEFAULT_CARD_LIMIT = 100;
