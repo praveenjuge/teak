@@ -2,6 +2,7 @@ import "@/app/global.css";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import type { ReactNode } from "react";
 import { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { BackgroundPattern } from "@/components/BackgroundPattern";
 
 export const metadata: Metadata = {
@@ -46,6 +47,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           </div>
           {children}
         </RootProvider>
+        <Analytics />
       </body>
     </html>
   );
