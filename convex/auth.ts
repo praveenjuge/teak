@@ -68,7 +68,7 @@ export const createAuth = (
           from: "Teak <hello@teakvault.com>",
           to: user.email,
           subject: "Reset your Password",
-          html: `<p>Click <a href="${url}">here</a> to reset your password.</p>`,
+          html: `<p>Click <a target="_blank" href="${url}">here</a> to reset your password.</p>`,
         });
       },
     },
@@ -80,7 +80,7 @@ export const createAuth = (
           from: "Teak <hello@teakvault.com>",
           to: user.email,
           subject: 'Verify your email address',
-          text: `Click the link to verify your email: ${url}`
+          text: `Click the link to verify your email: <a target="_blank" href="${url}">here</a>.`,
         })
       }
     },
