@@ -80,7 +80,7 @@ export const createAuth = (
           from: "Teak <hello@teakvault.com>",
           to: user.email,
           subject: 'Verify your email address',
-          text: `Click the link to verify your email: <a target="_blank" href="${url}">here</a>.`,
+          text: `<p>Click <a target="_blank" href="${url}">here</a> to verify your email address.</p>`,
         })
       }
     },
