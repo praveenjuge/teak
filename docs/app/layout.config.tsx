@@ -15,7 +15,6 @@ const appsPageEnabled =
 export const baseOptions: BaseLayoutProps = {
   nav: {
     title: <Logo variant="primary" />,
-    transparentMode: "always",
   },
   // see https://fumadocs.dev/docs/ui/navigation/links
   links: [
