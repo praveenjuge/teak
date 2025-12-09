@@ -9,8 +9,8 @@
     "newArchEnabled": true,
     "scheme": "teak",
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.teak.app",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.praveenjuge.teak",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -21,7 +21,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.teak.app",
+      "package": "com.praveenjuge.teak",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
@@ -52,7 +52,9 @@
           "imageWidth": 100
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-font",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
