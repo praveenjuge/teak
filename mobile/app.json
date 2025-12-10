@@ -10,29 +10,10 @@
     "scheme": "teak",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.praveenjuge.teak",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "package": "com.praveenjuge.teak",
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
-      ]
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
+      "bundleIdentifier": "com.praveenjuge.teak"
     },
     "plugins": [
       "expo-router",
-      "expo-share-intent",
       [
         "expo-audio",
         {

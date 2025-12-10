@@ -3,15 +3,13 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { Stack, useRouter } from "expo-router";
-import type { Href } from "expo-router";
+import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { colors } from "@/constants/colors";
 import ConvexClientProvider from "../ConvexClientProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useRef } from "react";
-import { ShareIntentProvider, useShareIntentContext } from "expo-share-intent";
+import { useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 import {
   ThemePreferenceProvider,
@@ -53,18 +51,10 @@ function RootLayoutContent() {
   return (
     <ErrorBoundary>
       <ConvexClientProvider>
-        <ShareIntentProvider
-          options={{
-            debug: __DEV__,
-            resetOnBackground: true,
-          }}
-        >
-          <ThemeProvider value={isDark ? CustomDarkTheme : CustomDefaultTheme}>
-            <RootNavigator />
-            <ShareIntentNavigator />
-            <StatusBar style={isDark ? "light" : "dark"} />
-          </ThemeProvider>
-        </ShareIntentProvider>
+        <ThemeProvider value={isDark ? CustomDarkTheme : CustomDefaultTheme}>
+          <RootNavigator />
+          <StatusBar style={isDark ? "light" : "dark"} />
+        </ThemeProvider>
       </ConvexClientProvider>
     </ErrorBoundary>
   );
@@ -131,21 +121,4 @@ function RootNavigator() {
       />
     </Stack>
   );
-}
-
-function ShareIntentNavigator() {
-  const { hasShareIntent } = useShareIntentContext();
-  const router = useRouter();
-  const hasRedirectedRef = useRef(false);
-
-  useEffect(() => {
-    if (hasShareIntent && !hasRedirectedRef.current) {
-      hasRedirectedRef.current = true;
-      router.replace("/shareintent" as Href);
-    } else if (!hasShareIntent) {
-      hasRedirectedRef.current = false;
-    }
-  }, [hasShareIntent, router]);
-
-  return null;
 }
