@@ -46,7 +46,7 @@ const Row = ({
   onPress,
   onLongPress,
 }: RowProps) => (
-  <HStack spacing={10} onPress={onPress} modifiers={rowModifiers(onLongPress)}>
+  <HStack spacing={14} onPress={onPress} modifiers={rowModifiers(onLongPress)}>
     {leading}
     {content}
     {trailing ? <Spacer /> : null}
@@ -250,7 +250,7 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
                 {mediaUrl ? (
                   <RNImage
                     source={{ uri: mediaUrl }}
-                    style={{ width: "100%", height: "100%" }}
+                    style={{ width: 28, height: 28 }}
                     resizeMode="cover"
                   />
                 ) : (
