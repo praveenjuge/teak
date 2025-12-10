@@ -42,6 +42,7 @@ export const createAuth = (
       "teak://*",
       "chrome-extension://negnmfifahnnagnbnfppmlgfajngdpob",
       "http://localhost:3000",
+      "https://appleid.apple.com",
       ...(process.env.NODE_ENV === "development" ? [
         "exp+teak://*",
         "exp://*/*",                 // Trust all Expo development URLs
@@ -58,6 +59,12 @@ export const createAuth = (
         clientId: googleClientId,
         clientSecret: googleClientSecret,
         prompt: "select_account",
+      },
+      apple: {
+        clientId: process.env.APPLE_CLIENT_ID as string,
+        clientSecret: process.env.APPLE_CLIENT_SECRET as string,
+        // Optional
+        appBundleIdentifier: process.env.APPLE_APP_BUNDLE_IDENTIFIER as string,
       },
     },
     emailAndPassword: {
