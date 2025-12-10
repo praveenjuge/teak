@@ -63,6 +63,7 @@ export default function SignIn() {
     try {
       const response = await authClient.signIn.social({
         provider: "apple",
+        callbackURL: "/",
       });
       if (response?.error) {
         metrics.loginFailed("apple", response.error.message);
@@ -116,7 +117,7 @@ export default function SignIn() {
               </>
             )}
           </Button>
-
+          {/* 
           <Button
             type="button"
             variant="outline"
@@ -132,7 +133,7 @@ export default function SignIn() {
                 Continue with Apple
               </>
             )}
-          </Button>
+          </Button> */}
         </div>
 
         <div className="relative my-4">

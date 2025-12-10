@@ -145,7 +145,7 @@ export default function SignUp() {
             )}
           </Button>
 
-          <Button
+          {/* <Button
             type="button"
             variant="outline"
             className="w-full"
@@ -160,7 +160,7 @@ export default function SignUp() {
                 Continue with Apple
               </>
             )}
-          </Button>
+          </Button> */}
         </div>
 
         <div className="relative my-4">
