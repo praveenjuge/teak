@@ -63,7 +63,6 @@ export default function SignIn() {
     try {
       const response = await authClient.signIn.social({
         provider: "apple",
-        callbackURL: "/",
       });
       if (response?.error) {
         metrics.loginFailed("apple", response.error.message);
