@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
+import { AppleIcon } from "@/components/icons/AppleIcon";
 import { cn } from "@/lib/utils";
 import { metrics } from "@/lib/metrics";
 
@@ -26,6 +27,7 @@ export default function SignIn() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
@@ -55,6 +57,33 @@ export default function SignIn() {
     }
   };
 
+  const handleAppleSignIn = async () => {
+    setError(null);
+    setAppleLoading(true);
+    try {
+      const response = await authClient.signIn.social({
+        provider: "apple",
+        callbackURL: "/",
+      });
+      if (response?.error) {
+        metrics.loginFailed("apple", response.error.message);
+        setError(
+          response.error.message ??
+            "Failed to sign in with Apple. Please try again."
+        );
+      } else {
+        metrics.loginSuccess("apple");
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to sign in with Apple";
+      metrics.loginFailed("apple", errorMessage);
+      setError(errorMessage);
+    } finally {
+      setAppleLoading(false);
+    }
+  };
+
   return (
     <>
       <CardHeader className="text-center">
@@ -71,22 +100,41 @@ export default function SignIn() {
           </Alert>
         )}
 
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={handleGoogleSignIn}
-          disabled={loading || googleLoading}
-        >
-          {googleLoading ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <>
-              <GoogleIcon className="h-4 w-4" />
-              Continue with Google
-            </>
-          )}
-        </Button>
+        <div className="grid gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleGoogleSignIn}
+            disabled={loading || googleLoading || appleLoading}
+          >
+            {googleLoading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <>
+                <GoogleIcon className="h-4 w-4" />
+                Continue with Google
+              </>
+            )}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleAppleSignIn}
+            disabled={loading || googleLoading || appleLoading}
+          >
+            {appleLoading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <>
+                <AppleIcon className="h-4 w-4" />
+                Continue with Apple
+              </>
+            )}
+          </Button>
+        </div>
 
         <div className="relative my-4">
           <div className="absolute inset-0 flex items-center">
@@ -175,7 +223,7 @@ export default function SignIn() {
           <Button
             type="submit"
             className="w-full"
-            disabled={loading || googleLoading}
+            disabled={loading || googleLoading || appleLoading}
           >
             {loading ? (
               <Loader2 size={16} className="animate-spin" />

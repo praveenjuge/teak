@@ -17,6 +17,7 @@ import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
 import { Spinner } from "@/components/ui/spinner";
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
+import { AppleIcon } from "@/components/icons/AppleIcon";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { metrics } from "@/lib/metrics";
@@ -29,6 +30,7 @@ export default function SignUp() {
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
 
   useEffect(() => {
     const shouldShow = sessionStorage.getItem("teak-verify-alert");
@@ -68,6 +70,33 @@ export default function SignUp() {
     }
   };
 
+  const handleAppleSignIn = async () => {
+    setError(null);
+    setAppleLoading(true);
+    try {
+      const response = await authClient.signIn.social({
+        provider: "apple",
+        callbackURL: "/",
+      });
+      if (response?.error) {
+        metrics.registrationFailed("apple", response.error.message);
+        setError(
+          response.error.message ??
+            "Failed to sign in with Apple. Please try again."
+        );
+      } else {
+        metrics.registrationSuccess("apple");
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to sign in with Apple";
+      metrics.registrationFailed("apple", errorMessage);
+      setError(errorMessage);
+    } finally {
+      setAppleLoading(false);
+    }
+  };
+
   const showPasswordTooShort =
     passwordTouched && password.length > 0 && password.length < 8;
 
@@ -98,22 +127,41 @@ export default function SignUp() {
             </div>
           </Alert>
         )}
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={handleGoogleSignIn}
-          disabled={loading || googleLoading}
-        >
-          {googleLoading ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <>
-              <GoogleIcon className="h-4 w-4" />
-              Continue with Google
-            </>
-          )}
-        </Button>
+        <div className="grid gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleGoogleSignIn}
+            disabled={loading || googleLoading || appleLoading}
+          >
+            {googleLoading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <>
+                <GoogleIcon className="h-4 w-4" />
+                Continue with Google
+              </>
+            )}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleAppleSignIn}
+            disabled={loading || googleLoading || appleLoading}
+          >
+            {appleLoading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <>
+                <AppleIcon className="h-4 w-4" />
+                Continue with Apple
+              </>
+            )}
+          </Button>
+        </div>
 
         <div className="relative my-4">
           <div className="absolute inset-0 flex items-center">
@@ -206,7 +254,9 @@ export default function SignUp() {
           <Button
             type="submit"
             className="w-full"
-            disabled={loading || password.length < 8 || googleLoading}
+            disabled={
+              loading || password.length < 8 || googleLoading || appleLoading
+            }
           >
             {loading ? <Spinner /> : "Create an account"}
           </Button>

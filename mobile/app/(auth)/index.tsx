@@ -1,15 +1,26 @@
 import React from "react";
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import { router } from "expo-router";
 import Logo from "@/components/Logo";
 import GoogleLogo from "@/components/GoogleLogo";
+import AppleLogo from "@/components/AppleLogo";
 import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 import { Button, HStack, Host, Spacer, Text, VStack } from "@expo/ui/swift-ui";
 import { frame, padding } from "@expo/ui/swift-ui/modifiers";
+import * as AppleAuthentication from "expo-apple-authentication";
 
 export default function OnboardingScreen() {
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
+  const [isAppleLoading, setIsAppleLoading] = React.useState(false);
+  const [isAppleAvailable, setIsAppleAvailable] = React.useState(false);
+
+  React.useEffect(() => {
+    // Check if Apple Authentication is available (iOS only)
+    if (Platform.OS === "ios") {
+      AppleAuthentication.isAvailableAsync().then(setIsAppleAvailable);
+    }
+  }, []);
 
   const onGoogleSignInPress = async () => {
     if (isGoogleLoading) return;
@@ -43,6 +54,60 @@ export default function OnboardingScreen() {
     }
   };
 
+  const onAppleSignInPress = async () => {
+    if (isAppleLoading) return;
+    setIsAppleLoading(true);
+
+    try {
+      // Use native Apple Authentication
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        throw new Error("No identity token received from Apple");
+      }
+
+      // Use the ID token flow with Better Auth
+      const response = await authClient.signIn.social({
+        provider: "apple",
+        idToken: {
+          token: credential.identityToken,
+        },
+      });
+
+      if (response.error) {
+        Alert.alert(
+          "Apple Sign In Failed",
+          getAuthErrorMessage(
+            response.error,
+            "Failed to sign in with Apple. Please try again."
+          )
+        );
+      } else {
+        router.replace("/(tabs)/(home)");
+      }
+    } catch (error: any) {
+      // Don't show error if user cancelled
+      if (error.code === "ERR_REQUEST_CANCELED") {
+        return;
+      }
+      console.error(error);
+      Alert.alert(
+        "Apple Sign In Failed",
+        getAuthErrorMessage(
+          error,
+          "Failed to sign in with Apple. Please try again."
+        )
+      );
+    } finally {
+      setIsAppleLoading(false);
+    }
+  };
+
   return (
     <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
       <VStack
@@ -71,7 +136,7 @@ export default function OnboardingScreen() {
               variant="bordered"
               controlSize="large"
               onPress={onGoogleSignInPress}
-              disabled={isGoogleLoading}
+              disabled={isGoogleLoading || isAppleLoading}
             >
               <HStack spacing={10} alignment="center">
                 <Spacer />
@@ -84,10 +149,32 @@ export default function OnboardingScreen() {
                 <Spacer />
               </HStack>
             </Button>
+
+            {isAppleAvailable && (
+              <Button
+                variant="bordered"
+                controlSize="large"
+                onPress={onAppleSignInPress}
+                disabled={isGoogleLoading || isAppleLoading}
+              >
+                <HStack spacing={10} alignment="center">
+                  <Spacer />
+                  <HStack modifiers={[frame({ width: 20, height: 20 })]}>
+                    <AppleLogo />
+                  </HStack>
+                  <Text color="primary" weight="medium" design="rounded">
+                    {isAppleLoading ? "Signing in..." : "Continue with Apple"}
+                  </Text>
+                  <Spacer />
+                </HStack>
+              </Button>
+            )}
+
             <Button
               variant="bordered"
               controlSize="large"
               onPress={() => router.push("/sign-up")}
+              disabled={isGoogleLoading || isAppleLoading}
             >
               <HStack spacing={10} alignment="center">
                 <Spacer />
@@ -102,6 +189,7 @@ export default function OnboardingScreen() {
             variant="bordered"
             controlSize="large"
             onPress={() => router.push("/sign-in")}
+            disabled={isGoogleLoading || isAppleLoading}
           >
             <HStack spacing={10} alignment="center">
               <Spacer />

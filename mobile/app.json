@@ -10,7 +10,8 @@
     "scheme": "teak",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.praveenjuge.teak"
+      "bundleIdentifier": "com.praveenjuge.teak",
+      "usesAppleSignIn": true
     },
     "plugins": [
       "expo-router",
@@ -35,7 +36,8 @@
       ],
       "expo-secure-store",
       "expo-font",
-      "expo-asset"
+      "expo-asset",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true

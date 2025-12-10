@@ -81,7 +81,7 @@ export function cardFavoriteToggled(cardType: string, isFavorite: boolean) {
 /**
  * Track successful login events
  */
-export function loginSuccess(method: "email" | "google") {
+export function loginSuccess(method: "email" | "google" | "apple") {
   Sentry.metrics.count("auth.login.success", 1, {
     attributes: { method },
   });
@@ -90,7 +90,7 @@ export function loginSuccess(method: "email" | "google") {
 /**
  * Track failed login attempts
  */
-export function loginFailed(method: "email" | "google", reason?: string) {
+export function loginFailed(method: "email" | "google" | "apple", reason?: string) {
   Sentry.metrics.count("auth.login.failed", 1, {
     attributes: {
       method,
@@ -102,7 +102,7 @@ export function loginFailed(method: "email" | "google", reason?: string) {
 /**
  * Track successful registrations
  */
-export function registrationSuccess(method: "email" | "google") {
+export function registrationSuccess(method: "email" | "google" | "apple") {
   Sentry.metrics.count("auth.registration.success", 1, {
     attributes: { method },
   });
@@ -111,7 +111,7 @@ export function registrationSuccess(method: "email" | "google") {
 /**
  * Track failed registration attempts
  */
-export function registrationFailed(method: "email" | "google", reason?: string) {
+export function registrationFailed(method: "email" | "google" | "apple", reason?: string) {
   Sentry.metrics.count("auth.registration.failed", 1, {
     attributes: {
       method,
