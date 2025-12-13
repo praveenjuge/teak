@@ -62,7 +62,7 @@ const features = [
   },
   {
     icon: "heart" as const,
-    title: "25 Cards Free (Enough for 3 Months)",
+    title: "50 Cards Free (Enough for 6 Months)",
     description:
       "Try it with your most important inspiration. Upgrade when you need more. No credit card, no tricks.",
   },
@@ -114,9 +114,9 @@ const faqs = [
       "Pinterest is for browsing and getting distracted. Teak is for working. No algorithms, no social pressure, just your personal library.",
   },
   {
-    question: "What happens when I hit 25 cards?",
+    question: "What happens when I hit 50 cards?",
     answer:
-      "Your cards stay safe forever. You just can't add more until you go Pro ($19/month) or self-host (free). We never delete your stuff.",
+      "Your cards stay safe forever. You just can't add more until you go Pro ($19/month) or self-host (free). We never delete your stuff, not even when you hit 50.",
   },
   {
     question: "Can I leave if I don't like it?",

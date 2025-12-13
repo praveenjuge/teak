@@ -11,9 +11,9 @@ const pricingPlans = [
     name: "Free",
     price: "Free",
     description:
-      "25 cards go further than you think. Your most important inspiration, completely free.",
+      "50 cards go further than you think. Your most important inspiration, completely free.",
     features: [
-      "25 cards",
+      "50 cards",
       "Find anything in 2 seconds",
       "Works on phone, laptop, tablet",
       "All features, no limits",
@@ -69,9 +69,9 @@ const pricingPlans = [
 
 const faqs = [
   {
-    question: "Why exactly 25 cards?",
+    question: "Why exactly 50 cards?",
     answer:
-      "25 cards covers your most important inspiration. When you need more, Pro is just $19/month - less than 2 coffees.",
+      "50 cards covers your most important inspiration. When you need more, Pro is just $19/month - less than 2 coffees.",
   },
   {
     question: "So... Pro or Self-hosted?",
@@ -94,9 +94,9 @@ const faqs = [
       "100% free. MIT license, run it anywhere. Perfect for agencies who want their data to never touch our servers.",
   },
   {
-    question: "What happens when I hit 25 cards?",
+    question: "What happens when I hit 50 cards?",
     answer:
-      "Your 25 cards stay safe forever. You just can't add more until you go Pro or self-host. We never delete your inspiration.",
+      "Your 50 cards stay safe forever. You just can't add more until you go Pro or self-host. We never delete your inspiration.",
   },
 ];
 
@@ -109,7 +109,7 @@ export default function PricingPageClient() {
       <section className="pt-20 pb-8">
         <div className="container mx-auto px-4 text-center max-w-xl">
           <h1 className="mb-4 font-bold text-4xl md:text-5xl text-balance tracking-tight">
-            25 cards free. $19/month after.
+            50 cards free. $19/month after.
           </h1>
           <p className="mx-auto max-w-2xl text-muted-foreground text-lg text-balance">
             Try it free with your most important inspiration. Upgrade when you
@@ -151,7 +151,7 @@ export default function PricingPageClient() {
               Choose your adventure
             </h2>
             <p className="mb-12 text-muted-foreground text-lg text-balance">
-              Start free with 25 cards. Go Pro for unlimited. Or self-host for
+              Start free with 50 cards. Go Pro for unlimited. Or self-host for
               total control. Your call.
             </p>
             <div className="grid gap-8 md:grid-cols-3">
@@ -161,7 +161,7 @@ export default function PricingPageClient() {
                 </div>
                 <h3 className="mb-2 font-semibold text-balance">Try It Free</h3>
                 <p className="text-muted-foreground">
-                  25 cards for your most important inspiration. See why
+                  50 cards for your most important inspiration. See why
                   designers are switching to Teak.
                 </p>
               </div>
