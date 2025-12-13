@@ -44,6 +44,7 @@ export function PalettePreview({ card }: PalettePreviewProps) {
             <Button
               size="sm"
               variant="outline"
+              className="dark:bg-background"
               onClick={(e) => {
                 e.stopPropagation();
                 void copyToClipboard(color.hex, color.hex);

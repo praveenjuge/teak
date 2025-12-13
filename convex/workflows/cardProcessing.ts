@@ -88,6 +88,22 @@ export const cardProcessingWorkflow: any = workflow.define({
       { cardId }
     );
 
+    // Palette extraction for image cards
+    const palettePromise = classification.type === "image"
+      ? step
+        .runAction(
+          internalWorkflow["workflows/steps/palette"].extractPaletteFromImage,
+          { cardId }
+        )
+        .catch((error: unknown) => {
+          console.error(`${PIPELINE_LOG_PREFIX} Palette extraction failed`, {
+            cardId,
+            error,
+          });
+          return null;
+        })
+      : Promise.resolve(null);
+
     // Step 2: Categorization (conditional - only for links)
     // Wait for link metadata extraction if needed, then categorize and enrich
     let categorization: { category: string; confidence: number } | undefined;
@@ -157,6 +173,8 @@ export const cardProcessingWorkflow: any = workflow.define({
       metadataPromise,
       renderablesPromise,
     ]);
+
+    await palettePromise;
 
     const metadata = metadataResult ?? {
       aiTags: [],
