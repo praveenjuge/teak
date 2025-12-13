@@ -381,20 +381,24 @@ function GridImagePreview({
 
   if (!fileUrl) return null;
 
-  // Calculate aspect ratio if dimensions are available
-  const aspectRatio = width && height ? width / height : undefined;
+  const resolvedAspectRatio = width && height ? width / height : 4 / 3;
 
   return (
-    <Image
-      src={fileUrl}
-      alt={altText}
-      className="h-full w-full object-cover bg-card rounded-xl border overflow-hidden"
-      rootClassName="h-full w-full"
-      style={{ objectFit: "cover", aspectRatio: aspectRatio?.toString() }}
-      preview={false}
-      placeholder
-      loading="lazy"
-    />
+    <div
+      className="relative w-full overflow-hidden rounded-xl border bg-card"
+      style={{ aspectRatio: resolvedAspectRatio }}
+    >
+      <Image
+        src={fileUrl}
+        alt={altText ?? "Image"}
+        className="h-full w-full object-cover"
+        rootClassName="h-full w-full"
+        style={{ objectFit: "cover" }}
+        preview={false}
+        placeholder
+        loading="lazy"
+      />
+    </div>
   );
 }
 
@@ -441,12 +445,13 @@ function GridDocumentPreview({
 }
 
 function GridVideoPreview({
-  fileId,
+  fileId: _fileId,
   thumbnailId,
 }: {
   fileId: Id<"_storage"> | undefined;
   thumbnailId?: Id<"_storage"> | undefined;
 }) {
+  void _fileId;
   // Prefer thumbnail over video file for grid display
   const thumbnailUrl = useQuery(
     api.cards.getFileUrl,
