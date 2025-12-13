@@ -39,7 +39,7 @@ export function ImagePreview({ card }: ImagePreviewProps) {
         <Image
           src={fileUrl}
           alt={card.content}
-          className="max-h-[75vh] max-w-full rounded-xl overflow-hidden"
+          className="max-h-[75vh] max-w-full overflow-hidden"
           preview={false}
           placeholder
         />
