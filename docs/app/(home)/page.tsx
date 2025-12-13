@@ -116,7 +116,7 @@ const faqs = [
   {
     question: "What happens when I hit 50 cards?",
     answer:
-      "Your cards stay safe forever. You just can't add more until you go Pro ($19/month) or self-host (free). We never delete your stuff, even at 50.",
+      "Your cards stay safe forever. You just can't add more until you go Pro ($19/month) or self-host (free). We never delete your stuff, not even when you hit 50.",
   },
   {
     question: "Can I leave if I don't like it?",
