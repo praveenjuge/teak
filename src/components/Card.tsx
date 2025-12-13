@@ -213,12 +213,12 @@ export function Card({
             )}
             {card.type === "link" && (
               <>
-                {displayLinkImage && linkCardTitle ? (
+                {displayLinkImage ? (
                   <div className="rounded-xl border bg-card overflow-hidden divide-y">
                     <Image
                       src={displayLinkImage}
                       alt={linkCardTitle}
-                      className="w-full h-28 object-cover bg-card"
+                      className="w-full h-28 min-h-28 max-h-28 object-cover bg-card"
                       preview={false}
                       placeholder
                       onError={handleLinkImageError}
