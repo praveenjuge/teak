@@ -82,11 +82,23 @@ export const cardProcessingWorkflow: any = workflow.define({
     }
 
     // Step 1: Classification
-    // Determine the card type using AI
-    const classification = await step.runAction(
-      internalWorkflow["workflows/steps/classification"].classify,
-      { cardId }
-    );
+    // If already classified (client-provided type), reuse it; otherwise run classifier
+    const existingClassifyStatus = initialCard?.processingStatus?.classify;
+    const classification = existingClassifyStatus?.status === "completed" && initialCard
+      ? {
+        type: initialCard.type,
+        confidence: existingClassifyStatus.confidence ?? 1,
+        needsLinkMetadata:
+          initialCard.type === "link" &&
+          initialCard.metadata?.linkPreview?.status !== "success",
+        shouldCategorize: initialCard.type === "link",
+        shouldGenerateMetadata: true,
+        shouldGenerateRenderables: ["image", "video", "document"].includes(initialCard.type ?? ""),
+      }
+      : await step.runAction(
+        internalWorkflow["workflows/steps/classification"].classify,
+        { cardId }
+      );
 
     // Palette extraction for image cards
     const palettePromise = classification.type === "image"

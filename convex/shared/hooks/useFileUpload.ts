@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { type CardErrorCode, MAX_FILE_SIZE, MAX_FILES_PER_UPLOAD, CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../constants";
+import type { CardType } from "../constants";
 
 // Sentry capture function - will be injected by platform-specific wrappers
 type SentryCaptureFunction = (error: unknown, context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }) => void;
@@ -55,6 +56,22 @@ async function buildAdditionalMetadata(
   return metadata;
 }
 
+function inferCardType(mimeType: string | undefined): CardType | undefined {
+  if (!mimeType) return undefined;
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("audio/")) return "audio";
+  if (
+    mimeType === "application/pdf" ||
+    mimeType.startsWith("application/msword") ||
+    mimeType.startsWith("application/vnd.openxmlformats-officedocument") ||
+    mimeType.startsWith("text/")
+  ) {
+    return "document";
+  }
+  return undefined;
+}
+
 export function setFileUploadSentryCaptureFunction(fn: SentryCaptureFunction) {
   captureException = fn;
 }
@@ -81,6 +98,7 @@ export interface UploadAndCreateCardArgs {
   fileName: string;
   fileType: string;
   fileSize: number;
+  cardType: CardType;
   content?: string;
   additionalMetadata?: any;
 }
@@ -95,6 +113,7 @@ export interface UploadAndCreateCardResult {
 export interface FinalizeUploadedCardArgs {
   fileId: string;
   fileName: string;
+  cardType: CardType;
   content?: string;
   additionalMetadata?: any;
 }
@@ -171,10 +190,23 @@ export function useFileUploadCore(
         );
 
         // Step 1: Get upload URL from Convex
+        const cardType = inferCardType(file.type);
+
+        if (!cardType) {
+          const errorInfo: FileUploadError = {
+            message: "Unsupported file type",
+            code: CARD_ERROR_CODES.UNSUPPORTED_TYPE,
+          };
+          const codedError = new Error(errorInfo.message) as CodedError;
+          codedError.code = errorInfo.code;
+          throw codedError;
+        }
+
         const uploadResult = await uploadAndCreateCard({
           fileName: file.name,
           fileType: file.type,
           fileSize: file.size,
+          cardType,
           content: options.content,
           additionalMetadata: mergedAdditionalMetadata,
         });
@@ -212,6 +244,7 @@ export function useFileUploadCore(
         const finalizeResult = await finalizeUploadedCard({
           fileId: storageId,
           fileName: file.name,
+          cardType,
           content: options.content,
           additionalMetadata: mergedAdditionalMetadata,
         });

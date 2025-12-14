@@ -2,10 +2,42 @@ import { ConvexError, v } from "convex/values";
 import { mutation } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { ensureCardCreationAllowed } from "../auth";
+import { cardTypeValidator, type CardType } from "../schema";
 import {
   buildInitialProcessingStatus,
+  stageCompleted,
   stagePending,
 } from "./processingStatus";
+
+const FILE_CARD_TYPES: CardType[] = ["image", "video", "audio", "document"];
+
+const validateFileCardType = (cardType: CardType) => {
+  if (!FILE_CARD_TYPES.includes(cardType)) {
+    throw new ConvexError({
+      code: "TYPE_MISMATCH",
+      message: "File uploads must specify a file-based card type (image, video, audio, or document)",
+    });
+  }
+};
+
+const mimeMatchesCardType = (mime: string | undefined, cardType: CardType) => {
+  if (!mime) return true; // fall back to trusting the client when mime is missing
+
+  if (cardType === "image") return mime.startsWith("image/");
+  if (cardType === "video") return mime.startsWith("video/");
+  if (cardType === "audio") return mime.startsWith("audio/");
+
+  if (cardType === "document") {
+    return (
+      mime === "application/pdf" ||
+      mime.startsWith("application/msword") ||
+      mime.startsWith("application/vnd.openxmlformats-officedocument") ||
+      mime.startsWith("text/")
+    );
+  }
+
+  return false;
+};
 
 // Unified upload mutation that handles the complete upload-to-card pipeline
 export const uploadAndCreateCard = mutation({
@@ -13,6 +45,7 @@ export const uploadAndCreateCard = mutation({
     fileName: v.string(),
     fileType: v.string(),
     fileSize: v.number(),
+    cardType: cardTypeValidator,
     content: v.optional(v.string()),
     additionalMetadata: v.optional(v.any()),
   },
@@ -66,6 +99,7 @@ export const finalizeUploadedCard = mutation({
   args: {
     fileId: v.id("_storage"),
     fileName: v.string(),
+    cardType: cardTypeValidator,
     content: v.optional(v.string()),
     additionalMetadata: v.optional(v.any()),
   },
@@ -93,8 +127,16 @@ export const finalizeUploadedCard = mutation({
         return { success: false, error: "File not found in storage" };
       }
 
-      // Default to text and let AI classification update the type
-      const cardType = "text" as const;
+      validateFileCardType(args.cardType);
+
+      if (!mimeMatchesCardType(fileMetadata.contentType, args.cardType)) {
+        throw new ConvexError({
+          code: "TYPE_MISMATCH",
+          message: `Uploaded file does not match expected ${args.cardType} type`,
+        });
+      }
+
+      const cardType = args.cardType;
 
       // Separate file-related metadata from other metadata
       const additionalMeta = args.additionalMetadata || {};
@@ -134,7 +176,7 @@ export const finalizeUploadedCard = mutation({
         processingStatus: buildInitialProcessingStatus({
           now,
           cardType,
-          classificationStatus: stagePending(),
+          classificationStatus: stageCompleted(now, 1),
         }),
         createdAt: now,
         updatedAt: now,

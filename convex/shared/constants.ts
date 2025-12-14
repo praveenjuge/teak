@@ -30,6 +30,8 @@ export const CARD_ERROR_CODES = {
   RATE_LIMITED: "RATE_LIMITED",
   FILE_TOO_LARGE: "FILE_TOO_LARGE",
   TOO_MANY_FILES: "TOO_MANY_FILES",
+  UNSUPPORTED_TYPE: "UNSUPPORTED_TYPE",
+  TYPE_MISMATCH: "TYPE_MISMATCH",
 } as const;
 
 export type CardErrorCode =
@@ -44,6 +46,10 @@ export const CARD_ERROR_MESSAGES: Record<CardErrorCode, string> = {
     "File is too large. Maximum file size is 20MB.",
   TOO_MANY_FILES:
     "Too many files selected. You can upload up to 5 files at a time.",
+  UNSUPPORTED_TYPE:
+    "Unsupported file type. Please upload an image, video, audio, or document.",
+  TYPE_MISMATCH:
+    "Uploaded file does not match the selected type.",
 } as const;
 
 /**

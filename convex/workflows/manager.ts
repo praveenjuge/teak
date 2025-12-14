@@ -49,7 +49,7 @@ export const initializeCardProcessingState = internalMutation({
     const initialProcessingStatus = buildInitialProcessingStatus({
       now,
       cardType,
-      classificationStatus: stagePending(),
+      classificationStatus: card.processingStatus?.classify ?? stagePending(),
     });
 
     await ctx.db.patch(cardId, {
