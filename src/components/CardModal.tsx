@@ -12,9 +12,11 @@ import { CardModalPreview } from "./card-modal/CardModalPreview";
 import { CardMetadataPanel } from "./card-modal/CardMetadataPanel";
 import { CardModalOverlays } from "./card-modal/CardModalOverlays";
 import { metrics } from "@/lib/metrics";
+import type { CardModalCard } from "./card-modal/types";
 
 interface CardModalProps {
   cardId: string | null;
+  card?: CardModalCard | null;
   open: boolean;
   onCancel?: () => void;
   onCardTypeClick?: (cardType: string) => void;
@@ -23,6 +25,7 @@ interface CardModalProps {
 
 export function CardModal({
   cardId,
+  card: cardData,
   open,
   onCancel,
   onCardTypeClick,
@@ -52,7 +55,7 @@ export function CardModal({
     hasUnsavedChanges,
     getCurrentValue,
     isSaved,
-  } = useCardModal(cardId, { onCardTypeClick });
+  } = useCardModal(cardId, { card: cardData, onCardTypeClick });
 
   const handleClose = async () => {
     if (hasUnsavedChanges) {

@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { useMutation } from "convex/react";
 import type { OptimisticLocalStore } from "convex/browser";
-import { useQuery } from "convex-helpers/react/cache/hooks";
 import { toast } from "sonner";
 import { api } from "@teak/convex";
 import { type Doc, type Id } from "@teak/convex/_generated/dataModel";
@@ -26,26 +25,6 @@ function updateCardInSearchQueries(
   }
 }
 
-// Helper to update a single card query (getCard)
-function updateSingleCardQuery(
-  localStore: OptimisticLocalStore,
-  cardId: Id<"cards">,
-  updater: (card: Doc<"cards">) => Doc<"cards">
-) {
-  const currentCard = localStore.getQuery(api.cards.getCard, { id: cardId });
-  if (currentCard) {
-    localStore.setQuery(api.cards.getCard, { id: cardId }, updater(currentCard));
-  }
-}
-
-export interface CardModalConfig {
-  onError?: (error: Error, operation: string) => void;
-  onSuccess?: (message: string) => void;
-  onOpenLink?: (url: string) => void;
-  onClose?: () => void;
-  onCardTypeClick?: (cardType: string) => void;
-}
-
 type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
   thumbnailUrl?: string;
@@ -60,10 +39,23 @@ interface PendingChanges {
   isFavorited?: boolean;
 }
 
+export interface CardModalConfig {
+  onError?: (error: Error, operation: string) => void;
+  onSuccess?: (message: string) => void;
+  onOpenLink?: (url: string) => void;
+  onClose?: () => void;
+  onCardTypeClick?: (cardType: string) => void;
+}
+
+export interface CardModalOptions extends CardModalConfig {
+  card?: CardWithUrls | null;
+}
+
 export function useCardModal(
   cardId: string | null,
-  config: CardModalConfig = {}
+  options: CardModalOptions = {}
 ) {
+  const { card: cardData = null, ...config } = options;
   const [tagInput, setTagInput] = useState("");
   const [pendingChanges, setPendingChanges] = useState<PendingChanges>({});
   const [isSaved, setIsSaved] = useState(false);
@@ -76,10 +68,7 @@ export function useCardModal(
     [config]
   );
 
-  const card = useQuery(
-    api.cards.getCard,
-    cardId ? { id: cardId as Id<"cards"> } : "skip"
-  ) as CardWithUrls | null;
+  const card = cardData;
 
   const updateCardField = useMutation(api.cards.updateCardField).withOptimisticUpdate(
     (localStore, args) => {
@@ -95,7 +84,6 @@ export function useCardModal(
             updatedAt: now,
           });
           updateCardInSearchQueries(localStore, updateCardId, toggleFavorite);
-          updateSingleCardQuery(localStore, updateCardId, toggleFavorite);
           break;
         }
 
@@ -106,7 +94,6 @@ export function useCardModal(
             updatedAt: now,
           });
           updateCardInSearchQueries(localStore, updateCardId, updateTags);
-          updateSingleCardQuery(localStore, updateCardId, updateTags);
           break;
         }
 
@@ -121,7 +108,6 @@ export function useCardModal(
             };
           };
           updateCardInSearchQueries(localStore, updateCardId, removeAiTag);
-          updateSingleCardQuery(localStore, updateCardId, removeAiTag);
           break;
         }
 
@@ -135,7 +121,6 @@ export function useCardModal(
             updatedAt: now,
           });
           updateCardInSearchQueries(localStore, updateCardId, updateTextField);
-          updateSingleCardQuery(localStore, updateCardId, updateTextField);
           break;
         }
       }

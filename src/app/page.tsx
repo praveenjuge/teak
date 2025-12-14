@@ -51,6 +51,12 @@ export default function HomePage() {
 
   const cards = useQuery(api.cards.searchCards, queryArgs);
 
+  const selectedCard = useMemo(
+    () =>
+      cards?.find((card: Doc<"cards">) => card._id === editingCardId) ?? null,
+    [cards, editingCardId]
+  );
+
   // Track search when results change and filters are active
   const hasActiveSearch =
     searchTerms || filterTags.length > 0 || showFavoritesOnly || showTrashOnly;
@@ -272,6 +278,7 @@ export default function HomePage() {
 
       <CardModal
         cardId={editingCardId}
+        card={selectedCard}
         open={!!editingCardId}
         onCancel={handleEditCancel}
         onCardTypeClick={handleCardTypeClick}
