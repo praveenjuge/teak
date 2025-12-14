@@ -2,13 +2,49 @@ import { v } from "convex/values";
 import { query } from "../_generated/server";
 import { cardTypeValidator, cardValidator } from "../schema";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
+import type { Doc } from "../_generated/dataModel";
 
 // Return validator for card arrays - includes _id and _creationTime from Convex
 const cardReturnValidator = v.object({
   ...cardValidator.fields,
   _id: v.id("cards"),
   _creationTime: v.number(),
+  fileUrl: v.optional(v.string()),
+  thumbnailUrl: v.optional(v.string()),
+  screenshotUrl: v.optional(v.string()),
 });
+
+type CardWithUrls = Doc<"cards"> & {
+  fileUrl?: string;
+  thumbnailUrl?: string;
+  screenshotUrl?: string;
+};
+
+const attachFileUrls = async (
+  ctx: any,
+  cards: Doc<"cards">[],
+): Promise<CardWithUrls[]> => {
+  return Promise.all(
+    cards.map(async (card) => {
+      const [fileUrl, thumbnailUrl, screenshotUrl] = await Promise.all([
+        card.fileId ? ctx.storage.getUrl(card.fileId) : Promise.resolve(null),
+        card.thumbnailId
+          ? ctx.storage.getUrl(card.thumbnailId)
+          : Promise.resolve(null),
+        card.metadata?.linkPreview?.screenshotStorageId
+          ? ctx.storage.getUrl(card.metadata.linkPreview.screenshotStorageId)
+          : Promise.resolve(null),
+      ]);
+
+      return {
+        ...card,
+        fileUrl: fileUrl || undefined,
+        thumbnailUrl: thumbnailUrl || undefined,
+        screenshotUrl: screenshotUrl || undefined,
+      };
+    }),
+  );
+};
 
 export const getCards = query({
   args: {
@@ -55,7 +91,8 @@ export const getCards = query({
 
     const cards = await query.order("desc").take(args.limit || 50);
 
-    return applyQuoteFormattingToList(cards);
+    const cardsWithUrls = await attachFileUrls(ctx, cards);
+    return applyQuoteFormattingToList(cardsWithUrls);
   },
 });
 
@@ -102,7 +139,8 @@ export const searchCards = query({
           )
           .order("desc")
           .take(limit);
-        return applyQuoteFormattingToList(favorites);
+        const favoritesWithUrls = await attachFileUrls(ctx, favorites);
+        return applyQuoteFormattingToList(favoritesWithUrls);
       }
 
       if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
@@ -113,7 +151,8 @@ export const searchCards = query({
           )
           .order("desc")
           .take(limit);
-        return applyQuoteFormattingToList(trashed);
+        const trashedWithUrls = await attachFileUrls(ctx, trashed);
+        return applyQuoteFormattingToList(trashedWithUrls);
       }
 
       // Search across multiple fields using search indexes
@@ -253,7 +292,8 @@ export const searchCards = query({
         .sort((a, b) => b.createdAt - a.createdAt)
         .slice(0, limit);
 
-      return applyQuoteFormattingToList(limitedResults);
+      const resultsWithUrls = await attachFileUrls(ctx, limitedResults);
+      return applyQuoteFormattingToList(resultsWithUrls);
     }
 
     // No search query - use regular indexes with filters
@@ -288,6 +328,7 @@ export const searchCards = query({
     }
 
     const cards = await query.order("desc").take(limit);
-    return applyQuoteFormattingToList(cards);
+    const cardsWithUrls = await attachFileUrls(ctx, cards);
+    return applyQuoteFormattingToList(cardsWithUrls);
   },
 });

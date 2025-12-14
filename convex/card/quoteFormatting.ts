@@ -128,9 +128,9 @@ export const normalizeQuoteContent = (
 export const stripSurroundingQuotes = (text: string): string =>
   normalizeQuoteContent(text).text;
 
-export const applyQuoteDisplayFormatting = (
-  card: Doc<"cards">
-): Doc<"cards"> => {
+export const applyQuoteDisplayFormatting = <T extends Doc<"cards">>(
+  card: T
+): T => {
   const normalization = normalizeQuoteContent(card.content ?? "");
   const shouldFormat = card.type === "quote" || normalization.removedQuotes;
 
@@ -138,9 +138,9 @@ export const applyQuoteDisplayFormatting = (
     return card;
   }
 
-  return { ...card, content: normalization.text };
+  return { ...card, content: normalization.text } as T;
 };
 
-export const applyQuoteFormattingToList = (
-  cards: Doc<"cards">[]
-): Doc<"cards">[] => cards.map(applyQuoteDisplayFormatting);
+export const applyQuoteFormattingToList = <T extends Doc<"cards">>(
+  cards: T[]
+): T[] => cards.map(applyQuoteDisplayFormatting);

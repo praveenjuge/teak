@@ -12,9 +12,6 @@ import {
 import { useEffect, useState } from "react";
 import type { SyntheticEvent } from "react";
 import { Image } from "antd";
-import { useQuery } from "convex-helpers/react/cache/hooks";
-import { api } from "@teak/convex";
-import { Id } from "@teak/convex/_generated/dataModel";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -35,9 +32,15 @@ function isOptimisticCard(cardId: string): boolean {
   return UUID_REGEX.test(cardId);
 }
 
+type CardWithUrls = Doc<"cards"> & {
+  fileUrl?: string;
+  thumbnailUrl?: string;
+  screenshotUrl?: string;
+};
+
 interface CardProps {
-  card: Doc<"cards">;
-  onClick?: (card: Doc<"cards">) => void;
+  card: CardWithUrls;
+  onClick?: (card: CardWithUrls) => void;
   onDelete?: (cardId: string) => void;
   onRestore?: (cardId: string) => void;
   onPermanentDelete?: (cardId: string) => void;
@@ -127,15 +130,8 @@ export function Card({
       : undefined;
   const linkCardTitle = linkPreview?.title || card.metadataTitle || card.url;
   const linkCardImage = linkPreview?.imageUrl;
-  const screenshotStorageId = linkPreview?.screenshotStorageId;
-  const screenshotUrl = useQuery(
-    api.cards.getFileUrl,
-    screenshotStorageId
-      ? { fileId: screenshotStorageId, cardId: card._id }
-      : "skip"
-  );
   const resolvedScreenshotUrl =
-    typeof screenshotUrl === "string" ? screenshotUrl : undefined;
+    typeof card.screenshotUrl === "string" ? card.screenshotUrl : undefined;
   const [useFallbackImage, setUseFallbackImage] = useState(false);
 
   useEffect(() => {
@@ -215,14 +211,16 @@ export function Card({
               <>
                 {displayLinkImage ? (
                   <div className="rounded-xl border bg-card overflow-hidden divide-y">
-                    <Image
-                      src={displayLinkImage}
-                      alt={linkCardTitle}
-                      className="w-full h-28 min-h-28 max-h-28 object-cover bg-card"
-                      preview={false}
-                      placeholder
-                      onError={handleLinkImageError}
-                    />
+                    <div className="min-h-28 h-28 overflow-hidden">
+                      <Image
+                        src={displayLinkImage}
+                        alt={linkCardTitle}
+                        className="w-full h-full object-cover"
+                        preview={false}
+                        placeholder
+                        onError={handleLinkImageError}
+                      />
+                    </div>
                     <div className="px-4 py-3">
                       <p className="line-clamp-1 font-medium truncate">
                         {linkCardTitle}
@@ -240,18 +238,14 @@ export function Card({
             )}
             {card.type === "image" && (
               <GridImagePreview
-                fileId={card.fileId}
-                thumbnailId={card.thumbnailId}
+                imageUrl={card.thumbnailUrl ?? card.fileUrl ?? undefined}
                 altText={card.content}
                 width={card.fileMetadata?.width}
                 height={card.fileMetadata?.height}
               />
             )}
             {card.type === "video" && (
-              <GridVideoPreview
-                fileId={card.fileId}
-                thumbnailId={card.thumbnailId}
-              />
+              <GridVideoPreview thumbnailUrl={card.thumbnailUrl ?? undefined} />
             )}
             {card.type === "audio" && (
               <div className="flex h-14 items-center justify-between space-x-0.5 px-4 py-2 bg-card rounded-xl border">
@@ -269,7 +263,7 @@ export function Card({
             )}
             {card.type === "document" && (
               <GridDocumentPreview
-                thumbnailId={card.thumbnailId}
+                thumbnailUrl={card.thumbnailUrl ?? undefined}
                 fileName={card.fileMetadata?.fileName || card.content}
               />
             )}
@@ -360,63 +354,52 @@ export function Card({
 }
 
 function GridImagePreview({
-  fileId,
-  thumbnailId,
+  imageUrl,
   altText,
   width,
   height,
 }: {
-  fileId: Id<"_storage"> | undefined;
-  thumbnailId?: Id<"_storage"> | undefined;
+  imageUrl?: string;
   altText?: string;
   width?: number;
   height?: number;
 }) {
-  // Prefer thumbnail over full image for grid display
-  const preferredFileId = thumbnailId || fileId;
-  const fileUrl = useQuery(
-    api.cards.getFileUrl,
-    preferredFileId ? { fileId: preferredFileId } : "skip"
-  );
-
-  if (!fileUrl) return null;
-
-  const resolvedAspectRatio = width && height ? width / height : 4 / 3;
-
   return (
     <div
-      className="relative w-full overflow-hidden rounded-xl border bg-card"
-      style={{ aspectRatio: resolvedAspectRatio }}
+      className="relative w-full overflow-hidden rounded-xl border bg-card h-full"
+      style={{ aspectRatio: width && height ? width / height : 4 / 3 }}
     >
-      <Image
-        src={fileUrl}
-        alt={altText ?? "Image"}
-        className="h-full w-full object-cover"
-        rootClassName="h-full w-full"
-        style={{ objectFit: "cover" }}
-        preview={false}
-        placeholder
-        loading="lazy"
-      />
+      {imageUrl && (
+        <Image
+          src={imageUrl}
+          alt={altText ?? "Image"}
+          className="h-full w-full object-cover"
+          rootClassName="h-full w-full"
+          style={{ objectFit: "cover" }}
+          preview={false}
+          placeholder
+          loading="lazy"
+        />
+      )}
+      {!imageUrl && (
+        <Image
+          className="h-full! w-full scale-105"
+          rootClassName="h-full w-full"
+          placeholder
+        />
+      )}
     </div>
   );
 }
 
 function GridDocumentPreview({
-  thumbnailId,
+  thumbnailUrl,
   fileName,
 }: {
-  thumbnailId?: Id<"_storage"> | undefined;
+  thumbnailUrl?: string;
   fileName?: string;
 }) {
-  // Only fetch thumbnail URL if we have a thumbnailId
-  const thumbnailUrl = useQuery(
-    api.cards.getFileUrl,
-    thumbnailId ? { fileId: thumbnailId } : "skip"
-  );
-
-  // If we have a thumbnail, show the thumbnail image with filename overlay
-  if (thumbnailId && thumbnailUrl) {
+  if (thumbnailUrl) {
     return (
       <div className="rounded-xl border bg-card overflow-hidden">
         <Image
@@ -444,22 +427,9 @@ function GridDocumentPreview({
   );
 }
 
-function GridVideoPreview({
-  fileId: _fileId,
-  thumbnailId,
-}: {
-  fileId: Id<"_storage"> | undefined;
-  thumbnailId?: Id<"_storage"> | undefined;
-}) {
-  void _fileId;
-  // Prefer thumbnail over video file for grid display
-  const thumbnailUrl = useQuery(
-    api.cards.getFileUrl,
-    thumbnailId ? { fileId: thumbnailId } : "skip"
-  );
-
+function GridVideoPreview({ thumbnailUrl }: { thumbnailUrl?: string }) {
   // If we have a thumbnail, show it with a play icon overlay
-  if (thumbnailId && thumbnailUrl) {
+  if (thumbnailUrl) {
     return (
       <div className="relative rounded-xl border bg-card overflow-hidden">
         <Image
