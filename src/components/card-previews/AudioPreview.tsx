@@ -1,17 +1,12 @@
-import { useQuery } from "convex-helpers/react/cache/hooks";
-import { api } from "@teak/convex";
 import { type Doc } from "@teak/convex/_generated/dataModel";
 import { Sparkles } from "lucide-react";
 
 interface AudioPreviewProps {
-  card: Doc<"cards">;
+  card: Doc<"cards"> & { fileUrl?: string };
 }
 
 export function AudioPreview({ card }: AudioPreviewProps) {
-  const fileUrl = useQuery(
-    api.cards.getFileUrl,
-    card.fileId ? { fileId: card.fileId } : "skip"
-  );
+  const fileUrl = card.fileUrl;
 
   return (
     <div className="p-2 space-y-4">

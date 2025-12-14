@@ -1,6 +1,4 @@
 import { Archive, Code, File, FileText } from "lucide-react";
-import { useQuery } from "convex-helpers/react/cache/hooks";
-import { api } from "@teak/convex";
 import { type Doc } from "@teak/convex/_generated/dataModel";
 
 // Large/rich previews for the modal
@@ -64,17 +62,14 @@ function isPdf(fileName: string, mimeType: string): boolean {
 }
 
 interface DocumentPreviewProps {
-  card: Doc<"cards">;
+  card: Doc<"cards"> & { fileUrl?: string };
 }
 
 export function DocumentPreview({ card }: DocumentPreviewProps) {
   const fileName = card.fileMetadata?.fileName || card.content || "Document";
   const mimeType = card.fileMetadata?.mimeType || "";
 
-  const fileUrl = useQuery(
-    api.cards.getFileUrl,
-    card.fileId ? { fileId: card.fileId } : "skip"
-  );
+  const fileUrl = card.fileUrl;
 
   // For PDFs, show embedded viewer
   if (isPdf(fileName, mimeType) && fileUrl) {

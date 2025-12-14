@@ -11,6 +11,9 @@ const cardReturnValidator = v.object({
   ...cardValidator.fields,
   _id: v.id("cards"),
   _creationTime: v.number(),
+  fileUrl: v.optional(v.string()),
+  thumbnailUrl: v.optional(v.string()),
+  screenshotUrl: v.optional(v.string()),
 });
 
 export const getCard = query({
@@ -29,7 +32,22 @@ export const getCard = query({
       return null;
     }
 
-    return applyQuoteDisplayFormatting(card);
+    const [fileUrl, thumbnailUrl, screenshotUrl] = await Promise.all([
+      card.fileId ? ctx.storage.getUrl(card.fileId) : Promise.resolve(null),
+      card.thumbnailId
+        ? ctx.storage.getUrl(card.thumbnailId)
+        : Promise.resolve(null),
+      card.metadata?.linkPreview?.screenshotStorageId
+        ? ctx.storage.getUrl(card.metadata.linkPreview.screenshotStorageId)
+        : Promise.resolve(null),
+    ]);
+
+    return applyQuoteDisplayFormatting({
+      ...card,
+      fileUrl: fileUrl || undefined,
+      thumbnailUrl: thumbnailUrl || undefined,
+      screenshotUrl: screenshotUrl || undefined,
+    });
   },
 });
 

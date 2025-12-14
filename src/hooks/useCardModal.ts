@@ -46,6 +46,12 @@ export interface CardModalConfig {
   onCardTypeClick?: (cardType: string) => void;
 }
 
+type CardWithUrls = Doc<"cards"> & {
+  fileUrl?: string;
+  thumbnailUrl?: string;
+  screenshotUrl?: string;
+};
+
 interface PendingChanges {
   content?: string;
   url?: string;
@@ -73,7 +79,7 @@ export function useCardModal(
   const card = useQuery(
     api.cards.getCard,
     cardId ? { id: cardId as Id<"cards"> } : "skip"
-  );
+  ) as CardWithUrls | null;
 
   const updateCardField = useMutation(api.cards.updateCardField).withOptimisticUpdate(
     (localStore, args) => {
@@ -357,12 +363,7 @@ export function useCardModal(
     }
   }, [card?.url, card?.type, config]);
 
-  const fileUrl = useQuery(
-    api.cards.getFileUrl,
-    card?.fileId
-      ? { fileId: card.fileId, cardId: cardId as Id<"cards"> }
-      : "skip"
-  );
+  const fileUrl = card?.fileUrl;
 
 
   const downloadFile = useCallback(async () => {
@@ -428,7 +429,7 @@ export function useCardModal(
         pendingChanges.isFavorited !== undefined
           ? pendingChanges.isFavorited
           : card.isFavorited,
-    };
+    } satisfies CardWithUrls;
   }, [card, pendingChanges.isFavorited]);
 
   return {

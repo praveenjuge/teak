@@ -1,16 +1,11 @@
-import { useQuery } from "convex-helpers/react/cache/hooks";
-import { api } from "@teak/convex";
 import { type Doc } from "@teak/convex/_generated/dataModel";
 
 interface VideoPreviewProps {
-  card: Doc<"cards">;
+  card: Doc<"cards"> & { fileUrl?: string };
 }
 
 export function VideoPreview({ card }: VideoPreviewProps) {
-  const fileUrl = useQuery(
-    api.cards.getFileUrl,
-    card.fileId ? { fileId: card.fileId } : "skip"
-  );
+  const fileUrl = card.fileUrl;
 
   if (!fileUrl) return null;
 

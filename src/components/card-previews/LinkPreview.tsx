@@ -1,12 +1,10 @@
 import { useMemo } from "react";
-import { useQuery } from "convex-helpers/react/cache/hooks";
 import { Image } from "antd";
-import { api } from "@teak/convex";
 import { type Doc } from "@teak/convex/_generated/dataModel";
 import { Separator } from "@/components/ui/separator";
 
 interface LinkPreviewProps {
-  card: Doc<"cards">;
+  card: Doc<"cards"> & { screenshotUrl?: string };
   showScreenshot?: boolean;
 }
 
@@ -25,13 +23,7 @@ export function LinkPreview({
   const linkImage = linkPreview?.imageUrl;
   const linkFavicon = linkPreview?.faviconUrl;
 
-  const screenshotStorageId = linkPreview?.screenshotStorageId;
-  const screenshotUrl = useQuery(
-    api.cards.getFileUrl,
-    showScreenshot && screenshotStorageId
-      ? { fileId: screenshotStorageId, cardId: card._id }
-      : "skip"
-  );
+  const screenshotUrl = showScreenshot ? card.screenshotUrl : undefined;
 
   const faviconUrl = useMemo(() => {
     if (linkFavicon) return linkFavicon;
