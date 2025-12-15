@@ -17,30 +17,28 @@ export function QuotePreview({
     : card.content;
 
   return (
-    <div className="h-full flex flex-col justify-center items-center p-8 text-center relative">
+    <div className="h-full relative">
       {/* Large Opening Quote */}
-      <div className="absolute select-none pointer-events-none top-4 left-4 text-6xl text-muted-foreground leading-none font-serif">
+      <div className="absolute select-none pointer-events-none top-0 left-2 text-6xl text-muted-foreground leading-none font-serif">
         &ldquo;
       </div>
 
       {/* Editable Quote Content */}
-      <div className="max-w-3xl w-full">
-        <Textarea
-          value={currentContent || ""}
-          onChange={(e) => {
-            const newContent = e.target.value;
-            onContentChange(newContent);
-          }}
-          placeholder="Enter your quote..."
-          className="text-xl md:text-2xl font-medium leading-relaxed text-foreground italic text-center resize-none border-0 shadow-none focus-visible:border-0 focus-visible:ring-0 bg-transparent dark:bg-transparent min-h-[200px] text-balance h-auto font-serif"
-          style={{
-            lineHeight: "1.6",
-          }}
-        />
-      </div>
+      <Textarea
+        value={currentContent || ""}
+        onChange={(e) => {
+          const newContent = e.target.value;
+          onContentChange(newContent);
+        }}
+        placeholder="Enter your quote..."
+        className="text-xl md:text-2xl font-medium leading-relaxed italic resize-none border-0 shadow-none focus-visible:border-0 focus-visible:ring-0 bg-transparent dark:bg-transparent h-auto font-serif p-10 text-center"
+        style={{
+          lineHeight: "1.6",
+        }}
+      />
 
       {/* Large Closing Quote */}
-      <div className="absolute select-none pointer-events-none bottom-0 right-4 text-6xl text-muted-foreground leading-none font-serif">
+      <div className="absolute select-none pointer-events-none top-0 right-0 text-6xl text-muted-foreground leading-none font-serif">
         &rdquo;
       </div>
     </div>
