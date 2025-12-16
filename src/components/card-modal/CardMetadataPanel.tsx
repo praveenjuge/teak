@@ -8,7 +8,6 @@ import { useMemo } from "react";
 import {
   Download,
   Edit,
-  ExternalLink,
   Heart,
   Info,
   RotateCcw,
@@ -140,15 +139,6 @@ export function CardMetadataPanel({
           >
             {card.isFavorited ? "Unfavorite" : "Favorite"}
           </PanelButton>
-
-          {actions.openLink && (
-            <PanelButton
-              onClick={actions.openLink}
-              icon={<ExternalLink className={iconClass} />}
-            >
-              Open Link
-            </PanelButton>
-          )}
 
           {actions.downloadFile && (
             <PanelButton
