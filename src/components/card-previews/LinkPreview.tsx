@@ -41,13 +41,13 @@ export function LinkPreview({
         href={card.url || "#"}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex border rounded w-full hover:bg-accent overflow-hidden items-center"
+        className="flex w-full flex-col overflow-hidden rounded border hover:bg-accent sm:flex-row"
       >
         {linkImage && (
           <Image
             src={linkImage}
             alt="Open Graph preview"
-            className="w-full max-h-26 object-contain"
+            className="h-auto w-full max-h-60 object-contain sm:h-full sm:max-h-40 sm:w-60"
             preview={false}
             placeholder
           />
@@ -57,13 +57,13 @@ export function LinkPreview({
           <Image
             src={screenshotUrl}
             alt="Rendered webpage screenshot"
-            className="w-full max-h-26 object-contain"
+            className="h-auto w-full max-h-60 object-contain sm:h-full sm:max-h-40 sm:w-60"
             preview={false}
             placeholder
           />
         )}
 
-        <div className="min-w-0 shrink-0 flex-1 space-y-1 p-4">
+        <div className="min-w-0 flex-1 shrink-0 space-y-1 p-4">
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2">
               {faviconUrl && (
