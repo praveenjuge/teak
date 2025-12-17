@@ -24,7 +24,7 @@ export const updateCategorization = internalMutation({
     const now = Date.now();
 
     // Get current card to update processing status
-    const card = await ctx.db.get(cardId);
+    const card = await ctx.db.get("cards", cardId);
     if (!card) {
       throw new Error(`Card ${cardId} not found`);
     }
@@ -42,7 +42,7 @@ export const updateCategorization = internalMutation({
       linkCategory: metadata,
     };
 
-    await ctx.db.patch(cardId, {
+    await ctx.db.patch("cards", cardId, {
       metadata: updatedMetadata,
       processingStatus: updatedProcessing,
       updatedAt: now,

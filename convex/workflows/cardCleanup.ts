@@ -46,7 +46,7 @@ export const cleanupDeletedCard = internalMutation({
     deleted: v.boolean(),
   }),
   handler: async (ctx, { cardId, cutoff }) => {
-    const card = await ctx.db.get(cardId);
+    const card = await ctx.db.get("cards", cardId);
     if (!card) {
       return { deleted: false };
     }
@@ -84,7 +84,7 @@ export const cleanupDeletedCard = internalMutation({
 
     let deleted = false;
     try {
-      await ctx.db.delete(cardId);
+      await ctx.db.delete("cards", cardId);
       deleted = true;
     } catch (error) {
       console.error(`${WORKFLOW_LOG_PREFIX} Failed to delete card record`, {

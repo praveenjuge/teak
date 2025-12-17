@@ -11,10 +11,10 @@ import { polar } from "./billing";
 import { FREE_TIER_LIMIT, CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "./shared/constants";
 import { ConvexError } from "convex/values";
 import { rateLimiter } from "./shared/rateLimits";
+import authConfig from "./auth.config";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID!;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET!;
-
 const siteUrl = process.env.SITE_URL!;
 
 // The component client has methods needed for integrating Convex with Better Auth,
@@ -25,15 +25,8 @@ export const resend = new Resend(components.resend, {
   testMode: false,
 });
 
-export const createAuth = (
-  ctx: GenericCtx<DataModel>,
-  { optionsOnly } = { optionsOnly: false },
-) => {
+export const createAuth = (ctx: GenericCtx<DataModel>) => {
   return betterAuth({
-    logger: {
-      disabled: optionsOnly,
-      level: "debug",
-    },
     trustedOrigins: [
       siteUrl,
       "app.teakvault.com",
@@ -98,7 +91,10 @@ export const createAuth = (
     },
     plugins: [
       expo(),
-      convex(),
+      convex({
+        authConfig,
+        jwksRotateOnTokenGenerationError: true,
+      }),
     ],
   } satisfies BetterAuthOptions);
 };
@@ -212,7 +208,7 @@ export const deleteAccount = mutation({
         await ctx.storage.delete(card.thumbnailId);
       }
 
-      await ctx.db.delete(card._id);
+      await ctx.db.delete("cards", card._id);
     }
 
     return { deletedCards: cards.length };

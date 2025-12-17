@@ -122,7 +122,7 @@ export const finalizeUploadedCard = mutation({
       await ensureCardCreationAllowed(ctx, user.subject);
 
       // Get file metadata from storage
-      const fileMetadata = await ctx.db.system.get(args.fileId);
+      const fileMetadata = await ctx.db.system.get("_storage", args.fileId);
       if (!fileMetadata) {
         return { success: false, error: "File not found in storage" };
       }

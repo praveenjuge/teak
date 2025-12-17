@@ -14,11 +14,17 @@ const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!, {
 
 export default function ConvexClientProvider({
   children,
+  initialToken,
 }: {
   children: ReactNode;
+  initialToken?: string | null;
 }) {
   return (
-    <ConvexBetterAuthProvider client={convex} authClient={authClient}>
+    <ConvexBetterAuthProvider
+      client={convex}
+      authClient={authClient}
+      initialToken={initialToken}
+    >
       <SentryUserManager />
       {children}
     </ConvexBetterAuthProvider>

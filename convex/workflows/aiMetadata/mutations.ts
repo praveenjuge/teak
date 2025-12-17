@@ -19,7 +19,7 @@ export const updateCardAI = internalMutation({
   },
   handler: async (ctx, args) => {
     const { cardId, processingStatus, ...updates } = args;
-    return await ctx.db.patch(cardId, {
+    return await ctx.db.patch("cards", cardId, {
       ...updates,
       ...(processingStatus !== undefined ? { processingStatus } : {}),
       updatedAt: Date.now(),
@@ -39,7 +39,7 @@ export const resetCardAI = internalMutation({
     ),
   },
   handler: async (ctx, { cardId, metadataStatus }) => {
-    await ctx.db.patch(cardId, {
+    await ctx.db.patch("cards", cardId, {
       aiTags: undefined,
       aiSummary: undefined,
       aiTranscript: undefined,
@@ -57,7 +57,7 @@ export const updateCardColors = internalMutation({
     colors: v.optional(v.array(colorValidator)),
   },
   handler: async (ctx, { cardId, colors }) => {
-    await ctx.db.patch(cardId, {
+    await ctx.db.patch("cards", cardId, {
       colors,
       updatedAt: Date.now(),
     });

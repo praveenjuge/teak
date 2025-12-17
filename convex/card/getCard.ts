@@ -27,7 +27,7 @@ export const getCard = query({
       return null;
     }
 
-    const card = await ctx.db.get(id);
+    const card = await ctx.db.get("cards", id);
     if (!card || card.userId !== user.subject) {
       return null;
     }
@@ -84,7 +84,7 @@ export const getCardInternal = internalQuery({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const card = await ctx.db.get(args.cardId);
+    const card = await ctx.db.get("cards", args.cardId);
     return card;
   },
 });

@@ -1,12 +1,11 @@
 import { action, query, type ActionCtx, type QueryCtx } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import type {
   ProcessingStageKey,
   ProcessingStatus,
 } from "./card/processingStatus";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { authComponent } from "./auth";
 
 type StageSummary = {
   pending: number;
@@ -46,7 +45,7 @@ const SINGLE_RESULT_PAGE = {
 
 const getFirstUserId = async (ctx: AdminCtx) => {
   const result = (await ctx.runQuery(
-    authComponent.component.adapter.findMany,
+    components.betterAuth.adapter.findMany,
     {
       model: "user",
       sortBy: { field: "createdAt", direction: "asc" },

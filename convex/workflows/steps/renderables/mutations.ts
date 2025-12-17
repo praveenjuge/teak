@@ -8,7 +8,7 @@ export const updateCardThumbnail = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.cardId, {
+    await ctx.db.patch("cards", args.cardId, {
       thumbnailId: args.thumbnailId,
       updatedAt: Date.now(),
     });

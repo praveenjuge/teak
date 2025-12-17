@@ -36,9 +36,6 @@ export default defineConfig([
         project: true,
       },
     },
-    plugins: {
-      "@typescript-eslint": tseslint.plugin,
-    },
     rules: {
       "@typescript-eslint/no-floating-promises": "error",
     },

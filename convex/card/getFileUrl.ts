@@ -11,7 +11,7 @@ export const getFileUrl = query({
 
     // If cardId is provided, verify the user owns the card that references this file
     if (args.cardId && user) {
-      const card = await ctx.db.get(args.cardId);
+      const card = await ctx.db.get("cards", args.cardId);
       if (!card || card.userId !== user.subject) {
         throw new Error("Unauthorized access to file");
       }

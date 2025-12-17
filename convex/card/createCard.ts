@@ -63,7 +63,7 @@ export const createCard = mutation({
     });
 
     if (args.fileId) {
-      const systemFileMetadata = await ctx.db.system.get(args.fileId);
+      const systemFileMetadata = await ctx.db.system.get("_storage", args.fileId);
       if (systemFileMetadata?.contentType) {
         fileMetadata = {
           fileName: extractedFileMetadata.fileName || `file_${now}`,
@@ -143,7 +143,7 @@ export const createCard = mutation({
     );
 
     // Store workflowId on card for tracking
-    await ctx.db.patch(cardId, { workflowId });
+    await ctx.db.patch("cards", cardId, { workflowId });
 
     return cardId;
   },

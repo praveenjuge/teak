@@ -16,21 +16,21 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "@convex-dev/better-auth": "^0.9.7",
-    "@tailwindcss/vite": "^4.1.17",
+    "@convex-dev/better-auth": "^0.9.11",
+    "@tailwindcss/vite": "^4.1.18",
     "@teak/convex": "file:..",
-    "better-auth": "1.3.34",
-    "convex": "^1.29.3",
-    "lucide-react": "^0.554.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "better-auth": "1.4.7",
+    "convex": "^1.31.1",
+    "lucide-react": "^0.561.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
-    "@types/chrome": "^0.1.31",
-    "@types/react": "^19.2.6",
+    "@types/chrome": "^0.1.32",
+    "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@wxt-dev/module-react": "^1.1.5",
     "typescript": "^5.9.3",
-    "wxt": "^0.20.11"
+    "wxt": "^0.20.13"
   }
 }

@@ -21,7 +21,7 @@ export const updateCardProcessing = internalMutation({
   },
   handler: async (ctx, args) => {
     const { cardId, processingStatus, type, metadataStatus, metadata } = args;
-    return await ctx.db.patch(cardId, {
+    return await ctx.db.patch("cards", cardId, {
       ...(type ? { type } : {}),
       processingStatus,
       ...(metadataStatus ? { metadataStatus } : {}),

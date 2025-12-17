@@ -21,7 +21,7 @@ export {
 export const getCardForMetadata = internalQuery({
   args: { cardId: v.id("cards") },
   handler: async (ctx, { cardId }) => {
-    return await ctx.db.get(cardId);
+    return await ctx.db.get("cards", cardId);
   },
 });
 
@@ -32,7 +32,7 @@ export const updateCardMetadata = internalMutation({
     status: v.union(v.literal("completed"), v.literal("failed")),
   },
   handler: async (ctx, { cardId, linkPreview, status }) => {
-    const existingCard = await ctx.db.get(cardId);
+    const existingCard = await ctx.db.get("cards", cardId);
     if (!existingCard) {
       console.error(`Card ${cardId} not found for metadata update`);
       return;
@@ -94,7 +94,7 @@ export const updateCardMetadata = internalMutation({
       updateFields.metadataDescription = description;
     }
 
-    return await ctx.db.patch(cardId, updateFields);
+    return await ctx.db.patch("cards", cardId, updateFields);
   },
 });
 
@@ -105,7 +105,7 @@ export const updateCardScreenshot = internalMutation({
     screenshotUpdatedAt: v.number(),
   },
   handler: async (ctx, { cardId, screenshotStorageId, screenshotUpdatedAt }) => {
-    const card = await ctx.db.get(cardId);
+    const card = await ctx.db.get("cards", cardId);
     if (!card || card.type !== "link") {
       return;
     }
@@ -138,7 +138,7 @@ export const updateCardScreenshot = internalMutation({
       linkPreview: updatedLinkPreview,
     };
 
-    await ctx.db.patch(cardId, {
+    await ctx.db.patch("cards", cardId, {
       metadata: updatedMetadata,
       updatedAt: Date.now(),
     });

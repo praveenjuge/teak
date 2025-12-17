@@ -49,7 +49,7 @@ export const backfillMetadataSearchFields = internalMutation({
 
         // Only update if we have fields to update
         if (Object.keys(updateFields).length > 1) {
-          await ctx.db.patch(card._id, updateFields);
+          await ctx.db.patch("cards", card._id, updateFields);
           updatedCount++;
         }
       }

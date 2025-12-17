@@ -25,7 +25,7 @@ export const updateClassification = internalMutation({
     const now = Date.now();
 
     // Get current card to update processing status
-    const card = await ctx.db.get(cardId);
+    const card = await ctx.db.get("cards", cardId);
     if (!card) {
       throw new Error(`Card ${cardId} not found`);
     }
@@ -60,7 +60,7 @@ export const updateClassification = internalMutation({
       }
     }
 
-    await ctx.db.patch(cardId, patchData);
+    await ctx.db.patch("cards", cardId, patchData);
 
     return null;
   },

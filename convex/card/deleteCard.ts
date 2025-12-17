@@ -12,7 +12,7 @@ export const permanentDeleteCard = mutation({
       throw new Error("User must be authenticated");
     }
 
-    const card = await ctx.db.get(args.id);
+    const card = await ctx.db.get("cards", args.id);
 
     if (!card) {
       throw new Error("Card not found");
@@ -31,7 +31,7 @@ export const permanentDeleteCard = mutation({
     }
 
     // Permanently remove from database
-    await ctx.db.delete(args.id);
+    await ctx.db.delete("cards", args.id);
     return null;
   },
 });

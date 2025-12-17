@@ -36,7 +36,7 @@ export const initializeCardProcessingState = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { cardId, workflowId }) => {
-    const card = await ctx.db.get(cardId);
+    const card = await ctx.db.get("cards", cardId);
     if (!card) {
       throw new Error(`Card ${cardId} not found`);
     }
@@ -52,7 +52,7 @@ export const initializeCardProcessingState = internalMutation({
       classificationStatus: card.processingStatus?.classify ?? stagePending(),
     });
 
-    await ctx.db.patch(cardId, {
+    await ctx.db.patch("cards", cardId, {
       aiTags: undefined,
       aiSummary: undefined,
       aiTranscript: undefined,

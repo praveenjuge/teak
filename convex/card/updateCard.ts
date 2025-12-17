@@ -25,7 +25,7 @@ export const updateCard = mutation({
     }
 
     const { id, ...updates } = args;
-    const card = await ctx.db.get(id);
+    const card = await ctx.db.get("cards", id);
 
     if (!card) {
       throw new Error("Card not found");
@@ -55,7 +55,7 @@ export const updateCard = mutation({
       }
     }
 
-    await ctx.db.patch(id, {
+    await ctx.db.patch("cards", id, {
       ...updates,
       ...(processingStatus ? { processingStatus } : {}),
       updatedAt: now,
@@ -101,7 +101,7 @@ export const updateCardField = mutation({
       throw new Error("User must be authenticated");
     }
 
-    const card = await ctx.db.get(cardId);
+    const card = await ctx.db.get("cards", cardId);
     if (!card) {
       throw new Error("Card not found");
     }
@@ -210,7 +210,7 @@ export const updateCardField = mutation({
       updateData.processingStatus = processingStatus;
     }
 
-    const result = await ctx.db.patch(cardId, updateData);
+    const result = await ctx.db.patch("cards", cardId, updateData);
 
     if (shouldSchedulePipeline) {
       await ctx.scheduler.runAfter(

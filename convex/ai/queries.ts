@@ -5,7 +5,7 @@ import { internalQuery } from "../_generated/server";
 export const getCardForAI = internalQuery({
   args: { cardId: v.id("cards") },
   handler: async (ctx, { cardId }) => {
-    return await ctx.db.get(cardId);
+    return await ctx.db.get("cards", cardId);
   },
 });
 
@@ -35,7 +35,7 @@ export const findCardsMissingAi = internalQuery({
 export const getCardForVerification = internalQuery({
   args: { cardId: v.id("cards"), userId: v.string() },
   handler: async (ctx, { cardId, userId }) => {
-    const card = await ctx.db.get(cardId);
+    const card = await ctx.db.get("cards", cardId);
     if (!card || card.userId !== userId) {
       return null;
     }
