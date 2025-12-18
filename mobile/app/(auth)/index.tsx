@@ -155,6 +155,7 @@ export default function OnboardingScreen() {
                 variant="bordered"
                 controlSize="large"
                 onPress={onAppleSignInPress}
+                color="primary"
                 disabled={isGoogleLoading || isAppleLoading}
               >
                 <HStack spacing={10} alignment="center">
