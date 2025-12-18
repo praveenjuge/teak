@@ -7,20 +7,11 @@ import {
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Alert,
-  Text as RNText,
-  ScrollView,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Alert, ScrollView, useWindowDimensions } from "react-native";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { router, Stack } from "expo-router";
 import { useCreateCard } from "../../../lib/hooks/useCardOperations";
 import { useFileUpload } from "../../../lib/hooks/useFileUpload";
-import { IconSymbol } from "../../../components/ui/IconSymbol";
-import { colors } from "../../../constants/colors";
 import {
   setFeedbackStatus,
   subscribeFeedbackStatus,
@@ -35,12 +26,11 @@ import {
   List,
   Section,
   Spacer,
-  Text as SwiftText,
+  Text,
   TextField,
-  VStack,
   type TextFieldRef,
 } from "@expo/ui/swift-ui";
-import { border, frame, padding } from "@expo/ui/swift-ui/modifiers";
+import { frame } from "@expo/ui/swift-ui/modifiers";
 import { stopAudioRecording } from "../../../lib/recording";
 
 export default function AddScreen() {
@@ -365,46 +355,6 @@ export default function AddScreen() {
     uploadState.isUploading,
   ]);
 
-  if (isRecording) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: colors.background,
-        }}
-      >
-        <RNText style={{ color: colors.label, marginBottom: 40 }}>
-          {isStoppingRecording ? "Stopping..." : "Recording..."}
-        </RNText>
-        <TouchableOpacity
-          onPress={stopRecording}
-          disabled={isStoppingRecording}
-          style={{
-            width: 80,
-            height: 80,
-            borderRadius: 40,
-            backgroundColor: "red",
-            justifyContent: "center",
-            alignItems: "center",
-            marginBottom: 40,
-            opacity: isStoppingRecording ? 0.6 : 1,
-          }}
-        >
-          <IconSymbol color="white" name="stop.fill" />
-        </TouchableOpacity>
-        <RNText
-          style={{
-            color: colors.secondaryLabel,
-          }}
-        >
-          {new Date(recordingDuration * 1000).toISOString().substring(14, 19)}
-        </RNText>
-      </View>
-    );
-  }
-
   return (
     <>
       <Stack.Screen
@@ -427,7 +377,7 @@ export default function AddScreen() {
                     size={14}
                     modifiers={[frame({ width: 18, height: 18 })]}
                   />
-                  <SwiftText color="primary">Text or URL</SwiftText>
+                  <Text color="primary">Text or URL</Text>
                   <Spacer />
                   <Image
                     systemName="chevron.right"
@@ -449,7 +399,7 @@ export default function AddScreen() {
                     size={14}
                     modifiers={[frame({ width: 18, height: 18 })]}
                   />
-                  <SwiftText color="primary">Record Audio</SwiftText>
+                  <Text color="primary">Record Audio</Text>
                   <Spacer />
                   <Image
                     systemName="chevron.right"
@@ -471,9 +421,7 @@ export default function AddScreen() {
                     size={14}
                     modifiers={[frame({ width: 18, height: 18 })]}
                   />
-                  <SwiftText color="primary">
-                    Photos/Videos from Gallery
-                  </SwiftText>
+                  <Text color="primary">Photos/Videos from Gallery</Text>
                   <Spacer />
                   <Image
                     systemName="chevron.right"
@@ -493,7 +441,7 @@ export default function AddScreen() {
                     size={14}
                     modifiers={[frame({ width: 18, height: 18 })]}
                   />
-                  <SwiftText color="primary">Open Camera</SwiftText>
+                  <Text color="primary">Open Camera</Text>
                   <Spacer />
                   <Image
                     systemName="chevron.right"
@@ -513,7 +461,7 @@ export default function AddScreen() {
                     size={14}
                     modifiers={[frame({ width: 18, height: 18 })]}
                   />
-                  <SwiftText color="primary">Upload Files</SwiftText>
+                  <Text color="primary">Upload Files</Text>
                   <Spacer />
                   <Image
                     systemName="chevron.right"
@@ -562,11 +510,57 @@ export default function AddScreen() {
               >
                 <HStack spacing={10} alignment="center">
                   <Spacer />
-                  <SwiftText color="primary">
+                  <Text color="primary">
                     {isSavingCard || uploadState.isUploading
                       ? "Saving..."
                       : "Save"}
-                  </SwiftText>
+                  </Text>
+                  <Spacer />
+                </HStack>
+              </Button>
+            </List>
+          </BottomSheet>
+        </Host>
+        <Host
+          style={{ position: "absolute", width, top: 0, left: 0 }}
+          useViewportSizeMeasurement
+        >
+          <BottomSheet
+            isOpened={isRecording}
+            onIsOpenedChange={(open) => {
+              if (!open && isRecording) {
+                stopRecording();
+              }
+            }}
+            presentationDetents={["medium"]}
+            presentationDragIndicator="visible"
+            interactiveDismissDisabled
+          >
+            <List>
+              <HStack spacing={8} alignment="center">
+                <Text color="primary">
+                  {isStoppingRecording ? "Stopping..." : "Recording..."}
+                </Text>
+                <Spacer />
+                <Text color="secondary">
+                  {new Date(recordingDuration * 1000)
+                    .toISOString()
+                    .substring(14, 19)}
+                </Text>
+              </HStack>
+              <Button
+                onPress={stopRecording}
+                disabled={isStoppingRecording}
+                role="destructive"
+                variant="bordered"
+                controlSize="large"
+              >
+                <HStack spacing={8} alignment="center">
+                  <Spacer />
+                  <Image systemName="stop.fill" color="red" size={18} />
+                  <Text color="red" design="rounded">
+                    {isStoppingRecording ? "Stopping" : "Stop Recording"}
+                  </Text>
                   <Spacer />
                 </HStack>
               </Button>
