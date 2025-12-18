@@ -543,10 +543,7 @@ export default function AddScreen() {
             presentationDragIndicator="visible"
             interactiveDismissDisabled={isSavingCard}
           >
-            <VStack
-              spacing={12}
-              modifiers={[padding({ horizontal: 16, vertical: 16 })]}
-            >
+            <List>
               <TextField
                 key={textFieldKey}
                 ref={textFieldRef}
@@ -554,24 +551,26 @@ export default function AddScreen() {
                 placeholder="Enter your bookmark, URL, or note"
                 onChangeText={setContent}
                 multiline
+                numberOfLines={10}
                 allowNewlines
-                modifiers={[
-                  border({ color: "#ccc", width: 1 }),
-                  padding({ all: 8 }),
-                ]}
               />
               <Button
+                variant="bordered"
+                controlSize="large"
                 onPress={handleSaveText}
                 disabled={isSavingCard || uploadState.isUploading}
-                variant="glass"
               >
-                <SwiftText color="primary">
-                  {isSavingCard || uploadState.isUploading
-                    ? "Saving..."
-                    : "Save"}
-                </SwiftText>
+                <HStack spacing={10} alignment="center">
+                  <Spacer />
+                  <SwiftText color="primary">
+                    {isSavingCard || uploadState.isUploading
+                      ? "Saving..."
+                      : "Save"}
+                  </SwiftText>
+                  <Spacer />
+                </HStack>
               </Button>
-            </VStack>
+            </List>
           </BottomSheet>
         </Host>
       </ScrollView>
