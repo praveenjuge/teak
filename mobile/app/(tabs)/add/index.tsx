@@ -41,6 +41,7 @@ import {
   type TextFieldRef,
 } from "@expo/ui/swift-ui";
 import { border, frame, padding } from "@expo/ui/swift-ui/modifiers";
+import { stopAudioRecording } from "../../../lib/recording";
 
 export default function AddScreen() {
   const [content, setContent] = useState("");
@@ -48,6 +49,7 @@ export default function AddScreen() {
   const [isTextSheetOpen, setIsTextSheetOpen] = useState(false);
   const [textFieldKey, setTextFieldKey] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
+  const [isStoppingRecording, setIsStoppingRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const textFieldRef = useRef<TextFieldRef>(null);
   const createCard = useCreateCard();
@@ -162,7 +164,7 @@ export default function AddScreen() {
   };
 
   async function startRecording() {
-    if (uploadState.isUploading || isSavingCard) {
+    if (uploadState.isUploading || isSavingCard || isStoppingRecording) {
       return;
     }
 
@@ -195,18 +197,22 @@ export default function AddScreen() {
   }
 
   async function stopRecording() {
-    if (!audioRecorder.isRecording) {
+    if (!audioRecorder.isRecording || isStoppingRecording) {
       return;
     }
 
-    setIsRecording(false);
-    await audioRecorder.stop();
-
-    const uri = audioRecorder.uri;
-    if (uri) {
-      await handleFileUpload(uri, `recording-${Date.now()}.m4a`, "audio/m4a");
-    }
-    setRecordingDuration(0);
+    await stopAudioRecording({
+      audioRecorder,
+      setIsRecording,
+      setIsStoppingRecording,
+      setRecordingDuration,
+      handleFileUpload,
+      onError: (error) => {
+        console.error("Failed to stop recording:", error);
+        showErrorFeedback("Failed to save recording. Please try again.");
+        Alert.alert("Error", "Failed to save recording. Please try again.");
+      },
+    });
   }
 
   const handleGalleryPicker = async () => {
@@ -370,10 +376,11 @@ export default function AddScreen() {
         }}
       >
         <RNText style={{ color: colors.label, marginBottom: 40 }}>
-          Recording...
+          {isStoppingRecording ? "Stopping..." : "Recording..."}
         </RNText>
         <TouchableOpacity
           onPress={stopRecording}
+          disabled={isStoppingRecording}
           style={{
             width: 80,
             height: 80,
@@ -382,6 +389,7 @@ export default function AddScreen() {
             justifyContent: "center",
             alignItems: "center",
             marginBottom: 40,
+            opacity: isStoppingRecording ? 0.6 : 1,
           }}
         >
           <IconSymbol color="white" name="stop.fill" />
@@ -430,7 +438,9 @@ export default function AddScreen() {
               </Button>
               <Button
                 onPress={startRecording}
-                disabled={uploadState.isUploading || isSavingCard}
+                disabled={
+                  uploadState.isUploading || isSavingCard || isStoppingRecording
+                }
               >
                 <HStack spacing={8}>
                   <Image
