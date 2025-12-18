@@ -1,4 +1,3 @@
-import { useRouter } from "expo-router";
 import React from "react";
 import { Alert } from "react-native";
 import {
@@ -17,7 +16,6 @@ import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function SignInScreen() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
   const [emailAddress, setEmailAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -48,7 +46,6 @@ export default function SignInScreen() {
         );
         return;
       }
-      router.replace("/(tabs)/(home)");
     } catch (error) {
       console.error(error);
       Alert.alert(

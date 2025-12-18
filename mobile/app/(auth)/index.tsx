@@ -89,8 +89,6 @@ export default function OnboardingScreen() {
             "Failed to sign in with Apple. Please try again."
           )
         );
-      } else {
-        router.replace("/(tabs)/(home)");
       }
     } catch (error: any) {
       // Don't show error if user cancelled

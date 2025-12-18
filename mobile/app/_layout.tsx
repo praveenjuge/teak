@@ -10,7 +10,7 @@ import ConvexClientProvider from "../ConvexClientProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { authClient } from "@/lib/auth-client";
+import { useConvexAuth } from "convex/react";
 import {
   ThemePreferenceProvider,
   useThemePreference,
@@ -61,27 +61,27 @@ function RootLayoutContent() {
 }
 
 function RootNavigator() {
-  const { data: session, isPending } = authClient.useSession();
-  const isSignedIn = Boolean(session);
+  const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
+
   useEffect(() => {
-    if (isSignedIn) {
+    if (isAuthenticated) {
       Keyboard.dismiss();
     }
-  }, [isSignedIn]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    if (!isPending) {
+    if (!isAuthLoading) {
       SplashScreen.hide();
     }
-  }, [isPending]);
+  }, [isAuthLoading]);
 
-  if (isPending) {
+  if (isAuthLoading) {
     return null;
   }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" redirect={!isSignedIn} />
+      <Stack.Screen name="(tabs)" redirect={!isAuthenticated} />
       <Stack.Screen
         name="(feedback)/index"
         options={{
@@ -90,14 +90,14 @@ function RootNavigator() {
           headerBackTitle: "Close",
           headerBackVisible: true,
         }}
-        redirect={!isSignedIn}
+        redirect={!isAuthenticated}
       />
       <Stack.Screen
         name="(auth)/index"
         options={{
           headerShown: false,
         }}
-        redirect={isSignedIn}
+        redirect={isAuthenticated}
       />
       <Stack.Screen
         name="(auth)/sign-in"
@@ -107,7 +107,7 @@ function RootNavigator() {
           headerBackTitle: "Back",
           presentation: "modal",
         }}
-        redirect={isSignedIn}
+        redirect={isAuthenticated}
       />
       <Stack.Screen
         name="(auth)/sign-up"
@@ -117,7 +117,7 @@ function RootNavigator() {
           headerBackTitle: "Back",
           presentation: "modal",
         }}
-        redirect={isSignedIn}
+        redirect={isAuthenticated}
       />
     </Stack>
   );
