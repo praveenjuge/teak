@@ -18,7 +18,10 @@
     },
     "production": {
       "autoIncrement": true,
-      "node": "22.0.0"
+      "node": "22.0.0",
+      "env": {
+        "SKIP_SIMPLE_GIT_HOOKS": "1"
+      }
     }
   },
   "submit": {

@@ -1,0 +1,3 @@
+# Avoid recursive symlink walks from the extension's local @teak/convex dependency
+# when the root package is included via mobile's file:.. dependency.
+extension/node_modules/**

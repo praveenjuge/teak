@@ -11,7 +11,7 @@ export type CardType = (typeof cardTypes)[number];
 /**
  * Maximum number of cards allowed for free tier users
  */
-export const FREE_TIER_LIMIT = 50;
+export const FREE_TIER_LIMIT = 200;
 
 /**
  * Maximum file size for uploads (20MB in bytes)

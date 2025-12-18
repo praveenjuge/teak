@@ -27,7 +27,7 @@
     "lint": "bunx eslint --fix",
     "package:extension": "cd extension && bun run package",
     "pre-commit": "bunx lint-staged && bunx tsc --noEmit && bun run build && bun run build:docs && bun run build:extension",
-    "prepare": "simple-git-hooks",
+    "prepare": "node scripts/prepare-git-hooks.js",
     "start": "next start",
     "test": "playwright test -c src/tests/playwright.config.ts"
   },

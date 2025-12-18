@@ -1,0 +1,11 @@
+# Avoid recursive symlink walks from the local @teak/convex dependency.
+node_modules/@teak/convex/**/node_modules/**
+node_modules/@teak/convex/**/.old-*/**
+node_modules/@teak/convex/**/.old-*
+
+# The mobile app does not need other monorepo apps/packages bundled.
+node_modules/@teak/convex/extension/**
+node_modules/@teak/convex/docs/**
+node_modules/@teak/convex/src/**
+node_modules/@teak/convex/public/**
+node_modules/@teak/convex/.next/**
