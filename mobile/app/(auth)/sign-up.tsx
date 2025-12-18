@@ -2,7 +2,6 @@ import * as React from "react";
 import { Alert, Keyboard } from "react-native";
 import {
   Button,
-  Form,
   Host,
   HStack,
   LabeledContent,
@@ -10,10 +9,12 @@ import {
   Spacer,
   TextField,
   Text,
+  VStack,
 } from "@expo/ui/swift-ui";
 import { useFocusEffect } from "expo-router";
 import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
+import { padding } from "@expo/ui/swift-ui/modifiers";
 
 export default function SignUpScreen() {
   const [emailAddress, setEmailAddress] = React.useState("");
@@ -94,8 +95,8 @@ export default function SignUpScreen() {
   };
 
   return (
-    <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
-      <Form scrollEnabled={false}>
+    <Host matchContents useViewportSizeMeasurement>
+      <VStack spacing={24} modifiers={[padding({ all: 24 })]}>
         <LabeledContent label="Email">
           <TextField
             placeholder="Enter your email"
@@ -126,7 +127,7 @@ export default function SignUpScreen() {
             <Spacer />
           </HStack>
         </Button>
-      </Form>
+      </VStack>
     </Host>
   );
 }
