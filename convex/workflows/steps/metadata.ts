@@ -19,6 +19,65 @@ import {
 import { generateTranscript } from "../aiMetadata/transcript";
 import { stageCompleted } from "../../card/processingStatus";
 
+type LinkPreviewMetadata = {
+  status?: string;
+  title?: string;
+  description?: string;
+  author?: string;
+  publisher?: string;
+  publishedAt?: string;
+};
+
+type LinkCardMetadataInput = {
+  content?: string;
+  url?: string;
+  metadata?: {
+    linkPreview?: LinkPreviewMetadata;
+  };
+};
+
+export const buildLinkContentParts = (card: LinkCardMetadataInput): string[] => {
+  const linkPreviewMetadata =
+    card.metadata?.linkPreview?.status === "success"
+      ? card.metadata.linkPreview
+      : undefined;
+  const contentParts: string[] = [];
+
+  const title = linkPreviewMetadata?.title;
+  if (title) {
+    contentParts.push(`Title: ${title}`);
+  }
+
+  const description = linkPreviewMetadata?.description;
+  if (description) {
+    contentParts.push(`Description: ${description}`);
+  }
+
+  const author = linkPreviewMetadata?.author;
+  if (author) {
+    contentParts.push(`Author: ${author}`);
+  }
+
+  const publisher = linkPreviewMetadata?.publisher;
+  if (publisher) {
+    contentParts.push(`Publisher: ${publisher}`);
+  }
+
+  const publishedAt = linkPreviewMetadata?.publishedAt;
+  if (publishedAt) {
+    contentParts.push(`Published: ${publishedAt}`);
+  }
+
+  if (contentParts.length === 0) {
+    const urlFallback = card.url || card.content;
+    if (urlFallback) {
+      contentParts.push(`URL: ${urlFallback}`);
+    }
+  }
+
+  return contentParts;
+};
+
 /**
  * Workflow Step: Generate AI metadata (tags and summary)
  *
@@ -105,40 +164,7 @@ export const generate: any = internalAction({
         break;
       }
       case "link": {
-        const linkPreviewMetadata =
-          card.metadata?.linkPreview?.status === "success"
-            ? card.metadata.linkPreview
-            : undefined;
-        const contentParts: string[] = [];
-
-        const title = linkPreviewMetadata?.title;
-        if (title) {
-          contentParts.push(`Title: ${title}`);
-        }
-
-        const description = linkPreviewMetadata?.description;
-        if (description) {
-          contentParts.push(`Description: ${description}`);
-        }
-
-        const author = linkPreviewMetadata?.author;
-        if (author) {
-          contentParts.push(`Author: ${author}`);
-        }
-
-        const publisher = linkPreviewMetadata?.publisher;
-        if (publisher) {
-          contentParts.push(`Publisher: ${publisher}`);
-        }
-
-        const publishedAt = linkPreviewMetadata?.publishedAt;
-        if (publishedAt) {
-          contentParts.push(`Published: ${publishedAt}`);
-        }
-
-        if (contentParts.length === 0 && card.content) {
-          contentParts.push(`URL: ${card.content}`);
-        }
+        const contentParts = buildLinkContentParts(card);
 
         const contentToAnalyze = contentParts.join("\n");
         if (contentToAnalyze.trim()) {
