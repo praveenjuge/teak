@@ -124,7 +124,7 @@ const Waveform = ({ seed }: { seed: string }) => (
 const CardItem = memo(function CardItem({ card }: CardItemProps) {
   const mediaUrl = useQuery(
     api.cards.getFileUrl,
-    card.fileId ? { fileId: card.fileId } : "skip"
+    card.fileId ? { fileId: card.fileId, cardId: card._id } : "skip"
   );
 
   const audioUrl = card.type === "audio" ? mediaUrl : null;
