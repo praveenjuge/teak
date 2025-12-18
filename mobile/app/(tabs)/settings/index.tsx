@@ -111,15 +111,15 @@ export default function SettingsScreen() {
                   >
                     <Text>{option.title}</Text>
                     <Spacer />
-                    <Image
-                      systemName={
-                        isSelected ? "checkmark.circle.fill" : "circle"
-                      }
-                      color={
-                        isSelected ? colors.primary : (colors.border as any)
-                      }
-                      size={18}
-                    />
+                    {isSelected && (
+                      <Image
+                        systemName="checkmark"
+                        color={
+                          isSelected ? colors.primary : (colors.border as any)
+                        }
+                        size={18}
+                      />
+                    )}
                   </HStack>
                 );
               })}

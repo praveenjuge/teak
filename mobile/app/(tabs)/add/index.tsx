@@ -415,17 +415,17 @@ export default function AddScreen() {
       <ScrollView>
         <Host matchContents useViewportSizeMeasurement>
           <List scrollEnabled={false}>
-            <Section>
+            <Section title="Add Content">
               <Button
                 onPress={() => setIsTextSheetOpen(true)}
                 disabled={isSavingCard || uploadState.isUploading}
               >
-                <HStack spacing={8}>
+                <HStack spacing={12}>
                   <Image
                     systemName="textformat"
                     color="primary"
-                    size={18}
-                    modifiers={[frame({ width: 28, height: 28 })]}
+                    size={14}
+                    modifiers={[frame({ width: 18, height: 18 })]}
                   />
                   <SwiftText color="primary">Text or URL</SwiftText>
                   <Spacer />
@@ -442,12 +442,12 @@ export default function AddScreen() {
                   uploadState.isUploading || isSavingCard || isStoppingRecording
                 }
               >
-                <HStack spacing={8}>
+                <HStack spacing={12}>
                   <Image
                     systemName="mic.fill"
                     color="primary"
-                    size={18}
-                    modifiers={[frame({ width: 28, height: 28 })]}
+                    size={14}
+                    modifiers={[frame({ width: 18, height: 18 })]}
                   />
                   <SwiftText color="primary">Record Audio</SwiftText>
                   <Spacer />
@@ -459,17 +459,17 @@ export default function AddScreen() {
                 </HStack>
               </Button>
             </Section>
-            <Section>
+            <Section title="Upload Files">
               <Button
                 onPress={handleGalleryPicker}
                 disabled={uploadState.isUploading || isSavingCard}
               >
-                <HStack spacing={8}>
+                <HStack spacing={12}>
                   <Image
                     systemName="photo.on.rectangle"
                     color="primary"
-                    size={16}
-                    modifiers={[frame({ width: 28, height: 28 })]}
+                    size={14}
+                    modifiers={[frame({ width: 18, height: 18 })]}
                   />
                   <SwiftText color="primary">
                     Photos/Videos from Gallery
@@ -486,12 +486,12 @@ export default function AddScreen() {
                 onPress={handleCameraCapture}
                 disabled={uploadState.isUploading || isSavingCard}
               >
-                <HStack spacing={8}>
+                <HStack spacing={12}>
                   <Image
                     systemName="camera"
                     color="primary"
-                    size={18}
-                    modifiers={[frame({ width: 28, height: 28 })]}
+                    size={14}
+                    modifiers={[frame({ width: 18, height: 18 })]}
                   />
                   <SwiftText color="primary">Open Camera</SwiftText>
                   <Spacer />
@@ -506,12 +506,12 @@ export default function AddScreen() {
                 onPress={handleDocumentPicker}
                 disabled={uploadState.isUploading || isSavingCard}
               >
-                <HStack spacing={8}>
+                <HStack spacing={12}>
                   <Image
                     systemName="tray.and.arrow.up"
                     color="primary"
-                    size={16}
-                    modifiers={[frame({ width: 28, height: 28 })]}
+                    size={14}
+                    modifiers={[frame({ width: 18, height: 18 })]}
                   />
                   <SwiftText color="primary">Upload Files</SwiftText>
                   <Spacer />
