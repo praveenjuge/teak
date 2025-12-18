@@ -9,7 +9,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, ScrollView, useWindowDimensions } from "react-native";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
-import { router, Stack } from "expo-router";
+import { Stack } from "expo-router";
 import { useCreateCard } from "../../../lib/hooks/useCardOperations";
 import { useFileUpload } from "../../../lib/hooks/useFileUpload";
 import {
@@ -59,16 +59,12 @@ export default function AddScreen() {
   const showFeedback = useCallback((payload: FeedbackStatusPayload) => {
     setFeedbackStatus(payload);
 
-    if (!feedbackVisibleRef.current) {
-      feedbackVisibleRef.current = true;
-      router.push("/(feedback)");
-    }
+    feedbackVisibleRef.current = true;
   }, []);
 
   const showSavedFeedback = useCallback(
     (message = "Saved Successfully!") => {
       showFeedback({
-        title: "Save to Teak",
         message,
         iconName: "checkmark.circle.fill",
         dismissAfterMs: 1500,
@@ -80,10 +76,8 @@ export default function AddScreen() {
   const showErrorFeedback = useCallback(
     (message: string) => {
       showFeedback({
-        title: "Unable to Save",
         message,
         iconName: "exclamationmark.triangle.fill",
-        accentColor: "#ff3b30",
         dismissAfterMs: 4000,
       });
     },
@@ -91,7 +85,6 @@ export default function AddScreen() {
   );
   const showSavingFeedback = useCallback(() => {
     showFeedback({
-      title: "Save to Teak",
       message: "Saving...",
       iconName: "hourglass",
       dismissAfterMs: -1,

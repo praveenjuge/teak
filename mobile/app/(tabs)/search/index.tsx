@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NativeSyntheticEvent, View } from "react-native";
+import { NativeSyntheticEvent } from "react-native";
 import { Stack } from "expo-router";
 import { Host, Spacer, Text, HStack } from "@expo/ui/swift-ui";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";

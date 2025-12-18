@@ -9,13 +9,27 @@ import { colors } from "@/constants/colors";
 import ConvexClientProvider from "../ConvexClientProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConvexAuth } from "convex/react";
 import {
   ThemePreferenceProvider,
   useThemePreference,
 } from "@/lib/theme-preference";
 import { Keyboard } from "react-native";
+import {
+  BottomSheet,
+  Host,
+  Image,
+  Spacer,
+  Text,
+  VStack,
+} from "@expo/ui/swift-ui";
+import {
+  clearFeedbackStatus,
+  getFeedbackStatus,
+  subscribeFeedbackStatus,
+  type FeedbackStatusPayload,
+} from "@/lib/feedbackBridge";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -53,6 +67,7 @@ function RootLayoutContent() {
       <ConvexClientProvider>
         <ThemeProvider value={isDark ? CustomDarkTheme : CustomDefaultTheme}>
           <RootNavigator />
+          <FeedbackBottomSheet />
           <StatusBar style={isDark ? "light" : "dark"} />
         </ThemeProvider>
       </ConvexClientProvider>
@@ -88,20 +103,102 @@ function RootNavigator() {
     >
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
-        name="(feedback)/index"
-        options={{
-          headerShown: true,
-          presentation: "modal",
-          headerBackTitle: "Close",
-          headerBackVisible: true,
-        }}
-      />
-      <Stack.Screen
         name="(auth)"
         options={{
           headerShown: false,
         }}
       />
     </Stack>
+  );
+}
+
+const AUTO_DISMISS_MS = 2000;
+
+function FeedbackBottomSheet() {
+  const [feedbackState, setFeedbackState] =
+    useState<FeedbackStatusPayload | null>(() => getFeedbackStatus());
+  const isDismissingRef = useRef(false);
+
+  const activeState = useMemo(() => feedbackState, [feedbackState]);
+
+  const handleDismiss = useCallback(() => {
+    if (isDismissingRef.current) {
+      return;
+    }
+    isDismissingRef.current = true;
+    clearFeedbackStatus();
+    setFeedbackState(null);
+  }, []);
+
+  useEffect(() => {
+    return subscribeFeedbackStatus((state) => {
+      isDismissingRef.current = false;
+      setFeedbackState(state);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!activeState?.message) {
+      return;
+    }
+
+    const dismissAfterMs = activeState.dismissAfterMs;
+    const autoDismissInterval =
+      typeof dismissAfterMs === "number" && !Number.isNaN(dismissAfterMs)
+        ? dismissAfterMs
+        : undefined;
+
+    if (autoDismissInterval === -1) {
+      return;
+    }
+
+    const timeoutMs = autoDismissInterval ?? AUTO_DISMISS_MS;
+
+    const timer = setTimeout(() => {
+      handleDismiss();
+    }, timeoutMs);
+
+    return () => clearTimeout(timer);
+  }, [activeState, handleDismiss]);
+
+  if (!activeState) {
+    return null;
+  }
+
+  const { message, iconName } = activeState;
+
+  return (
+    <Host
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        pointerEvents: "box-none",
+      }}
+      useViewportSizeMeasurement
+    >
+      <BottomSheet
+        isOpened={!!activeState}
+        onIsOpenedChange={(open) => {
+          if (!open) {
+            handleDismiss();
+          }
+        }}
+        presentationDetents={["medium"]}
+        presentationDragIndicator="visible"
+        interactiveDismissDisabled={false}
+      >
+        <VStack spacing={14} alignment="center">
+          <Spacer />
+          <Image systemName={(iconName ?? "checkmark.circle.fill") as any} />
+          <Text weight="semibold" design="rounded" lineLimit={1}>
+            {message}
+          </Text>
+          <Spacer />
+        </VStack>
+      </BottomSheet>
+    </Host>
   );
 }
