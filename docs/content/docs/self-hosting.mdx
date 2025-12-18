@@ -23,14 +23,47 @@ bun install
 bun run predev
 ```
 
-This creates a dev deployment and prints the `CONVEX_SITE_URL` you will reuse in client env files.
+This creates a dev deployment and prints the `CONVEX_SITE_URL` and `CONVEX_URL`.
 
-3. Create env files using the values below:
-   - `./.env.local` (web + backend)
-   - `mobile/.env.local`
-   - `extension/.env.local`
+3. Configure essential secrets:
 
-4. Start the stack:
+Run these commands to set the minimum required secrets in your Convex dashboard:
+
+```bash
+# Security & Auth
+npx convex env set BETTER_AUTH_SECRET $(openssl rand -base64 32)
+npx convex env set SITE_URL http://localhost:3000
+
+# Optional: AI (if you want card processing)
+npx convex env set GROQ_API_KEY gsk_...
+```
+
+4. Create local env files:
+
+Copy the values from your Convex dashboard (or the `predev` output) into these files:
+
+**`./.env.local`** (Web)
+
+```bash
+NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
+NEXT_PUBLIC_CONVEX_SITE_URL=https://your-deployment.convex.site
+```
+
+**`mobile/.env.local`** (Mobile)
+
+```bash
+EXPO_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
+EXPO_PUBLIC_CONVEX_SITE_URL=https://your-deployment.convex.site
+```
+
+**`extension/.env.local`** (Extension)
+
+```bash
+VITE_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
+VITE_PUBLIC_CONVEX_SITE_URL=https://your-deployment.convex.site
+```
+
+5. Start the stack:
 
 ```bash
 bun run dev
@@ -38,16 +71,19 @@ bun run dev
 
 ## Production basics
 
-- Point `SITE_URL` and `CONVEX_SITE_URL` to your public domain.
-- Add email (`RESEND_API_KEY`) and billing (Polar) keys if you need those features.
-- Build and serve:
+When moving to production:
+
+1. Update `SITE_URL` in Convex to your public domain (e.g., `https://app.yourdomain.com`).
+2. Update the `CONVEX_SITE_URL` and `CONVEX_URL` in your client env files to point to your production deployment.
+3. Point your domain's `SITE_URL` to wherever you are hosting the Next.js app.
+4. Add email (`RESEND_API_KEY`) and billing (Polar) keys to Convex env if needed.
 
 ```bash
 bun run build
 bun run start
 ```
 
-## Environment settings
+## Detailed Environment Reference
 
 Add these to your env files before running locally or deploying.
 
@@ -89,6 +125,12 @@ VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 
 ## Where to get the values
 
-- Convex: run `bun run predev`; it creates the deployment and prints both URLs. Update them when you promote to production.
-- Better Auth: generate a secret once with `npx convex env set BETTER_AUTH_SECRET $(openssl rand -base64 32)`. Keep `SITE_URL` (Next.js + Convex) and `CONVEX_SITE_URL` (Convex site endpoint) in sync with your domain.
-- Optional features: set `GROQ_API_KEY` for AI, `KERNEL_API_KEY` for link previews, Polar keys for billing, and `RESEND_API_KEY` for email.
+- **Convex URLs**: Run `bun run predev`. It prints both `CONVEX_URL` (for the client) and `CONVEX_SITE_URL` (for the site/auth endpoint). You can also find these in the Convex Dashboard under "Settings" -> "Deployment".
+- **Better Auth**:
+  - `BETTER_AUTH_SECRET`: Generate a random string (e.g., via `openssl rand -base64 32`).
+  - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://localhost:3000`.
+- **Optional Features**:
+  - `GROQ_API_KEY`: Get from [Groq Console](https://console.groq.com/) for AI-powered card processing.
+  - `KERNEL_API_KEY`: Get from [Kernel](https://onkernel.com/) for automated link screenshots.
+  - `RESEND_API_KEY`: Get from [Resend](https://resend.com/) for email verification and password resets.
+  - `POLAR_*`: Get from [Polar](https://polar.sh/) if you want to use the built-in billing system.
