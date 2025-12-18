@@ -151,12 +151,26 @@ export const getCurrentUser = query({
  * Checks both rate limits (30 cards/minute) and card count limits (free tier).
  * Throws a ConvexError with appropriate code when limits are exceeded.
  */
+type CardCreationDeps = {
+  rateLimiter: Pick<typeof rateLimiter, "limit">;
+  getSubscription: (
+    ctx: MutationCtx,
+    args: { userId: string },
+  ) => Promise<{ status?: string } | null | undefined>;
+};
+
+const defaultCardCreationDeps: CardCreationDeps = {
+  rateLimiter,
+  getSubscription: (ctx, args) => polar.getCurrentSubscription(ctx, args),
+};
+
 export async function ensureCardCreationAllowed(
   ctx: MutationCtx,
   userId: string,
+  deps: CardCreationDeps = defaultCardCreationDeps,
 ): Promise<void> {
   // Check rate limit first (fast fail for abuse prevention)
-  const rateLimitResult = await rateLimiter.limit(ctx, "cardCreation", {
+  const rateLimitResult = await deps.rateLimiter.limit(ctx, "cardCreation", {
     key: userId,
     throws: false,
   });
@@ -168,14 +182,26 @@ export async function ensureCardCreationAllowed(
     });
   }
 
-  // Check card count limit using getCurrentUser (which calculates canCreateCard)
-  const currentUser = await ctx.runQuery(api.auth.getCurrentUser);
-
-  if (!currentUser) {
-    throw new Error("User must be authenticated");
+  let hasPremium = false;
+  try {
+    const subscription = await deps.getSubscription(ctx, { userId });
+    hasPremium = subscription?.status === "active";
+  } catch {
+    hasPremium = false;
   }
 
-  if (!currentUser.canCreateCard) {
+  if (hasPremium) {
+    return;
+  }
+
+  const cards = await ctx.db
+    .query("cards")
+    .withIndex("by_user_deleted", (q) =>
+      q.eq("userId", userId).eq("isDeleted", undefined),
+    )
+    .collect();
+
+  if (cards.length >= FREE_TIER_LIMIT) {
     throw new ConvexError({
       code: CARD_ERROR_CODES.CARD_LIMIT_REACHED,
       message: CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED,
