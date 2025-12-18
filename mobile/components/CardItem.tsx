@@ -1,5 +1,5 @@
 import { useAudioPlayer } from "expo-audio";
-import { memo, useMemo, type ReactNode } from "react";
+import { memo, useMemo, useState, type ReactNode } from "react";
 import { Alert, Image as RNImage, Linking, View } from "react-native";
 import { HStack, VStack, Text, Image, Spacer } from "@expo/ui/swift-ui";
 import {
@@ -56,38 +56,45 @@ const Row = ({
   </HStack>
 );
 
-const Favicon = ({ url }: { url?: string }) => (
-  <VStack
-    alignment="center"
-    modifiers={[frame({ width: 28, height: 28 }), cornerRadius(2)]}
-  >
-    {url ? (
-      <View
-        style={{
-          justifyContent: "center",
-          alignItems: "center",
-          width: 28,
-          height: 28,
-        }}
-      >
-        <RNImage
-          source={{ uri: url }}
-          style={{
-            width: 18,
-            height: 18,
-          }}
-          resizeMode="cover"
+const Favicon = ({ url }: { url?: string }) => {
+  const [hasError, setHasError] = useState(false);
+  const showFallback = !url || hasError;
+
+  return (
+    <VStack
+      alignment="center"
+      modifiers={[frame({ width: 28, height: 28 }), cornerRadius(2)]}
+    >
+      {showFallback ? (
+        <Image
+          systemName="globe"
+          size={18}
+          modifiers={[frame({ width: 28, height: 28 })]}
+          color={colors.secondaryLabel as any}
         />
-      </View>
-    ) : (
-      <Image
-        systemName="globe"
-        size={16}
-        modifiers={[frame({ width: 28, height: 28 })]}
-      />
-    )}
-  </VStack>
-);
+      ) : (
+        <View
+          style={{
+            justifyContent: "center",
+            alignItems: "center",
+            width: 28,
+            height: 28,
+          }}
+        >
+          <RNImage
+            source={{ uri: url }}
+            style={{
+              width: 18,
+              height: 18,
+            }}
+            resizeMode="cover"
+            onError={() => setHasError(true)}
+          />
+        </View>
+      )}
+    </VStack>
+  );
+};
 
 const PreviewBox = ({ children }: { children: React.ReactNode }) => (
   <VStack
@@ -182,8 +189,8 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
             leading={<Favicon url={linkMeta?.favicon} />}
             trailing={
               <Image
-                systemName="chevron.right"
-                size={12}
+                systemName="arrow.up.right"
+                size={14}
                 color={colors.secondaryLabel as any}
               />
             }
@@ -210,6 +217,20 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
               if (mediaUrl) void handleUrlPress(mediaUrl);
             }}
             onLongPress={handleDelete}
+            trailing={
+              mediaUrl ? (
+                <VStack
+                  alignment="center"
+                  onPress={() => void handleUrlPress(mediaUrl)}
+                >
+                  <Image
+                    systemName="arrow.up.right"
+                    size={14}
+                    color={colors.secondaryLabel as any}
+                  />
+                </VStack>
+              ) : null
+            }
             content={<Text lineLimit={1}>{title}</Text>}
           />
         );
@@ -236,11 +257,22 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
             }}
             onLongPress={handleDelete}
             content={<Waveform seed={card._id} />}
+            trailing={
+              <VStack alignment="center">
+                <Image
+                  systemName="arrow.up.right"
+                  size={14}
+                  color={colors.secondaryLabel as any}
+                />
+              </VStack>
+            }
           />
         );
       }
 
       case "image": {
+        const imageTitle =
+          card.fileMetadata?.fileName || card.metadataTitle || "Image";
         return (
           <Row
             leading={
@@ -264,13 +296,29 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
               if (mediaUrl) void handleUrlPress(mediaUrl);
             }}
             onLongPress={handleDelete}
-            content={<Text lineLimit={1}>{card.metadataTitle || "Image"}</Text>}
+            trailing={
+              mediaUrl ? (
+                <VStack
+                  alignment="center"
+                  onPress={() => void handleUrlPress(mediaUrl)}
+                >
+                  <Image
+                    systemName="arrow.up.right"
+                    size={14}
+                    color={colors.secondaryLabel as any}
+                  />
+                </VStack>
+              ) : null
+            }
+            content={<Text lineLimit={1}>{imageTitle}</Text>}
           />
         );
       }
 
       case "video": {
         const duration = card.fileMetadata?.duration;
+        const videoTitle =
+          card.fileMetadata?.fileName || card.metadataTitle || "Video";
         return (
           <Row
             leading={
@@ -296,7 +344,21 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
               if (mediaUrl) void handleUrlPress(mediaUrl);
             }}
             onLongPress={handleDelete}
-            content={<Text lineLimit={1}>{card.metadataTitle || "Video"}</Text>}
+            trailing={
+              mediaUrl ? (
+                <VStack
+                  alignment="center"
+                  onPress={() => void handleUrlPress(mediaUrl)}
+                >
+                  <Image
+                    systemName="arrow.up.right"
+                    size={14}
+                    color={colors.secondaryLabel as any}
+                  />
+                </VStack>
+              ) : null
+            }
+            content={<Text lineLimit={1}>{videoTitle}</Text>}
           />
         );
       }
@@ -305,11 +367,18 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
         return (
           <Row
             onLongPress={handleDelete}
+            leading={
+              <Image
+                systemName="paintpalette"
+                size={16}
+                modifiers={[frame({ width: 28, height: 28 })]}
+              />
+            }
             content={
               <View
                 style={{
                   flexDirection: "row",
-                  height: 40,
+                  height: "100%",
                   borderRadius: 10,
                   overflow: "hidden",
                   borderColor: colors.border as any,
@@ -318,7 +387,12 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
                 {card.colors?.slice(0, 10).map((color, index) => (
                   <View
                     key={`${color.hex}-${index}`}
-                    style={{ flex: 1, backgroundColor: color.hex }}
+                    style={{
+                      flex: 1,
+                      backgroundColor: color.hex,
+                      width: "100%",
+                      flexShrink: 0,
+                    }}
                   />
                 ))}
               </View>
