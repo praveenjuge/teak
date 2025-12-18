@@ -5,8 +5,9 @@ import ConvexClientProvider from "@/components/ConvexClientProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
-import { getToken } from "@/lib/auth-server";
 import { PropsWithChildren } from "react";
+
+export const dynamic = "force-static";
 
 export const metadata: Metadata = {
   title: "Teak",
@@ -14,12 +15,11 @@ export const metadata: Metadata = {
     "Teak is a personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations",
 };
 
-export default async function RootLayout({ children }: PropsWithChildren) {
-  const token = await getToken();
+export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className='font-sans text-sm antialiased caret-primary accent-primary selection:bg-primary selection:text-primary-foreground [font-feature-settings:"ss01"] [text-rendering:optimizeLegibility] touch-manipulation'>
-        <ConvexClientProvider initialToken={token}>
+        <ConvexClientProvider>
           <ConvexQueryCacheProvider>
             <ThemeProvider
               attribute="class"
