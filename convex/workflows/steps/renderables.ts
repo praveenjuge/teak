@@ -13,7 +13,7 @@
 import { v } from "convex/values";
 import { internalAction } from "../../_generated/server";
 import { internal } from "../../_generated/api";
-import { stageCompleted } from "../../card/processingStatus";
+import { stageCompleted, stageFailed } from "../../card/processingStatus";
 
 /**
  * Workflow Step: Generate renderables (thumbnails, etc.)
@@ -39,24 +39,44 @@ export const generate: any = internalAction({
     }
 
     let thumbnailGenerated = false;
+    let renderablesSucceeded = true;
+    let failureReason: string | undefined;
+
+    const handleResult = (result: {
+      success: boolean;
+      generated: boolean;
+      error?: string;
+    }) => {
+      if (!result.success) {
+        renderablesSucceeded = false;
+        if (!failureReason) {
+          failureReason = result.error || "thumbnail_generation_failed";
+        }
+        return;
+      }
+
+      if (result.generated) {
+        thumbnailGenerated = true;
+      }
+    };
 
     // Generate thumbnail for image cards
     if (cardType === "image" && card.fileId) {
-      await ctx.runAction(
+      const result = await ctx.runAction(
         internal.workflows.steps.renderables.generateThumbnail.generateThumbnail,
         { cardId }
       );
-      thumbnailGenerated = true;
+      handleResult(result);
     }
 
     // Generate thumbnail for video cards using MediaBunny
     if (cardType === "video" && card.fileId) {
-      await ctx.runAction(
+      const result = await ctx.runAction(
         internal.workflows.steps.renderables.generateVideoThumbnail
           .generateVideoThumbnail,
         { cardId }
       );
-      thumbnailGenerated = true;
+      handleResult(result);
     }
 
     // Generate thumbnail for PDF documents
@@ -65,12 +85,12 @@ export const generate: any = internalAction({
       card.fileId &&
       card.fileMetadata?.mimeType === "application/pdf"
     ) {
-      await ctx.runAction(
+      const result = await ctx.runAction(
         internal.workflows.steps.renderables.generatePdfThumbnail
           .generatePdfThumbnail,
         { cardId }
       );
-      thumbnailGenerated = true;
+      handleResult(result);
     }
 
     // Update processing status to mark renderables as complete
@@ -78,7 +98,9 @@ export const generate: any = internalAction({
     const processingStatus = card.processingStatus || {};
     const updatedProcessing = {
       ...processingStatus,
-      renderables: stageCompleted(now, 0.95),
+      renderables: renderablesSucceeded
+        ? stageCompleted(now, 0.95)
+        : stageFailed(now, failureReason ?? "renderables_failed", processingStatus.renderables),
     };
 
     await ctx.runMutation(internal.ai.mutations.updateCardProcessing, {
@@ -87,7 +109,7 @@ export const generate: any = internalAction({
     });
 
     return {
-      success: true,
+      success: renderablesSucceeded,
       thumbnailGenerated,
     };
   },

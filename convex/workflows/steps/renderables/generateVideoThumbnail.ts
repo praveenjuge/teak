@@ -18,7 +18,12 @@ export const generateVideoThumbnail = internalAction({
   args: {
     cardId: v.id("cards"),
   },
-  returns: v.null(),
+  returns: v.object({
+    success: v.boolean(),
+    generated: v.boolean(),
+    thumbnailId: v.optional(v.id("_storage")),
+    error: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     try {
       // Get the card to verify it exists and is a video
@@ -28,7 +33,11 @@ export const generateVideoThumbnail = internalAction({
 
       if (!card) {
         console.log(`[renderables/video] Card ${args.cardId} not found`);
-        return null;
+        return {
+          success: false,
+          generated: false,
+          error: "card_not_found",
+        };
       }
 
       // Only generate thumbnails for video cards with files
@@ -36,7 +45,10 @@ export const generateVideoThumbnail = internalAction({
         console.log(
           `[renderables/video] Skipping card ${args.cardId} - not a video or no fileId`
         );
-        return null;
+        return {
+          success: true,
+          generated: false,
+        };
       }
 
       // Skip if thumbnail already exists
@@ -44,7 +56,11 @@ export const generateVideoThumbnail = internalAction({
         console.log(
           `[renderables/video] Skipping card ${args.cardId} - thumbnail already exists`
         );
-        return null;
+        return {
+          success: true,
+          generated: false,
+          thumbnailId: card.thumbnailId,
+        };
       }
 
       // Get the video URL from storage
@@ -53,7 +69,11 @@ export const generateVideoThumbnail = internalAction({
         console.log(
           `[renderables/video] Could not get URL for fileId ${card.fileId}`
         );
-        return null;
+        return {
+          success: false,
+          generated: false,
+          error: "missing_storage_url",
+        };
       }
 
       console.log(
@@ -197,7 +217,11 @@ export const generateVideoThumbnail = internalAction({
             `[renderables/video] Kernel Playwright execution failed for card ${args.cardId}:`,
             response.error
           );
-          return null;
+          return {
+            success: false,
+            generated: false,
+            error: "kernel_execution_failed",
+          };
         }
 
         const result = JSON.parse(response.result as string);
@@ -207,7 +231,11 @@ export const generateVideoThumbnail = internalAction({
             `[renderables/video] Video thumbnail generation failed for card ${args.cardId}:`,
             result.error
           );
-          return null;
+          return {
+            success: false,
+            generated: false,
+            error: result.error || "thumbnail_generation_failed",
+          };
         }
 
         const base64Screenshot = result.data as string;
@@ -234,6 +262,12 @@ export const generateVideoThumbnail = internalAction({
         console.log(
           `[renderables/video] Successfully generated thumbnail for card ${args.cardId} (${result.width}x${result.height})`
         );
+
+        return {
+          success: true,
+          generated: true,
+          thumbnailId,
+        };
       } finally {
         // Clean up the browser session
         if (kernelBrowser?.session_id) {
@@ -253,7 +287,11 @@ export const generateVideoThumbnail = internalAction({
         error
       );
       // Don't throw - thumbnail generation failure shouldn't break the card creation flow
-      return null;
+      return {
+        success: false,
+        generated: false,
+        error: error instanceof Error ? error.message : "unknown_error",
+      };
     }
   },
 });

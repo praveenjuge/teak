@@ -6,8 +6,8 @@ import { internalAction } from "../../../_generated/server";
 import { v } from "convex/values";
 
 // Maximum thumbnail dimensions
-const THUMBNAIL_MAX_WIDTH = 400;
-const THUMBNAIL_MAX_HEIGHT = 400;
+const THUMBNAIL_MAX_WIDTH = 500;
+const THUMBNAIL_MAX_HEIGHT = 500;
 
 /**
  * Determine output quality and format based on file size
@@ -25,22 +25,22 @@ function getOutputSettings(fileSizeBytes: number): {
 
   if (fileSizeBytes < 1_000_000) {
     // < 1MB - good WebP compression
-    return { quality: 70, useJpeg: false, skipThumbnail: false };
+    return { quality: 80, useJpeg: false, skipThumbnail: false };
   } else if (fileSizeBytes < 2_000_000) {
     // < 2MB - more WebP compression
-    return { quality: 65, useJpeg: false, skipThumbnail: false };
+    return { quality: 70, useJpeg: false, skipThumbnail: false };
   } else if (fileSizeBytes < 5_000_000) {
     // < 5MB - higher WebP compression
-    return { quality: 60, useJpeg: false, skipThumbnail: false };
+    return { quality: 65, useJpeg: false, skipThumbnail: false };
   } else if (fileSizeBytes < 10_000_000) {
     // < 10MB - strong WebP compression
-    return { quality: 55, useJpeg: false, skipThumbnail: false };
+    return { quality: 60, useJpeg: false, skipThumbnail: false };
   } else if (fileSizeBytes < 20_000_000) {
     // < 20MB - very strong WebP compression
-    return { quality: 50, useJpeg: false, skipThumbnail: false };
+    return { quality: 60, useJpeg: false, skipThumbnail: false };
   } else {
     // >= 20MB - maximum WebP compression
-    return { quality: 40, useJpeg: false, skipThumbnail: false };
+    return { quality: 50, useJpeg: false, skipThumbnail: false };
   }
 }
 
@@ -52,7 +52,12 @@ export const generateThumbnail = internalAction({
   args: {
     cardId: v.id("cards"),
   },
-  returns: v.null(),
+  returns: v.object({
+    success: v.boolean(),
+    generated: v.boolean(),
+    thumbnailId: v.optional(v.id("_storage")),
+    error: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     try {
       // Get the card to verify it exists and is an image
@@ -61,23 +66,38 @@ export const generateThumbnail = internalAction({
       });
 
       if (!card) {
-        return null;
+        return {
+          success: false,
+          generated: false,
+          error: "card_not_found",
+        };
       }
 
       // Only generate thumbnails for image cards
       if (card.type !== "image" || !card.fileId) {
-        return null;
+        return {
+          success: true,
+          generated: false,
+        };
       }
 
       // Skip if thumbnail already exists
       if (card.thumbnailId) {
-        return null;
+        return {
+          success: true,
+          generated: false,
+          thumbnailId: card.thumbnailId,
+        };
       }
 
       // Get the original image URL from storage
       const originalImageUrl = await ctx.storage.getUrl(card.fileId);
       if (!originalImageUrl) {
-        return null;
+        return {
+          success: false,
+          generated: false,
+          error: "missing_storage_url",
+        };
       }
 
       const inputBytes = await fetch(originalImageUrl)
@@ -96,7 +116,10 @@ export const generateThumbnail = internalAction({
 
       // Skip thumbnail generation for very small files
       if (skipThumbnail) {
-        return null;
+        return {
+          success: true,
+          generated: false,
+        };
       }
 
       // Calculate thumbnail dimensions - always resize to max dimensions with aspect ratio preserved
@@ -153,10 +176,20 @@ export const generateThumbnail = internalAction({
           thumbnailId,
         }
       );
+
+      return {
+        success: true,
+        generated: true,
+        thumbnailId,
+      };
     } catch (error) {
       console.error(`Failed to generate thumbnail for card ${args.cardId}:`, error);
       // Don't throw - thumbnail generation failure shouldn't break the card creation flow
-      return null;
+      return {
+        success: false,
+        generated: false,
+        error: error instanceof Error ? error.message : "unknown_error",
+      };
     }
   },
 });
@@ -174,12 +207,18 @@ export const manualTriggerThumbnail = internalAction({
   }),
   handler: async (ctx, args) => {
     try {
-      await ctx.runAction(
+      const result = await ctx.runAction(
         internal.workflows.steps.renderables.generateThumbnail.generateThumbnail,
         {
           cardId: args.cardId,
         }
       );
+      if (!result.success) {
+        return {
+          success: false,
+          message: `Failed to generate thumbnail: ${result.error || "Unknown error"}`,
+        };
+      }
       return {
         success: true,
         message: `Thumbnail generation initiated for card ${args.cardId}`,

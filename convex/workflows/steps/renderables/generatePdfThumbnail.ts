@@ -16,7 +16,12 @@ export const generatePdfThumbnail = internalAction({
   args: {
     cardId: v.id("cards"),
   },
-  returns: v.null(),
+  returns: v.object({
+    success: v.boolean(),
+    generated: v.boolean(),
+    thumbnailId: v.optional(v.id("_storage")),
+    error: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     try {
       // Get the card to verify it exists and is a PDF document
@@ -26,7 +31,11 @@ export const generatePdfThumbnail = internalAction({
 
       if (!card) {
         console.log(`[renderables/pdf] Card ${args.cardId} not found`);
-        return null;
+        return {
+          success: false,
+          generated: false,
+          error: "card_not_found",
+        };
       }
 
       // Only generate thumbnails for PDF documents
@@ -34,7 +43,10 @@ export const generatePdfThumbnail = internalAction({
         console.log(
           `[renderables/pdf] Skipping card ${args.cardId} - not a document or no fileId`
         );
-        return null;
+        return {
+          success: true,
+          generated: false,
+        };
       }
 
       // Check if it's a PDF based on mimeType
@@ -43,7 +55,10 @@ export const generatePdfThumbnail = internalAction({
         console.log(
           `[renderables/pdf] Skipping card ${args.cardId} - not a PDF (mimeType: ${mimeType})`
         );
-        return null;
+        return {
+          success: true,
+          generated: false,
+        };
       }
 
       // Skip if thumbnail already exists
@@ -51,7 +66,11 @@ export const generatePdfThumbnail = internalAction({
         console.log(
           `[renderables/pdf] Skipping card ${args.cardId} - thumbnail already exists`
         );
-        return null;
+        return {
+          success: true,
+          generated: false,
+          thumbnailId: card.thumbnailId,
+        };
       }
 
       // Get the PDF URL from storage
@@ -60,7 +79,11 @@ export const generatePdfThumbnail = internalAction({
         console.log(
           `[renderables/pdf] Could not get URL for fileId ${card.fileId}`
         );
-        return null;
+        return {
+          success: false,
+          generated: false,
+          error: "missing_storage_url",
+        };
       }
 
       console.log(`[renderables/pdf] Processing PDF for card ${args.cardId}`);
@@ -137,7 +160,11 @@ export const generatePdfThumbnail = internalAction({
             `[renderables/pdf] Kernel Playwright execution failed for card ${args.cardId}:`,
             response.error
           );
-          return null;
+          return {
+            success: false,
+            generated: false,
+            error: "kernel_execution_failed",
+          };
         }
 
         const base64Screenshot = response.result as string;
@@ -164,6 +191,12 @@ export const generatePdfThumbnail = internalAction({
         console.log(
           `[renderables/pdf] Successfully generated thumbnail for card ${args.cardId}`
         );
+
+        return {
+          success: true,
+          generated: true,
+          thumbnailId,
+        };
       } finally {
         // Clean up the browser session
         if (kernelBrowser?.session_id) {
@@ -183,7 +216,11 @@ export const generatePdfThumbnail = internalAction({
         error
       );
       // Don't throw - thumbnail generation failure shouldn't break the card creation flow
-      return null;
+      return {
+        success: false,
+        generated: false,
+        error: error instanceof Error ? error.message : "unknown_error",
+      };
     }
   },
 });
@@ -201,13 +238,19 @@ export const manualTriggerPdfThumbnail = internalAction({
   }),
   handler: async (ctx, args) => {
     try {
-      await ctx.runAction(
+      const result = await ctx.runAction(
         internal.workflows.steps.renderables.generatePdfThumbnail
           .generatePdfThumbnail,
         {
           cardId: args.cardId,
         }
       );
+      if (!result.success) {
+        return {
+          success: false,
+          message: `Failed to generate PDF thumbnail: ${result.error || "Unknown error"}`,
+        };
+      }
       return {
         success: true,
         message: `PDF thumbnail generation initiated for card ${args.cardId}`,
