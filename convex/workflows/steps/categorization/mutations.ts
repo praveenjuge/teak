@@ -8,7 +8,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
 import { stageCompleted } from "../../../card/processingStatus";
-import { internal } from "../../../_generated/api";
 
 /**
  * Internal mutation to update card with categorization result
@@ -17,10 +16,9 @@ export const updateCategorization = internalMutation({
   args: {
     cardId: v.id("cards"),
     metadata: v.any(), // LinkCategoryMetadata type
-    notifyPipeline: v.optional(v.boolean()),
   },
   returns: v.null(),
-  handler: async (ctx, { cardId, metadata, notifyPipeline }) => {
+  handler: async (ctx, { cardId, metadata }) => {
     const now = Date.now();
 
     // Get current card to update processing status
@@ -47,14 +45,6 @@ export const updateCategorization = internalMutation({
       processingStatus: updatedProcessing,
       updatedAt: now,
     });
-
-    if (notifyPipeline) {
-      await ctx.scheduler.runAfter(
-        0,
-        (internal as any)["workflows/manager"].startCardProcessingWorkflow,
-        { cardId }
-      );
-    }
 
     return null;
   },

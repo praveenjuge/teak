@@ -1,4 +1,3 @@
-import "../types/bun-test";
 import { describe, expect, test } from "bun:test";
 import { parseLinkMetadataRetryableError } from "./linkMetadata";
 import {

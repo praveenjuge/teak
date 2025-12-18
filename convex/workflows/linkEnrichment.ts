@@ -16,7 +16,6 @@ const LINK_ENRICHMENT_RETRY: RetryBehavior = {
 export const linkEnrichmentWorkflow = workflow.define({
   args: {
     cardId: v.id("cards"),
-    triggeredAsync: v.boolean(),
   },
   returns: v.object({
     category: v.string(),
@@ -24,7 +23,7 @@ export const linkEnrichmentWorkflow = workflow.define({
     imageUrl: v.optional(v.string()),
     factsCount: v.number(),
   }),
-  handler: async (step, { cardId, triggeredAsync }) => {
+  handler: async (step, { cardId }) => {
     const classifyResult = await step.runAction(
       internalWorkflow["workflows/steps/categorization/index"].classifyStep,
       { cardId },
@@ -55,8 +54,6 @@ export const linkEnrichmentWorkflow = workflow.define({
         classification: classifyResult.classification,
         existingMetadata: classifyResult.existingMetadata,
         structuredData,
-        notifyPipeline: true,
-        triggeredAsync,
       },
       { retry: LINK_ENRICHMENT_RETRY },
     );
@@ -87,7 +84,7 @@ export const startLinkEnrichmentWorkflow = internalMutation({
     const result = await workflow.start(
       ctx,
       internalWorkflow["workflows/linkEnrichment"].linkEnrichmentWorkflow,
-      { cardId, triggeredAsync: startAsync ?? false },
+      { cardId },
       { startAsync: startAsync ?? false },
     );
 

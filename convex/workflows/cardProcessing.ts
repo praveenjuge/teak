@@ -153,8 +153,6 @@ export const cardProcessingWorkflow: any = workflow.define({
           classification: classifyStepResult.classification,
           existingMetadata: classifyStepResult.existingMetadata,
           structuredData,
-          notifyPipeline: false,
-          triggeredAsync: false,
         },
         { retry: LINK_ENRICHMENT_STEP_RETRY }
       );

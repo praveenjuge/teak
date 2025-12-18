@@ -788,8 +788,6 @@ export const mergeAndSaveStep: any = internalAction({
     classification: v.optional(v.any()),
     existingMetadata: v.optional(v.any()),
     structuredData: v.optional(v.any()),
-    notifyPipeline: v.optional(v.boolean()),
-    triggeredAsync: v.optional(v.boolean()),
   },
   returns: v.object({
     category: v.string(),
@@ -797,7 +795,7 @@ export const mergeAndSaveStep: any = internalAction({
     imageUrl: v.optional(v.string()),
     factsCount: v.number(),
   }),
-  handler: async (ctx, { cardId, card, sourceUrl, mode, classification, existingMetadata, structuredData, notifyPipeline, triggeredAsync }) => {
+  handler: async (ctx, { cardId, card, sourceUrl, mode, classification, existingMetadata, structuredData }) => {
     if (mode === "skipped") {
       if (!existingMetadata) {
         throw new Error(
@@ -810,7 +808,6 @@ export const mergeAndSaveStep: any = internalAction({
         {
           cardId,
           metadata: existingMetadata,
-          notifyPipeline: !!notifyPipeline && !!triggeredAsync,
         }
       );
 
@@ -839,7 +836,6 @@ export const mergeAndSaveStep: any = internalAction({
       {
         cardId,
         metadata,
-        notifyPipeline: !!notifyPipeline && !!triggeredAsync,
       }
     );
 
