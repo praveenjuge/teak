@@ -42,7 +42,7 @@ export default function OnboardingScreen() {
           )
         );
       } else {
-        router.replace("/(tabs)");
+        router.replace("/(tabs)/(home)");
       }
     } catch (error) {
       console.error(error);
@@ -92,7 +92,7 @@ export default function OnboardingScreen() {
           )
         );
       } else {
-        router.replace("/(tabs)");
+        router.replace("/(tabs)/(home)");
       }
     } catch (error: any) {
       // Don't show error if user cancelled
@@ -113,7 +113,11 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
+    <Host
+      style={{
+        flex: 1,
+      }}
+    >
       <VStack
         modifiers={[
           padding({ leading: 28, trailing: 28, top: 32, bottom: 12 }),
@@ -164,7 +168,7 @@ export default function OnboardingScreen() {
             >
               <HStack spacing={10} alignment="center">
                 <Spacer />
-                <HStack modifiers={[frame({ width: 20, height: 20 })]}>
+                <HStack modifiers={[frame({ width: 18, height: 18 })]}>
                   <GoogleLogo />
                 </HStack>
                 <Text color="primary" weight="medium" design="rounded">

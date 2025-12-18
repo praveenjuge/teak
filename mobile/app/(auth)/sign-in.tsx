@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import React from "react";
-import { Alert, Keyboard } from "react-native";
+import { Alert } from "react-native";
 import {
   Button,
   Host,
@@ -21,30 +21,6 @@ export default function SignInScreen() {
   const [emailAddress, setEmailAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
 
-  const dismissKeyboard = React.useCallback(
-    () =>
-      new Promise<void>((resolve) => {
-        let resolved = false;
-        const subscription = Keyboard.addListener("keyboardDidHide", () => {
-          if (resolved) return;
-          resolved = true;
-          subscription.remove();
-          resolve();
-        });
-
-        Keyboard.dismiss();
-
-        setTimeout(() => {
-          if (resolved) return;
-          resolved = true;
-          subscription.remove();
-          resolve();
-        }, 250);
-      }),
-    []
-  );
-
-  // Handle the submission of the sign-in form
   const onSignInPress = async () => {
     if (isLoading) return;
 
@@ -70,8 +46,7 @@ export default function SignInScreen() {
         );
         return;
       }
-      await dismissKeyboard();
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/(home)");
     } catch (error) {
       console.error(error);
       Alert.alert(
@@ -87,18 +62,14 @@ export default function SignInScreen() {
   };
 
   return (
-    <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
+    <Host matchContents>
       <VStack
-        spacing={16}
+        spacing={24}
         alignment="leading"
-        modifiers={[
-          padding({ leading: 20, trailing: 20, top: 24, bottom: 24 }),
-        ]}
+        modifiers={[padding({ all: 24 })]}
       >
         <VStack spacing={6} alignment="leading">
-          <Text weight="medium" design="rounded">
-            Email
-          </Text>
+          <Text design="rounded">Email</Text>
           <TextField
             placeholder="Enter your email"
             keyboardType="email-address"
@@ -108,9 +79,7 @@ export default function SignInScreen() {
         </VStack>
 
         <VStack spacing={6} alignment="leading">
-          <Text weight="medium" design="rounded">
-            Password
-          </Text>
+          <Text design="rounded">Password</Text>
           <SecureField
             placeholder="Enter your password"
             onChangeText={setPassword}
