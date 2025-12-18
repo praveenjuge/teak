@@ -1,24 +1,48 @@
+import { useRouter } from "expo-router";
 import React from "react";
-import { Alert } from "react-native";
+import { Alert, Keyboard } from "react-native";
 import {
   Button,
-  Form,
   Host,
   HStack,
-  LabeledContent,
-  Section,
   SecureField,
   Spacer,
   TextField,
   Text,
+  VStack,
 } from "@expo/ui/swift-ui";
+import { padding } from "@expo/ui/swift-ui/modifiers";
 import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function SignInScreen() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
   const [emailAddress, setEmailAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
+
+  const dismissKeyboard = React.useCallback(
+    () =>
+      new Promise<void>((resolve) => {
+        let resolved = false;
+        const subscription = Keyboard.addListener("keyboardDidHide", () => {
+          if (resolved) return;
+          resolved = true;
+          subscription.remove();
+          resolve();
+        });
+
+        Keyboard.dismiss();
+
+        setTimeout(() => {
+          if (resolved) return;
+          resolved = true;
+          subscription.remove();
+          resolve();
+        }, 250);
+      }),
+    []
+  );
 
   // Handle the submission of the sign-in form
   const onSignInPress = async () => {
@@ -46,6 +70,8 @@ export default function SignInScreen() {
         );
         return;
       }
+      await dismissKeyboard();
+      router.replace("/(tabs)");
     } catch (error) {
       console.error(error);
       Alert.alert(
@@ -62,39 +88,50 @@ export default function SignInScreen() {
 
   return (
     <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
-      <Form scrollEnabled={false}>
-        <Section>
-          <LabeledContent label="Email">
-            <TextField
-              placeholder="Enter your email"
-              keyboardType="email-address"
-              autocorrection={false}
-              onChangeText={setEmailAddress}
-            />
-          </LabeledContent>
+      <VStack
+        spacing={16}
+        alignment="leading"
+        modifiers={[
+          padding({ leading: 20, trailing: 20, top: 24, bottom: 24 }),
+        ]}
+      >
+        <VStack spacing={6} alignment="leading">
+          <Text weight="medium" design="rounded">
+            Email
+          </Text>
+          <TextField
+            placeholder="Enter your email"
+            keyboardType="email-address"
+            autocorrection={false}
+            onChangeText={setEmailAddress}
+          />
+        </VStack>
 
-          <LabeledContent label="Password">
-            <SecureField
-              placeholder="Enter your password"
-              onChangeText={setPassword}
-            />
-          </LabeledContent>
-          <Button
-            variant="bordered"
-            controlSize="large"
-            onPress={onSignInPress}
-            disabled={isLoading || !emailAddress.trim() || !password.trim()}
-          >
-            <HStack spacing={10} alignment="center">
-              <Spacer />
-              <Text color="primary" weight="medium" design="rounded">
-                {isLoading ? "Signing in..." : "Sign In"}
-              </Text>
-              <Spacer />
-            </HStack>
-          </Button>
-        </Section>
-      </Form>
+        <VStack spacing={6} alignment="leading">
+          <Text weight="medium" design="rounded">
+            Password
+          </Text>
+          <SecureField
+            placeholder="Enter your password"
+            onChangeText={setPassword}
+          />
+        </VStack>
+
+        <Button
+          variant="bordered"
+          controlSize="large"
+          onPress={onSignInPress}
+          disabled={isLoading || !emailAddress.trim() || !password.trim()}
+        >
+          <HStack spacing={10} alignment="center">
+            <Spacer />
+            <Text color="primary" weight="medium" design="rounded">
+              {isLoading ? "Signing in..." : "Sign In"}
+            </Text>
+            <Spacer />
+          </HStack>
+        </Button>
+      </VStack>
     </Host>
   );
 }

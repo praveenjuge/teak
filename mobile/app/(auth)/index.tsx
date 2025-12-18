@@ -41,6 +41,8 @@ export default function OnboardingScreen() {
             "Failed to sign in with Google. Please try again."
           )
         );
+      } else {
+        router.replace("/(tabs)");
       }
     } catch (error) {
       console.error(error);
@@ -89,6 +91,8 @@ export default function OnboardingScreen() {
             "Failed to sign in with Apple. Please try again."
           )
         );
+      } else {
+        router.replace("/(tabs)");
       }
     } catch (error: any) {
       // Don't show error if user cancelled
@@ -173,7 +177,7 @@ export default function OnboardingScreen() {
             <Button
               variant="bordered"
               controlSize="large"
-              onPress={() => router.push("/sign-up")}
+              onPress={() => router.push("/(auth)/sign-up")}
               disabled={isGoogleLoading || isAppleLoading}
             >
               <HStack spacing={10} alignment="center">
@@ -188,7 +192,7 @@ export default function OnboardingScreen() {
           <Button
             variant="bordered"
             controlSize="large"
-            onPress={() => router.push("/sign-in")}
+            onPress={() => router.push("/(auth)/sign-in")}
             disabled={isGoogleLoading || isAppleLoading}
           >
             <HStack spacing={10} alignment="center">

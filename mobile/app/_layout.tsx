@@ -79,9 +79,14 @@ function RootNavigator() {
     return null;
   }
 
+  const initialRouteName = isAuthenticated ? "(tabs)" : "(auth)";
+
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" redirect={!isAuthenticated} />
+    <Stack
+      initialRouteName={initialRouteName}
+      screenOptions={{ headerShown: false }}
+    >
+      <Stack.Screen name="(tabs)" />
       <Stack.Screen
         name="(feedback)/index"
         options={{
@@ -90,34 +95,12 @@ function RootNavigator() {
           headerBackTitle: "Close",
           headerBackVisible: true,
         }}
-        redirect={!isAuthenticated}
       />
       <Stack.Screen
-        name="(auth)/index"
+        name="(auth)"
         options={{
           headerShown: false,
         }}
-        redirect={isAuthenticated}
-      />
-      <Stack.Screen
-        name="(auth)/sign-in"
-        options={{
-          headerShown: true,
-          title: "Welcome Back",
-          headerBackTitle: "Back",
-          presentation: "modal",
-        }}
-        redirect={isAuthenticated}
-      />
-      <Stack.Screen
-        name="(auth)/sign-up"
-        options={{
-          headerShown: true,
-          title: "Create an Account",
-          headerBackTitle: "Back",
-          presentation: "modal",
-        }}
-        redirect={isAuthenticated}
       />
     </Stack>
   );
