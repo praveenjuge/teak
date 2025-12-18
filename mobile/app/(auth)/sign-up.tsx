@@ -54,13 +54,16 @@ export default function SignUpScreen() {
       return;
     }
 
+    const derivedName =
+      emailAddress.trim().split("@")[0]?.trim() || "User";
+
     setIsSubmitting(true);
 
     try {
       const response = await authClient.signUp.email({
         email: emailAddress.trim(),
         password,
-        name: "",
+        name: derivedName,
       });
       if (response.error) {
         Alert.alert(

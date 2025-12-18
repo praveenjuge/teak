@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Platform } from "react-native";
+import { Alert, Platform, useColorScheme } from "react-native";
 import { router } from "expo-router";
 import Logo from "@/components/Logo";
 import GoogleLogo from "@/components/GoogleLogo";
@@ -14,6 +14,8 @@ export default function OnboardingScreen() {
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
   const [isAppleLoading, setIsAppleLoading] = React.useState(false);
   const [isAppleAvailable, setIsAppleAvailable] = React.useState(false);
+  const colorScheme = useColorScheme();
+  const appleIconColor = colorScheme === "dark" ? "#FFFFFF" : "#000000";
 
   React.useEffect(() => {
     // Check if Apple Authentication is available (iOS only)
@@ -132,6 +134,26 @@ export default function OnboardingScreen() {
 
         <VStack spacing={30}>
           <VStack spacing={12}>
+            {isAppleAvailable && (
+              <Button
+                variant="bordered"
+                controlSize="large"
+                onPress={onAppleSignInPress}
+                disabled={isGoogleLoading || isAppleLoading}
+              >
+                <HStack spacing={10} alignment="center">
+                  <Spacer />
+                  <HStack modifiers={[frame({ width: 20, height: 20 })]}>
+                    <AppleLogo color={appleIconColor} />
+                  </HStack>
+                  <Text color="primary" weight="medium" design="rounded">
+                    {isAppleLoading ? "Signing in..." : "Continue with Apple"}
+                  </Text>
+                  <Spacer />
+                </HStack>
+              </Button>
+            )}
+
             <Button
               variant="bordered"
               controlSize="large"
@@ -149,27 +171,6 @@ export default function OnboardingScreen() {
                 <Spacer />
               </HStack>
             </Button>
-
-            {isAppleAvailable && (
-              <Button
-                variant="bordered"
-                controlSize="large"
-                onPress={onAppleSignInPress}
-                color="primary"
-                disabled={isGoogleLoading || isAppleLoading}
-              >
-                <HStack spacing={10} alignment="center">
-                  <Spacer />
-                  <HStack modifiers={[frame({ width: 20, height: 20 })]}>
-                    <AppleLogo />
-                  </HStack>
-                  <Text color="primary" weight="medium" design="rounded">
-                    {isAppleLoading ? "Signing in..." : "Continue with Apple"}
-                  </Text>
-                  <Spacer />
-                </HStack>
-              </Button>
-            )}
 
             <Button
               variant="bordered"
