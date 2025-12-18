@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, StatusBar, useColorScheme } from "react-native";
+import { AccessibilityInfo, useColorScheme } from "react-native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import { colors } from "@/constants/colors";
 import { Host, Spacer, Text, VStack } from "@expo/ui/swift-ui";
 import { frame } from "@expo/ui/swift-ui/modifiers";
 import {
@@ -138,9 +137,6 @@ export default function FeedbackStatusScreen() {
 
   return (
     <>
-      <StatusBar
-        barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
-      />
       <Stack.Screen
         options={{
           title: message,
@@ -172,13 +168,7 @@ const DEFAULT_ICON = "checkmark.circle.fill" as const;
 function StatusOverlay({
   message,
   iconName = DEFAULT_ICON,
-  accentColor = colors.primary,
-  colorScheme,
 }: StatusOverlayProps) {
-  const resolvedAccent =
-    accentColor ??
-    (colorScheme === "dark" ? colors.systemGreen : colors.primary);
-
   return (
     <Host style={{ flex: 1 }}>
       <VStack spacing={12} alignment="center">
@@ -189,7 +179,7 @@ function StatusOverlay({
           modifiers={[frame({ width: 34, height: 34 })]}
         >
           <IconSymbol
-            color={resolvedAccent}
+            color="primary"
             name={iconName}
             size={24}
             weight="semibold"
