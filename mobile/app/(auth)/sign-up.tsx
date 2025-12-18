@@ -6,7 +6,6 @@ import {
   Host,
   HStack,
   LabeledContent,
-  Section,
   SecureField,
   Spacer,
   TextField,
@@ -54,8 +53,7 @@ export default function SignUpScreen() {
       return;
     }
 
-    const derivedName =
-      emailAddress.trim().split("@")[0]?.trim() || "User";
+    const derivedName = emailAddress.trim().split("@")[0]?.trim() || "User";
 
     setIsSubmitting(true);
 
@@ -98,38 +96,36 @@ export default function SignUpScreen() {
   return (
     <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
       <Form scrollEnabled={false}>
-        <Section>
-          <LabeledContent label="Email">
-            <TextField
-              placeholder="Enter your email"
-              keyboardType="email-address"
-              autocorrection={false}
-              onChangeText={setEmailAddress}
-            />
-          </LabeledContent>
+        <LabeledContent label="Email">
+          <TextField
+            placeholder="Enter your email"
+            keyboardType="email-address"
+            autocorrection={false}
+            onChangeText={setEmailAddress}
+          />
+        </LabeledContent>
 
-          <LabeledContent label="Password">
-            <SecureField
-              placeholder="Enter your password (min. 8 characters)"
-              onChangeText={setPassword}
-            />
-          </LabeledContent>
+        <LabeledContent label="Password">
+          <SecureField
+            placeholder="Enter your password (min. 8 characters)"
+            onChangeText={setPassword}
+          />
+        </LabeledContent>
 
-          <Button
-            variant="bordered"
-            controlSize="large"
-            onPress={onSignUpPress}
-            disabled={isSubmitting}
-          >
-            <HStack spacing={10} alignment="center">
-              <Spacer />
-              <Text color="primary" weight="medium" design="rounded">
-                {isSubmitting ? "Creating..." : "Create Account"}
-              </Text>
-              <Spacer />
-            </HStack>
-          </Button>
-        </Section>
+        <Button
+          variant="bordered"
+          controlSize="large"
+          onPress={onSignUpPress}
+          disabled={isSubmitting}
+        >
+          <HStack spacing={10} alignment="center">
+            <Spacer />
+            <Text color="primary" weight="medium" design="rounded">
+              {isSubmitting ? "Creating..." : "Create Account"}
+            </Text>
+            <Spacer />
+          </HStack>
+        </Button>
       </Form>
     </Host>
   );

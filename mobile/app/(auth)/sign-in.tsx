@@ -10,6 +10,7 @@ import {
   TextField,
   Text,
   VStack,
+  LabeledContent,
 } from "@expo/ui/swift-ui";
 import { padding } from "@expo/ui/swift-ui/modifiers";
 import { authClient } from "@/lib/auth-client";
@@ -63,28 +64,22 @@ export default function SignInScreen() {
 
   return (
     <Host matchContents>
-      <VStack
-        spacing={24}
-        alignment="leading"
-        modifiers={[padding({ all: 24 })]}
-      >
-        <VStack spacing={6} alignment="leading">
-          <Text design="rounded">Email</Text>
+      <VStack spacing={24} modifiers={[padding({ all: 24 })]}>
+        <LabeledContent label="Email">
           <TextField
             placeholder="Enter your email"
             keyboardType="email-address"
             autocorrection={false}
             onChangeText={setEmailAddress}
           />
-        </VStack>
+        </LabeledContent>
 
-        <VStack spacing={6} alignment="leading">
-          <Text design="rounded">Password</Text>
+        <LabeledContent label="Password">
           <SecureField
             placeholder="Enter your password"
             onChangeText={setPassword}
           />
-        </VStack>
+        </LabeledContent>
 
         <Button
           variant="bordered"
