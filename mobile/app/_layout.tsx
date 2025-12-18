@@ -7,6 +7,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { colors } from "@/constants/colors";
 import ConvexClientProvider from "../ConvexClientProvider";
+import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -32,6 +33,8 @@ import {
 } from "@/lib/feedbackBridge";
 
 void SplashScreen.preventAutoHideAsync();
+
+const AUTO_DISMISS_MS = 2000;
 
 export default function RootLayout() {
   return (
@@ -65,11 +68,13 @@ function RootLayoutContent() {
   return (
     <ErrorBoundary>
       <ConvexClientProvider>
-        <ThemeProvider value={isDark ? CustomDarkTheme : CustomDefaultTheme}>
-          <RootNavigator />
-          <FeedbackBottomSheet />
-          <StatusBar style={isDark ? "light" : "dark"} />
-        </ThemeProvider>
+        <ConvexQueryCacheProvider>
+          <ThemeProvider value={isDark ? CustomDarkTheme : CustomDefaultTheme}>
+            <RootNavigator />
+            <FeedbackBottomSheet />
+            <StatusBar style={isDark ? "light" : "dark"} />
+          </ThemeProvider>
+        </ConvexQueryCacheProvider>
       </ConvexClientProvider>
     </ErrorBoundary>
   );
@@ -111,8 +116,6 @@ function RootNavigator() {
     </Stack>
   );
 }
-
-const AUTO_DISMISS_MS = 2000;
 
 function FeedbackBottomSheet() {
   const [feedbackState, setFeedbackState] =
@@ -161,9 +164,7 @@ function FeedbackBottomSheet() {
     return () => clearTimeout(timer);
   }, [activeState, handleDismiss]);
 
-  if (!activeState) {
-    return null;
-  }
+  if (!activeState) return null;
 
   const { message, iconName } = activeState;
 

@@ -1,7 +1,7 @@
 import { memo, useCallback } from "react";
 import { Alert } from "react-native";
 import { Host, List, Section, Text, CircularProgress } from "@expo/ui/swift-ui";
-import { useQuery } from "convex/react";
+import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
