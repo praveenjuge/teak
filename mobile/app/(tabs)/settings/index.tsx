@@ -118,6 +118,7 @@ export default function SettingsScreen() {
                       color={
                         isSelected ? colors.primary : (colors.border as any)
                       }
+                      size={18}
                     />
                   </HStack>
                 );

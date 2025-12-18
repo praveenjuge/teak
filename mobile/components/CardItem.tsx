@@ -7,13 +7,15 @@ import {
   frame,
   cornerRadius,
 } from "@expo/ui/swift-ui/modifiers";
-import { useQuery } from "convex/react";
-import { api } from "@teak/convex";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { colors } from "@/constants/colors";
 import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
 
-type Card = Doc<"cards">;
+type Card = Doc<"cards"> & {
+  fileUrl?: string;
+  thumbnailUrl?: string;
+  screenshotUrl?: string;
+};
 
 interface CardItemProps {
   card: Card;
@@ -122,11 +124,7 @@ const Waveform = ({ seed }: { seed: string }) => (
 );
 
 const CardItem = memo(function CardItem({ card }: CardItemProps) {
-  const mediaUrl = useQuery(
-    api.cards.getFileUrl,
-    card.fileId ? { fileId: card.fileId, cardId: card._id } : "skip"
-  );
-
+  const mediaUrl = card.fileUrl ?? null;
   const audioUrl = card.type === "audio" ? mediaUrl : null;
   const player = useAudioPlayer(audioUrl ? { uri: audioUrl } : null);
   const cardActions = useCardActions();
