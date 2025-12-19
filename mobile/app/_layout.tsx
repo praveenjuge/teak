@@ -3,7 +3,7 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { Stack } from "expo-router";
+import { Stack, useSegments, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { colors } from "@/constants/colors";
 import ConvexClientProvider from "../ConvexClientProvider";
@@ -16,7 +16,6 @@ import {
   ThemePreferenceProvider,
   useThemePreference,
 } from "@/lib/theme-preference";
-import { Keyboard } from "react-native";
 import {
   BottomSheet,
   Host,
@@ -33,7 +32,6 @@ import {
 } from "@/lib/feedbackBridge";
 
 void SplashScreen.preventAutoHideAsync();
-
 const AUTO_DISMISS_MS = 2000;
 
 export default function RootLayout() {
@@ -82,12 +80,8 @@ function RootLayoutContent() {
 
 function RootNavigator() {
   const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      Keyboard.dismiss();
-    }
-  }, [isAuthenticated]);
+  const segments = useSegments();
+  const router = useRouter();
 
   useEffect(() => {
     if (!isAuthLoading) {
@@ -95,24 +89,26 @@ function RootNavigator() {
     }
   }, [isAuthLoading]);
 
-  if (isAuthLoading) {
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthLoading) return;
 
-  const initialRouteName = isAuthenticated ? "(tabs)" : "(auth)";
+    const inAuthGroup = segments[0] === "(auth)";
+
+    if (isAuthenticated && inAuthGroup) {
+      // Redirect to home if authenticated and in auth group
+      router.replace("/");
+    } else if (!isAuthenticated && !inAuthGroup) {
+      // Redirect to welcome if not authenticated and not in auth group
+      router.replace("/(auth)/welcome");
+    }
+  }, [isAuthenticated, segments, isAuthLoading]);
+
+  if (isAuthLoading) return null;
 
   return (
-    <Stack
-      initialRouteName={initialRouteName}
-      screenOptions={{ headerShown: false }}
-    >
+    <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen
-        name="(auth)"
-        options={{
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen name="(auth)" />
     </Stack>
   );
 }
