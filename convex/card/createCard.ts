@@ -136,14 +136,11 @@ export const createCard = mutation({
     const cardId = await ctx.db.insert("cards", cardData);
 
     // Start the card processing workflow
-    const workflowId = await workflow.start(
+    await workflow.start(
       ctx,
       (internal as any)["workflows/cardProcessing"].cardProcessingWorkflow,
       { cardId }
     );
-
-    // Store workflowId on card for tracking
-    await ctx.db.patch("cards", cardId, { workflowId });
 
     return cardId;
   },

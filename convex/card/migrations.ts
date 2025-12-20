@@ -116,3 +116,29 @@ export const removeMicrolinkData = internalMutation({
     return { updatedCount, hasMore: cards.length === batchSize };
   },
 });
+
+// Migration to remove workflowId from cards
+export const removeWorkflowId = internalMutation({
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, { batchSize = 100 }) => {
+    const cards = await ctx.db
+      .query("cards")
+      .filter((q) => q.neq(q.field("workflowId"), undefined))
+      .take(batchSize);
+
+    let updatedCount = 0;
+
+    for (const card of cards) {
+      await ctx.db.patch("cards", card._id, {
+        workflowId: undefined,
+        updatedAt: Date.now(),
+      });
+      updatedCount++;
+    }
+
+    console.log(`Removed workflowId from ${updatedCount} cards`);
+    return { updatedCount, hasMore: cards.length === batchSize };
+  },
+});

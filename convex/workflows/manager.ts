@@ -26,16 +26,15 @@ export const workflow = new WorkflowManager(components.workflow);
 type CardIdentifier = { cardId: Id<"cards"> };
 
 /**
- * Internal mutation used to reset a card's AI fields, mark processing as pending,
- * and attach the workflowId atomically before the workflow begins executing.
+ * Internal mutation used to reset a card's AI fields and mark processing as pending
+ * before the workflow begins executing.
  */
 export const initializeCardProcessingState = internalMutation({
   args: {
     cardId: v.id("cards"),
-    workflowId: v.string(),
   },
   returns: v.null(),
-  handler: async (ctx, { cardId, workflowId }) => {
+  handler: async (ctx, { cardId }) => {
     const card = await ctx.db.get("cards", cardId);
     if (!card) {
       throw new Error(`Card ${cardId} not found`);
@@ -59,7 +58,6 @@ export const initializeCardProcessingState = internalMutation({
       processingStatus: initialProcessingStatus,
       metadataStatus: awaitingLinkMetadata ? "pending" : "completed",
       updatedAt: now,
-      workflowId,
     });
   },
 });
@@ -87,7 +85,7 @@ export const startCardProcessingWorkflow = internalAction({
 
     await ctx.runMutation(
       internalAny["workflows/manager"].initializeCardProcessingState,
-      { cardId, workflowId }
+      { cardId }
     );
 
     return { workflowId };
