@@ -9,12 +9,6 @@ export const updateCardAI = internalMutation({
     aiTags: v.optional(v.array(v.string())),
     aiSummary: v.optional(v.string()),
     aiTranscript: v.optional(v.string()),
-    aiModelMeta: v.optional(v.object({
-      provider: v.string(),
-      model: v.string(),
-      version: v.optional(v.string()),
-      generatedAt: v.optional(v.number()),
-    })),
     processingStatus: processingStatusValidator,
   },
   handler: async (ctx, args) => {
@@ -43,7 +37,6 @@ export const resetCardAI = internalMutation({
       aiTags: undefined,
       aiSummary: undefined,
       aiTranscript: undefined,
-      aiModelMeta: undefined,
       metadataStatus: metadataStatus ?? "pending",
       processingStatus: undefined,
       updatedAt: Date.now(),

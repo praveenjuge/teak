@@ -56,7 +56,6 @@ export const initializeCardProcessingState = internalMutation({
       aiTags: undefined,
       aiSummary: undefined,
       aiTranscript: undefined,
-      aiModelMeta: undefined,
       processingStatus: initialProcessingStatus,
       metadataStatus: awaitingLinkMetadata ? "pending" : "completed",
       updatedAt: now,

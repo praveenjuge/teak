@@ -22,7 +22,9 @@ export const findCardsMissingAi = internalQuery({
         q.and(
           q.neq(q.field("isDeleted"), true),
           q.lt(q.field("createdAt"), fiveMinutesAgo),
-          q.eq(q.field("aiModelMeta"), undefined)
+          q.eq(q.field("aiSummary"), undefined),
+          q.eq(q.field("aiTags"), undefined),
+          q.eq(q.field("aiTranscript"), undefined)
         )
       )
       .take(50); // Process in batches

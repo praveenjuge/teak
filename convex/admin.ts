@@ -167,18 +167,23 @@ export const getOverview = query({
 
       const reasons: string[] = [];
 
-      if (!card.aiModelMeta) {
+      const hasAiSummary = Boolean(card.aiSummary);
+      const hasAiTags = Boolean(card.aiTags && card.aiTags.length > 0);
+      const hasAiTranscript = Boolean(card.aiTranscript);
+      const hasAnyAiMetadata = hasAiSummary || hasAiTags || hasAiTranscript;
+
+      if (!hasAnyAiMetadata) {
         if (!isDeleted) {
           missingAiMetadata += 1;
         }
         reasons.push("AI metadata missing");
       }
 
-      if (!card.aiSummary) {
+      if (!hasAiSummary) {
         reasons.push("AI summary missing");
       }
 
-      if (!card.aiTags || card.aiTags.length === 0) {
+      if (!hasAiTags) {
         reasons.push("AI tags missing");
       }
 

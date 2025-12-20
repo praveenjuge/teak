@@ -59,3 +59,30 @@ export const backfillMetadataSearchFields = internalMutation({
     return { updatedCount, hasMore: cards.length === batchSize };
   },
 });
+
+// Migration to remove deprecated aiModelMeta field from cards
+export const removeAiModelMeta = internalMutation({
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, { batchSize = 100 }) => {
+    const db: any = ctx.db;
+    const cards = await db
+      .query("cards")
+      .filter((q: any) => q.neq(q.field("aiModelMeta"), undefined))
+      .take(batchSize);
+
+    let updatedCount = 0;
+
+    for (const card of cards) {
+      await db.patch("cards", card._id, {
+        aiModelMeta: undefined,
+        updatedAt: Date.now(),
+      });
+      updatedCount++;
+    }
+
+    console.log(`Removed aiModelMeta from ${updatedCount} cards`);
+    return { updatedCount, hasMore: cards.length === batchSize };
+  },
+});
