@@ -155,11 +155,7 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
           <Row
             leading={<Favicon url={linkMeta?.favicon} />}
             trailing={
-              <Image
-                systemName="arrow.up.right"
-                size={14}
-                color={colors.secondaryLabel as any}
-              />
+              <Image systemName="arrow.up.right" size={14} color="secondary" />
             }
             onPress={() => handleUrlPress(card.url!)}
             onLongPress={handleDelete}
@@ -178,6 +174,7 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
                 systemName="paperclip"
                 size={16}
                 modifiers={[frame({ width: 28, height: 28 })]}
+                color="secondary"
               />
             }
             onPress={() => {
@@ -212,6 +209,7 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
                 systemName={isPlaying ? "pause" : "music.note"}
                 size={16}
                 modifiers={[frame({ width: 28, height: 28 })]}
+                color="secondary"
               />
             }
             onPress={() => {
@@ -261,6 +259,7 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
                     systemName="photo"
                     size={16}
                     modifiers={[frame({ width: 28, height: 28 })]}
+                    color="secondary"
                   />
                 )}
               </PreviewBox>
@@ -294,23 +293,12 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
         return (
           <Row
             leading={
-              <PreviewBox>
-                <View
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    backgroundColor: colors.border,
-                  }}
-                />
-                <Image
-                  systemName="play.circle.fill"
-                  size={22}
-                  color={colors.primary}
-                />
-              </PreviewBox>
+              <Image
+                systemName="play.circle"
+                size={16}
+                modifiers={[frame({ width: 28, height: 28 })]}
+                color="secondary"
+              />
             }
             onPress={() => {
               if (mediaUrl) void handleUrlPress(mediaUrl);
@@ -344,6 +332,7 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
                 systemName="paintpalette"
                 size={16}
                 modifiers={[frame({ width: 28, height: 28 })]}
+                color="secondary"
               />
             }
             content={
@@ -382,6 +371,7 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
                 systemName="text.quote"
                 size={16}
                 modifiers={[frame({ width: 28, height: 28 })]}
+                color="secondary"
               />
             }
             onLongPress={handleDelete}
@@ -399,6 +389,7 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
                 systemName="textformat"
                 size={16}
                 modifiers={[frame({ width: 28, height: 28 })]}
+                color="secondary"
               />
             }
             onLongPress={handleDelete}
@@ -415,6 +406,7 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
                 systemName="questionmark"
                 size={16}
                 modifiers={[frame({ width: 28, height: 28 })]}
+                color="secondary"
               />
             }
             onLongPress={handleDelete}
