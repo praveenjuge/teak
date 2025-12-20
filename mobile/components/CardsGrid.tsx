@@ -1,10 +1,8 @@
-import { memo, useCallback } from "react";
-import { Alert } from "react-native";
+import { memo } from "react";
 import { Host, List, Section, Text, CircularProgress } from "@expo/ui/swift-ui";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
 import { colors } from "../constants/colors";
 import { CardItem } from "./CardItem";
 
@@ -25,26 +23,6 @@ const CardsGrid = memo(function CardsGrid({
     limit: 100,
   });
 
-  const cardActions = useCardActions();
-
-  const handleDeleteItem = useCallback(
-    (index: number) => {
-      if (!cards || !cards[index]) return;
-
-      Alert.alert("Delete Card", "Delete this card?", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            void cardActions.handleDeleteCard(cards[index]._id);
-          },
-        },
-      ]);
-    },
-    [cards, cardActions]
-  );
-
   const emptyTitle = searchQuery ? "No cards found" : "No cards yet";
   const description = searchQuery
     ? `No cards match "${searchQuery}"${selectedType ? ` in ${selectedType} cards` : ""}`
@@ -55,7 +33,7 @@ const CardsGrid = memo(function CardsGrid({
       {cards === undefined ? (
         <CircularProgress />
       ) : cards.length === 0 ? (
-        <List scrollEnabled={false} listStyle="insetGrouped">
+        <List>
           <Section>
             <Text weight="semibold" color={colors.label as any}>
               {emptyTitle}
@@ -66,7 +44,7 @@ const CardsGrid = memo(function CardsGrid({
           </Section>
         </List>
       ) : (
-        <List deleteEnabled onDeleteItem={handleDeleteItem} listStyle="plain">
+        <List listStyle="plain">
           {cards.map((card: Card) => (
             <CardItem key={card._id} card={card} />
           ))}

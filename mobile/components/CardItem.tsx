@@ -21,14 +21,6 @@ interface CardItemProps {
   card: Card;
 }
 
-const seededRandom = (seed: string, index: number): number => {
-  const hash = seed.split("").reduce((a, b) => {
-    a = (a << 5) - a + b.charCodeAt(0);
-    return a & a;
-  }, index);
-  return Math.abs(Math.sin(hash)) * 0.6 + 0.2;
-};
-
 const rowModifiers = (onLongPress?: () => void) => [
   ...(onLongPress ? [onLongPressGesture(onLongPress)] : []),
 ];
@@ -103,31 +95,6 @@ const PreviewBox = ({ children }: { children: React.ReactNode }) => (
   >
     {children}
   </VStack>
-);
-
-const Waveform = ({ seed }: { seed: string }) => (
-  <View
-    style={{
-      flexDirection: "row",
-      alignItems: "center",
-    }}
-  >
-    {Array.from({ length: 50 }).map((_, i) => {
-      const height = Math.round(seededRandom(seed, i) * 26 + 8);
-      return (
-        <View
-          key={i}
-          style={{
-            width: 2,
-            height,
-            marginHorizontal: 1,
-            borderRadius: 1,
-            backgroundColor: colors.secondaryLabel,
-          }}
-        />
-      );
-    })}
-  </View>
 );
 
 const CardItem = memo(function CardItem({ card }: CardItemProps) {
@@ -256,7 +223,13 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
               }
             }}
             onLongPress={handleDelete}
-            content={<Waveform seed={card._id} />}
+            content={
+              <Text lineLimit={1}>
+                {card.aiTranscript && card.aiTranscript.length > 10
+                  ? card.aiTranscript
+                  : "Audio"}
+              </Text>
+            }
             trailing={
               <VStack alignment="center">
                 <Image
@@ -316,7 +289,6 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
       }
 
       case "video": {
-        const duration = card.fileMetadata?.duration;
         const videoTitle =
           card.fileMetadata?.fileName || card.metadataTitle || "Video";
         return (
@@ -413,9 +385,7 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
               />
             }
             onLongPress={handleDelete}
-            content={
-              <Text lineLimit={1} design="serif">{`"${textContent}"`}</Text>
-            }
+            content={<Text lineLimit={1}>{`"${textContent}"`}</Text>}
           />
         );
       }
