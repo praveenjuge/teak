@@ -186,11 +186,13 @@ export default function SignUp() {
               return;
             }
 
+            const derivedName = email.trim().split("@")[0]?.trim() || "User";
+
             await authClient.signUp.email(
               {
                 email,
                 password,
-                name: "",
+                name: derivedName,
               },
               {
                 onRequest: () => {
