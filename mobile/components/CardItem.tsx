@@ -413,7 +413,9 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
               />
             }
             onLongPress={handleDelete}
-            content={<Text weight="semibold">{`"${textContent}"`}</Text>}
+            content={
+              <Text lineLimit={1} design="serif">{`"${textContent}"`}</Text>
+            }
           />
         );
       }

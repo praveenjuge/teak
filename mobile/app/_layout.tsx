@@ -125,8 +125,8 @@ function FeedbackBottomSheet() {
       return;
     }
     isDismissingRef.current = true;
-    clearFeedbackStatus();
     setFeedbackState(null);
+    clearFeedbackStatus();
   }, []);
 
   useEffect(() => {
