@@ -4,6 +4,7 @@ import {
   HStack,
   Image,
   List,
+  CircularProgress,
   Spacer,
   Text,
   Button,
@@ -16,12 +17,14 @@ import { authClient } from "@/lib/auth-client";
 import { useThemePreference } from "@/lib/theme-preference";
 import { Stack, useRouter } from "expo-router";
 import { useMutation } from "convex/react";
+import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "@teak/convex";
 
 export default function SettingsScreen() {
   const { data: session } = authClient.useSession();
   const { preference, setPreference, isLoaded } = useThemePreference();
   const router = useRouter();
+  const currentUser = useQuery(api.auth.getCurrentUser, {});
   const deleteAccount = useMutation(api.auth.deleteAccount);
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -154,10 +157,10 @@ export default function SettingsScreen() {
                   {isSelected && (
                     <Image
                       systemName="checkmark"
+                      size={18}
                       color={
                         isSelected ? colors.primary : (colors.border as any)
                       }
-                      size={18}
                     />
                   )}
                 </HStack>
@@ -171,6 +174,19 @@ export default function SettingsScreen() {
               <Text color="secondary" lineLimit={1}>
                 {session?.user?.email ?? "Not logged in"}
               </Text>
+            </HStack>
+            <HStack>
+              <Text color="primary">Usage</Text>
+              <Spacer />
+              {currentUser === undefined ? (
+                <CircularProgress />
+              ) : (
+                <Text color="secondary">
+                  {currentUser
+                    ? `${currentUser.cardCount} Cards`
+                    : "Not available"}
+                </Text>
+              )}
             </HStack>
             <Button onPress={handleLogoutAlert} role="destructive">
               <HStack spacing={8}>
