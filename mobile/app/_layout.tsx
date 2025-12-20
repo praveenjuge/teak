@@ -79,36 +79,28 @@ function RootLayoutContent() {
 }
 
 function RootNavigator() {
-  const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
-  const segments = useSegments();
-  const router = useRouter();
+  const { isLoading, isAuthenticated } = useConvexAuth();
 
   useEffect(() => {
-    if (!isAuthLoading) {
+    if (!isLoading) {
       SplashScreen.hide();
     }
-  }, [isAuthLoading]);
+  }, [isLoading]);
 
-  useEffect(() => {
-    if (isAuthLoading) return;
-
-    const inAuthGroup = segments[0] === "(auth)";
-
-    if (isAuthenticated && inAuthGroup) {
-      // Redirect to home if authenticated and in auth group
-      router.replace("/");
-    } else if (!isAuthenticated && !inAuthGroup) {
-      // Redirect to welcome if not authenticated and not in auth group
-      router.replace("/(auth)/welcome");
-    }
-  }, [isAuthenticated, segments, isAuthLoading]);
-
-  if (isAuthLoading) return null;
+  if (isLoading) {
+    return (
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(loading)" />
+      </Stack>
+    );
+  }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
       <Stack.Screen name="(auth)" />
+      <Stack.Protected guard={isAuthenticated && !isLoading}>
+        <Stack.Screen name="(tabs)" />
+      </Stack.Protected>
     </Stack>
   );
 }

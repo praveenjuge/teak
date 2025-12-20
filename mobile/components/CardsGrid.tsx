@@ -45,22 +45,16 @@ const CardsGrid = memo(function CardsGrid({
     [cards, cardActions]
   );
 
-  if (cards === undefined) {
-    return (
-      <Host useViewportSizeMeasurement style={{ flex: 1 }}>
+  const emptyTitle = searchQuery ? "No cards found" : "No cards yet";
+  const description = searchQuery
+    ? `No cards match "${searchQuery}"${selectedType ? ` in ${selectedType} cards` : ""}`
+    : "Start by adding your first card";
+
+  return (
+    <Host useViewportSizeMeasurement style={{ flex: 1 }}>
+      {cards === undefined ? (
         <CircularProgress />
-      </Host>
-    );
-  }
-
-  if (cards.length === 0) {
-    const emptyTitle = searchQuery ? "No cards found" : "No cards yet";
-    const description = searchQuery
-      ? `No cards match "${searchQuery}"${selectedType ? ` in ${selectedType} cards` : ""}`
-      : "Start by adding your first card";
-
-    return (
-      <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
+      ) : cards.length === 0 ? (
         <List scrollEnabled={false} listStyle="insetGrouped">
           <Section>
             <Text weight="semibold" color={colors.label as any}>
@@ -71,17 +65,13 @@ const CardsGrid = memo(function CardsGrid({
             </Text>
           </Section>
         </List>
-      </Host>
-    );
-  }
-
-  return (
-    <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
-      <List scrollEnabled={true} deleteEnabled onDeleteItem={handleDeleteItem}>
-        {cards.map((card: Card) => (
-          <CardItem key={card._id} card={card} />
-        ))}
-      </List>
+      ) : (
+        <List deleteEnabled onDeleteItem={handleDeleteItem} listStyle="plain">
+          {cards.map((card: Card) => (
+            <CardItem key={card._id} card={card} />
+          ))}
+        </List>
+      )}
     </Host>
   );
 });

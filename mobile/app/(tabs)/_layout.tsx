@@ -16,12 +16,6 @@ export default function TabLayout() {
         <Label>Settings</Label>
         <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="search" role="search">
-        <Label>Search</Label>
-        <Icon
-          sf={{ default: "magnifyingglass", selected: "magnifyingglass" }}
-        />
-      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
