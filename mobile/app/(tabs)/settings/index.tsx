@@ -29,10 +29,17 @@ export default function SettingsScreen() {
   const signOut = async () => {
     try {
       await authClient.signOut();
-      router.replace("/(auth)");
+      router.replace("/(auth)/welcome");
     } catch (error) {
       console.error(error);
     }
+  };
+
+  const handleLogoutAlert = () => {
+    Alert.alert("Log Out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Log Out", style: "destructive", onPress: () => void signOut() },
+    ]);
   };
 
   const handleDeleteAccount = async (confirmation: string) => {
@@ -53,7 +60,7 @@ export default function SettingsScreen() {
       let deleteUserFailed = false;
       await authClient.deleteUser(undefined, {
         onSuccess: () => {
-          router.replace("/(auth)");
+          router.replace("/(auth)/welcome");
         },
         onError: (ctx) => {
           setDeleteError(ctx.error?.message ?? "Failed to delete account.");
@@ -77,7 +84,7 @@ export default function SettingsScreen() {
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Continue",
+          text: "DELETE ACCOUNT",
           style: "destructive",
           onPress: () => {
             Alert.prompt(
@@ -165,12 +172,7 @@ export default function SettingsScreen() {
                 {session?.user?.email ?? "Not logged in"}
               </Text>
             </HStack>
-            <Button
-              onPress={() => {
-                void signOut();
-              }}
-              role="destructive"
-            >
+            <Button onPress={handleLogoutAlert} role="destructive">
               <HStack spacing={8}>
                 <Text color="primary">Log Out</Text>
                 <Spacer />
