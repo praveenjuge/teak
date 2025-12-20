@@ -116,6 +116,7 @@ export const metadataValidator = v.optional(
       }),
     ),
     linkCategory: v.optional(linkCategoryMetadataValidator),
+    // TODO: remove after prod cleanup migration
     microlinkData: v.optional(v.any()),
   }),
 );
@@ -164,6 +165,15 @@ export const cardValidator = v.object({
   aiTags: v.optional(v.array(v.string())),
   aiSummary: v.optional(v.string()),
   aiTranscript: v.optional(v.string()),
+  // TODO: remove after prod cleanup migration
+  aiModelMeta: v.optional(
+    v.object({
+      provider: v.string(),
+      model: v.string(),
+      version: v.optional(v.string()),
+      generatedAt: v.optional(v.number()),
+    }),
+  ),
   // Palette-specific fields
   colors: v.optional(v.array(colorValidator)),
   // Pipeline processing status per stage

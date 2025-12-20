@@ -86,3 +86,33 @@ export const removeAiModelMeta = internalMutation({
     return { updatedCount, hasMore: cards.length === batchSize };
   },
 });
+
+// Migration to remove deprecated metadata.microlinkData field from cards
+export const removeMicrolinkData = internalMutation({
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, { batchSize = 100 }) => {
+    const db: any = ctx.db;
+    const cards = await db
+      .query("cards")
+      .filter((q: any) => q.neq(q.field("metadata.microlinkData"), undefined))
+      .take(batchSize);
+
+    let updatedCount = 0;
+
+    for (const card of cards) {
+      await db.patch("cards", card._id, {
+        metadata: {
+          ...(card.metadata ?? {}),
+          microlinkData: undefined,
+        },
+        updatedAt: Date.now(),
+      });
+      updatedCount++;
+    }
+
+    console.log(`Removed metadata.microlinkData from ${updatedCount} cards`);
+    return { updatedCount, hasMore: cards.length === batchSize };
+  },
+});
