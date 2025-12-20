@@ -1,11 +1,19 @@
 import { useAudioPlayer } from "expo-audio";
 import { memo, useMemo, useState, type ReactNode } from "react";
-import { Alert, Image as RNImage, Linking, View } from "react-native";
-import { HStack, VStack, Text, Image, Spacer } from "@expo/ui/swift-ui";
+import { Alert, Image as RNImage, Linking } from "react-native";
+import {
+  HStack,
+  VStack,
+  Text,
+  Image,
+  Spacer,
+  RoundedRectangle,
+} from "@expo/ui/swift-ui";
 import {
   onLongPressGesture,
   frame,
   cornerRadius,
+  foregroundStyle,
 } from "@expo/ui/swift-ui/modifiers";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { colors } from "@/constants/colors";
@@ -53,36 +61,29 @@ const Favicon = ({ url }: { url?: string }) => {
   const showFallback = !url || hasError;
 
   return (
-    <VStack
-      alignment="center"
-      modifiers={[frame({ width: 28, height: 28 }), cornerRadius(2)]}
-    >
+    <VStack alignment="center" modifiers={[frame({ width: 28, height: 28 })]}>
       {showFallback ? (
         <Image
           systemName="globe"
           size={18}
           modifiers={[frame({ width: 28, height: 28 })]}
-          color={colors.secondaryLabel as any}
+          color="secondary"
         />
       ) : (
-        <View
-          style={{
-            justifyContent: "center",
-            alignItems: "center",
-            width: 28,
-            height: 28,
-          }}
+        <HStack
+          alignment="center"
+          modifiers={[frame({ width: 20, height: 20 })]}
         >
           <RNImage
             source={{ uri: url }}
             style={{
-              width: 18,
-              height: 18,
+              width: 20,
+              height: 20,
             }}
             resizeMode="cover"
             onError={() => setHasError(true)}
           />
-        </View>
+        </HStack>
       )}
     </VStack>
   );
@@ -335,29 +336,12 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
                 color="secondary"
               />
             }
-            content={
-              <View
-                style={{
-                  flexDirection: "row",
-                  height: "100%",
-                  borderRadius: 10,
-                  overflow: "hidden",
-                  borderColor: colors.border as any,
-                }}
-              >
-                {card.colors?.slice(0, 10).map((color, index) => (
-                  <View
-                    key={`${color.hex}-${index}`}
-                    style={{
-                      flex: 1,
-                      backgroundColor: color.hex,
-                      width: "100%",
-                      flexShrink: 0,
-                    }}
-                  />
-                ))}
-              </View>
-            }
+            content={card.colors?.slice(0, 10).map((color, index) => (
+              <RoundedRectangle
+                key={`${color.hex}-${index}`}
+                modifiers={[foregroundStyle(color.hex as any), cornerRadius(6)]}
+              />
+            ))}
           />
         );
       }
