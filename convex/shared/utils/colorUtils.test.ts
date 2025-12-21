@@ -18,6 +18,18 @@ describe("colorUtils", () => {
         it("returns null for invalid characters", () => {
             expect(hexToRgb("ghijkl")).toBeNull();
         });
+
+        it("handles 3-digit hex", () => {
+            expect(hexToRgb("#abc")).toEqual({ r: 170, g: 187, b: 204 });
+        });
+
+        it("handles 4-digit hex (ignores alpha)", () => {
+            expect(hexToRgb("#abcd")).toEqual({ r: 170, g: 187, b: 204 });
+        });
+
+        it("handles 8-digit hex (ignores alpha)", () => {
+            expect(hexToRgb("#aabbccdd")).toEqual({ r: 170, g: 187, b: 204 });
+        });
     });
     describe("hex formats", () => {
         it("handles 3-digit hex", () => {

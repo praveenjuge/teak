@@ -158,4 +158,14 @@ describe("metadata handler", () => {
     // results will be empty
     expect(generateHandler(ctx, { cardId: "c1", cardType: "text" })).rejects.toThrow("No AI metadata generated");
   });
+
+  test("throws if link metadata is pending", async () => {
+    mockRunQuery.mockResolvedValue({
+      _id: "c1",
+      url: "https://example.com",
+      metadataStatus: "pending",
+      metadata: {}
+    });
+    expect(generateHandler(ctx, { cardId: "c1", cardType: "link" })).rejects.toThrow("Link metadata extraction not yet complete");
+  });
 });

@@ -26,6 +26,7 @@ export async function stopAudioRecording({
   onError,
 }: StopRecordingParams) {
   if (!audioRecorder.isRecording) {
+    // Already stopped
     return;
   }
 

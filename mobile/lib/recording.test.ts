@@ -55,3 +55,57 @@ test("stopAudioRecording waits for stop before unlocking recording state", async
     "setIsStoppingRecording:false",
   ]);
 });
+
+test("stopAudioRecording early returns if not recording", async () => {
+  const events: string[] = [];
+  await stopAudioRecording({
+    audioRecorder: {
+      isRecording: false,
+      uri: null,
+      stop: async () => { },
+    },
+    setIsRecording: () => events.push("setIsRecording"),
+    setIsStoppingRecording: () => events.push("setIsStoppingRecording"),
+    setRecordingDuration: () => { },
+    handleFileUpload: async () => { },
+  });
+  expect(events.length).toBe(0);
+});
+
+test("handles upload error", async () => {
+  const error = new Error("Upload failed");
+  const audioRecorder = {
+    isRecording: true,
+    uri: "file://recording.m4a",
+    stop: async () => { },
+  };
+  let capturedError;
+  await stopAudioRecording({
+    audioRecorder,
+    setIsRecording: () => { },
+    setIsStoppingRecording: () => { },
+    setRecordingDuration: () => { },
+    handleFileUpload: async () => { throw error; },
+    onError: (e) => { capturedError = e; },
+  });
+  expect(capturedError).toBe(error);
+});
+
+test("handles stop error", async () => {
+  const error = new Error("Stop failed");
+  const audioRecorder = {
+    isRecording: true,
+    stop: async () => { throw error; },
+    uri: "file://recording.m4a",
+  };
+  let capturedError;
+  await stopAudioRecording({
+    audioRecorder,
+    setIsRecording: () => { },
+    setIsStoppingRecording: () => { },
+    setRecordingDuration: () => { },
+    handleFileUpload: async () => { },
+    onError: (e) => { capturedError = e; },
+  });
+  expect(capturedError).toBe(error);
+});

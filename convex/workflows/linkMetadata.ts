@@ -38,6 +38,51 @@ export const parseLinkMetadataRetryableError = (
   }
 };
 
+export const linkMetadataWorkflowHandler = async (step: any, { cardId }: any) => {
+  try {
+    const result = await step.runAction(
+      internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
+        .fetchMetadata,
+      { cardId },
+      { retry: LINK_METADATA_RETRY },
+    );
+
+    return {
+      success: result.status === "success",
+      status: result.status,
+      errorType: result.errorType,
+      errorMessage: result.errorMessage,
+    };
+  } catch (error) {
+    const retryable = parseLinkMetadataRetryableError(error);
+    if (!retryable) {
+      throw error;
+    }
+
+    const normalizedUrl =
+      typeof retryable.normalizedUrl === "string"
+        ? retryable.normalizedUrl
+        : "";
+
+    await step.runMutation(linkMetadataInternal.updateCardMetadata, {
+      cardId,
+      linkPreview: buildErrorPreview(normalizedUrl, {
+        type: retryable.type ?? "error",
+        message: retryable.message,
+        details: retryable.details,
+      }),
+      status: "failed",
+    });
+
+    return {
+      success: false,
+      status: "failed",
+      errorType: retryable.type ?? "error",
+      errorMessage: retryable.message,
+    };
+  }
+};
+
 export const linkMetadataWorkflow = workflow.define({
   args: {
     cardId: v.id("cards"),
@@ -48,51 +93,19 @@ export const linkMetadataWorkflow = workflow.define({
     errorType: v.optional(v.string()),
     errorMessage: v.optional(v.string()),
   }),
-  handler: async (step, { cardId }) => {
-    try {
-      const result = await step.runAction(
-        internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
-          .fetchMetadata,
-        { cardId },
-        { retry: LINK_METADATA_RETRY },
-      );
-
-      return {
-        success: result.status === "success",
-        status: result.status,
-        errorType: result.errorType,
-        errorMessage: result.errorMessage,
-      };
-    } catch (error) {
-      const retryable = parseLinkMetadataRetryableError(error);
-      if (!retryable) {
-        throw error;
-      }
-
-      const normalizedUrl =
-        typeof retryable.normalizedUrl === "string"
-          ? retryable.normalizedUrl
-          : "";
-
-      await step.runMutation(linkMetadataInternal.updateCardMetadata, {
-        cardId,
-        linkPreview: buildErrorPreview(normalizedUrl, {
-          type: retryable.type ?? "error",
-          message: retryable.message,
-          details: retryable.details,
-        }),
-        status: "failed",
-      });
-
-      return {
-        success: false,
-        status: "failed",
-        errorType: retryable.type ?? "error",
-        errorMessage: retryable.message,
-      };
-    }
-  },
+  handler: linkMetadataWorkflowHandler,
 });
+
+export const startLinkMetadataWorkflowHandler = async (ctx: any, { cardId, startAsync }: any) => {
+  const workflowId = await workflow.start(
+    ctx,
+    internalWorkflow["workflows/linkMetadata"].linkMetadataWorkflow,
+    { cardId },
+    { startAsync: startAsync ?? false },
+  );
+
+  return { workflowId };
+};
 
 export const startLinkMetadataWorkflow = internalMutation({
   args: {
@@ -102,14 +115,5 @@ export const startLinkMetadataWorkflow = internalMutation({
   returns: v.object({
     workflowId: v.string(),
   }),
-  handler: async (ctx, { cardId, startAsync }) => {
-    const workflowId = await workflow.start(
-      ctx,
-      internalWorkflow["workflows/linkMetadata"].linkMetadataWorkflow,
-      { cardId },
-      { startAsync: startAsync ?? false },
-    );
-
-    return { workflowId };
-  },
+  handler: startLinkMetadataWorkflowHandler,
 });

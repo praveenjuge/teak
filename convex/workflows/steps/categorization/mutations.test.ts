@@ -59,4 +59,19 @@ describe("categorization updateCategorization", () => {
       Date.now = originalNow;
     }
   });
+
+  it("throws if card not found", async () => {
+    const mutation =
+      (updateCategorization as any).handler ||
+      (updateCategorization as any)._handler ||
+      (updateCategorization as any);
+
+    const mockCtx = {
+      db: {
+        get: async () => null,
+      },
+    };
+
+    expect(mutation(mockCtx, { cardId: "card_missing", metadata: {} })).rejects.toThrow("not found");
+  });
 });
