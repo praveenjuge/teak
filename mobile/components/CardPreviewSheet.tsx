@@ -25,13 +25,22 @@ import {
   padding,
 } from "@expo/ui/swift-ui/modifiers";
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { colors } from "@/constants/colors";
 
 type Card = Doc<"cards"> & {
   fileUrl?: string;
   thumbnailUrl?: string;
   screenshotUrl?: string;
 };
+
+const unsupportedAudioMimes = new Set([
+  "audio/webm",
+  "audio/ogg",
+  "audio/opus",
+  "audio/x-opus+ogg",
+  "audio/x-ogg",
+]);
+
+const unsupportedAudioExts = new Set(["webm", "ogg", "opus"]);
 
 interface CardPreviewSheetProps {
   card: Card | null;
@@ -55,7 +64,7 @@ const FullHeightPlaceholder = ({
   >
     <Spacer />
     <Image systemName={icon as any} size={28} color="secondary" />
-    <Text color={colors.secondaryLabel as any}>{label}</Text>
+    <Text color="secondary">{label}</Text>
     <Spacer />
   </VStack>
 );
@@ -65,13 +74,11 @@ const FullHeightMedia = ({
   height,
   fallbackIcon,
   fallbackLabel,
-  paddingSize,
 }: {
   uri?: string | null;
   height: number;
   fallbackIcon: string;
   fallbackLabel: string;
-  paddingSize: number;
 }) => {
   const [isLoading, setIsLoading] = useState(true);
 
@@ -90,7 +97,7 @@ const FullHeightMedia = ({
   }
 
   return (
-    <ZStack modifiers={[frame({ height }), padding({ all: paddingSize })]}>
+    <ZStack modifiers={[frame({ height })]}>
       <RNImage
         key={uri}
         source={{ uri }}
@@ -108,6 +115,68 @@ const FullHeightMedia = ({
     </ZStack>
   );
 };
+
+const ActionButton = ({
+  label,
+  onPress,
+  disabled,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) => (
+  <Button
+    variant="bordered"
+    controlSize="large"
+    onPress={onPress}
+    disabled={disabled}
+  >
+    <HStack spacing={10} alignment="center">
+      <Spacer />
+      <Text color="primary" design="rounded">
+        {label}
+      </Text>
+      <Spacer />
+    </HStack>
+  </Button>
+);
+
+const CenteredPanel = ({
+  icon,
+  title,
+  subtitle,
+  height,
+  actionLabel,
+  onAction,
+  actionDisabled,
+}: {
+  icon: string;
+  title: string;
+  subtitle?: React.ReactNode;
+  height: number;
+  actionLabel?: string;
+  onAction?: () => void;
+  actionDisabled?: boolean;
+}) => (
+  <VStack
+    spacing={12}
+    alignment="center"
+    modifiers={[frame({ height }), padding({ all: 16 })]}
+  >
+    <Spacer />
+    <Image systemName={icon as any} size={28} color="secondary" />
+    <Text weight="semibold">{title}</Text>
+    {subtitle}
+    <Spacer />
+    {actionLabel && onAction ? (
+      <ActionButton
+        label={actionLabel}
+        onPress={onAction}
+        disabled={actionDisabled}
+      />
+    ) : null}
+  </VStack>
+);
 
 const AudioPreview = ({
   title,
@@ -176,12 +245,10 @@ const VideoPreview = ({
   uri,
   height,
   isOpen,
-  paddingSize,
 }: {
   uri: string;
   height: number;
   isOpen: boolean;
-  paddingSize: number;
 }) => {
   const player = useVideoPlayer(uri);
   const { status } = useEvent(player, "statusChange", {
@@ -218,7 +285,7 @@ const VideoPreview = ({
   }, [isOpen, player]);
 
   return (
-    <ZStack modifiers={[frame({ height }), padding({ all: paddingSize })]}>
+    <ZStack modifiers={[frame({ height })]}>
       <VideoView
         player={player}
         style={{ width: "100%", height: "100%" }}
@@ -236,7 +303,6 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
   const sheetHeight = isMediaFullHeight
     ? height
     : Math.max(220, Math.round(height * 0.5));
-  const mediaPadding = 12;
 
   const audioUrl = card?.type === "audio" ? (card.fileUrl ?? null) : null;
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -246,21 +312,6 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
 
   const audioMime = card?.fileMetadata?.mimeType?.toLowerCase();
   const audioExt = card?.fileMetadata?.fileName?.toLowerCase().split(".").pop();
-  const unsupportedAudioMimes = useMemo(
-    () =>
-      new Set([
-        "audio/webm",
-        "audio/ogg",
-        "audio/opus",
-        "audio/x-opus+ogg",
-        "audio/x-ogg",
-      ]),
-    []
-  );
-  const unsupportedAudioExts = useMemo(
-    () => new Set(["webm", "ogg", "opus"]),
-    []
-  );
   const isAudioSupported =
     (audioMime ? !unsupportedAudioMimes.has(audioMime) : true) &&
     (audioExt ? !unsupportedAudioExts.has(audioExt) : true);
@@ -376,7 +427,7 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
     }
   }, [audioUrl, isAudioSupported, loadAndPlayAudio]);
 
-  const handleOpenLink = async (url: string) => {
+  const handleOpenLink = useCallback(async (url: string) => {
     try {
       const supported = await Linking.canOpenURL(url);
       if (supported) {
@@ -385,7 +436,7 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
     } catch (error) {
       console.error("Failed to open URL:", error);
     }
-  };
+  }, []);
 
   const paletteRows = useMemo(() => {
     if (!card?.colors?.length) return [];
@@ -405,6 +456,16 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
       ? card.metadata.linkPreview.title || card.url || "Link"
       : card.metadataTitle || card.url || "Link";
   const linkUrl = card.url ?? "";
+  const quoteText = `"${textContent}"`;
+  const renderTextBlock = (value: string) => (
+    <VStack modifiers={[frame({ height: sheetHeight })]}>
+      <List>
+        <Section>
+          <Text>{value}</Text>
+        </Section>
+      </List>
+    </VStack>
+  );
 
   const renderBody = () => {
     switch (card.type) {
@@ -415,7 +476,6 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
             height={sheetHeight}
             fallbackIcon="photo"
             fallbackLabel="Image unavailable"
-            paddingSize={mediaPadding}
           />
         );
       case "video":
@@ -426,7 +486,6 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
               height={sheetHeight}
               fallbackIcon="play.rectangle"
               fallbackLabel="Video preview unavailable"
-              paddingSize={mediaPadding}
             />
           );
         }
@@ -435,29 +494,12 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
             uri={card.fileUrl}
             height={sheetHeight}
             isOpen={isOpen}
-            paddingSize={mediaPadding}
           />
         );
       case "text":
-        return (
-          <VStack modifiers={[frame({ height: sheetHeight })]}>
-            <List>
-              <Section>
-                <Text>{textContent}</Text>
-              </Section>
-            </List>
-          </VStack>
-        );
+        return renderTextBlock(textContent);
       case "quote": {
-        return (
-          <VStack modifiers={[frame({ height: sheetHeight })]}>
-            <List>
-              <Section>
-                <Text>{`"${textContent}"`}</Text>
-              </Section>
-            </List>
-          </VStack>
-        );
+        return renderTextBlock(quoteText);
       }
       case "palette":
         if (!paletteRows.length) {
@@ -494,35 +536,23 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
       case "audio":
         if (!audioUrl || audioError || !isAudioSupported) {
           return (
-            <VStack
-              spacing={12}
-              alignment="center"
-              modifiers={[frame({ height: sheetHeight }), padding({ all: 16 })]}
-            >
-              <Spacer />
-              <Image systemName="waveform" size={28} color="secondary" />
-              <Text weight="semibold">Audio</Text>
-              <Text color={colors.secondaryLabel as any}>
-                {audioError ||
-                  (audioUrl ? "Unsupported audio format" : "Audio unavailable")}
-              </Text>
-              <Spacer />
-              {audioUrl ? (
-                <Button
-                  variant="bordered"
-                  controlSize="large"
-                  onPress={() => void handleOpenLink(audioUrl)}
-                >
-                  <HStack spacing={10} alignment="center">
-                    <Spacer />
-                    <Text color="primary" design="rounded">
-                      Open link
-                    </Text>
-                    <Spacer />
-                  </HStack>
-                </Button>
-              ) : null}
-            </VStack>
+            <CenteredPanel
+              icon="waveform"
+              title="Audio"
+              height={sheetHeight}
+              subtitle={
+                <Text color="secondary">
+                  {audioError ||
+                    (audioUrl
+                      ? "Unsupported audio format"
+                      : "Audio unavailable")}
+                </Text>
+              }
+              actionLabel={audioUrl ? "Open link" : undefined}
+              onAction={
+                audioUrl ? () => void handleOpenLink(audioUrl) : undefined
+              }
+            />
           );
         }
         return (
@@ -537,78 +567,42 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
         );
       case "link":
         return (
-          <VStack
-            spacing={12}
-            alignment="center"
-            modifiers={[frame({ height: sheetHeight }), padding({ all: 16 })]}
-          >
-            <Spacer />
-            <Image systemName="link" size={28} color="secondary" />
-            <Text weight="semibold">{linkTitle}</Text>
-            {linkUrl ? (
-              <Text color={colors.secondaryLabel as any} lineLimit={2}>
-                {linkUrl}
-              </Text>
-            ) : null}
-            <Spacer />
-            <Button
-              variant="bordered"
-              controlSize="large"
-              onPress={() => {
-                if (linkUrl) {
-                  void handleOpenLink(linkUrl);
-                }
-              }}
-              disabled={!linkUrl}
-            >
-              <HStack spacing={10} alignment="center">
-                <Spacer />
-                <Text color="primary" design="rounded">
-                  Open link
+          <CenteredPanel
+            icon="link"
+            title={linkTitle}
+            height={sheetHeight}
+            subtitle={
+              linkUrl ? (
+                <Text color="secondary" lineLimit={2}>
+                  {linkUrl}
                 </Text>
-                <Spacer />
-              </HStack>
-            </Button>
-          </VStack>
+              ) : undefined
+            }
+            actionLabel="Open link"
+            onAction={linkUrl ? () => void handleOpenLink(linkUrl) : undefined}
+            actionDisabled={!linkUrl}
+          />
         );
       case "document":
       default:
         return (
-          <VStack
-            spacing={12}
-            alignment="center"
-            modifiers={[frame({ height: sheetHeight }), padding({ all: 16 })]}
-          >
-            <Spacer />
-            <Image systemName="doc.text" size={28} color="secondary" />
-            <Text weight="semibold">{title}</Text>
-            {card.fileMetadata?.mimeType ? (
-              <Text color={colors.secondaryLabel as any}>
-                {card.fileMetadata.mimeType}
-              </Text>
-            ) : null}
-            <Spacer />
-            {card.type === "document" ? (
-              <Button
-                variant="bordered"
-                controlSize="large"
-                onPress={() => {
-                  if (documentUrl) {
-                    void handleOpenLink(documentUrl);
-                  }
-                }}
-                disabled={!documentUrl}
-              >
-                <HStack spacing={10} alignment="center">
-                  <Spacer />
-                  <Text color="primary" design="rounded">
-                    Open link
-                  </Text>
-                  <Spacer />
-                </HStack>
-              </Button>
-            ) : null}
-          </VStack>
+          <CenteredPanel
+            icon="doc.text"
+            title={title}
+            height={sheetHeight}
+            subtitle={
+              card.fileMetadata?.mimeType ? (
+                <Text color="secondary">{card.fileMetadata.mimeType}</Text>
+              ) : undefined
+            }
+            actionLabel={card.type === "document" ? "Open link" : undefined}
+            onAction={
+              card.type === "document" && documentUrl
+                ? () => void handleOpenLink(documentUrl)
+                : undefined
+            }
+            actionDisabled={!documentUrl}
+          />
         );
     }
   };

@@ -33,6 +33,17 @@ const rowModifiers = (onLongPress?: () => void) => [
   ...(onLongPress ? [onLongPressGesture(onLongPress)] : []),
 ];
 
+const iconModifiers = [frame({ width: 28, height: 28 })];
+
+const leadingIcon = (systemName: string) => (
+  <Image
+    systemName={systemName as any}
+    size={16}
+    modifiers={iconModifiers}
+    color="secondary"
+  />
+);
+
 type RowProps = {
   leading?: ReactNode;
   content: ReactNode;
@@ -130,6 +141,20 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
     }
   }, [card.url]);
 
+  const renderRow = (
+    content: ReactNode,
+    leading?: ReactNode,
+    trailing?: ReactNode
+  ) => (
+    <Row
+      leading={leading}
+      content={content}
+      trailing={trailing}
+      onPress={onPress}
+      onLongPress={handleDelete}
+    />
+  );
+
   const renderContent = () => {
     switch (card.type) {
       case "link": {
@@ -139,188 +164,94 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
             ? card.metadata.linkPreview.title || card.url
             : card.metadataTitle || card.url;
 
-        return (
-          <Row
-            leading={<Favicon url={linkMeta?.favicon} />}
-            onPress={onPress}
-            onLongPress={handleDelete}
-            content={<Text lineLimit={1}>{linkTitle}</Text>}
-          />
+        return renderRow(
+          <Text lineLimit={1}>{linkTitle}</Text>,
+          <Favicon url={linkMeta?.favicon} />
         );
       }
 
       case "document": {
         const title =
           card.metadataTitle || card.fileMetadata?.fileName || "Attachment";
-        return (
-          <Row
-            leading={
-              <Image
-                systemName="paperclip"
-                size={16}
-                modifiers={[frame({ width: 28, height: 28 })]}
-                color="secondary"
-              />
-            }
-            onPress={onPress}
-            onLongPress={handleDelete}
-            content={<Text lineLimit={1}>{title}</Text>}
-          />
+        return renderRow(
+          <Text lineLimit={1}>{title}</Text>,
+          leadingIcon("paperclip")
         );
       }
 
       case "audio": {
-        return (
-          <Row
-            leading={
-              <Image
-                systemName="music.note"
-                size={16}
-                modifiers={[frame({ width: 28, height: 28 })]}
-                color="secondary"
-              />
-            }
-            onPress={onPress}
-            onLongPress={handleDelete}
-            content={
-              <Text lineLimit={1}>
-                {card.aiTranscript && card.aiTranscript.length > 10
-                  ? card.aiTranscript
-                  : "Audio"}
-              </Text>
-            }
-          />
+        return renderRow(
+          <Text lineLimit={1}>
+            {card.aiTranscript && card.aiTranscript.length > 10
+              ? card.aiTranscript
+              : "Audio"}
+          </Text>,
+          leadingIcon("music.note")
         );
       }
 
       case "image": {
         const imageTitle =
           card.fileMetadata?.fileName || card.metadataTitle || "Image";
-        return (
-          <Row
-            leading={
-              <PreviewBox>
-                {mediaUrl ? (
-                  <RNImage
-                    source={{ uri: mediaUrl }}
-                    style={{ width: 28, height: 28 }}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <Image
-                    systemName="photo"
-                    size={16}
-                    modifiers={[frame({ width: 28, height: 28 })]}
-                    color="secondary"
-                  />
-                )}
-              </PreviewBox>
-            }
-            onPress={onPress}
-            onLongPress={handleDelete}
-            content={<Text lineLimit={1}>{imageTitle}</Text>}
-          />
+        return renderRow(
+          <Text lineLimit={1}>{imageTitle}</Text>,
+          <PreviewBox>
+            {mediaUrl ? (
+              <RNImage
+                source={{ uri: mediaUrl }}
+                style={{ width: 28, height: 28 }}
+                resizeMode="cover"
+              />
+            ) : (
+              leadingIcon("photo")
+            )}
+          </PreviewBox>
         );
       }
 
       case "video": {
         const videoTitle =
           card.fileMetadata?.fileName || card.metadataTitle || "Video";
-        return (
-          <Row
-            leading={
-              <Image
-                systemName="play.circle"
-                size={16}
-                modifiers={[frame({ width: 28, height: 28 })]}
-                color="secondary"
-              />
-            }
-            onPress={onPress}
-            onLongPress={handleDelete}
-            content={<Text lineLimit={1}>{videoTitle}</Text>}
-          />
+        return renderRow(
+          <Text lineLimit={1}>{videoTitle}</Text>,
+          leadingIcon("play.circle")
         );
       }
 
       case "palette": {
-        return (
-          <Row
-            onPress={onPress}
-            onLongPress={handleDelete}
-            leading={
-              <Image
-                systemName="paintpalette"
-                size={16}
-                modifiers={[frame({ width: 28, height: 28 })]}
-                color="secondary"
-              />
-            }
-            content={card.colors?.slice(0, 10).map((color, index) => (
+        return renderRow(
+          card.colors
+            ?.slice(0, 10)
+            .map((color, index) => (
               <RoundedRectangle
                 key={`${color.hex}-${index}`}
                 modifiers={[foregroundStyle(color.hex as any), cornerRadius(6)]}
               />
-            ))}
-          />
+            )),
+          leadingIcon("paintpalette")
         );
       }
 
       case "quote": {
         const textContent = card.content || "Quote";
-        return (
-          <Row
-            leading={
-              <Image
-                systemName="text.quote"
-                size={16}
-                modifiers={[frame({ width: 28, height: 28 })]}
-                color="secondary"
-              />
-            }
-            onLongPress={handleDelete}
-            onPress={onPress}
-            content={<Text lineLimit={1}>{`"${textContent}"`}</Text>}
-          />
+        return renderRow(
+          <Text lineLimit={1}>{`"${textContent}"`}</Text>,
+          leadingIcon("text.quote")
         );
       }
 
       case "text": {
         const textContent = card.content || "Note";
-        return (
-          <Row
-            leading={
-              <Image
-                systemName="textformat"
-                size={16}
-                modifiers={[frame({ width: 28, height: 28 })]}
-                color="secondary"
-              />
-            }
-            onLongPress={handleDelete}
-            onPress={onPress}
-            content={<Text lineLimit={1}>{textContent}</Text>}
-          />
+        return renderRow(
+          <Text lineLimit={1}>{textContent}</Text>,
+          leadingIcon("textformat")
         );
       }
 
       default:
-        return (
-          <Row
-            leading={
-              <Image
-                systemName="questionmark"
-                size={16}
-                modifiers={[frame({ width: 28, height: 28 })]}
-                color="secondary"
-              />
-            }
-            onLongPress={handleDelete}
-            onPress={onPress}
-            content={
-              <Text color={colors.secondaryLabel as any}>{card.content}</Text>
-            }
-          />
+        return renderRow(
+          <Text color={colors.secondaryLabel as any}>{card.content}</Text>,
+          leadingIcon("questionmark")
         );
     }
   };
