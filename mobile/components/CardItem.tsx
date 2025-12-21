@@ -7,9 +7,10 @@ import {
   Image,
   Spacer,
   RoundedRectangle,
+  ContextMenu,
+  Button,
 } from "@expo/ui/swift-ui";
 import {
-  onLongPressGesture,
   frame,
   cornerRadius,
   foregroundStyle,
@@ -29,10 +30,6 @@ interface CardItemProps {
   onPress?: () => void;
 }
 
-const rowModifiers = (onLongPress?: () => void) => [
-  ...(onLongPress ? [onLongPressGesture(onLongPress)] : []),
-];
-
 const iconModifiers = [frame({ width: 28, height: 28 })];
 
 const leadingIcon = (systemName: string) => (
@@ -49,22 +46,25 @@ type RowProps = {
   content: ReactNode;
   trailing?: ReactNode;
   onPress?: () => void;
-  onLongPress?: () => void;
+  onDelete?: () => void;
 };
 
-const Row = ({
-  leading,
-  content,
-  trailing,
-  onPress,
-  onLongPress,
-}: RowProps) => (
-  <HStack spacing={12} onPress={onPress} modifiers={rowModifiers(onLongPress)}>
-    {leading}
-    {content}
-    <Spacer />
-    {trailing}
-  </HStack>
+const Row = ({ leading, content, trailing, onPress, onDelete }: RowProps) => (
+  <ContextMenu activationMethod="longPress">
+    <ContextMenu.Items>
+      <Button role="destructive" systemImage="trash" onPress={onDelete}>
+        Delete
+      </Button>
+    </ContextMenu.Items>
+    <ContextMenu.Trigger>
+      <HStack spacing={12} onPress={onPress}>
+        {leading}
+        {content}
+        <Spacer />
+        {trailing}
+      </HStack>
+    </ContextMenu.Trigger>
+  </ContextMenu>
 );
 
 const Favicon = ({ url }: { url?: string }) => {
@@ -151,7 +151,7 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
       content={content}
       trailing={trailing}
       onPress={onPress}
-      onLongPress={handleDelete}
+      onDelete={handleDelete}
     />
   );
 
