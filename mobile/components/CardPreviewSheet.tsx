@@ -70,23 +70,31 @@ const FullHeightPlaceholder = ({
 );
 
 const FullHeightMedia = ({
-  uri,
+  primaryUri,
+  fallbackUri,
   height,
   fallbackIcon,
   fallbackLabel,
 }: {
-  uri?: string | null;
+  primaryUri?: string | null;
+  fallbackUri?: string | null;
   height: number;
   fallbackIcon: string;
   fallbackLabel: string;
 }) => {
+  const [activeUri, setActiveUri] = useState<string | null>(
+    primaryUri ?? fallbackUri ?? null
+  );
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
+    setActiveUri(primaryUri ?? fallbackUri ?? null);
     setIsLoading(true);
-  }, [uri]);
+    setHasError(false);
+  }, [primaryUri, fallbackUri]);
 
-  if (!uri) {
+  if (!activeUri || hasError) {
     return (
       <FullHeightPlaceholder
         icon={fallbackIcon}
@@ -96,11 +104,21 @@ const FullHeightMedia = ({
     );
   }
 
+  const handleError = () => {
+    if (activeUri === primaryUri && fallbackUri) {
+      setActiveUri(fallbackUri);
+      setIsLoading(true);
+      return;
+    }
+    setIsLoading(false);
+    setHasError(true);
+  };
+
   return (
     <ZStack modifiers={[frame({ height })]}>
       <RNImage
-        key={uri}
-        source={{ uri }}
+        key={activeUri}
+        source={{ uri: activeUri }}
         style={{
           width: "100%",
           height: "100%",
@@ -109,7 +127,7 @@ const FullHeightMedia = ({
         resizeMode="contain"
         onLoadStart={() => setIsLoading(true)}
         onLoadEnd={() => setIsLoading(false)}
-        onError={() => setIsLoading(false)}
+        onError={handleError}
       />
       {isLoading ? <CircularProgress /> : null}
     </ZStack>
@@ -448,7 +466,8 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
   const textContent = card.content?.trim() || "No content";
   const title =
     card.metadataTitle || card.fileMetadata?.fileName || "Attachment";
-  const imageUrl = card.fileUrl ?? card.thumbnailUrl ?? card.screenshotUrl;
+  const imageUrl = card.fileUrl ?? null;
+  const imageFallback = card.thumbnailUrl ?? card.screenshotUrl ?? null;
   const videoPoster = card.thumbnailUrl ?? card.screenshotUrl;
   const documentUrl = card.fileUrl ?? card.url ?? null;
   const linkTitle =
@@ -472,7 +491,8 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
       case "image":
         return (
           <FullHeightMedia
-            uri={imageUrl}
+            primaryUri={imageUrl}
+            fallbackUri={imageFallback}
             height={sheetHeight}
             fallbackIcon="photo"
             fallbackLabel="Image unavailable"
@@ -482,7 +502,7 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
         if (!card.fileUrl) {
           return (
             <FullHeightMedia
-              uri={videoPoster}
+              primaryUri={videoPoster}
               height={sheetHeight}
               fallbackIcon="play.rectangle"
               fallbackLabel="Video preview unavailable"
