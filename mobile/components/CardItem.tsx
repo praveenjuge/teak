@@ -1,6 +1,5 @@
-import { useAudioPlayer } from "expo-audio";
 import { memo, useMemo, useState, type ReactNode } from "react";
-import { Alert, Image as RNImage, Linking } from "react-native";
+import { Alert, Image as RNImage } from "react-native";
 import {
   HStack,
   VStack,
@@ -27,6 +26,7 @@ type Card = Doc<"cards"> & {
 
 interface CardItemProps {
   card: Card;
+  onPress?: () => void;
 }
 
 const rowModifiers = (onLongPress?: () => void) => [
@@ -48,7 +48,7 @@ const Row = ({
   onPress,
   onLongPress,
 }: RowProps) => (
-  <HStack spacing={14} onPress={onPress} modifiers={rowModifiers(onLongPress)}>
+  <HStack spacing={12} onPress={onPress} modifiers={rowModifiers(onLongPress)}>
     {leading}
     {content}
     {trailing ? <Spacer /> : null}
@@ -98,10 +98,8 @@ const PreviewBox = ({ children }: { children: React.ReactNode }) => (
   </VStack>
 );
 
-const CardItem = memo(function CardItem({ card }: CardItemProps) {
+const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
   const mediaUrl = card.fileUrl ?? null;
-  const audioUrl = card.type === "audio" ? mediaUrl : null;
-  const player = useAudioPlayer(audioUrl ? { uri: audioUrl } : null);
   const cardActions = useCardActions();
 
   const handleDelete = () => {
@@ -113,17 +111,6 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
         onPress: () => void cardActions.handleDeleteCard(card._id),
       },
     ]);
-  };
-
-  const handleUrlPress = async (url: string) => {
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      }
-    } catch (error) {
-      console.error("Failed to open URL:", error);
-    }
   };
 
   const linkMeta = useMemo(() => {
@@ -155,10 +142,7 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
         return (
           <Row
             leading={<Favicon url={linkMeta?.favicon} />}
-            trailing={
-              <Image systemName="arrow.up.right" size={14} color="secondary" />
-            }
-            onPress={() => handleUrlPress(card.url!)}
+            onPress={onPress}
             onLongPress={handleDelete}
             content={<Text lineLimit={1}>{linkTitle}</Text>}
           />
@@ -178,49 +162,25 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
                 color="secondary"
               />
             }
-            onPress={() => {
-              if (mediaUrl) void handleUrlPress(mediaUrl);
-            }}
+            onPress={onPress}
             onLongPress={handleDelete}
-            trailing={
-              mediaUrl ? (
-                <VStack
-                  alignment="center"
-                  onPress={() => void handleUrlPress(mediaUrl)}
-                >
-                  <Image
-                    systemName="arrow.up.right"
-                    size={14}
-                    color={colors.secondaryLabel as any}
-                  />
-                </VStack>
-              ) : null
-            }
             content={<Text lineLimit={1}>{title}</Text>}
           />
         );
       }
 
       case "audio": {
-        const isPlaying = !!player?.playing;
         return (
           <Row
             leading={
               <Image
-                systemName={isPlaying ? "pause" : "music.note"}
+                systemName="music.note"
                 size={16}
                 modifiers={[frame({ width: 28, height: 28 })]}
                 color="secondary"
               />
             }
-            onPress={() => {
-              if (!player) return;
-              if (player.playing) {
-                player.pause();
-              } else {
-                player.play();
-              }
-            }}
+            onPress={onPress}
             onLongPress={handleDelete}
             content={
               <Text lineLimit={1}>
@@ -228,15 +188,6 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
                   ? card.aiTranscript
                   : "Audio"}
               </Text>
-            }
-            trailing={
-              <VStack alignment="center">
-                <Image
-                  systemName="arrow.up.right"
-                  size={14}
-                  color={colors.secondaryLabel as any}
-                />
-              </VStack>
             }
           />
         );
@@ -265,24 +216,8 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
                 )}
               </PreviewBox>
             }
-            onPress={() => {
-              if (mediaUrl) void handleUrlPress(mediaUrl);
-            }}
+            onPress={onPress}
             onLongPress={handleDelete}
-            trailing={
-              mediaUrl ? (
-                <VStack
-                  alignment="center"
-                  onPress={() => void handleUrlPress(mediaUrl)}
-                >
-                  <Image
-                    systemName="arrow.up.right"
-                    size={14}
-                    color={colors.secondaryLabel as any}
-                  />
-                </VStack>
-              ) : null
-            }
             content={<Text lineLimit={1}>{imageTitle}</Text>}
           />
         );
@@ -301,24 +236,8 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
                 color="secondary"
               />
             }
-            onPress={() => {
-              if (mediaUrl) void handleUrlPress(mediaUrl);
-            }}
+            onPress={onPress}
             onLongPress={handleDelete}
-            trailing={
-              mediaUrl ? (
-                <VStack
-                  alignment="center"
-                  onPress={() => void handleUrlPress(mediaUrl)}
-                >
-                  <Image
-                    systemName="arrow.up.right"
-                    size={14}
-                    color={colors.secondaryLabel as any}
-                  />
-                </VStack>
-              ) : null
-            }
             content={<Text lineLimit={1}>{videoTitle}</Text>}
           />
         );
@@ -327,6 +246,7 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
       case "palette": {
         return (
           <Row
+            onPress={onPress}
             onLongPress={handleDelete}
             leading={
               <Image
@@ -359,6 +279,7 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
               />
             }
             onLongPress={handleDelete}
+            onPress={onPress}
             content={<Text lineLimit={1}>{`"${textContent}"`}</Text>}
           />
         );
@@ -377,6 +298,7 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
               />
             }
             onLongPress={handleDelete}
+            onPress={onPress}
             content={<Text lineLimit={1}>{textContent}</Text>}
           />
         );
@@ -394,6 +316,7 @@ const CardItem = memo(function CardItem({ card }: CardItemProps) {
               />
             }
             onLongPress={handleDelete}
+            onPress={onPress}
             content={
               <Text color={colors.secondaryLabel as any}>{card.content}</Text>
             }
