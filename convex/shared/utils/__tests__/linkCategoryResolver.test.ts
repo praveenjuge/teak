@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, expect, it } from "bun:test";
 import { resolveLinkCategory } from "../linkCategoryResolver";
 
@@ -32,4 +33,31 @@ describe("resolveLinkCategory", () => {
     expect(result.category).toBe("other");
     expect(result.reason).toBe("fallback");
   });
+
+  it("uses domain rule with path inclusion", () => {
+      const result = resolveLinkCategory("https://open.spotify.com/episode/123");
+      expect(result.category).toBe("podcast");
+      expect(result.reason).toBe("domain_rule");
+  });
+
+  it("uses heuristic for blog posts", () => {
+      const result = resolveLinkCategory("https://unknown.com/my-blog-post");
+      expect(result.category).toBe("article");
+      expect(result.reason).toBe("heuristic");
+  });
+
+  it("uses provider mapping for known provider in hostname", () => {
+      // Use a path that doesn't trigger path rules (avoid 'album', 'music', etc.)
+      const result = resolveLinkCategory("https://bandcamp.com/discover");
+      expect(result.category).toBe("music");
+      expect(result.reason).toBe("provider_mapping");
+  });
+
+  it("skips domain rule if path requirement not met", () => {
+      // open.spotify.com has a rule for /episode (podcast), and a catch-all (music)
+      const result = resolveLinkCategory("https://open.spotify.com/track/123");
+      expect(result.category).toBe("music");
+      expect(result.reason).toBe("domain_rule");
+  });
 });
+

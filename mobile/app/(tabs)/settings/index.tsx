@@ -152,7 +152,7 @@ export default function SettingsScreen() {
                   key={option.value}
                   onPress={() => setPreference(option.value)}
                 >
-                  <Text>{option.title}</Text>
+                  <Text design="rounded">{option.title}</Text>
                   <Spacer />
                   {isSelected && (
                     <Image
@@ -169,47 +169,62 @@ export default function SettingsScreen() {
           </Section>
           <Section title="Profile">
             <HStack>
-              <Text color="primary">Email</Text>
+              <Text design="rounded">Email</Text>
               <Spacer />
-              <Text color="secondary" lineLimit={1}>
+              <Text color="secondary" design="rounded" lineLimit={1}>
                 {session?.user?.email ?? "Not logged in"}
               </Text>
             </HStack>
             <HStack>
-              <Text color="primary">Usage</Text>
+              <Text design="rounded">Usage</Text>
               <Spacer />
               {currentUser === undefined ? (
                 <CircularProgress />
               ) : (
-                <Text color="secondary">
+                <Text color="secondary" design="rounded">
                   {currentUser
                     ? `${currentUser.cardCount} Cards`
                     : "Not available"}
                 </Text>
               )}
             </HStack>
-            <Button onPress={handleLogoutAlert} role="destructive">
-              <HStack spacing={8}>
-                <Text color="primary">Log Out</Text>
-                <Spacer />
-                <Image systemName="chevron.right" size={14} color="secondary" />
-              </HStack>
-            </Button>
-          </Section>
-          <Section title="Advanced">
             <Button
               role="destructive"
               onPress={handleDeleteAlert}
               disabled={isDeleting}
             >
               <HStack spacing={8}>
-                <Text color="primary">
+                <Text color="primary" design="rounded">
                   {`${isDeleting ? "Deleting..." : "Delete Account"}${deleteError ? ` - ${deleteError}` : ""}`}
                 </Text>
                 <Spacer />
                 <Image systemName="chevron.right" size={14} color="secondary" />
               </HStack>
             </Button>
+            <Button onPress={handleLogoutAlert} role="destructive">
+              <HStack spacing={8}>
+                <Text color="primary" design="rounded">
+                  Log Out
+                </Text>
+                <Spacer />
+                <Image systemName="chevron.right" size={14} color="secondary" />
+              </HStack>
+            </Button>
+          </Section>
+          <Section title="About">
+            <HStack>
+              <Text design="rounded">Teak</Text>
+              <Spacer />
+              <Text color="secondary" design="rounded">
+                V0.1 • Early Access
+              </Text>
+            </HStack>
+            <HStack>
+              <Text color="secondary" design="rounded">
+                Hope you enjoy using Teak as much as I enjoyed creating it.
+              </Text>
+              <Spacer />
+            </HStack>
           </Section>
         </List>
       </Host>

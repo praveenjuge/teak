@@ -25,6 +25,33 @@ export const workflow = new WorkflowManager(components.workflow);
 
 type CardIdentifier = { cardId: Id<"cards"> };
 
+export const initializeCardProcessingStateHandler = async (ctx: any, { cardId }: any) => {
+  const card = await ctx.db.get("cards", cardId);
+  if (!card) {
+    throw new Error(`Card ${cardId} not found`);
+  }
+
+  const now = Date.now();
+  const cardType = (card.type ?? "text") as CardType;
+  const linkPreviewStatus = card.metadata?.linkPreview?.status;
+  const awaitingLinkMetadata =
+    cardType === "link" && linkPreviewStatus !== "success";
+  const initialProcessingStatus = buildInitialProcessingStatus({
+    now,
+    cardType,
+    classificationStatus: card.processingStatus?.classify ?? stagePending(),
+  });
+
+  await ctx.db.patch("cards", cardId, {
+    aiTags: undefined,
+    aiSummary: undefined,
+    aiTranscript: undefined,
+    processingStatus: initialProcessingStatus,
+    metadataStatus: awaitingLinkMetadata ? "pending" : "completed",
+    updatedAt: now,
+  });
+};
+
 /**
  * Internal mutation used to reset a card's AI fields and mark processing as pending
  * before the workflow begins executing.
@@ -34,33 +61,26 @@ export const initializeCardProcessingState = internalMutation({
     cardId: v.id("cards"),
   },
   returns: v.null(),
-  handler: async (ctx, { cardId }) => {
-    const card = await ctx.db.get("cards", cardId);
-    if (!card) {
-      throw new Error(`Card ${cardId} not found`);
-    }
-
-    const now = Date.now();
-    const cardType = (card.type ?? "text") as CardType;
-    const linkPreviewStatus = card.metadata?.linkPreview?.status;
-    const awaitingLinkMetadata =
-      cardType === "link" && linkPreviewStatus !== "success";
-    const initialProcessingStatus = buildInitialProcessingStatus({
-      now,
-      cardType,
-      classificationStatus: card.processingStatus?.classify ?? stagePending(),
-    });
-
-    await ctx.db.patch("cards", cardId, {
-      aiTags: undefined,
-      aiSummary: undefined,
-      aiTranscript: undefined,
-      processingStatus: initialProcessingStatus,
-      metadataStatus: awaitingLinkMetadata ? "pending" : "completed",
-      updatedAt: now,
-    });
-  },
+  handler: initializeCardProcessingStateHandler,
 });
+
+export const startCardProcessingWorkflowHandler = async (ctx: any, { cardId }: CardIdentifier) => {
+  const workflowRef =
+    internalAny["workflows/cardProcessing"].cardProcessingWorkflow;
+  const workflowId = await workflow.start(
+    ctx,
+    workflowRef,
+    { cardId },
+    { startAsync: true }
+  );
+
+  await ctx.runMutation(
+    internalAny["workflows/manager"].initializeCardProcessingState,
+    { cardId }
+  );
+
+  return { workflowId };
+};
 
 /**
  * Action that prepares the card and kicks off the card processing workflow.
@@ -73,21 +93,5 @@ export const startCardProcessingWorkflow = internalAction({
   returns: v.object({
     workflowId: v.string(),
   }),
-  handler: async (ctx, { cardId }: CardIdentifier) => {
-    const workflowRef =
-      internalAny["workflows/cardProcessing"].cardProcessingWorkflow;
-    const workflowId = await workflow.start(
-      ctx,
-      workflowRef,
-      { cardId },
-      { startAsync: true }
-    );
-
-    await ctx.runMutation(
-      internalAny["workflows/manager"].initializeCardProcessingState,
-      { cardId }
-    );
-
-    return { workflowId };
-  },
+  handler: startCardProcessingWorkflowHandler,
 });

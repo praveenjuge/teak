@@ -38,6 +38,9 @@ bun run start
 # Lint
 bun run lint
 
+# Tests
+bun test
+
 # Manage deps
 bun add <package-name>
 bun add --dev <package-name>
@@ -45,6 +48,15 @@ bun remove <package-name>
 ```
 
 ## Architecture at a Glance
+
+## Quality Bar
+
+- When adding a feature, write or update tests and make sure `bun test` passes.
+- Add/extend tests for new features or bug fixes.
+- Prefer Playwright for user-facing flows; add at least one happy-path and one edge case.
+- Update or add fixtures/test data so tests are deterministic.
+- If a feature changes UI or copy, update any assertions that check text/labels.
+- Keep tests fast; avoid extra network calls unless the feature requires it.
 
 - **Core stack**: Next.js (App Router, TS, Tailwind), Expo RN, Wxt + Chrome APIs, Fumadocs (Next.js + MDX), Convex backend, Better Auth, shadcn/ui (web) & Expo UI, Convex Storage, Polar billing.
 - **Repo layout**

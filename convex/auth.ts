@@ -100,50 +100,52 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
 };
 
 // Get the current user
+export const getCurrentUserHandler = async (ctx: any) => {
+  // After sign-out the client may still briefly call this query; treat missing
+  // session as a non-error so we don't spam Convex logs with "Unauthenticated".
+  let user;
+  try {
+    user = await authComponent.getAuthUser(ctx);
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthenticated") {
+      return null;
+    }
+    throw error;
+  }
+  if (!user) return null;
+
+  const userId = (user as any).id ?? (user as any)._id ?? (user as any).subject;
+
+  let hasPremium = false;
+  try {
+    const subscription = await polar.getCurrentSubscription(ctx, {
+      userId,
+    });
+    hasPremium = subscription?.status === "active";
+  } catch {
+    hasPremium = false;
+  }
+
+  const cards = await ctx.db
+    .query("cards")
+    .withIndex("by_user_deleted", (q: any) =>
+      q.eq("userId", userId).eq("isDeleted", undefined),
+    )
+    .collect();
+  const cardCount = cards.length;
+  const canCreateCard = hasPremium || cardCount < FREE_TIER_LIMIT;
+
+  return {
+    ...user,
+    hasPremium,
+    cardCount,
+    canCreateCard,
+  };
+};
+
 export const getCurrentUser = query({
   args: {},
-  handler: async (ctx) => {
-    // After sign-out the client may still briefly call this query; treat missing
-    // session as a non-error so we don't spam Convex logs with "Unauthenticated".
-    let user;
-    try {
-      user = await authComponent.getAuthUser(ctx);
-    } catch (error) {
-      if (error instanceof Error && error.message === "Unauthenticated") {
-        return null;
-      }
-      throw error;
-    }
-    if (!user) return null;
-
-    const userId = (user as any).id ?? (user as any)._id ?? (user as any).subject;
-
-    let hasPremium = false;
-    try {
-      const subscription = await polar.getCurrentSubscription(ctx, {
-        userId,
-      });
-      hasPremium = subscription?.status === "active";
-    } catch {
-      hasPremium = false;
-    }
-
-    const cards = await ctx.db
-      .query("cards")
-      .withIndex("by_user_deleted", (q) =>
-        q.eq("userId", userId).eq("isDeleted", undefined),
-      )
-      .collect();
-    const cardCount = cards.length;
-    const canCreateCard = hasPremium || cardCount < FREE_TIER_LIMIT;
-
-    return {
-      ...user,
-      hasPremium,
-      cardCount,
-      canCreateCard,
-    };
-  },
+  handler: getCurrentUserHandler,
 });
 
 /**
@@ -209,34 +211,36 @@ export async function ensureCardCreationAllowed(
   }
 }
 
+export const deleteAccountHandler = async (ctx: any) => {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new Error("User must be authenticated");
+  }
+
+  const userId = identity.subject;
+
+  // Use by_user_deleted index with partial match (just userId)
+  // This works because Convex allows querying on prefix of compound indexes
+  const cards = await ctx.db
+    .query("cards")
+    .withIndex("by_user_deleted", (q: any) => q.eq("userId", userId))
+    .collect();
+
+  for (const card of cards) {
+    if (card.fileId) {
+      await ctx.storage.delete(card.fileId);
+    }
+    if (card.thumbnailId) {
+      await ctx.storage.delete(card.thumbnailId);
+    }
+
+    await ctx.db.delete("cards", card._id);
+  }
+
+  return { deletedCards: cards.length };
+};
+
 export const deleteAccount = mutation({
   args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("User must be authenticated");
-    }
-
-    const userId = identity.subject;
-
-    // Use by_user_deleted index with partial match (just userId)
-    // This works because Convex allows querying on prefix of compound indexes
-    const cards = await ctx.db
-      .query("cards")
-      .withIndex("by_user_deleted", (q) => q.eq("userId", userId))
-      .collect();
-
-    for (const card of cards) {
-      if (card.fileId) {
-        await ctx.storage.delete(card.fileId);
-      }
-      if (card.thumbnailId) {
-        await ctx.storage.delete(card.thumbnailId);
-      }
-
-      await ctx.db.delete("cards", card._id);
-    }
-
-    return { deletedCards: cards.length };
-  },
+  handler: deleteAccountHandler,
 });
