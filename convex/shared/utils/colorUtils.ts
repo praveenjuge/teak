@@ -167,7 +167,7 @@ const COLOR_NAMES: Record<string, string> = {
 };
 
 // Convert hex to RGB
-function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+export function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   let normalized = hex.replace(/^#/, '');
 
   if (normalized.length === 3 || normalized.length === 4) {

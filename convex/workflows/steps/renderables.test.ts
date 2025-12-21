@@ -71,4 +71,68 @@ describe("renderables step", () => {
     expect(mutationArgs).toBeDefined();
     expect(mutationArgs?.processingStatus.renderables.status).toBe("completed");
   });
+
+  it("throws error when card is not found", async () => {
+    const mockCtx = {
+      runQuery: async () => null,
+    };
+    expect(generateHandler(mockCtx, { cardId: "none", cardType: "image" })).rejects.toThrow(/not found/);
+  });
+
+  it("marks renderables as completed when thumbnail generation succeeds", async () => {
+    const runMutation = createMockFn<[any, any], null>(async () => null);
+    const mockCtx = {
+      runQuery: createMockFn<[any, any], any>(async () => ({
+        _id: "card789",
+        type: "image",
+        fileId: "file789",
+        processingStatus: {},
+      })),
+      runAction: createMockFn<[any, any], any>(async () => ({
+        success: true,
+        generated: true,
+      })),
+      runMutation,
+    };
+
+    const result = await generateHandler(mockCtx, { cardId: "card789", cardType: "image" });
+
+    expect(result.success).toBe(true);
+    expect(result.thumbnailGenerated).toBe(true);
+    const mutationArgs = runMutation.calls[0]?.[1] as any;
+    expect(mutationArgs?.processingStatus.renderables.status).toBe("completed");
+  });
+
+  it("handles video thumbnails", async () => {
+    const runMutation = createMockFn<[any, any], null>(async () => null);
+    const mockCtx = {
+      runQuery: createMockFn<[any, any], any>(async () => ({
+        _id: "vid1",
+        type: "video",
+        fileId: "f1",
+      })),
+      runAction: createMockFn<[any, any], any>(async () => ({ success: true, generated: true })),
+      runMutation,
+    };
+
+    const result = await generateHandler(mockCtx, { cardId: "vid1", cardType: "video" });
+    expect(result.thumbnailGenerated).toBe(true);
+  });
+
+  it("handles PDF thumbnails", async () => {
+    const runMutation = createMockFn<[any, any], null>(async () => null);
+    const mockCtx = {
+      runQuery: createMockFn<[any, any], any>(async () => ({
+        _id: "pdf1",
+        type: "document",
+        fileId: "f2",
+        fileMetadata: { mimeType: "application/pdf" }
+      })),
+      runAction: createMockFn<[any, any], any>(async () => ({ success: true, generated: true })),
+      runMutation,
+    };
+
+    const result = await generateHandler(mockCtx, { cardId: "pdf1", cardType: "document" });
+    expect(result.thumbnailGenerated).toBe(true);
+  });
 });

@@ -60,8 +60,10 @@ describe("aiMetadata generators", () => {
     }));
   });
 
-  test("handles errors", async () => {
+  test("handles errors in all generators", async () => {
     mockGenerateObject.mockRejectedValue(new Error("AI error"));
     expect(generateTextMetadata("c")).rejects.toThrow("AI error");
+    expect(generateImageMetadata("url")).rejects.toThrow("AI error");
+    expect(generateLinkMetadata("url")).rejects.toThrow("AI error");
   });
 });
