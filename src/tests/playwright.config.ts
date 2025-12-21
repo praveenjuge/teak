@@ -5,6 +5,7 @@ const shouldStartServer = !process.env.PLAYWRIGHT_SKIP_WEBSERVER;
 
 export default defineConfig({
   testDir: ".",
+  testMatch: "**/*.e2e.ts",
   timeout: 30_000,
   expect: {
     timeout: 10_000,

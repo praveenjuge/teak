@@ -33,6 +33,7 @@ import {
 
 void SplashScreen.preventAutoHideAsync();
 const AUTO_DISMISS_MS = 2000;
+const DISMISS_ANIMATION_MS = 350;
 
 export default function RootLayout() {
   return (
@@ -112,8 +113,19 @@ function FeedbackBottomSheet() {
     Boolean(getFeedbackStatus())
   );
   const isDismissingRef = useRef(false);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeState = useMemo(() => feedbackState, [feedbackState]);
+
+  const finalizeDismiss = useCallback(() => {
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
+    }
+    setFeedbackState(null);
+    clearFeedbackStatus();
+    isDismissingRef.current = false;
+  }, []);
 
   const beginDismiss = useCallback(() => {
     if (isDismissingRef.current) {
@@ -121,16 +133,20 @@ function FeedbackBottomSheet() {
     }
     isDismissingRef.current = true;
     setIsSheetOpen(false);
-  }, []);
-
-  const finalizeDismiss = useCallback(() => {
-    setFeedbackState(null);
-    clearFeedbackStatus();
-    isDismissingRef.current = false;
-  }, []);
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+    }
+    dismissTimerRef.current = setTimeout(() => {
+      finalizeDismiss();
+    }, DISMISS_ANIMATION_MS);
+  }, [finalizeDismiss]);
 
   useEffect(() => {
     return subscribeFeedbackStatus((state) => {
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+        dismissTimerRef.current = null;
+      }
       isDismissingRef.current = false;
       setFeedbackState(state);
       setIsSheetOpen(Boolean(state));
@@ -173,7 +189,7 @@ function FeedbackBottomSheet() {
         left: 0,
         right: 0,
         bottom: 0,
-        pointerEvents: "box-none",
+        pointerEvents: isSheetOpen ? "box-none" : "none",
       }}
       useViewportSizeMeasurement
     >
