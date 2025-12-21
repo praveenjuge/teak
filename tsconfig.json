@@ -52,7 +52,9 @@
     "convex/**/*.ts",
     "convex/**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    "tests/**/*.ts",
+    "tests/**/*.tsx"
   ],
   "exclude": [
     "node_modules"
