@@ -277,11 +277,6 @@ const normalizeImage = (value: any): string | undefined => {
   return undefined;
 };
 
-/**
- * Safely checks if a hostname matches a given domain or is a subdomain of it.
- * This prevents attacks where malicious domains embed allowed domains as substrings.
- * e.g., "evil-spotify.com" or "spotify.com.evil.com" won't match "spotify.com"
- */
 const hostnameMatchesDomain = (hostname: string, domain: string): boolean => {
   return hostname === domain || hostname.endsWith(`.${domain}`);
 };
@@ -293,7 +288,6 @@ const detectProvider = (url?: string, hint?: string): string | undefined => {
     const hostname = new URL(url).hostname.toLowerCase();
     if (hostnameMatchesDomain(hostname, "github.com")) return "github";
     if (hostnameMatchesDomain(hostname, "goodreads.com")) return "goodreads";
-    // Amazon has multiple TLDs (amazon.com, amazon.co.uk, etc.)
     if (hostnameMatchesDomain(hostname, "amazon.com") ||
       hostnameMatchesDomain(hostname, "amazon.co.uk") ||
       hostnameMatchesDomain(hostname, "amazon.de") ||
@@ -685,80 +679,85 @@ export const classifyStep: any = internalAction({
     existingMetadata: v.optional(v.any()),
     shouldFetchStructured: v.boolean(),
   }),
-  handler: async (ctx, { cardId }) => {
-    const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
-      cardId,
-    });
+  handler: classifyHandler,
+});
 
-    if (!card) {
-      throw new Error(`Card ${cardId} not found for categorization`);
-    }
+export async function classifyHandler(
+  ctx: any,
+  { cardId }: { cardId: Id<"cards"> }
+) {
+  const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
+    cardId,
+  });
 
-    if (card.type !== "link") {
-      throw new Error(`Card ${cardId} is not a link card (type: ${card.type})`);
-    }
+  if (!card) {
+    throw new Error(`Card ${cardId} not found for categorization`);
+  }
 
-    const contextCard = card as CategorizationContextCard;
-    const linkPreview =
-      contextCard.metadata?.linkPreview?.status === "success"
-        ? contextCard.metadata.linkPreview
-        : undefined;
+  if (card.type !== "link") {
+    throw new Error(`Card ${cardId} is not a link card (type: ${card.type})`);
+  }
 
-    const rawSourceUrl =
-      contextCard.url || linkPreview?.finalUrl || linkPreview?.url || "";
-    const sourceUrl = normalizeUrlForComparison(rawSourceUrl) || rawSourceUrl;
+  const contextCard = card as CategorizationContextCard;
+  const linkPreview =
+    contextCard.metadata?.linkPreview?.status === "success"
+      ? contextCard.metadata.linkPreview
+      : undefined;
 
-    const existingMetadata =
-      contextCard.metadata?.linkCategory ?? undefined;
+  const rawSourceUrl =
+    contextCard.url || linkPreview?.finalUrl || linkPreview?.url || "";
+  const sourceUrl = normalizeUrlForComparison(rawSourceUrl) || rawSourceUrl;
 
-    const METADATA_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
-    const metadataFresh =
-      existingMetadata?.fetchedAt &&
-      Date.now() - existingMetadata.fetchedAt < METADATA_TTL_MS;
+  const existingMetadata =
+    contextCard.metadata?.linkCategory ?? undefined;
 
-    const cachedSourceUrl = normalizeUrlForComparison(existingMetadata?.sourceUrl) || existingMetadata?.sourceUrl;
+  const METADATA_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
+  const metadataFresh =
+    existingMetadata?.fetchedAt &&
+    Date.now() - existingMetadata.fetchedAt < METADATA_TTL_MS;
 
-    if (
-      existingMetadata?.category &&
-      sourceUrl &&
-      cachedSourceUrl &&
-      sourceUrl === cachedSourceUrl &&
-      metadataFresh
-    ) {
-      return {
-        mode: "skipped" as const,
-        card: contextCard,
-        sourceUrl,
-        classification: undefined,
-        existingMetadata,
-        shouldFetchStructured: false,
-      };
-    }
+  const cachedSourceUrl = normalizeUrlForComparison(existingMetadata?.sourceUrl) || existingMetadata?.sourceUrl;
 
-    const classification = await classifyLinkCategory(contextCard, sourceUrl);
-    if (!classification) {
-      throw new Error(`Failed to classify link category for card ${cardId}`);
-    }
-
-    const structuredFresh =
-      existingMetadata?.raw?.structuredMeta?.fetchedAt &&
-      Date.now() - existingMetadata.raw.structuredMeta.fetchedAt < METADATA_TTL_MS;
-
-    const shouldFetchStructured =
-      !!sourceUrl &&
-      !existingMetadata?.raw?.structured &&
-      !structuredFresh;
-
+  if (
+    existingMetadata?.category &&
+    sourceUrl &&
+    cachedSourceUrl &&
+    sourceUrl === cachedSourceUrl &&
+    metadataFresh
+  ) {
     return {
-      mode: "classified" as const,
+      mode: "skipped" as const,
       card: contextCard,
       sourceUrl,
-      classification,
+      classification: undefined,
       existingMetadata,
-      shouldFetchStructured,
+      shouldFetchStructured: false,
     };
-  },
-});
+  }
+
+  const classification = await classifyLinkCategory(contextCard, sourceUrl);
+  if (!classification) {
+    throw new Error(`Failed to classify link category for card ${cardId}`);
+  }
+
+  const structuredFresh =
+    existingMetadata?.raw?.structuredMeta?.fetchedAt &&
+    Date.now() - existingMetadata.raw.structuredMeta.fetchedAt < METADATA_TTL_MS;
+
+  const shouldFetchStructured =
+    !!sourceUrl &&
+    !existingMetadata?.raw?.structured &&
+    !structuredFresh;
+
+  return {
+    mode: "classified" as const,
+    card: contextCard,
+    sourceUrl,
+    classification,
+    existingMetadata,
+    shouldFetchStructured,
+  };
+}
 
 export const fetchStructuredDataStep: any = internalAction({
   args: {
@@ -769,15 +768,20 @@ export const fetchStructuredDataStep: any = internalAction({
   returns: v.object({
     structuredData: v.optional(v.any()),
   }),
-  handler: async (_ctx, { cardId, sourceUrl, shouldFetch }) => {
-    if (!shouldFetch || !sourceUrl) {
-      return { structuredData: null };
-    }
-
-    const structuredData = await fetchStructuredData(sourceUrl);
-    return { structuredData };
-  },
+  handler: fetchStructuredDataHandler,
 });
+
+export async function fetchStructuredDataHandler(
+  _ctx: any,
+  { cardId, sourceUrl, shouldFetch }: { cardId: Id<"cards">, sourceUrl: string, shouldFetch: boolean }
+) {
+  if (!shouldFetch || !sourceUrl) {
+    return { structuredData: null };
+  }
+
+  const structuredData = await fetchStructuredData(sourceUrl);
+  return { structuredData };
+}
 
 export const mergeAndSaveStep: any = internalAction({
   args: {
@@ -795,55 +799,60 @@ export const mergeAndSaveStep: any = internalAction({
     imageUrl: v.optional(v.string()),
     factsCount: v.number(),
   }),
-  handler: async (ctx, { cardId, card, sourceUrl, mode, classification, existingMetadata, structuredData }) => {
-    if (mode === "skipped") {
-      if (!existingMetadata) {
-        throw new Error(
-          `Existing metadata required to skip classification for card ${cardId}`
-        );
-      }
+  handler: mergeAndSaveHandler,
+});
 
-      await ctx.runMutation(
-        (internal as any)["workflows/steps/categorization/mutations"].updateCategorization,
-        {
-          cardId,
-          metadata: existingMetadata,
-        }
+export async function mergeAndSaveHandler(
+  ctx: any,
+  { cardId, card, sourceUrl, mode, classification, existingMetadata, structuredData }: any
+) {
+  if (mode === "skipped") {
+    if (!existingMetadata) {
+      throw new Error(
+        `Existing metadata required to skip classification for card ${cardId}`
       );
-
-      return {
-        category: existingMetadata.category,
-        confidence: existingMetadata.confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE,
-        imageUrl: existingMetadata.imageUrl,
-        factsCount: existingMetadata.facts?.length ?? 0,
-      };
     }
-
-    if (!classification) {
-      throw new Error(`Classification result missing for card ${cardId}`);
-    }
-
-    const metadata = await enrichLinkCategory(
-      card as CategorizationContextCard,
-      classification as CategoryClassificationResult,
-      {
-        structuredData,
-      }
-    );
 
     await ctx.runMutation(
       (internal as any)["workflows/steps/categorization/mutations"].updateCategorization,
       {
         cardId,
-        metadata,
+        metadata: existingMetadata,
       }
     );
 
     return {
-      category: metadata.category,
-      confidence: metadata.confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE,
-      imageUrl: metadata.imageUrl,
-      factsCount: metadata.facts?.length ?? 0,
+      category: existingMetadata.category,
+      confidence: existingMetadata.confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE,
+      imageUrl: existingMetadata.imageUrl,
+      factsCount: existingMetadata.facts?.length ?? 0,
     };
-  },
-});
+  }
+
+  if (!classification) {
+    throw new Error(`Classification result missing for card ${cardId}`);
+  }
+
+  const metadata = await enrichLinkCategory(
+    card as CategorizationContextCard,
+    classification as CategoryClassificationResult,
+    {
+      structuredData,
+    }
+  );
+
+  await ctx.runMutation(
+    (internal as any)["workflows/steps/categorization/mutations"].updateCategorization,
+    {
+      cardId,
+      metadata,
+    }
+  );
+
+  return {
+    category: metadata.category,
+    confidence: metadata.confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE,
+    imageUrl: metadata.imageUrl,
+    factsCount: metadata.facts?.length ?? 0,
+  };
+}

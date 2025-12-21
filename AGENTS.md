@@ -39,7 +39,7 @@ bun run start
 bun run lint
 
 # Tests
-bun test
+bun run test
 
 # Manage deps
 bun add <package-name>
@@ -51,7 +51,7 @@ bun remove <package-name>
 
 ## Quality Bar
 
-- When adding a feature, write or update tests and make sure `bun test` passes.
+- When adding a feature, write or update tests and make sure `bun run test` passes.
 - Add/extend tests for new features or bug fixes.
 - Prefer Playwright for user-facing flows; add at least one happy-path and one edge case.
 - Update or add fixtures/test data so tests are deterministic.

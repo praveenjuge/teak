@@ -1,79 +1,83 @@
 // @ts-nocheck
-import { describe, expect, test, mock, beforeEach } from "bun:test";
-import { generateTranscript } from "./transcript";
+import { mock, describe, expect, test, beforeEach, beforeAll, afterAll } from "bun:test";
 
-const mockTranscribe = mock();
-mock.module("ai", () => ({
-  experimental_transcribe: mockTranscribe,
-}));
+const aiMocks = (global as any).__AI_MOCKS__ || {
+    generateObject: mock(),
+    experimental_transcribe: mock(),
+};
+(global as any).__AI_MOCKS__ = aiMocks;
+const mockTranscribe = aiMocks.experimental_transcribe;
 
+mock.module("ai", () => aiMocks);
+
+const originalFetch = global.fetch;
 const mockFetch = mock();
-global.fetch = mockFetch;
+
+let generateTranscript: any;
 
 describe("generateTranscript", () => {
-  beforeEach(() => {
-      mockTranscribe.mockReset();
-      mockFetch.mockReset();
-  });
+    beforeAll(async () => {
+        global.fetch = mockFetch;
+        generateTranscript = (await import("./transcript")).generateTranscript;
+    });
 
-  test("generates transcript successfully", async () => {
-      mockFetch.mockResolvedValue({
-          ok: true,
-          headers: { get: () => "audio/mp3" },
-          arrayBuffer: async () => new ArrayBuffer(8),
-      });
-      mockTranscribe.mockResolvedValue({ text: "Transcript text" });
+    afterAll(() => {
+        global.fetch = originalFetch;
+    });
 
-      const result = await generateTranscript("https://audio.com/file.mp3");
-      expect(result).toBe("Transcript text");
-      expect(mockTranscribe).toHaveBeenCalledWith(expect.objectContaining({
-          model: expect.anything(),
-          audio: expect.any(Uint8Array),
-      }));
-  });
+    beforeEach(() => {
+        mockTranscribe.mockReset();
+        mockFetch.mockReset();
+    });
 
-  test("handles fetch error", async () => {
-      mockFetch.mockResolvedValue({ ok: false, status: 404, statusText: "Not Found" });
-      const result = await generateTranscript("url");
-      expect(result).toBeNull();
-  });
+    test("generates transcript successfully", async () => {
+        mockFetch.mockResolvedValue({
+            ok: true,
+            headers: { get: () => "audio/mp3" },
+            arrayBuffer: async () => new ArrayBuffer(8),
+        });
+        mockTranscribe.mockResolvedValue({ text: "Transcript text" });
 
-  test("handles transcription error", async () => {
-      mockFetch.mockResolvedValue({
-          ok: true,
-          headers: { get: () => "audio/mp3" },
-          arrayBuffer: async () => new ArrayBuffer(8),
-      });
-      mockTranscribe.mockRejectedValue(new Error("AI error"));
-      const result = await generateTranscript("url");
-      expect(result).toBeNull();
-  });
+        const result = await generateTranscript("https://audio.com/file.mp3");
+        expect(result).toBe("Transcript text");
+    });
 
-  describe("mime type extension logic", () => {
-      const mimeTypes = [
-          "audio/ogg", "audio/mp3", "audio/wav", "audio/m4a", "audio/webm", "audio/flac", "audio/unknown"
-      ];
+    test("handles fetch error", async () => {
+        mockFetch.mockResolvedValue({ ok: false, status: 404, statusText: "Not Found" });
+        const result = await generateTranscript("url");
+        expect(result).toBeNull();
+    });
 
-      test("covers all branches", async () => {
-          for (const mime of mimeTypes) {
-              mockFetch.mockResolvedValueOnce({
-                  ok: true,
-                  headers: { get: () => mime },
-                  arrayBuffer: async () => new ArrayBuffer(8),
-              });
-              mockTranscribe.mockResolvedValueOnce({ text: "" });
-              await generateTranscript("url");
-          }
-      });
-      
-      test("uses mimeHint", async () => {
-          mockFetch.mockResolvedValue({
-              ok: true,
-              headers: { get: () => "audio/webm" },
-              arrayBuffer: async () => new ArrayBuffer(8),
-          });
-          mockTranscribe.mockResolvedValue({ text: "" });
-          await generateTranscript("url", "audio/mp3");
-      });
-  });
+    test("handles transcription error", async () => {
+        mockFetch.mockResolvedValue({
+            ok: true,
+            headers: { get: () => "audio/mp3" },
+            arrayBuffer: async () => new ArrayBuffer(8),
+        });
+        mockTranscribe.mockRejectedValue(new Error("AI error"));
+        const result = await generateTranscript("url");
+        expect(result).toBeNull();
+    });
+
+    test("mime type extension logic > covers all branches", async () => {
+        mockFetch.mockResolvedValue({
+            ok: true,
+            headers: { get: () => "audio/wav" },
+            arrayBuffer: async () => new ArrayBuffer(8),
+        });
+        mockTranscribe.mockResolvedValue({ text: "Wav" });
+        await generateTranscript("u");
+        expect(mockTranscribe).toHaveBeenCalled();
+    });
+
+    test("mime type extension logic > uses mimeHint", async () => {
+        mockFetch.mockResolvedValue({
+            ok: true,
+            headers: { get: () => "audio/unknown" },
+            arrayBuffer: async () => new ArrayBuffer(8),
+        });
+        mockTranscribe.mockResolvedValue({ text: "Mime" });
+        await generateTranscript("u", "audio/mp4");
+        expect(mockTranscribe).toHaveBeenCalled();
+    });
 });

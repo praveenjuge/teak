@@ -1,10 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { generate } from "./renderables";
+import { generateHandler } from "./renderables";
 
 describe("renderables step", () => {
-  const getHandler = () =>
-    (generate as any).handler || (generate as any)._handler || (generate as any);
-
   const createMockFn = <TArgs extends unknown[], TResult>(
     impl: (...args: TArgs) => TResult | Promise<TResult>
   ) => {
@@ -19,7 +16,6 @@ describe("renderables step", () => {
 
   it("marks renderables as failed when thumbnail generation fails", async () => {
     const runMutation = createMockFn<[any, any], null>(async () => null);
-    const action = getHandler();
     const mockCtx = {
       runQuery: createMockFn<[any, any], any>(async () => ({
         _id: "card123",
@@ -35,7 +31,7 @@ describe("renderables step", () => {
       runMutation,
     };
 
-    const result = await action(mockCtx, { cardId: "card123", cardType: "image" });
+    const result = await generateHandler(mockCtx, { cardId: "card123", cardType: "image" });
 
     expect(result.success).toBe(false);
     expect(result.thumbnailGenerated).toBe(false);
@@ -51,7 +47,6 @@ describe("renderables step", () => {
 
   it("marks renderables as completed when thumbnail generation is skipped", async () => {
     const runMutation = createMockFn<[any, any], null>(async () => null);
-    const action = getHandler();
     const mockCtx = {
       runQuery: createMockFn<[any, any], any>(async () => ({
         _id: "card456",
@@ -66,7 +61,7 @@ describe("renderables step", () => {
       runMutation,
     };
 
-    const result = await action(mockCtx, { cardId: "card456", cardType: "image" });
+    const result = await generateHandler(mockCtx, { cardId: "card456", cardType: "image" });
 
     expect(result.success).toBe(true);
     expect(result.thumbnailGenerated).toBe(false);
