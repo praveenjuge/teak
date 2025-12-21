@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Image as RNImage, Linking, useWindowDimensions } from "react-native";
-import { useAudioPlayer } from "expo-audio";
+import { Audio } from "expo-av";
 import { useEvent } from "expo";
 import { VideoView, useVideoPlayer } from "expo-video";
 import {
@@ -112,16 +112,18 @@ const FullHeightMedia = ({
 const AudioPreview = ({
   title,
   height,
-  player,
+  isPlaying,
+  isLoading,
   hasSource,
+  onToggle,
 }: {
   title: string;
   height: number;
-  player: ReturnType<typeof useAudioPlayer> | null;
+  isPlaying: boolean;
+  isLoading: boolean;
   hasSource: boolean;
+  onToggle: () => void;
 }) => {
-  const isPlaying = !!player?.playing;
-
   return (
     <VStack
       spacing={16}
@@ -140,22 +142,19 @@ const AudioPreview = ({
       <Button
         variant="bordered"
         controlSize="large"
-        onPress={() => {
-          if (!player || !hasSource) {
-            return;
-          }
-          if (player.playing) {
-            player.pause();
-          } else {
-            player.play();
-          }
-        }}
-        disabled={!hasSource}
+        onPress={onToggle}
+        disabled={!hasSource || isLoading}
       >
         <HStack spacing={10} alignment="center">
           <Spacer />
           <Text color="primary" design="rounded">
-            {hasSource ? (isPlaying ? "Pause" : "Play") : "Audio unavailable"}
+            {!hasSource
+              ? "Audio unavailable"
+              : isLoading
+                ? "Loading..."
+                : isPlaying
+                  ? "Pause"
+                  : "Play"}
           </Text>
           <Spacer />
         </HStack>
@@ -240,42 +239,142 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
   const mediaPadding = 12;
 
   const audioUrl = card?.type === "audio" ? (card.fileUrl ?? null) : null;
-  const audioSource = audioUrl ? { uri: audioUrl } : null;
-  const player = useAudioPlayer(audioSource);
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const [isAudioLoading, setIsAudioLoading] = useState(false);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
 
-  const safePauseAudio = useCallback(() => {
-    if (!player || !audioUrl) return;
-    try {
-      player.pause();
-    } catch (error) {
-      console.warn("Failed to pause audio preview", error);
+  const audioMime = card?.fileMetadata?.mimeType?.toLowerCase();
+  const audioExt = card?.fileMetadata?.fileName?.toLowerCase().split(".").pop();
+  const unsupportedAudioMimes = useMemo(
+    () =>
+      new Set([
+        "audio/webm",
+        "audio/ogg",
+        "audio/opus",
+        "audio/x-opus+ogg",
+        "audio/x-ogg",
+      ]),
+    []
+  );
+  const unsupportedAudioExts = useMemo(
+    () => new Set(["webm", "ogg", "opus"]),
+    []
+  );
+  const isAudioSupported =
+    (audioMime ? !unsupportedAudioMimes.has(audioMime) : true) &&
+    (audioExt ? !unsupportedAudioExts.has(audioExt) : true);
+
+  const stopAndUnloadAudio = useCallback(async () => {
+    const sound = soundRef.current;
+    if (!sound) {
+      setIsAudioLoading(false);
+      setIsAudioPlaying(false);
+      setAudioError(null);
+      return;
     }
-  }, [player, audioUrl]);
+    try {
+      await sound.stopAsync();
+    } catch (error) {
+      console.warn("Failed to stop audio preview", error);
+    }
+    try {
+      await sound.unloadAsync();
+    } catch (error) {
+      console.warn("Failed to unload audio preview", error);
+    }
+    soundRef.current = null;
+    setIsAudioLoading(false);
+    setIsAudioPlaying(false);
+    setAudioError(null);
+  }, []);
+
+  const loadAndPlayAudio = useCallback(async () => {
+    if (!audioUrl) return;
+    if (!isAudioSupported) {
+      setAudioError("Unsupported audio format");
+      return;
+    }
+    await stopAndUnloadAudio();
+    setIsAudioLoading(true);
+    setAudioError(null);
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        playThroughEarpieceAndroid: false,
+      });
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: audioUrl },
+        { shouldPlay: true },
+        (status) => {
+          if (!status.isLoaded) {
+            setIsAudioLoading(false);
+            setIsAudioPlaying(false);
+            if (status.error) {
+              setAudioError(status.error);
+            }
+            return;
+          }
+          setIsAudioLoading(status.isBuffering ?? false);
+          setIsAudioPlaying(status.isPlaying ?? false);
+        },
+        true
+      );
+      soundRef.current = sound;
+    } catch (error) {
+      console.warn("Failed to load audio preview", error);
+      setIsAudioLoading(false);
+      setIsAudioPlaying(false);
+      setAudioError("Failed to load audio");
+    }
+  }, [audioUrl, isAudioSupported, stopAndUnloadAudio]);
 
   useEffect(() => {
     if (card?.type !== "audio") {
-      safePauseAudio();
+      void stopAndUnloadAudio();
       return;
     }
     if (!audioUrl) {
+      void stopAndUnloadAudio();
       return;
     }
     if (isOpen) {
-      try {
-        player?.play();
-      } catch (error) {
-        console.warn("Failed to start audio preview", error);
-      }
+      void loadAndPlayAudio();
     } else {
-      safePauseAudio();
+      void stopAndUnloadAudio();
     }
-  }, [isOpen, player, card?.type, audioUrl, safePauseAudio]);
+  }, [isOpen, card?.type, audioUrl, loadAndPlayAudio, stopAndUnloadAudio]);
 
   useEffect(() => {
     return () => {
-      safePauseAudio();
+      void stopAndUnloadAudio();
     };
-  }, [safePauseAudio]);
+  }, [stopAndUnloadAudio]);
+
+  const handleToggleAudio = useCallback(async () => {
+    if (!audioUrl || !isAudioSupported) return;
+    const sound = soundRef.current;
+    if (!sound) {
+      await loadAndPlayAudio();
+      return;
+    }
+    try {
+      const status = await sound.getStatusAsync();
+      if (!status.isLoaded) {
+        await loadAndPlayAudio();
+        return;
+      }
+      if (status.isPlaying) {
+        await sound.pauseAsync();
+      } else {
+        await sound.playAsync();
+      }
+    } catch (error) {
+      console.warn("Failed to toggle audio preview", error);
+    }
+  }, [audioUrl, isAudioSupported, loadAndPlayAudio]);
 
   const handleOpenLink = async (url: string) => {
     try {
@@ -393,12 +492,47 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
           </VStack>
         );
       case "audio":
+        if (!audioUrl || audioError || !isAudioSupported) {
+          return (
+            <VStack
+              spacing={12}
+              alignment="center"
+              modifiers={[frame({ height: sheetHeight }), padding({ all: 16 })]}
+            >
+              <Spacer />
+              <Image systemName="waveform" size={28} color="secondary" />
+              <Text weight="semibold">Audio</Text>
+              <Text color={colors.secondaryLabel as any}>
+                {audioError ||
+                  (audioUrl ? "Unsupported audio format" : "Audio unavailable")}
+              </Text>
+              <Spacer />
+              {audioUrl ? (
+                <Button
+                  variant="bordered"
+                  controlSize="large"
+                  onPress={() => void handleOpenLink(audioUrl)}
+                >
+                  <HStack spacing={10} alignment="center">
+                    <Spacer />
+                    <Text color="primary" design="rounded">
+                      Open link
+                    </Text>
+                    <Spacer />
+                  </HStack>
+                </Button>
+              ) : null}
+            </VStack>
+          );
+        }
         return (
           <AudioPreview
             title={card.metadataTitle || "Audio"}
             height={sheetHeight}
-            player={player}
-            hasSource={!!audioSource}
+            isPlaying={isAudioPlaying}
+            isLoading={isAudioLoading}
+            hasSource={!!audioUrl}
+            onToggle={handleToggleAudio}
           />
         );
       case "link":

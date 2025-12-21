@@ -25,6 +25,7 @@
     "expo-asset": "~12.0.11",
     "expo-audio": "~1.0.16",
     "expo-auth-session": "~7.0.10",
+    "expo-av": "~16.0.8",
     "expo-constants": "~18.0.10",
     "expo-crypto": "~15.0.8",
     "expo-dev-client": "~6.0.20",

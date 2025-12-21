@@ -51,7 +51,7 @@ const Row = ({
   <HStack spacing={12} onPress={onPress} modifiers={rowModifiers(onLongPress)}>
     {leading}
     {content}
-    {trailing ? <Spacer /> : null}
+    <Spacer />
     {trailing}
   </HStack>
 );
