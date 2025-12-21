@@ -108,23 +108,32 @@ function RootNavigator() {
 function FeedbackBottomSheet() {
   const [feedbackState, setFeedbackState] =
     useState<FeedbackStatusPayload | null>(() => getFeedbackStatus());
+  const [isSheetOpen, setIsSheetOpen] = useState<boolean>(() =>
+    Boolean(getFeedbackStatus())
+  );
   const isDismissingRef = useRef(false);
 
   const activeState = useMemo(() => feedbackState, [feedbackState]);
 
-  const handleDismiss = useCallback(() => {
+  const beginDismiss = useCallback(() => {
     if (isDismissingRef.current) {
       return;
     }
     isDismissingRef.current = true;
+    setIsSheetOpen(false);
+  }, []);
+
+  const finalizeDismiss = useCallback(() => {
     setFeedbackState(null);
     clearFeedbackStatus();
+    isDismissingRef.current = false;
   }, []);
 
   useEffect(() => {
     return subscribeFeedbackStatus((state) => {
       isDismissingRef.current = false;
       setFeedbackState(state);
+      setIsSheetOpen(Boolean(state));
     });
   }, []);
 
@@ -146,11 +155,11 @@ function FeedbackBottomSheet() {
     const timeoutMs = autoDismissInterval ?? AUTO_DISMISS_MS;
 
     const timer = setTimeout(() => {
-      handleDismiss();
+      beginDismiss();
     }, timeoutMs);
 
     return () => clearTimeout(timer);
-  }, [activeState, handleDismiss]);
+  }, [activeState, beginDismiss]);
 
   if (!activeState) return null;
 
@@ -169,11 +178,13 @@ function FeedbackBottomSheet() {
       useViewportSizeMeasurement
     >
       <BottomSheet
-        isOpened={!!activeState}
+        isOpened={isSheetOpen}
         onIsOpenedChange={(open) => {
-          if (!open) {
-            handleDismiss();
+          if (open) {
+            setIsSheetOpen(true);
+            return;
           }
+          finalizeDismiss();
         }}
         presentationDetents={["medium"]}
         presentationDragIndicator="visible"

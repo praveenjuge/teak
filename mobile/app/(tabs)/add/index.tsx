@@ -67,7 +67,7 @@ export default function AddScreen() {
       showFeedback({
         message,
         iconName: "checkmark.circle.fill",
-        dismissAfterMs: 1500,
+        dismissAfterMs: 1000,
       });
     },
     [showFeedback]
