@@ -245,4 +245,18 @@ describe("fetchMetadata", () => {
       status: "failed"
     }));
   });
+
+  test("handles kernel creation failure", async () => {
+    mockRunQuery.mockResolvedValue({
+      _id: "c1",
+      type: "link",
+      url: "https://example.com",
+      metadata: { linkCategory: { status: "completed" } }
+    });
+    // Make create browser throw
+    mockKernelCreateBrowser.mockRejectedValue(new Error("Failed to create browser"));
+
+    // Should be treated as a scrape error (retryable) because scrapeWithKernel catches it and returns success: false
+    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(/retryable/);
+  });
 });

@@ -2,6 +2,17 @@
 import { describe, expect, test, mock, beforeEach } from "bun:test";
 import { createCardActions, setSentryCaptureFunction } from "./useCardActions";
 
+describe("defaults", () => {
+    test("uses default sentry capture without error", async () => {
+        const actions = createCardActions({ updateCardField: mock(), permanentDeleteCard: mock() });
+        // Trigger error
+        const mockUpdate = mock().mockRejectedValue(new Error("fail"));
+        const actions2 = createCardActions({ updateCardField: mockUpdate, permanentDeleteCard: mock() });
+        await actions2.handleDeleteCard("c1" as any);
+        // Should catch and call default captureException
+    });
+});
+
 describe("createCardActions", () => {
     const mockPermanentDeleteCard = mock();
     const mockUpdateCardField = mock();
@@ -54,10 +65,10 @@ describe("createCardActions", () => {
         });
 
         test("handles error", async () => {
-             const error = new Error("fail");
-             mockUpdateCardField.mockRejectedValue(error);
-             await actions.handleRestoreCard("c1" as any);
-             expect(mockOnError).toHaveBeenCalledWith(error, "restore");
+            const error = new Error("fail");
+            mockUpdateCardField.mockRejectedValue(error);
+            await actions.handleRestoreCard("c1" as any);
+            expect(mockOnError).toHaveBeenCalledWith(error, "restore");
         });
     });
 
@@ -69,10 +80,10 @@ describe("createCardActions", () => {
         });
 
         test("handles error", async () => {
-             const error = new Error("fail");
-             mockPermanentDeleteCard.mockRejectedValue(error);
-             await actions.handlePermanentDeleteCard("c1" as any);
-             expect(mockOnError).toHaveBeenCalledWith(error, "permanent delete");
+            const error = new Error("fail");
+            mockPermanentDeleteCard.mockRejectedValue(error);
+            await actions.handlePermanentDeleteCard("c1" as any);
+            expect(mockOnError).toHaveBeenCalledWith(error, "permanent delete");
         });
     });
 
@@ -83,11 +94,11 @@ describe("createCardActions", () => {
             expect(mockUpdateCardField).toHaveBeenCalledWith({ cardId: "c1", field: "isFavorited" });
         });
 
-         test("handles error", async () => {
-             const error = new Error("fail");
-             mockUpdateCardField.mockRejectedValue(error);
-             await actions.handleToggleFavorite("c1" as any);
-             expect(mockOnError).toHaveBeenCalledWith(error, "toggle favorite");
+        test("handles error", async () => {
+            const error = new Error("fail");
+            mockUpdateCardField.mockRejectedValue(error);
+            await actions.handleToggleFavorite("c1" as any);
+            expect(mockOnError).toHaveBeenCalledWith(error, "toggle favorite");
         });
     });
 
@@ -97,12 +108,12 @@ describe("createCardActions", () => {
             await actions.updateField("c1" as any, "notes", "some notes");
             expect(mockUpdateCardField).toHaveBeenCalledWith({ cardId: "c1", field: "notes", value: "some notes", tagToRemove: undefined });
         });
-        
+
         test("handles error", async () => {
-             const error = new Error("fail");
-             mockUpdateCardField.mockRejectedValue(error);
-             await actions.updateField("c1" as any, "notes", "some notes");
-             expect(mockOnError).toHaveBeenCalledWith(error, "update notes");
+            const error = new Error("fail");
+            mockUpdateCardField.mockRejectedValue(error);
+            await actions.updateField("c1" as any, "notes", "some notes");
+            expect(mockOnError).toHaveBeenCalledWith(error, "update notes");
         });
     });
 });

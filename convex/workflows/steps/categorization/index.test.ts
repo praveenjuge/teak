@@ -226,6 +226,25 @@ describe("categorization index", () => {
       const result = await fetchStructuredDataHandler(ctx, { shouldFetch: true, sourceUrl: "https://example.com" });
       expect(result.structuredData).toBeNull();
     });
+
+    test("skips invalid JSON-LD blocks", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        headers: new Map([["content-type", "text/html"]]),
+        text: () => Promise.resolve(`
+          <script type="application/ld+json">
+            { invalid json }
+          </script>
+          <script type="application/ld+json">
+            { "@type": "Book", "name": "Valid Book" }
+          </script>
+        `)
+      });
+      const result = await fetchStructuredDataHandler(ctx, { shouldFetch: true, sourceUrl: "https://example.com" });
+      expect(result.structuredData).toBeDefined();
+      expect(result.structuredData.entities.length).toBe(1);
+      expect(result.structuredData.entities[0].name).toBe("Valid Book");
+    });
   });
 
   describe("enrichLinkCategory", () => {

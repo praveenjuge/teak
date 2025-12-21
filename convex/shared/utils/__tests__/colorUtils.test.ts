@@ -1,9 +1,31 @@
 // @ts-nocheck
 import { describe, expect, it } from "bun:test";
 
-import { extractPaletteColors, parseColorString, getContrastRatio } from "../colorUtils";
+import { extractPaletteColors, parseColorString, getContrastRatio, hexToRgb } from "../colorUtils";
 
 describe("colorUtils", () => {
+  describe("hexToRgb", () => {
+    it("handles 3-digit hex", () => {
+      expect(hexToRgb("#abc")).toEqual({ r: 170, g: 187, b: 204 });
+    });
+
+    it("handles 4-digit hex", () => {
+      expect(hexToRgb("#abcd")).toEqual({ r: 170, g: 187, b: 204 });
+    });
+
+    it("handles 8-digit hex", () => {
+      expect(hexToRgb("#11223344")).toEqual({ r: 17, g: 34, b: 51 });
+    });
+
+    it("returns null for invalid length", () => {
+      expect(hexToRgb("#12345")).toBeNull();
+    });
+
+    it("returns null for non-hex chars", () => {
+      expect(hexToRgb("qqqqqq")).toBeNull();
+    });
+  });
+
   describe("parseColorString", () => {
     it("parses 6-digit hex", () => {
       const c = parseColorString("#FF5733");
@@ -125,37 +147,44 @@ describe("colorUtils", () => {
       expect(colors).toHaveLength(1);
       expect(colors[0].hex).toBe("#FF0055");
     });
-    
+
     it("handles existing colors with new names", () => {
-        const input = "Primary: #FFF\nSecondary: #FFFFFF"; // same hex
-        const colors = extractPaletteColors(input);
-        expect(colors).toHaveLength(1);
-        expect(colors[0].name).toBe("Primary");
+      const input = "Primary: #FFF\nSecondary: #FFFFFF"; // same hex
+      const colors = extractPaletteColors(input);
+      expect(colors).toHaveLength(1);
+      expect(colors[0].name).toBe("Primary");
     });
 
     it("fills in name for existing unnamed color", () => {
-        const input = "#FFF, Primary: #FFFFFF";
-        const colors = extractPaletteColors(input);
-        expect(colors).toHaveLength(1);
-        expect(colors[0].name).toBe("Primary");
+      const input = "#FFF, Primary: #FFFFFF";
+      const colors = extractPaletteColors(input);
+      expect(colors).toHaveLength(1);
+      expect(colors[0].name).toBe("Primary");
+    });
+
+    it("ignores empty slug names from delimiters", () => {
+      const input = "--__: #123456";
+      const colors = extractPaletteColors(input);
+      expect(colors).toHaveLength(1);
+      expect(colors[0].name).toBeUndefined(); // Name should be undefined because formatPaletteName returns undefined
     });
   });
 
   describe("getContrastRatio", () => {
-      it("calculates ratio between black and white", () => {
-          const black = { hex: "#000000", rgb: { r: 0, g: 0, b: 0 } } as any;
-          const white = { hex: "#FFFFFF", rgb: { r: 255, g: 255, b: 255 } } as any;
-          const ratio = getContrastRatio(black, white);
-          expect(ratio).toBeCloseTo(21, 1);
-      });
+    it("calculates ratio between black and white", () => {
+      const black = { hex: "#000000", rgb: { r: 0, g: 0, b: 0 } } as any;
+      const white = { hex: "#FFFFFF", rgb: { r: 255, g: 255, b: 255 } } as any;
+      const ratio = getContrastRatio(black, white);
+      expect(ratio).toBeCloseTo(21, 1);
+    });
 
-      it("calculates ratio between same colors", () => {
-          const c = { hex: "#000000", rgb: { r: 0, g: 0, b: 0 } } as any;
-          expect(getContrastRatio(c, c)).toBe(1);
-      });
+    it("calculates ratio between same colors", () => {
+      const c = { hex: "#000000", rgb: { r: 0, g: 0, b: 0 } } as any;
+      expect(getContrastRatio(c, c)).toBe(1);
+    });
 
-      it("handles missing rgb", () => {
-          expect(getContrastRatio({} as any, {} as any)).toBe(0);
-      });
+    it("handles missing rgb", () => {
+      expect(getContrastRatio({} as any, {} as any)).toBe(0);
+    });
   });
 });

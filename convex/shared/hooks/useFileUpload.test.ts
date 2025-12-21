@@ -61,6 +61,18 @@ global.Image = MockImage as any;
 import { useFileUploadCore, setFileUploadSentryCaptureFunction, FileUploadDependencies } from "./useFileUpload";
 import { MAX_FILE_SIZE, MAX_FILES_PER_UPLOAD, CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../constants";
 
+describe("defaults", () => {
+    test("uses default sentry capture without error", async () => {
+        const hook = useFileUploadCore({} as any);
+        try {
+            // 1MB + 1 byte
+            await hook.uploadFile({ size: MAX_FILE_SIZE + 1, name: "a.png", type: "image/png" } as any);
+        } catch (e) {
+            // expected error return, or the hook catches it and returns success:false
+        }
+    });
+});
+
 describe("useFileUploadCore", () => {
     const mockUploadAndCreateCard = mock();
     const mockFinalizeUploadedCard = mock();

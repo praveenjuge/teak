@@ -10,6 +10,8 @@ mock.module("@convex-dev/resend", () => ({
     }
 }));
 
+
+
 mock.module("@convex-dev/better-auth/utils", () => ({
     requireActionCtx: (ctx: any) => ctx,
     isRunMutationCtx: () => true,
@@ -24,6 +26,7 @@ let deleteAccountHandler: any;
 let authComponent: any;
 let createAuth: any;
 let polar: any;
+let rateLimiter: any;
 let CARD_ERROR_CODES: any;
 let FREE_TIER_LIMIT: any;
 
@@ -44,6 +47,9 @@ describe("auth", () => {
 
         const billingModule = await import("../billing");
         polar = billingModule.polar;
+
+        const rateLimitsModule = await import("../shared/rateLimits");
+        rateLimiter = rateLimitsModule.rateLimiter;
     });
 
     beforeEach(() => {
@@ -169,6 +175,27 @@ describe("auth", () => {
             });
 
             expect(queryCalled).toBe(false);
+        });
+
+        it("uses default dependencies when not provided", async () => {
+            const originalLimit = rateLimiter.limit;
+            const originalGetSubscription = polar.getCurrentSubscription;
+
+            const mockLimit = mock().mockResolvedValue({ ok: true });
+            const mockGetSub = mock().mockResolvedValue({ status: "active" });
+
+            rateLimiter.limit = mockLimit;
+            polar.getCurrentSubscription = mockGetSub;
+
+            const ctx = {} as any;
+            await ensureCardCreationAllowed(ctx, "u1");
+
+            expect(mockLimit).toHaveBeenCalled();
+            expect(mockGetSub).toHaveBeenCalled();
+
+            // Restore
+            rateLimiter.limit = originalLimit;
+            polar.getCurrentSubscription = originalGetSubscription;
         });
     });
 
