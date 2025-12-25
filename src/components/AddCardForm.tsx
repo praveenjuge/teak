@@ -202,12 +202,34 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       }, 1000);
     } catch (err) {
       console.error("Error starting recording:", err);
-      Sentry.captureException(err, {
-        tags: { source: "client", operation: "startRecording" },
-      });
-      setError(
-        "Failed to start recording. Please check your microphone permissions."
-      );
+      
+      // Check if it's a permission error
+      const isPermissionError = 
+        err instanceof DOMException && 
+        (err.name === "NotAllowedError" || err.name === "PermissionDeniedError");
+      
+      // Only capture non-permission errors in Sentry to reduce noise
+      if (!isPermissionError) {
+        Sentry.captureException(err, {
+          tags: { source: "client", operation: "startRecording" },
+        });
+      }
+      
+      // Provide specific error messages based on the error type
+      if (isPermissionError) {
+        setError(
+          "Microphone access denied. Please allow microphone permissions in your browser settings and try again."
+        );
+        toast.error(
+          "Microphone access denied. Check your browser permissions.",
+          { duration: 5000 }
+        );
+      } else {
+        setError(
+          "Failed to start recording. Please check your microphone and try again."
+        );
+        toast.error("Failed to start recording. Please try again.");
+      }
     }
   };
 
