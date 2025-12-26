@@ -21,6 +21,11 @@ const METADATA_STEP_RETRY: RetryBehavior = {
   initialBackoffMs: 400,
   base: 1.8,
 };
+const LINK_METADATA_STEP_RETRY: RetryBehavior = {
+  maxAttempts: 5,
+  initialBackoffMs: 5000,
+  base: 2,
+};
 const LINK_ENRICHMENT_STEP_RETRY: RetryBehavior = {
   maxAttempts: 5,
   initialBackoffMs: 1200,
@@ -113,12 +118,14 @@ export const cardProcessingWorkflow: any = workflow.define({
       );
       const needsLinkMetadata =
         !!linkMetadataCard?.url &&
-        linkMetadataCard?.metadata?.linkPreview?.status !== "success";
+        linkMetadataCard?.metadataStatus === "pending";
 
       if (needsLinkMetadata) {
-        await step.runMutation(
-          internalWorkflow["workflows/linkMetadata"].startLinkMetadataWorkflow,
-          { cardId, startAsync: false }
+        await step.runAction(
+          internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
+            .fetchMetadata,
+          { cardId },
+          { retry: LINK_METADATA_STEP_RETRY }
         );
       }
     }

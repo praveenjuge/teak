@@ -145,7 +145,7 @@ export function MasonryGrid({
     <>
       <Masonry
         columns={{ xs: 1, sm: 2, md: 3, lg: 5, xl: 5, xxl: 5 }}
-        gutter={20}
+        gutter={24}
         items={masonryItems}
         itemRender={renderItem}
         fresh

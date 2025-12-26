@@ -15,6 +15,7 @@ import {
   MAX_FILE_SIZE,
   MAX_FILES_PER_UPLOAD,
   CARD_ERROR_MESSAGES,
+  resolveTextCardInput,
 } from "@teak/convex/shared";
 import { toast } from "sonner";
 import * as Sentry from "@sentry/nextjs";
@@ -81,7 +82,12 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       const now = Date.now();
       // Determine the card type based on content
       const contentTrimmed = args.content?.trim() || "";
-      const isUrl = args.url || /^https?:\/\//i.test(contentTrimmed);
+      const resolved = resolveTextCardInput({
+        content: args.content ?? "",
+        url: args.url,
+      });
+      const resolvedType = args.type ?? resolved.type;
+      const resolvedUrl = args.url ?? resolved.url;
 
       // Create an optimistic card with a temporary ID
       const optimisticCard: Doc<"cards"> = {
@@ -89,8 +95,8 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         _creationTime: now,
         userId: "", // Will be set by server
         content: contentTrimmed,
-        type: isUrl ? "link" : "text",
-        url: args.url,
+        type: resolvedType,
+        url: resolvedUrl,
         createdAt: now,
         updatedAt: now,
       };
@@ -388,18 +394,23 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     // Reset form immediately - card appears optimistically
     const submittedContent = content;
     const submittedUrl = url;
+    const resolved = resolveTextCardInput({
+      content: submittedContent,
+      url: submittedUrl || undefined,
+    });
     setContent("");
     setUrl("");
 
     try {
-      // Let backend handle type detection and processing
+      // Resolve link vs text locally to avoid backend classification delays
       await createCard({
-        content: submittedContent,
-        url: submittedUrl || undefined,
+        content: resolved.content,
+        type: resolved.type === "link" ? resolved.type : undefined,
+        url: resolved.url,
       });
 
       // Track card creation
-      metrics.cardCreated(submittedUrl ? "link" : "text");
+      metrics.cardCreated(resolved.type);
 
       onSuccess?.();
     } catch (error) {
@@ -414,7 +425,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         tags: { source: "convex", mutation: "cards:createCard" },
         extra: {
           content: submittedContent?.slice(0, 100),
-          hasUrl: !!submittedUrl,
+          hasUrl: !!resolved.url,
         },
       });
 

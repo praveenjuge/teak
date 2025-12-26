@@ -8,7 +8,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, ScrollView, useWindowDimensions } from "react-native";
-import { CARD_ERROR_CODES } from "@teak/convex/shared";
+import { CARD_ERROR_CODES, resolveTextCardInput } from "@teak/convex/shared";
 import { Stack } from "expo-router";
 import { useCreateCard } from "../../../lib/hooks/useCardOperations";
 import { useFileUpload } from "../../../lib/hooks/useFileUpload";
@@ -324,7 +324,12 @@ export default function AddScreen() {
     showSavingFeedback();
 
     try {
-      await createCard({ content: trimmedContent });
+      const resolved = resolveTextCardInput({ content: trimmedContent });
+      await createCard({
+        content: resolved.content,
+        type: resolved.type === "link" ? resolved.type : undefined,
+        url: resolved.url,
+      });
 
       setContent("");
       textFieldRef.current?.setText("");
