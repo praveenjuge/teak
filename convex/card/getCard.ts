@@ -14,6 +14,7 @@ const cardReturnValidator = v.object({
   fileUrl: v.optional(v.string()),
   thumbnailUrl: v.optional(v.string()),
   screenshotUrl: v.optional(v.string()),
+  linkPreviewImageUrl: v.optional(v.string()),
 });
 
 export const getCard = query({
@@ -32,13 +33,16 @@ export const getCard = query({
       return null;
     }
 
-    const [fileUrl, thumbnailUrl, screenshotUrl] = await Promise.all([
+    const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] = await Promise.all([
       card.fileId ? ctx.storage.getUrl(card.fileId) : Promise.resolve(null),
       card.thumbnailId
         ? ctx.storage.getUrl(card.thumbnailId)
         : Promise.resolve(null),
       card.metadata?.linkPreview?.screenshotStorageId
         ? ctx.storage.getUrl(card.metadata.linkPreview.screenshotStorageId)
+        : Promise.resolve(null),
+      card.metadata?.linkPreview?.imageStorageId
+        ? ctx.storage.getUrl(card.metadata.linkPreview.imageStorageId)
         : Promise.resolve(null),
     ]);
 
@@ -47,6 +51,7 @@ export const getCard = query({
       fileUrl: fileUrl || undefined,
       thumbnailUrl: thumbnailUrl || undefined,
       screenshotUrl: screenshotUrl || undefined,
+      linkPreviewImageUrl: linkPreviewImageUrl || undefined,
     });
   },
 });

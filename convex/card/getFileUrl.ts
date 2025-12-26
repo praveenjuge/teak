@@ -24,7 +24,8 @@ export const getFileUrl = query({
     const matchesFile =
       card.fileId === args.fileId ||
       card.thumbnailId === args.fileId ||
-      card.metadata?.linkPreview?.screenshotStorageId === args.fileId;
+      card.metadata?.linkPreview?.screenshotStorageId === args.fileId ||
+      card.metadata?.linkPreview?.imageStorageId === args.fileId;
 
     if (!matchesFile) {
       throw new Error("File does not belong to the specified card");

@@ -36,6 +36,14 @@ type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
   thumbnailUrl?: string;
   screenshotUrl?: string;
+  linkPreviewImageUrl?: string;
+};
+
+type LinkPreviewMetadata = NonNullable<Doc<"cards">["metadata"]>["linkPreview"] & {
+  imageWidth?: number;
+  imageHeight?: number;
+  screenshotWidth?: number;
+  screenshotHeight?: number;
 };
 
 interface CardProps {
@@ -126,27 +134,53 @@ export function Card({
 
   const linkPreview =
     card.metadata?.linkPreview?.status === "success"
-      ? card.metadata.linkPreview
+      ? (card.metadata.linkPreview as LinkPreviewMetadata)
       : undefined;
-  const linkCardTitle = linkPreview?.title || card.metadataTitle || card.url;
-  const linkCardImage = linkPreview?.imageUrl;
+  const linkCardTitle =
+    linkPreview?.title || card.metadataTitle || card.url || "Link";
+  const linkCardImage = card.linkPreviewImageUrl ?? linkPreview?.imageUrl;
   const resolvedScreenshotUrl =
     typeof card.screenshotUrl === "string" ? card.screenshotUrl : undefined;
   const [useFallbackImage, setUseFallbackImage] = useState(false);
+
+  const primaryImageSize =
+    typeof linkPreview?.imageWidth === "number" &&
+    typeof linkPreview?.imageHeight === "number"
+      ? { width: linkPreview.imageWidth, height: linkPreview.imageHeight }
+      : undefined;
+  const fallbackImageSize =
+    typeof linkPreview?.screenshotWidth === "number" &&
+    typeof linkPreview?.screenshotHeight === "number"
+      ? { width: linkPreview.screenshotWidth, height: linkPreview.screenshotHeight }
+      : undefined;
+  const hasPrimaryImage = !!(linkCardImage && primaryImageSize);
+  const hasFallbackImage = !!(resolvedScreenshotUrl && fallbackImageSize);
+  const canFallbackImage = !!resolvedScreenshotUrl;
+  const shouldUseFallback = useFallbackImage || !hasPrimaryImage;
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setUseFallbackImage(false);
   }, [card._id, linkCardImage, resolvedScreenshotUrl]);
 
-  const displayLinkImage = useFallbackImage
-    ? (resolvedScreenshotUrl ?? undefined)
-    : (linkCardImage ?? resolvedScreenshotUrl);
+  const displayLinkImage = shouldUseFallback
+    ? (hasFallbackImage ? resolvedScreenshotUrl : undefined)
+    : (hasPrimaryImage ? linkCardImage : undefined);
+  const displayLinkImageSize = shouldUseFallback
+    ? (hasFallbackImage ? fallbackImageSize : undefined)
+    : (hasPrimaryImage ? primaryImageSize : undefined);
+
+  const legacyPrimaryImage = linkCardImage;
+  const legacyFallbackImage = resolvedScreenshotUrl;
+  const legacyDisplayImage = useFallbackImage
+    ? legacyFallbackImage ?? undefined
+    : legacyPrimaryImage ?? legacyFallbackImage ?? undefined;
 
   const handleLinkImageError = (event: SyntheticEvent<HTMLImageElement>) => {
     const target = event.currentTarget;
     if (
       !useFallbackImage &&
+      canFallbackImage &&
       resolvedScreenshotUrl &&
       target.src !== resolvedScreenshotUrl
     ) {
@@ -209,20 +243,46 @@ export function Card({
             )}
             {card.type === "link" && (
               <>
-                {displayLinkImage ? (
+                {displayLinkImage && displayLinkImageSize ? (
                   <div className="rounded-xl border bg-card overflow-hidden divide-y">
-                    <div className="min-h-28 h-28 overflow-hidden">
+                    <div
+                      className="w-full overflow-hidden"
+                      style={{
+                        aspectRatio:
+                          displayLinkImageSize.width / displayLinkImageSize.height,
+                      }}
+                    >
                       <Image
                         src={displayLinkImage}
                         alt={linkCardTitle}
                         className="w-full h-full object-cover"
+                        rootClassName="h-full w-full"
                         preview={false}
                         placeholder
                         onError={handleLinkImageError}
                       />
                     </div>
                     <div className="px-4 py-3">
-                      <p className="line-clamp-1 font-medium truncate">
+                      <p className="font-medium truncate max-w-full">
+                        {linkCardTitle}
+                      </p>
+                    </div>
+                  </div>
+                ) : legacyDisplayImage ? (
+                  <div className="rounded-xl border bg-card overflow-hidden divide-y">
+                    <div className="min-h-28 h-28 overflow-hidden">
+                      <Image
+                        src={legacyDisplayImage}
+                        alt={linkCardTitle}
+                        className="w-full h-full object-cover"
+                        rootClassName="h-full w-full"
+                        preview={false}
+                        placeholder
+                        onError={handleLinkImageError}
+                      />
+                    </div>
+                    <div className="px-4 py-3">
+                      <p className="font-medium truncate max-w-full">
                         {linkCardTitle}
                       </p>
                     </div>

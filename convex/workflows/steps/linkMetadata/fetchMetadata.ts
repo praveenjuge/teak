@@ -2,6 +2,7 @@
 
 import { v } from "convex/values";
 import Kernel from "@onkernel/sdk";
+import { PhotonImage } from "@cf-wasm/photon";
 import { internalAction } from "../../../_generated/server";
 import { internal } from "../../../_generated/api";
 import type { ScrapeResponse } from "../../../linkMetadata";
@@ -12,6 +13,7 @@ import {
   parseLinkPreview,
   SCRAPE_ELEMENTS,
 } from "../../../linkMetadata";
+import type { Id } from "../../../shared/types";
 
 export type LinkMetadataRetryableError = {
   type: string;
@@ -28,6 +30,111 @@ const linkMetadataInternal = internalFunctions["linkMetadata"] as Record<string,
 
 const throwRetryable = (info: LinkMetadataRetryableError): never => {
   throw new Error(`${LINK_METADATA_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
+};
+
+type StoredLinkImage = {
+  imageStorageId: Id<"_storage">;
+  imageUpdatedAt: number;
+  imageWidth: number;
+  imageHeight: number;
+};
+
+const readImageDimensions = (bytes: Uint8Array): { width: number; height: number } | null => {
+  try {
+    const image = PhotonImage.new_from_byteslice(bytes);
+    const width = image.get_width();
+    const height = image.get_height();
+    return width && height ? { width, height } : null;
+  } catch (error) {
+    console.warn("[linkMetadata] Failed to read OG image dimensions", error);
+    return null;
+  }
+};
+
+const guessImageContentType = (imageUrl: string): string | null => {
+  const match = imageUrl.toLowerCase().match(/\.(png|jpe?g|webp|gif|avif|svg)(?:[?#]|$)/);
+  if (!match) {
+    return null;
+  }
+  switch (match[1]) {
+    case "png":
+      return "image/png";
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "webp":
+      return "image/webp";
+    case "gif":
+      return "image/gif";
+    case "avif":
+      return "image/avif";
+    case "svg":
+      return "image/svg+xml";
+    default:
+      return null;
+  }
+};
+
+const resolveImageContentType = (headerValue: string | null, imageUrl: string): string | null => {
+  if (headerValue && headerValue.toLowerCase().startsWith("image/")) {
+    return headerValue.split(";")[0]?.trim() || headerValue;
+  }
+  if (imageUrl.startsWith("data:")) {
+    const commaIndex = imageUrl.indexOf(",");
+    if (commaIndex === -1) {
+      return null;
+    }
+    const metadata = imageUrl.slice(5, commaIndex);
+    const dataType = metadata.split(";")[0];
+    return dataType || null;
+  }
+  return guessImageContentType(imageUrl);
+};
+
+const storeLinkPreviewImage = async (
+  ctx: any,
+  imageUrl: string,
+): Promise<StoredLinkImage | null> => {
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      console.warn(
+        `[linkMetadata] OG image fetch failed (${response.status}) for ${imageUrl}`,
+      );
+      return null;
+    }
+
+    const contentType = resolveImageContentType(
+      response.headers.get("content-type"),
+      imageUrl,
+    );
+    if (!contentType) {
+      console.warn(
+        `[linkMetadata] OG image skipped due to unknown content type for ${imageUrl}`,
+      );
+      return null;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    const dimensions = readImageDimensions(bytes);
+    if (!dimensions) {
+      return null;
+    }
+
+    const imageBlob = new Blob([arrayBuffer], { type: contentType });
+    const imageStorageId = await ctx.storage.store(imageBlob);
+
+    return {
+      imageStorageId,
+      imageUpdatedAt: Date.now(),
+      imageWidth: dimensions.width,
+      imageHeight: dimensions.height,
+    };
+  } catch (error) {
+    console.warn("[linkMetadata] OG image fetch error", error);
+    return null;
+  }
 };
 
 const scrapeWithKernel = async (
@@ -213,7 +320,13 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
     }
 
     const parsed = parseLinkPreview(normalizedUrl, payload.result);
-    const linkPreview = buildSuccessPreview(normalizedUrl, parsed);
+    const storedImage = parsed.imageUrl
+      ? await storeLinkPreviewImage(ctx, parsed.imageUrl)
+      : null;
+    const linkPreview = buildSuccessPreview(normalizedUrl, {
+      ...parsed,
+      ...(storedImage ?? {}),
+    });
 
     await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
       cardId,

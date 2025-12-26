@@ -32,6 +32,10 @@ export interface LinkPreviewMetadata {
   title?: string;
   description?: string;
   imageUrl?: string;
+  imageStorageId?: Id<"_storage">;
+  imageUpdatedAt?: number;
+  imageWidth?: number;
+  imageHeight?: number;
   faviconUrl?: string;
   siteName?: string;
   author?: string;
@@ -39,6 +43,8 @@ export interface LinkPreviewMetadata {
   publishedAt?: string;
   screenshotStorageId?: Id<"_storage">;
   screenshotUpdatedAt?: number;
+  screenshotWidth?: number;
+  screenshotHeight?: number;
   error?: {
     type?: string;
     message?: string;

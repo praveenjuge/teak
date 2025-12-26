@@ -29,6 +29,7 @@ type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
   thumbnailUrl?: string;
   screenshotUrl?: string;
+  linkPreviewImageUrl?: string;
 };
 
 interface PendingChanges {

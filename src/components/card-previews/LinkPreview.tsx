@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
 interface LinkPreviewProps {
-  card: Doc<"cards"> & { screenshotUrl?: string };
+  card: Doc<"cards"> & { screenshotUrl?: string; linkPreviewImageUrl?: string };
   showScreenshot?: boolean;
 }
 
@@ -22,7 +22,7 @@ export function LinkPreview({
   const linkTitle =
     linkPreview?.title || card.metadataTitle || card.url || "Link";
   const linkDescription = linkPreview?.description || card.metadataDescription;
-  const linkImage = linkPreview?.imageUrl;
+  const linkImage = card.linkPreviewImageUrl ?? linkPreview?.imageUrl;
   const linkFavicon = linkPreview?.faviconUrl;
 
   const screenshotUrl = showScreenshot ? card.screenshotUrl : undefined;

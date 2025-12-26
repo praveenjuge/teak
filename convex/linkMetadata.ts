@@ -37,6 +37,34 @@ export const updateCardMetadataHandler = async (ctx: any, { cardId, linkPreview,
   const previousLinkPreview = existingCard.metadata?.linkPreview;
   const nextLinkPreview = linkPreview ? { ...linkPreview } : undefined;
 
+  if (previousLinkPreview?.imageStorageId) {
+    if (
+      nextLinkPreview?.imageStorageId &&
+      nextLinkPreview.imageStorageId !== previousLinkPreview.imageStorageId
+    ) {
+      try {
+        await ctx.storage.delete(previousLinkPreview.imageStorageId);
+      } catch (error) {
+        console.error(
+          `[linkMetadata] Failed to delete previous OG image ${previousLinkPreview.imageStorageId} for card ${cardId}:`,
+          error
+        );
+      }
+    } else if (nextLinkPreview) {
+      if (!nextLinkPreview.imageStorageId) {
+        nextLinkPreview.imageStorageId = previousLinkPreview.imageStorageId;
+        nextLinkPreview.imageUpdatedAt =
+          nextLinkPreview.imageUpdatedAt ?? previousLinkPreview.imageUpdatedAt;
+      }
+      if (nextLinkPreview.imageStorageId === previousLinkPreview.imageStorageId) {
+        nextLinkPreview.imageWidth =
+          nextLinkPreview.imageWidth ?? previousLinkPreview.imageWidth;
+        nextLinkPreview.imageHeight =
+          nextLinkPreview.imageHeight ?? previousLinkPreview.imageHeight;
+      }
+    }
+  }
+
   if (previousLinkPreview?.screenshotStorageId) {
     if (
       nextLinkPreview?.screenshotStorageId &&
@@ -54,6 +82,12 @@ export const updateCardMetadataHandler = async (ctx: any, { cardId, linkPreview,
       nextLinkPreview.screenshotStorageId = previousLinkPreview.screenshotStorageId;
       nextLinkPreview.screenshotUpdatedAt =
         nextLinkPreview.screenshotUpdatedAt ?? previousLinkPreview.screenshotUpdatedAt;
+    }
+    if (nextLinkPreview?.screenshotStorageId === previousLinkPreview.screenshotStorageId) {
+      nextLinkPreview.screenshotWidth =
+        nextLinkPreview.screenshotWidth ?? previousLinkPreview.screenshotWidth;
+      nextLinkPreview.screenshotHeight =
+        nextLinkPreview.screenshotHeight ?? previousLinkPreview.screenshotHeight;
     }
   }
 
@@ -102,7 +136,16 @@ export const updateCardMetadata = internalMutation({
   handler: updateCardMetadataHandler,
 });
 
-export const updateCardScreenshotHandler = async (ctx: any, { cardId, screenshotStorageId, screenshotUpdatedAt }: any) => {
+export const updateCardScreenshotHandler = async (
+  ctx: any,
+  {
+    cardId,
+    screenshotStorageId,
+    screenshotUpdatedAt,
+    screenshotWidth,
+    screenshotHeight,
+  }: any
+) => {
   const card = await ctx.db.get("cards", cardId);
   if (!card || card.type !== "link") {
     return;
@@ -129,6 +172,8 @@ export const updateCardScreenshotHandler = async (ctx: any, { cardId, screenshot
     ...existingLinkPreview,
     screenshotStorageId,
     screenshotUpdatedAt,
+    ...(typeof screenshotWidth === "number" ? { screenshotWidth } : {}),
+    ...(typeof screenshotHeight === "number" ? { screenshotHeight } : {}),
   };
 
   const updatedMetadata = {
@@ -147,6 +192,8 @@ export const updateCardScreenshot = internalMutation({
     cardId: v.id("cards"),
     screenshotStorageId: v.id("_storage"),
     screenshotUpdatedAt: v.number(),
+    screenshotWidth: v.optional(v.number()),
+    screenshotHeight: v.optional(v.number()),
   },
   handler: updateCardScreenshotHandler,
 });

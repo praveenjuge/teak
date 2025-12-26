@@ -12,12 +12,14 @@ const cardReturnValidator = v.object({
   fileUrl: v.optional(v.string()),
   thumbnailUrl: v.optional(v.string()),
   screenshotUrl: v.optional(v.string()),
+  linkPreviewImageUrl: v.optional(v.string()),
 });
 
 type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
   thumbnailUrl?: string;
   screenshotUrl?: string;
+  linkPreviewImageUrl?: string;
 };
 
 const attachFileUrls = async (
@@ -26,13 +28,16 @@ const attachFileUrls = async (
 ): Promise<CardWithUrls[]> => {
   return Promise.all(
     cards.map(async (card) => {
-      const [fileUrl, thumbnailUrl, screenshotUrl] = await Promise.all([
+      const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] = await Promise.all([
         card.fileId ? ctx.storage.getUrl(card.fileId) : Promise.resolve(null),
         card.thumbnailId
           ? ctx.storage.getUrl(card.thumbnailId)
           : Promise.resolve(null),
         card.metadata?.linkPreview?.screenshotStorageId
           ? ctx.storage.getUrl(card.metadata.linkPreview.screenshotStorageId)
+          : Promise.resolve(null),
+        card.metadata?.linkPreview?.imageStorageId
+          ? ctx.storage.getUrl(card.metadata.linkPreview.imageStorageId)
           : Promise.resolve(null),
       ]);
 
@@ -41,6 +46,7 @@ const attachFileUrls = async (
         fileUrl: fileUrl || undefined,
         thumbnailUrl: thumbnailUrl || undefined,
         screenshotUrl: screenshotUrl || undefined,
+        linkPreviewImageUrl: linkPreviewImageUrl || undefined,
       };
     }),
   );

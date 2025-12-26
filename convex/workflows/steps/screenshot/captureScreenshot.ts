@@ -2,6 +2,7 @@
 
 import { v } from "convex/values";
 import Kernel from "@onkernel/sdk";
+import { PhotonImage } from "@cf-wasm/photon";
 import type { Id } from "../../../shared/types";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
@@ -28,6 +29,8 @@ const captureScreenshotWithKernel = async (
 ): Promise<{
   screenshotId?: Id<"_storage">;
   screenshotUpdatedAt?: number;
+  screenshotWidth?: number;
+  screenshotHeight?: number;
   error?: { type: string; message?: string; details?: any };
 }> => {
   const kernel = new Kernel();
@@ -103,6 +106,15 @@ const captureScreenshotWithKernel = async (
     }
 
     const buffer = Buffer.from(base64Screenshot, "base64");
+    let screenshotWidth: number | undefined;
+    let screenshotHeight: number | undefined;
+    try {
+      const image = PhotonImage.new_from_byteslice(buffer);
+      screenshotWidth = image.get_width();
+      screenshotHeight = image.get_height();
+    } catch (error) {
+      console.warn("[screenshot] Failed to read screenshot dimensions", error);
+    }
     const imageArrayBuffer = buffer.buffer.slice(
       buffer.byteOffset,
       buffer.byteOffset + buffer.byteLength,
@@ -116,6 +128,8 @@ const captureScreenshotWithKernel = async (
     return {
       screenshotId,
       screenshotUpdatedAt: Date.now(),
+      screenshotWidth,
+      screenshotHeight,
     };
   } catch (error) {
     console.error(`[screenshot] Screenshot capture error for ${url}:`, error);
@@ -182,6 +196,8 @@ export const captureScreenshot = internalAction({
         cardId,
         screenshotStorageId: screenshotResult.screenshotId,
         screenshotUpdatedAt: screenshotResult.screenshotUpdatedAt ?? Date.now(),
+        screenshotWidth: screenshotResult.screenshotWidth,
+        screenshotHeight: screenshotResult.screenshotHeight,
       });
       return;
     }

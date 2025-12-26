@@ -98,6 +98,10 @@ export const metadataValidator = v.optional(
         title: v.optional(v.string()),
         description: v.optional(v.string()),
         imageUrl: v.optional(v.string()),
+        imageStorageId: v.optional(v.id("_storage")),
+        imageUpdatedAt: v.optional(v.number()),
+        imageWidth: v.optional(v.number()),
+        imageHeight: v.optional(v.number()),
         faviconUrl: v.optional(v.string()),
         siteName: v.optional(v.string()),
         author: v.optional(v.string()),
@@ -105,6 +109,8 @@ export const metadataValidator = v.optional(
         publishedAt: v.optional(v.string()),
         screenshotStorageId: v.optional(v.id("_storage")),
         screenshotUpdatedAt: v.optional(v.number()),
+        screenshotWidth: v.optional(v.number()),
+        screenshotHeight: v.optional(v.number()),
         error: v.optional(
           v.object({
             type: v.optional(v.string()),
