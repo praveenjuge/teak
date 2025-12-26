@@ -18,7 +18,14 @@ export interface ScrapeSelectorResult {
 
 export interface ScrapeResponse {
   success: boolean;
-  result?: ScrapeSelectorResult[];
+  result?: {
+    selectors: ScrapeSelectorResult[];
+    primaryImage?: {
+      url: string;
+      width?: number;
+      height?: number;
+    };
+  };
   errors?: Array<{ code?: number; message?: string }>;
 }
 

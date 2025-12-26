@@ -4,6 +4,7 @@ import { internalMutation, internalQuery } from "./_generated/server";
 export { normalizeUrl } from "./linkMetadata/url";
 export * from "./linkMetadata/types";
 export * from "./linkMetadata/selectors";
+export * from "./linkMetadata/instagram";
 export {
   toSelectorMap,
   findAttributeValue,

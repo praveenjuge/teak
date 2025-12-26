@@ -9,6 +9,8 @@ import type { ScrapeResponse } from "../../../linkMetadata";
 import {
   buildErrorPreview,
   buildSuccessPreview,
+  buildInstagramPrimaryImageSnippet,
+  isInstagramUrl,
   normalizeUrl,
   parseLinkPreview,
   SCRAPE_ELEMENTS,
@@ -150,35 +152,36 @@ const scrapeWithKernel = async (
     });
 
     const selectorStrings = selectors.map(s => s.selector);
+    const instagramPrimaryImageSnippet = buildInstagramPrimaryImageSnippet();
     const code = `
       await page.goto('${url.replace(/'/g, "\\'")}', { waitUntil: 'networkidle', timeout: 30000 });
-      
+
       const selectors = ${JSON.stringify(selectorStrings)};
       const results = [];
-      
+
       for (const selector of selectors) {
         try {
           const elements = await page.$$(selector);
           const selectorResults = [];
-          
+
           for (const element of elements) {
             const text = await element.textContent().catch(() => null);
             const html = await element.innerHTML().catch(() => null);
-            
+
             const attributes = await element.evaluate(el => {
               return Array.from(el.attributes).map(attr => ({
                 name: attr.name,
                 value: attr.value
               }));
             }).catch(() => []);
-            
+
             selectorResults.push({
               text: text?.trim() || undefined,
               html: html?.trim() || undefined,
               attributes: attributes.length > 0 ? attributes : undefined
             });
           }
-          
+
           results.push({
             selector,
             results: selectorResults
@@ -190,8 +193,14 @@ const scrapeWithKernel = async (
           });
         }
       }
-      
-      return results;
+
+      let primaryImage = null;
+${instagramPrimaryImageSnippet}
+
+      return {
+        selectors: results,
+        primaryImage: primaryImage || undefined
+      };
     `;
 
     const response = await kernel.browsers.playwright.execute(
@@ -319,12 +328,21 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
       });
     }
 
-    const parsed = parseLinkPreview(normalizedUrl, payload.result);
-    const storedImage = parsed.imageUrl
-      ? await storeLinkPreviewImage(ctx, parsed.imageUrl)
+    const parsed = parseLinkPreview(normalizedUrl, payload.result?.selectors);
+    const primaryImageCandidate = payload.result?.primaryImage?.url;
+    const primaryImageUrl =
+      primaryImageCandidate && isInstagramUrl(normalizedUrl)
+        ? primaryImageCandidate
+        : undefined;
+    const resolvedImageUrl = primaryImageUrl ?? parsed.imageUrl;
+    const parsedWithPrimary = resolvedImageUrl
+      ? { ...parsed, imageUrl: resolvedImageUrl }
+      : parsed;
+    const storedImage = resolvedImageUrl
+      ? await storeLinkPreviewImage(ctx, resolvedImageUrl)
       : null;
     const linkPreview = buildSuccessPreview(normalizedUrl, {
-      ...parsed,
+      ...parsedWithPrimary,
       ...(storedImage ?? {}),
     });
 

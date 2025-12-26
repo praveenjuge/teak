@@ -33,6 +33,7 @@ import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as index from "../index.js";
 import type * as linkMetadata from "../linkMetadata.js";
+import type * as linkMetadata_instagram from "../linkMetadata/instagram.js";
 import type * as linkMetadata_parsing from "../linkMetadata/parsing.js";
 import type * as linkMetadata_selectors from "../linkMetadata/selectors.js";
 import type * as linkMetadata_types from "../linkMetadata/types.js";
@@ -116,6 +117,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   index: typeof index;
   linkMetadata: typeof linkMetadata;
+  "linkMetadata/instagram": typeof linkMetadata_instagram;
   "linkMetadata/parsing": typeof linkMetadata_parsing;
   "linkMetadata/selectors": typeof linkMetadata_selectors;
   "linkMetadata/types": typeof linkMetadata_types;
