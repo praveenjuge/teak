@@ -64,32 +64,30 @@ export function LinkPreview({
         )}
 
         <div className="min-w-0 flex-1 shrink-0 space-y-1 p-4">
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-2">
-              {faviconUrl && (
-                <div className="size-4 mt-0.5 shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={faviconUrl}
-                    alt=""
-                    className="size-4"
-                    onError={(event) => {
-                      const target = event.currentTarget;
-                      if (card.url && !target.dataset.fallback) {
-                        target.dataset.fallback = "true";
-                        target.src = `https://www.google.com/s2/favicons?domain=${card.url}`;
-                      } else {
-                        target.style.display = "none";
-                      }
-                    }}
-                  />
-                </div>
-              )}
-              <h2 className="font-semibold text-base leading-tight line-clamp-1 truncate">
-                {linkTitle}
-              </h2>
-            </div>
-            <ArrowUpRight className="size-4 text-muted-foreground" />
+          <div className="flex w-full min-w-0 items-center gap-2">
+            {faviconUrl && (
+              <div className="size-4 mt-0.5 shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={faviconUrl}
+                  alt=""
+                  className="size-4"
+                  onError={(event) => {
+                    const target = event.currentTarget;
+                    if (card.url && !target.dataset.fallback) {
+                      target.dataset.fallback = "true";
+                      target.src = `https://www.google.com/s2/favicons?domain=${card.url}`;
+                    } else {
+                      target.style.display = "none";
+                    }
+                  }}
+                />
+              </div>
+            )}
+            <h2 className="min-w-0 flex-1 truncate font-semibold text-base leading-tight">
+              {linkTitle}
+            </h2>
+            <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
           </div>
 
           {linkDescription && (
