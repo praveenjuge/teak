@@ -228,11 +228,9 @@ export function Card({
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 rounded-xl border bg-card">
-                    <p className="line-clamp-2 font-medium">
-                      {card.content || linkCardTitle}
-                    </p>
-                  </div>
+                  <p className="w-full min-w-0 overflow-hidden truncate text-ellipsis whitespace-nowrap font-medium p-4 rounded-xl border bg-card">
+                    {card.content || linkCardTitle}
+                  </p>
                 )}
               </>
             )}

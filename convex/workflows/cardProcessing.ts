@@ -65,21 +65,10 @@ export const cardProcessingWorkflow: any = workflow.define({
   handler: async (step, { cardId }) => {
     console.info(`${PIPELINE_LOG_PREFIX} Starting`, { cardId });
 
-    // Kick off link metadata immediately so it can run in parallel with classification
     const initialCard = await step.runQuery(
       internalWorkflow["linkMetadata"].getCardForMetadata,
       { cardId }
     );
-    const shouldStartLinkMetadata =
-      !!initialCard?.url &&
-      initialCard?.metadata?.linkPreview?.status !== "success";
-
-    if (shouldStartLinkMetadata) {
-      await step.runMutation(
-        internalWorkflow["workflows/linkMetadata"].startLinkMetadataWorkflow,
-        { cardId, startAsync: true }
-      );
-    }
 
     // Step 1: Classification
     // If already classified (client-provided type), reuse it; otherwise run classifier
@@ -115,6 +104,24 @@ export const cardProcessingWorkflow: any = workflow.define({
           return null;
         })
       : Promise.resolve(null);
+
+    // Ensure link metadata is ready before proceeding with downstream AI steps.
+    if (classification.type === "link") {
+      const linkMetadataCard = await step.runQuery(
+        internalWorkflow["linkMetadata"].getCardForMetadata,
+        { cardId }
+      );
+      const needsLinkMetadata =
+        !!linkMetadataCard?.url &&
+        linkMetadataCard?.metadata?.linkPreview?.status !== "success";
+
+      if (needsLinkMetadata) {
+        await step.runMutation(
+          internalWorkflow["workflows/linkMetadata"].startLinkMetadataWorkflow,
+          { cardId, startAsync: false }
+        );
+      }
+    }
 
     // Step 2: Categorization (conditional - only for links)
     // Wait for link metadata extraction if needed, then categorize and enrich
