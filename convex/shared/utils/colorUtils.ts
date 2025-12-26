@@ -196,13 +196,13 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } | nul
 }
 
 // Convert RGB to HSL
-function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
-  r /= 255;
-  g /= 255;
-  b /= 255;
+function rgbToHsl(red: number, green: number, blue: number): { h: number; s: number; l: number } {
+  red /= 255;
+  green /= 255;
+  blue /= 255;
 
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
   let h = 0;
   let s = 0;
   const l = (max + min) / 2;
@@ -214,14 +214,14 @@ function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: n
     s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
 
     switch (max) {
-      case r:
-        h = (g - b) / d + (g < b ? 6 : 0);
+      case red:
+        h = (green - blue) / d + (green < blue ? 6 : 0);
         break;
-      case g:
-        h = (b - r) / d + 2;
+      case green:
+        h = (blue - red) / d + 2;
         break;
-      case b:
-        h = (r - g) / d + 4;
+      case blue:
+        h = (red - green) / d + 4;
         break;
     }
     h /= 6;
@@ -249,28 +249,28 @@ function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: n
     return p;
   };
 
-  let r: number, g: number, b: number;
+  let red: number, green: number, blue: number;
 
   if (s === 0) {
-    r = g = b = l; // achromatic
+    red = green = blue = l; // achromatic
   } else {
     const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
     const p = 2 * l - q;
-    r = hue2rgb(p, q, h + 1 / 3);
-    g = hue2rgb(p, q, h);
-    b = hue2rgb(p, q, h - 1 / 3);
+    red = hue2rgb(p, q, h + 1 / 3);
+    green = hue2rgb(p, q, h);
+    blue = hue2rgb(p, q, h - 1 / 3);
   }
 
   return {
-    r: Math.round(r * 255),
-    g: Math.round(g * 255),
-    b: Math.round(b * 255),
+    r: Math.round(red * 255),
+    g: Math.round(green * 255),
+    b: Math.round(blue * 255),
   };
 }
 
 // Convert RGB to hex
-function rgbToHex(r: number, g: number, b: number): string {
-  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase()}`;
+function rgbToHex(red: number, green: number, blue: number): string {
+  return `#${((1 << 24) + (red << 16) + (green << 8) + blue).toString(16).slice(1).toUpperCase()}`;
 }
 
 // Parse a single color from text
@@ -307,17 +307,17 @@ export function parseColorString(colorText: string): Color | null {
   // Try RGB format
   const rgbMatch = text.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*[\d.]+\s*)?\)/);
   if (rgbMatch) {
-    const r = parseInt(rgbMatch[1]);
-    const g = parseInt(rgbMatch[2]);
-    const b = parseInt(rgbMatch[3]);
+    const red = parseInt(rgbMatch[1]);
+    const green = parseInt(rgbMatch[2]);
+    const blue = parseInt(rgbMatch[3]);
 
-    if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
-      const hex = rgbToHex(r, g, b);
-      const hsl = rgbToHsl(r, g, b);
+    if (red >= 0 && red <= 255 && green >= 0 && green <= 255 && blue >= 0 && blue <= 255) {
+      const hex = rgbToHex(red, green, blue);
+      const hsl = rgbToHsl(red, green, blue);
 
       return {
         hex,
-        rgb: { r, g, b },
+        rgb: { r: red, g: green, b: blue },
         hsl,
       };
     }
@@ -492,11 +492,11 @@ export function getContrastRatio(color1: Color, color2: Color): number {
   if (!color1.rgb || !color2.rgb) return 0;
 
   const getLuminance = (rgb: { r: number; g: number; b: number }): number => {
-    const [r, g, b] = [rgb.r, rgb.g, rgb.b].map(c => {
+    const [red, green, blue] = [rgb.r, rgb.g, rgb.b].map(c => {
       c = c / 255;
       return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
     });
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
   };
 
   const lum1 = getLuminance(color1.rgb);
