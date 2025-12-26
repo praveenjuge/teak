@@ -1,5 +1,34 @@
-import { describe, expect, it } from "bun:test";
-import { generateHandler } from "../../../../convex/workflows/steps/renderables";
+import { describe, expect, it, beforeAll, mock } from "bun:test";
+
+let generateHandler: any;
+
+beforeAll(async () => {
+  const photonMock = () => ({
+    PhotonImage: { new_from_byteslice: () => ({}) },
+    SamplingFilter: { Lanczos3: "Lanczos3", Nearest: "Nearest" },
+    resize: () => new Uint8Array(),
+  });
+  mock.module("@cf-wasm/photon", photonMock);
+  mock.module("@cf-wasm/photon/dist/workerd.js", photonMock);
+  mock.module(
+    "/Users/praveenjuge/Projects/teak/node_modules/@cf-wasm/photon/dist/workerd.js",
+    photonMock
+  );
+  let resolvedPhoton: string | null = null;
+  try {
+    resolvedPhoton = import.meta.resolve("@cf-wasm/photon");
+  } catch {
+    resolvedPhoton = null;
+  }
+  if (resolvedPhoton) {
+    mock.module(resolvedPhoton, photonMock);
+  }
+  mock.module("@onkernel/sdk", () => ({
+    default: class KernelMock {},
+  }));
+
+  generateHandler = (await import("../../../../convex/workflows/steps/renderables")).generateHandler;
+});
 
 describe("renderables step", () => {
   const createMockFn = <TArgs extends unknown[], TResult>(
