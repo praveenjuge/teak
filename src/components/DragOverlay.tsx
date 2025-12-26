@@ -42,7 +42,12 @@ export function DragOverlay({
   }) => {
     return (
       <Dialog open modal={modal}>
-        <DialogContent showCloseButton={false}>{children}</DialogContent>
+        <DialogContent 
+          showCloseButton={false}
+          overlayClassName={!modal ? "pointer-events-none" : undefined}
+        >
+          {children}
+        </DialogContent>
       </Dialog>
     );
   };
