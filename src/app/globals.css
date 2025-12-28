@@ -142,3 +142,7 @@
 #sentry-feedback {
   --font-family: var(--font-sans);
 }
+
+[data-sonner-toaster] .sonner-loading-bar {
+  background: var(--primary-foreground);
+}

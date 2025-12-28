@@ -1,10 +1,16 @@
-import { action, query, type ActionCtx, type QueryCtx } from "./_generated/server";
+import {
+  action,
+  query,
+  type ActionCtx,
+  type QueryCtx,
+} from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import type {
   ProcessingStageKey,
   ProcessingStatus,
 } from "./card/processingStatus";
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import type { Id } from "./_generated/dataModel";
 
 type StageSummary = {
@@ -35,6 +41,7 @@ const MAX_MISSING_CARDS = 50;
 // Maximum cards to process in admin overview to prevent memory issues
 // For larger datasets, consider denormalizing counters or using pagination
 const ADMIN_OVERVIEW_LIMIT = 10000;
+const ADMIN_LIST_LIMIT = 200;
 
 type AdminCtx = QueryCtx | ActionCtx;
 
@@ -70,6 +77,14 @@ const ensureAdmin = async (ctx: AdminCtx) => {
     throw new Error("Unauthorized");
   }
 };
+
+const clampPagination = (paginationOpts: {
+  cursor: string | null;
+  numItems: number;
+}) => ({
+  ...paginationOpts,
+  numItems: Math.min(paginationOpts.numItems, ADMIN_LIST_LIMIT),
+});
 
 export const getAccess = query({
   args: {},
@@ -267,6 +282,82 @@ export const getOverview = query({
       },
       // Warn if we hit the limit - counts may be incomplete
       isApproximate: isLimitReached,
+    };
+  },
+});
+
+export const listAllCards = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, { paginationOpts }) => {
+    await ensureAdmin(ctx);
+
+    const safePagination = clampPagination(paginationOpts);
+
+    return ctx.db
+      .query("cards")
+      .order("desc")
+      .paginate(safePagination);
+  },
+});
+
+const normalizeUserId = (user: Record<string, unknown>) =>
+  (user as { _id?: string; id?: string; userId?: string; subject?: string })
+    ._id ??
+  (user as { _id?: string; id?: string; userId?: string; subject?: string }).id ??
+  (user as { _id?: string; id?: string; userId?: string; subject?: string })
+    .userId ??
+  (user as { _id?: string; id?: string; userId?: string; subject?: string })
+    .subject ??
+  null;
+
+export const listAllUsers = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, { paginationOpts }) => {
+    await ensureAdmin(ctx);
+
+    const safePagination = clampPagination(paginationOpts);
+
+    const result = (await ctx.runQuery(
+      components.betterAuth.adapter.findMany,
+      {
+        model: "user",
+        sortBy: { field: "createdAt", direction: "desc" },
+        limit: safePagination.numItems,
+        paginationOpts: safePagination,
+      }
+    )) as {
+      page?: Array<Record<string, unknown>>;
+      continueCursor?: string | null;
+      isDone?: boolean;
+    };
+
+    const page = (result.page ?? []).map((user) => ({
+      id: normalizeUserId(user),
+      email: (user as { email?: string }).email ?? null,
+      name: (user as { name?: string }).name ?? null,
+      image: (user as { image?: string | null }).image ?? null,
+      createdAt: (user as { createdAt?: number }).createdAt ?? null,
+      updatedAt: (user as { updatedAt?: number }).updatedAt ?? null,
+      emailVerified: (user as { emailVerified?: boolean }).emailVerified ?? null,
+      isAnonymous: (user as { isAnonymous?: boolean }).isAnonymous ?? null,
+      displayUsername:
+        (user as { displayUsername?: string | null }).displayUsername ?? null,
+      username: (user as { username?: string | null }).username ?? null,
+      phoneNumber:
+        (user as { phoneNumber?: string | null }).phoneNumber ?? null,
+      phoneNumberVerified:
+        (user as { phoneNumberVerified?: boolean }).phoneNumberVerified ?? null,
+      twoFactorEnabled:
+        (user as { twoFactorEnabled?: boolean }).twoFactorEnabled ?? null,
+    }));
+
+    return {
+      ...result,
+      page,
     };
   },
 });
