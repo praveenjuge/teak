@@ -177,26 +177,47 @@ export const cardProcessingWorkflow: any = workflow.define({
       };
     }
 
-    // Step 3 & 4: Metadata generation and renderables can run in parallel when needed
-    const metadataPromise = classification.shouldGenerateMetadata
-      ? step.runAction(
-        internalWorkflow["workflows/steps/metadata"].generate,
-        { cardId, cardType: classification.type },
-        { retry: METADATA_STEP_RETRY }
-      )
-      : Promise.resolve(null);
+    // Step 3 & 4: Metadata generation and renderables can run in parallel when needed.
+    // For videos, generate renderables first so the thumbnail can power AI metadata.
+    let metadataResult: any = null;
+    let renderablesResult: any = null;
 
-    const renderablesPromise = classification.shouldGenerateRenderables
-      ? step.runAction(
-        internalWorkflow["workflows/steps/renderables"].generate,
-        { cardId, cardType: classification.type }
-      )
-      : Promise.resolve(null);
+    if (classification.type === "video") {
+      renderablesResult = classification.shouldGenerateRenderables
+        ? await step.runAction(
+          internalWorkflow["workflows/steps/renderables"].generate,
+          { cardId, cardType: classification.type }
+        )
+        : null;
 
-    const [metadataResult, renderablesResult] = await Promise.all([
-      metadataPromise,
-      renderablesPromise,
-    ]);
+      metadataResult = classification.shouldGenerateMetadata
+        ? await step.runAction(
+          internalWorkflow["workflows/steps/metadata"].generate,
+          { cardId, cardType: classification.type },
+          { retry: METADATA_STEP_RETRY }
+        )
+        : null;
+    } else {
+      const metadataPromise = classification.shouldGenerateMetadata
+        ? step.runAction(
+          internalWorkflow["workflows/steps/metadata"].generate,
+          { cardId, cardType: classification.type },
+          { retry: METADATA_STEP_RETRY }
+        )
+        : Promise.resolve(null);
+
+      const renderablesPromise = classification.shouldGenerateRenderables
+        ? step.runAction(
+          internalWorkflow["workflows/steps/renderables"].generate,
+          { cardId, cardType: classification.type }
+        )
+        : Promise.resolve(null);
+
+      [metadataResult, renderablesResult] = await Promise.all([
+        metadataPromise,
+        renderablesPromise,
+      ]);
+    }
 
     await palettePromise;
 

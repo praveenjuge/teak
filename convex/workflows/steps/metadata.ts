@@ -2,7 +2,7 @@
  * Metadata Generation Step
  *
  * Workflow step that generates AI tags and summary for cards.
- * Handles different card types: text, image, audio, link, document, quote, palette.
+ * Handles different card types: text, image, video, audio, link, document, quote, palette.
  */
 
 "use node";
@@ -146,6 +146,22 @@ export async function generateHandler(
           aiSummary = result.aiSummary;
           confidence = 0.9;
           generationSource = "image";
+        }
+      }
+      break;
+    }
+    case "video": {
+      if (card.thumbnailId) {
+        const thumbnailUrl = await ctx.storage.getUrl(card.thumbnailId);
+        if (thumbnailUrl) {
+          const title =
+            card.fileMetadata?.fileName ||
+            (typeof card.content === "string" ? card.content : undefined);
+          const result = await generateImageMetadata(thumbnailUrl, title);
+          aiTags = result.aiTags;
+          aiSummary = result.aiSummary;
+          confidence = 0.88;
+          generationSource = "video_thumbnail";
         }
       }
       break;

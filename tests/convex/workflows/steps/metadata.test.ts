@@ -96,6 +96,16 @@ describe("metadata handler", () => {
     expect(result.aiTags).toEqual(["img"]);
   });
 
+  test("handles video card using thumbnail", async () => {
+    mockRunQuery.mockResolvedValue({ _id: "c1", thumbnailId: "t1" });
+    mockGetUrl.mockResolvedValue("https://thumb");
+    aiMocks.generateObject.mockResolvedValue({ object: { tags: ["video"], summary: "video sum" } });
+
+    const result = await generateHandler(ctx, { cardId: "c1", cardType: "video" });
+    expect(result.aiTags).toEqual(["video"]);
+    expect(mockGetUrl).toHaveBeenCalledWith("t1");
+  });
+
   test("handles audio card with transcript", async () => {
     mockRunQuery.mockResolvedValue({ _id: "c1", fileId: "a1", fileMetadata: { mimeType: "audio/mp3" } });
     mockGetUrl.mockResolvedValue("https://audio");
