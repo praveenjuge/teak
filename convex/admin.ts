@@ -1,6 +1,7 @@
 import {
   action,
   query,
+  internalMutation,
   type ActionCtx,
   type QueryCtx,
 } from "./_generated/server";
@@ -9,6 +10,7 @@ import type {
   ProcessingStageKey,
   ProcessingStatus,
 } from "./card/processingStatus";
+import { stagePending } from "./card/processingStatus";
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -447,6 +449,54 @@ type AiBackfillWorkflowResult = {
   failedCardIds: Id<"cards">[];
 };
 
+export const resetCardProcessingState = internalMutation({
+  args: {
+    cardId: v.id("cards"),
+  },
+  returns: v.object({
+    clearedThumbnail: v.boolean(),
+  }),
+  handler: async (ctx, { cardId }) => {
+    const card = await ctx.db.get("cards", cardId);
+    if (!card) {
+      throw new Error(`Card ${cardId} not found`);
+    }
+
+    let clearedThumbnail = false;
+    if (card.thumbnailId) {
+      try {
+        await ctx.storage.delete(card.thumbnailId);
+      } catch (error) {
+        console.error("[admin] Failed to delete thumbnail during refresh", {
+          cardId,
+          thumbnailId: card.thumbnailId,
+          error,
+        });
+      }
+      clearedThumbnail = true;
+    }
+
+    const processingStatus = card.processingStatus ?? {};
+    const updatedProcessing = {
+      ...processingStatus,
+      classify: stagePending(),
+    };
+
+    await ctx.db.patch("cards", cardId, {
+      thumbnailId: undefined,
+      aiTags: undefined,
+      aiSummary: undefined,
+      aiTranscript: undefined,
+      processingStatus: updatedProcessing,
+      updatedAt: Date.now(),
+    });
+
+    return {
+      clearedThumbnail,
+    };
+  },
+});
+
 export const retryAiBackfill = action({
   args: {},
   handler: async (ctx): Promise<BackfillSummary> => {
@@ -477,7 +527,7 @@ export const retryAiBackfill = action({
   },
 });
 
-export const retryCardEnrichment = action({
+export const refreshCardProcessing = action({
   args: {
     cardId: v.id("cards"),
   },
@@ -498,6 +548,11 @@ export const retryCardEnrichment = action({
         reason: "not_found",
       };
     }
+
+    await ctx.runMutation(
+      (internal as any).admin.resetCardProcessingState,
+      { cardId }
+    );
 
     await ctx.scheduler.runAfter(
       0,

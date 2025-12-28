@@ -5,7 +5,7 @@ import Kernel from "@onkernel/sdk";
 import { PhotonImage } from "@cf-wasm/photon";
 import { internalAction } from "../../../_generated/server";
 import { internal } from "../../../_generated/api";
-import type { ScrapeResponse } from "../../../linkMetadata";
+import type { ScrapeAttribute, ScrapeResponse, ScrapeResultItem, ScrapeSelectorResult } from "../../../linkMetadata";
 import {
   buildErrorPreview,
   buildSuccessPreview,
@@ -139,6 +139,152 @@ const storeLinkPreviewImage = async (
   }
 };
 
+const decodeHtmlEntities = (value: string): string => {
+  return value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, "\"")
+    .replace(/&#39;/gi, "'")
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
+      String.fromCharCode(Number.parseInt(hex, 16))
+    )
+    .replace(/&#([0-9]+);/g, (_, num) =>
+      String.fromCharCode(Number.parseInt(num, 10))
+    );
+};
+
+const extractTagAttributes = (tag: string): ScrapeAttribute[] => {
+  const attributes: ScrapeAttribute[] = [];
+  const regex = /([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(tag)) !== null) {
+    const name = match[1];
+    const rawValue = match[2] ?? match[3] ?? match[4] ?? "";
+    attributes.push({
+      name,
+      value: decodeHtmlEntities(rawValue),
+    });
+  }
+  return attributes;
+};
+
+const buildSelectorResultsFromHtml = (
+  html: string,
+  selectors: { selector: string }[]
+): ScrapeSelectorResult[] => {
+  const metaTags: ScrapeResultItem[] = [];
+  const linkTags: ScrapeResultItem[] = [];
+
+  const metaRegex = /<meta\b[^>]*>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = metaRegex.exec(html)) !== null) {
+    const attributes = extractTagAttributes(match[0]);
+    if (attributes.length) {
+      metaTags.push({ attributes });
+    }
+  }
+
+  const linkRegex = /<link\b[^>]*>/gi;
+  while ((match = linkRegex.exec(html)) !== null) {
+    const attributes = extractTagAttributes(match[0]);
+    if (attributes.length) {
+      linkTags.push({ attributes });
+    }
+  }
+
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const titleText = titleMatch
+    ? decodeHtmlEntities(titleMatch[1]).replace(/\s+/g, " ").trim()
+    : undefined;
+
+  return selectors.map(({ selector }) => {
+    const normalizedSelector = selector.trim();
+    const metaMatch = normalizedSelector.match(
+      /^meta\[(property|name)=['"]([^'"]+)['"]\]$/i
+    );
+    if (metaMatch) {
+      const attrName = metaMatch[1].toLowerCase();
+      const expectedValue = metaMatch[2].toLowerCase();
+      const results = metaTags.filter((item) => {
+        const attributes = item.attributes ?? [];
+        const matchAttr = attributes.find(
+          (attr) => attr.name.toLowerCase() === attrName
+        );
+        return matchAttr?.value?.toLowerCase() === expectedValue;
+      });
+      return { selector: normalizedSelector, results };
+    }
+
+    const linkMatch = normalizedSelector.match(/^link\[rel=['"]([^'"]+)['"]\]$/i);
+    if (linkMatch) {
+      const expectedValue = linkMatch[1].toLowerCase();
+      const results = linkTags.filter((item) => {
+        const attributes = item.attributes ?? [];
+        const matchAttr = attributes.find(
+          (attr) => attr.name.toLowerCase() === "rel"
+        );
+        return matchAttr?.value?.trim().toLowerCase() === expectedValue;
+      });
+      return { selector: normalizedSelector, results };
+    }
+
+    if (normalizedSelector.toLowerCase() === "head > title") {
+      return {
+        selector: normalizedSelector,
+        results: titleText ? [{ text: titleText }] : [],
+      };
+    }
+
+    return { selector: normalizedSelector, results: [] };
+  });
+};
+
+const scrapeWithFetch = async (
+  url: string,
+  selectors: { selector: string }[]
+): Promise<ScrapeResponse> => {
+  try {
+    const response = await fetch(url, {
+      redirect: "follow",
+      headers: {
+        "user-agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        accept: "text/html,application/xhtml+xml",
+      },
+    });
+
+    if (!response.ok) {
+      return {
+        success: false,
+        errors: [{ message: `HTTP ${response.status}` }],
+      };
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.toLowerCase().includes("text/html")) {
+      return {
+        success: false,
+        errors: [{ message: `Unsupported content-type: ${contentType}` }],
+      };
+    }
+
+    const html = await response.text();
+    const selectorResults = buildSelectorResultsFromHtml(html, selectors);
+
+    return {
+      success: true,
+      result: { selectors: selectorResults },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      errors: [{ message: (error as Error)?.message || "fetch_failed" }],
+    };
+  }
+};
+
 const scrapeWithKernel = async (
   url: string,
   selectors: { selector: string }[]
@@ -154,7 +300,20 @@ const scrapeWithKernel = async (
     const selectorStrings = selectors.map(s => s.selector);
     const instagramPrimaryImageSnippet = buildInstagramPrimaryImageSnippet();
     const code = `
-      await page.goto('${url.replace(/'/g, "\\'")}', { waitUntil: 'networkidle', timeout: 30000 });
+      // Keep navigation fast; many Framer/WebGL pages never reach "networkidle".
+      await page.route('**/*', route => {
+        const type = route.request().resourceType();
+        if (['image', 'media', 'font'].includes(type)) {
+          return route.abort();
+        }
+        return route.continue();
+      });
+
+      await page.setDefaultNavigationTimeout(20000);
+      await page.setDefaultTimeout(20000);
+
+      await page.goto('${url.replace(/'/g, "\\'")}', { waitUntil: 'domcontentloaded', timeout: 20000 });
+      await page.waitForTimeout(1000);
 
       const selectors = ${JSON.stringify(selectorStrings)};
       const results = [];
@@ -295,7 +454,7 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
   const normalizedUrl = normalizeUrl(card.url);
 
   try {
-    const payload = await scrapeWithKernel(normalizedUrl, SCRAPE_ELEMENTS);
+    let payload = await scrapeWithKernel(normalizedUrl, SCRAPE_ELEMENTS);
 
     if (!payload.success) {
       const errorMessage = payload.errors
@@ -308,24 +467,39 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
         payload.errors,
       );
 
-      const isRateLimit = errorMessage.toLowerCase().includes("rate") ||
-        errorMessage.toLowerCase().includes("limit");
+      const fallback = await scrapeWithFetch(normalizedUrl, SCRAPE_ELEMENTS);
+      if (fallback.success) {
+        console.info(
+          `[linkMetadata] Kernel failed; using HTML fetch fallback for ${normalizedUrl}`
+        );
+        payload = fallback;
+      } else {
+        const fallbackMessage = fallback.errors
+          ?.map((error) => error?.message)
+          .filter(Boolean)
+          .join("; ");
+        const combinedMessage = [errorMessage, fallbackMessage]
+          .filter(Boolean)
+          .join(" | ");
+        const isRateLimit = errorMessage.toLowerCase().includes("rate") ||
+          errorMessage.toLowerCase().includes("limit");
 
-      if (isRateLimit) {
+        if (isRateLimit) {
+          throwRetryable({
+            type: "rate_limit",
+            normalizedUrl,
+            message: combinedMessage || errorMessage,
+            details: { kernel: payload.errors, fallback: fallback.errors },
+          });
+        }
+
         throwRetryable({
-          type: "rate_limit",
+          type: "scrape_error",
           normalizedUrl,
-          message: errorMessage,
-          details: payload.errors,
+          message: combinedMessage || errorMessage,
+          details: { kernel: payload.errors, fallback: fallback.errors },
         });
       }
-
-      throwRetryable({
-        type: "scrape_error",
-        normalizedUrl,
-        message: errorMessage,
-        details: payload.errors,
-      });
     }
 
     const parsed = parseLinkPreview(normalizedUrl, payload.result?.selectors);

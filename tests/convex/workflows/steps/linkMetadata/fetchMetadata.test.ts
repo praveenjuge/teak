@@ -75,6 +75,13 @@ describe("fetchMetadata", () => {
     mockParseLinkPreview.mockReturnValue({});
     mockBuildSuccessPreview.mockReturnValue({});
     mockBuildErrorPreview.mockImplementation((url, error) => ({ url, error }));
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      headers: { get: () => "text/html" },
+      text: async () => "",
+    });
   });
 
   test("handles missing card", async () => {
@@ -163,6 +170,33 @@ describe("fetchMetadata", () => {
     });
 
     expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(/rate_limit/);
+  });
+
+  test("falls back to html fetch when kernel fails", async () => {
+    mockRunQuery.mockResolvedValue({
+      _id: "c1",
+      type: "link",
+      url: "https://example.com",
+      metadata: { linkCategory: { status: "completed" } }
+    });
+    mockKernelExecute.mockResolvedValue({
+      success: false,
+      error: "Timeout error"
+    });
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => "text/html" },
+      text: async () =>
+        "<html><head><title>Shader Lines</title><meta property=\"og:title\" content=\"Shader Lines\" /></head></html>",
+    });
+
+    const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+    expect(result.status).toBe("success");
+    expect(mockRunMutation).toHaveBeenCalledWith(
+      internal.linkMetadata.updateCardMetadata,
+      expect.objectContaining({ status: "completed" })
+    );
   });
 
   test("handles browser cleanup failure", async () => {
