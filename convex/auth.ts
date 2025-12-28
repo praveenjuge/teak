@@ -30,6 +30,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     trustedOrigins: [
       siteUrl,
       "app.teakvault.com",
+      "https://*.teakvault.com",
       "https://app.teakvault.com",
       "teak://",
       "teak://*",
