@@ -11,7 +11,7 @@ import type {
 } from "./card/processingStatus";
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 
 type StageSummary = {
   pending: number;
@@ -85,6 +85,57 @@ const clampPagination = (paginationOpts: {
   ...paginationOpts,
   numItems: Math.min(paginationOpts.numItems, ADMIN_LIST_LIMIT),
 });
+
+type CardWithUrls = Doc<"cards"> & {
+  fileUrl?: string;
+  thumbnailUrl?: string;
+  screenshotUrl?: string;
+  linkPreviewImageUrl?: string;
+};
+
+const attachCardUrls = async (
+  ctx: QueryCtx,
+  cards: Doc<"cards">[],
+): Promise<CardWithUrls[]> =>
+  Promise.all(
+    cards.map(async (card) => {
+      const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] =
+        await Promise.all([
+          card.fileId ? ctx.storage.getUrl(card.fileId) : Promise.resolve(null),
+          card.thumbnailId
+            ? ctx.storage.getUrl(card.thumbnailId)
+            : Promise.resolve(null),
+          card.metadata?.linkPreview?.screenshotStorageId
+            ? ctx.storage.getUrl(card.metadata.linkPreview.screenshotStorageId)
+            : Promise.resolve(null),
+          card.metadata?.linkPreview?.imageStorageId
+            ? ctx.storage.getUrl(card.metadata.linkPreview.imageStorageId)
+            : Promise.resolve(null),
+        ]);
+
+      return {
+        ...card,
+        fileUrl: fileUrl || undefined,
+        thumbnailUrl: thumbnailUrl || undefined,
+        screenshotUrl: screenshotUrl || undefined,
+        linkPreviewImageUrl: linkPreviewImageUrl || undefined,
+      };
+    }),
+  );
+
+const getActiveCardCountForUser = async (
+  ctx: QueryCtx,
+  userId: string,
+): Promise<number> => {
+  const cards = await ctx.db
+    .query("cards")
+    .withIndex("by_user_deleted", (q) =>
+      q.eq("userId", userId).eq("isDeleted", undefined),
+    )
+    .collect();
+
+  return cards.length;
+};
 
 export const getAccess = query({
   args: {},
@@ -295,10 +346,17 @@ export const listAllCards = query({
 
     const safePagination = clampPagination(paginationOpts);
 
-    return ctx.db
+    const result = await ctx.db
       .query("cards")
       .order("desc")
       .paginate(safePagination);
+
+    const page = await attachCardUrls(ctx, result.page);
+
+    return {
+      ...result,
+      page,
+    };
   },
 });
 
@@ -335,25 +393,39 @@ export const listAllUsers = query({
       isDone?: boolean;
     };
 
-    const page = (result.page ?? []).map((user) => ({
-      id: normalizeUserId(user),
-      email: (user as { email?: string }).email ?? null,
-      name: (user as { name?: string }).name ?? null,
-      image: (user as { image?: string | null }).image ?? null,
-      createdAt: (user as { createdAt?: number }).createdAt ?? null,
-      updatedAt: (user as { updatedAt?: number }).updatedAt ?? null,
-      emailVerified: (user as { emailVerified?: boolean }).emailVerified ?? null,
-      isAnonymous: (user as { isAnonymous?: boolean }).isAnonymous ?? null,
-      displayUsername:
-        (user as { displayUsername?: string | null }).displayUsername ?? null,
-      username: (user as { username?: string | null }).username ?? null,
-      phoneNumber:
-        (user as { phoneNumber?: string | null }).phoneNumber ?? null,
-      phoneNumberVerified:
-        (user as { phoneNumberVerified?: boolean }).phoneNumberVerified ?? null,
-      twoFactorEnabled:
-        (user as { twoFactorEnabled?: boolean }).twoFactorEnabled ?? null,
-    }));
+    const page = await Promise.all(
+      (result.page ?? []).map(async (user) => {
+        const id = normalizeUserId(user);
+        const cardsCount = id
+          ? await getActiveCardCountForUser(ctx, id)
+          : 0;
+
+        return {
+          id,
+          email: (user as { email?: string }).email ?? null,
+          name: (user as { name?: string }).name ?? null,
+          image: (user as { image?: string | null }).image ?? null,
+          createdAt: (user as { createdAt?: number }).createdAt ?? null,
+          updatedAt: (user as { updatedAt?: number }).updatedAt ?? null,
+          emailVerified:
+            (user as { emailVerified?: boolean }).emailVerified ?? null,
+          isAnonymous:
+            (user as { isAnonymous?: boolean }).isAnonymous ?? null,
+          displayUsername:
+            (user as { displayUsername?: string | null }).displayUsername ??
+            null,
+          username: (user as { username?: string | null }).username ?? null,
+          phoneNumber:
+            (user as { phoneNumber?: string | null }).phoneNumber ?? null,
+          phoneNumberVerified:
+            (user as { phoneNumberVerified?: boolean }).phoneNumberVerified ??
+            null,
+          twoFactorEnabled:
+            (user as { twoFactorEnabled?: boolean }).twoFactorEnabled ?? null,
+          cardsCount,
+        };
+      }),
+    );
 
     return {
       ...result,
