@@ -1,4 +1,4 @@
-import { generateObject } from "ai";
+import { generateText, Output } from "ai";
 import { aiMetadataSchema } from "./schemas";
 import {
   TEXT_METADATA_MODEL,
@@ -18,18 +18,20 @@ export const generateTextMetadata = async (content: string, title?: string) => {
     : content;
 
   try {
-    const result = await generateObject({
+    const result = await generateText({
       model: TEXT_METADATA_MODEL,
       // Static system prompt - will be cached across requests
       system: SYSTEM_PROMPTS.textAnalysis,
       // Dynamic content last for cache optimization
       prompt: `Analyze this content and generate tags and summary:\n\n${fullContent}`,
-      schema: aiMetadataSchema,
+      output: Output.object({
+        schema: aiMetadataSchema,
+      }),
     });
 
     return {
-      aiTags: result.object.tags,
-      aiSummary: result.object.summary,
+      aiTags: result.output.tags,
+      aiSummary: result.output.summary,
     };
   } catch (error) {
     console.error("Error generating text metadata:", error);
@@ -46,7 +48,7 @@ export const generateImageMetadata = async (
   title?: string,
 ) => {
   try {
-    const result = await generateObject({
+    const result = await generateText({
       model: IMAGE_METADATA_MODEL,
       // Static system prompt - structured for potential future caching support
       system: SYSTEM_PROMPTS.imageAnalysis,
@@ -69,12 +71,14 @@ export const generateImageMetadata = async (
           ],
         },
       ],
-      schema: aiMetadataSchema,
+      output: Output.object({
+        schema: aiMetadataSchema,
+      }),
     });
 
     return {
-      aiTags: result.object.tags,
-      aiSummary: result.object.summary,
+      aiTags: result.output.tags,
+      aiSummary: result.output.summary,
     };
   } catch (error) {
     console.error("Error generating image metadata:", error);
@@ -88,7 +92,7 @@ export const generateImageMetadata = async (
  */
 export const generateLinkMetadata = async (content: string, url?: string) => {
   try {
-    const result = await generateObject({
+    const result = await generateText({
       model: LINK_METADATA_MODEL,
       // Static system prompt - will be cached across requests
       system: SYSTEM_PROMPTS.linkAnalysis,
@@ -100,12 +104,14 @@ ${content}
 ${url ? `\nURL: ${url}` : ""}
 
 Generate tags and summary that will help the user rediscover and understand the value of this content.`,
-      schema: aiMetadataSchema,
+      output: Output.object({
+        schema: aiMetadataSchema,
+      }),
     });
 
     return {
-      aiTags: result.object.tags,
-      aiSummary: result.object.summary,
+      aiTags: result.output.tags,
+      aiSummary: result.output.summary,
     };
   } catch (error) {
     console.error("Error generating link metadata:", error);

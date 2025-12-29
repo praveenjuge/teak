@@ -1,4 +1,4 @@
-import { generateObject } from "ai";
+import { generateText, Output } from "ai";
 import { groq } from "@ai-sdk/groq";
 import { z } from "zod";
 import { existsSync, mkdirSync, writeFileSync, readdirSync, rmSync } from "fs";
@@ -179,7 +179,7 @@ function formatCommitsForPrompt(commits: GitHubCommit[]): string {
 async function generateBatchSummary(batch: CommitBatch) {
   const commitsText = formatCommitsForPrompt(batch.commits);
 
-  const result = await generateObject({
+  const result = await generateText({
     model: CHANGELOG_MODEL,
     // Static system prompt - will be cached across batch requests
     system: CHANGELOG_SYSTEM_PROMPT,
@@ -189,10 +189,12 @@ async function generateBatchSummary(batch: CommitBatch) {
 ${commitsText}
 
 Create an engaging title, summary, and highlights that communicate value to users. The title must avoid months, dates, and years (no calendar references) and should read like a compelling headline, not an "updates" label.`,
-    schema: changelogSchema,
+    experimental_output: Output.object({
+      schema: changelogSchema,
+    }),
   });
 
-  return result.object;
+  return result.experimental_output;
 }
 
 // Format date for frontmatter
