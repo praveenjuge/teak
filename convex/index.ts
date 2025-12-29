@@ -16,6 +16,7 @@ export * from "./card/uploadCard";
 export * from "./card/validationUtils";
 export * from "./card/processingStatus";
 export * from "./card/quoteFormatting";
+export * from "./card/defaultCards";
 
 // AI task helpers
 export * from "./ai/actions";

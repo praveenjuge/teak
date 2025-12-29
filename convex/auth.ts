@@ -97,6 +97,23 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         jwksRotateOnTokenGenerationError: true,
       }),
     ],
+    databaseHooks: {
+      user: {
+        create: {
+          after: async (user) => {
+            // Schedule default card creation asynchronously
+            // Using scheduler to avoid blocking user creation
+            // @ts-ignore - scheduler exists on MutationCtx
+            ctx.scheduler.runAfter(0, api.card.defaultCards.createDefaultCardsForUser, {
+              userId: user.id,
+            }).catch((err: Error) => {
+              // Log but don't throw - user creation should succeed even if card creation fails
+              console.error("Failed to schedule default cards:", err);
+            });
+          },
+        },
+      },
+    },
   } satisfies BetterAuthOptions);
 };
 
