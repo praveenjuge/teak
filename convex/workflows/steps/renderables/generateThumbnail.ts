@@ -1,9 +1,10 @@
 "use node";
 
-import { PhotonImage, SamplingFilter, resize } from "@cf-wasm/photon";
+import { PhotonImage, SamplingFilter, resize, fliph, flipv, rotate } from "@cf-wasm/photon";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import { v } from "convex/values";
+import { orientation } from "exifr";
 
 // Maximum thumbnail dimensions
 const THUMBNAIL_MAX_WIDTH = 500;
@@ -42,6 +43,55 @@ function getOutputSettings(fileSizeBytes: number): {
     // >= 20MB - maximum WebP compression
     return { quality: 50, useJpeg: false, skipThumbnail: false };
   }
+}
+
+/**
+ * Apply EXIF orientation transformations to the image.
+ * Returns a potentially new PhotonImage if rotation was performed (since rotate() returns a new image).
+ * EXIF orientation values:
+ * 1: Normal (no transformation)
+ * 2: Flip horizontal
+ * 3: Rotate 180°
+ * 4: Flip vertical
+ * 5: Transpose (flip horizontal + rotate 270°)
+ * 6: Rotate 90° CW
+ * 7: Transverse (flip horizontal + rotate 90°)
+ * 8: Rotate 270° CW (90° CCW)
+ */
+function applyExifOrientation(image: PhotonImage, orientationValue: number): PhotonImage {
+  let resultImage = image;
+
+  switch (orientationValue) {
+    case 2:
+      fliph(resultImage);
+      break;
+    case 3:
+      resultImage = rotate(resultImage, 180);
+      break;
+    case 4:
+      flipv(resultImage);
+      break;
+    case 5:
+      fliph(resultImage);
+      resultImage = rotate(resultImage, 270);
+      break;
+    case 6:
+      resultImage = rotate(resultImage, 90);
+      break;
+    case 7:
+      fliph(resultImage);
+      resultImage = rotate(resultImage, 90);
+      break;
+    case 8:
+      resultImage = rotate(resultImage, 270);
+      break;
+    case 1:
+    default:
+      // No transformation needed
+      break;
+  }
+
+  return resultImage;
 }
 
 /**
@@ -106,9 +156,13 @@ export const generateThumbnail = internalAction({
 
       const inputImage = PhotonImage.new_from_byteslice(inputBytes);
 
-      // Get original dimensions and file size
-      const originalWidth = inputImage.get_width();
-      const originalHeight = inputImage.get_height();
+      // Read and apply EXIF orientation to fix iOS HEIC rotation issues
+      const exifOrientation = await orientation(inputBytes);
+      const orientedImage = applyExifOrientation(inputImage, exifOrientation ?? 1);
+
+      // Get original dimensions and file size (from oriented image in case rotation changed dimensions)
+      const originalWidth = orientedImage.get_width();
+      const originalHeight = orientedImage.get_height();
       const fileSizeBytes = inputBytes.byteLength;
 
       // Get output settings based on file size (primary logic for thumbnail optimization)
@@ -157,7 +211,7 @@ export const generateThumbnail = internalAction({
       }
 
       // Always resize to thumbnail dimensions (let compression do the heavy lifting for size reduction)
-      const outputImage = resize(inputImage, targetWidth, targetHeight, SamplingFilter.Nearest);
+      const outputImage = resize(orientedImage, targetWidth, targetHeight, SamplingFilter.Nearest);
 
       // Generate output bytes with appropriate format and quality
       const outputBytes = useJpeg ? outputImage.get_bytes_jpeg(quality) : outputImage.get_bytes_webp();
