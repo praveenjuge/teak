@@ -4,6 +4,7 @@
  * Workflow step that generates thumbnails and other visual assets for cards.
  * Handles thumbnail generation for:
  * - Image cards (using @cf-wasm/photon for resizing)
+ * - SVG images (using @onkernel/sdk with Playwright to rasterize SVG to PNG)
  * - Video cards (using @onkernel/sdk with native HTML5 video + canvas APIs)
  * - PDF documents (using @onkernel/sdk with pdf.js for rendering)
  */
@@ -66,10 +67,25 @@ export async function generateHandler(
     }
   };
 
-  // Generate thumbnail for image cards
-  if (cardType === "image" && card.fileId) {
+  // Generate thumbnail for image cards (raster images like PNG, JPG, WebP)
+  // SVG files are handled separately below
+  const isSvgFile =
+    card.fileMetadata?.mimeType === "image/svg+xml" ||
+    card.fileMetadata?.fileName?.endsWith(".svg") ||
+    card.fileMetadata?.fileName?.endsWith(".SVG");
+
+  if (cardType === "image" && card.fileId && !isSvgFile) {
     const result = await ctx.runAction(
       (internal as any).workflows.steps.renderables.generateThumbnail.generateThumbnail,
+      { cardId }
+    );
+    handleResult(result);
+  }
+
+  // Generate thumbnail for SVG images (rasterize to PNG using Playwright)
+  if (cardType === "image" && card.fileId && isSvgFile) {
+    const result = await ctx.runAction(
+      (internal as any).workflows.steps.renderables.generateSvgThumbnail.generateSvgThumbnail,
       { cardId }
     );
     handleResult(result);

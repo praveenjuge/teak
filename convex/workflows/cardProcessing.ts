@@ -94,8 +94,17 @@ export const cardProcessingWorkflow: any = workflow.define({
         { cardId }
       );
 
+    // Check if this is an SVG image that needs thumbnail generation for palette extraction
+    const isSvgImage = classification.type === "image" && (
+      initialCard?.fileMetadata?.mimeType === "image/svg+xml" ||
+      initialCard?.fileMetadata?.fileName?.endsWith(".svg") ||
+      initialCard?.fileMetadata?.fileName?.endsWith(".SVG")
+    );
+
     // Palette extraction for image cards
-    const palettePromise = classification.type === "image"
+    // For SVGs, we'll run this after renderables (thumbnail needs to be ready first)
+    // For raster images, we can run it in parallel
+    const palettePromise = (classification.type === "image" && !isSvgImage)
       ? step
         .runAction(
           internalWorkflow["workflows/steps/palette"].extractPaletteFromImage,
@@ -178,17 +187,36 @@ export const cardProcessingWorkflow: any = workflow.define({
     }
 
     // Step 3 & 4: Metadata generation and renderables can run in parallel when needed.
-    // For videos, generate renderables first so the thumbnail can power AI metadata.
+    // For videos and SVG images, generate renderables first so the thumbnail can power AI metadata.
     let metadataResult: any = null;
     let renderablesResult: any = null;
 
-    if (classification.type === "video") {
+    // isSvgImage was already declared above at line 98-102
+
+    if (classification.type === "video" || isSvgImage) {
+      // For videos and SVGs: renderables first, then metadata (thumbnail needed for AI)
       renderablesResult = classification.shouldGenerateRenderables
         ? await step.runAction(
           internalWorkflow["workflows/steps/renderables"].generate,
           { cardId, cardType: classification.type }
         )
         : null;
+
+      // For SVGs, now run palette extraction since the thumbnail is ready
+      if (isSvgImage) {
+        await step
+          .runAction(
+            internalWorkflow["workflows/steps/palette"].extractPaletteFromImage,
+            { cardId }
+          )
+          .catch((error: unknown) => {
+            console.error(`${PIPELINE_LOG_PREFIX} Palette extraction failed for SVG`, {
+              cardId,
+              error,
+            });
+            return null;
+          });
+      }
 
       metadataResult = classification.shouldGenerateMetadata
         ? await step.runAction(

@@ -71,7 +71,22 @@ export const extractPaletteFromImage = internalAction({
       return card.colors as any;
     }
 
-    const fileUrl = await ctx.storage.getUrl(card.fileId);
+    // For SVG files, use the generated thumbnail (rasterized PNG) for palette extraction
+    // Photon can only process raster images, not SVG
+    const isSvg =
+      card.fileMetadata?.mimeType === "image/svg+xml" ||
+      card.fileMetadata?.fileName?.endsWith(".svg") ||
+      card.fileMetadata?.fileName?.endsWith(".SVG");
+
+    // Determine which file ID to use: thumbnail for SVGs, original file for raster images
+    const fileIdForPalette = isSvg ? card.thumbnailId : card.fileId;
+
+    // For SVGs without a thumbnail yet, skip (will run after thumbnail generation)
+    if (isSvg && !fileIdForPalette) {
+      return undefined;
+    }
+
+    const fileUrl = await ctx.storage.getUrl(fileIdForPalette);
     if (!fileUrl) {
       return undefined;
     }

@@ -138,14 +138,25 @@ export async function generateHandler(
       break;
     }
     case "image": {
-      if (card.fileId) {
-        const imageUrl = await ctx.storage.getUrl(card.fileId);
+      // For SVG images, use the thumbnail (rasterized PNG) for AI analysis
+      // For raster images, use the original file
+      const isSvgFile =
+        card.fileMetadata?.mimeType === "image/svg+xml" ||
+        card.fileMetadata?.fileName?.endsWith(".svg") ||
+        card.fileMetadata?.fileName?.endsWith(".SVG");
+
+      const imageFileId = isSvgFile && card.thumbnailId
+        ? card.thumbnailId
+        : card.fileId;
+
+      if (imageFileId) {
+        const imageUrl = await ctx.storage.getUrl(imageFileId);
         if (imageUrl) {
           const result = await generateImageMetadata(imageUrl);
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
           confidence = 0.9;
-          generationSource = "image";
+          generationSource = isSvgFile ? "svg_thumbnail" : "image";
         }
       }
       break;

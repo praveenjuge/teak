@@ -81,6 +81,7 @@ import type * as workflows_steps_metadata from "../workflows/steps/metadata.js";
 import type * as workflows_steps_palette from "../workflows/steps/palette.js";
 import type * as workflows_steps_renderables from "../workflows/steps/renderables.js";
 import type * as workflows_steps_renderables_generatePdfThumbnail from "../workflows/steps/renderables/generatePdfThumbnail.js";
+import type * as workflows_steps_renderables_generateSvgThumbnail from "../workflows/steps/renderables/generateSvgThumbnail.js";
 import type * as workflows_steps_renderables_generateThumbnail from "../workflows/steps/renderables/generateThumbnail.js";
 import type * as workflows_steps_renderables_generateVideoThumbnail from "../workflows/steps/renderables/generateVideoThumbnail.js";
 import type * as workflows_steps_renderables_mutations from "../workflows/steps/renderables/mutations.js";
@@ -166,6 +167,7 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/palette": typeof workflows_steps_palette;
   "workflows/steps/renderables": typeof workflows_steps_renderables;
   "workflows/steps/renderables/generatePdfThumbnail": typeof workflows_steps_renderables_generatePdfThumbnail;
+  "workflows/steps/renderables/generateSvgThumbnail": typeof workflows_steps_renderables_generateSvgThumbnail;
   "workflows/steps/renderables/generateThumbnail": typeof workflows_steps_renderables_generateThumbnail;
   "workflows/steps/renderables/generateVideoThumbnail": typeof workflows_steps_renderables_generateVideoThumbnail;
   "workflows/steps/renderables/mutations": typeof workflows_steps_renderables_mutations;
