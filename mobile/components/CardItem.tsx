@@ -1,5 +1,5 @@
 import { memo, useMemo, useState, type ReactNode } from "react";
-import { Alert, Image as RNImage } from "react-native";
+import { Alert, Image as RNImage, Platform } from "react-native";
 import {
   HStack,
   VStack,
@@ -130,7 +130,7 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
     try {
       await Clipboard.setStringAsync(value);
     } catch (error) {
-      console.warn("Failed to copy content:", error);
+      console.warn("Failed to copy content:", error instanceof Error ? error.message : error);
     }
   };
 
@@ -151,12 +151,34 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
     if (!url) return;
     try {
       const name = buildFileName(url, fileName);
-      const destination = `${FileSystem.documentDirectory ?? ""}${name}`;
-      const result = await FileSystem.downloadAsync(url, destination);
-      Alert.alert("Downloaded", `Saved to ${result.uri}`);
+
+      // On iOS, use Sharing to allow saving to Downloads folder via "Save to Files"
+      if (Platform.OS === "ios") {
+        const destination = `${FileSystem.cacheDirectory ?? ""}${name}`;
+        const result = await FileSystem.downloadAsync(url, destination);
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(result.uri, {
+            ...getShareOptions(name),
+            dialogTitle: "Save to Downloads",
+          });
+        }
+      } else {
+        // On Android, save to Downloads directory directly
+        const destination = `${FileSystem.documentDirectory ?? ""}${name}`;
+        const result = await FileSystem.downloadAsync(url, destination);
+        Alert.alert("Downloaded", `Saved to ${result.uri}`);
+      }
     } catch (error) {
-      console.warn("Failed to download file:", error);
-      Alert.alert("Download Failed", "Unable to download this file.");
+      // User cancelled sharing or actual error
+      if (
+        !(
+          error instanceof Error &&
+          error.message.includes("User did not share")
+        )
+      ) {
+        console.warn("Failed to download file:", error instanceof Error ? error.message : error);
+        Alert.alert("Download Failed", "Unable to download this file.");
+      }
     }
   };
 
@@ -201,7 +223,7 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
         Alert.alert("Sharing Unavailable", "Sharing is not available here.");
       }
     } catch (error) {
-      console.warn("Failed to share text:", error);
+      console.warn("Failed to share text:", error instanceof Error ? error.message : error);
     }
   };
 
@@ -217,7 +239,7 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
         Alert.alert("Sharing Unavailable", "Sharing is not available here.");
       }
     } catch (error) {
-      console.warn("Failed to share file:", error);
+      console.warn("Failed to share file:", error instanceof Error ? error.message : error);
     }
   };
 

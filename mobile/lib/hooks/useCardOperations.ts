@@ -24,13 +24,24 @@ export function useCreateCardWithFile(config: FileUploadConfig = {}) {
           fileName,
           fileType: mimeType,
         });
-        const response = await fetch(fileUri);
+
+        // Fetch with 30 second timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const response = await fetch(fileUri, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
         const blob = await response.blob();
 
+        // Upload with 60 second timeout
+        const uploadController = new AbortController();
+        const uploadTimeoutId = setTimeout(() => uploadController.abort(), 60000);
         const uploadResponse = await fetch(uploadUrl, {
           method: "POST",
           body: blob,
+          signal: uploadController.signal,
         });
+        clearTimeout(uploadTimeoutId);
 
         if (!uploadResponse.ok) {
           throw new Error("Failed to upload file");

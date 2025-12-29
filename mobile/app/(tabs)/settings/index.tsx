@@ -34,7 +34,10 @@ export default function SettingsScreen() {
       await authClient.signOut();
       router.replace("/(auth)/welcome");
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Sign out error:",
+        error instanceof Error ? error.message : error
+      );
     }
   };
 
@@ -73,7 +76,10 @@ export default function SettingsScreen() {
 
       if (deleteUserFailed) return;
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Delete account error:",
+        error instanceof Error ? error.message : error
+      );
       setDeleteError("Something went wrong while deleting your account.");
     } finally {
       setIsDeleting(false);
@@ -216,7 +222,7 @@ export default function SettingsScreen() {
               <Text design="rounded">Teak</Text>
               <Spacer />
               <Text color="secondary" design="rounded">
-                V0.1 • Early Access
+                by @praveenjuge
               </Text>
             </HStack>
             <HStack>

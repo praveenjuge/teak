@@ -49,7 +49,7 @@ export default function SignInScreen() {
       }
       router.replace("/(tabs)/(home)");
     } catch (error) {
-      console.error(error);
+      console.error("Sign in error:", error instanceof Error ? error.message : error);
       Alert.alert(
         "Sign In Failed",
         getAuthErrorMessage(

@@ -45,7 +45,7 @@ export default function OnboardingScreen() {
         router.replace("/(tabs)/(home)");
       }
     } catch (error) {
-      console.error(error);
+      console.error("Google sign in error:", error instanceof Error ? error.message : error);
       Alert.alert(
         "Google Sign In Failed",
         getAuthErrorMessage(
@@ -99,7 +99,7 @@ export default function OnboardingScreen() {
       if (error.code === "ERR_REQUEST_CANCELED") {
         return;
       }
-      console.error(error);
+      console.error("Apple sign in error:", error instanceof Error ? error.message : error);
       Alert.alert(
         "Apple Sign In Failed",
         getAuthErrorMessage(

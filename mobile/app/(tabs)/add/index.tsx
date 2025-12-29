@@ -131,7 +131,10 @@ export default function AddScreen() {
     try {
       showSavingFeedback();
       // Convert React Native file URI to Blob for the shared upload hook
-      const response = await fetch(fileUri);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const response = await fetch(fileUri, { signal: controller.signal });
+      clearTimeout(timeoutId);
       const blob = await response.blob();
       const file = new File([blob], fileName, { type: mimeType });
 
@@ -140,7 +143,7 @@ export default function AddScreen() {
         additionalMetadata,
       });
     } catch (error) {
-      console.error("Failed to upload file:", error);
+      console.error("Failed to upload file:", error instanceof Error ? error.message : error);
       showErrorFeedback("Failed to upload file. Please try again.");
       Alert.alert("Error", "Failed to upload file. Please try again.");
     }
@@ -174,7 +177,7 @@ export default function AddScreen() {
       setRecordingDuration(0);
       setIsTextSheetOpen(false);
     } catch (err) {
-      console.error("Failed to start recording", err);
+      console.error("Failed to start recording:", err instanceof Error ? err.message : err);
       Alert.alert("Error", "Failed to start recording.");
     }
   }
@@ -191,7 +194,7 @@ export default function AddScreen() {
       setRecordingDuration,
       handleFileUpload,
       onError: (error) => {
-        console.error("Failed to stop recording:", error);
+        console.error("Failed to stop recording:", error instanceof Error ? error.message : error);
         showErrorFeedback("Failed to save recording. Please try again.");
         Alert.alert("Error", "Failed to save recording. Please try again.");
       },
@@ -236,7 +239,7 @@ export default function AddScreen() {
         );
       }
     } catch (error) {
-      console.error("Gallery picker error:", error);
+      console.error("Gallery picker error:", error instanceof Error ? error.message : error);
       Alert.alert("Error", "Failed to pick from gallery");
     }
   };
@@ -279,7 +282,7 @@ export default function AddScreen() {
         );
       }
     } catch (error) {
-      console.error("Camera capture error:", error);
+      console.error("Camera capture error:", error instanceof Error ? error.message : error);
       Alert.alert("Error", "Failed to open camera");
     }
   };
@@ -304,7 +307,7 @@ export default function AddScreen() {
         );
       }
     } catch (error) {
-      console.error("Document picker error:", error);
+      console.error("Document picker error:", error instanceof Error ? error.message : error);
       Alert.alert("Error", "Failed to pick document");
     }
   };
@@ -337,7 +340,7 @@ export default function AddScreen() {
       setIsTextSheetOpen(false);
       showSavedFeedback();
     } catch (error) {
-      console.error("Failed to save card:", error);
+      console.error("Failed to save card:", error instanceof Error ? error.message : error);
       showErrorFeedback("Failed to save card. Please try again.");
       Alert.alert("Error", "Failed to save card. Please try again.");
     } finally {

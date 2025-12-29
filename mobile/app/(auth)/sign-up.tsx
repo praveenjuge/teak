@@ -81,7 +81,7 @@ export default function SignUpScreen() {
         );
       }
     } catch (error) {
-      console.error(error);
+      console.error("Sign up error:", error instanceof Error ? error.message : error);
       Alert.alert(
         "Sign Up Failed",
         getAuthErrorMessage(

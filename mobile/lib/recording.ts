@@ -37,7 +37,7 @@ export async function stopAudioRecording({
 
     const uri = audioRecorder.uri;
     if (uri) {
-      await handleFileUpload(uri, `recording-${Date.now()}.m4a`, "audio/m4a");
+      await handleFileUpload(uri, `recording-${Date.now()}.m4a`, "audio/mp4");
     }
   } catch (error) {
     onError?.(error);

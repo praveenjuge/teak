@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Image as RNImage, Linking, useWindowDimensions } from "react-native";
 import { Audio } from "expo-av";
 import { useEvent } from "expo";
@@ -11,13 +11,13 @@ import {
   HStack,
   Image,
   List,
-  RoundedRectangle,
   Section,
   Spacer,
   Text,
   VStack,
   ZStack,
 } from "@expo/ui/swift-ui";
+import { Circle } from "@expo/ui/src/swift-ui/Shapes";
 import {
   cornerRadius,
   frame,
@@ -82,14 +82,22 @@ const FullHeightMedia = ({
   fallbackIcon: string;
   fallbackLabel: string;
 }) => {
+  // Show thumbnail immediately while full image loads
   const [activeUri, setActiveUri] = useState<string | null>(
-    primaryUri ?? fallbackUri ?? null
+    fallbackUri ?? primaryUri ?? null
   );
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const isPrimary = activeUri === primaryUri;
 
   useEffect(() => {
-    setActiveUri(primaryUri ?? fallbackUri ?? null);
+    // Start with thumbnail, then load full image
+    if (fallbackUri) {
+      setActiveUri(fallbackUri);
+    }
+    if (primaryUri) {
+      setActiveUri(primaryUri);
+    }
     setIsLoading(true);
     setHasError(false);
   }, [primaryUri, fallbackUri]);
@@ -107,7 +115,7 @@ const FullHeightMedia = ({
   const handleError = () => {
     if (activeUri === primaryUri && fallbackUri) {
       setActiveUri(fallbackUri);
-      setIsLoading(true);
+      setIsLoading(false);
       return;
     }
     setIsLoading(false);
@@ -118,14 +126,13 @@ const FullHeightMedia = ({
     <ZStack modifiers={[frame({ height })]}>
       <RNImage
         key={activeUri}
-        source={{ uri: activeUri }}
+        source={{ uri: activeUri, cache: "force-cache" }}
         style={{
           width: "100%",
           height: "100%",
-          opacity: isLoading ? 0 : 1,
         }}
         resizeMode="contain"
-        onLoadStart={() => setIsLoading(true)}
+        onLoadStart={() => isPrimary && setIsLoading(true)}
         onLoadEnd={() => setIsLoading(false)}
         onError={handleError}
       />
@@ -251,35 +258,31 @@ const AudioPreview = ({
   );
 };
 
-const chunkPalette = (items: NonNullable<Card["colors"]>, size: number) => {
-  const rows: NonNullable<Card["colors"]>[] = [];
-  for (let index = 0; index < items.length; index += size) {
-    rows.push(items.slice(index, index + size));
-  }
-  return rows;
-};
-
 const VideoPreview = ({
   uri,
   height,
   isOpen,
+  posterUri,
 }: {
   uri: string;
   height: number;
   isOpen: boolean;
+  posterUri?: string | null;
 }) => {
   const player = useVideoPlayer(uri);
   const { status } = useEvent(player, "statusChange", {
     status: player.status,
   });
   const isLoading = status === "loading" || status === "idle";
+  const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
 
   useEffect(() => {
     const safePlay = () => {
       try {
         player.play();
+        setHasStartedPlaying(true);
       } catch (error) {
-        console.warn("Failed to start video preview", error);
+        console.warn("Failed to start video preview:", error instanceof Error ? error.message : error);
       }
     };
 
@@ -287,7 +290,7 @@ const VideoPreview = ({
       try {
         player.pause();
       } catch (error) {
-        console.warn("Failed to pause video preview", error);
+        console.warn("Failed to pause video preview:", error instanceof Error ? error.message : error);
       }
     };
 
@@ -295,6 +298,7 @@ const VideoPreview = ({
       safePlay();
     } else {
       safePause();
+      setHasStartedPlaying(false);
     }
 
     return () => {
@@ -304,6 +308,14 @@ const VideoPreview = ({
 
   return (
     <ZStack modifiers={[frame({ height })]}>
+      {/* Show poster while video loads */}
+      {posterUri && !hasStartedPlaying ? (
+        <RNImage
+          source={{ uri: posterUri, cache: "force-cache" }}
+          style={{ width: "100%", height: "100%" }}
+          resizeMode="contain"
+        />
+      ) : null}
       <VideoView
         player={player}
         style={{ width: "100%", height: "100%" }}
@@ -345,12 +357,12 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
     try {
       await sound.stopAsync();
     } catch (error) {
-      console.warn("Failed to stop audio preview", error);
+      console.warn("Failed to stop audio preview:", error instanceof Error ? error.message : error);
     }
     try {
       await sound.unloadAsync();
     } catch (error) {
-      console.warn("Failed to unload audio preview", error);
+      console.warn("Failed to unload audio preview:", error instanceof Error ? error.message : error);
     }
     soundRef.current = null;
     setIsAudioLoading(false);
@@ -393,7 +405,7 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
       );
       soundRef.current = sound;
     } catch (error) {
-      console.warn("Failed to load audio preview", error);
+      console.warn("Failed to load audio preview:", error instanceof Error ? error.message : error);
       setIsAudioLoading(false);
       setIsAudioPlaying(false);
       setAudioError("Failed to load audio");
@@ -441,7 +453,7 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
         await sound.playAsync();
       }
     } catch (error) {
-      console.warn("Failed to toggle audio preview", error);
+      console.warn("Failed to toggle audio preview:", error instanceof Error ? error.message : error);
     }
   }, [audioUrl, isAudioSupported, loadAndPlayAudio]);
 
@@ -452,14 +464,9 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
         await Linking.openURL(url);
       }
     } catch (error) {
-      console.error("Failed to open URL:", error);
+      console.error("Failed to open URL:", error instanceof Error ? error.message : error);
     }
   }, []);
-
-  const paletteRows = useMemo(() => {
-    if (!card?.colors?.length) return [];
-    return chunkPalette(card.colors.slice(0, 12), 6);
-  }, [card?.colors]);
 
   if (!card) return null;
 
@@ -514,6 +521,7 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
             uri={card.fileUrl}
             height={sheetHeight}
             isOpen={isOpen}
+            posterUri={videoPoster}
           />
         );
       case "text":
@@ -522,7 +530,7 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
         return renderTextBlock(quoteText);
       }
       case "palette":
-        if (!paletteRows.length) {
+        if (!card.colors?.length) {
           return (
             <FullHeightPlaceholder
               icon="paintpalette"
@@ -532,25 +540,25 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
           );
         }
         return (
-          <VStack
-            spacing={16}
-            alignment="center"
-            modifiers={[frame({ height: sheetHeight }), padding({ all: 16 })]}
-          >
-            {paletteRows.map((row, rowIndex) => (
-              <HStack key={`row-${rowIndex}`} spacing={10}>
-                {row.map((color, index) => (
-                  <RoundedRectangle
-                    key={`${color.hex}-${index}`}
+          <VStack modifiers={[frame({ height: sheetHeight })]}>
+            <List listStyle="insetGrouped">
+              {card.colors.slice(0, 12).map((color, index) => (
+                <HStack
+                  key={`${color.hex}-${index}`}
+                  spacing={12}
+                  alignment="center"
+                >
+                  <Circle
                     modifiers={[
-                      frame({ width: 36, height: 36 }),
+                      frame({ width: 32, height: 32 }),
                       foregroundStyle(color.hex as any),
-                      cornerRadius(8),
                     ]}
                   />
-                ))}
-              </HStack>
-            ))}
+                  <Text>{color.hex}</Text>
+                  <Spacer />
+                </HStack>
+              ))}
+            </List>
           </VStack>
         );
       case "audio":
