@@ -1,0 +1,60 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "version": "1.0.0",
+    "info": {
+      "en-US": {
+        "title": "Teak: Save Inspirations",
+        "subtitle": "Your Design Inspiration Vault",
+        "description": "Teak is your personal vault for design inspiration and creative ideas. Save, organize, and access your creative vision across all your devices.\n\nCAPTURE ANYTHING\n• Save links, images, videos, audio notes, and documents\n• Capture content directly from web pages with our browser extension\n• Add voice memos and scan documents on the go\n\nORGANIZE YOUR WAY\n• Create custom cards for each inspiration or idea\n• Add notes and tags to keep everything searchable\n• Mark favorites for quick access to your best ideas\n• Search instantly across all your content\n\nSYNC EVERYWHERE\n• Access your vault on web, mobile, and browser\n• Content stays in sync automatically across all devices\n• Work offline with local caching\n\nYOUR DATA, YOUR CONTROL\n• Private by design - your content is never used for advertising\n• Industry-standard encryption protects your data\n• Export or delete your data anytime\n• 30-day recovery period for deleted items\n\nTEAK IS FOR\n• Designers collecting inspiration\n• Creators organizing ideas and references\n• Researchers saving articles and resources\n• Anyone building a personal knowledge base\n\nPrivacy Policy: https://teakvault.com/docs/privacy-policy\nSupport: hi@praveenjuge.com",
+        "keywords": [
+          "design",
+          "inspiration",
+          "notes",
+          "organize",
+          "ideas",
+          "creative",
+          "save"
+        ],
+        "promoText": "Capture, organize, and access your creative inspiration anywhere.",
+        "marketingUrl": "https://teakvault.com",
+        "supportUrl": "https://teakvault.com/docs",
+        "privacyPolicyUrl": "https://teakvault.com/docs/privacy-policy",
+        "privacyChoicesUrl": "https://teakvault.com/docs/privacy-policy"
+      }
+    },
+    "advisory": {
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "gamblingSimulated": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "kidsAgeBand": null,
+      "matureOrSuggestiveThemes": "NONE",
+      "medicalOrTreatmentInformation": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "unrestrictedWebAccess": true,
+      "ageRatingOverride": "NONE",
+      "koreaAgeRatingOverride": "NONE"
+    },
+    "categories": [
+      "PRODUCTIVITY"
+    ],
+    "review": {
+      "firstName": "Praveen",
+      "lastName": "Juge",
+      "email": "hi@praveenjuge.com",
+      "phone": "+919941761544",
+      "demoRequired": false,
+      "notes": "APP OVERVIEW\nTeak is a personal design inspiration and knowledge management app. Users save, organize, and search their creative content (notes, links, images, videos, audio, documents) in a personal vault that syncs across devices.\n\nHOW TO TEST\n1. Tap \"Sign in with Apple\" to create an account instantly (no demo account needed)\n2. Explore the home screen to see existing cards\n3. Tap the + button to create your first card\n4. Try adding different content types: text notes, links, images, or voice recordings\n5. Use the search to find content\n6. Visit Settings to manage your account\n\nAPP FEATURES\n• Cards: Create cards with notes, links, images, videos, audio recordings, and documents\n• Organization: Add tags and mark items as favorites\n• Search: Full-text search across all content\n• Sync: Automatic sync across devices via Convex backend\n• Offline: Local caching allows offline access to previously viewed content\n\nAUTHENTICATION\n• Sign in with Apple (primary method)\n• Email/password authentication available\n• Auth tokens stored securely in device keychain (expo-secure-store)\n• Backend: Convex (US-based servers) with better-auth integration\n\nDEVICE PERMISSIONS (all requested at point of use with clear purpose)\n• Camera: When users tap to capture photos/videos directly for cards\n• Microphone: When users tap to record voice notes\n• Photo Library: When users select existing images/videos to add to cards\n\nTHIRD-PARTY SERVICES\n• Convex: Backend-as-a-Service for data storage and sync (convex.dev)\n• better-auth: Open-source authentication framework\n• Expo: Development and build platform\n\nPRIVACY & DATA\n• All user data is private and isolated per account\n• No advertising or third-party analytics on personal data\n• No data sharing with third parties\n• Full privacy policy at: https://teakvault.com/docs/privacy-policy\n• Users can export or delete their data anytime\n\nAPP STRUCTURE\n• Home tab: Browse and search all cards\n• Add tab: Create new cards with various content types\n• Settings tab: Account management and preferences\n\nGUIDELINE 5.1.1 (Data Collection)\n• Account data: name, email (from Sign in with Apple) - for authentication only\n• User content: cards, files, metadata - stored securely per user account\n• Usage data: basic interaction logs for service improvement\n• All data collection purposes explained in privacy policy\n\nThis is a productivity tool for organizing personal content. No features require additional review beyond standard authentication and file storage functionality."
+    },
+    "release": {
+      "automaticRelease": true,
+      "phasedRelease": false
+    },
+    "copyright": "Praveen Juge. All rights reserved."
+  }
+}
