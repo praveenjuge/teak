@@ -114,8 +114,17 @@ export const generateThumbnail = internalAction({
       // Get output settings based on file size (primary logic for thumbnail optimization)
       const { quality, useJpeg, skipThumbnail } = getOutputSettings(fileSizeBytes);
 
-      // Skip thumbnail generation for very small files
+      // Skip thumbnail generation for very small files, but still store dimensions
       if (skipThumbnail) {
+        // Store original dimensions in fileMetadata for aspect ratio
+        await ctx.runMutation(
+          internal.workflows.steps.renderables.mutations.updateCardFileMetadata,
+          {
+            cardId: args.cardId,
+            width: originalWidth,
+            height: originalHeight,
+          }
+        );
         return {
           success: true,
           generated: false,
@@ -168,12 +177,14 @@ export const generateThumbnail = internalAction({
       // Store the thumbnail in Convex storage
       const thumbnailId = await ctx.storage.store(thumbnailBlob);
 
-      // Update the card with the thumbnail via internal mutation to ensure DB access
+      // Update the card with the thumbnail and original dimensions via internal mutation
       await ctx.runMutation(
         internal.workflows.steps.renderables.mutations.updateCardThumbnail,
         {
           cardId: args.cardId,
           thumbnailId,
+          originalWidth,
+          originalHeight,
         }
       );
 

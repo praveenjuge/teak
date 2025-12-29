@@ -190,6 +190,8 @@ export const generateVideoThumbnail = internalAction({
                         data: base64,
                         width: targetWidth,
                         height: targetHeight,
+                        originalWidth: originalWidth,
+                        originalHeight: originalHeight,
                         mimeType: mimeType,
                       });
                     } catch (err) {
@@ -250,12 +252,19 @@ export const generateVideoThumbnail = internalAction({
         });
         const thumbnailId = await ctx.storage.store(thumbnailBlob);
 
-        // Update the card with the thumbnail
+        // Extract original video dimensions from the result
+        // These are the videoWidth and videoHeight from the HTMLVideoElement
+        const originalWidth = result.originalWidth as number | undefined;
+        const originalHeight = result.originalHeight as number | undefined;
+
+        // Update the card with the thumbnail and original dimensions
         await ctx.runMutation(
           internal.workflows.steps.renderables.mutations.updateCardThumbnail,
           {
             cardId: args.cardId,
             thumbnailId,
+            ...(originalWidth !== undefined && { originalWidth }),
+            ...(originalHeight !== undefined && { originalHeight }),
           }
         );
 
