@@ -4,6 +4,7 @@
 // Re-export all public functions from the modular files
 export * from "./card/createCard";
 export * from "./card/deleteCard";
+export * from "./card/findDuplicateCard";
 export * from "./card/generateUploadUrl";
 export * from "./card/getCard";
 export * from "./card/getCards";

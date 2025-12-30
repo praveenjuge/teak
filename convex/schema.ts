@@ -189,6 +189,8 @@ export default defineSchema({
     .index("by_user_favorites_deleted", ["userId", "isFavorited", "isDeleted"])
     .index("by_user_deleted", ["userId", "isDeleted"])
     .index("by_created", ["userId", "createdAt"])
+    // Index for duplicate URL checking
+    .index("by_user_url_deleted", ["userId", "url", "isDeleted"])
     // Search indexes for efficient full-text search
     .searchIndex("search_content", {
       searchField: "content",

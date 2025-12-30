@@ -5,7 +5,6 @@
 export default defineContentScript({
   matches: ['<all_urls>'],
   main() {
-    console.log('Teak content script loaded');
     // No context menu handling needed here anymore
   },
 });

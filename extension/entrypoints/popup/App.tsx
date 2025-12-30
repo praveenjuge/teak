@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, ExternalLink, Info } from "lucide-react";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
 import { useContextMenuSave } from "../../hooks/useContextMenuSave";
 import { useWebAppSession } from "../../hooks/useWebAppSession";
 import { getAuthErrorMessage } from "../../utils/getAuthErrorMessage";
+import type { DuplicateCard } from "../../hooks/useAutoSaveUrl";
 
 // Error code constant for card limit - should match convex/shared/constants.ts
 const CARD_LIMIT_REACHED_CODE = "CARD_LIMIT_REACHED";
@@ -170,9 +171,46 @@ function AuthPanel({ onLoginSuccess }: { onLoginSuccess: () => void }) {
   );
 }
 
+function DuplicateState({
+  duplicateCard,
+}: {
+  duplicateCard?: DuplicateCard | null;
+}) {
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInDays = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (diffInDays === 0) return "today";
+    if (diffInDays === 1) return "yesterday";
+    if (diffInDays < 7) return `${diffInDays} days ago`;
+    if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
+    return date.toLocaleDateString();
+  };
+
+  const cardTitle =
+    duplicateCard?.metadataTitle || duplicateCard?.content || "This page";
+  const truncatedTitle =
+    cardTitle.length > 50 ? cardTitle.slice(0, 50) + "..." : cardTitle;
+
+  return (
+    <div className="w-96 min-h-96 flex flex-col items-center justify-center gap-4 p-6 text-center">
+      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+        <Info className="w-4 h-4 text-gray-600" />
+      </div>
+
+      <p className="text-sm font-medium text-gray-900">
+        You have already saved this!
+      </p>
+    </div>
+  );
+}
+
 function AuthenticatedPopup({ user }: { user: SessionUser }) {
   const { state: contextMenuState, isRecentSave } = useContextMenuSave();
-  const { state, error } = useAutoSaveUrl(!isRecentSave);
+  const { state, error, duplicateCard } = useAutoSaveUrl(!isRecentSave);
   const [signOutLoading, setSignOutLoading] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
@@ -349,6 +387,8 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
             </span>
           </div>
         );
+      case "duplicate":
+        return <DuplicateState duplicateCard={duplicateCard} />;
       default:
         return null;
     }

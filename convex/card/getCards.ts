@@ -5,7 +5,7 @@ import { applyQuoteFormattingToList } from "./quoteFormatting";
 import type { Doc } from "../_generated/dataModel";
 
 // Return validator for card arrays - includes _id and _creationTime from Convex
-const cardReturnValidator = v.object({
+export const cardReturnValidator = v.object({
   ...cardValidator.fields,
   _id: v.id("cards"),
   _creationTime: v.number(),

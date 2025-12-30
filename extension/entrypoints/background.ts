@@ -52,7 +52,6 @@ export default defineBackground(() => {
     tab?: chrome.tabs.Tab
   ) {
     if (!tab?.id) {
-      console.error('No tab ID available');
       return;
     }
 

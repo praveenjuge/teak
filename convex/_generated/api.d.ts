@@ -19,6 +19,7 @@ import type * as billing from "../billing.js";
 import type * as card_createCard from "../card/createCard.js";
 import type * as card_defaultCards from "../card/defaultCards.js";
 import type * as card_deleteCard from "../card/deleteCard.js";
+import type * as card_findDuplicateCard from "../card/findDuplicateCard.js";
 import type * as card_generateUploadUrl from "../card/generateUploadUrl.js";
 import type * as card_getCard from "../card/getCard.js";
 import type * as card_getCards from "../card/getCards.js";
@@ -105,6 +106,7 @@ declare const fullApi: ApiFromModules<{
   "card/createCard": typeof card_createCard;
   "card/defaultCards": typeof card_defaultCards;
   "card/deleteCard": typeof card_deleteCard;
+  "card/findDuplicateCard": typeof card_findDuplicateCard;
   "card/generateUploadUrl": typeof card_generateUploadUrl;
   "card/getCard": typeof card_getCard;
   "card/getCards": typeof card_getCards;

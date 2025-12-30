@@ -52,7 +52,6 @@ export function useWebAppSession(): UseWebAppSessionResult {
         const token = await getSessionTokenFromCookies();
 
         if (!token) {
-          console.log("[useWebAppSession] No session token found in cookies");
           setData(null);
           setIsPending(false);
           return;
@@ -70,12 +69,10 @@ export function useWebAppSession(): UseWebAppSessionResult {
       }
 
       if (!response.ok) {
-        console.error("[useWebAppSession] Response not ok:", response.status);
         throw new Error("Failed to fetch session");
       }
 
       const sessionData = await response.json();
-      console.log("[useWebAppSession] Session data:", sessionData);
 
       if (sessionData?.session?.userId && sessionData?.user) {
         setData({
@@ -90,7 +87,6 @@ export function useWebAppSession(): UseWebAppSessionResult {
         setData(null);
       }
     } catch (err) {
-      console.error("[useWebAppSession] Error:", err);
       setError(err instanceof Error ? err : new Error("Unknown error"));
       setData(null);
     } finally {

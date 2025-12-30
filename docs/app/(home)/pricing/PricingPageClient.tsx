@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Rocket, TrendingUp, Wrench } from "lucide-react";
 import { PricingCard } from "../../../components/PricingCard";
 import { PricingToggle } from "../../../components/PricingToggle";
+import { Button } from "../../../components/ui/button";
 
 const pricingPlans = [
   {
@@ -16,8 +16,11 @@ const pricingPlans = [
       "200 cards",
       "Find anything in 2 seconds",
       "Works on phone, laptop, tablet",
-      "All features, no limits",
       "No credit card, ever",
+      "Dark mode",
+      "No ads",
+      "Fully private",
+      "No tracking",
     ],
     cta: {
       text: "Start Free",
@@ -37,8 +40,11 @@ const pricingPlans = [
       "Unlimited cards",
       "Find anything in 2 seconds",
       "Works on phone, laptop, tablet",
-      "All features, no limits",
       "Get help in 2 hours, not 2 days",
+      "Dark mode",
+      "No ads",
+      "Fully private",
+      "No tracking",
     ],
     cta: {
       text: "Get Pro",
@@ -47,25 +53,17 @@ const pricingPlans = [
     },
     popular: true,
   },
-  {
-    id: "selfhosted",
-    name: "Self-Hosted",
-    price: "Free",
-    description:
-      "Run Teak yourself. Unlimited cards, total control, zero cost. Perfect for agencies.",
-    features: [
-      "Unlimited cards",
-      "Full source code access",
-      "Your data never leaves you",
-      "Customize anything you want",
-      "Zero monthly fees, forever",
-    ],
-    cta: {
-      text: "Setup Guide →",
-      href: "/docs",
-    },
-  },
 ];
+
+const selfHostedPlan = {
+  name: "Self-Hosted",
+  description:
+    "Run Teak yourself. Unlimited cards, total control, zero cost. Perfect for agencies.",
+  cta: {
+    text: "Setup Guide →",
+    href: "/docs",
+  },
+};
 
 const faqs = [
   {
@@ -124,9 +122,9 @@ export default function PricingPageClient() {
       </div>
 
       {/* Pricing Cards */}
-      <section className="pb-20 md:pb-24">
+      <section className="pb-12">
         <div className="container mx-auto px-4">
-          <div className="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto">
+          <div className="grid gap-8 md:grid-cols-2 max-w-4xl mx-auto">
             {pricingPlans.map((plan) => (
               <PricingCard
                 key={plan.id}
@@ -143,48 +141,22 @@ export default function PricingPageClient() {
         </div>
       </section>
 
-      {/* Value Proposition */}
-      <section className="bg-muted/20 py-20 md:py-24">
+      {/* Self-Hosted Section */}
+      <section className="pb-20 md:pb-24">
         <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-4xl text-center">
-            <h2 className="mb-6 font-bold text-3xl text-balance">
-              Choose your adventure
-            </h2>
-            <p className="mb-12 text-muted-foreground text-lg text-balance">
-              Start free with 200 cards. Go Pro for unlimited. Or self-host for
-              total control. Your call.
-            </p>
-            <div className="grid gap-8 md:grid-cols-3">
-              <div className="text-center">
-                <div className="mb-4 flex justify-center">
-                  <Rocket className="h-8 w-8 text-primary" />
-                </div>
-                <h3 className="mb-2 font-semibold text-balance">Try It Free</h3>
+          <div className="mx-auto max-w-4xl">
+            <div className="relative rounded-lg border border-border justify-between bg-card p-8 flex">
+              <div>
+                <h3 className="font-semibold text-base mb-2">
+                  {selfHostedPlan.name}
+                </h3>
                 <p className="text-muted-foreground">
-                  200 cards for your most important inspiration. See why
-                  designers are switching to Teak.
+                  {selfHostedPlan.description}
                 </p>
               </div>
-              <div className="text-center">
-                <div className="mb-4 flex justify-center">
-                  <TrendingUp className="h-8 w-8 text-primary" />
-                </div>
-                <h3 className="mb-2 font-semibold text-balance">Go Pro</h3>
-                <p className="text-muted-foreground">
-                  Unlimited cards for serious designers. Less than 2 coffees per
-                  month.
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="mb-4 flex justify-center">
-                  <Wrench className="h-8 w-8 text-primary" />
-                </div>
-                <h3 className="mb-2 font-semibold text-balance">Self-Host</h3>
-                <p className="text-muted-foreground">
-                  Run it yourself. Unlimited cards, zero cost, your data never
-                  leaves your server.
-                </p>
-              </div>
+              <Button variant="outline" asChild>
+                <a href={selfHostedPlan.cta.href}>{selfHostedPlan.cta.text}</a>
+              </Button>
             </div>
           </div>
         </div>
@@ -194,9 +166,7 @@ export default function PricingPageClient() {
       <section className="py-20 md:py-24">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 font-bold text-3xl text-balance">
-              Still confused about pricing?
-            </h2>
+            <h2 className="mb-4 font-bold text-3xl text-balance">FAQ</h2>
             <p className="mx-auto max-w-xl text-muted-foreground text-balance">
               Real answers. No corporate jargon, promise.
             </p>

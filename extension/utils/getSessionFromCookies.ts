@@ -20,11 +20,8 @@ export async function getSessionTokenFromCookies(): Promise<string | null> {
       name: cookieName,
     });
 
-    console.log("[getSessionTokenFromCookies] Cookie lookup for", cookieName, ":", cookie ? "found" : "not found");
-
     return cookie?.value ?? null;
   } catch (error) {
-    console.error("[getSessionTokenFromCookies] Failed to get session cookie:", error);
     return null;
   }
 }
