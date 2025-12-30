@@ -639,3 +639,159 @@ This is why I built Teak.
 - **Use spaces** — 2-3 per tweet for readability
 - **CTAs work** — But don't overuse them
 - **Be authentic** — Sound like a person, not a brand
+
+---
+
+## Behind the Scenes: Technical Deep Dives
+
+146. Why I chose Convex over Firebase for Teak:
+- Built-in workflows for AI pipelines
+- Real-time subscriptions are first-class
+- No "frontend/backend" separation in code
+- Vector search coming soon
+
+147. The tech stack behind Teak:
+- Frontend: Next.js 16 + React 19
+- Backend: Convex (real-time, full-text search)
+- Mobile: React Native + Expo
+- Extension: Wxt (Chrome)
+- AI: Groq (fast inference)
+
+148. Convex workflows are incredible for orchestrating AI pipelines. Each step runs independently, retries on failure, and emits progress. Makes async processing feel simple.
+
+149. Next.js 16 + React 19 + React Compiler = smooth UI even with real-time updates. The masonry grid stays at 60fps even with 1,000+ cards.
+
+150. Using Wxt for the Chrome extension has been a breeze. Same stack as the web app, less context-switching, TypeScript everywhere.
+
+151. Groq's speed makes AI feel instant. No waiting 10 seconds for a summary. You save something, and it's processed before you can refresh.
+
+152. The masonry grid uses virtualization for performance. Even with 1,000+ cards, scrolling stays smooth. Only visible items render.
+
+153. Just shipped: Teak now generates SVG thumbnails for image cards. No more blurry previews, no more waiting for screenshots to load.
+
+154. Open source because your inspiration shouldn't be locked in a walled garden. Self-hostable. API-first. Your data, your infrastructure.
+
+155. How Teak processes content with AI in real-time:
+1. Fetch the page
+2. Extract metadata (title, description, images)
+3. Detect content type
+4. Run AI classification
+5. Generate tags and summary
+6. Create visual thumbnail
+
+All orchestrated by Convex workflows.
+
+---
+
+## Feature Spotlight Tweets
+
+### Capture Features
+
+156. Save from anywhere. Web, mobile, browser extension. Everything syncs in real-time. No "I'll add this later" — just save and it's there.
+
+157. The browser extension is the hero feature. One click and whatever you're looking at is saved, tagged, and searchable. Didn't even break your flow.
+
+158. **8 types of content you can save in Teak:**
+• Links — with auto-metadata
+• Images — rich previews
+• Videos — embed and watch
+• Audio — AI transcribed
+• Text — quick notes
+• Documents — PDFs, files
+• Palettes — extracted colors
+• Quotes — with context
+
+Your creative life is multimodal. Your bookmarking tool should be too.
+
+159. Just pasted a link into Teak and it automatically:
+- Fetched the metadata
+- Generated tags
+- Created a summary
+- Extracted images
+- Detected the category
+
+This is what bookmarking should feel like.
+
+160. Mobile capture matters. See something in the wild? Snap it, save it, find it later. Works offline, syncs when you're back.
+
+### AI Features
+
+161. What if your bookmarking tool actually read everything you saved?
+
+Teak uses AI to:
+- Auto-tag your saves
+- Generate summaries
+- Categorize content
+- Transcribe audio
+- Extract colors from images
+
+162. I don't organize my bookmarks. AI does it for me. Auto-tagging, auto-summarization, auto-categorization. The future of bookmarking is zero-organization.
+
+163. Just saved a design and Teak automatically extracted the color palette. This is why I built it — inspiration should be useful, not just stored.
+
+164. Teak's AI just categorized my last 50 saves and I didn't lift a finger. Tags, categories, summaries — all done before I could refresh the page.
+
+165. Save a voice note. Get back AI-generated text. That's Teak audio cards. Capture ideas out loud, search them as text later.
+
+### Rediscovery Features
+
+166. Search across your content, notes, tags, summaries, and metadata — all at once. Seven fields, one search box, instant results.
+
+167. Found something I saved 6 months ago by searching for a feeling. That's the power of AI semantic search.
+
+168. The best search is the one where you actually find what you're looking for. Not "exact match only" — actual understanding of what you saved.
+
+### Visual Features
+
+169. Why do bookmarking tools look like spreadsheets from 1999? Your inspiration deserves better. Teak is visual-first. Masonry grid, rich previews, instant visual context.
+
+170. Dark mode by default. Because creatives live in the dark, and our tools should too.
+
+171. Masonry grid. Rich previews. Visual browsing. Bookmarking for people who care about design. Your eyes will thank you.
+
+172. Just saved an image and Teak automatically extracted the color palette. Designers, this one's for you. Save a design, get the colors.
+
+173. Visual-first means scanning by eye, not reading titles. See the pattern, recognize the thumbnail, find what you need. That's how creatives work.
+
+---
+
+## Building in Public
+
+174. Week 1 of building Teak: "This is simple, just bookmarks + AI"
+Week 12: "Why is thumbnail generation so hard?"
+
+175. Just merged PR #47 — duplicate card detection. Small feature, huge quality of life improvement. Thanks to the community for the feedback!
+
+176. Spent 3 hours debugging a thumbnail issue. Turned out I was rate-limiting myself. The bug was me.
+
+177. 100 stars on GitHub! Each one is someone who trusted this project enough to click a button. That means everything. github.com/praveenjuge/teak-convex-nextjs
+
+178. Shipping feels good. Shipping open source feels better. Today Teak is publicly available for anyone to use, fork, or contribute to.
+
+179. Building in public is scary. Every bug is public, every design decision visible. But the feedback loop is worth it.
+
+180. Working on open source feels different. Every contribution, every bug report, every star — it all means more. This isn't just my project anymore.
+
+181. The hardest part of building Teak wasn't the AI. It was making the masonry grid feel smooth on mobile. Performance is polish.
+
+182. Just got my first star from someone I don't know. Tiny milestone, huge feeling. Someone I've never met found this useful.
+
+183. Every time I think "this is ready," I find 5 more things to fix. Shipping is a decision, not a feeling. Sometimes you just have to ship.
+
+184. Today I learned: Convex's real-time sync makes multi-platform bookmarking actually enjoyable. Previously I was fighting race conditions constantly.
+
+185. Just shipped [feature]. Here's what went wrong:
+- Spent 2 days on edge case
+- Realized I overengineered it
+- Simplified, shipped in 2 hours
+- Users love the simple version
+
+186. Building in public tip: Ship before you're ready. You'll never feel ready. The feedback you get from actual users is worth more than another week of "polish."
+
+187. Just merged a PR that adds [feature]. Thanks to [contributor] for the help! Open source means better features, faster.
+
+188. The hardest part of open source isn't the code. It's writing good issues, documenting clearly, and making contributors feel welcome.
+
+189. Just shipped: EXIF orientation handling for images. Now your photos actually display correctly. Small detail, big difference in UX.
+
+190. 1,000 cards saved in my Teak instance! What started as a side project to solve my own problem is now my primary inspiration library.
