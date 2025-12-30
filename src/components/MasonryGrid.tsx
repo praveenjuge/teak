@@ -19,6 +19,8 @@ interface MasonryGridProps {
   onRestoreCard: (cardId: string) => void;
   onPermanentDeleteCard: (cardId: string) => void;
   onToggleFavorite: (cardId: string) => void;
+  onAddTags?: (cardId: string) => void;
+  onCopyImage?: (content: string, isImage: boolean) => void;
 }
 
 export function MasonryGrid({
@@ -29,6 +31,8 @@ export function MasonryGrid({
   onRestoreCard,
   onPermanentDeleteCard,
   onToggleFavorite,
+  onAddTags,
+  onCopyImage,
 }: MasonryGridProps) {
   // Selection state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -132,6 +136,8 @@ export function MasonryGrid({
         onRestore={onRestoreCard}
         onPermanentDelete={onPermanentDeleteCard}
         onToggleFavorite={onToggleFavorite}
+        onAddTags={onAddTags}
+        onCopyImage={onCopyImage}
         isTrashMode={showTrashOnly}
         isSelectionMode={isSelectionMode}
         isSelected={selectedCardIds.has(card._id)}

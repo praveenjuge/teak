@@ -1,11 +1,13 @@
 import {
   CheckSquare,
+  Copy,
   ExternalLink,
   File,
   Heart,
   Loader2,
   Play,
   RotateCcw,
+  Tag,
   Trash,
   Trash2,
 } from "lucide-react";
@@ -53,6 +55,8 @@ interface CardProps {
   onRestore?: (cardId: string) => void;
   onPermanentDelete?: (cardId: string) => void;
   onToggleFavorite?: (cardId: string) => void;
+  onAddTags?: (cardId: string) => void;
+  onCopyImage?: (content: string, isImage: boolean) => void;
   isTrashMode?: boolean;
   isSelectionMode?: boolean;
   isSelected?: boolean;
@@ -88,6 +92,8 @@ export function Card({
   onRestore,
   onPermanentDelete,
   onToggleFavorite,
+  onAddTags,
+  onCopyImage,
   isSelectionMode,
   isSelected,
   onEnterSelectionMode,
@@ -119,6 +125,32 @@ export function Card({
   const handleToggleFavorite = () => {
     if (isOptimistic) return;
     onToggleFavorite?.(card._id);
+  };
+
+  const handleAddTags = () => {
+    if (isOptimistic) return;
+    onAddTags?.(card._id);
+  };
+
+  const handleCopyImage = () => {
+    if (isOptimistic) return;
+    // For image cards: the parent will handle copying the actual image
+    // For text cards: copy the content
+    // For link cards: copy the URL
+    let contentToCopy = "";
+    let isImage = false;
+    if (card.type === "image") {
+      isImage = true;
+      // Use original fileUrl, not thumbnail
+      contentToCopy = card.fileUrl ?? card.thumbnailUrl ?? "";
+    } else if (card.type === "text") {
+      contentToCopy = card.content ?? "";
+    } else if (card.type === "link" && card.url) {
+      contentToCopy = card.url;
+    }
+    if (contentToCopy) {
+      onCopyImage?.(contentToCopy, isImage);
+    }
   };
 
   const openLink = () => {
@@ -363,6 +395,17 @@ export function Card({
           </>
         )}
 
+        {/* Copy to Clipboard - for image (non-SVG), text, and link cards */}
+        {!card.isDeleted && (
+          (card.type === "text" ||
+            card.type === "link" ||
+            (card.type === "image" && card.fileMetadata?.mimeType !== "image/svg+xml")) && (
+          <ContextMenuItem onClick={handleCopyImage}>
+            <Copy />
+            {card.type === "text" ? "Copy Text" : card.type === "link" ? "Copy Link" : "Copy Image"}
+          </ContextMenuItem>
+        ))}
+
         {!card.isDeleted && (
           <>
             {!isSelectionMode && (
@@ -377,6 +420,10 @@ export function Card({
                 {isSelected ? "Deselect" : "Select"}
               </ContextMenuItem>
             )}
+            <ContextMenuItem onClick={handleAddTags}>
+              <Tag />
+              Add Tags
+            </ContextMenuItem>
             <ContextMenuItem onClick={handleToggleFavorite}>
               <Heart
                 className={`${
