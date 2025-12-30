@@ -7,7 +7,7 @@ export default defineConfig({
   manifest: {
     name: 'Teak',
     description: 'Your personal knowledge hub. Save, organize, and rediscover web content effortlessly.',
-    version: '1.0.0',
+    version: '1.0.1',
     author: {
       email: "hi@praveenjuge.com"
     },
