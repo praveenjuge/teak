@@ -2,7 +2,7 @@ export function TopPattern() {
   return (
     <svg
       aria-hidden="true"
-      className="pointer-events-none absolute top-0 left-0 z-[-1] hidden select-none md:block"
+      className="pointer-events-none fixed top-0 left-0 z-[-1] hidden select-none md:block"
       fill="none"
       height="335"
       viewBox="0 0 542 335"

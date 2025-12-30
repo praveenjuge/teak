@@ -10,7 +10,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <section className="mx-auto max-w-xs flex flex-col items-center gap-6 py-14 md:py-32 md:h-screen w-full">
+    <section className="mx-auto max-w-xs flex flex-col items-center gap-6 py-14 md:py-26 md:h-lh w-full">
       <Link href="/login">
         <Logo variant="primary" />
       </Link>

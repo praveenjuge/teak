@@ -2,7 +2,7 @@ export function BottomPattern() {
   return (
     <svg
       aria-hidden="true"
-      className="pointer-events-none absolute right-0 bottom-0 z-[-1] select-none"
+      className="pointer-events-none fixed right-0 bottom-0 z-[-1] select-none"
       fill="none"
       height="272"
       viewBox="0 0 674 272"

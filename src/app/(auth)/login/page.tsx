@@ -117,7 +117,6 @@ export default function SignIn() {
               </>
             )}
           </Button>
-          {/* 
           <Button
             type="button"
             variant="outline"
@@ -133,7 +132,7 @@ export default function SignIn() {
                 Continue with Apple
               </>
             )}
-          </Button> */}
+          </Button>
         </div>
 
         <div className="relative my-4">

@@ -6,7 +6,6 @@ const signInRoutes = [
   "/register",
   "/reset-password",
   "/forgot-password",
-  "/apple-test",
 ];
 
 export default async function middleware(request: NextRequest) {
