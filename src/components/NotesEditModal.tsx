@@ -68,7 +68,7 @@ export function NotesEditModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{notes ? "Edit Notes" : "Add Notes"}</DialogTitle>
+          <DialogTitle>Notes</DialogTitle>
           <DialogDescription>
             Press{" "}
             <kbd className="px-1 py-0.5 text-xs font-mono bg-muted rounded">
@@ -89,7 +89,7 @@ export function NotesEditModal({
           onChange={(e) => setLocalNotes(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Add your notes here..."
-          className="mt-1 min-h-[120px]"
+          className="mt-1 min-h-30"
           rows={6}
         />
 

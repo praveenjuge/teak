@@ -44,7 +44,7 @@ interface SearchBarProps {
 // Icon component mapping for Lucide React icons
 const iconComponentMap = {
   FileText,
-  LinkIcon,
+  Link: LinkIcon,
   Image,
   Video,
   Volume2,
