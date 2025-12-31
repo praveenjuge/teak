@@ -19,8 +19,10 @@ import { api } from "@teak/convex";
 import { toast } from "sonner";
 import { metrics } from "@/lib/metrics";
 import { TagManagementModal } from "@/components/TagManagementModal";
+import { filterLocalCards } from "@/lib/localSearch";
 
 const DEFAULT_CARD_LIMIT = 100;
+const LOCAL_SEARCH_CACHE_LIMIT = 1000;
 
 export default function HomePage() {
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
@@ -33,6 +35,7 @@ export default function HomePage() {
   const [filterTags, setFilterTags] = useState<CardType[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showTrashOnly, setShowTrashOnly] = useState(false);
+  const [localCards, setLocalCards] = useState<Doc<"cards">[]>([]);
 
   const searchTerms = useMemo(
     () =>
@@ -61,20 +64,93 @@ export default function HomePage() {
     initialNumItems: DEFAULT_CARD_LIMIT,
   });
 
-  const selectedCard = useMemo(
-    () =>
-      cards?.find((card: Doc<"cards">) => card._id === editingCardId) ?? null,
-    [cards, editingCardId]
-  );
+  useEffect(() => {
+    if (!cards || cards.length === 0) return;
+
+    setLocalCards((prev) => {
+      const map = new Map(prev.map((card) => [card._id, card]));
+      let changed = false;
+
+      for (const card of cards) {
+        const existing = map.get(card._id);
+        if (!existing || existing.updatedAt !== card.updatedAt) {
+          map.set(card._id, card);
+          changed = true;
+        }
+      }
+
+      if (!changed) {
+        return prev;
+      }
+
+      const merged = Array.from(map.values());
+      if (merged.length <= LOCAL_SEARCH_CACHE_LIMIT) {
+        return merged;
+      }
+
+      return merged
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, LOCAL_SEARCH_CACHE_LIMIT);
+    });
+  }, [cards]);
+
 
   // Track search when results change and filters are active
   const hasActiveSearch =
     searchTerms || filterTags.length > 0 || showFavoritesOnly || showTrashOnly;
+
+  const localSearchResults = useMemo(() => {
+    if (!hasActiveSearch) return [];
+    return filterLocalCards(localCards, {
+      searchTerms,
+      types: filterTags,
+      favoritesOnly: showFavoritesOnly,
+      showTrashOnly,
+    });
+  }, [
+    filterTags,
+    hasActiveSearch,
+    localCards,
+    searchTerms,
+    showFavoritesOnly,
+    showTrashOnly,
+  ]);
+
+  const displayCards = useMemo(() => {
+    if (!hasActiveSearch) {
+      return cards ?? [];
+    }
+
+    if (!cards || cards.length === 0) {
+      return localSearchResults;
+    }
+
+    if (localSearchResults.length === 0) {
+      return cards;
+    }
+
+    const localIds = new Set(localSearchResults.map((card) => card._id));
+    const merged = [...localSearchResults];
+
+    for (const card of cards) {
+      if (!localIds.has(card._id)) {
+        merged.push(card);
+      }
+    }
+
+    return merged;
+  }, [cards, hasActiveSearch, localSearchResults]);
+
+  const selectedCard = useMemo(
+    () =>
+      displayCards.find((card: Doc<"cards">) => card._id === editingCardId) ??
+      null,
+    [displayCards, editingCardId]
+  );
   useEffect(() => {
     if (hasActiveSearch && cardsStatus !== "LoadingFirstPage") {
       metrics.searchPerformed(cards.length, filterTags);
     }
-     
   }, [cards.length, cardsStatus, hasActiveSearch, filterTags]);
 
   const cardActions = useCardActions({
@@ -91,9 +167,10 @@ export default function HomePage() {
   // Get the card for tag management
   const tagManagementCard = useMemo(
     () =>
-      cards?.find((card: Doc<"cards">) => card._id === tagManagementCardId) ??
-      null,
-    [cards, tagManagementCardId]
+      displayCards.find(
+        (card: Doc<"cards">) => card._id === tagManagementCardId
+      ) ?? null,
+    [displayCards, tagManagementCardId]
   );
 
   // Handler for opening tag management modal
@@ -408,7 +485,7 @@ export default function HomePage() {
   const renderEmptyState = () => {
     if (cardsStatus === "LoadingFirstPage") return <CardsGridSkeleton />;
 
-    if ((cards?.length || 0) === 0 && hasNoFilters) {
+    if (displayCards.length === 0 && hasNoFilters) {
       return (
         <div className="text-center flex flex-col items-center max-w-xs mx-auto py-20 gap-5">
           <Logo variant="current" />
@@ -423,7 +500,7 @@ export default function HomePage() {
       );
     }
 
-    if ((cards?.length || 0) === 0) {
+    if (displayCards.length === 0) {
       return (
         <div className="text-center py-12 space-y-4">
           <p className="text-muted-foreground">
@@ -458,9 +535,9 @@ export default function HomePage() {
         onClearAll={clearAllFilters}
       />
 
-      {(cards?.length || 0) > 0 ? (
+      {displayCards.length > 0 ? (
         <MasonryGrid
-          filteredCards={cards}
+          filteredCards={displayCards}
           showTrashOnly={showTrashOnly}
           onCardClick={handleCardClick}
           onDeleteCard={(cardId) =>
