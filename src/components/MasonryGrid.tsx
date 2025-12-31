@@ -69,6 +69,26 @@ export function MasonryGrid({
   const resetKeyRef = useRef(resolvedResetKey);
   const prevCardsLengthRef = useRef(filteredCards.length);
 
+  // Refs for IntersectionObserver to avoid effect re-creation
+  const normalizedBatchSizeRef = useRef(normalizedBatchSize);
+  const onLoadMoreRef = useRef(onLoadMore);
+  const hasMoreRef = useRef(hasMore);
+  const loadMoreRootMarginRef = useRef(loadMoreRootMargin);
+
+  // Keep refs in sync
+  useEffect(() => {
+    normalizedBatchSizeRef.current = normalizedBatchSize;
+  }, [normalizedBatchSize]);
+  useEffect(() => {
+    onLoadMoreRef.current = onLoadMore;
+  }, [onLoadMore]);
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
+  useEffect(() => {
+    loadMoreRootMarginRef.current = loadMoreRootMargin;
+  }, [loadMoreRootMargin]);
+
   useEffect(() => {
     const didReset = resetKeyRef.current !== resolvedResetKey;
     if (didReset) {
@@ -115,30 +135,28 @@ export function MasonryGrid({
         const canShowMoreLocal = visibleCount < filteredCards.length;
         if (canShowMoreLocal) {
           setVisibleCount((prev) =>
-            Math.min(prev + normalizedBatchSize, filteredCards.length)
+            Math.min(
+              prev + normalizedBatchSizeRef.current,
+              filteredCards.length
+            )
           );
           return;
         }
 
-        const canLoadMoreRemote = Boolean(onLoadMore && hasMore !== false);
+        const canLoadMoreRemote = Boolean(
+          onLoadMoreRef.current && hasMoreRef.current !== false
+        );
         if (canLoadMoreRemote && !loadMoreRequestedRef.current) {
           loadMoreRequestedRef.current = true;
-          onLoadMore?.();
+          onLoadMoreRef.current?.();
         }
       },
-      { root: null, rootMargin: loadMoreRootMargin, threshold: 0 }
+      { root: null, rootMargin: loadMoreRootMarginRef.current, threshold: 0 }
     );
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [
-    visibleCount,
-    filteredCards.length,
-    normalizedBatchSize,
-    onLoadMore,
-    hasMore,
-    loadMoreRootMargin,
-  ]);
+  }, [visibleCount, filteredCards.length]);
 
   // Selection handlers
   const enterSelectionMode = useCallback((cardId?: string) => {
@@ -171,13 +189,16 @@ export function MasonryGrid({
     });
   }, []);
 
-  const handleCardClick = useCallback((card: Doc<"cards">) => {
-    if (isSelectionMode) {
-      toggleCardSelection(card._id);
-    } else {
-      onCardClick(card);
-    }
-  }, [isSelectionMode, onCardClick, toggleCardSelection]);
+  const handleCardClick = useCallback(
+    (card: Doc<"cards">) => {
+      if (isSelectionMode) {
+        toggleCardSelection(card._id);
+      } else {
+        onCardClick(card);
+      }
+    },
+    [isSelectionMode, onCardClick, toggleCardSelection]
+  );
 
   const handleBulkDelete = useCallback(async () => {
     try {
@@ -270,7 +291,6 @@ export function MasonryGrid({
         gutter={24}
         items={masonryItems}
         itemRender={renderItem}
-        fresh
         className={isSelectionMode ? "select-none" : ""}
       />
       {filteredCards.length > 0 &&

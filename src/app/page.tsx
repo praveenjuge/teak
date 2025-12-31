@@ -94,7 +94,6 @@ export default function HomePage() {
     });
   }, [cards]);
 
-
   // Track search when results change and filters are active
   const hasActiveSearch =
     searchTerms || filterTags.length > 0 || showFavoritesOnly || showTrashOnly;

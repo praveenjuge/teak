@@ -11,7 +11,7 @@ import {
   Trash,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import type { SyntheticEvent } from "react";
 import { Image } from "antd";
 import {
@@ -41,7 +41,9 @@ type CardWithUrls = Doc<"cards"> & {
   linkPreviewImageUrl?: string;
 };
 
-type LinkPreviewMetadata = NonNullable<Doc<"cards">["metadata"]>["linkPreview"] & {
+type LinkPreviewMetadata = NonNullable<
+  Doc<"cards">["metadata"]
+>["linkPreview"] & {
   imageWidth?: number;
   imageHeight?: number;
   screenshotWidth?: number;
@@ -85,7 +87,7 @@ function getAudioWaveHeight(seed: string, index: number): string {
   return `${Number(height.toFixed(3))}%`;
 }
 
-export function Card({
+export const Card = memo(function Card({
   card,
   onClick,
   onDelete,
@@ -183,7 +185,10 @@ export function Card({
   const fallbackImageSize =
     typeof linkPreview?.screenshotWidth === "number" &&
     typeof linkPreview?.screenshotHeight === "number"
-      ? { width: linkPreview.screenshotWidth, height: linkPreview.screenshotHeight }
+      ? {
+          width: linkPreview.screenshotWidth,
+          height: linkPreview.screenshotHeight,
+        }
       : undefined;
   const hasPrimaryImage = !!(linkCardImage && primaryImageSize);
   const hasFallbackImage = !!(resolvedScreenshotUrl && fallbackImageSize);
@@ -196,17 +201,25 @@ export function Card({
   }, [card._id, linkCardImage, resolvedScreenshotUrl]);
 
   const displayLinkImage = shouldUseFallback
-    ? (hasFallbackImage ? resolvedScreenshotUrl : undefined)
-    : (hasPrimaryImage ? linkCardImage : undefined);
+    ? hasFallbackImage
+      ? resolvedScreenshotUrl
+      : undefined
+    : hasPrimaryImage
+      ? linkCardImage
+      : undefined;
   const displayLinkImageSize = shouldUseFallback
-    ? (hasFallbackImage ? fallbackImageSize : undefined)
-    : (hasPrimaryImage ? primaryImageSize : undefined);
+    ? hasFallbackImage
+      ? fallbackImageSize
+      : undefined
+    : hasPrimaryImage
+      ? primaryImageSize
+      : undefined;
 
   const legacyPrimaryImage = linkCardImage;
   const legacyFallbackImage = resolvedScreenshotUrl;
   const legacyDisplayImage = useFallbackImage
-    ? legacyFallbackImage ?? undefined
-    : legacyPrimaryImage ?? legacyFallbackImage ?? undefined;
+    ? (legacyFallbackImage ?? undefined)
+    : (legacyPrimaryImage ?? legacyFallbackImage ?? undefined);
 
   const handleLinkImageError = (event: SyntheticEvent<HTMLImageElement>) => {
     const target = event.currentTarget;
@@ -226,7 +239,7 @@ export function Card({
     <ContextMenu>
       <ContextMenuTrigger asChild disabled={isOptimistic}>
         <UICard
-          className={`bg-transparent rounded-none border-0 relative p-0 overflow-hidden ${
+          className={`bg-transparent rounded-none border-0 relative p-0 overflow-hidden contain-content ${
             isOptimistic ? "opacity-70 cursor-default" : "cursor-pointer"
           } ${card.isDeleted ? "opacity-60" : ""} ${isSelected ? "ring-2 ring-primary rounded-xl" : ""}`}
           onClick={handleClick}
@@ -281,7 +294,8 @@ export function Card({
                       className="w-full overflow-hidden"
                       style={{
                         aspectRatio:
-                          displayLinkImageSize.width / displayLinkImageSize.height,
+                          displayLinkImageSize.width /
+                          displayLinkImageSize.height,
                       }}
                     >
                       <Image
@@ -396,15 +410,20 @@ export function Card({
         )}
 
         {/* Copy to Clipboard - for image (non-SVG), text, and link cards */}
-        {!card.isDeleted && (
+        {!card.isDeleted &&
           (card.type === "text" ||
             card.type === "link" ||
-            (card.type === "image" && card.fileMetadata?.mimeType !== "image/svg+xml")) && (
-          <ContextMenuItem onClick={handleCopyImage}>
-            <Copy />
-            {card.type === "text" ? "Copy Text" : card.type === "link" ? "Copy Link" : "Copy Image"}
-          </ContextMenuItem>
-        ))}
+            (card.type === "image" &&
+              card.fileMetadata?.mimeType !== "image/svg+xml")) && (
+            <ContextMenuItem onClick={handleCopyImage}>
+              <Copy />
+              {card.type === "text"
+                ? "Copy Text"
+                : card.type === "link"
+                  ? "Copy Link"
+                  : "Copy Image"}
+            </ContextMenuItem>
+          )}
 
         {!card.isDeleted && (
           <>
@@ -456,7 +475,7 @@ export function Card({
       </ContextMenuContent>
     </ContextMenu>
   );
-}
+});
 
 function GridImagePreview({
   imageUrl,
