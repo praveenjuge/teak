@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Masonry } from "antd";
 import type { MasonryProps } from "antd";
 import { AddCardForm } from "./AddCardForm";
@@ -141,19 +141,19 @@ export function MasonryGrid({
   ]);
 
   // Selection handlers
-  const enterSelectionMode = (cardId?: string) => {
+  const enterSelectionMode = useCallback((cardId?: string) => {
     setIsSelectionMode(true);
     if (cardId) {
       setSelectedCardIds(new Set([cardId]));
     }
-  };
+  }, []);
 
-  const exitSelectionMode = () => {
+  const exitSelectionMode = useCallback(() => {
     setIsSelectionMode(false);
     setSelectedCardIds(new Set());
-  };
+  }, []);
 
-  const toggleCardSelection = (cardId: string) => {
+  const toggleCardSelection = useCallback((cardId: string) => {
     setSelectedCardIds((prev) => {
       const newSelected = new Set(prev);
       if (newSelected.has(cardId)) {
@@ -169,17 +169,17 @@ export function MasonryGrid({
 
       return newSelected;
     });
-  };
+  }, []);
 
-  const handleCardClick = (card: Doc<"cards">) => {
+  const handleCardClick = useCallback((card: Doc<"cards">) => {
     if (isSelectionMode) {
       toggleCardSelection(card._id);
     } else {
       onCardClick(card);
     }
-  };
+  }, [isSelectionMode, onCardClick, toggleCardSelection]);
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = useCallback(async () => {
     try {
       // Process deletions sequentially to avoid overwhelming the system
       for (const cardId of selectedCardIds) {
@@ -196,7 +196,7 @@ export function MasonryGrid({
       // We still exit selection mode as some deletions may have succeeded
       exitSelectionMode();
     }
-  };
+  }, [selectedCardIds, onDeleteCard, exitSelectionMode]);
 
   // Build masonry items array
   const masonryItems: MasonryItem[] = useMemo(() => {
@@ -222,30 +222,46 @@ export function MasonryGrid({
   }, [filteredCards, showTrashOnly, visibleCount]);
 
   // Render function for masonry items
-  const renderItem = (item: MasonryItem & { index: number }) => {
-    if (item.data === "add-form") {
-      return <AddCardForm />;
-    }
+  const renderItem = useCallback(
+    (item: MasonryItem & { index: number }) => {
+      if (item.data === "add-form") {
+        return <AddCardForm />;
+      }
 
-    const card = item.data;
-    return (
-      <Card
-        card={card}
-        onClick={handleCardClick}
-        onDelete={onDeleteCard}
-        onRestore={onRestoreCard}
-        onPermanentDelete={onPermanentDeleteCard}
-        onToggleFavorite={onToggleFavorite}
-        onAddTags={onAddTags}
-        onCopyImage={onCopyImage}
-        isTrashMode={showTrashOnly}
-        isSelectionMode={isSelectionMode}
-        isSelected={selectedCardIds.has(card._id)}
-        onEnterSelectionMode={enterSelectionMode}
-        onToggleSelection={() => toggleCardSelection(card._id)}
-      />
-    );
-  };
+      const card = item.data;
+      return (
+        <Card
+          card={card}
+          onClick={handleCardClick}
+          onDelete={onDeleteCard}
+          onRestore={onRestoreCard}
+          onPermanentDelete={onPermanentDeleteCard}
+          onToggleFavorite={onToggleFavorite}
+          onAddTags={onAddTags}
+          onCopyImage={onCopyImage}
+          isTrashMode={showTrashOnly}
+          isSelectionMode={isSelectionMode}
+          isSelected={selectedCardIds.has(card._id)}
+          onEnterSelectionMode={enterSelectionMode}
+          onToggleSelection={() => toggleCardSelection(card._id)}
+        />
+      );
+    },
+    [
+      handleCardClick,
+      onDeleteCard,
+      onRestoreCard,
+      onPermanentDeleteCard,
+      onToggleFavorite,
+      onAddTags,
+      onCopyImage,
+      showTrashOnly,
+      isSelectionMode,
+      selectedCardIds,
+      enterSelectionMode,
+      toggleCardSelection,
+    ]
+  );
 
   return (
     <>
@@ -269,6 +285,7 @@ export function MasonryGrid({
       )}
       {isSelectionMode && (
         <BulkActionBar
+          key={selectedCardIds.size}
           selectedCount={selectedCardIds.size}
           onDelete={handleBulkDelete}
           onCancel={exitSelectionMode}
