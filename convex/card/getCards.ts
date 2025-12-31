@@ -421,102 +421,74 @@ export const searchCardsPaginated = query({
       const offset = Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0;
       const pageSize = paginationOpts.numItems;
       const desiredLimit = offset + pageSize + 1;
-      const searchLimit = Math.max(desiredLimit * 2, pageSize);
-      const tagSearchLimit = Math.max(searchLimit * 2, searchLimit + 1);
+      // Reduced multipliers - with <1000 cards per user, aggressive over-fetch isn't needed
+      const searchLimit = Math.max(desiredLimit + 20, pageSize);
+      const tagSearchLimit = Math.max(searchLimit + 20, searchLimit + 1);
+
+      // Helper to apply optional filters to search queries
+      const applySearchFilters = (q: any) => {
+        let query = q
+          .eq("userId", user.subject)
+          .eq("isDeleted", showTrashOnly ? true : undefined);
+        if (types && types.length === 1) {
+          query = query.eq("type", types[0]);
+        }
+        if (favoritesOnly) {
+          query = query.eq("isFavorited", true);
+        }
+        return query;
+      };
 
       const searchResults = await Promise.all([
         ctx.db
           .query("cards")
           .withSearchIndex("search_content", (q) =>
-            q
-              .search("content", searchQuery)
-              .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined),
+            applySearchFilters(q).search("content", searchQuery),
           )
           .take(searchLimit),
         ctx.db
           .query("cards")
           .withSearchIndex("search_notes", (q) =>
-            q
-              .search("notes", searchQuery)
-              .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined),
+            applySearchFilters(q).search("notes", searchQuery),
           )
           .take(searchLimit),
         ctx.db
           .query("cards")
           .withSearchIndex("search_ai_summary", (q) =>
-            q
-              .search("aiSummary", searchQuery)
-              .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined),
+            applySearchFilters(q).search("aiSummary", searchQuery),
           )
           .take(searchLimit),
         ctx.db
           .query("cards")
           .withSearchIndex("search_ai_transcript", (q) =>
-            q
-              .search("aiTranscript", searchQuery)
-              .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined),
+            applySearchFilters(q).search("aiTranscript", searchQuery),
           )
           .take(searchLimit),
         ctx.db
           .query("cards")
           .withSearchIndex("search_metadata_title", (q) =>
-            q
-              .search("metadataTitle", searchQuery)
-              .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined),
+            applySearchFilters(q).search("metadataTitle", searchQuery),
           )
           .take(searchLimit),
         ctx.db
           .query("cards")
           .withSearchIndex("search_metadata_description", (q) =>
-            q
-              .search("metadataDescription", searchQuery)
-              .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined),
+            applySearchFilters(q).search("metadataDescription", searchQuery),
           )
           .take(searchLimit),
-        (async () => {
-          const allCards = await ctx.db
-            .query("cards")
-            .withIndex("by_user_deleted", (q) =>
-              q
-                .eq("userId", user.subject)
-                .eq("isDeleted", showTrashOnly ? true : undefined),
-            )
-            .take(tagSearchLimit);
-
-          const searchTerms = searchQuery.toLowerCase().split(/\s+/);
-          return allCards.filter(
-            (card) =>
-              card.tags &&
-              card.tags.some((tag) =>
-                searchTerms.some((term) => tag.toLowerCase().includes(term)),
-              ),
-          );
-        })(),
-        (async () => {
-          const allCards = await ctx.db
-            .query("cards")
-            .withIndex("by_user_deleted", (q) =>
-              q
-                .eq("userId", user.subject)
-                .eq("isDeleted", showTrashOnly ? true : undefined),
-            )
-            .take(tagSearchLimit);
-
-          const searchTerms = searchQuery.toLowerCase().split(/\s+/);
-          return allCards.filter(
-            (card) =>
-              card.aiTags &&
-              card.aiTags.some((tag) =>
-                searchTerms.some((term) => tag.toLowerCase().includes(term)),
-              ),
-          );
-        })(),
+        // Use search indexes for tags instead of full table scan + JavaScript filtering
+        ctx.db
+          .query("cards")
+          .withSearchIndex("search_tags", (q) =>
+            applySearchFilters(q).search("tags", searchQuery),
+          )
+          .take(tagSearchLimit),
+        ctx.db
+          .query("cards")
+          .withSearchIndex("search_ai_tags", (q) =>
+            applySearchFilters(q).search("aiTags", searchQuery),
+          )
+          .take(tagSearchLimit),
       ]);
 
       const allResults = searchResults.flat();
@@ -526,15 +498,11 @@ export const searchCardsPaginated = query({
 
       let filteredResults = uniqueResults;
 
-      if (types && types.length > 0) {
+      // Single type and favorites are already filtered at index level
+      // Only need to filter when multiple types are specified
+      if (types && types.length > 1) {
         filteredResults = filteredResults.filter((card) =>
           types.includes(card.type),
-        );
-      }
-
-      if (favoritesOnly) {
-        filteredResults = filteredResults.filter(
-          (card) => card.isFavorited === true,
         );
       }
 

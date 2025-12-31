@@ -216,5 +216,14 @@ export default defineSchema({
     .searchIndex("search_metadata_description", {
       searchField: "metadataDescription",
       filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    })
+    // Search indexes for tag fields - eliminates full table scan for tag searches
+    .searchIndex("search_tags", {
+      searchField: "tags",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    })
+    .searchIndex("search_ai_tags", {
+      searchField: "aiTags",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
     }),
 });
