@@ -4,7 +4,6 @@ import { ReactNode } from "react";
 import { ConvexReactClient } from "convex/react";
 import { authClient } from "@/lib/auth-client";
 import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
-import { SentryUserManager } from "@/components/SentryUserManager";
 
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!, {
   verbose: true,
@@ -25,7 +24,6 @@ export default function ConvexClientProvider({
       authClient={authClient}
       initialToken={initialToken}
     >
-      <SentryUserManager />
       {children}
     </ConvexBetterAuthProvider>
   );

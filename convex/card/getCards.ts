@@ -41,30 +41,64 @@ const attachFileUrls = async (
   ctx: any,
   cards: Doc<"cards">[],
 ): Promise<CardWithUrls[]> => {
-  return Promise.all(
-    cards.map(async (card) => {
-      const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] = await Promise.all([
-        card.fileId ? ctx.storage.getUrl(card.fileId) : Promise.resolve(null),
-        card.thumbnailId
-          ? ctx.storage.getUrl(card.thumbnailId)
-          : Promise.resolve(null),
-        card.metadata?.linkPreview?.screenshotStorageId
-          ? ctx.storage.getUrl(card.metadata.linkPreview.screenshotStorageId)
-          : Promise.resolve(null),
-        card.metadata?.linkPreview?.imageStorageId
-          ? ctx.storage.getUrl(card.metadata.linkPreview.imageStorageId)
-          : Promise.resolve(null),
-      ]);
+  // Collect all unique storage IDs across all cards
+  const storageIds = new Set<string>();
+  const cardToIds = new Map<
+    string,
+    {
+      fileId?: string;
+      thumbnailId?: string;
+      screenshotId?: string;
+      linkPreviewImageId?: string;
+    }
+  >();
 
-      return {
-        ...card,
-        fileUrl: fileUrl || undefined,
-        thumbnailUrl: thumbnailUrl || undefined,
-        screenshotUrl: screenshotUrl || undefined,
-        linkPreviewImageUrl: linkPreviewImageUrl || undefined,
-      };
-    }),
-  );
+  for (const card of cards) {
+    const ids: Record<string, string | undefined> = {};
+    if (card.fileId) {
+      storageIds.add(card.fileId);
+      ids.fileId = card.fileId;
+    }
+    if (card.thumbnailId) {
+      storageIds.add(card.thumbnailId);
+      ids.thumbnailId = card.thumbnailId;
+    }
+    if (card.metadata?.linkPreview?.imageStorageId) {
+      storageIds.add(card.metadata.linkPreview.imageStorageId);
+      ids.linkPreviewImageId = card.metadata.linkPreview.imageStorageId;
+    }
+    if (card.metadata?.linkPreview?.screenshotStorageId) {
+      storageIds.add(card.metadata.linkPreview.screenshotStorageId);
+      ids.screenshotId = card.metadata.linkPreview.screenshotStorageId;
+    }
+    cardToIds.set(card._id, ids);
+  }
+
+  // Fetch all URLs in parallel
+  const urlPromises = Array.from(storageIds).map(async (id) => ({
+    id,
+    url: await ctx.storage.getUrl(id as any),
+  }));
+  const urlResults = await Promise.all(urlPromises);
+  const urlMap = new Map(urlResults.map((r) => [r.id, r.url]));
+
+  // Map URLs back to cards
+  return cards.map((card) => {
+    const ids = cardToIds.get(card._id) || {};
+    return {
+      ...card,
+      fileUrl: ids.fileId ? (urlMap.get(ids.fileId) ?? undefined) : undefined,
+      thumbnailUrl: ids.thumbnailId
+        ? (urlMap.get(ids.thumbnailId) ?? undefined)
+        : undefined,
+      screenshotUrl: ids.screenshotId
+        ? (urlMap.get(ids.screenshotId) ?? undefined)
+        : undefined,
+      linkPreviewImageUrl: ids.linkPreviewImageId
+        ? (urlMap.get(ids.linkPreviewImageId) ?? undefined)
+        : undefined,
+    };
+  });
 };
 
 export const getCards = query({
@@ -439,29 +473,28 @@ export const searchCardsPaginated = query({
         return query;
       };
 
-      const searchResults = await Promise.all([
+      // Determine which search indexes to include based on type filter
+      // This avoids searching fields that don't exist for certain card types
+      const typesSet = new Set(types || []);
+      const noTypeFilter = typesSet.size === 0;
+      const hasMultiTypeFilter = typesSet.size > 1;
+      const includeAiTranscript = noTypeFilter || typesSet.has("audio");
+      const includeAiSummary = noTypeFilter || (["audio", "video", "document", "image", "link"] as const).some((t) => typesSet.has(t));
+
+      // Build search query array, ordered by selectivity (most selective first)
+      // 1. content - most unique user content
+      // 2. metadataTitle - usually selective
+      // 3. notes - user-written
+      // 4. metadataDescription - less selective
+      // 5. aiSummary - less selective, only for certain types
+      // 6. aiTranscript - only for audio type
+      // 7. tags - small value set, less selective
+      // 8. aiTags - small value set, less selective
+      const searchQueries = [
         ctx.db
           .query("cards")
           .withSearchIndex("search_content", (q) =>
             applySearchFilters(q).search("content", searchQuery),
-          )
-          .take(searchLimit),
-        ctx.db
-          .query("cards")
-          .withSearchIndex("search_notes", (q) =>
-            applySearchFilters(q).search("notes", searchQuery),
-          )
-          .take(searchLimit),
-        ctx.db
-          .query("cards")
-          .withSearchIndex("search_ai_summary", (q) =>
-            applySearchFilters(q).search("aiSummary", searchQuery),
-          )
-          .take(searchLimit),
-        ctx.db
-          .query("cards")
-          .withSearchIndex("search_ai_transcript", (q) =>
-            applySearchFilters(q).search("aiTranscript", searchQuery),
           )
           .take(searchLimit),
         ctx.db
@@ -472,11 +505,36 @@ export const searchCardsPaginated = query({
           .take(searchLimit),
         ctx.db
           .query("cards")
+          .withSearchIndex("search_notes", (q) =>
+            applySearchFilters(q).search("notes", searchQuery),
+          )
+          .take(searchLimit),
+        ctx.db
+          .query("cards")
           .withSearchIndex("search_metadata_description", (q) =>
             applySearchFilters(q).search("metadataDescription", searchQuery),
           )
           .take(searchLimit),
-        // Use search indexes for tags instead of full table scan + JavaScript filtering
+        ...(includeAiSummary
+          ? [
+              ctx.db
+                .query("cards")
+                .withSearchIndex("search_ai_summary", (q) =>
+                  applySearchFilters(q).search("aiSummary", searchQuery),
+                )
+                .take(searchLimit),
+            ]
+          : []),
+        ...(includeAiTranscript
+          ? [
+              ctx.db
+                .query("cards")
+                .withSearchIndex("search_ai_transcript", (q) =>
+                  applySearchFilters(q).search("aiTranscript", searchQuery),
+                )
+                .take(searchLimit),
+            ]
+          : []),
         ctx.db
           .query("cards")
           .withSearchIndex("search_tags", (q) =>
@@ -489,22 +547,29 @@ export const searchCardsPaginated = query({
             applySearchFilters(q).search("aiTags", searchQuery),
           )
           .take(tagSearchLimit),
-      ]);
+      ];
 
-      const allResults = searchResults.flat();
-      const uniqueResults = Array.from(
-        new Map(allResults.map((card) => [card._id, card])).values(),
-      );
+      const searchResults = await Promise.all(searchQueries);
 
-      let filteredResults = uniqueResults;
+      // Incrementally deduplicate with early termination
+      // This is more efficient than collecting all results then deduplicating
+      const seenIds = new Set<string>();
+      const uniqueResults: Array<Doc<"cards">> = [];
 
-      // Single type and favorites are already filtered at index level
-      // Only need to filter when multiple types are specified
-      if (types && types.length > 1) {
-        filteredResults = filteredResults.filter((card) =>
-          types.includes(card.type),
-        );
+      for (const results of searchResults) {
+        for (const card of results) {
+          if (seenIds.has(card._id)) continue;
+          seenIds.add(card._id);
+          if (hasMultiTypeFilter && !typesSet.has(card.type)) continue;
+          uniqueResults.push(card);
+          // Early termination if we have enough results
+          if (uniqueResults.length >= desiredLimit) break;
+        }
+        if (uniqueResults.length >= desiredLimit) break;
       }
+
+      // Multi-type filtering happens during dedupe; single-type/favorites are filtered at index level.
+      const filteredResults = uniqueResults;
 
       const sortedResults = filteredResults.sort(
         (a, b) => b.createdAt - a.createdAt,
