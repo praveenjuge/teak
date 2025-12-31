@@ -1,15 +1,19 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Masonry } from "antd";
 import type { MasonryProps } from "antd";
 import { AddCardForm } from "./AddCardForm";
 import { Card } from "./Card";
 import { BulkActionBar } from "./BulkActionBar";
+import { Spinner } from "@/components/ui/spinner";
 import { type Doc } from "@teak/convex/_generated/dataModel";
 import * as Sentry from "@sentry/nextjs";
 
 // Define the item type for the masonry grid
 type CardItem = Doc<"cards"> | "add-form";
 type MasonryItem = NonNullable<MasonryProps<CardItem>["items"]>[number];
+
+const DEFAULT_BATCH_SIZE = 24;
+const DEFAULT_ROOT_MARGIN = "200px 0px";
 
 interface MasonryGridProps {
   filteredCards: Doc<"cards">[];
@@ -21,6 +25,13 @@ interface MasonryGridProps {
   onToggleFavorite: (cardId: string) => void;
   onAddTags?: (cardId: string) => void;
   onCopyImage?: (content: string, isImage: boolean) => void;
+  initialBatchSize?: number;
+  batchSize?: number;
+  resetKey?: string | number | boolean;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  loadMoreRootMargin?: string;
 }
 
 export function MasonryGrid({
@@ -33,12 +44,101 @@ export function MasonryGrid({
   onToggleFavorite,
   onAddTags,
   onCopyImage,
+  initialBatchSize = DEFAULT_BATCH_SIZE,
+  batchSize = DEFAULT_BATCH_SIZE,
+  resetKey,
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false,
+  loadMoreRootMargin = DEFAULT_ROOT_MARGIN,
 }: MasonryGridProps) {
+  const resolvedResetKey = resetKey ?? showTrashOnly;
+  const normalizedInitialBatchSize = Math.max(1, initialBatchSize);
+  const normalizedBatchSize = Math.max(1, batchSize);
+
   // Selection state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(
     new Set()
   );
+  const [visibleCount, setVisibleCount] = useState(() =>
+    Math.min(normalizedInitialBatchSize, filteredCards.length)
+  );
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreRequestedRef = useRef(false);
+  const resetKeyRef = useRef(resolvedResetKey);
+  const prevCardsLengthRef = useRef(filteredCards.length);
+
+  useEffect(() => {
+    const didReset = resetKeyRef.current !== resolvedResetKey;
+    if (didReset) {
+      resetKeyRef.current = resolvedResetKey;
+      loadMoreRequestedRef.current = false;
+    }
+
+    if (prevCardsLengthRef.current !== filteredCards.length) {
+      prevCardsLengthRef.current = filteredCards.length;
+      loadMoreRequestedRef.current = false;
+    }
+
+    setVisibleCount((prev) => {
+      if (filteredCards.length === 0) {
+        return 0;
+      }
+
+      const initialCount = Math.min(
+        normalizedInitialBatchSize,
+        filteredCards.length
+      );
+
+      if (didReset || prev === 0) {
+        return initialCount;
+      }
+
+      return Math.min(prev, filteredCards.length);
+    });
+  }, [resolvedResetKey, filteredCards.length, normalizedInitialBatchSize]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting) {
+          return;
+        }
+
+        const canShowMoreLocal = visibleCount < filteredCards.length;
+        if (canShowMoreLocal) {
+          setVisibleCount((prev) =>
+            Math.min(prev + normalizedBatchSize, filteredCards.length)
+          );
+          return;
+        }
+
+        const canLoadMoreRemote = Boolean(onLoadMore && hasMore !== false);
+        if (canLoadMoreRemote && !loadMoreRequestedRef.current) {
+          loadMoreRequestedRef.current = true;
+          onLoadMore?.();
+        }
+      },
+      { root: null, rootMargin: loadMoreRootMargin, threshold: 0 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [
+    visibleCount,
+    filteredCards.length,
+    normalizedBatchSize,
+    onLoadMore,
+    hasMore,
+    loadMoreRootMargin,
+  ]);
 
   // Selection handlers
   const enterSelectionMode = (cardId?: string) => {
@@ -111,7 +211,7 @@ export function MasonryGrid({
     }
 
     // Add all cards
-    filteredCards.forEach((card) => {
+    filteredCards.slice(0, visibleCount).forEach((card) => {
       items.push({
         key: card._id,
         data: card,
@@ -119,7 +219,7 @@ export function MasonryGrid({
     });
 
     return items;
-  }, [filteredCards, showTrashOnly]);
+  }, [filteredCards, showTrashOnly, visibleCount]);
 
   // Render function for masonry items
   const renderItem = (item: MasonryItem & { index: number }) => {
@@ -157,6 +257,16 @@ export function MasonryGrid({
         fresh
         className={isSelectionMode ? "select-none" : ""}
       />
+      {filteredCards.length > 0 &&
+        (visibleCount < filteredCards.length ||
+          (onLoadMore && hasMore !== false)) && (
+          <div ref={loadMoreRef} className="h-10 w-full" aria-hidden="true" />
+        )}
+      {isLoadingMore && (
+        <div className="flex justify-center py-6">
+          <Spinner className="size-5 text-muted-foreground" />
+        </div>
+      )}
       {isSelectionMode && (
         <BulkActionBar
           selectedCount={selectedCardIds.size}

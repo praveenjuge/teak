@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { query } from "../_generated/server";
 import { cardTypeValidator, cardValidator } from "../schema";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
@@ -13,6 +14,20 @@ export const cardReturnValidator = v.object({
   thumbnailUrl: v.optional(v.string()),
   screenshotUrl: v.optional(v.string()),
   linkPreviewImageUrl: v.optional(v.string()),
+});
+
+const paginationResultValidator = v.object({
+  page: v.array(cardReturnValidator),
+  isDone: v.boolean(),
+  continueCursor: v.union(v.string(), v.null()),
+  splitCursor: v.optional(v.union(v.string(), v.null())),
+  pageStatus: v.optional(
+    v.union(
+      v.literal("SplitRecommended"),
+      v.literal("SplitRequired"),
+      v.null(),
+    ),
+  ),
 });
 
 type CardWithUrls = Doc<"cards"> & {
@@ -336,5 +351,239 @@ export const searchCards = query({
     const cards = await query.order("desc").take(limit);
     const cardsWithUrls = await attachFileUrls(ctx, cards);
     return applyQuoteFormattingToList(cardsWithUrls);
+  },
+});
+
+export const searchCardsPaginated = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+    searchQuery: v.optional(v.string()),
+    types: v.optional(v.array(cardTypeValidator)),
+    favoritesOnly: v.optional(v.boolean()),
+    showTrashOnly: v.optional(v.boolean()),
+  },
+  returns: paginationResultValidator,
+  handler: async (ctx, args) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      return { page: [], isDone: true, continueCursor: null };
+    }
+
+    const {
+      paginationOpts,
+      searchQuery,
+      types,
+      favoritesOnly,
+      showTrashOnly,
+    } = args;
+
+    if (searchQuery && searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+
+      if (
+        ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
+      ) {
+        const favorites = await ctx.db
+          .query("cards")
+          .withIndex("by_user_favorites_deleted", (q) =>
+            q
+              .eq("userId", user.subject)
+              .eq("isFavorited", true)
+              .eq("isDeleted", undefined),
+          )
+          .order("desc")
+          .paginate(paginationOpts);
+        const favoritesWithUrls = await attachFileUrls(ctx, favorites.page);
+        return {
+          ...favorites,
+          page: applyQuoteFormattingToList(favoritesWithUrls),
+        };
+      }
+
+      if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
+        const trashed = await ctx.db
+          .query("cards")
+          .withIndex("by_user_deleted", (q) =>
+            q.eq("userId", user.subject).eq("isDeleted", true),
+          )
+          .order("desc")
+          .paginate(paginationOpts);
+        const trashedWithUrls = await attachFileUrls(ctx, trashed.page);
+        return {
+          ...trashed,
+          page: applyQuoteFormattingToList(trashedWithUrls),
+        };
+      }
+
+      const rawCursor =
+        paginationOpts.cursor ?? "0";
+      const parsedCursor = Number(rawCursor);
+      const offset = Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0;
+      const pageSize = paginationOpts.numItems;
+      const desiredLimit = offset + pageSize + 1;
+      const searchLimit = Math.max(desiredLimit * 2, pageSize);
+      const tagSearchLimit = Math.max(searchLimit * 2, searchLimit + 1);
+
+      const searchResults = await Promise.all([
+        ctx.db
+          .query("cards")
+          .withSearchIndex("search_content", (q) =>
+            q
+              .search("content", searchQuery)
+              .eq("userId", user.subject)
+              .eq("isDeleted", showTrashOnly ? true : undefined),
+          )
+          .take(searchLimit),
+        ctx.db
+          .query("cards")
+          .withSearchIndex("search_notes", (q) =>
+            q
+              .search("notes", searchQuery)
+              .eq("userId", user.subject)
+              .eq("isDeleted", showTrashOnly ? true : undefined),
+          )
+          .take(searchLimit),
+        ctx.db
+          .query("cards")
+          .withSearchIndex("search_ai_summary", (q) =>
+            q
+              .search("aiSummary", searchQuery)
+              .eq("userId", user.subject)
+              .eq("isDeleted", showTrashOnly ? true : undefined),
+          )
+          .take(searchLimit),
+        ctx.db
+          .query("cards")
+          .withSearchIndex("search_ai_transcript", (q) =>
+            q
+              .search("aiTranscript", searchQuery)
+              .eq("userId", user.subject)
+              .eq("isDeleted", showTrashOnly ? true : undefined),
+          )
+          .take(searchLimit),
+        ctx.db
+          .query("cards")
+          .withSearchIndex("search_metadata_title", (q) =>
+            q
+              .search("metadataTitle", searchQuery)
+              .eq("userId", user.subject)
+              .eq("isDeleted", showTrashOnly ? true : undefined),
+          )
+          .take(searchLimit),
+        ctx.db
+          .query("cards")
+          .withSearchIndex("search_metadata_description", (q) =>
+            q
+              .search("metadataDescription", searchQuery)
+              .eq("userId", user.subject)
+              .eq("isDeleted", showTrashOnly ? true : undefined),
+          )
+          .take(searchLimit),
+        (async () => {
+          const allCards = await ctx.db
+            .query("cards")
+            .withIndex("by_user_deleted", (q) =>
+              q
+                .eq("userId", user.subject)
+                .eq("isDeleted", showTrashOnly ? true : undefined),
+            )
+            .take(tagSearchLimit);
+
+          const searchTerms = searchQuery.toLowerCase().split(/\s+/);
+          return allCards.filter(
+            (card) =>
+              card.tags &&
+              card.tags.some((tag) =>
+                searchTerms.some((term) => tag.toLowerCase().includes(term)),
+              ),
+          );
+        })(),
+        (async () => {
+          const allCards = await ctx.db
+            .query("cards")
+            .withIndex("by_user_deleted", (q) =>
+              q
+                .eq("userId", user.subject)
+                .eq("isDeleted", showTrashOnly ? true : undefined),
+            )
+            .take(tagSearchLimit);
+
+          const searchTerms = searchQuery.toLowerCase().split(/\s+/);
+          return allCards.filter(
+            (card) =>
+              card.aiTags &&
+              card.aiTags.some((tag) =>
+                searchTerms.some((term) => tag.toLowerCase().includes(term)),
+              ),
+          );
+        })(),
+      ]);
+
+      const allResults = searchResults.flat();
+      const uniqueResults = Array.from(
+        new Map(allResults.map((card) => [card._id, card])).values(),
+      );
+
+      let filteredResults = uniqueResults;
+
+      if (types && types.length > 0) {
+        filteredResults = filteredResults.filter((card) =>
+          types.includes(card.type),
+        );
+      }
+
+      if (favoritesOnly) {
+        filteredResults = filteredResults.filter(
+          (card) => card.isFavorited === true,
+        );
+      }
+
+      const sortedResults = filteredResults.sort(
+        (a, b) => b.createdAt - a.createdAt,
+      );
+      const page = sortedResults.slice(offset, offset + pageSize);
+      const isDone = sortedResults.length <= offset + pageSize;
+      const continueCursor = isDone ? null : String(offset + pageSize);
+
+      const pageWithUrls = await attachFileUrls(ctx, page);
+      return {
+        page: applyQuoteFormattingToList(pageWithUrls),
+        isDone,
+        continueCursor,
+      };
+    }
+
+    let query = ctx.db
+      .query("cards")
+      .withIndex("by_user_deleted", (q) =>
+        q
+          .eq("userId", user.subject)
+          .eq("isDeleted", showTrashOnly ? true : undefined),
+      );
+
+    if (types && types.length === 1) {
+      query = ctx.db.query("cards").withIndex("by_user_type_deleted", (q) =>
+        q
+          .eq("userId", user.subject)
+          .eq("type", types[0])
+          .eq("isDeleted", showTrashOnly ? true : undefined),
+      );
+    } else if (types && types.length > 1) {
+      query = query.filter((q) => {
+        const typeConditions = types.map((type) => q.eq(q.field("type"), type));
+        return typeConditions.reduce((acc, condition) => q.or(acc, condition));
+      });
+    }
+
+    if (favoritesOnly) {
+      query = query.filter((q) => q.eq(q.field("isFavorited"), true));
+    }
+
+    const cards = await query.order("desc").paginate(paginationOpts);
+    const cardsWithUrls = await attachFileUrls(ctx, cards.page);
+    return {
+      ...cards,
+      page: applyQuoteFormattingToList(cardsWithUrls),
+    };
   },
 });

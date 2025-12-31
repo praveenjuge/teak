@@ -401,6 +401,8 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     setContent("");
     setUrl("");
 
+    const toastId = toast.loading("Saving card...");
+
     try {
       // Resolve link vs text locally to avoid backend classification delays
       await createCard({
@@ -413,6 +415,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       metrics.cardCreated(resolved.type);
 
       onSuccess?.();
+      toast.success("Card saved", { id: toastId });
     } catch (error) {
       console.error("Failed to create card:", error);
 
@@ -434,10 +437,15 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
 
       if (isCardLimitError(error)) {
         setShowUpgradePrompt(true);
+        toast.error("Card limit reached", { id: toastId });
       } else if (isRateLimitError(error)) {
         setError("Too many cards created. Please wait a moment and try again.");
+        toast.error("Too many cards created. Please wait a moment.", {
+          id: toastId,
+        });
       } else {
         setError(errorMessage);
+        toast.error(errorMessage, { id: toastId });
       }
     }
   };

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "convex-helpers/react/cache/hooks";
-import { useMutation } from "convex/react";
+import { Authenticated, AuthLoading, useMutation } from "convex/react";
+import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
 import { CardModal } from "@/components/CardModal";
 import { SearchBar } from "@/components/SearchBar";
 import { MasonryGrid } from "@/components/MasonryGrid";
@@ -17,7 +17,6 @@ import { type CardType } from "@teak/convex/shared/constants";
 import { useCardActions } from "@/hooks/useCardActions";
 import { api } from "@teak/convex";
 import { toast } from "sonner";
-import { Authenticated, AuthLoading } from "convex/react";
 import { metrics } from "@/lib/metrics";
 import { TagManagementModal } from "@/components/TagManagementModal";
 
@@ -25,7 +24,9 @@ const DEFAULT_CARD_LIMIT = 100;
 
 export default function HomePage() {
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const [tagManagementCardId, setTagManagementCardId] = useState<string | null>(null);
+  const [tagManagementCardId, setTagManagementCardId] = useState<string | null>(
+    null
+  );
   const [tagInput, setTagInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [keywordTags, setKeywordTags] = useState<string[]>([]);
@@ -48,12 +49,17 @@ export default function HomePage() {
       types: filterTags.length > 0 ? filterTags : undefined,
       favoritesOnly: showFavoritesOnly || undefined,
       showTrashOnly: showTrashOnly || undefined,
-      limit: DEFAULT_CARD_LIMIT,
     }),
     [filterTags, searchTerms, showFavoritesOnly, showTrashOnly]
   );
 
-  const cards = useQuery(api.cards.searchCards, queryArgs);
+  const {
+    results: cards,
+    status: cardsStatus,
+    loadMore,
+  } = usePaginatedQuery(api.cards.searchCardsPaginated, queryArgs, {
+    initialNumItems: DEFAULT_CARD_LIMIT,
+  });
 
   const selectedCard = useMemo(
     () =>
@@ -65,11 +71,11 @@ export default function HomePage() {
   const hasActiveSearch =
     searchTerms || filterTags.length > 0 || showFavoritesOnly || showTrashOnly;
   useEffect(() => {
-    if (cards !== undefined && hasActiveSearch) {
+    if (hasActiveSearch && cardsStatus !== "LoadingFirstPage") {
       metrics.searchPerformed(cards.length, filterTags);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cards?.length, hasActiveSearch, filterTags]);
+     
+  }, [cards.length, cardsStatus, hasActiveSearch, filterTags]);
 
   const cardActions = useCardActions({
     onDeleteSuccess: (message) => message && toast(message),
@@ -85,7 +91,8 @@ export default function HomePage() {
   // Get the card for tag management
   const tagManagementCard = useMemo(
     () =>
-      cards?.find((card: Doc<"cards">) => card._id === tagManagementCardId) ?? null,
+      cards?.find((card: Doc<"cards">) => card._id === tagManagementCardId) ??
+      null,
     [cards, tagManagementCardId]
   );
 
@@ -95,7 +102,11 @@ export default function HomePage() {
   };
 
   // Helper to convert blob to PNG
-  const convertToPng = async (blob: Blob, fallbackWidth = 500, fallbackHeight = 500): Promise<Blob> => {
+  const convertToPng = async (
+    blob: Blob,
+    fallbackWidth = 500,
+    fallbackHeight = 500
+  ): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
       // Don't set crossOrigin for blob URLs (they're same-origin)
@@ -129,7 +140,9 @@ export default function HomePage() {
   };
 
   // Helper to get SVG dimensions from content
-  const getSvgDimensions = (svgText: string): { width: number; height: number } => {
+  const getSvgDimensions = (
+    svgText: string
+  ): { width: number; height: number } => {
     // Try to extract viewBox (width, height from viewBox="x y w h")
     const viewBoxMatch = svgText.match(/viewBox=["']([^"']+)["']/);
     if (viewBoxMatch) {
@@ -166,7 +179,7 @@ export default function HomePage() {
         // Try to copy in original format first
         try {
           await navigator.clipboard.write([
-            new ClipboardItem({ [blob.type]: blob })
+            new ClipboardItem({ [blob.type]: blob }),
           ]);
           toast.success("Image copied to clipboard", { id: "copy-image" });
           return;
@@ -186,14 +199,18 @@ export default function HomePage() {
                 /<svg/,
                 `<svg width="${width}" height="${height}"`
               );
-              const sizedBlob = new Blob([svgWithDimensions], { type: "image/svg+xml" });
+              const sizedBlob = new Blob([svgWithDimensions], {
+                type: "image/svg+xml",
+              });
 
               try {
                 const pngBlob = await convertToPng(sizedBlob, width, height);
                 await navigator.clipboard.write([
-                  new ClipboardItem({ "image/png": pngBlob })
+                  new ClipboardItem({ "image/png": pngBlob }),
                 ]);
-                toast.success("Image copied to clipboard", { id: "copy-image" });
+                toast.success("Image copied to clipboard", {
+                  id: "copy-image",
+                });
                 return;
               } catch {
                 throw new Error("Failed to convert SVG to PNG");
@@ -203,7 +220,7 @@ export default function HomePage() {
             // For other formats
             const pngBlob = await convertToPng(blob);
             await navigator.clipboard.write([
-              new ClipboardItem({ "image/png": pngBlob })
+              new ClipboardItem({ "image/png": pngBlob }),
             ]);
             toast.success("Image copied to clipboard", { id: "copy-image" });
             return;
@@ -389,8 +406,7 @@ export default function HomePage() {
     !searchQuery;
 
   const renderEmptyState = () => {
-    if (cards === undefined || cards === null || !cards)
-      return <CardsGridSkeleton />;
+    if (cardsStatus === "LoadingFirstPage") return <CardsGridSkeleton />;
 
     if ((cards?.length || 0) === 0 && hasNoFilters) {
       return (
@@ -461,6 +477,14 @@ export default function HomePage() {
           }
           onAddTags={handleAddTags}
           onCopyImage={handleCopyImage}
+          initialBatchSize={DEFAULT_CARD_LIMIT}
+          batchSize={DEFAULT_CARD_LIMIT}
+          resetKey={`${searchTerms}::${filterTags.join(",")}::${showFavoritesOnly}::${showTrashOnly}`}
+          onLoadMore={() => loadMore(DEFAULT_CARD_LIMIT)}
+          hasMore={
+            cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore"
+          }
+          isLoadingMore={cardsStatus === "LoadingMore"}
         />
       ) : (
         <>
