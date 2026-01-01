@@ -1,4 +1,12 @@
 // @ts-nocheck
+
+// Set environment variables BEFORE any imports that might load auth.ts
+process.env.SITE_URL = "https://teakvault.com";
+process.env.GOOGLE_CLIENT_ID = "test-google-client-id";
+process.env.GOOGLE_CLIENT_SECRET = "test-google-client-secret";
+process.env.APPLE_CLIENT_ID = "test-apple-client-id";
+process.env.APPLE_CLIENT_SECRET = "test-apple-client-secret";
+
 import { describe, expect, test, mock } from "bun:test";
 
 describe("auth.ts", () => {

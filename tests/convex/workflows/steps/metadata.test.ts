@@ -2,8 +2,10 @@
 import { mock, describe, expect, test, beforeEach, beforeAll, afterAll } from "bun:test";
 
 const aiMocks = (global as any).__AI_MOCKS__ || {
+  generateText: mock(),
   generateObject: mock(),
   experimental_transcribe: mock(),
+  Output: { object: mock() },
 };
 (global as any).__AI_MOCKS__ = aiMocks;
 
@@ -68,9 +70,17 @@ describe("metadata handler", () => {
     mockRunMutation.mockReset();
     mockGetUrl.mockReset();
     mockScheduler.runAfter.mockReset();
+    aiMocks.generateText.mockReset();
     aiMocks.generateObject.mockReset();
     aiMocks.experimental_transcribe.mockReset();
+    aiMocks.Output.object.mockReset();
     mockFetch.mockReset();
+
+    // Set up default mock returns
+    aiMocks.Output.object.mockReturnValue({ schema: {} });
+    aiMocks.generateText.mockResolvedValue({
+      output: { tags: ["tag1"], summary: "summary" }
+    });
   });
 
   test("throws if card not found", async () => {
@@ -80,7 +90,7 @@ describe("metadata handler", () => {
 
   test("handles text card", async () => {
     mockRunQuery.mockResolvedValue({ _id: "c1", content: "hello" });
-    aiMocks.generateObject.mockResolvedValue({ object: { tags: ["tag1"], summary: "summary" } });
+    aiMocks.generateText.mockResolvedValue({ output: { tags: ["tag1"], summary: "summary" } });
 
     const result = await generateHandler(ctx, { cardId: "c1", cardType: "text" });
     expect(result.aiTags).toEqual(["tag1"]);
@@ -90,7 +100,7 @@ describe("metadata handler", () => {
   test("handles image card", async () => {
     mockRunQuery.mockResolvedValue({ _id: "c1", fileId: "f1" });
     mockGetUrl.mockResolvedValue("https://image");
-    aiMocks.generateObject.mockResolvedValue({ object: { tags: ["img"], summary: "img sum" } });
+    aiMocks.generateText.mockResolvedValue({ output: { tags: ["img"], summary: "img sum" } });
 
     const result = await generateHandler(ctx, { cardId: "c1", cardType: "image" });
     expect(result.aiTags).toEqual(["img"]);
@@ -99,7 +109,7 @@ describe("metadata handler", () => {
   test("handles video card using thumbnail", async () => {
     mockRunQuery.mockResolvedValue({ _id: "c1", thumbnailId: "t1" });
     mockGetUrl.mockResolvedValue("https://thumb");
-    aiMocks.generateObject.mockResolvedValue({ object: { tags: ["video"], summary: "video sum" } });
+    aiMocks.generateText.mockResolvedValue({ output: { tags: ["video"], summary: "video sum" } });
 
     const result = await generateHandler(ctx, { cardId: "c1", cardType: "video" });
     expect(result.aiTags).toEqual(["video"]);
@@ -115,7 +125,7 @@ describe("metadata handler", () => {
       arrayBuffer: async () => new ArrayBuffer(8),
     });
     aiMocks.experimental_transcribe.mockResolvedValue({ text: "transcript text" });
-    aiMocks.generateObject.mockResolvedValue({ object: { tags: ["audio"], summary: "audio sum" } });
+    aiMocks.generateText.mockResolvedValue({ output: { tags: ["audio"], summary: "audio sum" } });
 
     const result = await generateHandler(ctx, { cardId: "c1", cardType: "audio" });
     expect(result.aiTranscript).toBe("transcript text");
@@ -128,7 +138,7 @@ describe("metadata handler", () => {
       url: "https://example.com",
       metadata: { linkPreview: { status: "success", title: "Site" } }
     });
-    aiMocks.generateObject.mockResolvedValue({ object: { tags: ["link"], summary: "link sum" } });
+    aiMocks.generateText.mockResolvedValue({ output: { tags: ["link"], summary: "link sum" } });
 
     const result = await generateHandler(ctx, { cardId: "c1", cardType: "link" });
     expect(result.aiTags).toEqual(["link"]);
@@ -137,7 +147,7 @@ describe("metadata handler", () => {
 
   test("handles document card", async () => {
     mockRunQuery.mockResolvedValue({ _id: "c1", content: "doc content", fileMetadata: { fileName: "test.pdf" } });
-    aiMocks.generateObject.mockResolvedValue({ object: { tags: ["doc"], summary: "doc sum" } });
+    aiMocks.generateText.mockResolvedValue({ output: { tags: ["doc"], summary: "doc sum" } });
 
     const result = await generateHandler(ctx, { cardId: "c1", cardType: "document" });
     expect(result.aiTags).toEqual(["doc"]);
@@ -145,7 +155,7 @@ describe("metadata handler", () => {
 
   test("handles quote card", async () => {
     mockRunQuery.mockResolvedValue({ _id: "c1", content: "to be or not to be" });
-    aiMocks.generateObject.mockResolvedValue({ object: { tags: ["quote"], summary: "quote sum" } });
+    aiMocks.generateText.mockResolvedValue({ output: { tags: ["quote"], summary: "quote sum" } });
 
     const result = await generateHandler(ctx, { cardId: "c1", cardType: "quote" });
     expect(result.aiTags).toEqual(["quote"]);
@@ -156,7 +166,7 @@ describe("metadata handler", () => {
       _id: "c1",
       colors: [{ hex: "#ff0000", name: "Red" }]
     });
-    aiMocks.generateObject.mockResolvedValue({ object: { tags: ["color"], summary: "color sum" } });
+    aiMocks.generateText.mockResolvedValue({ output: { tags: ["color"], summary: "color sum" } });
 
     const result = await generateHandler(ctx, { cardId: "c1", cardType: "palette" });
     expect(result.aiTags).toEqual(["color"]);
@@ -164,7 +174,7 @@ describe("metadata handler", () => {
 
   test("throws if no metadata generated", async () => {
     mockRunQuery.mockResolvedValue({ _id: "c1", content: "" });
-    aiMocks.generateObject.mockResolvedValue({ object: { tags: [], summary: "" } });
+    aiMocks.generateText.mockResolvedValue({ output: { tags: [], summary: "" } });
     // results will be empty
     expect(generateHandler(ctx, { cardId: "c1", cardType: "text" })).rejects.toThrow("No AI metadata generated");
   });

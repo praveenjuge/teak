@@ -1,4 +1,18 @@
 // @ts-nocheck
+
+// Set environment variables BEFORE any imports that might load auth.ts
+const originalSiteUrl = process.env.SITE_URL;
+const originalGoogleClientId = process.env.GOOGLE_CLIENT_ID;
+const originalGoogleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const originalAppleClientId = process.env.APPLE_CLIENT_ID;
+const originalAppleClientSecret = process.env.APPLE_CLIENT_SECRET;
+
+process.env.SITE_URL = "https://teakvault.com";
+process.env.GOOGLE_CLIENT_ID = "test-google-client-id";
+process.env.GOOGLE_CLIENT_SECRET = "test-google-client-secret";
+process.env.APPLE_CLIENT_ID = "test-apple-client-id";
+process.env.APPLE_CLIENT_SECRET = "test-apple-client-secret";
+
 import { describe, expect, it, mock, beforeEach, beforeAll } from "bun:test";
 
 const mockSendEmail = mock().mockResolvedValue({ id: "m1" });
@@ -337,35 +351,49 @@ describe("auth", () => {
 
     describe("createAuth", () => {
         it("returns betterAuth instance and covers callbacks", async () => {
-            const ctx = {
-                runQuery: mock(),
-                runMutation: mock(),
-            } as any;
-            const auth = createAuth(ctx) as any;
-            expect(auth).toBeDefined();
+            const originalSiteUrl = process.env.SITE_URL;
+            const originalGoogleClientId = process.env.GOOGLE_CLIENT_ID;
+            const originalGoogleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+            const originalAppleClientId = process.env.APPLE_CLIENT_ID;
+            const originalAppleClientSecret = process.env.APPLE_CLIENT_SECRET;
 
-            // Test development origins branch
-            const originalNodeEnv = process.env.NODE_ENV;
-            process.env.NODE_ENV = "development";
-            const authDev = createAuth(ctx) as any;
-            expect(authDev.options.trustedOrigins).toContain("exp://localhost:*/*");
-            process.env.NODE_ENV = originalNodeEnv;
+            try {
+                const ctx = {
+                    runQuery: mock(),
+                    runMutation: mock(),
+                    } as any;
+                    const auth = createAuth(ctx) as any;
+                    expect(auth).toBeDefined();
 
-            // Test callbacks
-            const user = { email: "test@example.com" };
-            const url = "https://example.com";
+                    // Test development origins branch
+                    const originalNodeEnv = process.env.NODE_ENV;
+                    process.env.NODE_ENV = "development";
+                    const authDev = createAuth(ctx) as any;
+                    expect(authDev.options.trustedOrigins).toContain("exp://localhost:*/*");
+                    process.env.NODE_ENV = originalNodeEnv;
 
-            // We need to mock resend.sendEmail which is used in callbacks
-            // But it's a global export in auth.ts.
-            // Actually BetterAuth might hide these in its internal structure.
-            // Let's check where they are: auth.options.emailAndPassword.sendResetPassword
-            const options = auth.options;
-            if (options.emailAndPassword?.sendResetPassword) {
-                await options.emailAndPassword.sendResetPassword({ user, url });
-            }
-            if (options.emailVerification?.sendVerificationEmail) {
-                await options.emailVerification.sendVerificationEmail({ user, url });
-            }
+                    // Test callbacks
+                    const user = { email: "test@example.com" };
+                    const url = "https://example.com";
+
+                    // We need to mock resend.sendEmail which is used in callbacks
+                    // But it's a global export in auth.ts.
+                    // Actually BetterAuth might hide these in its internal structure.
+                    // Let's check where they are: auth.options.emailAndPassword.sendResetPassword
+                    const options = auth.options;
+                    if (options.emailAndPassword?.sendResetPassword) {
+                        await options.emailAndPassword.sendResetPassword({ user, url });
+                    }
+                    if (options.emailVerification?.sendVerificationEmail) {
+                        await options.emailVerification.sendVerificationEmail({ user, url });
+                    }
+                } finally {
+                    process.env.SITE_URL = originalSiteUrl;
+                    process.env.GOOGLE_CLIENT_ID = originalGoogleClientId;
+                    process.env.GOOGLE_CLIENT_SECRET = originalGoogleClientSecret;
+                    process.env.APPLE_CLIENT_ID = originalAppleClientId;
+                    process.env.APPLE_CLIENT_SECRET = originalAppleClientSecret;
+                }
         });
     });
 });
