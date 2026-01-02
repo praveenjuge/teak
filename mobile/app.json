@@ -21,7 +21,14 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Allow Teak to access your microphone for voice recordings."
+          "microphonePermission": "Teak needs microphone access to record voice notes and audio reminders that you can save to your inspiration collection."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Teak needs camera access to let you capture photos and videos that you want to save to your inspiration collection.",
+          "photoLibraryPermission": "Teak needs access to your photo library so you can select existing photos and videos to save as inspirations."
         }
       ],
       "expo-web-browser",
