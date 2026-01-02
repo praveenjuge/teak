@@ -63,7 +63,8 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     },
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: true,
+      // Disable email verification requirement in development for E2E testing
+      requireEmailVerification: process.env.NODE_ENV !== "development",
       sendResetPassword: async ({ user, url }) => {
         await resend.sendEmail(requireActionCtx(ctx), {
           from: "Teak <hello@teakvault.com>",
@@ -74,7 +75,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       },
     },
     emailVerification: {
-      sendOnSignUp: true,
+      sendOnSignUp: process.env.NODE_ENV === "production",
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }) => {
         await resend.sendEmail(requireActionCtx(ctx), {

@@ -29,7 +29,11 @@
     "pre-commit": "bunx lint-staged && bunx tsc --noEmit && bun run build && bun run build:docs && bun run build:extension",
     "prepare": "node scripts/prepare-git-hooks.js",
     "start": "next start",
-    "test": "AGENT=1 bun test --coverage"
+    "test": "AGENT=1 bun test --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug"
   },
   "simple-git-hooks": {
     "pre-commit": "bun run pre-commit"
