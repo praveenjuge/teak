@@ -16,12 +16,27 @@ export const metadata: Metadata = {
   keywords:
     "teak, visual bookmarking, design inspiration management, design bookmarks, visual inspiration, design workflow, developer resources",
   authors: [{ name: "Teak Team" }],
+  twitter: {
+    card: "summary_large_image",
+    title: "Teak - Visual Bookmarking & Design Inspiration Manager",
+    description:
+      "Complete guide to setting up and using Teak for visual bookmarking and design inspiration management across all platforms",
+    images: ["/hero-image.png"],
+  },
   openGraph: {
     title: "Teak - Visual Bookmarking & Design Inspiration Manager",
     description:
       "Complete guide to setting up and using Teak for visual bookmarking and design inspiration management across all platforms",
     type: "website",
     siteName: "Teak",
+    images: [
+      {
+        url: "/hero-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Teak - Visual Bookmarking & Design Inspiration Manager",
+      },
+    ],
   },
   robots: {
     index: true,
