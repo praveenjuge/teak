@@ -12,13 +12,13 @@ const aiMocks = (global as any).__AI_MOCKS__ || {
 mock.module("ai", () => aiMocks);
 
 // Mock internal API
-import { internal } from "../../../../convex/_generated/api";
+import { internal } from '../../../../convex/_generated/api';
 
 const originalFetch = global.fetch;
 const mockFetch = mock();
 global.fetch = mockFetch as any;
 
-import { generateHandler, buildLinkContentParts } from "../../../../convex/workflows/steps/metadata";
+import { generateHandler, buildLinkContentParts } from '../../../../convex/workflows/steps/metadata';
 
 afterAll(() => {
   global.fetch = originalFetch;

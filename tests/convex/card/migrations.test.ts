@@ -5,7 +5,7 @@ describe("card/migrations.ts", () => {
   let backfillMetadataSearchFields: any;
 
   beforeEach(async () => {
-    const module = await import("../convex/card/migrations");
+    const module = await import("../../../convex/card/migrations");
     backfillMetadataSearchFields = module.backfillMetadataSearchFields;
   });
 

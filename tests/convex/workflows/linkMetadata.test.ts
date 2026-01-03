@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { parseLinkMetadataRetryableError } from "../../../convex/workflows/linkMetadata";
+import { parseLinkMetadataRetryableError } from '../../../convex/workflows/linkMetadata';
 import {
   LINK_METADATA_RETRYABLE_PREFIX,
   type LinkMetadataRetryableError,
-} from "../../../convex/workflows/steps/linkMetadata/fetchMetadata";
+} from '../../../convex/workflows/steps/linkMetadata/fetchMetadata';
 
 describe("linkMetadata workflow retryable error parsing", () => {
   test("parses encoded error payload", () => {

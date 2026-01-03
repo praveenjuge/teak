@@ -9,7 +9,7 @@ mock.module("../../../../../convex/workflows/steps/categorization/providers", ()
     }
 }));
 
-import { enrichLinkCategory } from "../../../../../convex/workflows/steps/categorization/index";
+import { enrichLinkCategory } from '../../../../../convex/workflows/steps/categorization/index';
 
 test("enrichLinkCategory hits dead code branch with mocked provider", async () => {
     // We pass no URL and no hint so provider will be undefined

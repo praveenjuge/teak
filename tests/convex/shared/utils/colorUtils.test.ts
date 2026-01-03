@@ -6,7 +6,7 @@ import {
     getColorName,
     getContrastRatio,
     hexToRgb
-} from "../../../../convex/shared/utils/colorUtils";
+} from '../../../../convex/shared/utils/colorUtils';
 
 describe("colorUtils", () => {
     describe("hexToRgb", () => {

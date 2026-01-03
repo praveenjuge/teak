@@ -5,7 +5,7 @@ describe("card/generateUploadUrl.ts", () => {
   let generateUploadUrl: any;
 
   beforeEach(async () => {
-    generateUploadUrl = (await import("../convex/card/generateUploadUrl")).generateUploadUrl;
+    generateUploadUrl = (await import("../../../convex/card/generateUploadUrl")).generateUploadUrl;
   });
 
   test("throws when unauthenticated", async () => {

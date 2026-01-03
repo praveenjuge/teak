@@ -36,8 +36,8 @@ mock.module("@onkernel/sdk", () => {
   };
 });
 
-import { fetchMetadataHandler } from "../../../../../convex/workflows/steps/linkMetadata/fetchMetadata";
-import { internal } from "../../../../../convex/_generated/api";
+import { fetchMetadataHandler } from '../../../../../convex/workflows/steps/linkMetadata/fetchMetadata';
+import { internal } from '../../../../../convex/_generated/api';
 
 describe("fetchMetadata", () => {
   const mockRunQuery = mock();

@@ -9,7 +9,7 @@ describe("linkMetadata.ts", () => {
   let updateCardScreenshotHandler: any;
 
   beforeEach(async () => {
-    const module = await import("../convex/linkMetadata");
+    const module = await import("../../../convex/linkMetadata");
     getCardForMetadata = module.getCardForMetadata;
     updateCardMetadata = module.updateCardMetadata;
     updateCardScreenshot = module.updateCardScreenshot;

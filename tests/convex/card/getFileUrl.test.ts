@@ -5,7 +5,7 @@ describe("card/getFileUrl.ts", () => {
   let getFileUrl: any;
 
   beforeEach(async () => {
-    getFileUrl = (await import("../convex/card/getFileUrl")).getFileUrl;
+    getFileUrl = (await import("../../../convex/card/getFileUrl")).getFileUrl;
   });
 
   test("throws when unauthenticated", async () => {

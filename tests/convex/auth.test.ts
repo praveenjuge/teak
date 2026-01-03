@@ -23,7 +23,7 @@ describe("auth.ts", () => {
       isActionCtx: () => true,
     }));
 
-    const module = await import("../convex/auth");
+    const module = await import("../../convex/auth");
     expect(module).toBeTruthy();
   });
 });

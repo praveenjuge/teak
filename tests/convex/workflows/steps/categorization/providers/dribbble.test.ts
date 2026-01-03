@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { enrichDribbble } from "../../../../../../convex/workflows/steps/categorization/providers/dribbble";
+import { enrichDribbble } from '../../../../../../convex/workflows/steps/categorization/providers/dribbble';
 
 describe("enrichDribbble", () => {
     test("handles full stats extraction (Likes, Views, Comments) to cover mapLabelToStat", () => {

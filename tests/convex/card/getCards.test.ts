@@ -18,7 +18,7 @@ describe("card/getCards.ts", () => {
   let searchCardsPaginated: any;
 
   beforeEach(async () => {
-    const module = await import("../convex/card/getCards");
+    const module = await import("../../../convex/card/getCards");
     getCards = module.getCards;
     searchCards = module.searchCards;
     searchCardsPaginated = module.searchCardsPaginated;

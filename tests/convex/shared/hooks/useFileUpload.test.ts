@@ -58,7 +58,7 @@ class MockImage {
 }
 global.Image = MockImage as any;
 
-import { useFileUploadCore, setFileUploadSentryCaptureFunction, FileUploadDependencies } from "../../../../convex/shared/hooks/useFileUpload";
+import { useFileUploadCore, setFileUploadSentryCaptureFunction, FileUploadDependencies } from '../../../../convex/shared/hooks/useFileUpload';
 import { MAX_FILE_SIZE, MAX_FILES_PER_UPLOAD, CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../../../../convex/shared/constants";
 
 describe("defaults", () => {

@@ -5,7 +5,7 @@ import {
   DESCRIPTION_SOURCES,
   IMAGE_SOURCES,
   SCRAPE_ELEMENTS,
-} from "../convex/linkMetadata/selectors";
+} from '../../../convex/linkMetadata/selectors';
 
 describe("linkMetadata selectors", () => {
   test("includes expected title/description selectors", () => {

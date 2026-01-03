@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { describe, expect, it } from "bun:test";
 
-import { extractPaletteColors, parseColorString, getContrastRatio, hexToRgb } from "../../../../../convex/shared/utils/colorUtils";
+import { extractPaletteColors, parseColorString, getContrastRatio, hexToRgb } from '../../../../../convex/shared/utils/colorUtils';
 
 describe("colorUtils", () => {
   describe("hexToRgb", () => {

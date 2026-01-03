@@ -12,10 +12,10 @@ import {
   parseLinkPreview,
   buildSuccessPreview,
   buildErrorPreview,
-} from "../../../convex/linkMetadata/parsing";
-import type { ScrapeResultItem, ScrapeSelectorResult, SelectorSource } from "../../../convex/linkMetadata/types";
-import * as selectors from "../../../convex/linkMetadata/selectors";
-import { Id } from "../../../convex/_generated/dataModel";
+} from '../../../convex/linkMetadata/parsing';
+import type { ScrapeResultItem, ScrapeSelectorResult, SelectorSource } from '../../../convex/linkMetadata/types';
+import * as selectors from '../../../convex/linkMetadata/selectors';
+import { Id } from '../../../convex/_generated/dataModel';
 
 describe("parsing", () => {
   describe("toSelectorMap", () => {

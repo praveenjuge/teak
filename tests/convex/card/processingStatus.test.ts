@@ -10,7 +10,7 @@ import {
   shouldRunCategorizeStage,
   buildInitialProcessingStatus,
   type ProcessingStageStatus,
-} from "../../../convex/card/processingStatus";
+} from '../../../convex/card/processingStatus';
 
 describe("processingStatus", () => {
   const now = 1000;

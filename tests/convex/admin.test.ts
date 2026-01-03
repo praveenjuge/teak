@@ -8,7 +8,7 @@ describe("admin.ts", () => {
   let refreshCardProcessing: any;
 
   beforeEach(async () => {
-    const module = await import("../convex/admin");
+    const module = await import("../../convex/admin");
     getAccess = module.getAccess;
     getOverview = module.getOverview;
     resetCardProcessingState = module.resetCardProcessingState;

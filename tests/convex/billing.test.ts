@@ -49,7 +49,7 @@ mock.module("@polar-sh/sdk", () => {
 
 
 
-import { getUserInfoHandler, createCheckoutLinkHandler, createCustomerPortalHandler, polar, polarUserInfoProvider } from "../../convex/billing";
+import { getUserInfoHandler, createCheckoutLinkHandler, createCustomerPortalHandler, polar, polarUserInfoProvider } from '../../convex/billing';
 
 
 

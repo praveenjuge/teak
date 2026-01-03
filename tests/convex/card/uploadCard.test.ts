@@ -8,20 +8,20 @@ describe("card/uploadCard.ts", () => {
   let originalGetSubscription: any;
 
   beforeEach(async () => {
-    const rateLimitsModule = await import("../convex/shared/rateLimits");
-    const billingModule = await import("../convex/billing");
+    const rateLimitsModule = await import("../../../convex/shared/rateLimits");
+    const billingModule = await import("../../../convex/billing");
     originalLimit = rateLimitsModule.rateLimiter.limit;
     originalGetSubscription = billingModule.polar.getCurrentSubscription;
     rateLimitsModule.rateLimiter.limit = mock().mockResolvedValue({ ok: true });
     billingModule.polar.getCurrentSubscription = mock().mockResolvedValue(null);
-    const module = await import("../convex/card/uploadCard");
+    const module = await import("../../../convex/card/uploadCard");
     uploadAndCreateCard = module.uploadAndCreateCard;
     finalizeUploadedCard = module.finalizeUploadedCard;
   });
 
   afterEach(async () => {
-    const rateLimitsModule = await import("../convex/shared/rateLimits");
-    const billingModule = await import("../convex/billing");
+    const rateLimitsModule = await import("../../../convex/shared/rateLimits");
+    const billingModule = await import("../../../convex/billing");
     rateLimitsModule.rateLimiter.limit = originalLimit;
     billingModule.polar.getCurrentSubscription = originalGetSubscription;
   });
@@ -62,14 +62,14 @@ describe("card/uploadCard.ts", () => {
   });
 
   test("uploadAndCreateCard returns error with code when rate limit exceeded", async () => {
-    const rateLimitsModule = await import("../convex/shared/rateLimits");
+    const rateLimitsModule = await import("../../../convex/shared/rateLimits");
     rateLimitsModule.rateLimiter.limit = mock().mockResolvedValue({
       ok: false,
       error: { code: "RATE_LIMITED", message: "Too many requests" },
     });
 
     // Re-import to get updated mocks
-    const module = await import("../convex/card/uploadCard");
+    const module = await import("../../../convex/card/uploadCard");
     uploadAndCreateCard = module.uploadAndCreateCard;
 
     const ctx = {
@@ -302,7 +302,7 @@ describe("card/uploadCard.ts", () => {
 
   test("finalizeUploadedCard handles additional metadata", async () => {
     // Ensure rate limiter allows the operation
-    const rateLimitsModule = await import("../convex/shared/rateLimits");
+    const rateLimitsModule = await import("../../../convex/shared/rateLimits");
     rateLimitsModule.rateLimiter.limit = mock().mockResolvedValue({ ok: true });
 
     const ctx = {

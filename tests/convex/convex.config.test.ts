@@ -22,7 +22,7 @@ mock.module("@convex-dev/ratelimiter/convex.config", () => ({
 
 describe("convex.config.ts", () => {
   test("module exports", async () => {
-    const module = await import("../convex/convex.config");
+    const module = await import("../../convex/convex.config");
     expect(module).toBeTruthy();
   });
 });

@@ -6,7 +6,7 @@ import {
   getCardTypeLabel,
   isCardType,
   CARD_TYPE_REGISTRY,
-} from "../../../convex/shared/constants";
+} from '../../../convex/shared/constants';
 
 describe("constants", () => {
   describe("helper functions", () => {

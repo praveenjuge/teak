@@ -4,7 +4,7 @@ import {
   normalizeQuoteContent,
   applyQuoteDisplayFormatting,
   stripSurroundingQuotes,
-} from "../convex/card/quoteFormatting";
+} from '../../../convex/card/quoteFormatting';
 
 describe("quoteFormatting", () => {
   describe("normalizeQuoteContent", () => {

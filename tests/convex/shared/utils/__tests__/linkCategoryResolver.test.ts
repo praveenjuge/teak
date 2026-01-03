@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, it } from "bun:test";
-import { resolveLinkCategory } from "../../../../../convex/shared/utils/linkCategoryResolver";
+import { resolveLinkCategory } from '../../../../../convex/shared/utils/linkCategoryResolver';
 
 describe("resolveLinkCategory", () => {
   it("routes well-known domains deterministically", () => {

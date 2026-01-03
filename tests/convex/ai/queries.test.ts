@@ -7,7 +7,7 @@ describe("ai/queries.ts", () => {
   let getCardForVerification: any;
 
   beforeEach(async () => {
-    const module = await import("../convex/ai/queries");
+    const module = await import("../../../convex/ai/queries");
     getCardForAI = module.getCardForAI;
     findCardsMissingAi = module.findCardsMissingAi;
     getCardForVerification = module.getCardForVerification;

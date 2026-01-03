@@ -16,13 +16,13 @@ describe("card/createCard.ts", () => {
   let originalGetSubscription: any;
 
   beforeEach(async () => {
-    const managerModule = await import("../convex/workflows/manager");
+    const managerModule = await import("../../../convex/workflows/manager");
     workflow = managerModule.workflow;
     workflow.start = mock().mockResolvedValue(undefined);
 
-    const authModule = await import("../convex/auth");
-    const rateLimitsModule = await import("../convex/shared/rateLimits");
-    const billingModule = await import("../convex/billing");
+    const authModule = await import("../../../convex/auth");
+    const rateLimitsModule = await import("../../../convex/shared/rateLimits");
+    const billingModule = await import("../../../convex/billing");
 
     originalLimit = rateLimitsModule.rateLimiter.limit;
     originalGetSubscription = billingModule.polar.getCurrentSubscription;
@@ -30,12 +30,12 @@ describe("card/createCard.ts", () => {
     rateLimitsModule.rateLimiter.limit = mock().mockResolvedValue({ ok: true });
     billingModule.polar.getCurrentSubscription = mock().mockResolvedValue(null);
 
-    createCard = (await import("../convex/card/createCard")).createCard;
+    createCard = (await import("../../../convex/card/createCard")).createCard;
   });
 
   afterEach(async () => {
-    const rateLimitsModule = await import("../convex/shared/rateLimits");
-    const billingModule = await import("../convex/billing");
+    const rateLimitsModule = await import("../../../convex/shared/rateLimits");
+    const billingModule = await import("../../../convex/billing");
     rateLimitsModule.rateLimiter.limit = originalLimit;
     billingModule.polar.getCurrentSubscription = originalGetSubscription;
   });

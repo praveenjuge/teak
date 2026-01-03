@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, test } from "bun:test";
-import * as module from "../convex/schema";
+import * as module from '../../convex/schema';
 
 describe("schema.ts", () => {
   test("module exports", () => {

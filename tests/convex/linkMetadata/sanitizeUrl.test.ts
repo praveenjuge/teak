@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, test } from "bun:test";
-import { sanitizeUrl, sanitizeImageUrl } from "../convex/linkMetadata/parsing";
+import { sanitizeUrl, sanitizeImageUrl } from '../../../convex/linkMetadata/parsing';
 
 describe("sanitizeUrl", () => {
   test("resolves relative url against base", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { updateCategorization } from "../../../../../convex/workflows/steps/categorization/mutations";
+import { updateCategorization } from '../../../../../convex/workflows/steps/categorization/mutations';
 
 describe("categorization updateCategorization", () => {
   it("updates categorization metadata without wiping AI fields", async () => {

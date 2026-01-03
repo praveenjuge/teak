@@ -6,7 +6,7 @@ describe("card/updateCard.ts", () => {
   let updateCardField: any;
 
   beforeEach(async () => {
-    const module = await import("../convex/card/updateCard");
+    const module = await import("../../../convex/card/updateCard");
     updateCard = module.updateCard;
     updateCardField = module.updateCardField;
   });

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, test } from "bun:test";
-import { extractUrlFromContent } from "../convex/card/validationUtils";
+import { extractUrlFromContent } from '../../../convex/card/validationUtils';
 
 describe("validationUtils", () => {
   describe("extractUrlFromContent", () => {

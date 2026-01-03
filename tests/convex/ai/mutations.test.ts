@@ -5,7 +5,7 @@ describe("ai/mutations.ts", () => {
   let updateCardProcessing: any;
 
   beforeEach(async () => {
-    updateCardProcessing = (await import("../convex/ai/mutations")).updateCardProcessing;
+    updateCardProcessing = (await import("../../../convex/ai/mutations")).updateCardProcessing;
   });
 
   test("updates processing fields", async () => {

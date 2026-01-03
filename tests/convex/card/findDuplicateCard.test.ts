@@ -5,7 +5,7 @@ describe("card/findDuplicateCard.ts", () => {
   let findDuplicateCard: any;
 
   beforeEach(async () => {
-    findDuplicateCard = (await import("../convex/card/findDuplicateCard")).findDuplicateCard;
+    findDuplicateCard = (await import("../../../convex/card/findDuplicateCard")).findDuplicateCard;
   });
 
   test("returns null when unauthenticated", async () => {

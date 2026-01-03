@@ -10,7 +10,7 @@ const aiMocks = (global as any).__AI_MOCKS__ || {
 mock.module("ai", () => aiMocks);
 
 // Mock internal API
-import { internal } from "../../../../../convex/_generated/api";
+import { internal } from '../../../../../convex/_generated/api';
 
 // Setup fetch mock that can be restored
 const originalFetch = global.fetch;
@@ -22,7 +22,7 @@ import {
   mergeAndSaveHandler,
   classifyLinkCategory,
   enrichLinkCategory
-} from "../../../../../convex/workflows/steps/categorization/index";
+} from '../../../../../convex/workflows/steps/categorization/index';
 
 describe("categorization index", () => {
   const mockRunQuery = mock();

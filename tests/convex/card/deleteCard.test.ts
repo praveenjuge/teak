@@ -5,7 +5,7 @@ describe("card/deleteCard.ts", () => {
   let permanentDeleteCard: any;
 
   beforeEach(async () => {
-    permanentDeleteCard = (await import("../convex/card/deleteCard")).permanentDeleteCard;
+    permanentDeleteCard = (await import("../../../convex/card/deleteCard")).permanentDeleteCard;
   });
 
   test("throws when unauthenticated", async () => {

@@ -7,7 +7,7 @@ import {
   formatCountString,
   formatRating,
   formatDate,
-} from "../convex/workflows/steps/categorization/providers/common";
+} from '../../../../../../convex/workflows/steps/categorization/providers/common';
 
 describe("categorization providers common", () => {
   test("normalizeWhitespace trims and collapses", () => {

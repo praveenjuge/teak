@@ -6,7 +6,7 @@ describe("card/defaultCards.ts", () => {
   let DEFAULT_CARDS: any;
 
   beforeEach(async () => {
-    const module = await import("../convex/card/defaultCards");
+    const module = await import("../../../convex/card/defaultCards");
     createDefaultCardsForUser = module.createDefaultCardsForUser;
     DEFAULT_CARDS = module.DEFAULT_CARDS;
   });

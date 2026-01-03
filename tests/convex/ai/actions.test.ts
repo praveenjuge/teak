@@ -5,7 +5,7 @@ describe("ai/actions.ts", () => {
   let manuallyGenerateAI: any;
 
   beforeEach(async () => {
-    manuallyGenerateAI = (await import("../convex/ai/actions")).manuallyGenerateAI;
+    manuallyGenerateAI = (await import("../../../convex/ai/actions")).manuallyGenerateAI;
   });
 
   test("throws when unauthenticated", async () => {

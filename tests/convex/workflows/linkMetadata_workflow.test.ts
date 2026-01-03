@@ -6,8 +6,8 @@ import {
     linkMetadataWorkflowHandler,
     startLinkMetadataWorkflowHandler,
     parseLinkMetadataRetryableError
-} from "../../../convex/workflows/linkMetadata";
-import { workflow } from "../../../convex/workflows/manager";
+} from '../../../convex/workflows/linkMetadata';
+import { workflow } from '../../../convex/workflows/manager';
 
 describe("linkMetadata utils", () => {
     test("parseLinkMetadataRetryableError handles non-Error objects", () => {

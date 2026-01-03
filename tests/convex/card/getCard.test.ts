@@ -12,7 +12,7 @@ describe("card/getCard.ts", () => {
   let getDeletedCards: any;
 
   beforeEach(async () => {
-    const module = await import("../convex/card/getCard");
+    const module = await import("../../../convex/card/getCard");
     getCard = module.getCard;
     getDeletedCards = module.getDeletedCards;
   });

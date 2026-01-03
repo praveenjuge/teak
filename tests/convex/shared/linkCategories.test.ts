@@ -1,6 +1,6 @@
 
 import { describe, expect, test } from "bun:test";
-import { normalizeLinkCategory, LINK_CATEGORIES, LINK_CATEGORY_LABELS } from "../../../convex/shared/linkCategories";
+import { normalizeLinkCategory, LINK_CATEGORIES, LINK_CATEGORY_LABELS } from '../../../convex/shared/linkCategories';
 
 describe("linkCategories", () => {
     test("LINK_CATEGORIES contains expected values", () => {

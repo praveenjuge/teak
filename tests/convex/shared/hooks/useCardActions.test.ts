@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, test, mock, beforeEach } from "bun:test";
-import { createCardActions, setSentryCaptureFunction } from "../../../../convex/shared/hooks/useCardActions";
+import { createCardActions, setSentryCaptureFunction } from '../../../../convex/shared/hooks/useCardActions';
 
 describe("defaults", () => {
     test("uses default sentry capture without error", async () => {
