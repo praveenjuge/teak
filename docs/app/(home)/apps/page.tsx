@@ -23,12 +23,23 @@ export const metadata: Metadata = {
       "Use Teak on the web, iPhone, and Chrome. Capture ideas anywhere and reopen them instantly on every device.",
     type: "website",
     url: "https://teakvault.com/apps",
+    siteName: "Teak",
+    locale: "en_US",
+    images: [
+      {
+        url: "/hero-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Teak - Web, iOS, and Chrome Extension",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Teak Apps",
     description:
       "Use Teak on the web, iPhone, and Chrome. Capture ideas anywhere and reopen them instantly on every device.",
+    images: ["/hero-image.png"],
   },
   robots: {
     index: true,

@@ -72,11 +72,21 @@ export async function generateMetadata(props: {
       description: page.data.description,
       type: "article",
       siteName: "Teak",
+      locale: "en_US",
+      images: [
+        {
+          url: "/hero-image.png",
+          width: 1200,
+          height: 630,
+          alt: `Teak - ${page.data.title}`,
+        },
+      ],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title: page.data.title,
       description: page.data.description,
+      images: ["/hero-image.png"],
     },
     robots: {
       index: true,

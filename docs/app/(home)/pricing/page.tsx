@@ -14,12 +14,23 @@ export const metadata: Metadata = {
       "Try Teak free with 200 cards. Pro is $19/month - less than 2 coffees. Or self-host for free.",
     type: "website",
     url: "https://teakvault.com/pricing",
+    siteName: "Teak",
+    locale: "en_US",
+    images: [
+      {
+        url: "/hero-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Teak - Pricing",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "200 Cards Free. $19/month After. No Tricks.",
     description:
       "Try Teak free with 200 cards. Pro is $19/month - less than 2 coffees. Or self-host for free.",
+    images: ["/hero-image.png"],
   },
   robots: {
     index: true,

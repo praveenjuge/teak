@@ -28,12 +28,23 @@ export const metadata: Metadata = {
       "Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again.",
     type: "website",
     url: "https://teakvault.com",
+    siteName: "Teak",
+    locale: "en_US",
+    images: [
+      {
+        url: "/hero-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Teak - Never Lose That Perfect Design Again",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Never Lose That Perfect Design Again",
     description:
       "Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again.",
+    images: ["/hero-image.png"],
   },
   robots: {
     index: true,

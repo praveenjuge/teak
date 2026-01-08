@@ -7,6 +7,29 @@ export const metadata: Metadata = {
   title: "What's New in Teak",
   description:
     "See how we're making Teak better every week. Real updates, no fluff.",
+  openGraph: {
+    title: "What's New in Teak",
+    description:
+      "See how we're making Teak better every week. Real updates, no fluff.",
+    type: "website",
+    siteName: "Teak",
+    locale: "en_US",
+    images: [
+      {
+        url: "/hero-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Teak Changelog",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "What's New in Teak",
+    description:
+      "See how we're making Teak better every week. Real updates, no fluff.",
+    images: ["/hero-image.png"],
+  },
 };
 
 interface ChangelogEntry {

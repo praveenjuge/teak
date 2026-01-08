@@ -29,6 +29,7 @@ export const metadata: Metadata = {
       "Complete guide to setting up and using Teak for visual bookmarking and design inspiration management across all platforms",
     type: "website",
     siteName: "Teak",
+    locale: "en_US",
     images: [
       {
         url: "/hero-image.png",
