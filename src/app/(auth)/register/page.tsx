@@ -102,12 +102,7 @@ export default function SignUp() {
 
   return (
     <>
-      <CardHeader className="text-center">
-        <CardTitle className="text-lg">Register</CardTitle>
-        <CardDescription>
-          Enter your information to create an account
-        </CardDescription>
-      </CardHeader>
+      <CardTitle className="text-lg text-center">Get started on Teak</CardTitle>
       <CardContent>
         {error && (
           <Alert variant="destructive" className="mb-4">
@@ -168,9 +163,7 @@ export default function SignUp() {
             <span className="w-full border-t" />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="bg-card px-2 text-muted-foreground">
-              Or register with email
-            </span>
+            <span className="bg-card px-2 text-muted-foreground">or</span>
           </div>
         </div>
 

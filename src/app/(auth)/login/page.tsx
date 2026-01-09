@@ -86,12 +86,7 @@ export default function SignIn() {
 
   return (
     <>
-      <CardHeader className="text-center">
-        <CardTitle className="text-lg">Login to Teak</CardTitle>
-        <CardDescription>
-          Welcome back! Please login to continue
-        </CardDescription>
-      </CardHeader>
+      <CardTitle className="text-lg text-center">Login to Teak</CardTitle>
       <CardContent>
         {error && (
           <Alert variant="destructive" className="mb-4">
@@ -140,9 +135,7 @@ export default function SignIn() {
             <span className="w-full border-t" />
           </div>
           <div className="relative flex justify-center">
-            <span className="bg-card px-2 text-muted-foreground">
-              Or login with email
-            </span>
+            <span className="bg-card px-2 text-muted-foreground">or</span>
           </div>
         </div>
 
@@ -206,7 +199,18 @@ export default function SignIn() {
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="password">Password</Label>
+            <div className="flex justify-between">
+              <Label htmlFor="password">Password</Label>
+              <Link
+                href="/forgot-password"
+                className={cn(
+                  buttonVariants({ variant: "link" }),
+                  "p-0 h-auto"
+                )}
+              >
+                Forgot?
+              </Link>
+            </div>
 
             <Input
               id="password"
@@ -232,18 +236,12 @@ export default function SignIn() {
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex-col gap-1 -my-2">
-        <Link
-          href="/forgot-password"
-          className={cn(buttonVariants({ variant: "link" }))}
-        >
-          Forgot your password?
-        </Link>
+      <CardFooter className="flex-col -my-2">
         <Link
           href="/register"
           className={cn(buttonVariants({ variant: "link" }))}
         >
-          Register with Email
+          New User? Register
         </Link>
       </CardFooter>
     </>
