@@ -52,7 +52,7 @@
     "@convex-dev/polar": "^0.7.1",
     "@convex-dev/ratelimiter": "^0.1.7",
     "@convex-dev/resend": "^0.2.3",
-    "@convex-dev/workflow": "^0.3.3",
+    "@convex-dev/workflow": "^0.3.4",
     "@onkernel/sdk": "^0.24.0",
     "@polar-sh/checkout": "^0.1.14",
     "@polar-sh/sdk": "^0.42.1",
