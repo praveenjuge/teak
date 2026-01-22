@@ -12,13 +12,13 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
-    "compile": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
     "@convex-dev/better-auth": "^0.9.11",
     "@tailwindcss/vite": "^4.1.18",
-    "@teak/convex": "file:..",
+    "@teak/convex": "workspace:*",
     "better-auth": "1.4.7",
     "convex": "^1.31.1",
     "lucide-react": "^0.561.0",
