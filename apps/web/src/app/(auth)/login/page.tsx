@@ -1,13 +1,7 @@
 "use client";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-} from "@/components/ui/card";
+import { CardContent, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -42,7 +36,7 @@ export default function SignIn() {
         metrics.loginFailed("google", response.error.message);
         setError(
           response.error.message ??
-            "Failed to sign in with Google. Please try again."
+            "Failed to sign in with Google. Please try again.",
         );
       } else {
         metrics.loginSuccess("google");
@@ -69,7 +63,7 @@ export default function SignIn() {
         metrics.loginFailed("apple", response.error.message);
         setError(
           response.error.message ??
-            "Failed to sign in with Apple. Please try again."
+            "Failed to sign in with Apple. Please try again.",
         );
       } else {
         metrics.loginSuccess("apple");
@@ -173,13 +167,13 @@ export default function SignIn() {
                     errorMessage.toLowerCase().includes("unverified")
                   ) {
                     setError(
-                      "Please check your email and click the verification link before signing in. If you didn't receive the email, check your spam folder."
+                      "Please check your email and click the verification link before signing in. If you didn't receive the email, check your spam folder.",
                     );
                   } else {
                     setError(errorMessage);
                   }
                 },
-              }
+              },
             );
           }}
           className="grid gap-4"
@@ -205,7 +199,7 @@ export default function SignIn() {
                 href="/forgot-password"
                 className={cn(
                   buttonVariants({ variant: "link" }),
-                  "p-0 h-auto"
+                  "p-0 h-auto",
                 )}
               >
                 Forgot?

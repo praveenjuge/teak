@@ -507,6 +507,7 @@ function GridImagePreview({
       )}
       {!imageUrl && (
         <Image
+          alt=""
           className="h-full! w-full scale-105"
           rootClassName="h-full w-full"
           placeholder

@@ -3,7 +3,7 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { Stack, useSegments, useRouter } from "expo-router";
+import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { colors } from "@/constants/colors";
 import ConvexClientProvider from "../ConvexClientProvider";
@@ -110,7 +110,7 @@ function FeedbackBottomSheet() {
   const [feedbackState, setFeedbackState] =
     useState<FeedbackStatusPayload | null>(() => getFeedbackStatus());
   const [isSheetOpen, setIsSheetOpen] = useState<boolean>(() =>
-    Boolean(getFeedbackStatus())
+    Boolean(getFeedbackStatus()),
   );
   const isDismissingRef = useRef(false);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

@@ -18,12 +18,7 @@ import {
   ZStack,
 } from "@expo/ui/swift-ui";
 import { Circle } from "@expo/ui/src/swift-ui/Shapes";
-import {
-  cornerRadius,
-  frame,
-  foregroundStyle,
-  padding,
-} from "@expo/ui/swift-ui/modifiers";
+import { frame, foregroundStyle, padding } from "@expo/ui/swift-ui/modifiers";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 
 type Card = Doc<"cards"> & {
@@ -84,7 +79,7 @@ const FullHeightMedia = ({
 }) => {
   // Show thumbnail immediately while full image loads
   const [activeUri, setActiveUri] = useState<string | null>(
-    fallbackUri ?? primaryUri ?? null
+    fallbackUri ?? primaryUri ?? null,
   );
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -282,7 +277,10 @@ const VideoPreview = ({
         player.play();
         setHasStartedPlaying(true);
       } catch (error) {
-        console.warn("Failed to start video preview:", error instanceof Error ? error.message : error);
+        console.warn(
+          "Failed to start video preview:",
+          error instanceof Error ? error.message : error,
+        );
       }
     };
 
@@ -290,7 +288,10 @@ const VideoPreview = ({
       try {
         player.pause();
       } catch (error) {
-        console.warn("Failed to pause video preview:", error instanceof Error ? error.message : error);
+        console.warn(
+          "Failed to pause video preview:",
+          error instanceof Error ? error.message : error,
+        );
       }
     };
 
@@ -357,12 +358,18 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
     try {
       await sound.stopAsync();
     } catch (error) {
-      console.warn("Failed to stop audio preview:", error instanceof Error ? error.message : error);
+      console.warn(
+        "Failed to stop audio preview:",
+        error instanceof Error ? error.message : error,
+      );
     }
     try {
       await sound.unloadAsync();
     } catch (error) {
-      console.warn("Failed to unload audio preview:", error instanceof Error ? error.message : error);
+      console.warn(
+        "Failed to unload audio preview:",
+        error instanceof Error ? error.message : error,
+      );
     }
     soundRef.current = null;
     setIsAudioLoading(false);
@@ -401,11 +408,14 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
           setIsAudioLoading(status.isBuffering ?? false);
           setIsAudioPlaying(status.isPlaying ?? false);
         },
-        true
+        true,
       );
       soundRef.current = sound;
     } catch (error) {
-      console.warn("Failed to load audio preview:", error instanceof Error ? error.message : error);
+      console.warn(
+        "Failed to load audio preview:",
+        error instanceof Error ? error.message : error,
+      );
       setIsAudioLoading(false);
       setIsAudioPlaying(false);
       setAudioError("Failed to load audio");
@@ -453,7 +463,10 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
         await sound.playAsync();
       }
     } catch (error) {
-      console.warn("Failed to toggle audio preview:", error instanceof Error ? error.message : error);
+      console.warn(
+        "Failed to toggle audio preview:",
+        error instanceof Error ? error.message : error,
+      );
     }
   }, [audioUrl, isAudioSupported, loadAndPlayAudio]);
 
@@ -464,7 +477,10 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
         await Linking.openURL(url);
       }
     } catch (error) {
-      console.error("Failed to open URL:", error instanceof Error ? error.message : error);
+      console.error(
+        "Failed to open URL:",
+        error instanceof Error ? error.message : error,
+      );
     }
   }, []);
 

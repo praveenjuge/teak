@@ -8,7 +8,6 @@ import {
   Spacer,
   Text,
   Button,
-  VStack,
 } from "@expo/ui/swift-ui";
 import * as React from "react";
 import { Alert } from "react-native";
@@ -36,7 +35,7 @@ export default function SettingsScreen() {
     } catch (error) {
       console.error(
         "Sign out error:",
-        error instanceof Error ? error.message : error
+        error instanceof Error ? error.message : error,
       );
     }
   };
@@ -78,7 +77,7 @@ export default function SettingsScreen() {
     } catch (error) {
       console.error(
         "Delete account error:",
-        error instanceof Error ? error.message : error
+        error instanceof Error ? error.message : error,
       );
       setDeleteError("Something went wrong while deleting your account.");
     } finally {
@@ -112,11 +111,11 @@ export default function SettingsScreen() {
                   },
                 },
               ],
-              "plain-text"
+              "plain-text",
             );
           },
         },
-      ]
+      ],
     );
   };
 

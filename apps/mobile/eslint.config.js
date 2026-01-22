@@ -9,4 +9,12 @@ module.exports = defineConfig([
   {
     ignores: ["dist/*"],
   },
+  {
+    settings: {
+      "import/ignore": ["react-native", "@react-navigation"],
+    },
+    rules: {
+      "import/namespace": "off",
+    },
+  },
 ]);

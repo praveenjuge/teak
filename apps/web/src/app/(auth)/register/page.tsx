@@ -1,13 +1,7 @@
 "use client";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { CardContent, CardFooter, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -55,7 +49,7 @@ export default function SignUp() {
         metrics.registrationFailed("google", response.error.message);
         setError(
           response.error.message ??
-            "Failed to sign in with Google. Please try again."
+            "Failed to sign in with Google. Please try again.",
         );
       } else {
         metrics.registrationSuccess("google");
@@ -82,7 +76,7 @@ export default function SignUp() {
         metrics.registrationFailed("apple", response.error.message);
         setError(
           response.error.message ??
-            "Failed to sign in with Apple. Please try again."
+            "Failed to sign in with Apple. Please try again.",
         );
       } else {
         metrics.registrationSuccess("apple");
@@ -208,7 +202,7 @@ export default function SignUp() {
                   sessionStorage.setItem("teak-verify-alert", "1");
                   sessionStorage.setItem("teak-verify-email", email);
                 },
-              }
+              },
             );
           }}
           className="grid gap-4"

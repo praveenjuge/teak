@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { Image } from "antd";
 import { type Doc } from "@teak/convex/_generated/dataModel";
-import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
