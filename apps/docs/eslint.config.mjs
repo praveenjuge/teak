@@ -3,11 +3,9 @@ import { defineConfig, globalIgnores } from "eslint/config";
 export default defineConfig([
   globalIgnores([
     "node_modules/**",
-    "apps/**",
-    "packages/**",
     ".next/**",
     "out/**",
-    "dist/**",
-    ".turbo/**",
+    ".source/**",
+    "next-env.d.ts",
   ]),
 ]);
