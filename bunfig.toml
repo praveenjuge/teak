@@ -1,0 +1,4 @@
+[install]
+# Use hoisted linker to ensure transitive dependencies are available
+# (bun's isolated mode can cause missing peer deps in monorepos)
+linker = "hoisted"

@@ -1,0 +1,103 @@
+---
+title: Development Guide
+description: Setup and development workflow for Teak
+icon: Code
+---
+
+**Prerequisites:** Bun 1.0+, Node.js 18+, Git
+
+## Quick Start (local)
+
+```bash
+git clone https://github.com/praveenjuge/teak.git
+cd teak
+bun install
+```
+
+## Access Points
+
+- Web App: http://localhost:3000
+- Admin: http://localhost:3000/admin
+- Convex Dashboard: opens after `bunx convex dev`
+- Mobile: Expo Go or simulator
+- Extension: Chrome dev mode
+- Docs: http://localhost:3001
+
+## Project Layout
+
+```
+teak/
+├── apps/
+│   ├── web/         # Next.js frontend (app router, shadcn/ui)
+│   ├── mobile/      # Expo React Native
+│   ├── extension/   # Chrome extension (Wxt)
+│   └── docs/        # Documentation site (Fumadocs)
+├── packages/
+│   └── convex/      # Convex backend
+│       ├── ai/      # AI metadata helpers
+│       ├── card/    # Card mutations/queries
+│       └── workflows/ # AI pipeline orchestration
+├── scripts/         # Build/setup scripts
+├── tests/           # E2E tests (Playwright)
+├── turbo.json       # Turborepo pipeline config
+└── package.json     # Root package + workspaces
+```
+
+## Tech Stack
+
+- Backend: Convex (real-time DB + serverless)
+- Web: Next.js, React, TypeScript, TailwindCSS
+- Mobile: Expo React Native
+- Extension: Wxt framework
+- Auth: Better Auth
+- UI: shadcn/ui + Radix
+- AI: Groq API
+- Screenshots: Kernel
+- Billing: Polar
+- Testing: Playwright
+- Monorepo: Turborepo
+
+## Core Commands
+
+```bash
+# Web + Convex backend
+bun run dev
+
+# All services (web, mobile, extension, docs, convex)
+bun run dev:all
+
+# Individual services
+bun run dev:convex     # Convex backend only
+bun run dev:web        # Next.js web + Convex
+bun run dev:mobile     # Expo mobile + Convex
+bun run dev:extension  # Browser extension + Convex
+bun run dev:docs       # Documentation site
+
+# Build
+bun run build          # Production build (all)
+
+# Lint & Typecheck
+bun run lint
+bun run typecheck
+
+# Test
+bun run test           # E2E tests
+```
+
+## Setup Checklist
+
+### Convex + Better Auth
+
+```bash
+bunx convex dev  # Creates Convex deployment
+bunx convex env set BETTER_AUTH_SECRET=$(openssl rand -base64 32)
+bunx convex env set SITE_URL http://localhost:3000
+```
+
+1. `BETTER_AUTH_SECRET` signs Better Auth sessions—set it once per environment.
+2. `SITE_URL` must match your Next.js origin locally and inside Convex.
+3. `CONVEX_SITE_URL` is the `.site` domain Convex assigns; copy it from the dashboard after running `bunx convex dev`.
+
+### Environment Variables
+
+See **[Self-Hosting → Environment settings](./self-hosting#environment-settings)** for every env var required across web, mobile, extension, and the Convex backend.
