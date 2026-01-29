@@ -30,6 +30,11 @@
       "eslint --fix"
     ]
   },
+  "overrides": {
+    "eslint-plugin-react-hooks": "^6.1.0",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3"
+  },
   "devDependencies": {
     "lint-staged": "^16.2.7",
     "simple-git-hooks": "^2.11.1",

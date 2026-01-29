@@ -17,6 +17,7 @@ import {
   VStack,
   ZStack,
 } from "@expo/ui/swift-ui";
+// @ts-expect-error - @expo/ui internal import not exported
 import { Circle } from "@expo/ui/src/swift-ui/Shapes";
 import { frame, foregroundStyle, padding } from "@expo/ui/swift-ui/modifiers";
 import type { Doc } from "@teak/convex/_generated/dataModel";

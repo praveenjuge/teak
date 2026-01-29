@@ -158,7 +158,7 @@ export default function AddScreen() {
     try {
       // Check if we need to show pre-permission alert (only for first-time requests)
       const existingStatus = await getRecordingPermissionsAsync();
-      if (existingStatus.status === "notDetermined") {
+      if (existingStatus.status === "undetermined") {
         // Show pre-permission alert (Apple HIG compliance: single "Continue" button, no cancel)
         await new Promise<void>((resolve) => {
           Alert.alert(
@@ -223,7 +223,7 @@ export default function AddScreen() {
     try {
       // Check if we need to show pre-permission alert (only for first-time requests)
       const existingStatus = await ImagePicker.getMediaLibraryPermissionsAsync();
-      if (existingStatus === null || existingStatus === "notDetermined") {
+      if (existingStatus.status === "undetermined") {
         // Show pre-permission alert (Apple HIG compliance: single "Continue" button, no cancel)
         await new Promise<void>((resolve) => {
           Alert.alert(
@@ -279,7 +279,7 @@ export default function AddScreen() {
     try {
       // Check if we need to show pre-permission alert (only for first-time requests)
       const existingStatus = await ImagePicker.getCameraPermissionsAsync();
-      if (existingStatus === null || existingStatus === "notDetermined") {
+      if (existingStatus.status === "undetermined") {
         // Show pre-permission alert (Apple HIG compliance: single "Continue" button, no cancel)
         await new Promise<void>((resolve) => {
           Alert.alert(

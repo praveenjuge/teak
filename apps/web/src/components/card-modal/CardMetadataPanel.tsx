@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/static-components */
+ 
 import { Button } from "@/components/ui/button";
 import { badgeVariants } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";

@@ -74,7 +74,7 @@ export function useCardModal(
   const updateCardField = useMutation(api.cards.updateCardField).withOptimisticUpdate(
     (localStore, args) => {
       const { cardId: updateCardId, field, value, tagToRemove } = args;
-      // eslint-disable-next-line react-hooks/purity
+       
       const now = Date.now();
 
       switch (field) {

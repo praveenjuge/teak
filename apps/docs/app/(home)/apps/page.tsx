@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import type { ComponentType, SVGProps } from "react";
-import { Globe, Puzzle, Smartphone } from "lucide-react";
+import type { ComponentType } from "react";
+import { Globe, Puzzle, Smartphone, type LucideProps } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -52,7 +52,7 @@ type PlatformAction =
       type: "button";
       label: string;
       href: string;
-      icon?: ComponentType<SVGProps<SVGSVGElement>>;
+      icon?: ComponentType<LucideProps>;
     }
   | {
       type: "badge";
@@ -66,7 +66,7 @@ type PlatformAction =
 type PlatformCard = {
   name: string;
   copy: string;
-  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  icon: ComponentType<LucideProps>;
   action: PlatformAction;
   footnote?: string;
 };

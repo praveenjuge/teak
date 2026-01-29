@@ -196,7 +196,7 @@ export const Card = memo(function Card({
   const shouldUseFallback = useFallbackImage || !hasPrimaryImage;
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setUseFallbackImage(false);
   }, [card._id, linkCardImage, resolvedScreenshotUrl]);
 
