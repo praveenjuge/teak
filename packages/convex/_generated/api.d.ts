@@ -42,8 +42,6 @@ import type * as linkMetadata_types from "../linkMetadata/types.js";
 import type * as linkMetadata_url from "../linkMetadata/url.js";
 import type * as migrations from "../migrations.js";
 import type * as shared_constants from "../shared/constants.js";
-import type * as shared_hooks_useCardActions from "../shared/hooks/useCardActions.js";
-import type * as shared_hooks_useFileUpload from "../shared/hooks/useFileUpload.js";
 import type * as shared_index from "../shared/index.js";
 import type * as shared_linkCategories from "../shared/linkCategories.js";
 import type * as shared_rateLimits from "../shared/rateLimits.js";
@@ -129,8 +127,6 @@ declare const fullApi: ApiFromModules<{
   "linkMetadata/url": typeof linkMetadata_url;
   migrations: typeof migrations;
   "shared/constants": typeof shared_constants;
-  "shared/hooks/useCardActions": typeof shared_hooks_useCardActions;
-  "shared/hooks/useFileUpload": typeof shared_hooks_useFileUpload;
   "shared/index": typeof shared_index;
   "shared/linkCategories": typeof shared_linkCategories;
   "shared/rateLimits": typeof shared_rateLimits;

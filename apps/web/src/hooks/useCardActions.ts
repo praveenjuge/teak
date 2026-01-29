@@ -6,7 +6,7 @@ import {
   createCardActions,
   setSentryCaptureFunction,
   type CardActionsConfig,
-} from "@teak/convex/shared";
+} from "@teak/convex/shared/hooks/useCardActions";
 import * as Sentry from "@sentry/nextjs";
 import { metrics } from "@/lib/metrics";
 

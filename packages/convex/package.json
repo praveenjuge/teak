@@ -6,8 +6,8 @@
     "./*": "./*.ts",
     "./shared": "./shared/index.ts",
     "./shared/constants": "./shared/constants.ts",
-    "./shared/hooks/useCardActions": "./shared/hooks/useCardActions.ts",
-    "./shared/hooks/useFileUpload": "./shared/hooks/useFileUpload.ts",
+    "./shared/hooks/useCardActions": "./client/hooks/useCardActions.client.tsx",
+    "./shared/hooks/useFileUpload": "./client/hooks/useFileUpload.client.tsx",
     "./shared/linkCategories": "./shared/linkCategories.ts",
     "./shared/utils/colorUtils": "./shared/utils/colorUtils.ts",
     "./_generated/api": "./_generated/api.js",
@@ -21,21 +21,26 @@
   },
   "dependencies": {
     "@ai-sdk/groq": "^3.0.2",
+    "@better-auth/expo": "^1.4.18",
+    "@cf-wasm/photon": "^0.3.4",
     "@convex-dev/better-auth": "0.10.9",
     "@convex-dev/migrations": "^0.3.0",
     "@convex-dev/polar": "^0.7.1",
     "@convex-dev/ratelimiter": "^0.1.7",
     "@convex-dev/resend": "^0.2.3",
     "@convex-dev/workflow": "^0.3.4",
+    "@convex-dev/workpool": "^0.3.1",
     "@onkernel/sdk": "^0.24.0",
     "@polar-sh/sdk": "^0.42.1",
     "ai": "^6.0.5",
     "better-auth": "1.4.9",
     "convex": "^1.31.2",
     "convex-helpers": "^0.1.108",
+    "exifr": "^7.1.3",
     "zod": "^4.3.2"
   },
   "devDependencies": {
+    "@types/react": "^19.1.8",
     "typescript": "^5.9.3"
   }
 }

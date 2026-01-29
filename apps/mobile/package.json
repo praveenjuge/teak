@@ -18,6 +18,7 @@
     "@expo/metro-runtime": "~6.1.2",
     "@expo/ui": "~0.2.0-beta.9",
     "@expo/vector-icons": "^15.0.3",
+    "@react-native/normalize-colors": "^0.83.1",
     "@react-native/virtualized-lists": "^0.81.5",
     "@react-navigation/core": "^7.14.0",
     "@react-navigation/native": "^7.1.28",
@@ -51,13 +52,16 @@
     "expo-symbols": "~1.0.8",
     "expo-video": "~3.0.15",
     "expo-web-browser": "~15.0.10",
+    "fbjs": "^3.0.5",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
-    "react-native-web": "^0.21.0"
+    "react-native-web": "^0.21.0",
+    "styleq": "^0.1.3",
+    "use-latest-callback": "^0.3.3"
   },
   "devDependencies": {
     "@babel/core": "^7.28.5",

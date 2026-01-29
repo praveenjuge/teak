@@ -15,14 +15,16 @@ Teak is a personal knowledge hub designed to help creative minds effortlessly co
 
 ```
 teak/
-├── src/                 # Next.js 16 frontend (app router)
-├── public/              # Web static assets
-├── convex/              # Convex backend
-├── mobile/              # React Native Expo app
-├── extension/           # Chrome browser extension (Wxt)
-├── docs/                # Documentation site (Fumadocs)
-├── package.json         # Root package + scripts
-└── README.md            # This file
+├── apps/
+│   ├── web/         # Next.js 16 frontend (app router)
+│   ├── mobile/      # React Native Expo app
+│   ├── extension/   # Chrome browser extension (Wxt)
+│   └── docs/        # Documentation site (Fumadocs)
+├── packages/
+│   └── convex/      # Convex backend (functions, workflows, schema)
+├── scripts/         # Build/setup scripts
+├── tests/           # E2E tests (Playwright)
+└── package.json     # Root package + workspaces
 ```
 
 ## 🚀 Getting Started

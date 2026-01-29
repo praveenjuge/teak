@@ -17,10 +17,10 @@ icon: Settings
 bun install
 ```
 
-2. Provision Convex + Better Auth defaults:
+2. Start Convex dev and set up Better Auth defaults:
 
 ```bash
-bun run predev
+bunx convex dev
 ```
 
 This creates a dev deployment and prints the `CONVEX_SITE_URL` and `CONVEX_URL`.
@@ -40,23 +40,23 @@ npx convex env set GROQ_API_KEY gsk_...
 
 4. Create local env files:
 
-Copy the values from your Convex dashboard (or the `predev` output) into these files:
+Copy the values from your Convex dashboard (or the `convex dev` output) into these files:
 
-**`./.env.local`** (Web)
+**`apps/web/.env.local`** (Web)
 
 ```bash
 NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
 NEXT_PUBLIC_CONVEX_SITE_URL=https://your-deployment.convex.site
 ```
 
-**`mobile/.env.local`** (Mobile)
+**`apps/mobile/.env.local`** (Mobile)
 
 ```bash
 EXPO_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
 EXPO_PUBLIC_CONVEX_SITE_URL=https://your-deployment.convex.site
 ```
 
-**`extension/.env.local`** (Extension)
+**`apps/extension/.env.local`** (Extension)
 
 ```bash
 VITE_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
@@ -87,7 +87,7 @@ bun run start
 
 Add these to your env files before running locally or deploying.
 
-### Backend (`.env.local`)
+### Backend (`packages/convex/.env.local`)
 
 ```bash
 SITE_URL=http://localhost:3000
@@ -101,7 +101,7 @@ POLAR_WEBHOOK_SECRET=secret                  # Polar webhooks
 RESEND_API_KEY=token                         # Email service
 ```
 
-### Web (`./.env.local`)
+### Web (`apps/web/.env.local`)
 
 ```bash
 CONVEX_DEPLOY_KEY=
@@ -109,14 +109,14 @@ NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 ```
 
-### Mobile (`mobile/.env.local`)
+### Mobile (`apps/mobile/.env.local`)
 
 ```bash
 EXPO_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 EXPO_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 ```
 
-### Extension (`extension/.env.local`)
+### Extension (`apps/extension/.env.local`)
 
 ```bash
 VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
@@ -125,7 +125,7 @@ VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 
 ## Where to get the values
 
-- **Convex URLs**: Run `bun run predev`. It prints both `CONVEX_URL` (for the client) and `CONVEX_SITE_URL` (for the site/auth endpoint). You can also find these in the Convex Dashboard under "Settings" -> "Deployment".
+- **Convex URLs**: Run `bunx convex dev`. It prints both `CONVEX_URL` (for the client) and `CONVEX_SITE_URL` (for the site/auth endpoint). You can also find these in the Convex Dashboard under "Settings" -> "Deployment".
 - **Better Auth**:
   - `BETTER_AUTH_SECRET`: Generate a random string (e.g., via `openssl rand -base64 32`).
   - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://localhost:3000`.

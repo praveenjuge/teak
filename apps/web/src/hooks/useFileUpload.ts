@@ -6,7 +6,7 @@ import {
   type FinalizeUploadedCardArgs,
   useFileUploadCore,
   setFileUploadSentryCaptureFunction,
-} from "@teak/convex/shared";
+} from "@teak/convex/shared/hooks/useFileUpload";
 import { type Id } from "@teak/convex/_generated/dataModel";
 import * as Sentry from "@sentry/nextjs";
 

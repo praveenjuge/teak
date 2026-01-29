@@ -1,7 +1,7 @@
 import { Alert } from "react-native";
 import { useMutation } from "convex/react";
 import { api } from "@teak/convex";
-import { createCardActions } from "@teak/convex/shared";
+import { createCardActions } from "@teak/convex/shared/hooks/useCardActions";
 
 export function useCardActions() {
   const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);

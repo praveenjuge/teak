@@ -33,6 +33,7 @@
     "./shared"
   ],
   "exclude": [
-    "./_generated"
+    "./_generated",
+    "./client"
   ]
 }

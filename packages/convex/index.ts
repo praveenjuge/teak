@@ -1,58 +1,16 @@
-// Generated Convex clients and shared helpers
+// Client-safe exports only
+// These can be safely imported in browser/React code
+
+// API references for calling Convex functions
 export { api, internal } from "./_generated/api";
+
+// Type exports (no runtime code)
 export type { Doc, Id } from "./_generated/dataModel";
+
+// Shared utilities and constants (client-safe)
 export * from "./shared";
 
-// Cards domain surface
-export * from "./card/createCard";
-export * from "./card/deleteCard";
-export * from "./card/generateUploadUrl";
-export * from "./card/getCard";
-export * from "./card/getCards";
-export * from "./card/getFileUrl";
-export * from "./card/migrations";
-export * from "./card/updateCard";
-export * from "./card/uploadCard";
-export * from "./card/validationUtils";
-export * from "./card/processingStatus";
-export * from "./card/quoteFormatting";
-export * from "./card/defaultCards";
-
-// AI task helpers
-export * from "./ai/actions";
-export * from "./ai/mutations";
-export * from "./ai/queries";
-export * from "./ai/schemas";
-
-// Workflow orchestration
-export { workflow } from "./workflows/manager";
-export { cardProcessingWorkflow } from "./workflows/cardProcessing";
-export {
-  aiBackfillWorkflow,
-  startAiBackfillWorkflow,
-} from "./workflows/aiBackfill";
-export {
-  cardCleanupWorkflow,
-  startCardCleanupWorkflow,
-} from "./workflows/cardCleanup";
-export {
-  linkMetadataWorkflow,
-  startLinkMetadataWorkflow,
-} from "./workflows/linkMetadata";
-export {
-  linkEnrichmentWorkflow,
-  startLinkEnrichmentWorkflow,
-} from "./workflows/linkEnrichment";
-export {
-  screenshotWorkflow,
-  startScreenshotWorkflow,
-} from "./workflows/screenshot";
-export {
-  aiMetadataWorkflow,
-  startAiMetadataWorkflow,
-} from "./workflows/aiMetadata";
-
-export * as classificationStep from "./workflows/steps/classification";
-export * as categorizationStep from "./workflows/steps/categorization";
-export * as metadataStep from "./workflows/steps/metadata";
-export * as renderablesStep from "./workflows/steps/renderables";
+// Note: Do NOT export Convex function implementations (query, mutation, action)
+// from this file. They contain server-only code and will cause errors when
+// imported in the browser. The frontend should only use `api.*` references
+// to call functions, not the function implementations themselves.

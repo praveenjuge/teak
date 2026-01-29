@@ -1,6 +1,12 @@
 import { useState, useCallback } from "react";
-import { type CardErrorCode, MAX_FILE_SIZE, MAX_FILES_PER_UPLOAD, CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../constants";
-import type { CardType } from "../constants";
+import { MAX_FILE_SIZE, MAX_FILES_PER_UPLOAD, CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../../shared/constants";
+import type { CardType, CardErrorCode } from "../../shared/constants";
+import type {
+  UploadFileSuccessResult,
+  UploadFileErrorResult,
+  UploadFileResult,
+  UploadMultipleFilesResultItem,
+} from "../../shared/types";
 
 // Sentry capture function - will be injected by platform-specific wrappers
 type SentryCaptureFunction = (error: unknown, context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }) => void;
@@ -135,21 +141,6 @@ export interface FileUploadDependencies {
 }
 
 type CodedError = Error & { code?: CardErrorCode };
-
-export type UploadFileSuccessResult = {
-  success: true;
-  cardId: string;
-};
-
-export type UploadFileErrorResult = {
-  success: false;
-  error: string;
-  errorCode?: CardErrorCode | (string & {});
-};
-
-export type UploadFileResult = UploadFileSuccessResult | UploadFileErrorResult;
-
-export type UploadMultipleFilesResultItem = UploadFileResult & { file: string };
 
 export function useFileUploadCore(
   { uploadAndCreateCard, finalizeUploadedCard }: FileUploadDependencies,

@@ -9,10 +9,15 @@
   ],
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=@teak/web --filter=@teak/convex",
+    "dev:all": "turbo run dev",
     "dev:convex": "turbo run dev --filter=@teak/convex",
+    "dev:docs": "turbo run dev --filter=@teak/docs",
+    "dev:extension": "turbo run dev --filter=@teak/extension --filter=@teak/convex",
+    "dev:mobile": "turbo run dev --filter=@teak/mobile --filter=@teak/convex",
+    "dev:web": "turbo run dev --filter=@teak/web --filter=@teak/convex",
     "lint": "turbo run lint",
-    "pre-commit": "lint-staged && turbo run typecheck lint build",
+    "pre-commit": "lint-staged && turbo run typecheck lint build --affected",
     "prepare": "node scripts/prepare-git-hooks.js",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"

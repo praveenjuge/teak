@@ -149,3 +149,36 @@ export interface AuthenticatedQueryParams {
   ctx: QueryCtx;
   userId: string;
 }
+
+// ============================================================================
+// File Upload Result Types
+// ============================================================================
+
+/**
+ * Result of a successful file upload.
+ */
+export type UploadFileSuccessResult = {
+  success: true;
+  cardId: string;
+};
+
+/**
+ * Result of a failed file upload.
+ */
+export type UploadFileErrorResult = {
+  success: false;
+  error: string;
+  errorCode?: CardErrorCode | (string & {});
+};
+
+/**
+ * Union type for file upload results.
+ */
+export type UploadFileResult = UploadFileSuccessResult | UploadFileErrorResult;
+
+/**
+ * Result item for multiple file uploads, includes the original filename.
+ */
+export type UploadMultipleFilesResultItem = UploadFileResult & { file: string };
+
+import type { CardErrorCode } from "./constants";
