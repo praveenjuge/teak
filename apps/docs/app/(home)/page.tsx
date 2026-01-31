@@ -13,6 +13,12 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import { FeatureCard } from "../../components/FeatureCard";
+import {
+  JsonLd,
+  organizationSchema,
+  SITE_URL,
+  websiteSchema,
+} from "../../components/JsonLd";
 import { Button } from "../../components/ui/button";
 
 export const metadata: Metadata = {
@@ -136,9 +142,45 @@ const faqs = [
   },
 ];
 
+// Generate FAQPage schema from FAQs
+const faqPageSchema = {
+  "@context": "https://schema.org" as const,
+  "@type": "FAQPage" as const,
+  mainEntity: faqs.map((faq) => ({
+    "@type": "Question" as const,
+    name: faq.question,
+    acceptedAnswer: {
+      "@type": "Answer" as const,
+      text: faq.answer,
+    },
+  })),
+};
+
 export default function HomePage() {
   return (
     <>
+      <JsonLd
+        schema={[
+          organizationSchema,
+          websiteSchema,
+          faqPageSchema,
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "@id": `${SITE_URL}/#webpage`,
+            url: SITE_URL,
+            name: "Never Lose That Perfect Design Again | Teak",
+            description:
+              "Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again.",
+            isPartOf: { "@id": `${SITE_URL}/#website` },
+            about: { "@id": `${SITE_URL}/#organization` },
+            primaryImageOfPage: {
+              "@type": "ImageObject",
+              url: `${SITE_URL}/hero-image.png`,
+            },
+          },
+        ]}
+      />
       {/* Hero Section */}
       <section className="relative pt-14 md:pt-22">
         <div className="container mx-auto px-4">

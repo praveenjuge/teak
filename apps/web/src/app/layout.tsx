@@ -4,6 +4,12 @@ import "./globals.css";
 import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 import type { PropsWithChildren } from "react";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
+import {
+  JsonLd,
+  organizationSchema,
+  softwareApplicationSchema,
+  websiteSchema,
+} from "@/components/JsonLd";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -22,6 +28,15 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <JsonLd
+          schema={[
+            organizationSchema,
+            websiteSchema,
+            softwareApplicationSchema,
+          ]}
+        />
+      </head>
       <body className='touch-manipulation font-sans text-sm antialiased caret-primary accent-primary [font-feature-settings:"ss01"] [text-rendering:optimizeLegibility] selection:bg-primary selection:text-primary-foreground'>
         <ConvexClientProvider>
           <ConvexQueryCacheProvider>
