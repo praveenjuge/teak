@@ -17,6 +17,7 @@
   "types": "./index.ts",
   "scripts": {
     "dev": "convex dev",
+    "test": "bun test __tests__ --coverage --dots",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

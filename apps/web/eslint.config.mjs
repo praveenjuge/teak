@@ -11,6 +11,7 @@ export default defineConfig([
     "out/**",
     "next-env.d.ts",
     "playwright.config.ts",
+    "src/__tests__/**",
   ]),
   ...nextVitals,
   ...nextTs,

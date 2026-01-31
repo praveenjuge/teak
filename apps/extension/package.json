@@ -12,6 +12,7 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
+    "test": "bun test __tests__ --coverage --dots",
     "typecheck": "tsc --noEmit",
     "postinstall": "wxt prepare"
   },

@@ -29,17 +29,16 @@ export default defineConfig({
   globalSetup: "./src/tests/global.setup.ts",
   webServer: shouldStartServer
     ? {
-        // Use a dedicated script that starts both Convex and Next.js
-        command: "bash scripts/test-server.sh",
-        cwd: ".",
-        port: Number(DEFAULT_PORT),
-        timeout: 120_000,
-        reuseExistingServer: !process.env.CI,
-        env: {
-          ...process.env,
-          PORT: DEFAULT_PORT,
-        },
-      }
+      command: "bun run dev",
+      cwd: "../..",
+      port: Number(DEFAULT_PORT),
+      timeout: 120_000,
+      reuseExistingServer: !process.env.CI,
+      env: {
+        ...process.env,
+        PORT: DEFAULT_PORT,
+      },
+    }
     : undefined,
   projects: [
     {

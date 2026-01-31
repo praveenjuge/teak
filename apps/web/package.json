@@ -7,7 +7,7 @@
     "dev": "next dev",
     "lint": "eslint --fix",
     "start": "next start",
-    "test": "CLAUDECODE=1 AGENT=1 bun test --coverage --dots",
+    "test": "CLAUDECODE=1 AGENT=1 bun test src/__tests__ --coverage --dots",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit"
   },
