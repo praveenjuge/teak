@@ -229,6 +229,9 @@ function rgbToHsl(
       case b:
         h = (r - g) / d + 4;
         break;
+      default:
+        // max should always be r, g, or b
+        break;
     }
     h /= 6;
   }

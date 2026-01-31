@@ -17,10 +17,8 @@
         "useFilenamingConvention": "off",
         "noNestedTernary": "off",
         "noNonNullAssertion": "off",
-        "noParameterProperties": "off",
         "useBlockStatements": "off",
-        "useConsistentTypeDefinitions": "off",
-        "useDefaultSwitchClause": "off"
+        "useConsistentTypeDefinitions": "off"
       },
       "complexity": {
         "noExcessiveCognitiveComplexity": "off",
@@ -35,8 +33,8 @@
       "suspicious": {
         "noExplicitAny": "off",
         "noBitwiseOperators": "off",
-        "useAwait": "off",
-        "noEmptyBlockStatements": "off"
+        "noEmptyBlockStatements": "off",
+        "useAwait": "off"
       },
       "correctness": {
         "noUnusedFunctionParameters": "off",

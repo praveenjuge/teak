@@ -8,7 +8,11 @@ const DEFAULT_TIMEOUT = 30_000;
  * Provides helper methods for authentication flows in Playwright tests.
  */
 export class AuthHelper {
-  constructor(private readonly page: Page) {}
+  private readonly page: Page;
+
+  constructor(page: Page) {
+    this.page = page;
+  }
 
   /**
    * Navigate to the login page
@@ -214,7 +218,11 @@ export class AuthHelper {
  * Helper class for common UI interactions in tests
  */
 export class UiHelper {
-  constructor(private readonly page: Page) {}
+  private readonly page: Page;
+
+  constructor(page: Page) {
+    this.page = page;
+  }
 
   /**
    * Get the main composer textarea

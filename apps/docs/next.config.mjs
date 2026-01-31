@@ -36,7 +36,7 @@ const nextConfig = {
       },
     ],
   },
-  async redirects() {
+  redirects() {
     return [
       {
         source: "/docs/environment-settings",
@@ -45,7 +45,7 @@ const nextConfig = {
       },
     ];
   },
-  async headers() {
+  headers() {
     return [
       {
         source: "/:path*",

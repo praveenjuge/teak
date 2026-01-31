@@ -118,6 +118,8 @@ export default defineBackground(() => {
             }
           }
           break;
+        default:
+          errorMessage = `Unknown action: ${action}`;
       }
 
       if (!content) {
