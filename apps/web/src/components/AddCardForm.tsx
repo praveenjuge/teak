@@ -29,20 +29,18 @@ function addCardToSearchQueries(
 ) {
   const allQueries = localStore.getAllQueries(api.cards.searchCards);
   for (const { args, value } of allQueries) {
-    if (value !== undefined) {
-      // Only add to non-trash queries that match the card's characteristics
-      if (!args.showTrashOnly) {
-        // Check if the card matches the filters
-        const matchesType =
-          !args.types ||
-          args.types.length === 0 ||
-          args.types.includes(newCard.type);
-        const matchesFavorites = !args.favoritesOnly || newCard.isFavorited;
+    // Only add to non-trash queries that match the card's characteristics
+    if (value !== undefined && !args.showTrashOnly) {
+      // Check if the card matches the filters
+      const matchesType =
+        !args.types ||
+        args.types.length === 0 ||
+        args.types.includes(newCard.type);
+      const matchesFavorites = !args.favoritesOnly || newCard.isFavorited;
 
-        if (matchesType && matchesFavorites) {
-          // Add to the beginning of the list (most recent first)
-          localStore.setQuery(api.cards.searchCards, args, [newCard, ...value]);
-        }
+      if (matchesType && matchesFavorites) {
+        // Add to the beginning of the list (most recent first)
+        localStore.setQuery(api.cards.searchCards, args, [newCard, ...value]);
       }
     }
   }
@@ -502,9 +500,9 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 if (content.trim() && canCreateCard) {
-                  void handleTextSubmit(
+                  handleTextSubmit(
                     e as unknown as React.FormEvent<HTMLFormElement>
-                  );
+                  ).catch(console.error);
                 }
               }
             }}

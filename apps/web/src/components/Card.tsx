@@ -73,9 +73,9 @@ const AUDIO_WAVE_MAX_VARIATION = 60;
 
 // Simple seeded random function for consistent wave patterns
 function seededRandom(seed: string, index: number): number {
-  const hash = seed.split("").reduce((a, b) => {
-    a = (a << 5) - a + b.charCodeAt(0);
-    return a & a;
+  const hash = seed.split("").reduce((acc, char) => {
+    const next = (acc << 5) - acc + char.charCodeAt(0);
+    return next & next;
   }, index);
   return Math.abs(Math.sin(hash)) * 0.6 + 0.2; // Returns value between 0.2 and 0.8
 }

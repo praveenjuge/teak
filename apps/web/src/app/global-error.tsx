@@ -17,7 +17,7 @@ export default function GlobalError({
   }, [error]);
   return (
     // global-error must include html and body tags
-    <html>
+    <html lang="en">
       <body className="flex min-h-screen flex-col items-center justify-center gap-4">
         <h2>Something went wrong! {error.message}</h2>
         <button className={cn(buttonVariants())} onClick={() => reset()}>

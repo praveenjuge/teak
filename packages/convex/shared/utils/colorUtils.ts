@@ -203,12 +203,12 @@ function rgbToHsl(
   green: number,
   blue: number
 ): { h: number; s: number; l: number } {
-  red /= 255;
-  green /= 255;
-  blue /= 255;
+  const r = red / 255;
+  const g = green / 255;
+  const b = blue / 255;
 
-  const max = Math.max(red, green, blue);
-  const min = Math.min(red, green, blue);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
   let h = 0;
   let s = 0;
   const l = (max + min) / 2;
@@ -220,14 +220,14 @@ function rgbToHsl(
     s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
 
     switch (max) {
-      case red:
-        h = (green - blue) / d + (green < blue ? 6 : 0);
+      case r:
+        h = (g - b) / d + (g < b ? 6 : 0);
         break;
-      case green:
-        h = (blue - red) / d + 2;
+      case g:
+        h = (b - r) / d + 2;
         break;
-      case blue:
-        h = (red - green) / d + 4;
+      case b:
+        h = (r - g) / d + 4;
         break;
     }
     h /= 6;
@@ -246,29 +246,30 @@ function hslToRgb(
   s: number,
   l: number
 ): { r: number; g: number; b: number } {
-  h /= 360;
-  s /= 100;
-  l /= 100;
+  const hNorm = h / 360;
+  const sNorm = s / 100;
+  const lNorm = l / 100;
 
   const hue2rgb = (p: number, q: number, t: number): number => {
-    if (t < 0) t += 1;
-    if (t > 1) t -= 1;
-    if (t < 1 / 6) return p + (q - p) * 6 * t;
-    if (t < 1 / 2) return q;
-    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    let tNorm = t;
+    if (tNorm < 0) tNorm += 1;
+    if (tNorm > 1) tNorm -= 1;
+    if (tNorm < 1 / 6) return p + (q - p) * 6 * tNorm;
+    if (tNorm < 1 / 2) return q;
+    if (tNorm < 2 / 3) return p + (q - p) * (2 / 3 - tNorm) * 6;
     return p;
   };
 
   let red: number, green: number, blue: number;
 
-  if (s === 0) {
-    red = green = blue = l; // achromatic
+  if (sNorm === 0) {
+    red = green = blue = lNorm; // achromatic
   } else {
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    const p = 2 * l - q;
-    red = hue2rgb(p, q, h + 1 / 3);
-    green = hue2rgb(p, q, h);
-    blue = hue2rgb(p, q, h - 1 / 3);
+    const q = lNorm < 0.5 ? lNorm * (1 + sNorm) : lNorm + sNorm - lNorm * sNorm;
+    const p = 2 * lNorm - q;
+    red = hue2rgb(p, q, hNorm + 1 / 3);
+    green = hue2rgb(p, q, hNorm);
+    blue = hue2rgb(p, q, hNorm - 1 / 3);
   }
 
   return {
@@ -526,8 +527,10 @@ export function getContrastRatio(color1: Color, color2: Color): number {
 
   const getLuminance = (rgb: { r: number; g: number; b: number }): number => {
     const [red, green, blue] = [rgb.r, rgb.g, rgb.b].map((c) => {
-      c /= 255;
-      return c <= 0.039_28 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      const cNorm = c / 255;
+      return cNorm <= 0.039_28
+        ? cNorm / 12.92
+        : ((cNorm + 0.055) / 1.055) ** 2.4;
     });
     return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
   };

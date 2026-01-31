@@ -16,25 +16,22 @@
         "noNoninteractiveElementInteractions": "off",
         "noStaticElementInteractions": "off",
         "useMediaCaption": "off",
-        "useKeyWithClickEvents": "off",
-        "useHtmlLang": "off"
+        "useKeyWithClickEvents": "off"
       },
       "style": {
         "useFilenamingConvention": "off",
         "noNestedTernary": "off",
         "noNonNullAssertion": "off",
         "noParameterProperties": "off",
-        "noParameterAssign": "off",
         "useDefaultSwitchClause": "off",
-        "useCollapsedIf": "off",
         "useBlockStatements": "off",
         "useConsistentTypeDefinitions": "off"
       },
       "complexity": {
-        "noVoid": "off",
         "noExcessiveCognitiveComplexity": "off",
         "noForEach": "off",
-        "useLiteralKeys": "off"
+        "useLiteralKeys": "off",
+        "noVoid": "off"
       },
       "performance": {
         "noNamespaceImport": "off",

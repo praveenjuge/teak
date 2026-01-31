@@ -43,7 +43,7 @@ export default function SettingsScreen() {
   const handleLogoutAlert = () => {
     Alert.alert("Log Out", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Log Out", style: "destructive", onPress: () => void signOut() },
+      { text: "Log Out", style: "destructive", onPress: signOut },
     ]);
   };
 
@@ -111,7 +111,9 @@ export default function SettingsScreen() {
                   text: "Delete",
                   style: "destructive",
                   onPress: (confirmation: string | undefined) => {
-                    void handleDeleteAccount(confirmation ?? "");
+                    handleDeleteAccount(confirmation ?? "").catch(
+                      console.error
+                    );
                   },
                 },
               ],
