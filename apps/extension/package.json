@@ -22,14 +22,14 @@
     "@teak/convex": "workspace:*",
     "better-auth": "1.4.9",
     "convex": "^1.31.1",
-    "lucide-react": "^0.561.0",
+    "lucide-react": "^0.563.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
     "@types/chrome": "^0.1.32",
-    "@types/react": "^19.2.7",
+    "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
     "@wxt-dev/module-react": "^1.1.5",
     "typescript": "^5.9.3",

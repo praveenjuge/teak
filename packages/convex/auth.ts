@@ -7,7 +7,12 @@ import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { ConvexError } from "convex/values";
 import { api, components } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
-import { type MutationCtx, mutation, query } from "./_generated/server";
+import {
+  internalAction,
+  type MutationCtx,
+  mutation,
+  query,
+} from "./_generated/server";
 import authConfig from "./auth.config";
 import { polar } from "./billing";
 import {
@@ -102,6 +107,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       convex({
         authConfig,
         jwksRotateOnTokenGenerationError: true,
+        jwks: process.env.JWKS,
       }),
     ],
     databaseHooks: {
@@ -270,4 +276,14 @@ export const deleteAccountHandler = async (ctx: any) => {
 export const deleteAccount = mutation({
   args: {},
   handler: deleteAccountHandler,
+});
+
+export const getLatestJwks = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const auth = createAuth(ctx);
+    // This method is added by the Convex Better Auth plugin and is
+    // available via `auth.api` only, not exposed as a route.
+    return await auth.api.getLatestJwks();
+  },
 });

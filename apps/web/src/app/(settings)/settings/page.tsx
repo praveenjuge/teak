@@ -344,10 +344,9 @@ export default function ProfileSettingsPage() {
           : "light";
       }
 
-      const checkout = await PolarEmbedCheckout.create(
-        checkoutUrl,
-        effectiveTheme
-      );
+      const checkout = await PolarEmbedCheckout.create(checkoutUrl, {
+        theme: effectiveTheme,
+      });
 
       setCheckoutInstance(checkout);
       setSubscriptionOpen(false);
