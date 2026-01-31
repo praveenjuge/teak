@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import type { ComponentType } from "react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,13 @@ export const metadata: Metadata = {
     description:
       "See how we're making Teak better every week. Real updates, no fluff.",
     images: ["/hero-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: "https://teakvault.com/changelog",
   },
 };
 
@@ -117,11 +125,12 @@ export default function ChangelogPage() {
                   className="inline-flex items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
                   href={`/authors/${author.id}`}
                 >
-                  <img
+                  <Image
                     alt={author.name}
                     className="rounded-full"
                     height={24}
                     src={author.avatar}
+                    unoptimized
                     width={24}
                   />
                   <span>By {author.name}</span>

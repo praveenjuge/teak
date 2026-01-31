@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import type { Metadata } from "next";
+import Image from "next/image";
 import { FeatureCard } from "../../components/FeatureCard";
 import {
   JsonLd,
@@ -209,11 +210,12 @@ export default function HomePage() {
           {/* Hero Image */}
           <div className="mx-auto max-w-5xl">
             <div className="relative overflow-hidden rounded-lg">
-              <img
+              <Image
                 alt="Teak app interface showing various saved content types"
                 className="h-auto w-full"
                 height={800}
                 src="/hero-image.png"
+                unoptimized
                 width={1200}
               />
             </div>

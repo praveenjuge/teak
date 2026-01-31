@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { authors } from "@/lib/authors";
 
@@ -12,11 +13,27 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Teak",
     locale: "en_US",
+    images: [
+      {
+        url: "/hero-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Teak Team",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Teak Team",
     description: "Meet the team behind Teak, the visual bookmarking platform.",
+    images: ["/hero-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: "https://teakvault.com/authors",
   },
 };
 
@@ -41,11 +58,12 @@ export default function AuthorsPage() {
             href={`/authors/${author.id}`}
             key={author.id}
           >
-            <img
+            <Image
               alt={author.name}
               className="rounded-full"
               height={64}
               src={author.avatar}
+              unoptimized
               width={64}
             />
             <div>

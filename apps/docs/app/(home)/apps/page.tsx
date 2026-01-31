@@ -1,5 +1,6 @@
 import { Globe, type LucideProps, Puzzle, Smartphone } from "lucide-react";
 import type { Metadata } from "next";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { ComponentType } from "react";
 
@@ -44,6 +45,9 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+  },
+  alternates: {
+    canonical: "https://teakvault.com/apps",
   },
 };
 
@@ -167,11 +171,12 @@ export default function AppsPage() {
                     rel="noopener noreferrer"
                     target="_blank"
                   >
-                    <img
+                    <Image
                       alt={card.action.alt}
                       className="h-auto max-w-[210px] object-contain"
                       height={card.action.height}
                       src={card.action.src}
+                      unoptimized
                       width={card.action.width}
                     />
                   </a>

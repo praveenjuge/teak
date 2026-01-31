@@ -36,6 +36,9 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  alternates: {
+    canonical: "https://teakvault.com/pricing",
+  },
 };
 
 export default function PricingPage() {
