@@ -81,11 +81,16 @@ export function SearchBar({
     filterTags.length > 0 ||
     showFavoritesOnly ||
     showTrashOnly;
-  const shouldShowFilters = isFocused || hasAnyFilters;
+  const shouldShowFilters =
+    isFocused || hasAnyFilters || searchQuery.length > 0;
 
   const availableFilters = cardTypes.filter(
     (type) => !filterTags.includes(type)
   );
+
+  const preventBlur = (e: React.MouseEvent) => {
+    e.preventDefault();
+  };
 
   return (
     <>
@@ -130,6 +135,7 @@ export function SearchBar({
               <Button
                 key={`keyword-${keyword}`}
                 onClick={() => onRemoveKeyword(keyword)}
+                onMouseDown={preventBlur}
                 size="sm"
                 variant="default"
               >
@@ -145,6 +151,7 @@ export function SearchBar({
                 <Button
                   key={`filter-${filter}`}
                   onClick={() => onRemoveFilter(filter)}
+                  onMouseDown={preventBlur}
                   size="sm"
                   variant="default"
                 >
@@ -155,14 +162,24 @@ export function SearchBar({
             })}
 
             {showFavoritesOnly && (
-              <Button onClick={onToggleFavorites} size="sm" variant="default">
+              <Button
+                onClick={onToggleFavorites}
+                onMouseDown={preventBlur}
+                size="sm"
+                variant="default"
+              >
                 <Heart className="size-3.5 stroke-2" />
                 <span>Favorites</span>
               </Button>
             )}
 
             {showTrashOnly && (
-              <Button onClick={onToggleTrash} size="sm" variant="default">
+              <Button
+                onClick={onToggleTrash}
+                onMouseDown={preventBlur}
+                size="sm"
+                variant="default"
+              >
                 <Trash2 className="size-3.5 stroke-2" />
                 <span>Trash</span>
               </Button>
@@ -175,6 +192,7 @@ export function SearchBar({
                 <Button
                   key={`available-${filter}`}
                   onClick={() => onAddFilter(filter)}
+                  onMouseDown={preventBlur}
                   size="sm"
                   variant="outline"
                 >
@@ -185,21 +203,36 @@ export function SearchBar({
             })}
 
             {!showFavoritesOnly && (
-              <Button onClick={onToggleFavorites} size="sm" variant="outline">
+              <Button
+                onClick={onToggleFavorites}
+                onMouseDown={preventBlur}
+                size="sm"
+                variant="outline"
+              >
                 <Heart className="size-3.5 stroke-2" />
                 <span>Favorites</span>
               </Button>
             )}
 
             {!showTrashOnly && (
-              <Button onClick={onToggleTrash} size="sm" variant="outline">
+              <Button
+                onClick={onToggleTrash}
+                onMouseDown={preventBlur}
+                size="sm"
+                variant="outline"
+              >
                 <Trash2 className="size-3.5 stroke-2" />
                 <span>Trash</span>
               </Button>
             )}
 
-            {hasAnyFilters && (
-              <Button onClick={onClearAll} size="sm" variant="outline">
+            {(hasAnyFilters || searchQuery.length > 0) && (
+              <Button
+                onClick={onClearAll}
+                onMouseDown={preventBlur}
+                size="sm"
+                variant="outline"
+              >
                 Clear All
               </Button>
             )}
