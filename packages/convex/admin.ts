@@ -9,6 +9,7 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
+import { ONBOARDING_CARD_CONTENTS } from "./card/defaultCards";
 import type {
   ProcessingStageKey,
   ProcessingStatus,
@@ -44,6 +45,12 @@ const MAX_MISSING_CARDS = 50;
 // For larger datasets, consider denormalizing counters or using pagination
 const ADMIN_OVERVIEW_LIMIT = 10_000;
 const ADMIN_LIST_LIMIT = 200;
+
+// Helper to check if a card is an onboarding card by its content
+const isOnboardingCard = (card: { content: string }): boolean =>
+  ONBOARDING_CARD_CONTENTS.includes(
+    card.content as (typeof ONBOARDING_CARD_CONTENTS)[number]
+  );
 
 type AdminCtx = QueryCtx | ActionCtx;
 
@@ -154,8 +161,10 @@ export const getAccess = query({
 });
 
 export const getOverview = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    includeOnboarding: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { includeOnboarding }) => {
     await ensureAdmin(ctx);
 
     const now = Date.now();
@@ -196,8 +205,12 @@ export const getOverview = query({
 
     // Use .take() with limit instead of unbounded .collect() to prevent memory issues
     // For production at scale, consider denormalizing these counts into a separate table
-    const cards = await ctx.db.query("cards").take(ADMIN_OVERVIEW_LIMIT);
-    const isLimitReached = cards.length === ADMIN_OVERVIEW_LIMIT;
+    const allCards = await ctx.db.query("cards").take(ADMIN_OVERVIEW_LIMIT);
+    // Filter out onboarding cards unless explicitly requested
+    const cards = includeOnboarding
+      ? allCards
+      : allCards.filter((card) => !isOnboardingCard(card));
+    const isLimitReached = allCards.length === ADMIN_OVERVIEW_LIMIT;
 
     for (const card of cards) {
       totalCards += 1;
@@ -343,8 +356,9 @@ export const getOverview = query({
 export const listAllCards = query({
   args: {
     paginationOpts: paginationOptsValidator,
+    includeOnboarding: v.optional(v.boolean()),
   },
-  handler: async (ctx, { paginationOpts }) => {
+  handler: async (ctx, { paginationOpts, includeOnboarding }) => {
     await ensureAdmin(ctx);
 
     const safePagination = clampPagination(paginationOpts);
@@ -354,7 +368,12 @@ export const listAllCards = query({
       .order("desc")
       .paginate(safePagination);
 
-    const page = await attachCardUrls(ctx, result.page);
+    // Filter out onboarding cards unless explicitly requested
+    const filteredPage = includeOnboarding
+      ? result.page
+      : result.page.filter((card) => !isOnboardingCard(card));
+
+    const page = await attachCardUrls(ctx, filteredPage);
 
     return {
       ...result,

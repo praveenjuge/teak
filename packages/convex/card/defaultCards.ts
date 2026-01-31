@@ -38,12 +38,18 @@ type DefaultCardDef = {
   isFavorited?: boolean;
 };
 
+// Content strings for default onboarding cards - used for identification/filtering
+export const ONBOARDING_CARD_CONTENTS = [
+  "Welcome to Teak! Start capturing your thoughts, links, and inspiration.",
+  "The best way to predict the future is to invent it.",
+  "Sunset gradient palette",
+] as const;
+
 // All default cards in order - typed as DefaultCardDef to allow optional properties
 const DEFAULT_CARDS: DefaultCardDef[] = [
   {
     type: "text",
-    content:
-      "Welcome to Teak! Start capturing your thoughts, links, and inspiration.",
+    content: ONBOARDING_CARD_CONTENTS[0],
     notes:
       "This is your first card. Cards are where you save anything—links, images, notes, quotes, and more. Try pasting a URL above to see the magic happen!",
     aiTags: ["welcome", "getting-started", "onboarding", "tutorial"],
@@ -53,7 +59,7 @@ const DEFAULT_CARDS: DefaultCardDef[] = [
   },
   {
     type: "quote",
-    content: "The best way to predict the future is to invent it.",
+    content: ONBOARDING_CARD_CONTENTS[1],
     notes: "— Alan Kay, pioneering computer scientist",
     aiTags: [
       "quote",
@@ -69,7 +75,7 @@ const DEFAULT_CARDS: DefaultCardDef[] = [
   },
   {
     type: "palette",
-    content: "Sunset gradient palette",
+    content: ONBOARDING_CARD_CONTENTS[2],
     colors: [
       createColor("#FF6B6B", "Coral Red"),
       createColor("#FFA06B", "Sunset Orange"),
