@@ -1,9 +1,18 @@
 {
   "$schema": "https://turborepo.dev/schema.v2.json",
+  "globalEnv": ["NODE_ENV", "VERCEL_ENV"],
+  "globalPassThroughEnv": ["CI", "GITHUB_ACTIONS"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**", ".output/**"]
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", ".output/**"],
+      "env": [
+        "NEXT_PUBLIC_*",
+        "CONVEX_*",
+        "EXPO_PUBLIC_*",
+        "SENTRY_*",
+        "POLAR_*"
+      ]
     },
     "dev": {
       "cache": false,
@@ -14,16 +23,25 @@
       "cache": false
     },
     "lint": {
-      "dependsOn": ["^transit"]
+      "dependsOn": ["^transit"],
+      "outputs": []
     },
     "test": {
-      "dependsOn": ["^transit"]
+      "dependsOn": ["^transit"],
+      "outputs": ["coverage/**"],
+      "env": ["CLAUDECODE", "AGENT"]
     },
     "transit": {
       "dependsOn": ["^transit"]
     },
     "typecheck": {
-      "dependsOn": ["^transit"]
+      "dependsOn": ["^transit"],
+      "outputs": []
+    },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true
     }
   }
 }

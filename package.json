@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "build": "turbo run build",
+    "build:extension": "turbo run build --filter=@teak/extension",
     "dev": "turbo run dev --filter=@teak/web --filter=@teak/convex",
     "dev:all": "turbo run dev",
     "dev:convex": "turbo run dev --filter=@teak/convex",
@@ -19,10 +20,12 @@
     "lint": "turbo run lint",
     "pre-commit": "lint-staged && turbo run typecheck lint build --affected",
     "prepare": "simple-git-hooks || exit 0",
+    "start": "turbo run start",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "check": "ultracite check",
-    "fix": "ultracite fix"
+    "fix": "ultracite fix",
+    "clean": "turbo daemon clean && rm -rf node_modules/.cache && find . -name '.turbo' -type d -prune -exec rm -rf {} +"
   },
   "simple-git-hooks": {
     "pre-commit": "bun run pre-commit"
