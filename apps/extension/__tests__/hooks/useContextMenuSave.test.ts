@@ -16,7 +16,9 @@ describe("useContextMenuSave Hook", () => {
     });
 
     test("should have clearSave function", () => {
-      const clearSave = async () => {};
+      const clearSave = async () => {
+        // no-op mock
+      };
 
       expect(typeof clearSave).toBe("function");
     });
@@ -232,7 +234,7 @@ describe("useContextMenuSave Hook", () => {
       expect(mockCreateCard).toHaveBeenCalledWith({ content });
     });
 
-    test("should update to success state after save", async () => {
+    test("should update to success state after save", () => {
       const successState = {
         action: "save-page",
         timestamp: Date.now(),
@@ -251,7 +253,7 @@ describe("useContextMenuSave Hook", () => {
       expect(mockSet).toHaveBeenCalledWith({ contextMenuSave: successState });
     });
 
-    test("should update to error state on failure", async () => {
+    test("should update to error state on failure", () => {
       const errorState = {
         action: "save-page",
         timestamp: Date.now(),
@@ -347,7 +349,9 @@ describe("useContextMenuSave Hook", () => {
 
     test("should clear interval on cleanup", () => {
       let cleared = false;
-      const interval = setInterval(() => {}, 1000);
+      const interval = setInterval(() => {
+        // no-op interval
+      }, 1000);
 
       clearInterval(interval);
       cleared = true;
@@ -374,7 +378,7 @@ describe("useContextMenuSave Hook", () => {
       expect(result.contextMenuSave?.status).toBe("saving");
     });
 
-    test("should process pending saves on mount", async () => {
+    test("should process pending saves on mount", () => {
       const contextMenuSave = {
         status: "saving",
         content: "https://example.com",
@@ -389,7 +393,7 @@ describe("useContextMenuSave Hook", () => {
       expect(shouldProcess).toBe(true);
     });
 
-    test("should not process if already processed", async () => {
+    test("should not process if already processed", () => {
       const processedSaves = new Set<string>(["123456_save-page"]);
       const saveId = "123456_save-page";
 
@@ -416,14 +420,16 @@ describe("useContextMenuSave Hook", () => {
       expect(mockRemove).toHaveBeenCalledWith("contextMenuSave");
     });
 
-    test("should reset state to idle", async () => {
+    test("should reset state to idle", () => {
       const idleState = { status: "idle" };
 
       expect(idleState.status).toBe("idle");
     });
 
     test("should be async function", () => {
-      const clearSave = async () => {};
+      const clearSave = async () => {
+        // no-op mock
+      };
 
       expect(clearSave.constructor.name).toBe("AsyncFunction");
     });
@@ -431,8 +437,12 @@ describe("useContextMenuSave Hook", () => {
 
   describe("Listener Cleanup", () => {
     test("should remove storage listener on unmount", () => {
-      const mockRemoveListener = mock(() => {});
-      const handleStorageChange = () => {};
+      const mockRemoveListener = mock(() => {
+        // no-op mock
+      });
+      const handleStorageChange = () => {
+        // no-op handler
+      };
 
       mockRemoveListener(handleStorageChange);
 
@@ -440,7 +450,9 @@ describe("useContextMenuSave Hook", () => {
     });
 
     test("should return cleanup function from effect", () => {
-      const cleanup = () => {};
+      const cleanup = () => {
+        // no-op cleanup
+      };
       const hasCleanup = typeof cleanup === "function";
 
       expect(hasCleanup).toBe(true);
@@ -588,7 +600,9 @@ describe("useContextMenuSave Hook", () => {
     });
 
     test("should return clearSave function", () => {
-      const clearSave = async () => {};
+      const clearSave = async () => {
+        // no-op mock
+      };
 
       expect(typeof clearSave).toBe("function");
     });
@@ -597,7 +611,9 @@ describe("useContextMenuSave Hook", () => {
       const result = {
         state: { status: "idle" },
         isRecentSave: false,
-        clearSave: async () => {},
+        clearSave: async () => {
+          // no-op mock
+        },
       };
 
       expect(result.state).toBeDefined();

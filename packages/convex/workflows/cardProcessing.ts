@@ -71,7 +71,7 @@ export const cardProcessingWorkflow: any = workflow.define({
     console.info(`${PIPELINE_LOG_PREFIX} Starting`, { cardId });
 
     const initialCard = await step.runQuery(
-      internalWorkflow["linkMetadata"].getCardForMetadata,
+      internalWorkflow.linkMetadata.getCardForMetadata,
       { cardId }
     );
 
@@ -130,7 +130,7 @@ export const cardProcessingWorkflow: any = workflow.define({
     // Ensure link metadata is ready before proceeding with downstream AI steps.
     if (classification.type === "link") {
       const linkMetadataCard = await step.runQuery(
-        internalWorkflow["linkMetadata"].getCardForMetadata,
+        internalWorkflow.linkMetadata.getCardForMetadata,
         { cardId }
       );
       const needsLinkMetadata =

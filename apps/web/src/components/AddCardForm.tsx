@@ -308,7 +308,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     }
   };
 
-  const handleFileUpload = async () => {
+  const handleFileUpload = () => {
     metrics.featureUsed("file_upload");
     const input = document.createElement("input");
     input.type = "file";

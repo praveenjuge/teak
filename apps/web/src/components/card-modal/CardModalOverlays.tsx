@@ -58,7 +58,9 @@ export function CardModalOverlays({
 
       <NotesEditModal
         notes={getCurrentValue("notes") || ""}
-        onCancel={() => {}}
+        onCancel={() => {
+          // No-op: modal handles its own cancel behavior
+        }}
         onOpenChange={onNotesEditChange}
         onSave={(notes) => updateNotes(notes)}
         open={showNotesEditModal}

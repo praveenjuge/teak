@@ -204,7 +204,7 @@ export function MasonryGrid({
     try {
       // Process deletions sequentially to avoid overwhelming the system
       for (const cardId of selectedCardIds) {
-        onDeleteCard(cardId);
+        await onDeleteCard(cardId);
       }
       exitSelectionMode();
     } catch (error) {

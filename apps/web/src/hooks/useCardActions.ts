@@ -208,6 +208,10 @@ export function useCardActions(config: CardActionsConfig = {}) {
         updateSingleCardQuery(localStore, cardId, updateTextField);
         break;
       }
+
+      default:
+        // No optimistic update for unknown fields
+        break;
     }
   });
 

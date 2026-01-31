@@ -51,9 +51,9 @@ export function ImagePreview({ card }: ImagePreviewProps) {
                 <button
                   aria-label={color.hex}
                   className="block size-4 shrink-0 cursor-pointer rounded-full transition-transform hover:scale-110"
-                  onClick={(event) => {
+                  onClick={async (event) => {
                     event.stopPropagation();
-                    void handleCopyColor(color.hex);
+                    await handleCopyColor(color.hex);
                   }}
                   style={{ backgroundColor: color.hex }}
                   type="button"

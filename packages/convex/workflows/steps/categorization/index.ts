@@ -21,6 +21,11 @@ import {
 
 const MAX_FETCH_BODY_SIZE = 250_000;
 const STRUCTURED_DATA_MAX_ITEMS = 8;
+
+// Top-level regex patterns for performance
+const TRAILING_SLASH_REGEX = /\/+$/;
+const ISO_DURATION_REGEX = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/i;
+
 const STRUCTURED_DATA_FIELDS = [
   "name",
   "url",
@@ -93,17 +98,17 @@ const normalizeUrlForComparison = (
     }
     url.search = params.toString();
     // Normalize trailing slash.
-    url.pathname = url.pathname.replace(/\/+$/, "");
+    url.pathname = url.pathname.replace(TRAILING_SLASH_REGEX, "");
     return url.toString();
   } catch {
     return value.trim() || null;
   }
 };
 
-export const classifyLinkCategory = async (
+export const classifyLinkCategory = (
   card: CategorizationContextCard,
   sourceUrl?: string
-): Promise<CategoryClassificationResult | null> => {
+): CategoryClassificationResult | null => {
   const linkPreview =
     card.metadata?.linkPreview?.status === "success"
       ? card.metadata.linkPreview
@@ -375,7 +380,7 @@ const mergeFacts = (
 
 function formatDuration(value: string | undefined): string | undefined {
   if (!value) return undefined;
-  const match = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/i.exec(value);
+  const match = ISO_DURATION_REGEX.exec(value);
   if (!match) return undefined;
   const [, hours, minutes, seconds] = match;
   const parts: string[] = [];
@@ -853,7 +858,7 @@ export const fetchStructuredDataStep: any = internalAction({
 export async function fetchStructuredDataHandler(
   _ctx: any,
   {
-    cardId,
+    cardId: _cardId,
     sourceUrl,
     shouldFetch,
   }: { cardId: Id<"cards">; sourceUrl: string; shouldFetch: boolean }
@@ -890,7 +895,7 @@ export async function mergeAndSaveHandler(
   {
     cardId,
     card,
-    sourceUrl,
+    sourceUrl: _sourceUrl,
     mode,
     classification,
     existingMetadata,

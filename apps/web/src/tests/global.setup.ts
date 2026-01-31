@@ -12,7 +12,7 @@ const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
  * Email verification is disabled in development, so tests can sign up
  * users directly through the UI without needing pre-creation.
  */
-export default async function globalSetup(): Promise<void> {
+export default function globalSetup(): void {
   if (!(TEST_EMAIL && TEST_PASSWORD)) {
     console.log(
       "[global.setup] No test credentials configured, tests will use generated credentials"

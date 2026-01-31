@@ -175,7 +175,7 @@ export class AuthHelper {
   /**
    * Check if user is authenticated by checking current URL
    */
-  async isAuthenticated(): Promise<boolean> {
+  isAuthenticated(): boolean {
     const url = this.page.url();
     return !(url.includes("/login") || url.includes("/register"));
   }

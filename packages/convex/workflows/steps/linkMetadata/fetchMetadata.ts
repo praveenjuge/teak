@@ -22,6 +22,12 @@ import {
 } from "../../../linkMetadata";
 import type { Id } from "../../../shared/types";
 
+// Top-level regex patterns for performance
+const IMAGE_EXTENSION_REGEX = /\.(png|jpe?g|webp|gif|avif|svg)(?:[?#]|$)/;
+const TITLE_TAG_REGEX = /<title[^>]*>([\s\S]*?)<\/title>/i;
+const META_SELECTOR_REGEX = /^meta\[(property|name)=['"]([^'"]+)['"]\]$/i;
+const LINK_SELECTOR_REGEX = /^link\[rel=['"]([^'"]+)['"]\]$/i;
+
 export type LinkMetadataRetryableError = {
   type: string;
   message?: string;
@@ -64,9 +70,7 @@ const readImageDimensions = (
 };
 
 const guessImageContentType = (imageUrl: string): string | null => {
-  const match = imageUrl
-    .toLowerCase()
-    .match(/\.(png|jpe?g|webp|gif|avif|svg)(?:[?#]|$)/);
+  const match = imageUrl.toLowerCase().match(IMAGE_EXTENSION_REGEX);
   if (!match) {
     return null;
   }
@@ -213,16 +217,14 @@ const buildSelectorResultsFromHtml = (
     match = linkRegex.exec(html);
   }
 
-  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const titleMatch = html.match(TITLE_TAG_REGEX);
   const titleText = titleMatch
     ? decodeHtmlEntities(titleMatch[1]).replace(/\s+/g, " ").trim()
     : undefined;
 
   return selectors.map(({ selector }) => {
     const normalizedSelector = selector.trim();
-    const metaMatch = normalizedSelector.match(
-      /^meta\[(property|name)=['"]([^'"]+)['"]\]$/i
-    );
+    const metaMatch = normalizedSelector.match(META_SELECTOR_REGEX);
     if (metaMatch) {
       const attrName = metaMatch[1].toLowerCase();
       const expectedValue = metaMatch[2].toLowerCase();
@@ -236,9 +238,7 @@ const buildSelectorResultsFromHtml = (
       return { selector: normalizedSelector, results };
     }
 
-    const linkMatch = normalizedSelector.match(
-      /^link\[rel=['"]([^'"]+)['"]\]$/i
-    );
+    const linkMatch = normalizedSelector.match(LINK_SELECTOR_REGEX);
     if (linkMatch) {
       const expectedValue = linkMatch[1].toLowerCase();
       const results = linkTags.filter((item) => {

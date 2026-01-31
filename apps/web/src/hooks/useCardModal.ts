@@ -130,6 +130,10 @@ export function useCardModal(
         updateCardInSearchQueries(localStore, updateCardId, updateTextField);
         break;
       }
+
+      default:
+        // No optimistic update for unknown fields
+        break;
     }
   });
   const cardActions = useCardActions({
@@ -365,7 +369,7 @@ export function useCardModal(
 
   const fileUrl = card?.fileUrl;
 
-  const downloadFile = useCallback(async () => {
+  const downloadFile = useCallback(() => {
     if (!(card?.fileId && card?.fileMetadata?.fileName && fileUrl)) {
       return;
     }

@@ -18,20 +18,19 @@
         "noNestedTernary": "off",
         "noNonNullAssertion": "off",
         "noParameterProperties": "off",
-        "useDefaultSwitchClause": "off",
         "useBlockStatements": "off",
-        "useConsistentTypeDefinitions": "off"
+        "useConsistentTypeDefinitions": "off",
+        "useDefaultSwitchClause": "off"
       },
       "complexity": {
         "noExcessiveCognitiveComplexity": "off",
-        "useLiteralKeys": "off",
         "noVoid": "off"
       },
       "performance": {
         "noNamespaceImport": "off",
-        "useTopLevelRegex": "off",
         "noBarrelFile": "off",
-        "noImgElement": "off"
+        "noImgElement": "off",
+        "useTopLevelRegex": "off"
       },
       "suspicious": {
         "noExplicitAny": "off",

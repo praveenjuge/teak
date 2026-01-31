@@ -8,7 +8,7 @@ const signInRoutes = [
   "/forgot-password",
 ];
 
-export default async function middleware(request: NextRequest) {
+export default function middleware(request: NextRequest) {
   const sessionCookie = getSessionCookie(request);
   const isSignInRoute = signInRoutes.includes(request.nextUrl.pathname);
 
