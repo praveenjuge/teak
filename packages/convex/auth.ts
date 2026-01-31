@@ -130,7 +130,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
 export const getCurrentUserHandler = async (ctx: any) => {
   // After sign-out the client may still briefly call this query; treat missing
   // session as a non-error so we don't spam Convex logs with "Unauthenticated".
-  let user;
+  let user: Awaited<ReturnType<typeof authComponent.getAuthUser>> | undefined;
   try {
     user = await authComponent.getAuthUser(ctx);
   } catch (error) {

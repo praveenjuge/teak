@@ -128,7 +128,7 @@ export async function generateHandler(
   let aiSummary = "";
   let aiTranscript: string | undefined;
   let confidence = 0.9;
-  let generationSource = "unknown";
+  let _generationSource = "unknown";
 
   switch (cardType as CardType) {
     case "text": {
@@ -136,7 +136,7 @@ export async function generateHandler(
       aiTags = result.aiTags;
       aiSummary = result.aiSummary;
       confidence = 0.95;
-      generationSource = "text";
+      _generationSource = "text";
       break;
     }
     case "image": {
@@ -157,7 +157,7 @@ export async function generateHandler(
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
           confidence = 0.9;
-          generationSource = isSvgFile ? "svg_thumbnail" : "image";
+          _generationSource = isSvgFile ? "svg_thumbnail" : "image";
         }
       }
       break;
@@ -173,7 +173,7 @@ export async function generateHandler(
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
           confidence = 0.88;
-          generationSource = "video_thumbnail";
+          _generationSource = "video_thumbnail";
         }
       }
       break;
@@ -192,7 +192,7 @@ export async function generateHandler(
             aiTags = result.aiTags;
             aiSummary = result.aiSummary;
             confidence = 0.85;
-            generationSource = "audio";
+            _generationSource = "audio";
           }
         }
       }
@@ -210,7 +210,7 @@ export async function generateHandler(
         aiTags = result.aiTags;
         aiSummary = result.aiSummary;
         confidence = 0.9;
-        generationSource = "link";
+        _generationSource = "link";
       }
       break;
     }
@@ -224,7 +224,7 @@ export async function generateHandler(
         aiTags = result.aiTags;
         aiSummary = result.aiSummary;
         confidence = 0.85;
-        generationSource = "document";
+        _generationSource = "document";
       }
       break;
     }
@@ -234,7 +234,7 @@ export async function generateHandler(
         aiTags = result.aiTags;
         aiSummary = result.aiSummary;
         confidence = 0.95;
-        generationSource = "quote";
+        _generationSource = "quote";
       }
       break;
     }
@@ -254,7 +254,7 @@ export async function generateHandler(
         aiTags = result.aiTags;
         aiSummary = result.aiSummary;
         confidence = 0.9;
-        generationSource = "palette";
+        _generationSource = "palette";
       }
       break;
     }

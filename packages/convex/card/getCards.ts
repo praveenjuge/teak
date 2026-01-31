@@ -172,7 +172,7 @@ export const searchCards = query({
     } = args;
 
     // If we have a search query, use search indexes for efficiency
-    if (searchQuery && searchQuery.trim()) {
+    if (searchQuery?.trim()) {
       const query = searchQuery.toLowerCase().trim();
 
       // Handle special keywords
@@ -286,12 +286,10 @@ export const searchCards = query({
             .take(limit * 2); // Get more to filter down
 
           const searchTerms = searchQuery.toLowerCase().split(/\s+/);
-          return allCards.filter(
-            (card) =>
-              card.tags &&
-              card.tags.some((tag) =>
-                searchTerms.some((term) => tag.toLowerCase().includes(term))
-              )
+          return allCards.filter((card) =>
+            card.tags?.some((tag) =>
+              searchTerms.some((term) => tag.toLowerCase().includes(term))
+            )
           );
         })(),
 
@@ -307,12 +305,10 @@ export const searchCards = query({
             .take(limit * 2); // Get more to filter down
 
           const searchTerms = searchQuery.toLowerCase().split(/\s+/);
-          return allCards.filter(
-            (card) =>
-              card.aiTags &&
-              card.aiTags.some((tag) =>
-                searchTerms.some((term) => tag.toLowerCase().includes(term))
-              )
+          return allCards.filter((card) =>
+            card.aiTags?.some((tag) =>
+              searchTerms.some((term) => tag.toLowerCase().includes(term))
+            )
           );
         })(),
       ]);
@@ -402,7 +398,7 @@ export const searchCardsPaginated = query({
     const { paginationOpts, searchQuery, types, favoritesOnly, showTrashOnly } =
       args;
 
-    if (searchQuery && searchQuery.trim()) {
+    if (searchQuery?.trim()) {
       const query = searchQuery.toLowerCase().trim();
 
       if (
@@ -549,7 +545,7 @@ export const searchCardsPaginated = query({
       // Incrementally deduplicate with early termination
       // This is more efficient than collecting all results then deduplicating
       const seenIds = new Set<string>();
-      const uniqueResults: Array<Doc<"cards">> = [];
+      const uniqueResults: Doc<"cards">[] = [];
 
       for (const results of searchResults) {
         for (const card of results) {

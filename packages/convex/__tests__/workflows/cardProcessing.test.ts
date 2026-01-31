@@ -91,7 +91,7 @@ describe("workflows/cardProcessing", () => {
     });
 
     test("handles palette extraction failure gracefully", () => {
-      const palette = null;
+      const palette: string[] | null = null;
       expect(palette).toBeNull();
     });
 

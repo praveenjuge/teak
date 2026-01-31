@@ -235,7 +235,7 @@ describe("metadata handler", () => {
         output: { tags: ["diagram"], summary: "A diagram" },
       });
 
-      const result = await generateHandler(ctx, {
+      const _result = await generateHandler(ctx, {
         cardId: "c1",
         cardType: "image",
       });

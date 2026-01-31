@@ -76,7 +76,7 @@ export const firstFromSources = (
 ): string | undefined => {
   for (const source of sources) {
     const value = getSelectorValue(map, source);
-    if (value && value.trim()) {
+    if (value?.trim()) {
       return value.trim();
     }
   }

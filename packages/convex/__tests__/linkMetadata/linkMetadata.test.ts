@@ -3,16 +3,16 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 describe("linkMetadata.ts", () => {
   let getCardForMetadata: any;
-  let updateCardMetadata: any;
-  let updateCardScreenshot: any;
+  let _updateCardMetadata: any;
+  let _updateCardScreenshot: any;
   let updateCardMetadataHandler: any;
   let updateCardScreenshotHandler: any;
 
   beforeEach(async () => {
     const module = await import("../../linkMetadata");
     getCardForMetadata = module.getCardForMetadata;
-    updateCardMetadata = module.updateCardMetadata;
-    updateCardScreenshot = module.updateCardScreenshot;
+    _updateCardMetadata = module.updateCardMetadata;
+    _updateCardScreenshot = module.updateCardScreenshot;
     updateCardMetadataHandler = module.updateCardMetadataHandler;
     updateCardScreenshotHandler = module.updateCardScreenshotHandler;
   });

@@ -176,10 +176,10 @@ export const updateCardField = mutation({
 
           const nextMetadata = { ...(card.metadata ?? {}) };
           if ("linkPreview" in nextMetadata) {
-            delete (nextMetadata as Record<string, unknown>).linkPreview;
+            (nextMetadata as Record<string, unknown>).linkPreview = undefined;
           }
           if ("linkCategory" in nextMetadata) {
-            delete (nextMetadata as Record<string, unknown>).linkCategory;
+            (nextMetadata as Record<string, unknown>).linkCategory = undefined;
           }
           updateData.metadata =
             Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined;

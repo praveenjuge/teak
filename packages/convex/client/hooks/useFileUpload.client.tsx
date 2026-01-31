@@ -344,7 +344,7 @@ export function useFileUploadCore(
 
       return results;
     },
-    [uploadFile]
+    [uploadFile, config.onError]
   );
 
   const state: FileUploadState = {

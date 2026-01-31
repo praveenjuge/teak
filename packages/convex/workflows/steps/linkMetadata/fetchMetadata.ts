@@ -93,7 +93,7 @@ const resolveImageContentType = (
   headerValue: string | null,
   imageUrl: string
 ): string | null => {
-  if (headerValue && headerValue.toLowerCase().startsWith("image/")) {
+  if (headerValue?.toLowerCase().startsWith("image/")) {
     return headerValue.split(";")[0]?.trim() || headerValue;
   }
   if (imageUrl.startsWith("data:")) {
@@ -173,14 +173,15 @@ const decodeHtmlEntities = (value: string): string => {
 const extractTagAttributes = (tag: string): ScrapeAttribute[] => {
   const attributes: ScrapeAttribute[] = [];
   const regex = /([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(tag)) !== null) {
+  let match: RegExpExecArray | null = regex.exec(tag);
+  while (match !== null) {
     const name = match[1];
     const rawValue = match[2] ?? match[3] ?? match[4] ?? "";
     attributes.push({
       name,
       value: decodeHtmlEntities(rawValue),
     });
+    match = regex.exec(tag);
   }
   return attributes;
 };
@@ -193,20 +194,23 @@ const buildSelectorResultsFromHtml = (
   const linkTags: ScrapeResultItem[] = [];
 
   const metaRegex = /<meta\b[^>]*>/gi;
-  let match: RegExpExecArray | null;
-  while ((match = metaRegex.exec(html)) !== null) {
+  let match: RegExpExecArray | null = metaRegex.exec(html);
+  while (match !== null) {
     const attributes = extractTagAttributes(match[0]);
     if (attributes.length) {
       metaTags.push({ attributes });
     }
+    match = metaRegex.exec(html);
   }
 
   const linkRegex = /<link\b[^>]*>/gi;
-  while ((match = linkRegex.exec(html)) !== null) {
+  match = linkRegex.exec(html);
+  while (match !== null) {
     const attributes = extractTagAttributes(match[0]);
     if (attributes.length) {
       linkTags.push({ attributes });
     }
+    match = linkRegex.exec(html);
   }
 
   const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
@@ -422,7 +426,7 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
     cardId,
   });
 
-  if (!(card && card.url)) {
+  if (!card?.url) {
     await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
       cardId,
       linkPreview: buildErrorPreview(card?.url ?? "", {

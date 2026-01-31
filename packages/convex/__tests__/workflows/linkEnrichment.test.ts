@@ -136,7 +136,7 @@ describe("workflows/linkEnrichment", () => {
     });
 
     test("handles null structuredData when not fetching", () => {
-      const structuredData = null;
+      const structuredData: Record<string, unknown> | null = null;
       expect(structuredData).toBeNull();
     });
   });

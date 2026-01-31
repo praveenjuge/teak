@@ -204,7 +204,7 @@ describe("parsing", () => {
 
   describe("parseLinkPreview", () => {
     test("parses basic fields", () => {
-      const results: ScrapeSelectorResult[] = [
+      const _results: ScrapeSelectorResult[] = [
         {
           selector: "og:title",
           results: [{ attributes: [{ name: "content", value: "My Title" }] }],

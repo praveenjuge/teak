@@ -63,7 +63,7 @@ describe("workflows/cardCleanup", () => {
     });
 
     test("returns deleted false when deletedAt is null", () => {
-      const deletedAt = null;
+      const deletedAt: number | null = null;
       const hasDeletedAt = deletedAt !== undefined && deletedAt !== null;
       expect(hasDeletedAt).toBe(false);
     });

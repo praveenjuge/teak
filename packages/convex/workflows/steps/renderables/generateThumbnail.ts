@@ -98,7 +98,6 @@ function applyExifOrientation(
     case 8:
       resultImage = rotate(resultImage, 270);
       break;
-    case 1:
     default:
       // No transformation needed
       break;

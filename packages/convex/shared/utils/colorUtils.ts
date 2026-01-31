@@ -319,9 +319,9 @@ export function parseColorString(colorText: string): Color | null {
     /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*[\d.]+\s*)?\)/
   );
   if (rgbMatch) {
-    const red = Number.parseInt(rgbMatch[1]);
-    const green = Number.parseInt(rgbMatch[2]);
-    const blue = Number.parseInt(rgbMatch[3]);
+    const red = Number.parseInt(rgbMatch[1], 10);
+    const green = Number.parseInt(rgbMatch[2], 10);
+    const blue = Number.parseInt(rgbMatch[3], 10);
 
     if (
       red >= 0 &&
@@ -347,9 +347,9 @@ export function parseColorString(colorText: string): Color | null {
     /hsla?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*(?:,\s*[\d.]+\s*)?\)/
   );
   if (hslMatch) {
-    const h = Number.parseInt(hslMatch[1]);
-    const s = Number.parseInt(hslMatch[2]);
-    const l = Number.parseInt(hslMatch[3]);
+    const h = Number.parseInt(hslMatch[1], 10);
+    const s = Number.parseInt(hslMatch[2], 10);
+    const l = Number.parseInt(hslMatch[3], 10);
 
     if (h >= 0 && h <= 360 && s >= 0 && s <= 100 && l >= 0 && l <= 100) {
       const rgb = hslToRgb(h, s, l);
@@ -526,7 +526,7 @@ export function getContrastRatio(color1: Color, color2: Color): number {
 
   const getLuminance = (rgb: { r: number; g: number; b: number }): number => {
     const [red, green, blue] = [rgb.r, rgb.g, rgb.b].map((c) => {
-      c = c / 255;
+      c /= 255;
       return c <= 0.039_28 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
     });
     return 0.2126 * red + 0.7152 * green + 0.0722 * blue;

@@ -31,12 +31,12 @@ describe("workflows/screenshot", () => {
     });
 
     test("returns null for non-Error input", () => {
-      const result = null;
+      const result: unknown = null;
       expect(result).toBeNull();
     });
 
     test("returns null for null input", () => {
-      const result = null;
+      const result: unknown = null;
       expect(result).toBeNull();
     });
 
@@ -62,7 +62,7 @@ describe("workflows/screenshot", () => {
     });
 
     test("returns null for malformed JSON payload", () => {
-      const result = null;
+      const result: unknown = null;
       expect(result).toBeNull();
     });
 

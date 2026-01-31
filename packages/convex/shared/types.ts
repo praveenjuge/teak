@@ -12,28 +12,20 @@
 import type { WithoutSystemFields } from "convex/server";
 import type { Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
-import type {
+import type { MutationCtx, QueryCtx } from "../_generated/server";
+
+// Re-export common types from convex/server for convenience
+export type { WithoutSystemFields } from "convex/server";
+// Re-export document and ID types
+export type { Doc, Id } from "../_generated/dataModel";
+// Re-export context types for helper function annotations
+export type {
   ActionCtx,
   DatabaseReader,
   DatabaseWriter,
   MutationCtx,
   QueryCtx,
 } from "../_generated/server";
-
-// Re-export context types for helper function annotations
-export type {
-  QueryCtx,
-  MutationCtx,
-  ActionCtx,
-  DatabaseReader,
-  DatabaseWriter,
-};
-
-// Re-export common types from convex/server for convenience
-export type { WithoutSystemFields };
-
-// Re-export document and ID types
-export type { Doc, Id };
 
 // Import validators from schema for type inference
 import type {

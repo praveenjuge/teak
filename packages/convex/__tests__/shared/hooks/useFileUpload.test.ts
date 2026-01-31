@@ -57,9 +57,9 @@ class MockImage {
       if (value === "blob:url") {
         this.naturalWidth = 100;
         this.naturalHeight = 200;
-        this.onload && this.onload();
+        this.onload?.();
       } else {
-        this.onerror && this.onerror();
+        this.onerror?.();
       }
     }, 10);
   }
@@ -88,7 +88,7 @@ describe("defaults", () => {
         name: "a.png",
         type: "image/png",
       } as any);
-    } catch (e) {
+    } catch (_e) {
       // expected error return, or the hook catches it and returns success:false
     }
   });
@@ -575,7 +575,7 @@ describe("useFileUploadCore", () => {
 
   describe("uploadMultipleFiles", () => {
     test("validates file count exceeds limit", async () => {
-      const files = Array(MAX_FILES_PER_UPLOAD + 1).fill({
+      const files = new Array(MAX_FILES_PER_UPLOAD + 1).fill({
         size: 100,
         name: "test.png",
         type: "image/png",

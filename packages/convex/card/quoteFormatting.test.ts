@@ -4,12 +4,6 @@ import {
   stripSurroundingQuotes,
 } from "./quoteFormatting";
 
-// Mock Doc type for testing
-type MockCard = {
-  type: "quote" | "text" | "link";
-  content?: string | null;
-};
-
 describe("normalizeQuoteContent", () => {
   describe("basic quote removal", () => {
     it("should remove double quotes", () => {

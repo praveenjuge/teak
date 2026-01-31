@@ -7,12 +7,10 @@ import { enrichImdb } from "./imdb";
 
 // Helper function to create a raw selector map
 const createMap = (
-  entries: Array<
-    [
-      string,
-      { text?: string; attributes?: Array<{ name?: string; value?: string }> },
-    ]
-  >
+  entries: [
+    string,
+    { text?: string; attributes?: Array<{ name?: string; value?: string }> },
+  ][]
 ): RawSelectorMap => {
   return new Map(entries);
 };

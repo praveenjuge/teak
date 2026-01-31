@@ -165,13 +165,13 @@ export const finalizeUploadedCard = mutation({
 
       // Build non-file metadata (only keep fields that aren't file-related)
       const nonFileMetadata = { ...additionalMeta };
-      delete nonFileMetadata.recordingTimestamp;
-      delete nonFileMetadata.duration;
-      delete nonFileMetadata.width;
-      delete nonFileMetadata.height;
-      delete nonFileMetadata.fileName;
-      delete nonFileMetadata.fileSize;
-      delete nonFileMetadata.mimeType;
+      nonFileMetadata.recordingTimestamp = undefined;
+      nonFileMetadata.duration = undefined;
+      nonFileMetadata.width = undefined;
+      nonFileMetadata.height = undefined;
+      nonFileMetadata.fileName = undefined;
+      nonFileMetadata.fileSize = undefined;
+      nonFileMetadata.mimeType = undefined;
 
       const metadata =
         Object.keys(nonFileMetadata).length > 0 ? nonFileMetadata : undefined;

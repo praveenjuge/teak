@@ -7,7 +7,7 @@ import {
 
 describe("defaults", () => {
   test("uses default sentry capture without error", async () => {
-    const actions = createCardActions({
+    const _actions = createCardActions({
       updateCardField: mock(),
       permanentDeleteCard: mock(),
     });

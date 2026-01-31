@@ -389,7 +389,7 @@ export const listAllUsers = query({
       limit: safePagination.numItems,
       paginationOpts: safePagination,
     })) as {
-      page?: Array<Record<string, unknown>>;
+      page?: Record<string, unknown>[];
       continueCursor?: string | null;
       isDone?: boolean;
     };
