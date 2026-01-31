@@ -12,7 +12,6 @@
     "rules": {
       "a11y": {
         "noSvgWithoutTitle": "off",
-        "useButtonType": "off",
         "noNoninteractiveElementInteractions": "off",
         "noStaticElementInteractions": "off",
         "useMediaCaption": "off",
@@ -29,7 +28,6 @@
       },
       "complexity": {
         "noExcessiveCognitiveComplexity": "off",
-        "noForEach": "off",
         "useLiteralKeys": "off",
         "noVoid": "off"
       },
@@ -43,9 +41,7 @@
         "noExplicitAny": "off",
         "noBitwiseOperators": "off",
         "useAwait": "off",
-        "noEmptyBlockStatements": "off",
-        "noArrayIndexKey": "off",
-        "useIterableCallbackReturn": "off"
+        "noEmptyBlockStatements": "off"
       },
       "correctness": {
         "noUnusedFunctionParameters": "off",

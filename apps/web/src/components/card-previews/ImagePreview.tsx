@@ -56,6 +56,7 @@ export function ImagePreview({ card }: ImagePreviewProps) {
                     void handleCopyColor(color.hex);
                   }}
                   style={{ backgroundColor: color.hex }}
+                  type="button"
                 />
                 <div className="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 transform whitespace-nowrap rounded-full bg-black/75 px-2 py-0.5 text-white text-xs opacity-0 transition-opacity group-hover:opacity-100">
                   {colorCopyFeedback?.color === color.hex &&

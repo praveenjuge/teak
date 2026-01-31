@@ -20,7 +20,11 @@ export default function GlobalError({
     <html lang="en">
       <body className="flex min-h-screen flex-col items-center justify-center gap-4">
         <h2>Something went wrong! {error.message}</h2>
-        <button className={cn(buttonVariants())} onClick={() => reset()}>
+        <button
+          className={cn(buttonVariants())}
+          onClick={() => reset()}
+          type="button"
+        >
           Try again
         </button>
       </body>

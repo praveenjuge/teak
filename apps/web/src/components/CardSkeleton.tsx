@@ -37,8 +37,8 @@ export function CardsGridSkeleton() {
   ];
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
-      {opacities.map((opacity, i) => (
-        <div className={opacity} key={i}>
+      {opacities.map((opacity) => (
+        <div className={opacity} key={opacity}>
           <CardSkeleton />
         </div>
       ))}

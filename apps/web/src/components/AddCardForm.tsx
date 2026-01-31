@@ -158,7 +158,9 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         clearInterval(timerRef.current);
       }
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
+        for (const track of streamRef.current.getTracks()) {
+          track.stop();
+        }
       }
     };
   }, []);
@@ -190,7 +192,9 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
 
       mediaRecorder.onstop = async () => {
         const blob = new Blob(chunks, { type: "audio/webm;codecs=opus" });
-        stream.getTracks().forEach((track) => track.stop());
+        for (const track of stream.getTracks()) {
+          track.stop();
+        }
 
         // Auto-save immediately
         await autoSaveAudio(blob);

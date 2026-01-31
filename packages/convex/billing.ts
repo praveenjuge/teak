@@ -36,7 +36,7 @@ export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
   const user = await ctx.runQuery(api.billing.getUserInfo);
 
   const polar = new PolarBilling({
-    accessToken: process.env["POLAR_ACCESS_TOKEN"] ?? "",
+    accessToken: process.env.POLAR_ACCESS_TOKEN ?? "",
     server:
       process.env.POLAR_SERVER === "production" ? "production" : "sandbox",
   });
@@ -98,7 +98,7 @@ export const createCustomerPortalHandler = async (ctx: any) => {
     throw new ConvexError("No active subscription found");
 
   const polarSdk = new PolarBilling({
-    accessToken: process.env["POLAR_ACCESS_TOKEN"] ?? "",
+    accessToken: process.env.POLAR_ACCESS_TOKEN ?? "",
     server:
       process.env.POLAR_SERVER === "production" ? "production" : "sandbox",
   });

@@ -10,7 +10,7 @@ import {
 } from "./steps/linkMetadata/fetchMetadata";
 
 const internalWorkflow = internal as Record<string, any>;
-const linkMetadataInternal = internalWorkflow["linkMetadata"] as Record<
+const linkMetadataInternal = internalWorkflow.linkMetadata as Record<
   string,
   any
 >;

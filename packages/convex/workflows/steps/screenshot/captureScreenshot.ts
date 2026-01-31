@@ -9,7 +9,7 @@ import { normalizeUrl } from "../../../linkMetadata";
 import type { Id } from "../../../shared/types";
 
 const internalFunctions = internal as Record<string, any>;
-const linkMetadataInternal = internalFunctions["linkMetadata"] as Record<
+const linkMetadataInternal = internalFunctions.linkMetadata as Record<
   string,
   any
 >;

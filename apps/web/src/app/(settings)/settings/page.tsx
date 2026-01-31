@@ -147,7 +147,12 @@ function CustomerPortalButton({
   };
 
   return (
-    <button className={className} disabled={isLoading} onClick={handlePortal}>
+    <button
+      className={className}
+      disabled={isLoading}
+      onClick={handlePortal}
+      type="button"
+    >
       {isLoading ? <Spinner /> : children}
     </button>
   );
@@ -200,6 +205,7 @@ function PlanOption({
           )}
           disabled={isLoading}
           onClick={() => onCheckout(planId)}
+          type="button"
         >
           {isLoading ? (
             <Spinner />

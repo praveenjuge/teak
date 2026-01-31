@@ -232,12 +232,12 @@ export function MasonryGrid({
     }
 
     // Add all cards
-    filteredCards.slice(0, visibleCount).forEach((card) => {
+    for (const card of filteredCards.slice(0, visibleCount)) {
       items.push({
         key: card._id,
         data: card,
       });
-    });
+    }
 
     return items;
   }, [filteredCards, showTrashOnly, visibleCount]);

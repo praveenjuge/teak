@@ -68,10 +68,10 @@ describe("useContextMenuSave Hook", () => {
     test("should accept valid status values", () => {
       const validStatuses = ["idle", "saving", "success", "error"];
 
-      validStatuses.forEach((status) => {
+      for (const status of validStatuses) {
         const hasValidStatus = validStatuses.includes(status);
         expect(hasValidStatus).toBe(true);
-      });
+      }
     });
   });
 
@@ -489,7 +489,9 @@ describe("useContextMenuSave Hook", () => {
       const processedSaves = new Set<string>();
       const changes = ["1001_save-page", "1002_save-page", "1003_save-page"];
 
-      changes.forEach((saveId) => processedSaves.add(saveId));
+      for (const saveId of changes) {
+        processedSaves.add(saveId);
+      }
 
       expect(processedSaves.size).toBe(3);
     });

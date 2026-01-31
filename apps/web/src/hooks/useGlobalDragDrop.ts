@@ -59,7 +59,7 @@ export function useGlobalDragDrop() {
       );
 
       // Show success/error messages for each file
-      results.forEach((result: UploadMultipleFilesResultItem) => {
+      for (const result of results) {
         if (result.success) {
           metrics.cardCreated("file");
           toast.success(`${result.file} uploaded successfully`);
@@ -78,7 +78,7 @@ export function useGlobalDragDrop() {
             toast.error(`Failed to upload ${result.file}: ${errorMessage}`);
           }
         }
-      });
+      }
     },
     [uploadMultipleFiles]
   );

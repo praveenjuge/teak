@@ -75,7 +75,7 @@ const normalizeUrlForComparison = (
     url.hash = "";
     const params = url.searchParams;
     // Remove tracking parameters to improve cache hits.
-    [
+    const trackingParams = [
       "utm_source",
       "utm_medium",
       "utm_campaign",
@@ -87,7 +87,10 @@ const normalizeUrlForComparison = (
       "mc_cid",
       "mc_eid",
       "mkt_tok",
-    ].forEach((param) => params.delete(param));
+    ];
+    for (const param of trackingParams) {
+      params.delete(param);
+    }
     url.search = params.toString();
     // Normalize trailing slash.
     url.pathname = url.pathname.replace(/\/+$/, "");

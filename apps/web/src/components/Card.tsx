@@ -368,7 +368,7 @@ export const Card = memo(function Card({
                 {Array.from({ length: AUDIO_WAVE_BARS }).map((_, i) => (
                   <div
                     className="rounded-full bg-muted-foreground"
-                    key={i}
+                    key={`${card._id}-bar-${i}`}
                     style={{
                       width: `${AUDIO_WAVE_BAR_WIDTH_PX}px`,
                       height: getAudioWaveHeight(card._id, i),

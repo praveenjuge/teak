@@ -33,7 +33,7 @@ export const LINK_METADATA_RETRYABLE_PREFIX =
   "workflow:linkMetadata:retryable:";
 
 const internalFunctions = internal as Record<string, any>;
-const linkMetadataInternal = internalFunctions["linkMetadata"] as Record<
+const linkMetadataInternal = internalFunctions.linkMetadata as Record<
   string,
   any
 >;

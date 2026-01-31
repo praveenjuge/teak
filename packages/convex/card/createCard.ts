@@ -63,12 +63,12 @@ export const createCard = mutation({
     ];
     const extractedFileMetadata: any = {};
 
-    fileRelatedFields.forEach((field) => {
+    for (const field of fileRelatedFields) {
       if (processedMetadata[field] !== undefined) {
         extractedFileMetadata[field] = processedMetadata[field];
         delete processedMetadata[field];
       }
-    });
+    }
 
     if (args.fileId) {
       const systemFileMetadata = await ctx.db.system.get(

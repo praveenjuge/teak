@@ -8,7 +8,13 @@ mock.module("../../components/ui/button", () => ({
   Button: ({ children, type, onClick, disabled, variant, size }: any) =>
     React.createElement(
       "button",
-      { type, onClick, disabled, "data-variant": variant, "data-size": size },
+      {
+        type: type || "button",
+        onClick,
+        disabled,
+        "data-variant": variant,
+        "data-size": size,
+      },
       children
     ),
 }));
