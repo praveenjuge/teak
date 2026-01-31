@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { normalizeUrl } from "./url";
 
 describe("normalizeUrl", () => {
@@ -52,8 +52,12 @@ describe("normalizeUrl", () => {
 
     it("should not change case of existing protocol", () => {
       // normalizeUrl checks for exact "http://" or "https://" prefix
-      expect(normalizeUrl("HTTP://example.com")).toBe("https://HTTP://example.com");
-      expect(normalizeUrl("HtTp://example.com")).toBe("https://HtTp://example.com");
+      expect(normalizeUrl("HTTP://example.com")).toBe(
+        "https://HTTP://example.com"
+      );
+      expect(normalizeUrl("HtTp://example.com")).toBe(
+        "https://HtTp://example.com"
+      );
     });
   });
 
@@ -95,9 +99,7 @@ describe("normalizeUrl", () => {
     });
 
     it("should preserve IP addresses", () => {
-      expect(normalizeUrl("192.168.1.1/path")).toBe(
-        "https://192.168.1.1/path"
-      );
+      expect(normalizeUrl("192.168.1.1/path")).toBe("https://192.168.1.1/path");
     });
   });
 
@@ -117,9 +119,7 @@ describe("normalizeUrl", () => {
     });
 
     it("should handle subdomains", () => {
-      expect(normalizeUrl("blog.example.com")).toBe(
-        "https://blog.example.com"
-      );
+      expect(normalizeUrl("blog.example.com")).toBe("https://blog.example.com");
       expect(normalizeUrl("api.v3.example.com")).toBe(
         "https://api.v3.example.com"
       );

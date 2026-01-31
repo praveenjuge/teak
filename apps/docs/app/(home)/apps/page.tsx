@@ -1,7 +1,7 @@
-import { Metadata } from "next";
+import { Globe, type LucideProps, Puzzle, Smartphone } from "lucide-react";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ComponentType } from "react";
-import { Globe, Puzzle, Smartphone, type LucideProps } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -63,13 +63,13 @@ type PlatformAction =
       height: number;
     };
 
-type PlatformCard = {
+interface PlatformCard {
   name: string;
   copy: string;
   icon: ComponentType<LucideProps>;
   action: PlatformAction;
   footnote?: string;
-};
+}
 
 const platformCards: PlatformCard[] = [
   {
@@ -121,7 +121,7 @@ export default function AppsPage() {
   return (
     <main className="px-4 py-16">
       <section className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center">
-        <h1 className="text-balance text-4xl font-semibold tracking-tight md:text-5xl">
+        <h1 className="text-balance font-semibold text-4xl tracking-tight md:text-5xl">
           Teak, everywhere you create
         </h1>
         <p className="text-balance text-lg text-muted-foreground">
@@ -138,8 +138,8 @@ export default function AppsPage() {
 
           return (
             <div
-              key={card.name}
               className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-white p-6 shadow-sm dark:bg-gray-900"
+              key={card.name}
             >
               <div className="flex items-center gap-2 font-semibold text-muted-foreground/80">
                 <Icon className="size-4 text-primary" />
@@ -148,11 +148,11 @@ export default function AppsPage() {
               <p className="text-muted-foreground">{card.copy}</p>
               <div className="flex flex-col gap-2 pt-2">
                 {card.action.type === "button" ? (
-                  <Button size="lg" asChild>
+                  <Button asChild size="lg">
                     <a
                       href={card.action.href}
-                      target="_blank"
                       rel="noopener noreferrer"
+                      target="_blank"
                     >
                       {ActionIcon && (
                         <ActionIcon className="size-4 text-primary-foreground" />
@@ -162,18 +162,17 @@ export default function AppsPage() {
                   </Button>
                 ) : (
                   <a
-                    href={card.action.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="inline-flex justify-center"
+                    href={card.action.href}
+                    rel="noopener noreferrer"
+                    target="_blank"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={card.action.src}
                       alt={card.action.alt}
-                      width={card.action.width}
-                      height={card.action.height}
                       className="h-auto max-w-[210px] object-contain"
+                      height={card.action.height}
+                      src={card.action.src}
+                      width={card.action.width}
                     />
                   </a>
                 )}

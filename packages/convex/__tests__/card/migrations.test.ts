@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, expect, test, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 describe("card/migrations.ts", () => {
   let backfillMetadataSearchFields: any;
@@ -24,7 +24,9 @@ describe("card/migrations.ts", () => {
       },
     } as any;
 
-    const handler = (backfillMetadataSearchFields as any).handler ?? backfillMetadataSearchFields;
+    const handler =
+      (backfillMetadataSearchFields as any).handler ??
+      backfillMetadataSearchFields;
     const result = await handler(ctx, {});
 
     expect(result).toEqual({ updatedCount: 0, hasMore: false });
@@ -58,7 +60,9 @@ describe("card/migrations.ts", () => {
       },
     } as any;
 
-    const handler = (backfillMetadataSearchFields as any).handler ?? backfillMetadataSearchFields;
+    const handler =
+      (backfillMetadataSearchFields as any).handler ??
+      backfillMetadataSearchFields;
     const result = await handler(ctx, {});
 
     expect(ctx.db.patch).toHaveBeenCalledWith("cards", "c1", {
@@ -96,7 +100,9 @@ describe("card/migrations.ts", () => {
       },
     } as any;
 
-    const handler = (backfillMetadataSearchFields as any).handler ?? backfillMetadataSearchFields;
+    const handler =
+      (backfillMetadataSearchFields as any).handler ??
+      backfillMetadataSearchFields;
     const result = await handler(ctx, {});
 
     expect(ctx.db.patch).toHaveBeenCalledWith("cards", "c1", {
@@ -128,7 +134,9 @@ describe("card/migrations.ts", () => {
       },
     } as any;
 
-    const handler = (backfillMetadataSearchFields as any).handler ?? backfillMetadataSearchFields;
+    const handler =
+      (backfillMetadataSearchFields as any).handler ??
+      backfillMetadataSearchFields;
     const result = await handler(ctx, {});
 
     expect(ctx.db.patch).not.toHaveBeenCalled();
@@ -161,7 +169,9 @@ describe("card/migrations.ts", () => {
       },
     } as any;
 
-    const handler = (backfillMetadataSearchFields as any).handler ?? backfillMetadataSearchFields;
+    const handler =
+      (backfillMetadataSearchFields as any).handler ??
+      backfillMetadataSearchFields;
     const result = await handler(ctx, {});
 
     expect(ctx.db.patch).not.toHaveBeenCalled();
@@ -179,7 +189,9 @@ describe("card/migrations.ts", () => {
       },
     } as any;
 
-    const handler = (backfillMetadataSearchFields as any).handler ?? backfillMetadataSearchFields;
+    const handler =
+      (backfillMetadataSearchFields as any).handler ??
+      backfillMetadataSearchFields;
     await handler(ctx, { batchSize: 50 });
 
     const filterMock = ctx.db.query().filter;
@@ -210,7 +222,9 @@ describe("card/migrations.ts", () => {
       },
     } as any;
 
-    const handler = (backfillMetadataSearchFields as any).handler ?? backfillMetadataSearchFields;
+    const handler =
+      (backfillMetadataSearchFields as any).handler ??
+      backfillMetadataSearchFields;
     const result = await handler(ctx, { batchSize: 100 });
 
     expect(result.hasMore).toBe(true);

@@ -1,11 +1,11 @@
 import { generateText, Output } from "ai";
-import { aiMetadataSchema } from "./schemas";
 import {
-  TEXT_METADATA_MODEL,
-  LINK_METADATA_MODEL,
   IMAGE_METADATA_MODEL,
+  LINK_METADATA_MODEL,
   SYSTEM_PROMPTS,
+  TEXT_METADATA_MODEL,
 } from "../../ai/models";
+import { aiMetadataSchema } from "./schemas";
 
 /**
  * Generate AI metadata for text content
@@ -45,7 +45,7 @@ export const generateTextMetadata = async (content: string, title?: string) => {
  */
 export const generateImageMetadata = async (
   imageUrl: string,
-  title?: string,
+  title?: string
 ) => {
   try {
     const result = await generateText({

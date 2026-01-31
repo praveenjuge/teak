@@ -1,5 +1,5 @@
+import { Button, Host, Spacer, Text, VStack } from "@expo/ui/swift-ui";
 import React from "react";
-import { Host, VStack, Text, Button, Spacer } from "@expo/ui/swift-ui";
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -52,17 +52,17 @@ function DefaultErrorFallback({
   retry: () => void;
 }) {
   return (
-    <Host useViewportSizeMeasurement style={{ flex: 1 }}>
-      <VStack spacing={16} alignment="center">
+    <Host style={{ flex: 1 }} useViewportSizeMeasurement>
+      <VStack alignment="center" spacing={16}>
         <Spacer />
-        <Text weight="semibold" size={20} design="rounded">
+        <Text design="rounded" size={20} weight="semibold">
           Something went wrong
         </Text>
-        <Text color="secondary" size={16} lineLimit={4} design="rounded">
+        <Text color="secondary" design="rounded" lineLimit={4} size={16}>
           {error?.message || "An unexpected error occurred"}
         </Text>
-        <Button controlSize="large" variant="bordered" onPress={retry}>
-          <Text weight="medium" design="rounded">
+        <Button controlSize="large" onPress={retry} variant="bordered">
+          <Text design="rounded" weight="medium">
             Try Again
           </Text>
         </Button>

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, internalQuery } from "../_generated/server";
+import { internalQuery, query } from "../_generated/server";
 import { cardValidator } from "../schema";
 import {
   applyQuoteDisplayFormatting,
@@ -33,18 +33,19 @@ export const getCard = query({
       return null;
     }
 
-    const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] = await Promise.all([
-      card.fileId ? ctx.storage.getUrl(card.fileId) : Promise.resolve(null),
-      card.thumbnailId
-        ? ctx.storage.getUrl(card.thumbnailId)
-        : Promise.resolve(null),
-      card.metadata?.linkPreview?.screenshotStorageId
-        ? ctx.storage.getUrl(card.metadata.linkPreview.screenshotStorageId)
-        : Promise.resolve(null),
-      card.metadata?.linkPreview?.imageStorageId
-        ? ctx.storage.getUrl(card.metadata.linkPreview.imageStorageId)
-        : Promise.resolve(null),
-    ]);
+    const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] =
+      await Promise.all([
+        card.fileId ? ctx.storage.getUrl(card.fileId) : Promise.resolve(null),
+        card.thumbnailId
+          ? ctx.storage.getUrl(card.thumbnailId)
+          : Promise.resolve(null),
+        card.metadata?.linkPreview?.screenshotStorageId
+          ? ctx.storage.getUrl(card.metadata.linkPreview.screenshotStorageId)
+          : Promise.resolve(null),
+        card.metadata?.linkPreview?.imageStorageId
+          ? ctx.storage.getUrl(card.metadata.linkPreview.imageStorageId)
+          : Promise.resolve(null),
+      ]);
 
     return applyQuoteDisplayFormatting({
       ...card,

@@ -11,7 +11,7 @@ export function DocsHeader() {
   return (
     <HomeLayout {...baseOptions}>
       {/* Empty children - we only want the header */}
-      <></>
+      {null}
     </HomeLayout>
   );
 }

@@ -1,12 +1,12 @@
-import { test, expect } from "@playwright/test";
-import { AuthHelper, UiHelper, generateTestEmail, generateTestContent } from "./test-helpers";
+import { expect, test } from "@playwright/test";
+import { AuthHelper, generateTestContent, UiHelper } from "./test-helpers";
 
 const TEST_EMAIL = process.env.E2E_BETTER_AUTH_USER_EMAIL;
 const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
 
 test.describe("Onboarding Journey", () => {
   test.skip(
-    !TEST_EMAIL || !TEST_PASSWORD,
+    !(TEST_EMAIL && TEST_PASSWORD),
     "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run onboarding tests."
   );
 
@@ -15,9 +15,11 @@ test.describe("Onboarding Journey", () => {
     await page.context().clearCookies();
   });
 
-  test("complete journey: sign up → create first card → see empty state", async ({ page }) => {
+  test("complete journey: sign up → create first card → see empty state", async ({
+    page,
+  }) => {
     const authHelper = new AuthHelper(page);
-    const uiHelper = new UiHelper(page);
+    const _uiHelper = new UiHelper(page);
 
     // Step 1: Navigate to register page
     await authHelper.goToRegisterPage();
@@ -39,7 +41,9 @@ test.describe("Onboarding Journey", () => {
     // For testing, we'll proceed with login since the test account may already exist
   });
 
-  test("complete journey: login → see empty state → create first card", async ({ page }) => {
+  test("complete journey: login → see empty state → create first card", async ({
+    page,
+  }) => {
     const authHelper = new AuthHelper(page);
     const uiHelper = new UiHelper(page);
 
@@ -48,18 +52,26 @@ test.describe("Onboarding Journey", () => {
 
     // Step 2: Should see empty state with onboarding message
     await expect(page.getByText(/let's add your first card/i)).toBeVisible();
-    await expect(page.getByText(/start capturing your thoughts/i)).toBeVisible();
+    await expect(
+      page.getByText(/start capturing your thoughts/i)
+    ).toBeVisible();
 
     // Step 3: Create first card
     const firstCardContent = generateTestContent("First card");
     await uiHelper.createTextCard(firstCardContent);
 
     // Step 4: Empty state should be gone, card should be visible
-    await expect(page.getByText(/let's add your first card/i)).not.toBeVisible();
-    await expect(page.getByRole("main").getByText(firstCardContent)).toBeVisible();
+    await expect(
+      page.getByText(/let's add your first card/i)
+    ).not.toBeVisible();
+    await expect(
+      page.getByRole("main").getByText(firstCardContent)
+    ).toBeVisible();
   });
 
-  test("complete journey: login → create text card → create link card", async ({ page }) => {
+  test("complete journey: login → create text card → create link card", async ({
+    page,
+  }) => {
     const authHelper = new AuthHelper(page);
     const uiHelper = new UiHelper(page);
 
@@ -85,13 +97,15 @@ test.describe("Onboarding Journey", () => {
     await page.waitForTimeout(2000);
 
     // Verify we have multiple cards now (at least 2)
-    const cardCount = await page.locator('[data-card-id]').count();
+    const cardCount = await page.locator("[data-card-id]").count();
     expect(cardCount).toBeGreaterThanOrEqual(2);
   });
 
-  test("complete journey: new user sees helpful UI elements", async ({ page }) => {
+  test("complete journey: new user sees helpful UI elements", async ({
+    page,
+  }) => {
     const authHelper = new AuthHelper(page);
-    const uiHelper = new UiHelper(page);
+    const _uiHelper = new UiHelper(page);
 
     // Sign in
     await authHelper.signInWithEmailAndPassword(TEST_EMAIL!, TEST_PASSWORD!);
@@ -106,10 +120,14 @@ test.describe("Onboarding Journey", () => {
     await expect(page.getByRole("link", { name: /settings/i })).toBeVisible();
 
     // Check for file upload button
-    await expect(page.getByRole("button", { name: "" }).filter({ hasText: "" }).first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "" }).filter({ hasText: "" }).first()
+    ).toBeVisible();
   });
 
-  test("complete journey: create card using keyboard shortcut", async ({ page }) => {
+  test("complete journey: create card using keyboard shortcut", async ({
+    page,
+  }) => {
     const authHelper = new AuthHelper(page);
     const uiHelper = new UiHelper(page);
 

@@ -5,9 +5,11 @@
  */
 
 import dotenv from "dotenv";
+
 dotenv.config({ path: "../../.env.local" });
 
-const APP_URL = process.env.NEXT_PUBLIC_CONVEX_SITE_URL || "http://localhost:3000";
+const APP_URL =
+  process.env.NEXT_PUBLIC_CONVEX_SITE_URL || "http://localhost:3000";
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 const TEST_EMAIL = "e2e-test@teakvault.local";
 const TEST_PASSWORD = "TestPassword123!";
@@ -40,21 +42,25 @@ async function setupTestUser() {
     }),
   });
 
-  if (!signUpResponse.ok) {
+  if (signUpResponse.ok) {
+    console.log("[setup-test-user] Sign-up successful");
+  } else {
     const errorText = await signUpResponse.text();
     if (signUpResponse.status === 400 || signUpResponse.status === 422) {
       if (errorText.includes("already") || errorText.includes("exists")) {
-        console.log(`[setup-test-user] User already exists, will verify...`);
+        console.log("[setup-test-user] User already exists, will verify...");
       } else {
-        console.log(`[setup-test-user] Sign-up validation failed (${signUpResponse.status}): ${errorText}`);
-        console.log(`[setup-test-user] Continuing to verification step...`);
+        console.log(
+          `[setup-test-user] Sign-up validation failed (${signUpResponse.status}): ${errorText}`
+        );
+        console.log("[setup-test-user] Continuing to verification step...");
       }
     } else {
-      console.error(`[setup-test-user] Sign-up failed (${signUpResponse.status}): ${errorText}`);
+      console.error(
+        `[setup-test-user] Sign-up failed (${signUpResponse.status}): ${errorText}`
+      );
       process.exit(1);
     }
-  } else {
-    console.log(`[setup-test-user] Sign-up successful`);
   }
 
   // Step 2: Mark the user as verified
@@ -68,29 +74,34 @@ async function setupTestUser() {
       body: JSON.stringify({
         email: TEST_EMAIL,
       }),
-    },
+    }
   );
 
   if (!verifyResponse.ok) {
     const errorText = await verifyResponse.text();
-    console.error(`[setup-test-user] Verification failed (${verifyResponse.status}): ${errorText}`);
+    console.error(
+      `[setup-test-user] Verification failed (${verifyResponse.status}): ${errorText}`
+    );
     process.exit(1);
   }
 
-  const result = (await verifyResponse.json()) as { found: boolean; verified: boolean };
+  const result = (await verifyResponse.json()) as {
+    found: boolean;
+    verified: boolean;
+  };
   if (result.found && result.verified) {
-    console.log(`[setup-test-user] Test user verified successfully!`);
+    console.log("[setup-test-user] Test user verified successfully!");
     console.log(`[setup-test-user] Email: ${TEST_EMAIL}`);
     console.log(`[setup-test-user] Password: ${TEST_PASSWORD}`);
   } else if (!result.found) {
-    console.error(`[setup-test-user] User not found after sign-up`);
+    console.error("[setup-test-user] User not found after sign-up");
     process.exit(1);
   }
 
-  console.log(`[setup-test-user] Done!`);
+  console.log("[setup-test-user] Done!");
 }
 
 setupTestUser().catch((error) => {
-  console.error(`[setup-test-user] Error:`, error);
+  console.error("[setup-test-user] Error:", error);
   process.exit(1);
 });

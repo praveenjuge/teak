@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { resolveLinkCategory } from "./linkCategoryResolver";
 
 describe("resolveLinkCategory", () => {
@@ -24,21 +24,27 @@ describe("resolveLinkCategory", () => {
     });
 
     it("should categorize imdb.com as movie", () => {
-      const result = resolveLinkCategory("https://www.imdb.com/title/tt1234567/");
+      const result = resolveLinkCategory(
+        "https://www.imdb.com/title/tt1234567/"
+      );
       expect(result.category).toBe("movie");
       expect(result.reason).toBe("domain_rule");
       expect(result.provider).toBe("imdb");
     });
 
     it("should categorize goodreads.com as book", () => {
-      const result = resolveLinkCategory("https://www.goodreads.com/book/show/123");
+      const result = resolveLinkCategory(
+        "https://www.goodreads.com/book/show/123"
+      );
       expect(result.category).toBe("book");
       expect(result.reason).toBe("domain_rule");
       expect(result.provider).toBe("goodreads");
     });
 
     it("should categorize amazon.com as product", () => {
-      const result = resolveLinkCategory("https://www.amazon.com/dp/B123456789");
+      const result = resolveLinkCategory(
+        "https://www.amazon.com/dp/B123456789"
+      );
       expect(result.category).toBe("product");
       expect(result.reason).toBe("domain_rule");
       expect(result.provider).toBe("amazon");
@@ -80,7 +86,9 @@ describe("resolveLinkCategory", () => {
     });
 
     it("should categorize spotify episode/show as podcast", () => {
-      const result = resolveLinkCategory("https://open.spotify.com/episode/123");
+      const result = resolveLinkCategory(
+        "https://open.spotify.com/episode/123"
+      );
       expect(result.category).toBe("podcast");
       expect(result.reason).toBe("domain_rule");
       expect(result.provider).toBe("spotify");
@@ -110,7 +118,9 @@ describe("resolveLinkCategory", () => {
     it("should handle subdomains", () => {
       // raw.githubusercontent.com becomes githubusercontent.com after stripping subdomains
       // So it doesn't match the github.com domain rule directly
-      const result = resolveLinkCategory("https://raw.githubusercontent.com/user/repo/main/file.js");
+      const result = resolveLinkCategory(
+        "https://raw.githubusercontent.com/user/repo/main/file.js"
+      );
       // It matches "github" provider hint in hostname instead
       expect(result.category).toBe("software");
       expect(result.reason).toBe("provider_mapping");
@@ -119,7 +129,9 @@ describe("resolveLinkCategory", () => {
 
   describe("path-based resolution", () => {
     it("should categorize recipe in path as recipe", () => {
-      const result = resolveLinkCategory("https://example.com/recipes/chocolate-cake");
+      const result = resolveLinkCategory(
+        "https://example.com/recipes/chocolate-cake"
+      );
       expect(result.category).toBe("recipe");
       expect(result.reason).toBe("path_rule");
     });
@@ -139,7 +151,9 @@ describe("resolveLinkCategory", () => {
     });
 
     it("should categorize course in path as course", () => {
-      const result = resolveLinkCategory("https://example.com/courses/javascript-101");
+      const result = resolveLinkCategory(
+        "https://example.com/courses/javascript-101"
+      );
       expect(result.category).toBe("course");
       expect(result.reason).toBe("path_rule");
     });
@@ -151,37 +165,49 @@ describe("resolveLinkCategory", () => {
     });
 
     it("should categorize research in path as research", () => {
-      const result = resolveLinkCategory("https://example.com/research-papers/ai");
+      const result = resolveLinkCategory(
+        "https://example.com/research-papers/ai"
+      );
       expect(result.category).toBe("research");
       expect(result.reason).toBe("path_rule");
     });
 
     it("should categorize event in path as event", () => {
-      const result = resolveLinkCategory("https://example.com/events/2024/conference");
+      const result = resolveLinkCategory(
+        "https://example.com/events/2024/conference"
+      );
       expect(result.category).toBe("event");
       expect(result.reason).toBe("path_rule");
     });
 
     it("should categorize shop in path as product", () => {
-      const result = resolveLinkCategory("https://example.com/shop/products/item");
+      const result = resolveLinkCategory(
+        "https://example.com/shop/products/item"
+      );
       expect(result.category).toBe("product");
       expect(result.reason).toBe("path_rule");
     });
 
     it("should categorize music in path as music", () => {
-      const result = resolveLinkCategory("https://example.com/music/albums/new-release");
+      const result = resolveLinkCategory(
+        "https://example.com/music/albums/new-release"
+      );
       expect(result.category).toBe("music");
       expect(result.reason).toBe("path_rule");
     });
 
     it("should categorize movie in path as movie", () => {
-      const result = resolveLinkCategory("https://example.com/movies/new-release");
+      const result = resolveLinkCategory(
+        "https://example.com/movies/new-release"
+      );
       expect(result.category).toBe("movie");
       expect(result.reason).toBe("path_rule");
     });
 
     it("should categorize series in path as tv", () => {
-      const result = resolveLinkCategory("https://example.com/series/breaking-bad");
+      const result = resolveLinkCategory(
+        "https://example.com/series/breaking-bad"
+      );
       expect(result.category).toBe("tv");
       expect(result.reason).toBe("path_rule");
     });
@@ -189,7 +215,9 @@ describe("resolveLinkCategory", () => {
 
   describe("provider-based resolution", () => {
     it("should match youtube provider in hostname", () => {
-      const result = resolveLinkCategory("https://youtube.not-the-real-domain.com/video");
+      const result = resolveLinkCategory(
+        "https://youtube.not-the-real-domain.com/video"
+      );
       expect(result.category).toBe("tv");
       expect(result.reason).toBe("provider_mapping");
       expect(result.provider).toBe("youtube");
@@ -197,7 +225,9 @@ describe("resolveLinkCategory", () => {
 
     it("should match spotify provider (via path rule for /track/)", () => {
       // /track/ matches the music path rule before provider mapping
-      const result = resolveLinkCategory("https://myspotify.site.com/track/123");
+      const result = resolveLinkCategory(
+        "https://myspotify.site.com/track/123"
+      );
       expect(result.category).toBe("music");
       expect(result.reason).toBe("path_rule"); // path rule takes precedence
       expect(result.provider).toBe("spotify");
@@ -233,25 +263,33 @@ describe("resolveLinkCategory", () => {
     });
 
     it("should detect post in URL as article", () => {
-      const result = resolveLinkCategory("https://example.com/news/important-post");
+      const result = resolveLinkCategory(
+        "https://example.com/news/important-post"
+      );
       expect(result.category).toBe("article");
       expect(result.reason).toBe("heuristic");
     });
 
     it("should detect news in URL as news", () => {
-      const result = resolveLinkCategory("https://example.com/press/announcement");
+      const result = resolveLinkCategory(
+        "https://example.com/press/announcement"
+      );
       expect(result.category).toBe("news");
       expect(result.reason).toBe("heuristic");
     });
 
     it("should detect docs in URL as software", () => {
-      const result = resolveLinkCategory("https://example.com/docs/api/reference");
+      const result = resolveLinkCategory(
+        "https://example.com/docs/api/reference"
+      );
       expect(result.category).toBe("software");
       expect(result.reason).toBe("heuristic");
     });
 
     it("should detect documentation in URL as software", () => {
-      const result = resolveLinkCategory("https://example.com/documentation/getting-started");
+      const result = resolveLinkCategory(
+        "https://example.com/documentation/getting-started"
+      );
       expect(result.category).toBe("software");
       expect(result.reason).toBe("heuristic");
     });
@@ -281,7 +319,9 @@ describe("resolveLinkCategory", () => {
 
   describe("fallback", () => {
     it("should return other for unknown URLs", () => {
-      const result = resolveLinkCategory("https://unknown-domain-12345.com/page");
+      const result = resolveLinkCategory(
+        "https://unknown-domain-12345.com/page"
+      );
       expect(result.category).toBe("other");
       expect(result.reason).toBe("fallback");
       expect(result.confidence).toBeLessThan(0.5);
@@ -303,7 +343,9 @@ describe("resolveLinkCategory", () => {
   describe("priority order", () => {
     it("should prioritize domain rule over path rule", () => {
       // github.com is a domain rule for software, /docs would be a path rule
-      const result = resolveLinkCategory("https://github.com/user/repo/wiki/docs");
+      const result = resolveLinkCategory(
+        "https://github.com/user/repo/wiki/docs"
+      );
       expect(result.category).toBe("software");
       expect(result.reason).toBe("domain_rule");
     });

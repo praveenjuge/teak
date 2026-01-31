@@ -3,7 +3,7 @@
 // This file is kept minimal in case future features require content script functionality
 
 export default defineContentScript({
-  matches: ['<all_urls>'],
+  matches: ["<all_urls>"],
   main() {
     // No context menu handling needed here anymore
   },

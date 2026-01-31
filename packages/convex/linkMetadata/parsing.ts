@@ -1,9 +1,3 @@
-import type {
-  ScrapeResultItem,
-  ScrapeSelectorResult,
-  LinkPreviewMetadata,
-  SelectorSource,
-} from "./types";
 import {
   AUTHOR_SOURCES,
   CANONICAL_SOURCES,
@@ -16,8 +10,12 @@ import {
   SITE_NAME_SOURCES,
   TITLE_SOURCES,
 } from "./selectors";
-
-
+import type {
+  LinkPreviewMetadata,
+  ScrapeResultItem,
+  ScrapeSelectorResult,
+  SelectorSource,
+} from "./types";
 
 export const toSelectorMap = (
   results?: ScrapeSelectorResult[]
@@ -40,7 +38,9 @@ export const findAttributeValue = (
     return undefined;
   }
   const needle = attribute.toLowerCase();
-  const match = item.attributes.find((attr) => attr.name?.toLowerCase() === needle);
+  const match = item.attributes.find(
+    (attr) => attr.name?.toLowerCase() === needle
+  );
   return match?.value?.trim() || undefined;
 };
 
@@ -83,7 +83,10 @@ export const firstFromSources = (
   return undefined;
 };
 
-export const sanitizeText = (value: string | undefined, maxLength: number): string | undefined => {
+export const sanitizeText = (
+  value: string | undefined,
+  maxLength: number
+): string | undefined => {
   if (!value) {
     return undefined;
   }
@@ -130,7 +133,10 @@ export const sanitizeUrl = (
   }
 };
 
-export const sanitizeImageUrl = (baseUrl: string, value: string | undefined): string | undefined => {
+export const sanitizeImageUrl = (
+  baseUrl: string,
+  value: string | undefined
+): string | undefined => {
   if (!value) {
     return undefined;
   }
@@ -163,16 +169,42 @@ export const parseLinkPreview = (
   const selectorMap = toSelectorMap(results);
 
   const title = sanitizeText(firstFromSources(selectorMap, TITLE_SOURCES), 512);
-  const description = sanitizeText(firstFromSources(selectorMap, DESCRIPTION_SOURCES), 2048);
-  const imageUrl = sanitizeImageUrl(normalizedUrl, firstFromSources(selectorMap, IMAGE_SOURCES));
-  const faviconUrl = sanitizeUrl(normalizedUrl, firstFromSources(selectorMap, FAVICON_SOURCES));
-  const siteName = sanitizeText(firstFromSources(selectorMap, SITE_NAME_SOURCES), 256);
-  const author = sanitizeText(firstFromSources(selectorMap, AUTHOR_SOURCES), 256);
-  const publisher = sanitizeText(firstFromSources(selectorMap, PUBLISHER_SOURCES), 256);
+  const description = sanitizeText(
+    firstFromSources(selectorMap, DESCRIPTION_SOURCES),
+    2048
+  );
+  const imageUrl = sanitizeImageUrl(
+    normalizedUrl,
+    firstFromSources(selectorMap, IMAGE_SOURCES)
+  );
+  const faviconUrl = sanitizeUrl(
+    normalizedUrl,
+    firstFromSources(selectorMap, FAVICON_SOURCES)
+  );
+  const siteName = sanitizeText(
+    firstFromSources(selectorMap, SITE_NAME_SOURCES),
+    256
+  );
+  const author = sanitizeText(
+    firstFromSources(selectorMap, AUTHOR_SOURCES),
+    256
+  );
+  const publisher = sanitizeText(
+    firstFromSources(selectorMap, PUBLISHER_SOURCES),
+    256
+  );
   const publishedAtRaw = firstFromSources(selectorMap, PUBLISHED_TIME_SOURCES);
-  const publishedAt = publishedAtRaw ? publishedAtRaw.trim().slice(0, 128) : undefined;
-  const canonicalUrl = sanitizeUrl(normalizedUrl, firstFromSources(selectorMap, CANONICAL_SOURCES));
-  const finalUrlCandidate = sanitizeUrl(normalizedUrl, firstFromSources(selectorMap, FINAL_URL_SOURCES));
+  const publishedAt = publishedAtRaw
+    ? publishedAtRaw.trim().slice(0, 128)
+    : undefined;
+  const canonicalUrl = sanitizeUrl(
+    normalizedUrl,
+    firstFromSources(selectorMap, CANONICAL_SOURCES)
+  );
+  const finalUrlCandidate = sanitizeUrl(
+    normalizedUrl,
+    firstFromSources(selectorMap, FINAL_URL_SOURCES)
+  );
 
   return {
     title,
@@ -207,7 +239,10 @@ export const buildErrorPreview = (
     message?: string;
     details?: any;
   },
-  extras?: Pick<LinkPreviewMetadata, "screenshotStorageId" | "screenshotUpdatedAt">
+  extras?: Pick<
+    LinkPreviewMetadata,
+    "screenshotStorageId" | "screenshotUpdatedAt"
+  >
 ): LinkPreviewMetadata => ({
   source: "kernel_playwright",
   status: "error",
@@ -216,9 +251,9 @@ export const buildErrorPreview = (
   finalUrl: url,
   ...(extras?.screenshotStorageId
     ? {
-      screenshotStorageId: extras.screenshotStorageId,
-      screenshotUpdatedAt: extras.screenshotUpdatedAt,
-    }
+        screenshotStorageId: extras.screenshotStorageId,
+        screenshotUpdatedAt: extras.screenshotUpdatedAt,
+      }
     : {}),
   error,
 });

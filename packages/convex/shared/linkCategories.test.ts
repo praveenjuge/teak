@@ -1,11 +1,10 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
   LINK_CATEGORIES,
-  LINK_CATEGORY_LABELS,
-  LINK_CATEGORY_ICONS,
-  normalizeLinkCategory,
   LINK_CATEGORY_DEFAULT_CONFIDENCE,
-  type LinkCategory,
+  LINK_CATEGORY_ICONS,
+  LINK_CATEGORY_LABELS,
+  normalizeLinkCategory,
 } from "./linkCategories";
 
 describe("LINK_CATEGORIES", () => {
@@ -60,7 +59,9 @@ describe("LINK_CATEGORY_LABELS", () => {
     expect(LINK_CATEGORY_LABELS.book).toBe("Book / eBook");
     expect(LINK_CATEGORY_LABELS.movie).toBe("Movie / Film");
     expect(LINK_CATEGORY_LABELS.tv).toBe("TV Show / Series");
-    expect(LINK_CATEGORY_LABELS.software).toBe("Software / App / GitHub Project");
+    expect(LINK_CATEGORY_LABELS.software).toBe(
+      "Software / App / GitHub Project"
+    );
   });
 });
 
@@ -131,7 +132,9 @@ describe("normalizeLinkCategory", () => {
     expect(normalizeLinkCategory("design_portfolio")).toBe("design_portfolio");
     expect(normalizeLinkCategory("design portfolio")).toBe("design_portfolio");
     expect(normalizeLinkCategory("design-portfolio")).toBe("design_portfolio");
-    expect(normalizeLinkCategory("design---portfolio")).toBe("design_portfolio");
+    expect(normalizeLinkCategory("design---portfolio")).toBe(
+      "design_portfolio"
+    );
   });
 
   it("should normalize all category labels", () => {

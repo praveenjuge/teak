@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, test, expect, mock } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 
 describe("Content Script", () => {
   describe("Content Script Registration", () => {
@@ -10,7 +10,7 @@ describe("Content Script", () => {
     });
 
     test("should have main function defined", () => {
-      const mainFunction = function () {
+      const mainFunction = () => {
         // No context menu handling needed here anymore
       };
 
@@ -31,14 +31,18 @@ describe("Content Script", () => {
   describe("Content Script Injection", () => {
     test("should be injectable into http pages", () => {
       const url = "http://example.com";
-      const canInject = !url.startsWith("chrome://") && !url.startsWith("about:");
+      const canInject = !(
+        url.startsWith("chrome://") || url.startsWith("about:")
+      );
 
       expect(canInject).toBe(true);
     });
 
     test("should be injectable into https pages", () => {
       const url = "https://example.com";
-      const canInject = !url.startsWith("chrome://") && !url.startsWith("about:");
+      const canInject = !(
+        url.startsWith("chrome://") || url.startsWith("about:")
+      );
 
       expect(canInject).toBe(true);
     });

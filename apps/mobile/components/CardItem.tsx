@@ -1,26 +1,28 @@
-import { memo, useMemo, useState, type ReactNode } from "react";
-import { Alert, Image as RNImage, Platform } from "react-native";
 import {
-  HStack,
-  VStack,
-  Text,
-  Image,
-  Spacer,
-  RoundedRectangle,
-  ContextMenu,
   Button,
+  ContextMenu,
+  HStack,
+  Image,
+  RoundedRectangle,
+  Spacer,
+  Text,
+  VStack,
 } from "@expo/ui/swift-ui";
 import {
-  frame,
   cornerRadius,
   foregroundStyle,
+  frame,
 } from "@expo/ui/swift-ui/modifiers";
+import type { Doc } from "@teak/convex/_generated/dataModel";
 import * as Clipboard from "expo-clipboard";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
-import type { Doc } from "@teak/convex/_generated/dataModel";
+import { memo, type ReactNode, useMemo, useState } from "react";
+import { Alert, Platform, Image as RNImage } from "react-native";
 import { colors } from "@/constants/colors";
 import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
+
+const WWW_PREFIX_REGEX = /^www\./;
 
 type Card = Doc<"cards"> & {
   fileUrl?: string;
@@ -37,21 +39,21 @@ const iconModifiers = [frame({ width: 28, height: 28 })];
 
 const leadingIcon = (systemName: string) => (
   <Image
-    systemName={systemName as any}
-    size={16}
-    modifiers={iconModifiers}
     color="secondary"
+    modifiers={iconModifiers}
+    size={16}
+    systemName={systemName as any}
   />
 );
 
-type RowProps = {
+interface RowProps {
   leading?: ReactNode;
   content: ReactNode;
   trailing?: ReactNode;
   onPress?: () => void;
   onDelete?: () => void;
   contextItems?: ReactNode[];
-};
+}
 
 const Row = ({
   leading,
@@ -64,12 +66,12 @@ const Row = ({
   <ContextMenu activationMethod="longPress">
     <ContextMenu.Items>
       {contextItems}
-      <Button role="destructive" systemImage="trash" onPress={onDelete}>
+      <Button onPress={onDelete} systemImage="trash">
         Delete
       </Button>
     </ContextMenu.Items>
     <ContextMenu.Trigger>
-      <HStack spacing={12} onPress={onPress}>
+      <HStack onPress={onPress} spacing={12}>
         {leading}
         {content}
         <Spacer />
@@ -87,10 +89,10 @@ const Favicon = ({ url }: { url?: string }) => {
     <VStack alignment="center" modifiers={[frame({ width: 28, height: 28 })]}>
       {showFallback ? (
         <Image
-          systemName="globe"
-          size={18}
-          modifiers={[frame({ width: 28, height: 28 })]}
           color="secondary"
+          modifiers={[frame({ width: 28, height: 28 })]}
+          size={18}
+          systemName="globe"
         />
       ) : (
         <HStack
@@ -98,13 +100,13 @@ const Favicon = ({ url }: { url?: string }) => {
           modifiers={[frame({ width: 20, height: 20 })]}
         >
           <RNImage
+            onError={() => setHasError(true)}
+            resizeMode="cover"
             source={{ uri: url }}
             style={{
               width: 20,
               height: 20,
             }}
-            resizeMode="cover"
-            onError={() => setHasError(true)}
           />
         </HStack>
       )}
@@ -126,21 +128,32 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
   const cardActions = useCardActions();
 
   const handleCopy = async (value?: string | null) => {
-    if (!value) return;
+    if (!value) {
+      return;
+    }
     try {
       await Clipboard.setStringAsync(value);
     } catch (error) {
-      console.warn("Failed to copy content:", error instanceof Error ? error.message : error);
+      console.warn(
+        "Failed to copy content:",
+        error instanceof Error ? error.message : error
+      );
     }
   };
 
   const buildFileName = (url?: string | null, fallback?: string) => {
-    if (fallback) return fallback;
-    if (!url) return `download-${Date.now()}`;
+    if (fallback) {
+      return fallback;
+    }
+    if (!url) {
+      return `download-${Date.now()}`;
+    }
     try {
       const parsed = new URL(url);
       const lastSegment = parsed.pathname.split("/").filter(Boolean).pop();
-      if (lastSegment) return lastSegment;
+      if (lastSegment) {
+        return lastSegment;
+      }
     } catch {
       // Ignore parse errors.
     }
@@ -148,7 +161,9 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
   };
 
   const handleDownload = async (url?: string | null, fileName?: string) => {
-    if (!url) return;
+    if (!url) {
+      return;
+    }
     try {
       const name = buildFileName(url, fileName);
 
@@ -172,11 +187,13 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
       // User cancelled sharing or actual error
       if (
         !(
-          error instanceof Error &&
-          error.message.includes("User did not share")
+          error instanceof Error && error.message.includes("User did not share")
         )
       ) {
-        console.warn("Failed to download file:", error instanceof Error ? error.message : error);
+        console.warn(
+          "Failed to download file:",
+          error instanceof Error ? error.message : error
+        );
         Alert.alert("Download Failed", "Unable to download this file.");
       }
     }
@@ -194,7 +211,10 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
       case "mp4":
         return { UTI: "public.mpeg-4", mimeType: "video/mp4" };
       case "mov":
-        return { UTI: "com.apple.quicktime-movie", mimeType: "video/quicktime" };
+        return {
+          UTI: "com.apple.quicktime-movie",
+          mimeType: "video/quicktime",
+        };
       case "png":
         return { UTI: "public.png", mimeType: "image/png" };
       case "jpg":
@@ -212,7 +232,9 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
   };
 
   const handleShareText = async (value?: string | null, name?: string) => {
-    if (!value) return;
+    if (!value) {
+      return;
+    }
     try {
       const fileName = name ? `${name}.txt` : `teak-share-${Date.now()}.txt`;
       const destination = `${FileSystem.cacheDirectory ?? ""}${fileName}`;
@@ -223,12 +245,17 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
         Alert.alert("Sharing Unavailable", "Sharing is not available here.");
       }
     } catch (error) {
-      console.warn("Failed to share text:", error instanceof Error ? error.message : error);
+      console.warn(
+        "Failed to share text:",
+        error instanceof Error ? error.message : error
+      );
     }
   };
 
   const handleShareFromUrl = async (url?: string | null, name?: string) => {
-    if (!url) return;
+    if (!url) {
+      return;
+    }
     try {
       const fileName = buildFileName(url, name);
       const destination = `${FileSystem.cacheDirectory ?? ""}${fileName}`;
@@ -239,7 +266,10 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
         Alert.alert("Sharing Unavailable", "Sharing is not available here.");
       }
     } catch (error) {
-      console.warn("Failed to share file:", error instanceof Error ? error.message : error);
+      console.warn(
+        "Failed to share file:",
+        error instanceof Error ? error.message : error
+      );
     }
   };
 
@@ -255,10 +285,12 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
   };
 
   const linkMeta = useMemo(() => {
-    if (!card.url) return null;
+    if (!card.url) {
+      return null;
+    }
     try {
       const parsed = new URL(card.url);
-      const hostname = parsed.hostname.replace(/^www\./, "");
+      const hostname = parsed.hostname.replace(WWW_PREFIX_REGEX, "");
       return {
         hostname,
         favicon: `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`,
@@ -278,23 +310,27 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
     contextItems?: ReactNode[]
   ) => (
     <Row
-      leading={leading}
       content={content}
-      trailing={trailing}
-      onPress={onPress}
-      onDelete={handleDelete}
       contextItems={contextItems}
+      leading={leading}
+      onDelete={handleDelete}
+      onPress={onPress}
+      trailing={trailing}
     />
   );
 
   const renderContent = () => {
-    const downloadItem = (url?: string | null, key = "download", name?: string) =>
+    const downloadItem = (
+      url?: string | null,
+      key = "download",
+      name?: string
+    ) =>
       url
         ? [
             <Button
               key={key}
-              systemImage="arrow.down.circle"
               onPress={() => void handleDownload(url, name)}
+              systemImage="arrow.down.circle"
             >
               Download
             </Button>,
@@ -303,7 +339,9 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
 
     switch (card.type) {
       case "link": {
-        if (!card.url) return null;
+        if (!card.url) {
+          return null;
+        }
         const linkTitle =
           card.metadata?.linkPreview?.status === "success"
             ? card.metadata.linkPreview.title || card.url
@@ -316,17 +354,17 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
           [
             <Button
               key="copy-link"
-              systemImage="doc.on.doc"
               onPress={() => void handleCopy(card.url)}
+              systemImage="doc.on.doc"
             >
               Copy Link
             </Button>,
             <Button
               key="share-link"
-              systemImage="square.and.arrow.up"
               onPress={() =>
                 void handleShareText(card.url ?? "", linkMeta?.hostname)
               }
+              systemImage="square.and.arrow.up"
             >
               Share
             </Button>,
@@ -346,8 +384,8 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
             ...downloadItem(documentUrl, "download-document", title),
             <Button
               key="share-document"
-              systemImage="square.and.arrow.up"
               onPress={() => void handleShareFromUrl(documentUrl, title)}
+              systemImage="square.and.arrow.up"
             >
               Share
             </Button>,
@@ -372,13 +410,13 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
             ),
             <Button
               key="share-audio"
-              systemImage="square.and.arrow.up"
               onPress={() =>
                 void handleShareFromUrl(
                   card.fileUrl,
                   card.fileMetadata?.fileName ?? "audio"
                 )
               }
+              systemImage="square.and.arrow.up"
             >
               Share
             </Button>,
@@ -396,9 +434,9 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
           <PreviewBox>
             {mediaUrl ? (
               <RNImage
+                resizeMode="cover"
                 source={{ uri: mediaUrl }}
                 style={{ width: 28, height: 28 }}
-                resizeMode="cover"
               />
             ) : (
               leadingIcon("photo")
@@ -409,10 +447,10 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
             ...downloadItem(imageDownloadUrl, "download-image", imageTitle),
             <Button
               key="share-image"
-              systemImage="square.and.arrow.up"
               onPress={() =>
                 void handleShareFromUrl(imageDownloadUrl, imageTitle)
               }
+              systemImage="square.and.arrow.up"
             >
               Share
             </Button>,
@@ -433,10 +471,10 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
             ...downloadItem(videoDownloadUrl, "download-video", videoTitle),
             <Button
               key="share-video"
-              systemImage="square.and.arrow.up"
               onPress={() =>
                 void handleShareFromUrl(videoDownloadUrl, videoTitle)
               }
+              systemImage="square.and.arrow.up"
             >
               Share
             </Button>,
@@ -459,24 +497,24 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
           [
             <Button
               key="copy-palette"
-              systemImage="doc.on.doc"
               onPress={() =>
                 void handleCopy(
                   card.colors?.map((color) => color.hex).join(", ") ?? ""
                 )
               }
+              systemImage="doc.on.doc"
             >
               Copy Palette
             </Button>,
             <Button
               key="share-palette"
-              systemImage="square.and.arrow.up"
               onPress={() =>
                 void handleShareText(
                   card.colors?.map((color) => color.hex).join(", ") ?? "",
                   "palette"
                 )
               }
+              systemImage="square.and.arrow.up"
             >
               Share
             </Button>,
@@ -493,15 +531,15 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
           [
             <Button
               key="copy-quote"
-              systemImage="doc.on.doc"
               onPress={() => void handleCopy(textContent)}
+              systemImage="doc.on.doc"
             >
               Copy Quote
             </Button>,
             <Button
               key="share-quote"
-              systemImage="square.and.arrow.up"
               onPress={() => void handleShareText(textContent, "quote")}
+              systemImage="square.and.arrow.up"
             >
               Share
             </Button>,
@@ -518,15 +556,15 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
           [
             <Button
               key="copy-text"
-              systemImage="doc.on.doc"
               onPress={() => void handleCopy(textContent)}
+              systemImage="doc.on.doc"
             >
               Copy Text
             </Button>,
             <Button
               key="share-text"
-              systemImage="square.and.arrow.up"
               onPress={() => void handleShareText(textContent, "note")}
+              systemImage="square.and.arrow.up"
             >
               Share
             </Button>,

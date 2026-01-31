@@ -1,9 +1,9 @@
-import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
+import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { colors } from "@/constants/colors";
 
 export default function TabLayout() {
   return (
-    <NativeTabs tintColor={colors.primary} iconColor={colors.primary}>
+    <NativeTabs iconColor={colors.primary} tintColor={colors.primary}>
       <NativeTabs.Trigger name="(home)">
         <Label>Home</Label>
         <Icon sf={{ default: "house", selected: "house.fill" }} />

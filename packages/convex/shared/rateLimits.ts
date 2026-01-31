@@ -1,4 +1,4 @@
-import { RateLimiter, MINUTE } from "@convex-dev/ratelimiter";
+import { MINUTE, RateLimiter } from "@convex-dev/ratelimiter";
 import { components } from "../_generated/api";
 
 /**

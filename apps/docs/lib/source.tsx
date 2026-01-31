@@ -1,13 +1,13 @@
+import { changelog, docs } from "fumadocs-mdx:collections/server";
 import { loader } from "fumadocs-core/source";
-import { docs, changelog } from "fumadocs-mdx:collections/server";
 import {
   BookOpen,
   Code,
-  Sparkles,
-  Settings,
-  Shield,
   FileText,
   HelpCircle,
+  Settings,
+  Shield,
+  Sparkles,
 } from "lucide-react";
 
 const iconMap = {
@@ -34,5 +34,5 @@ export const source = loader({
   },
 });
 
-// Export changelog collection directly for use in changelog page
-export { changelog };
+// Export changelog collection for use in changelog page
+export const changelogCollection = changelog;

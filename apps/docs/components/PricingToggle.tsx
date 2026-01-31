@@ -19,25 +19,27 @@ export function PricingToggle({
   };
 
   return (
-    <div className="flex items-center justify-center mb-8">
+    <div className="mb-8 flex items-center justify-center">
       <div className="relative inline-flex rounded-lg border bg-muted p-px">
         <button
-          onClick={() => handleToggle(false)}
-          className={`relative px-4 py-1.5 font-medium rounded-md ${
-            !isYearly
-              ? "bg-background text-foreground border"
-              : "text-muted-foreground hover:text-foreground"
+          className={`relative rounded-md px-4 py-1.5 font-medium ${
+            isYearly
+              ? "text-muted-foreground hover:text-foreground"
+              : "border bg-background text-foreground"
           }`}
+          onClick={() => handleToggle(false)}
+          type="button"
         >
           Monthly
         </button>
         <button
-          onClick={() => handleToggle(true)}
-          className={`relative px-4 py-1.5 font-medium rounded-md ${
+          className={`relative rounded-md px-4 py-1.5 font-medium ${
             isYearly
-              ? "bg-background text-foreground border"
+              ? "border bg-background text-foreground"
               : "text-muted-foreground hover:text-foreground"
           }`}
+          onClick={() => handleToggle(true)}
+          type="button"
         >
           Yearly
         </button>

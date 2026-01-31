@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, expect, test, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 const buildQuery = (cards: any[]) => ({
   withIndex: mock().mockImplementation(() => buildQuery(cards)),
@@ -18,7 +18,9 @@ describe("card/getCard.ts", () => {
   });
 
   test("getCard returns null when unauthenticated", async () => {
-    const ctx = { auth: { getUserIdentity: mock().mockResolvedValue(null) } } as any;
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue(null) },
+    } as any;
     const handler = (getCard as any).handler ?? getCard;
     const result = await handler(ctx, { id: "c1" });
     expect(result).toBeNull();
@@ -57,7 +59,13 @@ describe("card/getCard.ts", () => {
 
   test("getDeletedCards returns deleted list", async () => {
     const cards = [
-      { _id: "c1", _creationTime: 1, userId: "u1", type: "text", content: "Hi" },
+      {
+        _id: "c1",
+        _creationTime: 1,
+        userId: "u1",
+        type: "text",
+        content: "Hi",
+      },
     ];
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },

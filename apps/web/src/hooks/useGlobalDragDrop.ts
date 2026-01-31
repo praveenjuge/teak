@@ -1,13 +1,13 @@
-import { useCallback, useState } from "react";
-import { useDropzone } from "react-dropzone";
-import { useFileUpload } from "@/hooks/useFileUpload";
+import * as Sentry from "@sentry/nextjs";
 import {
   CARD_ERROR_CODES,
   type UploadMultipleFilesResultItem,
 } from "@teak/convex/shared";
-import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import * as Sentry from "@sentry/nextjs";
+import { useCallback, useState } from "react";
+import { useDropzone } from "react-dropzone";
+import { toast } from "sonner";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import { metrics } from "@/lib/metrics";
 
 export interface DragDropState {
@@ -47,7 +47,9 @@ export function useGlobalDragDrop() {
       const results = await uploadMultipleFiles(acceptedFiles);
 
       // Track overall drag/drop operation
-      const successCount = results.filter((r: UploadMultipleFilesResultItem) => r.success).length;
+      const successCount = results.filter(
+        (r: UploadMultipleFilesResultItem) => r.success
+      ).length;
       const failureCount = results.length - successCount;
 
       metrics.dragDropPerformed(

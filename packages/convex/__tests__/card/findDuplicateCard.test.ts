@@ -1,15 +1,18 @@
 // @ts-nocheck
-import { describe, expect, test, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 describe("card/findDuplicateCard.ts", () => {
   let findDuplicateCard: any;
 
   beforeEach(async () => {
-    findDuplicateCard = (await import("../../card/findDuplicateCard")).findDuplicateCard;
+    findDuplicateCard = (await import("../../card/findDuplicateCard"))
+      .findDuplicateCard;
   });
 
   test("returns null when unauthenticated", async () => {
-    const ctx = { auth: { getUserIdentity: mock().mockResolvedValue(null) } } as any;
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue(null) },
+    } as any;
     const handler = (findDuplicateCard as any).handler ?? findDuplicateCard;
     const result = await handler(ctx, { url: "https://example.com" });
     expect(result).toBeNull();

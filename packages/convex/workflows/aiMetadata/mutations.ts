@@ -25,11 +25,7 @@ export const resetCardAI = internalMutation({
   args: {
     cardId: v.id("cards"),
     metadataStatus: v.optional(
-      v.union(
-        v.literal("pending"),
-        v.literal("completed"),
-        v.literal("failed"),
-      ),
+      v.union(v.literal("pending"), v.literal("completed"), v.literal("failed"))
     ),
   },
   handler: async (ctx, { cardId, metadataStatus }) => {

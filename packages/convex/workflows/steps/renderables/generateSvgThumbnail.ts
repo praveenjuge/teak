@@ -1,9 +1,9 @@
 "use node";
 
 import Kernel from "@onkernel/sdk";
+import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
-import { v } from "convex/values";
 
 // Maximum thumbnail dimensions - matches image thumbnail settings
 const THUMBNAIL_MAX_WIDTH = 500;
@@ -23,7 +23,9 @@ async function fetchSvgAsDataUrl(svgStorageUrl: string): Promise<string> {
   const svgText = await response.text();
 
   // Ensure it's actually an SVG
-  if (!svgText.trim().startsWith("<svg") && !svgText.trim().startsWith("<?xml")) {
+  if (
+    !(svgText.trim().startsWith("<svg") || svgText.trim().startsWith("<?xml"))
+  ) {
     throw new Error("Fetched content is not a valid SVG");
   }
 
@@ -36,7 +38,9 @@ async function fetchSvgAsDataUrl(svgStorageUrl: string): Promise<string> {
  * Extract dimensions from SVG content
  * Returns undefined if dimensions can't be determined
  */
-function extractSvgDimensions(svgContent: string): { width: number; height: number } | undefined {
+function extractSvgDimensions(
+  svgContent: string
+): { width: number; height: number } | undefined {
   // Try to extract width and height from SVG attributes
   const widthMatch = svgContent.match(/width=["']([^"']+)["']/i);
   const heightMatch = svgContent.match(/height=["']([^"']+)["']/i);
@@ -46,13 +50,13 @@ function extractSvgDimensions(svgContent: string): { width: number; height: numb
   let height: number | undefined;
 
   if (widthMatch && heightMatch) {
-    width = parseFloat(widthMatch[1]);
-    height = parseFloat(heightMatch[1]);
+    width = Number.parseFloat(widthMatch[1]);
+    height = Number.parseFloat(heightMatch[1]);
   } else if (viewBoxMatch) {
     const viewBoxParts = viewBoxMatch[1].split(/\s+/);
     if (viewBoxParts.length === 4) {
-      width = parseFloat(viewBoxParts[2]);
-      height = parseFloat(viewBoxParts[3]);
+      width = Number.parseFloat(viewBoxParts[2]);
+      height = Number.parseFloat(viewBoxParts[3]);
     }
   }
 
@@ -136,9 +140,7 @@ export const generateSvgThumbnail = internalAction({
         };
       }
 
-      console.log(
-        `[renderables/svg] Processing SVG for card ${args.cardId}`
-      );
+      console.log(`[renderables/svg] Processing SVG for card ${args.cardId}`);
 
       // Fetch SVG content and convert to data URL (bypasses CORS issues)
       let svgDataUrl: string;
@@ -164,7 +166,8 @@ export const generateSvgThumbnail = internalAction({
         return {
           success: false,
           generated: false,
-          error: fetchError instanceof Error ? fetchError.message : "fetch_failed",
+          error:
+            fetchError instanceof Error ? fetchError.message : "fetch_failed",
         };
       }
 
@@ -179,7 +182,9 @@ export const generateSvgThumbnail = internalAction({
         });
 
         // Escape the data URL for use in the code string
-        const escapedDataUrl = svgDataUrl.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        const escapedDataUrl = svgDataUrl
+          .replace(/\\/g, "\\\\")
+          .replace(/'/g, "\\'");
 
         // Execute Playwright code to render SVG and convert to PNG
         const response = await kernel.browsers.playwright.execute(
@@ -296,7 +301,7 @@ export const generateSvgThumbnail = internalAction({
           }
         );
 
-        if (!response.success || !response.result) {
+        if (!(response.success && response.result)) {
           console.error(
             `[renderables/svg] Kernel Playwright execution failed for card ${args.cardId}:`,
             response.error
@@ -335,8 +340,10 @@ export const generateSvgThumbnail = internalAction({
         const thumbnailId = await ctx.storage.store(thumbnailBlob);
 
         // Use extracted dimensions or fall back to rendered dimensions
-        const finalOriginalWidth = originalWidth ?? (result.originalWidth as number | undefined);
-        const finalOriginalHeight = originalHeight ?? (result.originalHeight as number | undefined);
+        const finalOriginalWidth =
+          originalWidth ?? (result.originalWidth as number | undefined);
+        const finalOriginalHeight =
+          originalHeight ?? (result.originalHeight as number | undefined);
 
         // Update the card with the thumbnail and original dimensions
         await ctx.runMutation(
@@ -344,8 +351,12 @@ export const generateSvgThumbnail = internalAction({
           {
             cardId: args.cardId,
             thumbnailId,
-            ...(finalOriginalWidth !== undefined && { originalWidth: finalOriginalWidth }),
-            ...(finalOriginalHeight !== undefined && { originalHeight: finalOriginalHeight }),
+            ...(finalOriginalWidth !== undefined && {
+              originalWidth: finalOriginalWidth,
+            }),
+            ...(finalOriginalHeight !== undefined && {
+              originalHeight: finalOriginalHeight,
+            }),
           }
         );
 
@@ -365,7 +376,7 @@ export const generateSvgThumbnail = internalAction({
             await kernel.browsers.deleteByID(kernelBrowser.session_id);
           } catch (cleanupError) {
             console.warn(
-              `[renderables/svg] Failed to cleanup browser session:`,
+              "[renderables/svg] Failed to cleanup browser session:",
               cleanupError
             );
           }
@@ -400,7 +411,8 @@ export const manualTriggerSvgThumbnail = internalAction({
   handler: async (ctx, args) => {
     try {
       const result = await ctx.runAction(
-        internal.workflows.steps.renderables.generateSvgThumbnail.generateSvgThumbnail,
+        internal.workflows.steps.renderables.generateSvgThumbnail
+          .generateSvgThumbnail,
         {
           cardId: args.cardId,
         }

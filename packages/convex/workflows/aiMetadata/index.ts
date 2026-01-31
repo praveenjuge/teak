@@ -1,15 +1,17 @@
-import { v } from "convex/values";
 import type { RetryBehavior } from "@convex-dev/workpool";
-import { internalMutation } from "../../_generated/server";
-import { workflow } from "../manager";
+import { v } from "convex/values";
 import { internal } from "../../_generated/api";
-import { cardTypeValidator } from "../../schema";
+import { internalMutation } from "../../_generated/server";
 import type { CardType } from "../../schema";
+import { cardTypeValidator } from "../../schema";
+import { workflow } from "../manager";
 import type { AiMetadataResult, AiMetadataWorkflowArgs } from "./types";
 
 // Typed internal reference map for workflow helpers
 const internalWorkflow = internal as Record<string, any>;
-const aiMetadataInternal = internalWorkflow["workflows/aiMetadata/index"] as Record<string, any> | undefined;
+const aiMetadataInternal = internalWorkflow["workflows/aiMetadata/index"] as
+  | Record<string, any>
+  | undefined;
 
 const METADATA_STEP_RETRY: RetryBehavior = {
   maxAttempts: 8,
@@ -19,7 +21,7 @@ const METADATA_STEP_RETRY: RetryBehavior = {
 
 const resolveCardType = async (
   step: any,
-  args: AiMetadataWorkflowArgs,
+  args: AiMetadataWorkflowArgs
 ): Promise<CardType> => {
   if (args.cardType) {
     return args.cardType;
@@ -27,13 +29,11 @@ const resolveCardType = async (
 
   const card = await step.runQuery(
     internalWorkflow["ai/queries"].getCardForAI,
-    { cardId: args.cardId },
+    { cardId: args.cardId }
   );
 
   if (!card?.type) {
-    throw new Error(
-      `Unable to resolve card type for ${args.cardId}`,
-    );
+    throw new Error(`Unable to resolve card type for ${args.cardId}`);
   }
 
   return card.type as CardType;
@@ -56,7 +56,7 @@ export const aiMetadataWorkflow = workflow.define({
     const result = await step.runAction(
       internalWorkflow["workflows/steps/metadata"].generate,
       { cardId: args.cardId, cardType },
-      { retry: METADATA_STEP_RETRY },
+      { retry: METADATA_STEP_RETRY }
     );
 
     return result;
@@ -75,7 +75,7 @@ export const startAiMetadataWorkflow = internalMutation({
   handler: async (ctx, { cardId, cardType, startAsync }) => {
     if (!aiMetadataInternal) {
       throw new Error(
-        "AI metadata workflow handle not found (expected internal.workflows/aiMetadata/index)",
+        "AI metadata workflow handle not found (expected internal.workflows/aiMetadata/index)"
       );
     }
 
@@ -83,7 +83,7 @@ export const startAiMetadataWorkflow = internalMutation({
       ctx,
       aiMetadataInternal.aiMetadataWorkflow,
       { cardId, cardType: cardType ?? undefined },
-      { startAsync: startAsync ?? false },
+      { startAsync: startAsync ?? false }
     );
 
     return { workflowId };

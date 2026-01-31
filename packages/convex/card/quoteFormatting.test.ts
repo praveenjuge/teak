@@ -1,8 +1,7 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
   normalizeQuoteContent,
   stripSurroundingQuotes,
-  type QuoteNormalizationResult,
 } from "./quoteFormatting";
 
 // Mock Doc type for testing
@@ -148,7 +147,7 @@ describe("normalizeQuoteContent", () => {
     });
 
     it("should remove mixed quote layers", () => {
-      const result = normalizeQuoteContent('\'"Hello world"\'');
+      const result = normalizeQuoteContent("'\"Hello world\"'");
       expect(result.text).toBe("Hello world");
       expect(result.removedQuotes).toBe(true);
     });
@@ -242,7 +241,9 @@ describe("normalizeQuoteContent", () => {
       const result = normalizeQuoteContent(
         '"The only thing we have to fear is fear itself." — FDR'
       );
-      expect(result.text).toBe("The only thing we have to fear is fear itself. — FDR");
+      expect(result.text).toBe(
+        "The only thing we have to fear is fear itself. — FDR"
+      );
       expect(result.removedQuotes).toBe(true);
     });
 

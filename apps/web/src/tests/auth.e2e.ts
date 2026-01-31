@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { AuthHelper, generateTestEmail } from "./test-helpers";
 
 // Get test credentials from environment or use defaults
@@ -8,7 +8,10 @@ const SKIP_AUTH_TESTS = process.env.SKIP_AUTH_TESTS === "true";
 
 test.describe("Authentication Flows", () => {
   // Skip all auth tests if flag is set
-  test.skip(SKIP_AUTH_TESTS, "Authentication tests skipped via SKIP_AUTH_TESTS");
+  test.skip(
+    SKIP_AUTH_TESTS,
+    "Authentication tests skipped via SKIP_AUTH_TESTS"
+  );
 
   test.beforeEach(async ({ page }) => {
     // Clear cookies and localStorage before each test
@@ -18,15 +21,19 @@ test.describe("Authentication Flows", () => {
 
   test.describe("Login Page", () => {
     test("should display login form elements", async ({ page }) => {
-      const authHelper = new AuthHelper(page);
+      const _authHelper = new AuthHelper(page);
 
       // Check that we're on the login page
       await expect(page).toHaveURL(/\/login/);
       await expect(page.getByText("Login to Teak")).toBeVisible();
 
       // Check for social login buttons
-      await expect(page.getByRole("button", { name: /continue with google/i })).toBeVisible();
-      await expect(page.getByRole("button", { name: /continue with apple/i })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /continue with google/i })
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /continue with apple/i })
+      ).toBeVisible();
 
       // Check for email form
       await expect(page.getByLabel("Email")).toBeVisible();
@@ -34,8 +41,12 @@ test.describe("Authentication Flows", () => {
       await expect(page.getByRole("button", { name: /login/i })).toBeVisible();
 
       // Check for footer links
-      await expect(page.getByRole("link", { name: /forgot your password/i })).toBeVisible();
-      await expect(page.getByRole("link", { name: /register with email/i })).toBeVisible();
+      await expect(
+        page.getByRole("link", { name: /forgot your password/i })
+      ).toBeVisible();
+      await expect(
+        page.getByRole("link", { name: /register with email/i })
+      ).toBeVisible();
     });
 
     test("should navigate to register page", async ({ page }) => {
@@ -49,7 +60,9 @@ test.describe("Authentication Flows", () => {
       await expect(page).toHaveURL(/\/forgot-password/);
     });
 
-    test("should show validation error for invalid email format", async ({ page }) => {
+    test("should show validation error for invalid email format", async ({
+      page,
+    }) => {
       await page.getByLabel("Email").fill("invalid-email");
       await page.getByLabel("Password").fill(TEST_PASSWORD);
       await page.getByRole("button", { name: /login/i }).click();
@@ -64,7 +77,9 @@ test.describe("Authentication Flows", () => {
 
       // Check for required attribute validation
       const emailInput = page.getByLabel("Email");
-      const isRequired = await emailInput.evaluate((el) => el.hasAttribute("required"));
+      const isRequired = await emailInput.evaluate((el) =>
+        el.hasAttribute("required")
+      );
       expect(isRequired).toBe(true);
     });
   });
@@ -78,16 +93,24 @@ test.describe("Authentication Flows", () => {
       await expect(page.getByText("Register", { exact: true })).toBeVisible();
 
       // Check for social signup buttons
-      await expect(page.getByRole("button", { name: /continue with google/i })).toBeVisible();
-      await expect(page.getByRole("button", { name: /continue with apple/i })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /continue with google/i })
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /continue with apple/i })
+      ).toBeVisible();
 
       // Check for email form
       await expect(page.getByLabel("Email")).toBeVisible();
       await expect(page.getByLabel("Password")).toBeVisible();
-      await expect(page.getByRole("button", { name: /create an account/i })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /create an account/i })
+      ).toBeVisible();
 
       // Check for link to login
-      await expect(page.getByRole("link", { name: /already have an account/i })).toBeVisible();
+      await expect(
+        page.getByRole("link", { name: /already have an account/i })
+      ).toBeVisible();
     });
 
     test("should validate password minimum length", async ({ page }) => {
@@ -97,22 +120,30 @@ test.describe("Authentication Flows", () => {
       await page.getByLabel("Password").fill("short"); // Less than 8 characters
 
       // Button should be disabled
-      await expect(page.getByRole("button", { name: /create an account/i })).toBeDisabled();
+      await expect(
+        page.getByRole("button", { name: /create an account/i })
+      ).toBeDisabled();
     });
 
-    test("should enable submit button with valid password", async ({ page }) => {
+    test("should enable submit button with valid password", async ({
+      page,
+    }) => {
       await page.goto("/register");
 
       await page.getByLabel("Email").fill(TEST_EMAIL);
       await page.getByLabel("Password").fill(TEST_PASSWORD);
 
       // Button should be enabled
-      await expect(page.getByRole("button", { name: /create an account/i })).toBeEnabled();
+      await expect(
+        page.getByRole("button", { name: /create an account/i })
+      ).toBeEnabled();
     });
 
     test("should navigate back to login page", async ({ page }) => {
       await page.goto("/register");
-      await page.getByRole("link", { name: /already have an account/i }).click();
+      await page
+        .getByRole("link", { name: /already have an account/i })
+        .click();
       await expect(page).toHaveURL(/\/login/);
     });
 
@@ -124,14 +155,19 @@ test.describe("Authentication Flows", () => {
       await passwordInput.blur(); // Trigger validation
 
       // Should show error message
-      await expect(page.getByText(/password must be at least 8 characters/i)).toBeVisible();
+      await expect(
+        page.getByText(/password must be at least 8 characters/i)
+      ).toBeVisible();
       await expect(passwordInput).toHaveClass(/border-destructive/);
     });
   });
 
   test.describe("Email Authentication", () => {
     test.skip(
-      !process.env.E2E_BETTER_AUTH_USER_EMAIL || !process.env.E2E_BETTER_AUTH_USER_PASSWORD,
+      !(
+        process.env.E2E_BETTER_AUTH_USER_EMAIL &&
+        process.env.E2E_BETTER_AUTH_USER_PASSWORD
+      ),
       "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run email auth tests."
     );
 
@@ -141,13 +177,19 @@ test.describe("Authentication Flows", () => {
       const authHelper = new AuthHelper(page);
 
       // Sign up will create the user if they don't exist, or sign in if they do
-      await authHelper.signUpWithEmailAndPassword(email, password, "E2E Test User");
+      await authHelper.signUpWithEmailAndPassword(
+        email,
+        password,
+        "E2E Test User"
+      );
 
       // Should be redirected to home page
       await expect(page).toHaveURL("/");
 
       // Check that we're logged in by looking for authenticated content
-      await expect(page.getByPlaceholder("Write or add a link...")).toBeVisible();
+      await expect(
+        page.getByPlaceholder("Write or add a link...")
+      ).toBeVisible();
     });
 
     test("should show error for invalid credentials", async ({ page }) => {
@@ -159,7 +201,9 @@ test.describe("Authentication Flows", () => {
       await page.getByRole("button", { name: /login/i }).click();
 
       // Should show an error message
-      await expect(page.getByText(/invalid email or password/i)).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText(/invalid email or password/i)).toBeVisible({
+        timeout: 5000,
+      });
     });
 
     test("should redirect authenticated users to home", async ({ page }) => {
@@ -168,7 +212,11 @@ test.describe("Authentication Flows", () => {
       const authHelper = new AuthHelper(page);
 
       // First, sign up to create the user
-      await authHelper.signUpWithEmailAndPassword(email, password, "E2E Test User");
+      await authHelper.signUpWithEmailAndPassword(
+        email,
+        password,
+        "E2E Test User"
+      );
 
       // Try to go to login page again
       await page.goto("/login");
@@ -180,7 +228,10 @@ test.describe("Authentication Flows", () => {
 
   test.describe("Sign Out Flow", () => {
     test.skip(
-      !process.env.E2E_BETTER_AUTH_USER_EMAIL || !process.env.E2E_BETTER_AUTH_USER_PASSWORD,
+      !(
+        process.env.E2E_BETTER_AUTH_USER_EMAIL &&
+        process.env.E2E_BETTER_AUTH_USER_PASSWORD
+      ),
       "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run sign out tests."
     );
 
@@ -190,7 +241,11 @@ test.describe("Authentication Flows", () => {
       const authHelper = new AuthHelper(page);
 
       // Sign up first (creates and signs in the user)
-      await authHelper.signUpWithEmailAndPassword(email, password, "E2E Test User");
+      await authHelper.signUpWithEmailAndPassword(
+        email,
+        password,
+        "E2E Test User"
+      );
       await expect(page).toHaveURL("/");
 
       // Sign out
@@ -214,7 +269,9 @@ test.describe("Authentication Flows", () => {
       await expect(page).toHaveURL("/login");
     });
 
-    test("should redirect unauthenticated users from settings", async ({ page }) => {
+    test("should redirect unauthenticated users from settings", async ({
+      page,
+    }) => {
       // Try to access settings page without authentication
       await page.goto("/settings");
 
@@ -236,8 +293,12 @@ test.describe("Authentication Flows", () => {
     test("should show Google and Apple login options", async ({ page }) => {
       await page.goto("/login");
 
-      const googleButton = page.getByRole("button", { name: /continue with google/i });
-      const appleButton = page.getByRole("button", { name: /continue with apple/i });
+      const googleButton = page.getByRole("button", {
+        name: /continue with google/i,
+      });
+      const appleButton = page.getByRole("button", {
+        name: /continue with apple/i,
+      });
 
       await expect(googleButton).toBeVisible();
       await expect(appleButton).toBeVisible();
@@ -250,8 +311,12 @@ test.describe("Authentication Flows", () => {
     test("should show Google and Apple signup options", async ({ page }) => {
       await page.goto("/register");
 
-      const googleButton = page.getByRole("button", { name: /continue with google/i });
-      const appleButton = page.getByRole("button", { name: /continue with apple/i });
+      const googleButton = page.getByRole("button", {
+        name: /continue with google/i,
+      });
+      const appleButton = page.getByRole("button", {
+        name: /continue with apple/i,
+      });
 
       await expect(googleButton).toBeVisible();
       await expect(appleButton).toBeVisible();

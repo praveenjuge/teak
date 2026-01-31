@@ -1,5 +1,5 @@
-import type { Id } from "../../shared/types";
 import type { CardType } from "../../schema";
+import type { Id } from "../../shared/types";
 
 export type AiMetadataWorkflowArgs = {
   cardId: Id<"cards">;

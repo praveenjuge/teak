@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react";
 import { useMutation, useQuery } from "convex/react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/convex-api";
 import type { ContextMenuSaveState } from "../types/contextMenu";
 
@@ -38,7 +38,7 @@ const INVALID_URL_PATTERNS = [
   /^javascript:/,
   /^file:/,
   /^moz-extension:/,
-  /^edge-extension:/
+  /^edge-extension:/,
 ];
 
 const isValidUrl = (url: string): boolean => {
@@ -56,7 +56,7 @@ const isValidUrl = (url: string): boolean => {
 };
 
 export const useAutoSaveUrl = (
-  isAuthenticated: boolean = false
+  isAuthenticated = false
 ): UseAutoSaveUrlResult => {
   const [state, setState] = useState<AutoSaveState>("idle");
   const [error, setError] = useState<string>();
@@ -85,7 +85,8 @@ export const useAutoSaveUrl = (
 
       if (contextMenuSave && contextMenuSave.timestamp) {
         const timeSinceContextMenu = Date.now() - contextMenuSave.timestamp;
-        if (timeSinceContextMenu < 5000) { // Within 5 seconds of context menu action
+        if (timeSinceContextMenu < 5000) {
+          // Within 5 seconds of context menu action
           setState("idle");
           hasCheckedRef.current = true;
           return;
@@ -94,7 +95,10 @@ export const useAutoSaveUrl = (
 
       try {
         // Get current tab
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        const tabs = await chrome.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
         const currentTab = tabs[0];
 
         if (!currentTab?.url) {
@@ -117,7 +121,9 @@ export const useAutoSaveUrl = (
         setUrlToCheck(currentTab.url);
       } catch (err) {
         setState("error");
-        setError(err instanceof Error ? err.message : "Failed to get current tab");
+        setError(
+          err instanceof Error ? err.message : "Failed to get current tab"
+        );
         hasCheckedRef.current = true;
       }
     };

@@ -1,11 +1,11 @@
 import { v } from "convex/values";
-import { mutation } from "../_generated/server";
 import { internal } from "../_generated/api";
+import { mutation } from "../_generated/server";
 import {
   buildInitialProcessingStatus,
+  type ProcessingStatus,
   stagePending,
   withStageStatus,
-  type ProcessingStatus,
 } from "./processingStatus";
 import { normalizeQuoteContent } from "./quoteFormatting";
 
@@ -36,7 +36,9 @@ export const updateCard = mutation({
     }
 
     const now = Date.now();
-    let processingStatus = card.processingStatus as ProcessingStatus | undefined;
+    let processingStatus = card.processingStatus as
+      | ProcessingStatus
+      | undefined;
 
     if (updates.content !== undefined) {
       if (card.type === "quote") {
@@ -45,13 +47,17 @@ export const updateCard = mutation({
       processingStatus = processingStatus
         ? withStageStatus(processingStatus, "metadata", stagePending())
         : buildInitialProcessingStatus({
-          now,
-          cardType: card.type,
-          classificationStatus: stagePending(),
-        });
+            now,
+            cardType: card.type,
+            classificationStatus: stagePending(),
+          });
 
       if (card.type === "link" && processingStatus) {
-        processingStatus = withStageStatus(processingStatus, "categorize", stagePending());
+        processingStatus = withStageStatus(
+          processingStatus,
+          "categorize",
+          stagePending()
+        );
       }
     }
 
@@ -112,7 +118,9 @@ export const updateCardField = mutation({
 
     const now = Date.now();
     const updateData: any = { updatedAt: now };
-    let processingStatus = card.processingStatus as ProcessingStatus | undefined;
+    let processingStatus = card.processingStatus as
+      | ProcessingStatus
+      | undefined;
     let shouldSchedulePipeline = false;
 
     switch (field) {
@@ -126,12 +134,16 @@ export const updateCardField = mutation({
           processingStatus = processingStatus
             ? withStageStatus(processingStatus, "metadata", stagePending())
             : buildInitialProcessingStatus({
-              now,
-              cardType: card.type,
-              classificationStatus: stagePending(),
-            });
+                now,
+                cardType: card.type,
+                classificationStatus: stagePending(),
+              });
           if (card.type === "link" && processingStatus) {
-            processingStatus = withStageStatus(processingStatus, "categorize", stagePending());
+            processingStatus = withStageStatus(
+              processingStatus,
+              "categorize",
+              stagePending()
+            );
           }
           shouldSchedulePipeline = true;
         }
@@ -139,18 +151,27 @@ export const updateCardField = mutation({
       }
 
       case "url":
-        updateData.url = typeof value === "string" ? value.trim() || undefined : value;
+        updateData.url =
+          typeof value === "string" ? value.trim() || undefined : value;
         if (updateData.url !== card.url) {
           const baseStatus = processingStatus
             ? withStageStatus(processingStatus, "classify", stagePending())
             : buildInitialProcessingStatus({
-              now,
-              cardType: card.type,
-              classificationStatus: stagePending(),
-            });
+                now,
+                cardType: card.type,
+                classificationStatus: stagePending(),
+              });
 
-          processingStatus = withStageStatus(baseStatus, "metadata", stagePending());
-          processingStatus = withStageStatus(processingStatus, "categorize", stagePending());
+          processingStatus = withStageStatus(
+            baseStatus,
+            "metadata",
+            stagePending()
+          );
+          processingStatus = withStageStatus(
+            processingStatus,
+            "categorize",
+            stagePending()
+          );
           shouldSchedulePipeline = true;
 
           const nextMetadata = { ...(card.metadata ?? {}) };
@@ -160,34 +181,40 @@ export const updateCardField = mutation({
           if ("linkCategory" in nextMetadata) {
             delete (nextMetadata as Record<string, unknown>).linkCategory;
           }
-          updateData.metadata = Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined;
+          updateData.metadata =
+            Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined;
           updateData.metadataStatus = "pending";
         }
         break;
 
       case "notes":
-        updateData.notes = typeof value === "string" ? value.trim() || undefined : value;
+        updateData.notes =
+          typeof value === "string" ? value.trim() || undefined : value;
         break;
 
       case "tags":
-        updateData.tags = Array.isArray(value) && value.length > 0 ? value : undefined;
+        updateData.tags =
+          Array.isArray(value) && value.length > 0 ? value : undefined;
         break;
 
       case "aiSummary":
-        updateData.aiSummary = typeof value === "string" ? value.trim() || undefined : value;
+        updateData.aiSummary =
+          typeof value === "string" ? value.trim() || undefined : value;
         break;
 
       case "isFavorited":
         updateData.isFavorited = !card.isFavorited;
         break;
 
-      case "removeAiTag":
-        if (!tagToRemove || !card.aiTags) {
+      case "removeAiTag": {
+        if (!(tagToRemove && card.aiTags)) {
           return card; // No-op if no tag to remove or no AI tags
         }
         const updatedAiTags = card.aiTags.filter((tag) => tag !== tagToRemove);
-        updateData.aiTags = updatedAiTags.length > 0 ? updatedAiTags : undefined;
+        updateData.aiTags =
+          updatedAiTags.length > 0 ? updatedAiTags : undefined;
         break;
+      }
 
       case "delete":
         updateData.isDeleted = true;

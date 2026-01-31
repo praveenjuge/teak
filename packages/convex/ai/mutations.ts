@@ -1,9 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
-import {
-  cardTypeValidator,
-  processingStatusObjectValidator,
-} from "../schema";
+import { cardTypeValidator, processingStatusObjectValidator } from "../schema";
 
 export const updateCardProcessing = internalMutation({
   args: {
@@ -11,11 +8,7 @@ export const updateCardProcessing = internalMutation({
     processingStatus: processingStatusObjectValidator,
     type: v.optional(cardTypeValidator),
     metadataStatus: v.optional(
-      v.union(
-        v.literal("pending"),
-        v.literal("completed"),
-        v.literal("failed")
-      )
+      v.union(v.literal("pending"), v.literal("completed"), v.literal("failed"))
     ),
     metadata: v.optional(v.any()),
   },

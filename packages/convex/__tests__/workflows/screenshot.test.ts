@@ -15,7 +15,7 @@ describe("workflows/screenshot", () => {
 
     test("exports SCREENSHOT_RATE_LIMIT_DELAY_MS", async () => {
       const module = await import("../../workflows/screenshot");
-      expect(module.SCREENSHOT_RATE_LIMIT_DELAY_MS).toBe(15000);
+      expect(module.SCREENSHOT_RATE_LIMIT_DELAY_MS).toBe(15_000);
     });
 
     test("exports SCREENSHOT_HTTP_RETRY_DELAY_MS", async () => {
@@ -128,8 +128,8 @@ describe("workflows/screenshot", () => {
     });
 
     test("uses correct delay for rate limit retries", () => {
-      const delay = 15000;
-      expect(delay).toBe(15000);
+      const delay = 15_000;
+      expect(delay).toBe(15_000);
     });
 
     test("uses correct delay for http error retries", () => {

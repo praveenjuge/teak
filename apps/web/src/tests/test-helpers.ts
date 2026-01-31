@@ -1,4 +1,4 @@
-import { Page, Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 const DEFAULT_TIMEOUT = 30_000;
 
@@ -8,7 +8,7 @@ const DEFAULT_TIMEOUT = 30_000;
  * Provides helper methods for authentication flows in Playwright tests.
  */
 export class AuthHelper {
-  constructor(private page: Page) {}
+  constructor(private readonly page: Page) {}
 
   /**
    * Navigate to the login page
@@ -16,7 +16,9 @@ export class AuthHelper {
   async goToLoginPage(): Promise<void> {
     await this.page.goto("/login");
     // Wait for the page to be loaded by checking for a key element
-    await this.page.getByLabel("Email").waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
+    await this.page
+      .getByLabel("Email")
+      .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
   }
 
   /**
@@ -24,7 +26,9 @@ export class AuthHelper {
    */
   async goToRegisterPage(): Promise<void> {
     await this.page.goto("/register");
-    await this.page.getByLabel("Email").waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
+    await this.page
+      .getByLabel("Email")
+      .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
   }
 
   /**
@@ -34,7 +38,7 @@ export class AuthHelper {
   async signUpWithEmailAndPassword(
     email: string,
     password: string,
-    name: string = "E2E Test User"
+    name = "E2E Test User"
   ): Promise<void> {
     await this.goToRegisterPage();
 
@@ -45,17 +49,15 @@ export class AuthHelper {
     }
 
     // Fill in email
-    await this.page
-      .getByLabel("Email")
-      .fill(email);
+    await this.page.getByLabel("Email").fill(email);
 
     // Fill in password
-    await this.page
-      .getByLabel("Password")
-      .fill(password);
+    await this.page.getByLabel("Password").fill(password);
 
     // Submit form
-    await this.page.getByRole("button", { name: /create an account|sign up/i }).click();
+    await this.page
+      .getByRole("button", { name: /create an account|sign up/i })
+      .click();
 
     // Wait for navigation - either to home (if no email verification) or back to register (with error)
     // In development with email verification disabled, we should go to home
@@ -63,15 +65,21 @@ export class AuthHelper {
       await this.page.waitForURL("/", { timeout: DEFAULT_TIMEOUT });
 
       // Wait for the main page element to be visible
-      await this.page.getByPlaceholder("Write or add a link...").waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
+      await this.page
+        .getByPlaceholder("Write or add a link...")
+        .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
       return;
     } catch {
       // If not at home, check what happened
       const currentUrl = this.page.url();
       if (currentUrl.includes("/register")) {
         // Check for error message - user might already exist
-        const errorLocator = this.page.getByText(/already exists|user with this email/i);
-        const hasError = await errorLocator.isVisible({ timeout: 2000 }).catch(() => false);
+        const errorLocator = this.page.getByText(
+          /already exists|user with this email/i
+        );
+        const hasError = await errorLocator
+          .isVisible({ timeout: 2000 })
+          .catch(() => false);
 
         if (hasError) {
           // User already exists, just sign in instead
@@ -81,7 +89,10 @@ export class AuthHelper {
         }
 
         // Check for other errors
-        const otherError = await this.page.getByText(/error/i).textContent().catch(() => null);
+        const otherError = await this.page
+          .getByText(/error/i)
+          .textContent()
+          .catch(() => null);
         if (otherError) {
           throw new Error(`Sign-up failed: ${otherError}`);
         }
@@ -89,7 +100,9 @@ export class AuthHelper {
     }
 
     // Wait for the main page element to be visible
-    await this.page.getByPlaceholder("Write or add a link...").waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
+    await this.page
+      .getByPlaceholder("Write or add a link...")
+      .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
   }
 
   /**
@@ -103,14 +116,10 @@ export class AuthHelper {
     await this.goToLoginPage();
 
     // Fill in email
-    await this.page
-      .getByLabel("Email")
-      .fill(email);
+    await this.page.getByLabel("Email").fill(email);
 
     // Fill in password
-    await this.page
-      .getByLabel("Password")
-      .fill(password);
+    await this.page.getByLabel("Password").fill(password);
 
     // Submit form
     await this.page.getByRole("button", { name: /login|sign in/i }).click();
@@ -119,9 +128,13 @@ export class AuthHelper {
     // Use Promise.race to handle both success and failure cases
     try {
       // First, wait a bit to see if there's an error message
-      const errorLocator = this.page.getByText(/invalid email or password|email not verified/i);
+      const errorLocator = this.page.getByText(
+        /invalid email or password|email not verified/i
+      );
 
-      const hasError = await errorLocator.isVisible({ timeout: 2000 }).catch(() => false);
+      const hasError = await errorLocator
+        .isVisible({ timeout: 2000 })
+        .catch(() => false);
       if (hasError) {
         const errorText = await errorLocator.textContent();
         throw new Error(`Login failed: ${errorText}`);
@@ -131,14 +144,16 @@ export class AuthHelper {
       await this.page.waitForURL("/", { timeout: DEFAULT_TIMEOUT });
 
       // Wait for the main page element to be visible
-      await this.page.getByPlaceholder("Write or add a link...").waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
+      await this.page
+        .getByPlaceholder("Write or add a link...")
+        .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
     } catch (error) {
       // Provide more context for debugging
       const currentUrl = this.page.url();
       throw new Error(
         `Sign in failed. Current URL: ${currentUrl}. ` +
-        `Expected to be at "/" but still at login. ` +
-        `Original error: ${error instanceof Error ? error.message : String(error)}`
+          `Expected to be at "/" but still at login. ` +
+          `Original error: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
@@ -162,7 +177,7 @@ export class AuthHelper {
    */
   async isAuthenticated(): Promise<boolean> {
     const url = this.page.url();
-    return !url.includes("/login") && !url.includes("/register");
+    return !(url.includes("/login") || url.includes("/register"));
   }
 
   /**
@@ -172,7 +187,7 @@ export class AuthHelper {
     await this.page.goto("/settings");
     const emailButton = this.page.getByRole("button", { name: /@/ });
     await emailButton.waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
-    return await emailButton.textContent() || "";
+    return (await emailButton.textContent()) || "";
   }
 
   /**
@@ -199,7 +214,7 @@ export class AuthHelper {
  * Helper class for common UI interactions in tests
  */
 export class UiHelper {
-  constructor(private page: Page) {}
+  constructor(private readonly page: Page) {}
 
   /**
    * Get the main composer textarea
@@ -273,7 +288,9 @@ export class UiHelper {
    * Toggle favorites filter
    */
   async toggleFavoritesFilter(): Promise<void> {
-    const favoritesButton = this.page.getByRole("button", { name: /favorites/i }).first();
+    const favoritesButton = this.page
+      .getByRole("button", { name: /favorites/i })
+      .first();
     await favoritesButton.click();
     await this.page.waitForTimeout(500);
   }
@@ -282,7 +299,9 @@ export class UiHelper {
    * Toggle trash filter
    */
   async toggleTrashFilter(): Promise<void> {
-    const trashButton = this.page.getByRole("button", { name: /trash/i }).first();
+    const trashButton = this.page
+      .getByRole("button", { name: /trash/i })
+      .first();
     await trashButton.click();
     await this.page.waitForTimeout(500);
   }
@@ -311,14 +330,16 @@ export class UiHelper {
   async goToHome(): Promise<void> {
     await this.page.goto("/");
     // Wait for page to be ready by checking for a key element
-    await this.page.getByPlaceholder("Write or add a link...").waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
+    await this.page
+      .getByPlaceholder("Write or add a link...")
+      .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
   }
 
   /**
    * Wait for cards to load
    */
   async waitForCards(): Promise<void> {
-    await this.page.waitForSelector('[data-card-id]', {
+    await this.page.waitForSelector("[data-card-id]", {
       timeout: DEFAULT_TIMEOUT,
     });
   }
@@ -328,11 +349,13 @@ export class UiHelper {
    */
   async getVisibleCardIds(): Promise<string[]> {
     await this.waitForCards();
-    const cards = await this.page.locator('[data-card-id]').all();
+    const cards = await this.page.locator("[data-card-id]").all();
     const ids: string[] = [];
     for (const card of cards) {
       const id = await card.getAttribute("data-card-id");
-      if (id) ids.push(id);
+      if (id) {
+        ids.push(id);
+      }
     }
     return ids;
   }
@@ -349,7 +372,7 @@ export class UiHelper {
    * Click on the first card
    */
   async clickFirstCard(): Promise<void> {
-    const firstCard = this.page.locator('[data-card-id]').first();
+    const firstCard = this.page.locator("[data-card-id]").first();
     await firstCard.click();
   }
 
@@ -399,7 +422,7 @@ export function generateTestEmail(): string {
 /**
  * Generate a unique test content string
  */
-export function generateTestContent(prefix: string = "Test"): string {
+export function generateTestContent(prefix = "Test"): string {
   const timestamp = Date.now();
   return `${prefix} content ${timestamp}`;
 }

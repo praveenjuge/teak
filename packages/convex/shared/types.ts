@@ -9,15 +9,15 @@
  * @see https://docs.convex.dev/understanding/best-practices/typescript
  */
 
-import type { Infer } from "convex/values";
 import type { WithoutSystemFields } from "convex/server";
+import type { Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type {
-  QueryCtx,
-  MutationCtx,
   ActionCtx,
   DatabaseReader,
   DatabaseWriter,
+  MutationCtx,
+  QueryCtx,
 } from "../_generated/server";
 
 // Re-export context types for helper function annotations
@@ -36,14 +36,14 @@ export type { WithoutSystemFields };
 export type { Doc, Id };
 
 // Import validators from schema for type inference
-import {
+import type {
   cardTypeValidator,
   cardValidator,
   colorValidator,
-  linkCategoryValidator,
-  linkCategoryMetadataValidator,
-  metadataValidator,
   fileMetadataValidator,
+  linkCategoryMetadataValidator,
+  linkCategoryValidator,
+  metadataValidator,
   processingStatusObjectValidator,
 } from "../schema";
 
@@ -85,7 +85,9 @@ export type LinkCategoryFromValidator = Infer<typeof linkCategoryValidator>;
  * Link category metadata structure inferred from validator.
  * Note: Use `LinkCategoryMetadata` from `linkCategories.ts` for the interface with optional `raw` typed.
  */
-export type LinkCategoryMetadataFromValidator = Infer<typeof linkCategoryMetadataValidator>;
+export type LinkCategoryMetadataFromValidator = Infer<
+  typeof linkCategoryMetadataValidator
+>;
 
 /**
  * Card metadata structure (for link previews, etc.).
@@ -100,7 +102,9 @@ export type FileMetadata = Infer<typeof fileMetadataValidator>;
 /**
  * Processing status structure for pipeline tracking.
  */
-export type ProcessingStatusObject = Infer<typeof processingStatusObjectValidator>;
+export type ProcessingStatusObject = Infer<
+  typeof processingStatusObjectValidator
+>;
 
 // ============================================================================
 // Helper Type Utilities
@@ -115,7 +119,9 @@ export type ProcessingStatusObject = Infer<typeof processingStatusObjectValidato
  * type GetCardResult = HandlerReturnType<typeof getCard.handler>;
  * ```
  */
-export type HandlerReturnType<T extends (...args: any) => any> = Awaited<ReturnType<T>>;
+export type HandlerReturnType<T extends (...args: any) => any> = Awaited<
+  ReturnType<T>
+>;
 
 /**
  * Partial card data for updates (all fields optional except those needed).

@@ -1,10 +1,10 @@
-export type AudioRecorderLike = {
+export interface AudioRecorderLike {
   isRecording: boolean;
   uri: string | null;
   stop: () => Promise<void>;
-};
+}
 
-type StopRecordingParams = {
+interface StopRecordingParams {
   audioRecorder: AudioRecorderLike;
   setIsRecording: (value: boolean) => void;
   setIsStoppingRecording: (value: boolean) => void;
@@ -15,7 +15,7 @@ type StopRecordingParams = {
     mimeType: string
   ) => Promise<void>;
   onError?: (error: unknown) => void;
-};
+}
 
 export async function stopAudioRecording({
   audioRecorder,

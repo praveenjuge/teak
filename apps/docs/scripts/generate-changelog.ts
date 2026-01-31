@@ -1,8 +1,14 @@
-import { generateText, Output } from "ai";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { join } from "node:path";
 import { groq } from "@ai-sdk/groq";
+import { generateText, Output } from "ai";
 import { z } from "zod";
-import { existsSync, mkdirSync, writeFileSync, readdirSync, rmSync } from "fs";
-import { join } from "path";
 
 // Configuration
 const COMMITS_PER_BATCH = 40;
@@ -134,9 +140,7 @@ function groupCommitsIntoBatches(commits: GitHubCommit[]): CommitBatch[] {
 
     // Get date range for this batch
     const startDate = new Date(batchCommits[0].commit.author.date);
-    const endDate = new Date(
-      batchCommits[batchCommits.length - 1].commit.author.date
-    );
+    const endDate = new Date(batchCommits.at(-1)?.commit.author.date ?? "");
 
     batches.push({
       batchNumber,
@@ -159,8 +163,8 @@ function getExistingChangelogFiles(dir: string): Set<number> {
   return new Set(
     files
       .filter((f) => f.endsWith(".mdx"))
-      .map((f) => parseInt(f.replace(".mdx", ""), 10))
-      .filter((n) => !isNaN(n))
+      .map((f) => Number.parseInt(f.replace(".mdx", ""), 10))
+      .filter((n) => !Number.isNaN(n))
   );
 }
 
@@ -225,8 +229,7 @@ function generateMDXContent(
 
   const highlights = summary.highlights
     .map(
-      (h) =>
-        `- ${typeEmoji[h.type]} **${typeLabel[h.type]}**: ${h.description}`
+      (h) => `- ${typeEmoji[h.type]} **${typeLabel[h.type]}**: ${h.description}`
     )
     .join("\n");
 

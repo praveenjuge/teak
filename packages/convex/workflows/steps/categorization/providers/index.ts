@@ -1,13 +1,10 @@
 import type { LinkCategory } from "@teak/convex/shared";
-import type {
-  ProviderEnrichmentResult,
-  RawSelectorMap,
-} from "./common";
 import { enrichAmazon } from "./amazon";
+import type { ProviderEnrichmentResult, RawSelectorMap } from "./common";
+import { enrichDribbble } from "./dribbble";
 import { enrichGithub } from "./github";
 import { enrichGoodreads } from "./goodreads";
 import { enrichImdb } from "./imdb";
-import { enrichDribbble } from "./dribbble";
 
 type ProviderHandler = {
   categories: LinkCategory[];
@@ -52,7 +49,7 @@ export const enrichProvider = (
     return null;
   }
 
-  if (!handler.categories.includes(category) && !allowMismatchedCategory) {
+  if (!(handler.categories.includes(category) || allowMismatchedCategory)) {
     return null;
   }
 

@@ -1,16 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { TopPattern } from "@/components/patterns/TopPattern";
-import Link from "next/link";
 
 export default function SettingsLayout({ children }: { children: ReactNode }) {
   return (
-    <section className="max-w-md mx-auto w-full space-y-5 my-10">
-      <Link href="/" className="text-primary inline-block font-medium">
+    <section className="mx-auto my-10 w-full max-w-md space-y-5">
+      <Link className="inline-block font-medium text-primary" href="/">
         &larr; Back
       </Link>
-      <div className="border bg-background rounded-lg p-7 space-y-5">
+      <div className="space-y-5 rounded-lg border bg-background p-7">
         {children}
       </div>
       <TopPattern />

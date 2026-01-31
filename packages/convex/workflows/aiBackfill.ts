@@ -6,13 +6,15 @@
  */
 
 import { v } from "convex/values";
-import { internalMutation } from "../_generated/server";
 import { internal } from "../_generated/api";
+import { internalMutation } from "../_generated/server";
 import type { Id } from "../shared/types";
 import { workflow } from "./manager";
 
 const internalWorkflow = internal as Record<string, any>;
-const aiMetadataInternal = internalWorkflow["workflows/aiMetadata/index"] as Record<string, any> | undefined;
+const aiMetadataInternal = internalWorkflow["workflows/aiMetadata/index"] as
+  | Record<string, any>
+  | undefined;
 
 const LOG_PREFIX = "[workflow/aiBackfill]";
 const BATCH_SIZE = 50;
@@ -40,16 +42,16 @@ export const aiBackfillWorkflow = workflow.define({
 
     if (!aiMetadataInternal) {
       throw new Error(
-        "AI metadata workflow handle not found (expected internal.workflows/aiMetadata/index)",
+        "AI metadata workflow handle not found (expected internal.workflows/aiMetadata/index)"
       );
     }
 
     for (const { cardId } of candidates) {
       try {
-        await step.runMutation(
-          aiMetadataInternal.startAiMetadataWorkflow,
-          { cardId, startAsync: true },
-        );
+        await step.runMutation(aiMetadataInternal.startAiMetadataWorkflow, {
+          cardId,
+          startAsync: true,
+        });
       } catch (error) {
         failedCardIds.push(cardId);
         console.error(`${LOG_PREFIX} Failed to start pipeline`, {

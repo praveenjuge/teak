@@ -1,7 +1,12 @@
 // @ts-nocheck
 import { describe, expect, it } from "bun:test";
 
-import { extractPaletteColors, parseColorString, getContrastRatio, hexToRgb } from '../../../../../convex/shared/utils/colorUtils';
+import {
+  extractPaletteColors,
+  getContrastRatio,
+  hexToRgb,
+  parseColorString,
+} from "../../../../../convex/shared/utils/colorUtils";
 
 describe("colorUtils", () => {
   describe("hexToRgb", () => {
@@ -130,7 +135,10 @@ describe("colorUtils", () => {
     });
 
     it("enforces a maximum of 12 colours", () => {
-      const input = Array.from({ length: 20 }, (_, i) => `#${(i + 1).toString(16).padStart(6, "0")}`).join(" ");
+      const input = Array.from(
+        { length: 20 },
+        (_, i) => `#${(i + 1).toString(16).padStart(6, "0")}`
+      ).join(" ");
       const colors = extractPaletteColors(input);
       expect(colors).toHaveLength(12);
     });

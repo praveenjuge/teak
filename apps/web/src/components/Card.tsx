@@ -1,3 +1,5 @@
+import type { Doc } from "@teak/convex/_generated/dataModel";
+import { Image } from "antd";
 import {
   CheckSquare,
   Copy,
@@ -11,9 +13,10 @@ import {
   Trash,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState, memo } from "react";
 import type { SyntheticEvent } from "react";
-import { Image } from "antd";
+import { memo, useEffect, useState } from "react";
+import { CardContent, Card as UICard } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -21,9 +24,6 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { Card as UICard, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { type Doc } from "@teak/convex/_generated/dataModel";
 
 // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx (36 chars with dashes)
 // Convex IDs don't have this format, so we can use this to detect optimistic cards
@@ -105,37 +105,51 @@ export const Card = memo(function Card({
 
   const handleClick = () => {
     // Don't allow clicking on optimistic cards (not yet saved to server)
-    if (isOptimistic) return;
+    if (isOptimistic) {
+      return;
+    }
     onClick?.(card);
   };
 
   const handleDelete = () => {
-    if (isOptimistic) return;
+    if (isOptimistic) {
+      return;
+    }
     onDelete?.(card._id);
   };
 
   const handleRestore = () => {
-    if (isOptimistic) return;
+    if (isOptimistic) {
+      return;
+    }
     onRestore?.(card._id);
   };
 
   const handlePermanentDelete = () => {
-    if (isOptimistic) return;
+    if (isOptimistic) {
+      return;
+    }
     onPermanentDelete?.(card._id);
   };
 
   const handleToggleFavorite = () => {
-    if (isOptimistic) return;
+    if (isOptimistic) {
+      return;
+    }
     onToggleFavorite?.(card._id);
   };
 
   const handleAddTags = () => {
-    if (isOptimistic) return;
+    if (isOptimistic) {
+      return;
+    }
     onAddTags?.(card._id);
   };
 
   const handleCopyImage = () => {
-    if (isOptimistic) return;
+    if (isOptimistic) {
+      return;
+    }
     // For image cards: the parent will handle copying the actual image
     // For text cards: copy the content
     // For link cards: copy the URL
@@ -162,7 +176,9 @@ export const Card = memo(function Card({
   };
 
   const handleSelect = () => {
-    if (isOptimistic) return;
+    if (isOptimistic) {
+      return;
+    }
     onEnterSelectionMode?.(card._id);
   };
 
@@ -196,9 +212,8 @@ export const Card = memo(function Card({
   const shouldUseFallback = useFallbackImage || !hasPrimaryImage;
 
   useEffect(() => {
-     
     setUseFallbackImage(false);
-  }, [card._id, linkCardImage, resolvedScreenshotUrl]);
+  }, []);
 
   const displayLinkImage = shouldUseFallback
     ? hasFallbackImage
@@ -239,9 +254,9 @@ export const Card = memo(function Card({
     <ContextMenu>
       <ContextMenuTrigger asChild disabled={isOptimistic}>
         <UICard
-          className={`bg-transparent rounded-none border-0 relative p-0 overflow-hidden contain-content ${
-            isOptimistic ? "opacity-70 cursor-default" : "cursor-pointer"
-          } ${card.isDeleted ? "opacity-60" : ""} ${isSelected ? "ring-2 ring-primary rounded-xl" : ""}`}
+          className={`relative overflow-hidden rounded-none border-0 bg-transparent p-0 contain-content ${
+            isOptimistic ? "cursor-default opacity-70" : "cursor-pointer"
+          } ${card.isDeleted ? "opacity-60" : ""} ${isSelected ? "rounded-xl ring-2 ring-primary" : ""}`}
           onClick={handleClick}
         >
           {isOptimistic && (
@@ -253,7 +268,7 @@ export const Card = memo(function Card({
             <div className="absolute top-3 left-3 z-10">
               <Checkbox
                 checked={isSelected}
-                className="select-auto pointer-events-none"
+                className="pointer-events-none select-auto"
               />
             </div>
           )}
@@ -263,96 +278,93 @@ export const Card = memo(function Card({
             </div>
           )}
 
-          <CardContent className="p-0 space-y-2">
+          <CardContent className="space-y-2 p-0">
             {card.type === "text" && (
-              <div className="p-4 rounded-xl border bg-card">
+              <div className="rounded-xl border bg-card p-4">
                 <p className="line-clamp-2 font-medium">
                   {card.content || card.fileMetadata?.fileName}
                 </p>
               </div>
             )}
             {card.type === "quote" && (
-              <div className="py-4 px-6 rounded-xl border bg-card">
+              <div className="rounded-xl border bg-card px-6 py-4">
                 <div className="relative">
-                  <p className="line-clamp-2 font-medium italic leading-relaxed text-center text-balance">
+                  <p className="line-clamp-2 text-balance text-center font-medium italic leading-relaxed">
                     {card.content}
                   </p>
-                  <div className="absolute select-none pointer-events-none -left-4 -top-3.5 text-4xl text-muted-foreground/20 leading-none font-serif">
+                  <div className="pointer-events-none absolute -top-3.5 -left-4 select-none font-serif text-4xl text-muted-foreground/20 leading-none">
                     &ldquo;
                   </div>
-                  <div className="absolute select-none pointer-events-none -right-4 -bottom-7 text-4xl text-muted-foreground/20 leading-none font-serif">
+                  <div className="pointer-events-none absolute -right-4 -bottom-7 select-none font-serif text-4xl text-muted-foreground/20 leading-none">
                     &rdquo;
                   </div>
                 </div>
               </div>
             )}
-            {card.type === "link" && (
-              <>
-                {displayLinkImage && displayLinkImageSize ? (
-                  <div className="rounded-xl border bg-card overflow-hidden divide-y">
-                    <div
-                      className="w-full overflow-hidden"
-                      style={{
-                        aspectRatio:
-                          displayLinkImageSize.width /
-                          displayLinkImageSize.height,
-                      }}
-                    >
-                      <Image
-                        src={displayLinkImage}
-                        alt={linkCardTitle}
-                        className="w-full h-full object-cover"
-                        rootClassName="h-full w-full"
-                        preview={false}
-                        placeholder
-                        onError={handleLinkImageError}
-                      />
-                    </div>
-                    <div className="px-4 py-3">
-                      <p className="font-medium truncate max-w-full">
-                        {linkCardTitle}
-                      </p>
-                    </div>
+            {card.type === "link" &&
+              (displayLinkImage && displayLinkImageSize ? (
+                <div className="divide-y overflow-hidden rounded-xl border bg-card">
+                  <div
+                    className="w-full overflow-hidden"
+                    style={{
+                      aspectRatio:
+                        displayLinkImageSize.width /
+                        displayLinkImageSize.height,
+                    }}
+                  >
+                    <Image
+                      alt={linkCardTitle}
+                      className="h-full w-full object-cover"
+                      onError={handleLinkImageError}
+                      placeholder
+                      preview={false}
+                      rootClassName="h-full w-full"
+                      src={displayLinkImage}
+                    />
                   </div>
-                ) : legacyDisplayImage ? (
-                  <div className="rounded-xl border bg-card overflow-hidden divide-y">
-                    <div className="min-h-28 h-28 overflow-hidden">
-                      <Image
-                        src={legacyDisplayImage}
-                        alt={linkCardTitle}
-                        className="w-full h-full object-cover"
-                        rootClassName="h-full w-full"
-                        preview={false}
-                        placeholder
-                        onError={handleLinkImageError}
-                      />
-                    </div>
-                    <div className="px-4 py-3">
-                      <p className="font-medium truncate max-w-full">
-                        {linkCardTitle}
-                      </p>
-                    </div>
+                  <div className="px-4 py-3">
+                    <p className="max-w-full truncate font-medium">
+                      {linkCardTitle}
+                    </p>
                   </div>
-                ) : (
-                  <p className="w-full min-w-0 overflow-hidden truncate text-ellipsis whitespace-nowrap font-medium p-4 rounded-xl border bg-card">
-                    {card.content || linkCardTitle}
-                  </p>
-                )}
-              </>
-            )}
+                </div>
+              ) : legacyDisplayImage ? (
+                <div className="divide-y overflow-hidden rounded-xl border bg-card">
+                  <div className="h-28 min-h-28 overflow-hidden">
+                    <Image
+                      alt={linkCardTitle}
+                      className="h-full w-full object-cover"
+                      onError={handleLinkImageError}
+                      placeholder
+                      preview={false}
+                      rootClassName="h-full w-full"
+                      src={legacyDisplayImage}
+                    />
+                  </div>
+                  <div className="px-4 py-3">
+                    <p className="max-w-full truncate font-medium">
+                      {linkCardTitle}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="w-full min-w-0 overflow-hidden truncate text-ellipsis whitespace-nowrap rounded-xl border bg-card p-4 font-medium">
+                  {card.content || linkCardTitle}
+                </p>
+              ))}
             {card.type === "image" && (
               <GridImagePreview
-                imageUrl={card.thumbnailUrl ?? card.fileUrl ?? undefined}
                 altText={card.content}
-                width={card.fileMetadata?.width}
                 height={card.fileMetadata?.height}
+                imageUrl={card.thumbnailUrl ?? card.fileUrl ?? undefined}
+                width={card.fileMetadata?.width}
               />
             )}
             {card.type === "video" && (
               <GridVideoPreview thumbnailUrl={card.thumbnailUrl ?? undefined} />
             )}
             {card.type === "audio" && (
-              <div className="flex h-14 items-center justify-between space-x-0.5 px-4 py-2 bg-card rounded-xl border">
+              <div className="flex h-14 items-center justify-between space-x-0.5 rounded-xl border bg-card px-4 py-2">
                 {Array.from({ length: AUDIO_WAVE_BARS }).map((_, i) => (
                   <div
                     className="rounded-full bg-muted-foreground"
@@ -367,29 +379,29 @@ export const Card = memo(function Card({
             )}
             {card.type === "document" && (
               <GridDocumentPreview
-                thumbnailUrl={card.thumbnailUrl ?? undefined}
                 fileName={card.fileMetadata?.fileName || card.content}
+                thumbnailUrl={card.thumbnailUrl ?? undefined}
               />
             )}
             {card.type === "palette" &&
               (card.colors?.length ? (
-                <div className="flex bg-card rounded-xl border overflow-hidden">
+                <div className="flex overflow-hidden rounded-xl border bg-card">
                   {card.colors?.slice(0, 12).map((color, index) => (
                     <div
+                      className="h-14 min-w-0 flex-1"
                       key={`${color.hex}-${index}`}
-                      className="h-14 flex-1 min-w-0"
                       style={{ backgroundColor: color.hex }}
                       title={color.hex}
                     />
                   ))}
                 </div>
               ) : (
-                <div className="p-4 rounded-xl border bg-card">
+                <div className="rounded-xl border bg-card p-4">
                   <p className="line-clamp-2 font-medium">{card.content}</p>
                 </div>
               ))}
             {!card.type && (
-              <div className="p-4 rounded-xl border bg-card">
+              <div className="rounded-xl border bg-card p-4">
                 <p className="line-clamp-2 font-medium">
                   {card.content || card.fileMetadata?.fileName}
                 </p>
@@ -401,12 +413,10 @@ export const Card = memo(function Card({
 
       <ContextMenuContent className="w-48">
         {card.url && (
-          <>
-            <ContextMenuItem onClick={openLink}>
-              <ExternalLink />
-              Open Link
-            </ContextMenuItem>
-          </>
+          <ContextMenuItem onClick={openLink}>
+            <ExternalLink />
+            Open Link
+          </ContextMenuItem>
         )}
 
         {/* Copy to Clipboard - for image (non-SVG), text, and link cards */}
@@ -490,27 +500,27 @@ function GridImagePreview({
 }) {
   return (
     <div
-      className="relative w-full overflow-hidden rounded-xl border bg-card h-full"
+      className="relative h-full w-full overflow-hidden rounded-xl border bg-card"
       style={{ aspectRatio: width && height ? width / height : 4 / 3 }}
     >
       {imageUrl && (
         <Image
-          src={imageUrl}
           alt={altText ?? "Image"}
           className="h-full w-full object-cover"
-          rootClassName="h-full w-full"
-          style={{ objectFit: "cover" }}
-          preview={false}
-          placeholder
           loading="lazy"
+          placeholder
+          preview={false}
+          rootClassName="h-full w-full"
+          src={imageUrl}
+          style={{ objectFit: "cover" }}
         />
       )}
       {!imageUrl && (
         <Image
           alt=""
           className="h-full! w-full scale-105"
-          rootClassName="h-full w-full"
           placeholder
+          rootClassName="h-full w-full"
         />
       )}
     </div>
@@ -526,17 +536,17 @@ function GridDocumentPreview({
 }) {
   if (thumbnailUrl) {
     return (
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="overflow-hidden rounded-xl border bg-card">
         <Image
-          src={thumbnailUrl}
           alt={`Preview of ${fileName || "document"}`}
-          className="w-full object-contain bg-muted"
-          preview={false}
-          placeholder
+          className="w-full bg-muted object-contain"
           loading="lazy"
+          placeholder
+          preview={false}
+          src={thumbnailUrl}
         />
-        <div className="px-4 py-3 border-t flex gap-2 items-center">
-          <File className="shrink-0 size-4 text-muted-foreground" />
+        <div className="flex items-center gap-2 border-t px-4 py-3">
+          <File className="size-4 shrink-0 text-muted-foreground" />
           <span className="truncate font-medium text-sm">{fileName}</span>
         </div>
       </div>
@@ -545,8 +555,8 @@ function GridDocumentPreview({
 
   // Fallback: show icon-based display (for non-PDF documents or if thumbnail not ready)
   return (
-    <div className="p-4 flex gap-2 items-center bg-card rounded-xl border">
-      <File className="shrink-0 size-4 text-muted-foreground" />
+    <div className="flex items-center gap-2 rounded-xl border bg-card p-4">
+      <File className="size-4 shrink-0 text-muted-foreground" />
       <span className="truncate font-medium">{fileName}</span>
     </div>
   );
@@ -556,14 +566,14 @@ function GridVideoPreview({ thumbnailUrl }: { thumbnailUrl?: string }) {
   // If we have a thumbnail, show it with a play icon overlay
   if (thumbnailUrl) {
     return (
-      <div className="relative rounded-xl border bg-card overflow-hidden">
+      <div className="relative overflow-hidden rounded-xl border bg-card">
         <Image
-          src={thumbnailUrl}
           alt="Video thumbnail"
           className="w-full object-cover"
-          preview={false}
-          placeholder
           loading="lazy"
+          placeholder
+          preview={false}
+          src={thumbnailUrl}
         />
         <div className="absolute inset-0 flex items-center justify-center bg-black/20">
           <div className="rounded-full bg-black/50 p-2">
@@ -576,7 +586,7 @@ function GridVideoPreview({ thumbnailUrl }: { thumbnailUrl?: string }) {
 
   // Fallback: show icon-based display (if thumbnail not ready)
   return (
-    <div className="w-full h-32 flex items-center justify-center bg-black text-white rounded-xl border">
+    <div className="flex h-32 w-full items-center justify-center rounded-xl border bg-black text-white">
       <Play className="size-6 text-white" />
     </div>
   );

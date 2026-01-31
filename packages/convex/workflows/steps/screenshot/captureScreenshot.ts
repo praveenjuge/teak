@@ -1,14 +1,18 @@
 "use node";
 
-import { v } from "convex/values";
-import Kernel from "@onkernel/sdk";
 import { PhotonImage } from "@cf-wasm/photon";
-import type { Id } from "../../../shared/types";
+import Kernel from "@onkernel/sdk";
+import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import { normalizeUrl } from "../../../linkMetadata";
+import type { Id } from "../../../shared/types";
+
 const internalFunctions = internal as Record<string, any>;
-const linkMetadataInternal = internalFunctions["linkMetadata"] as Record<string, any>;
+const linkMetadataInternal = internalFunctions["linkMetadata"] as Record<
+  string,
+  any
+>;
 export type ScreenshotRetryableError = {
   type: "rate_limit" | "http_error";
   message?: string;
@@ -23,9 +27,7 @@ const throwRetryable = (info: ScreenshotRetryableError): never => {
 
 const captureScreenshotWithKernel = async (
   ctx: any,
-  {
-    url,
-  }: { url: string },
+  { url }: { url: string }
 ): Promise<{
   screenshotId?: Id<"_storage">;
   screenshotUpdatedAt?: number;
@@ -62,13 +64,13 @@ const captureScreenshotWithKernel = async (
           return screenshot.toString('base64');
         `,
         timeout_sec: 60,
-      },
+      }
     );
 
     if (!response.success) {
       console.error(
         `[screenshot] Kernel Playwright execution failed for ${url}:`,
-        response.error,
+        response.error
       );
 
       // Check for rate limiting or HTTP errors
@@ -94,9 +96,7 @@ const captureScreenshotWithKernel = async (
 
     const base64Screenshot = response.result as string;
     if (!base64Screenshot) {
-      console.warn(
-        `[screenshot] Screenshot response missing data for ${url}`,
-      );
+      console.warn(`[screenshot] Screenshot response missing data for ${url}`);
       return {
         error: {
           type: "missing_data",
@@ -117,7 +117,7 @@ const captureScreenshotWithKernel = async (
     }
     const imageArrayBuffer = buffer.buffer.slice(
       buffer.byteOffset,
-      buffer.byteOffset + buffer.byteLength,
+      buffer.byteOffset + buffer.byteLength
     );
 
     const screenshotBlob = new Blob([imageArrayBuffer], {
@@ -155,8 +155,8 @@ const captureScreenshotWithKernel = async (
         await kernel.browsers.deleteByID(kernelBrowser.session_id);
       } catch (cleanupError) {
         console.warn(
-          `[screenshot] Failed to cleanup browser session:`,
-          cleanupError,
+          "[screenshot] Failed to cleanup browser session:",
+          cleanupError
         );
       }
     }
@@ -217,7 +217,7 @@ export const captureScreenshot = internalAction({
 
     console.warn(
       `[screenshot] Screenshot capture failed for card ${cardId}:`,
-      error,
+      error
     );
   },
 });

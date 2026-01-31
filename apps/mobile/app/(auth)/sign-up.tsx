@@ -1,5 +1,3 @@
-import * as React from "react";
-import { Alert, Keyboard } from "react-native";
 import {
   Button,
   Host,
@@ -7,29 +5,31 @@ import {
   LabeledContent,
   SecureField,
   Spacer,
-  TextField,
   Text,
+  TextField,
   VStack,
 } from "@expo/ui/swift-ui";
+import { padding } from "@expo/ui/swift-ui/modifiers";
 import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
+import { Alert, Keyboard } from "react-native";
 import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
-import { padding } from "@expo/ui/swift-ui/modifiers";
 
 export default function SignUpScreen() {
-  const [emailAddress, setEmailAddress] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [emailAddress, setEmailAddress] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       return () => {
         Keyboard.dismiss();
       };
     }, [])
   );
 
-  const waitForKeyboardToSettle = React.useCallback(
+  const waitForKeyboardToSettle = useCallback(
     () =>
       new Promise<void>((resolve) => {
         requestAnimationFrame(() => setTimeout(resolve, 30));
@@ -39,12 +39,14 @@ export default function SignUpScreen() {
 
   // Handle submission of sign-up form
   const onSignUpPress = async () => {
-    if (isSubmitting) return;
+    if (isSubmitting) {
+      return;
+    }
 
     Keyboard.dismiss();
     await waitForKeyboardToSettle();
 
-    if (!emailAddress.trim() || !password.trim()) {
+    if (!(emailAddress.trim() && password.trim())) {
       Alert.alert("Error", "Please fill in all fields.");
       return;
     }
@@ -81,7 +83,10 @@ export default function SignUpScreen() {
         );
       }
     } catch (error) {
-      console.error("Sign up error:", error instanceof Error ? error.message : error);
+      console.error(
+        "Sign up error:",
+        error instanceof Error ? error.message : error
+      );
       Alert.alert(
         "Sign Up Failed",
         getAuthErrorMessage(
@@ -96,32 +101,32 @@ export default function SignUpScreen() {
 
   return (
     <Host matchContents useViewportSizeMeasurement>
-      <VStack spacing={24} modifiers={[padding({ all: 24 })]}>
+      <VStack modifiers={[padding({ all: 24 })]} spacing={24}>
         <LabeledContent label="Email">
           <TextField
-            placeholder="Enter your email"
-            keyboardType="email-address"
             autocorrection={false}
+            keyboardType="email-address"
             onChangeText={setEmailAddress}
+            placeholder="Enter your email"
           />
         </LabeledContent>
 
         <LabeledContent label="Password">
           <SecureField
-            placeholder="Enter your password (min. 8 characters)"
             onChangeText={setPassword}
+            placeholder="Enter your password (min. 8 characters)"
           />
         </LabeledContent>
 
         <Button
-          variant="bordered"
           controlSize="large"
-          onPress={onSignUpPress}
           disabled={isSubmitting}
+          onPress={onSignUpPress}
+          variant="bordered"
         >
-          <HStack spacing={10} alignment="center">
+          <HStack alignment="center" spacing={10}>
             <Spacer />
-            <Text color="primary" weight="medium" design="rounded">
+            <Text color="primary" design="rounded" weight="medium">
               {isSubmitting ? "Creating..." : "Create Account"}
             </Text>
             <Spacer />

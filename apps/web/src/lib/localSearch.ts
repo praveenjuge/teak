@@ -46,7 +46,9 @@ export const filterLocalCards = (
   return cards
     .filter((card) => {
       if (showTrashOnly) {
-        if (card.isDeleted !== true) return false;
+        if (card.isDeleted !== true) {
+          return false;
+        }
       } else if (card.isDeleted) {
         return false;
       }

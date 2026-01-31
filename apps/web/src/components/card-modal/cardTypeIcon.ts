@@ -1,13 +1,13 @@
-import { getCardTypeIcon, type CardType } from "@teak/convex/shared/constants";
+import { type CardType, getCardTypeIcon } from "@teak/convex/shared/constants";
 import {
-  FileText,
-  Link,
-  Image,
-  Video,
-  Volume2,
   File,
+  FileText,
+  Image,
+  Link,
   Palette,
   Quote,
+  Video,
+  Volume2,
 } from "lucide-react";
 
 const iconComponentMap = {

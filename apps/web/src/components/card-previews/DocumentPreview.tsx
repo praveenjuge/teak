@@ -1,5 +1,5 @@
+import type { Doc } from "@teak/convex/_generated/dataModel";
 import { Archive, Code, File, FileText } from "lucide-react";
-import { type Doc } from "@teak/convex/_generated/dataModel";
 
 // Large/rich previews for the modal
 function getDocumentIcon(fileName: string, mimeType: string) {
@@ -74,11 +74,11 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
   // For PDFs, show embedded viewer
   if (isPdf(fileName, mimeType) && fileUrl) {
     return (
-      <div className="w-full h-full flex flex-col">
+      <div className="flex h-full w-full flex-col">
         <iframe
+          className="h-full w-full rounded-lg"
           src={fileUrl}
           title={fileName}
-          className="w-full h-full rounded-lg"
         />
       </div>
     );
@@ -88,7 +88,7 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
   return (
     <div className="flex items-center gap-4">
       <div className="shrink-0">{getDocumentIcon(fileName, mimeType)}</div>
-      <p className="font-medium truncate min-w-0">{fileName}</p>
+      <p className="min-w-0 truncate font-medium">{fileName}</p>
     </div>
   );
 }

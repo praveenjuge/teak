@@ -1,6 +1,6 @@
 import { Check } from "lucide-react";
-import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 
 interface PricingCardProps {
   name: string;
@@ -58,11 +58,11 @@ export function PricingCard({
   return (
     <div
       className={`relative rounded-lg border bg-card p-8 ${
-        popular ? "border-primary ring-primary ring-1" : "border-border"
+        popular ? "border-primary ring-1 ring-primary" : "border-border"
       }`}
     >
       {popular && (
-        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 transform">
           <Badge>Most Popular</Badge>
         </div>
       )}
@@ -74,16 +74,16 @@ export function PricingCard({
       )}
 
       <div className="text-center">
-        <h3 className="font-semibold text-muted-foreground text-base mb-2">
+        <h3 className="mb-2 font-semibold text-base text-muted-foreground">
           {name}
         </h3>
         {renderPrice()}
-        <p className="text-muted-foreground mb-6">{description}</p>
+        <p className="mb-6 text-muted-foreground">{description}</p>
       </div>
 
-      <ul className="space-y-3 mb-8">
-        {features.map((feature, index) => (
-          <li key={index} className="flex items-start gap-3">
+      <ul className="mb-8 space-y-3">
+        {features.map((feature) => (
+          <li className="flex items-start gap-3" key={feature}>
             <div className="mt-1 text-primary">
               <Check size={16} />
             </div>
@@ -93,11 +93,11 @@ export function PricingCard({
       </ul>
 
       <Button
-        variant={cta.primary ? "default" : "outline"}
-        className="w-full"
         asChild
+        className="w-full"
+        variant={cta.primary ? "default" : "outline"}
       >
-        <a href={cta.href} target="_blank" rel="noopener noreferrer">
+        <a href={cta.href} rel="noopener noreferrer" target="_blank">
           {cta.text}
         </a>
       </Button>

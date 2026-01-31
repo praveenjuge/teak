@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import type { Metadata } from "next";
 import "./globals.css";
-import ConvexClientProvider from "@/components/ConvexClientProvider";
-import { Toaster } from "@/components/ui/sonner";
-import { ThemeProvider } from "@/components/theme-provider";
 import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
+import ConvexClientProvider from "@/components/ConvexClientProvider";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 export const dynamic = "force-static";
 
@@ -15,15 +15,14 @@ export const metadata: Metadata = {
     "Teak is a personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations",
   openGraph: {
     title: "Teak",
-    description:
-      "A personal knowledge hub for creative minds",
+    description: "A personal knowledge hub for creative minds",
   },
 };
 
 export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className='font-sans text-sm antialiased caret-primary accent-primary selection:bg-primary selection:text-primary-foreground [font-feature-settings:"ss01"] [text-rendering:optimizeLegibility] touch-manipulation'>
+      <body className='touch-manipulation font-sans text-sm antialiased caret-primary accent-primary [font-feature-settings:"ss01"] [text-rendering:optimizeLegibility] selection:bg-primary selection:text-primary-foreground'>
         <ConvexClientProvider>
           <ConvexQueryCacheProvider>
             <ThemeProvider
@@ -32,7 +31,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
               disableTransitionOnChange
               enableSystem={true}
             >
-              <main className="max-w-7xl mx-auto px-4 pb-10">{children}</main>
+              <main className="mx-auto max-w-7xl px-4 pb-10">{children}</main>
             </ThemeProvider>
           </ConvexQueryCacheProvider>
         </ConvexClientProvider>

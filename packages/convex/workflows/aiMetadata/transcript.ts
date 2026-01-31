@@ -2,13 +2,16 @@ import { experimental_transcribe as transcribe } from "ai";
 import { TRANSCRIPTION_MODEL } from "../../ai/models";
 
 // Generate transcript for audio content
-export const generateTranscript = async (audioUrl: string, mimeHint?: string) => {
+export const generateTranscript = async (
+  audioUrl: string,
+  mimeHint?: string
+) => {
   try {
     // Fetch the audio so we can provide a proper filename and mime type
     const response = await fetch(audioUrl);
     if (!response.ok) {
       throw new Error(
-        `Failed to fetch audio: ${response.status} ${response.statusText}`,
+        `Failed to fetch audio: ${response.status} ${response.statusText}`
       );
     }
 
@@ -20,8 +23,8 @@ export const generateTranscript = async (audioUrl: string, mimeHint?: string) =>
       mimeType.includes("ogg") || mimeType.includes("oga")
         ? "ogg"
         : mimeType.includes("mp3") ||
-          mimeType.includes("mpeg") ||
-          mimeType.includes("mpga")
+            mimeType.includes("mpeg") ||
+            mimeType.includes("mpga")
           ? "mp3"
           : mimeType.includes("wav")
             ? "wav"

@@ -1,15 +1,23 @@
 // @ts-nocheck
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import React from "react";
 import { CardModal } from "../../components/CardModal";
 import type { CardModalCard } from "../../components/card-modal/types";
 
 // Mock Dialog component
 mock.module("../../components/ui/dialog", () => ({
-  Dialog: ({ children, open, onOpenChange }: any) =>
-    React.createElement("div", { className: "dialog", open, "data-state": open ? "open" : "closed" }, children),
+  Dialog: ({ children, open, onOpenChange: _onOpenChange }: any) =>
+    React.createElement(
+      "div",
+      { className: "dialog", open, "data-state": open ? "open" : "closed" },
+      children
+    ),
   DialogContent: ({ children, className }: any) =>
-    React.createElement("div", { className, "data-dialog-content": "" }, children),
+    React.createElement(
+      "div",
+      { className, "data-dialog-content": "" },
+      children
+    ),
   DialogTitle: ({ children, className }: any) =>
     React.createElement("h2", { className }, children),
   DialogDescription: ({ children, className }: any) =>
@@ -23,17 +31,26 @@ mock.module("../../components/Loading", () => ({
 
 // Mock card modal components
 mock.module("../../components/card-modal/CardModalPreview", () => ({
-  CardModalPreview: ({ card, hasUnsavedChanges, isSaved, saveChanges }: any) =>
-    React.createElement("div", { "data-preview": "", "data-unsaved": hasUnsavedChanges, "data-saved": isSaved }),
+  CardModalPreview: ({
+    card: _card,
+    hasUnsavedChanges,
+    isSaved,
+    saveChanges: _saveChanges,
+  }: any) =>
+    React.createElement("div", {
+      "data-preview": "",
+      "data-unsaved": hasUnsavedChanges,
+      "data-saved": isSaved,
+    }),
 }));
 
 mock.module("../../components/card-modal/CardMetadataPanel", () => ({
-  CardMetadataPanel: ({ card, actions }: any) =>
+  CardMetadataPanel: ({ card: _card, actions: _actions }: any) =>
     React.createElement("div", { "data-metadata": "" }),
 }));
 
 mock.module("../../components/card-modal/CardModalOverlays", () => ({
-  CardModalOverlays: ({ card }: any) =>
+  CardModalOverlays: ({ card: _card }: any) =>
     React.createElement("div", { "data-overlays": "" }),
 }));
 

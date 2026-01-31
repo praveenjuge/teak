@@ -1,12 +1,20 @@
 // @ts-nocheck
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { CardType } from "@teak/convex/shared/constants";
 import React from "react";
 import { SearchBar } from "../../components/SearchBar";
-import type { CardType } from "@teak/convex/shared/constants";
 
 // Mock UI components
 mock.module("../../components/ui/input", () => ({
-  Input: ({ value, onChange, onKeyDown, onFocus, onBlur, placeholder, type }: any) =>
+  Input: ({
+    value,
+    onChange,
+    onKeyDown,
+    onFocus,
+    onBlur,
+    placeholder,
+    type,
+  }: any) =>
     React.createElement("input", {
       type,
       value,
@@ -21,7 +29,11 @@ mock.module("../../components/ui/input", () => ({
 
 mock.module("../../components/ui/button", () => ({
   Button: ({ children, onClick, variant, size }: any) =>
-    React.createElement("button", { onClick, "data-variant": variant, "data-size": size }, children),
+    React.createElement(
+      "button",
+      { onClick, "data-variant": variant, "data-size": size },
+      children
+    ),
 }));
 
 mock.module("../../lib/utils", () => ({
@@ -36,7 +48,16 @@ mock.module("next/link", () => ({
 
 // Mock constants
 mock.module("@teak/convex/shared/constants", () => ({
-  cardTypes: ["text", "link", "image", "video", "audio", "document", "palette", "quote"],
+  cardTypes: [
+    "text",
+    "link",
+    "image",
+    "video",
+    "audio",
+    "document",
+    "palette",
+    "quote",
+  ],
   CARD_TYPE_LABELS: {
     text: "Text",
     link: "Link",
@@ -408,7 +429,16 @@ describe("SearchBar Component", () => {
 
     test("works with all card types filtered", () => {
       const props = createDefaultProps();
-      props.filterTags = ["text", "link", "image", "video", "audio", "document", "palette", "quote"] as CardType[];
+      props.filterTags = [
+        "text",
+        "link",
+        "image",
+        "video",
+        "audio",
+        "document",
+        "palette",
+        "quote",
+      ] as CardType[];
       expect(() => {
         React.createElement(SearchBar, props);
       }).not.toThrow();

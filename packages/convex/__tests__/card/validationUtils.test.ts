@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, test } from "bun:test";
-import { extractUrlFromContent } from '../../../convex/card/validationUtils';
+import { extractUrlFromContent } from "../../../convex/card/validationUtils";
 
 describe("validationUtils", () => {
   describe("extractUrlFromContent", () => {
@@ -16,7 +16,9 @@ describe("validationUtils", () => {
     });
 
     test("extracts url embedded in text", () => {
-      expect(extractUrlFromContent("Check this https://example.com/page now")).toEqual({
+      expect(
+        extractUrlFromContent("Check this https://example.com/page now")
+      ).toEqual({
         url: "https://example.com/page",
         cleanedContent: "Check this https://example.com/page now",
       });

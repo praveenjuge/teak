@@ -1,13 +1,13 @@
+import { Copy } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Copy } from "lucide-react";
-import { useState } from "react";
+import { Label } from "@/components/ui/label";
 
 interface CardData {
   createdAt: number;
@@ -28,14 +28,14 @@ interface MoreInformationModalProps {
   card: CardData | null;
 }
 
-type CopyableSectionProps = {
+interface CopyableSectionProps {
   label: string;
   value: string;
   fieldName: string;
   textClass?: string;
   copiedField: string | null;
   onCopy: (field: string) => void;
-};
+}
 
 function CopyableSection({
   label,
@@ -51,17 +51,17 @@ function CopyableSection({
       <div className="flex items-center justify-between gap-2">
         <p className={`font-medium ${textClass || ""}`}>{value}</p>
         <Button
-          variant="ghost"
-          size="icon"
+          aria-label={`Copy ${label}`}
           className="shrink-0"
           onClick={() => onCopy(fieldName)}
-          aria-label={`Copy ${label}`}
+          size="icon"
+          variant="ghost"
         >
           <Copy className="h-4 w-4" />
         </Button>
       </div>
       {copiedField === fieldName && (
-        <p className="text-xs text-muted-foreground">Copied!</p>
+        <p className="text-muted-foreground text-xs">Copied!</p>
       )}
     </div>
   );
@@ -75,7 +75,7 @@ function KeyValueSection({
   return (
     <div className="space-y-3 text-sm">
       {fields.map(({ label: fieldLabel, value, valueClass }) => (
-        <div key={fieldLabel} className="flex justify-between">
+        <div className="flex justify-between" key={fieldLabel}>
           <Label className="text-muted-foreground">{fieldLabel}</Label>
           <span className={`font-medium ${valueClass || ""}`}>{value}</span>
         </div>
@@ -110,11 +110,13 @@ export function MoreInformationModal({
     }
   };
 
-  if (!card) return null;
+  if (!card) {
+    return null;
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
+    <Dialog onOpenChange={onOpenChange} open={open}>
+      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>More Information</DialogTitle>
         </DialogHeader>
@@ -157,23 +159,23 @@ export function MoreInformationModal({
 
           {card.url && (
             <CopyableSection
-              label="URL"
-              value={card.url}
-              fieldName="url"
               copiedField={copiedField}
+              fieldName="url"
+              label="URL"
               onCopy={(field) => handleCopy(card.url as string, field)}
               textClass="break-all"
+              value={card.url}
             />
           )}
 
           {card.content && (
             <CopyableSection
-              label="Original Content"
-              value={card.content}
-              fieldName="content"
               copiedField={copiedField}
+              fieldName="content"
+              label="Original Content"
               onCopy={(field) => handleCopy(card.content as string, field)}
               textClass="whitespace-pre-wrap"
+              value={card.content}
             />
           )}
         </div>

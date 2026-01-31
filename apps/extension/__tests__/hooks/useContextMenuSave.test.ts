@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, test, expect, mock } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 
 describe("useContextMenuSave Hook", () => {
   describe("State Initialization", () => {
@@ -42,10 +42,7 @@ describe("useContextMenuSave Hook", () => {
     test("should reject invalid state objects", () => {
       const value = { random: "property" };
 
-      const isValid =
-        value &&
-        typeof value === "object" &&
-        "status" in value;
+      const isValid = value && typeof value === "object" && "status" in value;
 
       expect(isValid).toBe(false);
     });
@@ -53,10 +50,7 @@ describe("useContextMenuSave Hook", () => {
     test("should reject null values", () => {
       const value = null;
 
-      const isValid =
-        value &&
-        typeof value === "object" &&
-        "status" in value;
+      const isValid = value && typeof value === "object" && "status" in value;
 
       // null is falsy, so isValid evaluates to null
       expect(isValid).toBeFalsy();
@@ -65,10 +59,7 @@ describe("useContextMenuSave Hook", () => {
     test("should reject undefined values", () => {
       const value = undefined;
 
-      const isValid =
-        value &&
-        typeof value === "object" &&
-        "status" in value;
+      const isValid = value && typeof value === "object" && "status" in value;
 
       // undefined is falsy, so isValid evaluates to undefined
       expect(isValid).toBeFalsy();
@@ -90,8 +81,8 @@ describe("useContextMenuSave Hook", () => {
         // Simulate a storage change event
         callback({
           contextMenuSave: {
-            newValue: { status: "saving" }
-          }
+            newValue: { status: "saving" },
+          },
         });
       });
 
@@ -227,7 +218,9 @@ describe("useContextMenuSave Hook", () => {
 
       await mockSet({ contextMenuSave: processingState });
 
-      expect(mockSet).toHaveBeenCalledWith({ contextMenuSave: processingState });
+      expect(mockSet).toHaveBeenCalledWith({
+        contextMenuSave: processingState,
+      });
     });
 
     test("should call createCard mutation", async () => {
@@ -272,7 +265,11 @@ describe("useContextMenuSave Hook", () => {
 
     test("should update storage on error", async () => {
       const mockSet = mock(() => Promise.resolve());
-      const errorState = { status: "error", timestamp: Date.now(), error: "Failed" };
+      const errorState = {
+        status: "error",
+        timestamp: Date.now(),
+        error: "Failed",
+      };
 
       await mockSet({ contextMenuSave: errorState });
 
@@ -282,7 +279,8 @@ describe("useContextMenuSave Hook", () => {
     test("should extract error message from Error object", () => {
       const error = new Error("Save failed");
 
-      const errorMessage = error instanceof Error ? error.message : "Failed to save";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to save";
 
       expect(errorMessage).toBe("Save failed");
     });
@@ -290,7 +288,8 @@ describe("useContextMenuSave Hook", () => {
     test("should use fallback for non-Error errors", () => {
       const error = "String error";
 
-      const errorMessage = error instanceof Error ? error.message : "Failed to save";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to save";
 
       expect(errorMessage).toBe("Failed to save");
     });
@@ -383,7 +382,9 @@ describe("useContextMenuSave Hook", () => {
         action: "save-page",
       };
 
-      const shouldProcess = Boolean(contextMenuSave.status === "saving" && contextMenuSave.content);
+      const shouldProcess = Boolean(
+        contextMenuSave.status === "saving" && contextMenuSave.content
+      );
 
       expect(shouldProcess).toBe(true);
     });
@@ -486,11 +487,7 @@ describe("useContextMenuSave Hook", () => {
 
     test("should handle multiple rapid storage changes", () => {
       const processedSaves = new Set<string>();
-      const changes = [
-        "1001_save-page",
-        "1002_save-page",
-        "1003_save-page",
-      ];
+      const changes = ["1001_save-page", "1002_save-page", "1003_save-page"];
 
       changes.forEach((saveId) => processedSaves.add(saveId));
 
@@ -505,7 +502,9 @@ describe("useContextMenuSave Hook", () => {
       processedSaves.add(saveId1);
       processedSaves.add(saveId2);
 
-      expect(processedSaves.has(saveId1) && processedSaves.has(saveId2)).toBe(true);
+      expect(processedSaves.has(saveId1) && processedSaves.has(saveId2)).toBe(
+        true
+      );
     });
 
     test("should prevent memory leaks from processed saves", () => {

@@ -1,12 +1,12 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
-  toSelectorMap,
   findAttributeValue,
-  getSelectorValue,
   firstFromSources,
+  getSelectorValue,
+  sanitizeImageUrl,
   sanitizeText,
   sanitizeUrl,
-  sanitizeImageUrl,
+  toSelectorMap,
 } from "./parsing";
 
 // Mock types for testing
@@ -59,9 +59,7 @@ describe("toSelectorMap", () => {
   });
 
   it("should handle empty results array for a selector", () => {
-    const results: MockSelectorResult[] = [
-      createMockResults("selector1", []),
-    ];
+    const results: MockSelectorResult[] = [createMockResults("selector1", [])];
     const map = toSelectorMap(results as any);
     expect(map.get("selector1")).toEqual([]);
   });
@@ -151,9 +149,7 @@ describe("getSelectorValue", () => {
 
   it("should return html content for text attribute when text is empty", () => {
     const map = toSelectorMap([
-      createMockResults("test", [
-        createMockItem(undefined, undefined),
-      ] as any),
+      createMockResults("test", [createMockItem(undefined, undefined)] as any),
     ] as any);
     const source = { selector: "test", attribute: "text" as const };
     expect(getSelectorValue(map, source)).toBeUndefined();
@@ -191,10 +187,7 @@ describe("getSelectorValue", () => {
 
   it("should return first item if no items have content", () => {
     const map = toSelectorMap([
-      createMockResults("test", [
-        createMockItem(""),
-        createMockItem("text"),
-      ]),
+      createMockResults("test", [createMockItem(""), createMockItem("text")]),
     ] as any);
     const source = { selector: "test", attribute: "text" as const };
     expect(getSelectorValue(map, source)).toBe("text");
@@ -369,7 +362,9 @@ describe("sanitizeUrl", () => {
     // http:// with base URL - throws error in Bun's URL constructor
     expect(sanitizeUrl(baseUrl, "http://")).toBeUndefined();
     // ://not-a-url with base URL - treated as a path
-    expect(sanitizeUrl(baseUrl, "://not-a-url")).toBe("https://example.com/://not-a-url");
+    expect(sanitizeUrl(baseUrl, "://not-a-url")).toBe(
+      "https://example.com/://not-a-url"
+    );
   });
 
   it("should preserve query parameters and fragments", () => {
@@ -420,7 +415,9 @@ describe("sanitizeImageUrl", () => {
 
   it("should resolve relative paths", () => {
     // "not-a-url" is treated as a relative path
-    expect(sanitizeImageUrl(baseUrl, "not-a-url")).toBe("https://example.com/not-a-url");
+    expect(sanitizeImageUrl(baseUrl, "not-a-url")).toBe(
+      "https://example.com/not-a-url"
+    );
   });
 
   it("should allow data URLs with various mime types", () => {
@@ -437,11 +434,11 @@ describe("sanitizeImageUrl", () => {
 
   it("should allow ALL data URLs, not just images", () => {
     // sanitizeImageUrl actually allows all data: URLs
-    expect(
-      sanitizeImageUrl(baseUrl, "data:text/html;base64,ABC")
-    ).toBe("data:text/html;base64,ABC");
-    expect(
-      sanitizeImageUrl(baseUrl, "data:application/json;base64,ABC")
-    ).toBe("data:application/json;base64,ABC");
+    expect(sanitizeImageUrl(baseUrl, "data:text/html;base64,ABC")).toBe(
+      "data:text/html;base64,ABC"
+    );
+    expect(sanitizeImageUrl(baseUrl, "data:application/json;base64,ABC")).toBe(
+      "data:application/json;base64,ABC"
+    );
   });
 });

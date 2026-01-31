@@ -1,8 +1,8 @@
-import { memo, useCallback, useState } from "react";
-import { Host, List, Section, Text, CircularProgress } from "@expo/ui/swift-ui";
-import { useQuery } from "convex-helpers/react/cache/hooks";
+import { CircularProgress, Host, List, Section, Text } from "@expo/ui/swift-ui";
 import { api } from "@teak/convex";
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { useQuery } from "convex-helpers/react/cache/hooks";
+import { memo, useCallback, useState } from "react";
 import { colors } from "../constants/colors";
 import { CardItem } from "./CardItem";
 import { CardPreviewSheet } from "./CardPreviewSheet";
@@ -45,13 +45,13 @@ const CardsGrid = memo(function CardsGrid({
     : "Start by adding your first card";
 
   return (
-    <Host useViewportSizeMeasurement style={{ flex: 1 }}>
+    <Host style={{ flex: 1 }} useViewportSizeMeasurement>
       {cards === undefined ? (
         <CircularProgress />
       ) : cards.length === 0 ? (
         <List>
           <Section>
-            <Text weight="semibold" color={colors.label as any}>
+            <Text color={colors.label as any} weight="semibold">
               {emptyTitle}
             </Text>
             <Text color={colors.secondaryLabel as any} lineLimit={3}>
@@ -64,8 +64,8 @@ const CardsGrid = memo(function CardsGrid({
           <List listStyle="plain">
             {cards.map((card: Card) => (
               <CardItem
-                key={card._id}
                 card={card}
+                key={card._id}
                 onPress={() => handleCardPress(card)}
               />
             ))}

@@ -1,4 +1,4 @@
-import { type Doc } from "@teak/convex/_generated/dataModel";
+import type { Doc } from "@teak/convex/_generated/dataModel";
 
 interface VideoPreviewProps {
   card: Doc<"cards"> & { fileUrl?: string };
@@ -7,14 +7,16 @@ interface VideoPreviewProps {
 export function VideoPreview({ card }: VideoPreviewProps) {
   const fileUrl = card.fileUrl;
 
-  if (!fileUrl) return null;
+  if (!fileUrl) {
+    return null;
+  }
 
   return (
     <video
-      controls
-      className="w-full bg-black h-full object-contain rounded-lg"
-      preload="metadata"
       autoPlay
+      className="h-full w-full rounded-lg bg-black object-contain"
+      controls
+      preload="metadata"
     >
       <source src={fileUrl} type={card.fileMetadata?.mimeType} />
       Your browser does not support the video tag.

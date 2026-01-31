@@ -19,22 +19,22 @@ export function BulkActionBar({
   };
 
   return (
-    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-      <div className="bg-background border rounded-lg shadow-lg px-4 py-3 flex items-center gap-4">
-        <span className="text-sm font-medium">
+    <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 transform">
+      <div className="flex items-center gap-4 rounded-lg border bg-background px-4 py-3 shadow-lg">
+        <span className="font-medium text-sm">
           {selectedCount} card{selectedCount !== 1 ? "s" : ""} selected
         </span>
         <div className="flex gap-2">
           <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleDelete}
             disabled={selectedCount === 0}
+            onClick={handleDelete}
+            size="sm"
+            variant="destructive"
           >
             <Trash2 />
             Delete
           </Button>
-          <Button variant="outline" size="sm" onClick={onCancel}>
+          <Button onClick={onCancel} size="sm" variant="outline">
             <X />
             Cancel
           </Button>

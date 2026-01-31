@@ -1,5 +1,5 @@
-import { useMutation } from "convex/react";
 import { api } from "@teak/convex";
+import { useMutation } from "convex/react";
 
 export interface FileUploadConfig {
   onUploadProgress?: (progress: number) => void;
@@ -27,7 +27,7 @@ export function useCreateCardWithFile(config: FileUploadConfig = {}) {
 
         // Fetch with 30 second timeout
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const timeoutId = setTimeout(() => controller.abort(), 30_000);
         const response = await fetch(fileUri, { signal: controller.signal });
         clearTimeout(timeoutId);
 
@@ -35,7 +35,10 @@ export function useCreateCardWithFile(config: FileUploadConfig = {}) {
 
         // Upload with 60 second timeout
         const uploadController = new AbortController();
-        const uploadTimeoutId = setTimeout(() => uploadController.abort(), 60000);
+        const uploadTimeoutId = setTimeout(
+          () => uploadController.abort(),
+          60_000
+        );
         const uploadResponse = await fetch(uploadUrl, {
           method: "POST",
           body: blob,

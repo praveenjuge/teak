@@ -19,13 +19,13 @@ describe("workflows/cardCleanup", () => {
     });
 
     test("filters by deletedAt not undefined", () => {
-      const card = { deletedAt: 1000000 };
+      const card = { deletedAt: 1_000_000 };
       expect(card.deletedAt).toBeDefined();
     });
 
     test("filters by deletedAt less than cutoff", () => {
       const cutoff = Date.now();
-      const card = { deletedAt: cutoff - 1000000 };
+      const card = { deletedAt: cutoff - 1_000_000 };
       expect(card.deletedAt).toBeLessThan(cutoff);
     });
 
@@ -76,7 +76,7 @@ describe("workflows/cardCleanup", () => {
 
     test("returns deleted false when deletedAt is after cutoff", () => {
       const cutoff = Date.now();
-      const deletedAt = cutoff + 1000000;
+      const deletedAt = cutoff + 1_000_000;
       const shouldDelete = deletedAt < cutoff;
       expect(shouldDelete).toBe(false);
     });
@@ -112,7 +112,8 @@ describe("workflows/cardCleanup", () => {
     });
 
     test("logs error when card record deletion fails", () => {
-      const errorMessage = "[workflow/cardCleanup] Failed to delete card record";
+      const errorMessage =
+        "[workflow/cardCleanup] Failed to delete card record";
       expect(errorMessage).toContain("Failed to delete card record");
     });
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export default function GlobalError({
   error,
@@ -18,9 +18,9 @@ export default function GlobalError({
   return (
     // global-error must include html and body tags
     <html>
-      <body className="flex justify-center items-center flex-col min-h-screen gap-4">
+      <body className="flex min-h-screen flex-col items-center justify-center gap-4">
         <h2>Something went wrong! {error.message}</h2>
-        <button onClick={() => reset()} className={cn(buttonVariants())}>
+        <button className={cn(buttonVariants())} onClick={() => reset()}>
           Try again
         </button>
       </body>

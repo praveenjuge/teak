@@ -1,26 +1,26 @@
-import { useEffect, useRef, useState } from "react";
-import { useMutation } from "convex/react";
-import { useQuery } from "convex-helpers/react/cache/hooks";
-import type { OptimisticLocalStore } from "convex/browser";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Mic, Square, Upload, Sparkles, AlertCircle } from "lucide-react";
+import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import { useFileUpload } from "@/hooks/useFileUpload";
 import {
   CARD_ERROR_CODES,
+  CARD_ERROR_MESSAGES,
   MAX_FILE_SIZE,
   MAX_FILES_PER_UPLOAD,
-  CARD_ERROR_MESSAGES,
   resolveTextCardInput,
 } from "@teak/convex/shared";
-import { toast } from "sonner";
-import * as Sentry from "@sentry/nextjs";
-import { metrics } from "@/lib/metrics";
+import type { OptimisticLocalStore } from "convex/browser";
+import { useMutation } from "convex/react";
+import { useQuery } from "convex-helpers/react/cache/hooks";
+import { AlertCircle, Mic, Sparkles, Square, Upload } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { useFileUpload } from "@/hooks/useFileUpload";
+import { metrics } from "@/lib/metrics";
 
 // Helper to add a new card optimistically to all matching searchCards queries
 function addCardToSearchQueries(
@@ -320,7 +320,9 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       // Clean up the input element immediately
       document.body.removeChild(input);
 
-      if (files.length === 0) return;
+      if (files.length === 0) {
+        return;
+      }
 
       // Validate file count
       if (files.length > MAX_FILES_PER_UPLOAD) {
@@ -362,18 +364,18 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
             toast.error("Card limit reached", { id: toastId });
             setShowUpgradePrompt(true);
             break; // Stop uploading more files
-          } else if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
+          }
+          if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
             metrics.rateLimitHit("card_creation");
             toast.error("Too many cards created. Please wait a moment.", {
               id: toastId,
             });
             break; // Stop uploading more files
-          } else {
-            const errorMessage = result.error || "Failed to upload file";
-            metrics.errorOccurred("upload", result.errorCode);
-            toast.error(`Failed to upload ${file.name}`, { id: toastId });
-            setError(errorMessage);
           }
+          const errorMessage = result.error || "Failed to upload file";
+          metrics.errorOccurred("upload", result.errorCode);
+          toast.error(`Failed to upload ${file.name}`, { id: toastId });
+          setError(errorMessage);
         }
       }
     };
@@ -387,7 +389,9 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     e.preventDefault();
 
     // Only handle text content here
-    if (!content.trim()) return;
+    if (!content.trim()) {
+      return;
+    }
 
     metrics.featureUsed("quick_add");
 
@@ -453,26 +457,26 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   // Recording mode - full screen recording interface
   if (isRecording) {
     return (
-      <Card className="shadow-none p-4 border-red-200 w-full min-h-36">
-        <CardContent className="text-center flex flex-col gap-4 h-full justify-center items-center p-0">
+      <Card className="min-h-36 w-full border-red-200 p-4 shadow-none">
+        <CardContent className="flex h-full flex-col items-center justify-center gap-4 p-0 text-center">
           <p className="font-medium text-destructive">Recording...</p>
 
           <Button
-            type="button"
-            onClick={stopRecording}
-            variant="destructive"
-            disabled={isSubmitting}
             className="gap-0 space-x-0"
+            disabled={isSubmitting}
+            onClick={stopRecording}
+            type="button"
+            variant="destructive"
           >
             <Square />
           </Button>
 
-          <p className="font-mono font-medium text-destructive">
+          <p className="font-medium font-mono text-destructive">
             {formatTime(recordingTime)}
           </p>
 
           {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-destructive text-center">
+            <div className="mt-4 rounded border border-red-200 bg-red-50 p-3 text-center text-destructive">
               {error}
             </div>
           )}
@@ -482,16 +486,17 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   }
 
   return (
-    <Card className="p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden w-full min-h-36">
-      <CardContent className="p-0 h-full">
+    <Card className="min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary">
+      <CardContent className="h-full p-0">
         <form
+          className="flex h-full flex-1 flex-col"
           onSubmit={handleTextSubmit}
-          className="flex flex-col flex-1 h-full"
         >
           <Textarea
+            autoFocus={autoFocus}
+            className="h-full min-h-20 flex-1 resize-none rounded-none border-0 bg-transparent p-4 shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent"
+            disabled={!canCreateCard}
             id="content"
-            ref={textareaRef}
-            value={content}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -503,41 +508,40 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
                 }
               }
             }}
-            autoFocus={autoFocus}
-            disabled={!canCreateCard}
             placeholder={
               canCreateCard
                 ? "Write or add a link..."
                 : "Upgrade to Pro to add more cards..."
             }
-            className="min-h-20 flex-1 h-full resize-none border-0 shadow-none rounded-none p-4 focus-visible:outline-none focus-visible:ring-0 bg-transparent dark:bg-transparent"
+            ref={textareaRef}
+            value={content}
           />
 
           {/* Action Buttons Row */}
-          <div className="flex gap-2 justify-between p-4">
+          <div className="flex justify-between gap-2 p-4">
             <div className="flex gap-2">
               <Button
+                disabled={!canCreateCard}
+                onClick={handleFileUpload}
+                size="sm"
                 type="button"
                 variant="outline"
-                size="sm"
-                onClick={handleFileUpload}
-                disabled={!canCreateCard}
               >
                 <Upload />
               </Button>
 
               <Button
+                disabled={!canCreateCard}
+                onClick={startRecording}
+                size="sm"
                 type="button"
                 variant="outline"
-                size="sm"
-                onClick={startRecording}
-                disabled={!canCreateCard}
               >
                 <Mic />
               </Button>
             </div>
             {content.trim() && (
-              <Button type="submit" disabled={!canCreateCard} size="sm">
+              <Button disabled={!canCreateCard} size="sm" type="submit">
                 Save
               </Button>
             )}
@@ -546,8 +550,8 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
 
         {error && (
           <Alert
-            variant="destructive"
             className="rounded-none border-0 border-t"
+            variant="destructive"
           >
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
@@ -555,14 +559,14 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         )}
 
         {showUpgradePrompt && !canCreateCard && (
-          <Link href="/settings" className="px-1 pb-1 block">
+          <Link className="block px-1 pb-1" href="/settings">
             <Alert>
               <Sparkles className="stroke-primary" />
-              <AlertTitle className="text-primary font-medium">
+              <AlertTitle className="font-medium text-primary">
                 Upgrade to Pro →
               </AlertTitle>
               <AlertDescription>
-                <span className="text-primary font-medium">
+                <span className="font-medium text-primary">
                   You&apos;ve reached your free tier limit. Upgrade to Pro for
                   unlimited cards.
                 </span>

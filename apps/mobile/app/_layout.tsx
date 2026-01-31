@@ -1,22 +1,4 @@
 import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from "@react-navigation/native";
-import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import { colors } from "@/constants/colors";
-import ConvexClientProvider from "../ConvexClientProvider";
-import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import * as SplashScreen from "expo-splash-screen";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useConvexAuth } from "convex/react";
-import {
-  ThemePreferenceProvider,
-  useThemePreference,
-} from "@/lib/theme-preference";
-import {
   BottomSheet,
   Host,
   Image,
@@ -25,13 +7,34 @@ import {
   VStack,
 } from "@expo/ui/swift-ui";
 import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from "@react-navigation/native";
+import { useConvexAuth } from "convex/react";
+import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
+import { Stack } from "expo-router";
+import {
+  hide as hideSplashScreen,
+  preventAutoHideAsync,
+} from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { colors } from "@/constants/colors";
+import {
   clearFeedbackStatus,
+  type FeedbackStatusPayload,
   getFeedbackStatus,
   subscribeFeedbackStatus,
-  type FeedbackStatusPayload,
 } from "@/lib/feedbackBridge";
+import {
+  ThemePreferenceProvider,
+  useThemePreference,
+} from "@/lib/theme-preference";
+import ConvexClientProvider from "../ConvexClientProvider";
 
-void SplashScreen.preventAutoHideAsync();
+void preventAutoHideAsync();
 const AUTO_DISMISS_MS = 2000;
 const DISMISS_ANIMATION_MS = 350;
 
@@ -84,7 +87,7 @@ function RootNavigator() {
 
   useEffect(() => {
     if (!isLoading) {
-      SplashScreen.hide();
+      hideSplashScreen();
     }
   }, [isLoading]);
 
@@ -110,7 +113,7 @@ function FeedbackBottomSheet() {
   const [feedbackState, setFeedbackState] =
     useState<FeedbackStatusPayload | null>(() => getFeedbackStatus());
   const [isSheetOpen, setIsSheetOpen] = useState<boolean>(() =>
-    Boolean(getFeedbackStatus()),
+    Boolean(getFeedbackStatus())
   );
   const isDismissingRef = useRef(false);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -177,7 +180,9 @@ function FeedbackBottomSheet() {
     return () => clearTimeout(timer);
   }, [activeState, beginDismiss]);
 
-  if (!activeState) return null;
+  if (!activeState) {
+    return null;
+  }
 
   const { message, iconName } = activeState;
 
@@ -194,6 +199,7 @@ function FeedbackBottomSheet() {
       useViewportSizeMeasurement
     >
       <BottomSheet
+        interactiveDismissDisabled={false}
         isOpened={isSheetOpen}
         onIsOpenedChange={(open) => {
           if (open) {
@@ -204,12 +210,11 @@ function FeedbackBottomSheet() {
         }}
         presentationDetents={["medium"]}
         presentationDragIndicator="visible"
-        interactiveDismissDisabled={false}
       >
-        <VStack spacing={14} alignment="center">
+        <VStack alignment="center" spacing={14}>
           <Spacer />
           <Image systemName={(iconName ?? "checkmark.circle.fill") as any} />
-          <Text weight="semibold" design="rounded" lineLimit={1}>
+          <Text design="rounded" lineLimit={1} weight="semibold">
             {message}
           </Text>
           <Spacer />

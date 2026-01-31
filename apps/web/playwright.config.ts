@@ -20,8 +20,7 @@ export default defineConfig({
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL:
-      process.env.PLAYWRIGHT_BASE_URL ||
-      `http://127.0.0.1:${DEFAULT_PORT}`,
+      process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${DEFAULT_PORT}`,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
@@ -29,16 +28,16 @@ export default defineConfig({
   globalSetup: "./src/tests/global.setup.ts",
   webServer: shouldStartServer
     ? {
-      command: "bun run dev",
-      cwd: "../..",
-      port: Number(DEFAULT_PORT),
-      timeout: 120_000,
-      reuseExistingServer: !process.env.CI,
-      env: {
-        ...process.env,
-        PORT: DEFAULT_PORT,
-      },
-    }
+        command: "bun run dev",
+        cwd: "../..",
+        port: Number(DEFAULT_PORT),
+        timeout: 120_000,
+        reuseExistingServer: !process.env.CI,
+        env: {
+          ...process.env,
+          PORT: DEFAULT_PORT,
+        },
+      }
     : undefined,
   projects: [
     {

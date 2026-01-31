@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getSessionTokenFromCookies } from "../utils/getSessionFromCookies";
 
 interface User {
@@ -25,7 +25,7 @@ const baseURL = import.meta.env.DEV
 
 /**
  * Custom hook to get the session from the web app.
- * 
+ *
  * In development: Uses credentials: "include" which works with localhost
  * In production: Reads cookie via chrome.cookies API and passes via Authorization header
  */
@@ -62,7 +62,7 @@ export function useWebAppSession(): UseWebAppSessionResult {
         response = await fetch(`${baseURL}/api/auth/get-session`, {
           method: "GET",
           headers: {
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
           credentials: "omit",
         });

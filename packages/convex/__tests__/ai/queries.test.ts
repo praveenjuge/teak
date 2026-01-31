@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, expect, test, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 describe("ai/queries.ts", () => {
   let getCardForAI: any;
@@ -32,10 +32,7 @@ describe("ai/queries.ts", () => {
   test("findCardsMissingAi maps to card ids", async () => {
     const mockQuery = {
       filter: mock().mockReturnThis(),
-      take: mock().mockResolvedValue([
-        { _id: "c1" },
-        { _id: "c2" },
-      ]),
+      take: mock().mockResolvedValue([{ _id: "c1" }, { _id: "c2" }]),
     } as any;
     const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
     const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
@@ -81,21 +78,28 @@ describe("ai/queries.ts", () => {
 
   test("getCardForVerification returns null when card missing", async () => {
     const ctx = { db: { get: mock().mockResolvedValue(null) } } as any;
-    const handler = (getCardForVerification as any).handler ?? getCardForVerification;
+    const handler =
+      (getCardForVerification as any).handler ?? getCardForVerification;
     const result = await handler(ctx, { cardId: "c1", userId: "u1" });
     expect(result).toBeNull();
   });
 
   test("getCardForVerification returns null when missing or wrong user", async () => {
-    const ctx = { db: { get: mock().mockResolvedValue({ userId: "u2" }) } } as any;
-    const handler = (getCardForVerification as any).handler ?? getCardForVerification;
+    const ctx = {
+      db: { get: mock().mockResolvedValue({ userId: "u2" }) },
+    } as any;
+    const handler =
+      (getCardForVerification as any).handler ?? getCardForVerification;
     const result = await handler(ctx, { cardId: "c1", userId: "u1" });
     expect(result).toBeNull();
   });
 
   test("getCardForVerification returns exists when match", async () => {
-    const ctx = { db: { get: mock().mockResolvedValue({ userId: "u1" }) } } as any;
-    const handler = (getCardForVerification as any).handler ?? getCardForVerification;
+    const ctx = {
+      db: { get: mock().mockResolvedValue({ userId: "u1" }) },
+    } as any;
+    const handler =
+      (getCardForVerification as any).handler ?? getCardForVerification;
     const result = await handler(ctx, { cardId: "c1", userId: "u1" });
     expect(result).toEqual({ exists: true });
   });

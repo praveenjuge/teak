@@ -1,22 +1,22 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
-  cardTypes,
-  FREE_TIER_LIMIT,
-  MAX_FILE_SIZE,
-  MAX_FILES_PER_UPLOAD,
   CARD_ERROR_CODES,
   CARD_ERROR_MESSAGES,
-  CARD_TYPES,
-  CARD_TYPE_LABELS,
   CARD_TYPE_ICONS,
+  CARD_TYPE_LABELS,
   CARD_TYPE_REGISTRY,
+  CARD_TYPES,
+  type CardErrorCode,
+  type CardType,
+  cardTypes,
+  FREE_TIER_LIMIT,
   getCardTypeConfig,
   getCardTypeIcon,
   getCardTypeLabel,
   isCardType,
+  MAX_FILE_SIZE,
+  MAX_FILES_PER_UPLOAD,
   RESERVED_KEYWORDS,
-  type CardType,
-  type CardErrorCode,
 } from "./constants";
 
 describe("Constants", () => {
@@ -46,7 +46,7 @@ describe("Constants", () => {
   describe("MAX_FILE_SIZE", () => {
     it("should be 20MB in bytes", () => {
       expect(MAX_FILE_SIZE).toBe(20 * 1024 * 1024);
-      expect(MAX_FILE_SIZE).toBe(20971520);
+      expect(MAX_FILE_SIZE).toBe(20_971_520);
     });
   });
 
@@ -86,7 +86,9 @@ describe("Constants", () => {
     });
 
     it("should have specific messages", () => {
-      expect(CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED).toContain("upgrade to Pro");
+      expect(CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED).toContain(
+        "upgrade to Pro"
+      );
       expect(CARD_ERROR_MESSAGES.FILE_TOO_LARGE).toContain("20MB");
       expect(CARD_ERROR_MESSAGES.TOO_MANY_FILES).toContain("5 files");
     });
@@ -236,18 +238,24 @@ describe("Constants", () => {
 
   describe("RESERVED_KEYWORDS", () => {
     it("should include all card types", () => {
-      const cardTypeValues = RESERVED_KEYWORDS.filter((k) => cardTypes.includes(k.value as CardType));
+      const cardTypeValues = RESERVED_KEYWORDS.filter((k) =>
+        cardTypes.includes(k.value as CardType)
+      );
       expect(cardTypeValues).toHaveLength(8);
     });
 
     it("should include favorites", () => {
       expect(RESERVED_KEYWORDS.some((k) => k.value === "favorites")).toBe(true);
-      expect(RESERVED_KEYWORDS.find((k) => k.value === "favorites")?.label).toBe("Favorites");
+      expect(
+        RESERVED_KEYWORDS.find((k) => k.value === "favorites")?.label
+      ).toBe("Favorites");
     });
 
     it("should include trash", () => {
       expect(RESERVED_KEYWORDS.some((k) => k.value === "trash")).toBe(true);
-      expect(RESERVED_KEYWORDS.find((k) => k.value === "trash")?.label).toBe("Trash");
+      expect(RESERVED_KEYWORDS.find((k) => k.value === "trash")?.label).toBe(
+        "Trash"
+      );
     });
 
     it("should have search labels for card types", () => {

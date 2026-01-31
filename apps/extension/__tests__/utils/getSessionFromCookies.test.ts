@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, test, expect, mock } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 
 describe("getSessionTokenFromCookies", () => {
   describe("URL Configuration", () => {
@@ -222,7 +222,9 @@ describe("getSessionTokenFromCookies", () => {
     });
 
     test("should handle cookie retrieval errors gracefully", async () => {
-      const mockGet = mock(() => Promise.reject(new Error("Cookie access denied")));
+      const mockGet = mock(() =>
+        Promise.reject(new Error("Cookie access denied"))
+      );
 
       try {
         await mockGet({
@@ -281,9 +283,7 @@ describe("getSessionTokenFromCookies", () => {
     });
 
     test("should handle network errors", async () => {
-      const mockGet = mock(() =>
-        Promise.reject(new Error("Network error"))
-      );
+      const mockGet = mock(() => Promise.reject(new Error("Network error")));
 
       try {
         await mockGet({
@@ -379,7 +379,9 @@ describe("getSessionTokenFromCookies", () => {
     });
 
     test("should handle token retrieval errors", async () => {
-      const mockGetToken = mock(() => Promise.reject(new Error("Failed to get token")));
+      const mockGetToken = mock(() =>
+        Promise.reject(new Error("Failed to get token"))
+      );
 
       try {
         await mockGetToken();
@@ -611,9 +613,11 @@ describe("getSessionTokenFromCookies", () => {
       const isDev = true;
       const url = isDev ? "http://localhost:3000" : "https://app.teakvault.com";
 
-      expect(isDev ? url === "http://localhost:3000" : url === "https://app.teakvault.com").toBe(
-        true
-      );
+      expect(
+        isDev
+          ? url === "http://localhost:3000"
+          : url === "https://app.teakvault.com"
+      ).toBe(true);
     });
 
     test("should use appropriate cookie name based on environment", () => {
@@ -622,9 +626,11 @@ describe("getSessionTokenFromCookies", () => {
         ? "better-auth.session_token"
         : "__Secure-better-auth.session_token";
 
-      expect(isDev ? cookieName === "better-auth.session_token" : cookieName === "__Secure-better-auth.session_token").toBe(
-        true
-      );
+      expect(
+        isDev
+          ? cookieName === "better-auth.session_token"
+          : cookieName === "__Secure-better-auth.session_token"
+      ).toBe(true);
     });
   });
 
@@ -721,15 +727,17 @@ describe("getSessionTokenFromCookies", () => {
         name: "better-auth.session_token",
       });
 
-      expect(result === null || typeof result === "string" || typeof result === "object").toBe(
-        true
-      );
+      expect(
+        result === null ||
+          typeof result === "string" ||
+          typeof result === "object"
+      ).toBe(true);
     });
   });
 
   describe("Edge Cases", () => {
     test("should handle very long token values", async () => {
-      const longToken = "a".repeat(10000);
+      const longToken = "a".repeat(10_000);
 
       const mockGet = mock(() =>
         Promise.resolve({
@@ -743,7 +751,7 @@ describe("getSessionTokenFromCookies", () => {
         name: "better-auth.session_token",
       });
 
-      expect(cookie.value.length).toBe(10000);
+      expect(cookie.value.length).toBe(10_000);
     });
 
     test("should handle special characters in token", async () => {

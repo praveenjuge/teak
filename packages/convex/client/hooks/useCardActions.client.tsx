@@ -1,8 +1,11 @@
 import type { Id } from "../../shared/types";
 
 // Sentry capture function - will be injected by platform-specific wrappers
-type SentryCaptureFunction = (error: unknown, context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }) => void;
-let captureException: SentryCaptureFunction = () => { };
+type SentryCaptureFunction = (
+  error: unknown,
+  context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }
+) => void;
+let captureException: SentryCaptureFunction = () => {};
 
 export function setSentryCaptureFunction(fn: SentryCaptureFunction) {
   captureException = fn;
@@ -18,15 +21,15 @@ export interface CardActionsConfig {
 export type UpdateCardFieldArgs = {
   cardId: Id<"cards">;
   field:
-  | "content"
-  | "url"
-  | "notes"
-  | "tags"
-  | "aiSummary"
-  | "isFavorited"
-  | "removeAiTag"
-  | "delete"
-  | "restore";
+    | "content"
+    | "url"
+    | "notes"
+    | "tags"
+    | "aiSummary"
+    | "isFavorited"
+    | "removeAiTag"
+    | "delete"
+    | "restore";
   value?: any;
   tagToRemove?: string;
 };
@@ -44,7 +47,6 @@ export function createCardActions(
   { permanentDeleteCard, updateCardField }: CardActionsDependencies,
   config: CardActionsConfig = {}
 ) {
-
   const handleDeleteCard = async (cardId: Id<"cards">) => {
     try {
       await updateCardField({ cardId, field: "delete" });
@@ -52,7 +54,11 @@ export function createCardActions(
     } catch (error) {
       console.error("Failed to delete card:", error);
       captureException(error, {
-        tags: { source: "convex", mutation: "cards:updateCardField", operation: "delete" },
+        tags: {
+          source: "convex",
+          mutation: "cards:updateCardField",
+          operation: "delete",
+        },
         extra: { cardId },
       });
       config.onError?.(error as Error, "delete");
@@ -66,7 +72,11 @@ export function createCardActions(
     } catch (error) {
       console.error("Failed to restore card:", error);
       captureException(error, {
-        tags: { source: "convex", mutation: "cards:updateCardField", operation: "restore" },
+        tags: {
+          source: "convex",
+          mutation: "cards:updateCardField",
+          operation: "restore",
+        },
         extra: { cardId },
       });
       config.onError?.(error as Error, "restore");
@@ -96,7 +106,11 @@ export function createCardActions(
     } catch (error) {
       console.error("Failed to toggle favorite:", error);
       captureException(error, {
-        tags: { source: "convex", mutation: "cards:updateCardField", operation: "toggleFavorite" },
+        tags: {
+          source: "convex",
+          mutation: "cards:updateCardField",
+          operation: "toggleFavorite",
+        },
         extra: { cardId },
       });
       config.onError?.(error as Error, "toggle favorite");
@@ -106,7 +120,16 @@ export function createCardActions(
   // New unified field update method
   const updateField = async (
     cardId: Id<"cards">,
-    field: "content" | "url" | "notes" | "tags" | "aiSummary" | "isFavorited" | "removeAiTag" | "delete" | "restore",
+    field:
+      | "content"
+      | "url"
+      | "notes"
+      | "tags"
+      | "aiSummary"
+      | "isFavorited"
+      | "removeAiTag"
+      | "delete"
+      | "restore",
     value?: any,
     tagToRemove?: string
   ) => {
@@ -120,7 +143,11 @@ export function createCardActions(
     } catch (error) {
       console.error(`Failed to update ${field}:`, error);
       captureException(error, {
-        tags: { source: "convex", mutation: "cards:updateCardField", operation: `update_${field}` },
+        tags: {
+          source: "convex",
+          mutation: "cards:updateCardField",
+          operation: `update_${field}`,
+        },
         extra: { cardId, field, value },
       });
       config.onError?.(error as Error, `update ${field}`);

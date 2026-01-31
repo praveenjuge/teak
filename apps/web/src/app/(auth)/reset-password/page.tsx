@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   CardContent,
   CardDescription,
@@ -11,13 +13,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
-import { cn } from "@/lib/utils";
 import { metrics } from "@/lib/metrics";
+import { cn } from "@/lib/utils";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -40,7 +40,6 @@ export default function ResetPassword() {
 
   useEffect(() => {
     if (errorCode) {
-       
       setError(
         errorMessages[errorCode] ??
           "We couldn't verify your reset link. Request a new one."
@@ -49,7 +48,9 @@ export default function ResetPassword() {
   }, [errorCode]);
 
   const helperText = useMemo(() => {
-    if (error) return { text: error, variant: "error" as const };
+    if (error) {
+      return { text: error, variant: "error" as const };
+    }
     if (!token) {
       return {
         text: "We need a valid reset link to finish updating your password.",
@@ -85,7 +86,9 @@ export default function ResetPassword() {
       return;
     }
 
-    if (!canSubmit) return;
+    if (!canSubmit) {
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -123,7 +126,7 @@ export default function ResetPassword() {
         {success ? (
           <div className="grid gap-4 text-center">
             <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Your password has been updated. Login with your new credentials to
               continue.
             </p>
@@ -132,31 +135,31 @@ export default function ResetPassword() {
             </Button>
           </div>
         ) : (
-          <form onSubmit={handleReset} className="grid gap-4">
+          <form className="grid gap-4" onSubmit={handleReset}>
             <div className="grid gap-2">
               <Label htmlFor="password">New password</Label>
               <Input
-                id="password"
-                type="password"
                 autoComplete="new-password"
+                id="password"
+                onChange={(event) => setPassword(event.target.value)}
                 placeholder="Create a new password"
                 required
+                type="password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
               />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password_confirmation">Confirm password</Label>
               <Input
-                id="password_confirmation"
-                type="password"
                 autoComplete="new-password"
-                placeholder="Re-enter your password"
-                required
-                value={passwordConfirmation}
+                id="password_confirmation"
                 onChange={(event) =>
                   setPasswordConfirmation(event.target.value)
                 }
+                placeholder="Re-enter your password"
+                required
+                type="password"
+                value={passwordConfirmation}
               />
             </div>
 
@@ -171,7 +174,7 @@ export default function ResetPassword() {
               </Alert>
             )}
 
-            <Button type="submit" className="w-full" disabled={!canSubmit}>
+            <Button className="w-full" disabled={!canSubmit} type="submit">
               {loading ? (
                 <Loader2 className="animate-spin" />
               ) : (
@@ -183,10 +186,10 @@ export default function ResetPassword() {
       </CardContent>
 
       {!success && (
-        <CardFooter className="flex-col gap-1 -my-2">
+        <CardFooter className="-my-2 flex-col gap-1">
           <Link
-            href="/forgot-password"
             className={cn(buttonVariants({ variant: "link" }))}
+            href="/forgot-password"
           >
             Need a new link? Request Again
           </Link>

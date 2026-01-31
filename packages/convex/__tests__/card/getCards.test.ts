@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, expect, test, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 const buildQuery = (cards: any[] = []) => {
   return {
@@ -8,7 +8,11 @@ const buildQuery = (cards: any[] = []) => {
     filter: mock().mockImplementation(() => buildQuery(cards)),
     order: mock().mockImplementation(() => buildQuery(cards)),
     take: mock().mockResolvedValue(cards),
-    paginate: mock().mockResolvedValue({ page: cards, isDone: true, continueCursor: null }),
+    paginate: mock().mockResolvedValue({
+      page: cards,
+      isDone: true,
+      continueCursor: null,
+    }),
   } as any;
 };
 
@@ -26,7 +30,9 @@ describe("card/getCards.ts", () => {
 
   describe("getCards", () => {
     test("returns empty when unauthenticated", async () => {
-      const ctx = { auth: { getUserIdentity: mock().mockResolvedValue(null) } } as any;
+      const ctx = {
+        auth: { getUserIdentity: mock().mockResolvedValue(null) },
+      } as any;
       const handler = (getCards as any).handler ?? getCards;
       const result = await handler(ctx, {});
       expect(result).toEqual([]);
@@ -38,7 +44,7 @@ describe("card/getCards.ts", () => {
           _id: "c1",
           _creationTime: 1,
           userId: "u1",
-          content: "\"Hello\"",
+          content: '"Hello"',
           type: "quote",
           fileId: "f1",
           thumbnailId: "t1",
@@ -91,7 +97,10 @@ describe("card/getCards.ts", () => {
       const handler = (getCards as any).handler ?? getCards;
       await handler(ctx, { type: "image" });
       expect(ctx.db.query).toHaveBeenCalledWith("cards");
-      expect(query.withIndex).toHaveBeenCalledWith("by_user_type_deleted", expect.any(Function));
+      expect(query.withIndex).toHaveBeenCalledWith(
+        "by_user_type_deleted",
+        expect.any(Function)
+      );
     });
 
     test("uses default limit when not specified", async () => {
@@ -164,14 +173,18 @@ describe("card/getCards.ts", () => {
 
   describe("searchCards", () => {
     test("returns empty when unauthenticated", async () => {
-      const ctx = { auth: { getUserIdentity: mock().mockResolvedValue(null) } } as any;
+      const ctx = {
+        auth: { getUserIdentity: mock().mockResolvedValue(null) },
+      } as any;
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, {});
       expect(result).toEqual([]);
     });
 
     test("handles favorites keyword search", async () => {
-      const cards = [{ _id: "c1", _creationTime: 1, userId: "u1", content: "Fav card" }];
+      const cards = [
+        { _id: "c1", _creationTime: 1, userId: "u1", content: "Fav card" },
+      ];
       const query = buildQuery(cards);
 
       const ctx = {
@@ -183,11 +196,16 @@ describe("card/getCards.ts", () => {
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, { searchQuery: "fav" });
       expect(result).toHaveLength(1);
-      expect(query.withIndex).toHaveBeenCalledWith("by_user_favorites_deleted", expect.any(Function));
+      expect(query.withIndex).toHaveBeenCalledWith(
+        "by_user_favorites_deleted",
+        expect.any(Function)
+      );
     });
 
     test("handles trash keyword search", async () => {
-      const cards = [{ _id: "c1", _creationTime: 1, userId: "u1", content: "Deleted" }];
+      const cards = [
+        { _id: "c1", _creationTime: 1, userId: "u1", content: "Deleted" },
+      ];
       const query = buildQuery(cards);
 
       const ctx = {
@@ -202,7 +220,9 @@ describe("card/getCards.ts", () => {
     });
 
     test("deduplicates search results", async () => {
-      const cards = [{ _id: "c1", _creationTime: 1, userId: "u1", content: "Test" }];
+      const cards = [
+        { _id: "c1", _creationTime: 1, userId: "u1", content: "Test" },
+      ];
       const query = buildQuery([cards[0], cards[0]]); // Same card twice
 
       const ctx = {
@@ -218,8 +238,20 @@ describe("card/getCards.ts", () => {
 
     test("filters by type when types provided", async () => {
       const cards = [
-        { _id: "c1", _creationTime: 1, userId: "u1", content: "Test", type: "image" },
-        { _id: "c2", _creationTime: 2, userId: "u1", content: "Test", type: "video" },
+        {
+          _id: "c1",
+          _creationTime: 1,
+          userId: "u1",
+          content: "Test",
+          type: "image",
+        },
+        {
+          _id: "c2",
+          _creationTime: 2,
+          userId: "u1",
+          content: "Test",
+          type: "video",
+        },
       ];
       const query = buildQuery(cards);
 
@@ -230,15 +262,30 @@ describe("card/getCards.ts", () => {
       } as any;
 
       const handler = (searchCards as any).handler ?? searchCards;
-      const result = await handler(ctx, { searchQuery: "test", types: ["image"] });
+      const result = await handler(ctx, {
+        searchQuery: "test",
+        types: ["image"],
+      });
       expect(result).toHaveLength(1);
       expect(result[0].type).toBe("image");
     });
 
     test("filters by favorites when favoritesOnly is true", async () => {
       const cards = [
-        { _id: "c1", _creationTime: 1, userId: "u1", content: "Test", isFavorited: true },
-        { _id: "c2", _creationTime: 2, userId: "u1", content: "Test", isFavorited: false },
+        {
+          _id: "c1",
+          _creationTime: 1,
+          userId: "u1",
+          content: "Test",
+          isFavorited: true,
+        },
+        {
+          _id: "c2",
+          _creationTime: 2,
+          userId: "u1",
+          content: "Test",
+          isFavorited: false,
+        },
       ];
       const query = buildQuery(cards);
 
@@ -249,7 +296,10 @@ describe("card/getCards.ts", () => {
       } as any;
 
       const handler = (searchCards as any).handler ?? searchCards;
-      const result = await handler(ctx, { searchQuery: "test", favoritesOnly: true });
+      const result = await handler(ctx, {
+        searchQuery: "test",
+        favoritesOnly: true,
+      });
       expect(result).toHaveLength(1);
       expect(result[0].isFavorited).toBe(true);
     });
@@ -287,11 +337,16 @@ describe("card/getCards.ts", () => {
 
       const handler = (searchCards as any).handler ?? searchCards;
       await handler(ctx, { types: ["image"] });
-      expect(query.withIndex).toHaveBeenCalledWith("by_user_type_deleted", expect.any(Function));
+      expect(query.withIndex).toHaveBeenCalledWith(
+        "by_user_type_deleted",
+        expect.any(Function)
+      );
     });
 
     test("handles no search query with type filter", async () => {
-      const cards = [{ _id: "c1", _creationTime: 1, userId: "u1", type: "image" }];
+      const cards = [
+        { _id: "c1", _creationTime: 1, userId: "u1", type: "image" },
+      ];
       const query = buildQuery(cards);
 
       const ctx = {
@@ -308,14 +363,21 @@ describe("card/getCards.ts", () => {
 
   describe("searchCardsPaginated", () => {
     test("returns empty pagination when unauthenticated", async () => {
-      const ctx = { auth: { getUserIdentity: mock().mockResolvedValue(null) } } as any;
-      const handler = (searchCardsPaginated as any).handler ?? searchCardsPaginated;
-      const result = await handler(ctx, { paginationOpts: { numItems: 10, cursor: null } });
+      const ctx = {
+        auth: { getUserIdentity: mock().mockResolvedValue(null) },
+      } as any;
+      const handler =
+        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
+      const result = await handler(ctx, {
+        paginationOpts: { numItems: 10, cursor: null },
+      });
       expect(result).toEqual({ page: [], isDone: true, continueCursor: null });
     });
 
     test("paginates favorites search", async () => {
-      const cards = [{ _id: "c1", _creationTime: 1, userId: "u1", content: "Fav" }];
+      const cards = [
+        { _id: "c1", _creationTime: 1, userId: "u1", content: "Fav" },
+      ];
       const query = buildQuery(cards);
 
       const ctx = {
@@ -324,7 +386,8 @@ describe("card/getCards.ts", () => {
         storage: { getUrl: mock() },
       } as any;
 
-      const handler = (searchCardsPaginated as any).handler ?? searchCardsPaginated;
+      const handler =
+        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
       const result = await handler(ctx, {
         paginationOpts: { numItems: 10, cursor: null },
         searchQuery: "favorites",
@@ -333,7 +396,9 @@ describe("card/getCards.ts", () => {
     });
 
     test("paginates trash search", async () => {
-      const cards = [{ _id: "c1", _creationTime: 1, userId: "u1", content: "Deleted" }];
+      const cards = [
+        { _id: "c1", _creationTime: 1, userId: "u1", content: "Deleted" },
+      ];
       const query = buildQuery(cards);
 
       const ctx = {
@@ -342,7 +407,8 @@ describe("card/getCards.ts", () => {
         storage: { getUrl: mock() },
       } as any;
 
-      const handler = (searchCardsPaginated as any).handler ?? searchCardsPaginated;
+      const handler =
+        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
       const result = await handler(ctx, {
         paginationOpts: { numItems: 10, cursor: null },
         searchQuery: "deleted",
@@ -366,7 +432,8 @@ describe("card/getCards.ts", () => {
         storage: { getUrl: mock() },
       } as any;
 
-      const handler = (searchCardsPaginated as any).handler ?? searchCardsPaginated;
+      const handler =
+        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
       const result = await handler(ctx, {
         paginationOpts: { numItems: 10, cursor: "0" },
         searchQuery: "test",
@@ -375,26 +442,14 @@ describe("card/getCards.ts", () => {
     });
 
     test("returns null continueCursor when done", async () => {
-      const cards = [{ _id: "c1", _creationTime: 1, userId: "u1", content: "Test", createdAt: 1000 }];
-      const query = buildQuery(cards);
-
-      const ctx = {
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
-        storage: { getUrl: mock() },
-      } as any;
-
-      const handler = (searchCardsPaginated as any).handler ?? searchCardsPaginated;
-      const result = await handler(ctx, {
-        paginationOpts: { numItems: 10, cursor: "0" },
-        searchQuery: "test",
-      });
-      expect(result.continueCursor).toBeNull();
-    });
-
-    test("filters by type in search", async () => {
       const cards = [
-        { _id: "c1", _creationTime: 1, userId: "u1", content: "Test", type: "image", createdAt: 1000 },
+        {
+          _id: "c1",
+          _creationTime: 1,
+          userId: "u1",
+          content: "Test",
+          createdAt: 1000,
+        },
       ];
       const query = buildQuery(cards);
 
@@ -404,7 +459,36 @@ describe("card/getCards.ts", () => {
         storage: { getUrl: mock() },
       } as any;
 
-      const handler = (searchCardsPaginated as any).handler ?? searchCardsPaginated;
+      const handler =
+        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
+      const result = await handler(ctx, {
+        paginationOpts: { numItems: 10, cursor: "0" },
+        searchQuery: "test",
+      });
+      expect(result.continueCursor).toBeNull();
+    });
+
+    test("filters by type in search", async () => {
+      const cards = [
+        {
+          _id: "c1",
+          _creationTime: 1,
+          userId: "u1",
+          content: "Test",
+          type: "image",
+          createdAt: 1000,
+        },
+      ];
+      const query = buildQuery(cards);
+
+      const ctx = {
+        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+        db: { query: mock().mockReturnValue(query) },
+        storage: { getUrl: mock() },
+      } as any;
+
+      const handler =
+        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
       const result = await handler(ctx, {
         paginationOpts: { numItems: 10, cursor: "0" },
         searchQuery: "test",
@@ -414,7 +498,9 @@ describe("card/getCards.ts", () => {
     });
 
     test("paginates without search query", async () => {
-      const cards = [{ _id: "c1", _creationTime: 1, userId: "u1", content: "Test" }];
+      const cards = [
+        { _id: "c1", _creationTime: 1, userId: "u1", content: "Test" },
+      ];
       const query = buildQuery(cards);
 
       const ctx = {
@@ -423,7 +509,8 @@ describe("card/getCards.ts", () => {
         storage: { getUrl: mock() },
       } as any;
 
-      const handler = (searchCardsPaginated as any).handler ?? searchCardsPaginated;
+      const handler =
+        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
       const result = await handler(ctx, {
         paginationOpts: { numItems: 10, cursor: null },
       });

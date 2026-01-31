@@ -1,5 +1,8 @@
 // @ts-nocheck
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+
+// Helper function to create a delay promise
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // We need to test this hook by simulating React behavior
 // Since we can't use React hooks outside of components in tests,
@@ -19,258 +22,231 @@ describe("useDebouncedValue", () => {
     timers.clear();
   });
 
-  function mockSetTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
-    const timer = setTimeout(callback, delay);
+  function mockSetTimeout(
+    callback: () => void,
+    delayMs: number
+  ): ReturnType<typeof setTimeout> {
+    const timer = setTimeout(callback, delayMs);
     timers.add(timer);
     return timer;
   }
 
   test("should return initial value immediately", () => {
-    let debouncedValue = "initial";
+    const debouncedValue = "initial";
     expect(debouncedValue).toBe("initial");
   });
 
-  test("should update debounced value after delay", (done) => {
+  test("should update debounced value after delay", async () => {
     let currentValue = "initial";
     const newValue = "updated";
 
     mockSetTimeout(() => {
       currentValue = newValue;
-      expect(currentValue).toBe(newValue);
-      done();
     }, 100);
+
+    await delay(150);
+    expect(currentValue).toBe(newValue);
   });
 
-  test("should not update before delay period", (done) => {
+  test("should not update before delay period", async () => {
     let currentValue = "initial";
     const newValue = "updated";
-    const delay = 100;
+    const delayMs = 100;
 
     mockSetTimeout(() => {
       currentValue = newValue;
-    }, delay);
+    }, delayMs);
 
-    setTimeout(() => {
-      expect(currentValue).toBe("initial");
-      done();
-    }, 50);
+    await delay(50);
+    expect(currentValue).toBe("initial");
   });
 
-  test("should reset timer on value change", (done) => {
+  test("should reset timer on value change", async () => {
     let currentValue = "initial";
-    const delay = 100;
+    const delayMs = 100;
     let callCount = 0;
 
     mockSetTimeout(() => {
       callCount++;
       currentValue = "value1";
-    }, delay);
+    }, delayMs);
 
     // Change value again before first timeout
-    setTimeout(() => {
-      clearTimeout(Array.from(timers)[0]);
-      timers.delete(Array.from(timers)[0]);
+    await delay(50);
+    clearTimeout(Array.from(timers)[0]);
+    timers.delete(Array.from(timers)[0]);
 
-      mockSetTimeout(() => {
-        callCount++;
-        currentValue = "value2";
-      }, delay);
+    mockSetTimeout(() => {
+      callCount++;
+      currentValue = "value2";
+    }, delayMs);
 
-      setTimeout(() => {
-        expect(callCount).toBe(1);
-        expect(currentValue).toBe("value2");
-        done();
-      }, delay + 50);
-    }, 50);
+    await delay(delayMs + 50);
+    expect(callCount).toBe(1);
+    expect(currentValue).toBe("value2");
   });
 
-  test("should handle rapid value changes", (done) => {
+  test("should handle rapid value changes", async () => {
     let currentValue = "initial";
-    const delay = 100;
+    const delayMs = 100;
 
     // Simulate rapid changes
     mockSetTimeout(() => {
       currentValue = "final";
-    }, delay);
+    }, delayMs);
 
     // The final value should be set after the last debounce
-    setTimeout(() => {
-      expect(currentValue).toBe("final");
-      done();
-    }, delay + 50);
+    await delay(delayMs + 50);
+    expect(currentValue).toBe("final");
   });
 
-  test("should handle zero delay", (done) => {
+  test("should handle zero delay", async () => {
     let currentValue = "initial";
 
     mockSetTimeout(() => {
       currentValue = "updated";
     }, 0);
 
-    setTimeout(() => {
-      expect(currentValue).toBe("updated");
-      done();
-    }, 10);
+    await delay(10);
+    expect(currentValue).toBe("updated");
   });
 
-  test("should handle negative delay as zero", (done) => {
+  test("should handle negative delay as zero", async () => {
     let currentValue = "initial";
 
     mockSetTimeout(() => {
       currentValue = "updated";
     }, 0);
 
-    setTimeout(() => {
-      expect(currentValue).toBe("updated");
-      done();
-    }, 10);
+    await delay(10);
+    expect(currentValue).toBe("updated");
   });
 
-  test("should clear previous timeout on new value", (done) => {
+  test("should clear previous timeout on new value", async () => {
     let currentValue = "initial";
-    const delay = 100;
+    const delayMs = 100;
     let updated = false;
 
     const timer1 = mockSetTimeout(() => {
       // This should be cleared
       updated = true;
-    }, delay);
+    }, delayMs);
 
     // Clear and set new timeout
     clearTimeout(timer1);
     timers.delete(timer1);
 
-    const timer2 = mockSetTimeout(() => {
+    mockSetTimeout(() => {
       currentValue = "new-value";
-    }, delay);
+    }, delayMs);
 
-    setTimeout(() => {
-      expect(updated).toBe(false);
-      expect(currentValue).toBe("new-value");
-      done();
-    }, delay + 50);
+    await delay(delayMs + 50);
+    expect(updated).toBe(false);
+    expect(currentValue).toBe("new-value");
   });
 
-  test("should work with number values", (done) => {
+  test("should work with number values", async () => {
     let currentValue = 0;
 
     mockSetTimeout(() => {
       currentValue = 42;
     }, 100);
 
-    setTimeout(() => {
-      expect(currentValue).toBe(42);
-      done();
-    }, 150);
+    await delay(150);
+    expect(currentValue).toBe(42);
   });
 
-  test("should work with object values", (done) => {
+  test("should work with object values", async () => {
     let currentValue = { key: "initial" };
 
     mockSetTimeout(() => {
       currentValue = { key: "updated" };
     }, 100);
 
-    setTimeout(() => {
-      expect(currentValue.key).toBe("updated");
-      done();
-    }, 150);
+    await delay(150);
+    expect(currentValue.key).toBe("updated");
   });
 
-  test("should work with array values", (done) => {
+  test("should work with array values", async () => {
     let currentValue: number[] = [1, 2, 3];
 
     mockSetTimeout(() => {
       currentValue = [4, 5, 6];
     }, 100);
 
-    setTimeout(() => {
-      expect(currentValue).toEqual([4, 5, 6]);
-      done();
-    }, 150);
+    await delay(150);
+    expect(currentValue).toEqual([4, 5, 6]);
   });
 
-  test("should work with boolean values", (done) => {
+  test("should work with boolean values", async () => {
     let currentValue = false;
 
     mockSetTimeout(() => {
       currentValue = true;
     }, 100);
 
-    setTimeout(() => {
-      expect(currentValue).toBe(true);
-      done();
-    }, 150);
+    await delay(150);
+    expect(currentValue).toBe(true);
   });
 
-  test("should handle null values", (done) => {
+  test("should handle null values", async () => {
     let currentValue = "initial";
 
     mockSetTimeout(() => {
-      currentValue = null as any;
+      currentValue = null as unknown as string;
     }, 100);
 
-    setTimeout(() => {
-      expect(currentValue).toBeNull();
-      done();
-    }, 150);
+    await delay(150);
+    expect(currentValue).toBeNull();
   });
 
-  test("should handle undefined values", (done) => {
-    let currentValue = "initial";
+  test("should handle undefined values", async () => {
+    let currentValue: string | undefined = "initial";
 
     mockSetTimeout(() => {
       currentValue = undefined;
     }, 100);
 
-    setTimeout(() => {
-      expect(currentValue).toBeUndefined();
-      done();
-    }, 150);
+    await delay(150);
+    expect(currentValue).toBeUndefined();
   });
 
-  test("should debounce string changes", (done) => {
+  test("should debounce string changes", async () => {
     let currentValue = "";
-    const delay = 100;
+    const delayMs = 100;
 
     mockSetTimeout(() => {
       currentValue = "final string";
-    }, delay);
+    }, delayMs);
 
-    setTimeout(() => {
-      expect(currentValue).toBe("final string");
-      done();
-    }, delay + 50);
+    await delay(delayMs + 50);
+    expect(currentValue).toBe("final string");
   });
 
-  test("should handle very long delays", (done) => {
+  test("should handle very long delays", async () => {
     let currentValue = "initial";
-    const delay = 500;
+    const delayMs = 500;
 
     mockSetTimeout(() => {
       currentValue = "delayed";
-    }, delay);
+    }, delayMs);
 
-    setTimeout(() => {
-      expect(currentValue).toBe("delayed");
-      done();
-    }, delay + 50);
+    await delay(delayMs + 50);
+    expect(currentValue).toBe("delayed");
   });
 
-  test("should maintain debounce timing consistency", (done) => {
+  test("should maintain debounce timing consistency", async () => {
     const delays: number[] = [];
-    const delay = 100;
+    const delayMs = 100;
 
     const start = Date.now();
 
     mockSetTimeout(() => {
       delays.push(Date.now() - start);
-    }, delay);
+    }, delayMs);
 
-    setTimeout(() => {
-      expect(delays[0]).toBeGreaterThanOrEqual(delay);
-      expect(delays[0]).toBeLessThan(delay + 50);
-      done();
-    }, delay + 100);
+    await delay(delayMs + 100);
+    expect(delays[0]).toBeGreaterThanOrEqual(delayMs);
+    expect(delays[0]).toBeLessThan(delayMs + 50);
   });
 });

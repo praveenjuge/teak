@@ -90,7 +90,10 @@ export function loginSuccess(method: "email" | "google" | "apple") {
 /**
  * Track failed login attempts
  */
-export function loginFailed(method: "email" | "google" | "apple", reason?: string) {
+export function loginFailed(
+  method: "email" | "google" | "apple",
+  reason?: string
+) {
   Sentry.metrics.count("auth.login.failed", 1, {
     attributes: {
       method,
@@ -111,7 +114,10 @@ export function registrationSuccess(method: "email" | "google" | "apple") {
 /**
  * Track failed registration attempts
  */
-export function registrationFailed(method: "email" | "google" | "apple", reason?: string) {
+export function registrationFailed(
+  method: "email" | "google" | "apple",
+  reason?: string
+) {
   Sentry.metrics.count("auth.registration.failed", 1, {
     attributes: {
       method,
@@ -247,7 +253,16 @@ export function filterApplied(
 /**
  * Track modal opens
  */
-export function modalOpened(modalType: "card" | "settings" | "upgrade" | "delete_account" | "tag_management" | "more_info" | "notes_edit") {
+export function modalOpened(
+  modalType:
+    | "card"
+    | "settings"
+    | "upgrade"
+    | "delete_account"
+    | "tag_management"
+    | "more_info"
+    | "notes_edit"
+) {
   Sentry.metrics.count("modal.opened", 1, {
     attributes: { modal_type: modalType },
   });
@@ -519,16 +534,25 @@ export function fileDownloaded(cardType: string, fileCategory: string) {
 // ============================================================================
 
 function getFileCategory(mimeType: string): string {
-  if (mimeType.startsWith("image/")) return "image";
-  if (mimeType.startsWith("video/")) return "video";
-  if (mimeType.startsWith("audio/")) return "audio";
-  if (mimeType.includes("pdf")) return "pdf";
+  if (mimeType.startsWith("image/")) {
+    return "image";
+  }
+  if (mimeType.startsWith("video/")) {
+    return "video";
+  }
+  if (mimeType.startsWith("audio/")) {
+    return "audio";
+  }
+  if (mimeType.includes("pdf")) {
+    return "pdf";
+  }
   if (
     mimeType.includes("document") ||
     mimeType.includes("word") ||
     mimeType.includes("text")
-  )
+  ) {
     return "document";
+  }
   return "other";
 }
 

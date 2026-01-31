@@ -1,19 +1,23 @@
-import { test, expect } from "@playwright/test";
-import { AuthHelper, UiHelper, generateTestContent } from "./test-helpers";
+import { expect, test } from "@playwright/test";
+import { AuthHelper, generateTestContent, UiHelper } from "./test-helpers";
 
 const TEST_EMAIL = process.env.E2E_BETTER_AUTH_USER_EMAIL;
 const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
 
 test.describe("Card Creation", () => {
   test.skip(
-    !TEST_EMAIL || !TEST_PASSWORD,
+    !(TEST_EMAIL && TEST_PASSWORD),
     "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run card creation tests."
   );
 
   test.beforeEach(async ({ page }) => {
     const authHelper = new AuthHelper(page);
     // Sign up to create the user (in development, this also signs them in)
-    await authHelper.signUpWithEmailAndPassword(TEST_EMAIL!, TEST_PASSWORD!, "E2E Test User");
+    await authHelper.signUpWithEmailAndPassword(
+      TEST_EMAIL!,
+      TEST_PASSWORD!,
+      "E2E Test User"
+    );
     await page.waitForLoadState("networkidle");
   });
 
@@ -47,7 +51,9 @@ test.describe("Card Creation", () => {
       const composer = uiHelper.getComposer();
       await composer.fill(content);
 
-      const isMac = await page.evaluate(() => navigator.platform.includes("Mac"));
+      const isMac = await page.evaluate(() =>
+        navigator.platform.includes("Mac")
+      );
       const modifier = isMac ? "Meta" : "Control";
 
       await composer.press(`${modifier}+Enter`);
@@ -70,7 +76,7 @@ test.describe("Card Creation", () => {
       await page.waitForTimeout(3000);
 
       // Verify a card was created (link cards show metadata)
-      const cards = await page.locator('[data-card-id]').count();
+      const cards = await page.locator("[data-card-id]").count();
       expect(cards).toBeGreaterThan(0);
     });
 
@@ -86,7 +92,7 @@ test.describe("Card Creation", () => {
       await page.waitForTimeout(3000);
 
       // Check for link preview elements
-      const cards = await page.locator('[data-card-id]').count();
+      const cards = await page.locator("[data-card-id]").count();
       expect(cards).toBeGreaterThan(0);
     });
 
@@ -100,7 +106,7 @@ test.describe("Card Creation", () => {
 
       await page.waitForTimeout(3000);
 
-      const cards = await page.locator('[data-card-id]').count();
+      const cards = await page.locator("[data-card-id]").count();
       expect(cards).toBeGreaterThan(0);
     });
   });
@@ -119,13 +125,14 @@ test.describe("Card Creation", () => {
       await page.waitForTimeout(3000);
 
       // Verify card was created
-      const cards = await page.locator('[data-card-id]').count();
+      const cards = await page.locator("[data-card-id]").count();
       expect(cards).toBeGreaterThan(0);
     });
 
     test("should handle invalid image URL gracefully", async ({ page }) => {
       const uiHelper = new UiHelper(page);
-      const invalidUrl = "https://invalid-domain-that-does-not-exist-12345.com/image.jpg";
+      const invalidUrl =
+        "https://invalid-domain-that-does-not-exist-12345.com/image.jpg";
 
       const composer = uiHelper.getComposer();
       await composer.fill(invalidUrl);
@@ -135,13 +142,15 @@ test.describe("Card Creation", () => {
       await page.waitForTimeout(2000);
 
       // Card might still be created but with error state
-      const cards = await page.locator('[data-card-id]').count();
+      const cards = await page.locator("[data-card-id]").count();
       expect(cards).toBeGreaterThan(0);
     });
   });
 
   test.describe("Quote Cards", () => {
-    test("should create a quote card from markdown-style quote", async ({ page }) => {
+    test("should create a quote card from markdown-style quote", async ({
+      page,
+    }) => {
       const uiHelper = new UiHelper(page);
       const quote = `> ${generateTestContent("Quote")}`;
 
@@ -151,13 +160,16 @@ test.describe("Card Creation", () => {
 
       // Verify card is created
       await page.waitForTimeout(1000);
-      const cards = await page.locator('[data-card-id]').count();
+      const cards = await page.locator("[data-card-id]").count();
       expect(cards).toBeGreaterThan(0);
     });
 
-    test("should create a quote card with multi-line quote", async ({ page }) => {
+    test("should create a quote card with multi-line quote", async ({
+      page,
+    }) => {
       const uiHelper = new UiHelper(page);
-      const quote = `> First line of quote\n> Second line of quote\n> Third line`;
+      const quote =
+        "> First line of quote\n> Second line of quote\n> Third line";
 
       const composer = uiHelper.getComposer();
       await composer.fill(quote);
@@ -165,13 +177,15 @@ test.describe("Card Creation", () => {
 
       // Verify card is created
       await page.waitForTimeout(1000);
-      const cards = await page.locator('[data-card-id]').count();
+      const cards = await page.locator("[data-card-id]").count();
       expect(cards).toBeGreaterThan(0);
     });
   });
 
   test.describe("Palette Cards", () => {
-    test("should create a palette card from color notation", async ({ page }) => {
+    test("should create a palette card from color notation", async ({
+      page,
+    }) => {
       const uiHelper = new UiHelper(page);
       // Color notation that might trigger palette detection
       const paletteText = "#FF5733 #33FF57 #3357FF";
@@ -182,7 +196,7 @@ test.describe("Card Creation", () => {
 
       // Verify card is created
       await page.waitForTimeout(1000);
-      const cards = await page.locator('[data-card-id]').count();
+      const cards = await page.locator("[data-card-id]").count();
       expect(cards).toBeGreaterThan(0);
     });
 
@@ -196,25 +210,29 @@ test.describe("Card Creation", () => {
 
       // Verify card is created
       await page.waitForTimeout(1000);
-      const cards = await page.locator('[data-card-id]').count();
+      const cards = await page.locator("[data-card-id]").count();
       expect(cards).toBeGreaterThan(0);
     });
   });
 
   test.describe("File Upload Cards", () => {
     test("should show file upload button", async ({ page }) => {
-      const uiHelper = new UiHelper(page);
+      const _uiHelper = new UiHelper(page);
 
       // The upload button should be visible
       const uploadButtons = page.getByRole("button").filter({ hasText: "" });
       await expect(uploadButtons.first()).toBeVisible();
     });
 
-    test("should trigger file input when upload button clicked", async ({ page }) => {
-      const uiHelper = new UiHelper(page);
+    test("should trigger file input when upload button clicked", async ({
+      page,
+    }) => {
+      const _uiHelper = new UiHelper(page);
 
       // Click the upload button (first icon button)
-      const uploadButtons = page.getByRole("button", { name: "" }).filter({ hasText: "" });
+      const uploadButtons = page
+        .getByRole("button", { name: "" })
+        .filter({ hasText: "" });
 
       // The upload button creates a file input element
       await uploadButtons.nth(0).click();
@@ -230,7 +248,7 @@ test.describe("Card Creation", () => {
 
   test.describe("Audio Recording Cards", () => {
     test("should show audio recording button", async ({ page }) => {
-      const uiHelper = new UiHelper(page);
+      const _uiHelper = new UiHelper(page);
 
       // The mic button should be visible
       const buttons = page.getByRole("button", { name: "" });
@@ -278,7 +296,7 @@ test.describe("Card Creation", () => {
 
       // Card should be created
       await page.waitForTimeout(2000);
-      const cards = await page.locator('[data-card-id]').count();
+      const cards = await page.locator("[data-card-id]").count();
       expect(cards).toBeGreaterThan(0);
     });
 
@@ -311,7 +329,7 @@ test.describe("Card Creation", () => {
     test("should create multiple cards in sequence", async ({ page }) => {
       const uiHelper = new UiHelper(page);
 
-      const initialCount = await page.locator('[data-card-id]').count();
+      const initialCount = await page.locator("[data-card-id]").count();
 
       // Create 3 cards
       for (let i = 1; i <= 3; i++) {
@@ -321,7 +339,7 @@ test.describe("Card Creation", () => {
       }
 
       // Verify 3 new cards were added
-      const finalCount = await page.locator('[data-card-id]').count();
+      const finalCount = await page.locator("[data-card-id]").count();
       expect(finalCount).toBeGreaterThanOrEqual(initialCount + 3);
     });
 

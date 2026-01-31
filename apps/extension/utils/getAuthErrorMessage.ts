@@ -3,11 +3,11 @@ type BetterAuthError = {
   cause?: string | null;
   statusText?: string | null;
   error?:
-  | string
-  | {
-    message?: string | null;
-  }
-  | null;
+    | string
+    | {
+        message?: string | null;
+      }
+    | null;
 };
 
 const isNonEmptyString = (value: unknown): value is string =>
@@ -25,8 +25,12 @@ export function getAuthErrorMessage(
   }
 
   if (error && typeof error === "object") {
-    const { message, cause, statusText, error: nested } =
-      error as BetterAuthError;
+    const {
+      message,
+      cause,
+      statusText,
+      error: nested,
+    } = error as BetterAuthError;
 
     if (isNonEmptyString(cause)) {
       return cause;
@@ -44,7 +48,11 @@ export function getAuthErrorMessage(
       return nested;
     }
 
-    if (nested && typeof nested === "object" && isNonEmptyString(nested.message)) {
+    if (
+      nested &&
+      typeof nested === "object" &&
+      isNonEmptyString(nested.message)
+    ) {
       return nested.message;
     }
   }

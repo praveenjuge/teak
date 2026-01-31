@@ -1,23 +1,23 @@
 import {
-  Section,
+  Button,
+  CircularProgress,
   Host,
   HStack,
   Image,
   List,
-  CircularProgress,
+  Section,
   Spacer,
   Text,
-  Button,
 } from "@expo/ui/swift-ui";
-import * as React from "react";
-import { Alert } from "react-native";
-import { colors } from "../../../constants/colors";
-import { authClient } from "@/lib/auth-client";
-import { useThemePreference } from "@/lib/theme-preference";
-import { Stack, useRouter } from "expo-router";
+import { api } from "@teak/convex";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
-import { api } from "@teak/convex";
+import { Stack, useRouter } from "expo-router";
+import { useState } from "react";
+import { Alert } from "react-native";
+import { authClient } from "@/lib/auth-client";
+import { useThemePreference } from "@/lib/theme-preference";
+import { colors } from "../../../constants/colors";
 
 export default function SettingsScreen() {
   const { data: session } = authClient.useSession();
@@ -25,8 +25,8 @@ export default function SettingsScreen() {
   const router = useRouter();
   const currentUser = useQuery(api.auth.getCurrentUser, {});
   const deleteAccount = useMutation(api.auth.deleteAccount);
-  const [deleteError, setDeleteError] = React.useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const signOut = async () => {
     try {
@@ -35,7 +35,7 @@ export default function SettingsScreen() {
     } catch (error) {
       console.error(
         "Sign out error:",
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
     }
   };
@@ -48,7 +48,9 @@ export default function SettingsScreen() {
   };
 
   const handleDeleteAccount = async (confirmation: string) => {
-    if (isDeleting) return;
+    if (isDeleting) {
+      return;
+    }
 
     setDeleteError(null);
 
@@ -73,11 +75,13 @@ export default function SettingsScreen() {
         },
       });
 
-      if (deleteUserFailed) return;
+      if (deleteUserFailed) {
+        return;
+      }
     } catch (error) {
       console.error(
         "Delete account error:",
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
       setDeleteError("Something went wrong while deleting your account.");
     } finally {
@@ -111,11 +115,11 @@ export default function SettingsScreen() {
                   },
                 },
               ],
-              "plain-text",
+              "plain-text"
             );
           },
         },
-      ],
+      ]
     );
   };
 
@@ -137,7 +141,9 @@ export default function SettingsScreen() {
     },
   ];
 
-  if (!isLoaded) return null;
+  if (!isLoaded) {
+    return null;
+  }
 
   return (
     <>
@@ -146,7 +152,7 @@ export default function SettingsScreen() {
           title: "Settings",
         }}
       />
-      <Host matchContents useViewportSizeMeasurement style={{ flex: 1 }}>
+      <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
         <List scrollEnabled>
           <Section title="Appearance">
             {appearanceOptions.map((option) => {
@@ -161,11 +167,11 @@ export default function SettingsScreen() {
                   <Spacer />
                   {isSelected && (
                     <Image
-                      systemName="checkmark"
-                      size={18}
                       color={
                         isSelected ? colors.primary : (colors.border as any)
                       }
+                      size={18}
+                      systemName="checkmark"
                     />
                   )}
                 </HStack>
@@ -193,26 +199,22 @@ export default function SettingsScreen() {
                 </Text>
               )}
             </HStack>
-            <Button
-              role="destructive"
-              onPress={handleDeleteAlert}
-              disabled={isDeleting}
-            >
+            <Button disabled={isDeleting} onPress={handleDeleteAlert}>
               <HStack spacing={8}>
                 <Text color="primary" design="rounded">
                   {`${isDeleting ? "Deleting..." : "Delete Account"}${deleteError ? ` - ${deleteError}` : ""}`}
                 </Text>
                 <Spacer />
-                <Image systemName="chevron.right" size={14} color="secondary" />
+                <Image color="secondary" size={14} systemName="chevron.right" />
               </HStack>
             </Button>
-            <Button onPress={handleLogoutAlert} role="destructive">
+            <Button onPress={handleLogoutAlert}>
               <HStack spacing={8}>
                 <Text color="primary" design="rounded">
                   Log Out
                 </Text>
                 <Spacer />
-                <Image systemName="chevron.right" size={14} color="secondary" />
+                <Image color="secondary" size={14} systemName="chevron.right" />
               </HStack>
             </Button>
           </Section>

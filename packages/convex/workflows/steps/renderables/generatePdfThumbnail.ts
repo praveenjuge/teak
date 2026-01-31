@@ -1,9 +1,9 @@
 "use node";
 
 import Kernel from "@onkernel/sdk";
+import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
-import { v } from "convex/values";
 
 // Maximum thumbnail width - height will scale proportionally to maintain document aspect ratio
 const THUMBNAIL_MAX_WIDTH = 400;
@@ -155,7 +155,7 @@ export const generatePdfThumbnail = internalAction({
           }
         );
 
-        if (!response.success || !response.result) {
+        if (!(response.success && response.result)) {
           console.error(
             `[renderables/pdf] Kernel Playwright execution failed for card ${args.cardId}:`,
             response.error
@@ -204,7 +204,7 @@ export const generatePdfThumbnail = internalAction({
             await kernel.browsers.deleteByID(kernelBrowser.session_id);
           } catch (cleanupError) {
             console.warn(
-              `[renderables/pdf] Failed to cleanup browser session:`,
+              "[renderables/pdf] Failed to cleanup browser session:",
               cleanupError
             );
           }

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, test, expect, mock } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { getAuthErrorMessage } from "../../utils/getAuthErrorMessage";
 
 describe("getAuthErrorMessage", () => {

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { mock, describe, expect, test, beforeEach, beforeAll } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
 const aiMocks = (global as any).__AI_MOCKS__ || {
   generateText: mock(),
@@ -41,27 +41,33 @@ describe("aiMetadata generators", () => {
     mockGenerateText.mockResolvedValue(mockResponse);
     await generateTextMetadata("some content", "My Title");
 
-    expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-      prompt: expect.stringContaining("some content"),
-    }));
+    expect(mockGenerateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining("some content"),
+      })
+    );
   });
 
   test("generateImageMetadata calls generateText with image model", async () => {
     mockGenerateText.mockResolvedValue(mockResponse);
     await generateImageMetadata("https://img.com", "My Image");
 
-    expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-      messages: expect.arrayContaining([expect.any(Object)]),
-    }));
+    expect(mockGenerateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([expect.any(Object)]),
+      })
+    );
   });
 
   test("generateLinkMetadata calls generateText with link model", async () => {
     mockGenerateText.mockResolvedValue(mockResponse);
     await generateLinkMetadata("page content", "https://url.com");
 
-    expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-      prompt: expect.stringContaining("page content"),
-    }));
+    expect(mockGenerateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining("page content"),
+      })
+    );
   });
 
   test("handles errors in all generators", async () => {

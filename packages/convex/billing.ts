@@ -1,8 +1,8 @@
-import { Polar, } from "@convex-dev/polar";
+import { Polar } from "@convex-dev/polar";
+import { Polar as PolarBilling } from "@polar-sh/sdk";
+import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
 import { action, query } from "./_generated/server";
-import { ConvexError, v } from 'convex/values';
-import { Polar as PolarBilling } from "@polar-sh/sdk";
 
 // User query to use in the Polar component
 export const getUserInfoHandler = async (ctx: any) => {
@@ -37,20 +37,21 @@ export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
 
   const polar = new PolarBilling({
     accessToken: process.env["POLAR_ACCESS_TOKEN"] ?? "",
-    server: process.env.POLAR_SERVER === "production" ? "production" : "sandbox"
+    server:
+      process.env.POLAR_SERVER === "production" ? "production" : "sandbox",
   });
 
   const dbCustomer = await ctx.runQuery(
     components.polar.lib.getCustomerByUserId,
     {
-      userId: user.subject
+      userId: user.subject,
     }
   );
   const createCustomer = async () => {
     const customer = await polar.customers.create({
       email: user.email as string,
       metadata: {
-        userId: user.subject
+        userId: user.subject,
       },
     });
     if (!customer.id) {
@@ -64,7 +65,7 @@ export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
   if (!dbCustomer) {
     await ctx.runMutation(components.polar.lib.insertCustomer, {
       id: customerId,
-      userId: user.subject
+      userId: user.subject,
     });
   }
 
@@ -72,7 +73,10 @@ export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
     products: [args.productId],
     allowDiscountCodes: true,
     customerId,
-    embedOrigin: process.env.POLAR_SERVER === "production" ? "https://app.teakvault.com" : "http://localhost:3000"
+    embedOrigin:
+      process.env.POLAR_SERVER === "production"
+        ? "https://app.teakvault.com"
+        : "http://localhost:3000",
   });
 
   return checkout.url;
@@ -87,12 +91,16 @@ export const createCheckoutLink = action({
 export const createCustomerPortalHandler = async (ctx: any) => {
   const user = await ctx.runQuery(api.billing.getUserInfo);
 
-  const subscription = await polar.getCurrentSubscription(ctx, { userId: user.subject });
-  if (!subscription?.customerId) throw new ConvexError("No active subscription found");
+  const subscription = await polar.getCurrentSubscription(ctx, {
+    userId: user.subject,
+  });
+  if (!subscription?.customerId)
+    throw new ConvexError("No active subscription found");
 
   const polarSdk = new PolarBilling({
     accessToken: process.env["POLAR_ACCESS_TOKEN"] ?? "",
-    server: process.env.POLAR_SERVER === "production" ? "production" : "sandbox"
+    server:
+      process.env.POLAR_SERVER === "production" ? "production" : "sandbox",
   });
 
   const result = await polarSdk.customerSessions.create({

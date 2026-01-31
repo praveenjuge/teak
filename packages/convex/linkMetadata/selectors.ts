@@ -108,8 +108,14 @@ export const IMDB_SOURCES: SelectorSource[] = [
   { selector: "meta[name='imdb:rating']", attribute: "content" },
   { selector: "meta[name='imdb:votes']", attribute: "content" },
   { selector: "meta[property='video:release_date']", attribute: "content" },
-  { selector: "span[data-testid='hero-rating-bar__aggregate-rating__score']", attribute: "text" },
-  { selector: "span[data-testid='title-techspec_runtime'] span", attribute: "text" },
+  {
+    selector: "span[data-testid='hero-rating-bar__aggregate-rating__score']",
+    attribute: "text",
+  },
+  {
+    selector: "span[data-testid='title-techspec_runtime'] span",
+    attribute: "text",
+  },
 ];
 
 export const DRIBBBLE_SOURCES: SelectorSource[] = [

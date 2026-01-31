@@ -1,8 +1,8 @@
-import { TopPattern } from "@/components/patterns/TopPattern";
-import { BottomPattern } from "@/components/patterns/BottomPattern";
-import { Card } from "@/components/ui/card";
-import Logo from "@/components/Logo";
 import Link from "next/link";
+import Logo from "@/components/Logo";
+import { BottomPattern } from "@/components/patterns/BottomPattern";
+import { TopPattern } from "@/components/patterns/TopPattern";
+import { Card } from "@/components/ui/card";
 
 export default function RootLayout({
   children,
@@ -10,7 +10,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <section className="mx-auto max-w-xs flex flex-col items-center gap-6 py-14 md:py-26 md:h-lh w-full">
+    <section className="mx-auto flex w-full max-w-xs flex-col items-center gap-6 py-14 md:h-lh md:py-26">
       <Link href="/login">
         <Logo variant="primary" />
       </Link>

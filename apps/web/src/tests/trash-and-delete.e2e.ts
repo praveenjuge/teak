@@ -1,12 +1,12 @@
-import { test, expect } from "@playwright/test";
-import { AuthHelper, UiHelper, generateTestContent } from "./test-helpers";
+import { expect, test } from "@playwright/test";
+import { AuthHelper, UiHelper } from "./test-helpers";
 
 const TEST_EMAIL = process.env.E2E_BETTER_AUTH_USER_EMAIL;
 const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
 
 test.describe("Trash, Delete, and Restore Workflows", () => {
   test.skip(
-    !TEST_EMAIL || !TEST_PASSWORD,
+    !(TEST_EMAIL && TEST_PASSWORD),
     "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run delete tests."
   );
 
@@ -23,16 +23,17 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
 
   test.describe("Soft Delete (Move to Trash)", () => {
     test("should move card to trash", async ({ page }) => {
-      const firstCard = page.locator('[data-card-id]').first();
+      const firstCard = page.locator("[data-card-id]").first();
       const cardText = await firstCard.textContent();
 
       // Click on card to open modal
       await firstCard.click();
 
       // Look for delete button in modal
-      const deleteButton = page.getByRole("dialog").getByRole("button", { name: /delete/i }).or(
-        page.getByRole("dialog").locator('[data-delete-button]')
-      );
+      const deleteButton = page
+        .getByRole("dialog")
+        .getByRole("button", { name: /delete/i })
+        .or(page.getByRole("dialog").locator("[data-delete-button]"));
 
       await expect(deleteButton.first()).toBeVisible();
       await deleteButton.first().click();
@@ -46,16 +47,18 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       const uiHelper = new UiHelper(page);
 
       // Get initial card count
-      const initialCount = await page.locator('[data-card-id]').count();
+      const initialCount = await page.locator("[data-card-id]").count();
 
       // Delete first card
-      await page.locator('[data-card-id]').first().click();
-      const deleteButton = page.getByRole("dialog").getByRole("button", { name: /delete/i });
+      await page.locator("[data-card-id]").first().click();
+      const deleteButton = page
+        .getByRole("dialog")
+        .getByRole("button", { name: /delete/i });
       await deleteButton.click();
       await page.waitForTimeout(500);
 
       // Check main view - should have one less card
-      const afterDeleteCount = await page.locator('[data-card-id]').count();
+      const afterDeleteCount = await page.locator("[data-card-id]").count();
       expect(afterDeleteCount).toBeLessThan(initialCount);
 
       // Now check trash
@@ -63,7 +66,7 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
 
       // Should see deleted card in trash
       await page.waitForTimeout(500);
-      const trashCount = await page.locator('[data-card-id]').count();
+      const trashCount = await page.locator("[data-card-id]").count();
       expect(trashCount).toBeGreaterThan(0);
     });
 
@@ -71,8 +74,10 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       const uiHelper = new UiHelper(page);
 
       // Delete first card
-      await page.locator('[data-card-id]').first().click();
-      const deleteButton = page.getByRole("dialog").getByRole("button", { name: /delete/i });
+      await page.locator("[data-card-id]").first().click();
+      const deleteButton = page
+        .getByRole("dialog")
+        .getByRole("button", { name: /delete/i });
       await deleteButton.click();
       await page.waitForTimeout(500);
 
@@ -81,14 +86,15 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       await page.waitForTimeout(500);
 
       // Click on trashed card
-      await page.locator('[data-card-id]').first().click();
+      await page.locator("[data-card-id]").first().click();
 
       // Look for restore button
-      const restoreButton = page.getByRole("dialog").getByRole("button", { name: /restore/i }).or(
-        page.getByRole("dialog").locator('[data-restore-button]')
-      );
+      const restoreButton = page
+        .getByRole("dialog")
+        .getByRole("button", { name: /restore/i })
+        .or(page.getByRole("dialog").locator("[data-restore-button]"));
 
-      if (await restoreButton.count() > 0) {
+      if ((await restoreButton.count()) > 0) {
         await restoreButton.first().click();
         await page.waitForTimeout(500);
 
@@ -97,7 +103,7 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
 
         // Card should be back in main view
         await page.waitForTimeout(500);
-        const mainViewCount = await page.locator('[data-card-id]').count();
+        const mainViewCount = await page.locator("[data-card-id]").count();
         expect(mainViewCount).toBeGreaterThan(0);
       } else {
         test.skip(true, "Restore button not found");
@@ -106,8 +112,10 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
 
     test("should not show deleted cards in main view", async ({ page }) => {
       // Delete first card
-      await page.locator('[data-card-id]').first().click();
-      const deleteButton = page.getByRole("dialog").getByRole("button", { name: /delete/i });
+      await page.locator("[data-card-id]").first().click();
+      const deleteButton = page
+        .getByRole("dialog")
+        .getByRole("button", { name: /delete/i });
       await deleteButton.click();
       await page.waitForTimeout(500);
 
@@ -136,8 +144,11 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       await page.waitForTimeout(500);
 
       // Should either show no results or only non-deleted cards
-      const nothingFound = await page.getByText(/nothing found/i).isVisible().catch(() => false);
-      const hasCards = await page.locator('[data-card-id]').count() > 0;
+      const nothingFound = await page
+        .getByText(/nothing found/i)
+        .isVisible()
+        .catch(() => false);
+      const hasCards = (await page.locator("[data-card-id]").count()) > 0;
 
       expect(nothingFound || hasCards).toBe(true);
     });
@@ -148,8 +159,10 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       const uiHelper = new UiHelper(page);
 
       // Delete card first
-      await page.locator('[data-card-id]').first().click();
-      const deleteButton = page.getByRole("dialog").getByRole("button", { name: /delete/i });
+      await page.locator("[data-card-id]").first().click();
+      const deleteButton = page
+        .getByRole("dialog")
+        .getByRole("button", { name: /delete/i });
       await deleteButton.click();
       await page.waitForTimeout(500);
 
@@ -157,22 +170,23 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       await uiHelper.toggleTrashFilter();
       await page.waitForTimeout(500);
 
-      const trashCountBefore = await page.locator('[data-card-id]').count();
+      const trashCountBefore = await page.locator("[data-card-id]").count();
 
       // Click on trashed card
-      await page.locator('[data-card-id]').first().click();
+      await page.locator("[data-card-id]").first().click();
 
       // Look for permanent delete button
-      const permanentDeleteButton = page.getByRole("dialog").getByRole("button", { name: /permanently|delete forever/i }).or(
-        page.getByRole("dialog").locator('[data-permanent-delete-button]')
-      );
+      const permanentDeleteButton = page
+        .getByRole("dialog")
+        .getByRole("button", { name: /permanently|delete forever/i })
+        .or(page.getByRole("dialog").locator("[data-permanent-delete-button]"));
 
-      if (await permanentDeleteButton.count() > 0) {
+      if ((await permanentDeleteButton.count()) > 0) {
         await permanentDeleteButton.first().click();
         await page.waitForTimeout(500);
 
         // Card should be gone from trash
-        const trashCountAfter = await page.locator('[data-card-id]').count();
+        const trashCountAfter = await page.locator("[data-card-id]").count();
         expect(trashCountAfter).toBeLessThan(trashCountBefore);
       } else {
         test.skip(true, "Permanent delete button not found");
@@ -183,8 +197,10 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       const uiHelper = new UiHelper(page);
 
       // Delete card first
-      await page.locator('[data-card-id]').first().click();
-      const deleteButton = page.getByRole("dialog").getByRole("button", { name: /delete/i });
+      await page.locator("[data-card-id]").first().click();
+      const deleteButton = page
+        .getByRole("dialog")
+        .getByRole("button", { name: /delete/i });
       await deleteButton.click();
       await page.waitForTimeout(500);
 
@@ -193,29 +209,35 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       await page.waitForTimeout(500);
 
       // Click on trashed card
-      await page.locator('[data-card-id]').first().click();
+      await page.locator("[data-card-id]").first().click();
 
       // Look for permanent delete button
-      const permanentDeleteButton = page.getByRole("dialog").getByRole("button", { name: /permanently|delete forever/i });
+      const permanentDeleteButton = page
+        .getByRole("dialog")
+        .getByRole("button", { name: /permanently|delete forever/i });
 
-      if (await permanentDeleteButton.count() > 0) {
+      if ((await permanentDeleteButton.count()) > 0) {
         // Click permanent delete
         await permanentDeleteButton.first().click();
 
         // Should show confirmation dialog
         await page.waitForTimeout(500);
-        const confirmDialog = page.getByRole("alertdialog").or(
-          page.getByRole("dialog").filter({ hasText: /permanently|irreversible/i })
-        );
+        const confirmDialog = page
+          .getByRole("alertdialog")
+          .or(
+            page
+              .getByRole("dialog")
+              .filter({ hasText: /permanently|irreversible/i })
+          );
 
-        const hasConfirmation = await confirmDialog.count() > 0;
+        const hasConfirmation = (await confirmDialog.count()) > 0;
 
         if (hasConfirmation) {
           await expect(confirmDialog.first()).toBeVisible();
 
           // Cancel for now
           const cancelButton = page.getByRole("button", { name: /cancel/i });
-          if (await cancelButton.count() > 0) {
+          if ((await cancelButton.count()) > 0) {
             await cancelButton.first().click();
           }
         }
@@ -238,15 +260,17 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
     });
 
     test("should delete multiple cards", async ({ page }) => {
-      const uiHelper = new UiHelper(page);
+      const _uiHelper = new UiHelper(page);
 
       // Get initial count
-      const initialCount = await page.locator('[data-card-id]').count();
+      const initialCount = await page.locator("[data-card-id]").count();
 
       // Delete first few cards
       for (let i = 0; i < 3; i++) {
-        await page.locator('[data-card-id]').first().click();
-        const deleteButton = page.getByRole("dialog").getByRole("button", { name: /delete/i });
+        await page.locator("[data-card-id]").first().click();
+        const deleteButton = page
+          .getByRole("dialog")
+          .getByRole("button", { name: /delete/i });
         await deleteButton.click();
         await page.waitForTimeout(500);
 
@@ -270,7 +294,7 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       }
 
       // Count should be reduced
-      const finalCount = await page.locator('[data-card-id]').count();
+      const finalCount = await page.locator("[data-card-id]").count();
       expect(finalCount).toBeLessThan(initialCount);
     });
 
@@ -278,12 +302,14 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       const uiHelper = new UiHelper(page);
 
       // Delete all visible cards
-      const cardCount = await page.locator('[data-card-id]').count();
+      const cardCount = await page.locator("[data-card-id]").count();
       const cardsToDelete = Math.min(cardCount, 3);
 
       for (let i = 0; i < cardsToDelete; i++) {
-        await page.locator('[data-card-id]').first().click();
-        const deleteButton = page.getByRole("dialog").getByRole("button", { name: /delete/i });
+        await page.locator("[data-card-id]").first().click();
+        const deleteButton = page
+          .getByRole("dialog")
+          .getByRole("button", { name: /delete/i });
         await deleteButton.click();
         await page.waitForTimeout(500);
 
@@ -311,17 +337,18 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       await page.waitForTimeout(500);
 
       // Get trash count
-      const trashCount = await page.locator('[data-card-id]').count();
+      const trashCount = await page.locator("[data-card-id]").count();
 
       // Restore all cards from trash
       for (let i = 0; i < trashCount; i++) {
-        await page.locator('[data-card-id]').first().click();
+        await page.locator("[data-card-id]").first().click();
 
-        const restoreButton = page.getByRole("dialog").getByRole("button", { name: /restore/i }).or(
-          page.getByRole("dialog").locator('[data-restore-button]')
-        );
+        const restoreButton = page
+          .getByRole("dialog")
+          .getByRole("button", { name: /restore/i })
+          .or(page.getByRole("dialog").locator("[data-restore-button]"));
 
-        if (await restoreButton.count() > 0) {
+        if ((await restoreButton.count()) > 0) {
           await restoreButton.first().click();
           await page.waitForTimeout(500);
         } else {
@@ -334,7 +361,7 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
 
       // Cards should be restored
       await page.waitForTimeout(500);
-      const restoredCount = await page.locator('[data-card-id]').count();
+      const restoredCount = await page.locator("[data-card-id]").count();
       expect(restoredCount).toBeGreaterThan(0);
     });
   });
@@ -344,11 +371,13 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       const uiHelper = new UiHelper(page);
 
       // Get count of normal cards
-      const normalCount = await page.locator('[data-card-id]').count();
+      const normalCount = await page.locator("[data-card-id]").count();
 
       // Delete one card
-      await page.locator('[data-card-id]').first().click();
-      const deleteButton = page.getByRole("dialog").getByRole("button", { name: /delete/i });
+      await page.locator("[data-card-id]").first().click();
+      const deleteButton = page
+        .getByRole("dialog")
+        .getByRole("button", { name: /delete/i });
       await deleteButton.click();
       await page.waitForTimeout(500);
 
@@ -357,7 +386,7 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       await page.waitForTimeout(500);
 
       // Should see only deleted cards
-      const trashCount = await page.locator('[data-card-id]').count();
+      const trashCount = await page.locator("[data-card-id]").count();
 
       // Trash should have at least one card
       expect(trashCount).toBeGreaterThan(0);
@@ -367,7 +396,7 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       await page.waitForTimeout(500);
 
       // Should see only non-deleted cards (one less than before)
-      const newNormalCount = await page.locator('[data-card-id]').count();
+      const newNormalCount = await page.locator("[data-card-id]").count();
       expect(newNormalCount).toBeLessThan(normalCount);
     });
 
@@ -375,8 +404,10 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       const uiHelper = new UiHelper(page);
 
       // Delete a card
-      await page.locator('[data-card-id]').first().click();
-      const deleteButton = page.getByRole("dialog").getByRole("button", { name: /delete/i });
+      await page.locator("[data-card-id]").first().click();
+      const deleteButton = page
+        .getByRole("dialog")
+        .getByRole("button", { name: /delete/i });
       await deleteButton.click();
       await page.waitForTimeout(500);
 
@@ -385,15 +416,16 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       await page.waitForTimeout(500);
 
       // Click on trashed card
-      await page.locator('[data-card-id]').first().click();
+      await page.locator("[data-card-id]").first().click();
 
       // Check that edit functionality is disabled or different
-      const editButton = page.getByRole("dialog").getByRole("button", { name: /edit/i }).or(
-        page.getByRole("dialog").locator('[data-edit-button]')
-      );
+      const editButton = page
+        .getByRole("dialog")
+        .getByRole("button", { name: /edit/i })
+        .or(page.getByRole("dialog").locator("[data-edit-button]"));
 
       // Edit button might be hidden or disabled
-      const hasEditButton = await editButton.count() > 0;
+      const hasEditButton = (await editButton.count()) > 0;
 
       if (hasEditButton) {
         const isDisabled = await editButton.first().isDisabled();
@@ -411,7 +443,7 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
       await uiHelper.toggleTrashFilter();
       await page.waitForTimeout(500);
 
-      const trashCount = await page.locator('[data-card-id]').count();
+      const trashCount = await page.locator("[data-card-id]").count();
 
       if (trashCount === 0) {
         // Should show empty state
@@ -425,20 +457,24 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
   test.describe("Delete Confirmation", () => {
     test("should show delete confirmation dialog", async ({ page }) => {
       // Click on card
-      await page.locator('[data-card-id]').first().click();
+      await page.locator("[data-card-id]").first().click();
 
       // Click delete button
-      const deleteButton = page.getByRole("dialog").getByRole("button", { name: /delete/i });
+      const deleteButton = page
+        .getByRole("dialog")
+        .getByRole("button", { name: /delete/i });
       await deleteButton.click();
 
       // Wait for delete to complete or confirmation to appear
       await page.waitForTimeout(500);
 
       // Most implementations do soft delete immediately, so check if card is gone
-      const modal = page.getByRole("dialog").filter({ hasText: /delete|confirm/i });
+      const modal = page
+        .getByRole("dialog")
+        .filter({ hasText: /delete|confirm/i });
 
       // Some implementations might show confirmation, others do soft delete immediately
-      const hasConfirmation = await modal.count() > 0;
+      const hasConfirmation = (await modal.count()) > 0;
 
       if (hasConfirmation) {
         // Should have confirmation
@@ -446,7 +482,7 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
 
         // Cancel for cleanup
         const cancelButton = page.getByRole("button", { name: /cancel/i });
-        if (await cancelButton.count() > 0) {
+        if ((await cancelButton.count()) > 0) {
           await cancelButton.first().click();
         }
       }

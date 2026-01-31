@@ -1,4 +1,6 @@
-import React, {
+import * as SecureStore from "expo-secure-store";
+import type React from "react";
+import {
   createContext,
   useCallback,
   useContext,
@@ -6,17 +8,16 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { Appearance, ColorSchemeName, useColorScheme } from "react-native";
-import * as SecureStore from "expo-secure-store";
+import { Appearance, type ColorSchemeName, useColorScheme } from "react-native";
 
 type ThemePreference = "system" | "light" | "dark";
 
-type ThemePreferenceContextValue = {
+interface ThemePreferenceContextValue {
   preference: ThemePreference;
   resolvedScheme: Exclude<ColorSchemeName, null>;
   setPreference: (preference: ThemePreference) => void;
   isLoaded: boolean;
-};
+}
 
 const STORAGE_KEY = "teak.themePreference";
 

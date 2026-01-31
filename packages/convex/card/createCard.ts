@@ -1,17 +1,17 @@
+import { extractPaletteColors } from "@teak/convex/shared/utils/colorUtils";
 import { v } from "convex/values";
-import { mutation } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { cardTypeValidator, colorValidator } from "../schema";
-import { extractUrlFromContent } from "./validationUtils";
-import { normalizeQuoteContent } from "./quoteFormatting";
+import { mutation } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
+import { cardTypeValidator, colorValidator } from "../schema";
+import { workflow } from "../workflows/manager";
 import {
   buildInitialProcessingStatus,
   stageCompleted,
   stagePending,
 } from "./processingStatus";
-import { workflow } from "../workflows/manager";
-import { extractPaletteColors } from "@teak/convex/shared/utils/colorUtils";
+import { normalizeQuoteContent } from "./quoteFormatting";
+import { extractUrlFromContent } from "./validationUtils";
 
 export const createCard = mutation({
   args: {
@@ -42,7 +42,7 @@ export const createCard = mutation({
     let finalContent = args.content;
     let finalUrl = args.url;
     const originalMetadata = args.metadata || {};
-    let fileMetadata: any = undefined;
+    let fileMetadata: any;
     const classificationRequired = !providedType;
     const classificationStatus = classificationRequired
       ? stagePending()
@@ -52,10 +52,18 @@ export const createCard = mutation({
     const processedMetadata = { ...originalMetadata };
 
     // Move file-related fields to fileMetadata if present
-    const fileRelatedFields = ['fileName', 'fileSize', 'mimeType', 'duration', 'width', 'height', 'recordingTimestamp'];
+    const fileRelatedFields = [
+      "fileName",
+      "fileSize",
+      "mimeType",
+      "duration",
+      "width",
+      "height",
+      "recordingTimestamp",
+    ];
     const extractedFileMetadata: any = {};
 
-    fileRelatedFields.forEach(field => {
+    fileRelatedFields.forEach((field) => {
       if (processedMetadata[field] !== undefined) {
         extractedFileMetadata[field] = processedMetadata[field];
         delete processedMetadata[field];
@@ -63,7 +71,10 @@ export const createCard = mutation({
     });
 
     if (args.fileId) {
-      const systemFileMetadata = await ctx.db.system.get("_storage", args.fileId);
+      const systemFileMetadata = await ctx.db.system.get(
+        "_storage",
+        args.fileId
+      );
       if (systemFileMetadata?.contentType) {
         fileMetadata = {
           fileName: extractedFileMetadata.fileName || `file_${now}`,
@@ -84,7 +95,8 @@ export const createCard = mutation({
     }
 
     const quoteNormalization = normalizeQuoteContent(finalContent);
-    const shouldDefaultToQuote = !providedType && quoteNormalization.removedQuotes;
+    const shouldDefaultToQuote =
+      !providedType && quoteNormalization.removedQuotes;
 
     if (shouldDefaultToQuote) {
       cardType = "quote";
@@ -119,8 +131,11 @@ export const createCard = mutation({
       thumbnailId: args.thumbnailId,
       tags: args.tags,
       notes: args.notes,
-      metadata: Object.keys(processedMetadata).length > 0 ? processedMetadata : undefined,
-      fileMetadata: fileMetadata,
+      metadata:
+        Object.keys(processedMetadata).length > 0
+          ? processedMetadata
+          : undefined,
+      fileMetadata,
       colors: resolvedColors,
       processingStatus: buildInitialProcessingStatus({
         now,

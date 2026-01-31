@@ -1,14 +1,14 @@
-type BetterAuthError = {
+interface BetterAuthError {
   message?: string | null;
   cause?: string | null;
   statusText?: string | null;
   error?:
-  | string
-  | {
-    message?: string | null;
-  }
-  | null;
-};
+    | string
+    | {
+        message?: string | null;
+      }
+    | null;
+}
 
 const isString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
@@ -25,8 +25,12 @@ export function getAuthErrorMessage(
   }
 
   if (error && typeof error === "object") {
-    const { message, cause, statusText, error: nestedError } =
-      error as BetterAuthError;
+    const {
+      message,
+      cause,
+      statusText,
+      error: nestedError,
+    } = error as BetterAuthError;
 
     if (isString(cause)) {
       return cause;

@@ -17,164 +17,166 @@ export interface Color {
 
 // CSS color names mapping
 const COLOR_NAMES: Record<string, string> = {
-  aliceblue: '#F0F8FF',
-  antiquewhite: '#FAEBD7',
-  aqua: '#00FFFF',
-  aquamarine: '#7FFFD4',
-  azure: '#F0FFFF',
-  beige: '#F5F5DC',
-  bisque: '#FFE4C4',
-  black: '#000000',
-  blanchedalmond: '#FFEBCD',
-  blue: '#0000FF',
-  blueviolet: '#8A2BE2',
-  brown: '#A52A2A',
-  burlywood: '#DEB887',
-  cadetblue: '#5F9EA0',
-  chartreuse: '#7FFF00',
-  chocolate: '#D2691E',
-  coral: '#FF7F50',
-  cornflowerblue: '#6495ED',
-  cornsilk: '#FFF8DC',
-  crimson: '#DC143C',
-  cyan: '#00FFFF',
-  darkblue: '#00008B',
-  darkcyan: '#008B8B',
-  darkgoldenrod: '#B8860B',
-  darkgray: '#A9A9A9',
-  darkgrey: '#A9A9A9',
-  darkgreen: '#006400',
-  darkkhaki: '#BDB76B',
-  darkmagenta: '#8B008B',
-  darkolivegreen: '#556B2F',
-  darkorange: '#FF8C00',
-  darkorchid: '#9932CC',
-  darkred: '#8B0000',
-  darksalmon: '#E9967A',
-  darkseagreen: '#8FBC8F',
-  darkslateblue: '#483D8B',
-  darkslategray: '#2F4F4F',
-  darkslategrey: '#2F4F4F',
-  darkturquoise: '#00CED1',
-  darkviolet: '#9400D3',
-  deeppink: '#FF1493',
-  deepskyblue: '#00BFFF',
-  dimgray: '#696969',
-  dimgrey: '#696969',
-  dodgerblue: '#1E90FF',
-  firebrick: '#B22222',
-  floralwhite: '#FFFAF0',
-  forestgreen: '#228B22',
-  fuchsia: '#FF00FF',
-  gainsboro: '#DCDCDC',
-  ghostwhite: '#F8F8FF',
-  gold: '#FFD700',
-  goldenrod: '#DAA520',
-  gray: '#808080',
-  grey: '#808080',
-  green: '#008000',
-  greenyellow: '#ADFF2F',
-  honeydew: '#F0FFF0',
-  hotpink: '#FF69B4',
-  indianred: '#CD5C5C',
-  indigo: '#4B0082',
-  ivory: '#FFFFF0',
-  khaki: '#F0E68C',
-  lavender: '#E6E6FA',
-  lavenderblush: '#FFF0F5',
-  lawngreen: '#7CFC00',
-  lemonchiffon: '#FFFACD',
-  lightblue: '#ADD8E6',
-  lightcoral: '#F08080',
-  lightcyan: '#E0FFFF',
-  lightgoldenrodyellow: '#FAFAD2',
-  lightgray: '#D3D3D3',
-  lightgrey: '#D3D3D3',
-  lightgreen: '#90EE90',
-  lightpink: '#FFB6C1',
-  lightsalmon: '#FFA07A',
-  lightseagreen: '#20B2AA',
-  lightskyblue: '#87CEFA',
-  lightslategray: '#778899',
-  lightslategrey: '#778899',
-  lightsteelblue: '#B0C4DE',
-  lightyellow: '#FFFFE0',
-  lime: '#00FF00',
-  limegreen: '#32CD32',
-  linen: '#FAF0E6',
-  magenta: '#FF00FF',
-  maroon: '#800000',
-  mediumaquamarine: '#66CDAA',
-  mediumblue: '#0000CD',
-  mediumorchid: '#BA55D3',
-  mediumpurple: '#9370DB',
-  mediumseagreen: '#3CB371',
-  mediumslateblue: '#7B68EE',
-  mediumspringgreen: '#00FA9A',
-  mediumturquoise: '#48D1CC',
-  mediumvioletred: '#C71585',
-  midnightblue: '#191970',
-  mintcream: '#F5FFFA',
-  mistyrose: '#FFE4E1',
-  moccasin: '#FFE4B5',
-  navajowhite: '#FFDEAD',
-  navy: '#000080',
-  oldlace: '#FDF5E6',
-  olive: '#808000',
-  olivedrab: '#6B8E23',
-  orange: '#FFA500',
-  orangered: '#FF4500',
-  orchid: '#DA70D6',
-  palegoldenrod: '#EEE8AA',
-  palegreen: '#98FB98',
-  paleturquoise: '#AFEEEE',
-  palevioletred: '#DB7093',
-  papayawhip: '#FFEFD5',
-  peachpuff: '#FFDAB9',
-  peru: '#CD853F',
-  pink: '#FFC0CB',
-  plum: '#DDA0DD',
-  powderblue: '#B0E0E6',
-  purple: '#800080',
-  red: '#FF0000',
-  rosybrown: '#BC8F8F',
-  royalblue: '#4169E1',
-  saddlebrown: '#8B4513',
-  salmon: '#FA8072',
-  sandybrown: '#F4A460',
-  seagreen: '#2E8B57',
-  seashell: '#FFF5EE',
-  sienna: '#A0522D',
-  silver: '#C0C0C0',
-  skyblue: '#87CEEB',
-  slateblue: '#6A5ACD',
-  slategray: '#708090',
-  slategrey: '#708090',
-  snow: '#FFFAFA',
-  springgreen: '#00FF7F',
-  steelblue: '#4682B4',
-  tan: '#D2B48C',
-  teal: '#008080',
-  thistle: '#D8BFD8',
-  tomato: '#FF6347',
-  turquoise: '#40E0D0',
-  violet: '#EE82EE',
-  wheat: '#F5DEB3',
-  white: '#FFFFFF',
-  whitesmoke: '#F5F5F5',
-  yellow: '#FFFF00',
-  yellowgreen: '#9ACD32',
+  aliceblue: "#F0F8FF",
+  antiquewhite: "#FAEBD7",
+  aqua: "#00FFFF",
+  aquamarine: "#7FFFD4",
+  azure: "#F0FFFF",
+  beige: "#F5F5DC",
+  bisque: "#FFE4C4",
+  black: "#000000",
+  blanchedalmond: "#FFEBCD",
+  blue: "#0000FF",
+  blueviolet: "#8A2BE2",
+  brown: "#A52A2A",
+  burlywood: "#DEB887",
+  cadetblue: "#5F9EA0",
+  chartreuse: "#7FFF00",
+  chocolate: "#D2691E",
+  coral: "#FF7F50",
+  cornflowerblue: "#6495ED",
+  cornsilk: "#FFF8DC",
+  crimson: "#DC143C",
+  cyan: "#00FFFF",
+  darkblue: "#00008B",
+  darkcyan: "#008B8B",
+  darkgoldenrod: "#B8860B",
+  darkgray: "#A9A9A9",
+  darkgrey: "#A9A9A9",
+  darkgreen: "#006400",
+  darkkhaki: "#BDB76B",
+  darkmagenta: "#8B008B",
+  darkolivegreen: "#556B2F",
+  darkorange: "#FF8C00",
+  darkorchid: "#9932CC",
+  darkred: "#8B0000",
+  darksalmon: "#E9967A",
+  darkseagreen: "#8FBC8F",
+  darkslateblue: "#483D8B",
+  darkslategray: "#2F4F4F",
+  darkslategrey: "#2F4F4F",
+  darkturquoise: "#00CED1",
+  darkviolet: "#9400D3",
+  deeppink: "#FF1493",
+  deepskyblue: "#00BFFF",
+  dimgray: "#696969",
+  dimgrey: "#696969",
+  dodgerblue: "#1E90FF",
+  firebrick: "#B22222",
+  floralwhite: "#FFFAF0",
+  forestgreen: "#228B22",
+  fuchsia: "#FF00FF",
+  gainsboro: "#DCDCDC",
+  ghostwhite: "#F8F8FF",
+  gold: "#FFD700",
+  goldenrod: "#DAA520",
+  gray: "#808080",
+  grey: "#808080",
+  green: "#008000",
+  greenyellow: "#ADFF2F",
+  honeydew: "#F0FFF0",
+  hotpink: "#FF69B4",
+  indianred: "#CD5C5C",
+  indigo: "#4B0082",
+  ivory: "#FFFFF0",
+  khaki: "#F0E68C",
+  lavender: "#E6E6FA",
+  lavenderblush: "#FFF0F5",
+  lawngreen: "#7CFC00",
+  lemonchiffon: "#FFFACD",
+  lightblue: "#ADD8E6",
+  lightcoral: "#F08080",
+  lightcyan: "#E0FFFF",
+  lightgoldenrodyellow: "#FAFAD2",
+  lightgray: "#D3D3D3",
+  lightgrey: "#D3D3D3",
+  lightgreen: "#90EE90",
+  lightpink: "#FFB6C1",
+  lightsalmon: "#FFA07A",
+  lightseagreen: "#20B2AA",
+  lightskyblue: "#87CEFA",
+  lightslategray: "#778899",
+  lightslategrey: "#778899",
+  lightsteelblue: "#B0C4DE",
+  lightyellow: "#FFFFE0",
+  lime: "#00FF00",
+  limegreen: "#32CD32",
+  linen: "#FAF0E6",
+  magenta: "#FF00FF",
+  maroon: "#800000",
+  mediumaquamarine: "#66CDAA",
+  mediumblue: "#0000CD",
+  mediumorchid: "#BA55D3",
+  mediumpurple: "#9370DB",
+  mediumseagreen: "#3CB371",
+  mediumslateblue: "#7B68EE",
+  mediumspringgreen: "#00FA9A",
+  mediumturquoise: "#48D1CC",
+  mediumvioletred: "#C71585",
+  midnightblue: "#191970",
+  mintcream: "#F5FFFA",
+  mistyrose: "#FFE4E1",
+  moccasin: "#FFE4B5",
+  navajowhite: "#FFDEAD",
+  navy: "#000080",
+  oldlace: "#FDF5E6",
+  olive: "#808000",
+  olivedrab: "#6B8E23",
+  orange: "#FFA500",
+  orangered: "#FF4500",
+  orchid: "#DA70D6",
+  palegoldenrod: "#EEE8AA",
+  palegreen: "#98FB98",
+  paleturquoise: "#AFEEEE",
+  palevioletred: "#DB7093",
+  papayawhip: "#FFEFD5",
+  peachpuff: "#FFDAB9",
+  peru: "#CD853F",
+  pink: "#FFC0CB",
+  plum: "#DDA0DD",
+  powderblue: "#B0E0E6",
+  purple: "#800080",
+  red: "#FF0000",
+  rosybrown: "#BC8F8F",
+  royalblue: "#4169E1",
+  saddlebrown: "#8B4513",
+  salmon: "#FA8072",
+  sandybrown: "#F4A460",
+  seagreen: "#2E8B57",
+  seashell: "#FFF5EE",
+  sienna: "#A0522D",
+  silver: "#C0C0C0",
+  skyblue: "#87CEEB",
+  slateblue: "#6A5ACD",
+  slategray: "#708090",
+  slategrey: "#708090",
+  snow: "#FFFAFA",
+  springgreen: "#00FF7F",
+  steelblue: "#4682B4",
+  tan: "#D2B48C",
+  teal: "#008080",
+  thistle: "#D8BFD8",
+  tomato: "#FF6347",
+  turquoise: "#40E0D0",
+  violet: "#EE82EE",
+  wheat: "#F5DEB3",
+  white: "#FFFFFF",
+  whitesmoke: "#F5F5F5",
+  yellow: "#FFFF00",
+  yellowgreen: "#9ACD32",
 };
 
 // Convert hex to RGB
-export function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  let normalized = hex.replace(/^#/, '');
+export function hexToRgb(
+  hex: string
+): { r: number; g: number; b: number } | null {
+  let normalized = hex.replace(/^#/, "");
 
   if (normalized.length === 3 || normalized.length === 4) {
     normalized = normalized
-      .split('')
+      .split("")
       .map((char) => char + char)
-      .join('');
+      .join("");
   }
 
   if (normalized.length === 8) {
@@ -188,15 +190,19 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } | nul
   const result = /^([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(normalized);
   return result
     ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16),
-    }
+        r: Number.parseInt(result[1], 16),
+        g: Number.parseInt(result[2], 16),
+        b: Number.parseInt(result[3], 16),
+      }
     : null;
 }
 
 // Convert RGB to HSL
-function rgbToHsl(red: number, green: number, blue: number): { h: number; s: number; l: number } {
+function rgbToHsl(
+  red: number,
+  green: number,
+  blue: number
+): { h: number; s: number; l: number } {
   red /= 255;
   green /= 255;
   blue /= 255;
@@ -235,7 +241,11 @@ function rgbToHsl(red: number, green: number, blue: number): { h: number; s: num
 }
 
 // Convert HSL to RGB
-function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
+function hslToRgb(
+  h: number,
+  s: number,
+  l: number
+): { r: number; g: number; b: number } {
   h /= 360;
   s /= 100;
   l /= 100;
@@ -283,9 +293,9 @@ export function parseColorString(colorText: string): Color | null {
     let raw = hexMatch[1];
     if (raw.length === 3 || raw.length === 4) {
       raw = raw
-        .split('')
+        .split("")
         .map((char) => char + char)
-        .join('');
+        .join("");
     }
 
     const rgbHex = raw.slice(0, 6);
@@ -305,13 +315,22 @@ export function parseColorString(colorText: string): Color | null {
   }
 
   // Try RGB format
-  const rgbMatch = text.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*[\d.]+\s*)?\)/);
+  const rgbMatch = text.match(
+    /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*[\d.]+\s*)?\)/
+  );
   if (rgbMatch) {
-    const red = parseInt(rgbMatch[1]);
-    const green = parseInt(rgbMatch[2]);
-    const blue = parseInt(rgbMatch[3]);
+    const red = Number.parseInt(rgbMatch[1]);
+    const green = Number.parseInt(rgbMatch[2]);
+    const blue = Number.parseInt(rgbMatch[3]);
 
-    if (red >= 0 && red <= 255 && green >= 0 && green <= 255 && blue >= 0 && blue <= 255) {
+    if (
+      red >= 0 &&
+      red <= 255 &&
+      green >= 0 &&
+      green <= 255 &&
+      blue >= 0 &&
+      blue <= 255
+    ) {
       const hex = rgbToHex(red, green, blue);
       const hsl = rgbToHsl(red, green, blue);
 
@@ -324,11 +343,13 @@ export function parseColorString(colorText: string): Color | null {
   }
 
   // Try HSL format
-  const hslMatch = text.match(/hsla?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*(?:,\s*[\d.]+\s*)?\)/);
+  const hslMatch = text.match(
+    /hsla?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*(?:,\s*[\d.]+\s*)?\)/
+  );
   if (hslMatch) {
-    const h = parseInt(hslMatch[1]);
-    const s = parseInt(hslMatch[2]);
-    const l = parseInt(hslMatch[3]);
+    const h = Number.parseInt(hslMatch[1]);
+    const s = Number.parseInt(hslMatch[2]);
+    const l = Number.parseInt(hslMatch[3]);
 
     if (h >= 0 && h <= 360 && s >= 0 && s <= 100 && l >= 0 && l <= 100) {
       const rgb = hslToRgb(h, s, l);
@@ -343,7 +364,7 @@ export function parseColorString(colorText: string): Color | null {
   }
 
   // Try color name
-  const colorName = text.replace(/[^a-z]/g, '');
+  const colorName = text.replace(/[^a-z]/g, "");
   if (COLOR_NAMES[colorName]) {
     const hex = COLOR_NAMES[colorName];
     const rgb = hexToRgb(hex);
@@ -385,8 +406,12 @@ export function parseColorsFromText(text: string): Color[] {
   // Also try to extract colors from within longer text
   const allMatches = [
     ...text.matchAll(/#([a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})\b/gi),
-    ...text.matchAll(/rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*[\d.]+\s*)?\)/gi),
-    ...text.matchAll(/hsla?\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*(?:,\s*[\d.]+\s*)?\)/gi),
+    ...text.matchAll(
+      /rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*[\d.]+\s*)?\)/gi
+    ),
+    ...text.matchAll(
+      /hsla?\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*(?:,\s*[\d.]+\s*)?\)/gi
+    ),
   ];
 
   for (const match of allMatches) {
@@ -404,7 +429,7 @@ export function parseColorsFromText(text: string): Color[] {
 }
 
 function formatPaletteName(slug: string): string | undefined {
-  const cleaned = slug.replace(/[_-]+/g, ' ').trim();
+  const cleaned = slug.replace(/[_-]+/g, " ").trim();
   if (!cleaned) return undefined;
   return cleaned.replace(/\b\w/g, (char) => char.toUpperCase());
 }
@@ -441,28 +466,36 @@ export function extractPaletteColors(text: string, maxColors = 12): Color[] {
   };
 
   // CSS custom properties: infer name from the variable slug
-  for (const match of normalizedText.matchAll(/--([a-z0-9_-]+)\s*:\s*([^;{}\n]+)[;}]?/gi)) {
+  for (const match of normalizedText.matchAll(
+    /--([a-z0-9_-]+)\s*:\s*([^;{}\n]+)[;}]?/gi
+  )) {
     const [, slug, value] = match;
     const parsed = parseColorString(value.trim());
     addColor(parsed, formatPaletteName(slug));
   }
 
   // Labeled pairs like "Primary: #0F4C81" or "Accent - rgb(255, 0, 128)"
-  for (const match of normalizedText.matchAll(/\b([A-Za-z][\w\s-]{0,32}?)\s*[:\-–]\s*(#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})\b|rgba?\([^)]*\)|hsla?\([^)]*\))/gi)) {
+  for (const match of normalizedText.matchAll(
+    /\b([A-Za-z][\w\s-]{0,32}?)\s*[:\-–]\s*(#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})\b|rgba?\([^)]*\)|hsla?\([^)]*\))/gi
+  )) {
     const [, label, value] = match;
     const parsed = parseColorString(value.trim());
     addColor(parsed, label);
   }
 
   // CSS property declarations (color, background-color, border-color, fill, stroke, etc.)
-  for (const match of normalizedText.matchAll(/\b(?:color|background-color|border-color|fill|stroke|outline-color)\s*:\s*([^;{}\n]+)/gi)) {
+  for (const match of normalizedText.matchAll(
+    /\b(?:color|background-color|border-color|fill|stroke|outline-color)\s*:\s*([^;{}\n]+)/gi
+  )) {
     const [, value] = match;
     const parsed = parseColorString(value.trim().split(/\s+/)[0]);
     addColor(parsed);
   }
 
   // Tailwind arbitrary values like bg-[#0fa] or text-[rgba(0,0,0,0.5)]
-  for (const match of normalizedText.matchAll(/\[\s*(#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})|rgba?\([^)]*\)|hsla?\([^)]*\))\s*\]/gi)) {
+  for (const match of normalizedText.matchAll(
+    /\[\s*(#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})|rgba?\([^)]*\)|hsla?\([^)]*\))\s*\]/gi
+  )) {
     const [, value] = match;
     const parsed = parseColorString(value.trim());
     addColor(parsed);
@@ -489,12 +522,12 @@ export function getColorName(hex: string): string | undefined {
 
 // Calculate contrast ratio between two colors (for accessibility)
 export function getContrastRatio(color1: Color, color2: Color): number {
-  if (!color1.rgb || !color2.rgb) return 0;
+  if (!(color1.rgb && color2.rgb)) return 0;
 
   const getLuminance = (rgb: { r: number; g: number; b: number }): number => {
-    const [red, green, blue] = [rgb.r, rgb.g, rgb.b].map(c => {
+    const [red, green, blue] = [rgb.r, rgb.g, rgb.b].map((c) => {
       c = c / 255;
-      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      return c <= 0.039_28 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
     });
     return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
   };

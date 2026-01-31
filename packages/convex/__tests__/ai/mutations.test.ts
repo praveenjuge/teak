@@ -1,16 +1,18 @@
 // @ts-nocheck
-import { describe, expect, test, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 describe("ai/mutations.ts", () => {
   let updateCardProcessing: any;
 
   beforeEach(async () => {
-    updateCardProcessing = (await import("../../ai/mutations")).updateCardProcessing;
+    updateCardProcessing = (await import("../../ai/mutations"))
+      .updateCardProcessing;
   });
 
   test("updates processing fields", async () => {
     const ctx = { db: { patch: mock().mockResolvedValue("ok") } } as any;
-    const handler = (updateCardProcessing as any).handler ?? updateCardProcessing;
+    const handler =
+      (updateCardProcessing as any).handler ?? updateCardProcessing;
     const result = await handler(ctx, {
       cardId: "c1",
       processingStatus: { classify: { status: "completed" } },

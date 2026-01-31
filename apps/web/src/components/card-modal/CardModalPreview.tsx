@@ -1,24 +1,24 @@
 import { Button } from "@/components/ui/button";
 import {
-  LinkPreview,
-  ImagePreview,
-  VideoPreview,
   AudioPreview,
   DocumentPreview,
-  TextPreview,
+  ImagePreview,
+  LinkPreview,
   PalettePreview,
   QuotePreview,
+  TextPreview,
+  VideoPreview,
 } from "../card-previews";
 import type { CardModalCard, GetCurrentValue } from "./types";
 
-type CardModalPreviewProps = {
+interface CardModalPreviewProps {
   card: CardModalCard;
   hasUnsavedChanges: boolean;
   isSaved: boolean;
   saveChanges: () => Promise<void>;
   updateContent: (value: string) => void;
   getCurrentValue: GetCurrentValue;
-};
+}
 
 const renderPreviewByType = (
   card: CardModalCard,
@@ -30,16 +30,16 @@ const renderPreviewByType = (
       return (
         <TextPreview
           card={card}
-          onContentChange={updateContent}
           getCurrentValue={getCurrentValue}
+          onContentChange={updateContent}
         />
       );
     case "quote":
       return (
         <QuotePreview
           card={card}
-          onContentChange={updateContent}
           getCurrentValue={getCurrentValue}
+          onContentChange={updateContent}
         />
       );
     case "link":
@@ -68,24 +68,24 @@ export function CardModalPreview({
   getCurrentValue,
 }: CardModalPreviewProps) {
   return (
-    <div className="flex-1 md:flex-2 md:border-r overflow-hidden flex flex-col min-h-0 relative">
-      <div className="flex-1 p-4 overflow-y-auto">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden md:flex-2 md:border-r">
+      <div className="flex-1 overflow-y-auto p-4">
         {renderPreviewByType(card, updateContent, getCurrentValue)}
       </div>
-      <div className="pointer-events-none absolute bottom-4 right-4 flex flex-col items-end gap-1">
+      <div className="pointer-events-none absolute right-4 bottom-4 flex flex-col items-end gap-1">
         {hasUnsavedChanges && (
           <Button
-            size="sm"
-            className="px-4 pointer-events-auto"
+            className="pointer-events-auto px-4"
             onClick={() => {
               void saveChanges();
             }}
+            size="sm"
           >
             Save changes
           </Button>
         )}
         {!hasUnsavedChanges && isSaved && (
-          <span className="text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded-md shadow-sm">
+          <span className="rounded-md bg-background/80 px-2 py-1 text-muted-foreground text-xs shadow-sm">
             Saved
           </span>
         )}

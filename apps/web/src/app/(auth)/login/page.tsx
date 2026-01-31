@@ -1,19 +1,19 @@
 "use client";
 
-import { Button, buttonVariants } from "@/components/ui/button";
-import { CardContent, CardTitle, CardFooter } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useState } from "react";
-import { Loader2, AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
-import { GoogleIcon } from "@/components/icons/GoogleIcon";
+import { useState } from "react";
 import { AppleIcon } from "@/components/icons/AppleIcon";
-import { cn } from "@/lib/utils";
+import { GoogleIcon } from "@/components/icons/GoogleIcon";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { CardContent, CardFooter, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { authClient } from "@/lib/auth-client";
 import { metrics } from "@/lib/metrics";
+import { cn } from "@/lib/utils";
 
 export default function SignIn() {
   const router = useRouter();
@@ -36,7 +36,7 @@ export default function SignIn() {
         metrics.loginFailed("google", response.error.message);
         setError(
           response.error.message ??
-            "Failed to sign in with Google. Please try again.",
+            "Failed to sign in with Google. Please try again."
         );
       } else {
         metrics.loginSuccess("google");
@@ -63,7 +63,7 @@ export default function SignIn() {
         metrics.loginFailed("apple", response.error.message);
         setError(
           response.error.message ??
-            "Failed to sign in with Apple. Please try again.",
+            "Failed to sign in with Apple. Please try again."
         );
       } else {
         metrics.loginSuccess("apple");
@@ -80,10 +80,10 @@ export default function SignIn() {
 
   return (
     <>
-      <CardTitle className="text-lg text-center">Login to Teak</CardTitle>
+      <CardTitle className="text-center text-lg">Login to Teak</CardTitle>
       <CardContent>
         {error && (
-          <Alert variant="destructive" className="mb-4">
+          <Alert className="mb-4" variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
@@ -91,14 +91,14 @@ export default function SignIn() {
 
         <div className="grid gap-2">
           <Button
+            className="w-full"
+            disabled={loading || googleLoading || appleLoading}
+            onClick={handleGoogleSignIn}
             type="button"
             variant="outline"
-            className="w-full"
-            onClick={handleGoogleSignIn}
-            disabled={loading || googleLoading || appleLoading}
           >
             {googleLoading ? (
-              <Loader2 size={16} className="animate-spin" />
+              <Loader2 className="animate-spin" size={16} />
             ) : (
               <>
                 <GoogleIcon className="h-4 w-4" />
@@ -107,14 +107,14 @@ export default function SignIn() {
             )}
           </Button>
           <Button
+            className="w-full"
+            disabled={loading || googleLoading || appleLoading}
+            onClick={handleAppleSignIn}
             type="button"
             variant="outline"
-            className="w-full"
-            onClick={handleAppleSignIn}
-            disabled={loading || googleLoading || appleLoading}
           >
             {appleLoading ? (
-              <Loader2 size={16} className="animate-spin" />
+              <Loader2 className="animate-spin" size={16} />
             ) : (
               <>
                 <AppleIcon className="h-4 w-4" />
@@ -134,6 +134,7 @@ export default function SignIn() {
         </div>
 
         <form
+          className="grid gap-4"
           onSubmit={async (e) => {
             e.preventDefault();
             setError(null);
@@ -167,27 +168,26 @@ export default function SignIn() {
                     errorMessage.toLowerCase().includes("unverified")
                   ) {
                     setError(
-                      "Please check your email and click the verification link before signing in. If you didn't receive the email, check your spam folder.",
+                      "Please check your email and click the verification link before signing in. If you didn't receive the email, check your spam folder."
                     );
                   } else {
                     setError(errorMessage);
                   }
                 },
-              },
+              }
             );
           }}
-          className="grid gap-4"
         >
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
-              type="email"
-              placeholder="me@example.com"
-              required
               onChange={(e) => {
                 setEmail(e.target.value);
               }}
+              placeholder="me@example.com"
+              required
+              type="email"
               value={email}
             />
           </div>
@@ -196,44 +196,44 @@ export default function SignIn() {
             <div className="flex justify-between">
               <Label htmlFor="password">Password</Label>
               <Link
-                href="/forgot-password"
                 className={cn(
                   buttonVariants({ variant: "link" }),
-                  "p-0 h-auto",
+                  "h-auto p-0"
                 )}
+                href="/forgot-password"
               >
                 Forgot?
               </Link>
             </div>
 
             <Input
-              id="password"
-              type="password"
-              placeholder="Password"
               autoComplete="password"
-              required
-              value={password}
+              id="password"
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              required
+              type="password"
+              value={password}
             />
           </div>
 
           <Button
-            type="submit"
             className="w-full"
             disabled={loading || googleLoading || appleLoading}
+            type="submit"
           >
             {loading ? (
-              <Loader2 size={16} className="animate-spin" />
+              <Loader2 className="animate-spin" size={16} />
             ) : (
               <p> Login </p>
             )}
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex-col -my-2">
+      <CardFooter className="-my-2 flex-col">
         <Link
-          href="/register"
           className={cn(buttonVariants({ variant: "link" }))}
+          href="/register"
         >
           New User? Register
         </Link>

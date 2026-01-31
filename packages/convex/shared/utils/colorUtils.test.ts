@@ -1,12 +1,12 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
-  hexToRgb,
-  parseColorString,
-  parseColorsFromText,
+  type Color,
   extractPaletteColors,
   getColorName,
   getContrastRatio,
-  type Color,
+  hexToRgb,
+  parseColorString,
+  parseColorsFromText,
 } from "./colorUtils";
 
 describe("hexToRgb", () => {

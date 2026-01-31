@@ -61,24 +61,29 @@ export const withStageStatus = (
 });
 
 export const shouldRunRenderablesStage = (cardType: CardType): boolean => {
-  return cardType === "image" || cardType === "video" || cardType === "document";
+  return (
+    cardType === "image" || cardType === "video" || cardType === "document"
+  );
 };
 
 export const shouldRunCategorizeStage = (cardType: CardType): boolean => {
   return cardType === "link";
 };
 
-export const buildInitialProcessingStatus = (
-  params: {
-    now: number;
-    cardType: CardType;
-    classificationStatus?: ProcessingStageStatus;
-    metadataStageNeeded?: boolean;
-    renderablesStageOverride?: boolean;
-    categorizeStageOverride?: boolean;
-  }
-): ProcessingStatus => {
-  const { now: timestamp, cardType, classificationStatus, metadataStageNeeded = true } = params;
+export const buildInitialProcessingStatus = (params: {
+  now: number;
+  cardType: CardType;
+  classificationStatus?: ProcessingStageStatus;
+  metadataStageNeeded?: boolean;
+  renderablesStageOverride?: boolean;
+  categorizeStageOverride?: boolean;
+}): ProcessingStatus => {
+  const {
+    now: timestamp,
+    cardType,
+    classificationStatus,
+    metadataStageNeeded = true,
+  } = params;
   const result: ProcessingStatus = {};
 
   if (classificationStatus) {
@@ -88,14 +93,20 @@ export const buildInitialProcessingStatus = (
   const shouldCategorize =
     params.categorizeStageOverride ?? shouldRunCategorizeStage(cardType);
 
-  result.categorize = shouldCategorize ? stagePending() : stageCompleted(timestamp, 1);
+  result.categorize = shouldCategorize
+    ? stagePending()
+    : stageCompleted(timestamp, 1);
 
-  result.metadata = metadataStageNeeded ? stagePending() : stageCompleted(timestamp, 1);
+  result.metadata = metadataStageNeeded
+    ? stagePending()
+    : stageCompleted(timestamp, 1);
 
   const shouldRunRenderables =
     params.renderablesStageOverride ?? shouldRunRenderablesStage(cardType);
 
-  result.renderables = shouldRunRenderables ? stagePending() : stageCompleted(timestamp, 1);
+  result.renderables = shouldRunRenderables
+    ? stagePending()
+    : stageCompleted(timestamp, 1);
 
   return result;
 };

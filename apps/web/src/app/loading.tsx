@@ -7,13 +7,13 @@ export default function Loading({
 }) {
   if (!fullscreen) {
     return (
-      <div className="flex justify-center items-center">
+      <div className="flex items-center justify-center">
         <Spinner />
       </div>
     );
   }
   return (
-    <section className="grid place-items-center min-h-screen w-full">
+    <section className="grid min-h-screen w-full place-items-center">
       <Spinner />
     </section>
   );

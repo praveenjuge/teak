@@ -1,12 +1,12 @@
-import { test, expect } from "@playwright/test";
-import { AuthHelper, UiHelper, generateTestContent } from "./test-helpers";
+import { expect, test } from "@playwright/test";
+import { AuthHelper, UiHelper } from "./test-helpers";
 
 const TEST_EMAIL = process.env.E2E_BETTER_AUTH_USER_EMAIL;
 const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
 
 test.describe("Tag Management", () => {
   test.skip(
-    !TEST_EMAIL || !TEST_PASSWORD,
+    !(TEST_EMAIL && TEST_PASSWORD),
     "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run tag tests."
   );
 
@@ -24,7 +24,7 @@ test.describe("Tag Management", () => {
   test.describe("Adding User Tags", () => {
     test("should open tag management modal", async ({ page }) => {
       // Click on the first card to open modal
-      await page.locator('[data-card-id]').first().click();
+      await page.locator("[data-card-id]").first().click();
 
       // Tag management might be accessed via context menu or button
       // This test assumes tags are visible in the card modal
@@ -32,18 +32,18 @@ test.describe("Tag Management", () => {
     });
 
     test("should add a user tag to a card", async ({ page }) => {
-      const newTag = "test-tag-" + Date.now();
+      const newTag = `test-tag-${Date.now()}`;
 
       // Click on the first card
-      await page.locator('[data-card-id]').first().click();
+      await page.locator("[data-card-id]").first().click();
 
       // Look for tag input or add button
       // This depends on the actual UI implementation
-      const tagInput = page.getByPlaceholder(/add tag/i).or(
-        page.getByRole("textbox", { name: /tag/i })
-      );
+      const tagInput = page
+        .getByPlaceholder(/add tag/i)
+        .or(page.getByRole("textbox", { name: /tag/i }));
 
-      const hasTagInput = await tagInput.count() > 0;
+      const hasTagInput = (await tagInput.count()) > 0;
 
       if (hasTagInput) {
         await tagInput.first().fill(newTag);
@@ -62,13 +62,13 @@ test.describe("Tag Management", () => {
       const tags = ["tag1", "tag2", "tag3"];
 
       // Click on the first card
-      await page.locator('[data-card-id]').first().click();
+      await page.locator("[data-card-id]").first().click();
 
-      const tagInput = page.getByPlaceholder(/add tag/i).or(
-        page.getByRole("textbox", { name: /tag/i })
-      );
+      const tagInput = page
+        .getByPlaceholder(/add tag/i)
+        .or(page.getByRole("textbox", { name: /tag/i }));
 
-      const hasTagInput = await tagInput.count() > 0;
+      const hasTagInput = (await tagInput.count()) > 0;
 
       if (hasTagInput) {
         for (const tag of tags) {
@@ -88,13 +88,13 @@ test.describe("Tag Management", () => {
 
     test("should validate tag input", async ({ page }) => {
       // Click on the first card
-      await page.locator('[data-card-id]').first().click();
+      await page.locator("[data-card-id]").first().click();
 
-      const tagInput = page.getByPlaceholder(/add tag/i).or(
-        page.getByRole("textbox", { name: /tag/i })
-      );
+      const tagInput = page
+        .getByPlaceholder(/add tag/i)
+        .or(page.getByRole("textbox", { name: /tag/i }));
 
-      const hasTagInput = await tagInput.count() > 0;
+      const hasTagInput = (await tagInput.count()) > 0;
 
       if (hasTagInput) {
         // Try to add an empty tag
@@ -110,26 +110,26 @@ test.describe("Tag Management", () => {
   test.describe("Removing User Tags", () => {
     test("should remove a user tag from a card", async ({ page }) => {
       // Click on the first card
-      await page.locator('[data-card-id]').first().click();
+      await page.locator("[data-card-id]").first().click();
 
       // Look for existing tags or add one first
-      const tagInput = page.getByPlaceholder(/add tag/i).or(
-        page.getByRole("textbox", { name: /tag/i })
-      );
+      const tagInput = page
+        .getByPlaceholder(/add tag/i)
+        .or(page.getByRole("textbox", { name: /tag/i }));
 
-      const hasTagInput = await tagInput.count() > 0;
+      const hasTagInput = (await tagInput.count()) > 0;
 
       if (hasTagInput) {
-        const testTag = "removable-tag-" + Date.now();
+        const testTag = `removable-tag-${Date.now()}`;
         await tagInput.first().fill(testTag);
         await tagInput.first().press("Enter");
 
         // Now remove it
-        const removeButton = page.getByRole("button", { name: /remove/i }).or(
-          page.locator('[data-tag-remove]')
-        );
+        const removeButton = page
+          .getByRole("button", { name: /remove/i })
+          .or(page.locator("[data-tag-remove]"));
 
-        const hasRemoveButton = await removeButton.count() > 0;
+        const hasRemoveButton = (await removeButton.count()) > 0;
 
         if (hasRemoveButton) {
           await removeButton.first().click();
@@ -147,15 +147,15 @@ test.describe("Tag Management", () => {
   test.describe("AI Tags", () => {
     test("should display AI tags if present", async ({ page }) => {
       // Click on the first card
-      await page.locator('[data-card-id]').first().click();
+      await page.locator("[data-card-id]").first().click();
 
       // Check for AI tags section
-      const aiTagsSection = page.getByText(/ai tags/i).or(
-        page.getByTestId(/ai-tags/i)
-      );
+      const aiTagsSection = page
+        .getByText(/ai tags/i)
+        .or(page.getByTestId(/ai-tags/i));
 
       // AI tags might not be generated for all cards
-      const hasAiTags = await aiTagsSection.count() > 0;
+      const hasAiTags = (await aiTagsSection.count()) > 0;
 
       if (hasAiTags) {
         await expect(aiTagsSection.first()).toBeVisible();
@@ -165,14 +165,14 @@ test.describe("Tag Management", () => {
 
     test("should remove an AI tag", async ({ page }) => {
       // Click on the first card
-      await page.locator('[data-card-id]').first().click();
+      await page.locator("[data-card-id]").first().click();
 
       // Look for AI tag remove buttons
-      const aiTagRemove = page.locator('[data-ai-tag-remove]').or(
-        page.getByRole("button", { name: /remove ai tag/i })
-      );
+      const aiTagRemove = page
+        .locator("[data-ai-tag-remove]")
+        .or(page.getByRole("button", { name: /remove ai tag/i }));
 
-      const hasAiTagRemove = await aiTagRemove.count() > 0;
+      const hasAiTagRemove = (await aiTagRemove.count()) > 0;
 
       if (hasAiTagRemove) {
         // Count tags before removal
@@ -196,15 +196,15 @@ test.describe("Tag Management", () => {
   test.describe("Tag Search and Filtering", () => {
     test("should filter cards by clicking on a tag", async ({ page }) => {
       // This test assumes tags are clickable in the card preview
-      const firstCard = page.locator('[data-card-id]').first();
+      const firstCard = page.locator("[data-card-id]").first();
       await firstCard.click();
 
       // Look for tags in the card modal
-      const tags = page.locator('[data-tag]').or(
-        page.getByRole("button", { name: /#/ })
-      );
+      const tags = page
+        .locator("[data-tag]")
+        .or(page.getByRole("button", { name: /#/ }));
 
-      const hasTags = await tags.count() > 0;
+      const hasTags = (await tags.count()) > 0;
 
       if (hasTags) {
         // Click on first tag
@@ -224,7 +224,7 @@ test.describe("Tag Management", () => {
 
 test.describe("Favorites Functionality", () => {
   test.skip(
-    !TEST_EMAIL || !TEST_PASSWORD,
+    !(TEST_EMAIL && TEST_PASSWORD),
     "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run favorites tests."
   );
 
@@ -240,20 +240,23 @@ test.describe("Favorites Functionality", () => {
   });
 
   test("should toggle favorite on a card", async ({ page }) => {
-    const firstCard = page.locator('[data-card-id]').first();
+    const _firstCard = page.locator("[data-card-id]").first();
 
     // Look for favorite button
-    const favoriteButton = page.locator('[data-favorite-button]').or(
-      page.getByRole("button", { name: /favorite/i }).or(
-        page.getByRole("button", { name: /heart/i })
-      )
-    );
+    const favoriteButton = page
+      .locator("[data-favorite-button]")
+      .or(
+        page
+          .getByRole("button", { name: /favorite/i })
+          .or(page.getByRole("button", { name: /heart/i }))
+      );
 
-    const hasFavoriteButton = await favoriteButton.count() > 0;
+    const hasFavoriteButton = (await favoriteButton.count()) > 0;
 
     if (hasFavoriteButton) {
       // Get initial state
-      const isFavoritedBefore = await favoriteButton.first()
+      const isFavoritedBefore = await favoriteButton
+        .first()
         .getAttribute("data-favorited");
 
       // Toggle favorite
@@ -261,7 +264,8 @@ test.describe("Favorites Functionality", () => {
       await page.waitForTimeout(500);
 
       // State should change
-      const isFavoritedAfter = await favoriteButton.first()
+      const isFavoritedAfter = await favoriteButton
+        .first()
         .getAttribute("data-favorited");
 
       expect(isFavoritedBefore).not.toBe(isFavoritedAfter);
@@ -274,13 +278,15 @@ test.describe("Favorites Functionality", () => {
     const uiHelper = new UiHelper(page);
 
     // First, favorite a card
-    const favoriteButton = page.locator('[data-favorite-button]').or(
-      page.getByRole("button", { name: /favorite/i }).or(
-        page.getByRole("button", { name: /heart/i })
-      )
-    );
+    const favoriteButton = page
+      .locator("[data-favorite-button]")
+      .or(
+        page
+          .getByRole("button", { name: /favorite/i })
+          .or(page.getByRole("button", { name: /heart/i }))
+      );
 
-    const hasFavoriteButton = await favoriteButton.count() > 0;
+    const hasFavoriteButton = (await favoriteButton.count()) > 0;
 
     if (hasFavoriteButton) {
       await favoriteButton.first().click();
@@ -290,22 +296,24 @@ test.describe("Favorites Functionality", () => {
       await uiHelper.toggleFavoritesFilter();
 
       // Should see the favorited card
-      await expect(page.locator('[data-card-id]').first()).toBeVisible();
+      await expect(page.locator("[data-card-id]").first()).toBeVisible();
     } else {
       test.skip(true, "Favorite button not found");
     }
   });
 
   test("should unfavorite a card", async ({ page }) => {
-    const firstCard = page.locator('[data-card-id]').first();
+    const _firstCard = page.locator("[data-card-id]").first();
 
-    const favoriteButton = page.locator('[data-favorite-button]').or(
-      page.getByRole("button", { name: /favorite/i }).or(
-        page.getByRole("button", { name: /heart/i })
-      )
-    );
+    const favoriteButton = page
+      .locator("[data-favorite-button]")
+      .or(
+        page
+          .getByRole("button", { name: /favorite/i })
+          .or(page.getByRole("button", { name: /heart/i }))
+      );
 
-    const hasFavoriteButton = await favoriteButton.count() > 0;
+    const hasFavoriteButton = (await favoriteButton.count()) > 0;
 
     if (hasFavoriteButton) {
       // Favorite the card
@@ -329,14 +337,15 @@ test.describe("Favorites Functionality", () => {
 
   test("should toggle favorite from card modal", async ({ page }) => {
     // Click on first card to open modal
-    await page.locator('[data-card-id]').first().click();
+    await page.locator("[data-card-id]").first().click();
 
     // Look for favorite button in modal
-    const favoriteButton = page.getByRole("dialog").locator('[data-favorite-button]').or(
-      page.getByRole("dialog").getByRole("button", { name: /favorite/i })
-    );
+    const favoriteButton = page
+      .getByRole("dialog")
+      .locator("[data-favorite-button]")
+      .or(page.getByRole("dialog").getByRole("button", { name: /favorite/i }));
 
-    const hasFavoriteButton = await favoriteButton.count() > 0;
+    const hasFavoriteButton = (await favoriteButton.count()) > 0;
 
     if (hasFavoriteButton) {
       // Toggle favorite from modal
@@ -368,13 +377,15 @@ test.describe("Favorites Functionality", () => {
   });
 
   test("should show heart icon for favorited cards", async ({ page }) => {
-    const favoriteButton = page.locator('[data-favorite-button]').or(
-      page.getByRole("button", { name: /favorite/i }).or(
-        page.getByRole("button", { name: /heart/i })
-      )
-    );
+    const favoriteButton = page
+      .locator("[data-favorite-button]")
+      .or(
+        page
+          .getByRole("button", { name: /favorite/i })
+          .or(page.getByRole("button", { name: /heart/i }))
+      );
 
-    const hasFavoriteButton = await favoriteButton.count() > 0;
+    const hasFavoriteButton = (await favoriteButton.count()) > 0;
 
     if (hasFavoriteButton) {
       // Favorite a card
@@ -392,7 +403,7 @@ test.describe("Favorites Functionality", () => {
 
 test.describe("Combined Tag and Favorites Workflows", () => {
   test.skip(
-    !TEST_EMAIL || !TEST_PASSWORD,
+    !(TEST_EMAIL && TEST_PASSWORD),
     "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run combined tests."
   );
 
@@ -406,11 +417,11 @@ test.describe("Combined Tag and Favorites Workflows", () => {
     await uiHelper.createTextCard("Combined test card");
     await page.waitForTimeout(500);
 
-    const favoriteButton = page.locator('[data-favorite-button]').or(
-      page.getByRole("button", { name: /favorite/i })
-    );
+    const favoriteButton = page
+      .locator("[data-favorite-button]")
+      .or(page.getByRole("button", { name: /favorite/i }));
 
-    const hasFavoriteButton = await favoriteButton.count() > 0;
+    const hasFavoriteButton = (await favoriteButton.count()) > 0;
 
     if (hasFavoriteButton) {
       await favoriteButton.first().click();
@@ -420,7 +431,7 @@ test.describe("Combined Tag and Favorites Workflows", () => {
       await uiHelper.toggleFavoritesFilter();
 
       // Should see the card
-      await expect(page.locator('[data-card-id]').first()).toBeVisible();
+      await expect(page.locator("[data-card-id]").first()).toBeVisible();
     } else {
       test.skip(true, "Favorite functionality not accessible");
     }

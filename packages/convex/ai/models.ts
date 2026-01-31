@@ -17,7 +17,9 @@ export const LINK_METADATA_MODEL = groq("openai/gpt-oss-20b");
  * Note: Currently does NOT support prompt caching
  * Using Llama 4 Scout for multimodal capabilities
  */
-export const IMAGE_METADATA_MODEL = groq("meta-llama/llama-4-scout-17b-16e-instruct");
+export const IMAGE_METADATA_MODEL = groq(
+  "meta-llama/llama-4-scout-17b-16e-instruct"
+);
 
 /**
  * Model for changelog generation (docs)

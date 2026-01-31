@@ -12,8 +12,8 @@
 "use node";
 
 import { v } from "convex/values";
-import { internalAction } from "../../_generated/server";
 import { internal } from "../../_generated/api";
+import { internalAction } from "../../_generated/server";
 import { stageCompleted, stageFailed } from "../../card/processingStatus";
 
 /**
@@ -76,7 +76,8 @@ export async function generateHandler(
 
   if (cardType === "image" && card.fileId && !isSvgFile) {
     const result = await ctx.runAction(
-      (internal as any).workflows.steps.renderables.generateThumbnail.generateThumbnail,
+      (internal as any).workflows.steps.renderables.generateThumbnail
+        .generateThumbnail,
       { cardId }
     );
     handleResult(result);
@@ -85,7 +86,8 @@ export async function generateHandler(
   // Generate thumbnail for SVG images (rasterize to PNG using Playwright)
   if (cardType === "image" && card.fileId && isSvgFile) {
     const result = await ctx.runAction(
-      (internal as any).workflows.steps.renderables.generateSvgThumbnail.generateSvgThumbnail,
+      (internal as any).workflows.steps.renderables.generateSvgThumbnail
+        .generateSvgThumbnail,
       { cardId }
     );
     handleResult(result);
@@ -122,7 +124,11 @@ export async function generateHandler(
     ...processingStatus,
     renderables: renderablesSucceeded
       ? stageCompleted(now, 0.95)
-      : stageFailed(now, failureReason ?? "renderables_failed", processingStatus.renderables),
+      : stageFailed(
+          now,
+          failureReason ?? "renderables_failed",
+          processingStatus.renderables
+        ),
   };
 
   await ctx.runMutation((internal as any).ai.mutations.updateCardProcessing, {

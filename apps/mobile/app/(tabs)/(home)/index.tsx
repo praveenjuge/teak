@@ -1,13 +1,13 @@
-import { CardsGrid } from "@/components/CardsGrid";
 import { Stack } from "expo-router";
 import { useCallback, useState } from "react";
 import { Platform } from "react-native";
+import { CardsGrid } from "@/components/CardsGrid";
 
-type SearchBarEvent = {
+interface SearchBarEvent {
   nativeEvent: {
     text: string;
   };
-};
+}
 
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("");

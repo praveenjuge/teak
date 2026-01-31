@@ -1,8 +1,8 @@
-import { useMemo } from "react";
+import type { Doc } from "@teak/convex/_generated/dataModel";
 import { Image } from "antd";
-import { type Doc } from "@teak/convex/_generated/dataModel";
-import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
+import Link from "next/link";
+import { useMemo } from "react";
 
 interface LinkPreviewProps {
   card: Doc<"cards"> & { screenshotUrl?: string; linkPreviewImageUrl?: string };
@@ -27,8 +27,12 @@ export function LinkPreview({
   const screenshotUrl = showScreenshot ? card.screenshotUrl : undefined;
 
   const faviconUrl = useMemo(() => {
-    if (linkFavicon) return linkFavicon;
-    if (!card.url) return undefined;
+    if (linkFavicon) {
+      return linkFavicon;
+    }
+    if (!card.url) {
+      return undefined;
+    }
     return `https://www.google.com/s2/favicons?domain=${card.url}`;
   }, [card.url, linkFavicon]);
 
@@ -37,38 +41,37 @@ export function LinkPreview({
   return (
     <div className="flex flex-col gap-6">
       <Link
-        href={card.url || "#"}
-        target="_blank"
-        rel="noopener noreferrer"
         className="flex w-full flex-col overflow-hidden rounded border hover:bg-accent sm:flex-row"
+        href={card.url || "#"}
+        rel="noopener noreferrer"
+        target="_blank"
       >
         {linkImage && (
           <Image
-            src={linkImage}
             alt="Open Graph preview"
-            className="h-auto w-full max-h-60 object-contain sm:h-full sm:max-h-40 sm:w-60"
-            preview={false}
+            className="h-auto max-h-60 w-full object-contain sm:h-full sm:max-h-40 sm:w-60"
             placeholder
+            preview={false}
+            src={linkImage}
           />
         )}
 
         {showScreenshot && screenshotUrl && !linkImage && (
           <Image
-            src={screenshotUrl}
             alt="Rendered webpage screenshot"
-            className="h-auto w-full max-h-60 object-contain sm:h-full sm:max-h-40 sm:w-60"
-            preview={false}
+            className="h-auto max-h-60 w-full object-contain sm:h-full sm:max-h-40 sm:w-60"
             placeholder
+            preview={false}
+            src={screenshotUrl}
           />
         )}
 
         <div className="min-w-0 flex-1 shrink-0 space-y-1 p-4">
           <div className="flex w-full min-w-0 items-center gap-2">
             {faviconUrl && (
-              <div className="size-4 mt-0.5 shrink-0">
+              <div className="mt-0.5 size-4 shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={faviconUrl}
                   alt=""
                   className="size-4"
                   onError={(event) => {
@@ -80,6 +83,7 @@ export function LinkPreview({
                       target.style.display = "none";
                     }
                   }}
+                  src={faviconUrl}
                 />
               </div>
             )}
@@ -90,7 +94,7 @@ export function LinkPreview({
           </div>
 
           {linkDescription && (
-            <p className="text-muted-foreground text-sm line-clamp-2 mt-2">
+            <p className="mt-2 line-clamp-2 text-muted-foreground text-sm">
               {linkDescription}
             </p>
           )}
@@ -98,9 +102,9 @@ export function LinkPreview({
       </Link>
 
       {categoryMetadata?.facts?.length ? (
-        <div className="space-y-1 text-sm text-muted-foreground">
+        <div className="space-y-1 text-muted-foreground text-sm">
           {categoryMetadata.facts.map((fact) => (
-            <div key={`${fact.label}-${fact.value}`} className="flex gap-2">
+            <div className="flex gap-2" key={`${fact.label}-${fact.value}`}>
               <span className="font-medium text-foreground">{fact.label}:</span>
               <span className="text-balance">{fact.value}</span>
             </div>

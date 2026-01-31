@@ -51,7 +51,7 @@ const extractNumericToken = (value?: string): string | undefined => {
   if (!trimmed) return undefined;
   const token = trimmed
     .split(" ")
-    .find((segment) => /\d/.test(segment.replace(/[,\.]/g, "")));
+    .find((segment) => /\d/.test(segment.replace(/[,.]/g, "")));
   return token ?? trimmed;
 };
 
@@ -60,7 +60,7 @@ const parseCountToNumber = (value?: string): number | undefined => {
   if (!token) return undefined;
   const lower = token.toLowerCase();
   const multiplier = lower.endsWith("k")
-    ? 1_000
+    ? 1000
     : lower.endsWith("m")
       ? 1_000_000
       : 1;

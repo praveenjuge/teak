@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -24,15 +20,9 @@
     ],
     "baseUrl": "./src",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@teak/convex": [
-        "../../packages/convex"
-      ],
-      "@teak/convex/*": [
-        "../../packages/convex/*"
-      ]
+      "@/*": ["./*"],
+      "@teak/convex": ["../../packages/convex"],
+      "@teak/convex/*": ["../../packages/convex/*"]
     }
   },
   "include": [
@@ -43,8 +33,5 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "src/__tests__"
-  ]
+  "exclude": ["node_modules", "src/__tests__"]
 }

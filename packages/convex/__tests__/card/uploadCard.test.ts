@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, expect, test, mock, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 describe("card/uploadCard.ts", () => {
   let uploadAndCreateCard: any;
@@ -27,8 +27,11 @@ describe("card/uploadCard.ts", () => {
   });
 
   test("uploadAndCreateCard returns error when unauthenticated", async () => {
-    const ctx = { auth: { getUserIdentity: mock().mockResolvedValue(null) } } as any;
-    const uploadHandler = (uploadAndCreateCard as any).handler ?? uploadAndCreateCard;
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue(null) },
+    } as any;
+    const uploadHandler =
+      (uploadAndCreateCard as any).handler ?? uploadAndCreateCard;
     const result = await uploadHandler(ctx, {
       fileName: "a.png",
       fileType: "image/png",
@@ -44,13 +47,18 @@ describe("card/uploadCard.ts", () => {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }),
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
         }),
       },
-      storage: { generateUploadUrl: mock().mockResolvedValue("https://upload") },
+      storage: {
+        generateUploadUrl: mock().mockResolvedValue("https://upload"),
+      },
     } as any;
 
-    const uploadHandler = (uploadAndCreateCard as any).handler ?? uploadAndCreateCard;
+    const uploadHandler =
+      (uploadAndCreateCard as any).handler ?? uploadAndCreateCard;
     const result = await uploadHandler(ctx, {
       fileName: "a.png",
       fileType: "image/png",
@@ -76,13 +84,18 @@ describe("card/uploadCard.ts", () => {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }),
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
         }),
       },
-      storage: { generateUploadUrl: mock().mockResolvedValue("https://upload") },
+      storage: {
+        generateUploadUrl: mock().mockResolvedValue("https://upload"),
+      },
     } as any;
 
-    const uploadHandler = (uploadAndCreateCard as any).handler ?? uploadAndCreateCard;
+    const uploadHandler =
+      (uploadAndCreateCard as any).handler ?? uploadAndCreateCard;
     const result = await uploadHandler(ctx, {
       fileName: "a.png",
       fileType: "image/png",
@@ -98,13 +111,18 @@ describe("card/uploadCard.ts", () => {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }),
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
         }),
       },
-      storage: { generateUploadUrl: mock().mockRejectedValue(new Error("Storage error")) },
+      storage: {
+        generateUploadUrl: mock().mockRejectedValue(new Error("Storage error")),
+      },
     } as any;
 
-    const uploadHandler = (uploadAndCreateCard as any).handler ?? uploadAndCreateCard;
+    const uploadHandler =
+      (uploadAndCreateCard as any).handler ?? uploadAndCreateCard;
     const result = await uploadHandler(ctx, {
       fileName: "a.png",
       fileType: "image/png",
@@ -116,8 +134,11 @@ describe("card/uploadCard.ts", () => {
   });
 
   test("finalizeUploadedCard returns error when unauthenticated", async () => {
-    const ctx = { auth: { getUserIdentity: mock().mockResolvedValue(null) } } as any;
-    const finalizeHandler = (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue(null) },
+    } as any;
+    const finalizeHandler =
+      (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
     const result = await finalizeHandler(ctx, {
       fileId: "f1",
       fileName: "a.png",
@@ -133,12 +154,15 @@ describe("card/uploadCard.ts", () => {
       db: {
         system: { get: mock().mockResolvedValue(null) },
         query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }),
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
         }),
       },
     } as any;
 
-    const finalizeHandler = (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
+    const finalizeHandler =
+      (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
     const result = await finalizeHandler(ctx, {
       fileId: "f1",
       fileName: "a.png",
@@ -152,16 +176,21 @@ describe("card/uploadCard.ts", () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        system: { get: mock().mockResolvedValue({ size: 10, contentType: "image/png" }) },
+        system: {
+          get: mock().mockResolvedValue({ size: 10, contentType: "image/png" }),
+        },
         query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }),
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
         }),
         insert: mock().mockResolvedValue("c1"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
-    const finalizeHandler = (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
+    const finalizeHandler =
+      (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
     const result = await finalizeHandler(ctx, {
       fileId: "f1",
       fileName: "a.png",
@@ -189,16 +218,21 @@ describe("card/uploadCard.ts", () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        system: { get: mock().mockResolvedValue({ size: 10, contentType: "image/png" }) },
+        system: {
+          get: mock().mockResolvedValue({ size: 10, contentType: "image/png" }),
+        },
         query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }),
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
         }),
         insert: mock().mockResolvedValue("c1"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
-    const finalizeHandler = (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
+    const finalizeHandler =
+      (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
     const result = await finalizeHandler(ctx, {
       fileId: "f1",
       fileName: "a.png",
@@ -214,16 +248,24 @@ describe("card/uploadCard.ts", () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        system: { get: mock().mockResolvedValue({ size: 1000, contentType: "video/mp4" }) },
+        system: {
+          get: mock().mockResolvedValue({
+            size: 1000,
+            contentType: "video/mp4",
+          }),
+        },
         query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }),
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
         }),
         insert: mock().mockResolvedValue("c1"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
-    const finalizeHandler = (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
+    const finalizeHandler =
+      (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
     const result = await finalizeHandler(ctx, {
       fileId: "f1",
       fileName: "video.mp4",
@@ -247,22 +289,30 @@ describe("card/uploadCard.ts", () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        system: { get: mock().mockResolvedValue({ size: 500, contentType: "audio/mpeg" }) },
+        system: {
+          get: mock().mockResolvedValue({
+            size: 500,
+            contentType: "audio/mpeg",
+          }),
+        },
         query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }),
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
         }),
         insert: mock().mockResolvedValue("c1"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
-    const finalizeHandler = (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
+    const finalizeHandler =
+      (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
     const result = await finalizeHandler(ctx, {
       fileId: "f1",
       fileName: "audio.mp3",
       cardType: "audio",
       content: "",
-      additionalMetadata: { recordingTimestamp: 1234567890 },
+      additionalMetadata: { recordingTimestamp: 1_234_567_890 },
     });
 
     expect(result.success).toBe(true);
@@ -270,7 +320,7 @@ describe("card/uploadCard.ts", () => {
       "cards",
       expect.objectContaining({
         fileMetadata: expect.objectContaining({
-          recordingTimestamp: 1234567890,
+          recordingTimestamp: 1_234_567_890,
         }),
       })
     );
@@ -280,16 +330,24 @@ describe("card/uploadCard.ts", () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        system: { get: mock().mockResolvedValue({ size: 2000, contentType: "application/pdf" }) },
+        system: {
+          get: mock().mockResolvedValue({
+            size: 2000,
+            contentType: "application/pdf",
+          }),
+        },
         query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }),
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
         }),
         insert: mock().mockResolvedValue("c1"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
-    const finalizeHandler = (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
+    const finalizeHandler =
+      (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
     const result = await finalizeHandler(ctx, {
       fileId: "f1",
       fileName: "document.pdf",
@@ -308,16 +366,21 @@ describe("card/uploadCard.ts", () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        system: { get: mock().mockResolvedValue({ size: 10, contentType: "image/png" }) },
+        system: {
+          get: mock().mockResolvedValue({ size: 10, contentType: "image/png" }),
+        },
         query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }),
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
         }),
         insert: mock().mockResolvedValue("c1"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
-    const finalizeHandler = (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
+    const finalizeHandler =
+      (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
     const result = await finalizeHandler(ctx, {
       fileId: "f1",
       fileName: "a.png",
@@ -339,14 +402,19 @@ describe("card/uploadCard.ts", () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        system: { get: mock().mockResolvedValue({ size: 10, contentType: "image/png" }) },
+        system: {
+          get: mock().mockResolvedValue({ size: 10, contentType: "image/png" }),
+        },
         query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }),
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
         }),
       },
     } as any;
 
-    const finalizeHandler = (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
+    const finalizeHandler =
+      (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
     const result = await finalizeHandler(ctx, {
       fileId: "f1",
       fileName: "a.png",
@@ -362,16 +430,24 @@ describe("card/uploadCard.ts", () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        system: { get: mock().mockResolvedValue({ size: 100, contentType: "text/plain" }) },
+        system: {
+          get: mock().mockResolvedValue({
+            size: 100,
+            contentType: "text/plain",
+          }),
+        },
         query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }),
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
         }),
         insert: mock().mockResolvedValue("c1"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
-    const finalizeHandler = (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
+    const finalizeHandler =
+      (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
     const result = await finalizeHandler(ctx, {
       fileId: "f1",
       fileName: "note.txt",
@@ -386,16 +462,21 @@ describe("card/uploadCard.ts", () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        system: { get: mock().mockResolvedValue({ size: 10, contentType: "image/png" }) },
+        system: {
+          get: mock().mockResolvedValue({ size: 10, contentType: "image/png" }),
+        },
         query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }),
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
         }),
         insert: mock().mockResolvedValue("c1"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
-    const finalizeHandler = (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
+    const finalizeHandler =
+      (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
     await finalizeHandler(ctx, {
       fileId: "f1",
       fileName: "a.png",

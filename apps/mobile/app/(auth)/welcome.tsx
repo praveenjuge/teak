@@ -1,14 +1,14 @@
-import React from "react";
-import { Alert, Platform, useColorScheme } from "react-native";
-import { router } from "expo-router";
-import Logo from "@/components/Logo";
-import GoogleLogo from "@/components/GoogleLogo";
-import AppleLogo from "@/components/AppleLogo";
-import { authClient } from "@/lib/auth-client";
-import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
-import { Button, HStack, Host, Spacer, Text, VStack } from "@expo/ui/swift-ui";
+import { Button, Host, HStack, Spacer, Text, VStack } from "@expo/ui/swift-ui";
 import { frame, padding } from "@expo/ui/swift-ui/modifiers";
 import * as AppleAuthentication from "expo-apple-authentication";
+import { router } from "expo-router";
+import React from "react";
+import { Alert, Platform, useColorScheme } from "react-native";
+import AppleLogo from "@/components/AppleLogo";
+import GoogleLogo from "@/components/GoogleLogo";
+import Logo from "@/components/Logo";
+import { authClient } from "@/lib/auth-client";
+import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function OnboardingScreen() {
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
@@ -25,7 +25,9 @@ export default function OnboardingScreen() {
   }, []);
 
   const onGoogleSignInPress = async () => {
-    if (isGoogleLoading) return;
+    if (isGoogleLoading) {
+      return;
+    }
     setIsGoogleLoading(true);
 
     try {
@@ -45,7 +47,10 @@ export default function OnboardingScreen() {
         router.replace("/(tabs)/(home)");
       }
     } catch (error) {
-      console.error("Google sign in error:", error instanceof Error ? error.message : error);
+      console.error(
+        "Google sign in error:",
+        error instanceof Error ? error.message : error
+      );
       Alert.alert(
         "Google Sign In Failed",
         getAuthErrorMessage(
@@ -59,7 +64,9 @@ export default function OnboardingScreen() {
   };
 
   const onAppleSignInPress = async () => {
-    if (isAppleLoading) return;
+    if (isAppleLoading) {
+      return;
+    }
     setIsAppleLoading(true);
 
     try {
@@ -94,12 +101,20 @@ export default function OnboardingScreen() {
       } else {
         router.replace("/(tabs)/(home)");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Don't show error if user cancelled
-      if (error.code === "ERR_REQUEST_CANCELED") {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "ERR_REQUEST_CANCELED"
+      ) {
         return;
       }
-      console.error("Apple sign in error:", error instanceof Error ? error.message : error);
+      console.error(
+        "Apple sign in error:",
+        error instanceof Error ? error.message : error
+      );
       Alert.alert(
         "Apple Sign In Failed",
         getAuthErrorMessage(
@@ -123,14 +138,14 @@ export default function OnboardingScreen() {
           padding({ leading: 28, trailing: 28, top: 32, bottom: 12 }),
         ]}
       >
-        <VStack spacing={12} alignment="leading">
+        <VStack alignment="leading" spacing={12}>
           <HStack modifiers={[frame({ width: 65, height: 37 })]}>
-            <Logo height={24} width={100} variant="primary" />
+            <Logo height={24} variant="primary" width={100} />
           </HStack>
-          <Text weight="bold" size={20} lineLimit={2} design="rounded">
+          <Text design="rounded" lineLimit={2} size={20} weight="bold">
             Save Anything. Anywhere.
           </Text>
-          <Text size={16} lineLimit={4} color="secondary" design="rounded">
+          <Text color="secondary" design="rounded" lineLimit={4} size={16}>
             Your personal everything management system. Organize, save, and
             access all your text, images, and documents in one place.
           </Text>
@@ -142,17 +157,17 @@ export default function OnboardingScreen() {
           <VStack spacing={12}>
             {isAppleAvailable && (
               <Button
-                variant="bordered"
                 controlSize="large"
-                onPress={onAppleSignInPress}
                 disabled={isGoogleLoading || isAppleLoading}
+                onPress={onAppleSignInPress}
+                variant="bordered"
               >
-                <HStack spacing={10} alignment="center">
+                <HStack alignment="center" spacing={10}>
                   <Spacer />
                   <HStack modifiers={[frame({ width: 20, height: 20 })]}>
                     <AppleLogo color={appleIconColor} />
                   </HStack>
-                  <Text color="primary" weight="medium" design="rounded">
+                  <Text color="primary" design="rounded" weight="medium">
                     {isAppleLoading ? "Signing in..." : "Continue with Apple"}
                   </Text>
                   <Spacer />
@@ -161,17 +176,17 @@ export default function OnboardingScreen() {
             )}
 
             <Button
-              variant="bordered"
               controlSize="large"
-              onPress={onGoogleSignInPress}
               disabled={isGoogleLoading || isAppleLoading}
+              onPress={onGoogleSignInPress}
+              variant="bordered"
             >
-              <HStack spacing={10} alignment="center">
+              <HStack alignment="center" spacing={10}>
                 <Spacer />
                 <HStack modifiers={[frame({ width: 18, height: 18 })]}>
                   <GoogleLogo />
                 </HStack>
-                <Text color="primary" weight="medium" design="rounded">
+                <Text color="primary" design="rounded" weight="medium">
                   {isGoogleLoading ? "Signing in..." : "Continue with Google"}
                 </Text>
                 <Spacer />
@@ -179,14 +194,14 @@ export default function OnboardingScreen() {
             </Button>
 
             <Button
-              variant="bordered"
               controlSize="large"
-              onPress={() => router.push("/(auth)/sign-up")}
               disabled={isGoogleLoading || isAppleLoading}
+              onPress={() => router.push("/(auth)/sign-up")}
+              variant="bordered"
             >
-              <HStack spacing={10} alignment="center">
+              <HStack alignment="center" spacing={10}>
                 <Spacer />
-                <Text color="primary" weight="medium" design="rounded">
+                <Text color="primary" design="rounded" weight="medium">
                   Register with Email
                 </Text>
                 <Spacer />
@@ -194,14 +209,14 @@ export default function OnboardingScreen() {
             </Button>
           </VStack>
           <Button
-            variant="bordered"
             controlSize="large"
-            onPress={() => router.push("/(auth)/sign-in")}
             disabled={isGoogleLoading || isAppleLoading}
+            onPress={() => router.push("/(auth)/sign-in")}
+            variant="bordered"
           >
-            <HStack spacing={10} alignment="center">
+            <HStack alignment="center" spacing={10}>
               <Spacer />
-              <Text color="primary" weight="medium" design="rounded">
+              <Text color="primary" design="rounded" weight="medium">
                 Login with Email
               </Text>
               <Spacer />

@@ -1,4 +1,4 @@
-import { type Doc } from "@teak/convex/_generated/dataModel";
+import type { Doc } from "@teak/convex/_generated/dataModel";
 import { Image } from "antd";
 import { useState } from "react";
 
@@ -26,36 +26,38 @@ export function ImagePreview({ card }: ImagePreviewProps) {
     }
   };
 
-  if (!fileUrl) return null;
+  if (!fileUrl) {
+    return null;
+  }
 
   return (
-    <div className="w-full h-full flex items-center justify-center">
+    <div className="flex h-full w-full items-center justify-center">
       <div className="relative">
         <Image
-          src={fileUrl}
           alt={card.content}
           className="max-h-[75vh] max-w-full overflow-hidden"
-          preview={false}
           placeholder
+          preview={false}
+          src={fileUrl}
         />
 
         {paletteColors.length > 0 && (
-          <div className="absolute bottom-4 left-3 bg-background border rounded-full p-0.5 flex -space-x-2 hover:space-x-px transition">
+          <div className="absolute bottom-4 left-3 flex -space-x-2 rounded-full border bg-background p-0.5 transition hover:space-x-px">
             {paletteColors.map((color) => (
               <div
+                className="group relative"
                 key={`palette-${card._id}-${color.hex}`}
-                className="relative group"
               >
                 <button
-                  className="size-4 rounded-full shrink-0 block cursor-pointer hover:scale-110 transition-transform"
-                  style={{ backgroundColor: color.hex }}
                   aria-label={color.hex}
+                  className="block size-4 shrink-0 cursor-pointer rounded-full transition-transform hover:scale-110"
                   onClick={(event) => {
                     event.stopPropagation();
                     void handleCopyColor(color.hex);
                   }}
+                  style={{ backgroundColor: color.hex }}
                 />
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-0.5 bg-black/75 text-white text-xs rounded-full opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                <div className="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 transform whitespace-nowrap rounded-full bg-black/75 px-2 py-0.5 text-white text-xs opacity-0 transition-opacity group-hover:opacity-100">
                   {colorCopyFeedback?.color === color.hex &&
                   colorCopyFeedback.state === "copied"
                     ? "Copied!"

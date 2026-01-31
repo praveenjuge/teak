@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, test, expect, mock } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 
 // We can't properly test React hooks without a React renderer
 // These tests verify the module exports and function signatures
@@ -7,54 +7,74 @@ import { describe, test, expect, mock } from "bun:test";
 describe("useCardOperations", () => {
   describe("module exports", () => {
     test("should export useCreateCard", () => {
-      const { useCreateCard } = require("../../../mobile/lib/hooks/useCardOperations");
+      const {
+        useCreateCard,
+      } = require("../../../mobile/lib/hooks/useCardOperations");
       expect(useCreateCard).toBeDefined();
     });
 
     test("should export useUpdateCard", () => {
-      const { useUpdateCard } = require("../../../mobile/lib/hooks/useCardOperations");
+      const {
+        useUpdateCard,
+      } = require("../../../mobile/lib/hooks/useCardOperations");
       expect(useUpdateCard).toBeDefined();
     });
 
     test("should export usePermanentDeleteCard", () => {
-      const { usePermanentDeleteCard } = require("../../../mobile/lib/hooks/useCardOperations");
+      const {
+        usePermanentDeleteCard,
+      } = require("../../../mobile/lib/hooks/useCardOperations");
       expect(usePermanentDeleteCard).toBeDefined();
     });
 
     test("should export useGenerateUploadUrl", () => {
-      const { useGenerateUploadUrl } = require("../../../mobile/lib/hooks/useCardOperations");
+      const {
+        useGenerateUploadUrl,
+      } = require("../../../mobile/lib/hooks/useCardOperations");
       expect(useGenerateUploadUrl).toBeDefined();
     });
 
     test("should export useCreateCardWithFile", () => {
-      const { useCreateCardWithFile } = require("../../../mobile/lib/hooks/useCardOperations");
+      const {
+        useCreateCardWithFile,
+      } = require("../../../mobile/lib/hooks/useCardOperations");
       expect(useCreateCardWithFile).toBeDefined();
     });
   });
 
   describe("function signatures", () => {
     test("useCreateCard should be a function", () => {
-      const { useCreateCard } = require("../../../mobile/lib/hooks/useCardOperations");
+      const {
+        useCreateCard,
+      } = require("../../../mobile/lib/hooks/useCardOperations");
       expect(typeof useCreateCard).toBe("function");
     });
 
     test("useUpdateCard should be a function", () => {
-      const { useUpdateCard } = require("../../../mobile/lib/hooks/useCardOperations");
+      const {
+        useUpdateCard,
+      } = require("../../../mobile/lib/hooks/useCardOperations");
       expect(typeof useUpdateCard).toBe("function");
     });
 
     test("usePermanentDeleteCard should be a function", () => {
-      const { usePermanentDeleteCard } = require("../../../mobile/lib/hooks/useCardOperations");
+      const {
+        usePermanentDeleteCard,
+      } = require("../../../mobile/lib/hooks/useCardOperations");
       expect(typeof usePermanentDeleteCard).toBe("function");
     });
 
     test("useGenerateUploadUrl should be a function", () => {
-      const { useGenerateUploadUrl } = require("../../../mobile/lib/hooks/useCardOperations");
+      const {
+        useGenerateUploadUrl,
+      } = require("../../../mobile/lib/hooks/useCardOperations");
       expect(typeof useGenerateUploadUrl).toBe("function");
     });
 
     test("useCreateCardWithFile should be a function", () => {
-      const { useCreateCardWithFile } = require("../../../mobile/lib/hooks/useCardOperations");
+      const {
+        useCreateCardWithFile,
+      } = require("../../../mobile/lib/hooks/useCardOperations");
       expect(typeof useCreateCardWithFile).toBe("function");
     });
   });
@@ -69,13 +89,18 @@ describe("useCardOperations", () => {
 
     test("should validate file type constraints", () => {
       // Validate that allowed types are defined
-      const ALLOWED_TYPES = ["image/*", "video/*", "audio/*", "application/pdf"];
+      const ALLOWED_TYPES = [
+        "image/*",
+        "video/*",
+        "audio/*",
+        "application/pdf",
+      ];
       expect(ALLOWED_TYPES.length).toBeGreaterThan(0);
     });
 
     test("should handle upload timeout", () => {
       // Validate that timeout is configured
-      const UPLOAD_TIMEOUT = 30000; // 30 seconds
+      const UPLOAD_TIMEOUT = 30_000; // 30 seconds
       expect(UPLOAD_TIMEOUT).toBeGreaterThan(0);
     });
   });
@@ -109,7 +134,11 @@ describe("useCardOperations", () => {
 
     test("updateCard mutation expects cardId argument", () => {
       // Validate the expected shape
-      const updateCardArgs = { cardId: "test-id", field: "content", value: "new content" };
+      const updateCardArgs = {
+        cardId: "test-id",
+        field: "content",
+        value: "new content",
+      };
       expect(updateCardArgs.cardId).toBeDefined();
       expect(updateCardArgs.field).toBeDefined();
     });

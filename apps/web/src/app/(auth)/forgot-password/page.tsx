@@ -1,22 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   CardContent,
+  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
-import { cn } from "@/lib/utils";
 import { metrics } from "@/lib/metrics";
+import { cn } from "@/lib/utils";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -67,18 +67,18 @@ export default function ForgotPassword() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="grid gap-4">
+        <form className="grid gap-4" onSubmit={handleSubmit}>
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
             <Input
-              id="email"
-              type="email"
-              inputMode="email"
               autoComplete="email"
-              placeholder="me@example.com"
-              value={email}
+              id="email"
+              inputMode="email"
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="me@example.com"
               required
+              type="email"
+              value={email}
             />
           </div>
           {error && (
@@ -96,7 +96,7 @@ export default function ForgotPassword() {
               </AlertDescription>
             </Alert>
           )}
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button className="w-full" disabled={loading} type="submit">
             {loading ? (
               <Loader2 className="animate-spin" size={16} />
             ) : sent ? (
@@ -107,8 +107,8 @@ export default function ForgotPassword() {
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex-col gap-1 -my-2">
-        <Link href="/login" className={cn(buttonVariants({ variant: "link" }))}>
+      <CardFooter className="-my-2 flex-col gap-1">
+        <Link className={cn(buttonVariants({ variant: "link" }))} href="/login">
           Back to Login
         </Link>
       </CardFooter>

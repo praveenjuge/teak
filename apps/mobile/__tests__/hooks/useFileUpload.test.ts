@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, test, expect, mock } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 
 // We can't properly test React hooks without a React renderer
 // These tests verify the module exports and function signatures
@@ -7,12 +7,16 @@ import { describe, test, expect, mock } from "bun:test";
 describe("useFileUpload (Mobile)", () => {
   describe("module exports", () => {
     test("should export useFileUpload", () => {
-      const { useFileUpload } = require("../../../mobile/lib/hooks/useFileUpload");
+      const {
+        useFileUpload,
+      } = require("../../../mobile/lib/hooks/useFileUpload");
       expect(useFileUpload).toBeDefined();
     });
 
     test("should be a function", () => {
-      const { useFileUpload } = require("../../../mobile/lib/hooks/useFileUpload");
+      const {
+        useFileUpload,
+      } = require("../../../mobile/lib/hooks/useFileUpload");
       expect(typeof useFileUpload).toBe("function");
     });
   });
@@ -47,7 +51,7 @@ describe("useFileUpload (Mobile)", () => {
     });
 
     test("should have error in state", () => {
-      const error = null;
+      const error: string | null = null;
       expect(error === null || typeof error === "string").toBe(true);
     });
   });
@@ -86,13 +90,17 @@ describe("useFileUpload (Mobile)", () => {
 
     test("should call onSuccess callback on successful upload", () => {
       // Validate callback structure
-      const onSuccess = mock(() => {});
+      const onSuccess = mock(() => {
+        // mock callback
+      });
       expect(typeof onSuccess).toBe("function");
     });
 
     test("should call onProgress callback during upload", () => {
       // Validate progress callback
-      const onProgress = mock(() => {});
+      const onProgress = mock(() => {
+        // mock callback
+      });
       expect(typeof onProgress).toBe("function");
     });
   });
@@ -118,7 +126,9 @@ describe("useFileUpload (Mobile)", () => {
 
     test("should call onSuccess for each successful file", () => {
       // Validate callback tracking
-      const onSuccess = mock(() => {});
+      const onSuccess = mock(() => {
+        // mock callback
+      });
       onSuccess();
       onSuccess();
       expect(onSuccess).toHaveBeenCalledTimes(2);

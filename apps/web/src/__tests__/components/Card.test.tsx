@@ -1,8 +1,8 @@
 // @ts-nocheck
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { Doc } from "@teak/convex/_generated/dataModel";
 import React from "react";
 import { Card } from "../../components/Card";
-import type { Doc } from "@teak/convex/_generated/dataModel";
 
 // Mock Ant Design Image component
 mock.module("antd", () => ({
@@ -12,14 +12,24 @@ mock.module("antd", () => ({
 
 // Mock UI components
 mock.module("../../components/ui/context-menu", () => ({
-  ContextMenu: ({ children }: any) => React.createElement("div", { className: "context-menu" }, children),
+  ContextMenu: ({ children }: any) =>
+    React.createElement("div", { className: "context-menu" }, children),
   ContextMenuTrigger: ({ children, disabled }: any) =>
-    React.createElement("div", { disabled, className: "context-trigger" }, children),
+    React.createElement(
+      "div",
+      { disabled, className: "context-trigger" },
+      children
+    ),
   ContextMenuContent: ({ children }: any) =>
     React.createElement("div", { className: "context-content" }, children),
   ContextMenuItem: ({ children, onClick }: any) =>
-    React.createElement("div", { onClick, className: "context-item" }, children),
-  ContextMenuSeparator: () => React.createElement("div", { className: "context-separator" }),
+    React.createElement(
+      "div",
+      { onClick, className: "context-item" },
+      children
+    ),
+  ContextMenuSeparator: () =>
+    React.createElement("div", { className: "context-separator" }),
 }));
 
 mock.module("../../components/ui/card", () => ({
@@ -31,7 +41,12 @@ mock.module("../../components/ui/card", () => ({
 
 mock.module("../../components/ui/checkbox", () => ({
   Checkbox: ({ checked, className }: any) =>
-    React.createElement("input", { type: "checkbox", checked, className, readOnly: true }),
+    React.createElement("input", {
+      type: "checkbox",
+      checked,
+      className,
+      readOnly: true,
+    }),
 }));
 
 describe("Card Component", () => {
@@ -147,7 +162,10 @@ describe("Card Component", () => {
     });
 
     test("renders card without type", () => {
-      const card = createMockCard({ type: undefined as any, content: "No type content" });
+      const card = createMockCard({
+        type: undefined as any,
+        content: "No type content",
+      });
       expect(() => {
         React.createElement(Card, { card, onClick: mockOnClick });
       }).not.toThrow();
@@ -168,7 +186,9 @@ describe("Card Component", () => {
     });
 
     test("renders optimistic card with loading indicator", () => {
-      const card = createMockCard({ _id: "12345678-1234-4123-9123-123456789abc" as any });
+      const card = createMockCard({
+        _id: "12345678-1234-4123-9123-123456789abc" as any,
+      });
       expect(() => {
         React.createElement(Card, { card });
       }).not.toThrow();

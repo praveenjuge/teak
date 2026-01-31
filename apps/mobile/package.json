@@ -8,7 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint",
+    "lint": "biome check .",
     "test": "bun test __tests__ --coverage --dots",
     "typecheck": "tsc --noEmit"
   },
@@ -67,9 +67,6 @@
   "devDependencies": {
     "@babel/core": "^7.28.5",
     "@types/react": "~19.1.10",
-    "eslint": "^9.39.2",
-    "eslint-config-expo": "~10.0.0",
-    "eslint-plugin-react-compiler": "^19.1.0-rc.2",
     "typescript": "~5.9.3"
   }
 }

@@ -1,7 +1,7 @@
+import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import Logo from "@/components/Logo";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
 /**
  * Shared layout configurations
@@ -42,10 +42,10 @@ export const baseOptions: BaseLayoutProps = {
       type: "custom",
       children: (
         <a
-          href="https://app.teakvault.com/login?redirect_url=https%3A%2F%2Fapp.teakvault.com%2F"
-          target="_blank"
-          rel="noopener noreferrer"
           className={cn(buttonVariants({ variant: "outline" }))}
+          href="https://app.teakvault.com/login?redirect_url=https%3A%2F%2Fapp.teakvault.com%2F"
+          rel="noopener noreferrer"
+          target="_blank"
         >
           Login
         </a>
@@ -56,10 +56,10 @@ export const baseOptions: BaseLayoutProps = {
       type: "custom",
       children: (
         <a
-          href="https://app.teakvault.com/register"
-          target="_blank"
-          rel="noopener noreferrer"
           className={cn(buttonVariants({ variant: "default" }), "ml-2.5")}
+          href="https://app.teakvault.com/register"
+          rel="noopener noreferrer"
+          target="_blank"
         >
           Start Free
         </a>

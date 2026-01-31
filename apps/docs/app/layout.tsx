@@ -1,8 +1,8 @@
 import "@/app/global.css";
-import { RootProvider } from "fumadocs-ui/provider/next";
-import type { ReactNode } from "react";
-import { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { RootProvider } from "fumadocs-ui/provider/next";
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { BackgroundPattern } from "@/components/BackgroundPattern";
 
 export const metadata: Metadata = {
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
 export default function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-sans flex min-h-screen flex-col antialiased text-base [font-feature-settings:'ss01'] [text-rendering:optimizeLegibility]">
+      <body className="flex min-h-screen flex-col font-sans text-base antialiased [font-feature-settings:'ss01'] [text-rendering:optimizeLegibility]">
         <RootProvider
           search={{
             enabled: false,
@@ -58,7 +58,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           }}
         >
           {/* Background Pattern */}
-          <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden pointer-events-none -z-10">
+          <div className="pointer-events-none absolute top-0 left-0 -z-10 h-[600px] w-full overflow-hidden">
             <BackgroundPattern />
           </div>
           {children}

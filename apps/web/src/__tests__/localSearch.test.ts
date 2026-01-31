@@ -1,7 +1,11 @@
 import { describe, expect, it } from "bun:test";
 
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import { buildSearchableText, filterLocalCards, tokenizeSearchQuery } from "../lib/localSearch";
+import {
+  buildSearchableText,
+  filterLocalCards,
+  tokenizeSearchQuery,
+} from "../lib/localSearch";
 
 type CardOverrides = Partial<Omit<Doc<"cards">, "_id">> & {
   _id?: Id<"cards"> | string;
@@ -10,19 +14,19 @@ type CardOverrides = Partial<Omit<Doc<"cards">, "_id">> & {
 const makeId = (value: string) => value as Id<"cards">;
 
 const makeCard = (overrides: CardOverrides): Doc<"cards"> =>
-({
-  _id: overrides._id ? (overrides._id as Id<"cards">) : makeId("card"),
-  _creationTime: 0,
-  userId: "user",
-  content: "",
-  type: "text",
-  metadata: {} as any,
-  fileMetadata: {} as any,
-  processingStatus: {} as any,
-  createdAt: 0,
-  updatedAt: 0,
-  ...overrides,
-} as Doc<"cards">);
+  ({
+    _id: overrides._id ? (overrides._id as Id<"cards">) : makeId("card"),
+    _creationTime: 0,
+    userId: "user",
+    content: "",
+    type: "text",
+    metadata: {} as any,
+    fileMetadata: {} as any,
+    processingStatus: {} as any,
+    createdAt: 0,
+    updatedAt: 0,
+    ...overrides,
+  }) as Doc<"cards">;
 
 describe("localSearch helpers", () => {
   it("tokenizes and normalizes search terms", () => {

@@ -1,8 +1,5 @@
 import type { LinkCategoryDetail } from "@teak/convex/shared";
-import type {
-  ProviderEnrichmentResult,
-  RawSelectorMap,
-} from "./common";
+import type { ProviderEnrichmentResult, RawSelectorMap } from "./common";
 import {
   formatCountString,
   getRawAttribute,
@@ -65,23 +62,23 @@ const mapLabelToStat = (label: string): DribbbleStatKey | undefined => {
 };
 
 const extractTwitterStats = (
-  rawMap: RawSelectorMap,
+  rawMap: RawSelectorMap
 ): Partial<Record<DribbbleStatKey, string>> => {
   const stats: Partial<Record<DribbbleStatKey, string>> = {};
   for (let index = 1; index <= 4; index += 1) {
     const labelRaw = getRawAttribute(
       rawMap,
       `meta[name='twitter:label${index}']`,
-      "content",
+      "content"
     );
     const valueRaw = getRawAttribute(
       rawMap,
       `meta[name='twitter:data${index}']`,
-      "content",
+      "content"
     );
     const label = normalizeWhitespace(labelRaw);
     const value = normalizeWhitespace(valueRaw);
-    if (!label || !value) {
+    if (!(label && value)) {
       continue;
     }
     const key = mapLabelToStat(label);
@@ -107,17 +104,16 @@ const normalizeStatValue = (value?: string): StatResult | undefined => {
 const extractStat = (
   rawMap: RawSelectorMap,
   selectors: string[],
-  seed?: string,
+  seed?: string
 ): StatResult => {
   if (seed) {
     const seeded = normalizeStatValue(seed);
     if (seeded) return seeded;
   }
   for (const selector of selectors) {
-    const value =
-      selector.startsWith("meta[")
-        ? getRawAttribute(rawMap, selector, "content")
-        : getRawText(rawMap, selector);
+    const value = selector.startsWith("meta[")
+      ? getRawAttribute(rawMap, selector, "content")
+      : getRawText(rawMap, selector);
     const normalized = normalizeStatValue(value);
     if (normalized) return normalized;
   }
@@ -127,7 +123,7 @@ const extractStat = (
 const getFirstAttribute = (
   rawMap: RawSelectorMap,
   selectors: string[],
-  attribute: string,
+  attribute: string
 ): string | undefined => {
   for (const selector of selectors) {
     const value = getRawAttribute(rawMap, selector, attribute);
@@ -145,7 +141,9 @@ const sanitizeDesignerName = (value?: string): string | undefined => {
   return normalized || undefined;
 };
 
-const extractDesigner = (rawMap: RawSelectorMap): {
+const extractDesigner = (
+  rawMap: RawSelectorMap
+): {
   display?: string;
   raw?: string;
 } => {
@@ -216,7 +214,11 @@ const extractKeywords = (rawMap: RawSelectorMap): string[] | undefined => {
 
 const extractImage = (rawMap: RawSelectorMap): string | undefined => {
   return (
-    getRawAttribute(rawMap, "meta[property='og:image:secure_url']", "content") ||
+    getRawAttribute(
+      rawMap,
+      "meta[property='og:image:secure_url']",
+      "content"
+    ) ||
     getRawAttribute(rawMap, "meta[property='og:image']", "content") ||
     getRawAttribute(rawMap, "meta[name='og:image']", "content") ||
     getRawAttribute(rawMap, "meta[name='twitter:image']", "content") ||
@@ -237,7 +239,7 @@ const buildRawPayload = (
 };
 
 export const enrichDribbble = (
-  rawMap: RawSelectorMap,
+  rawMap: RawSelectorMap
 ): ProviderEnrichmentResult | null => {
   const designer = extractDesigner(rawMap);
   const twitterStats = extractTwitterStats(rawMap);
@@ -246,7 +248,7 @@ export const enrichDribbble = (
   const comments = extractStat(
     rawMap,
     COMMENTS_SELECTORS,
-    twitterStats.comments,
+    twitterStats.comments
   );
   const keywords = extractKeywords(rawMap);
   const title =
@@ -272,7 +274,10 @@ export const enrichDribbble = (
   }
   if (keywords?.length) {
     const tagPreview = keywords.slice(0, 3).join(", ");
-    facts.push({ label: keywords.length > 1 ? "Tags" : "Tag", value: tagPreview });
+    facts.push({
+      label: keywords.length > 1 ? "Tags" : "Tag",
+      value: tagPreview,
+    });
   }
 
   const statsRaw = buildRawPayload({

@@ -61,7 +61,10 @@ const isAllowedTrailingText = (text: string): boolean => {
   }
 
   const first = trimmed[0];
-  if (TRAILING_ATTRIBUTION_PREFIX.has(first) || TRAILING_PAREN_PREFIX.has(first)) {
+  if (
+    TRAILING_ATTRIBUTION_PREFIX.has(first) ||
+    TRAILING_PAREN_PREFIX.has(first)
+  ) {
     return true;
   }
 

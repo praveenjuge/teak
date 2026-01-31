@@ -1,10 +1,10 @@
 // @ts-nocheck
 import { describe, expect, test } from "bun:test";
 import {
-  normalizeQuoteContent,
   applyQuoteDisplayFormatting,
+  normalizeQuoteContent,
   stripSurroundingQuotes,
-} from '../../../convex/card/quoteFormatting';
+} from "../../../convex/card/quoteFormatting";
 
 describe("quoteFormatting", () => {
   describe("normalizeQuoteContent", () => {

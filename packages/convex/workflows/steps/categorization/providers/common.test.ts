@@ -1,13 +1,12 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
-  normalizeWhitespace,
-  getRawText,
-  getRawAttribute,
   formatCountString,
-  formatRating,
   formatDate,
+  formatRating,
+  getRawAttribute,
+  getRawText,
+  normalizeWhitespace,
   type RawSelectorMap,
-  type RawSelectorEntry,
 } from "./common";
 
 describe("normalizeWhitespace", () => {
@@ -42,7 +41,9 @@ describe("normalizeWhitespace", () => {
 
   it("should normalize mixed whitespace", () => {
     expect(normalizeWhitespace("hello \t \n world")).toBe("hello world");
-    expect(normalizeWhitespace("  \t\nhello\n\t  world\r\n  ")).toBe("hello world");
+    expect(normalizeWhitespace("  \t\nhello\n\t  world\r\n  ")).toBe(
+      "hello world"
+    );
   });
 
   it("should trim leading and trailing whitespace", () => {
@@ -84,22 +85,21 @@ describe("getRawText", () => {
   });
 
   it("should return undefined if entry has no text property", () => {
-    const map: RawSelectorMap = new Map([
-      ["selector1", { attributes: [] }],
-    ]);
+    const map: RawSelectorMap = new Map([["selector1", { attributes: [] }]]);
     expect(getRawText(map, "selector1")).toBeUndefined();
   });
 
   it("should return undefined if text is empty after normalization", () => {
-    const map: RawSelectorMap = new Map([
-      ["selector1", { text: "   " }],
-    ]);
+    const map: RawSelectorMap = new Map([["selector1", { text: "   " }]]);
     expect(getRawText(map, "selector1")).toBeUndefined();
   });
 
   it("should handle entry with both text and attributes", () => {
     const map: RawSelectorMap = new Map([
-      ["selector1", { text: "some text", attributes: [{ name: "href", value: "/link" }] }],
+      [
+        "selector1",
+        { text: "some text", attributes: [{ name: "href", value: "/link" }] },
+      ],
     ]);
     expect(getRawText(map, "selector1")).toBe("some text");
   });
@@ -117,35 +117,42 @@ describe("getRawAttribute", () => {
 
   it("should return undefined for non-existent selector", () => {
     const map: RawSelectorMap = new Map([
-      ["selector1", { attributes: createAttributes([{ name: "href", value: "/link" }]) }],
+      [
+        "selector1",
+        { attributes: createAttributes([{ name: "href", value: "/link" }]) },
+      ],
     ]);
     expect(getRawAttribute(map, "selector2", "href")).toBeUndefined();
   });
 
   it("should return undefined for entry without attributes", () => {
-    const map: RawSelectorMap = new Map([
-      ["selector1", { text: "some text" }],
-    ]);
+    const map: RawSelectorMap = new Map([["selector1", { text: "some text" }]]);
     expect(getRawAttribute(map, "selector1", "href")).toBeUndefined();
   });
 
   it("should return undefined for entry with empty attributes array", () => {
-    const map: RawSelectorMap = new Map([
-      ["selector1", { attributes: [] }],
-    ]);
+    const map: RawSelectorMap = new Map([["selector1", { attributes: [] }]]);
     expect(getRawAttribute(map, "selector1", "href")).toBeUndefined();
   });
 
   it("should return normalized attribute value for exact match", () => {
     const map: RawSelectorMap = new Map([
-      ["selector1", { attributes: createAttributes([{ name: "href", value: "  /link  " }]) }],
+      [
+        "selector1",
+        {
+          attributes: createAttributes([{ name: "href", value: "  /link  " }]),
+        },
+      ],
     ]);
     expect(getRawAttribute(map, "selector1", "href")).toBe("/link");
   });
 
   it("should be case-insensitive for attribute name", () => {
     const map: RawSelectorMap = new Map([
-      ["selector1", { attributes: createAttributes([{ name: "HREF", value: "/link" }]) }],
+      [
+        "selector1",
+        { attributes: createAttributes([{ name: "HREF", value: "/link" }]) },
+      ],
     ]);
     expect(getRawAttribute(map, "selector1", "href")).toBe("/link");
     expect(getRawAttribute(map, "selector1", "HREF")).toBe("/link");
@@ -154,38 +161,67 @@ describe("getRawAttribute", () => {
 
   it("should return undefined for non-matching attribute name", () => {
     const map: RawSelectorMap = new Map([
-      ["selector1", { attributes: createAttributes([{ name: "src", value: "/image.png" }]) }],
+      [
+        "selector1",
+        {
+          attributes: createAttributes([{ name: "src", value: "/image.png" }]),
+        },
+      ],
     ]);
     expect(getRawAttribute(map, "selector1", "href")).toBeUndefined();
   });
 
   it("should skip attributes with undefined name", () => {
     const map: RawSelectorMap = new Map([
-      ["selector1", { attributes: createAttributes([{ name: undefined, value: "test" }, { name: "href", value: "/link" }]) }],
+      [
+        "selector1",
+        {
+          attributes: createAttributes([
+            { name: undefined, value: "test" },
+            { name: "href", value: "/link" },
+          ]),
+        },
+      ],
     ]);
     expect(getRawAttribute(map, "selector1", "href")).toBe("/link");
   });
 
   it("should skip attributes with null name", () => {
     const map: RawSelectorMap = new Map([
-      ["selector1", { attributes: createAttributes([{ name: null as any, value: "test" }, { name: "href", value: "/link" }]) }],
+      [
+        "selector1",
+        {
+          attributes: createAttributes([
+            { name: null as any, value: "test" },
+            { name: "href", value: "/link" },
+          ]),
+        },
+      ],
     ]);
     expect(getRawAttribute(map, "selector1", "href")).toBe("/link");
   });
 
   it("should handle attributes with undefined value", () => {
     const map: RawSelectorMap = new Map([
-      ["selector1", { attributes: createAttributes([{ name: "href", value: undefined }]) }],
+      [
+        "selector1",
+        { attributes: createAttributes([{ name: "href", value: undefined }]) },
+      ],
     ]);
     expect(getRawAttribute(map, "selector1", "href")).toBeUndefined();
   });
 
   it("should return first matching attribute", () => {
     const map: RawSelectorMap = new Map([
-      ["selector1", { attributes: createAttributes([
-        { name: "href", value: "/first" },
-        { name: "href", value: "/second" }
-      ])}],
+      [
+        "selector1",
+        {
+          attributes: createAttributes([
+            { name: "href", value: "/first" },
+            { name: "href", value: "/second" },
+          ]),
+        },
+      ],
     ]);
     expect(getRawAttribute(map, "selector1", "href")).toBe("/first");
   });

@@ -1,12 +1,12 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
+  buildInstagramPrimaryImageSnippet,
   INSTAGRAM_HOSTNAME,
+  INSTAGRAM_PRIMARY_IMAGE_EVALUATOR,
   INSTAGRAM_PRIMARY_IMAGE_MIN_DIM,
   INSTAGRAM_PRIMARY_IMAGE_WAIT_MS,
   isInstagramHostname,
   isInstagramUrl,
-  INSTAGRAM_PRIMARY_IMAGE_EVALUATOR,
-  buildInstagramPrimaryImageSnippet,
 } from "./instagram";
 
 describe("instagram constants", () => {
@@ -75,7 +75,9 @@ describe("isInstagramUrl", () => {
     });
 
     it("should return true for Instagram reel URLs", () => {
-      expect(isInstagramUrl("https://www.instagram.com/reel/ABC123/")).toBe(true);
+      expect(isInstagramUrl("https://www.instagram.com/reel/ABC123/")).toBe(
+        true
+      );
     });
 
     it("should return true for subdomain URLs", () => {
@@ -84,11 +86,15 @@ describe("isInstagramUrl", () => {
     });
 
     it("should handle URLs with query parameters", () => {
-      expect(isInstagramUrl("https://www.instagram.com/p/ABC123/?igshid=xyz")).toBe(true);
+      expect(
+        isInstagramUrl("https://www.instagram.com/p/ABC123/?igshid=xyz")
+      ).toBe(true);
     });
 
     it("should handle URLs with fragments", () => {
-      expect(isInstagramUrl("https://www.instagram.com/p/ABC123/#section")).toBe(true);
+      expect(
+        isInstagramUrl("https://www.instagram.com/p/ABC123/#section")
+      ).toBe(true);
     });
   });
 
@@ -149,7 +155,9 @@ describe("INSTAGRAM_PRIMARY_IMAGE_EVALUATOR", () => {
   });
 
   it("should define a function", () => {
-    expect(INSTAGRAM_PRIMARY_IMAGE_EVALUATOR.trim().startsWith("() =>")).toBe(true);
+    expect(INSTAGRAM_PRIMARY_IMAGE_EVALUATOR.trim().startsWith("() =>")).toBe(
+      true
+    );
   });
 });
 

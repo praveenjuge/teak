@@ -1,13 +1,13 @@
 // @ts-nocheck
 import { describe, expect, test } from "bun:test";
 import {
-  normalizeWhitespace,
-  getRawText,
-  getRawAttribute,
   formatCountString,
-  formatRating,
   formatDate,
-} from '../../../../../../convex/workflows/steps/categorization/providers/common';
+  formatRating,
+  getRawAttribute,
+  getRawText,
+  normalizeWhitespace,
+} from "../../../../../../convex/workflows/steps/categorization/providers/common";
 
 describe("categorization providers common", () => {
   test("normalizeWhitespace trims and collapses", () => {
@@ -15,9 +15,7 @@ describe("categorization providers common", () => {
   });
 
   test("getRawText returns normalized text", () => {
-    const map = new Map([
-      ["meta", { text: "  value   here  " }],
-    ]);
+    const map = new Map([["meta", { text: "  value   here  " }]]);
     expect(getRawText(map, "meta")).toBe("value here");
   });
 

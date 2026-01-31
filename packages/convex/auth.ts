@@ -1,17 +1,21 @@
+import { expo } from "@better-auth/expo";
 import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
-import { expo } from '@better-auth/expo'
-import { api, components } from "./_generated/api";
-import { DataModel } from "./_generated/dataModel";
-import { mutation, query, type MutationCtx } from "./_generated/server";
-import { betterAuth, BetterAuthOptions } from "better-auth";
-import { Resend } from "@convex-dev/resend";
 import { requireActionCtx } from "@convex-dev/better-auth/utils";
-import { polar } from "./billing";
-import { FREE_TIER_LIMIT, CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "./shared/constants";
+import { Resend } from "@convex-dev/resend";
+import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { ConvexError } from "convex/values";
-import { rateLimiter } from "./shared/rateLimits";
+import { api, components } from "./_generated/api";
+import type { DataModel } from "./_generated/dataModel";
+import { type MutationCtx, mutation, query } from "./_generated/server";
 import authConfig from "./auth.config";
+import { polar } from "./billing";
+import {
+  CARD_ERROR_CODES,
+  CARD_ERROR_MESSAGES,
+  FREE_TIER_LIMIT,
+} from "./shared/constants";
+import { rateLimiter } from "./shared/rateLimits";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID!;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET!;
@@ -37,14 +41,16 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       "chrome-extension://negnmfifahnnagnbnfppmlgfajngdpob",
       "http://localhost:3000",
       "https://appleid.apple.com",
-      ...(process.env.NODE_ENV === "development" ? [
-        "exp+teak://*",
-        "exp://*/*",                 // Trust all Expo development URLs
-        "exp://10.0.0.*:*/*",        // Trust 10.0.0.x IP range
-        "exp://192.168.*.*:*/*",     // Trust 192.168.x.x IP range
-        "exp://172.*.*.*:*/*",       // Trust 172.x.x.x IP range
-        "exp://localhost:*/*"        // Trust localhost
-      ] : []),
+      ...(process.env.NODE_ENV === "development"
+        ? [
+            "exp+teak://*",
+            "exp://*/*", // Trust all Expo development URLs
+            "exp://10.0.0.*:*/*", // Trust 10.0.0.x IP range
+            "exp://192.168.*.*:*/*", // Trust 192.168.x.x IP range
+            "exp://172.*.*.*:*/*", // Trust 172.x.x.x IP range
+            "exp://localhost:*/*", // Trust localhost
+          ]
+        : []),
     ],
     baseURL: siteUrl,
     database: authComponent.adapter(ctx),
@@ -81,15 +87,15 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         await resend.sendEmail(requireActionCtx(ctx), {
           from: "Teak <hello@teakvault.com>",
           to: user.email,
-          subject: 'Verify your email address',
+          subject: "Verify your email address",
           html: `<p>Click <a target="_blank" href="${url}">here</a> to verify your email address.</p>`,
-        })
-      }
+        });
+      },
     },
     user: {
       deleteUser: {
-        enabled: true
-      }
+        enabled: true,
+      },
     },
     plugins: [
       expo(),
@@ -104,13 +110,15 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
           after: async (user) => {
             // Schedule default card creation asynchronously
             // Using scheduler to avoid blocking user creation
-            // @ts-ignore - scheduler exists on MutationCtx
-            ctx.scheduler.runAfter(0, api.card.defaultCards.createDefaultCardsForUser, {
-              userId: user.id,
-            }).catch((err: Error) => {
-              // Log but don't throw - user creation should succeed even if card creation fails
-              console.error("Failed to schedule default cards:", err);
-            });
+            // @ts-expect-error - scheduler exists on MutationCtx
+            ctx.scheduler
+              .runAfter(0, api.card.defaultCards.createDefaultCardsForUser, {
+                userId: user.id,
+              })
+              .catch((err: Error) => {
+                // Log but don't throw - user creation should succeed even if card creation fails
+                console.error("Failed to schedule default cards:", err);
+              });
           },
         },
       },
@@ -148,7 +156,7 @@ export const getCurrentUserHandler = async (ctx: any) => {
   const cards = await ctx.db
     .query("cards")
     .withIndex("by_user_deleted", (q: any) =>
-      q.eq("userId", userId).eq("isDeleted", undefined),
+      q.eq("userId", userId).eq("isDeleted", undefined)
     )
     .collect();
   const cardCount = cards.length;
@@ -176,7 +184,7 @@ type CardCreationDeps = {
   rateLimiter: Pick<typeof rateLimiter, "limit">;
   getSubscription: (
     ctx: MutationCtx,
-    args: { userId: string },
+    args: { userId: string }
   ) => Promise<{ status?: string } | null | undefined>;
 };
 
@@ -188,7 +196,7 @@ const defaultCardCreationDeps: CardCreationDeps = {
 export async function ensureCardCreationAllowed(
   ctx: MutationCtx,
   userId: string,
-  deps: CardCreationDeps = defaultCardCreationDeps,
+  deps: CardCreationDeps = defaultCardCreationDeps
 ): Promise<void> {
   // Check rate limit first (fast fail for abuse prevention)
   const rateLimitResult = await deps.rateLimiter.limit(ctx, "cardCreation", {
@@ -218,7 +226,7 @@ export async function ensureCardCreationAllowed(
   const cards = await ctx.db
     .query("cards")
     .withIndex("by_user_deleted", (q) =>
-      q.eq("userId", userId).eq("isDeleted", undefined),
+      q.eq("userId", userId).eq("isDeleted", undefined)
     )
     .collect();
 

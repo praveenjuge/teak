@@ -1,15 +1,18 @@
 // @ts-nocheck
-import { describe, expect, test, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 describe("card/deleteCard.ts", () => {
   let permanentDeleteCard: any;
 
   beforeEach(async () => {
-    permanentDeleteCard = (await import("../../card/deleteCard")).permanentDeleteCard;
+    permanentDeleteCard = (await import("../../card/deleteCard"))
+      .permanentDeleteCard;
   });
 
   test("throws when unauthenticated", async () => {
-    const ctx = { auth: { getUserIdentity: mock().mockResolvedValue(null) } } as any;
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue(null) },
+    } as any;
     const handler = (permanentDeleteCard as any).handler ?? permanentDeleteCard;
     await expect(handler(ctx, { id: "c1" })).rejects.toThrow(
       "User must be authenticated"

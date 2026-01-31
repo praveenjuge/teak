@@ -1,4 +1,3 @@
-import type { ComponentType } from "react";
 import { createRelativeLink } from "fumadocs-ui/mdx";
 import {
   DocsBody,
@@ -7,6 +6,7 @@ import {
   DocsTitle,
 } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
+import type { ComponentType } from "react";
 import { source } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 
@@ -30,10 +30,10 @@ export default async function Page(props: {
 
   return (
     <DocsPage
-      toc={data.toc}
       tableOfContent={{
         style: "clerk",
       }}
+      toc={data.toc}
     >
       <DocsTitle>{data.title}</DocsTitle>
       <DocsDescription>{data.description}</DocsDescription>

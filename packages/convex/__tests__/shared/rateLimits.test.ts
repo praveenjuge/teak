@@ -49,7 +49,7 @@ describe("rateLimits", () => {
     });
 
     test("checkLimit handles rate limit exceeded", () => {
-      const result = { ok: false, retryAt: Date.now() + 60000 };
+      const result = { ok: false, retryAt: Date.now() + 60_000 };
       expect(result.ok).toBe(false);
       expect(result.retryAt).toBeGreaterThan(Date.now());
     });
@@ -78,7 +78,7 @@ describe("rateLimits", () => {
     });
 
     test("returns retryAt timestamp when rate limited", () => {
-      const retryTime = Date.now() + 30000;
+      const retryTime = Date.now() + 30_000;
       const result = { ok: false, retryAt: retryTime };
       expect(result.retryAt).toBe(retryTime);
     });
@@ -96,7 +96,7 @@ describe("rateLimits", () => {
     });
 
     test("respects token bucket capacity", () => {
-      const result = { ok: false, retryAt: Date.now() + 60000 };
+      const result = { ok: false, retryAt: Date.now() + 60_000 };
       expect(result.ok).toBe(false);
     });
 
@@ -113,12 +113,12 @@ describe("rateLimits", () => {
     });
 
     test("uses MINUTE constant for period", () => {
-      const MINUTE = 60000;
-      expect(MINUTE).toBe(60000);
+      const MINUTE = 60_000;
+      expect(MINUTE).toBe(60_000);
     });
 
     test("configuration is immutable", () => {
-      const config = { rate: 30, period: 60000 };
+      const config = { rate: 30, period: 60_000 };
       expect(Object.isFrozen(config)).toBe(false); // Not frozen in test
     });
   });

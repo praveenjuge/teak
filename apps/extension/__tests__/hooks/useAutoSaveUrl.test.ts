@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, test, expect, mock } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 
 describe("useAutoSaveUrl Hook", () => {
   describe("URL Validation", () => {
@@ -47,7 +47,9 @@ describe("useAutoSaveUrl Hook", () => {
       const url = "chrome://extensions";
       const INVALID_URL_PATTERNS = [/^chrome:/];
 
-      const isInvalid = INVALID_URL_PATTERNS.some((pattern) => pattern.test(url));
+      const isInvalid = INVALID_URL_PATTERNS.some((pattern) =>
+        pattern.test(url)
+      );
 
       expect(isInvalid).toBe(true);
     });
@@ -56,7 +58,9 @@ describe("useAutoSaveUrl Hook", () => {
       const url = "chrome-extension://abcdef/popup.html";
       const INVALID_URL_PATTERNS = [/^chrome-extension:/];
 
-      const isInvalid = INVALID_URL_PATTERNS.some((pattern) => pattern.test(url));
+      const isInvalid = INVALID_URL_PATTERNS.some((pattern) =>
+        pattern.test(url)
+      );
 
       expect(isInvalid).toBe(true);
     });
@@ -65,7 +69,9 @@ describe("useAutoSaveUrl Hook", () => {
       const url = "about:blank";
       const INVALID_URL_PATTERNS = [/^about:/];
 
-      const isInvalid = INVALID_URL_PATTERNS.some((pattern) => pattern.test(url));
+      const isInvalid = INVALID_URL_PATTERNS.some((pattern) =>
+        pattern.test(url)
+      );
 
       expect(isInvalid).toBe(true);
     });
@@ -74,7 +80,9 @@ describe("useAutoSaveUrl Hook", () => {
       const url = "data:text/html,<h1>Hello</h1>";
       const INVALID_URL_PATTERNS = [/^data:/];
 
-      const isInvalid = INVALID_URL_PATTERNS.some((pattern) => pattern.test(url));
+      const isInvalid = INVALID_URL_PATTERNS.some((pattern) =>
+        pattern.test(url)
+      );
 
       expect(isInvalid).toBe(true);
     });
@@ -83,7 +91,9 @@ describe("useAutoSaveUrl Hook", () => {
       const url = "javascript:alert('hi')";
       const INVALID_URL_PATTERNS = [/^javascript:/];
 
-      const isInvalid = INVALID_URL_PATTERNS.some((pattern) => pattern.test(url));
+      const isInvalid = INVALID_URL_PATTERNS.some((pattern) =>
+        pattern.test(url)
+      );
 
       expect(isInvalid).toBe(true);
     });
@@ -92,7 +102,9 @@ describe("useAutoSaveUrl Hook", () => {
       const url = "file:///path/to/file.html";
       const INVALID_URL_PATTERNS = [/^file:/];
 
-      const isInvalid = INVALID_URL_PATTERNS.some((pattern) => pattern.test(url));
+      const isInvalid = INVALID_URL_PATTERNS.some((pattern) =>
+        pattern.test(url)
+      );
 
       expect(isInvalid).toBe(true);
     });
@@ -101,7 +113,9 @@ describe("useAutoSaveUrl Hook", () => {
       const url = "moz-extension://abcdef/popup.html";
       const INVALID_URL_PATTERNS = [/^moz-extension:/];
 
-      const isInvalid = INVALID_URL_PATTERNS.some((pattern) => pattern.test(url));
+      const isInvalid = INVALID_URL_PATTERNS.some((pattern) =>
+        pattern.test(url)
+      );
 
       expect(isInvalid).toBe(true);
     });
@@ -110,7 +124,9 @@ describe("useAutoSaveUrl Hook", () => {
       const url = "edge-extension://abcdef/popup.html";
       const INVALID_URL_PATTERNS = [/^edge-extension:/];
 
-      const isInvalid = INVALID_URL_PATTERNS.some((pattern) => pattern.test(url));
+      const isInvalid = INVALID_URL_PATTERNS.some((pattern) =>
+        pattern.test(url)
+      );
 
       expect(isInvalid).toBe(true);
     });
@@ -118,7 +134,8 @@ describe("useAutoSaveUrl Hook", () => {
     test("should invalidate empty URLs", () => {
       const url = "";
 
-      const isValid = !!url && (url.startsWith("http://") || url.startsWith("https://"));
+      const isValid =
+        !!url && (url.startsWith("http://") || url.startsWith("https://"));
 
       expect(isValid).toBe(false);
     });
@@ -235,12 +252,17 @@ describe("useAutoSaveUrl Hook", () => {
 
   describe("Tab Query", () => {
     test("should query active tab in current window", async () => {
-      const mockQuery = mock(() => Promise.resolve([{ id: 1, url: "https://example.com" }]));
+      const mockQuery = mock(() =>
+        Promise.resolve([{ id: 1, url: "https://example.com" }])
+      );
 
       const tabs = await mockQuery({ active: true, currentWindow: true });
       const currentTab = tabs[0];
 
-      expect(mockQuery).toHaveBeenCalledWith({ active: true, currentWindow: true });
+      expect(mockQuery).toHaveBeenCalledWith({
+        active: true,
+        currentWindow: true,
+      });
       expect(currentTab?.url).toBe("https://example.com");
     });
 
@@ -263,7 +285,9 @@ describe("useAutoSaveUrl Hook", () => {
     });
 
     test("should handle tab query errors", async () => {
-      const mockQuery = mock(() => Promise.reject(new Error("Tab query failed")));
+      const mockQuery = mock(() =>
+        Promise.reject(new Error("Tab query failed"))
+      );
 
       try {
         await mockQuery({ active: true, currentWindow: true });
@@ -368,7 +392,9 @@ describe("useAutoSaveUrl Hook", () => {
 
       await mockCreateCard({ content: url });
 
-      expect(mockCreateCard).toHaveBeenCalledWith({ content: "https://example.com" });
+      expect(mockCreateCard).toHaveBeenCalledWith({
+        content: "https://example.com",
+      });
     });
 
     test("should handle successful card creation", async () => {
@@ -380,7 +406,9 @@ describe("useAutoSaveUrl Hook", () => {
     });
 
     test("should handle card creation errors", async () => {
-      const mockCreateCard = mock(() => Promise.reject(new Error("Failed to create card")));
+      const mockCreateCard = mock(() =>
+        Promise.reject(new Error("Failed to create card"))
+      );
 
       try {
         await mockCreateCard({ content: "https://example.com" });
@@ -475,32 +503,57 @@ describe("useAutoSaveUrl Hook", () => {
 
   describe("Return Value", () => {
     test("should return state", () => {
-      const result = { state: "success", error: undefined, currentUrl: undefined, duplicateCard: null };
+      const result = {
+        state: "success",
+        error: undefined,
+        currentUrl: undefined,
+        duplicateCard: null,
+      };
 
       expect(result.state).toBe("success");
     });
 
     test("should return error if present", () => {
-      const result = { state: "error", error: "Test error", currentUrl: undefined, duplicateCard: null };
+      const result = {
+        state: "error",
+        error: "Test error",
+        currentUrl: undefined,
+        duplicateCard: null,
+      };
 
       expect(result.error).toBe("Test error");
     });
 
     test("should return current URL", () => {
-      const result = { state: "success", error: undefined, currentUrl: "https://example.com", duplicateCard: null };
+      const result = {
+        state: "success",
+        error: undefined,
+        currentUrl: "https://example.com",
+        duplicateCard: null,
+      };
 
       expect(result.currentUrl).toBe("https://example.com");
     });
 
     test("should return duplicate card if found", () => {
       const duplicate = { _id: "abc123", content: "https://example.com" };
-      const result = { state: "duplicate", error: undefined, currentUrl: "https://example.com", duplicateCard: duplicate };
+      const result = {
+        state: "duplicate",
+        error: undefined,
+        currentUrl: "https://example.com",
+        duplicateCard: duplicate,
+      };
 
       expect(result.duplicateCard).toEqual(duplicate);
     });
 
     test("should return null duplicate card if not found", () => {
-      const result = { state: "success", error: undefined, currentUrl: "https://example.com", duplicateCard: null };
+      const result = {
+        state: "success",
+        error: undefined,
+        currentUrl: "https://example.com",
+        duplicateCard: null,
+      };
 
       expect(result.duplicateCard).toBeNull();
     });

@@ -31,7 +31,6 @@ Sentry.init({
       showEmail: false,
       themeLight: {
         accentBackground: "var(--primary)",
-
       },
       themeDark: {
         accentBackground: "var(--primary)",

@@ -8,16 +8,16 @@
 
 "use node";
 
-import { v } from "convex/values";
-import { internalAction } from "../../_generated/server";
-import { internal } from "../../_generated/api";
-import type { Id } from "../../shared/types";
-import type { CardType } from "../../schema";
 import {
-  extractPaletteColors,
   type Color,
+  extractPaletteColors,
 } from "@teak/convex/shared/utils/colorUtils";
+import { v } from "convex/values";
+import { internal } from "../../_generated/api";
+import { internalAction } from "../../_generated/server";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
+import type { CardType } from "../../schema";
+import type { Id } from "../../shared/types";
 
 const MAX_PALETTE_COLORS = 12;
 
@@ -51,7 +51,7 @@ const toDbColor = (color: Color): DbColor => ({
 
 const colorsMatch = (
   existing: readonly DbColor[] | undefined,
-  next: readonly DbColor[],
+  next: readonly DbColor[]
 ): boolean => {
   if (!existing) {
     return next.length === 0;
@@ -68,14 +68,14 @@ const colorsMatch = (
     const hexMatch = candidate.hex?.toUpperCase() === color.hex.toUpperCase();
     const nameMatch = (candidate.name ?? "") === (color.name ?? "");
     const rgbMatch =
-      (!candidate.rgb && !color.rgb) ||
+      !(candidate.rgb || color.rgb) ||
       (candidate.rgb &&
         color.rgb &&
         candidate.rgb.r === color.rgb.r &&
         candidate.rgb.g === color.rgb.g &&
         candidate.rgb.b === color.rgb.b);
     const hslMatch =
-      (!candidate.hsl && !color.hsl) ||
+      !(candidate.hsl || color.hsl) ||
       (candidate.hsl &&
         color.hsl &&
         candidate.hsl.h === color.hsl.h &&
@@ -109,9 +109,17 @@ const buildPaletteAnalysisText = (card: any): string => {
 
 const hasPaletteHint = (card: any): boolean => {
   const text = buildPaletteAnalysisText(card).toLowerCase();
-  const paletteHints = ["palette", "color palette", "brand colors", "brand palette", "swatch", "swatches", "colorway"];
-  const tagHints = (Array.isArray(card.tags) ? card.tags : []).some((tag: string) =>
-    typeof tag === "string" && /palette|color/iu.test(tag)
+  const paletteHints = [
+    "palette",
+    "color palette",
+    "brand colors",
+    "brand palette",
+    "swatch",
+    "swatches",
+    "colorway",
+  ];
+  const tagHints = (Array.isArray(card.tags) ? card.tags : []).some(
+    (tag: string) => typeof tag === "string" && /palette|color/iu.test(tag)
   );
   return paletteHints.some((hint) => text.includes(hint)) || tagHints;
 };
@@ -143,7 +151,7 @@ const extensionFromUrl = (url?: string): string | undefined => {
 };
 
 const classifyByMime = (
-  mimeType?: string,
+  mimeType?: string
 ): { type: CardType; confidence: number } | null => {
   if (!mimeType) return null;
   const mime = mimeType.toLowerCase();
@@ -183,13 +191,34 @@ const classifyByMime = (
 };
 
 const classifyByExtension = (
-  extension?: string,
+  extension?: string
 ): { type: CardType; confidence: number } | null => {
   if (!extension) return null;
   const ext = extension.toLowerCase();
 
-  const imageExt = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg", "tiff", "avif", "heic"];
-  const videoExt = ["mp4", "mov", "m4v", "webm", "mkv", "avi", "mpeg", "mpg", "wmv"];
+  const imageExt = [
+    "png",
+    "jpg",
+    "jpeg",
+    "webp",
+    "gif",
+    "bmp",
+    "svg",
+    "tiff",
+    "avif",
+    "heic",
+  ];
+  const videoExt = [
+    "mp4",
+    "mov",
+    "m4v",
+    "webm",
+    "mkv",
+    "avi",
+    "mpeg",
+    "mpg",
+    "wmv",
+  ];
   const audioExt = ["mp3", "wav", "flac", "m4a", "aac", "ogg", "oga", "opus"];
   const documentExt = [
     "pdf",
@@ -208,16 +237,20 @@ const classifyByExtension = (
     "numbers",
   ];
 
-  if (imageExt.includes(ext)) return { type: "image", confidence: MEDIUM_CONFIDENCE };
-  if (videoExt.includes(ext)) return { type: "video", confidence: MEDIUM_CONFIDENCE };
-  if (audioExt.includes(ext)) return { type: "audio", confidence: MEDIUM_CONFIDENCE };
-  if (documentExt.includes(ext)) return { type: "document", confidence: MEDIUM_CONFIDENCE };
+  if (imageExt.includes(ext))
+    return { type: "image", confidence: MEDIUM_CONFIDENCE };
+  if (videoExt.includes(ext))
+    return { type: "video", confidence: MEDIUM_CONFIDENCE };
+  if (audioExt.includes(ext))
+    return { type: "audio", confidence: MEDIUM_CONFIDENCE };
+  if (documentExt.includes(ext))
+    return { type: "document", confidence: MEDIUM_CONFIDENCE };
 
   return null;
 };
 
 const classifyByFileMetadata = (
-  metadata: any,
+  metadata: any
 ): { type: CardType; confidence: number } | null => {
   if (!metadata) return null;
 
@@ -241,7 +274,7 @@ const classifyByFileMetadata = (
 };
 
 const deterministicClassify = (
-  card: any,
+  card: any
 ): { type: CardType; confidence: number } => {
   // 1) File metadata (strongest signal)
   const fileMetaResult = classifyByFileMetadata(card.fileMetadata);
@@ -269,8 +302,6 @@ const deterministicClassify = (
   // 5) Default to text
   return { type: "text", confidence: DEFAULT_CONFIDENCE };
 };
-
-
 
 /**
  * Update palette colors if card is a palette type
@@ -300,7 +331,7 @@ const maybeUpdatePaletteColors = async (
       {
         cardId,
         colors: dbColors,
-      },
+      }
     );
   }
 };
@@ -348,13 +379,12 @@ export const classify = internalAction({
 
     const quoteNormalization = normalizeQuoteContent(card.content ?? "");
     const heuristicQuote =
-      quoteNormalization.removedQuotes &&
-      !card.url &&
-      !card.fileId;
+      quoteNormalization.removedQuotes && !card.url && !card.fileId;
 
     if (heuristicQuote) {
       await ctx.runMutation(
-        (internal as any)["workflows/steps/classificationMutations"].updateClassification,
+        (internal as any)["workflows/steps/classificationMutations"]
+          .updateClassification,
         {
           cardId,
           type: "quote",
@@ -375,10 +405,12 @@ export const classify = internalAction({
     }
 
     // Deterministic classification (no external AI call)
-    const { type: resultType, confidence: resultConfidence } = deterministicClassify(card);
+    const { type: resultType, confidence: resultConfidence } =
+      deterministicClassify(card);
 
     // Normalize type for URL-only cards
-    const trimmedContent = typeof card.content === "string" ? card.content.trim() : "";
+    const trimmedContent =
+      typeof card.content === "string" ? card.content.trim() : "";
     const urlOnlyCard =
       !!card.url &&
       !card.fileId &&
@@ -391,7 +423,8 @@ export const classify = internalAction({
     // Determine if type should be updated
     const shouldForceLink = urlOnlyCard && card.type !== "link";
     const shouldUpdateType =
-      shouldForceLink || (normalizedType !== card.type && normalizedConfidence >= 0.6);
+      shouldForceLink ||
+      (normalizedType !== card.type && normalizedConfidence >= 0.6);
 
     if (shouldUpdateType) {
       // Update card type via mutation
@@ -416,7 +449,9 @@ export const classify = internalAction({
     // Determine which stages need to run next
     const shouldCategorize = normalizedType === "link";
     const shouldGenerateMetadata = true; // Always generate metadata
-    const shouldGenerateRenderables = ["image", "video", "document"].includes(normalizedType);
+    const shouldGenerateRenderables = ["image", "video", "document"].includes(
+      normalizedType
+    );
 
     const result: ClassificationWorkflowResult = {
       type: normalizedType,

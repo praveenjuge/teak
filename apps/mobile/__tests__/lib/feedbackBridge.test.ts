@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 describe("feedbackBridge", () => {
   describe("module exports", () => {
@@ -24,13 +24,13 @@ describe("feedbackBridge", () => {
     });
 
     test("exports FeedbackStatusPayload type", () => {
-      type FeedbackStatusPayload = {
+      interface FeedbackStatusPayload {
         message: string;
         title?: string;
         iconName?: string;
         accentColor?: string;
         dismissAfterMs?: number;
-      };
+      }
       const payload: FeedbackStatusPayload = { message: "Test" };
       expect(payload.message).toBe("Test");
     });
@@ -63,7 +63,7 @@ describe("feedbackBridge", () => {
     });
 
     test("should update existing status", () => {
-      const payload1 = { message: "First message" };
+      const _payload1 = { message: "First message" };
       const payload2 = { message: "Second message", title: "Updated" };
       expect(payload2.message).toBe("Second message");
       expect(payload2.title).toBe("Updated");
@@ -72,40 +72,52 @@ describe("feedbackBridge", () => {
 
   describe("clearFeedbackStatus", () => {
     test("should clear feedback status", () => {
-      const cleared = null;
+      const cleared: null = null;
       expect(cleared).toBeNull();
     });
 
     test("should return null after clearing", () => {
-      const status = null;
+      const status: null = null;
       expect(status).toBeNull();
     });
   });
 
   describe("subscribeFeedbackStatus", () => {
     test("should add listener", () => {
-      const listeners: Function[] = [];
-      const listener = () => {};
+      const listeners: Array<() => void> = [];
+      const listener = () => {
+        // mock listener
+      };
       listeners.push(listener);
       expect(listeners.length).toBe(1);
     });
 
     test("should return unsubscribe function", () => {
-      const unsubscribe = () => {};
+      const unsubscribe = () => {
+        // mock unsubscribe
+      };
       expect(typeof unsubscribe).toBe("function");
     });
 
     test("should handle multiple listeners", () => {
-      const listeners: Function[] = [];
-      listeners.push(() => {});
-      listeners.push(() => {});
-      listeners.push(() => {});
+      const listeners: Array<() => void> = [];
+      listeners.push(() => {
+        // mock listener 1
+      });
+      listeners.push(() => {
+        // mock listener 2
+      });
+      listeners.push(() => {
+        // mock listener 3
+      });
       expect(listeners.length).toBe(3);
     });
 
     test("should handle listener removal", () => {
-      const listeners = new Set<Function>();
-      const listener = () => {};
+      const listeners = new Set<() => void>();
+      const listener = () => {
+        // mock listener
+      };
       listeners.add(listener);
       listeners.delete(listener);
       expect(listeners.has(listener)).toBe(false);
@@ -125,7 +137,7 @@ describe("feedbackBridge", () => {
     });
 
     test("should return null when no status is set", () => {
-      const status = null;
+      const status: null = null;
       expect(status).toBeNull();
     });
   });
@@ -133,7 +145,7 @@ describe("feedbackBridge", () => {
   describe("integration tests", () => {
     test("should handle complete feedback lifecycle", () => {
       const set = { message: "Set" };
-      const cleared = null;
+      const cleared: null = null;
       expect(set.message).toBe("Set");
       expect(cleared).toBeNull();
     });

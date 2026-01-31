@@ -97,7 +97,7 @@ const buildCategoryLookup = (): Record<string, LinkCategory> => {
     const label = LINK_CATEGORY_LABELS[category];
     register(label, category);
 
-    for (const part of label.split(/[\/,|()-]/)) {
+    for (const part of label.split(/[/,|()-]/)) {
       register(part, category);
     }
   }

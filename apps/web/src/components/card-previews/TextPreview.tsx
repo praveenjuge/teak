@@ -1,5 +1,5 @@
+import type { Doc } from "@teak/convex/_generated/dataModel";
 import { Textarea } from "../ui/textarea";
-import { type Doc } from "@teak/convex/_generated/dataModel";
 
 interface TextPreviewProps {
   card: Doc<"cards">;
@@ -18,13 +18,13 @@ export function TextPreview({
 
   return (
     <Textarea
-      value={currentContent || ""}
+      className="h-full resize-none rounded-none border-0 bg-transparent p-0 text-base leading-relaxed shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
       onChange={(e) => {
         const newContent = e.target.value;
         onContentChange(newContent);
       }}
       placeholder="Enter your text..."
-      className="h-full resize-none text-base leading-relaxed border-0 shadow-none p-0 focus-visible:border-0 focus-visible:ring-0 rounded-none bg-transparent dark:bg-transparent"
+      value={currentContent || ""}
     />
   );
 }

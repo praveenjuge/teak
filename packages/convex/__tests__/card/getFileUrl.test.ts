@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, expect, test, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 describe("card/getFileUrl.ts", () => {
   let getFileUrl: any;
@@ -9,7 +9,9 @@ describe("card/getFileUrl.ts", () => {
   });
 
   test("throws when unauthenticated", async () => {
-    const ctx = { auth: { getUserIdentity: mock().mockResolvedValue(null) } } as any;
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue(null) },
+    } as any;
     const handler = (getFileUrl as any).handler ?? getFileUrl;
     await expect(handler(ctx, { fileId: "f1", cardId: "c1" })).rejects.toThrow(
       "Unauthenticated call to getFileUrl"

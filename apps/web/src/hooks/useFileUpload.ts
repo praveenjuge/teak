@@ -1,14 +1,14 @@
-import { useMutation } from "convex/react";
+import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
+import type { Id } from "@teak/convex/_generated/dataModel";
 import {
+  type FinalizeUploadedCardArgs,
+  setFileUploadSentryCaptureFunction,
   type UnifiedFileUploadConfig,
   type UploadAndCreateCardArgs,
-  type FinalizeUploadedCardArgs,
   useFileUploadCore,
-  setFileUploadSentryCaptureFunction,
 } from "@teak/convex/shared/hooks/useFileUpload";
-import { type Id } from "@teak/convex/_generated/dataModel";
-import * as Sentry from "@sentry/nextjs";
+import { useMutation } from "convex/react";
 
 // Inject Sentry capture function into shared hook
 setFileUploadSentryCaptureFunction((error, context) => {

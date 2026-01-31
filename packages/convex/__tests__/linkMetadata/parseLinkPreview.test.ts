@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, test } from "bun:test";
-import { parseLinkPreview } from '../../../convex/linkMetadata/parsing';
+import { parseLinkPreview } from "../../../convex/linkMetadata/parsing";
 
 const baseUrl = "https://example.com/page";
 

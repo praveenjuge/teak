@@ -3,10 +3,14 @@
 import {
   LINK_CATEGORY_DEFAULT_CONFIDENCE,
   type LinkCategory,
-  type LinkCategoryMetadata,
   type LinkCategoryDetail,
+  type LinkCategoryMetadata,
   resolveLinkCategory,
 } from "@teak/convex/shared";
+import { v } from "convex/values";
+import { internal } from "../../../_generated/api";
+import { internalAction } from "../../../_generated/server";
+import type { Id } from "../../../shared/types";
 import { enrichProvider } from "./providers";
 import {
   formatDate,
@@ -14,10 +18,6 @@ import {
   type RawSelectorEntry,
   type RawSelectorMap,
 } from "./providers/common";
-import type { Id } from "../../../shared/types";
-import { v } from "convex/values";
-import { internalAction } from "../../../_generated/server";
-import { internal } from "../../../_generated/api";
 
 const MAX_FETCH_BODY_SIZE = 250_000;
 const STRUCTURED_DATA_MAX_ITEMS = 8;
@@ -66,7 +66,9 @@ export interface CategoryClassificationResult {
   reason?: string;
 }
 
-const normalizeUrlForComparison = (value: string | undefined): string | null => {
+const normalizeUrlForComparison = (
+  value: string | undefined
+): string | null => {
   if (!value) return null;
   try {
     const url = new URL(value);
@@ -105,11 +107,7 @@ export const classifyLinkCategory = async (
       : undefined;
 
   const targetUrl =
-    sourceUrl ||
-    card.url ||
-    linkPreview?.finalUrl ||
-    linkPreview?.url ||
-    "";
+    sourceUrl || card.url || linkPreview?.finalUrl || linkPreview?.url || "";
 
   if (!targetUrl) {
     return null;
@@ -133,7 +131,10 @@ const toArray = <T>(value: T | T[] | undefined): T[] => {
   return Array.isArray(value) ? value : [value];
 };
 
-const pickFields = (value: Record<string, any>, fields: string[]): Record<string, any> => {
+const pickFields = (
+  value: Record<string, any>,
+  fields: string[]
+): Record<string, any> => {
   const result: Record<string, any> = {};
   for (const field of fields) {
     if (value[field] !== undefined) {
@@ -154,7 +155,8 @@ interface StructuredDataResult {
 
 const parseStructuredData = (html: string): StructuredDataResult => {
   const entities: any[] = [];
-  const scriptRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  const scriptRegex =
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
   let match: RegExpExecArray | null;
   const seen = new Set<string>();
 
@@ -166,7 +168,9 @@ const parseStructuredData = (html: string): StructuredDataResult => {
       const values = Array.isArray(parsed) ? parsed : [parsed];
       for (const item of values) {
         if (item && typeof item === "object") {
-          const fingerprint = JSON.stringify(pickFields(item, ["@type", "name", "url"]));
+          const fingerprint = JSON.stringify(
+            pickFields(item, ["@type", "name", "url"])
+          );
           if (!seen.has(fingerprint)) {
             seen.add(fingerprint);
             entities.push(item);
@@ -184,12 +188,15 @@ const parseStructuredData = (html: string): StructuredDataResult => {
   return { entities };
 };
 
-const fetchStructuredData = async (url: string): Promise<StructuredDataResult | null> => {
+const fetchStructuredData = async (
+  url: string
+): Promise<StructuredDataResult | null> => {
   try {
     const response = await fetch(url, {
       headers: {
         "User-Agent": "TeakBot/1.0 (+https://teak)",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
       redirect: "follow",
     });
@@ -204,7 +211,9 @@ const fetchStructuredData = async (url: string): Promise<StructuredDataResult | 
     }
 
     const contentLengthHeader = response.headers.get("content-length");
-    const contentLength = contentLengthHeader ? Number(contentLengthHeader) : undefined;
+    const contentLength = contentLengthHeader
+      ? Number(contentLengthHeader)
+      : undefined;
     if (contentLength && contentLength > MAX_FETCH_BODY_SIZE * 2) {
       return null;
     }
@@ -214,9 +223,10 @@ const fetchStructuredData = async (url: string): Promise<StructuredDataResult | 
       return null;
     }
 
-    const truncated = text.length > MAX_FETCH_BODY_SIZE
-      ? text.slice(0, MAX_FETCH_BODY_SIZE)
-      : text;
+    const truncated =
+      text.length > MAX_FETCH_BODY_SIZE
+        ? text.slice(0, MAX_FETCH_BODY_SIZE)
+        : text;
 
     const parsed = parseStructuredData(truncated);
     parsed.meta = {
@@ -237,7 +247,10 @@ const matchesType = (candidate: any, types: string[]): boolean => {
   return types.some((type) => candidateTypes.includes(type.toLowerCase()));
 };
 
-const findByType = (entities: any[], typeCandidates: string[]): any | undefined => {
+const findByType = (
+  entities: any[],
+  typeCandidates: string[]
+): any | undefined => {
   return entities.find((entity) => matchesType(entity, typeCandidates));
 };
 
@@ -288,7 +301,8 @@ const detectProvider = (url?: string, hint?: string): string | undefined => {
     const hostname = new URL(url).hostname.toLowerCase();
     if (hostnameMatchesDomain(hostname, "github.com")) return "github";
     if (hostnameMatchesDomain(hostname, "goodreads.com")) return "goodreads";
-    if (hostnameMatchesDomain(hostname, "amazon.com") ||
+    if (
+      hostnameMatchesDomain(hostname, "amazon.com") ||
       hostnameMatchesDomain(hostname, "amazon.co.uk") ||
       hostnameMatchesDomain(hostname, "amazon.de") ||
       hostnameMatchesDomain(hostname, "amazon.fr") ||
@@ -297,14 +311,20 @@ const detectProvider = (url?: string, hint?: string): string | undefined => {
       hostnameMatchesDomain(hostname, "amazon.ca") ||
       hostnameMatchesDomain(hostname, "amazon.com.au") ||
       hostnameMatchesDomain(hostname, "amazon.co.jp") ||
-      hostnameMatchesDomain(hostname, "amazon.in")) return "amazon";
+      hostnameMatchesDomain(hostname, "amazon.in")
+    )
+      return "amazon";
     if (hostnameMatchesDomain(hostname, "imdb.com")) return "imdb";
     if (hostnameMatchesDomain(hostname, "netflix.com")) return "netflix";
     if (hostnameMatchesDomain(hostname, "behance.net")) return "behance";
     if (hostnameMatchesDomain(hostname, "dribbble.com")) return "dribbble";
     if (hostnameMatchesDomain(hostname, "spotify.com")) return "spotify";
     if (hostnameMatchesDomain(hostname, "apple.com")) return "apple";
-    if (hostnameMatchesDomain(hostname, "youtube.com") || hostnameMatchesDomain(hostname, "youtu.be")) return "youtube";
+    if (
+      hostnameMatchesDomain(hostname, "youtube.com") ||
+      hostnameMatchesDomain(hostname, "youtu.be")
+    )
+      return "youtube";
     if (hostnameMatchesDomain(hostname, "medium.com")) return "medium";
     if (hostnameMatchesDomain(hostname, "substack.com")) return "substack";
     return hostname;
@@ -401,14 +421,19 @@ const enrichWithStructuredData = (
       break;
     }
     case "movie": {
-      const movie = findByType(entities, ["Movie", "VideoObject", "CreativeWork"]);
+      const movie = findByType(entities, [
+        "Movie",
+        "VideoObject",
+        "CreativeWork",
+      ]);
       if (!movie) break;
       applyImage(movie);
       addFact("Rating", movie.aggregateRating?.ratingValue?.toString());
       addFact(
         "Votes",
         (
-          movie.aggregateRating?.ratingCount || movie.aggregateRating?.reviewCount
+          movie.aggregateRating?.ratingCount ||
+          movie.aggregateRating?.reviewCount
         )?.toString()
       );
       addFact("Release", formatDate(movie.datePublished || movie.dateCreated));
@@ -416,18 +441,32 @@ const enrichWithStructuredData = (
       break;
     }
     case "tv": {
-      const show = findByType(entities, ["TVSeries", "TVEpisode", "VideoObject"]);
+      const show = findByType(entities, [
+        "TVSeries",
+        "TVEpisode",
+        "VideoObject",
+      ]);
       if (!show) break;
       applyImage(show);
-      addFact("Seasons", (show.numberOfSeasons || show.seasonNumber)?.toString());
+      addFact(
+        "Seasons",
+        (show.numberOfSeasons || show.seasonNumber)?.toString()
+      );
       addFact("Episodes", show.numberOfEpisodes?.toString());
-      addFact("First aired", formatDate(show.datePublished || show.dateCreated));
+      addFact(
+        "First aired",
+        formatDate(show.datePublished || show.dateCreated)
+      );
       raw = pickFields(show, STRUCTURED_DATA_FIELDS);
       break;
     }
     case "article":
     case "news": {
-      const article = findByType(entities, ["NewsArticle", "Article", "BlogPosting"]);
+      const article = findByType(entities, [
+        "NewsArticle",
+        "Article",
+        "BlogPosting",
+      ]);
       if (!article) break;
       applyImage(article);
       addFact("Published", formatDate(article.datePublished));
@@ -439,7 +478,11 @@ const enrichWithStructuredData = (
       break;
     }
     case "podcast": {
-      const podcast = findByType(entities, ["PodcastEpisode", "PodcastSeries", "AudioObject"]);
+      const podcast = findByType(entities, [
+        "PodcastEpisode",
+        "PodcastSeries",
+        "AudioObject",
+      ]);
       if (!podcast) break;
       applyImage(podcast);
       addFact("Duration", formatDuration(podcast.duration));
@@ -451,12 +494,18 @@ const enrichWithStructuredData = (
       break;
     }
     case "music": {
-      const music = findByType(entities, ["MusicRecording", "MusicAlbum", "MusicPlaylist"]);
+      const music = findByType(entities, [
+        "MusicRecording",
+        "MusicAlbum",
+        "MusicPlaylist",
+      ]);
       if (!music) break;
       applyImage(music);
       addFact(
         "Artist",
-        stringArray(music.byArtist || music.creator || music.performer).join(", ")
+        stringArray(music.byArtist || music.creator || music.performer).join(
+          ", "
+        )
       );
       addFact("Length", formatDuration(music.duration));
       raw = pickFields(music, STRUCTURED_DATA_FIELDS);
@@ -498,7 +547,10 @@ const enrichWithStructuredData = (
       break;
     }
     case "course": {
-      const course = findByType(entities, ["Course", "EducationalOccupationalProgram"]);
+      const course = findByType(entities, [
+        "Course",
+        "EducationalOccupationalProgram",
+      ]);
       if (!course) break;
       applyImage(course);
       addFact(
@@ -509,7 +561,11 @@ const enrichWithStructuredData = (
       break;
     }
     case "research": {
-      const paper = findByType(entities, ["ScholarlyArticle", "ResearchArticle", "Report"]);
+      const paper = findByType(entities, [
+        "ScholarlyArticle",
+        "ResearchArticle",
+        "Report",
+      ]);
       if (!paper) break;
       applyImage(paper);
       addFact("Authors", stringArray(paper.author).join(", "));
@@ -518,12 +574,17 @@ const enrichWithStructuredData = (
       break;
     }
     case "event": {
-      const event = findByType(entities, ["Event", "MusicEvent", "BusinessEvent"]);
+      const event = findByType(entities, [
+        "Event",
+        "MusicEvent",
+        "BusinessEvent",
+      ]);
       if (!event) break;
       applyImage(event);
       const start = formatDate(event.startDate);
       const end = formatDate(event.endDate);
-      const dates = end && start && start !== end ? `${start} → ${end}` : start || end;
+      const dates =
+        end && start && start !== end ? `${start} → ${end}` : start || end;
       addFact("Dates", dates);
       addFact(
         "Location",
@@ -533,7 +594,10 @@ const enrichWithStructuredData = (
       break;
     }
     case "software": {
-      const software = findByType(entities, ["SoftwareApplication", "SoftwareSourceCode"]);
+      const software = findByType(entities, [
+        "SoftwareApplication",
+        "SoftwareSourceCode",
+      ]);
       if (!software) break;
       applyImage(software);
       addFact("Platform", valueToText(software.operatingSystem));
@@ -542,10 +606,17 @@ const enrichWithStructuredData = (
       break;
     }
     case "design_portfolio": {
-      const creative = findByType(entities, ["CreativeWork", "CollectionPage", "Portfolio"]);
+      const creative = findByType(entities, [
+        "CreativeWork",
+        "CollectionPage",
+        "Portfolio",
+      ]);
       if (!creative) break;
       applyImage(creative);
-      addFact("Creator", valueToText(creative.author) || valueToText(creative.creator));
+      addFact(
+        "Creator",
+        valueToText(creative.author) || valueToText(creative.creator)
+      );
       raw = pickFields(creative, STRUCTURED_DATA_FIELDS);
       break;
     }
@@ -583,7 +654,8 @@ export const enrichLinkCategory = async (
 
   const provider = detectProvider(sourceUrl, classification.providerHint);
 
-  let raw: Record<string, unknown> | undefined = card.metadata?.linkCategory?.raw
+  let raw: Record<string, unknown> | undefined = card.metadata?.linkCategory
+    ?.raw
     ? { ...card.metadata.linkCategory.raw }
     : undefined;
 
@@ -619,16 +691,17 @@ export const enrichLinkCategory = async (
     };
   }
 
-  const hasStructuredData = raw && Object.prototype.hasOwnProperty.call(raw, "structured");
+  const hasStructuredData = raw && Object.hasOwn(raw, "structured");
   const providedStructured = options?.structuredData;
   const shouldFetchStructured =
     providedStructured === undefined && !!sourceUrl && !hasStructuredData;
 
-  const structured = providedStructured === undefined
-    ? shouldFetchStructured
-      ? await fetchStructuredData(sourceUrl)
-      : null
-    : providedStructured;
+  const structured =
+    providedStructured === undefined
+      ? shouldFetchStructured
+        ? await fetchStructuredData(sourceUrl)
+        : null
+      : providedStructured;
 
   if (structured?.entities?.length) {
     const enriched = enrichWithStructuredData(
@@ -708,15 +781,16 @@ export async function classifyHandler(
     contextCard.url || linkPreview?.finalUrl || linkPreview?.url || "";
   const sourceUrl = normalizeUrlForComparison(rawSourceUrl) || rawSourceUrl;
 
-  const existingMetadata =
-    contextCard.metadata?.linkCategory ?? undefined;
+  const existingMetadata = contextCard.metadata?.linkCategory ?? undefined;
 
   const METADATA_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
   const metadataFresh =
     existingMetadata?.fetchedAt &&
     Date.now() - existingMetadata.fetchedAt < METADATA_TTL_MS;
 
-  const cachedSourceUrl = normalizeUrlForComparison(existingMetadata?.sourceUrl) || existingMetadata?.sourceUrl;
+  const cachedSourceUrl =
+    normalizeUrlForComparison(existingMetadata?.sourceUrl) ||
+    existingMetadata?.sourceUrl;
 
   if (
     existingMetadata?.category &&
@@ -742,12 +816,11 @@ export async function classifyHandler(
 
   const structuredFresh =
     existingMetadata?.raw?.structuredMeta?.fetchedAt &&
-    Date.now() - existingMetadata.raw.structuredMeta.fetchedAt < METADATA_TTL_MS;
+    Date.now() - existingMetadata.raw.structuredMeta.fetchedAt <
+      METADATA_TTL_MS;
 
   const shouldFetchStructured =
-    !!sourceUrl &&
-    !existingMetadata?.raw?.structured &&
-    !structuredFresh;
+    !!sourceUrl && !existingMetadata?.raw?.structured && !structuredFresh;
 
   return {
     mode: "classified" as const,
@@ -773,9 +846,13 @@ export const fetchStructuredDataStep: any = internalAction({
 
 export async function fetchStructuredDataHandler(
   _ctx: any,
-  { cardId, sourceUrl, shouldFetch }: { cardId: Id<"cards">, sourceUrl: string, shouldFetch: boolean }
+  {
+    cardId,
+    sourceUrl,
+    shouldFetch,
+  }: { cardId: Id<"cards">; sourceUrl: string; shouldFetch: boolean }
 ) {
-  if (!shouldFetch || !sourceUrl) {
+  if (!(shouldFetch && sourceUrl)) {
     return { structuredData: null };
   }
 
@@ -804,7 +881,15 @@ export const mergeAndSaveStep: any = internalAction({
 
 export async function mergeAndSaveHandler(
   ctx: any,
-  { cardId, card, sourceUrl, mode, classification, existingMetadata, structuredData }: any
+  {
+    cardId,
+    card,
+    sourceUrl,
+    mode,
+    classification,
+    existingMetadata,
+    structuredData,
+  }: any
 ) {
   if (mode === "skipped") {
     if (!existingMetadata) {
@@ -814,7 +899,8 @@ export async function mergeAndSaveHandler(
     }
 
     await ctx.runMutation(
-      (internal as any)["workflows/steps/categorization/mutations"].updateCategorization,
+      (internal as any)["workflows/steps/categorization/mutations"]
+        .updateCategorization,
       {
         cardId,
         metadata: existingMetadata,
@@ -823,7 +909,8 @@ export async function mergeAndSaveHandler(
 
     return {
       category: existingMetadata.category,
-      confidence: existingMetadata.confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE,
+      confidence:
+        existingMetadata.confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE,
       imageUrl: existingMetadata.imageUrl,
       factsCount: existingMetadata.facts?.length ?? 0,
     };
@@ -842,7 +929,8 @@ export async function mergeAndSaveHandler(
   );
 
   await ctx.runMutation(
-    (internal as any)["workflows/steps/categorization/mutations"].updateCategorization,
+    (internal as any)["workflows/steps/categorization/mutations"]
+      .updateCategorization,
     {
       cardId,
       metadata,

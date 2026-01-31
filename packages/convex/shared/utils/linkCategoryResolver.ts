@@ -51,7 +51,11 @@ const DOMAIN_RULES: DomainRule[] = [
   { domain: "amazon.com", category: "product", provider: "amazon" },
   { domain: "amazon.co.uk", category: "product", provider: "amazon" },
   { domain: "amazon.in", category: "product", provider: "amazon" },
-  { domain: "dribbble.com", category: "design_portfolio", provider: "dribbble" },
+  {
+    domain: "dribbble.com",
+    category: "design_portfolio",
+    provider: "dribbble",
+  },
   { domain: "behance.net", category: "design_portfolio" },
   { domain: "figma.com", category: "design_portfolio", provider: "figma" },
   { domain: "youtube.com", category: "tv", provider: "youtube" },
@@ -84,7 +88,10 @@ const DOMAIN_RULES: DomainRule[] = [
 const PATH_CATEGORY_RULES: PathRule[] = [
   { test: /\brecipe(s)?\b/i, category: "recipe" },
   { test: /\bpodcast(s)?\b|\/episode\//i, category: "podcast" },
-  { test: /\bcourse(s)?\b|tutorial|bootcamp|lesson|learn/i, category: "course" },
+  {
+    test: /\bcourse(s)?\b|tutorial|bootcamp|lesson|learn/i,
+    category: "course",
+  },
   { test: /\bresearch\b|arxiv|doi\.org|paper\b/i, category: "research" },
   { test: /\bevent\b|webinar|meetup|conference/i, category: "event" },
   { test: /shop|store|product|listing|item|cart/i, category: "product" },
@@ -136,20 +143,25 @@ const hostnameMatches = (hostname: string, candidate: string) => {
 const isAllowedCategory = (value: string): value is LinkCategory =>
   (LINK_CATEGORIES as readonly string[]).includes(value);
 
-const pickDomainRule = (
-  parsed: URL | null
-): DomainRule | null => {
+const pickDomainRule = (parsed: URL | null): DomainRule | null => {
   if (!parsed?.hostname) return null;
   const hostname = parsed.hostname.toLowerCase();
   const apex = stripSubdomains(hostname);
 
   for (const rule of DOMAIN_RULES) {
-    if (!hostnameMatches(hostname, rule.domain) && !hostnameMatches(apex, rule.domain)) {
+    if (
+      !(
+        hostnameMatches(hostname, rule.domain) ||
+        hostnameMatches(apex, rule.domain)
+      )
+    ) {
       continue;
     }
 
     if (rule.pathIncludes && rule.pathIncludes.length > 0) {
-      const matchesPathRule = rule.pathIncludes.some((regex) => regex.test(parsed.pathname || ""));
+      const matchesPathRule = rule.pathIncludes.some((regex) =>
+        regex.test(parsed.pathname || "")
+      );
       if (!matchesPathRule) {
         continue;
       }
@@ -171,7 +183,9 @@ const pickPathRule = (pathname: string | undefined): PathRule | null => {
   return null;
 };
 
-const pickProviderMapping = (hostname: string | undefined): { provider: string; category: LinkCategory } | null => {
+const pickProviderMapping = (
+  hostname: string | undefined
+): { provider: string; category: LinkCategory } | null => {
   if (!hostname) return null;
   const hostText = hostname.toLowerCase();
   for (const [provider, category] of Object.entries(PROVIDER_CATEGORY_HINTS)) {
@@ -204,7 +218,8 @@ export const resolveLinkCategory = (
 
   const hostname = parsed?.hostname?.toLowerCase();
   const pathname = parsed?.pathname ?? "";
-  const ambientText = `${options?.siteName ?? ""} ${options?.title ?? ""}`.toLowerCase();
+  const ambientText =
+    `${options?.siteName ?? ""} ${options?.title ?? ""}`.toLowerCase();
   const providerMatch = pickProviderMapping(hostname);
 
   const domainRule = pickDomainRule(parsed);
@@ -239,7 +254,9 @@ export const resolveLinkCategory = (
     };
   }
 
-  const heuristicCategory = pickHeuristicCategory(`${hostname ?? ""} ${pathname} ${ambientText}`);
+  const heuristicCategory = pickHeuristicCategory(
+    `${hostname ?? ""} ${pathname} ${ambientText}`
+  );
   if (heuristicCategory && isAllowedCategory(heuristicCategory)) {
     return {
       category: heuristicCategory,

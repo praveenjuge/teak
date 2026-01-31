@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, expect, test, mock } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 
 // Set environment variables BEFORE any imports that might load auth.ts
 process.env.SITE_URL = "https://teakvault.com";

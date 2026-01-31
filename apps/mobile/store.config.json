@@ -27,10 +27,7 @@
         "privacyChoicesUrl": "https://teakvault.com/docs/privacy-policy"
       }
     },
-    "categories": [
-      "PRODUCTIVITY",
-      "LIFESTYLE"
-    ],
+    "categories": ["PRODUCTIVITY", "LIFESTYLE"],
     "advisory": {
       "ageRatingOverride": "NONE",
       "alcoholTobaccoOrDrugUseOrReferences": "NONE",

@@ -1,15 +1,14 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
-  stageCompleted,
-  stagePending,
-  stageInProgress,
-  stageFailed,
-  withStageStatus,
-  shouldRunRenderablesStage,
-  shouldRunCategorizeStage,
   buildInitialProcessingStatus,
   type ProcessingStatus,
-  type ProcessingStageKey,
+  shouldRunCategorizeStage,
+  shouldRunRenderablesStage,
+  stageCompleted,
+  stageFailed,
+  stageInProgress,
+  stagePending,
+  withStageStatus,
 } from "./processingStatus";
 
 describe("stageCompleted", () => {
@@ -70,7 +69,7 @@ describe("stageInProgress", () => {
   });
 
   it("should preserve startedAt from previous status", () => {
-    const earlier = Date.now() - 10000;
+    const earlier = Date.now() - 10_000;
     const later = Date.now();
     const previous = stageInProgress(earlier);
 
@@ -82,7 +81,11 @@ describe("stageInProgress", () => {
 
   it("should preserve confidence from previous status", () => {
     const now = Date.now();
-    const previous = { status: "in_progress" as const, startedAt: now, confidence: 0.5 };
+    const previous = {
+      status: "in_progress" as const,
+      startedAt: now,
+      confidence: 0.5,
+    };
 
     const result = stageInProgress(now, previous);
 
@@ -112,7 +115,7 @@ describe("stageFailed", () => {
   });
 
   it("should preserve startedAt from previous status", () => {
-    const earlier = Date.now() - 10000;
+    const earlier = Date.now() - 10_000;
     const later = Date.now();
     const previous = stageInProgress(earlier);
 
@@ -124,7 +127,11 @@ describe("stageFailed", () => {
 
   it("should preserve confidence from previous status", () => {
     const now = Date.now();
-    const previous = { status: "in_progress" as const, startedAt: now, confidence: 0.7 };
+    const previous = {
+      status: "in_progress" as const,
+      startedAt: now,
+      confidence: 0.7,
+    };
 
     const result = stageFailed(now, "error", previous);
 

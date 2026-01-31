@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, test } from "bun:test";
-import { updateClassification } from '../../../../convex/workflows/steps/classificationMutations';
+import { updateClassification } from "../../../../convex/workflows/steps/classificationMutations";
 
 describe("classification updateClassification", () => {
   test("updates card type and processing status", async () => {
@@ -516,8 +516,13 @@ describe("classification updateClassification", () => {
       },
     };
 
-    await expect(mutation(mockCtx, { cardId: "card_missing", type: "text", confidence: 0.9 }))
-      .rejects.toThrow("Card card_missing not found");
+    await expect(
+      mutation(mockCtx, {
+        cardId: "card_missing",
+        type: "text",
+        confidence: 0.9,
+      })
+    ).rejects.toThrow("Card card_missing not found");
   });
 
   test("preserves existing processing status fields", async () => {

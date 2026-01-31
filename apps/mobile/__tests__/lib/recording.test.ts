@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { expect, test } from "bun:test";
 import { stopAudioRecording } from "../../lib/recording";
 
 test("stopAudioRecording waits for stop before unlocking recording state", async () => {
@@ -30,17 +30,14 @@ test("stopAudioRecording waits for stop before unlocking recording state", async
     setRecordingDuration: (value) => {
       events.push(`setRecordingDuration:${value}`);
     },
-    handleFileUpload: async () => {
+    handleFileUpload: () => {
       events.push("upload");
     },
   });
 
   await Promise.resolve();
 
-  expect(events).toEqual([
-    "setIsStoppingRecording:true",
-    "stop-start",
-  ]);
+  expect(events).toEqual(["setIsStoppingRecording:true", "stop-start"]);
 
   (resolveStop as unknown as () => void)?.();
   await stopTask;
@@ -62,12 +59,18 @@ test("stopAudioRecording early returns if not recording", async () => {
     audioRecorder: {
       isRecording: false,
       uri: null,
-      stop: async () => { },
+      stop: async () => {
+        // no-op for test
+      },
     },
     setIsRecording: () => events.push("setIsRecording"),
     setIsStoppingRecording: () => events.push("setIsStoppingRecording"),
-    setRecordingDuration: () => { },
-    handleFileUpload: async () => { },
+    setRecordingDuration: () => {
+      // no-op for test
+    },
+    handleFileUpload: async () => {
+      // no-op for test
+    },
   });
   expect(events.length).toBe(0);
 });
@@ -77,16 +80,28 @@ test("handles upload error", async () => {
   const audioRecorder = {
     isRecording: true,
     uri: "file://recording.m4a",
-    stop: async () => { },
+    stop: async () => {
+      // no-op for test
+    },
   };
-  let capturedError;
+  let capturedError: Error | undefined;
   await stopAudioRecording({
     audioRecorder,
-    setIsRecording: () => { },
-    setIsStoppingRecording: () => { },
-    setRecordingDuration: () => { },
-    handleFileUpload: async () => { throw error; },
-    onError: (e) => { capturedError = e; },
+    setIsRecording: () => {
+      // no-op for test
+    },
+    setIsStoppingRecording: () => {
+      // no-op for test
+    },
+    setRecordingDuration: () => {
+      // no-op for test
+    },
+    handleFileUpload: () => {
+      throw error;
+    },
+    onError: (e) => {
+      capturedError = e;
+    },
   });
   expect(capturedError).toBe(error);
 });
@@ -95,17 +110,29 @@ test("handles stop error", async () => {
   const error = new Error("Stop failed");
   const audioRecorder = {
     isRecording: true,
-    stop: async () => { throw error; },
+    stop: () => {
+      throw error;
+    },
     uri: "file://recording.m4a",
   };
-  let capturedError;
+  let capturedError: Error | undefined;
   await stopAudioRecording({
     audioRecorder,
-    setIsRecording: () => { },
-    setIsStoppingRecording: () => { },
-    setRecordingDuration: () => { },
-    handleFileUpload: async () => { },
-    onError: (e) => { capturedError = e; },
+    setIsRecording: () => {
+      // no-op for test
+    },
+    setIsStoppingRecording: () => {
+      // no-op for test
+    },
+    setRecordingDuration: () => {
+      // no-op for test
+    },
+    handleFileUpload: async () => {
+      // no-op for test
+    },
+    onError: (e) => {
+      capturedError = e;
+    },
   });
   expect(capturedError).toBe(error);
 });

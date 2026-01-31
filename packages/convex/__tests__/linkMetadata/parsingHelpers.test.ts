@@ -1,6 +1,10 @@
 // @ts-nocheck
 import { describe, expect, test } from "bun:test";
-import { firstFromSources, sanitizeText, toSelectorMap } from '../../../convex/linkMetadata/parsing';
+import {
+  firstFromSources,
+  sanitizeText,
+  toSelectorMap,
+} from "../../../convex/linkMetadata/parsing";
 
 describe("parsing helpers", () => {
   test("sanitizeText trims and limits length", () => {

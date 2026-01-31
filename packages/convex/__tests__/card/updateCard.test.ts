@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, expect, test, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 describe("card/updateCard.ts", () => {
   let updateCard: any;
@@ -12,9 +12,14 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCard throws when unauthenticated", async () => {
-    const ctx = { auth: { getUserIdentity: mock().mockResolvedValue(null) } } as any;
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue(null) },
+    } as any;
     await expect(
-      ((updateCard as any).handler ?? updateCard)(ctx, { id: "c1", content: "Hi" })
+      ((updateCard as any).handler ?? updateCard)(ctx, {
+        id: "c1",
+        content: "Hi",
+      })
     ).rejects.toThrow("User must be authenticated");
   });
 
@@ -56,7 +61,9 @@ describe("card/updateCard.ts", () => {
     } as any;
 
     const updateHandler = (updateCard as any).handler ?? updateCard;
-    await expect(updateHandler(ctx, { id: "c1", content: "Hi" })).rejects.toThrow("Card not found");
+    await expect(
+      updateHandler(ctx, { id: "c1", content: "Hi" })
+    ).rejects.toThrow("Card not found");
   });
 
   test("updateCard throws when not authorized", async () => {
@@ -75,7 +82,9 @@ describe("card/updateCard.ts", () => {
     } as any;
 
     const updateHandler = (updateCard as any).handler ?? updateCard;
-    await expect(updateHandler(ctx, { id: "c1", content: "Hi" })).rejects.toThrow("Not authorized");
+    await expect(
+      updateHandler(ctx, { id: "c1", content: "Hi" })
+    ).rejects.toThrow("Not authorized");
   });
 
   test("updateCard does not normalize content for non-quote types", async () => {
@@ -127,7 +136,9 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField throws when unauthenticated", async () => {
-    const ctx = { auth: { getUserIdentity: mock().mockResolvedValue(null) } } as any;
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue(null) },
+    } as any;
     const handler = (updateCardField as any).handler ?? updateCardField;
     await expect(
       handler(ctx, { cardId: "c1", field: "content", value: "Hi" })
@@ -169,7 +180,10 @@ describe("card/updateCard.ts", () => {
           userId: "u1",
           type: "link",
           url: "https://old.com",
-          metadata: { linkPreview: { title: "Old" }, linkCategory: { category: "news" } },
+          metadata: {
+            linkPreview: { title: "Old" },
+            linkCategory: { category: "news" },
+          },
           processingStatus: { classify: { status: "completed" } },
         }),
         patch: mock().mockResolvedValue(null),
@@ -177,7 +191,8 @@ describe("card/updateCard.ts", () => {
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
-    const updateFieldHandler = (updateCardField as any).handler ?? updateCardField;
+    const updateFieldHandler =
+      (updateCardField as any).handler ?? updateCardField;
     await updateFieldHandler(ctx, {
       cardId: "c1",
       field: "url",
@@ -189,7 +204,9 @@ describe("card/updateCard.ts", () => {
       "c1",
       expect.objectContaining({
         url: "https://new.com",
-        metadata: expect.not.objectContaining({ linkPreview: expect.anything() }),
+        metadata: expect.not.objectContaining({
+          linkPreview: expect.anything(),
+        }),
       })
     );
     expect(ctx.scheduler.runAfter).toHaveBeenCalled();
@@ -260,7 +277,11 @@ describe("card/updateCard.ts", () => {
     } as any;
 
     const handler = (updateCardField as any).handler ?? updateCardField;
-    await handler(ctx, { cardId: "c1", field: "tags", value: ["tag1", "tag2"] });
+    await handler(ctx, {
+      cardId: "c1",
+      field: "tags",
+      value: ["tag1", "tag2"],
+    });
 
     expect(ctx.db.patch).toHaveBeenCalledWith(
       "cards",
@@ -309,7 +330,11 @@ describe("card/updateCard.ts", () => {
     } as any;
 
     const handler = (updateCardField as any).handler ?? updateCardField;
-    await handler(ctx, { cardId: "c1", field: "aiSummary", value: " Summary " });
+    await handler(ctx, {
+      cardId: "c1",
+      field: "aiSummary",
+      value: " Summary ",
+    });
 
     expect(ctx.db.patch).toHaveBeenCalledWith(
       "cards",
@@ -359,7 +384,11 @@ describe("card/updateCard.ts", () => {
     } as any;
 
     const handler = (updateCardField as any).handler ?? updateCardField;
-    await handler(ctx, { cardId: "c1", field: "removeAiTag", tagToRemove: "tag2" });
+    await handler(ctx, {
+      cardId: "c1",
+      field: "removeAiTag",
+      tagToRemove: "tag2",
+    });
 
     expect(ctx.db.patch).toHaveBeenCalledWith(
       "cards",
@@ -384,7 +413,11 @@ describe("card/updateCard.ts", () => {
     } as any;
 
     const handler = (updateCardField as any).handler ?? updateCardField;
-    await handler(ctx, { cardId: "c1", field: "removeAiTag", tagToRemove: "tag1" });
+    await handler(ctx, {
+      cardId: "c1",
+      field: "removeAiTag",
+      tagToRemove: "tag1",
+    });
 
     expect(ctx.db.patch).toHaveBeenCalledWith(
       "cards",
@@ -448,7 +481,7 @@ describe("card/updateCard.ts", () => {
           userId: "u1",
           type: "text",
           isDeleted: true,
-          deletedAt: 123456,
+          deletedAt: 123_456,
         }),
         patch: mock().mockResolvedValue(null),
       },
@@ -484,9 +517,9 @@ describe("card/updateCard.ts", () => {
     } as any;
 
     const handler = (updateCardField as any).handler ?? updateCardField;
-    await expect(handler(ctx, { cardId: "c1", field: "restore" })).rejects.toThrow(
-      "Card is not deleted"
-    );
+    await expect(
+      handler(ctx, { cardId: "c1", field: "restore" })
+    ).rejects.toThrow("Card is not deleted");
   });
 
   test("updateCardField throws for unsupported field", async () => {
@@ -525,7 +558,11 @@ describe("card/updateCard.ts", () => {
     } as any;
 
     const handler = (updateCardField as any).handler ?? updateCardField;
-    await handler(ctx, { cardId: "c1", field: "content", value: "Same content" });
+    await handler(ctx, {
+      cardId: "c1",
+      field: "content",
+      value: "Same content",
+    });
 
     expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
   });
@@ -547,7 +584,11 @@ describe("card/updateCard.ts", () => {
     } as any;
 
     const handler = (updateCardField as any).handler ?? updateCardField;
-    await handler(ctx, { cardId: "c1", field: "url", value: "https://same.com" });
+    await handler(ctx, {
+      cardId: "c1",
+      field: "url",
+      value: "https://same.com",
+    });
 
     expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
   });

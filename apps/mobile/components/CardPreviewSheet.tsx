@@ -1,8 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Image as RNImage, Linking, useWindowDimensions } from "react-native";
-import { Audio } from "expo-av";
-import { useEvent } from "expo";
-import { VideoView, useVideoPlayer } from "expo-video";
+// @ts-expect-error - @expo/ui internal import not exported
+import { Circle } from "@expo/ui/src/swift-ui/Shapes";
 import {
   BottomSheet,
   Button,
@@ -17,10 +14,13 @@ import {
   VStack,
   ZStack,
 } from "@expo/ui/swift-ui";
-// @ts-expect-error - @expo/ui internal import not exported
-import { Circle } from "@expo/ui/src/swift-ui/Shapes";
-import { frame, foregroundStyle, padding } from "@expo/ui/swift-ui/modifiers";
+import { foregroundStyle, frame, padding } from "@expo/ui/swift-ui/modifiers";
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { useEvent } from "expo";
+import { Audio } from "expo-av";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Linking, Image as RNImage, useWindowDimensions } from "react-native";
 
 type Card = Doc<"cards"> & {
   fileUrl?: string;
@@ -54,12 +54,12 @@ const FullHeightPlaceholder = ({
   height: number;
 }) => (
   <VStack
-    spacing={12}
     alignment="center"
     modifiers={[frame({ height }), padding({ all: 16 })]}
+    spacing={12}
   >
     <Spacer />
-    <Image systemName={icon as any} size={28} color="secondary" />
+    <Image color="secondary" size={28} systemName={icon as any} />
     <Text color="secondary">{label}</Text>
     <Spacer />
   </VStack>
@@ -80,7 +80,7 @@ const FullHeightMedia = ({
 }) => {
   // Show thumbnail immediately while full image loads
   const [activeUri, setActiveUri] = useState<string | null>(
-    fallbackUri ?? primaryUri ?? null,
+    fallbackUri ?? primaryUri ?? null
   );
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -101,9 +101,9 @@ const FullHeightMedia = ({
   if (!activeUri || hasError) {
     return (
       <FullHeightPlaceholder
+        height={height}
         icon={fallbackIcon}
         label={fallbackLabel}
-        height={height}
       />
     );
   }
@@ -122,15 +122,15 @@ const FullHeightMedia = ({
     <ZStack modifiers={[frame({ height })]}>
       <RNImage
         key={activeUri}
+        onError={handleError}
+        onLoadEnd={() => setIsLoading(false)}
+        onLoadStart={() => isPrimary && setIsLoading(true)}
+        resizeMode="contain"
         source={{ uri: activeUri, cache: "force-cache" }}
         style={{
           width: "100%",
           height: "100%",
         }}
-        resizeMode="contain"
-        onLoadStart={() => isPrimary && setIsLoading(true)}
-        onLoadEnd={() => setIsLoading(false)}
-        onError={handleError}
       />
       {isLoading ? <CircularProgress /> : null}
     </ZStack>
@@ -147,12 +147,12 @@ const ActionButton = ({
   disabled?: boolean;
 }) => (
   <Button
-    variant="bordered"
     controlSize="large"
-    onPress={onPress}
     disabled={disabled}
+    onPress={onPress}
+    variant="bordered"
   >
-    <HStack spacing={10} alignment="center">
+    <HStack alignment="center" spacing={10}>
       <Spacer />
       <Text color="primary" design="rounded">
         {label}
@@ -180,20 +180,20 @@ const CenteredPanel = ({
   actionDisabled?: boolean;
 }) => (
   <VStack
-    spacing={12}
     alignment="center"
     modifiers={[frame({ height }), padding({ all: 16 })]}
+    spacing={12}
   >
     <Spacer />
-    <Image systemName={icon as any} size={28} color="secondary" />
+    <Image color="secondary" size={28} systemName={icon as any} />
     <Text weight="semibold">{title}</Text>
     {subtitle}
     <Spacer />
     {actionLabel && onAction ? (
       <ActionButton
+        disabled={actionDisabled}
         label={actionLabel}
         onPress={onAction}
-        disabled={actionDisabled}
       />
     ) : null}
   </VStack>
@@ -216,35 +216,35 @@ const AudioPreview = ({
 }) => {
   return (
     <VStack
-      spacing={16}
       alignment="center"
       modifiers={[frame({ height }), padding({ all: 16 })]}
+      spacing={16}
     >
       <Spacer />
       <Image
+        color="primary"
+        size={42}
         systemName={
           (isPlaying ? "pause.circle.fill" : "play.circle.fill") as any
         }
-        size={42}
-        color="primary"
       />
       <Text weight="semibold">{title}</Text>
       <Button
-        variant="bordered"
         controlSize="large"
-        onPress={onToggle}
         disabled={!hasSource || isLoading}
+        onPress={onToggle}
+        variant="bordered"
       >
-        <HStack spacing={10} alignment="center">
+        <HStack alignment="center" spacing={10}>
           <Spacer />
           <Text color="primary" design="rounded">
-            {!hasSource
-              ? "Audio unavailable"
-              : isLoading
+            {hasSource
+              ? isLoading
                 ? "Loading..."
                 : isPlaying
                   ? "Pause"
-                  : "Play"}
+                  : "Play"
+              : "Audio unavailable"}
           </Text>
           <Spacer />
         </HStack>
@@ -280,7 +280,7 @@ const VideoPreview = ({
       } catch (error) {
         console.warn(
           "Failed to start video preview:",
-          error instanceof Error ? error.message : error,
+          error instanceof Error ? error.message : error
         );
       }
     };
@@ -291,7 +291,7 @@ const VideoPreview = ({
       } catch (error) {
         console.warn(
           "Failed to pause video preview:",
-          error instanceof Error ? error.message : error,
+          error instanceof Error ? error.message : error
         );
       }
     };
@@ -313,16 +313,16 @@ const VideoPreview = ({
       {/* Show poster while video loads */}
       {posterUri && !hasStartedPlaying ? (
         <RNImage
+          resizeMode="contain"
           source={{ uri: posterUri, cache: "force-cache" }}
           style={{ width: "100%", height: "100%" }}
-          resizeMode="contain"
         />
       ) : null}
       <VideoView
+        contentFit="contain"
+        nativeControls
         player={player}
         style={{ width: "100%", height: "100%" }}
-        nativeControls
-        contentFit="contain"
       />
       {isLoading ? <CircularProgress /> : null}
     </ZStack>
@@ -361,7 +361,7 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
     } catch (error) {
       console.warn(
         "Failed to stop audio preview:",
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
     }
     try {
@@ -369,7 +369,7 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
     } catch (error) {
       console.warn(
         "Failed to unload audio preview:",
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
     }
     soundRef.current = null;
@@ -379,7 +379,9 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
   }, []);
 
   const loadAndPlayAudio = useCallback(async () => {
-    if (!audioUrl) return;
+    if (!audioUrl) {
+      return;
+    }
     if (!isAudioSupported) {
       setAudioError("Unsupported audio format");
       return;
@@ -409,13 +411,13 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
           setIsAudioLoading(status.isBuffering ?? false);
           setIsAudioPlaying(status.isPlaying ?? false);
         },
-        true,
+        true
       );
       soundRef.current = sound;
     } catch (error) {
       console.warn(
         "Failed to load audio preview:",
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
       setIsAudioLoading(false);
       setIsAudioPlaying(false);
@@ -446,7 +448,9 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
   }, [stopAndUnloadAudio]);
 
   const handleToggleAudio = useCallback(async () => {
-    if (!audioUrl || !isAudioSupported) return;
+    if (!(audioUrl && isAudioSupported)) {
+      return;
+    }
     const sound = soundRef.current;
     if (!sound) {
       await loadAndPlayAudio();
@@ -466,7 +470,7 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
     } catch (error) {
       console.warn(
         "Failed to toggle audio preview:",
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
     }
   }, [audioUrl, isAudioSupported, loadAndPlayAudio]);
@@ -480,12 +484,14 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
     } catch (error) {
       console.error(
         "Failed to open URL:",
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
     }
   }, []);
 
-  if (!card) return null;
+  if (!card) {
+    return null;
+  }
 
   const textContent = card.content?.trim() || "No content";
   const title =
@@ -515,30 +521,30 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
       case "image":
         return (
           <FullHeightMedia
-            primaryUri={imageUrl}
-            fallbackUri={imageFallback}
-            height={sheetHeight}
             fallbackIcon="photo"
             fallbackLabel="Image unavailable"
+            fallbackUri={imageFallback}
+            height={sheetHeight}
+            primaryUri={imageUrl}
           />
         );
       case "video":
         if (!card.fileUrl) {
           return (
             <FullHeightMedia
-              primaryUri={videoPoster}
-              height={sheetHeight}
               fallbackIcon="play.rectangle"
               fallbackLabel="Video preview unavailable"
+              height={sheetHeight}
+              primaryUri={videoPoster}
             />
           );
         }
         return (
           <VideoPreview
-            uri={card.fileUrl}
             height={sheetHeight}
             isOpen={isOpen}
             posterUri={videoPoster}
+            uri={card.fileUrl}
           />
         );
       case "text":
@@ -550,9 +556,9 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
         if (!card.colors?.length) {
           return (
             <FullHeightPlaceholder
+              height={sheetHeight}
               icon="paintpalette"
               label="No colors saved"
-              height={sheetHeight}
             />
           );
         }
@@ -561,9 +567,9 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
             <List listStyle="insetGrouped">
               {card.colors.slice(0, 12).map((color, index) => (
                 <HStack
+                  alignment="center"
                   key={`${color.hex}-${index}`}
                   spacing={12}
-                  alignment="center"
                 >
                   <Circle
                     modifiers={[
@@ -582,9 +588,12 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
         if (!audioUrl || audioError || !isAudioSupported) {
           return (
             <CenteredPanel
-              icon="waveform"
-              title="Audio"
+              actionLabel={audioUrl ? "Open link" : undefined}
               height={sheetHeight}
+              icon="waveform"
+              onAction={
+                audioUrl ? () => void handleOpenLink(audioUrl) : undefined
+              }
               subtitle={
                 <Text color="secondary">
                   {audioError ||
@@ -593,29 +602,28 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
                       : "Audio unavailable")}
                 </Text>
               }
-              actionLabel={audioUrl ? "Open link" : undefined}
-              onAction={
-                audioUrl ? () => void handleOpenLink(audioUrl) : undefined
-              }
+              title="Audio"
             />
           );
         }
         return (
           <AudioPreview
-            title={card.metadataTitle || "Audio"}
-            height={sheetHeight}
-            isPlaying={isAudioPlaying}
-            isLoading={isAudioLoading}
             hasSource={!!audioUrl}
+            height={sheetHeight}
+            isLoading={isAudioLoading}
+            isPlaying={isAudioPlaying}
             onToggle={handleToggleAudio}
+            title={card.metadataTitle || "Audio"}
           />
         );
       case "link":
         return (
           <CenteredPanel
-            icon="link"
-            title={linkTitle}
+            actionDisabled={!linkUrl}
+            actionLabel="Open link"
             height={sheetHeight}
+            icon="link"
+            onAction={linkUrl ? () => void handleOpenLink(linkUrl) : undefined}
             subtitle={
               linkUrl ? (
                 <Text color="secondary" lineLimit={2}>
@@ -623,30 +631,27 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
                 </Text>
               ) : undefined
             }
-            actionLabel="Open link"
-            onAction={linkUrl ? () => void handleOpenLink(linkUrl) : undefined}
-            actionDisabled={!linkUrl}
+            title={linkTitle}
           />
         );
-      case "document":
       default:
         return (
           <CenteredPanel
-            icon="doc.text"
-            title={title}
-            height={sheetHeight}
-            subtitle={
-              card.fileMetadata?.mimeType ? (
-                <Text color="secondary">{card.fileMetadata.mimeType}</Text>
-              ) : undefined
-            }
+            actionDisabled={!documentUrl}
             actionLabel={card.type === "document" ? "Open link" : undefined}
+            height={sheetHeight}
+            icon="doc.text"
             onAction={
               card.type === "document" && documentUrl
                 ? () => void handleOpenLink(documentUrl)
                 : undefined
             }
-            actionDisabled={!documentUrl}
+            subtitle={
+              card.fileMetadata?.mimeType ? (
+                <Text color="secondary">{card.fileMetadata.mimeType}</Text>
+              ) : undefined
+            }
+            title={title}
           />
         );
     }
@@ -665,6 +670,7 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
       useViewportSizeMeasurement
     >
       <BottomSheet
+        interactiveDismissDisabled={false}
         isOpened={isOpen}
         onIsOpenedChange={(open) => {
           if (!open) {
@@ -673,7 +679,6 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
         }}
         presentationDetents={isMediaFullHeight ? ["large"] : ["medium"]}
         presentationDragIndicator="visible"
-        interactiveDismissDisabled={false}
       >
         {renderBody()}
       </BottomSheet>

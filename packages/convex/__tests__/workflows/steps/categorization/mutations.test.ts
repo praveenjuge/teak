@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { updateCategorization } from '../../../../../convex/workflows/steps/categorization/mutations';
+import { updateCategorization } from "../../../../../convex/workflows/steps/categorization/mutations";
 
 describe("categorization updateCategorization", () => {
   it("updates categorization metadata without wiping AI fields", async () => {
@@ -48,7 +48,11 @@ describe("categorization updateCategorization", () => {
         },
       });
 
-      expect(cardState.aiTags).toEqual(["technology", "programming", "tutorial"]);
+      expect(cardState.aiTags).toEqual([
+        "technology",
+        "programming",
+        "tutorial",
+      ]);
       expect(cardState.aiSummary).toBe(
         "A comprehensive guide to TypeScript best practices"
       );
@@ -72,6 +76,8 @@ describe("categorization updateCategorization", () => {
       },
     };
 
-    expect(mutation(mockCtx, { cardId: "card_missing", metadata: {} })).rejects.toThrow("not found");
+    expect(
+      mutation(mockCtx, { cardId: "card_missing", metadata: {} })
+    ).rejects.toThrow("not found");
   });
 });

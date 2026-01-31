@@ -1,12 +1,12 @@
-import { useMutation } from "convex/react";
 import { api } from "@teak/convex";
+import type { Id } from "@teak/convex/_generated/dataModel";
 import {
+  type FinalizeUploadedCardArgs,
   type UnifiedFileUploadConfig,
   type UploadAndCreateCardArgs,
-  type FinalizeUploadedCardArgs,
   useFileUploadCore,
 } from "@teak/convex/shared/hooks/useFileUpload";
-import { type Id } from "@teak/convex/_generated/dataModel";
+import { useMutation } from "convex/react";
 
 export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
   const uploadAndCreateCardMutation = useMutation(

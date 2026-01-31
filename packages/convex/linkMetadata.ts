@@ -1,23 +1,23 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 
-export { normalizeUrl } from "./linkMetadata/url";
-export * from "./linkMetadata/types";
-export * from "./linkMetadata/selectors";
 export * from "./linkMetadata/instagram";
 export {
-  toSelectorMap,
+  buildDebugRaw,
+  buildErrorPreview,
+  buildSuccessPreview,
   findAttributeValue,
-  getSelectorValue,
   firstFromSources,
+  getSelectorValue,
+  parseLinkPreview,
+  sanitizeImageUrl,
   sanitizeText,
   sanitizeUrl,
-  sanitizeImageUrl,
-  buildDebugRaw,
-  parseLinkPreview,
-  buildSuccessPreview,
-  buildErrorPreview,
+  toSelectorMap,
 } from "./linkMetadata/parsing";
+export * from "./linkMetadata/selectors";
+export * from "./linkMetadata/types";
+export { normalizeUrl } from "./linkMetadata/url";
 
 export const getCardForMetadataHandler = async (ctx: any, { cardId }: any) => {
   return await ctx.db.get("cards", cardId);
@@ -28,7 +28,10 @@ export const getCardForMetadata = internalQuery({
   handler: getCardForMetadataHandler,
 });
 
-export const updateCardMetadataHandler = async (ctx: any, { cardId, linkPreview, status }: any) => {
+export const updateCardMetadataHandler = async (
+  ctx: any,
+  { cardId, linkPreview, status }: any
+) => {
   const existingCard = await ctx.db.get("cards", cardId);
   if (!existingCard) {
     console.error(`Card ${cardId} not found for metadata update`);
@@ -57,7 +60,9 @@ export const updateCardMetadataHandler = async (ctx: any, { cardId, linkPreview,
         nextLinkPreview.imageUpdatedAt =
           nextLinkPreview.imageUpdatedAt ?? previousLinkPreview.imageUpdatedAt;
       }
-      if (nextLinkPreview.imageStorageId === previousLinkPreview.imageStorageId) {
+      if (
+        nextLinkPreview.imageStorageId === previousLinkPreview.imageStorageId
+      ) {
         nextLinkPreview.imageWidth =
           nextLinkPreview.imageWidth ?? previousLinkPreview.imageWidth;
         nextLinkPreview.imageHeight =
@@ -69,7 +74,8 @@ export const updateCardMetadataHandler = async (ctx: any, { cardId, linkPreview,
   if (previousLinkPreview?.screenshotStorageId) {
     if (
       nextLinkPreview?.screenshotStorageId &&
-      nextLinkPreview.screenshotStorageId !== previousLinkPreview.screenshotStorageId
+      nextLinkPreview.screenshotStorageId !==
+        previousLinkPreview.screenshotStorageId
     ) {
       try {
         await ctx.storage.delete(previousLinkPreview.screenshotStorageId);
@@ -80,15 +86,21 @@ export const updateCardMetadataHandler = async (ctx: any, { cardId, linkPreview,
         );
       }
     } else if (nextLinkPreview && !nextLinkPreview.screenshotStorageId) {
-      nextLinkPreview.screenshotStorageId = previousLinkPreview.screenshotStorageId;
+      nextLinkPreview.screenshotStorageId =
+        previousLinkPreview.screenshotStorageId;
       nextLinkPreview.screenshotUpdatedAt =
-        nextLinkPreview.screenshotUpdatedAt ?? previousLinkPreview.screenshotUpdatedAt;
+        nextLinkPreview.screenshotUpdatedAt ??
+        previousLinkPreview.screenshotUpdatedAt;
     }
-    if (nextLinkPreview?.screenshotStorageId === previousLinkPreview.screenshotStorageId) {
+    if (
+      nextLinkPreview?.screenshotStorageId ===
+      previousLinkPreview.screenshotStorageId
+    ) {
       nextLinkPreview.screenshotWidth =
         nextLinkPreview.screenshotWidth ?? previousLinkPreview.screenshotWidth;
       nextLinkPreview.screenshotHeight =
-        nextLinkPreview.screenshotHeight ?? previousLinkPreview.screenshotHeight;
+        nextLinkPreview.screenshotHeight ??
+        previousLinkPreview.screenshotHeight;
     }
   }
 
@@ -104,7 +116,9 @@ export const updateCardMetadataHandler = async (ctx: any, { cardId, linkPreview,
   } else {
     updatedMetadata = {
       ...existingCard.metadata,
-      ...(nextLinkPreview !== undefined ? { linkPreview: nextLinkPreview } : {}),
+      ...(nextLinkPreview !== undefined
+        ? { linkPreview: nextLinkPreview }
+        : {}),
       ...(existingCategory ? { linkCategory: existingCategory } : {}),
     };
   }

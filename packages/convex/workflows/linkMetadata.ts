@@ -1,16 +1,19 @@
-import { v } from "convex/values";
 import type { RetryBehavior } from "@convex-dev/workpool";
-import { internalMutation } from "../_generated/server";
-import { workflow } from "./manager";
+import { v } from "convex/values";
 import { internal } from "../_generated/api";
+import { internalMutation } from "../_generated/server";
 import { buildErrorPreview } from "../linkMetadata";
+import { workflow } from "./manager";
 import {
   LINK_METADATA_RETRYABLE_PREFIX,
   type LinkMetadataRetryableError,
 } from "./steps/linkMetadata/fetchMetadata";
 
 const internalWorkflow = internal as Record<string, any>;
-const linkMetadataInternal = internalWorkflow["linkMetadata"] as Record<string, any>;
+const linkMetadataInternal = internalWorkflow["linkMetadata"] as Record<
+  string,
+  any
+>;
 
 const LINK_METADATA_RETRY: RetryBehavior = {
   maxAttempts: 5,
@@ -19,7 +22,7 @@ const LINK_METADATA_RETRY: RetryBehavior = {
 };
 
 export const parseLinkMetadataRetryableError = (
-  error: unknown,
+  error: unknown
 ): LinkMetadataRetryableError | null => {
   if (!(error instanceof Error) || typeof error.message !== "string") {
     return null;
@@ -38,13 +41,16 @@ export const parseLinkMetadataRetryableError = (
   }
 };
 
-export const linkMetadataWorkflowHandler = async (step: any, { cardId }: any) => {
+export const linkMetadataWorkflowHandler = async (
+  step: any,
+  { cardId }: any
+) => {
   try {
     const result = await step.runAction(
       internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
         .fetchMetadata,
       { cardId },
-      { retry: LINK_METADATA_RETRY },
+      { retry: LINK_METADATA_RETRY }
     );
 
     return {
@@ -96,12 +102,15 @@ export const linkMetadataWorkflow = workflow.define({
   handler: linkMetadataWorkflowHandler,
 });
 
-export const startLinkMetadataWorkflowHandler = async (ctx: any, { cardId, startAsync }: any) => {
+export const startLinkMetadataWorkflowHandler = async (
+  ctx: any,
+  { cardId, startAsync }: any
+) => {
   const workflowId = await workflow.start(
     ctx,
     internalWorkflow["workflows/linkMetadata"].linkMetadataWorkflow,
     { cardId },
-    { startAsync: startAsync ?? false },
+    { startAsync: startAsync ?? false }
   );
 
   return { workflowId };

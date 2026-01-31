@@ -1,9 +1,9 @@
-import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
+import { v } from "convex/values";
+import type { Doc } from "../_generated/dataModel";
 import { query } from "../_generated/server";
 import { cardTypeValidator, cardValidator } from "../schema";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
-import type { Doc } from "../_generated/dataModel";
 
 // Return validator for card arrays - includes _id and _creationTime from Convex
 export const cardReturnValidator = v.object({
@@ -22,11 +22,7 @@ const paginationResultValidator = v.object({
   continueCursor: v.union(v.string(), v.null()),
   splitCursor: v.optional(v.union(v.string(), v.null())),
   pageStatus: v.optional(
-    v.union(
-      v.literal("SplitRecommended"),
-      v.literal("SplitRequired"),
-      v.null(),
-    ),
+    v.union(v.literal("SplitRecommended"), v.literal("SplitRequired"), v.null())
   ),
 });
 
@@ -39,7 +35,7 @@ type CardWithUrls = Doc<"cards"> & {
 
 const attachFileUrls = async (
   ctx: any,
-  cards: Doc<"cards">[],
+  cards: Doc<"cards">[]
 ): Promise<CardWithUrls[]> => {
   // Collect all unique storage IDs across all cards
   const storageIds = new Set<string>();
@@ -117,7 +113,7 @@ export const getCards = query({
     let query = ctx.db
       .query("cards")
       .withIndex("by_user_deleted", (q) =>
-        q.eq("userId", user.subject).eq("isDeleted", undefined),
+        q.eq("userId", user.subject).eq("isDeleted", undefined)
       );
 
     if (args.type) {
@@ -128,7 +124,7 @@ export const getCards = query({
           q
             .eq("userId", user.subject)
             .eq("type", args.type!)
-            .eq("isDeleted", undefined),
+            .eq("isDeleted", undefined)
         );
     }
 
@@ -140,7 +136,7 @@ export const getCards = query({
           q
             .eq("userId", user.subject)
             .eq("isFavorited", true)
-            .eq("isDeleted", undefined),
+            .eq("isDeleted", undefined)
         );
     }
 
@@ -190,7 +186,7 @@ export const searchCards = query({
             q
               .eq("userId", user.subject)
               .eq("isFavorited", true)
-              .eq("isDeleted", undefined),
+              .eq("isDeleted", undefined)
           )
           .order("desc")
           .take(limit);
@@ -202,7 +198,7 @@ export const searchCards = query({
         const trashed = await ctx.db
           .query("cards")
           .withIndex("by_user_deleted", (q) =>
-            q.eq("userId", user.subject).eq("isDeleted", true),
+            q.eq("userId", user.subject).eq("isDeleted", true)
           )
           .order("desc")
           .take(limit);
@@ -219,7 +215,7 @@ export const searchCards = query({
             q
               .search("content", searchQuery)
               .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined),
+              .eq("isDeleted", showTrashOnly ? true : undefined)
           )
           .take(limit),
 
@@ -230,7 +226,7 @@ export const searchCards = query({
             q
               .search("notes", searchQuery)
               .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined),
+              .eq("isDeleted", showTrashOnly ? true : undefined)
           )
           .take(limit),
 
@@ -241,7 +237,7 @@ export const searchCards = query({
             q
               .search("aiSummary", searchQuery)
               .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined),
+              .eq("isDeleted", showTrashOnly ? true : undefined)
           )
           .take(limit),
 
@@ -252,7 +248,7 @@ export const searchCards = query({
             q
               .search("aiTranscript", searchQuery)
               .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined),
+              .eq("isDeleted", showTrashOnly ? true : undefined)
           )
           .take(limit),
 
@@ -263,7 +259,7 @@ export const searchCards = query({
             q
               .search("metadataTitle", searchQuery)
               .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined),
+              .eq("isDeleted", showTrashOnly ? true : undefined)
           )
           .take(limit),
 
@@ -274,7 +270,7 @@ export const searchCards = query({
             q
               .search("metadataDescription", searchQuery)
               .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined),
+              .eq("isDeleted", showTrashOnly ? true : undefined)
           )
           .take(limit),
 
@@ -285,7 +281,7 @@ export const searchCards = query({
             .withIndex("by_user_deleted", (q) =>
               q
                 .eq("userId", user.subject)
-                .eq("isDeleted", showTrashOnly ? true : undefined),
+                .eq("isDeleted", showTrashOnly ? true : undefined)
             )
             .take(limit * 2); // Get more to filter down
 
@@ -294,8 +290,8 @@ export const searchCards = query({
             (card) =>
               card.tags &&
               card.tags.some((tag) =>
-                searchTerms.some((term) => tag.toLowerCase().includes(term)),
-              ),
+                searchTerms.some((term) => tag.toLowerCase().includes(term))
+              )
           );
         })(),
 
@@ -306,7 +302,7 @@ export const searchCards = query({
             .withIndex("by_user_deleted", (q) =>
               q
                 .eq("userId", user.subject)
-                .eq("isDeleted", showTrashOnly ? true : undefined),
+                .eq("isDeleted", showTrashOnly ? true : undefined)
             )
             .take(limit * 2); // Get more to filter down
 
@@ -315,8 +311,8 @@ export const searchCards = query({
             (card) =>
               card.aiTags &&
               card.aiTags.some((tag) =>
-                searchTerms.some((term) => tag.toLowerCase().includes(term)),
-              ),
+                searchTerms.some((term) => tag.toLowerCase().includes(term))
+              )
           );
         })(),
       ]);
@@ -324,7 +320,7 @@ export const searchCards = query({
       // Combine and deduplicate results
       const allResults = searchResults.flat();
       const uniqueResults = Array.from(
-        new Map(allResults.map((card) => [card._id, card])).values(),
+        new Map(allResults.map((card) => [card._id, card])).values()
       );
 
       // Apply additional filters
@@ -332,13 +328,13 @@ export const searchCards = query({
 
       if (types && types.length > 0) {
         filteredResults = filteredResults.filter((card) =>
-          types.includes(card.type),
+          types.includes(card.type)
         );
       }
 
       if (favoritesOnly) {
         filteredResults = filteredResults.filter(
-          (card) => card.isFavorited === true,
+          (card) => card.isFavorited === true
         );
       }
 
@@ -357,7 +353,7 @@ export const searchCards = query({
       .withIndex("by_user_deleted", (q) =>
         q
           .eq("userId", user.subject)
-          .eq("isDeleted", showTrashOnly ? true : undefined),
+          .eq("isDeleted", showTrashOnly ? true : undefined)
       );
 
     if (types && types.length === 1) {
@@ -366,7 +362,7 @@ export const searchCards = query({
         q
           .eq("userId", user.subject)
           .eq("type", types[0])
-          .eq("isDeleted", showTrashOnly ? true : undefined),
+          .eq("isDeleted", showTrashOnly ? true : undefined)
       );
     } else if (types && types.length > 1) {
       // Filter by multiple types - must use .filter() for OR conditions across different type values
@@ -403,13 +399,8 @@ export const searchCardsPaginated = query({
       return { page: [], isDone: true, continueCursor: null };
     }
 
-    const {
-      paginationOpts,
-      searchQuery,
-      types,
-      favoritesOnly,
-      showTrashOnly,
-    } = args;
+    const { paginationOpts, searchQuery, types, favoritesOnly, showTrashOnly } =
+      args;
 
     if (searchQuery && searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
@@ -423,7 +414,7 @@ export const searchCardsPaginated = query({
             q
               .eq("userId", user.subject)
               .eq("isFavorited", true)
-              .eq("isDeleted", undefined),
+              .eq("isDeleted", undefined)
           )
           .order("desc")
           .paginate(paginationOpts);
@@ -438,7 +429,7 @@ export const searchCardsPaginated = query({
         const trashed = await ctx.db
           .query("cards")
           .withIndex("by_user_deleted", (q) =>
-            q.eq("userId", user.subject).eq("isDeleted", true),
+            q.eq("userId", user.subject).eq("isDeleted", true)
           )
           .order("desc")
           .paginate(paginationOpts);
@@ -449,10 +440,10 @@ export const searchCardsPaginated = query({
         };
       }
 
-      const rawCursor =
-        paginationOpts.cursor ?? "0";
+      const rawCursor = paginationOpts.cursor ?? "0";
       const parsedCursor = Number(rawCursor);
-      const offset = Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0;
+      const offset =
+        Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0;
       const pageSize = paginationOpts.numItems;
       const desiredLimit = offset + pageSize + 1;
       // Reduced multipliers - with <1000 cards per user, aggressive over-fetch isn't needed
@@ -479,7 +470,11 @@ export const searchCardsPaginated = query({
       const noTypeFilter = typesSet.size === 0;
       const hasMultiTypeFilter = typesSet.size > 1;
       const includeAiTranscript = noTypeFilter || typesSet.has("audio");
-      const includeAiSummary = noTypeFilter || (["audio", "video", "document", "image", "link"] as const).some((t) => typesSet.has(t));
+      const includeAiSummary =
+        noTypeFilter ||
+        (["audio", "video", "document", "image", "link"] as const).some((t) =>
+          typesSet.has(t)
+        );
 
       // Build search query array, ordered by selectivity (most selective first)
       // 1. content - most unique user content
@@ -494,25 +489,25 @@ export const searchCardsPaginated = query({
         ctx.db
           .query("cards")
           .withSearchIndex("search_content", (q) =>
-            applySearchFilters(q).search("content", searchQuery),
+            applySearchFilters(q).search("content", searchQuery)
           )
           .take(searchLimit),
         ctx.db
           .query("cards")
           .withSearchIndex("search_metadata_title", (q) =>
-            applySearchFilters(q).search("metadataTitle", searchQuery),
+            applySearchFilters(q).search("metadataTitle", searchQuery)
           )
           .take(searchLimit),
         ctx.db
           .query("cards")
           .withSearchIndex("search_notes", (q) =>
-            applySearchFilters(q).search("notes", searchQuery),
+            applySearchFilters(q).search("notes", searchQuery)
           )
           .take(searchLimit),
         ctx.db
           .query("cards")
           .withSearchIndex("search_metadata_description", (q) =>
-            applySearchFilters(q).search("metadataDescription", searchQuery),
+            applySearchFilters(q).search("metadataDescription", searchQuery)
           )
           .take(searchLimit),
         ...(includeAiSummary
@@ -520,7 +515,7 @@ export const searchCardsPaginated = query({
               ctx.db
                 .query("cards")
                 .withSearchIndex("search_ai_summary", (q) =>
-                  applySearchFilters(q).search("aiSummary", searchQuery),
+                  applySearchFilters(q).search("aiSummary", searchQuery)
                 )
                 .take(searchLimit),
             ]
@@ -530,7 +525,7 @@ export const searchCardsPaginated = query({
               ctx.db
                 .query("cards")
                 .withSearchIndex("search_ai_transcript", (q) =>
-                  applySearchFilters(q).search("aiTranscript", searchQuery),
+                  applySearchFilters(q).search("aiTranscript", searchQuery)
                 )
                 .take(searchLimit),
             ]
@@ -538,13 +533,13 @@ export const searchCardsPaginated = query({
         ctx.db
           .query("cards")
           .withSearchIndex("search_tags", (q) =>
-            applySearchFilters(q).search("tags", searchQuery),
+            applySearchFilters(q).search("tags", searchQuery)
           )
           .take(tagSearchLimit),
         ctx.db
           .query("cards")
           .withSearchIndex("search_ai_tags", (q) =>
-            applySearchFilters(q).search("aiTags", searchQuery),
+            applySearchFilters(q).search("aiTags", searchQuery)
           )
           .take(tagSearchLimit),
       ];
@@ -572,7 +567,7 @@ export const searchCardsPaginated = query({
       const filteredResults = uniqueResults;
 
       const sortedResults = filteredResults.sort(
-        (a, b) => b.createdAt - a.createdAt,
+        (a, b) => b.createdAt - a.createdAt
       );
       const page = sortedResults.slice(offset, offset + pageSize);
       const isDone = sortedResults.length <= offset + pageSize;
@@ -591,7 +586,7 @@ export const searchCardsPaginated = query({
       .withIndex("by_user_deleted", (q) =>
         q
           .eq("userId", user.subject)
-          .eq("isDeleted", showTrashOnly ? true : undefined),
+          .eq("isDeleted", showTrashOnly ? true : undefined)
       );
 
     if (types && types.length === 1) {
@@ -599,7 +594,7 @@ export const searchCardsPaginated = query({
         q
           .eq("userId", user.subject)
           .eq("type", types[0])
-          .eq("isDeleted", showTrashOnly ? true : undefined),
+          .eq("isDeleted", showTrashOnly ? true : undefined)
       );
     } else if (types && types.length > 1) {
       query = query.filter((q) => {

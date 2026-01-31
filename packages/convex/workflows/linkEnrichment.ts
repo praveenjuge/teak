@@ -1,8 +1,8 @@
-import { v } from "convex/values";
 import type { RetryBehavior } from "@convex-dev/workpool";
+import { v } from "convex/values";
+import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
 import { workflow } from "./manager";
-import { internal } from "../_generated/api";
 
 const internalWorkflow = internal as Record<string, any>;
 const LOG_PREFIX = "[workflow/linkEnrichment]";
@@ -27,19 +27,20 @@ export const linkEnrichmentWorkflow = workflow.define({
     const classifyResult = await step.runAction(
       internalWorkflow["workflows/steps/categorization/index"].classifyStep,
       { cardId },
-      { retry: LINK_ENRICHMENT_RETRY },
+      { retry: LINK_ENRICHMENT_RETRY }
     );
 
     let structuredData: unknown = null;
     if (classifyResult.mode === "classified") {
       const fetchResult = await step.runAction(
-        internalWorkflow["workflows/steps/categorization/index"].fetchStructuredDataStep,
+        internalWorkflow["workflows/steps/categorization/index"]
+          .fetchStructuredDataStep,
         {
           cardId,
           sourceUrl: classifyResult.sourceUrl,
           shouldFetch: classifyResult.shouldFetchStructured,
         },
-        { retry: LINK_ENRICHMENT_RETRY },
+        { retry: LINK_ENRICHMENT_RETRY }
       );
       structuredData = fetchResult.structuredData ?? null;
     }
@@ -55,10 +56,13 @@ export const linkEnrichmentWorkflow = workflow.define({
         existingMetadata: classifyResult.existingMetadata,
         structuredData,
       },
-      { retry: LINK_ENRICHMENT_RETRY },
+      { retry: LINK_ENRICHMENT_RETRY }
     );
 
-    console.info(`${LOG_PREFIX} Completed`, { cardId, category: mergeResult.category });
+    console.info(`${LOG_PREFIX} Completed`, {
+      cardId,
+      category: mergeResult.category,
+    });
 
     return mergeResult;
   },
@@ -85,7 +89,7 @@ export const startLinkEnrichmentWorkflow = internalMutation({
       ctx,
       internalWorkflow["workflows/linkEnrichment"].linkEnrichmentWorkflow,
       { cardId },
-      { startAsync: startAsync ?? false },
+      { startAsync: startAsync ?? false }
     );
 
     if (typeof result === "string") {

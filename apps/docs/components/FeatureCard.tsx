@@ -1,7 +1,7 @@
-import { Shield, Zap, Smartphone, Search, Layers, Heart } from 'lucide-react';
+import { Heart, Layers, Search, Shield, Smartphone, Zap } from "lucide-react";
 
 interface FeatureCardProps {
-  icon: 'shield' | 'lightning' | 'mobile' | 'search' | 'stack' | 'heart';
+  icon: "shield" | "lightning" | "mobile" | "search" | "stack" | "heart";
   title: string;
   description: string;
 }
@@ -17,7 +17,7 @@ const iconMap = {
 
 export function FeatureCard({ icon, title, description }: FeatureCardProps) {
   const IconComponent = iconMap[icon];
-  
+
   return (
     <div className="rounded-lg border border-border bg-card p-6">
       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">

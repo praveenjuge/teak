@@ -1,7 +1,7 @@
-import { useState } from "react";
+import type { Doc } from "@teak/convex/_generated/dataModel";
 import { Copy } from "lucide-react";
+import { useState } from "react";
 import { Button } from "../ui/button";
-import { type Doc } from "@teak/convex/_generated/dataModel";
 
 interface PalettePreviewProps {
   card: Doc<"cards">;
@@ -24,7 +24,7 @@ export function PalettePreview({ card }: PalettePreviewProps) {
 
   if (colors.length === 0) {
     return (
-      <div className="flex items-center justify-center h-32 text-muted-foreground">
+      <div className="flex h-32 items-center justify-center text-muted-foreground">
         <p>No colors detected in this palette</p>
       </div>
     );
@@ -34,21 +34,21 @@ export function PalettePreview({ card }: PalettePreviewProps) {
     <div className="space-y-2">
       {/* Colors */}
       {colors.map((color, index) => (
-        <div key={`${color.hex}-${index}`} className="rounded overflow-hidden">
+        <div className="overflow-hidden rounded" key={`${color.hex}-${index}`}>
           {/* Color Swatch with values inline */}
           <div
-            className="w-full flex items-center justify-end p-2 cursor-pointer"
-            style={{ backgroundColor: color.hex }}
+            className="flex w-full cursor-pointer items-center justify-end p-2"
             onClick={() => void copyToClipboard(color.hex, color.hex)}
+            style={{ backgroundColor: color.hex }}
           >
             <Button
-              size="sm"
-              variant="outline"
               className="dark:bg-background"
               onClick={(e) => {
                 e.stopPropagation();
                 void copyToClipboard(color.hex, color.hex);
               }}
+              size="sm"
+              variant="outline"
             >
               <Copy />
               {copiedColor === color.hex ? "Copied!" : color.hex}

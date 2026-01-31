@@ -1,16 +1,16 @@
 // @ts-nocheck
 import { describe, expect, test } from "bun:test";
 import {
-  stageCompleted,
-  stagePending,
-  stageInProgress,
-  stageFailed,
-  withStageStatus,
-  shouldRunRenderablesStage,
-  shouldRunCategorizeStage,
   buildInitialProcessingStatus,
   type ProcessingStageStatus,
-} from '../../../convex/card/processingStatus';
+  shouldRunCategorizeStage,
+  shouldRunRenderablesStage,
+  stageCompleted,
+  stageFailed,
+  stageInProgress,
+  stagePending,
+  withStageStatus,
+} from "../../../convex/card/processingStatus";
 
 describe("processingStatus", () => {
   const now = 1000;
@@ -179,12 +179,12 @@ describe("processingStatus", () => {
     });
 
     test("respects renderables stage override", () => {
-        const res = buildInitialProcessingStatus({
-            now,
-            cardType: "link",
-            renderablesStageOverride: true,
-        });
-        expect(res.renderables?.status).toBe("pending");
+      const res = buildInitialProcessingStatus({
+        now,
+        cardType: "link",
+        renderablesStageOverride: true,
+      });
+      expect(res.renderables?.status).toBe("pending");
     });
   });
 });

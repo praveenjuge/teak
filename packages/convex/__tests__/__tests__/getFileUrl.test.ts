@@ -1,11 +1,11 @@
-import { test, expect } from "bun:test";
+import { expect, test } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
 
 test("getFileUrl enforces auth and card ownership checks", () => {
   const filePath = join(
     new URL(".", import.meta.url).pathname,
-    "../../../convex/card/getFileUrl.ts",
+    "../../../convex/card/getFileUrl.ts"
   );
   const source = readFileSync(filePath, "utf8");
 

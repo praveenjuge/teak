@@ -1,28 +1,28 @@
-import { useRef, useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Button, buttonVariants } from "@/components/ui/button";
-import Link from "next/link";
 import {
-  Search,
+  CARD_TYPE_LABELS,
+  type CardType,
+  cardTypes,
+  getCardTypeIcon,
+} from "@teak/convex/shared/constants";
+import {
+  File,
+  FileText,
   Hash,
   Heart,
-  Trash2,
-  Link as LinkIcon,
-  FileText,
   Image,
-  Video,
-  Volume2,
-  File,
+  Link as LinkIcon,
   Palette,
   Quote,
+  Search,
   Settings,
+  Trash2,
+  Video,
+  Volume2,
 } from "lucide-react";
-import {
-  type CardType,
-  CARD_TYPE_LABELS,
-  getCardTypeIcon,
-  cardTypes,
-} from "@teak/convex/shared/constants";
+import Link from "next/link";
+import { useRef, useState } from "react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 interface SearchBarProps {
@@ -89,42 +89,42 @@ export function SearchBar({
 
   return (
     <>
-      <div className="flex items-center group">
+      <div className="group flex items-center">
         <div className="flex items-center gap-2">
-          <Search className="text-muted-foreground size-4 group-focus-within:text-primary group-focus-within:stroke-[2.5] group-hover:text-primary group-hover:stroke-[2.5]" />
+          <Search className="size-4 text-muted-foreground group-focus-within:stroke-[2.5] group-focus-within:text-primary group-hover:stroke-[2.5] group-hover:text-primary" />
         </div>
 
         <div className="relative flex-1">
           <Input
-            ref={inputRef}
-            type="search"
-            placeholder="Search for anything..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            onKeyDown={onKeyDown}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            className="border-0 focus-visible:outline-none focus-visible:ring-0 h-16 rounded-none bg-transparent dark:bg-transparent"
             autoCapitalize="off"
             autoCorrect="off"
+            className="h-16 rounded-none border-0 bg-transparent focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent"
+            onBlur={() => setIsFocused(false)}
+            onChange={(e) => onSearchChange(e.target.value)}
+            onFocus={() => setIsFocused(true)}
+            onKeyDown={onKeyDown}
+            placeholder="Search for anything..."
+            ref={inputRef}
+            type="search"
+            value={searchQuery}
           />
         </div>
 
         <Link
-          href="/settings"
           className={cn(
             buttonVariants({
               variant: "outline",
               size: "icon",
             })
           )}
+          href="/settings"
         >
           <Settings />
         </Link>
       </div>
       {shouldShowFilters && (
         <div
-          className="pb-5 animate-in slide-in-from-top-2 fade-in-0 duration-200"
+          className="slide-in-from-top-2 fade-in-0 animate-in pb-5 duration-200"
           onMouseDown={(e) => e.preventDefault()}
         >
           <div className="flex flex-wrap gap-2">
@@ -132,9 +132,9 @@ export function SearchBar({
             {keywordTags.map((keyword) => (
               <Button
                 key={`keyword-${keyword}`}
-                variant="default"
-                size="sm"
                 onClick={() => onRemoveKeyword(keyword)}
+                size="sm"
+                variant="default"
               >
                 <Hash className="size-3.5 stroke-2" />
                 <span>{keyword}</span>
@@ -147,9 +147,9 @@ export function SearchBar({
               return (
                 <Button
                   key={`filter-${filter}`}
-                  variant="default"
-                  size="sm"
                   onClick={() => onRemoveFilter(filter)}
+                  size="sm"
+                  variant="default"
                 >
                   <IconComponent className="size-3.5 stroke-2" />
                   <span>{CARD_TYPE_LABELS[filter]}</span>
@@ -158,14 +158,14 @@ export function SearchBar({
             })}
 
             {showFavoritesOnly && (
-              <Button variant="default" size="sm" onClick={onToggleFavorites}>
+              <Button onClick={onToggleFavorites} size="sm" variant="default">
                 <Heart className="size-3.5 stroke-2" />
                 <span>Favorites</span>
               </Button>
             )}
 
             {showTrashOnly && (
-              <Button variant="default" size="sm" onClick={onToggleTrash}>
+              <Button onClick={onToggleTrash} size="sm" variant="default">
                 <Trash2 className="size-3.5 stroke-2" />
                 <span>Trash</span>
               </Button>
@@ -177,9 +177,9 @@ export function SearchBar({
               return (
                 <Button
                   key={`available-${filter}`}
-                  variant="outline"
-                  size="sm"
                   onClick={() => onAddFilter(filter)}
+                  size="sm"
+                  variant="outline"
                 >
                   <IconComponent className="size-3.5 stroke-2" />
                   <span>{CARD_TYPE_LABELS[filter]}</span>
@@ -188,21 +188,21 @@ export function SearchBar({
             })}
 
             {!showFavoritesOnly && (
-              <Button variant="outline" size="sm" onClick={onToggleFavorites}>
+              <Button onClick={onToggleFavorites} size="sm" variant="outline">
                 <Heart className="size-3.5 stroke-2" />
                 <span>Favorites</span>
               </Button>
             )}
 
             {!showTrashOnly && (
-              <Button variant="outline" size="sm" onClick={onToggleTrash}>
+              <Button onClick={onToggleTrash} size="sm" variant="outline">
                 <Trash2 className="size-3.5 stroke-2" />
                 <span>Trash</span>
               </Button>
             )}
 
             {hasAnyFilters && (
-              <Button variant="outline" size="sm" onClick={onClearAll}>
+              <Button onClick={onClearAll} size="sm" variant="outline">
                 Clear All
               </Button>
             )}

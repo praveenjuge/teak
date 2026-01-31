@@ -1,16 +1,9 @@
 import type { LinkCategoryDetail } from "@teak/convex/shared";
-import type {
-  ProviderEnrichmentResult,
-  RawSelectorMap,
-} from "./common";
-import {
-  formatCountString,
-  getRawText,
-  normalizeWhitespace,
-} from "./common";
+import type { ProviderEnrichmentResult, RawSelectorMap } from "./common";
+import { formatCountString, getRawText, normalizeWhitespace } from "./common";
 
 export const enrichGithub = (
-  rawMap: RawSelectorMap,
+  rawMap: RawSelectorMap
 ): ProviderEnrichmentResult | null => {
   const stars = formatCountString(getRawText(rawMap, "a[href$='/stargazers']"));
   const forks = formatCountString(

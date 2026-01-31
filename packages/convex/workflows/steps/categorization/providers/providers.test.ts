@@ -1,12 +1,19 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { enrichAmazon } from "./amazon";
+import type { RawSelectorMap } from "./common";
 import { enrichGithub } from "./github";
 import { enrichGoodreads } from "./goodreads";
 import { enrichImdb } from "./imdb";
-import type { RawSelectorMap } from "./common";
 
 // Helper function to create a raw selector map
-const createMap = (entries: Array<[string, { text?: string; attributes?: Array<{ name?: string; value?: string }> }]>): RawSelectorMap => {
+const createMap = (
+  entries: Array<
+    [
+      string,
+      { text?: string; attributes?: Array<{ name?: string; value?: string }> },
+    ]
+  >
+): RawSelectorMap => {
   return new Map(entries);
 };
 
@@ -17,9 +24,7 @@ describe("enrichAmazon", () => {
   });
 
   it("should extract price from #priceblock_ourprice", () => {
-    const map = createMap([
-      ["#priceblock_ourprice", { text: "$19.99" }],
-    ]);
+    const map = createMap([["#priceblock_ourprice", { text: "$19.99" }]]);
     const result = enrichAmazon(map);
 
     expect(result).not.toBeNull();
@@ -29,18 +34,14 @@ describe("enrichAmazon", () => {
   });
 
   it("should extract price from #priceblock_dealprice", () => {
-    const map = createMap([
-      ["#priceblock_dealprice", { text: "$14.99" }],
-    ]);
+    const map = createMap([["#priceblock_dealprice", { text: "$14.99" }]]);
     const result = enrichAmazon(map);
 
     expect(result?.facts?.[0]?.value).toBe("$14.99");
   });
 
   it("should extract price from .a-price .a-offscreen", () => {
-    const map = createMap([
-      [".a-price .a-offscreen", { text: "$29.99" }],
-    ]);
+    const map = createMap([[".a-price .a-offscreen", { text: "$29.99" }]]);
     const result = enrichAmazon(map);
 
     expect(result?.facts?.[0]?.value).toBe("$29.99");
@@ -48,7 +49,10 @@ describe("enrichAmazon", () => {
 
   it("should extract price from meta[name='price']", () => {
     const map = createMap([
-      ["meta[name='price']", { attributes: [{ name: "content", value: "$39.99" }] }],
+      [
+        "meta[name='price']",
+        { attributes: [{ name: "content", value: "$39.99" }] },
+      ],
     ]);
     const result = enrichAmazon(map);
 
@@ -57,7 +61,10 @@ describe("enrichAmazon", () => {
 
   it("should extract price from meta[property='og:price:amount']", () => {
     const map = createMap([
-      ["meta[property='og:price:amount']", { attributes: [{ name: "content", value: "49.99" }] }],
+      [
+        "meta[property='og:price:amount']",
+        { attributes: [{ name: "content", value: "49.99" }] },
+      ],
     ]);
     const result = enrichAmazon(map);
 
@@ -67,7 +74,10 @@ describe("enrichAmazon", () => {
   it("should combine price and currency", () => {
     const map = createMap([
       ["#priceblock_ourprice", { text: "19.99" }],
-      ["meta[property='og:price:currency']", { attributes: [{ name: "content", value: "USD" }] }],
+      [
+        "meta[property='og:price:currency']",
+        { attributes: [{ name: "content", value: "USD" }] },
+      ],
     ]);
     const result = enrichAmazon(map);
 
@@ -77,7 +87,10 @@ describe("enrichAmazon", () => {
   it("should handle price with currency", () => {
     const map = createMap([
       ["#priceblock_ourprice", { text: "$19.99" }],
-      ["meta[property='og:price:currency']", { attributes: [{ name: "content", value: "USD" }] }],
+      [
+        "meta[property='og:price:currency']",
+        { attributes: [{ name: "content", value: "USD" }] },
+      ],
     ]);
     const result = enrichAmazon(map);
 
@@ -86,7 +99,10 @@ describe("enrichAmazon", () => {
 
   it("should handle currency only", () => {
     const map = createMap([
-      ["meta[property='og:price:currency']", { attributes: [{ name: "content", value: "EUR" }] }],
+      [
+        "meta[property='og:price:currency']",
+        { attributes: [{ name: "content", value: "EUR" }] },
+      ],
     ]);
     const result = enrichAmazon(map);
 
@@ -94,9 +110,7 @@ describe("enrichAmazon", () => {
   });
 
   it("should trim whitespace from price", () => {
-    const map = createMap([
-      ["#priceblock_ourprice", { text: "  $19.99  " }],
-    ]);
+    const map = createMap([["#priceblock_ourprice", { text: "  $19.99  " }]]);
     const result = enrichAmazon(map);
 
     expect(result?.facts?.[0]?.value).toBe("$19.99");
@@ -117,7 +131,10 @@ describe("enrichAmazon", () => {
   it("should include raw data in result", () => {
     const map = createMap([
       ["#priceblock_ourprice", { text: "$19.99" }],
-      ["meta[property='og:price:currency']", { attributes: [{ name: "content", value: "USD" }] }],
+      [
+        "meta[property='og:price:currency']",
+        { attributes: [{ name: "content", value: "USD" }] },
+      ],
     ]);
     const result = enrichAmazon(map);
 
@@ -135,9 +152,7 @@ describe("enrichGithub", () => {
   });
 
   it("should extract stars count", () => {
-    const map = createMap([
-      ["a[href$='/stargazers']", { text: "1,234" }],
-    ]);
+    const map = createMap([["a[href$='/stargazers']", { text: "1,234" }]]);
     const result = enrichGithub(map);
 
     expect(result?.facts).toHaveLength(1);
@@ -146,18 +161,14 @@ describe("enrichGithub", () => {
   });
 
   it("should extract forks count", () => {
-    const map = createMap([
-      ["a[href$='/network/members']", { text: "567" }],
-    ]);
+    const map = createMap([["a[href$='/network/members']", { text: "567" }]]);
     const result = enrichGithub(map);
 
     expect(result?.facts?.[0]).toEqual({ label: "Forks", value: "567" });
   });
 
   it("should extract watchers count", () => {
-    const map = createMap([
-      ["a[href$='/watchers']", { text: "89" }],
-    ]);
+    const map = createMap([["a[href$='/watchers']", { text: "89" }]]);
     const result = enrichGithub(map);
 
     expect(result?.facts?.[0]).toEqual({ label: "Watchers", value: "89" });
@@ -169,25 +180,30 @@ describe("enrichGithub", () => {
     ]);
     const result = enrichGithub(map);
 
-    expect(result?.facts?.[0]).toEqual({ label: "Language", value: "TypeScript" });
+    expect(result?.facts?.[0]).toEqual({
+      label: "Language",
+      value: "TypeScript",
+    });
   });
 
   it("should extract and clean updated time", () => {
-    const map = createMap([
-      ["relative-time", { text: "on 3 days ago" }],
-    ]);
+    const map = createMap([["relative-time", { text: "on 3 days ago" }]]);
     const result = enrichGithub(map);
 
-    expect(result?.facts?.[0]).toEqual({ label: "Updated", value: "3 days ago" });
+    expect(result?.facts?.[0]).toEqual({
+      label: "Updated",
+      value: "3 days ago",
+    });
   });
 
   it("should handle updated time without 'on' prefix", () => {
-    const map = createMap([
-      ["relative-time", { text: "2 days ago" }],
-    ]);
+    const map = createMap([["relative-time", { text: "2 days ago" }]]);
     const result = enrichGithub(map);
 
-    expect(result?.facts?.[0]).toEqual({ label: "Updated", value: "2 days ago" });
+    expect(result?.facts?.[0]).toEqual({
+      label: "Updated",
+      value: "2 days ago",
+    });
   });
 
   it("should extract all available data", () => {
@@ -211,9 +227,7 @@ describe("enrichGithub", () => {
   });
 
   it("should format k suffix counts", () => {
-    const map = createMap([
-      ["a[href$='/stargazers']", { text: "1.5k" }],
-    ]);
+    const map = createMap([["a[href$='/stargazers']", { text: "1.5k" }]]);
     const result = enrichGithub(map);
 
     expect(result?.facts?.[0]?.value).toBe("1,500");
@@ -237,18 +251,27 @@ describe("enrichGoodreads", () => {
 
   it("should extract average rating", () => {
     const map = createMap([
-      ["meta[property='books:rating:average']", { attributes: [{ name: "content", value: "4.5" }] }],
+      [
+        "meta[property='books:rating:average']",
+        { attributes: [{ name: "content", value: "4.5" }] },
+      ],
     ]);
     const result = enrichGoodreads(map);
 
     expect(result?.facts).toHaveLength(1);
-    expect(result?.facts?.[0]).toEqual({ label: "Average rating", value: "4.50 / 5" });
+    expect(result?.facts?.[0]).toEqual({
+      label: "Average rating",
+      value: "4.50 / 5",
+    });
     expect(result?.raw?.ratingAverage).toBe("4.50");
   });
 
   it("should extract rating count", () => {
     const map = createMap([
-      ["meta[property='books:rating:count']", { attributes: [{ name: "content", value: "10,500" }] }],
+      [
+        "meta[property='books:rating:count']",
+        { attributes: [{ name: "content", value: "10,500" }] },
+      ],
     ]);
     const result = enrichGoodreads(map);
 
@@ -257,18 +280,33 @@ describe("enrichGoodreads", () => {
 
   it("should extract ISBN", () => {
     const map = createMap([
-      ["meta[property='books:isbn']", { attributes: [{ name: "content", value: "978-3-16-148410-0" }] }],
+      [
+        "meta[property='books:isbn']",
+        { attributes: [{ name: "content", value: "978-3-16-148410-0" }] },
+      ],
     ]);
     const result = enrichGoodreads(map);
 
-    expect(result?.facts?.[0]).toEqual({ label: "ISBN", value: "978-3-16-148410-0" });
+    expect(result?.facts?.[0]).toEqual({
+      label: "ISBN",
+      value: "978-3-16-148410-0",
+    });
   });
 
   it("should extract all available data", () => {
     const map = createMap([
-      ["meta[property='books:rating:average']", { attributes: [{ name: "content", value: "4.23" }] }],
-      ["meta[property='books:rating:count']", { attributes: [{ name: "content", value: "125k" }] }],
-      ["meta[property='books:isbn']", { attributes: [{ name: "content", value: "1234567890" }] }],
+      [
+        "meta[property='books:rating:average']",
+        { attributes: [{ name: "content", value: "4.23" }] },
+      ],
+      [
+        "meta[property='books:rating:count']",
+        { attributes: [{ name: "content", value: "125k" }] },
+      ],
+      [
+        "meta[property='books:isbn']",
+        { attributes: [{ name: "content", value: "1234567890" }] },
+      ],
     ]);
     const result = enrichGoodreads(map);
 
@@ -282,7 +320,10 @@ describe("enrichGoodreads", () => {
 
   it("should format rating with 2 decimal places", () => {
     const map = createMap([
-      ["meta[property='books:rating:average']", { attributes: [{ name: "content", value: "4" }] }],
+      [
+        "meta[property='books:rating:average']",
+        { attributes: [{ name: "content", value: "4" }] },
+      ],
     ]);
     const result = enrichGoodreads(map);
 
@@ -291,7 +332,10 @@ describe("enrichGoodreads", () => {
 
   it("should format k suffix counts", () => {
     const map = createMap([
-      ["meta[property='books:rating:count']", { attributes: [{ name: "content", value: "2.5k" }] }],
+      [
+        "meta[property='books:rating:count']",
+        { attributes: [{ name: "content", value: "2.5k" }] },
+      ],
     ]);
     const result = enrichGoodreads(map);
 
@@ -300,8 +344,14 @@ describe("enrichGoodreads", () => {
 
   it("should handle only rating and count", () => {
     const map = createMap([
-      ["meta[property='books:rating:average']", { attributes: [{ name: "content", value: "3.8" }] }],
-      ["meta[property='books:rating:count']", { attributes: [{ name: "content", value: "500" }] }],
+      [
+        "meta[property='books:rating:average']",
+        { attributes: [{ name: "content", value: "3.8" }] },
+      ],
+      [
+        "meta[property='books:rating:count']",
+        { attributes: [{ name: "content", value: "500" }] },
+      ],
     ]);
     const result = enrichGoodreads(map);
 
@@ -318,18 +368,27 @@ describe("enrichImdb", () => {
 
   it("should extract rating from meta tag", () => {
     const map = createMap([
-      ["meta[name='imdb:rating']", { attributes: [{ name: "content", value: "8.5" }] }],
+      [
+        "meta[name='imdb:rating']",
+        { attributes: [{ name: "content", value: "8.5" }] },
+      ],
     ]);
     const result = enrichImdb(map);
 
     expect(result?.facts).toHaveLength(1);
-    expect(result?.facts?.[0]).toEqual({ label: "IMDb rating", value: "8.50 / 10" });
+    expect(result?.facts?.[0]).toEqual({
+      label: "IMDb rating",
+      value: "8.50 / 10",
+    });
     expect(result?.raw?.rating).toBe("8.50");
   });
 
   it("should extract rating from text content", () => {
     const map = createMap([
-      ["span[data-testid='hero-rating-bar__aggregate-rating__score']", { text: "9.2" }],
+      [
+        "span[data-testid='hero-rating-bar__aggregate-rating__score']",
+        { text: "9.2" },
+      ],
     ]);
     const result = enrichImdb(map);
 
@@ -338,7 +397,10 @@ describe("enrichImdb", () => {
 
   it("should extract votes count", () => {
     const map = createMap([
-      ["meta[name='imdb:votes']", { attributes: [{ name: "content", value: "1.5M" }] }],
+      [
+        "meta[name='imdb:votes']",
+        { attributes: [{ name: "content", value: "1.5M" }] },
+      ],
     ]);
     const result = enrichImdb(map);
 
@@ -356,7 +418,10 @@ describe("enrichImdb", () => {
 
   it("should extract and format release date", () => {
     const map = createMap([
-      ["meta[property='video:release_date']", { attributes: [{ name: "content", value: "2023-12-25" }] }],
+      [
+        "meta[property='video:release_date']",
+        { attributes: [{ name: "content", value: "2023-12-25" }] },
+      ],
     ]);
     const result = enrichImdb(map);
 
@@ -367,7 +432,10 @@ describe("enrichImdb", () => {
 
   it("should return undefined for invalid date", () => {
     const map = createMap([
-      ["meta[property='video:release_date']", { attributes: [{ name: "content", value: "invalid-date" }] }],
+      [
+        "meta[property='video:release_date']",
+        { attributes: [{ name: "content", value: "invalid-date" }] },
+      ],
     ]);
     const result = enrichImdb(map);
 
@@ -378,10 +446,19 @@ describe("enrichImdb", () => {
 
   it("should extract all available data", () => {
     const map = createMap([
-      ["meta[name='imdb:rating']", { attributes: [{ name: "content", value: "8.7" }] }],
-      ["meta[name='imdb:votes']", { attributes: [{ name: "content", value: "500K" }] }],
+      [
+        "meta[name='imdb:rating']",
+        { attributes: [{ name: "content", value: "8.7" }] },
+      ],
+      [
+        "meta[name='imdb:votes']",
+        { attributes: [{ name: "content", value: "500K" }] },
+      ],
       ["span[data-testid='title-techspec_runtime'] span", { text: "2h 15m" }],
-      ["meta[property='video:release_date']", { attributes: [{ name: "content", value: "2023-01-15" }] }],
+      [
+        "meta[property='video:release_date']",
+        { attributes: [{ name: "content", value: "2023-01-15" }] },
+      ],
     ]);
     const result = enrichImdb(map);
 
@@ -396,8 +473,14 @@ describe("enrichImdb", () => {
 
   it("should prioritize meta rating over text content", () => {
     const map = createMap([
-      ["meta[name='imdb:rating']", { attributes: [{ name: "content", value: "8.0" }] }],
-      ["span[data-testid='hero-rating-bar__aggregate-rating__score']", { text: "9.0" }],
+      [
+        "meta[name='imdb:rating']",
+        { attributes: [{ name: "content", value: "8.0" }] },
+      ],
+      [
+        "span[data-testid='hero-rating-bar__aggregate-rating__score']",
+        { text: "9.0" },
+      ],
     ]);
     const result = enrichImdb(map);
 
@@ -406,7 +489,10 @@ describe("enrichImdb", () => {
 
   it("should use text content when meta rating is missing", () => {
     const map = createMap([
-      ["span[data-testid='hero-rating-bar__aggregate-rating__score']", { text: "7.8" }],
+      [
+        "span[data-testid='hero-rating-bar__aggregate-rating__score']",
+        { text: "7.8" },
+      ],
     ]);
     const result = enrichImdb(map);
 
@@ -415,7 +501,10 @@ describe("enrichImdb", () => {
 
   it("should format various vote formats", () => {
     const map = createMap([
-      ["meta[name='imdb:votes']", { attributes: [{ name: "content", value: "1,234" }] }],
+      [
+        "meta[name='imdb:votes']",
+        { attributes: [{ name: "content", value: "1,234" }] },
+      ],
     ]);
     const result = enrichImdb(map);
 

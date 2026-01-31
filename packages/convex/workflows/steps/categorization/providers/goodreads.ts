@@ -1,13 +1,6 @@
 import type { LinkCategoryDetail } from "@teak/convex/shared";
-import type {
-  ProviderEnrichmentResult,
-  RawSelectorMap,
-} from "./common";
-import {
-  formatCountString,
-  formatRating,
-  getRawAttribute,
-} from "./common";
+import type { ProviderEnrichmentResult, RawSelectorMap } from "./common";
+import { formatCountString, formatRating, getRawAttribute } from "./common";
 
 export const enrichGoodreads = (
   rawMap: RawSelectorMap

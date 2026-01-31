@@ -13,11 +13,17 @@ const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
  * users directly through the UI without needing pre-creation.
  */
 export default async function globalSetup(): Promise<void> {
-  if (!TEST_EMAIL || !TEST_PASSWORD) {
-    console.log("[global.setup] No test credentials configured, tests will use generated credentials");
+  if (!(TEST_EMAIL && TEST_PASSWORD)) {
+    console.log(
+      "[global.setup] No test credentials configured, tests will use generated credentials"
+    );
     return;
   }
 
-  console.log("[global.setup] Test credentials configured. Email verification is disabled in development mode.");
-  console.log("[global.setup] Tests will sign up users through the UI as needed.");
+  console.log(
+    "[global.setup] Test credentials configured. Email verification is disabled in development mode."
+  );
+  console.log(
+    "[global.setup] Tests will sign up users through the UI as needed."
+  );
 }

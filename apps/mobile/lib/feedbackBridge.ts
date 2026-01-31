@@ -1,10 +1,10 @@
-export type FeedbackStatusPayload = {
+export interface FeedbackStatusPayload {
   message: string;
   title?: string;
   iconName?: string;
   accentColor?: string;
   dismissAfterMs?: number;
-};
+}
 
 type Listener = (payload: FeedbackStatusPayload | null) => void;
 

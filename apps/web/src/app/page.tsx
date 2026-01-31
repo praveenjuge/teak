@@ -1,25 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { api } from "@teak/convex";
+import type { Doc, Id } from "@teak/convex/_generated/dataModel";
+import type { CardType } from "@teak/convex/shared/constants";
 import { Authenticated, AuthLoading, useMutation } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
-import { CardModal } from "@/components/CardModal";
-import { SearchBar } from "@/components/SearchBar";
-import { MasonryGrid } from "@/components/MasonryGrid";
-import { AddCardForm } from "@/components/AddCardForm";
-import { Button } from "@/components/ui/button";
-import Logo from "@/components/Logo";
-import { DragOverlay } from "@/components/DragOverlay";
-import { CardsGridSkeleton } from "@/components/CardSkeleton";
-import { useGlobalDragDrop } from "@/hooks/useGlobalDragDrop";
-import { type Doc, type Id } from "@teak/convex/_generated/dataModel";
-import { type CardType } from "@teak/convex/shared/constants";
-import { useCardActions } from "@/hooks/useCardActions";
-import { api } from "@teak/convex";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { metrics } from "@/lib/metrics";
+import { AddCardForm } from "@/components/AddCardForm";
+import { CardModal } from "@/components/CardModal";
+import { CardsGridSkeleton } from "@/components/CardSkeleton";
+import { DragOverlay } from "@/components/DragOverlay";
+import Logo from "@/components/Logo";
+import { MasonryGrid } from "@/components/MasonryGrid";
+import { SearchBar } from "@/components/SearchBar";
 import { TagManagementModal } from "@/components/TagManagementModal";
+import { Button } from "@/components/ui/button";
+import { useCardActions } from "@/hooks/useCardActions";
+import { useGlobalDragDrop } from "@/hooks/useGlobalDragDrop";
 import { filterLocalCards } from "@/lib/localSearch";
+import { metrics } from "@/lib/metrics";
 
 const DEFAULT_CARD_LIMIT = 100;
 const LOCAL_SEARCH_CACHE_LIMIT = 1000;
@@ -65,7 +65,9 @@ export default function HomePage() {
   });
 
   useEffect(() => {
-    if (!cards || cards.length === 0) return;
+    if (!cards || cards.length === 0) {
+      return;
+    }
 
     setLocalCards((prev) => {
       const map = new Map(prev.map((card) => [card._id, card]));
@@ -99,7 +101,9 @@ export default function HomePage() {
     searchTerms || filterTags.length > 0 || showFavoritesOnly || showTrashOnly;
 
   const localSearchResults = useMemo(() => {
-    if (!hasActiveSearch) return [];
+    if (!hasActiveSearch) {
+      return [];
+    }
     return filterLocalCards(localCards, {
       searchTerms,
       types: filterTags,
@@ -201,8 +205,11 @@ export default function HomePage() {
         URL.revokeObjectURL(blobUrl);
 
         canvas.toBlob((b) => {
-          if (b) resolve(b);
-          else reject(new Error("Failed to create PNG blob"));
+          if (b) {
+            resolve(b);
+          } else {
+            reject(new Error("Failed to create PNG blob"));
+          }
         }, "image/png");
       };
 
@@ -482,16 +489,18 @@ export default function HomePage() {
     !searchQuery;
 
   const renderEmptyState = () => {
-    if (cardsStatus === "LoadingFirstPage") return <CardsGridSkeleton />;
+    if (cardsStatus === "LoadingFirstPage") {
+      return <CardsGridSkeleton />;
+    }
 
     if (displayCards.length === 0 && hasNoFilters) {
       return (
-        <div className="text-center flex flex-col items-center max-w-xs mx-auto py-20 gap-5">
+        <div className="mx-auto flex max-w-xs flex-col items-center gap-5 py-20 text-center">
           <Logo variant="current" />
           <AddCardForm autoFocus />
           <div className="space-y-1">
             <h3 className="font-medium">Let&apos;s add your first card!</h3>
-            <p className="text-muted-foreground text-balance">
+            <p className="text-balance text-muted-foreground">
               Start capturing your thoughts, links, and media above
             </p>
           </div>
@@ -501,11 +510,11 @@ export default function HomePage() {
 
     if (displayCards.length === 0) {
       return (
-        <div className="text-center py-12 space-y-4">
+        <div className="space-y-4 py-12 text-center">
           <p className="text-muted-foreground">
             Nothing found matching your filters
           </p>
-          <Button variant="outline" onClick={clearAllFilters}>
+          <Button onClick={clearAllFilters} variant="outline">
             Clear filters
           </Button>
         </div>
@@ -519,48 +528,48 @@ export default function HomePage() {
     <div {...getRootProps()} className="relative">
       <input {...getInputProps()} />
       <SearchBar
-        searchQuery={searchQuery}
-        onSearchChange={handleSearchChange}
-        onKeyDown={handleKeyDown}
-        keywordTags={keywordTags}
         filterTags={filterTags}
-        showFavoritesOnly={showFavoritesOnly}
-        showTrashOnly={showTrashOnly}
+        keywordTags={keywordTags}
         onAddFilter={addFilter}
+        onClearAll={clearAllFilters}
+        onKeyDown={handleKeyDown}
         onRemoveFilter={removeFilter}
         onRemoveKeyword={removeKeyword}
+        onSearchChange={handleSearchChange}
         onToggleFavorites={toggleFavorites}
         onToggleTrash={toggleTrash}
-        onClearAll={clearAllFilters}
+        searchQuery={searchQuery}
+        showFavoritesOnly={showFavoritesOnly}
+        showTrashOnly={showTrashOnly}
       />
 
       {displayCards.length > 0 ? (
         <MasonryGrid
+          batchSize={DEFAULT_CARD_LIMIT}
           filteredCards={displayCards}
-          showTrashOnly={showTrashOnly}
+          hasMore={
+            cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore"
+          }
+          initialBatchSize={DEFAULT_CARD_LIMIT}
+          isLoadingMore={cardsStatus === "LoadingMore"}
+          onAddTags={handleAddTags}
           onCardClick={handleCardClick}
+          onCopyImage={handleCopyImage}
           onDeleteCard={(cardId) =>
             cardActions.handleDeleteCard(cardId as Id<"cards">)
+          }
+          onLoadMore={() => loadMore(DEFAULT_CARD_LIMIT)}
+          onPermanentDeleteCard={(cardId) =>
+            cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)
           }
           onRestoreCard={(cardId) =>
             cardActions.handleRestoreCard(cardId as Id<"cards">)
           }
-          onPermanentDeleteCard={(cardId) =>
-            cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)
-          }
           onToggleFavorite={(cardId) =>
             cardActions.handleToggleFavorite(cardId as Id<"cards">)
           }
-          onAddTags={handleAddTags}
-          onCopyImage={handleCopyImage}
-          initialBatchSize={DEFAULT_CARD_LIMIT}
-          batchSize={DEFAULT_CARD_LIMIT}
           resetKey={`${searchTerms}::${filterTags.join(",")}::${showFavoritesOnly}::${showTrashOnly}`}
-          onLoadMore={() => loadMore(DEFAULT_CARD_LIMIT)}
-          hasMore={
-            cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore"
-          }
-          isLoadingMore={cardsStatus === "LoadingMore"}
+          showTrashOnly={showTrashOnly}
         />
       ) : (
         <>
@@ -572,29 +581,29 @@ export default function HomePage() {
       )}
 
       <CardModal
-        cardId={editingCardId}
         card={selectedCard}
-        open={!!editingCardId}
+        cardId={editingCardId}
         onCancel={handleEditCancel}
         onCardTypeClick={handleCardTypeClick}
         onTagClick={handleTagClick}
+        open={!!editingCardId}
       />
 
       <TagManagementModal
-        open={!!tagManagementCardId}
-        onOpenChange={(open) => !open && setTagManagementCardId(null)}
-        userTags={tagManagementCard?.tags || []}
         aiTags={tagManagementCard?.aiTags || []}
-        tagInput={tagInput}
-        setTagInput={setTagInput}
         onAddTag={handleAddTag}
-        onRemoveTag={handleRemoveTag}
+        onOpenChange={(open) => !open && setTagManagementCardId(null)}
         onRemoveAiTag={handleRemoveAiTag}
+        onRemoveTag={handleRemoveTag}
+        open={!!tagManagementCardId}
+        setTagInput={setTagInput}
+        tagInput={tagInput}
+        userTags={tagManagementCard?.tags || []}
       />
 
       <DragOverlay
-        dragDropState={dragDropState}
         dismissUpgradePrompt={dismissUpgradePrompt}
+        dragDropState={dragDropState}
         navigateToUpgrade={navigateToUpgrade}
       />
     </div>

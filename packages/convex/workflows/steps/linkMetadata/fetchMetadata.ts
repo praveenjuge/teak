@@ -1,15 +1,20 @@
 "use node";
 
-import { v } from "convex/values";
-import Kernel from "@onkernel/sdk";
 import { PhotonImage } from "@cf-wasm/photon";
-import { internalAction } from "../../../_generated/server";
+import Kernel from "@onkernel/sdk";
+import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
-import type { ScrapeAttribute, ScrapeResponse, ScrapeResultItem, ScrapeSelectorResult } from "../../../linkMetadata";
+import { internalAction } from "../../../_generated/server";
+import type {
+  ScrapeAttribute,
+  ScrapeResponse,
+  ScrapeResultItem,
+  ScrapeSelectorResult,
+} from "../../../linkMetadata";
 import {
   buildErrorPreview,
-  buildSuccessPreview,
   buildInstagramPrimaryImageSnippet,
+  buildSuccessPreview,
   isInstagramUrl,
   normalizeUrl,
   parseLinkPreview,
@@ -28,7 +33,10 @@ export const LINK_METADATA_RETRYABLE_PREFIX =
   "workflow:linkMetadata:retryable:";
 
 const internalFunctions = internal as Record<string, any>;
-const linkMetadataInternal = internalFunctions["linkMetadata"] as Record<string, any>;
+const linkMetadataInternal = internalFunctions["linkMetadata"] as Record<
+  string,
+  any
+>;
 
 const throwRetryable = (info: LinkMetadataRetryableError): never => {
   throw new Error(`${LINK_METADATA_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
@@ -41,7 +49,9 @@ type StoredLinkImage = {
   imageHeight: number;
 };
 
-const readImageDimensions = (bytes: Uint8Array): { width: number; height: number } | null => {
+const readImageDimensions = (
+  bytes: Uint8Array
+): { width: number; height: number } | null => {
   try {
     const image = PhotonImage.new_from_byteslice(bytes);
     const width = image.get_width();
@@ -54,7 +64,9 @@ const readImageDimensions = (bytes: Uint8Array): { width: number; height: number
 };
 
 const guessImageContentType = (imageUrl: string): string | null => {
-  const match = imageUrl.toLowerCase().match(/\.(png|jpe?g|webp|gif|avif|svg)(?:[?#]|$)/);
+  const match = imageUrl
+    .toLowerCase()
+    .match(/\.(png|jpe?g|webp|gif|avif|svg)(?:[?#]|$)/);
   if (!match) {
     return null;
   }
@@ -77,7 +89,10 @@ const guessImageContentType = (imageUrl: string): string | null => {
   }
 };
 
-const resolveImageContentType = (headerValue: string | null, imageUrl: string): string | null => {
+const resolveImageContentType = (
+  headerValue: string | null,
+  imageUrl: string
+): string | null => {
   if (headerValue && headerValue.toLowerCase().startsWith("image/")) {
     return headerValue.split(";")[0]?.trim() || headerValue;
   }
@@ -95,24 +110,24 @@ const resolveImageContentType = (headerValue: string | null, imageUrl: string): 
 
 const storeLinkPreviewImage = async (
   ctx: any,
-  imageUrl: string,
+  imageUrl: string
 ): Promise<StoredLinkImage | null> => {
   try {
     const response = await fetch(imageUrl);
     if (!response.ok) {
       console.warn(
-        `[linkMetadata] OG image fetch failed (${response.status}) for ${imageUrl}`,
+        `[linkMetadata] OG image fetch failed (${response.status}) for ${imageUrl}`
       );
       return null;
     }
 
     const contentType = resolveImageContentType(
       response.headers.get("content-type"),
-      imageUrl,
+      imageUrl
     );
     if (!contentType) {
       console.warn(
-        `[linkMetadata] OG image skipped due to unknown content type for ${imageUrl}`,
+        `[linkMetadata] OG image skipped due to unknown content type for ${imageUrl}`
       );
       return null;
     }
@@ -145,7 +160,7 @@ const decodeHtmlEntities = (value: string): string => {
     .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, "\"")
+    .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
     .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
       String.fromCharCode(Number.parseInt(hex, 16))
@@ -217,7 +232,9 @@ const buildSelectorResultsFromHtml = (
       return { selector: normalizedSelector, results };
     }
 
-    const linkMatch = normalizedSelector.match(/^link\[rel=['"]([^'"]+)['"]\]$/i);
+    const linkMatch = normalizedSelector.match(
+      /^link\[rel=['"]([^'"]+)['"]\]$/i
+    );
     if (linkMatch) {
       const expectedValue = linkMatch[1].toLowerCase();
       const results = linkTags.filter((item) => {
@@ -297,7 +314,7 @@ const scrapeWithKernel = async (
       stealth: true,
     });
 
-    const selectorStrings = selectors.map(s => s.selector);
+    const selectorStrings = selectors.map((s) => s.selector);
     const instagramPrimaryImageSnippet = buildInstagramPrimaryImageSnippet();
     const code = `
       // Keep navigation fast; many Framer/WebGL pages never reach "networkidle".
@@ -392,7 +409,7 @@ ${instagramPrimaryImageSnippet}
         await kernel.browsers.deleteByID(kernelBrowser.session_id);
       } catch (cleanupError) {
         console.warn(
-          `[linkMetadata] Failed to cleanup browser session:`,
+          "[linkMetadata] Failed to cleanup browser session:",
           cleanupError
         );
       }
@@ -405,7 +422,7 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
     cardId,
   });
 
-  if (!card || !card.url) {
+  if (!(card && card.url)) {
     await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
       cardId,
       linkPreview: buildErrorPreview(card?.url ?? "", {
@@ -457,14 +474,15 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
     let payload = await scrapeWithKernel(normalizedUrl, SCRAPE_ELEMENTS);
 
     if (!payload.success) {
-      const errorMessage = payload.errors
-        ?.map((error) => error?.message)
-        .filter(Boolean)
-        .join("; ") || "Unknown scrape error";
+      const errorMessage =
+        payload.errors
+          ?.map((error) => error?.message)
+          .filter(Boolean)
+          .join("; ") || "Unknown scrape error";
 
       console.warn(
         `[linkMetadata] Kernel scrape failed for ${normalizedUrl}`,
-        payload.errors,
+        payload.errors
       );
 
       const fallback = await scrapeWithFetch(normalizedUrl, SCRAPE_ELEMENTS);
@@ -481,7 +499,8 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
         const combinedMessage = [errorMessage, fallbackMessage]
           .filter(Boolean)
           .join(" | ");
-        const isRateLimit = errorMessage.toLowerCase().includes("rate") ||
+        const isRateLimit =
+          errorMessage.toLowerCase().includes("rate") ||
           errorMessage.toLowerCase().includes("limit");
 
         if (isRateLimit) {
@@ -538,7 +557,7 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
   } catch (error) {
     console.error(
       `[linkMetadata] Error extracting metadata for card ${cardId}:`,
-      error,
+      error
     );
 
     if ((error as Error)?.message?.startsWith(LINK_METADATA_RETRYABLE_PREFIX)) {

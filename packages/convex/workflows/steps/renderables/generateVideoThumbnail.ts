@@ -1,9 +1,9 @@
 "use node";
 
 import Kernel from "@onkernel/sdk";
+import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
-import { v } from "convex/values";
 
 // Maximum thumbnail dimensions - matches image thumbnail settings
 const THUMBNAIL_MAX_WIDTH = 400;
@@ -214,7 +214,7 @@ export const generateVideoThumbnail = internalAction({
           }
         );
 
-        if (!response.success || !response.result) {
+        if (!(response.success && response.result)) {
           console.error(
             `[renderables/video] Kernel Playwright execution failed for card ${args.cardId}:`,
             response.error
@@ -284,7 +284,7 @@ export const generateVideoThumbnail = internalAction({
             await kernel.browsers.deleteByID(kernelBrowser.session_id);
           } catch (cleanupError) {
             console.warn(
-              `[renderables/video] Failed to cleanup browser session:`,
+              "[renderables/video] Failed to cleanup browser session:",
               cleanupError
             );
           }

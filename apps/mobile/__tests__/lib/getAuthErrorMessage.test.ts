@@ -1,9 +1,7 @@
 // @ts-nocheck
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
-import {
-  getAuthErrorMessage,
-} from "../../lib/getAuthErrorMessage";
+import { getAuthErrorMessage } from "../../lib/getAuthErrorMessage";
 
 describe("getAuthErrorMessage", () => {
   describe("string error handling", () => {
@@ -196,7 +194,7 @@ describe("getAuthErrorMessage", () => {
     });
 
     test("should return fallback for number type", () => {
-      const error = 12345;
+      const error = 12_345;
       const result = getAuthErrorMessage(error, "Fallback message");
       expect(result).toBe("Fallback message");
     });

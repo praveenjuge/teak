@@ -18,7 +18,7 @@ export const linkCategoryClassificationSchema = z.object({
   category: z
     .string()
     .describe(
-      "Link category label. Prefer canonical slugs such as 'book', 'movie', 'software', or exact labels from the provided category list.",
+      "Link category label. Prefer canonical slugs such as 'book', 'movie', 'software', or exact labels from the provided category list."
     ),
   confidence: z
     .number()
@@ -34,7 +34,7 @@ export const linkCategoryClassificationSchema = z.object({
     .array(z.string())
     .max(10)
     .describe(
-      "Optional supporting keywords, each must be a single word (no spaces, no hyphens)",
+      "Optional supporting keywords, each must be a single word (no spaces, no hyphens)"
     )
     .optional(),
 });

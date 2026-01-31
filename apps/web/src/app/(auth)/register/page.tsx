@@ -1,20 +1,19 @@
 "use client";
 
+import { AlertCircle, Loader2, Mail } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { AppleIcon } from "@/components/icons/AppleIcon";
+import { GoogleIcon } from "@/components/icons/GoogleIcon";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CardContent, CardFooter, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useEffect, useState } from "react";
-import { AlertCircle, Mail } from "lucide-react";
-import { authClient } from "@/lib/auth-client";
-import Link from "next/link";
 import { Spinner } from "@/components/ui/spinner";
-import { GoogleIcon } from "@/components/icons/GoogleIcon";
-import { AppleIcon } from "@/components/icons/AppleIcon";
-import { Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { authClient } from "@/lib/auth-client";
 import { metrics } from "@/lib/metrics";
+import { cn } from "@/lib/utils";
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
@@ -31,7 +30,9 @@ export default function SignUp() {
     const storedEmail = sessionStorage.getItem("teak-verify-email");
     if (shouldShow) {
       setShowSuccessAlert(true);
-      if (storedEmail) setEmail(storedEmail);
+      if (storedEmail) {
+        setEmail(storedEmail);
+      }
       sessionStorage.removeItem("teak-verify-alert");
       sessionStorage.removeItem("teak-verify-email");
     }
@@ -49,7 +50,7 @@ export default function SignUp() {
         metrics.registrationFailed("google", response.error.message);
         setError(
           response.error.message ??
-            "Failed to sign in with Google. Please try again.",
+            "Failed to sign in with Google. Please try again."
         );
       } else {
         metrics.registrationSuccess("google");
@@ -76,7 +77,7 @@ export default function SignUp() {
         metrics.registrationFailed("apple", response.error.message);
         setError(
           response.error.message ??
-            "Failed to sign in with Apple. Please try again.",
+            "Failed to sign in with Apple. Please try again."
         );
       } else {
         metrics.registrationSuccess("apple");
@@ -96,10 +97,10 @@ export default function SignUp() {
 
   return (
     <>
-      <CardTitle className="text-lg text-center">Get started on Teak</CardTitle>
+      <CardTitle className="text-center text-lg">Get started on Teak</CardTitle>
       <CardContent>
         {error && (
-          <Alert variant="destructive" className="mb-4">
+          <Alert className="mb-4" variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
@@ -118,14 +119,14 @@ export default function SignUp() {
         )}
         <div className="grid gap-2">
           <Button
+            className="w-full"
+            disabled={loading || googleLoading || appleLoading}
+            onClick={handleGoogleSignIn}
             type="button"
             variant="outline"
-            className="w-full"
-            onClick={handleGoogleSignIn}
-            disabled={loading || googleLoading || appleLoading}
           >
             {googleLoading ? (
-              <Loader2 size={16} className="animate-spin" />
+              <Loader2 className="animate-spin" size={16} />
             ) : (
               <>
                 <GoogleIcon className="h-4 w-4" />
@@ -135,14 +136,14 @@ export default function SignUp() {
           </Button>
 
           <Button
+            className="w-full"
+            disabled={loading || googleLoading || appleLoading}
+            onClick={handleAppleSignIn}
             type="button"
             variant="outline"
-            className="w-full"
-            onClick={handleAppleSignIn}
-            disabled={loading || googleLoading || appleLoading}
           >
             {appleLoading ? (
-              <Loader2 size={16} className="animate-spin" />
+              <Loader2 className="animate-spin" size={16} />
             ) : (
               <>
                 <AppleIcon className="h-4 w-4" />
@@ -162,6 +163,7 @@ export default function SignUp() {
         </div>
 
         <form
+          className="grid gap-4"
           onSubmit={async (e) => {
             e.preventDefault();
             setError(null);
@@ -202,57 +204,56 @@ export default function SignUp() {
                   sessionStorage.setItem("teak-verify-alert", "1");
                   sessionStorage.setItem("teak-verify-email", email);
                 },
-              },
+              }
             );
           }}
-          className="grid gap-4"
         >
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
-              type="email"
-              placeholder="me@example.com"
-              required
               onChange={(e) => {
                 setEmail(e.target.value);
               }}
+              placeholder="me@example.com"
+              required
+              type="email"
               value={email}
             />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="password">Password</Label>
             <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onBlur={() => setPasswordTouched(true)}
               autoComplete="new-password"
+              className={showPasswordTooShort ? "border-destructive" : ""}
+              id="password"
+              onBlur={() => setPasswordTouched(true)}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
               required
-              className={showPasswordTooShort ? "border-destructive" : ""}
+              type="password"
+              value={password}
             />
             {showPasswordTooShort && (
-              <p className="text-sm text-destructive">
+              <p className="text-destructive text-sm">
                 Password must be at least 8 characters long
               </p>
             )}
           </div>
 
           <Button
-            type="submit"
             className="w-full"
             disabled={
               loading || password.length < 8 || googleLoading || appleLoading
             }
+            type="submit"
           >
             {loading ? <Spinner /> : "Create an account"}
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex-col gap-1 -my-2">
-        <Link href="/login" className={cn(buttonVariants({ variant: "link" }))}>
+      <CardFooter className="-my-2 flex-col gap-1">
+        <Link className={cn(buttonVariants({ variant: "link" }))} href="/login">
           Already have an account? Login
         </Link>
       </CardFooter>

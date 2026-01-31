@@ -1,12 +1,16 @@
 // @ts-nocheck
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import React from "react";
 import { AddCardForm } from "../../components/AddCardForm";
 
 // Mock UI components
 mock.module("../../components/ui/button", () => ({
   Button: ({ children, type, onClick, disabled, variant, size }: any) =>
-    React.createElement("button", { type, onClick, disabled, "data-variant": variant, "data-size": size }, children),
+    React.createElement(
+      "button",
+      { type, onClick, disabled, "data-variant": variant, "data-size": size },
+      children
+    ),
 }));
 
 mock.module("../../components/ui/textarea", () => ({
@@ -30,7 +34,11 @@ mock.module("../../components/ui/card", () => ({
 
 mock.module("../../components/ui/alert", () => ({
   Alert: ({ children, variant }: any) =>
-    React.createElement("div", { "data-variant": variant, "data-alert": "" }, children),
+    React.createElement(
+      "div",
+      { "data-variant": variant, "data-alert": "" },
+      children
+    ),
   AlertDescription: ({ children }: any) =>
     React.createElement("p", { "data-alert-description": "" }, children),
   AlertTitle: ({ children }: any) =>

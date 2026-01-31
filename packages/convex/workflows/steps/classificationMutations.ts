@@ -7,9 +7,9 @@
 
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
-import type { CardType } from "../../schema";
 import { stageCompleted, stagePending } from "../../card/processingStatus";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
+import type { CardType } from "../../schema";
 
 /**
  * Internal mutation to update card classification result
@@ -36,9 +36,7 @@ export const updateClassification = internalMutation({
       ...processingStatus,
       classify: stageCompleted(now, confidence),
       // Mark categorization as pending only for links
-      categorize: type === "link"
-        ? stagePending()
-        : stageCompleted(now, 1),
+      categorize: type === "link" ? stagePending() : stageCompleted(now, 1),
       // Always mark metadata as pending
       metadata: stagePending(),
       // Mark renderables as pending only for image/video/document

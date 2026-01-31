@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, expect, test, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 describe("card/defaultCards.ts", () => {
   let createDefaultCardsForUser: any;
@@ -64,7 +64,8 @@ describe("card/defaultCards.ts", () => {
       },
     } as any;
 
-    const handler = (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
+    const handler =
+      (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
     const result = await handler(ctx, { userId: "u1" });
 
     expect(result).toEqual({ created: false, reason: "cards_exist" });
@@ -83,7 +84,8 @@ describe("card/defaultCards.ts", () => {
       },
     } as any;
 
-    const handler = (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
+    const handler =
+      (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
     const result = await handler(ctx, { userId: "u1" });
 
     expect(ctx.db.insert).toHaveBeenCalledTimes(3);
@@ -106,7 +108,8 @@ describe("card/defaultCards.ts", () => {
       },
     } as any;
 
-    const handler = (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
+    const handler =
+      (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
     await handler(ctx, { userId: "u1" });
 
     expect(insertedCards).toHaveLength(3);
@@ -117,7 +120,12 @@ describe("card/defaultCards.ts", () => {
     expect(welcomeCard.type).toBe("text");
     expect(welcomeCard.content).toContain("Welcome");
     expect(welcomeCard.isFavorited).toBe(true);
-    expect(welcomeCard.aiTags).toEqual(["welcome", "getting-started", "onboarding", "tutorial"]);
+    expect(welcomeCard.aiTags).toEqual([
+      "welcome",
+      "getting-started",
+      "onboarding",
+      "tutorial",
+    ]);
     expect(welcomeCard.metadataStatus).toBe("completed");
     expect(welcomeCard.processingStatus).toBeDefined();
 
@@ -139,7 +147,7 @@ describe("card/defaultCards.ts", () => {
 
   test("creates cards with incremental timestamps", async () => {
     const insertedCards: any[] = [];
-    const baseTimestamp = 1700000000000;
+    const baseTimestamp = 1_700_000_000_000;
 
     const ctx = {
       db: {
@@ -160,7 +168,8 @@ describe("card/defaultCards.ts", () => {
     let callCount = 0;
     Date.now = mock(() => baseTimestamp + callCount++ * 500);
 
-    const handler = (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
+    const handler =
+      (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
     await handler(ctx, { userId: "u1" });
 
     // Each card should have a timestamp 1 second apart (1000ms)
@@ -187,7 +196,8 @@ describe("card/defaultCards.ts", () => {
       },
     } as any;
 
-    const handler = (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
+    const handler =
+      (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
     await handler(ctx, { userId: "u1" });
 
     const paletteCard = insertedCards.find((c: any) => c.type === "palette");

@@ -1,4 +1,4 @@
-import { type Doc } from "@teak/convex/_generated/dataModel";
+import type { Doc } from "@teak/convex/_generated/dataModel";
 import { Sparkles } from "lucide-react";
 
 interface AudioPreviewProps {
@@ -9,9 +9,9 @@ export function AudioPreview({ card }: AudioPreviewProps) {
   const fileUrl = card.fileUrl;
 
   return (
-    <div className="p-2 space-y-4">
+    <div className="space-y-4 p-2">
       {fileUrl && (
-        <audio controls className="w-full">
+        <audio className="w-full" controls>
           <source src={fileUrl} type={card.fileMetadata?.mimeType} />
           Your browser does not support the audio element.
         </audio>
@@ -19,14 +19,14 @@ export function AudioPreview({ card }: AudioPreviewProps) {
 
       {/* Transcript Section */}
       {card.aiTranscript && (
-        <div className="border bg-background rounded-lg">
-          <div className="w-full px-3 pt-3 flex items-center text-left gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
+        <div className="rounded-lg border bg-background">
+          <div className="flex w-full items-center gap-2 px-3 pt-3 text-left">
+            <Sparkles className="h-4 w-4 text-primary" />
             <span className="font-medium">Transcript</span>
           </div>
 
-          <div className="p-3 max-h-64 overflow-y-auto">
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+          <div className="max-h-64 overflow-y-auto p-3">
+            <p className="whitespace-pre-wrap text-sm leading-relaxed">
               {card.aiTranscript}
             </p>
           </div>

@@ -1,3 +1,4 @@
+import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { useState } from "react";
 import {
   Dialog,
@@ -6,13 +7,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useCardModal } from "@/hooks/useCardModal";
-import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
-import { Loading } from "./Loading";
-import { CardModalPreview } from "./card-modal/CardModalPreview";
+import { metrics } from "@/lib/metrics";
 import { CardMetadataPanel } from "./card-modal/CardMetadataPanel";
 import { CardModalOverlays } from "./card-modal/CardModalOverlays";
-import { metrics } from "@/lib/metrics";
+import { CardModalPreview } from "./card-modal/CardModalPreview";
 import type { CardModalCard } from "./card-modal/types";
+import { Loading } from "./Loading";
 
 interface CardModalProps {
   cardId: string | null;
@@ -73,23 +73,15 @@ export function CardModal({
 
   return (
     <Dialog
-      open={open}
       onOpenChange={(nextOpen) => {
         if (!nextOpen) {
           void handleClose();
         }
       }}
+      open={open}
     >
-      <DialogContent className="md:max-w-7xl max-h-[calc(90vh-80px)] p-0 flex flex-col md:flex-row h-[calc(90vh-80px)] overflow-hidden gap-4 border-0 dark:border outline-0 focus-within:outline-0 shadow-none">
-        {!card ? (
-          <div className="flex flex-1 items-center justify-center">
-            <DialogTitle className="sr-only">Loading...</DialogTitle>
-            <DialogDescription className="sr-only">
-              Loading card details
-            </DialogDescription>
-            <Loading />
-          </div>
-        ) : (
+      <DialogContent className="flex h-[calc(90vh-80px)] max-h-[calc(90vh-80px)] flex-col gap-4 overflow-hidden border-0 p-0 shadow-none outline-0 focus-within:outline-0 md:max-w-7xl md:flex-row dark:border">
+        {card ? (
           <>
             <DialogTitle className="sr-only">
               {CARD_TYPE_LABELS[card.type as CardType] || "Card"}
@@ -98,21 +90,17 @@ export function CardModal({
               View and edit card details
             </DialogDescription>
 
-            <div className="flex flex-col md:flex-row gap-0 flex-1 overflow-hidden">
+            <div className="flex flex-1 flex-col gap-0 overflow-hidden md:flex-row">
               <CardModalPreview
                 card={card}
+                getCurrentValue={getCurrentValue}
                 hasUnsavedChanges={hasUnsavedChanges}
                 isSaved={isSaved}
                 saveChanges={saveChanges}
                 updateContent={updateContent}
-                getCurrentValue={getCurrentValue}
               />
 
               <CardMetadataPanel
-                card={card}
-                getCurrentValue={getCurrentValue}
-                onCardTypeClick={handleCardTypeClick}
-                onTagClick={onTagClick}
                 actions={{
                   showMoreInfo: () => {
                     metrics.modalOpened("more_info");
@@ -134,26 +122,38 @@ export function CardModal({
                   permanentlyDeleteCard: () =>
                     handlePermanentDelete(handleClose),
                 }}
+                card={card}
+                getCurrentValue={getCurrentValue}
+                onCardTypeClick={handleCardTypeClick}
+                onTagClick={onTagClick}
               />
             </div>
 
             <CardModalOverlays
-              card={card}
-              showTagManagementModal={showTagManagementModal}
-              onTagManagementChange={setShowTagManagementModal}
-              showMoreInfoModal={showMoreInfoModal}
-              onMoreInfoChange={setShowMoreInfoModal}
-              showNotesEditModal={showNotesEditModal}
-              onNotesEditChange={setShowNotesEditModal}
-              tagInput={tagInput}
-              setTagInput={setTagInput}
               addTag={addTag}
-              removeTag={removeTag}
-              removeAiTag={removeAiTag}
+              card={card}
               getCurrentValue={getCurrentValue}
+              onMoreInfoChange={setShowMoreInfoModal}
+              onNotesEditChange={setShowNotesEditModal}
+              onTagManagementChange={setShowTagManagementModal}
+              removeAiTag={removeAiTag}
+              removeTag={removeTag}
+              setTagInput={setTagInput}
+              showMoreInfoModal={showMoreInfoModal}
+              showNotesEditModal={showNotesEditModal}
+              showTagManagementModal={showTagManagementModal}
+              tagInput={tagInput}
               updateNotes={updateNotes}
             />
           </>
+        ) : (
+          <div className="flex flex-1 items-center justify-center">
+            <DialogTitle className="sr-only">Loading...</DialogTitle>
+            <DialogDescription className="sr-only">
+              Loading card details
+            </DialogDescription>
+            <Loading />
+          </div>
         )}
       </DialogContent>
     </Dialog>

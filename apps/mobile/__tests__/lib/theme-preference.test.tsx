@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 describe("theme-preference", () => {
   test("module exports", () => {
@@ -53,33 +53,33 @@ describe("theme-preference", () => {
   });
 
   test("persists theme changes to storage", () => {
-    const mockSetItem = async (key: string, value: string) => {
-      return `${key}:${value}`;
+    const mockSetItem = (key: string, value: string) => {
+      return Promise.resolve(`${key}:${value}`);
     };
     expect(typeof mockSetItem).toBe("function");
   });
 
   test("loads theme preference from storage on mount", () => {
-    const mockGetItem = async (key: string) => {
-      return "light";
+    const mockGetItem = (_key: string) => {
+      return Promise.resolve("light");
     };
     expect(typeof mockGetItem).toBe("function");
   });
 
   test("resolves to light theme when preference is light", () => {
-    const preference = "light";
+    const _preference = "light";
     const resolvedScheme = "light";
     expect(resolvedScheme).toBe("light");
   });
 
   test("resolves to dark theme when preference is dark", () => {
-    const preference = "dark";
+    const _preference = "dark";
     const resolvedScheme = "dark";
     expect(resolvedScheme).toBe("dark");
   });
 
   test("resolves to system theme when preference is system", () => {
-    const preference = "system";
+    const _preference = "system";
     const systemScheme = "dark";
     const resolvedScheme = systemScheme;
     expect(resolvedScheme).toBe("dark");
@@ -121,29 +121,33 @@ describe("theme-preference", () => {
   });
 
   test("notifies listeners when theme changes", () => {
-    const listeners = [];
-    const listener = (theme: string) => {};
+    const listeners: Array<(theme: string) => void> = [];
+    const listener = (_theme: string) => {
+      // listener callback
+    };
     listeners.push(listener);
     expect(listeners.length).toBe(1);
   });
 
   test("cleans up listeners on unmount", () => {
     let cleaned = false;
-    const cleanup = () => { cleaned = true; };
+    const cleanup = () => {
+      cleaned = true;
+    };
     cleanup();
     expect(cleaned).toBe(true);
   });
 
   test("supports manual theme override", () => {
     const userPreference = "dark";
-    const systemScheme = "light";
+    const _systemScheme = "light";
     // User preference should override system
     expect(userPreference).toBe("dark");
   });
 
   test("follows system theme when preference is system", () => {
     const userPreference = "system";
-    const systemScheme = "dark";
+    const _systemScheme = "dark";
     // Should follow system when preference is system
     expect(userPreference).toBe("system");
   });
@@ -201,7 +205,9 @@ describe("theme-preference", () => {
       preference: "dark",
       resolvedScheme: "dark",
       isLoaded: true,
-      setPreference: () => {},
+      setPreference: () => {
+        // mock setPreference
+      },
     };
     expect(contextValue.preference).toBe("dark");
   });

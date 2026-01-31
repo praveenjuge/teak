@@ -1,16 +1,9 @@
 import type { LinkCategoryDetail } from "@teak/convex/shared";
-import type {
-  ProviderEnrichmentResult,
-  RawSelectorMap,
-} from "./common";
-import {
-  getRawAttribute,
-  getRawText,
-  normalizeWhitespace,
-} from "./common";
+import type { ProviderEnrichmentResult, RawSelectorMap } from "./common";
+import { getRawAttribute, getRawText, normalizeWhitespace } from "./common";
 
 export const enrichAmazon = (
-  rawMap: RawSelectorMap,
+  rawMap: RawSelectorMap
 ): ProviderEnrichmentResult | null => {
   const priceText =
     getRawText(rawMap, "#priceblock_ourprice") ||
@@ -18,7 +11,7 @@ export const enrichAmazon = (
     getRawText(rawMap, ".a-price .a-offscreen") ||
     normalizeWhitespace(
       getRawAttribute(rawMap, "meta[name='price']", "content") ||
-      getRawAttribute(rawMap, "meta[property='og:price:amount']", "content")
+        getRawAttribute(rawMap, "meta[property='og:price:amount']", "content")
     );
   const currency = getRawAttribute(
     rawMap,
@@ -26,7 +19,7 @@ export const enrichAmazon = (
     "content"
   );
 
-  if (!priceText && !currency) {
+  if (!(priceText || currency)) {
     return null;
   }
 

@@ -1,5 +1,13 @@
 // @ts-nocheck
-import { describe, expect, test, beforeEach, beforeAll, mock, afterAll } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 
 mock.module("ai", () => ({
   generateObject: mock(),
@@ -30,21 +38,21 @@ mock.module("@onkernel/sdk", () => {
       browsers = {
         create: mockKernelCreateBrowser,
         deleteByID: mockDeleteByID,
-        playwright: { execute: mockKernelExecute }
+        playwright: { execute: mockKernelExecute },
       };
-    }
+    },
   };
 });
 
-import { fetchMetadataHandler } from '../../../../../convex/workflows/steps/linkMetadata/fetchMetadata';
-import { internal } from '../../../../../convex/_generated/api';
+import { internal } from "../../../../../convex/_generated/api";
+import { fetchMetadataHandler } from "../../../../../convex/workflows/steps/linkMetadata/fetchMetadata";
 
 describe("fetchMetadata", () => {
   const mockRunQuery = mock();
   const mockRunMutation = mock();
   const ctx = {
     runQuery: mockRunQuery,
-    runMutation: mockRunMutation
+    runMutation: mockRunMutation,
   } as any;
 
   const originalFetch = global.fetch;
@@ -87,17 +95,25 @@ describe("fetchMetadata", () => {
   test("handles missing card", async () => {
     mockRunQuery.mockResolvedValue(null);
     await fetchMetadataHandler(ctx, { cardId: "c1" });
-    expect(mockRunMutation).toHaveBeenCalledWith(internal.linkMetadata.updateCardMetadata, expect.objectContaining({
-      cardId: "c1",
-      status: "failed",
-      linkPreview: expect.objectContaining({ error: expect.objectContaining({ type: "invalid_card" }) })
-    }));
+    expect(mockRunMutation).toHaveBeenCalledWith(
+      internal.linkMetadata.updateCardMetadata,
+      expect.objectContaining({
+        cardId: "c1",
+        status: "failed",
+        linkPreview: expect.objectContaining({
+          error: expect.objectContaining({ type: "invalid_card" }),
+        }),
+      })
+    );
   });
 
   test("handles card without url", async () => {
     mockRunQuery.mockResolvedValue({ _id: "c1" });
     await fetchMetadataHandler(ctx, { cardId: "c1" });
-    expect(mockRunMutation).toHaveBeenCalledWith(internal.linkMetadata.updateCardMetadata, expect.any(Object));
+    expect(mockRunMutation).toHaveBeenCalledWith(
+      internal.linkMetadata.updateCardMetadata,
+      expect.any(Object)
+    );
   });
 
   test("handles non-link card", async () => {
@@ -105,7 +121,7 @@ describe("fetchMetadata", () => {
       _id: "c1",
       type: "text",
       url: "https://example.com",
-      processingStatus: { classify: { status: "completed" } }
+      processingStatus: { classify: { status: "completed" } },
     });
     await fetchMetadataHandler(ctx, { cardId: "c1" });
     expect(mockRunMutation).toHaveBeenCalled();
@@ -116,10 +132,12 @@ describe("fetchMetadata", () => {
       _id: "c1",
       type: "link",
       url: "https://example.com",
-      metadata: { linkCategory: { status: "pending" } }
+      metadata: { linkCategory: { status: "pending" } },
     });
 
-    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(/retryable/);
+    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+      /retryable/
+    );
   });
 
   test("successful scrape", async () => {
@@ -127,19 +145,22 @@ describe("fetchMetadata", () => {
       _id: "c1",
       type: "link",
       url: "https://example.com",
-      metadata: { linkCategory: { status: "completed" } }
+      metadata: { linkCategory: { status: "completed" } },
     });
     mockKernelExecute.mockResolvedValue({
       success: true,
-      result: [{ selector: "title", results: [{ text: "Title" }] }]
+      result: [{ selector: "title", results: [{ text: "Title" }] }],
     });
 
     const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
     expect(result.status).toBe("success");
-    expect(mockRunMutation).toHaveBeenCalledWith(internal.linkMetadata.updateCardMetadata, expect.objectContaining({
-      cardId: "c1",
-      status: "completed",
-    }));
+    expect(mockRunMutation).toHaveBeenCalledWith(
+      internal.linkMetadata.updateCardMetadata,
+      expect.objectContaining({
+        cardId: "c1",
+        status: "completed",
+      })
+    );
   });
 
   test("handles scrape failure (retryable)", async () => {
@@ -147,14 +168,16 @@ describe("fetchMetadata", () => {
       _id: "c1",
       type: "link",
       url: "https://example.com",
-      metadata: { linkCategory: { status: "completed" } }
+      metadata: { linkCategory: { status: "completed" } },
     });
     mockKernelExecute.mockResolvedValue({
       success: false,
-      error: "Timeout error"
+      error: "Timeout error",
     });
 
-    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(/retryable/);
+    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+      /retryable/
+    );
   });
 
   test("handles rate limit failure (retryable)", async () => {
@@ -162,14 +185,16 @@ describe("fetchMetadata", () => {
       _id: "c1",
       type: "link",
       url: "https://example.com",
-      metadata: { linkCategory: { status: "completed" } }
+      metadata: { linkCategory: { status: "completed" } },
     });
     mockKernelExecute.mockResolvedValue({
       success: false,
-      error: "Rate limit exceeded"
+      error: "Rate limit exceeded",
     });
 
-    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(/rate_limit/);
+    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+      /rate_limit/
+    );
   });
 
   test("falls back to html fetch when kernel fails", async () => {
@@ -177,18 +202,18 @@ describe("fetchMetadata", () => {
       _id: "c1",
       type: "link",
       url: "https://example.com",
-      metadata: { linkCategory: { status: "completed" } }
+      metadata: { linkCategory: { status: "completed" } },
     });
     mockKernelExecute.mockResolvedValue({
       success: false,
-      error: "Timeout error"
+      error: "Timeout error",
     });
     mockFetch.mockResolvedValue({
       ok: true,
       status: 200,
       headers: { get: () => "text/html" },
       text: async () =>
-        "<html><head><title>Shader Lines</title><meta property=\"og:title\" content=\"Shader Lines\" /></head></html>",
+        '<html><head><title>Shader Lines</title><meta property="og:title" content="Shader Lines" /></head></html>',
     });
 
     const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
@@ -204,7 +229,7 @@ describe("fetchMetadata", () => {
       _id: "c1",
       type: "link",
       url: "https://example.com",
-      processingStatus: { classify: { status: "completed" } }
+      processingStatus: { classify: { status: "completed" } },
     });
     mockKernelExecute.mockResolvedValue({ success: true, result: [] });
     mockDeleteByID.mockRejectedValue(new Error("Cleanup failed"));
@@ -219,10 +244,12 @@ describe("fetchMetadata", () => {
       _id: "c1",
       type: "text", // not a link
       url: "https://example.com",
-      processingStatus: { classify: { status: "pending" } }
+      processingStatus: { classify: { status: "pending" } },
     });
 
-    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(/awaiting_classification/);
+    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+      /awaiting_classification/
+    );
   });
 
   test("handles AbortError (timeout)", async () => {
@@ -230,7 +257,7 @@ describe("fetchMetadata", () => {
       _id: "c1",
       type: "link",
       url: "https://example.com",
-      processingStatus: { classify: { status: "completed" } }
+      processingStatus: { classify: { status: "completed" } },
     });
     mockKernelCreateBrowser.mockResolvedValue({ session_id: "s1" });
     mockKernelExecute.mockResolvedValue({ success: true, result: [] });
@@ -238,9 +265,13 @@ describe("fetchMetadata", () => {
     // Make parsing throw AbortError
     const abortError = new Error("Abort");
     abortError.name = "AbortError";
-    mockParseLinkPreview.mockImplementation(() => { throw abortError; });
+    mockParseLinkPreview.mockImplementation(() => {
+      throw abortError;
+    });
 
-    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(/timeout/);
+    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+      /timeout/
+    );
   });
 
   test("handles TypeError (network)", async () => {
@@ -248,16 +279,20 @@ describe("fetchMetadata", () => {
       _id: "c1",
       type: "link",
       url: "https://example.com",
-      processingStatus: { classify: { status: "completed" } }
+      processingStatus: { classify: { status: "completed" } },
     });
     mockKernelCreateBrowser.mockResolvedValue({ session_id: "s1" });
     mockKernelExecute.mockResolvedValue({ success: true, result: [] });
 
     // Make parsing throw TypeError with fetch
     const typeError = new TypeError("Failed to fetch");
-    mockParseLinkPreview.mockImplementation(() => { throw typeError; });
+    mockParseLinkPreview.mockImplementation(() => {
+      throw typeError;
+    });
 
-    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(/network_error/);
+    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+      /network_error/
+    );
   });
 
   test("handles non-retryable error during metadata extraction", async () => {
@@ -265,19 +300,24 @@ describe("fetchMetadata", () => {
       _id: "c1",
       type: "link",
       url: "https://example.com",
-      processingStatus: { classify: { status: "completed" } }
+      processingStatus: { classify: { status: "completed" } },
     });
     mockKernelCreateBrowser.mockResolvedValue({ session_id: "s1" });
     mockKernelExecute.mockResolvedValue({ success: true, result: [] });
 
-    mockParseLinkPreview.mockImplementation(() => { throw new Error("Fatal error"); });
+    mockParseLinkPreview.mockImplementation(() => {
+      throw new Error("Fatal error");
+    });
     mockBuildErrorPreview.mockReturnValue({ error: "built error" });
 
     const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
     expect(result.status).toBe("failed");
-    expect(mockRunMutation).toHaveBeenCalledWith(internal.linkMetadata.updateCardMetadata, expect.objectContaining({
-      status: "failed"
-    }));
+    expect(mockRunMutation).toHaveBeenCalledWith(
+      internal.linkMetadata.updateCardMetadata,
+      expect.objectContaining({
+        status: "failed",
+      })
+    );
   });
 
   test("handles kernel creation failure", async () => {
@@ -285,12 +325,16 @@ describe("fetchMetadata", () => {
       _id: "c1",
       type: "link",
       url: "https://example.com",
-      metadata: { linkCategory: { status: "completed" } }
+      metadata: { linkCategory: { status: "completed" } },
     });
     // Make create browser throw
-    mockKernelCreateBrowser.mockRejectedValue(new Error("Failed to create browser"));
+    mockKernelCreateBrowser.mockRejectedValue(
+      new Error("Failed to create browser")
+    );
 
     // Should be treated as a scrape error (retryable) because scrapeWithKernel catches it and returns success: false
-    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(/retryable/);
+    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+      /retryable/
+    );
   });
 });

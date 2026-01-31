@@ -1,8 +1,8 @@
 import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import { HomeLayout } from "fumadocs-ui/layouts/home";
 import type { ReactNode } from "react";
-import { source } from "@/lib/source";
 import { baseOptions } from "@/app/layout.config";
+import { source } from "@/lib/source";
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { links, ...docsOptions } = baseOptions;
@@ -12,8 +12,8 @@ export default function Layout({ children }: { children: ReactNode }) {
       <DocsLayout
         tree={source.pageTree}
         {...docsOptions}
-        sidebar={{ collapsible: false }}
         nav={{ enabled: false }}
+        sidebar={{ collapsible: false }}
       >
         {children}
       </DocsLayout>

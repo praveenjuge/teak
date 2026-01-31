@@ -1,20 +1,28 @@
-import { useState, useCallback } from "react";
-import { MAX_FILE_SIZE, MAX_FILES_PER_UPLOAD, CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../../shared/constants";
-import type { CardType, CardErrorCode } from "../../shared/constants";
+import { useCallback, useState } from "react";
+import type { CardErrorCode, CardType } from "../../shared/constants";
+import {
+  CARD_ERROR_CODES,
+  CARD_ERROR_MESSAGES,
+  MAX_FILE_SIZE,
+  MAX_FILES_PER_UPLOAD,
+} from "../../shared/constants";
 import type {
-  UploadFileSuccessResult,
-  UploadFileErrorResult,
   UploadFileResult,
   UploadMultipleFilesResultItem,
 } from "../../shared/types";
 
 // Sentry capture function - will be injected by platform-specific wrappers
-type SentryCaptureFunction = (error: unknown, context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }) => void;
-let captureException: SentryCaptureFunction = () => { };
+type SentryCaptureFunction = (
+  error: unknown,
+  context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }
+) => void;
+let captureException: SentryCaptureFunction = () => {};
 
 // Best-effort image dimension extraction (browser-only).
 // Returns undefined when dimensions cannot be determined or we're in a non-DOM environment.
-async function getImageDimensions(file: File): Promise<{ width: number; height: number } | undefined> {
+async function getImageDimensions(
+  file: File
+): Promise<{ width: number; height: number } | undefined> {
   if (
     typeof window === "undefined" ||
     typeof document === "undefined" ||
@@ -202,7 +210,7 @@ export function useFileUploadCore(
           additionalMetadata: mergedAdditionalMetadata,
         });
 
-        if (!uploadResult.success || !uploadResult.uploadUrl) {
+        if (!(uploadResult.success && uploadResult.uploadUrl)) {
           const errorInfo: FileUploadError = {
             message: uploadResult.error || "Failed to prepare upload",
             code: uploadResult.errorCode as CardErrorCode | undefined,
@@ -240,7 +248,7 @@ export function useFileUploadCore(
           additionalMetadata: mergedAdditionalMetadata,
         });
 
-        if (!finalizeResult.success || !finalizeResult.cardId) {
+        if (!(finalizeResult.success && finalizeResult.cardId)) {
           const errorInfo: FileUploadError = {
             message: finalizeResult.error || "Failed to create card",
             code: finalizeResult.errorCode as CardErrorCode | undefined,
@@ -256,7 +264,8 @@ export function useFileUploadCore(
 
         return { success: true, cardId: finalizeResult.cardId };
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Upload failed";
+        const errorMessage =
+          error instanceof Error ? error.message : "Upload failed";
         const fileError: FileUploadError = {
           message: errorMessage,
           code: undefined,
@@ -273,7 +282,12 @@ export function useFileUploadCore(
         // Capture upload errors in Sentry
         captureException(error, {
           tags: { source: "convex", operation: "fileUpload" },
-          extra: { fileName: file.name, fileType: file.type, fileSize: file.size, errorCode: fileError.code },
+          extra: {
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            errorCode: fileError.code,
+          },
         });
 
         setError(fileError);
@@ -308,7 +322,7 @@ export function useFileUploadCore(
         };
         setError(errorInfo);
         config.onError?.(errorInfo);
-        return files.map(file => ({
+        return files.map((file) => ({
           file: file.name,
           success: false as const,
           error: errorInfo.message,
@@ -324,7 +338,7 @@ export function useFileUploadCore(
 
         // Small delay between uploads to avoid overwhelming the system
         if (files.length > 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
       }
 

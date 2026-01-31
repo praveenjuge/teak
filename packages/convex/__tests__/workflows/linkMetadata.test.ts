@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { parseLinkMetadataRetryableError } from '../../../convex/workflows/linkMetadata';
+import { parseLinkMetadataRetryableError } from "../../../convex/workflows/linkMetadata";
 import {
   LINK_METADATA_RETRYABLE_PREFIX,
   type LinkMetadataRetryableError,
-} from '../../../convex/workflows/steps/linkMetadata/fetchMetadata';
+} from "../../../convex/workflows/steps/linkMetadata/fetchMetadata";
 
 describe("linkMetadata workflow retryable error parsing", () => {
   test("parses encoded error payload", () => {
@@ -21,7 +21,7 @@ describe("linkMetadata workflow retryable error parsing", () => {
 
   test("returns null for non-prefix errors", () => {
     expect(
-      parseLinkMetadataRetryableError(new Error("random error")),
+      parseLinkMetadataRetryableError(new Error("random error"))
     ).toBeNull();
   });
 });

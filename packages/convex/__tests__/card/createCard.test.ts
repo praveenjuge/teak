@@ -7,7 +7,7 @@ process.env.GOOGLE_CLIENT_SECRET = "test-google-client-secret";
 process.env.APPLE_CLIENT_ID = "test-apple-client-id";
 process.env.APPLE_CLIENT_SECRET = "test-apple-client-secret";
 
-import { describe, expect, test, mock, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 describe("card/createCard.ts", () => {
   let createCard: any;
@@ -55,14 +55,18 @@ describe("card/createCard.ts", () => {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         system: { get: mock().mockResolvedValue(null) },
-        query: mock().mockReturnValue({ withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }) }),
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
+        }),
         insert: mock().mockResolvedValue("c1"),
       },
     } as any;
 
     const handler = (createCard as any).handler ?? createCard;
     const cardId = await handler(ctx, {
-      content: "\"Hello world\"",
+      content: '"Hello world"',
     });
 
     expect(cardId).toBe("c1");
@@ -82,7 +86,11 @@ describe("card/createCard.ts", () => {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         system: { get: mock().mockResolvedValue(null) },
-        query: mock().mockReturnValue({ withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }) }),
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
+        }),
         insert: mock().mockResolvedValue("c2"),
       },
     } as any;
@@ -109,9 +117,16 @@ describe("card/createCard.ts", () => {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         system: {
-          get: mock().mockResolvedValue({ size: 123, contentType: "image/png" }),
+          get: mock().mockResolvedValue({
+            size: 123,
+            contentType: "image/png",
+          }),
         },
-        query: mock().mockReturnValue({ withIndex: mock().mockReturnValue({ collect: mock().mockResolvedValue([]) }) }),
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
+        }),
         insert: mock().mockResolvedValue("c3"),
       },
     } as any;

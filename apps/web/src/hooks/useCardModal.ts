@@ -1,11 +1,11 @@
-import { useState, useCallback, useMemo } from "react";
-import { useMutation } from "convex/react";
-import type { OptimisticLocalStore } from "convex/browser";
-import { toast } from "sonner";
-import { api } from "@teak/convex";
-import { type Doc, type Id } from "@teak/convex/_generated/dataModel";
-import { useCardActions } from "@/hooks/useCardActions";
 import * as Sentry from "@sentry/nextjs";
+import { api } from "@teak/convex";
+import type { Doc, Id } from "@teak/convex/_generated/dataModel";
+import type { OptimisticLocalStore } from "convex/browser";
+import { useMutation } from "convex/react";
+import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { useCardActions } from "@/hooks/useCardActions";
 import { metrics } from "@/lib/metrics";
 
 // Helper to update a card in all cached searchCards queries
@@ -17,8 +17,8 @@ function updateCardInSearchQueries(
   const allQueries = localStore.getAllQueries(api.cards.searchCards);
   for (const { args, value } of allQueries) {
     if (value !== undefined) {
-      const updatedCards = (value as Doc<"cards">[]).map((card: Doc<"cards">) =>
-        card._id === cardId ? updater(card) : card
+      const updatedCards = (value as Doc<"cards">[]).map(
+        (card: Doc<"cards">) => (card._id === cardId ? updater(card) : card)
       );
       localStore.setQuery(api.cards.searchCards, args, updatedCards);
     }
@@ -61,72 +61,77 @@ export function useCardModal(
   const [pendingChanges, setPendingChanges] = useState<PendingChanges>({});
   const [isSaved, setIsSaved] = useState(false);
 
-  const notifyError = useCallback(
-    (error: Error, operation: string) => {
-      toast.error(`Failed to ${operation}`);
-      config.onError?.(error, operation);
-    },
-    [config]
-  );
+  const notifyError = useCallback((error: Error, operation: string) => {
+    toast.error(`Failed to ${operation}`);
+    config.onError?.(error, operation);
+  }, []);
 
   const card = cardData;
 
-  const updateCardField = useMutation(api.cards.updateCardField).withOptimisticUpdate(
-    (localStore, args) => {
-      const { cardId: updateCardId, field, value, tagToRemove } = args;
-       
-      const now = Date.now();
+  const updateCardField = useMutation(
+    api.cards.updateCardField
+  ).withOptimisticUpdate((localStore, args) => {
+    const { cardId: updateCardId, field, value, tagToRemove } = args;
 
-      switch (field) {
-        case "isFavorited": {
-          const toggleFavorite = (card: Doc<"cards">): Doc<"cards"> => ({
-            ...card,
-            isFavorited: !card.isFavorited,
-            updatedAt: now,
-          });
-          updateCardInSearchQueries(localStore, updateCardId, toggleFavorite);
+    const now = Date.now();
+
+    switch (field) {
+      case "isFavorited": {
+        const toggleFavorite = (card: Doc<"cards">): Doc<"cards"> => ({
+          ...card,
+          isFavorited: !card.isFavorited,
+          updatedAt: now,
+        });
+        updateCardInSearchQueries(localStore, updateCardId, toggleFavorite);
+        break;
+      }
+
+      case "tags": {
+        const updateTags = (card: Doc<"cards">): Doc<"cards"> => ({
+          ...card,
+          tags: Array.isArray(value) && value.length > 0 ? value : undefined,
+          updatedAt: now,
+        });
+        updateCardInSearchQueries(localStore, updateCardId, updateTags);
+        break;
+      }
+
+      case "removeAiTag": {
+        if (!tagToRemove) {
           break;
         }
-
-        case "tags": {
-          const updateTags = (card: Doc<"cards">): Doc<"cards"> => ({
+        const removeAiTag = (card: Doc<"cards">): Doc<"cards"> => {
+          const updatedAiTags = card.aiTags?.filter(
+            (tag) => tag !== tagToRemove
+          );
+          return {
             ...card,
-            tags: Array.isArray(value) && value.length > 0 ? value : undefined,
+            aiTags:
+              updatedAiTags && updatedAiTags.length > 0
+                ? updatedAiTags
+                : undefined,
             updatedAt: now,
-          });
-          updateCardInSearchQueries(localStore, updateCardId, updateTags);
-          break;
-        }
-
-        case "removeAiTag": {
-          if (!tagToRemove) break;
-          const removeAiTag = (card: Doc<"cards">): Doc<"cards"> => {
-            const updatedAiTags = card.aiTags?.filter((tag) => tag !== tagToRemove);
-            return {
-              ...card,
-              aiTags: updatedAiTags && updatedAiTags.length > 0 ? updatedAiTags : undefined,
-              updatedAt: now,
-            };
           };
-          updateCardInSearchQueries(localStore, updateCardId, removeAiTag);
-          break;
-        }
+        };
+        updateCardInSearchQueries(localStore, updateCardId, removeAiTag);
+        break;
+      }
 
-        case "content":
-        case "url":
-        case "notes":
-        case "aiSummary": {
-          const updateTextField = (card: Doc<"cards">): Doc<"cards"> => ({
-            ...card,
-            [field]: typeof value === "string" ? value.trim() || undefined : value,
-            updatedAt: now,
-          });
-          updateCardInSearchQueries(localStore, updateCardId, updateTextField);
-          break;
-        }
+      case "content":
+      case "url":
+      case "notes":
+      case "aiSummary": {
+        const updateTextField = (card: Doc<"cards">): Doc<"cards"> => ({
+          ...card,
+          [field]:
+            typeof value === "string" ? value.trim() || undefined : value,
+          updatedAt: now,
+        });
+        updateCardInSearchQueries(localStore, updateCardId, updateTextField);
+        break;
       }
     }
-  );
+  });
   const cardActions = useCardActions({
     onDeleteSuccess: (message) => {
       if (message) {
@@ -150,9 +155,13 @@ export function useCardModal(
   });
 
   const hasUnsavedChanges = useMemo(() => {
-    if (!card) return false;
+    if (!card) {
+      return false;
+    }
     return Object.keys(pendingChanges).some((key) => {
-      if (key === "isFavorited") return false;
+      if (key === "isFavorited") {
+        return false;
+      }
 
       const pendingValue = pendingChanges[key as keyof PendingChanges];
       const currentValue = card[key as keyof typeof card];
@@ -161,7 +170,9 @@ export function useCardModal(
   }, [card, pendingChanges]);
 
   const saveChanges = useCallback(async () => {
-    if (!cardId || !hasUnsavedChanges) return;
+    if (!(cardId && hasUnsavedChanges)) {
+      return;
+    }
 
     const updates = Object.entries(pendingChanges)
       .filter(([, value]) => value !== undefined)
@@ -202,7 +213,9 @@ export function useCardModal(
       value?: boolean | string[],
       tagToRemove?: string
     ) => {
-      if (!cardId) return;
+      if (!cardId) {
+        return;
+      }
 
       try {
         await updateCardField({
@@ -215,7 +228,7 @@ export function useCardModal(
         if (field === "isFavorited") {
           setPendingChanges((prev) => {
             const rest = { ...prev };
-            delete rest.isFavorited;
+            rest.isFavorited = undefined;
             return rest;
           });
         }
@@ -229,7 +242,7 @@ export function useCardModal(
         if (field === "isFavorited") {
           setPendingChanges((prev) => {
             const rest = { ...prev };
-            delete rest.isFavorited;
+            rest.isFavorited = undefined;
             return rest;
           });
         }
@@ -257,7 +270,9 @@ export function useCardModal(
   }, []);
 
   const toggleFavorite = useCallback(() => {
-    if (!card) return;
+    if (!card) {
+      return;
+    }
 
     const newFavoriteState = !card.isFavorited;
     setPendingChanges((prev) => ({ ...prev, isFavorited: newFavoriteState }));
@@ -305,7 +320,7 @@ export function useCardModal(
         }
       }
     },
-    [cardId, cardActions, config]
+    [cardId, cardActions]
   );
 
   const handleRestore = useCallback(
@@ -319,7 +334,7 @@ export function useCardModal(
         }
       }
     },
-    [cardId, cardActions, config]
+    [cardId, cardActions]
   );
 
   const handlePermanentDelete = useCallback(
@@ -333,9 +348,8 @@ export function useCardModal(
         }
       }
     },
-    [cardId, cardActions, config]
+    [cardId, cardActions]
   );
-
 
   const openLink = useCallback(() => {
     if (card?.url) {
@@ -347,16 +361,20 @@ export function useCardModal(
         window.open(card.url, "_blank", "noopener,noreferrer");
       }
     }
-  }, [card?.url, card?.type, config]);
+  }, [card?.url, card?.type]);
 
   const fileUrl = card?.fileUrl;
 
-
   const downloadFile = useCallback(async () => {
-    if (!card?.fileId || !card?.fileMetadata?.fileName || !fileUrl) return;
+    if (!(card?.fileId && card?.fileMetadata?.fileName && fileUrl)) {
+      return;
+    }
 
     try {
-      metrics.fileDownloaded(card.type, card.fileMetadata?.mimeType?.split("/")[0] || "unknown");
+      metrics.fileDownloaded(
+        card.type,
+        card.fileMetadata?.mimeType?.split("/")[0] || "unknown"
+      );
       metrics.featureUsed("download_file");
 
       const link = document.createElement("a");
@@ -373,7 +391,15 @@ export function useCardModal(
       });
       notifyError(error as Error, "download file");
     }
-  }, [card?.fileId, card?.fileMetadata?.fileName, card?.fileMetadata?.mimeType, card?.type, fileUrl, notifyError, cardId]);
+  }, [
+    card?.fileId,
+    card?.fileMetadata?.fileName,
+    card?.fileMetadata?.mimeType,
+    card?.type,
+    fileUrl,
+    notifyError,
+    cardId,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, onClose?: () => void) => {
@@ -388,15 +414,14 @@ export function useCardModal(
         }
       }
     },
-    [tagInput, addTag, config]
+    [tagInput, addTag]
   );
-
 
   const handleCardTypeClick = useCallback(() => {
     if (card?.type) {
       config.onCardTypeClick?.(card.type);
     }
-  }, [card?.type, config]);
+  }, [card?.type]);
 
   const getCurrentValue = useCallback(
     (field: "content" | "url" | "notes" | "aiSummary") => {
@@ -408,7 +433,9 @@ export function useCardModal(
   );
 
   const cardWithOptimisticUpdates = useMemo(() => {
-    if (!card) return null;
+    if (!card) {
+      return null;
+    }
     return {
       ...card,
       isFavorited:

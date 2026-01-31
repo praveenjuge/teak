@@ -1,10 +1,5 @@
-import { describe, it, expect } from "bun:test";
-import {
-  extractUrlFromContent,
-  resolveTextCardInput,
-  type LinkExtractionResult,
-  type TextCardResolution,
-} from "./linkDetection";
+import { describe, expect, it } from "bun:test";
+import { extractUrlFromContent, resolveTextCardInput } from "./linkDetection";
 
 describe("extractUrlFromContent", () => {
   it("should return empty result for empty content", () => {
@@ -35,7 +30,9 @@ describe("extractUrlFromContent", () => {
   });
 
   it("should extract URL from inline URL in content", () => {
-    const result = extractUrlFromContent("Check out this link: https://example.com");
+    const result = extractUrlFromContent(
+      "Check out this link: https://example.com"
+    );
     expect(result).toEqual({
       url: "https://example.com",
       cleanedContent: "Check out this link: https://example.com",

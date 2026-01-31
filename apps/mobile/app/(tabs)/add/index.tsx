@@ -1,24 +1,4 @@
 import {
-  useAudioRecorder,
-  RecordingPresets,
-  requestRecordingPermissionsAsync,
-  getRecordingPermissionsAsync,
-  setAudioModeAsync,
-} from "expo-audio";
-import * as DocumentPicker from "expo-document-picker";
-import * as ImagePicker from "expo-image-picker";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, ScrollView, useWindowDimensions } from "react-native";
-import { CARD_ERROR_CODES, resolveTextCardInput } from "@teak/convex/shared";
-import { Stack } from "expo-router";
-import { useCreateCard } from "../../../lib/hooks/useCardOperations";
-import { useFileUpload } from "../../../lib/hooks/useFileUpload";
-import {
-  setFeedbackStatus,
-  subscribeFeedbackStatus,
-  type FeedbackStatusPayload,
-} from "../../../lib/feedbackBridge";
-import {
   BottomSheet,
   Button,
   Host,
@@ -32,6 +12,26 @@ import {
   type TextFieldRef,
 } from "@expo/ui/swift-ui";
 import { frame } from "@expo/ui/swift-ui/modifiers";
+import { CARD_ERROR_CODES, resolveTextCardInput } from "@teak/convex/shared";
+import {
+  getRecordingPermissionsAsync,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+} from "expo-audio";
+import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
+import { Stack } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, ScrollView, useWindowDimensions } from "react-native";
+import {
+  type FeedbackStatusPayload,
+  setFeedbackStatus,
+  subscribeFeedbackStatus,
+} from "../../../lib/feedbackBridge";
+import { useCreateCard } from "../../../lib/hooks/useCardOperations";
+import { useFileUpload } from "../../../lib/hooks/useFileUpload";
 import { stopAudioRecording } from "../../../lib/recording";
 
 export default function AddScreen() {
@@ -133,7 +133,7 @@ export default function AddScreen() {
       showSavingFeedback();
       // Convert React Native file URI to Blob for the shared upload hook
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), 30_000);
       const response = await fetch(fileUri, { signal: controller.signal });
       clearTimeout(timeoutId);
       const blob = await response.blob();
@@ -144,7 +144,10 @@ export default function AddScreen() {
         additionalMetadata,
       });
     } catch (error) {
-      console.error("Failed to upload file:", error instanceof Error ? error.message : error);
+      console.error(
+        "Failed to upload file:",
+        error instanceof Error ? error.message : error
+      );
       showErrorFeedback("Failed to upload file. Please try again.");
       Alert.alert("Error", "Failed to upload file. Please try again.");
     }
@@ -191,7 +194,10 @@ export default function AddScreen() {
       setRecordingDuration(0);
       setIsTextSheetOpen(false);
     } catch (err) {
-      console.error("Failed to start recording:", err instanceof Error ? err.message : err);
+      console.error(
+        "Failed to start recording:",
+        err instanceof Error ? err.message : err
+      );
       Alert.alert("Error", "Failed to start recording.");
     }
   }
@@ -208,7 +214,10 @@ export default function AddScreen() {
       setRecordingDuration,
       handleFileUpload,
       onError: (error) => {
-        console.error("Failed to stop recording:", error instanceof Error ? error.message : error);
+        console.error(
+          "Failed to stop recording:",
+          error instanceof Error ? error.message : error
+        );
         showErrorFeedback("Failed to save recording. Please try again.");
         Alert.alert("Error", "Failed to save recording. Please try again.");
       },
@@ -222,7 +231,8 @@ export default function AddScreen() {
 
     try {
       // Check if we need to show pre-permission alert (only for first-time requests)
-      const existingStatus = await ImagePicker.getMediaLibraryPermissionsAsync();
+      const existingStatus =
+        await ImagePicker.getMediaLibraryPermissionsAsync();
       if (existingStatus.status === "undetermined") {
         // Show pre-permission alert (Apple HIG compliance: single "Continue" button, no cancel)
         await new Promise<void>((resolve) => {
@@ -266,7 +276,10 @@ export default function AddScreen() {
         );
       }
     } catch (error) {
-      console.error("Gallery picker error:", error instanceof Error ? error.message : error);
+      console.error(
+        "Gallery picker error:",
+        error instanceof Error ? error.message : error
+      );
       Alert.alert("Error", "Failed to pick from gallery");
     }
   };
@@ -322,7 +335,10 @@ export default function AddScreen() {
         );
       }
     } catch (error) {
-      console.error("Camera capture error:", error instanceof Error ? error.message : error);
+      console.error(
+        "Camera capture error:",
+        error instanceof Error ? error.message : error
+      );
       Alert.alert("Error", "Failed to open camera");
     }
   };
@@ -347,7 +363,10 @@ export default function AddScreen() {
         );
       }
     } catch (error) {
-      console.error("Document picker error:", error instanceof Error ? error.message : error);
+      console.error(
+        "Document picker error:",
+        error instanceof Error ? error.message : error
+      );
       Alert.alert("Error", "Failed to pick document");
     }
   };
@@ -380,7 +399,10 @@ export default function AddScreen() {
       setIsTextSheetOpen(false);
       showSavedFeedback();
     } catch (error) {
-      console.error("Failed to save card:", error instanceof Error ? error.message : error);
+      console.error(
+        "Failed to save card:",
+        error instanceof Error ? error.message : error
+      );
       showErrorFeedback("Failed to save card. Please try again.");
       Alert.alert("Error", "Failed to save card. Please try again.");
     } finally {
@@ -408,106 +430,106 @@ export default function AddScreen() {
           <List scrollEnabled={false}>
             <Section title="Add Content">
               <Button
-                onPress={() => setIsTextSheetOpen(true)}
                 disabled={isSavingCard || uploadState.isUploading}
+                onPress={() => setIsTextSheetOpen(true)}
               >
                 <HStack spacing={12}>
                   <Image
-                    systemName="textformat"
                     color="primary"
-                    size={14}
                     modifiers={[frame({ width: 18, height: 18 })]}
+                    size={14}
+                    systemName="textformat"
                   />
                   <Text color="primary">Text or URL</Text>
                   <Spacer />
                   <Image
-                    systemName="chevron.right"
-                    size={14}
                     color="secondary"
+                    size={14}
+                    systemName="chevron.right"
                   />
                 </HStack>
               </Button>
               <Button
-                onPress={startRecording}
                 disabled={
                   uploadState.isUploading || isSavingCard || isStoppingRecording
                 }
+                onPress={startRecording}
               >
                 <HStack spacing={12}>
                   <Image
-                    systemName="mic.fill"
                     color="primary"
-                    size={14}
                     modifiers={[frame({ width: 18, height: 18 })]}
+                    size={14}
+                    systemName="mic.fill"
                   />
                   <Text color="primary">Record Audio</Text>
                   <Spacer />
                   <Image
-                    systemName="chevron.right"
-                    size={14}
                     color="secondary"
+                    size={14}
+                    systemName="chevron.right"
                   />
                 </HStack>
               </Button>
             </Section>
             <Section title="Upload Files">
               <Button
-                onPress={handleGalleryPicker}
                 disabled={uploadState.isUploading || isSavingCard}
+                onPress={handleGalleryPicker}
               >
                 <HStack spacing={12}>
                   <Image
-                    systemName="photo.on.rectangle"
                     color="primary"
-                    size={14}
                     modifiers={[frame({ width: 18, height: 18 })]}
+                    size={14}
+                    systemName="photo.on.rectangle"
                   />
                   <Text color="primary">Photos/Videos from Gallery</Text>
                   <Spacer />
                   <Image
-                    systemName="chevron.right"
-                    size={14}
                     color="secondary"
+                    size={14}
+                    systemName="chevron.right"
                   />
                 </HStack>
               </Button>
               <Button
-                onPress={handleCameraCapture}
                 disabled={uploadState.isUploading || isSavingCard}
+                onPress={handleCameraCapture}
               >
                 <HStack spacing={12}>
                   <Image
-                    systemName="camera"
                     color="primary"
-                    size={14}
                     modifiers={[frame({ width: 18, height: 18 })]}
+                    size={14}
+                    systemName="camera"
                   />
                   <Text color="primary">Open Camera</Text>
                   <Spacer />
                   <Image
-                    systemName="chevron.right"
-                    size={14}
                     color="secondary"
+                    size={14}
+                    systemName="chevron.right"
                   />
                 </HStack>
               </Button>
               <Button
-                onPress={handleDocumentPicker}
                 disabled={uploadState.isUploading || isSavingCard}
+                onPress={handleDocumentPicker}
               >
                 <HStack spacing={12}>
                   <Image
-                    systemName="tray.and.arrow.up"
                     color="primary"
-                    size={14}
                     modifiers={[frame({ width: 18, height: 18 })]}
+                    size={14}
+                    systemName="tray.and.arrow.up"
                   />
                   <Text color="primary">Upload Files</Text>
                   <Spacer />
                   <Image
-                    systemName="chevron.right"
-                    size={14}
                     color="secondary"
+                    size={14}
+                    systemName="chevron.right"
                   />
                 </HStack>
               </Button>
@@ -519,6 +541,7 @@ export default function AddScreen() {
           useViewportSizeMeasurement
         >
           <BottomSheet
+            interactiveDismissDisabled={isSavingCard}
             isOpened={isTextSheetOpen}
             onIsOpenedChange={(open) => {
               setIsTextSheetOpen(open);
@@ -530,26 +553,25 @@ export default function AddScreen() {
             }}
             presentationDetents={["medium", "large"]}
             presentationDragIndicator="visible"
-            interactiveDismissDisabled={isSavingCard}
           >
             <List>
               <TextField
-                key={textFieldKey}
-                ref={textFieldRef}
+                allowNewlines
                 defaultValue={content}
-                placeholder="Enter your bookmark, URL, or note"
-                onChangeText={setContent}
+                key={textFieldKey}
                 multiline
                 numberOfLines={10}
-                allowNewlines
+                onChangeText={setContent}
+                placeholder="Enter your bookmark, URL, or note"
+                ref={textFieldRef}
               />
               <Button
-                variant="bordered"
                 controlSize="large"
-                onPress={handleSaveText}
                 disabled={isSavingCard || uploadState.isUploading}
+                onPress={handleSaveText}
+                variant="bordered"
               >
-                <HStack spacing={10} alignment="center">
+                <HStack alignment="center" spacing={10}>
                   <Spacer />
                   <Text color="primary">
                     {isSavingCard || uploadState.isUploading
@@ -567,6 +589,7 @@ export default function AddScreen() {
           useViewportSizeMeasurement
         >
           <BottomSheet
+            interactiveDismissDisabled
             isOpened={isRecording}
             onIsOpenedChange={(open) => {
               if (!open && isRecording) {
@@ -575,10 +598,9 @@ export default function AddScreen() {
             }}
             presentationDetents={["medium"]}
             presentationDragIndicator="visible"
-            interactiveDismissDisabled
           >
             <List>
-              <HStack spacing={8} alignment="center">
+              <HStack alignment="center" spacing={8}>
                 <Text color="primary">
                   {isStoppingRecording ? "Stopping..." : "Recording..."}
                 </Text>
@@ -590,15 +612,14 @@ export default function AddScreen() {
                 </Text>
               </HStack>
               <Button
-                onPress={stopRecording}
-                disabled={isStoppingRecording}
-                role="destructive"
-                variant="bordered"
                 controlSize="large"
+                disabled={isStoppingRecording}
+                onPress={stopRecording}
+                variant="bordered"
               >
-                <HStack spacing={8} alignment="center">
+                <HStack alignment="center" spacing={8}>
                   <Spacer />
-                  <Image systemName="stop.fill" color="red" size={18} />
+                  <Image color="red" size={18} systemName="stop.fill" />
                   <Text color="red" design="rounded">
                     {isStoppingRecording ? "Stopping" : "Stop Recording"}
                   </Text>

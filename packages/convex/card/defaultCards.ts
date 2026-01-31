@@ -1,15 +1,10 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
-import { type CardType } from "../schema";
-import {
-  stageCompleted,
-  type ProcessingStatus,
-} from "./processingStatus";
+import type { CardType } from "../schema";
+import { type ProcessingStatus, stageCompleted } from "./processingStatus";
 
 // Helper to create a fully completed processing status
-const buildCompletedProcessingStatus = (
-  now: number
-): ProcessingStatus => ({
+const buildCompletedProcessingStatus = (now: number): ProcessingStatus => ({
   classify: stageCompleted(now, 1),
   categorize: stageCompleted(now, 1),
   metadata: stageCompleted(now, 1),
@@ -20,7 +15,12 @@ const buildCompletedProcessingStatus = (
 const createColor = (
   hex: string,
   name?: string
-): { hex: string; name?: string; rgb?: { r: number; g: number; b: number }; hsl?: { h: number; s: number; l: number } } => ({
+): {
+  hex: string;
+  name?: string;
+  rgb?: { r: number; g: number; b: number };
+  hsl?: { h: number; s: number; l: number };
+} => ({
   hex,
   ...(name && { name }),
 });
@@ -42,18 +42,29 @@ type DefaultCardDef = {
 const DEFAULT_CARDS: DefaultCardDef[] = [
   {
     type: "text",
-    content: "Welcome to Teak! Start capturing your thoughts, links, and inspiration.",
-    notes: "This is your first card. Cards are where you save anything—links, images, notes, quotes, and more. Try pasting a URL above to see the magic happen!",
+    content:
+      "Welcome to Teak! Start capturing your thoughts, links, and inspiration.",
+    notes:
+      "This is your first card. Cards are where you save anything—links, images, notes, quotes, and more. Try pasting a URL above to see the magic happen!",
     aiTags: ["welcome", "getting-started", "onboarding", "tutorial"],
-    aiSummary: "A welcome introduction to Teak, explaining how to use cards for capturing thoughts, links, and media.",
+    aiSummary:
+      "A welcome introduction to Teak, explaining how to use cards for capturing thoughts, links, and media.",
     isFavorited: true,
   },
   {
     type: "quote",
     content: "The best way to predict the future is to invent it.",
     notes: "— Alan Kay, pioneering computer scientist",
-    aiTags: ["quote", "inspiration", "alan-kay", "innovation", "technology", "future"],
-    aiSummary: "An inspirational quote from Alan Kay about the power of creating and innovating rather than speculating.",
+    aiTags: [
+      "quote",
+      "inspiration",
+      "alan-kay",
+      "innovation",
+      "technology",
+      "future",
+    ],
+    aiSummary:
+      "An inspirational quote from Alan Kay about the power of creating and innovating rather than speculating.",
     isFavorited: false,
   },
   {
@@ -67,7 +78,8 @@ const DEFAULT_CARDS: DefaultCardDef[] = [
       createColor("#4D96FF", "Sky Blue"),
     ],
     aiTags: ["palette", "colors", "design", "sunset", "gradient", "ui"],
-    aiSummary: "A beautiful sunset-inspired color palette. Use palette cards to save color combinations for your design projects.",
+    aiSummary:
+      "A beautiful sunset-inspired color palette. Use palette cards to save color combinations for your design projects.",
     isFavorited: false,
   },
 ];

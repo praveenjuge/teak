@@ -1,12 +1,11 @@
 import { ConvexError, v } from "convex/values";
-import { mutation } from "../_generated/server";
 import { internal } from "../_generated/api";
+import { mutation } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
-import { cardTypeValidator, type CardType } from "../schema";
+import { type CardType, cardTypeValidator } from "../schema";
 import {
   buildInitialProcessingStatus,
   stageCompleted,
-  stagePending,
 } from "./processingStatus";
 
 const FILE_CARD_TYPES: CardType[] = ["image", "video", "audio", "document"];
@@ -15,7 +14,8 @@ const validateFileCardType = (cardType: CardType) => {
   if (!FILE_CARD_TYPES.includes(cardType)) {
     throw new ConvexError({
       code: "TYPE_MISMATCH",
-      message: "File uploads must specify a file-based card type (image, video, audio, or document)",
+      message:
+        "File uploads must specify a file-based card type (image, video, audio, or document)",
     });
   }
 };
@@ -72,11 +72,18 @@ export const uploadAndCreateCard = mutation({
       return {
         success: true,
         uploadUrl,
-        cardId: undefined // Will be set after successful upload
+        cardId: undefined, // Will be set after successful upload
       };
     } catch (error) {
-      if (error instanceof ConvexError && typeof error.data === "object" && error.data) {
-        const { code, message } = error.data as { code?: string; message?: string };
+      if (
+        error instanceof ConvexError &&
+        typeof error.data === "object" &&
+        error.data
+      ) {
+        const { code, message } = error.data as {
+          code?: string;
+          message?: string;
+        };
         if (code) {
           return {
             success: false,
@@ -88,7 +95,8 @@ export const uploadAndCreateCard = mutation({
       console.error("Failed to prepare upload:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to prepare upload"
+        error:
+          error instanceof Error ? error.message : "Failed to prepare upload",
       };
     }
   },
@@ -147,7 +155,9 @@ export const finalizeUploadedCard = mutation({
         fileSize: fileMetadata.size,
         mimeType: fileMetadata.contentType,
         // Include file-related fields from additionalMetadata
-        ...(additionalMeta.recordingTimestamp && { recordingTimestamp: additionalMeta.recordingTimestamp }),
+        ...(additionalMeta.recordingTimestamp && {
+          recordingTimestamp: additionalMeta.recordingTimestamp,
+        }),
         ...(additionalMeta.duration && { duration: additionalMeta.duration }),
         ...(additionalMeta.width && { width: additionalMeta.width }),
         ...(additionalMeta.height && { height: additionalMeta.height }),
@@ -163,7 +173,8 @@ export const finalizeUploadedCard = mutation({
       delete nonFileMetadata.fileSize;
       delete nonFileMetadata.mimeType;
 
-      const metadata = Object.keys(nonFileMetadata).length > 0 ? nonFileMetadata : undefined;
+      const metadata =
+        Object.keys(nonFileMetadata).length > 0 ? nonFileMetadata : undefined;
 
       // Create the card
       const cardId = await ctx.db.insert("cards", {
@@ -190,8 +201,15 @@ export const finalizeUploadedCard = mutation({
 
       return { success: true, cardId };
     } catch (error) {
-      if (error instanceof ConvexError && typeof error.data === "object" && error.data) {
-        const { code, message } = error.data as { code?: string; message?: string };
+      if (
+        error instanceof ConvexError &&
+        typeof error.data === "object" &&
+        error.data
+      ) {
+        const { code, message } = error.data as {
+          code?: string;
+          message?: string;
+        };
         if (code) {
           return {
             success: false,
@@ -203,7 +221,7 @@ export const finalizeUploadedCard = mutation({
       console.error("Failed to finalize uploaded card:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to create card"
+        error: error instanceof Error ? error.message : "Failed to create card",
       };
     }
   },

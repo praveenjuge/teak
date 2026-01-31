@@ -1,0 +1,59 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": [
+    "ultracite/biome/core",
+    "ultracite/biome/react",
+    "ultracite/biome/next"
+  ],
+  "javascript": {
+    "globals": ["chrome", "defineBackground", "defineContentScript"]
+  },
+  "linter": {
+    "rules": {
+      "a11y": {
+        "noSvgWithoutTitle": "off",
+        "useButtonType": "off",
+        "noNoninteractiveElementInteractions": "off",
+        "noStaticElementInteractions": "off",
+        "useMediaCaption": "off",
+        "useKeyWithClickEvents": "off",
+        "useHtmlLang": "off"
+      },
+      "style": {
+        "useFilenamingConvention": "off",
+        "noNestedTernary": "off",
+        "noNonNullAssertion": "off",
+        "noParameterProperties": "off",
+        "noParameterAssign": "off",
+        "useDefaultSwitchClause": "off",
+        "useCollapsedIf": "off",
+        "useBlockStatements": "off",
+        "useConsistentTypeDefinitions": "off"
+      },
+      "complexity": {
+        "noVoid": "off",
+        "noExcessiveCognitiveComplexity": "off",
+        "noForEach": "off",
+        "useLiteralKeys": "off"
+      },
+      "performance": {
+        "noNamespaceImport": "off",
+        "useTopLevelRegex": "off",
+        "noBarrelFile": "off",
+        "noImgElement": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noBitwiseOperators": "off",
+        "useAwait": "off",
+        "noEmptyBlockStatements": "off",
+        "noArrayIndexKey": "off",
+        "useIterableCallbackReturn": "off"
+      },
+      "correctness": {
+        "noUnusedFunctionParameters": "off",
+        "useImageSize": "off"
+      }
+    }
+  }
+}

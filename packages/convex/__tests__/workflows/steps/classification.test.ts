@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { mock, describe, expect, test, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 // Mock AI module
 const aiMocks = (global as any).__AI_MOCKS__ || {
@@ -11,7 +11,7 @@ const aiMocks = (global as any).__AI_MOCKS__ || {
 (global as any).__AI_MOCKS__ = aiMocks;
 mock.module("ai", () => aiMocks);
 
-import { classify } from '../../../../convex/workflows/steps/classification';
+import { classify } from "../../../../convex/workflows/steps/classification";
 
 describe("classification step", () => {
   const mockRunQuery = mock();
@@ -32,7 +32,9 @@ describe("classification step", () => {
     test("throws error when card not found", async () => {
       mockRunQuery.mockResolvedValue(null);
 
-      await expect(classify(mockCtx, { cardId: "c1" })).rejects.toThrow("Card c1 not found for classification");
+      await expect(classify(mockCtx, { cardId: "c1" })).rejects.toThrow(
+        "Card c1 not found for classification"
+      );
     });
 
     test("handles missing card gracefully", async () => {
@@ -48,7 +50,7 @@ describe("classification step", () => {
         _id: "c1",
         type: "quote",
         content: "to be or not to be",
-        processingStatus: { classify: { confidence: 0.95 } }
+        processingStatus: { classify: { confidence: 0.95 } },
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -67,7 +69,7 @@ describe("classification step", () => {
         _id: "c1",
         type: "quote",
         content: "test",
-        processingStatus: {}
+        processingStatus: {},
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -81,7 +83,7 @@ describe("classification step", () => {
       const card = {
         _id: "c1",
         type: "quote",
-        url: "https://example.com"
+        url: "https://example.com",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -94,7 +96,7 @@ describe("classification step", () => {
       const card = {
         _id: "c1",
         type: "quote",
-        fileId: "f1"
+        fileId: "f1",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -109,7 +111,7 @@ describe("classification step", () => {
       const card = {
         _id: "c1",
         type: "text",
-        content: '"This is a quote" - Author'
+        content: '"This is a quote" - Author',
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -124,7 +126,7 @@ describe("classification step", () => {
       const card = {
         _id: "c1",
         type: "text",
-        content: "'This is a quote'"
+        content: "'This is a quote'",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -137,7 +139,7 @@ describe("classification step", () => {
       const card = {
         _id: "c1",
         type: "text",
-        content: "> This is a blockquote"
+        content: "> This is a blockquote",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -153,7 +155,7 @@ describe("classification step", () => {
         _id: "c1",
         type: "text",
         content: '"quoted text"',
-        url: "https://example.com"
+        url: "https://example.com",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -167,7 +169,7 @@ describe("classification step", () => {
     test("classifies image MIME types strongly", async () => {
       const card = {
         _id: "c1",
-        fileMetadata: { mimeType: "image/png" }
+        fileMetadata: { mimeType: "image/png" },
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -180,7 +182,7 @@ describe("classification step", () => {
     test("classifies video MIME types strongly", async () => {
       const card = {
         _id: "c1",
-        fileMetadata: { mimeType: "video/mp4" }
+        fileMetadata: { mimeType: "video/mp4" },
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -192,7 +194,7 @@ describe("classification step", () => {
     test("classifies audio MIME types strongly", async () => {
       const card = {
         _id: "c1",
-        fileMetadata: { mimeType: "audio/mpeg" }
+        fileMetadata: { mimeType: "audio/mpeg" },
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -204,7 +206,7 @@ describe("classification step", () => {
     test("classifies PDF documents", async () => {
       const card = {
         _id: "c1",
-        fileMetadata: { mimeType: "application/pdf" }
+        fileMetadata: { mimeType: "application/pdf" },
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -216,7 +218,10 @@ describe("classification step", () => {
     test("classifies Word documents", async () => {
       const card = {
         _id: "c1",
-        fileMetadata: { mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }
+        fileMetadata: {
+          mimeType:
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        },
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -230,7 +235,7 @@ describe("classification step", () => {
     test("classifies by duration as video when dimensions present", async () => {
       const card = {
         _id: "c1",
-        fileMetadata: { duration: 120, width: 1920, height: 1080 }
+        fileMetadata: { duration: 120, width: 1920, height: 1080 },
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -242,7 +247,7 @@ describe("classification step", () => {
     test("classifies by duration as audio without dimensions", async () => {
       const card = {
         _id: "c1",
-        fileMetadata: { duration: 180 }
+        fileMetadata: { duration: 180 },
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -254,7 +259,7 @@ describe("classification step", () => {
     test("classifies by dimensions as image", async () => {
       const card = {
         _id: "c1",
-        fileMetadata: { width: 800, height: 600 }
+        fileMetadata: { width: 800, height: 600 },
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -268,7 +273,7 @@ describe("classification step", () => {
     test("classifies image by extension", async () => {
       const card = {
         _id: "c1",
-        url: "https://example.com/image.png"
+        url: "https://example.com/image.png",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -280,7 +285,7 @@ describe("classification step", () => {
     test("classifies video by extension", async () => {
       const card = {
         _id: "c1",
-        url: "https://example.com/video.mp4"
+        url: "https://example.com/video.mp4",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -292,7 +297,7 @@ describe("classification step", () => {
     test("classifies audio by extension", async () => {
       const card = {
         _id: "c1",
-        url: "https://example.com/audio.mp3"
+        url: "https://example.com/audio.mp3",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -304,7 +309,7 @@ describe("classification step", () => {
     test("handles URLs without extensions", async () => {
       const card = {
         _id: "c1",
-        url: "https://example.com/page"
+        url: "https://example.com/page",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -318,7 +323,7 @@ describe("classification step", () => {
     test("detects palette from multiple colors", async () => {
       const card = {
         _id: "c1",
-        content: "#ff0000 #00ff00 #0000ff"
+        content: "#ff0000 #00ff00 #0000ff",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -331,7 +336,7 @@ describe("classification step", () => {
     test("detects palette from color names", async () => {
       const card = {
         _id: "c1",
-        content: "red green blue"
+        content: "red green blue",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -344,7 +349,7 @@ describe("classification step", () => {
       const card = {
         _id: "c1",
         content: "#ff0000",
-        tags: ["colors", "palette"]
+        tags: ["colors", "palette"],
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -356,7 +361,7 @@ describe("classification step", () => {
     test("detects palette from hint keywords", async () => {
       const card = {
         _id: "c1",
-        content: "My brand colors palette"
+        content: "My brand colors palette",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -371,7 +376,7 @@ describe("classification step", () => {
       const card = {
         _id: "c1",
         url: "https://example.com",
-        content: "palette colors red green blue"
+        content: "palette colors red green blue",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -387,7 +392,7 @@ describe("classification step", () => {
         _id: "c1",
         url: "https://example.com",
         content: "https://example.com",
-        type: "text"
+        type: "text",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -402,7 +407,7 @@ describe("classification step", () => {
         _id: "c1",
         url: "https://example.com",
         content: "",
-        type: "text"
+        type: "text",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -415,7 +420,7 @@ describe("classification step", () => {
       const card = {
         _id: "c1",
         url: "https://example.com/image.png",
-        content: "Check out this image"
+        content: "Check out this image",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -432,7 +437,7 @@ describe("classification step", () => {
     test("sets shouldCategorize only for links", async () => {
       const card = {
         _id: "c1",
-        url: "https://example.com"
+        url: "https://example.com",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -444,7 +449,7 @@ describe("classification step", () => {
     test("does not categorize non-link cards", async () => {
       const card = {
         _id: "c1",
-        content: "plain text"
+        content: "plain text",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -456,7 +461,7 @@ describe("classification step", () => {
     test("always shouldGenerateMetadata", async () => {
       const card = {
         _id: "c1",
-        content: "test"
+        content: "test",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -468,7 +473,7 @@ describe("classification step", () => {
     test("shouldGenerateRenderables for images", async () => {
       const card = {
         _id: "c1",
-        fileMetadata: { mimeType: "image/png" }
+        fileMetadata: { mimeType: "image/png" },
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -480,7 +485,7 @@ describe("classification step", () => {
     test("shouldGenerateRenderables for videos", async () => {
       const card = {
         _id: "c1",
-        fileMetadata: { mimeType: "video/mp4" }
+        fileMetadata: { mimeType: "video/mp4" },
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -492,7 +497,7 @@ describe("classification step", () => {
     test("shouldGenerateRenderables for documents", async () => {
       const card = {
         _id: "c1",
-        fileMetadata: { mimeType: "application/pdf" }
+        fileMetadata: { mimeType: "application/pdf" },
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -504,7 +509,7 @@ describe("classification step", () => {
     test("should not generate renderables for text", async () => {
       const card = {
         _id: "c1",
-        content: "plain text"
+        content: "plain text",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -516,7 +521,7 @@ describe("classification step", () => {
     test("needsLinkMetadata for links without preview", async () => {
       const card = {
         _id: "c1",
-        url: "https://example.com"
+        url: "https://example.com",
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -529,7 +534,7 @@ describe("classification step", () => {
       const card = {
         _id: "c1",
         url: "https://example.com",
-        metadata: { linkPreview: { status: "success" } }
+        metadata: { linkPreview: { status: "success" } },
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -543,7 +548,7 @@ describe("classification step", () => {
     test("clamps confidence to maximum 1.0", async () => {
       const card = {
         _id: "c1",
-        fileMetadata: { mimeType: "image/png" }
+        fileMetadata: { mimeType: "image/png" },
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -555,7 +560,7 @@ describe("classification step", () => {
     test("clamps confidence to minimum 0.0", async () => {
       const card = {
         _id: "c1",
-        content: "test"
+        content: "test",
       };
       mockRunQuery.mockResolvedValue(card);
 

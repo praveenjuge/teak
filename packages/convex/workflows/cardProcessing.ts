@@ -8,10 +8,10 @@
  * 4. Renderables - Generate thumbnails and visual assets
  */
 
-import { v } from "convex/values";
 import type { RetryBehavior } from "@convex-dev/workpool";
-import { workflow } from "./manager";
+import { v } from "convex/values";
 import { internal } from "../_generated/api";
+import { workflow } from "./manager";
 
 // Helper to get properly typed internal references
 const internalWorkflow = internal as any;
@@ -78,46 +78,54 @@ export const cardProcessingWorkflow: any = workflow.define({
     // Step 1: Classification
     // If already classified (client-provided type), reuse it; otherwise run classifier
     const existingClassifyStatus = initialCard?.processingStatus?.classify;
-    const classification = existingClassifyStatus?.status === "completed" && initialCard
-      ? {
-        type: initialCard.type,
-        confidence: existingClassifyStatus.confidence ?? 1,
-        needsLinkMetadata:
-          initialCard.type === "link" &&
-          initialCard.metadata?.linkPreview?.status !== "success",
-        shouldCategorize: initialCard.type === "link",
-        shouldGenerateMetadata: true,
-        shouldGenerateRenderables: ["image", "video", "document"].includes(initialCard.type ?? ""),
-      }
-      : await step.runAction(
-        internalWorkflow["workflows/steps/classification"].classify,
-        { cardId }
-      );
+    const classification =
+      existingClassifyStatus?.status === "completed" && initialCard
+        ? {
+            type: initialCard.type,
+            confidence: existingClassifyStatus.confidence ?? 1,
+            needsLinkMetadata:
+              initialCard.type === "link" &&
+              initialCard.metadata?.linkPreview?.status !== "success",
+            shouldCategorize: initialCard.type === "link",
+            shouldGenerateMetadata: true,
+            shouldGenerateRenderables: ["image", "video", "document"].includes(
+              initialCard.type ?? ""
+            ),
+          }
+        : await step.runAction(
+            internalWorkflow["workflows/steps/classification"].classify,
+            { cardId }
+          );
 
     // Check if this is an SVG image that needs thumbnail generation for palette extraction
-    const isSvgImage = classification.type === "image" && (
-      initialCard?.fileMetadata?.mimeType === "image/svg+xml" ||
-      initialCard?.fileMetadata?.fileName?.endsWith(".svg") ||
-      initialCard?.fileMetadata?.fileName?.endsWith(".SVG")
-    );
+    const isSvgImage =
+      classification.type === "image" &&
+      (initialCard?.fileMetadata?.mimeType === "image/svg+xml" ||
+        initialCard?.fileMetadata?.fileName?.endsWith(".svg") ||
+        initialCard?.fileMetadata?.fileName?.endsWith(".SVG"));
 
     // Palette extraction for image cards
     // For SVGs, we'll run this after renderables (thumbnail needs to be ready first)
     // For raster images, we can run it in parallel
-    const palettePromise = (classification.type === "image" && !isSvgImage)
-      ? step
-        .runAction(
-          internalWorkflow["workflows/steps/palette"].extractPaletteFromImage,
-          { cardId }
-        )
-        .catch((error: unknown) => {
-          console.error(`${PIPELINE_LOG_PREFIX} Palette extraction failed`, {
-            cardId,
-            error,
-          });
-          return null;
-        })
-      : Promise.resolve(null);
+    const palettePromise =
+      classification.type === "image" && !isSvgImage
+        ? step
+            .runAction(
+              internalWorkflow["workflows/steps/palette"]
+                .extractPaletteFromImage,
+              { cardId }
+            )
+            .catch((error: unknown) => {
+              console.error(
+                `${PIPELINE_LOG_PREFIX} Palette extraction failed`,
+                {
+                  cardId,
+                  error,
+                }
+              );
+              return null;
+            })
+        : Promise.resolve(null);
 
     // Ensure link metadata is ready before proceeding with downstream AI steps.
     if (classification.type === "link") {
@@ -155,7 +163,8 @@ export const cardProcessingWorkflow: any = workflow.define({
         classifyStepResult.shouldFetchStructured
       ) {
         const structuredResult = await step.runAction(
-          internalWorkflow["workflows/steps/categorization/index"].fetchStructuredDataStep,
+          internalWorkflow["workflows/steps/categorization/index"]
+            .fetchStructuredDataStep,
           {
             cardId,
             sourceUrl: classifyStepResult.sourceUrl,
@@ -167,7 +176,8 @@ export const cardProcessingWorkflow: any = workflow.define({
       }
 
       const categorizationResult = await step.runAction(
-        internalWorkflow["workflows/steps/categorization/index"].mergeAndSaveStep,
+        internalWorkflow["workflows/steps/categorization/index"]
+          .mergeAndSaveStep,
         {
           cardId,
           card: classifyStepResult.card,
@@ -197,9 +207,9 @@ export const cardProcessingWorkflow: any = workflow.define({
       // For videos and SVGs: renderables first, then metadata (thumbnail needed for AI)
       renderablesResult = classification.shouldGenerateRenderables
         ? await step.runAction(
-          internalWorkflow["workflows/steps/renderables"].generate,
-          { cardId, cardType: classification.type }
-        )
+            internalWorkflow["workflows/steps/renderables"].generate,
+            { cardId, cardType: classification.type }
+          )
         : null;
 
       // For SVGs, now run palette extraction since the thumbnail is ready
@@ -210,35 +220,38 @@ export const cardProcessingWorkflow: any = workflow.define({
             { cardId }
           )
           .catch((error: unknown) => {
-            console.error(`${PIPELINE_LOG_PREFIX} Palette extraction failed for SVG`, {
-              cardId,
-              error,
-            });
+            console.error(
+              `${PIPELINE_LOG_PREFIX} Palette extraction failed for SVG`,
+              {
+                cardId,
+                error,
+              }
+            );
             return null;
           });
       }
 
       metadataResult = classification.shouldGenerateMetadata
         ? await step.runAction(
-          internalWorkflow["workflows/steps/metadata"].generate,
-          { cardId, cardType: classification.type },
-          { retry: METADATA_STEP_RETRY }
-        )
+            internalWorkflow["workflows/steps/metadata"].generate,
+            { cardId, cardType: classification.type },
+            { retry: METADATA_STEP_RETRY }
+          )
         : null;
     } else {
       const metadataPromise = classification.shouldGenerateMetadata
         ? step.runAction(
-          internalWorkflow["workflows/steps/metadata"].generate,
-          { cardId, cardType: classification.type },
-          { retry: METADATA_STEP_RETRY }
-        )
+            internalWorkflow["workflows/steps/metadata"].generate,
+            { cardId, cardType: classification.type },
+            { retry: METADATA_STEP_RETRY }
+          )
         : Promise.resolve(null);
 
       const renderablesPromise = classification.shouldGenerateRenderables
         ? step.runAction(
-          internalWorkflow["workflows/steps/renderables"].generate,
-          { cardId, cardType: classification.type }
-        )
+            internalWorkflow["workflows/steps/renderables"].generate,
+            { cardId, cardType: classification.type }
+          )
         : Promise.resolve(null);
 
       [metadataResult, renderablesResult] = await Promise.all([

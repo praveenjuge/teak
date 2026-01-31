@@ -21,7 +21,7 @@ export const findDuplicateCard = query({
         q
           .eq("userId", user.subject)
           .eq("url", args.url)
-          .eq("isDeleted", undefined),
+          .eq("isDeleted", undefined)
       )
       .order("desc")
       .first();
@@ -34,9 +34,13 @@ export const findDuplicateCard = query({
     const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] =
       await Promise.all([
         duplicate.fileId ? ctx.storage.getUrl(duplicate.fileId) : null,
-        duplicate.thumbnailId ? ctx.storage.getUrl(duplicate.thumbnailId) : null,
+        duplicate.thumbnailId
+          ? ctx.storage.getUrl(duplicate.thumbnailId)
+          : null,
         duplicate.metadata?.linkPreview?.screenshotStorageId
-          ? ctx.storage.getUrl(duplicate.metadata.linkPreview.screenshotStorageId)
+          ? ctx.storage.getUrl(
+              duplicate.metadata.linkPreview.screenshotStorageId
+            )
           : null,
         duplicate.metadata?.linkPreview?.imageStorageId
           ? ctx.storage.getUrl(duplicate.metadata.linkPreview.imageStorageId)

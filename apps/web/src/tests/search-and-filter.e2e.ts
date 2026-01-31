@@ -1,12 +1,12 @@
-import { test, expect } from "@playwright/test";
-import { AuthHelper, UiHelper, generateTestContent } from "./test-helpers";
+import { expect, test } from "@playwright/test";
+import { AuthHelper, UiHelper } from "./test-helpers";
 
 const TEST_EMAIL = process.env.E2E_BETTER_AUTH_USER_EMAIL;
 const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
 
 test.describe("Search and Filter Workflows", () => {
   test.skip(
-    !TEST_EMAIL || !TEST_PASSWORD,
+    !(TEST_EMAIL && TEST_PASSWORD),
     "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run search tests."
   );
 
@@ -37,7 +37,10 @@ test.describe("Search and Filter Workflows", () => {
       const uiHelper = new UiHelper(page);
 
       await expect(uiHelper.getSearchInput()).toBeVisible();
-      await expect(uiHelper.getSearchInput()).toHaveAttribute("placeholder", "Search for anything...");
+      await expect(uiHelper.getSearchInput()).toHaveAttribute(
+        "placeholder",
+        "Search for anything..."
+      );
     });
 
     test("should search for text in cards", async ({ page }) => {
@@ -72,7 +75,7 @@ test.describe("Search and Filter Workflows", () => {
 
       // All cards should be visible again
       await page.waitForTimeout(500);
-      const cards = await page.locator('[data-card-id]').count();
+      const cards = await page.locator("[data-card-id]").count();
       expect(cards).toBeGreaterThan(0);
     });
 
@@ -83,17 +86,23 @@ test.describe("Search and Filter Workflows", () => {
       await uiHelper.search("xyznonexistent12345");
 
       // Should show "nothing found" message
-      await expect(page.getByText(/nothing found/i)).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText(/nothing found/i)).toBeVisible({
+        timeout: 5000,
+      });
     });
 
-    test("should show clear all button when filters are active", async ({ page }) => {
+    test("should show clear all button when filters are active", async ({
+      page,
+    }) => {
       const uiHelper = new UiHelper(page);
 
       // Search to activate filters
       await uiHelper.search("Apple");
 
       // Should see Clear All button
-      await expect(page.getByRole("button", { name: "Clear All" })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Clear All" })
+      ).toBeVisible();
     });
   });
 
@@ -107,7 +116,9 @@ test.describe("Search and Filter Workflows", () => {
       await searchInput.press("Enter");
 
       // Should see keyword tag
-      await expect(page.getByRole("button", { name: /#test-tag/i })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /#test-tag/i })
+      ).toBeVisible();
     });
 
     test("should remove keyword tag by clicking", async ({ page }) => {
@@ -122,7 +133,9 @@ test.describe("Search and Filter Workflows", () => {
       await page.getByRole("button", { name: /#removable-tag/i }).click();
 
       // Tag should be removed
-      await expect(page.getByRole("button", { name: /#removable-tag/i })).not.toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /#removable-tag/i })
+      ).not.toBeVisible();
     });
 
     test("should remove keyword tag with backspace", async ({ page }) => {
@@ -138,7 +151,9 @@ test.describe("Search and Filter Workflows", () => {
       await searchInput.press("Backspace");
 
       // Tag should be removed
-      await expect(page.getByRole("button", { name: /#backspace-tag/i })).not.toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /#backspace-tag/i })
+      ).not.toBeVisible();
     });
 
     test("should add multiple keyword tags", async ({ page }) => {
@@ -161,7 +176,9 @@ test.describe("Search and Filter Workflows", () => {
   });
 
   test.describe("Type Filters", () => {
-    test("should show available type filters when search is focused", async ({ page }) => {
+    test("should show available type filters when search is focused", async ({
+      page,
+    }) => {
       const uiHelper = new UiHelper(page);
       const searchInput = uiHelper.getSearchInput();
 
@@ -180,7 +197,9 @@ test.describe("Search and Filter Workflows", () => {
       await uiHelper.addTypeFilter("Text");
 
       // Should see active Text filter
-      await expect(page.getByRole("button", { name: /Text/i }).first()).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /Text/i }).first()
+      ).toBeVisible();
     });
 
     test("should remove type filter by clicking", async ({ page }) => {
@@ -206,7 +225,9 @@ test.describe("Search and Filter Workflows", () => {
 
       // Should see both active filters
       await expect(page.getByRole("button", { name: /#fruit/i })).toBeVisible();
-      await expect(page.getByRole("button", { name: /Text/i }).first()).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /Text/i }).first()
+      ).toBeVisible();
     });
   });
 
@@ -218,13 +239,17 @@ test.describe("Search and Filter Workflows", () => {
       await uiHelper.toggleFavoritesFilter();
 
       // Should see Favorites filter active
-      await expect(page.getByRole("button", { name: /favorites/i }).first()).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /favorites/i }).first()
+      ).toBeVisible();
 
       // Toggle again to remove
       await uiHelper.toggleFavoritesFilter();
     });
 
-    test("should use keyboard shortcut 'fav' to toggle favorites", async ({ page }) => {
+    test("should use keyboard shortcut 'fav' to toggle favorites", async ({
+      page,
+    }) => {
       const uiHelper = new UiHelper(page);
       const searchInput = uiHelper.getSearchInput();
 
@@ -233,7 +258,9 @@ test.describe("Search and Filter Workflows", () => {
       await searchInput.press("Enter");
 
       // Should toggle favorites filter
-      await expect(page.getByRole("button", { name: /favorites/i }).first()).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /favorites/i }).first()
+      ).toBeVisible();
     });
   });
 
@@ -245,13 +272,17 @@ test.describe("Search and Filter Workflows", () => {
       await uiHelper.toggleTrashFilter();
 
       // Should see Trash filter active
-      await expect(page.getByRole("button", { name: /trash/i }).first()).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /trash/i }).first()
+      ).toBeVisible();
 
       // Toggle again to remove
       await uiHelper.toggleTrashFilter();
     });
 
-    test("should use keyboard shortcut 'trash' to toggle trash", async ({ page }) => {
+    test("should use keyboard shortcut 'trash' to toggle trash", async ({
+      page,
+    }) => {
       const uiHelper = new UiHelper(page);
       const searchInput = uiHelper.getSearchInput();
 
@@ -260,7 +291,9 @@ test.describe("Search and Filter Workflows", () => {
       await searchInput.press("Enter");
 
       // Should toggle trash filter
-      await expect(page.getByRole("button", { name: /trash/i }).first()).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /trash/i }).first()
+      ).toBeVisible();
     });
   });
 
@@ -284,10 +317,14 @@ test.describe("Search and Filter Workflows", () => {
       await page.getByRole("button", { name: "Clear All" }).click();
 
       // All filters should be removed
-      await expect(page.getByRole("button", { name: /#test/i })).not.toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /#test/i })
+      ).not.toBeVisible();
     });
 
-    test("should hide filter panel when no filters are active", async ({ page }) => {
+    test("should hide filter panel when no filters are active", async ({
+      page,
+    }) => {
       const uiHelper = new UiHelper(page);
 
       // Add and remove filters
@@ -322,7 +359,9 @@ test.describe("Search and Filter Workflows", () => {
       await page.waitForTimeout(500);
     });
 
-    test("should maintain search state when clicking card", async ({ page }) => {
+    test("should maintain search state when clicking card", async ({
+      page,
+    }) => {
       const uiHelper = new UiHelper(page);
 
       // Search for something
@@ -349,7 +388,9 @@ test.describe("Search and Filter Workflows", () => {
 
       // Both filters should be active
       await expect(page.getByRole("button", { name: /#fruit/i })).toBeVisible();
-      await expect(page.getByRole("button", { name: /Text/i }).first()).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /Text/i }).first()
+      ).toBeVisible();
     });
 
     test("should combine search with favorites filter", async ({ page }) => {
@@ -360,7 +401,9 @@ test.describe("Search and Filter Workflows", () => {
 
       // Both filters should be active
       await expect(page.getByRole("button", { name: /#fruit/i })).toBeVisible();
-      await expect(page.getByRole("button", { name: /favorites/i }).first()).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /favorites/i }).first()
+      ).toBeVisible();
     });
 
     test("should combine type and favorites filters", async ({ page }) => {
@@ -370,8 +413,12 @@ test.describe("Search and Filter Workflows", () => {
       await uiHelper.toggleFavoritesFilter();
 
       // Both filters should be active
-      await expect(page.getByRole("button", { name: /Text/i }).first()).toBeVisible();
-      await expect(page.getByRole("button", { name: /favorites/i }).first()).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /Text/i }).first()
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /favorites/i }).first()
+      ).toBeVisible();
     });
   });
 });

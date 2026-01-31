@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, expect, test, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 describe("ai/actions.ts", () => {
   let manuallyGenerateAI: any;
@@ -9,7 +9,9 @@ describe("ai/actions.ts", () => {
   });
 
   test("throws when unauthenticated", async () => {
-    const ctx = { auth: { getUserIdentity: mock().mockResolvedValue(null) } } as any;
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue(null) },
+    } as any;
     const handler = (manuallyGenerateAI as any).handler ?? manuallyGenerateAI;
     await expect(handler(ctx, { cardId: "c1" })).rejects.toThrow(
       "Authentication required"

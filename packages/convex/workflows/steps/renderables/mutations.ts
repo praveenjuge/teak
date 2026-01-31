@@ -1,6 +1,6 @@
-import { internalMutation } from "../../../_generated/server";
 import { v } from "convex/values";
 import type { Id } from "../../../_generated/dataModel";
+import { internalMutation } from "../../../_generated/server";
 
 /**
  * Update only the fileMetadata dimensions (width/height) for a card.
@@ -63,7 +63,9 @@ export const updateCardThumbnail = internalMutation({
       updates.fileMetadata = {
         ...(card.fileMetadata || {}),
         ...(args.originalWidth !== undefined && { width: args.originalWidth }),
-        ...(args.originalHeight !== undefined && { height: args.originalHeight }),
+        ...(args.originalHeight !== undefined && {
+          height: args.originalHeight,
+        }),
       };
     }
 

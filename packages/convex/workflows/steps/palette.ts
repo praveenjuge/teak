@@ -2,8 +2,8 @@
 
 import { PhotonImage } from "@cf-wasm/photon";
 import { v } from "convex/values";
-import { internalAction } from "../../_generated/server";
 import { internal } from "../../_generated/api";
+import { internalAction } from "../../_generated/server";
 
 const MAX_COLORS = 5;
 const SAMPLE_TARGET = 4000;

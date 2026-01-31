@@ -1,19 +1,19 @@
-import {
-  action,
-  query,
-  internalMutation,
-  type ActionCtx,
-  type QueryCtx,
-} from "./_generated/server";
+import { paginationOptsValidator } from "convex/server";
+import { v } from "convex/values";
 import { components, internal } from "./_generated/api";
+import type { Doc, Id } from "./_generated/dataModel";
+import {
+  type ActionCtx,
+  action,
+  internalMutation,
+  type QueryCtx,
+  query,
+} from "./_generated/server";
 import type {
   ProcessingStageKey,
   ProcessingStatus,
 } from "./card/processingStatus";
 import { stagePending } from "./card/processingStatus";
-import { v } from "convex/values";
-import { paginationOptsValidator } from "convex/server";
-import type { Doc, Id } from "./_generated/dataModel";
 
 type StageSummary = {
   pending: number;
@@ -42,7 +42,7 @@ const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_MISSING_CARDS = 50;
 // Maximum cards to process in admin overview to prevent memory issues
 // For larger datasets, consider denormalizing counters or using pagination
-const ADMIN_OVERVIEW_LIMIT = 10000;
+const ADMIN_OVERVIEW_LIMIT = 10_000;
 const ADMIN_LIST_LIMIT = 200;
 
 type AdminCtx = QueryCtx | ActionCtx;
@@ -53,15 +53,12 @@ const SINGLE_RESULT_PAGE = {
 } as const;
 
 const getFirstUserId = async (ctx: AdminCtx) => {
-  const result = (await ctx.runQuery(
-    components.betterAuth.adapter.findMany,
-    {
-      model: "user",
-      sortBy: { field: "createdAt", direction: "asc" },
-      limit: 1,
-      paginationOpts: SINGLE_RESULT_PAGE,
-    }
-  )) as { page?: Array<{ _id: string }> };
+  const result = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+    model: "user",
+    sortBy: { field: "createdAt", direction: "asc" },
+    limit: 1,
+    paginationOpts: SINGLE_RESULT_PAGE,
+  })) as { page?: Array<{ _id: string }> };
 
   const firstUser = result?.page?.[0];
   return firstUser?._id ?? null;
@@ -97,7 +94,7 @@ type CardWithUrls = Doc<"cards"> & {
 
 const attachCardUrls = async (
   ctx: QueryCtx,
-  cards: Doc<"cards">[],
+  cards: Doc<"cards">[]
 ): Promise<CardWithUrls[]> =>
   Promise.all(
     cards.map(async (card) => {
@@ -122,17 +119,17 @@ const attachCardUrls = async (
         screenshotUrl: screenshotUrl || undefined,
         linkPreviewImageUrl: linkPreviewImageUrl || undefined,
       };
-    }),
+    })
   );
 
 const getActiveCardCountForUser = async (
   ctx: QueryCtx,
-  userId: string,
+  userId: string
 ): Promise<number> => {
   const cards = await ctx.db
     .query("cards")
     .withIndex("by_user_deleted", (q) =>
-      q.eq("userId", userId).eq("isDeleted", undefined),
+      q.eq("userId", userId).eq("isDeleted", undefined)
     )
     .collect();
 
@@ -177,10 +174,13 @@ export const getOverview = query({
     };
 
     const stageSummaries: Record<ProcessingStageKey, StageSummary> =
-      STAGE_KEYS.reduce((acc, key) => {
-        acc[key] = { pending: 0, inProgress: 0, failed: 0 };
-        return acc;
-      }, {} as Record<ProcessingStageKey, StageSummary>);
+      STAGE_KEYS.reduce(
+        (acc, key) => {
+          acc[key] = { pending: 0, inProgress: 0, failed: 0 };
+          return acc;
+        },
+        {} as Record<ProcessingStageKey, StageSummary>
+      );
 
     let totalCards = 0;
     let activeCards = 0;
@@ -255,14 +255,15 @@ export const getOverview = query({
         reasons.push("AI tags missing");
       }
 
-      if (
-        card.type === "link" &&
-        card.metadataStatus === "pending"
-      ) {
+      if (card.type === "link" && card.metadataStatus === "pending") {
         reasons.push("Link metadata still pending");
       }
 
-      if (!isDeleted && reasons.length > 0 && missingCards.length < MAX_MISSING_CARDS) {
+      if (
+        !isDeleted &&
+        reasons.length > 0 &&
+        missingCards.length < MAX_MISSING_CARDS
+      ) {
         missingCards.push({
           cardId: card._id,
           type: card.type,
@@ -365,7 +366,8 @@ export const listAllCards = query({
 const normalizeUserId = (user: Record<string, unknown>) =>
   (user as { _id?: string; id?: string; userId?: string; subject?: string })
     ._id ??
-  (user as { _id?: string; id?: string; userId?: string; subject?: string }).id ??
+  (user as { _id?: string; id?: string; userId?: string; subject?: string })
+    .id ??
   (user as { _id?: string; id?: string; userId?: string; subject?: string })
     .userId ??
   (user as { _id?: string; id?: string; userId?: string; subject?: string })
@@ -381,15 +383,12 @@ export const listAllUsers = query({
 
     const safePagination = clampPagination(paginationOpts);
 
-    const result = (await ctx.runQuery(
-      components.betterAuth.adapter.findMany,
-      {
-        model: "user",
-        sortBy: { field: "createdAt", direction: "desc" },
-        limit: safePagination.numItems,
-        paginationOpts: safePagination,
-      }
-    )) as {
+    const result = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: "user",
+      sortBy: { field: "createdAt", direction: "desc" },
+      limit: safePagination.numItems,
+      paginationOpts: safePagination,
+    })) as {
       page?: Array<Record<string, unknown>>;
       continueCursor?: string | null;
       isDone?: boolean;
@@ -398,9 +397,7 @@ export const listAllUsers = query({
     const page = await Promise.all(
       (result.page ?? []).map(async (user) => {
         const id = normalizeUserId(user);
-        const cardsCount = id
-          ? await getActiveCardCountForUser(ctx, id)
-          : 0;
+        const cardsCount = id ? await getActiveCardCountForUser(ctx, id) : 0;
 
         return {
           id,
@@ -411,8 +408,7 @@ export const listAllUsers = query({
           updatedAt: (user as { updatedAt?: number }).updatedAt ?? null,
           emailVerified:
             (user as { emailVerified?: boolean }).emailVerified ?? null,
-          isAnonymous:
-            (user as { isAnonymous?: boolean }).isAnonymous ?? null,
+          isAnonymous: (user as { isAnonymous?: boolean }).isAnonymous ?? null,
           displayUsername:
             (user as { displayUsername?: string | null }).displayUsername ??
             null,
@@ -426,7 +422,7 @@ export const listAllUsers = query({
             (user as { twoFactorEnabled?: boolean }).twoFactorEnabled ?? null,
           cardsCount,
         };
-      }),
+      })
     );
 
     return {
@@ -534,7 +530,11 @@ export const refreshCardProcessing = action({
   handler: async (
     ctx,
     { cardId }
-  ): Promise<{ requestedAt: number; success: boolean; reason?: "not_found" }> => {
+  ): Promise<{
+    requestedAt: number;
+    success: boolean;
+    reason?: "not_found";
+  }> => {
     await ensureAdmin(ctx);
 
     const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
@@ -549,10 +549,9 @@ export const refreshCardProcessing = action({
       };
     }
 
-    await ctx.runMutation(
-      (internal as any).admin.resetCardProcessingState,
-      { cardId }
-    );
+    await ctx.runMutation((internal as any).admin.resetCardProcessingState, {
+      cardId,
+    });
 
     await ctx.scheduler.runAfter(
       0,

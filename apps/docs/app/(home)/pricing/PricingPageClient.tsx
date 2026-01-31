@@ -105,11 +105,11 @@ export default function PricingPageClient() {
     <main className="flex flex-1 flex-col">
       {/* Hero Section */}
       <section className="pt-20 pb-8">
-        <div className="container mx-auto px-4 text-center max-w-xl">
-          <h1 className="mb-4 font-bold text-4xl md:text-5xl text-balance tracking-tight">
+        <div className="container mx-auto max-w-xl px-4 text-center">
+          <h1 className="mb-4 text-balance font-bold text-4xl tracking-tight md:text-5xl">
             200 cards free. $19/month after.
           </h1>
-          <p className="mx-auto max-w-2xl text-muted-foreground text-lg text-balance">
+          <p className="mx-auto max-w-2xl text-balance text-lg text-muted-foreground">
             Try it free with your most important inspiration. Upgrade when you
             need more. No tricks, ever.
           </p>
@@ -118,23 +118,23 @@ export default function PricingPageClient() {
 
       {/* Pricing Toggle */}
       <div className="container mx-auto px-4 pb-4">
-        <PricingToggle onToggle={setIsYearly} defaultYearly={false} />
+        <PricingToggle defaultYearly={false} onToggle={setIsYearly} />
       </div>
 
       {/* Pricing Cards */}
       <section className="pb-12">
         <div className="container mx-auto px-4">
-          <div className="grid gap-8 md:grid-cols-2 max-w-4xl mx-auto">
+          <div className="mx-auto grid max-w-4xl gap-8 md:grid-cols-2">
             {pricingPlans.map((plan) => (
               <PricingCard
-                key={plan.id}
-                name={plan.name}
-                price={plan.price}
+                cta={plan.cta}
                 description={plan.description}
                 features={plan.features}
-                cta={plan.cta}
-                popular={plan.popular}
                 isYearly={isYearly}
+                key={plan.id}
+                name={plan.name}
+                popular={plan.popular}
+                price={plan.price}
               />
             ))}
           </div>
@@ -145,16 +145,16 @@ export default function PricingPageClient() {
       <section className="pb-20 md:pb-24">
         <div className="container mx-auto px-4">
           <div className="mx-auto max-w-4xl">
-            <div className="relative rounded-lg border border-border justify-between bg-card p-8 flex">
+            <div className="relative flex justify-between rounded-lg border border-border bg-card p-8">
               <div>
-                <h3 className="font-semibold text-base mb-2">
+                <h3 className="mb-2 font-semibold text-base">
                   {selfHostedPlan.name}
                 </h3>
                 <p className="text-muted-foreground">
                   {selfHostedPlan.description}
                 </p>
               </div>
-              <Button variant="outline" asChild>
+              <Button asChild variant="outline">
                 <a href={selfHostedPlan.cta.href}>{selfHostedPlan.cta.text}</a>
               </Button>
             </div>
@@ -166,17 +166,17 @@ export default function PricingPageClient() {
       <section className="py-20 md:py-24">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 font-bold text-3xl text-balance">FAQ</h2>
-            <p className="mx-auto max-w-xl text-muted-foreground text-balance">
+            <h2 className="mb-4 text-balance font-bold text-3xl">FAQ</h2>
+            <p className="mx-auto max-w-xl text-balance text-muted-foreground">
               Real answers. No corporate jargon, promise.
             </p>
           </div>
 
           <div className="mx-auto max-w-2xl space-y-4">
-            {faqs.map((faq, index) => (
+            {faqs.map((faq) => (
               <div
-                key={index}
                 className="rounded-lg border border-border bg-card p-6"
+                key={faq.question}
               >
                 <h3 className="mb-3 font-semibold text-foreground">
                   {faq.question}

@@ -59,4 +59,3 @@ export const backfillMetadataSearchFields = internalMutation({
     return { updatedCount, hasMore: cards.length === batchSize };
   },
 });
-

@@ -1,19 +1,19 @@
-import { Metadata } from "next";
+import {
+  Camera,
+  Check,
+  File,
+  FileText,
+  FolderOpen,
+  Link,
+  Mic,
+  Search,
+  Smartphone,
+  Video,
+  X,
+} from "lucide-react";
+import type { Metadata } from "next";
 import { FeatureCard } from "../../components/FeatureCard";
 import { Button } from "../../components/ui/button";
-import {
-  X,
-  Check,
-  FileText,
-  Link,
-  Camera,
-  Video,
-  Mic,
-  File,
-  Smartphone,
-  FolderOpen,
-  Search,
-} from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Never Lose That Perfect Design Again",
@@ -142,19 +142,19 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="relative pt-14 md:pt-22">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-18 mx-auto max-w-2xl">
-            <h1 className="mb-4 font-bold text-4xl md:text-5xl text-balance tracking-tight">
+          <div className="mx-auto mb-18 max-w-2xl text-center">
+            <h1 className="mb-4 text-balance font-bold text-4xl tracking-tight md:text-5xl">
               Never lose that perfect design again
             </h1>
-            <p className="mx-auto mb-6 max-w-xl text-muted-foreground text-lg text-balance">
+            <p className="mx-auto mb-6 max-w-xl text-balance text-lg text-muted-foreground">
               Save inspiration in 1 click, find it in 2 seconds. Never lose your
               best ideas again.
             </p>
-            <Button size="lg" asChild>
+            <Button asChild size="lg">
               <a
                 href="https://app.teakvault.com/register"
-                target="_blank"
                 rel="noopener noreferrer"
+                target="_blank"
               >
                 Start Free
               </a>
@@ -163,14 +163,13 @@ export default function HomePage() {
 
           {/* Hero Image */}
           <div className="mx-auto max-w-5xl">
-            <div className="relative rounded-lg overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+            <div className="relative overflow-hidden rounded-lg">
               <img
-                src="/hero-image.png"
                 alt="Teak app interface showing various saved content types"
-                width={1200}
+                className="h-auto w-full"
                 height={800}
-                className="w-full h-auto"
+                src="/hero-image.png"
+                width={1200}
               />
             </div>
           </div>
@@ -179,10 +178,10 @@ export default function HomePage() {
 
       {/* Problem/Solution Section */}
       <section className="py-20 md:py-24">
-        <div className="container mx-auto px-4 max-w-5xl">
+        <div className="container mx-auto max-w-5xl px-4">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="mb-6 font-bold text-3xl md:text-4xl text-balance">
+              <h2 className="mb-6 text-balance font-bold text-3xl md:text-4xl">
                 You&apos;re wasting hours looking for that one thing
               </h2>
               <div className="space-y-4">
@@ -221,7 +220,7 @@ export default function HomePage() {
               </div>
             </div>
             <div className="rounded-lg border border-border bg-card p-8">
-              <h3 className="mb-6 font-bold text-xl text-balance">
+              <h3 className="mb-6 text-balance font-bold text-xl">
                 Teak fixes this. Forever.
               </h3>
               <div className="space-y-4">
@@ -264,23 +263,23 @@ export default function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 md:py-24 bg-background">
-        <div className="container mx-auto px-4 max-w-5xl">
+      <section className="bg-background py-20 md:py-24">
+        <div className="container mx-auto max-w-5xl px-4">
           <div className="mb-16 text-center">
-            <h2 className="mb-4 font-bold text-3xl text-balance">
+            <h2 className="mb-4 text-balance font-bold text-3xl">
               Why designers are switching to Teak
             </h2>
-            <p className="mx-auto max-w-xl text-muted-foreground text-balance text-lg">
+            <p className="mx-auto max-w-xl text-balance text-lg text-muted-foreground">
               Finally, a bookmarking tool that doesn&apos;t suck.
             </p>
           </div>
 
           <div className="grid gap-8 md:grid-cols-2">
-            {features.map((feature, index) => (
+            {features.map((feature) => (
               <FeatureCard
-                key={index}
                 description={feature.description}
                 icon={feature.icon}
+                key={feature.title}
                 title={feature.title}
               />
             ))}
@@ -290,23 +289,23 @@ export default function HomePage() {
 
       {/* Content Types Preview */}
       <section className="py-20 md:py-24">
-        <div className="container mx-auto px-4 max-w-5xl">
+        <div className="container mx-auto max-w-5xl px-4">
           <div className="mb-16 text-center">
-            <h2 className="mb-6 font-bold text-3xl md:text-4xl text-balance">
+            <h2 className="mb-6 text-balance font-bold text-3xl md:text-4xl">
               Save everything. Find anything.
             </h2>
-            <p className="mx-auto mb-12 max-w-2xl text-muted-foreground text-lg text-balance">
+            <p className="mx-auto mb-12 max-w-2xl text-balance text-lg text-muted-foreground">
               That perfect Dribbble shot, that CodePen you&apos;ll need later,
               that voice note about the client&apos;s feedback. Save it all.
             </p>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
+          <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-2 lg:grid-cols-3">
             <div className="group relative rounded-lg border bg-card p-6 transition-all duration-300 hover:-translate-y-1">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <FileText className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg text-balance">
+              <h3 className="mb-2 text-balance font-semibold text-lg">
                 Design Notes
               </h3>
               <p className="text-muted-foreground">
@@ -319,7 +318,7 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Link className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg text-balance">
+              <h3 className="mb-2 text-balance font-semibold text-lg">
                 Design Resources
               </h3>
               <p className="text-muted-foreground">
@@ -332,7 +331,7 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Camera className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg text-balance">
+              <h3 className="mb-2 text-balance font-semibold text-lg">
                 Visual References
               </h3>
               <p className="text-muted-foreground">
@@ -345,7 +344,7 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Video className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg text-balance">
+              <h3 className="mb-2 text-balance font-semibold text-lg">
                 Design Videos
               </h3>
               <p className="text-muted-foreground">
@@ -358,7 +357,7 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Mic className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg text-balance">
+              <h3 className="mb-2 text-balance font-semibold text-lg">
                 Audio Notes
               </h3>
               <p className="text-muted-foreground">
@@ -371,7 +370,7 @@ export default function HomePage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <File className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg text-balance">
+              <h3 className="mb-2 text-balance font-semibold text-lg">
                 Design Files
               </h3>
               <p className="text-muted-foreground">
@@ -384,27 +383,27 @@ export default function HomePage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20 md:py-24 bg-background">
-        <div className="container mx-auto px-4 max-w-5xl">
+      <section className="bg-background py-20 md:py-24">
+        <div className="container mx-auto max-w-5xl px-4">
           <div className="mb-16 text-center">
-            <h2 className="mb-6 font-bold text-3xl md:text-4xl text-balance">
+            <h2 className="mb-6 text-balance font-bold text-3xl md:text-4xl">
               Master your inspiration in 3 minutes
             </h2>
-            <p className="mx-auto mb-12 max-w-2xl text-muted-foreground text-lg text-balance">
+            <p className="mx-auto mb-12 max-w-2xl text-balance text-lg text-muted-foreground">
               No tutorial needed. Just save, find, create.
             </p>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto">
-            {howItWorksSteps.map((step, index) => (
+          <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-3">
+            {howItWorksSteps.map((step) => (
               <div
-                key={index}
                 className="group relative rounded-lg border bg-card p-8 transition-all duration-300 hover:-translate-y-1"
+                key={step.step}
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4 text-primary">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   {step.icon}
                 </div>
-                <h3 className="mb-3 font-semibold text-xl text-balance">
+                <h3 className="mb-3 text-balance font-semibold text-xl">
                   {step.title}
                 </h3>
                 <p className="text-muted-foreground leading-relaxed">
@@ -418,21 +417,21 @@ export default function HomePage() {
 
       {/* FAQ Section */}
       <section className="py-20 md:py-24">
-        <div className="max-w-5xl mx-auto px-4">
+        <div className="mx-auto max-w-5xl px-4">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 font-bold text-3xl text-balance">
+            <h2 className="mb-4 text-balance font-bold text-3xl">
               Still have questions?
             </h2>
-            <p className="mx-auto max-w-xl text-muted-foreground text-balance text-lg">
+            <p className="mx-auto max-w-xl text-balance text-lg text-muted-foreground">
               We&apos;ve got answers. No corporate speak, promise.
             </p>
           </div>
 
-          <div className="gap-6 grid grid-cols-1 md:grid-cols-2">
-            {faqs.map((faq, index) => (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {faqs.map((faq) => (
               <div
-                key={index}
                 className="rounded-lg border border-border bg-card p-6"
+                key={faq.question}
               >
                 <h3 className="mb-3 font-semibold text-foreground">
                   {faq.question}

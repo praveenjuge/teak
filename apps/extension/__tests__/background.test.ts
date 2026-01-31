@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, test, expect, mock } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 
 describe("Background Service Worker", () => {
   describe("URL Validation", () => {
@@ -219,7 +219,11 @@ describe("Background Service Worker", () => {
       const mockCreate = mock(() => Promise.resolve());
 
       mockRemoveAll(() => {
-        mockCreate({ id: "save-page", title: "Save Page to Teak", contexts: ["page"] });
+        mockCreate({
+          id: "save-page",
+          title: "Save Page to Teak",
+          contexts: ["page"],
+        });
       });
 
       expect(mockRemoveAll).toHaveBeenCalled();
@@ -316,7 +320,9 @@ describe("Background Service Worker", () => {
 
     test("should extract selected text using scripting API", async () => {
       const mockExecuteScript = mock(() =>
-        Promise.resolve([{ result: { content: "Selected text", fallback: false } }])
+        Promise.resolve([
+          { result: { content: "Selected text", fallback: false } },
+        ])
       );
 
       const results = await mockExecuteScript({
@@ -396,7 +402,8 @@ describe("Background Service Worker", () => {
     test("should extract error message from Error object", () => {
       const error = new Error("Something went wrong");
 
-      const errorMessage = error instanceof Error ? error.message : "Failed to save content";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to save content";
 
       expect(errorMessage).toBe("Something went wrong");
     });
@@ -404,7 +411,8 @@ describe("Background Service Worker", () => {
     test("should use fallback message for non-Error errors", () => {
       const error = "String error";
 
-      const errorMessage = error instanceof Error ? error.message : "Failed to save content";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to save content";
 
       expect(errorMessage).toBe("Failed to save content");
     });

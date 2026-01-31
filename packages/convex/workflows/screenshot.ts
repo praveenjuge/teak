@@ -12,10 +12,10 @@ const internalWorkflow = internal as Record<string, any>;
 export const SCREENSHOT_RATE_LIMIT_MAX_RETRIES = 3;
 export const SCREENSHOT_HTTP_MAX_RETRIES = 1;
 export const SCREENSHOT_RATE_LIMIT_DELAY_MS = 15_000;
-export const SCREENSHOT_HTTP_RETRY_DELAY_MS = 5_000;
+export const SCREENSHOT_HTTP_RETRY_DELAY_MS = 5000;
 
 export const parseScreenshotRetryableError = (
-  error: unknown,
+  error: unknown
 ): ScreenshotRetryableError | null => {
   if (!(error instanceof Error) || typeof error.message !== "string") {
     return null;
@@ -43,7 +43,7 @@ export const screenshotWorkflow = workflow.define({
     let retryCount = 0;
     let nextDelayMs: number | undefined;
 
-    for (; ;) {
+    for (;;) {
       const schedulerOptions =
         nextDelayMs !== undefined
           ? ({ runAfter: nextDelayMs } as const)
@@ -55,7 +55,7 @@ export const screenshotWorkflow = workflow.define({
           internalWorkflow["workflows/steps/screenshot/captureScreenshot"]
             .captureScreenshot,
           { cardId, retryCount },
-          schedulerOptions,
+          schedulerOptions
         );
 
         return { success: true };
@@ -107,7 +107,7 @@ export const startScreenshotWorkflow = internalMutation({
       ctx,
       internalWorkflow["workflows/screenshot"].screenshotWorkflow,
       { cardId },
-      { startAsync: startAsync ?? false },
+      { startAsync: startAsync ?? false }
     );
 
     return { workflowId };

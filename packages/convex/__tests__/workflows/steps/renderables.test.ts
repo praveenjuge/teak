@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, expect, test, beforeAll, mock } from "bun:test";
+import { beforeAll, describe, expect, mock, test } from "bun:test";
 
 let generateHandler: any;
 
@@ -28,7 +28,8 @@ beforeAll(async () => {
     default: class KernelMock {},
   }));
 
-  generateHandler = (await import("../../../workflows/steps/renderables")).generateHandler;
+  generateHandler = (await import("../../../workflows/steps/renderables"))
+    .generateHandler;
 });
 
 describe("renderables step", () => {
@@ -49,16 +50,21 @@ describe("renderables step", () => {
       const mockCtx = {
         runQuery: async () => null,
       };
-      await expect(generateHandler(mockCtx, { cardId: "none", cardType: "image" }))
-        .rejects.toThrow(/not found/);
+      await expect(
+        generateHandler(mockCtx, { cardId: "none", cardType: "image" })
+      ).rejects.toThrow(/not found/);
     });
 
     test("handles undefined card gracefully", async () => {
       const mockCtx = {
         runQuery: async () => undefined,
       };
-      await expect(generateHandler(mockCtx, { cardId: "undefined-card", cardType: "image" }))
-        .rejects.toThrow();
+      await expect(
+        generateHandler(mockCtx, {
+          cardId: "undefined-card",
+          cardType: "image",
+        })
+      ).rejects.toThrow();
     });
   });
 
@@ -80,7 +86,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "card123", cardType: "image" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "card123",
+        cardType: "image",
+      });
 
       expect(result.success).toBe(true);
       expect(result.thumbnailGenerated).toBe(true);
@@ -104,7 +113,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "card456", cardType: "image" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "card456",
+        cardType: "image",
+      });
 
       expect(result.thumbnailGenerated).toBe(true);
     });
@@ -126,7 +138,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "card789", cardType: "image" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "card789",
+        cardType: "image",
+      });
 
       expect(result.thumbnailGenerated).toBe(true);
     });
@@ -217,7 +232,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "card_no_file", cardType: "image" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "card_no_file",
+        cardType: "image",
+      });
 
       expect(result.success).toBe(true);
       expect(result.thumbnailGenerated).toBe(false);
@@ -241,7 +259,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "vid1", cardType: "video" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "vid1",
+        cardType: "video",
+      });
 
       expect(result.thumbnailGenerated).toBe(true);
     });
@@ -263,7 +284,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "vid2", cardType: "video" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "vid2",
+        cardType: "video",
+      });
 
       expect(result.success).toBe(false);
       expect(result.thumbnailGenerated).toBe(false);
@@ -284,7 +308,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "vid_no_file", cardType: "video" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "vid_no_file",
+        cardType: "video",
+      });
 
       expect(result.success).toBe(true);
       expect(result.thumbnailGenerated).toBe(false);
@@ -309,7 +336,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "pdf1", cardType: "document" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "pdf1",
+        cardType: "document",
+      });
 
       expect(result.thumbnailGenerated).toBe(true);
     });
@@ -355,7 +385,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "pdf2", cardType: "document" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "pdf2",
+        cardType: "document",
+      });
 
       expect(result.success).toBe(false);
       const mutationArgs = runMutation.calls[0]?.[1] as any;
@@ -378,7 +411,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "pdf_no_file", cardType: "document" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "pdf_no_file",
+        cardType: "document",
+      });
 
       expect(result.success).toBe(true);
       expect(result.thumbnailGenerated).toBe(false);
@@ -402,10 +438,15 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      await generateHandler(mockCtx, { cardId: "card_success", cardType: "image" });
+      await generateHandler(mockCtx, {
+        cardId: "card_success",
+        cardType: "image",
+      });
 
       const mutationArgs = runMutation.calls[0]?.[1] as any;
-      expect(mutationArgs?.processingStatus.renderables.status).toBe("completed");
+      expect(mutationArgs?.processingStatus.renderables.status).toBe(
+        "completed"
+      );
     });
 
     test("marks renderables as completed when skipped", async () => {
@@ -424,10 +465,15 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      await generateHandler(mockCtx, { cardId: "card_skip", cardType: "image" });
+      await generateHandler(mockCtx, {
+        cardId: "card_skip",
+        cardType: "image",
+      });
 
       const mutationArgs = runMutation.calls[0]?.[1] as any;
-      expect(mutationArgs?.processingStatus.renderables.status).toBe("completed");
+      expect(mutationArgs?.processingStatus.renderables.status).toBe(
+        "completed"
+      );
     });
 
     test("marks renderables as failed with error message", async () => {
@@ -447,7 +493,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      await generateHandler(mockCtx, { cardId: "card_fail", cardType: "image" });
+      await generateHandler(mockCtx, {
+        cardId: "card_fail",
+        cardType: "image",
+      });
 
       const mutationArgs = runMutation.calls[0]?.[1] as any;
       expect(mutationArgs?.processingStatus.renderables.status).toBe("failed");
@@ -475,12 +524,17 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      await generateHandler(mockCtx, { cardId: "card_preserve", cardType: "image" });
+      await generateHandler(mockCtx, {
+        cardId: "card_preserve",
+        cardType: "image",
+      });
 
       const mutationArgs = runMutation.calls[0]?.[1] as any;
       expect(mutationArgs?.processingStatus.classify.status).toBe("completed");
       expect(mutationArgs?.processingStatus.metadata.status).toBe("completed");
-      expect(mutationArgs?.processingStatus.renderables.status).toBe("completed");
+      expect(mutationArgs?.processingStatus.renderables.status).toBe(
+        "completed"
+      );
     });
 
     test("sets confidence score for successful renderables", async () => {
@@ -499,7 +553,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      await generateHandler(mockCtx, { cardId: "card_conf", cardType: "image" });
+      await generateHandler(mockCtx, {
+        cardId: "card_conf",
+        cardType: "image",
+      });
 
       const mutationArgs = runMutation.calls[0]?.[1] as any;
       expect(mutationArgs?.processingStatus.renderables.confidence).toBe(0.95);
@@ -522,7 +579,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "card_no_status", cardType: "image" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "card_no_status",
+        cardType: "image",
+      });
 
       expect(result.success).toBe(true);
       const mutationArgs = runMutation.calls[0]?.[1] as any;
@@ -545,7 +605,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "card_text", cardType: "text" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "card_text",
+        cardType: "text",
+      });
 
       expect(result.success).toBe(true);
       expect(result.thumbnailGenerated).toBe(false);
@@ -567,7 +630,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "card_link", cardType: "link" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "card_link",
+        cardType: "link",
+      });
 
       expect(result.success).toBe(true);
       expect(result.thumbnailGenerated).toBe(false);
@@ -589,7 +655,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "card_quote", cardType: "quote" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "card_quote",
+        cardType: "quote",
+      });
 
       expect(result.success).toBe(true);
     });
@@ -610,7 +679,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "card_palette", cardType: "palette" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "card_palette",
+        cardType: "palette",
+      });
 
       expect(result.success).toBe(true);
     });
@@ -631,7 +703,10 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      const result = await generateHandler(mockCtx, { cardId: "card_audio", cardType: "audio" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "card_audio",
+        cardType: "audio",
+      });
 
       expect(result.success).toBe(true);
       expect(result.thumbnailGenerated).toBe(false);

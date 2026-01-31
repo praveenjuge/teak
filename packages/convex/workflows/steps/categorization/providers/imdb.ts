@@ -1,8 +1,5 @@
 import type { LinkCategoryDetail } from "@teak/convex/shared";
-import type {
-  ProviderEnrichmentResult,
-  RawSelectorMap,
-} from "./common";
+import type { ProviderEnrichmentResult, RawSelectorMap } from "./common";
 import {
   formatCountString,
   formatDate,
@@ -16,10 +13,10 @@ export const enrichImdb = (
 ): ProviderEnrichmentResult | null => {
   const rating = formatRating(
     getRawAttribute(rawMap, "meta[name='imdb:rating']", "content") ||
-    getRawText(
-      rawMap,
-      "span[data-testid='hero-rating-bar__aggregate-rating__score']"
-    )
+      getRawText(
+        rawMap,
+        "span[data-testid='hero-rating-bar__aggregate-rating__score']"
+      )
   );
   const votes = formatCountString(
     getRawAttribute(rawMap, "meta[name='imdb:votes']", "content")

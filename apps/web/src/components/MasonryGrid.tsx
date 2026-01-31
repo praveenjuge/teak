@@ -1,12 +1,12 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { Masonry } from "antd";
-import type { MasonryProps } from "antd";
-import { AddCardForm } from "./AddCardForm";
-import { Card } from "./Card";
-import { BulkActionBar } from "./BulkActionBar";
-import { Spinner } from "@/components/ui/spinner";
-import { type Doc } from "@teak/convex/_generated/dataModel";
 import * as Sentry from "@sentry/nextjs";
+import type { Doc } from "@teak/convex/_generated/dataModel";
+import type { MasonryProps } from "antd";
+import { Masonry } from "antd";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Spinner } from "@/components/ui/spinner";
+import { AddCardForm } from "./AddCardForm";
+import { BulkActionBar } from "./BulkActionBar";
+import { Card } from "./Card";
 
 // Define the item type for the masonry grid
 type CardItem = Doc<"cards"> | "add-form";
@@ -253,17 +253,17 @@ export function MasonryGrid({
       return (
         <Card
           card={card}
-          onClick={handleCardClick}
-          onDelete={onDeleteCard}
-          onRestore={onRestoreCard}
-          onPermanentDelete={onPermanentDeleteCard}
-          onToggleFavorite={onToggleFavorite}
-          onAddTags={onAddTags}
-          onCopyImage={onCopyImage}
-          isTrashMode={showTrashOnly}
-          isSelectionMode={isSelectionMode}
           isSelected={selectedCardIds.has(card._id)}
+          isSelectionMode={isSelectionMode}
+          isTrashMode={showTrashOnly}
+          onAddTags={onAddTags}
+          onClick={handleCardClick}
+          onCopyImage={onCopyImage}
+          onDelete={onDeleteCard}
           onEnterSelectionMode={enterSelectionMode}
+          onPermanentDelete={onPermanentDeleteCard}
+          onRestore={onRestoreCard}
+          onToggleFavorite={onToggleFavorite}
           onToggleSelection={() => toggleCardSelection(card._id)}
         />
       );
@@ -287,16 +287,16 @@ export function MasonryGrid({
   return (
     <>
       <Masonry
+        className={isSelectionMode ? "select-none" : ""}
         columns={{ xs: 1, sm: 2, md: 3, lg: 5, xl: 5, xxl: 5 }}
         gutter={24}
-        items={masonryItems}
         itemRender={renderItem}
-        className={isSelectionMode ? "select-none" : ""}
+        items={masonryItems}
       />
       {filteredCards.length > 0 &&
         (visibleCount < filteredCards.length ||
           (onLoadMore && hasMore !== false)) && (
-          <div ref={loadMoreRef} className="h-10 w-full" aria-hidden="true" />
+          <div aria-hidden="true" className="h-10 w-full" ref={loadMoreRef} />
         )}
       {isLoadingMore && (
         <div className="flex justify-center py-6">
@@ -306,9 +306,9 @@ export function MasonryGrid({
       {isSelectionMode && (
         <BulkActionBar
           key={selectedCardIds.size}
-          selectedCount={selectedCardIds.size}
-          onDelete={handleBulkDelete}
           onCancel={exitSelectionMode}
+          onDelete={handleBulkDelete}
+          selectedCount={selectedCardIds.size}
         />
       )}
     </>

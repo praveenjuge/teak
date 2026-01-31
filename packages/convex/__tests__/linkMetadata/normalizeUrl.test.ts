@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, test } from "bun:test";
-import { normalizeUrl } from '../../../convex/linkMetadata/url';
+import { normalizeUrl } from "../../../convex/linkMetadata/url";
 
 describe("normalizeUrl", () => {
   test("adds https when missing", () => {

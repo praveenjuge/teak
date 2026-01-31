@@ -1,10 +1,10 @@
+import { ArrowRight, Info, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Loader2, ArrowRight, ExternalLink, Info } from "lucide-react";
+import type { DuplicateCard } from "../../hooks/useAutoSaveUrl";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
 import { useContextMenuSave } from "../../hooks/useContextMenuSave";
 import { useWebAppSession } from "../../hooks/useWebAppSession";
 import { getAuthErrorMessage } from "../../utils/getAuthErrorMessage";
-import type { DuplicateCard } from "../../hooks/useAutoSaveUrl";
 
 // Error code constant for card limit - should match convex/shared/constants.ts
 const CARD_LIMIT_REACHED_CODE = "CARD_LIMIT_REACHED";
@@ -26,37 +26,37 @@ function UpgradePrompt() {
   };
 
   return (
-    <div className="w-96 min-h-96 flex flex-col items-center justify-center gap-3 p-6 text-center">
-      <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+    <div className="flex min-h-96 w-96 flex-col items-center justify-center gap-3 p-6 text-center">
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
         <svg
-          className="w-5 h-5 text-amber-600"
+          className="h-5 w-5 text-amber-600"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
           <path
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
           />
         </svg>
       </div>
       <div className="space-y-1">
-        <p className="text-sm font-medium text-gray-900">
+        <p className="font-medium text-gray-900 text-sm">
           You&apos;ve reached your free tier limit.
         </p>
-        <p className="text-xs text-gray-600">
+        <p className="text-gray-600 text-xs">
           Upgrade to Pro for unlimited cards.
         </p>
       </div>
       <button
-        type="button"
+        className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 font-semibold text-sm text-white transition-colors hover:bg-red-700"
         onClick={handleUpgradeClick}
-        className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
+        type="button"
       >
         Upgrade to Pro
-        <ArrowRight className="w-4 h-4" />
+        <ArrowRight className="h-4 w-4" />
       </button>
     </div>
   );
@@ -79,8 +79,8 @@ function App() {
 
   if (isPending) {
     return (
-      <div className="w-96 min-h-96 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 text-red-600 animate-spin" />
+      <div className="flex min-h-96 w-96 items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-red-600" />
       </div>
     );
   }
@@ -112,14 +112,14 @@ function SessionErrorState({
   onRetry: () => void;
 }) {
   return (
-    <div className="w-96 min-h-96 flex flex-col items-center justify-center gap-4 p-5 text-center">
+    <div className="flex min-h-96 w-96 flex-col items-center justify-center gap-4 p-5 text-center">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="./icon.svg" alt="Teak Logo" className="h-6" />
-      <p className="text-sm text-red-600">{message}</p>
+      <img alt="Teak Logo" className="h-6" src="./icon.svg" />
+      <p className="text-red-600 text-sm">{message}</p>
       <button
-        type="button"
+        className="rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 text-sm hover:bg-gray-50"
         onClick={onRetry}
-        className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        type="button"
       >
         Try again
       </button>
@@ -143,26 +143,26 @@ function AuthPanel({ onLoginSuccess }: { onLoginSuccess: () => void }) {
   };
 
   return (
-    <div className="w-96 min-h-96 flex flex-col items-center justify-center gap-5 p-6 text-center">
-      <div className="space-y-3 flex flex-col items-center">
+    <div className="flex min-h-96 w-96 flex-col items-center justify-center gap-5 p-6 text-center">
+      <div className="flex flex-col items-center space-y-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="./icon.svg" alt="Teak Logo" className="h-5" />
-        <h1 className="text-base font-semibold">Save Anything. Anywhere.</h1>
+        <img alt="Teak Logo" className="h-5" src="./icon.svg" />
+        <h1 className="font-semibold text-base">Save Anything. Anywhere.</h1>
       </div>
 
       <div className="w-full space-y-3">
         <button
-          type="button"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 font-semibold text-sm text-white hover:bg-red-700"
           onClick={handleLogin}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
+          type="button"
         >
           Login
         </button>
 
         <button
-          type="button"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 font-semibold text-gray-700 text-sm hover:bg-gray-50"
           onClick={handleRegister}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          type="button"
         >
           Create Account
         </button>
@@ -196,12 +196,12 @@ function DuplicateState({
     cardTitle.length > 50 ? cardTitle.slice(0, 50) + "..." : cardTitle;
 
   return (
-    <div className="w-96 min-h-96 flex flex-col items-center justify-center gap-4 p-6 text-center">
-      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-        <Info className="w-4 h-4 text-gray-600" />
+    <div className="flex min-h-96 w-96 flex-col items-center justify-center gap-4 p-6 text-center">
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
+        <Info className="h-4 w-4 text-gray-600" />
       </div>
 
-      <p className="text-sm font-medium text-gray-900">
+      <p className="font-medium text-gray-900 text-sm">
         You have already saved this!
       </p>
     </div>
@@ -251,28 +251,28 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
     switch (contextMenuState.status) {
       case "saving":
         return (
-          <div className="w-96 min-h-96 flex items-center justify-center gap-2 p-3">
-            <Loader2 className="w-4 h-4 text-red-600 animate-spin" />
-            <span className="text-sm text-red-700">Saving to Teak...</span>
+          <div className="flex min-h-96 w-96 items-center justify-center gap-2 p-3">
+            <Loader2 className="h-4 w-4 animate-spin text-red-600" />
+            <span className="text-red-700 text-sm">Saving to Teak...</span>
           </div>
         );
       case "success":
         return (
-          <div className="w-96 min-h-96 flex items-center justify-center gap-2 p-3">
+          <div className="flex min-h-96 w-96 items-center justify-center gap-2 p-3">
             <svg
-              className="w-4 h-4 text-green-500"
+              className="h-4 w-4 text-green-500"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
               <path
+                d="M5 13l4 4L19 7"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth="3"
-                d="M5 13l4 4L19 7"
               />
             </svg>
-            <span className="text-sm text-green-700">
+            <span className="text-green-700 text-sm">
               {getContextMenuMessage()}
             </span>
           </div>
@@ -283,25 +283,25 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
           return <UpgradePrompt />;
         }
         return (
-          <div className="w-96 min-h-96 flex flex-col items-center justify-center gap-1 p-3">
+          <div className="flex min-h-96 w-96 flex-col items-center justify-center gap-1 p-3">
             <div className="flex items-center justify-center gap-2">
               <svg
-                className="w-4 h-4 text-red-600"
+                className="h-4 w-4 text-red-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path
+                  d="M6 18L18 6M6 6l12 12"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
                 />
               </svg>
-              <span className="text-sm text-red-700">Failed to save</span>
+              <span className="text-red-700 text-sm">Failed to save</span>
             </div>
             {contextMenuState.error && (
-              <span className="text-xs text-red-600">
+              <span className="text-red-600 text-xs">
                 {contextMenuState.error}
               </span>
             )}
@@ -316,28 +316,28 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
     switch (state) {
       case "loading":
         return (
-          <div className="w-96 min-h-96 flex items-center justify-center gap-2 p-3">
-            <Loader2 className="w-4 h-4 text-red-600 animate-spin" />
-            <span className="text-sm text-red-700">Adding to Teak...</span>
+          <div className="flex min-h-96 w-96 items-center justify-center gap-2 p-3">
+            <Loader2 className="h-4 w-4 animate-spin text-red-600" />
+            <span className="text-red-700 text-sm">Adding to Teak...</span>
           </div>
         );
       case "success":
         return (
-          <div className="w-96 min-h-96 flex items-center justify-center gap-2 p-3">
+          <div className="flex min-h-96 w-96 items-center justify-center gap-2 p-3">
             <svg
-              className="w-4 h-4 text-green-500"
+              className="h-4 w-4 text-green-500"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
               <path
+                d="M5 13l4 4L19 7"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth="3"
-                d="M5 13l4 4L19 7"
               />
             </svg>
-            <span className="text-sm text-green-700">Added to Teak!</span>
+            <span className="text-green-700 text-sm">Added to Teak!</span>
           </div>
         );
       case "error":
@@ -346,43 +346,43 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
           return <UpgradePrompt />;
         }
         return (
-          <div className="w-96 min-h-96 flex flex-col items-center justify-center gap-1 p-3">
+          <div className="flex min-h-96 w-96 flex-col items-center justify-center gap-1 p-3">
             <div className="flex items-center justify-center gap-2">
               <svg
-                className="w-4 h-4 text-red-600"
+                className="h-4 w-4 text-red-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path
+                  d="M6 18L18 6M6 6l12 12"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
                 />
               </svg>
-              <span className="text-sm text-red-700">Failed to save</span>
+              <span className="text-red-700 text-sm">Failed to save</span>
             </div>
-            {error && <span className="text-xs text-red-600">{error}</span>}
+            {error && <span className="text-red-600 text-xs">{error}</span>}
           </div>
         );
       case "invalid-url":
         return (
-          <div className="w-96 min-h-96 flex items-center justify-center gap-2 p-3">
+          <div className="flex min-h-96 w-96 items-center justify-center gap-2 p-3">
             <svg
-              className="w-4 h-4 text-gray-500"
+              className="h-4 w-4 text-gray-500"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
               <path
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span className="text-sm text-gray-700">
+            <span className="text-gray-700 text-sm">
               Can&apos;t save this page
             </span>
           </div>
@@ -395,16 +395,16 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
   };
 
   return (
-    <div className="w-96 min-h-96 relative">
-      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between gap-2 p-3">
+    <div className="relative min-h-96 w-96">
+      <div className="absolute right-0 bottom-0 left-0 flex items-center justify-between gap-2 p-3">
         <a
           href="https://app.teakvault.com"
-          target="_blank"
           rel="noopener noreferrer"
+          target="_blank"
           title="Open Teak"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="./icon.svg" alt="Teak Logo" className="h-4" />
+          <img alt="Teak Logo" className="h-4" src="./icon.svg" />
         </a>
 
         <div className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1">
@@ -415,7 +415,7 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
       {renderStatus()}
 
       {signOutError && (
-        <p className="absolute left-1/2 top-2 w-11/12 -translate-x-1/2 rounded-lg bg-red-50 px-3 py-2 text-center text-[11px] text-red-600">
+        <p className="absolute top-2 left-1/2 w-11/12 -translate-x-1/2 rounded-lg bg-red-50 px-3 py-2 text-center text-[11px] text-red-600">
           {signOutError}
         </p>
       )}

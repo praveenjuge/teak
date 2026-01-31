@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { AuthHelper, UiHelper } from "./test-helpers";
 
 const TEST_EMAIL = process.env.E2E_BETTER_AUTH_USER_EMAIL;
@@ -6,7 +6,7 @@ const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
 
 test.describe("Settings Navigation and Management", () => {
   test.skip(
-    !TEST_EMAIL || !TEST_PASSWORD,
+    !(TEST_EMAIL && TEST_PASSWORD),
     "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run settings tests."
   );
 
@@ -25,7 +25,9 @@ test.describe("Settings Navigation and Management", () => {
 
       // Should be on settings page
       await expect(page).toHaveURL("/settings");
-      await expect(page.getByRole("heading", { name: /settings/i })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: /settings/i })
+      ).toBeVisible();
     });
 
     test("should show settings button in navigation", async ({ page }) => {
@@ -45,7 +47,9 @@ test.describe("Settings Navigation and Management", () => {
 
       // Should be on home page
       await expect(page).toHaveURL("/");
-      await expect(page.getByPlaceholder("Write or add a link...")).toBeVisible();
+      await expect(
+        page.getByPlaceholder("Write or add a link...")
+      ).toBeVisible();
     });
   });
 
@@ -82,9 +86,9 @@ test.describe("Settings Navigation and Management", () => {
       await expect(page.getByText(/plan/i)).toBeVisible();
 
       // Should show either Free Plan or Pro badge
-      const planBadge = page.getByRole("button", { name: /free plan|pro/i }).or(
-        page.getByText(/free plan|pro/i)
-      );
+      const planBadge = page
+        .getByRole("button", { name: /free plan|pro/i })
+        .or(page.getByText(/free plan|pro/i));
       await expect(planBadge.first()).toBeVisible();
     });
 
@@ -96,9 +100,9 @@ test.describe("Settings Navigation and Management", () => {
       await expect(page.getByText(/theme/i)).toBeVisible();
 
       // Should have theme toggle buttons
-      const themeButtons = page.getByRole("button", { name: /theme/i }).or(
-        page.locator('[data-theme-toggle]')
-      );
+      const themeButtons = page
+        .getByRole("button", { name: /theme/i })
+        .or(page.locator("[data-theme-toggle]"));
       await expect(themeButtons.first()).toBeVisible();
     });
   });
@@ -109,7 +113,9 @@ test.describe("Settings Navigation and Management", () => {
       await uiHelper.goToSettings();
 
       // Should have system, light, and dark theme options
-      await expect(page.getByRole("button", { name: /system|theme/i })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /system|theme/i })
+      ).toBeVisible();
     });
 
     test("should change theme to light", async ({ page }) => {
@@ -117,11 +123,11 @@ test.describe("Settings Navigation and Management", () => {
       await uiHelper.goToSettings();
 
       // Click light theme button
-      const lightButton = page.getByRole("button", { name: /light/i }).or(
-        page.locator('[data-theme="light"]')
-      );
+      const lightButton = page
+        .getByRole("button", { name: /light/i })
+        .or(page.locator('[data-theme="light"]'));
 
-      if (await lightButton.count() > 0) {
+      if ((await lightButton.count()) > 0) {
         await lightButton.first().click();
         await page.waitForTimeout(500);
 
@@ -138,11 +144,11 @@ test.describe("Settings Navigation and Management", () => {
       await uiHelper.goToSettings();
 
       // Click dark theme button
-      const darkButton = page.getByRole("button", { name: /dark/i }).or(
-        page.locator('[data-theme="dark"]')
-      );
+      const darkButton = page
+        .getByRole("button", { name: /dark/i })
+        .or(page.locator('[data-theme="dark"]'));
 
-      if (await darkButton.count() > 0) {
+      if ((await darkButton.count()) > 0) {
         await darkButton.first().click();
         await page.waitForTimeout(500);
 
@@ -158,11 +164,11 @@ test.describe("Settings Navigation and Management", () => {
       await uiHelper.goToSettings();
 
       // Click system theme button
-      const systemButton = page.getByRole("button", { name: /system/i }).or(
-        page.locator('[data-theme="system"]')
-      );
+      const systemButton = page
+        .getByRole("button", { name: /system/i })
+        .or(page.locator('[data-theme="system"]'));
 
-      if (await systemButton.count() > 0) {
+      if ((await systemButton.count()) > 0) {
         await systemButton.first().click();
         await page.waitForTimeout(500);
 
@@ -180,12 +186,12 @@ test.describe("Settings Navigation and Management", () => {
       await uiHelper.goToSettings();
 
       // Look for upgrade button
-      const upgradeButton = page.getByRole("button", { name: /upgrade/i }).or(
-        page.getByRole("link", { name: /upgrade/i })
-      );
+      const upgradeButton = page
+        .getByRole("button", { name: /upgrade/i })
+        .or(page.getByRole("link", { name: /upgrade/i }));
 
       // If user is on free plan, should show upgrade button
-      const hasUpgradeButton = await upgradeButton.count() > 0;
+      const hasUpgradeButton = (await upgradeButton.count()) > 0;
 
       if (hasUpgradeButton) {
         await expect(upgradeButton.first()).toBeVisible();
@@ -193,33 +199,37 @@ test.describe("Settings Navigation and Management", () => {
       // If user is on Pro plan, might not have upgrade button (also valid)
     });
 
-    test("should open upgrade modal when clicking upgrade", async ({ page }) => {
+    test("should open upgrade modal when clicking upgrade", async ({
+      page,
+    }) => {
       const uiHelper = new UiHelper(page);
       await uiHelper.goToSettings();
 
-      const upgradeButton = page.getByRole("button", { name: /upgrade/i }).or(
-        page.getByRole("link", { name: /upgrade/i })
-      );
+      const upgradeButton = page
+        .getByRole("button", { name: /upgrade/i })
+        .or(page.getByRole("link", { name: /upgrade/i }));
 
-      const hasUpgradeButton = await upgradeButton.count() > 0;
+      const hasUpgradeButton = (await upgradeButton.count()) > 0;
 
       if (hasUpgradeButton) {
         await upgradeButton.first().click();
 
         // Should open upgrade dialog
         await page.waitForTimeout(500);
-        const upgradeDialog = page.getByRole("dialog").filter({ hasText: /upgrade|pro|subscription/i });
+        const upgradeDialog = page
+          .getByRole("dialog")
+          .filter({ hasText: /upgrade|pro|subscription/i });
 
-        const hasDialog = await upgradeDialog.count() > 0;
+        const hasDialog = (await upgradeDialog.count()) > 0;
 
         if (hasDialog) {
           await expect(upgradeDialog.first()).toBeVisible();
 
           // Close dialog
-          const closeButton = page.getByRole("button", { name: /close|x/i }).or(
-            page.locator('[data-dialog-close]')
-          );
-          if (await closeButton.count() > 0) {
+          const closeButton = page
+            .getByRole("button", { name: /close|x/i })
+            .or(page.locator("[data-dialog-close]"));
+          if ((await closeButton.count()) > 0) {
             await closeButton.first().click();
           }
         }
@@ -234,7 +244,7 @@ test.describe("Settings Navigation and Management", () => {
 
       const upgradeButton = page.getByRole("button", { name: /upgrade/i });
 
-      const hasUpgradeButton = await upgradeButton.count() > 0;
+      const hasUpgradeButton = (await upgradeButton.count()) > 0;
 
       if (hasUpgradeButton) {
         await upgradeButton.first().click();
@@ -245,10 +255,10 @@ test.describe("Settings Navigation and Management", () => {
         await expect(features.first()).toBeVisible();
 
         // Close dialog
-        const closeButton = page.getByRole("button", { name: /close|x/i }).or(
-          page.locator('[data-dialog-close]')
-        );
-        if (await closeButton.count() > 0) {
+        const closeButton = page
+          .getByRole("button", { name: /close|x/i })
+          .or(page.locator("[data-dialog-close]"));
+        if ((await closeButton.count()) > 0) {
           await closeButton.first().click();
         }
       } else {
@@ -263,7 +273,9 @@ test.describe("Settings Navigation and Management", () => {
       await uiHelper.goToSettings();
 
       // Should have sign out button
-      await expect(page.getByRole("button", { name: /sign out/i })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /sign out/i })
+      ).toBeVisible();
     });
 
     test("should sign out successfully", async ({ page }) => {
@@ -282,9 +294,9 @@ test.describe("Settings Navigation and Management", () => {
       await uiHelper.goToSettings();
 
       // Should have delete account link/button
-      const deleteLink = page.getByRole("button", { name: /delete account/i }).or(
-        page.getByRole("link", { name: /delete account/i })
-      );
+      const deleteLink = page
+        .getByRole("button", { name: /delete account/i })
+        .or(page.getByRole("link", { name: /delete account/i }));
 
       await expect(deleteLink.first()).toBeVisible();
     });
@@ -306,12 +318,14 @@ test.describe("Settings Navigation and Management", () => {
 
       // Cancel for cleanup
       const cancelButton = page.getByRole("button", { name: /cancel/i });
-      if (await cancelButton.count() > 0) {
+      if ((await cancelButton.count()) > 0) {
         await cancelButton.first().click();
       }
     });
 
-    test("should require confirmation for account deletion", async ({ page }) => {
+    test("should require confirmation for account deletion", async ({
+      page,
+    }) => {
       const uiHelper = new UiHelper(page);
       await uiHelper.goToSettings();
 
@@ -320,12 +334,15 @@ test.describe("Settings Navigation and Management", () => {
       await deleteLink.first().click();
 
       // Try to delete without confirmation
-      const deleteButton = page.getByRole("button", { name: /delete account/i }).or(
-        page.locator('[data-delete-account-confirm]')
-      );
+      const deleteButton = page
+        .getByRole("button", { name: /delete account/i })
+        .or(page.locator("[data-delete-account-confirm]"));
 
       // Should be disabled without proper confirmation
-      const isDisabled = await deleteButton.first().isDisabled().catch(() => false);
+      const isDisabled = await deleteButton
+        .first()
+        .isDisabled()
+        .catch(() => false);
 
       if (isDisabled) {
         expect(isDisabled).toBe(true);
@@ -333,7 +350,7 @@ test.describe("Settings Navigation and Management", () => {
 
       // Cancel for cleanup
       const cancelButton = page.getByRole("button", { name: /cancel/i });
-      if (await cancelButton.count() > 0) {
+      if ((await cancelButton.count()) > 0) {
         await cancelButton.first().click();
       }
     });
@@ -345,11 +362,11 @@ test.describe("Settings Navigation and Management", () => {
       await uiHelper.goToSettings();
 
       // Look for "Manage" button for Pro users
-      const manageButton = page.getByRole("button", { name: /manage/i }).or(
-        page.getByRole("link", { name: /manage/i })
-      );
+      const manageButton = page
+        .getByRole("button", { name: /manage/i })
+        .or(page.getByRole("link", { name: /manage/i }));
 
-      const hasManageButton = await manageButton.count() > 0;
+      const hasManageButton = (await manageButton.count()) > 0;
 
       if (hasManageButton) {
         await expect(manageButton.first()).toBeVisible();
@@ -387,14 +404,16 @@ test.describe("Settings Navigation and Management", () => {
   });
 
   test.describe("Settings Persistence", () => {
-    test("should persist theme preference across sessions", async ({ page }) => {
+    test("should persist theme preference across sessions", async ({
+      page,
+    }) => {
       const uiHelper = new UiHelper(page);
 
       // Change theme
       await uiHelper.goToSettings();
 
       const darkButton = page.getByRole("button", { name: /dark/i });
-      if (await darkButton.count() > 0) {
+      if ((await darkButton.count()) > 0) {
         await darkButton.first().click();
         await page.waitForTimeout(500);
 

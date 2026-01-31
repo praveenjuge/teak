@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { AuthHelper, UiHelper, generateTestContent } from "./test-helpers";
+import { AuthHelper, generateTestContent, UiHelper } from "./test-helpers";
 
 // Get test credentials from environment
 const email = process.env.E2E_BETTER_AUTH_USER_EMAIL;
 const password = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
 
 test.skip(
-  !email || !password,
-  "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run card CRUD tests.",
+  !(email && password),
+  "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run card CRUD tests."
 );
 
 test.describe("Text Cards", () => {
@@ -46,7 +46,7 @@ test.describe("Text Cards", () => {
     await page.getByRole("button", { name: "Delete" }).click();
 
     await expect(page.getByRole("main").getByText(updatedContent)).toHaveCount(
-      0,
+      0
     );
 
     // Sign out
@@ -119,7 +119,7 @@ test.describe("Text Cards", () => {
 
     await authHelper.signInWithEmailAndPassword(email!, password!);
 
-    const initialCount = await page.locator('[data-card-id]').count();
+    const initialCount = await page.locator("[data-card-id]").count();
 
     // Create 3 cards
     for (let i = 1; i <= 3; i++) {
@@ -129,7 +129,7 @@ test.describe("Text Cards", () => {
     }
 
     // Verify cards were added
-    const finalCount = await page.locator('[data-card-id]').count();
+    const finalCount = await page.locator("[data-card-id]").count();
     expect(finalCount).toBeGreaterThanOrEqual(initialCount + 3);
 
     await authHelper.signOut();
@@ -153,7 +153,7 @@ test.describe("Link Cards", () => {
     await page.waitForTimeout(3000);
 
     // Verify a card was created
-    const cards = await page.locator('[data-card-id]').count();
+    const cards = await page.locator("[data-card-id]").count();
     expect(cards).toBeGreaterThan(0);
 
     await authHelper.signOut();
@@ -173,7 +173,7 @@ test.describe("Link Cards", () => {
 
     // Should still create a card (as text)
     await page.waitForTimeout(1000);
-    const cards = await page.locator('[data-card-id]').count();
+    const cards = await page.locator("[data-card-id]").count();
     expect(cards).toBeGreaterThan(0);
 
     await authHelper.signOut();
@@ -243,7 +243,9 @@ test.describe("Empty States", () => {
 
     if (hasEmptyState) {
       await expect(emptyStateText).toBeVisible();
-      await expect(page.getByText(/start capturing your thoughts/i)).toBeVisible();
+      await expect(
+        page.getByText(/start capturing your thoughts/i)
+      ).toBeVisible();
     }
     // If user has cards, empty state won't show (also valid)
 

@@ -3,7 +3,8 @@ export const INSTAGRAM_PRIMARY_IMAGE_MIN_DIM = 400;
 export const INSTAGRAM_PRIMARY_IMAGE_WAIT_MS = 3000;
 
 export const isInstagramHostname = (hostname: string): boolean =>
-  hostname === INSTAGRAM_HOSTNAME || hostname.endsWith(`.${INSTAGRAM_HOSTNAME}`);
+  hostname === INSTAGRAM_HOSTNAME ||
+  hostname.endsWith(`.${INSTAGRAM_HOSTNAME}`);
 
 export const isInstagramUrl = (url: string): boolean => {
   try {

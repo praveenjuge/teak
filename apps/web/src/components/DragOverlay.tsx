@@ -1,15 +1,15 @@
-import { Upload, AlertCircle, Sparkles } from "lucide-react";
+import { AlertCircle, Sparkles, Upload } from "lucide-react";
 import type { ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
 import type { DragDropState } from "@/hooks/useGlobalDragDrop";
 
 interface DragOverlayProps {
@@ -31,7 +31,9 @@ export function DragOverlay({
     showUpgradePrompt,
   } = dragDropState;
 
-  if (!isDragActive && !isUploading && !showUpgradePrompt) return null;
+  if (!(isDragActive || isUploading || showUpgradePrompt)) {
+    return null;
+  }
 
   const renderDialog = ({
     children,
@@ -41,7 +43,7 @@ export function DragOverlay({
     modal?: boolean;
   }) => {
     return (
-      <Dialog open modal={modal}>
+      <Dialog modal={modal} open>
         <DialogContent showCloseButton={false}>{children}</DialogContent>
       </Dialog>
     );
@@ -79,14 +81,14 @@ export function DragOverlay({
     return renderDialog({
       children: (
         <>
-          <Upload className="text-primary animate-pulse" />
+          <Upload className="animate-pulse text-primary" />
           <DialogHeader>
             <DialogTitle>Uploading file...</DialogTitle>
             <DialogDescription>
               Please wait while we process your file
             </DialogDescription>
           </DialogHeader>
-          <Progress value={uploadProgress} className="w-full" />
+          <Progress className="w-full" value={uploadProgress} />
           <p className="text-muted-foreground">{uploadProgress}% complete</p>
         </>
       ),

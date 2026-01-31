@@ -20,24 +20,27 @@
     "pre-commit": "lint-staged && turbo run typecheck lint build --affected",
     "prepare": "simple-git-hooks || exit 0",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "check": "ultracite check",
+    "fix": "ultracite fix"
   },
   "simple-git-hooks": {
     "pre-commit": "bun run pre-commit"
   },
   "lint-staged": {
-    "**/*.{js,jsx,ts,tsx}": [
-      "eslint --fix"
+    "*.{js,jsx,ts,tsx,json,jsonc,css,md,mdx}": [
+      "bun x ultracite fix"
     ]
   },
   "overrides": {
-    "eslint-plugin-react-hooks": "^6.1.0",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.3.12",
     "lint-staged": "^16.2.7",
     "simple-git-hooks": "^2.11.1",
-    "turbo": "^2.8.1"
+    "turbo": "^2.8.1",
+    "ultracite": "7.1.1"
   }
 }

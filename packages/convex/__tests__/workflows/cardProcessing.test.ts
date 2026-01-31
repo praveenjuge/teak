@@ -29,7 +29,10 @@ describe("workflows/cardProcessing", () => {
     });
 
     test("processes text card successfully", () => {
-      const card = { type: "text", processingStatus: { classify: { status: "completed", confidence: 1 } } };
+      const card = {
+        type: "text",
+        processingStatus: { classify: { status: "completed", confidence: 1 } },
+      };
       expect(card.type).toBe("text");
     });
 
@@ -62,7 +65,9 @@ describe("workflows/cardProcessing", () => {
     test("detects SVG by file extension", () => {
       const fileName = "test.SVG";
       const lowerFileName = fileName.toLowerCase();
-      expect(lowerFileName.endsWith(".svg") || lowerFileName.endsWith(".svgz")).toBe(true);
+      expect(
+        lowerFileName.endsWith(".svg") || lowerFileName.endsWith(".svgz")
+      ).toBe(true);
     });
 
     test("runs classification when not already classified", () => {

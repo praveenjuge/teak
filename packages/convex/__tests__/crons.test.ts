@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { describe, expect, test, mock } from "bun:test";
-import * as module from '../crons';
+import { describe, expect, test } from "bun:test";
+import * as module from "../crons";
 
 describe("crons.ts", () => {
   test("module exports", () => {

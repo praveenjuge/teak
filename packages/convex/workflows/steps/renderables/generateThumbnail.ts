@@ -1,10 +1,17 @@
 "use node";
 
-import { PhotonImage, SamplingFilter, resize, fliph, flipv, rotate } from "@cf-wasm/photon";
-import { internal } from "../../../_generated/api";
-import { internalAction } from "../../../_generated/server";
+import {
+  fliph,
+  flipv,
+  PhotonImage,
+  resize,
+  rotate,
+  SamplingFilter,
+} from "@cf-wasm/photon";
 import { v } from "convex/values";
 import { orientation } from "exifr";
+import { internal } from "../../../_generated/api";
+import { internalAction } from "../../../_generated/server";
 
 // Maximum thumbnail dimensions
 const THUMBNAIL_MAX_WIDTH = 500;
@@ -27,22 +34,25 @@ function getOutputSettings(fileSizeBytes: number): {
   if (fileSizeBytes < 1_000_000) {
     // < 1MB - good WebP compression
     return { quality: 80, useJpeg: false, skipThumbnail: false };
-  } else if (fileSizeBytes < 2_000_000) {
+  }
+  if (fileSizeBytes < 2_000_000) {
     // < 2MB - more WebP compression
     return { quality: 70, useJpeg: false, skipThumbnail: false };
-  } else if (fileSizeBytes < 5_000_000) {
+  }
+  if (fileSizeBytes < 5_000_000) {
     // < 5MB - higher WebP compression
     return { quality: 65, useJpeg: false, skipThumbnail: false };
-  } else if (fileSizeBytes < 10_000_000) {
+  }
+  if (fileSizeBytes < 10_000_000) {
     // < 10MB - strong WebP compression
     return { quality: 60, useJpeg: false, skipThumbnail: false };
-  } else if (fileSizeBytes < 20_000_000) {
+  }
+  if (fileSizeBytes < 20_000_000) {
     // < 20MB - very strong WebP compression
     return { quality: 60, useJpeg: false, skipThumbnail: false };
-  } else {
-    // >= 20MB - maximum WebP compression
-    return { quality: 50, useJpeg: false, skipThumbnail: false };
   }
+  // >= 20MB - maximum WebP compression
+  return { quality: 50, useJpeg: false, skipThumbnail: false };
 }
 
 /**
@@ -58,7 +68,10 @@ function getOutputSettings(fileSizeBytes: number): {
  * 7: Transverse (flip horizontal + rotate 90°)
  * 8: Rotate 270° CW (90° CCW)
  */
-function applyExifOrientation(image: PhotonImage, orientationValue: number): PhotonImage {
+function applyExifOrientation(
+  image: PhotonImage,
+  orientationValue: number
+): PhotonImage {
   let resultImage = image;
 
   switch (orientationValue) {
@@ -158,7 +171,10 @@ export const generateThumbnail = internalAction({
 
       // Read and apply EXIF orientation to fix iOS HEIC rotation issues
       const exifOrientation = await orientation(inputBytes);
-      const orientedImage = applyExifOrientation(inputImage, exifOrientation ?? 1);
+      const orientedImage = applyExifOrientation(
+        inputImage,
+        exifOrientation ?? 1
+      );
 
       // Get original dimensions and file size (from oriented image in case rotation changed dimensions)
       const originalWidth = orientedImage.get_width();
@@ -166,7 +182,8 @@ export const generateThumbnail = internalAction({
       const fileSizeBytes = inputBytes.byteLength;
 
       // Get output settings based on file size (primary logic for thumbnail optimization)
-      const { quality, useJpeg, skipThumbnail } = getOutputSettings(fileSizeBytes);
+      const { quality, useJpeg, skipThumbnail } =
+        getOutputSettings(fileSizeBytes);
 
       // Skip thumbnail generation for very small files, but still store dimensions
       if (skipThumbnail) {
@@ -211,17 +228,28 @@ export const generateThumbnail = internalAction({
       }
 
       // Always resize to thumbnail dimensions (let compression do the heavy lifting for size reduction)
-      const outputImage = resize(orientedImage, targetWidth, targetHeight, SamplingFilter.Nearest);
+      const outputImage = resize(
+        orientedImage,
+        targetWidth,
+        targetHeight,
+        SamplingFilter.Nearest
+      );
 
       // Generate output bytes with appropriate format and quality
-      const outputBytes = useJpeg ? outputImage.get_bytes_jpeg(quality) : outputImage.get_bytes_webp();
+      const outputBytes = useJpeg
+        ? outputImage.get_bytes_jpeg(quality)
+        : outputImage.get_bytes_webp();
 
       // Ensure we provide a standard ArrayBuffer to Blob (avoids TS generic Uint8Array<ArrayBufferLike> incompatibility)
       const outputArrayBuffer =
         outputBytes.buffer instanceof ArrayBuffer
-          ? outputBytes.byteOffset === 0 && outputBytes.byteLength === outputBytes.buffer.byteLength
+          ? outputBytes.byteOffset === 0 &&
+            outputBytes.byteLength === outputBytes.buffer.byteLength
             ? outputBytes.buffer
-            : outputBytes.buffer.slice(outputBytes.byteOffset, outputBytes.byteOffset + outputBytes.byteLength)
+            : outputBytes.buffer.slice(
+                outputBytes.byteOffset,
+                outputBytes.byteOffset + outputBytes.byteLength
+              )
           : outputBytes.slice().buffer;
 
       const thumbnailBlob = new Blob([outputArrayBuffer], {
@@ -248,7 +276,10 @@ export const generateThumbnail = internalAction({
         thumbnailId,
       };
     } catch (error) {
-      console.error(`Failed to generate thumbnail for card ${args.cardId}:`, error);
+      console.error(
+        `Failed to generate thumbnail for card ${args.cardId}:`,
+        error
+      );
       // Don't throw - thumbnail generation failure shouldn't break the card creation flow
       return {
         success: false,
@@ -273,7 +304,8 @@ export const manualTriggerThumbnail = internalAction({
   handler: async (ctx, args) => {
     try {
       const result = await ctx.runAction(
-        internal.workflows.steps.renderables.generateThumbnail.generateThumbnail,
+        internal.workflows.steps.renderables.generateThumbnail
+          .generateThumbnail,
         {
           cardId: args.cardId,
         }

@@ -1,10 +1,11 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 /* SN Pro fonts are loaded dynamically in main.tsx */
 
 @font-face {
   font-family: "SN Pro";
-  src: url("/fonts/SNPro-VariableRegular.woff2") format("woff2-variations"),
+  src:
+    url("/fonts/SNPro-VariableRegular.woff2") format("woff2-variations"),
     url("/fonts/SNPro-VariableRegular.woff") format("woff");
   font-weight: 200 900;
   font-style: normal;
@@ -13,7 +14,8 @@
 
 @font-face {
   font-family: "SN Pro";
-  src: url("/fonts/SNPro-VariableItalic.woff2") format("woff2-variations"),
+  src:
+    url("/fonts/SNPro-VariableItalic.woff2") format("woff2-variations"),
     url("/fonts/SNPro-VariableItalic.woff") format("woff");
   font-weight: 200 900;
   font-style: italic;
@@ -21,5 +23,7 @@
 }
 
 @theme inline {
-  --font-sans: "SN Pro", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans:
+    "SN Pro", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
 }

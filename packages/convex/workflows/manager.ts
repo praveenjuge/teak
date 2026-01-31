@@ -5,16 +5,16 @@
  * Configured with retry behavior for resilient AI processing.
  */
 
-import { v } from "convex/values";
 import { WorkflowManager } from "@convex-dev/workflow";
-import { internalAction, internalMutation } from "../_generated/server";
+import { v } from "convex/values";
 import { components, internal } from "../_generated/api";
-import type { Id } from "../shared/types";
+import { internalAction, internalMutation } from "../_generated/server";
 import {
   buildInitialProcessingStatus,
   stagePending,
 } from "../card/processingStatus";
 import type { CardType } from "../schema";
+import type { Id } from "../shared/types";
 
 const internalAny: any = internal as any;
 
@@ -25,7 +25,10 @@ export const workflow = new WorkflowManager(components.workflow);
 
 type CardIdentifier = { cardId: Id<"cards"> };
 
-export const initializeCardProcessingStateHandler = async (ctx: any, { cardId }: any) => {
+export const initializeCardProcessingStateHandler = async (
+  ctx: any,
+  { cardId }: any
+) => {
   const card = await ctx.db.get("cards", cardId);
   if (!card) {
     throw new Error(`Card ${cardId} not found`);
@@ -64,7 +67,10 @@ export const initializeCardProcessingState = internalMutation({
   handler: initializeCardProcessingStateHandler,
 });
 
-export const startCardProcessingWorkflowHandler = async (ctx: any, { cardId }: CardIdentifier) => {
+export const startCardProcessingWorkflowHandler = async (
+  ctx: any,
+  { cardId }: CardIdentifier
+) => {
   const workflowRef =
     internalAny["workflows/cardProcessing"].cardProcessingWorkflow;
   const workflowId = await workflow.start(

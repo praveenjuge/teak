@@ -1,14 +1,14 @@
+import { Plus, Sparkles, X } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { X, Plus, Sparkles } from "lucide-react";
-import { useRef, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface TagManagementModalProps {
   open: boolean;
@@ -51,7 +51,7 @@ export function TagManagementModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Manage Tags</DialogTitle>
@@ -63,17 +63,17 @@ export function TagManagementModal({
             <Label htmlFor="new-tag">Add New Tag</Label>
             <div className="mt-2 flex gap-2">
               <Input
-                ref={inputRef}
+                className="flex-1"
                 id="new-tag"
-                value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Enter tag name"
-                className="flex-1"
+                ref={inputRef}
+                value={tagInput}
               />
               <Button
-                onClick={onAddTag}
                 disabled={!tagInput.trim()}
+                onClick={onAddTag}
                 size="icon"
               >
                 <Plus />
@@ -87,19 +87,19 @@ export function TagManagementModal({
               <Label>Your Tags</Label>
               <div className="mt-2 flex flex-wrap gap-2">
                 {userTags.map((tag) => (
-                  <div key={tag} className="inline-flex">
+                  <div className="inline-flex" key={tag}>
                     <Button
-                      variant="outline"
-                      size="sm"
                       className="rounded-r-none border-r-0"
+                      size="sm"
+                      variant="outline"
                     >
                       {tag}
                     </Button>
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onRemoveTag(tag)}
                       className="rounded-l-none"
+                      onClick={() => onRemoveTag(tag)}
+                      size="sm"
+                      variant="outline"
                     >
                       <X />
                     </Button>
@@ -115,20 +115,20 @@ export function TagManagementModal({
               <Label>Tags by Teak</Label>
               <div className="mt-2 flex flex-wrap gap-2">
                 {aiTags.map((tag) => (
-                  <div key={`ai-${tag}`} className="inline-flex">
+                  <div className="inline-flex" key={`ai-${tag}`}>
                     <Button
-                      variant="outline"
-                      size="sm"
                       className="rounded-r-none border-r-0"
+                      size="sm"
+                      variant="outline"
                     >
                       <Sparkles />
                       {tag}
                     </Button>
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onRemoveAiTag(tag)}
                       className="rounded-l-none"
+                      onClick={() => onRemoveAiTag(tag)}
+                      size="sm"
+                      variant="outline"
                     >
                       <X />
                     </Button>
@@ -141,7 +141,7 @@ export function TagManagementModal({
           {/* Empty State */}
           {(!userTags || userTags.length === 0) &&
             (!aiTags || aiTags.length === 0) && (
-              <div className="text-center text-muted-foreground py-4">
+              <div className="py-4 text-center text-muted-foreground">
                 <p>No tags yet. Add your first tag above!</p>
               </div>
             )}

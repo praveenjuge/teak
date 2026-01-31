@@ -1,6 +1,15 @@
 // === Card Types ===
 // NOTE: Keep in sync with convex/schema.ts
-export const cardTypes = ["text", "link", "image", "video", "audio", "document", "palette", "quote"] as const;
+export const cardTypes = [
+  "text",
+  "link",
+  "image",
+  "video",
+  "audio",
+  "document",
+  "palette",
+  "quote",
+] as const;
 
 // === Derived Constants from Schema ===
 
@@ -40,16 +49,13 @@ export type CardErrorCode =
 export const CARD_ERROR_MESSAGES: Record<CardErrorCode, string> = {
   CARD_LIMIT_REACHED:
     "Card limit reached. Please upgrade to Pro for unlimited cards.",
-  RATE_LIMITED:
-    "Too many cards created. Please wait a moment and try again.",
-  FILE_TOO_LARGE:
-    "File is too large. Maximum file size is 20MB.",
+  RATE_LIMITED: "Too many cards created. Please wait a moment and try again.",
+  FILE_TOO_LARGE: "File is too large. Maximum file size is 20MB.",
   TOO_MANY_FILES:
     "Too many files selected. You can upload up to 5 files at a time.",
   UNSUPPORTED_TYPE:
     "Unsupported file type. Please upload an image, video, audio, or document.",
-  TYPE_MISMATCH:
-    "Uploaded file does not match the selected type.",
+  TYPE_MISMATCH: "Uploaded file does not match the selected type.",
 } as const;
 
 /**
@@ -166,10 +172,12 @@ export interface TypeaheadOption {
  * Reserved keywords for search functionality
  */
 export const RESERVED_KEYWORDS: TypeaheadOption[] = [
-  ...cardTypes.map((cardType): TypeaheadOption => ({
-    value: cardType,
-    label: CARD_TYPE_REGISTRY[cardType].searchLabel,
-  })),
+  ...cardTypes.map(
+    (cardType): TypeaheadOption => ({
+      value: cardType,
+      label: CARD_TYPE_REGISTRY[cardType].searchLabel,
+    })
+  ),
   { value: "favorites", label: "Favorites" },
   { value: "trash", label: "Trash" },
 ] as const;

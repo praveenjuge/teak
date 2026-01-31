@@ -1,14 +1,14 @@
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogDescription,
 } from "@/components/ui/dialog";
-import { useState, useRef, useEffect } from "react";
+import { Textarea } from "@/components/ui/textarea";
 
 interface NotesEditModalProps {
   open: boolean;
@@ -65,17 +65,17 @@ export function NotesEditModal({
   const hasChanges = localNotes !== notes;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Notes</DialogTitle>
           <DialogDescription>
             Press{" "}
-            <kbd className="px-1 py-0.5 text-xs font-mono bg-muted rounded">
+            <kbd className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
               Cmd+Enter
             </kbd>{" "}
             to save,
-            <kbd className="px-1 py-0.5 text-xs font-mono bg-muted rounded ml-1">
+            <kbd className="ml-1 rounded bg-muted px-1 py-0.5 font-mono text-xs">
               Esc
             </kbd>{" "}
             to cancel
@@ -83,21 +83,21 @@ export function NotesEditModal({
         </DialogHeader>
 
         <Textarea
-          ref={textareaRef}
+          className="mt-1 min-h-30"
           id="notes-textarea"
-          value={localNotes}
           onChange={(e) => setLocalNotes(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Add your notes here..."
-          className="mt-1 min-h-30"
+          ref={textareaRef}
           rows={6}
+          value={localNotes}
         />
 
         <DialogFooter className="md:justify-between">
-          <Button variant="outline" onClick={handleCancel}>
+          <Button onClick={handleCancel} variant="outline">
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!hasChanges && !!notes}>
+          <Button disabled={!hasChanges && !!notes} onClick={handleSave}>
             {notes ? "Update" : "Add"}
           </Button>
         </DialogFooter>

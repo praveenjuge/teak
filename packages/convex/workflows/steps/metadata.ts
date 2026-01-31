@@ -8,17 +8,17 @@
 "use node";
 
 import { v } from "convex/values";
-import { internalAction } from "../../_generated/server";
 import { internal } from "../../_generated/api";
+import { internalAction } from "../../_generated/server";
+import { stageCompleted } from "../../card/processingStatus";
 import type { CardType } from "../../schema";
+import type { Id } from "../../shared/types";
 import {
-  generateTextMetadata,
   generateImageMetadata,
   generateLinkMetadata,
+  generateTextMetadata,
 } from "../aiMetadata/generators";
 import { generateTranscript } from "../aiMetadata/transcript";
-import { stageCompleted } from "../../card/processingStatus";
-import type { Id } from "../../shared/types";
 
 type LinkPreviewMetadata = {
   status?: string;
@@ -37,7 +37,9 @@ type LinkCardMetadataInput = {
   };
 };
 
-export const buildLinkContentParts = (card: LinkCardMetadataInput): string[] => {
+export const buildLinkContentParts = (
+  card: LinkCardMetadataInput
+): string[] => {
   const linkPreviewMetadata =
     card.metadata?.linkPreview?.status === "success"
       ? card.metadata.linkPreview
@@ -126,7 +128,7 @@ export async function generateHandler(
   let aiSummary = "";
   let aiTranscript: string | undefined;
   let confidence = 0.9;
-  let generationSource: string = "unknown";
+  let generationSource = "unknown";
 
   switch (cardType as CardType) {
     case "text": {
@@ -145,9 +147,8 @@ export async function generateHandler(
         card.fileMetadata?.fileName?.endsWith(".svg") ||
         card.fileMetadata?.fileName?.endsWith(".SVG");
 
-      const imageFileId = isSvgFile && card.thumbnailId
-        ? card.thumbnailId
-        : card.fileId;
+      const imageFileId =
+        isSvgFile && card.thumbnailId ? card.thumbnailId : card.fileId;
 
       if (imageFileId) {
         const imageUrl = await ctx.storage.getUrl(imageFileId);
@@ -241,7 +242,10 @@ export async function generateHandler(
       let contentToAnalyze = card.content || "";
       if (card.colors && card.colors.length > 0) {
         const colorInfo = card.colors
-          .map((color: any) => `${color.hex}${color.name ? ` (${color.name})` : ""}`)
+          .map(
+            (color: any) =>
+              `${color.hex}${color.name ? ` (${color.name})` : ""}`
+          )
           .join(", ");
         contentToAnalyze = `Colors: ${colorInfo}\n${contentToAnalyze}`;
       }
@@ -283,7 +287,7 @@ export async function generateHandler(
     await ctx.scheduler.runAfter(
       0,
       internal.workflows.screenshot.startScreenshotWorkflow,
-      { cardId },
+      { cardId }
     );
   }
 

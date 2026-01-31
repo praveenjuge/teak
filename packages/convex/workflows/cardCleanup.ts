@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import { internalQuery, internalMutation } from "../_generated/server";
 import { internal } from "../_generated/api";
+import { internalMutation, internalQuery } from "../_generated/server";
 import { workflow } from "./manager";
 
 const internalWorkflow = internal as Record<string, any>;
@@ -51,7 +51,8 @@ export const cleanupDeletedCard = internalMutation({
       return { deleted: false };
     }
 
-    const deletedAt = typeof card.deletedAt === "number" ? card.deletedAt : null;
+    const deletedAt =
+      typeof card.deletedAt === "number" ? card.deletedAt : null;
     const isEligible =
       card.isDeleted === true && deletedAt !== null && deletedAt < cutoff;
 
