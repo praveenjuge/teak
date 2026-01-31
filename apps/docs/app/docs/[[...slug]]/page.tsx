@@ -161,5 +161,10 @@ export async function generateMetadata(props: {
       index: true,
       follow: true,
     },
+    alternates: {
+      canonical: params.slug
+        ? `https://teakvault.com/docs/${params.slug.join("/")}`
+        : "https://teakvault.com/docs",
+    },
   };
 }

@@ -43,6 +43,9 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  alternates: {
+    canonical: "https://teakvault.com",
+  },
 };
 
 export default function Layout({ children }: { children: ReactNode }) {
