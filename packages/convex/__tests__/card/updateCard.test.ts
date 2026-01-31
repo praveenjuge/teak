@@ -445,7 +445,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField marks card as deleted", async () => {
-    const now = Date.now();
+    const _now = Date.now();
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {

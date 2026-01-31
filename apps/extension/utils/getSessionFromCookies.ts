@@ -21,7 +21,7 @@ export async function getSessionTokenFromCookies(): Promise<string | null> {
     });
 
     return cookie?.value ?? null;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

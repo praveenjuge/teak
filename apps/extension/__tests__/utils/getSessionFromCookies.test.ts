@@ -252,7 +252,7 @@ describe("getSessionTokenFromCookies", () => {
     });
 
     test("should return null on error", async () => {
-      let cookie = null;
+      let cookie: string | null = null;
       const mockGet = mock(() => {
         throw new Error("Failed to get cookie");
       });
@@ -545,7 +545,7 @@ describe("getSessionTokenFromCookies", () => {
 
   describe("Error Handling", () => {
     test("should wrap cookie retrieval in try-catch", async () => {
-      let cookie = null;
+      let cookie: string | null = null;
       const mockGet = mock(() => {
         throw new Error("Cookie error");
       });
@@ -567,7 +567,7 @@ describe("getSessionTokenFromCookies", () => {
         throw new Error("Any error");
       });
 
-      let result = null;
+      let result: string | null = null;
       try {
         await mockGet({
           url: "http://localhost:3000",

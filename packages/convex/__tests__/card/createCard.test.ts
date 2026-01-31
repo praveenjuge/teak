@@ -20,7 +20,7 @@ describe("card/createCard.ts", () => {
     workflow = managerModule.workflow;
     workflow.start = mock().mockResolvedValue(undefined);
 
-    const authModule = await import("../../auth");
+    const _authModule = await import("../../auth");
     const rateLimitsModule = await import("../../shared/rateLimits");
     const billingModule = await import("../../billing");
 

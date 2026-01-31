@@ -1,11 +1,11 @@
 // @ts-nocheck
 
 // Set environment variables BEFORE any imports that might load auth.ts
-const originalSiteUrl = process.env.SITE_URL;
-const originalGoogleClientId = process.env.GOOGLE_CLIENT_ID;
-const originalGoogleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-const originalAppleClientId = process.env.APPLE_CLIENT_ID;
-const originalAppleClientSecret = process.env.APPLE_CLIENT_SECRET;
+const _originalSiteUrl = process.env.SITE_URL;
+const _originalGoogleClientId = process.env.GOOGLE_CLIENT_ID;
+const _originalGoogleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const _originalAppleClientId = process.env.APPLE_CLIENT_ID;
+const _originalAppleClientSecret = process.env.APPLE_CLIENT_SECRET;
 
 process.env.SITE_URL = "https://teakvault.com";
 process.env.GOOGLE_CLIENT_ID = "test-google-client-id";

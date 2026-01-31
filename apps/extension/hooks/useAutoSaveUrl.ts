@@ -83,7 +83,7 @@ export const useAutoSaveUrl = (
         contextMenuSave?: ContextMenuSaveState;
       }>("contextMenuSave");
 
-      if (contextMenuSave && contextMenuSave.timestamp) {
+      if (contextMenuSave?.timestamp) {
         const timeSinceContextMenu = Date.now() - contextMenuSave.timestamp;
         if (timeSinceContextMenu < 5000) {
           // Within 5 seconds of context menu action

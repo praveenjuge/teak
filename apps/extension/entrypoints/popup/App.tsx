@@ -176,7 +176,7 @@ function DuplicateState({
 }: {
   duplicateCard?: DuplicateCard | null;
 }) {
-  const formatDate = (timestamp: number) => {
+  const _formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     const now = new Date();
     const diffInDays = Math.floor(
@@ -192,8 +192,8 @@ function DuplicateState({
 
   const cardTitle =
     duplicateCard?.metadataTitle || duplicateCard?.content || "This page";
-  const truncatedTitle =
-    cardTitle.length > 50 ? cardTitle.slice(0, 50) + "..." : cardTitle;
+  const _truncatedTitle =
+    cardTitle.length > 50 ? `${cardTitle.slice(0, 50)}...` : cardTitle;
 
   return (
     <div className="flex min-h-96 w-96 flex-col items-center justify-center gap-4 p-6 text-center">
@@ -211,8 +211,8 @@ function DuplicateState({
 function AuthenticatedPopup({ user }: { user: SessionUser }) {
   const { state: contextMenuState, isRecentSave } = useContextMenuSave();
   const { state, error, duplicateCard } = useAutoSaveUrl(!isRecentSave);
-  const [signOutLoading, setSignOutLoading] = useState(false);
-  const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [_signOutLoading, _setSignOutLoading] = useState(false);
+  const [signOutError, _setSignOutError] = useState<string | null>(null);
 
   // Auto-close popup after successful save
   useEffect(() => {

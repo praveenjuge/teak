@@ -48,7 +48,7 @@ describe("useContextMenuSave Hook", () => {
     });
 
     test("should reject null values", () => {
-      const value = null;
+      const value: null = null;
 
       const isValid = value && typeof value === "object" && "status" in value;
 

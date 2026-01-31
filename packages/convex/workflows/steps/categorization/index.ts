@@ -157,10 +157,13 @@ const parseStructuredData = (html: string): StructuredDataResult => {
   const entities: any[] = [];
   const scriptRegex =
     /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-  let match: RegExpExecArray | null;
   const seen = new Set<string>();
 
-  while ((match = scriptRegex.exec(html)) !== null) {
+  for (
+    let match = scriptRegex.exec(html);
+    match !== null;
+    match = scriptRegex.exec(html)
+  ) {
     const jsonText = match[1]?.trim();
     if (!jsonText) continue;
     try {
@@ -691,7 +694,7 @@ export const enrichLinkCategory = async (
     };
   }
 
-  const hasStructuredData = raw && Object.hasOwn(raw, "structured");
+  const hasStructuredData = raw && "structured" in raw;
   const providedStructured = options?.structuredData;
   const shouldFetchStructured =
     providedStructured === undefined && !!sourceUrl && !hasStructuredData;

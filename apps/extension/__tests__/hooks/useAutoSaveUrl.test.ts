@@ -370,7 +370,7 @@ describe("useAutoSaveUrl Hook", () => {
     });
 
     test("should handle no duplicate found", () => {
-      const duplicateCard = null;
+      const duplicateCard: null = null;
 
       const hasDuplicate = !!duplicateCard;
 
@@ -418,7 +418,7 @@ describe("useAutoSaveUrl Hook", () => {
     });
 
     test("should only create card if no duplicate", () => {
-      const duplicateCard = null;
+      const duplicateCard: null = null;
       const shouldCreate = !duplicateCard;
 
       expect(shouldCreate).toBe(true);

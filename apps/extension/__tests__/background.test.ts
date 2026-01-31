@@ -257,9 +257,9 @@ describe("Background Service Worker", () => {
   describe("Context Menu Click Handler - Save Page", () => {
     test("should handle save-page action with valid URL", async () => {
       const mockTab = { id: 1, url: "https://example.com/page" };
-      const mockInfo = { menuItemId: "save-page" };
+      const _mockInfo = { menuItemId: "save-page" };
 
-      const isValidUrl = mockTab.url && mockTab.url.startsWith("https://");
+      const isValidUrl = mockTab.url?.startsWith("https://");
       const content = isValidUrl ? mockTab.url : undefined;
 
       expect(content).toBe("https://example.com/page");
@@ -267,7 +267,7 @@ describe("Background Service Worker", () => {
 
     test("should handle save-page action when tab URL is missing", async () => {
       const mockTab = { id: 1, url: undefined };
-      const mockInfo = { menuItemId: "save-page" };
+      const _mockInfo = { menuItemId: "save-page" };
 
       const content = mockTab.url;
 
@@ -276,7 +276,7 @@ describe("Background Service Worker", () => {
 
     test("should throw error for restricted URL in save-page action", () => {
       const mockTab = { id: 1, url: "chrome://extensions" };
-      const mockInfo = { menuItemId: "save-page" };
+      const _mockInfo = { menuItemId: "save-page" };
 
       const isRestricted = mockTab.url?.startsWith("chrome://");
 
@@ -310,7 +310,7 @@ describe("Background Service Worker", () => {
 
   describe("Context Menu Click Handler - Save Text", () => {
     test("should handle save-text action with selected text", async () => {
-      const mockTab = { id: 1, url: "https://example.com" };
+      const _mockTab = { id: 1, url: "https://example.com" };
       const mockInfo = { menuItemId: "save-text" };
 
       const action = mockInfo.menuItemId;
@@ -469,7 +469,7 @@ describe("Background Service Worker", () => {
     test("should handle invalid URL in error message", () => {
       const url = "not-a-valid-url";
 
-      let protocol;
+      let protocol: string;
       try {
         protocol = new URL(url).protocol;
       } catch {

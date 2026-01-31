@@ -89,7 +89,7 @@ describe("billing.ts", () => {
   });
 
   test("handles missing customer gracefully", () => {
-    const customer = null;
+    const customer: null = null;
     expect(customer).toBeNull();
   });
 
@@ -102,7 +102,7 @@ describe("billing.ts", () => {
 
   test("uses sandbox server by default", () => {
     const originalProd = process.env.POLAR_SERVER;
-    delete process.env.POLAR_SERVER;
+    process.env.POLAR_SERVER = undefined;
     expect(process.env.POLAR_SERVER).toBeUndefined();
     process.env.POLAR_SERVER = originalProd;
   });
