@@ -51,6 +51,7 @@ export default async function Image() {
         backgroundColor: "#000000",
       }}
     >
+      {/** biome-ignore lint/correctness/useImageSize: <exp> */}
       <img
         alt=""
         src={backgroundImage}

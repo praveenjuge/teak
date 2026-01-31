@@ -456,7 +456,7 @@ describe("useAutoSaveUrl Hook", () => {
 
   describe("Timeout Handling", () => {
     test("should add delay before checking tab", () => {
-      const mockSetTimeout = mock((callback: () => void, delay: number) => {
+      const mockSetTimeout = mock((callback: () => void, _delay: number) => {
         callback();
         return 1;
       });
@@ -468,7 +468,7 @@ describe("useAutoSaveUrl Hook", () => {
 
     test("should clear timeout on cleanup", () => {
       let timeoutId = 1;
-      const mockClearTimeout = mock((id: number) => {
+      const mockClearTimeout = mock((_id: number) => {
         timeoutId = 0;
       });
 

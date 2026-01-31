@@ -94,7 +94,7 @@ describe("auth", () => {
       const ctx = {
         db: {
           query: () => ({
-            withIndex: (name: any, cb: any) => {
+            withIndex: (_name: any, cb: any) => {
               if (cb) cb({ eq: () => ({ eq: () => {} }) });
               return {
                 collect: async () =>
@@ -121,7 +121,7 @@ describe("auth", () => {
       const ctx = {
         db: {
           query: () => ({
-            withIndex: (name: any, cb: any) => {
+            withIndex: (_name: any, cb: any) => {
               if (cb) cb({ eq: () => ({ eq: () => {} }) });
               return {
                 collect: async () => Array.from({ length: FREE_TIER_LIMIT }),
@@ -152,7 +152,7 @@ describe("auth", () => {
       const ctx = {
         db: {
           query: () => ({
-            withIndex: (name: any, cb: any) => {
+            withIndex: (_name: any, cb: any) => {
               if (cb) cb({ eq: () => ({ eq: () => {} }) });
               return {
                 collect: async () =>
@@ -179,7 +179,7 @@ describe("auth", () => {
           query: () => {
             queryCalled = true;
             return {
-              withIndex: (name: any, cb: any) => {
+              withIndex: (_name: any, cb: any) => {
                 if (cb) cb({ eq: () => ({ eq: () => {} }) });
                 return { collect: async () => [] };
               },
@@ -260,7 +260,7 @@ describe("auth", () => {
       const ctx = {
         db: {
           query: () => ({
-            withIndex: (name: any, cb: any) => {
+            withIndex: (_name: any, cb: any) => {
               if (cb) cb({ eq: () => ({ eq: () => {} }) });
               return { collect: async () => [] };
             },
@@ -281,7 +281,7 @@ describe("auth", () => {
       const ctx = {
         db: {
           query: () => ({
-            withIndex: (name: any, cb: any) => {
+            withIndex: (_name: any, cb: any) => {
               if (cb) cb({ eq: () => ({ eq: () => {} }) });
               return { collect: async () => [] };
             },
@@ -306,7 +306,7 @@ describe("auth", () => {
       const ctx = {
         db: {
           query: () => ({
-            withIndex: (name: any, cb: any) => {
+            withIndex: (_name: any, cb: any) => {
               if (cb) cb({ eq: () => ({ eq: () => {} }) });
               return { collect: async () => Array.from({ length: 100 }) };
             },
@@ -337,7 +337,7 @@ describe("auth", () => {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: {
           query: () => ({
-            withIndex: (name: any, cb: any) => {
+            withIndex: (_name: any, cb: any) => {
               if (cb) cb({ eq: () => {} });
               return {
                 collect: async () => [

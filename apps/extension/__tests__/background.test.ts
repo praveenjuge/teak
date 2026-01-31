@@ -438,7 +438,7 @@ describe("Background Service Worker", () => {
     test("should add listener for context menu clicks", () => {
       const mockAddListener = mock(() => {});
 
-      const handler = (info: unknown, tab?: unknown) => {};
+      const handler = (_info: unknown, _tab?: unknown) => {};
 
       mockAddListener(handler);
 

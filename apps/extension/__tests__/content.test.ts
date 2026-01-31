@@ -146,7 +146,7 @@ describe("Content Script", () => {
 
   describe("Content Script Communication", () => {
     test("should be able to listen for messages from background", () => {
-      const mockOnMessage = mock((listener: () => void) => {
+      const mockOnMessage = mock((_listener: () => void) => {
         // Simulate adding a listener
       });
 
@@ -358,7 +358,7 @@ describe("Content Script", () => {
     });
 
     test("should log errors for debugging", () => {
-      const mockConsole = mock((msg: string) => {});
+      const mockConsole = mock((_msg: string) => {});
       const error = new Error("Test error");
 
       mockConsole(error.message);

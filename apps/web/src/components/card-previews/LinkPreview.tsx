@@ -35,7 +35,7 @@ function FaviconImage({
   if (hasError) return null;
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
+    // biome-ignore lint/correctness/useImageSize: <>
     <img alt="" className="size-4" ref={imgRef} src={faviconUrl} />
   );
 }

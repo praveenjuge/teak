@@ -164,17 +164,21 @@ export const finalizeUploadedCard = mutation({
       };
 
       // Build non-file metadata (only keep fields that aren't file-related)
-      const nonFileMetadata = { ...additionalMeta };
-      nonFileMetadata.recordingTimestamp = undefined;
-      nonFileMetadata.duration = undefined;
-      nonFileMetadata.width = undefined;
-      nonFileMetadata.height = undefined;
-      nonFileMetadata.fileName = undefined;
-      nonFileMetadata.fileSize = undefined;
-      nonFileMetadata.mimeType = undefined;
+      const {
+        recordingTimestamp: _recordingTimestamp,
+        duration: _duration,
+        width: _width,
+        height: _height,
+        fileName: _fileName,
+        fileSize: _fileSize,
+        mimeType: _mimeType,
+        ...nonFileMetadata
+      } = additionalMeta;
 
-      const metadata =
-        Object.keys(nonFileMetadata).length > 0 ? nonFileMetadata : undefined;
+      const hasNonFileMetadata = Object.values(nonFileMetadata).some(
+        (v) => v !== undefined
+      );
+      const metadata = hasNonFileMetadata ? nonFileMetadata : undefined;
 
       // Create the card
       const cardId = await ctx.db.insert("cards", {

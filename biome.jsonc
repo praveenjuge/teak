@@ -32,10 +32,6 @@
         "noBitwiseOperators": "off",
         "noEmptyBlockStatements": "off",
         "useAwait": "off"
-      },
-      "correctness": {
-        "noUnusedFunctionParameters": "off",
-        "useImageSize": "off"
       }
     }
   }

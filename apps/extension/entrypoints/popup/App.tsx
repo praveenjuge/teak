@@ -108,7 +108,7 @@ function SessionErrorState({
 }) {
   return (
     <div className="flex min-h-96 w-96 flex-col items-center justify-center gap-4 p-5 text-center">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/** biome-ignore lint/correctness/useImageSize: <> */}
       <img alt="Teak Logo" className="h-6" src="./icon.svg" />
       <p className="text-red-600 text-sm">{message}</p>
       <button
@@ -122,7 +122,11 @@ function SessionErrorState({
   );
 }
 
-function AuthPanel({ onLoginSuccess }: { onLoginSuccess: () => void }) {
+function AuthPanel({
+  onLoginSuccess: _onLoginSuccess,
+}: {
+  onLoginSuccess: () => void;
+}) {
   const baseUrl = import.meta.env.DEV
     ? "http://localhost:3000"
     : "https://app.teakvault.com";
@@ -140,7 +144,7 @@ function AuthPanel({ onLoginSuccess }: { onLoginSuccess: () => void }) {
   return (
     <div className="flex min-h-96 w-96 flex-col items-center justify-center gap-5 p-6 text-center">
       <div className="flex flex-col items-center space-y-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {/** biome-ignore lint/correctness/useImageSize: <> */}
         <img alt="Teak Logo" className="h-5" src="./icon.svg" />
         <h1 className="font-semibold text-base">Save Anything. Anywhere.</h1>
       </div>
@@ -338,7 +342,7 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
           target="_blank"
           title="Open Teak"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {/** biome-ignore lint/correctness/useImageSize: <> */}
           <img alt="Teak Logo" className="h-4" src="./icon.svg" />
         </a>
 

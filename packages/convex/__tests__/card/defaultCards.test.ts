@@ -101,7 +101,7 @@ describe("card/defaultCards.ts", () => {
             first: mock().mockResolvedValue(null),
           }),
         }),
-        insert: mock().mockImplementation((table: string, data: any) => {
+        insert: mock().mockImplementation((_table: string, data: any) => {
           insertedCards.push(data);
           return `id_${insertedCards.length}`;
         }),
@@ -156,7 +156,7 @@ describe("card/defaultCards.ts", () => {
             first: mock().mockResolvedValue(null),
           }),
         }),
-        insert: mock().mockImplementation((table: string, data: any) => {
+        insert: mock().mockImplementation((_table: string, data: any) => {
           insertedCards.push(data);
           return `id_${insertedCards.length}`;
         }),
@@ -189,7 +189,7 @@ describe("card/defaultCards.ts", () => {
             first: mock().mockResolvedValue(null),
           }),
         }),
-        insert: mock().mockImplementation((table: string, data: any) => {
+        insert: mock().mockImplementation((_table: string, data: any) => {
           insertedCards.push(data);
           return `id_${insertedCards.length}`;
         }),
