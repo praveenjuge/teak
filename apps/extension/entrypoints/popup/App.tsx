@@ -1,4 +1,11 @@
-import { ArrowRight, Info, Loader2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Check,
+  Info,
+  Loader2,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import type { DuplicateCard } from "../../hooks/useAutoSaveUrl";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
@@ -28,19 +35,7 @@ function UpgradePrompt() {
   return (
     <div className="flex min-h-96 w-96 flex-col items-center justify-center gap-3 p-6 text-center">
       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
-        <svg
-          className="h-5 w-5 text-amber-600"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-          />
-        </svg>
+        <AlertTriangle className="h-5 w-5 text-amber-600" />
       </div>
       <div className="space-y-1">
         <p className="font-medium text-gray-900 text-sm">
@@ -259,19 +254,7 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
       case "success":
         return (
           <div className="flex min-h-96 w-96 items-center justify-center gap-2 p-3">
-            <svg
-              className="h-4 w-4 text-green-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M5 13l4 4L19 7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="3"
-              />
-            </svg>
+            <Check className="h-4 w-4 text-green-500" strokeWidth={3} />
             <span className="text-green-700 text-sm">
               {getContextMenuMessage()}
             </span>
@@ -285,19 +268,7 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
         return (
           <div className="flex min-h-96 w-96 flex-col items-center justify-center gap-1 p-3">
             <div className="flex items-center justify-center gap-2">
-              <svg
-                className="h-4 w-4 text-red-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M6 18L18 6M6 6l12 12"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-              </svg>
+              <X className="h-4 w-4 text-red-600" />
               <span className="text-red-700 text-sm">Failed to save</span>
             </div>
             {contextMenuState.error && (
@@ -324,19 +295,7 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
       case "success":
         return (
           <div className="flex min-h-96 w-96 items-center justify-center gap-2 p-3">
-            <svg
-              className="h-4 w-4 text-green-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M5 13l4 4L19 7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="3"
-              />
-            </svg>
+            <Check className="h-4 w-4 text-green-500" strokeWidth={3} />
             <span className="text-green-700 text-sm">Added to Teak!</span>
           </div>
         );
@@ -348,19 +307,7 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
         return (
           <div className="flex min-h-96 w-96 flex-col items-center justify-center gap-1 p-3">
             <div className="flex items-center justify-center gap-2">
-              <svg
-                className="h-4 w-4 text-red-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M6 18L18 6M6 6l12 12"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-              </svg>
+              <X className="h-4 w-4 text-red-600" />
               <span className="text-red-700 text-sm">Failed to save</span>
             </div>
             {error && <span className="text-red-600 text-xs">{error}</span>}
@@ -369,19 +316,7 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
       case "invalid-url":
         return (
           <div className="flex min-h-96 w-96 items-center justify-center gap-2 p-3">
-            <svg
-              className="h-4 w-4 text-gray-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-              />
-            </svg>
+            <Info className="h-4 w-4 text-gray-500" />
             <span className="text-gray-700 text-sm">
               Can&apos;t save this page
             </span>
