@@ -2,7 +2,43 @@ import type { Doc } from "@teak/convex/_generated/dataModel";
 import { Image } from "antd";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+function FaviconImage({
+  faviconUrl,
+  fallbackUrl,
+}: {
+  faviconUrl: string;
+  fallbackUrl?: string;
+}) {
+  const imgRef = useRef<HTMLImageElement>(null);
+  const [hasError, setHasError] = useState(false);
+  const [usedFallback, setUsedFallback] = useState(false);
+
+  useEffect(() => {
+    const img = imgRef.current;
+    if (!img) return;
+
+    const handleError = () => {
+      if (fallbackUrl && !usedFallback) {
+        setUsedFallback(true);
+        img.src = fallbackUrl;
+      } else {
+        setHasError(true);
+      }
+    };
+
+    img.addEventListener("error", handleError);
+    return () => img.removeEventListener("error", handleError);
+  }, [fallbackUrl, usedFallback]);
+
+  if (hasError) return null;
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img alt="" className="size-4" ref={imgRef} src={faviconUrl} />
+  );
+}
 
 interface LinkPreviewProps {
   card: Doc<"cards"> & { screenshotUrl?: string; linkPreviewImageUrl?: string };
@@ -70,20 +106,13 @@ export function LinkPreview({
           <div className="flex w-full min-w-0 items-center gap-2">
             {faviconUrl && (
               <div className="mt-0.5 size-4 shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  alt=""
-                  className="size-4"
-                  onError={(event) => {
-                    const target = event.currentTarget;
-                    if (card.url && !target.dataset.fallback) {
-                      target.dataset.fallback = "true";
-                      target.src = `https://www.google.com/s2/favicons?domain=${card.url}`;
-                    } else {
-                      target.style.display = "none";
-                    }
-                  }}
-                  src={faviconUrl}
+                <FaviconImage
+                  fallbackUrl={
+                    card.url
+                      ? `https://www.google.com/s2/favicons?domain=${card.url}`
+                      : undefined
+                  }
+                  faviconUrl={faviconUrl}
                 />
               </div>
             )}

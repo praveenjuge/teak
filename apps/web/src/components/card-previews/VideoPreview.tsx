@@ -19,6 +19,7 @@ export function VideoPreview({ card }: VideoPreviewProps) {
       preload="metadata"
     >
       <source src={fileUrl} type={card.fileMetadata?.mimeType} />
+      <track kind="captions" />
       Your browser does not support the video tag.
     </video>
   );

@@ -11,11 +11,7 @@
   "linter": {
     "rules": {
       "a11y": {
-        "noSvgWithoutTitle": "off",
-        "noNoninteractiveElementInteractions": "off",
-        "noStaticElementInteractions": "off",
-        "useMediaCaption": "off",
-        "useKeyWithClickEvents": "off"
+        "noSvgWithoutTitle": "off"
       },
       "style": {
         "useFilenamingConvention": "off",

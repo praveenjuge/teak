@@ -36,10 +36,11 @@ export function PalettePreview({ card }: PalettePreviewProps) {
       {colors.map((color, index) => (
         <div className="overflow-hidden rounded" key={`${color.hex}-${index}`}>
           {/* Color Swatch with values inline */}
-          <div
+          <button
             className="flex w-full cursor-pointer items-center justify-end p-2"
             onClick={() => void copyToClipboard(color.hex, color.hex)}
             style={{ backgroundColor: color.hex }}
+            type="button"
           >
             <Button
               className="dark:bg-background"
@@ -53,7 +54,7 @@ export function PalettePreview({ card }: PalettePreviewProps) {
               <Copy />
               {copiedColor === color.hex ? "Copied!" : color.hex}
             </Button>
-          </div>
+          </button>
         </div>
       ))}
     </div>

@@ -123,10 +123,7 @@ export function SearchBar({
         </Link>
       </div>
       {shouldShowFilters && (
-        <div
-          className="slide-in-from-top-2 fade-in-0 animate-in pb-5 duration-200"
-          onMouseDown={(e) => e.preventDefault()}
-        >
+        <div className="slide-in-from-top-2 fade-in-0 animate-in pb-5 duration-200">
           <div className="flex flex-wrap gap-2">
             {/* Keyword tags */}
             {keywordTags.map((keyword) => (

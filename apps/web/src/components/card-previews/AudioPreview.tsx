@@ -13,6 +13,7 @@ export function AudioPreview({ card }: AudioPreviewProps) {
       {fileUrl && (
         <audio className="w-full" controls>
           <source src={fileUrl} type={card.fileMetadata?.mimeType} />
+          <track kind="captions" />
           Your browser does not support the audio element.
         </audio>
       )}
