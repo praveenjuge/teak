@@ -3,30 +3,27 @@ import {
   CARD_ERROR_CODES,
   type UploadMultipleFilesResultItem,
 } from "@teak/convex/shared";
-import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
-import { useDropzone } from "react-dropzone";
+import { useCallback } from "react";
+import { type FileRejection, useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { metrics } from "@/lib/metrics";
 
-export interface DragDropState {
-  isDragActive: boolean;
-  isDragAccept: boolean;
-  isDragReject: boolean;
-  isUploading: boolean;
-  uploadProgress: number;
-  showUpgradePrompt: boolean;
-}
-
 export function useGlobalDragDrop() {
-  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
-  const router = useRouter();
-
-  const { uploadMultipleFiles, state } = useFileUpload({
+  const { uploadMultipleFiles } = useFileUpload({
     onError: (error) => {
       if (error.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
-        setShowUpgradePrompt(true);
+        toast.error(
+          "You've reached your free tier limit. Upgrade to Pro for unlimited cards.",
+          {
+            action: {
+              label: "Upgrade",
+              onClick: () => {
+                window.location.href = "/settings";
+              },
+            },
+          }
+        );
       } else {
         Sentry.captureException(error, {
           tags: { source: "convex", operation: "dragDropUpload" },
@@ -38,10 +35,26 @@ export function useGlobalDragDrop() {
   });
 
   const onDrop = useCallback(
-    async (acceptedFiles: File[]) => {
+    async (acceptedFiles: File[], fileRejections: FileRejection[]) => {
+      // Show toast for rejected files
+      for (const rejection of fileRejections) {
+        const fileName = rejection.file.name;
+        const errorMessage =
+          rejection.errors[0]?.message || "File type not supported";
+        toast.error(`${fileName}: ${errorMessage}`);
+      }
+
       if (acceptedFiles.length === 0) {
-        toast.error("No valid files to upload");
+        if (fileRejections.length === 0) {
+          toast.error("No valid files to upload");
+        }
         return;
+      }
+
+      // Show loading toasts for each file
+      const toastIds: Record<string, string | number> = {};
+      for (const file of acceptedFiles) {
+        toastIds[file.name] = toast.loading(`Uploading ${file.name}...`);
       }
 
       const results = await uploadMultipleFiles(acceptedFiles);
@@ -60,22 +73,38 @@ export function useGlobalDragDrop() {
 
       // Show success/error messages for each file
       for (const result of results) {
+        const toastId = toastIds[result.file];
         if (result.success) {
           metrics.cardCreated("file");
-          toast.success(`${result.file} uploaded successfully`);
+          toast.success(`${result.file} uploaded successfully`, {
+            id: toastId,
+          });
         } else {
           const errorMessage = result.error || "Upload failed";
           if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
             metrics.cardLimitReached(0);
             metrics.upgradePromptShown("drag_drop");
-            setShowUpgradePrompt(true);
+            toast.error(
+              "You've reached your free tier limit. Upgrade to Pro for unlimited cards.",
+              {
+                id: toastId,
+                action: {
+                  label: "Upgrade",
+                  onClick: () => {
+                    window.location.href = "/settings";
+                  },
+                },
+              }
+            );
           } else {
             metrics.errorOccurred("upload", result.errorCode);
             Sentry.captureException(new Error(errorMessage), {
               tags: { source: "convex", operation: "dragDropUpload" },
               extra: { fileName: result.file, errorCode: result.errorCode },
             });
-            toast.error(`Failed to upload ${result.file}: ${errorMessage}`);
+            toast.error(`Failed to upload ${result.file}: ${errorMessage}`, {
+              id: toastId,
+            });
           }
         }
       }
@@ -83,13 +112,7 @@ export function useGlobalDragDrop() {
     [uploadMultipleFiles]
   );
 
-  const {
-    getRootProps,
-    getInputProps,
-    isDragActive,
-    isDragAccept,
-    isDragReject,
-  } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       "image/*": [],
@@ -99,25 +122,13 @@ export function useGlobalDragDrop() {
       "text/*": [],
     },
     multiple: true,
-    // Remove disabled state - always allow drag and drop optimistically
-    noClick: true, // Disable click to upload since we have the AddCardForm for that
-    noKeyboard: true, // Disable keyboard activation
+    noClick: true,
+    noKeyboard: true,
   });
-
-  const dragDropState: DragDropState = {
-    isDragActive,
-    isDragAccept,
-    isDragReject,
-    isUploading: state.isUploading,
-    uploadProgress: state.progress,
-    showUpgradePrompt,
-  };
 
   return {
     getRootProps,
     getInputProps,
-    dragDropState,
-    dismissUpgradePrompt: () => setShowUpgradePrompt(false),
-    navigateToUpgrade: () => router.push("/settings"),
+    isDragActive,
   };
 }

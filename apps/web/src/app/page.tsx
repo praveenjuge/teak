@@ -369,13 +369,7 @@ export default function HomePage() {
     }
   };
 
-  const {
-    getRootProps,
-    getInputProps,
-    dragDropState,
-    dismissUpgradePrompt,
-    navigateToUpgrade,
-  } = useGlobalDragDrop();
+  const { getRootProps, getInputProps, isDragActive } = useGlobalDragDrop();
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -601,11 +595,7 @@ export default function HomePage() {
         userTags={tagManagementCard?.tags || []}
       />
 
-      <DragOverlay
-        dismissUpgradePrompt={dismissUpgradePrompt}
-        dragDropState={dragDropState}
-        navigateToUpgrade={navigateToUpgrade}
-      />
+      <DragOverlay isDragActive={isDragActive} />
     </div>
   );
 }
