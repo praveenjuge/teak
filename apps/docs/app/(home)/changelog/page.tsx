@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { ComponentType } from "react";
 import { Button } from "@/components/ui/button";
+import { getDefaultAuthor } from "@/lib/authors";
 import { changelogCollection } from "@/lib/source";
 
 export const metadata: Metadata = {
   title: "What's New in Teak",
   description:
     "See how we're making Teak better every week. Real updates, no fluff.",
+  keywords:
+    "teak changelog, teak updates, what's new teak, teak release notes, teak new features",
   openGraph: {
     title: "What's New in Teak",
     description:
@@ -53,6 +57,8 @@ export default function ChangelogPage() {
   const sortedEntries = [...changelogCollection].sort((a, b) => {
     return b.batchNumber - a.batchNumber;
   });
+
+  const author = getDefaultAuthor();
 
   return (
     <div className="container mx-auto max-w-2xl px-4 py-12">
@@ -103,6 +109,23 @@ export default function ChangelogPage() {
 
               <div className="prose max-w-none">
                 <MDXContent />
+              </div>
+
+              {/* Author Attribution */}
+              <div className="mt-6 border-t pt-4">
+                <Link
+                  className="inline-flex items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+                  href={`/authors/${author.id}`}
+                >
+                  <img
+                    alt={author.name}
+                    className="rounded-full"
+                    height={24}
+                    src={author.avatar}
+                    width={24}
+                  />
+                  <span>By {author.name}</span>
+                </Link>
               </div>
             </article>
           );

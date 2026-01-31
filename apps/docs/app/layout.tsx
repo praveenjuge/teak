@@ -8,10 +8,10 @@ import { BackgroundPattern } from "@/components/BackgroundPattern";
 export const metadata: Metadata = {
   title: {
     template: "%s | Teak",
-    default: "Teak - Visual Bookmarking & Design Inspiration Manager",
+    default: "Never Lose That Perfect Design Again | Teak",
   },
   description:
-    "Teak, the visual bookmarking tool made for designers and developers. Learn how to organize design inspiration and manage visual bookmarks across all platforms.",
+    "Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again. The visual bookmarking tool made for designers and developers.",
   metadataBase: new URL("https://teakvault.com"),
   keywords:
     "teak, visual bookmarking, design inspiration management, design bookmarks, visual inspiration, design workflow, developer resources",
@@ -58,7 +58,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           }}
         >
           {/* Background Pattern */}
-          <div className="pointer-events-none absolute top-0 left-0 -z-10 h-[600px] w-full overflow-hidden">
+          <div className="pointer-events-none absolute top-0 left-0 -z-10 h-150 w-full overflow-hidden">
             <BackgroundPattern />
           </div>
           {children}

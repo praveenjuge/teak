@@ -20,34 +20,131 @@ import {
 
 ## Card System
 
-Eight card types cover common design workflows:
+Eight card types cover common design workflows. Each type is optimized for its content with automatic processing and rich previews.
 
-- <FileText size={16} className="inline" /> **Design Notes** — project decisions, feedback
-- <Link size={16} className="inline" /> **Design Resources** — links with auto-metadata & screenshots
-- <Camera size={16} className="inline" /> **Visual References** — screenshots, mockups, mood boards
-- <Video size={16} className="inline" /> **Animation References** — motion examples with player
-- <Mic size={16} className="inline" /> **Voice Notes** — quick ideas & client feedback
-- <File size={16} className="inline" /> **Design Files** — systems, guidelines, assets
-- <Palette size={16} className="inline" /> **Color Palettes** — extracted from inspiration
-- <Quote size={16} className="inline" /> **Quote Cards** — highlighted quotes with context
+### <FileText size={18} className="inline" /> Design Notes
+Capture project decisions, meeting notes, and feedback. Full Markdown support with syntax highlighting for code snippets.
 
-## Core Capabilities
+**Use cases:** Design rationale documentation, client feedback notes, quick ideas
 
-- Real-time sync across web, mobile, and extension
-- Visual search with previews and design filters
-- Masonry grid for browsing inspiration
-- Secure storage with thumbnails and previews
-- AI enrichment: auto-tags, summaries, categorization
-- Admin dashboard for pipeline monitoring
-- Feedback system across platforms
-- Subscription management via Polar
+### <Link size={18} className="inline" /> Design Resources
+Save links with automatic metadata extraction and full-page screenshots. Teak captures the title, description, favicon, and a visual preview.
 
-## Platforms
+**Use cases:** Dribbble shots, CodePen demos, articles, documentation
 
-- <Globe size={16} className="inline" /> **Web App** — full dashboard for bookmarking
-- <Smartphone size={16} className="inline" /> **Mobile** — capture inspiration on the go
-- <Plug size={16} className="inline" /> **Extension** — save from any website instantly
+### <Camera size={18} className="inline" /> Visual References
+Store screenshots, mockups, and mood board images. Automatic color palette extraction helps you find images by dominant colors.
+
+**Use cases:** UI screenshots, mood boards, reference photos, mockups
+
+### <Video size={18} className="inline" /> Animation References
+Save video files with an inline player and auto-generated thumbnails. Perfect for motion design references and tutorial clips.
+
+**Use cases:** Micro-interactions, loading animations, tutorial segments
+
+### <Mic size={18} className="inline" /> Voice Notes
+Record audio directly or upload files. Automatic transcription makes voice notes fully searchable.
+
+**Use cases:** Quick ideas on the go, verbal feedback, brainstorming sessions
+
+### <File size={18} className="inline" /> Design Files
+Upload PDFs, Sketch files, Figma exports, and other assets. Thumbnail previews help you browse without opening each file.
+
+**Use cases:** Design systems, brand guidelines, exported assets
+
+### <Palette size={18} className="inline" /> Color Palettes
+Extract and save color palettes from any image. Each color includes hex values for easy copying.
+
+**Use cases:** Brand colors, inspiration palettes, color research
+
+### <Quote size={18} className="inline" /> Quote Cards
+Save highlighted quotes with source context. Perfect for design principles, testimonials, and notable passages.
+
+**Use cases:** Design principles, user quotes, inspirational text
+
+---
+
+## Search & Organization
+
+### Visual Search
+Search across all your cards using natural language. Teak searches titles, descriptions, tags, transcriptions, and extracted text.
+
+```
+Examples:
+- "blue button hover state"
+- "onboarding flow mobile"
+- "feedback from Sarah"
+```
+
+### Smart Tagging
+AI automatically analyzes your content and applies relevant tags. You can also add custom tags manually.
+
+### Filtering
+Filter by card type, favorites, tags, or date. Combine filters to narrow down large collections quickly.
+
+### Masonry Grid
+Browse your inspiration in a Pinterest-style grid that adapts to different content sizes and aspect ratios.
+
+---
+
+## AI Enrichment
+
+Teak's AI pipeline processes each card automatically:
+
+| Feature | Description |
+|---------|-------------|
+| **Auto-tagging** | Extracts relevant keywords and concepts |
+| **Summaries** | Generates brief descriptions for quick scanning |
+| **Categorization** | Groups links by type (design, development, article, tool) |
+| **Color extraction** | Identifies dominant colors in images |
+| **Transcription** | Converts audio to searchable text |
+| **Thumbnail generation** | Creates previews for videos and documents |
+
+---
+
+## Cross-Platform Sync
+
+Your inspiration syncs in real-time across all platforms:
+
+### <Globe size={18} className="inline" /> Web App
+Full-featured dashboard with keyboard shortcuts, bulk actions, and detailed card views. Best for extended browsing and organization sessions.
+
+**Key features:**
+- Drag-and-drop uploads
+- Keyboard navigation (j/k to browse, f to favorite)
+- Bulk selection and batch operations
+- Full-screen card preview with metadata
+
+### <Smartphone size={18} className="inline" /> Mobile App
+Native iOS and Android apps for capturing inspiration anywhere. Share directly from any app to save instantly.
+
+**Key features:**
+- Share sheet integration
+- Camera capture for quick screenshots
+- Voice recording with one tap
+- Offline viewing of synced cards
+
+### <Plug size={18} className="inline" /> Browser Extension
+One-click saving from any website. Right-click context menu for saving images, links, and selected text.
+
+**Key features:**
+- Save current page with full metadata
+- Right-click to save any image or link
+- Highlight text to create quote cards
+- Keyboard shortcut (Cmd/Ctrl + Shift + S)
+
+---
 
 ## Who It's For
 
-Designers, developers, and creative teams who need to capture, organize, and search visual inspiration efficiently.
+### Designers
+Build a personal library of UI patterns, interactions, and visual references. Find the perfect example when you need it.
+
+### Developers
+Save documentation, code examples, and technical references. Voice notes capture ideas when you can't stop to type.
+
+### Creative Teams
+Share inspiration collections with teammates. Everyone stays aligned on visual direction and reference materials.
+
+### Content Creators
+Organize research, quotes, and visual assets for articles, videos, and social content.
