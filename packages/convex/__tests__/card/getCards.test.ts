@@ -304,6 +304,40 @@ describe("card/getCards.ts", () => {
       expect(result[0].isFavorited).toBe(true);
     });
 
+    test("filters by createdAtRange when searching", async () => {
+      const cards = [
+        {
+          _id: "c1",
+          _creationTime: 1,
+          userId: "u1",
+          content: "Test",
+          createdAt: 800,
+        },
+        {
+          _id: "c2",
+          _creationTime: 2,
+          userId: "u1",
+          content: "Test",
+          createdAt: 950,
+        },
+      ];
+      const query = buildQuery(cards);
+
+      const ctx = {
+        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+        db: { query: mock().mockReturnValue(query) },
+        storage: { getUrl: mock() },
+      } as any;
+
+      const handler = (searchCards as any).handler ?? searchCards;
+      const result = await handler(ctx, {
+        searchQuery: "test",
+        createdAtRange: { start: 900, end: 1000 },
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0]._id).toBe("c2");
+    });
+
     test("limits results when limit provided", async () => {
       const cards = Array.from({ length: 100 }, (_, i) => ({
         _id: `c${i}`,
@@ -358,6 +392,26 @@ describe("card/getCards.ts", () => {
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, { types: ["image"] });
       expect(result).toHaveLength(1);
+    });
+
+    test("uses by_created index when createdAtRange provided without searchQuery", async () => {
+      const cards: any[] = [];
+      const query = buildQuery(cards);
+
+      const ctx = {
+        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+        db: { query: mock().mockReturnValue(query) },
+        storage: { getUrl: mock() },
+      } as any;
+
+      const handler = (searchCards as any).handler ?? searchCards;
+      await handler(ctx, {
+        createdAtRange: { start: 0, end: 1000 },
+      });
+      expect(query.withIndex).toHaveBeenCalledWith(
+        "by_created",
+        expect.any(Function)
+      );
     });
   });
 
@@ -497,6 +551,42 @@ describe("card/getCards.ts", () => {
       expect(result.page).toHaveLength(1);
     });
 
+    test("filters by createdAtRange in paginated search", async () => {
+      const cards = [
+        {
+          _id: "c1",
+          _creationTime: 1,
+          userId: "u1",
+          content: "Test",
+          createdAt: 500,
+        },
+        {
+          _id: "c2",
+          _creationTime: 2,
+          userId: "u1",
+          content: "Test",
+          createdAt: 900,
+        },
+      ];
+      const query = buildQuery(cards);
+
+      const ctx = {
+        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+        db: { query: mock().mockReturnValue(query) },
+        storage: { getUrl: mock() },
+      } as any;
+
+      const handler =
+        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
+      const result = await handler(ctx, {
+        paginationOpts: { numItems: 10, cursor: "0" },
+        searchQuery: "test",
+        createdAtRange: { start: 800, end: 1000 },
+      });
+      expect(result.page).toHaveLength(1);
+      expect(result.page[0]._id).toBe("c2");
+    });
+
     test("paginates without search query", async () => {
       const cards = [
         { _id: "c1", _creationTime: 1, userId: "u1", content: "Test" },
@@ -515,6 +605,28 @@ describe("card/getCards.ts", () => {
         paginationOpts: { numItems: 10, cursor: null },
       });
       expect(result.page).toHaveLength(1);
+    });
+
+    test("uses by_created index when createdAtRange provided without searchQuery", async () => {
+      const cards: any[] = [];
+      const query = buildQuery(cards);
+
+      const ctx = {
+        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+        db: { query: mock().mockReturnValue(query) },
+        storage: { getUrl: mock() },
+      } as any;
+
+      const handler =
+        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
+      await handler(ctx, {
+        paginationOpts: { numItems: 10, cursor: null },
+        createdAtRange: { start: 0, end: 1000 },
+      });
+      expect(query.withIndex).toHaveBeenCalledWith(
+        "by_created",
+        expect.any(Function)
+      );
     });
   });
 });

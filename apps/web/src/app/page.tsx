@@ -2,6 +2,7 @@
 
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
+import { parseTimeSearchQuery, type TimeFilter } from "@teak/convex/shared";
 import type { CardType } from "@teak/convex/shared/constants";
 import { Authenticated, AuthLoading, useMutation } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
@@ -35,6 +36,7 @@ export default function HomePage() {
   const [filterTags, setFilterTags] = useState<CardType[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showTrashOnly, setShowTrashOnly] = useState(false);
+  const [timeFilter, setTimeFilter] = useState<TimeFilter | null>(null);
   const [localCards, setLocalCards] = useState<Doc<"cards">[]>([]);
 
   const searchTerms = useMemo(
@@ -52,8 +54,9 @@ export default function HomePage() {
       types: filterTags.length > 0 ? filterTags : undefined,
       favoritesOnly: showFavoritesOnly || undefined,
       showTrashOnly: showTrashOnly || undefined,
+      createdAtRange: timeFilter?.range,
     }),
-    [filterTags, searchTerms, showFavoritesOnly, showTrashOnly]
+    [filterTags, searchTerms, showFavoritesOnly, showTrashOnly, timeFilter]
   );
 
   const {
@@ -98,7 +101,11 @@ export default function HomePage() {
 
   // Track search when results change and filters are active
   const hasActiveSearch =
-    searchTerms || filterTags.length > 0 || showFavoritesOnly || showTrashOnly;
+    searchTerms ||
+    filterTags.length > 0 ||
+    showFavoritesOnly ||
+    showTrashOnly ||
+    Boolean(timeFilter);
 
   const localSearchResults = useMemo(() => {
     if (!hasActiveSearch) {
@@ -109,6 +116,7 @@ export default function HomePage() {
       types: filterTags,
       favoritesOnly: showFavoritesOnly,
       showTrashOnly,
+      createdAtRange: timeFilter?.range,
     });
   }, [
     filterTags,
@@ -117,6 +125,7 @@ export default function HomePage() {
     searchTerms,
     showFavoritesOnly,
     showTrashOnly,
+    timeFilter,
   ]);
 
   const displayCards = useMemo(() => {
@@ -378,6 +387,16 @@ export default function HomePage() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
+      const parsedTime = parseTimeSearchQuery(searchQuery, {
+        now: new Date(),
+        weekStart: 0,
+      });
+
+      if (parsedTime) {
+        setTimeFilter(parsedTime);
+        setSearchQuery("");
+        return;
+      }
 
       if (
         ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
@@ -403,7 +422,8 @@ export default function HomePage() {
       (keywordTags.length > 0 ||
         filterTags.length > 0 ||
         showFavoritesOnly ||
-        showTrashOnly)
+        showTrashOnly ||
+        timeFilter)
     ) {
       if (showTrashOnly) {
         setShowTrashOnly(false);
@@ -411,6 +431,8 @@ export default function HomePage() {
         setShowFavoritesOnly(false);
       } else if (filterTags.length > 0) {
         setFilterTags((prev) => prev.slice(0, -1));
+      } else if (timeFilter) {
+        setTimeFilter(null);
       } else if (keywordTags.length > 0) {
         setKeywordTags((prev) => prev.slice(0, -1));
       }
@@ -452,6 +474,7 @@ export default function HomePage() {
     setFilterTags([]);
     setShowFavoritesOnly(false);
     setShowTrashOnly(false);
+    setTimeFilter(null);
   };
 
   const handleCardClick = (card: Doc<"cards">) => {
@@ -480,7 +503,8 @@ export default function HomePage() {
     filterTags.length === 0 &&
     !showFavoritesOnly &&
     !showTrashOnly &&
-    !searchQuery;
+    !searchQuery &&
+    !timeFilter;
 
   const renderEmptyState = () => {
     if (cardsStatus === "LoadingFirstPage") {
@@ -529,12 +553,14 @@ export default function HomePage() {
         onKeyDown={handleKeyDown}
         onRemoveFilter={removeFilter}
         onRemoveKeyword={removeKeyword}
+        onRemoveTimeFilter={() => setTimeFilter(null)}
         onSearchChange={handleSearchChange}
         onToggleFavorites={toggleFavorites}
         onToggleTrash={toggleTrash}
         searchQuery={searchQuery}
         showFavoritesOnly={showFavoritesOnly}
         showTrashOnly={showTrashOnly}
+        timeFilter={timeFilter}
       />
 
       {displayCards.length > 0 ? (
@@ -562,7 +588,7 @@ export default function HomePage() {
           onToggleFavorite={(cardId) =>
             cardActions.handleToggleFavorite(cardId as Id<"cards">)
           }
-          resetKey={`${searchTerms}::${filterTags.join(",")}::${showFavoritesOnly}::${showTrashOnly}`}
+          resetKey={`${searchTerms}::${filterTags.join(",")}::${showFavoritesOnly}::${showTrashOnly}::${timeFilter?.range.start ?? ""}-${timeFilter?.range.end ?? ""}`}
           showTrashOnly={showTrashOnly}
         />
       ) : (

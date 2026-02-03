@@ -1,4 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import type { CreatedAtRange } from "@teak/convex/shared";
 import type { CardType } from "@teak/convex/shared/constants";
 
 const normalizeSearchTerm = (value: string) => value.toLowerCase().trim();
@@ -30,6 +31,7 @@ export interface LocalSearchFilters {
   types?: CardType[];
   favoritesOnly?: boolean;
   showTrashOnly?: boolean;
+  createdAtRange?: CreatedAtRange;
 }
 
 export const filterLocalCards = (
@@ -39,6 +41,7 @@ export const filterLocalCards = (
     types,
     favoritesOnly = false,
     showTrashOnly = false,
+    createdAtRange,
   }: LocalSearchFilters
 ) => {
   const terms = tokenizeSearchQuery(searchTerms);
@@ -58,6 +61,14 @@ export const filterLocalCards = (
       }
 
       if (favoritesOnly && card.isFavorited !== true) {
+        return false;
+      }
+
+      if (
+        createdAtRange &&
+        (card.createdAt < createdAtRange.start ||
+          card.createdAt >= createdAtRange.end)
+      ) {
         return false;
       }
 

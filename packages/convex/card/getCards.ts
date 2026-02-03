@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import { query } from "../_generated/server";
 import { cardTypeValidator, cardValidator } from "../schema";
+import type { CreatedAtRange } from "../shared";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
 
 // Return validator for card arrays - includes _id and _creationTime from Convex
@@ -31,6 +32,23 @@ type CardWithUrls = Doc<"cards"> & {
   thumbnailUrl?: string;
   screenshotUrl?: string;
   linkPreviewImageUrl?: string;
+};
+
+const createdAtRangeValidator = v.object({
+  start: v.number(),
+  end: v.number(),
+});
+
+const isCreatedAtInRange = (
+  createdAt: number,
+  range?: CreatedAtRange
+): boolean => !range || (createdAt >= range.start && createdAt < range.end);
+
+const ensureValidRange = (range?: CreatedAtRange) => {
+  if (!range) return;
+  if (range.start >= range.end) {
+    throw new Error("Invalid createdAtRange");
+  }
 };
 
 const attachFileUrls = async (
@@ -154,6 +172,7 @@ export const searchCards = query({
     types: v.optional(v.array(cardTypeValidator)),
     favoritesOnly: v.optional(v.boolean()),
     showTrashOnly: v.optional(v.boolean()),
+    createdAtRange: v.optional(createdAtRangeValidator),
     limit: v.optional(v.number()),
   },
   returns: v.array(cardReturnValidator),
@@ -168,8 +187,10 @@ export const searchCards = query({
       types,
       favoritesOnly,
       showTrashOnly,
+      createdAtRange,
       limit = 50,
     } = args;
+    ensureValidRange(createdAtRange);
 
     // If we have a search query, use search indexes for efficiency
     if (searchQuery?.trim()) {
@@ -190,7 +211,12 @@ export const searchCards = query({
           )
           .order("desc")
           .take(limit);
-        const favoritesWithUrls = await attachFileUrls(ctx, favorites);
+        const filteredFavorites = createdAtRange
+          ? favorites.filter((card) =>
+              isCreatedAtInRange(card.createdAt, createdAtRange)
+            )
+          : favorites;
+        const favoritesWithUrls = await attachFileUrls(ctx, filteredFavorites);
         return applyQuoteFormattingToList(favoritesWithUrls);
       }
 
@@ -202,7 +228,12 @@ export const searchCards = query({
           )
           .order("desc")
           .take(limit);
-        const trashedWithUrls = await attachFileUrls(ctx, trashed);
+        const filteredTrashed = createdAtRange
+          ? trashed.filter((card) =>
+              isCreatedAtInRange(card.createdAt, createdAtRange)
+            )
+          : trashed;
+        const trashedWithUrls = await attachFileUrls(ctx, filteredTrashed);
         return applyQuoteFormattingToList(trashedWithUrls);
       }
 
@@ -334,6 +365,12 @@ export const searchCards = query({
         );
       }
 
+      if (createdAtRange) {
+        filteredResults = filteredResults.filter((card) =>
+          isCreatedAtInRange(card.createdAt, createdAtRange)
+        );
+      }
+
       // Sort by creation date (desc) and limit
       const limitedResults = filteredResults
         .sort((a, b) => b.createdAt - a.createdAt)
@@ -351,6 +388,40 @@ export const searchCards = query({
           .eq("userId", user.subject)
           .eq("isDeleted", showTrashOnly ? true : undefined)
       );
+
+    if (createdAtRange) {
+      query = ctx.db
+        .query("cards")
+        .withIndex("by_created", (q) =>
+          q
+            .eq("userId", user.subject)
+            .gte("createdAt", createdAtRange.start)
+            .lt("createdAt", createdAtRange.end)
+        );
+
+      query = query.filter((q) =>
+        q.eq(q.field("isDeleted"), showTrashOnly ? true : undefined)
+      );
+
+      if (types && types.length > 0) {
+        query = query.filter((q) => {
+          const typeConditions = types.map((type) =>
+            q.eq(q.field("type"), type)
+          );
+          return typeConditions.reduce((acc, condition) =>
+            q.or(acc, condition)
+          );
+        });
+      }
+
+      if (favoritesOnly) {
+        query = query.filter((q) => q.eq(q.field("isFavorited"), true));
+      }
+
+      const cards = await query.order("desc").take(limit);
+      const cardsWithUrls = await attachFileUrls(ctx, cards);
+      return applyQuoteFormattingToList(cardsWithUrls);
+    }
 
     if (types && types.length === 1) {
       // Use compound index by_user_type_deleted to avoid post-index .filter()
@@ -387,6 +458,7 @@ export const searchCardsPaginated = query({
     types: v.optional(v.array(cardTypeValidator)),
     favoritesOnly: v.optional(v.boolean()),
     showTrashOnly: v.optional(v.boolean()),
+    createdAtRange: v.optional(createdAtRangeValidator),
   },
   returns: paginationResultValidator,
   handler: async (ctx, args) => {
@@ -395,8 +467,15 @@ export const searchCardsPaginated = query({
       return { page: [], isDone: true, continueCursor: null };
     }
 
-    const { paginationOpts, searchQuery, types, favoritesOnly, showTrashOnly } =
-      args;
+    const {
+      paginationOpts,
+      searchQuery,
+      types,
+      favoritesOnly,
+      showTrashOnly,
+      createdAtRange,
+    } = args;
+    ensureValidRange(createdAtRange);
 
     if (searchQuery?.trim()) {
       const query = searchQuery.toLowerCase().trim();
@@ -414,7 +493,12 @@ export const searchCardsPaginated = query({
           )
           .order("desc")
           .paginate(paginationOpts);
-        const favoritesWithUrls = await attachFileUrls(ctx, favorites.page);
+        const filteredFavorites = createdAtRange
+          ? favorites.page.filter((card) =>
+              isCreatedAtInRange(card.createdAt, createdAtRange)
+            )
+          : favorites.page;
+        const favoritesWithUrls = await attachFileUrls(ctx, filteredFavorites);
         return {
           ...favorites,
           page: applyQuoteFormattingToList(favoritesWithUrls),
@@ -429,7 +513,12 @@ export const searchCardsPaginated = query({
           )
           .order("desc")
           .paginate(paginationOpts);
-        const trashedWithUrls = await attachFileUrls(ctx, trashed.page);
+        const filteredTrashed = createdAtRange
+          ? trashed.page.filter((card) =>
+              isCreatedAtInRange(card.createdAt, createdAtRange)
+            )
+          : trashed.page;
+        const trashedWithUrls = await attachFileUrls(ctx, filteredTrashed);
         return {
           ...trashed,
           page: applyQuoteFormattingToList(trashedWithUrls),
@@ -551,6 +640,7 @@ export const searchCardsPaginated = query({
         for (const card of results) {
           if (seenIds.has(card._id)) continue;
           seenIds.add(card._id);
+          if (!isCreatedAtInRange(card.createdAt, createdAtRange)) continue;
           if (hasMultiTypeFilter && !typesSet.has(card.type)) continue;
           uniqueResults.push(card);
           // Early termination if we have enough results
@@ -584,6 +674,43 @@ export const searchCardsPaginated = query({
           .eq("userId", user.subject)
           .eq("isDeleted", showTrashOnly ? true : undefined)
       );
+
+    if (createdAtRange) {
+      query = ctx.db
+        .query("cards")
+        .withIndex("by_created", (q) =>
+          q
+            .eq("userId", user.subject)
+            .gte("createdAt", createdAtRange.start)
+            .lt("createdAt", createdAtRange.end)
+        );
+
+      query = query.filter((q) =>
+        q.eq(q.field("isDeleted"), showTrashOnly ? true : undefined)
+      );
+
+      if (types && types.length > 0) {
+        query = query.filter((q) => {
+          const typeConditions = types.map((type) =>
+            q.eq(q.field("type"), type)
+          );
+          return typeConditions.reduce((acc, condition) =>
+            q.or(acc, condition)
+          );
+        });
+      }
+
+      if (favoritesOnly) {
+        query = query.filter((q) => q.eq(q.field("isFavorited"), true));
+      }
+
+      const cards = await query.order("desc").paginate(paginationOpts);
+      const cardsWithUrls = await attachFileUrls(ctx, cards.page);
+      return {
+        ...cards,
+        page: applyQuoteFormattingToList(cardsWithUrls),
+      };
+    }
 
     if (types && types.length === 1) {
       query = ctx.db.query("cards").withIndex("by_user_type_deleted", (q) =>

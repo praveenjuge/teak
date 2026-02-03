@@ -89,6 +89,7 @@ describe("SearchBar Component", () => {
   let mockOnAddFilter: any;
   let mockOnRemoveFilter: any;
   let mockOnRemoveKeyword: any;
+  let mockOnRemoveTimeFilter: any;
   let mockOnToggleFavorites: any;
   let mockOnToggleTrash: any;
   let mockOnClearAll: any;
@@ -99,6 +100,7 @@ describe("SearchBar Component", () => {
     mockOnAddFilter = mock();
     mockOnRemoveFilter = mock();
     mockOnRemoveKeyword = mock();
+    mockOnRemoveTimeFilter = mock();
     mockOnToggleFavorites = mock();
     mockOnToggleTrash = mock();
     mockOnClearAll = mock();
@@ -115,9 +117,11 @@ describe("SearchBar Component", () => {
     onAddFilter: mockOnAddFilter,
     onRemoveFilter: mockOnRemoveFilter,
     onRemoveKeyword: mockOnRemoveKeyword,
+    onRemoveTimeFilter: mockOnRemoveTimeFilter,
     onToggleFavorites: mockOnToggleFavorites,
     onToggleTrash: mockOnToggleTrash,
     onClearAll: mockOnClearAll,
+    timeFilter: null,
   });
 
   describe("Rendering", () => {
@@ -158,6 +162,18 @@ describe("SearchBar Component", () => {
     test("renders with filter tags", () => {
       const props = createDefaultProps();
       props.filterTags = ["text", "image"] as CardType[];
+      expect(() => {
+        React.createElement(SearchBar, props);
+      }).not.toThrow();
+    });
+
+    test("renders with time filter", () => {
+      const props = createDefaultProps();
+      props.timeFilter = {
+        label: "Last Week",
+        range: { start: 1, end: 2 },
+        kind: "relative",
+      } as any;
       expect(() => {
         React.createElement(SearchBar, props);
       }).not.toThrow();

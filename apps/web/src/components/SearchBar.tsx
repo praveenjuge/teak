@@ -1,3 +1,4 @@
+import type { CreatedAtRange, TimeFilter } from "@teak/convex/shared";
 import {
   CARD_TYPE_LABELS,
   type CardType,
@@ -5,6 +6,7 @@ import {
   getCardTypeIcon,
 } from "@teak/convex/shared/constants";
 import {
+  Clock,
   File,
   FileText,
   Hash,
@@ -30,12 +32,14 @@ interface SearchBarProps {
   onSearchChange: (value: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   keywordTags: string[];
+  timeFilter?: TimeFilter | null;
   filterTags: CardType[];
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
   onAddFilter: (filter: CardType) => void;
   onRemoveFilter: (filter: CardType) => void;
   onRemoveKeyword: (keyword: string) => void;
+  onRemoveTimeFilter: () => void;
   onToggleFavorites: () => void;
   onToggleTrash: () => void;
   onClearAll: () => void;
@@ -58,17 +62,30 @@ const getFilterIcon = (filter: CardType) => {
   return iconComponentMap[iconName] || FileText;
 };
 
+const formatRange = (range: CreatedAtRange) => {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  return `${formatter.format(new Date(range.start))} → ${formatter.format(
+    new Date(range.end)
+  )} (end exclusive)`;
+};
+
 export function SearchBar({
   searchQuery,
   onSearchChange,
   onKeyDown,
   keywordTags,
+  timeFilter,
   filterTags,
   showFavoritesOnly,
   showTrashOnly,
   onAddFilter,
   onRemoveFilter,
   onRemoveKeyword,
+  onRemoveTimeFilter,
   onToggleFavorites,
   onToggleTrash,
   onClearAll,
@@ -78,6 +95,7 @@ export function SearchBar({
 
   const hasAnyFilters =
     keywordTags.length > 0 ||
+    Boolean(timeFilter) ||
     filterTags.length > 0 ||
     showFavoritesOnly ||
     showTrashOnly;
@@ -143,6 +161,19 @@ export function SearchBar({
                 <span>{keyword}</span>
               </Button>
             ))}
+
+            {timeFilter && (
+              <Button
+                key="time-filter"
+                onClick={onRemoveTimeFilter}
+                onMouseDown={preventBlur}
+                size="sm"
+                variant="default"
+              >
+                <Clock className="size-3.5 stroke-2" />
+                <span>{timeFilter.label}</span>
+              </Button>
+            )}
 
             {/* Active filters */}
             {filterTags.map((filter) => {
@@ -237,6 +268,11 @@ export function SearchBar({
               </Button>
             )}
           </div>
+          {timeFilter && (
+            <div className="pt-2 text-muted-foreground text-xs">
+              Time filter: {timeFilter.label} ({formatRange(timeFilter.range)})
+            </div>
+          )}
         </div>
       )}
     </>
