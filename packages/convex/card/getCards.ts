@@ -570,80 +570,97 @@ export const searchCardsPaginated = query({
       // 6. aiTranscript - only for audio type
       // 7. tags - small value set, less selective
       // 8. aiTags - small value set, less selective
-      const searchQueries = [
-        ctx.db
-          .query("cards")
-          .withSearchIndex("search_content", (q) =>
-            applySearchFilters(q).search("content", searchQuery)
-          )
-          .take(searchLimit),
-        ctx.db
-          .query("cards")
-          .withSearchIndex("search_metadata_title", (q) =>
-            applySearchFilters(q).search("metadataTitle", searchQuery)
-          )
-          .take(searchLimit),
-        ctx.db
-          .query("cards")
-          .withSearchIndex("search_notes", (q) =>
-            applySearchFilters(q).search("notes", searchQuery)
-          )
-          .take(searchLimit),
-        ctx.db
-          .query("cards")
-          .withSearchIndex("search_metadata_description", (q) =>
-            applySearchFilters(q).search("metadataDescription", searchQuery)
-          )
-          .take(searchLimit),
-        ...(includeAiSummary
-          ? [
-              ctx.db
-                .query("cards")
-                .withSearchIndex("search_ai_summary", (q) =>
-                  applySearchFilters(q).search("aiSummary", searchQuery)
-                )
-                .take(searchLimit),
-            ]
-          : []),
-        ...(includeAiTranscript
-          ? [
-              ctx.db
-                .query("cards")
-                .withSearchIndex("search_ai_transcript", (q) =>
-                  applySearchFilters(q).search("aiTranscript", searchQuery)
-                )
-                .take(searchLimit),
-            ]
-          : []),
-        ctx.db
-          .query("cards")
-          .withSearchIndex("search_tags", (q) =>
-            applySearchFilters(q).search("tags", searchQuery)
-          )
-          .take(tagSearchLimit),
-        ctx.db
-          .query("cards")
-          .withSearchIndex("search_ai_tags", (q) =>
-            applySearchFilters(q).search("aiTags", searchQuery)
-          )
-          .take(tagSearchLimit),
+      const queryBatches: Array<Array<() => Promise<Doc<"cards">[]>>> = [
+        [
+          () =>
+            ctx.db
+              .query("cards")
+              .withSearchIndex("search_content", (q) =>
+                applySearchFilters(q).search("content", searchQuery)
+              )
+              .take(searchLimit),
+          () =>
+            ctx.db
+              .query("cards")
+              .withSearchIndex("search_metadata_title", (q) =>
+                applySearchFilters(q).search("metadataTitle", searchQuery)
+              )
+              .take(searchLimit),
+          () =>
+            ctx.db
+              .query("cards")
+              .withSearchIndex("search_notes", (q) =>
+                applySearchFilters(q).search("notes", searchQuery)
+              )
+              .take(searchLimit),
+        ],
+        [
+          () =>
+            ctx.db
+              .query("cards")
+              .withSearchIndex("search_metadata_description", (q) =>
+                applySearchFilters(q).search("metadataDescription", searchQuery)
+              )
+              .take(searchLimit),
+          ...(includeAiSummary
+            ? [
+                () =>
+                  ctx.db
+                    .query("cards")
+                    .withSearchIndex("search_ai_summary", (q) =>
+                      applySearchFilters(q).search("aiSummary", searchQuery)
+                    )
+                    .take(searchLimit),
+              ]
+            : []),
+          ...(includeAiTranscript
+            ? [
+                () =>
+                  ctx.db
+                    .query("cards")
+                    .withSearchIndex("search_ai_transcript", (q) =>
+                      applySearchFilters(q).search("aiTranscript", searchQuery)
+                    )
+                    .take(searchLimit),
+              ]
+            : []),
+        ],
+        [
+          () =>
+            ctx.db
+              .query("cards")
+              .withSearchIndex("search_tags", (q) =>
+                applySearchFilters(q).search("tags", searchQuery)
+              )
+              .take(tagSearchLimit),
+          () =>
+            ctx.db
+              .query("cards")
+              .withSearchIndex("search_ai_tags", (q) =>
+                applySearchFilters(q).search("aiTags", searchQuery)
+              )
+              .take(tagSearchLimit),
+        ],
       ];
 
-      const searchResults = await Promise.all(searchQueries);
-
       // Incrementally deduplicate with early termination
-      // This is more efficient than collecting all results then deduplicating
+      // This avoids running less-selective queries when enough results are found.
       const seenIds = new Set<string>();
       const uniqueResults: Doc<"cards">[] = [];
 
-      for (const results of searchResults) {
-        for (const card of results) {
-          if (seenIds.has(card._id)) continue;
-          seenIds.add(card._id);
-          if (!isCreatedAtInRange(card.createdAt, createdAtRange)) continue;
-          if (hasMultiTypeFilter && !typesSet.has(card.type)) continue;
-          uniqueResults.push(card);
-          // Early termination if we have enough results
+      for (const batch of queryBatches) {
+        const batchResults = await Promise.all(
+          batch.map((runQuery) => runQuery())
+        );
+        for (const results of batchResults) {
+          for (const card of results) {
+            if (seenIds.has(card._id)) continue;
+            seenIds.add(card._id);
+            if (!isCreatedAtInRange(card.createdAt, createdAtRange)) continue;
+            if (hasMultiTypeFilter && !typesSet.has(card.type)) continue;
+            uniqueResults.push(card);
+            if (uniqueResults.length >= desiredLimit) break;
+          }
           if (uniqueResults.length >= desiredLimit) break;
         }
         if (uniqueResults.length >= desiredLimit) break;
