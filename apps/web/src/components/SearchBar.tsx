@@ -1,4 +1,4 @@
-import type { CreatedAtRange, TimeFilter } from "@teak/convex/shared";
+import type { TimeFilter } from "@teak/convex/shared";
 import {
   CARD_TYPE_LABELS,
   type CardType,
@@ -60,17 +60,6 @@ const iconComponentMap = {
 const getFilterIcon = (filter: CardType) => {
   const iconName = getCardTypeIcon(filter) as keyof typeof iconComponentMap;
   return iconComponentMap[iconName] || FileText;
-};
-
-const formatRange = (range: CreatedAtRange) => {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-  return `${formatter.format(new Date(range.start))} → ${formatter.format(
-    new Date(range.end)
-  )} (end exclusive)`;
 };
 
 export function SearchBar({
@@ -268,11 +257,6 @@ export function SearchBar({
               </Button>
             )}
           </div>
-          {timeFilter && (
-            <div className="pt-2 text-muted-foreground text-xs">
-              Time filter: {timeFilter.label} ({formatRange(timeFilter.range)})
-            </div>
-          )}
         </div>
       )}
     </>
