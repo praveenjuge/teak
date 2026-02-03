@@ -34,6 +34,16 @@ bun run typecheck
 # Tests
 bun run test
 
+# Quality checks (Ultracite)
+bun run check
+bun run fix
+
+# Repo hygiene
+bun run clean
+
+# Pre-commit (same as git hook)
+bun run pre-commit
+
 # Manage deps (in specific workspace)
 bun add <package-name> --filter @teak/web
 bun add --dev <package-name> --filter @teak/convex
