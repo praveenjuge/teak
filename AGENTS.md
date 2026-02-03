@@ -21,7 +21,7 @@ bun run dev:docs       # Documentation site
 
 # Build/package browser extension
 bun run build:extension
-bun run package:extension
+bun run zip --filter @teak/extension
 
 # Production build / start
 bun run build
