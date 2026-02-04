@@ -1,0 +1,9 @@
+{
+  "extends": ["//"],
+  "tags": ["app"],
+  "tasks": {
+    "typecheck": {
+      "outputs": ["tsconfig.tsbuildinfo"]
+    }
+  }
+}

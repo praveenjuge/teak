@@ -20,9 +20,7 @@
     ],
     "baseUrl": "./src",
     "paths": {
-      "@/*": ["./*"],
-      "@teak/convex": ["../../packages/convex"],
-      "@teak/convex/*": ["../../packages/convex/*"]
+      "@/*": ["./*"]
     }
   },
   "include": [

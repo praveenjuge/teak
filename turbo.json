@@ -2,9 +2,27 @@
   "$schema": "https://turborepo.dev/schema.v2.json",
   "globalEnv": ["NODE_ENV", "VERCEL_ENV"],
   "globalPassThroughEnv": ["CI", "GITHUB_ACTIONS"],
+  "remoteCache": {
+    "enabled": true
+  },
+  "boundaries": {
+    "tags": {
+      "app": {
+        "dependencies": {
+          "deny": ["app"]
+        }
+      },
+      "backend": {
+        "dependencies": {
+          "deny": ["app"]
+        }
+      }
+    }
+  },
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**", ".output/**"],
       "env": [
         "NEXT_PUBLIC_*",
@@ -24,10 +42,12 @@
     },
     "lint": {
       "dependsOn": ["^transit"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/biome.jsonc"],
       "outputs": []
     },
     "test": {
       "dependsOn": ["^transit"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
       "outputs": ["coverage/**"],
       "env": ["CLAUDECODE", "AGENT"]
     },
