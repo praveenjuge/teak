@@ -70,7 +70,7 @@ export class AuthHelper {
 
       // Wait for the main page element to be visible
       await this.page
-        .getByPlaceholder("Write or add a link...")
+        .getByPlaceholder(/Write or add a link/i)
         .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
       return;
     } catch {
@@ -105,7 +105,7 @@ export class AuthHelper {
 
     // Wait for the main page element to be visible
     await this.page
-      .getByPlaceholder("Write or add a link...")
+      .getByPlaceholder(/Write or add a link/i)
       .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
   }
 
@@ -149,7 +149,7 @@ export class AuthHelper {
 
       // Wait for the main page element to be visible
       await this.page
-        .getByPlaceholder("Write or add a link...")
+        .getByPlaceholder(/Write or add a link/i)
         .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
     } catch (error) {
       // Provide more context for debugging
@@ -228,7 +228,41 @@ export class UiHelper {
    * Get the main composer textarea
    */
   getComposer(): Locator {
-    return this.page.getByPlaceholder("Write or add a link...");
+    return this.page.getByPlaceholder(/Write or add a link/i);
+  }
+
+  /**
+   * Get the full screen dialog
+   */
+  getFullScreenDialog(): Locator {
+    return this.page.getByRole("dialog", { name: "Full-screen note" });
+  }
+
+  /**
+   * Open full screen composer via keyboard shortcut
+   */
+  async openFullScreen(): Promise<void> {
+    const composer = this.getComposer();
+    await composer.click();
+    const isMac = await this.page.evaluate(() =>
+      navigator.platform.includes("Mac")
+    );
+    const modifier = isMac ? "Meta" : "Control";
+    await composer.press(`${modifier}+E`);
+  }
+
+  /**
+   * Get the save button inside the full screen dialog
+   */
+  getFullScreenSaveButton(): Locator {
+    return this.getFullScreenDialog().getByRole("button", { name: "Save" });
+  }
+
+  /**
+   * Get the close button inside the full screen dialog
+   */
+  getFullScreenCloseButton(): Locator {
+    return this.getFullScreenDialog().getByRole("button", { name: "Close" });
   }
 
   /**
@@ -339,7 +373,7 @@ export class UiHelper {
     await this.page.goto("/");
     // Wait for page to be ready by checking for a key element
     await this.page
-      .getByPlaceholder("Write or add a link...")
+      .getByPlaceholder(/Write or add a link/i)
       .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
   }
 

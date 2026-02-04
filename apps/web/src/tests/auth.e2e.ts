@@ -187,9 +187,7 @@ test.describe("Authentication Flows", () => {
       await expect(page).toHaveURL("/");
 
       // Check that we're logged in by looking for authenticated content
-      await expect(
-        page.getByPlaceholder("Write or add a link...")
-      ).toBeVisible();
+      await expect(page.getByPlaceholder(/Write or add a link/i)).toBeVisible();
     });
 
     test("should show error for invalid credentials", async ({ page }) => {

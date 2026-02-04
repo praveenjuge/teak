@@ -47,9 +47,7 @@ test.describe("Settings Navigation and Management", () => {
 
       // Should be on home page
       await expect(page).toHaveURL("/");
-      await expect(
-        page.getByPlaceholder("Write or add a link...")
-      ).toBeVisible();
+      await expect(page.getByPlaceholder(/Write or add a link/i)).toBeVisible();
     });
   });
 

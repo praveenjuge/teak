@@ -15,6 +15,7 @@ import { AlertCircle, Mic, Sparkles, Square, Upload } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { FullScreenAddCardDialog } from "@/components/FullScreenAddCardDialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,6 +58,8 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   const [recordingTime, setRecordingTime] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [isFullScreenOpen, setIsFullScreenOpen] = useState(false);
+  const [isMac, setIsMac] = useState(false);
 
   // Form data
   const [content, setContent] = useState("");
@@ -65,6 +68,15 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   // Check if user can create cards on mount
   const currentUser = useQuery(api.auth.getCurrentUser);
   const canCreateCard = currentUser?.canCreateCard ?? true;
+  const fullscreenShortcutLabel = isMac ? "⌘E" : "Ctrl+E";
+  const basePlaceholderText = canCreateCard
+    ? "Write or add a link..."
+    : "Upgrade to Pro to add more cards...";
+  const inlinePlaceholderText = canCreateCard
+    ? `Write or add a link... ${fullscreenShortcutLabel} to expand`
+    : basePlaceholderText;
+  const fullScreenPlaceholderText = basePlaceholderText;
+  const hasContent = Boolean(content.trim());
 
   // Show upgrade prompt immediately if user can't create cards
   useEffect(() => {
@@ -74,6 +86,13 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       metrics.upgradePromptShown("page_load");
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined") {
+      return;
+    }
+    setIsMac(navigator.platform.includes("Mac"));
+  }, []);
 
   const createCard = useMutation(api.cards.createCard).withOptimisticUpdate(
     (localStore, args) => {
@@ -256,8 +275,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         metrics.cardCreated("audio");
 
         // Reset form
-        setContent("");
-        setUrl("");
+        resetDraft();
         setRecordingTime(0);
         onSuccess?.();
         toast.success("Audio recording saved", { id: toastId });
@@ -387,12 +405,14 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     input.click();
   };
 
-  const handleTextSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const resetDraft = () => {
+    setContent("");
+    setUrl("");
+  };
 
-    // Only handle text content here
-    if (!content.trim()) {
-      return;
+  const submitTextCard = async (): Promise<boolean> => {
+    if (!(content.trim() && canCreateCard) || isSubmitting) {
+      return false;
     }
 
     metrics.featureUsed("quick_add");
@@ -404,10 +424,10 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       content: submittedContent,
       url: submittedUrl || undefined,
     });
-    setContent("");
-    setUrl("");
+    resetDraft();
 
     const toastId = toast.loading("Saving card...");
+    setIsSubmitting(true);
 
     try {
       // Resolve link vs text locally to avoid backend classification delays
@@ -422,6 +442,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
 
       onSuccess?.();
       toast.success("Card saved", { id: toastId });
+      return true;
     } catch (error) {
       console.error("Failed to create card:", error);
 
@@ -453,7 +474,40 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
         setError(errorMessage);
         toast.error(errorMessage, { id: toastId });
       }
+      return false;
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const handleTextSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitTextCard();
+  };
+
+  const handleFullScreenSave = async () => {
+    setIsFullScreenOpen(false);
+    await submitTextCard();
+  };
+
+  const requestFullScreenClose = () => {
+    setIsFullScreenOpen(false);
+  };
+
+  const handleFullScreenShortcut = (
+    event: React.KeyboardEvent<HTMLTextAreaElement>
+  ) => {
+    const isShortcut =
+      (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "e";
+    if (!isShortcut) {
+      return false;
+    }
+    if (!canCreateCard) {
+      return false;
+    }
+    event.preventDefault();
+    setIsFullScreenOpen(true);
+    return true;
   };
 
   // Recording mode - full screen recording interface
@@ -488,95 +542,111 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   }
 
   return (
-    <Card className="min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary">
-      <CardContent className="h-full p-0">
-        <form
-          className="flex h-full flex-1 flex-col"
-          onSubmit={handleTextSubmit}
-        >
-          <Textarea
-            autoFocus={autoFocus}
-            className="h-full min-h-20 flex-1 resize-none rounded-none border-0 bg-transparent p-4 shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent"
-            disabled={!canCreateCard}
-            id="content"
-            onChange={(e) => setContent(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                if (content.trim() && canCreateCard) {
-                  handleTextSubmit(
-                    e as unknown as React.FormEvent<HTMLFormElement>
-                  ).catch(console.error);
-                }
-              }
-            }}
-            placeholder={
-              canCreateCard
-                ? "Write or add a link..."
-                : "Upgrade to Pro to add more cards..."
-            }
-            ref={textareaRef}
-            value={content}
-          />
-
-          {/* Action Buttons Row */}
-          <div className="flex justify-between gap-2 p-4">
-            <div className="flex gap-2">
-              <Button
-                disabled={!canCreateCard}
-                onClick={handleFileUpload}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                <Upload />
-              </Button>
-
-              <Button
-                disabled={!canCreateCard}
-                onClick={startRecording}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                <Mic />
-              </Button>
-            </div>
-            {content.trim() && (
-              <Button disabled={!canCreateCard} size="sm" type="submit">
-                Save
-              </Button>
-            )}
-          </div>
-        </form>
-
-        {error && (
-          <Alert
-            className="rounded-none border-0 border-t"
-            variant="destructive"
+    <>
+      <FullScreenAddCardDialog
+        canCreateCard={canCreateCard}
+        content={content}
+        error={error}
+        isSubmitting={isSubmitting}
+        onContentChange={setContent}
+        onRequestClose={requestFullScreenClose}
+        onSave={handleFullScreenSave}
+        open={isFullScreenOpen}
+        placeholder={fullScreenPlaceholderText}
+      />
+      <Card className="min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary">
+        <CardContent className="h-full p-0">
+          <form
+            className="flex h-full flex-1 flex-col"
+            onSubmit={handleTextSubmit}
           >
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+            <Textarea
+              autoFocus={autoFocus}
+              className="h-full min-h-20 flex-1 resize-none rounded-none border-0 bg-transparent p-4 shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent"
+              disabled={!canCreateCard}
+              id="content"
+              onChange={(e) => setContent(e.target.value)}
+              onKeyDown={(e) => {
+                if (handleFullScreenShortcut(e)) {
+                  return;
+                }
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  if (hasContent && canCreateCard) {
+                    handleTextSubmit(
+                      e as unknown as React.FormEvent<HTMLFormElement>
+                    ).catch(console.error);
+                  }
+                }
+              }}
+              placeholder={inlinePlaceholderText}
+              ref={textareaRef}
+              value={content}
+            />
 
-        {showUpgradePrompt && !canCreateCard && (
-          <Link className="block px-1 pb-1" href="/settings">
-            <Alert>
-              <Sparkles className="stroke-primary" />
-              <AlertTitle className="font-medium text-primary">
-                Upgrade to Pro →
-              </AlertTitle>
-              <AlertDescription>
-                <span className="font-medium text-primary">
-                  You&apos;ve reached your free tier limit. Upgrade to Pro for
-                  unlimited cards.
-                </span>
-              </AlertDescription>
+            {/* Action Buttons Row */}
+            <div className="flex justify-between gap-2 p-4">
+              <div className="flex gap-2">
+                <Button
+                  disabled={!canCreateCard}
+                  onClick={handleFileUpload}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <Upload />
+                </Button>
+
+                <Button
+                  disabled={!canCreateCard}
+                  onClick={startRecording}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <Mic />
+                </Button>
+              </div>
+              {hasContent && (
+                <Button
+                  disabled={!canCreateCard || isSubmitting}
+                  size="sm"
+                  type="submit"
+                >
+                  Save
+                </Button>
+              )}
+            </div>
+          </form>
+
+          {error && (
+            <Alert
+              className="rounded-none border-0 border-t"
+              variant="destructive"
+            >
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
-          </Link>
-        )}
-      </CardContent>
-    </Card>
+          )}
+
+          {showUpgradePrompt && !canCreateCard && (
+            <Link className="block px-1 pb-1" href="/settings">
+              <Alert>
+                <Sparkles className="stroke-primary" />
+                <AlertTitle className="font-medium text-primary">
+                  Upgrade to Pro →
+                </AlertTitle>
+                <AlertDescription>
+                  <span className="font-medium text-primary">
+                    You&apos;ve reached your free tier limit. Upgrade to Pro for
+                    unlimited cards.
+                  </span>
+                </AlertDescription>
+              </Alert>
+            </Link>
+          )}
+        </CardContent>
+      </Card>
+    </>
   );
 }

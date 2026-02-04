@@ -111,7 +111,7 @@ test.describe("Onboarding Journey", () => {
     await authHelper.signInWithEmailAndPassword(TEST_EMAIL!, TEST_PASSWORD!);
 
     // Check for key UI elements
-    await expect(page.getByPlaceholder("Write or add a link...")).toBeVisible();
+    await expect(page.getByPlaceholder(/Write or add a link/i)).toBeVisible();
 
     // Check for search bar
     await expect(page.getByPlaceholder("Search for anything...")).toBeVisible();

@@ -63,6 +63,44 @@ test.describe("Card Creation", () => {
     });
   });
 
+  test.describe("Full-screen composer", () => {
+    test("should create a text card from full screen", async ({ page }) => {
+      const uiHelper = new UiHelper(page);
+      const content = generateTestContent("Full-screen");
+
+      await uiHelper.openFullScreen();
+
+      const dialog = uiHelper.getFullScreenDialog();
+      await expect(dialog).toBeVisible();
+
+      await dialog.getByRole("textbox").fill(content);
+      await uiHelper.getFullScreenSaveButton().click();
+
+      await expect(page.getByRole("main").getByText(content)).toBeVisible();
+      await expect(dialog).toBeHidden();
+    });
+
+    test("should discard changes when closing full screen", async ({
+      page,
+    }) => {
+      const uiHelper = new UiHelper(page);
+      const content = generateTestContent("Full-screen discard");
+
+      await uiHelper.openFullScreen();
+
+      const dialog = uiHelper.getFullScreenDialog();
+      await expect(dialog).toBeVisible();
+
+      await dialog.getByRole("textbox").fill(content);
+
+      await uiHelper.getFullScreenCloseButton().click();
+
+      await expect(dialog).toBeHidden();
+      await expect(uiHelper.getComposer()).toHaveValue(content);
+      await expect(page.getByText(content)).toHaveCount(0);
+    });
+  });
+
   test.describe("Link Cards", () => {
     test("should create a link card with URL", async ({ page }) => {
       const uiHelper = new UiHelper(page);
