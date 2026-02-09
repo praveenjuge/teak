@@ -15,7 +15,7 @@
     "dev:convex": "turbo watch dev --filter=@teak/convex",
     "dev:docs": "turbo watch dev --filter=@teak/docs",
     "dev:extension": "turbo watch dev --filter=@teak/extension --filter=@teak/convex",
-    "dev:mobile": "turbo watch dev --filter=@teak/mobile --filter=@teak/convex",
+    "dev:mobile": "turbo watch dev --filter=@teak/mobile",
     "dev:web": "turbo watch dev --filter=@teak/web --filter=@teak/convex",
     "lint": "turbo run lint",
     "boundaries": "turbo boundaries",
