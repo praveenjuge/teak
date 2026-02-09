@@ -10,7 +10,9 @@
     "web": "expo start --web",
     "lint": "biome check .",
     "test": "bun test __tests__ --coverage --dots",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:local": "eas build --platform ios --local",
+    "build:submit": "eas submit --platform ios"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.6",
