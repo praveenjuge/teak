@@ -75,6 +75,7 @@ export default function QuickSaveCommand() {
 
   return (
     <Form
+      navigationTitle="Quick Save to Teak"
       actions={
         <ActionPanel>
           <Action.SubmitForm

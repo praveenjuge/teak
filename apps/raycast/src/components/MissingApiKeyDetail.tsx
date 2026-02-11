@@ -18,6 +18,8 @@ export function MissingApiKeyDetail() {
         "# API key required",
         "",
         "Create an API key in **Teak Settings > API Keys** and add it to Raycast preferences.",
+        "",
+        "Use **Set API Key** to open extension preferences instantly.",
       ].join("\n")}
     />
   );

@@ -11,7 +11,6 @@ const formatTimestamp = (value: number): string =>
   }).format(value);
 
 export function CardDetail({ card }: { card: RaycastCard }) {
-  const targetUrl = card.url || TEAK_HOME;
   const markdown = [
     `# ${card.metadataTitle || card.content.slice(0, 80) || "Card"}`,
     "",
@@ -33,7 +32,9 @@ export function CardDetail({ card }: { card: RaycastCard }) {
     <Detail
       actions={
         <ActionPanel>
-          <Action.OpenInBrowser title="Open" url={targetUrl} />
+          {card.url ? (
+            <Action.OpenInBrowser title="Open URL" url={card.url} />
+          ) : null}
           <Action.CopyToClipboard content={card.content} title="Copy Content" />
           {card.url ? (
             <Action.CopyToClipboard content={card.url} title="Copy URL" />
@@ -41,7 +42,7 @@ export function CardDetail({ card }: { card: RaycastCard }) {
           <Action
             icon={Icon.House}
             onAction={() => open(TEAK_HOME)}
-            title="Open Teak"
+            title="Open Teak App"
           />
           <SetRaycastKeyAction />
         </ActionPanel>

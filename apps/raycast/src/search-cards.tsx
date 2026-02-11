@@ -63,6 +63,7 @@ export default function SearchCardsCommand() {
   return (
     <List
       isLoading={isLoading}
+      navigationTitle="Search Teak Cards"
       onSearchTextChange={setQuery}
       searchBarPlaceholder="Search Teak cards"
       throttle
@@ -101,7 +102,9 @@ export default function SearchCardsCommand() {
             ]}
             actions={
               <ActionPanel>
-                <Action.OpenInBrowser title="Open" url={targetUrl} />
+                {card.url ? (
+                  <Action.OpenInBrowser title="Open URL" url={targetUrl} />
+                ) : null}
                 <Action.Push
                   target={<CardDetail card={card} />}
                   title="View Details"
@@ -116,7 +119,7 @@ export default function SearchCardsCommand() {
                 <Action
                   icon={Icon.House}
                   onAction={() => open(TEAK_HOME)}
-                  title="Open Teak"
+                  title="Open Teak App"
                 />
                 <SetRaycastKeyAction />
               </ActionPanel>

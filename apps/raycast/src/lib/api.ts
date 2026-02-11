@@ -5,6 +5,13 @@ import {
   type RaycastApiErrorCode,
   toErrorCode,
 } from "./apiErrors";
+import {
+  getPayloadCode,
+  parseCardsResponse,
+  parseQuickSaveResponse,
+  type CardsResponse,
+  type QuickSaveResponse,
+} from "./apiParsers";
 import { getPreferences } from "./preferences";
 
 export {
@@ -15,40 +22,7 @@ export {
   type RaycastApiErrorCode,
 } from "./apiErrors";
 
-export type RaycastCard = {
-  id: string;
-  type: string;
-  content: string;
-  notes: string | null;
-  url: string | null;
-  tags: string[];
-  aiTags: string[];
-  aiSummary: string | null;
-  isFavorited: boolean;
-  createdAt: number;
-  updatedAt: number;
-  fileUrl: string | null;
-  thumbnailUrl: string | null;
-  screenshotUrl: string | null;
-  linkPreviewImageUrl: string | null;
-  metadataTitle: string | null;
-  metadataDescription: string | null;
-};
-
-type CardsResponse = {
-  items: RaycastCard[];
-  total: number;
-};
-
-type QuickSaveResponse = {
-  status: "created" | "duplicate";
-  cardId: string;
-};
-
-type ApiErrorPayload = {
-  error?: string;
-  code?: string;
-};
+export type { RaycastCard } from "./apiParsers";
 
 const DEFAULT_LIMIT = 50;
 const DEV_CONVEX_SITE_URL = "https://reminiscent-kangaroo-59.convex.site";
@@ -77,7 +51,15 @@ const getErrorCodeFromResponse = (
   return toErrorCode(payloadCode, "REQUEST_FAILED");
 };
 
-const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
+const parseJson = async (response: Response): Promise<unknown> => {
+  return response.json().catch(() => null);
+};
+
+const request = async <T>(
+  path: string,
+  parseResponse: (payload: unknown) => T,
+  init?: RequestInit,
+): Promise<T> => {
   const { apiKey } = getPreferences();
 
   if (!apiKey?.trim()) {
@@ -100,15 +82,13 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   }
 
   if (response.ok) {
-    return (await response.json()) as T;
+    return parseResponse(await parseJson(response));
   }
 
-  const payload = (await response
-    .json()
-    .catch(() => null)) as ApiErrorPayload | null;
+  const payload = await parseJson(response);
 
   throw new RaycastApiError(
-    getErrorCodeFromResponse(payload?.code, response.status),
+    getErrorCodeFromResponse(getPayloadCode(payload), response.status),
     response.status,
   );
 };
@@ -116,10 +96,14 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
 export const quickSaveCard = async (
   content: string,
 ): Promise<QuickSaveResponse> => {
-  return request<QuickSaveResponse>("/api/raycast/quick-save", {
-    method: "POST",
-    body: JSON.stringify({ content }),
-  });
+  return request<QuickSaveResponse>(
+    "/api/raycast/quick-save",
+    parseQuickSaveResponse,
+    {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    },
+  );
 };
 
 export const searchCards = async (
@@ -128,6 +112,7 @@ export const searchCards = async (
 ): Promise<CardsResponse> => {
   return request<CardsResponse>(
     `/api/raycast/search?${buildCardsSearchParams(query, limit)}`,
+    parseCardsResponse,
     {
       method: "GET",
     },
@@ -140,6 +125,7 @@ export const getFavoriteCards = async (
 ): Promise<CardsResponse> => {
   return request<CardsResponse>(
     `/api/raycast/favorites?${buildCardsSearchParams(query, limit)}`,
+    parseCardsResponse,
     {
       method: "GET",
     },
