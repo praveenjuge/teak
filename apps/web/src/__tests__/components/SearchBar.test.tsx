@@ -58,6 +58,18 @@ mock.module("@teak/convex/shared/constants", () => ({
     "palette",
     "quote",
   ],
+  VISUAL_STYLE_TAXONOMY: ["minimal", "vintage", "vibrant"],
+  VISUAL_STYLE_LABELS: {
+    minimal: "Minimal",
+    vintage: "Vintage",
+    vibrant: "Vibrant",
+  },
+  COLOR_HUE_BUCKETS: ["red", "blue", "neutral"],
+  COLOR_HUE_LABELS: {
+    red: "Red",
+    blue: "Blue",
+    neutral: "Neutral",
+  },
   CARD_TYPE_LABELS: {
     text: "Text",
     link: "Link",
@@ -88,7 +100,11 @@ describe("SearchBar Component", () => {
   let mockOnKeyDown: any;
   let mockOnAddFilter: any;
   let mockOnRemoveFilter: any;
+  let mockOnRemoveStyleFilter: any;
+  let mockOnRemoveHueFilter: any;
+  let mockOnRemoveHexFilter: any;
   let mockOnRemoveKeyword: any;
+  let mockOnRemoveTimeFilter: any;
   let mockOnToggleFavorites: any;
   let mockOnToggleTrash: any;
   let mockOnClearAll: any;
@@ -98,7 +114,11 @@ describe("SearchBar Component", () => {
     mockOnKeyDown = mock();
     mockOnAddFilter = mock();
     mockOnRemoveFilter = mock();
+    mockOnRemoveStyleFilter = mock();
+    mockOnRemoveHueFilter = mock();
+    mockOnRemoveHexFilter = mock();
     mockOnRemoveKeyword = mock();
+    mockOnRemoveTimeFilter = mock();
     mockOnToggleFavorites = mock();
     mockOnToggleTrash = mock();
     mockOnClearAll = mock();
@@ -110,11 +130,18 @@ describe("SearchBar Component", () => {
     onKeyDown: mockOnKeyDown,
     keywordTags: [],
     filterTags: [],
+    styleFilters: [],
+    hueFilters: [],
+    hexFilters: [],
     showFavoritesOnly: false,
     showTrashOnly: false,
     onAddFilter: mockOnAddFilter,
     onRemoveFilter: mockOnRemoveFilter,
+    onRemoveStyleFilter: mockOnRemoveStyleFilter,
+    onRemoveHueFilter: mockOnRemoveHueFilter,
+    onRemoveHexFilter: mockOnRemoveHexFilter,
     onRemoveKeyword: mockOnRemoveKeyword,
+    onRemoveTimeFilter: mockOnRemoveTimeFilter,
     onToggleFavorites: mockOnToggleFavorites,
     onToggleTrash: mockOnToggleTrash,
     onClearAll: mockOnClearAll,

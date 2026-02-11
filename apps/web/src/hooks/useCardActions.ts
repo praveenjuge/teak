@@ -16,6 +16,56 @@ setSentryCaptureFunction((error, context) => {
 });
 
 // Helper to update a card in all cached searchCards queries
+const cardMatchesQueryArgs = (card: Doc<"cards">, args: any): boolean => {
+  const isTrashQuery = Boolean(args.showTrashOnly);
+  if (isTrashQuery ? card.isDeleted !== true : card.isDeleted === true) {
+    return false;
+  }
+
+  if (args.types?.length && !args.types.includes(card.type)) {
+    return false;
+  }
+
+  if (args.favoritesOnly && card.isFavorited !== true) {
+    return false;
+  }
+
+  if (args.styleFilters?.length) {
+    if (card.type !== "image") {
+      return false;
+    }
+
+    const styleSet = new Set(card.visualStyles ?? []);
+    if (!args.styleFilters.some((style: string) => styleSet.has(style))) {
+      return false;
+    }
+  }
+
+  if (args.hueFilters?.length) {
+    if (!(card.type === "image" || card.type === "palette")) {
+      return false;
+    }
+
+    const hueSet = new Set(card.colorHues ?? []);
+    if (!args.hueFilters.some((hue: string) => hueSet.has(hue))) {
+      return false;
+    }
+  }
+
+  if (args.hexFilters?.length) {
+    if (!(card.type === "image" || card.type === "palette")) {
+      return false;
+    }
+
+    const hexSet = new Set(card.colorHexes ?? []);
+    if (!args.hexFilters.some((hex: string) => hexSet.has(hex))) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 function updateCardInSearchQueries(
   localStore: OptimisticLocalStore,
   cardId: Id<"cards">,
@@ -31,7 +81,8 @@ function updateCardInSearchQueries(
         )
         .filter(
           (card: Doc<"cards"> | null): card is Doc<"cards"> => card !== null
-        );
+        )
+        .filter((card: Doc<"cards">) => cardMatchesQueryArgs(card, args));
       localStore.setQuery(api.cards.searchCards, args, updatedCards);
     }
   }
@@ -104,7 +155,8 @@ export function useCardActions(config: CardActionsConfig = {}) {
             } else {
               // In regular view - remove the deleted card
               const filteredCards = typedCards.filter(
-                (card: Doc<"cards">) => card._id !== cardId
+                (card: Doc<"cards">) =>
+                  card._id !== cardId && cardMatchesQueryArgs(card, queryArgs)
               );
               localStore.setQuery(
                 api.cards.searchCards,
@@ -151,6 +203,14 @@ export function useCardActions(config: CardActionsConfig = {}) {
             } else {
               // In regular view - the card will reappear on query refresh
               // We can't easily add it back without knowing all fields
+              const filteredCards = typedCards.filter((card: Doc<"cards">) =>
+                cardMatchesQueryArgs(card, queryArgs)
+              );
+              localStore.setQuery(
+                api.cards.searchCards,
+                queryArgs,
+                filteredCards
+              );
             }
           }
         }

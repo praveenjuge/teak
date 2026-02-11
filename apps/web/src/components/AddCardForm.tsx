@@ -32,6 +32,14 @@ function addCardToSearchQueries(
   for (const { args, value } of allQueries) {
     // Only add to non-trash queries that match the card's characteristics
     if (value !== undefined && !args.showTrashOnly) {
+      const hasVisualFilters =
+        (args.styleFilters?.length ?? 0) > 0 ||
+        (args.hueFilters?.length ?? 0) > 0 ||
+        (args.hexFilters?.length ?? 0) > 0;
+      if (hasVisualFilters) {
+        continue;
+      }
+
       // Check if the card matches the filters
       const matchesType =
         !args.types ||

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
 import type { CardType } from "../schema";
+import { buildColorFacets } from "../shared/utils/colorUtils";
 import { type ProcessingStatus, stageCompleted } from "./processingStatus";
 
 // Helper to create a fully completed processing status
@@ -117,6 +118,7 @@ export const createDefaultCardsForUser = internalMutation({
     for (let i = 0; i < DEFAULT_CARDS.length; i++) {
       const cardDef = DEFAULT_CARDS[i];
       const timestamp = now + i * 1000; // 1 second offset per card
+      const { colorHexes, colorHues } = buildColorFacets(cardDef.colors as any);
 
       await ctx.db.insert("cards", {
         userId,
@@ -126,6 +128,8 @@ export const createDefaultCardsForUser = internalMutation({
         tags: cardDef.tags,
         notes: cardDef.notes,
         colors: cardDef.colors as any,
+        colorHexes,
+        colorHues,
         aiTags: cardDef.aiTags,
         aiSummary: cardDef.aiSummary,
         isFavorited: cardDef.isFavorited,

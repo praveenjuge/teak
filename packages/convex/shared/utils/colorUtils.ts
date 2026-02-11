@@ -1,4 +1,5 @@
 // Color utility functions for parsing and working with colors
+import type { ColorHueBucket } from "../constants";
 
 export interface Color {
   hex: string;
@@ -285,6 +286,212 @@ function hslToRgb(
 // Convert RGB to hex
 function rgbToHex(red: number, green: number, blue: number): string {
   return `#${((1 << 24) + (red << 16) + (green << 8) + blue).toString(16).slice(1).toUpperCase()}`;
+}
+
+function toCanonicalHue(hue: number): number {
+  const normalized = hue % 360;
+  return normalized < 0 ? normalized + 360 : normalized;
+}
+
+function classifyHueBucket(h: number, s: number, l: number): ColorHueBucket {
+  if (s <= 12 || (l <= 12 && s <= 30) || (l >= 95 && s <= 10)) {
+    return "neutral";
+  }
+
+  if (h >= 10 && h < 45 && s >= 20 && l < 45) {
+    return "brown";
+  }
+
+  if (h < 15 || h >= 345) return "red";
+  if (h < 45) return "orange";
+  if (h < 70) return "yellow";
+  if (h < 150) return "green";
+  if (h < 180) return "teal";
+  if (h < 205) return "cyan";
+  if (h < 250) return "blue";
+  if (h < 290) return "purple";
+  if (h < 345) return "pink";
+  return "red";
+}
+
+const toColorWithComputedHsl = (color: Color): Color | null => {
+  if (color.hsl) {
+    return color;
+  }
+
+  if (color.rgb) {
+    return {
+      ...color,
+      hsl: rgbToHsl(color.rgb.r, color.rgb.g, color.rgb.b),
+    };
+  }
+
+  const rgb = hexToRgb(color.hex);
+  if (!rgb) {
+    return null;
+  }
+
+  return {
+    ...color,
+    rgb,
+    hsl: rgbToHsl(rgb.r, rgb.g, rgb.b),
+  };
+};
+
+export function normalizeHexColor(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const withHash = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+  const parsed = parseColorString(withHash);
+  if (!parsed) {
+    return null;
+  }
+
+  return parsed.hex.slice(0, 7).toUpperCase();
+}
+
+export function classifyHueForHex(hex: string): ColorHueBucket | null {
+  const normalizedHex = normalizeHexColor(hex);
+  if (!normalizedHex) {
+    return null;
+  }
+
+  const parsed = parseColorString(normalizedHex);
+  if (!parsed) {
+    return null;
+  }
+
+  const withHsl = toColorWithComputedHsl(parsed);
+  if (!withHsl?.hsl) {
+    return null;
+  }
+
+  return classifyHueBucket(
+    toCanonicalHue(withHsl.hsl.h),
+    withHsl.hsl.s,
+    withHsl.hsl.l
+  );
+}
+
+export function normalizeHexFilters(values?: string[]): {
+  normalized: string[];
+  invalid: string[];
+} {
+  if (!values?.length) {
+    return { normalized: [], invalid: [] };
+  }
+
+  const normalized: string[] = [];
+  const invalid: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of values) {
+    const hex = normalizeHexColor(value);
+    if (!hex) {
+      invalid.push(value);
+      continue;
+    }
+    if (seen.has(hex)) {
+      continue;
+    }
+    seen.add(hex);
+    normalized.push(hex);
+  }
+
+  return { normalized, invalid };
+}
+
+export function buildColorFacets(colors?: Color[]): {
+  colorHexes?: string[];
+  colorHues?: ColorHueBucket[];
+} {
+  if (!colors?.length) {
+    return {};
+  }
+
+  const hexes: string[] = [];
+  const hues: ColorHueBucket[] = [];
+  const seenHexes = new Set<string>();
+  const seenHues = new Set<ColorHueBucket>();
+
+  for (const color of colors) {
+    const normalizedHex = normalizeHexColor(color.hex);
+    if (!normalizedHex) {
+      continue;
+    }
+
+    if (!seenHexes.has(normalizedHex)) {
+      seenHexes.add(normalizedHex);
+      hexes.push(normalizedHex);
+    }
+
+    const hue = classifyHueForHex(normalizedHex);
+    if (hue && !seenHues.has(hue)) {
+      seenHues.add(hue);
+      hues.push(hue);
+    }
+  }
+
+  return {
+    colorHexes: hexes.length > 0 ? hexes : undefined,
+    colorHues: hues.length > 0 ? hues : undefined,
+  };
+}
+
+export type PaletteCopyFormat =
+  | "comma-separated"
+  | "newline-separated"
+  | "css-variables";
+
+const toCssVariableName = (color: Color, index: number): string => {
+  const base =
+    color.name
+      ?.trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || `color-${index + 1}`;
+  return base;
+};
+
+export function formatPaletteForCopy(
+  colors: Color[],
+  format: PaletteCopyFormat
+): string {
+  if (!colors.length) {
+    return "";
+  }
+
+  const deduped: Color[] = [];
+  const seen = new Set<string>();
+
+  for (const color of colors) {
+    const hex = normalizeHexColor(color.hex);
+    if (!hex || seen.has(hex)) {
+      continue;
+    }
+    seen.add(hex);
+    deduped.push({ ...color, hex });
+  }
+
+  if (!deduped.length) {
+    return "";
+  }
+
+  if (format === "comma-separated") {
+    return deduped.map((color) => color.hex).join(", ");
+  }
+
+  if (format === "newline-separated") {
+    return deduped.map((color) => color.hex).join("\n");
+  }
+
+  const cssLines = deduped.map(
+    (color, index) => `  --${toCssVariableName(color, index)}: ${color.hex};`
+  );
+  return [":root {", ...cssLines, "}"].join("\n");
 }
 
 // Parse a single color from text

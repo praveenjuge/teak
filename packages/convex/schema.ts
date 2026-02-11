@@ -169,8 +169,11 @@ export const cardValidator = v.object({
   aiTags: v.optional(v.array(v.string())),
   aiSummary: v.optional(v.string()),
   aiTranscript: v.optional(v.string()),
+  visualStyles: v.optional(v.array(v.string())),
   // Palette-specific fields
   colors: v.optional(v.array(colorValidator)),
+  colorHexes: v.optional(v.array(v.string())),
+  colorHues: v.optional(v.array(v.string())),
   // Pipeline processing status per stage
   processingStatus: processingStatusValidator,
   createdAt: v.number(),
@@ -224,6 +227,18 @@ export default defineSchema({
     })
     .searchIndex("search_ai_tags", {
       searchField: "aiTags",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    })
+    .searchIndex("search_visual_styles", {
+      searchField: "visualStyles",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    })
+    .searchIndex("search_color_hexes", {
+      searchField: "colorHexes",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    })
+    .searchIndex("search_color_hues", {
+      searchField: "colorHues",
       filterFields: ["userId", "isDeleted", "type", "isFavorited"],
     }),
 });

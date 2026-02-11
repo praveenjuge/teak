@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
 import { colorValidator, processingStatusValidator } from "../../schema";
+import { buildColorFacets } from "../../shared/utils/colorUtils";
 
 // Internal mutation to update card with AI metadata
 export const updateCardAI = internalMutation({
@@ -9,6 +10,7 @@ export const updateCardAI = internalMutation({
     aiTags: v.optional(v.array(v.string())),
     aiSummary: v.optional(v.string()),
     aiTranscript: v.optional(v.string()),
+    visualStyles: v.optional(v.array(v.string())),
     processingStatus: processingStatusValidator,
   },
   handler: async (ctx, args) => {
@@ -33,6 +35,7 @@ export const resetCardAI = internalMutation({
       aiTags: undefined,
       aiSummary: undefined,
       aiTranscript: undefined,
+      visualStyles: undefined,
       metadataStatus: metadataStatus ?? "pending",
       processingStatus: undefined,
       updatedAt: Date.now(),
@@ -46,8 +49,11 @@ export const updateCardColors = internalMutation({
     colors: v.optional(v.array(colorValidator)),
   },
   handler: async (ctx, { cardId, colors }) => {
+    const { colorHexes, colorHues } = buildColorFacets(colors);
     await ctx.db.patch("cards", cardId, {
       colors,
+      colorHexes,
+      colorHues,
       updatedAt: Date.now(),
     });
   },

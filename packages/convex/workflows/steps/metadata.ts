@@ -12,6 +12,7 @@ import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
 import { stageCompleted } from "../../card/processingStatus";
 import type { CardType } from "../../schema";
+import { extractVisualStylesFromTags } from "../../shared/constants";
 import type { Id } from "../../shared/types";
 import {
   generateImageMetadata,
@@ -127,6 +128,7 @@ export async function generateHandler(
   let aiTags: string[] = [];
   let aiSummary = "";
   let aiTranscript: string | undefined;
+  let visualStyles: string[] | undefined;
   let confidence = 0.9;
   let _generationSource = "unknown";
 
@@ -156,6 +158,7 @@ export async function generateHandler(
           const result = await generateImageMetadata(imageUrl);
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
+          visualStyles = extractVisualStylesFromTags(result.aiTags);
           confidence = 0.9;
           _generationSource = isSvgFile ? "svg_thumbnail" : "image";
         }
@@ -279,6 +282,12 @@ export async function generateHandler(
     aiTags: aiTags.length > 0 ? aiTags : undefined,
     aiSummary: aiSummary || undefined,
     aiTranscript,
+    visualStyles:
+      cardType === "image"
+        ? visualStyles?.length
+          ? visualStyles
+          : undefined
+        : undefined,
     processingStatus: updatedProcessing,
   });
 

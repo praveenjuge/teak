@@ -239,7 +239,7 @@ export function searchPerformed(resultCount: number, filterTypes?: string[]) {
  * Track filter usage
  */
 export function filterApplied(
-  filterType: "type" | "favorites" | "trash" | "keyword"
+  filterType: "type" | "favorites" | "trash" | "keyword" | "style" | "color"
 ) {
   Sentry.metrics.count("filter.applied", 1, {
     attributes: { filter_type: filterType },

@@ -3,8 +3,18 @@ import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import { query } from "../_generated/server";
 import { cardTypeValidator, cardValidator } from "../schema";
-import type { CreatedAtRange } from "../shared";
+import {
+  attachFileUrls,
+  ensureValidRange,
+  isCreatedAtInRange,
+} from "./queryUtils";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
+import {
+  applyCardLevelFilters,
+  doesCardMatchVisualFilters,
+  normalizeVisualFilterArgs,
+  runVisualFacetQueries,
+} from "./visualFilters";
 
 // Return validator for card arrays - includes _id and _creationTime from Convex
 export const cardReturnValidator = v.object({
@@ -27,93 +37,10 @@ const paginationResultValidator = v.object({
   ),
 });
 
-type CardWithUrls = Doc<"cards"> & {
-  fileUrl?: string;
-  thumbnailUrl?: string;
-  screenshotUrl?: string;
-  linkPreviewImageUrl?: string;
-};
-
 const createdAtRangeValidator = v.object({
   start: v.number(),
   end: v.number(),
 });
-
-const isCreatedAtInRange = (
-  createdAt: number,
-  range?: CreatedAtRange
-): boolean => !range || (createdAt >= range.start && createdAt < range.end);
-
-const ensureValidRange = (range?: CreatedAtRange) => {
-  if (!range) return;
-  if (range.start >= range.end) {
-    throw new Error("Invalid createdAtRange");
-  }
-};
-
-const attachFileUrls = async (
-  ctx: any,
-  cards: Doc<"cards">[]
-): Promise<CardWithUrls[]> => {
-  // Collect all unique storage IDs across all cards
-  const storageIds = new Set<string>();
-  const cardToIds = new Map<
-    string,
-    {
-      fileId?: string;
-      thumbnailId?: string;
-      screenshotId?: string;
-      linkPreviewImageId?: string;
-    }
-  >();
-
-  for (const card of cards) {
-    const ids: Record<string, string | undefined> = {};
-    if (card.fileId) {
-      storageIds.add(card.fileId);
-      ids.fileId = card.fileId;
-    }
-    if (card.thumbnailId) {
-      storageIds.add(card.thumbnailId);
-      ids.thumbnailId = card.thumbnailId;
-    }
-    if (card.metadata?.linkPreview?.imageStorageId) {
-      storageIds.add(card.metadata.linkPreview.imageStorageId);
-      ids.linkPreviewImageId = card.metadata.linkPreview.imageStorageId;
-    }
-    if (card.metadata?.linkPreview?.screenshotStorageId) {
-      storageIds.add(card.metadata.linkPreview.screenshotStorageId);
-      ids.screenshotId = card.metadata.linkPreview.screenshotStorageId;
-    }
-    cardToIds.set(card._id, ids);
-  }
-
-  // Fetch all URLs in parallel
-  const urlPromises = Array.from(storageIds).map(async (id) => ({
-    id,
-    url: await ctx.storage.getUrl(id as any),
-  }));
-  const urlResults = await Promise.all(urlPromises);
-  const urlMap = new Map(urlResults.map((r) => [r.id, r.url]));
-
-  // Map URLs back to cards
-  return cards.map((card) => {
-    const ids = cardToIds.get(card._id) || {};
-    return {
-      ...card,
-      fileUrl: ids.fileId ? (urlMap.get(ids.fileId) ?? undefined) : undefined,
-      thumbnailUrl: ids.thumbnailId
-        ? (urlMap.get(ids.thumbnailId) ?? undefined)
-        : undefined,
-      screenshotUrl: ids.screenshotId
-        ? (urlMap.get(ids.screenshotId) ?? undefined)
-        : undefined,
-      linkPreviewImageUrl: ids.linkPreviewImageId
-        ? (urlMap.get(ids.linkPreviewImageId) ?? undefined)
-        : undefined,
-    };
-  });
-};
 
 export const getCards = query({
   args: {
@@ -172,6 +99,9 @@ export const searchCards = query({
     types: v.optional(v.array(cardTypeValidator)),
     favoritesOnly: v.optional(v.boolean()),
     showTrashOnly: v.optional(v.boolean()),
+    styleFilters: v.optional(v.array(v.string())),
+    hueFilters: v.optional(v.array(v.string())),
+    hexFilters: v.optional(v.array(v.string())),
     createdAtRange: v.optional(createdAtRangeValidator),
     limit: v.optional(v.number()),
   },
@@ -187,10 +117,18 @@ export const searchCards = query({
       types,
       favoritesOnly,
       showTrashOnly,
+      styleFilters,
+      hueFilters,
+      hexFilters,
       createdAtRange,
       limit = 50,
     } = args;
     ensureValidRange(createdAtRange);
+    const visualFilters = normalizeVisualFilterArgs({
+      styleFilters,
+      hueFilters,
+      hexFilters,
+    });
 
     // If we have a search query, use search indexes for efficiency
     if (searchQuery?.trim()) {
@@ -211,11 +149,12 @@ export const searchCards = query({
           )
           .order("desc")
           .take(limit);
-        const filteredFavorites = createdAtRange
-          ? favorites.filter((card) =>
-              isCreatedAtInRange(card.createdAt, createdAtRange)
-            )
-          : favorites;
+        const filteredFavorites = applyCardLevelFilters(favorites, {
+          types,
+          favoritesOnly: true,
+          createdAtRange,
+          visualFilters,
+        }).slice(0, limit);
         const favoritesWithUrls = await attachFileUrls(ctx, filteredFavorites);
         return applyQuoteFormattingToList(favoritesWithUrls);
       }
@@ -228,11 +167,12 @@ export const searchCards = query({
           )
           .order("desc")
           .take(limit);
-        const filteredTrashed = createdAtRange
-          ? trashed.filter((card) =>
-              isCreatedAtInRange(card.createdAt, createdAtRange)
-            )
-          : trashed;
+        const filteredTrashed = applyCardLevelFilters(trashed, {
+          types,
+          favoritesOnly,
+          createdAtRange,
+          visualFilters,
+        }).slice(0, limit);
         const trashedWithUrls = await attachFileUrls(ctx, filteredTrashed);
         return applyQuoteFormattingToList(trashedWithUrls);
       }
@@ -351,25 +291,12 @@ export const searchCards = query({
       );
 
       // Apply additional filters
-      let filteredResults = uniqueResults;
-
-      if (types && types.length > 0) {
-        filteredResults = filteredResults.filter((card) =>
-          types.includes(card.type)
-        );
-      }
-
-      if (favoritesOnly) {
-        filteredResults = filteredResults.filter(
-          (card) => card.isFavorited === true
-        );
-      }
-
-      if (createdAtRange) {
-        filteredResults = filteredResults.filter((card) =>
-          isCreatedAtInRange(card.createdAt, createdAtRange)
-        );
-      }
+      const filteredResults = applyCardLevelFilters(uniqueResults, {
+        types,
+        favoritesOnly,
+        createdAtRange,
+        visualFilters,
+      });
 
       // Sort by creation date (desc) and limit
       const limitedResults = filteredResults
@@ -378,6 +305,25 @@ export const searchCards = query({
 
       const resultsWithUrls = await attachFileUrls(ctx, limitedResults);
       return applyQuoteFormattingToList(resultsWithUrls);
+    }
+
+    // No search query - use visual facet indexes when requested.
+    if (visualFilters.hasVisualFilters) {
+      const visualResults = await runVisualFacetQueries(ctx, {
+        userId: user.subject,
+        showTrashOnly,
+        types,
+        favoritesOnly,
+        createdAtRange,
+        visualFilters,
+        limit: Math.max(limit * 3, limit + 40),
+      });
+      const limitedVisualResults = visualResults.slice(0, limit);
+      const visualResultsWithUrls = await attachFileUrls(
+        ctx,
+        limitedVisualResults
+      );
+      return applyQuoteFormattingToList(visualResultsWithUrls);
     }
 
     // No search query - use regular indexes with filters
@@ -458,6 +404,9 @@ export const searchCardsPaginated = query({
     types: v.optional(v.array(cardTypeValidator)),
     favoritesOnly: v.optional(v.boolean()),
     showTrashOnly: v.optional(v.boolean()),
+    styleFilters: v.optional(v.array(v.string())),
+    hueFilters: v.optional(v.array(v.string())),
+    hexFilters: v.optional(v.array(v.string())),
     createdAtRange: v.optional(createdAtRangeValidator),
   },
   returns: paginationResultValidator,
@@ -473,9 +422,17 @@ export const searchCardsPaginated = query({
       types,
       favoritesOnly,
       showTrashOnly,
+      styleFilters,
+      hueFilters,
+      hexFilters,
       createdAtRange,
     } = args;
     ensureValidRange(createdAtRange);
+    const visualFilters = normalizeVisualFilterArgs({
+      styleFilters,
+      hueFilters,
+      hexFilters,
+    });
 
     if (searchQuery?.trim()) {
       const query = searchQuery.toLowerCase().trim();
@@ -493,11 +450,12 @@ export const searchCardsPaginated = query({
           )
           .order("desc")
           .paginate(paginationOpts);
-        const filteredFavorites = createdAtRange
-          ? favorites.page.filter((card) =>
-              isCreatedAtInRange(card.createdAt, createdAtRange)
-            )
-          : favorites.page;
+        const filteredFavorites = applyCardLevelFilters(favorites.page, {
+          types,
+          favoritesOnly: true,
+          createdAtRange,
+          visualFilters,
+        });
         const favoritesWithUrls = await attachFileUrls(ctx, filteredFavorites);
         return {
           ...favorites,
@@ -513,11 +471,12 @@ export const searchCardsPaginated = query({
           )
           .order("desc")
           .paginate(paginationOpts);
-        const filteredTrashed = createdAtRange
-          ? trashed.page.filter((card) =>
-              isCreatedAtInRange(card.createdAt, createdAtRange)
-            )
-          : trashed.page;
+        const filteredTrashed = applyCardLevelFilters(trashed.page, {
+          types,
+          favoritesOnly,
+          createdAtRange,
+          visualFilters,
+        });
         const trashedWithUrls = await attachFileUrls(ctx, filteredTrashed);
         return {
           ...trashed,
@@ -658,6 +617,7 @@ export const searchCardsPaginated = query({
             seenIds.add(card._id);
             if (!isCreatedAtInRange(card.createdAt, createdAtRange)) continue;
             if (hasMultiTypeFilter && !typesSet.has(card.type)) continue;
+            if (!doesCardMatchVisualFilters(card, visualFilters)) continue;
             uniqueResults.push(card);
             if (uniqueResults.length >= desiredLimit) break;
           }
@@ -677,6 +637,36 @@ export const searchCardsPaginated = query({
       const continueCursor = isDone ? null : String(offset + pageSize);
 
       const pageWithUrls = await attachFileUrls(ctx, page);
+      return {
+        page: applyQuoteFormattingToList(pageWithUrls),
+        isDone,
+        continueCursor,
+      };
+    }
+
+    if (visualFilters.hasVisualFilters) {
+      const rawCursor = paginationOpts.cursor ?? "0";
+      const parsedCursor = Number(rawCursor);
+      const offset =
+        Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0;
+      const pageSize = paginationOpts.numItems;
+      const desiredLimit = offset + pageSize + 1;
+
+      const visualResults = await runVisualFacetQueries(ctx, {
+        userId: user.subject,
+        showTrashOnly,
+        types,
+        favoritesOnly,
+        createdAtRange,
+        visualFilters,
+        limit: Math.max(desiredLimit * 2, desiredLimit + 40),
+      });
+
+      const page = visualResults.slice(offset, offset + pageSize);
+      const isDone = visualResults.length <= offset + pageSize;
+      const continueCursor = isDone ? null : String(offset + pageSize);
+      const pageWithUrls = await attachFileUrls(ctx, page);
+
       return {
         page: applyQuoteFormattingToList(pageWithUrls),
         isDone,

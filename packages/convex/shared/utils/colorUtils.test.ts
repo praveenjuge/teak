@@ -1,10 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import {
+  buildColorFacets,
   type Color,
+  classifyHueForHex,
   extractPaletteColors,
+  formatPaletteForCopy,
   getColorName,
   getContrastRatio,
   hexToRgb,
+  normalizeHexColor,
+  normalizeHexFilters,
   parseColorString,
   parseColorsFromText,
 } from "./colorUtils";
@@ -453,5 +458,65 @@ describe("getContrastRatio", () => {
     const ratio1 = getContrastRatio(color1, color2);
     const ratio2 = getContrastRatio(color2, color1);
     expect(ratio1).toBeCloseTo(ratio2, 5);
+  });
+});
+
+describe("facet normalization", () => {
+  it("normalizes hex values to canonical uppercase #RRGGBB", () => {
+    expect(normalizeHexColor("  #ff5733  ")).toBe("#FF5733");
+    expect(normalizeHexColor("f53")).toBe("#FF5533");
+    expect(normalizeHexColor("#FF5733AA")).toBe("#FF5733");
+    expect(normalizeHexColor("not-a-hex")).toBeNull();
+  });
+
+  it("reports invalid hex filters while deduplicating valid ones", () => {
+    expect(
+      normalizeHexFilters(["#ff5733", "FF5733", "bad-value", "#00ff00"])
+    ).toEqual({
+      normalized: ["#FF5733", "#00FF00"],
+      invalid: ["bad-value"],
+    });
+  });
+
+  it("derives hue buckets from canonical hex", () => {
+    expect(classifyHueForHex("#FF0000")).toBe("red");
+    expect(classifyHueForHex("#00FF00")).toBe("green");
+    expect(classifyHueForHex("#808080")).toBe("neutral");
+  });
+
+  it("builds deduped color hex and hue facets", () => {
+    const facets = buildColorFacets([
+      { hex: "#ff0000" },
+      { hex: "#FF0000" },
+      { hex: "#00ff00" },
+    ]);
+
+    expect(facets.colorHexes).toEqual(["#FF0000", "#00FF00"]);
+    expect(facets.colorHues).toEqual(["red", "green"]);
+  });
+});
+
+describe("palette copy formatters", () => {
+  const colors: Color[] = [
+    { hex: "#ff0000", name: "Primary" },
+    { hex: "#00ff00", name: "Accent Green" },
+  ];
+
+  it("formats comma-separated palette output", () => {
+    expect(formatPaletteForCopy(colors, "comma-separated")).toBe(
+      "#FF0000, #00FF00"
+    );
+  });
+
+  it("formats newline-separated palette output", () => {
+    expect(formatPaletteForCopy(colors, "newline-separated")).toBe(
+      "#FF0000\n#00FF00"
+    );
+  });
+
+  it("formats css variables palette output", () => {
+    expect(formatPaletteForCopy(colors, "css-variables")).toBe(
+      ":root {\n  --primary: #FF0000;\n  --accent-green: #00FF00;\n}"
+    );
   });
 });

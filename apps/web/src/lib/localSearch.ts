@@ -1,6 +1,10 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import type { CreatedAtRange } from "@teak/convex/shared";
-import type { CardType } from "@teak/convex/shared/constants";
+import { type CreatedAtRange, normalizeHexFilters } from "@teak/convex/shared";
+import {
+  type CardType,
+  normalizeHueFilters,
+  normalizeVisualStyleFilters,
+} from "@teak/convex/shared/constants";
 
 const normalizeSearchTerm = (value: string) => value.toLowerCase().trim();
 
@@ -29,22 +33,75 @@ export const buildSearchableText = (card: Doc<"cards">) => {
 export interface LocalSearchFilters {
   searchTerms?: string;
   types?: CardType[];
+  styleFilters?: string[];
+  hueFilters?: string[];
+  hexFilters?: string[];
   favoritesOnly?: boolean;
   showTrashOnly?: boolean;
   createdAtRange?: CreatedAtRange;
 }
+
+const matchesVisualFilters = (
+  card: Doc<"cards">,
+  filters: {
+    styleFilters: string[];
+    hueFilters: string[];
+    hexFilters: string[];
+  }
+) => {
+  if (filters.styleFilters.length > 0) {
+    if (card.type !== "image") {
+      return false;
+    }
+
+    const styleSet = new Set(card.visualStyles ?? []);
+    if (!filters.styleFilters.some((style) => styleSet.has(style))) {
+      return false;
+    }
+  }
+
+  if (filters.hueFilters.length > 0) {
+    if (!(card.type === "image" || card.type === "palette")) {
+      return false;
+    }
+
+    const hueSet = new Set(card.colorHues ?? []);
+    if (!filters.hueFilters.some((hue) => hueSet.has(hue))) {
+      return false;
+    }
+  }
+
+  if (filters.hexFilters.length > 0) {
+    if (!(card.type === "image" || card.type === "palette")) {
+      return false;
+    }
+
+    const hexSet = new Set(card.colorHexes ?? []);
+    if (!filters.hexFilters.some((hex) => hexSet.has(hex))) {
+      return false;
+    }
+  }
+
+  return true;
+};
 
 export const filterLocalCards = (
   cards: Doc<"cards">[],
   {
     searchTerms = "",
     types,
+    styleFilters,
+    hueFilters,
+    hexFilters,
     favoritesOnly = false,
     showTrashOnly = false,
     createdAtRange,
   }: LocalSearchFilters
 ) => {
   const terms = tokenizeSearchQuery(searchTerms);
+  const normalizedStyles = normalizeVisualStyleFilters(styleFilters);
+  const normalizedHues = normalizeHueFilters(hueFilters);
+  const normalizedHexes = normalizeHexFilters(hexFilters).normalized;
 
   return cards
     .filter((card) => {
@@ -57,6 +114,16 @@ export const filterLocalCards = (
       }
 
       if (types && types.length > 0 && !types.includes(card.type)) {
+        return false;
+      }
+
+      if (
+        !matchesVisualFilters(card, {
+          styleFilters: normalizedStyles,
+          hueFilters: normalizedHues,
+          hexFilters: normalizedHexes,
+        })
+      ) {
         return false;
       }
 

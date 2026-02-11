@@ -1,8 +1,12 @@
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { AuthHelper, UiHelper } from "./test-helpers";
 
 const TEST_EMAIL = process.env.E2E_BETTER_AUTH_USER_EMAIL;
 const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
+const TEST_IMAGE_PATH = fileURLToPath(
+  new URL("../app/apple-icon.png", import.meta.url)
+);
 
 test.describe("Search and Filter Workflows", () => {
   test.skip(
@@ -419,6 +423,82 @@ test.describe("Search and Filter Workflows", () => {
       await expect(
         page.getByRole("button", { name: /favorites/i }).first()
       ).toBeVisible();
+    });
+  });
+
+  test.describe("Visual Inspiration Filters", () => {
+    test("applies style and hue filters via search enter", async ({ page }) => {
+      const uiHelper = new UiHelper(page);
+      const searchInput = uiHelper.getSearchInput();
+
+      await searchInput.fill("vintage purple");
+      await searchInput.press("Enter");
+
+      await expect(
+        page.getByText(/nothing found matching your filters/i)
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /Vintage/i })
+      ).toBeVisible();
+      await expect(page.getByRole("button", { name: /Purple/i })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /Clear All/i })
+      ).toBeVisible();
+    });
+
+    test("exact hex filter via search enter supports clear recovery", async ({
+      page,
+    }) => {
+      const uiHelper = new UiHelper(page);
+      const searchInput = uiHelper.getSearchInput();
+
+      await searchInput.fill("#123456");
+      await searchInput.press("Enter");
+
+      await expect(
+        page.getByText(/nothing found matching your filters/i)
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /#123456/i })
+      ).toBeVisible();
+      await page.getByRole("button", { name: "Clear All" }).click();
+
+      await expect(
+        page.getByText(/nothing found matching your filters/i)
+      ).not.toBeVisible();
+      expect(await page.locator("[data-card-id]").count()).toBeGreaterThan(0);
+    });
+  });
+
+  test.describe("Image Palette Copy", () => {
+    test("copies a swatch from image modal and has no palette dropdown", async ({
+      page,
+    }) => {
+      const uploadButton = page.locator("form button[type='button']").first();
+      const [chooser] = await Promise.all([
+        page.waitForEvent("filechooser"),
+        uploadButton.click(),
+      ]);
+      await chooser.setFiles(TEST_IMAGE_PATH);
+
+      await page.waitForTimeout(4000);
+      await page.getByPlaceholder("Search for anything...").focus();
+      await page.getByRole("button", { name: /Image/i }).first().click();
+      await page.locator("[data-card-id]").first().click();
+
+      const swatch = page.locator("button[aria-label^='#']").first();
+      await expect(swatch).toBeVisible({ timeout: 20_000 });
+      await expect(
+        page.getByRole("button", { name: /Copy Palette|Copied!/i })
+      ).toHaveCount(0);
+
+      const readClipboard = async () =>
+        page.evaluate(async () => navigator.clipboard.readText());
+
+      await swatch.click();
+      await expect.poll(readClipboard).toMatch(/^#[A-F0-9]{6}$/);
+
+      await expect(swatch).toHaveAttribute("aria-label", /^#[A-F0-9]{6}$/);
     });
   });
 });

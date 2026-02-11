@@ -2,11 +2,16 @@ import type { TimeFilter } from "@teak/convex/shared";
 import {
   CARD_TYPE_LABELS,
   type CardType,
+  COLOR_HUE_LABELS,
+  type ColorHueBucket,
   cardTypes,
   getCardTypeIcon,
+  VISUAL_STYLE_LABELS,
+  type VisualStyle,
 } from "@teak/convex/shared/constants";
 import {
   Clock,
+  Droplets,
   File,
   FileText,
   Hash,
@@ -17,6 +22,7 @@ import {
   Quote,
   Search,
   Settings,
+  Sparkles,
   Trash2,
   Video,
   Volume2,
@@ -34,10 +40,16 @@ interface SearchBarProps {
   keywordTags: string[];
   timeFilter?: TimeFilter | null;
   filterTags: CardType[];
+  styleFilters: VisualStyle[];
+  hueFilters: ColorHueBucket[];
+  hexFilters: string[];
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
   onAddFilter: (filter: CardType) => void;
   onRemoveFilter: (filter: CardType) => void;
+  onRemoveStyleFilter: (style: VisualStyle) => void;
+  onRemoveHueFilter: (hue: ColorHueBucket) => void;
+  onRemoveHexFilter: (hex: string) => void;
   onRemoveKeyword: (keyword: string) => void;
   onRemoveTimeFilter: () => void;
   onToggleFavorites: () => void;
@@ -69,10 +81,16 @@ export function SearchBar({
   keywordTags,
   timeFilter,
   filterTags,
+  styleFilters,
+  hueFilters,
+  hexFilters,
   showFavoritesOnly,
   showTrashOnly,
   onAddFilter,
   onRemoveFilter,
+  onRemoveStyleFilter,
+  onRemoveHueFilter,
+  onRemoveHexFilter,
   onRemoveKeyword,
   onRemoveTimeFilter,
   onToggleFavorites,
@@ -86,6 +104,9 @@ export function SearchBar({
     keywordTags.length > 0 ||
     Boolean(timeFilter) ||
     filterTags.length > 0 ||
+    styleFilters.length > 0 ||
+    hueFilters.length > 0 ||
+    hexFilters.length > 0 ||
     showFavoritesOnly ||
     showTrashOnly;
   const shouldShowFilters =
@@ -180,6 +201,48 @@ export function SearchBar({
                 </Button>
               );
             })}
+
+            {styleFilters.map((style) => (
+              <Button
+                key={`style-${style}`}
+                onClick={() => onRemoveStyleFilter(style)}
+                onMouseDown={preventBlur}
+                size="sm"
+                variant="default"
+              >
+                <Sparkles className="size-3.5 stroke-2" />
+                <span>{VISUAL_STYLE_LABELS[style]}</span>
+              </Button>
+            ))}
+
+            {hueFilters.map((hue) => (
+              <Button
+                key={`hue-${hue}`}
+                onClick={() => onRemoveHueFilter(hue)}
+                onMouseDown={preventBlur}
+                size="sm"
+                variant="default"
+              >
+                <Droplets className="size-3.5 stroke-2" />
+                <span>{COLOR_HUE_LABELS[hue]}</span>
+              </Button>
+            ))}
+
+            {hexFilters.map((hex) => (
+              <Button
+                key={`hex-${hex}`}
+                onClick={() => onRemoveHexFilter(hex)}
+                onMouseDown={preventBlur}
+                size="sm"
+                variant="default"
+              >
+                <span
+                  className="size-3 rounded-full border"
+                  style={{ backgroundColor: hex }}
+                />
+                <span>{hex}</span>
+              </Button>
+            ))}
 
             {showFavoritesOnly && (
               <Button

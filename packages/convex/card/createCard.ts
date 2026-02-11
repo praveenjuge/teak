@@ -1,4 +1,7 @@
-import { extractPaletteColors } from "@teak/convex/shared/utils/colorUtils";
+import {
+  buildColorFacets,
+  extractPaletteColors,
+} from "@teak/convex/shared/utils/colorUtils";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { mutation } from "../_generated/server";
@@ -120,6 +123,7 @@ export const createCard = mutation({
       const parsedColors = extractPaletteColors(paletteText, 12);
       resolvedColors = parsedColors.length > 0 ? parsedColors : undefined;
     }
+    const { colorHexes, colorHues } = buildColorFacets(resolvedColors);
 
     // Set initial metadataStatus for link cards
     const cardData = {
@@ -137,6 +141,8 @@ export const createCard = mutation({
           : undefined,
       fileMetadata,
       colors: resolvedColors,
+      colorHexes,
+      colorHues,
       processingStatus: buildInitialProcessingStatus({
         now,
         cardType,

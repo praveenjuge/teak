@@ -15,6 +15,217 @@ export const cardTypes = [
 
 export type CardType = (typeof cardTypes)[number];
 
+// === Visual Style + Color Facet Vocabulary ===
+
+export const VISUAL_STYLE_TAXONOMY = [
+  "abstract",
+  "cinematic",
+  "dark",
+  "illustrative",
+  "minimal",
+  "monochrome",
+  "moody",
+  "pastel",
+  "photographic",
+  "retro",
+  "surreal",
+  "vintage",
+  "vibrant",
+] as const;
+
+export type VisualStyle = (typeof VISUAL_STYLE_TAXONOMY)[number];
+
+export const VISUAL_STYLE_LABELS: Record<VisualStyle, string> = {
+  abstract: "Abstract",
+  cinematic: "Cinematic",
+  dark: "Dark",
+  illustrative: "Illustrative",
+  minimal: "Minimal",
+  monochrome: "Monochrome",
+  moody: "Moody",
+  pastel: "Pastel",
+  photographic: "Photographic",
+  retro: "Retro",
+  surreal: "Surreal",
+  vintage: "Vintage",
+  vibrant: "Vibrant",
+} as const;
+
+const VISUAL_STYLE_ALIAS_MAP: Record<string, VisualStyle> = {
+  abstract: "abstract",
+  abstraction: "abstract",
+  artsy: "abstract",
+  cinematic: "cinematic",
+  cinema: "cinematic",
+  filmic: "cinematic",
+  movie: "cinematic",
+  dark: "dark",
+  darkmode: "dark",
+  lowkey: "dark",
+  illustration: "illustrative",
+  illustrated: "illustrative",
+  illustrative: "illustrative",
+  drawing: "illustrative",
+  sketch: "illustrative",
+  cartoon: "illustrative",
+  minimal: "minimal",
+  minimalist: "minimal",
+  monochrome: "monochrome",
+  grayscale: "monochrome",
+  greyscale: "monochrome",
+  blackandwhite: "monochrome",
+  blackwhite: "monochrome",
+  bw: "monochrome",
+  moody: "moody",
+  dramatic: "moody",
+  atmospheric: "moody",
+  pastel: "pastel",
+  soft: "pastel",
+  photo: "photographic",
+  photograph: "photographic",
+  photography: "photographic",
+  photographic: "photographic",
+  realistic: "photographic",
+  retro: "retro",
+  synthwave: "retro",
+  surreal: "surreal",
+  dreamlike: "surreal",
+  vintage: "vintage",
+  antique: "vintage",
+  vibrant: "vibrant",
+  colorful: "vibrant",
+  colourful: "vibrant",
+  saturated: "vibrant",
+} as const;
+
+const normalizeFacetToken = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-");
+
+export function normalizeVisualStyle(value: string): VisualStyle | null {
+  const normalized = normalizeFacetToken(value);
+  if (!normalized) {
+    return null;
+  }
+
+  if ((VISUAL_STYLE_TAXONOMY as readonly string[]).includes(normalized)) {
+    return normalized as VisualStyle;
+  }
+
+  const aliasKey = normalized.replace(/-/g, "");
+  return VISUAL_STYLE_ALIAS_MAP[aliasKey] ?? null;
+}
+
+export function normalizeVisualStyleFilters(values?: string[]): VisualStyle[] {
+  if (!values?.length) {
+    return [];
+  }
+
+  const seen = new Set<VisualStyle>();
+  const normalized: VisualStyle[] = [];
+
+  for (const value of values) {
+    const style = normalizeVisualStyle(value);
+    if (!style || seen.has(style)) {
+      continue;
+    }
+    seen.add(style);
+    normalized.push(style);
+  }
+
+  return normalized;
+}
+
+export function extractVisualStylesFromTags(
+  tags?: string[]
+): VisualStyle[] | undefined {
+  const normalized = normalizeVisualStyleFilters(tags);
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+export const COLOR_HUE_BUCKETS = [
+  "red",
+  "orange",
+  "yellow",
+  "green",
+  "teal",
+  "cyan",
+  "blue",
+  "purple",
+  "pink",
+  "brown",
+  "neutral",
+] as const;
+
+export type ColorHueBucket = (typeof COLOR_HUE_BUCKETS)[number];
+
+export const COLOR_HUE_LABELS: Record<ColorHueBucket, string> = {
+  red: "Red",
+  orange: "Orange",
+  yellow: "Yellow",
+  green: "Green",
+  teal: "Teal",
+  cyan: "Cyan",
+  blue: "Blue",
+  purple: "Purple",
+  pink: "Pink",
+  brown: "Brown",
+  neutral: "Neutral",
+} as const;
+
+const COLOR_HUE_ALIAS_MAP: Record<string, ColorHueBucket> = {
+  red: "red",
+  orange: "orange",
+  yellow: "yellow",
+  green: "green",
+  teal: "teal",
+  cyan: "cyan",
+  blue: "blue",
+  purple: "purple",
+  violet: "purple",
+  indigo: "purple",
+  pink: "pink",
+  magenta: "pink",
+  fuchsia: "pink",
+  brown: "brown",
+  neutral: "neutral",
+  gray: "neutral",
+  grey: "neutral",
+  monochrome: "neutral",
+} as const;
+
+export function normalizeColorHueBucket(value: string): ColorHueBucket | null {
+  const normalized = normalizeFacetToken(value).replace(/-/g, "");
+  if (!normalized) {
+    return null;
+  }
+  return COLOR_HUE_ALIAS_MAP[normalized] ?? null;
+}
+
+export function normalizeHueFilters(values?: string[]): ColorHueBucket[] {
+  if (!values?.length) {
+    return [];
+  }
+
+  const seen = new Set<ColorHueBucket>();
+  const normalized: ColorHueBucket[] = [];
+
+  for (const value of values) {
+    const hue = normalizeColorHueBucket(value);
+    if (!hue || seen.has(hue)) {
+      continue;
+    }
+    seen.add(hue);
+    normalized.push(hue);
+  }
+
+  return normalized;
+}
+
 // === App Configuration Constants ===
 
 /**

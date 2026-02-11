@@ -116,4 +116,63 @@ describe("localSearch helpers", () => {
     const results = filterLocalCards(cards, { searchTerms: "alpha" });
     expect(results.map((card) => card._id)).toEqual(["2", "3", "1"]);
   });
+
+  it("filters by normalized visual style on image cards", () => {
+    const cards = [
+      makeCard({
+        _id: "1",
+        type: "image",
+        visualStyles: ["vintage"],
+        createdAt: 10,
+        updatedAt: 10,
+      }),
+      makeCard({
+        _id: "2",
+        type: "palette",
+        visualStyles: ["vintage"],
+        createdAt: 9,
+        updatedAt: 9,
+      }),
+    ];
+
+    const results = filterLocalCards(cards, {
+      styleFilters: ["  Vintage  "],
+    });
+    expect(results.map((card) => card._id)).toEqual(["1"]);
+  });
+
+  it("filters by normalized hue and hex on image/palette cards", () => {
+    const cards = [
+      makeCard({
+        _id: "1",
+        type: "image",
+        colorHues: ["purple"],
+        colorHexes: ["#663399"],
+        createdAt: 3,
+        updatedAt: 3,
+      }),
+      makeCard({
+        _id: "2",
+        type: "palette",
+        colorHues: ["purple"],
+        colorHexes: ["#663399"],
+        createdAt: 2,
+        updatedAt: 2,
+      }),
+      makeCard({
+        _id: "3",
+        type: "text",
+        colorHues: ["purple"],
+        colorHexes: ["#663399"],
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    ];
+
+    const results = filterLocalCards(cards, {
+      hueFilters: ["violet"],
+      hexFilters: ["663399"],
+    });
+    expect(results.map((card) => card._id)).toEqual(["1", "2"]);
+  });
 });

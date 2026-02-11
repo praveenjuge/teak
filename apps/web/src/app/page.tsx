@@ -2,8 +2,18 @@
 
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import { parseTimeSearchQuery, type TimeFilter } from "@teak/convex/shared";
-import type { CardType } from "@teak/convex/shared/constants";
+import {
+  normalizeColorHueBucket,
+  normalizeHexColor,
+  normalizeVisualStyle,
+  parseTimeSearchQuery,
+  type TimeFilter,
+} from "@teak/convex/shared";
+import type {
+  CardType,
+  ColorHueBucket,
+  VisualStyle,
+} from "@teak/convex/shared/constants";
 import { Authenticated, AuthLoading, useMutation } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
 import { useEffect, useMemo, useState } from "react";
@@ -24,6 +34,8 @@ import { metrics } from "@/lib/metrics";
 
 const DEFAULT_CARD_LIMIT = 100;
 const LOCAL_SEARCH_CACHE_LIMIT = 1000;
+const SEARCH_TOKEN_SEPARATOR = /\s+/;
+const SEARCH_TOKEN_TRIM_PATTERN = /^[,.;:!?()[\]{}"']+|[,.;:!?()[\]{}"']+$/g;
 
 export default function HomePage() {
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
@@ -34,6 +46,9 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [keywordTags, setKeywordTags] = useState<string[]>([]);
   const [filterTags, setFilterTags] = useState<CardType[]>([]);
+  const [styleFilters, setStyleFilters] = useState<VisualStyle[]>([]);
+  const [hueFilters, setHueFilters] = useState<ColorHueBucket[]>([]);
+  const [hexFilters, setHexFilters] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showTrashOnly, setShowTrashOnly] = useState(false);
   const [timeFilter, setTimeFilter] = useState<TimeFilter | null>(null);
@@ -54,9 +69,21 @@ export default function HomePage() {
       types: filterTags.length > 0 ? filterTags : undefined,
       favoritesOnly: showFavoritesOnly || undefined,
       showTrashOnly: showTrashOnly || undefined,
+      styleFilters: styleFilters.length > 0 ? styleFilters : undefined,
+      hueFilters: hueFilters.length > 0 ? hueFilters : undefined,
+      hexFilters: hexFilters.length > 0 ? hexFilters : undefined,
       createdAtRange: timeFilter?.range,
     }),
-    [filterTags, searchTerms, showFavoritesOnly, showTrashOnly, timeFilter]
+    [
+      filterTags,
+      hexFilters,
+      hueFilters,
+      searchTerms,
+      showFavoritesOnly,
+      showTrashOnly,
+      styleFilters,
+      timeFilter,
+    ]
   );
 
   const {
@@ -103,6 +130,9 @@ export default function HomePage() {
   const hasActiveSearch =
     searchTerms ||
     filterTags.length > 0 ||
+    styleFilters.length > 0 ||
+    hueFilters.length > 0 ||
+    hexFilters.length > 0 ||
     showFavoritesOnly ||
     showTrashOnly ||
     Boolean(timeFilter);
@@ -114,17 +144,23 @@ export default function HomePage() {
     return filterLocalCards(localCards, {
       searchTerms,
       types: filterTags,
+      styleFilters,
+      hueFilters,
+      hexFilters,
       favoritesOnly: showFavoritesOnly,
       showTrashOnly,
       createdAtRange: timeFilter?.range,
     });
   }, [
     filterTags,
+    hexFilters,
     hasActiveSearch,
+    hueFilters,
     localCards,
     searchTerms,
     showFavoritesOnly,
     showTrashOnly,
+    styleFilters,
     timeFilter,
   ]);
 
@@ -412,8 +448,77 @@ export default function HomePage() {
         return;
       }
 
-      if (!keywordTags.includes(query)) {
-        setKeywordTags((prev) => [...prev, query]);
+      const styleAdditions: VisualStyle[] = [];
+      const hueAdditions: ColorHueBucket[] = [];
+      const hexAdditions: string[] = [];
+      const keywordAdditions: string[] = [];
+
+      for (const token of searchQuery.split(SEARCH_TOKEN_SEPARATOR)) {
+        const normalizedToken = token.replace(SEARCH_TOKEN_TRIM_PATTERN, "");
+        if (!normalizedToken) {
+          continue;
+        }
+
+        const styleFilter = normalizeVisualStyle(normalizedToken);
+        if (styleFilter) {
+          if (
+            !(
+              styleFilters.includes(styleFilter) ||
+              styleAdditions.includes(styleFilter)
+            )
+          ) {
+            styleAdditions.push(styleFilter);
+            metrics.filterApplied("style");
+          }
+          continue;
+        }
+
+        const hueFilter = normalizeColorHueBucket(normalizedToken);
+        if (hueFilter) {
+          if (
+            !(
+              hueFilters.includes(hueFilter) || hueAdditions.includes(hueFilter)
+            )
+          ) {
+            hueAdditions.push(hueFilter);
+            metrics.filterApplied("color");
+          }
+          continue;
+        }
+
+        const hexFilter = normalizeHexColor(normalizedToken);
+        if (hexFilter) {
+          if (
+            !(
+              hexFilters.includes(hexFilter) || hexAdditions.includes(hexFilter)
+            )
+          ) {
+            hexAdditions.push(hexFilter);
+            metrics.filterApplied("color");
+          }
+          continue;
+        }
+
+        const keyword = normalizedToken.toLowerCase();
+        if (
+          !(keywordTags.includes(keyword) || keywordAdditions.includes(keyword))
+        ) {
+          keywordAdditions.push(keyword);
+          metrics.filterApplied("keyword");
+        }
+      }
+
+      if (styleAdditions.length > 0) {
+        setStyleFilters((prev) => [...prev, ...styleAdditions]);
+      }
+      if (hueAdditions.length > 0) {
+        setHueFilters((prev) => [...prev, ...hueAdditions]);
+      }
+      if (hexAdditions.length > 0) {
+        setHexFilters((prev) => [...prev, ...hexAdditions]);
+      }
+      if (keywordAdditions.length > 0) {
+        setKeywordTags((prev) => [...prev, ...keywordAdditions]);
       }
       setSearchQuery("");
     } else if (
@@ -421,11 +526,20 @@ export default function HomePage() {
       searchQuery === "" &&
       (keywordTags.length > 0 ||
         filterTags.length > 0 ||
+        styleFilters.length > 0 ||
+        hueFilters.length > 0 ||
+        hexFilters.length > 0 ||
         showFavoritesOnly ||
         showTrashOnly ||
         timeFilter)
     ) {
-      if (showTrashOnly) {
+      if (hexFilters.length > 0) {
+        setHexFilters((prev) => prev.slice(0, -1));
+      } else if (hueFilters.length > 0) {
+        setHueFilters((prev) => prev.slice(0, -1));
+      } else if (styleFilters.length > 0) {
+        setStyleFilters((prev) => prev.slice(0, -1));
+      } else if (showTrashOnly) {
         setShowTrashOnly(false);
       } else if (showFavoritesOnly) {
         setShowFavoritesOnly(false);
@@ -450,6 +564,26 @@ export default function HomePage() {
     setFilterTags((prev) => prev.filter((tag) => tag !== filter));
   };
 
+  const removeStyleFilter = (style: VisualStyle) => {
+    setStyleFilters((prev) =>
+      prev.filter((activeStyle) => activeStyle !== style)
+    );
+  };
+
+  const removeHueFilter = (hue: ColorHueBucket) => {
+    setHueFilters((prev) => prev.filter((activeHue) => activeHue !== hue));
+  };
+
+  const removeHexFilter = (hex: string) => {
+    const normalizedHex = normalizeHexColor(hex);
+    if (!normalizedHex) {
+      return;
+    }
+    setHexFilters((prev) =>
+      prev.filter((activeHex) => activeHex !== normalizedHex)
+    );
+  };
+
   const removeKeyword = (keyword: string) => {
     setKeywordTags((prev) => prev.filter((tag) => tag !== keyword));
   };
@@ -472,6 +606,9 @@ export default function HomePage() {
     setSearchQuery("");
     setKeywordTags([]);
     setFilterTags([]);
+    setStyleFilters([]);
+    setHueFilters([]);
+    setHexFilters([]);
     setShowFavoritesOnly(false);
     setShowTrashOnly(false);
     setTimeFilter(null);
@@ -501,6 +638,9 @@ export default function HomePage() {
   const hasNoFilters =
     keywordTags.length === 0 &&
     filterTags.length === 0 &&
+    styleFilters.length === 0 &&
+    hueFilters.length === 0 &&
+    hexFilters.length === 0 &&
     !showFavoritesOnly &&
     !showTrashOnly &&
     !searchQuery &&
@@ -547,12 +687,17 @@ export default function HomePage() {
       <input {...getInputProps()} />
       <SearchBar
         filterTags={filterTags}
+        hexFilters={hexFilters}
+        hueFilters={hueFilters}
         keywordTags={keywordTags}
         onAddFilter={addFilter}
         onClearAll={clearAllFilters}
         onKeyDown={handleKeyDown}
         onRemoveFilter={removeFilter}
+        onRemoveHexFilter={removeHexFilter}
+        onRemoveHueFilter={removeHueFilter}
         onRemoveKeyword={removeKeyword}
+        onRemoveStyleFilter={removeStyleFilter}
         onRemoveTimeFilter={() => setTimeFilter(null)}
         onSearchChange={handleSearchChange}
         onToggleFavorites={toggleFavorites}
@@ -560,6 +705,7 @@ export default function HomePage() {
         searchQuery={searchQuery}
         showFavoritesOnly={showFavoritesOnly}
         showTrashOnly={showTrashOnly}
+        styleFilters={styleFilters}
         timeFilter={timeFilter}
       />
 
@@ -588,7 +734,7 @@ export default function HomePage() {
           onToggleFavorite={(cardId) =>
             cardActions.handleToggleFavorite(cardId as Id<"cards">)
           }
-          resetKey={`${searchTerms}::${filterTags.join(",")}::${showFavoritesOnly}::${showTrashOnly}::${timeFilter?.range.start ?? ""}-${timeFilter?.range.end ?? ""}`}
+          resetKey={`${searchTerms}::${filterTags.join(",")}::${styleFilters.join(",")}::${hueFilters.join(",")}::${hexFilters.join(",")}::${showFavoritesOnly}::${showTrashOnly}::${timeFilter?.range.start ?? ""}-${timeFilter?.range.end ?? ""}`}
           showTrashOnly={showTrashOnly}
         />
       ) : (

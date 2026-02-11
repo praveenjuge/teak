@@ -42,30 +42,32 @@ export function ImagePreview({ card }: ImagePreviewProps) {
         />
 
         {paletteColors.length > 0 && (
-          <div className="absolute bottom-4 left-3 flex -space-x-2 rounded-full border bg-background p-0.5 transition hover:space-x-px">
-            {paletteColors.map((color) => (
-              <div
-                className="group relative"
-                key={`palette-${card._id}-${color.hex}`}
-              >
-                <button
-                  aria-label={color.hex}
-                  className="block size-4 shrink-0 cursor-pointer rounded-full transition-transform hover:scale-110"
-                  onClick={async (event) => {
-                    event.stopPropagation();
-                    await handleCopyColor(color.hex);
-                  }}
-                  style={{ backgroundColor: color.hex }}
-                  type="button"
-                />
-                <div className="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 transform whitespace-nowrap rounded-full bg-black/75 px-2 py-0.5 text-white text-xs opacity-0 transition-opacity group-hover:opacity-100">
-                  {colorCopyFeedback?.color === color.hex &&
-                  colorCopyFeedback.state === "copied"
-                    ? "Copied!"
-                    : color.hex}
+          <div className="absolute bottom-4 left-3 flex items-center gap-2">
+            <div className="flex -space-x-2 rounded-full border bg-background p-0.5 transition hover:space-x-px">
+              {paletteColors.map((color) => (
+                <div
+                  className="group relative"
+                  key={`palette-${card._id}-${color.hex}`}
+                >
+                  <button
+                    aria-label={color.hex}
+                    className="block size-4 shrink-0 cursor-pointer rounded-full transition-transform hover:scale-110"
+                    onClick={async (event) => {
+                      event.stopPropagation();
+                      await handleCopyColor(color.hex);
+                    }}
+                    style={{ backgroundColor: color.hex }}
+                    type="button"
+                  />
+                  <div className="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 transform whitespace-nowrap rounded-full bg-black/75 px-2 py-0.5 text-white text-xs opacity-0 transition-opacity group-hover:opacity-100">
+                    {colorCopyFeedback?.color === color.hex &&
+                    colorCopyFeedback.state === "copied"
+                      ? "Copied!"
+                      : color.hex}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </div>
