@@ -1,4 +1,10 @@
-import { Globe, type LucideProps, Puzzle, Smartphone } from "lucide-react";
+import {
+  Command,
+  Globe,
+  type LucideProps,
+  Puzzle,
+  Smartphone,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -10,18 +16,19 @@ const WEB_APP_URL = "https://app.teakvault.com";
 const APP_STORE_URL = "https://app.teakvault.com/register";
 const CHROME_STORE_URL =
   "https://chromewebstore.google.com/detail/empty-title/negnmfifahnnagnbnfppmlgfajngdpob";
+const RAYCAST_STORE_URL = "https://www.raycast.com";
 
 export const metadata: Metadata = {
-  title: "Teak Apps | Web, iOS, and Chrome Extension",
+  title: "Teak Apps | Web, iOS, Chrome Extension, and Raycast",
   description:
-    "Use Teak on the web, iPhone, and Chrome. Capture ideas anywhere and reopen them instantly on every device.",
+    "Use Teak on the web, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device.",
   keywords:
-    "teak apps, teak ios, teak chrome extension, teak web app, visual bookmarking apps, cross platform inspiration",
+    "teak apps, teak ios, teak chrome extension, teak raycast extension, teak web app, visual bookmarking apps, cross platform inspiration",
   authors: [{ name: "Teak Team" }],
   openGraph: {
     title: "Teak Apps",
     description:
-      "Use Teak on the web, iPhone, and Chrome. Capture ideas anywhere and reopen them instantly on every device.",
+      "Use Teak on the web, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device.",
     type: "website",
     url: "https://teakvault.com/apps",
     siteName: "Teak",
@@ -31,7 +38,7 @@ export const metadata: Metadata = {
         url: "/hero-image.png",
         width: 1200,
         height: 630,
-        alt: "Teak - Web, iOS, and Chrome Extension",
+        alt: "Teak - Web, iOS, Chrome Extension, and Raycast",
       },
     ],
   },
@@ -39,7 +46,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Teak Apps",
     description:
-      "Use Teak on the web, iPhone, and Chrome. Capture ideas anywhere and reopen them instantly on every device.",
+      "Use Teak on the web, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device.",
     images: ["/hero-image.png"],
   },
   robots: {
@@ -112,6 +119,17 @@ const platformCards: PlatformCard[] = [
       height: 58,
     },
   },
+  {
+    name: "Raycast Extension",
+    copy: "Save your clipboard, search your cards, and jump to favorites directly from Raycast.",
+    icon: Command,
+    action: {
+      label: "Open Raycast Store",
+      href: RAYCAST_STORE_URL,
+      type: "button",
+    },
+    footnote: "Search for “Teak” in Raycast to install.",
+  },
 ];
 
 const isAppsPageEnabled =
@@ -129,12 +147,12 @@ export default function AppsPage() {
           Teak, everywhere you create
         </h1>
         <p className="text-balance text-lg text-muted-foreground">
-          Web, iPhone, and Chrome stay perfectly in sync so the inspiration you
-          save once is waiting on every device.
+          Web, iPhone, Chrome, and Raycast stay perfectly in sync so the
+          inspiration you save once is waiting on every device.
         </p>
       </section>
 
-      <section className="mx-auto mt-12 grid w-full max-w-5xl gap-4 md:grid-cols-3">
+      <section className="mx-auto mt-12 grid w-full max-w-5xl gap-4 md:grid-cols-2 xl:grid-cols-4">
         {platformCards.map((card) => {
           const Icon = card.icon;
           const ActionIcon =
@@ -173,7 +191,7 @@ export default function AppsPage() {
                   >
                     <Image
                       alt={card.action.alt}
-                      className="h-auto max-w-[210px] object-contain"
+                      className="h-auto max-w-52.5 object-contain"
                       height={card.action.height}
                       src={card.action.src}
                       unoptimized

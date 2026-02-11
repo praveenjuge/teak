@@ -1,0 +1,61 @@
+{
+  "name": "teak-raycast",
+  "title": "Teak",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "description": "Teak Raycast extension",
+  "icon": "icon.png",
+  "author": "praveenjuge",
+  "categories": [
+    "Productivity"
+  ],
+  "platforms": [
+    "macOS"
+  ],
+  "preferences": [
+    {
+      "name": "apiKey",
+      "title": "API Key",
+      "type": "password",
+      "required": true,
+      "description": "Generate this from Teak Settings > API Keys"
+    }
+  ],
+  "commands": [
+    {
+      "name": "quick-save",
+      "title": "Quick Save",
+      "description": "Save text or URLs to Teak",
+      "mode": "view"
+    },
+    {
+      "name": "search-cards",
+      "title": "Search Cards",
+      "description": "Search all Teak cards",
+      "mode": "view"
+    },
+    {
+      "name": "favorites",
+      "title": "Favorites",
+      "description": "Browse favorite Teak cards",
+      "mode": "view"
+    }
+  ],
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "lint": "biome check src package.json tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test src/__tests__ --coverage --dots"
+  },
+  "dependencies": {
+    "@raycast/api": "^1.104.6",
+    "@raycast/utils": "^2.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.1",
+    "@types/react": "19.2.10",
+    "typescript": "^5.9.3"
+  }
+}

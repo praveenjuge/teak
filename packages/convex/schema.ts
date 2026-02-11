@@ -145,6 +145,20 @@ export const colorValidator = v.object({
   ),
 });
 
+export const apiKeyAccessValidator = v.literal("full_access");
+
+export const apiKeyValidator = v.object({
+  userId: v.string(),
+  name: v.string(),
+  keyPrefix: v.string(),
+  keyHash: v.string(),
+  access: apiKeyAccessValidator,
+  createdAt: v.number(),
+  updatedAt: v.number(),
+  lastUsedAt: v.optional(v.number()),
+  revokedAt: v.optional(v.number()),
+});
+
 export const cardValidator = v.object({
   userId: v.string(),
   content: v.string(),
@@ -241,4 +255,7 @@ export default defineSchema({
       searchField: "colorHues",
       filterFields: ["userId", "isDeleted", "type", "isFavorited"],
     }),
+  apiKeys: defineTable(apiKeyValidator)
+    .index("by_user_revoked", ["userId", "revokedAt"])
+    .index("by_prefix_revoked", ["keyPrefix", "revokedAt"]),
 });

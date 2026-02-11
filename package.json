@@ -9,11 +9,13 @@
   ],
   "scripts": {
     "build": "turbo run build",
+    "build:raycast": "turbo run build --filter=./apps/raycast",
     "build:extension": "turbo run build --filter=@teak/extension",
     "dev": "turbo watch dev --filter=@teak/web --filter=@teak/convex",
     "dev:all": "turbo watch dev",
     "dev:convex": "turbo watch dev --filter=@teak/convex",
     "dev:docs": "turbo watch dev --filter=@teak/docs",
+    "dev:raycast": "turbo watch dev --filter=./apps/raycast",
     "dev:extension": "turbo watch dev --filter=@teak/extension --filter=@teak/convex",
     "dev:mobile": "turbo watch dev --filter=@teak/mobile",
     "dev:web": "turbo watch dev --filter=@teak/web --filter=@teak/convex",
@@ -29,11 +31,6 @@
   },
   "simple-git-hooks": {
     "pre-commit": "bun run pre-commit"
-  },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,jsonc,css,md,mdx}": [
-      "bun x ultracite fix"
-    ]
   },
   "overrides": {
     "@types/react": "19.2.7",

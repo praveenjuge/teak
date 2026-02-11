@@ -8,6 +8,21 @@
   "javascript": {
     "globals": ["chrome", "defineBackground", "defineContentScript"]
   },
+  "overrides": [
+    {
+      "includes": ["apps/raycast/raycast-env.d.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNamespace": "off"
+          },
+          "complexity": {
+            "noBannedTypes": "off"
+          }
+        }
+      }
+    }
+  ],
   "linter": {
     "rules": {
       "style": {

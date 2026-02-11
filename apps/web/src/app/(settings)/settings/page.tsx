@@ -21,6 +21,7 @@ import { useTheme } from "next-themes";
 import { type ChangeEvent, type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import Logo from "@/components/Logo";
+import { ApiKeysSection } from "@/components/settings/ApiKeysSection";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -526,6 +527,8 @@ export default function ProfileSettingsPage() {
           </>
         )}
       </SettingRow>
+
+      <ApiKeysSection />
 
       <SettingRow title="Theme">
         <div className="flex items-center gap-px">

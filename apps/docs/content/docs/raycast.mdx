@@ -1,0 +1,62 @@
+---
+title: Raycast Extension
+description: Save and search Teak cards directly from Raycast
+icon: Command
+---
+
+Use Teak in Raycast to quickly save text or links, search all cards, and jump to favorites without leaving your keyboard flow.
+
+## Requirements
+
+- Raycast installed on macOS
+- Teak account
+- One active Teak API key
+
+## 1) Generate an API key in Teak
+
+1. Open Teak Settings: `/settings`
+2. Go to **Raycast Key**
+3. Click **Generate API Key**
+4. Copy the key immediately (it is shown once)
+
+## 2) Install the extension in Raycast
+
+1. Open Raycast
+2. Search the Store for **Teak**
+3. Install the extension
+
+## 3) Configure extension preferences
+
+Set the following in Raycast extension settings:
+
+- `API Key`: key generated in Teak settings
+
+## Commands
+
+### Quick Save
+
+- Paste or type content in a large text area before saving
+- If content is an HTTP(S) URL:
+  - Teak checks for duplicates
+  - Existing card is reused when found
+- Otherwise Teak creates a text card
+
+### Search Cards
+
+- Searches across all card types
+- Returns up to 50 results
+- Excludes deleted cards
+- Actions: open source URL, copy content/URL, view metadata
+
+### Favorites
+
+- Dedicated command for favorited cards
+- Read-only list behavior in v1
+- Same open/copy/detail actions as search
+
+## Security model
+
+- API keys are hashed server-side
+- Only one active key is allowed per account
+- Regenerating a key revokes the previous key immediately
+- You can revoke keys at any time from Teak settings

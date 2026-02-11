@@ -127,7 +127,7 @@ const faqs = [
   {
     question: "Will this work on my phone?",
     answer:
-      "Yep. iPhone app, Android app, web app, Chrome extension. Save on your commute, find it at your desk.",
+      "Yep. iPhone app, Android app, web app, Chrome extension, and Raycast. Save on your commute, find it at your desk.",
   },
   {
     question: "How is this not just Pinterest?",
