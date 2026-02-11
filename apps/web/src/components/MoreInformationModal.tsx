@@ -1,5 +1,5 @@
 import { Copy } from "lucide-react";
-import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { TOAST_IDS } from "@/lib/toastConfig";
 
 interface CardData {
   createdAt: number;
@@ -31,18 +32,14 @@ interface MoreInformationModalProps {
 interface CopyableSectionProps {
   label: string;
   value: string;
-  fieldName: string;
   textClass?: string;
-  copiedField: string | null;
-  onCopy: (field: string) => void;
+  onCopy: () => void;
 }
 
 function CopyableSection({
   label,
   value,
-  fieldName,
   textClass,
-  copiedField,
   onCopy,
 }: CopyableSectionProps) {
   return (
@@ -53,16 +50,13 @@ function CopyableSection({
         <Button
           aria-label={`Copy ${label}`}
           className="shrink-0"
-          onClick={() => onCopy(fieldName)}
+          onClick={onCopy}
           size="icon"
           variant="ghost"
         >
           <Copy className="h-4 w-4" />
         </Button>
       </div>
-      {copiedField === fieldName && (
-        <p className="text-muted-foreground text-xs">Copied!</p>
-      )}
     </div>
   );
 }
@@ -89,8 +83,6 @@ export function MoreInformationModal({
   onOpenChange,
   card,
 }: MoreInformationModalProps) {
-  const [copiedField, setCopiedField] = useState<string | null>(null);
-
   const formatDate = (timestamp: number) =>
     new Date(timestamp).toLocaleDateString("en-US", {
       year: "numeric",
@@ -100,13 +92,13 @@ export function MoreInformationModal({
       minute: "2-digit",
     });
 
-  const handleCopy = async (text: string, fieldName: string) => {
+  const handleCopy = async (text: string, successMessage: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopiedField(fieldName);
-      setTimeout(() => setCopiedField(null), 2000);
+      toast.success(successMessage, { id: TOAST_IDS.copyFeedback });
     } catch (error) {
       console.error("Failed to copy text:", error);
+      toast.error("Failed to copy", { id: TOAST_IDS.copyFeedback });
     }
   };
 
@@ -159,10 +151,8 @@ export function MoreInformationModal({
 
           {card.url && (
             <CopyableSection
-              copiedField={copiedField}
-              fieldName="url"
               label="URL"
-              onCopy={(field) => handleCopy(card.url as string, field)}
+              onCopy={() => handleCopy(card.url as string, "Copied URL")}
               textClass="break-all"
               value={card.url}
             />
@@ -170,10 +160,10 @@ export function MoreInformationModal({
 
           {card.content && (
             <CopyableSection
-              copiedField={copiedField}
-              fieldName="content"
               label="Original Content"
-              onCopy={(field) => handleCopy(card.content as string, field)}
+              onCopy={() =>
+                handleCopy(card.content as string, "Copied content")
+              }
               textClass="whitespace-pre-wrap"
               value={card.content}
             />

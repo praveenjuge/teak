@@ -7,6 +7,7 @@ import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useCardActions } from "@/hooks/useCardActions";
 import { metrics } from "@/lib/metrics";
+import { TOAST_IDS } from "@/lib/toastConfig";
 
 // Helper to update a card in all cached searchCards queries
 function updateCardInSearchQueries(
@@ -196,6 +197,7 @@ export function useCardModal(
         });
       }
 
+      toast.success("Changes saved", { id: TOAST_IDS.cardSave });
       setTimeout(() => {
         setIsSaved(false);
       }, 2000);
@@ -268,6 +270,39 @@ export function useCardModal(
   const updateNotes = useCallback((notes: string) => {
     setPendingChanges((prev) => ({ ...prev, notes }));
   }, []);
+
+  const saveNotes = useCallback(
+    async (notes: string): Promise<boolean> => {
+      if (!cardId) {
+        return false;
+      }
+
+      try {
+        await updateCardField({
+          cardId: cardId as Id<"cards">,
+          field: "notes",
+          value: notes,
+        });
+        setPendingChanges((prev) => ({ ...prev, notes: undefined }));
+        setIsSaved(true);
+        toast.success("Notes updated", { id: TOAST_IDS.notesSave });
+        setTimeout(() => {
+          setIsSaved(false);
+        }, 2000);
+        return true;
+      } catch (error) {
+        console.error("Failed to save notes:", error);
+        Sentry.captureException(error, {
+          tags: { source: "convex", mutation: "cards:updateCardField" },
+          extra: { cardId, field: "notes" },
+        });
+        toast.error("Failed to update notes", { id: TOAST_IDS.notesSave });
+        config.onError?.(error as Error, "update notes");
+        return false;
+      }
+    },
+    [cardId, updateCardField]
+  );
 
   const updateAiSummary = useCallback((summary: string) => {
     setPendingChanges((prev) => ({ ...prev, aiSummary: summary }));
@@ -456,6 +491,7 @@ export function useCardModal(
     updateContent,
     updateUrl,
     updateNotes,
+    saveNotes,
     updateAiSummary,
     toggleFavorite,
     removeAiTag,

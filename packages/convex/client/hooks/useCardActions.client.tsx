@@ -43,14 +43,29 @@ export interface CardActionsDependencies {
   updateCardField: (args: UpdateCardFieldArgs) => Promise<unknown>;
 }
 
+export interface BulkDeleteResult {
+  requestedCount: number;
+  deletedCount: number;
+  failedIds: Id<"cards">[];
+}
+
 export function createCardActions(
   { permanentDeleteCard, updateCardField }: CardActionsDependencies,
   config: CardActionsConfig = {}
 ) {
-  const handleDeleteCard = async (cardId: Id<"cards">) => {
+  const deleteCardInternal = async (
+    cardId: Id<"cards">,
+    options: {
+      suppressSuccessCallback?: boolean;
+      suppressErrorCallback?: boolean;
+    } = {}
+  ): Promise<boolean> => {
     try {
       await updateCardField({ cardId, field: "delete" });
-      config.onDeleteSuccess?.("Card deleted. Find it by searching 'trash'");
+      if (!options.suppressSuccessCallback) {
+        config.onDeleteSuccess?.("Card deleted. Find it by searching 'trash'");
+      }
+      return true;
     } catch (error) {
       console.error("Failed to delete card:", error);
       captureException(error, {
@@ -61,8 +76,38 @@ export function createCardActions(
         },
         extra: { cardId },
       });
-      config.onError?.(error as Error, "delete");
+      if (!options.suppressErrorCallback) {
+        config.onError?.(error as Error, "delete");
+      }
+      return false;
     }
+  };
+
+  const handleDeleteCard = (cardId: Id<"cards">) => deleteCardInternal(cardId);
+
+  const handleBulkDeleteCards = async (
+    cardIds: Id<"cards">[]
+  ): Promise<BulkDeleteResult> => {
+    const failedIds: Id<"cards">[] = [];
+    let deletedCount = 0;
+
+    for (const cardId of cardIds) {
+      const didDelete = await deleteCardInternal(cardId, {
+        suppressSuccessCallback: true,
+        suppressErrorCallback: true,
+      });
+      if (didDelete) {
+        deletedCount += 1;
+      } else {
+        failedIds.push(cardId);
+      }
+    }
+
+    return {
+      requestedCount: cardIds.length,
+      deletedCount,
+      failedIds,
+    };
   };
 
   const handleRestoreCard = async (cardId: Id<"cards">) => {
@@ -156,6 +201,7 @@ export function createCardActions(
 
   return {
     handleDeleteCard,
+    handleBulkDeleteCards,
     handleRestoreCard,
     handlePermanentDeleteCard,
     handleToggleFavorite,

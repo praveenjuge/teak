@@ -62,7 +62,6 @@ const renderPreviewByType = (
 export function CardModalPreview({
   card,
   hasUnsavedChanges,
-  isSaved,
   saveChanges,
   updateContent,
   getCurrentValue,
@@ -83,11 +82,6 @@ export function CardModalPreview({
           >
             Save changes
           </Button>
-        )}
-        {!hasUnsavedChanges && isSaved && (
-          <span className="rounded-md bg-background/80 px-2 py-1 text-muted-foreground text-xs shadow-sm">
-            Saved
-          </span>
         )}
       </div>
     </div>

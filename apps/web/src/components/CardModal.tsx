@@ -40,7 +40,6 @@ export function CardModal({
     tagInput,
     setTagInput,
     updateContent,
-    updateNotes,
     toggleFavorite,
     addTag,
     removeTag,
@@ -52,6 +51,7 @@ export function CardModal({
     downloadFile,
     handleCardTypeClick,
     saveChanges,
+    saveNotes,
     hasUnsavedChanges,
     getCurrentValue,
     isSaved,
@@ -138,12 +138,12 @@ export function CardModal({
               onTagManagementChange={setShowTagManagementModal}
               removeAiTag={removeAiTag}
               removeTag={removeTag}
+              saveNotes={saveNotes}
               setTagInput={setTagInput}
               showMoreInfoModal={showMoreInfoModal}
               showNotesEditModal={showNotesEditModal}
               showTagManagementModal={showTagManagementModal}
               tagInput={tagInput}
-              updateNotes={updateNotes}
             />
           </>
         ) : (

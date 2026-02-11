@@ -3,6 +3,7 @@
 import { AlertCircle, Loader2, Mail } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { AppleIcon } from "@/components/icons/AppleIcon";
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -13,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/auth-client";
 import { metrics } from "@/lib/metrics";
+import { AUTH_STICKY_TOAST_OPTIONS } from "@/lib/toastConfig";
 import { cn } from "@/lib/utils";
 
 export default function SignUp() {
@@ -32,6 +34,9 @@ export default function SignUp() {
       setShowSuccessAlert(true);
       if (storedEmail) {
         setEmail(storedEmail);
+        toast.success(`Verification email sent to ${storedEmail}.`, {
+          ...AUTH_STICKY_TOAST_OPTIONS,
+        });
       }
       sessionStorage.removeItem("teak-verify-alert");
       sessionStorage.removeItem("teak-verify-email");
@@ -201,6 +206,9 @@ export default function SignUp() {
                   setLoading(false);
                   metrics.registrationSuccess("email");
                   setShowSuccessAlert(true);
+                  toast.success(`Verification email sent to ${email}.`, {
+                    ...AUTH_STICKY_TOAST_OPTIONS,
+                  });
                   sessionStorage.setItem("teak-verify-alert", "1");
                   sessionStorage.setItem("teak-verify-email", email);
                 },

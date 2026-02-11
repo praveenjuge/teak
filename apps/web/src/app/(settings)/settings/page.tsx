@@ -38,6 +38,7 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/auth-client";
 import { metrics } from "@/lib/metrics";
+import { TOAST_IDS } from "@/lib/toastConfig";
 import { cn } from "@/lib/utils";
 
 const featureList = [
@@ -132,15 +133,27 @@ function CustomerPortalButton({
   const handlePortal = async () => {
     setIsLoading(true);
     metrics.customerPortalOpened();
+    const toastId = toast.loading("Opening customer portal...", {
+      id: TOAST_IDS.customerPortal,
+    });
     try {
       const portalUrl = await createCustomerPortal({});
-      window.open(portalUrl, "_blank");
+      const portalWindow = window.open(
+        portalUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
+      if (!portalWindow) {
+        toast.error("Could not open portal", { id: toastId });
+        return;
+      }
+      toast.success("Customer portal opened", { id: toastId });
     } catch (error) {
       console.error("Failed to open customer portal", error);
       Sentry.captureException(error, {
         tags: { source: "convex", action: "billing:createCustomerPortal" },
       });
-      toast.error("Failed to open customer portal. Please try again.");
+      toast.error("Could not open portal", { id: toastId });
     } finally {
       setIsLoading(false);
     }
@@ -328,6 +341,9 @@ export default function ProfileSettingsPage() {
     setLoadingPlanId(planId);
     const planType = planId.includes("monthly") ? "monthly" : "yearly";
     metrics.checkoutInitiated(planType);
+    const toastId = toast.loading("Opening checkout...", {
+      id: TOAST_IDS.checkoutOpen,
+    });
     try {
       const checkoutUrl = await createCheckoutLink({ productId: planId });
 
@@ -347,6 +363,7 @@ export default function ProfileSettingsPage() {
       const checkout = await PolarEmbedCheckout.create(checkoutUrl, {
         theme: effectiveTheme,
       });
+      toast.success("Checkout opened", { id: toastId });
 
       setCheckoutInstance(checkout);
       setSubscriptionOpen(false);
@@ -365,6 +382,7 @@ export default function ProfileSettingsPage() {
 
       checkout.addEventListener("close", () => {
         setCheckoutInstance(null);
+        toast("Checkout closed", { id: toastId });
       });
     } catch (error) {
       console.error("Failed to open checkout", error);
@@ -372,7 +390,9 @@ export default function ProfileSettingsPage() {
       Sentry.captureException(error, {
         tags: { source: "convex", action: "billing:createCheckoutLink" },
       });
-      toast.error("Failed to start checkout. Please try again.");
+      toast.error("Failed to start checkout. Please try again.", {
+        id: toastId,
+      });
     } finally {
       setLoadingPlanId(null);
     }

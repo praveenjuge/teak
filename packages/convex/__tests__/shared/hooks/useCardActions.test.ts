@@ -65,6 +65,7 @@ describe("createCardActions", () => {
     test("creates actions object with all methods", () => {
       expect(actions).toBeDefined();
       expect(typeof actions.handleDeleteCard).toBe("function");
+      expect(typeof actions.handleBulkDeleteCards).toBe("function");
       expect(typeof actions.handleRestoreCard).toBe("function");
       expect(typeof actions.handlePermanentDeleteCard).toBe("function");
       expect(typeof actions.handleToggleFavorite).toBe("function");
@@ -175,6 +176,59 @@ describe("createCardActions", () => {
       expect(mockSentryCapture).toHaveBeenCalled();
       const callArgs = mockSentryCapture.mock.calls[0];
       expect(callArgs[1].tags.operation).toBe("restore");
+    });
+  });
+
+  describe("handleBulkDeleteCards", () => {
+    test("returns summary for full success", async () => {
+      mockUpdateCardField.mockResolvedValue(undefined);
+      const result = await actions.handleBulkDeleteCards([
+        "c1" as any,
+        "c2" as any,
+      ]);
+
+      expect(result).toEqual({
+        requestedCount: 2,
+        deletedCount: 2,
+        failedIds: [],
+      });
+      expect(mockOnDeleteSuccess).not.toHaveBeenCalled();
+    });
+
+    test("returns summary with failed ids on partial failure", async () => {
+      mockUpdateCardField
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error("fail c2"))
+        .mockRejectedValueOnce(new Error("fail c3"));
+
+      const result = await actions.handleBulkDeleteCards([
+        "c1" as any,
+        "c2" as any,
+        "c3" as any,
+      ]);
+
+      expect(result).toEqual({
+        requestedCount: 3,
+        deletedCount: 1,
+        failedIds: ["c2", "c3"],
+      });
+      expect(mockOnError).not.toHaveBeenCalled();
+      expect(mockOnDeleteSuccess).not.toHaveBeenCalled();
+    });
+
+    test("returns full failure summary", async () => {
+      mockUpdateCardField.mockRejectedValue(new Error("always fail"));
+
+      const result = await actions.handleBulkDeleteCards([
+        "c1" as any,
+        "c2" as any,
+      ]);
+
+      expect(result).toEqual({
+        requestedCount: 2,
+        deletedCount: 0,
+        failedIds: ["c1", "c2"],
+      });
     });
   });
 

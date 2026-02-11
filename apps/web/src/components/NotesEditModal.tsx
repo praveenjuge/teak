@@ -8,13 +8,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 
 interface NotesEditModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   notes: string;
-  onSave: (notes: string) => void;
+  onSave: (notes: string) => Promise<boolean>;
   onCancel: () => void;
 }
 
@@ -26,6 +27,7 @@ export function NotesEditModal({
   onCancel,
 }: NotesEditModalProps) {
   const [localNotes, setLocalNotes] = useState(notes);
+  const [isSaving, setIsSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -43,12 +45,31 @@ export function NotesEditModal({
     }
   }, [open]);
 
-  const handleSave = () => {
-    onSave(localNotes);
-    onOpenChange(false);
+  const handleSave = async () => {
+    if (isSaving) {
+      return;
+    }
+
+    if (localNotes === notes) {
+      onOpenChange(false);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const didSave = await onSave(localNotes);
+      if (didSave) {
+        onOpenChange(false);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
+    if (isSaving) {
+      return;
+    }
     setLocalNotes(notes); // Reset to original value
     onCancel();
     onOpenChange(false);
@@ -58,14 +79,21 @@ export function NotesEditModal({
     if (e.key === "Escape") {
       handleCancel();
     } else if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-      handleSave();
+      void handleSave();
     }
   };
 
   const hasChanges = localNotes !== notes;
 
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
+    <Dialog
+      onOpenChange={(nextOpen) => {
+        if (!isSaving) {
+          onOpenChange(nextOpen);
+        }
+      }}
+      open={open}
+    >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Notes</DialogTitle>
@@ -94,11 +122,16 @@ export function NotesEditModal({
         />
 
         <DialogFooter className="md:justify-between">
-          <Button onClick={handleCancel} variant="outline">
+          <Button disabled={isSaving} onClick={handleCancel} variant="outline">
             Cancel
           </Button>
-          <Button disabled={!hasChanges && !!notes} onClick={handleSave}>
-            {notes ? "Update" : "Add"}
+          <Button
+            disabled={isSaving || (!hasChanges && !!notes)}
+            onClick={() => {
+              void handleSave();
+            }}
+          >
+            {isSaving ? <Spinner /> : notes ? "Update" : "Add"}
           </Button>
         </DialogFooter>
       </DialogContent>

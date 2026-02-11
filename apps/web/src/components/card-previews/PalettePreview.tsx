@@ -1,6 +1,7 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { Copy } from "lucide-react";
-import { useState } from "react";
+import { toast } from "sonner";
+import { TOAST_IDS } from "@/lib/toastConfig";
 import { Button } from "../ui/button";
 
 interface PalettePreviewProps {
@@ -8,17 +9,15 @@ interface PalettePreviewProps {
 }
 
 export function PalettePreview({ card }: PalettePreviewProps) {
-  const [copiedColor, setCopiedColor] = useState<string | null>(null);
-
   const colors = card.colors || [];
 
-  const copyToClipboard = async (text: string, colorHex: string) => {
+  const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopiedColor(colorHex);
-      setTimeout(() => setCopiedColor(null), 2000);
+      toast.success(`Copied ${text}`, { id: TOAST_IDS.copyFeedback });
     } catch (err) {
       console.error("Failed to copy:", err);
+      toast.error("Failed to copy", { id: TOAST_IDS.copyFeedback });
     }
   };
 
@@ -38,7 +37,7 @@ export function PalettePreview({ card }: PalettePreviewProps) {
           {/* Color Swatch with values inline */}
           <button
             className="flex w-full cursor-pointer items-center justify-end p-2"
-            onClick={() => void copyToClipboard(color.hex, color.hex)}
+            onClick={() => void copyToClipboard(color.hex)}
             style={{ backgroundColor: color.hex }}
             type="button"
           >
@@ -46,13 +45,13 @@ export function PalettePreview({ card }: PalettePreviewProps) {
               className="dark:bg-background"
               onClick={(e) => {
                 e.stopPropagation();
-                void copyToClipboard(color.hex, color.hex);
+                void copyToClipboard(color.hex);
               }}
               size="sm"
               variant="outline"
             >
               <Copy />
-              {copiedColor === color.hex ? "Copied!" : color.hex}
+              {color.hex}
             </Button>
           </button>
         </div>

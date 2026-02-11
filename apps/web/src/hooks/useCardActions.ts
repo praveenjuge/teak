@@ -296,8 +296,22 @@ export function useCardActions(config: CardActionsConfig = {}) {
     },
   };
 
-  return createCardActions(
+  const cardActions = createCardActions(
     { permanentDeleteCard, updateCardField },
     wrappedConfig
   );
+
+  return {
+    ...cardActions,
+    handleBulkDeleteCards: async (cardIds: Id<"cards">[]) => {
+      const result = await cardActions.handleBulkDeleteCards(cardIds);
+      if (result.failedIds.length > 0) {
+        metrics.errorOccurred("api", "bulk delete");
+      }
+      for (let index = 0; index < result.deletedCount; index += 1) {
+        metrics.cardDeleted("unknown");
+      }
+      return result;
+    },
+  };
 }

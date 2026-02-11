@@ -1,6 +1,7 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { Image } from "antd";
-import { useState } from "react";
+import { toast } from "sonner";
+import { TOAST_IDS } from "@/lib/toastConfig";
 
 interface ImagePreviewProps {
   card: Doc<"cards"> & { fileUrl?: string };
@@ -9,20 +10,15 @@ interface ImagePreviewProps {
 export function ImagePreview({ card }: ImagePreviewProps) {
   const fileUrl = card.fileUrl;
 
-  const [colorCopyFeedback, setColorCopyFeedback] = useState<{
-    color: string;
-    state: "copied";
-  } | null>(null);
-
   const paletteColors = (card.colors ?? []).slice(0, 5);
 
   const handleCopyColor = async (hex: string) => {
     try {
       await navigator.clipboard.writeText(hex);
-      setColorCopyFeedback({ color: hex, state: "copied" });
-      setTimeout(() => setColorCopyFeedback(null), 1400);
+      toast.success(`Copied ${hex}`, { id: TOAST_IDS.copyFeedback });
     } catch (error) {
       console.error("Failed to copy color", error);
+      toast.error("Failed to copy", { id: TOAST_IDS.copyFeedback });
     }
   };
 
@@ -60,10 +56,7 @@ export function ImagePreview({ card }: ImagePreviewProps) {
                     type="button"
                   />
                   <div className="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 transform whitespace-nowrap rounded-full bg-black/75 px-2 py-0.5 text-white text-xs opacity-0 transition-opacity group-hover:opacity-100">
-                    {colorCopyFeedback?.color === color.hex &&
-                    colorCopyFeedback.state === "copied"
-                      ? "Copied!"
-                      : color.hex}
+                    {color.hex}
                   </div>
                 </div>
               ))}

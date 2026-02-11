@@ -719,9 +719,18 @@ export default function HomePage() {
           initialBatchSize={DEFAULT_CARD_LIMIT}
           isLoadingMore={cardsStatus === "LoadingMore"}
           onAddTags={handleAddTags}
+          onBulkDeleteCards={async (cardIds) => {
+            const result = await cardActions.handleBulkDeleteCards(
+              cardIds as Id<"cards">[]
+            );
+            return {
+              ...result,
+              failedIds: result.failedIds as string[],
+            };
+          }}
           onCardClick={handleCardClick}
           onCopyImage={handleCopyImage}
-          onDeleteCard={(cardId) =>
+          onDeleteCard={async (cardId) =>
             cardActions.handleDeleteCard(cardId as Id<"cards">)
           }
           onLoadMore={() => loadMore(DEFAULT_CARD_LIMIT)}

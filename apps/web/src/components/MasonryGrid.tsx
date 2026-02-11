@@ -3,7 +3,9 @@ import type { Doc } from "@teak/convex/_generated/dataModel";
 import type { MasonryProps } from "antd";
 import { Masonry } from "antd";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
+import { TOAST_IDS } from "@/lib/toastConfig";
 import { AddCardForm } from "./AddCardForm";
 import { BulkActionBar } from "./BulkActionBar";
 import { Card } from "./Card";
@@ -19,7 +21,12 @@ interface MasonryGridProps {
   filteredCards: Doc<"cards">[];
   showTrashOnly: boolean;
   onCardClick: (card: Doc<"cards">) => void;
-  onDeleteCard: (cardId: string) => void;
+  onDeleteCard: (cardId: string) => Promise<boolean>;
+  onBulkDeleteCards?: (cardIds: string[]) => Promise<{
+    requestedCount: number;
+    deletedCount: number;
+    failedIds: string[];
+  }>;
   onRestoreCard: (cardId: string) => void;
   onPermanentDeleteCard: (cardId: string) => void;
   onToggleFavorite: (cardId: string) => void;
@@ -39,6 +46,7 @@ export function MasonryGrid({
   showTrashOnly,
   onCardClick,
   onDeleteCard,
+  onBulkDeleteCards,
   onRestoreCard,
   onPermanentDeleteCard,
   onToggleFavorite,
@@ -201,23 +209,67 @@ export function MasonryGrid({
   );
 
   const handleBulkDelete = useCallback(async () => {
-    try {
-      // Process deletions sequentially to avoid overwhelming the system
-      for (const cardId of selectedCardIds) {
-        await onDeleteCard(cardId);
+    const requestedIds = Array.from(selectedCardIds);
+    if (requestedIds.length === 0) {
+      return;
+    }
+
+    const loadingToastId = toast.loading(
+      `Deleting ${requestedIds.length} cards...`,
+      {
+        id: TOAST_IDS.bulkDelete,
       }
-      exitSelectionMode();
+    );
+
+    try {
+      const summary = onBulkDeleteCards
+        ? await onBulkDeleteCards(requestedIds)
+        : await (async () => {
+            const failedIds: string[] = [];
+            let deletedCount = 0;
+            for (const cardId of requestedIds) {
+              const didDelete = await onDeleteCard(cardId);
+              if (didDelete) {
+                deletedCount += 1;
+              } else {
+                failedIds.push(cardId);
+              }
+            }
+            return {
+              requestedCount: requestedIds.length,
+              deletedCount,
+              failedIds,
+            };
+          })();
+
+      if (summary.failedIds.length === 0) {
+        toast.success(`Deleted ${summary.deletedCount} cards`, {
+          id: loadingToastId,
+        });
+        exitSelectionMode();
+        return;
+      }
+
+      const failedCount = summary.failedIds.length;
+      if (summary.deletedCount === 0) {
+        toast.error("No cards deleted", { id: loadingToastId });
+      } else {
+        toast.error(
+          `Deleted ${summary.deletedCount} of ${summary.requestedCount} cards; ${failedCount} failed`,
+          { id: loadingToastId }
+        );
+      }
+      setSelectedCardIds(new Set(summary.failedIds));
+      setIsSelectionMode(true);
     } catch (error) {
       console.error("Error during bulk delete:", error);
       Sentry.captureException(error, {
         tags: { source: "convex", operation: "bulkDelete" },
-        extra: { selectedCount: selectedCardIds.size },
+        extra: { selectedCount: requestedIds.length },
       });
-      // Note: Individual card deletion errors are handled by the parent component
-      // We still exit selection mode as some deletions may have succeeded
-      exitSelectionMode();
+      toast.error("No cards deleted", { id: loadingToastId });
     }
-  }, [selectedCardIds, onDeleteCard, exitSelectionMode]);
+  }, [selectedCardIds, onDeleteCard, onBulkDeleteCards, exitSelectionMode]);
 
   // Build masonry items array
   const masonryItems: MasonryItem[] = useMemo(() => {

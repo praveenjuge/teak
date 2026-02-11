@@ -17,7 +17,7 @@ interface CardModalOverlaysProps {
   removeTag: (tag: string) => void;
   removeAiTag: (tag: string) => void;
   getCurrentValue: GetCurrentValue;
-  updateNotes: (notes: string) => void;
+  saveNotes: (notes: string) => Promise<boolean>;
 }
 
 export function CardModalOverlays({
@@ -34,7 +34,7 @@ export function CardModalOverlays({
   removeTag,
   removeAiTag,
   getCurrentValue,
-  updateNotes,
+  saveNotes,
 }: CardModalOverlaysProps) {
   return (
     <>
@@ -62,7 +62,7 @@ export function CardModalOverlays({
           // No-op: modal handles its own cancel behavior
         }}
         onOpenChange={onNotesEditChange}
-        onSave={(notes) => updateNotes(notes)}
+        onSave={saveNotes}
         open={showNotesEditModal}
       />
     </>

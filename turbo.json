@@ -5,20 +5,6 @@
   "remoteCache": {
     "enabled": true
   },
-  "boundaries": {
-    "tags": {
-      "app": {
-        "dependencies": {
-          "deny": ["app"]
-        }
-      },
-      "backend": {
-        "dependencies": {
-          "deny": ["app"]
-        }
-      }
-    }
-  },
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
