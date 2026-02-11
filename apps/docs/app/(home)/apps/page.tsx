@@ -16,7 +16,7 @@ const WEB_APP_URL = "https://app.teakvault.com";
 const APP_STORE_URL = "https://app.teakvault.com/register";
 const CHROME_STORE_URL =
   "https://chromewebstore.google.com/detail/empty-title/negnmfifahnnagnbnfppmlgfajngdpob";
-const RAYCAST_STORE_URL = "https://www.raycast.com";
+const RAYCAST_STORE_URL = "https://www.raycast.com/store?query=teak";
 
 export const metadata: Metadata = {
   title: "Teak Apps | Web, iOS, Chrome Extension, and Raycast",
@@ -124,7 +124,7 @@ const platformCards: PlatformCard[] = [
     copy: "Save your clipboard, search your cards, and jump to favorites directly from Raycast.",
     icon: Command,
     action: {
-      label: "Open Raycast Store",
+      label: "Find on Raycast Store",
       href: RAYCAST_STORE_URL,
       type: "button",
     },

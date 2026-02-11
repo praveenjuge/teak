@@ -1,9 +1,13 @@
 import { Action, ActionPanel, Icon, List, open } from "@raycast/api";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CardDetail } from "./components/CardDetail";
 import { MissingApiKeyDetail } from "./components/MissingApiKeyDetail";
 import { SetRaycastKeyAction } from "./components/SetRaycastKeyAction";
-import { type RaycastCard, searchCards } from "./lib/api";
+import {
+  getUserFacingErrorMessage,
+  type RaycastCard,
+  searchCards,
+} from "./lib/api";
 import { getPreferences } from "./lib/preferences";
 
 const TEAK_HOME = "https://app.teakvault.com";
@@ -20,6 +24,21 @@ export default function SearchCardsCommand() {
   const { apiKey } = getPreferences();
   const hasApiKey = Boolean(apiKey?.trim());
 
+  const loadCards = useCallback(async (searchQuery: string) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await searchCards(searchQuery, 50);
+      setItems(response.items);
+    } catch (requestError) {
+      setError(getUserFacingErrorMessage(requestError));
+      setItems([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!hasApiKey) {
       setItems([]);
@@ -28,36 +47,14 @@ export default function SearchCardsCommand() {
       return;
     }
 
-    let active = true;
-    const timeout = setTimeout(async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await searchCards(query, 50);
-        if (active) {
-          setItems(response.items);
-        }
-      } catch (requestError) {
-        if (active) {
-          setError(
-            requestError instanceof Error
-              ? requestError.message
-              : "Failed to fetch cards"
-          );
-          setItems([]);
-        }
-      } finally {
-        if (active) {
-          setIsLoading(false);
-        }
-      }
+    const timeout = setTimeout(() => {
+      void loadCards(query);
     }, 250);
 
     return () => {
-      active = false;
       clearTimeout(timeout);
     };
-  }, [query, hasApiKey]);
+  }, [query, hasApiKey, loadCards]);
 
   if (!hasApiKey) {
     return <MissingApiKeyDetail />;
@@ -71,7 +68,23 @@ export default function SearchCardsCommand() {
       throttle
     >
       {error ? (
-        <List.EmptyView icon={Icon.ExclamationMark} title={error} />
+        <List.EmptyView
+          actions={
+            <ActionPanel>
+              <Action
+                icon={Icon.ArrowClockwise}
+                onAction={() => {
+                  void loadCards(query);
+                }}
+                title="Retry"
+              />
+              <SetRaycastKeyAction />
+            </ActionPanel>
+          }
+          description="Check your API key and network connection, then retry."
+          icon={Icon.ExclamationMark}
+          title={error}
+        />
       ) : null}
       {items.map((card) => {
         const title =
@@ -116,7 +129,11 @@ export default function SearchCardsCommand() {
         );
       })}
       {!(isLoading || error) && items.length === 0 ? (
-        <List.EmptyView icon={Icon.MagnifyingGlass} title="No cards found" />
+        <List.EmptyView
+          description="Try a different keyword, tag, or phrase."
+          icon={Icon.MagnifyingGlass}
+          title="No cards found"
+        />
       ) : null}
     </List>
   );

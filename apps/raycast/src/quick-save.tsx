@@ -10,7 +10,11 @@ import {
 import { useState } from "react";
 import { MissingApiKeyDetail } from "./components/MissingApiKeyDetail";
 import { SetRaycastKeyAction } from "./components/SetRaycastKeyAction";
-import { quickSaveCard } from "./lib/api";
+import {
+  getRecoveryHint,
+  getUserFacingErrorMessage,
+  quickSaveCard,
+} from "./lib/api";
 import { getPreferences } from "./lib/preferences";
 
 type FormValues = {
@@ -56,7 +60,10 @@ export default function QuickSaveCommand() {
     } catch (error) {
       toast.style = Toast.Style.Failure;
       toast.title = "Save failed";
-      toast.message = error instanceof Error ? error.message : "Request failed";
+      const hint = getRecoveryHint(error);
+      toast.message = hint
+        ? `${getUserFacingErrorMessage(error)} ${hint}`
+        : getUserFacingErrorMessage(error);
     } finally {
       setIsSaving(false);
     }

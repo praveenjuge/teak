@@ -1,10 +1,10 @@
 {
   "name": "teak-raycast",
   "title": "Teak",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "license": "MIT",
-  "description": "Teak Raycast extension",
+  "description": "Save ideas fast, search your Teak cards, and access favorites directly from Raycast.",
   "icon": "icon.png",
   "author": "praveenjuge",
   "categories": [
@@ -26,26 +26,28 @@
     {
       "name": "quick-save",
       "title": "Quick Save",
-      "description": "Save text or URLs to Teak",
+      "description": "Save text or URLs to Teak without leaving your workflow",
       "mode": "view"
     },
     {
       "name": "search-cards",
       "title": "Search Cards",
-      "description": "Search all Teak cards",
+      "description": "Find any Teak card by content, tags, or metadata",
       "mode": "view"
     },
     {
       "name": "favorites",
       "title": "Favorites",
-      "description": "Browse favorite Teak cards",
+      "description": "Browse and open your favorited Teak cards",
       "mode": "view"
     }
   ],
   "scripts": {
     "build": "ray build",
     "dev": "ray develop",
-    "lint": "biome check src package.json tsconfig.json",
+    "lint": "ray lint",
+    "lint:fix": "ray lint --fix",
+    "publish": "ray publish",
     "typecheck": "tsc --noEmit",
     "test": "bun test src/__tests__ --coverage --dots"
   },

@@ -5,6 +5,23 @@ import { httpAction } from "./_generated/server";
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
+type ErrorCode =
+  | "BAD_REQUEST"
+  | "INTERNAL_ERROR"
+  | "INVALID_API_KEY"
+  | "INVALID_INPUT"
+  | "METHOD_NOT_ALLOWED"
+  | "RATE_LIMITED"
+  | "UNAUTHORIZED";
+
+type AuthorizedUser = {
+  keyId: string;
+  userId: string;
+  access: "full_access";
+};
+
+type AuthResult = { validated: AuthorizedUser } | { error: Response };
+
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), {
     status,
@@ -13,6 +30,15 @@ const json = (status: number, body: unknown): Response =>
       "Cache-Control": "no-store",
     },
   });
+
+const errorResponse = (
+  status: number,
+  code: ErrorCode,
+  error: string,
+  extras?: Record<string, unknown>
+): Response => {
+  return json(status, { code, error, ...(extras ?? {}) });
+};
 
 const parseBearerToken = (request: Request): string | null => {
   const authorization = request.headers.get("authorization");
@@ -41,14 +67,6 @@ const parseLimit = (raw: string | null): number => {
   return Math.max(1, Math.min(parsed, MAX_LIMIT));
 };
 
-type AuthorizedUser = {
-  keyId: string;
-  userId: string;
-  access: "full_access";
-};
-
-type AuthResult = { validated: AuthorizedUser } | { error: Response };
-
 const withAuthorizedUser = async (
   ctx: any,
   request: Request
@@ -56,7 +74,26 @@ const withAuthorizedUser = async (
   const token = parseBearerToken(request);
   if (!token) {
     return {
-      error: json(401, { error: "Missing or invalid Authorization header" }),
+      error: errorResponse(
+        401,
+        "UNAUTHORIZED",
+        "Missing or invalid Authorization header"
+      ),
+    };
+  }
+
+  const rateLimit = await ctx.runMutation(
+    (internal as any).raycast.checkApiRateLimit,
+    {
+      token,
+    }
+  );
+
+  if (!rateLimit?.ok) {
+    return {
+      error: errorResponse(429, "RATE_LIMITED", "Too many requests", {
+        retryAt: rateLimit?.retryAt,
+      }),
     };
   }
 
@@ -68,7 +105,13 @@ const withAuthorizedUser = async (
   );
 
   if (!validated) {
-    return { error: json(401, { error: "Invalid API key" }) };
+    return {
+      error: errorResponse(
+        401,
+        "INVALID_API_KEY",
+        "Invalid or revoked API key"
+      ),
+    };
   }
 
   return { validated };
@@ -96,7 +139,7 @@ const serializeCard = (card: any) => ({
 
 export const quickSave = httpAction(async (ctx, request) => {
   if (request.method !== "POST") {
-    return json(405, { error: "Method not allowed" });
+    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
   }
 
   const auth = await withAuthorizedUser(ctx, request);
@@ -108,7 +151,7 @@ export const quickSave = httpAction(async (ctx, request) => {
   try {
     payload = await request.json();
   } catch {
-    return json(400, { error: "Invalid JSON body" });
+    return errorResponse(400, "BAD_REQUEST", "Invalid JSON body");
   }
 
   const content =
@@ -117,7 +160,11 @@ export const quickSave = httpAction(async (ctx, request) => {
       : undefined;
 
   if (typeof content !== "string" || !content.trim()) {
-    return json(400, { error: "Field `content` must be a non-empty string" });
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Field `content` must be a non-empty string"
+    );
   }
 
   try {
@@ -132,19 +179,30 @@ export const quickSave = httpAction(async (ctx, request) => {
     return json(200, result);
   } catch (error) {
     if (error instanceof ConvexError) {
+      const payload = (error.data ?? {}) as {
+        code?: unknown;
+        message?: unknown;
+      };
+      const code =
+        typeof payload.code === "string" ? payload.code : "BAD_REQUEST";
+      const message =
+        typeof payload.message === "string"
+          ? payload.message
+          : "Request failed";
+
       return json(400, {
-        error: error.data?.message ?? "Request failed",
-        code: error.data?.code ?? "BAD_REQUEST",
+        code,
+        error: message,
       });
     }
 
-    return json(500, { error: "Failed to save card" });
+    return errorResponse(500, "INTERNAL_ERROR", "Failed to save card");
   }
 });
 
 export const searchCards = httpAction(async (ctx, request) => {
   if (request.method !== "GET") {
-    return json(405, { error: "Method not allowed" });
+    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
   }
 
   const auth = await withAuthorizedUser(ctx, request);
@@ -171,13 +229,13 @@ export const searchCards = httpAction(async (ctx, request) => {
       total: cards.length,
     });
   } catch {
-    return json(500, { error: "Failed to fetch cards" });
+    return errorResponse(500, "INTERNAL_ERROR", "Failed to fetch cards");
   }
 });
 
 export const favoriteCards = httpAction(async (ctx, request) => {
   if (request.method !== "GET") {
-    return json(405, { error: "Method not allowed" });
+    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
   }
 
   const auth = await withAuthorizedUser(ctx, request);
@@ -204,6 +262,10 @@ export const favoriteCards = httpAction(async (ctx, request) => {
       total: cards.length,
     });
   } catch {
-    return json(500, { error: "Failed to fetch favorite cards" });
+    return errorResponse(
+      500,
+      "INTERNAL_ERROR",
+      "Failed to fetch favorite cards"
+    );
   }
 });

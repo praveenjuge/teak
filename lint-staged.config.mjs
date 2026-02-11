@@ -6,7 +6,21 @@ export default {
       return [];
     }
 
-    const escapedFiles = files.map((file) => JSON.stringify(file)).join(" ");
-    return `bun x ultracite fix ${escapedFiles}`;
+    const raycastFiles = files.filter((file) => file.includes("/apps/raycast/"));
+    const nonRaycastFiles = files.filter(
+      (file) => !file.includes("/apps/raycast/")
+    );
+
+    const commands = [];
+
+    if (nonRaycastFiles.length > 0) {
+      commands.push(`bun x ultracite fix ${nonRaycastFiles.join(" ")}`);
+    }
+
+    if (raycastFiles.length > 0) {
+      commands.push(`bunx prettier@3.8.1 --write ${raycastFiles.join(" ")}`);
+    }
+
+    return commands;
   },
 };

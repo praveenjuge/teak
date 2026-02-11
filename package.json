@@ -16,6 +16,7 @@
     "dev:convex": "turbo watch dev --filter=@teak/convex",
     "dev:docs": "turbo watch dev --filter=@teak/docs",
     "dev:raycast": "turbo watch dev --filter=./apps/raycast",
+    "publish:raycast": "cd apps/raycast && bun run publish",
     "dev:extension": "turbo watch dev --filter=@teak/extension --filter=@teak/convex",
     "dev:mobile": "turbo watch dev --filter=@teak/mobile",
     "dev:web": "turbo watch dev --filter=@teak/web --filter=@teak/convex",

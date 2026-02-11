@@ -10,6 +10,7 @@ import { findDuplicateCardForUserHandler } from "./card/findDuplicateCard";
 import { cardReturnValidator } from "./card/getCards";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
+import { rateLimiter } from "./shared/rateLimits";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -18,6 +19,23 @@ const quickSaveResultValidator = v.object({
   status: v.union(v.literal("created"), v.literal("duplicate")),
   cardId: v.id("cards"),
 });
+
+const raycastRateLimitResultValidator = v.object({
+  ok: v.boolean(),
+  retryAt: v.optional(v.number()),
+});
+
+const toHex = (bytes: Uint8Array): string =>
+  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+
+const hashRateLimitKey = async (value: string): Promise<string> => {
+  const pepper = process.env.BETTER_AUTH_SECRET ?? "";
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(`${value}:${pepper}`)
+  );
+  return toHex(new Uint8Array(digest));
+};
 
 const isHttpUrl = (value: string): boolean => {
   try {
@@ -249,5 +267,32 @@ export const favoriteCardsForUser = internalQuery({
       favoritesOnly: true,
       limit: args.limit,
     });
+  },
+});
+
+export const checkApiRateLimit = internalMutation({
+  args: {
+    token: v.string(),
+  },
+  returns: raycastRateLimitResultValidator,
+  handler: async (ctx, args) => {
+    const token = args.token.trim();
+    if (!token) {
+      return { ok: false };
+    }
+
+    const key = await hashRateLimitKey(token);
+    const result = await rateLimiter.limit(ctx, "raycastApiRequests", {
+      key,
+      throws: false,
+    });
+
+    return {
+      ok: result.ok,
+      retryAt:
+        typeof result.retryAfter === "number"
+          ? Date.now() + result.retryAfter
+          : undefined,
+    };
   },
 });

@@ -6,7 +6,7 @@ export function SetRaycastKeyAction() {
       icon={Icon.Gear}
       onAction={openExtensionPreferences}
       shortcut={{ key: "k", modifiers: ["cmd", "shift"] }}
-      title="Set Raycast Key"
+      title="Set API Key"
     />
   );
 }
