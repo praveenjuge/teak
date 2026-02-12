@@ -28,7 +28,7 @@
         "expo-image-picker",
         {
           "cameraPermission": "Teak needs camera access to let you capture photos and videos that you want to save to your inspiration collection.",
-          "photoLibraryPermission": "Teak needs access to your photo library so you can select existing photos and videos to save as inspirations."
+          "photosPermission": "Teak uses your photo library so you can select existing photos and videos to create cards in your vault, for example saving a screenshot, mood board image, or reference clip as inspiration."
         }
       ],
       "expo-web-browser",

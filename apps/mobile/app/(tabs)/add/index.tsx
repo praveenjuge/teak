@@ -14,7 +14,6 @@ import {
 import { frame } from "@expo/ui/swift-ui/modifiers";
 import { CARD_ERROR_CODES, resolveTextCardInput } from "@teak/convex/shared";
 import {
-  getRecordingPermissionsAsync,
   RecordingPresets,
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
@@ -159,19 +158,6 @@ export default function AddScreen() {
     }
 
     try {
-      // Check if we need to show pre-permission alert (only for first-time requests)
-      const existingStatus = await getRecordingPermissionsAsync();
-      if (existingStatus.status === "undetermined") {
-        // Show pre-permission alert (Apple HIG compliance: single "Continue" button, no cancel)
-        await new Promise<void>((resolve) => {
-          Alert.alert(
-            "Microphone Access Required",
-            "Teak uses the microphone to record voice notes and audio reminders. These recordings are saved directly to your inspiration collection so you can capture ideas on the go.",
-            [{ text: "Continue", onPress: () => resolve() }]
-          );
-        });
-      }
-
       // Request audio recording permissions
       const { granted } = await requestRecordingPermissionsAsync();
       if (!granted) {
@@ -230,20 +216,6 @@ export default function AddScreen() {
     }
 
     try {
-      // Check if we need to show pre-permission alert (only for first-time requests)
-      const existingStatus =
-        await ImagePicker.getMediaLibraryPermissionsAsync();
-      if (existingStatus.status === "undetermined") {
-        // Show pre-permission alert (Apple HIG compliance: single "Continue" button, no cancel)
-        await new Promise<void>((resolve) => {
-          Alert.alert(
-            "Photo Library Access Required",
-            "Teak needs access to your photo library so you can select existing photos and videos to save as inspirations. This lets you add content you've already captured to your collection.",
-            [{ text: "Continue", onPress: () => resolve() }]
-          );
-        });
-      }
-
       const permissionResult =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -290,19 +262,6 @@ export default function AddScreen() {
     }
 
     try {
-      // Check if we need to show pre-permission alert (only for first-time requests)
-      const existingStatus = await ImagePicker.getCameraPermissionsAsync();
-      if (existingStatus.status === "undetermined") {
-        // Show pre-permission alert (Apple HIG compliance: single "Continue" button, no cancel)
-        await new Promise<void>((resolve) => {
-          Alert.alert(
-            "Camera Access Required",
-            "Teak uses the camera to let you capture new photos and videos directly within the app. This makes it easy to add fresh inspirations to your collection.",
-            [{ text: "Continue", onPress: () => resolve() }]
-          );
-        });
-      }
-
       const permissionResult =
         await ImagePicker.requestCameraPermissionsAsync();
 
