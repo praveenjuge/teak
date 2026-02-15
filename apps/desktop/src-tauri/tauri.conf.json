@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.praveenjuge.teak",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "vite",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "bun run build:vite",
     "frontendDist": "../dist"
   },
   "app": {
