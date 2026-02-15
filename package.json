@@ -20,6 +20,7 @@
     "dev:extension": "turbo watch dev --filter=@teak/extension --filter=@teak/convex",
     "dev:mobile": "turbo watch dev --filter=@teak/mobile",
     "dev:web": "turbo watch dev --filter=@teak/web --filter=@teak/convex",
+    "dev:desktop": "turbo watch dev --filter=@teak/desktop",
     "lint": "turbo run lint",
     "pre-commit": "lint-staged && turbo run typecheck lint build --affected",
     "prepare": "simple-git-hooks || exit 0",

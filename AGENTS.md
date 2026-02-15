@@ -16,6 +16,7 @@ bun run dev:all
 bun run dev:web        # Next.js web + Convex
 bun run dev:convex     # Convex backend only
 bun run dev:mobile     # Expo mobile + Convex
+bun run dev:desktop    # Tauri desktop app
 bun run dev:extension  # Browser extension + Convex
 bun run dev:docs       # Documentation site
 
@@ -60,7 +61,7 @@ bun add --dev <package-name> --filter @teak/convex
 - If a feature changes UI or copy, update any assertions that check text/labels.
 - Keep tests fast; avoid extra network calls unless the feature requires it.
 
-- **Core stack**: Next.js (App Router, TS, Tailwind), Expo RN, Wxt + Chrome APIs, Fumadocs (Next.js + MDX), Convex backend, Better Auth, shadcn/ui (web) & Expo UI, Convex Storage, Polar billing.
+- **Core stack**: Next.js (App Router, TS, Tailwind), Expo RN, Tauri v2 (Rust backend), Wxt + Chrome APIs, Fumadocs (Next.js + MDX), Convex backend, Better Auth, shadcn/ui (web) & Expo UI, Convex Storage, Polar billing.
 - **Repo layout (Turborepo monorepo)**
 
 ```
@@ -68,6 +69,7 @@ teak/
 ├── apps/
 │   ├── web/         # Next.js frontend (app router, shadcn/ui)
 │   ├── mobile/      # Expo RN mobile app
+│   ├── desktop/     # Tauri v2 desktop app (Rust + React)
 │   ├── extension/   # Chrome extension (Wxt)
 │   └── docs/        # Documentation site (Fumadocs)
 ├── packages/
@@ -113,6 +115,7 @@ teak/
 - Search & Filtering implemented in `useSearchFilters` hook: real-time search across content/metadata, tag keyword extraction, type filtering, favorites/trash state filters, typeahead suggestions.
 - **Web (apps/web/)**: `src/app/(auth)/`, `src/app/(settings)/admin`, `src/globals.css`, `src/layout.tsx`, `src/page.tsx`; components include `ConvexClientProvider`, card previews, `DragOverlay`, `CardModal`, `AddCardForm`, `MasonryGrid`, `SearchBar`, patterns, shadcn/ui; hooks (`useCardActions`, `useCardModal`, `useGlobalDragDrop`); config (`next.config.ts`, `eslint.config.mjs`, `components.json`).
 - **Mobile (apps/mobile/)**: `app/(auth)/`, `app/(tabs)/index.tsx|add.tsx|settings.tsx`, `_layout.tsx`; components (Expo UI, `CardItem`, `CardsGrid`); `lib/hooks`; `package.json`.
+- **Desktop (apps/desktop/)**: Tauri v2 app with React frontend; `src/` for React components; `src-tauri/` for Rust backend (commands, permissions, capabilities); `vite.config.ts`, `tauri.conf.json`.
 - **Extension (apps/extension/)**: `src/background.ts`, `content.tsx`, `popup.tsx`; hooks (`useAutoSaveLink`, `useContextMenuSave`, `useContextMenuState`); types `contextMenu.ts`; `style.css`; assets `icon.png`; `package.json`; `tsconfig.json`.
 - **Backend (packages/convex/)**: directories `_generated/`, `workflows/`, `ai/`, `card/`, `billing.ts`, `admin.ts`, `schema.ts`, `cards.ts`, `auth.config.ts`, `crons.ts`, `convex.config.ts`, entrypoint `index.ts`; shared utils/constants/hooks under `shared/`.
 - **Docs (apps/docs/)**: `app/(home)/`, `app/docs/[[...slug]]/` + `layout.tsx`, API routes under `app/api/`, root `layout.tsx`, `global.css`; components; `content/docs/`; `lib/`; `source.config.ts`; `package.json`.
