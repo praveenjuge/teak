@@ -55,6 +55,15 @@ export default withSentryConfig(nextConfig, {
 
   // Upload a larger set of source maps for prettier stack traces (increases build time)
   widenClientFileUpload: true,
+  release: {
+    setCommits: {
+      auto: true,
+      // Avoid hard failures when Sentry cannot derive a compare range
+      // (e.g. first release, rebased history, or missing previous commit).
+      ignoreMissing: true,
+      ignoreEmpty: true,
+    },
+  },
 
   // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
   // This can increase your server load as well as your hosting bill.
