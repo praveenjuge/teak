@@ -13,17 +13,6 @@
     font-weight: 500;
     background: none;
   }
-
-  /* Center the main navigation links */
-  #nd-nav > div > div {
-    position: static;
-  }
-
-  #nd-nav nav > ul:first-of-type {
-    position: fixed;
-    left: 50%;
-    transform: translateX(-50%);
-  }
 }
 
 #nd-sidebar,

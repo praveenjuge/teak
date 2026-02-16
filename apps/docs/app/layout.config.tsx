@@ -9,9 +9,6 @@ import Logo from "@/components/Logo";
  * Home Layout: app/(home)/layout.tsx
  * Docs Layout: app/docs/layout.tsx
  */
-const appsPageEnabled =
-  process.env.NEXT_PUBLIC_ENABLE_APPS_PAGE?.toLowerCase() === "true";
-
 export const baseOptions: BaseLayoutProps = {
   nav: {
     title: <Logo variant="primary" />,
@@ -22,14 +19,10 @@ export const baseOptions: BaseLayoutProps = {
       text: "Pricing",
       url: "/pricing",
     },
-    ...(appsPageEnabled
-      ? [
-          {
-            text: "Apps",
-            url: "/apps",
-          },
-        ]
-      : []),
+    {
+      text: "Apps",
+      url: "/apps",
+    },
     {
       text: "Changelog",
       url: "/changelog",
