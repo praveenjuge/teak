@@ -17,7 +17,6 @@ const aiMetadataInternal = internalWorkflow["workflows/aiMetadata/index"] as
   | undefined;
 
 const LOG_PREFIX = "[workflow/aiBackfill]";
-const _BATCH_SIZE = 50;
 
 export const aiBackfillWorkflow = workflow.define({
   args: {},

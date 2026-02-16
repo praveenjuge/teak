@@ -25,6 +25,16 @@ import { rateLimiter } from "./shared/rateLimits";
 const googleClientId = process.env.GOOGLE_CLIENT_ID!;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET!;
 const siteUrl = process.env.SITE_URL!;
+const desktopDevOrigins = ["http://localhost:1420", "http://127.0.0.1:1420"];
+
+function isLocalDevelopmentSite(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname;
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
 
 // The component client has methods needed for integrating Convex with Better Auth,
 // as well as helper methods for general use.
@@ -38,16 +48,17 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
   return betterAuth({
     trustedOrigins: [
       siteUrl,
-      "app.teakvault.com",
       "https://*.teakvault.com",
       "https://app.teakvault.com",
+      "tauri://localhost",
       "teak://",
       "teak://*",
       "chrome-extension://negnmfifahnnagnbnfppmlgfajngdpob",
       "http://localhost:3000",
       "https://appleid.apple.com",
-      ...(process.env.NODE_ENV === "development"
+      ...(isLocalDevelopmentSite(siteUrl)
         ? [
+            ...desktopDevOrigins,
             "exp+teak://*",
             "exp://*/*", // Trust all Expo development URLs
             "exp://10.0.0.*:*/*", // Trust 10.0.0.x IP range

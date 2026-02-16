@@ -159,6 +159,20 @@ export const apiKeyValidator = v.object({
   revokedAt: v.optional(v.number()),
 });
 
+export const desktopAuthCodeValidator = v.object({
+  sessionId: v.string(),
+  userId: v.string(),
+  deviceId: v.string(),
+  // Backward compatibility for pre-polling-only records.
+  // New writes do not set this field.
+  codeHash: v.optional(v.string()),
+  codeChallenge: v.string(),
+  state: v.string(),
+  expiresAt: v.number(),
+  consumedAt: v.optional(v.number()),
+  createdAt: v.number(),
+});
+
 export const cardValidator = v.object({
   userId: v.string(),
   content: v.string(),
@@ -258,4 +272,8 @@ export default defineSchema({
   apiKeys: defineTable(apiKeyValidator)
     .index("by_user_revoked", ["userId", "revokedAt"])
     .index("by_prefix_revoked", ["keyPrefix", "revokedAt"]),
+  desktopAuthCodes: defineTable(desktopAuthCodeValidator)
+    .index("by_expires_at", ["expiresAt"])
+    .index("by_device_state_consumed", ["deviceId", "state", "consumedAt"])
+    .index("by_user", ["userId"]),
 });

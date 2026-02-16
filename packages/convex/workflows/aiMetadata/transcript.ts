@@ -17,24 +17,12 @@ export const generateTranscript = async (
 
     const mimeType =
       mimeHint || response.headers.get("content-type") || "audio/webm";
-
-    // Infer a reasonable file extension based on the mime type
-    const _ext =
-      mimeType.includes("ogg") || mimeType.includes("oga")
-        ? "ogg"
-        : mimeType.includes("mp3") ||
-            mimeType.includes("mpeg") ||
-            mimeType.includes("mpga")
-          ? "mp3"
-          : mimeType.includes("wav")
-            ? "wav"
-            : mimeType.includes("m4a")
-              ? "m4a"
-              : mimeType.includes("webm")
-                ? "webm"
-                : mimeType.includes("flac")
-                  ? "flac"
-                  : "mp3";
+    if (!mimeType.startsWith("audio/")) {
+      console.warn("Unexpected MIME type while generating transcript", {
+        audioUrl,
+        mimeType,
+      });
+    }
 
     const arrayBuffer = await response.arrayBuffer();
 

@@ -2,8 +2,8 @@
 
 import { AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 import { AppleIcon } from "@/components/icons/AppleIcon";
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -17,12 +17,20 @@ import { cn } from "@/lib/utils";
 
 export default function SignIn() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const nextPath = useMemo(() => {
+    const rawValue = searchParams.get("next");
+    if (!(rawValue?.startsWith("/") && !rawValue.startsWith("//"))) {
+      return "/";
+    }
+    return rawValue;
+  }, [searchParams]);
 
   const handleGoogleSignIn = async () => {
     setError(null);
@@ -30,7 +38,7 @@ export default function SignIn() {
     try {
       const response = await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/",
+        callbackURL: nextPath,
       });
       if (response?.error) {
         metrics.loginFailed("google", response.error.message);
@@ -57,7 +65,7 @@ export default function SignIn() {
     try {
       const response = await authClient.signIn.social({
         provider: "apple",
-        callbackURL: "/",
+        callbackURL: nextPath,
       });
       if (response?.error) {
         metrics.loginFailed("apple", response.error.message);
@@ -142,6 +150,7 @@ export default function SignIn() {
               {
                 email,
                 password,
+                callbackURL: nextPath,
               },
               {
                 onRequest: () => {
@@ -153,7 +162,7 @@ export default function SignIn() {
                 onSuccess: () => {
                   setLoading(false);
                   metrics.loginSuccess("email");
-                  router.push("/");
+                  router.push(nextPath);
                 },
                 onError: (ctx) => {
                   setLoading(false);
@@ -200,7 +209,11 @@ export default function SignIn() {
                   buttonVariants({ variant: "link" }),
                   "h-auto p-0"
                 )}
-                href="/forgot-password"
+                href={
+                  nextPath === "/"
+                    ? "/forgot-password"
+                    : `/forgot-password?next=${encodeURIComponent(nextPath)}`
+                }
               >
                 Forgot?
               </Link>
@@ -233,7 +246,11 @@ export default function SignIn() {
       <CardFooter className="-my-2 flex-col">
         <Link
           className={cn(buttonVariants({ variant: "link" }))}
-          href="/register"
+          href={
+            nextPath === "/"
+              ? "/register"
+              : `/register?next=${encodeURIComponent(nextPath)}`
+          }
         >
           New User? Register
         </Link>

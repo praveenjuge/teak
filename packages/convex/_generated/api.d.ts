@@ -16,6 +16,7 @@ import type * as ai_queries from "../ai/queries.js";
 import type * as ai_schemas from "../ai/schemas.js";
 import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
+import type * as authDesktop from "../authDesktop.js";
 import type * as billing from "../billing.js";
 import type * as card_createCard from "../card/createCard.js";
 import type * as card_defaultCards from "../card/defaultCards.js";
@@ -107,6 +108,7 @@ declare const fullApi: ApiFromModules<{
   "ai/schemas": typeof ai_schemas;
   apiKeys: typeof apiKeys;
   auth: typeof auth;
+  authDesktop: typeof authDesktop;
   billing: typeof billing;
   "card/createCard": typeof card_createCard;
   "card/defaultCards": typeof card_defaultCards;

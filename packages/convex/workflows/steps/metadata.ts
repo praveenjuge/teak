@@ -130,7 +130,7 @@ export async function generateHandler(
   let aiTranscript: string | undefined;
   let visualStyles: string[] | undefined;
   let confidence = 0.9;
-  let _generationSource = "unknown";
+  let generationSource = "unknown";
 
   switch (cardType as CardType) {
     case "text": {
@@ -138,7 +138,7 @@ export async function generateHandler(
       aiTags = result.aiTags;
       aiSummary = result.aiSummary;
       confidence = 0.95;
-      _generationSource = "text";
+      generationSource = "text";
       break;
     }
     case "image": {
@@ -160,7 +160,7 @@ export async function generateHandler(
           aiSummary = result.aiSummary;
           visualStyles = extractVisualStylesFromTags(result.aiTags);
           confidence = 0.9;
-          _generationSource = isSvgFile ? "svg_thumbnail" : "image";
+          generationSource = isSvgFile ? "svg_thumbnail" : "image";
         }
       }
       break;
@@ -176,7 +176,7 @@ export async function generateHandler(
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
           confidence = 0.88;
-          _generationSource = "video_thumbnail";
+          generationSource = "video_thumbnail";
         }
       }
       break;
@@ -195,7 +195,7 @@ export async function generateHandler(
             aiTags = result.aiTags;
             aiSummary = result.aiSummary;
             confidence = 0.85;
-            _generationSource = "audio";
+            generationSource = "audio";
           }
         }
       }
@@ -213,7 +213,7 @@ export async function generateHandler(
         aiTags = result.aiTags;
         aiSummary = result.aiSummary;
         confidence = 0.9;
-        _generationSource = "link";
+        generationSource = "link";
       }
       break;
     }
@@ -227,7 +227,7 @@ export async function generateHandler(
         aiTags = result.aiTags;
         aiSummary = result.aiSummary;
         confidence = 0.85;
-        _generationSource = "document";
+        generationSource = "document";
       }
       break;
     }
@@ -237,7 +237,7 @@ export async function generateHandler(
         aiTags = result.aiTags;
         aiSummary = result.aiSummary;
         confidence = 0.95;
-        _generationSource = "quote";
+        generationSource = "quote";
       }
       break;
     }
@@ -257,7 +257,7 @@ export async function generateHandler(
         aiTags = result.aiTags;
         aiSummary = result.aiSummary;
         confidence = 0.9;
-        _generationSource = "palette";
+        generationSource = "palette";
       }
       break;
     }
@@ -266,7 +266,9 @@ export async function generateHandler(
   }
 
   if (aiTags.length === 0 && !aiSummary && !aiTranscript) {
-    throw new Error("No AI metadata generated for card");
+    throw new Error(
+      `No AI metadata generated for card (source: ${generationSource})`
+    );
   }
 
   // Update card with AI metadata

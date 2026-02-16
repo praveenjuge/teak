@@ -8,6 +8,19 @@ const signInRoutes = [
   "/forgot-password",
 ];
 
+function getSafeNextPath(rawNext: string | null): string | null {
+  if (!(rawNext?.startsWith("/") && !rawNext.startsWith("//"))) {
+    return null;
+  }
+
+  const targetPath = rawNext.split("?")[0] ?? rawNext;
+  if (signInRoutes.includes(targetPath)) {
+    return null;
+  }
+
+  return rawNext;
+}
+
 export default function middleware(request: NextRequest) {
   const sessionCookie = getSessionCookie(request);
   const isSignInRoute = signInRoutes.includes(request.nextUrl.pathname);
@@ -21,6 +34,10 @@ export default function middleware(request: NextRequest) {
   }
 
   if (isSignInRoute && sessionCookie) {
+    const nextPath = getSafeNextPath(request.nextUrl.searchParams.get("next"));
+    if (nextPath) {
+      return NextResponse.redirect(new URL(nextPath, request.url));
+    }
     return NextResponse.redirect(new URL("/", request.url));
   }
 

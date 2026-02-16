@@ -2,7 +2,8 @@
 
 import { AlertCircle, Loader2, Mail } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AppleIcon } from "@/components/icons/AppleIcon";
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
@@ -18,6 +19,7 @@ import { AUTH_STICKY_TOAST_OPTIONS } from "@/lib/toastConfig";
 import { cn } from "@/lib/utils";
 
 export default function SignUp() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,6 +28,13 @@ export default function SignUp() {
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
+  const nextPath = useMemo(() => {
+    const rawValue = searchParams.get("next");
+    if (!(rawValue?.startsWith("/") && !rawValue.startsWith("//"))) {
+      return "/";
+    }
+    return rawValue;
+  }, [searchParams]);
 
   useEffect(() => {
     const shouldShow = sessionStorage.getItem("teak-verify-alert");
@@ -49,7 +58,7 @@ export default function SignUp() {
     try {
       const response = await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/",
+        callbackURL: nextPath,
       });
       if (response?.error) {
         metrics.registrationFailed("google", response.error.message);
@@ -76,7 +85,7 @@ export default function SignUp() {
     try {
       const response = await authClient.signIn.social({
         provider: "apple",
-        callbackURL: "/",
+        callbackURL: nextPath,
       });
       if (response?.error) {
         metrics.registrationFailed("apple", response.error.message);
@@ -261,7 +270,14 @@ export default function SignUp() {
         </form>
       </CardContent>
       <CardFooter className="-my-2 flex-col gap-1">
-        <Link className={cn(buttonVariants({ variant: "link" }))} href="/login">
+        <Link
+          className={cn(buttonVariants({ variant: "link" }))}
+          href={
+            nextPath === "/"
+              ? "/login"
+              : `/login?next=${encodeURIComponent(nextPath)}`
+          }
+        >
           Already have an account? Login
         </Link>
       </CardFooter>
