@@ -7,7 +7,6 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { convex } from "./lib/convex-client";
 import { useDesktopConvexAuth } from "./lib/desktop-auth";
-import "antd/dist/reset.css";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

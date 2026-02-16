@@ -1,5 +1,11 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 @import "@teak/ui/styles.css";
 
 @source "../../../packages/ui/src/**/*.{ts,tsx}";
+
+@layer base {
+  .desktop-root-typography {
+    font-feature-settings: "ss01";
+    text-rendering: optimizeLegibility;
+  }
+}
