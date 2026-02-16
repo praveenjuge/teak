@@ -1,7 +1,7 @@
+import { buttonVariants } from "@teak/ui/components/ui/button";
+import { cn } from "@teak/ui/lib/utils";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import Logo from "@/components/Logo";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 /**
  * Shared layout configurations

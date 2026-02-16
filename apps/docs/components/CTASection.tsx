@@ -1,4 +1,4 @@
-import { Button } from "./ui/button";
+import { Button } from "@teak/ui/components/ui/button";
 
 interface CTASectionProps {
   title: string;

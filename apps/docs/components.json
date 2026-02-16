@@ -13,8 +13,8 @@
   "iconLibrary": "lucide",
   "aliases": {
     "components": "@/components",
-    "utils": "@/lib/utils",
-    "ui": "@/components/ui",
+    "utils": "@teak/ui/lib/utils",
+    "ui": "@teak/ui/components/ui",
     "lib": "@/lib",
     "hooks": "@/hooks"
   },

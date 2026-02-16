@@ -1,3 +1,4 @@
+import { Button } from "@teak/ui/components/ui/button";
 import {
   Command,
   Globe,
@@ -9,8 +10,6 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { ComponentType } from "react";
-
-import { Button } from "@/components/ui/button";
 
 const WEB_APP_URL = "https://app.teakvault.com";
 const APP_STORE_URL = "https://app.teakvault.com/register";

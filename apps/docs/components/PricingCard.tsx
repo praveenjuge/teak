@@ -1,6 +1,6 @@
+import { Badge } from "@teak/ui/components/ui/badge";
+import { Button } from "@teak/ui/components/ui/button";
 import { Check } from "lucide-react";
-import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
 
 interface PricingCardProps {
   name: string;

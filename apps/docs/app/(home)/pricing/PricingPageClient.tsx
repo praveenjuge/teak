@@ -1,9 +1,9 @@
 "use client";
 
+import { Button } from "@teak/ui/components/ui/button";
 import { useState } from "react";
 import { PricingCard } from "../../../components/PricingCard";
 import { PricingToggle } from "../../../components/PricingToggle";
-import { Button } from "../../../components/ui/button";
 
 const pricingPlans = [
   {

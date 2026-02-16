@@ -1,8 +1,8 @@
+import { Button } from "@teak/ui/components/ui/button";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import type { ComponentType } from "react";
-import { Button } from "@/components/ui/button";
 import { getDefaultAuthor } from "@/lib/authors";
 import { changelogCollection } from "@/lib/source";
 

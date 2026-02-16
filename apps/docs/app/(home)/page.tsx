@@ -1,3 +1,4 @@
+import { Button } from "@teak/ui/components/ui/button";
 import {
   Camera,
   Check,
@@ -20,7 +21,6 @@ import {
   SITE_URL,
   websiteSchema,
 } from "../../components/JsonLd";
-import { Button } from "../../components/ui/button";
 
 export const metadata: Metadata = {
   title: "Never Lose That Perfect Design Again",
