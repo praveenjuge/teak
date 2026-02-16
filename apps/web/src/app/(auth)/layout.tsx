@@ -1,5 +1,5 @@
+import Logo from "@teak/ui/logo";
 import Link from "next/link";
-import Logo from "@/components/Logo";
 import { BottomPattern } from "@/components/patterns/BottomPattern";
 import { TopPattern } from "@/components/patterns/TopPattern";
 import { Card } from "@/components/ui/card";

@@ -3,6 +3,7 @@
 import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
+import Logo from "@teak/ui/logo";
 import { useAction, useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import {
@@ -20,7 +21,6 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { type ChangeEvent, type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
-import Logo from "@/components/Logo";
 import { ApiKeysSection } from "@/components/settings/ApiKeysSection";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";

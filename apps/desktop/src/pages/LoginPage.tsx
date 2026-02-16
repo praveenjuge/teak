@@ -1,6 +1,6 @@
+import Logo from "@teak/ui/logo";
 import { useState } from "react";
 import { toast } from "sonner";
-import { TeakLogo } from "@/components/TeakLogo";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { openAuthWindow } from "@/lib/auth-window";
@@ -48,7 +48,7 @@ export function LoginPage({ isOnline }: LoginPageProps) {
 
   return (
     <section className="mx-auto flex min-h-screen w-full max-w-xs flex-col items-center justify-center gap-8 px-4">
-      <TeakLogo />
+      <Logo variant="primary" />
       <Button
         className="w-full"
         disabled={!isOnline || isLaunchingBrowser}
