@@ -10,6 +10,7 @@
     "core:window:allow-set-focus",
     "core:window:allow-close",
     "opener:default",
+    "process:default",
     "store:default",
     "updater:default"
   ]

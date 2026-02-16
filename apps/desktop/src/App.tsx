@@ -1,3 +1,5 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { exit } from "@tauri-apps/plugin-process";
 import { Spinner } from "@teak/ui/components/ui/spinner";
 import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -61,6 +63,23 @@ function App() {
     void closeAuthWindow();
     toast.success("Signed in successfully");
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+
+      if (isCmdOrCtrl && e.key === "w") {
+        e.preventDefault();
+        void getCurrentWindow().close();
+      } else if (isCmdOrCtrl && e.key === "q") {
+        e.preventDefault();
+        void exit(0);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   if (isLoading) {
     return (
