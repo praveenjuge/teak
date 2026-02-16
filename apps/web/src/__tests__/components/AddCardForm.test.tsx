@@ -4,7 +4,7 @@ import React from "react";
 import { AddCardForm } from "../../components/AddCardForm";
 
 // Mock UI components
-mock.module("../../components/ui/button", () => ({
+mock.module("@teak/ui/components/ui/button", () => ({
   Button: ({ children, type, onClick, disabled, variant, size }: any) =>
     React.createElement(
       "button",
@@ -19,7 +19,7 @@ mock.module("../../components/ui/button", () => ({
     ),
 }));
 
-mock.module("../../components/ui/textarea", () => ({
+mock.module("@teak/ui/components/ui/textarea", () => ({
   Textarea: ({ value, onChange, onKeyDown, disabled, placeholder }: any) =>
     React.createElement("textarea", {
       value,
@@ -31,14 +31,14 @@ mock.module("../../components/ui/textarea", () => ({
     }),
 }));
 
-mock.module("../../components/ui/card", () => ({
+mock.module("@teak/ui/components/ui/card", () => ({
   Card: ({ children, className }: any) =>
     React.createElement("div", { className, "data-card": "" }, children),
   CardContent: ({ children }: any) =>
     React.createElement("div", { className: "card-content" }, children),
 }));
 
-mock.module("../../components/ui/alert", () => ({
+mock.module("@teak/ui/components/ui/alert", () => ({
   Alert: ({ children, variant }: any) =>
     React.createElement(
       "div",

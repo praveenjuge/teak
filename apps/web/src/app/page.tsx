@@ -14,6 +14,7 @@ import type {
   ColorHueBucket,
   VisualStyle,
 } from "@teak/convex/shared/constants";
+import { Button } from "@teak/ui/components/ui/button";
 import Logo from "@teak/ui/logo";
 import { Authenticated, AuthLoading, useMutation } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
@@ -26,7 +27,6 @@ import { DragOverlay } from "@/components/DragOverlay";
 import { MasonryGrid } from "@/components/MasonryGrid";
 import { SearchBar } from "@/components/SearchBar";
 import { TagManagementModal } from "@/components/TagManagementModal";
-import { Button } from "@/components/ui/button";
 import { useCardActions } from "@/hooks/useCardActions";
 import { useGlobalDragDrop } from "@/hooks/useGlobalDragDrop";
 import { filterLocalCards } from "@/lib/localSearch";

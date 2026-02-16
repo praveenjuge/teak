@@ -8,6 +8,14 @@ import {
   MAX_FILES_PER_UPLOAD,
   resolveTextCardInput,
 } from "@teak/convex/shared";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@teak/ui/components/ui/alert";
+import { Button } from "@teak/ui/components/ui/button";
+import { Card, CardContent } from "@teak/ui/components/ui/card";
+import { Textarea } from "@teak/ui/components/ui/textarea";
 import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
@@ -16,10 +24,6 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FullScreenAddCardDialog } from "@/components/FullScreenAddCardDialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { metrics } from "@/lib/metrics";
 

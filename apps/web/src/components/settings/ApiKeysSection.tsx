@@ -1,15 +1,15 @@
 "use client";
 
 import { api } from "@teak/convex";
+import { Badge } from "@teak/ui/components/ui/badge";
+import { Button } from "@teak/ui/components/ui/button";
+import { CardTitle } from "@teak/ui/components/ui/card";
+import { Input } from "@teak/ui/components/ui/input";
+import { Spinner } from "@teak/ui/components/ui/spinner";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
 import { TOAST_IDS } from "@/lib/toastConfig";
 
 type ApiKeyListItem = {

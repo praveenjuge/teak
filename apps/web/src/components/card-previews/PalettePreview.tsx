@@ -1,8 +1,8 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { Button } from "@teak/ui/components/ui/button";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import { TOAST_IDS } from "@/lib/toastConfig";
-import { Button } from "../ui/button";
 
 interface PalettePreviewProps {
   card: Doc<"cards">;

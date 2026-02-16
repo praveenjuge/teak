@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@teak/ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -7,9 +6,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
+} from "@teak/ui/components/ui/dialog";
+import { Spinner } from "@teak/ui/components/ui/spinner";
+import { Textarea } from "@teak/ui/components/ui/textarea";
+import { useEffect, useRef, useState } from "react";
 
 interface NotesEditModalProps {
   open: boolean;

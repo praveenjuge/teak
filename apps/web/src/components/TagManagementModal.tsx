@@ -1,14 +1,14 @@
-import { Plus, Sparkles, X } from "lucide-react";
-import { useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@teak/ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@teak/ui/components/ui/dialog";
+import { Input } from "@teak/ui/components/ui/input";
+import { Label } from "@teak/ui/components/ui/label";
+import { Plus, Sparkles, X } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 interface TagManagementModalProps {
   open: boolean;

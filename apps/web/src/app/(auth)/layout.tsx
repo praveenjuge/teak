@@ -1,8 +1,8 @@
+import { Card } from "@teak/ui/components/ui/card";
 import Logo from "@teak/ui/logo";
 import Link from "next/link";
 import { BottomPattern } from "@/components/patterns/BottomPattern";
 import { TopPattern } from "@/components/patterns/TopPattern";
-import { Card } from "@/components/ui/card";
 
 export default function RootLayout({
   children,

@@ -1,4 +1,7 @@
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
+import { badgeVariants } from "@teak/ui/components/ui/badge";
+import { Button } from "@teak/ui/components/ui/button";
+import { Label } from "@teak/ui/components/ui/label";
 import {
   Download,
   Edit,
@@ -11,9 +14,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { useMemo } from "react";
-import { badgeVariants } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
 import type { CardModalCard, GetCurrentValue } from "./types";

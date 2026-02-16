@@ -1,4 +1,4 @@
-import { Spinner } from "@/components/ui/spinner";
+import { Spinner } from "@teak/ui/components/ui/spinner";
 
 export default function Loading({
   fullscreen = true,

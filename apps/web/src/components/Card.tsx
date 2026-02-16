@@ -1,4 +1,13 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { CardContent, Card as UICard } from "@teak/ui/components/ui/card";
+import { Checkbox } from "@teak/ui/components/ui/checkbox";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@teak/ui/components/ui/context-menu";
 import { Image } from "antd";
 import {
   CheckSquare,
@@ -15,15 +24,6 @@ import {
 } from "lucide-react";
 import type { SyntheticEvent } from "react";
 import { memo, useEffect, useState } from "react";
-import { CardContent, Card as UICard } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 
 // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx (36 chars with dashes)
 // Convex IDs don't have this format, so we can use this to detect optimistic cards

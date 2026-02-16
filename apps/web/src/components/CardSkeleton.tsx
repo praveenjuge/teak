@@ -1,5 +1,5 @@
-import { Card } from "./ui/card";
-import { Skeleton } from "./ui/skeleton";
+import { Card } from "@teak/ui/components/ui/card";
+import { Skeleton } from "@teak/ui/components/ui/skeleton";
 
 export function CardSkeleton() {
   return (

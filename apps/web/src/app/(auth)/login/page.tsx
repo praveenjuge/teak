@@ -1,16 +1,20 @@
 "use client";
 
+import { Alert, AlertDescription } from "@teak/ui/components/ui/alert";
+import { Button, buttonVariants } from "@teak/ui/components/ui/button";
+import {
+  CardContent,
+  CardFooter,
+  CardTitle,
+} from "@teak/ui/components/ui/card";
+import { Input } from "@teak/ui/components/ui/input";
+import { Label } from "@teak/ui/components/ui/label";
 import { AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { AppleIcon } from "@/components/icons/AppleIcon";
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { CardContent, CardFooter, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 import { metrics } from "@/lib/metrics";
 import { cn } from "@/lib/utils";

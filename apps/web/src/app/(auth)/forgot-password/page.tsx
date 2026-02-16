@@ -1,20 +1,20 @@
 "use client";
 
-import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
-import Link from "next/link";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@teak/ui/components/ui/alert";
+import { Button, buttonVariants } from "@teak/ui/components/ui/button";
 import {
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@teak/ui/components/ui/card";
+import { Input } from "@teak/ui/components/ui/input";
+import { Label } from "@teak/ui/components/ui/label";
+import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { metrics } from "@/lib/metrics";
 import { AUTH_STICKY_TOAST_OPTIONS } from "@/lib/toastConfig";

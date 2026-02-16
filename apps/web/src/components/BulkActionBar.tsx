@@ -1,5 +1,5 @@
+import { Button } from "@teak/ui/components/ui/button";
 import { Trash2, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { metrics } from "@/lib/metrics";
 
 interface BulkActionBarProps {

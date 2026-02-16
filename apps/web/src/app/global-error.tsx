@@ -1,8 +1,8 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
+import { buttonVariants } from "@teak/ui/components/ui/button";
 import { useEffect } from "react";
-import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export default function GlobalError({

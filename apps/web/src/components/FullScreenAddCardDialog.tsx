@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useRef } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@teak/ui/components/ui/alert";
+import { Button } from "@teak/ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+} from "@teak/ui/components/ui/dialog";
+import { Textarea } from "@teak/ui/components/ui/textarea";
+import { useCallback, useEffect, useRef } from "react";
 
 interface FullScreenAddCardDialogProps {
   open: boolean;

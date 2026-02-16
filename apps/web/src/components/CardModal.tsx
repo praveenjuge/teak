@@ -1,11 +1,11 @@
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
-import { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@teak/ui/components/ui/dialog";
+import { useState } from "react";
 import { useCardModal } from "@/hooks/useCardModal";
 import { metrics } from "@/lib/metrics";
 import { CardMetadataPanel } from "./card-modal/CardMetadataPanel";

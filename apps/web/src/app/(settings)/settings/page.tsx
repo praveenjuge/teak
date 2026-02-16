@@ -3,6 +3,25 @@
 import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@teak/ui/components/ui/alert";
+import { Badge } from "@teak/ui/components/ui/badge";
+import { Button, buttonVariants } from "@teak/ui/components/ui/button";
+import { CardTitle } from "@teak/ui/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@teak/ui/components/ui/dialog";
+import { Input } from "@teak/ui/components/ui/input";
+import { Label } from "@teak/ui/components/ui/label";
+import { Spinner } from "@teak/ui/components/ui/spinner";
 import Logo from "@teak/ui/logo";
 import { useAction, useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
@@ -22,21 +41,6 @@ import { useTheme } from "next-themes";
 import { type ChangeEvent, type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ApiKeysSection } from "@/components/settings/ApiKeysSection";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/auth-client";
 import { metrics } from "@/lib/metrics";
 import { TOAST_IDS } from "@/lib/toastConfig";

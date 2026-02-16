@@ -1,5 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { Textarea } from "../ui/textarea";
+import { Textarea } from "@teak/ui/components/ui/textarea";
 
 interface QuotePreviewProps {
   card: Doc<"cards">;

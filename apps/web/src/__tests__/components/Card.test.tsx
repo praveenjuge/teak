@@ -11,7 +11,7 @@ mock.module("antd", () => ({
 }));
 
 // Mock UI components
-mock.module("../../components/ui/context-menu", () => ({
+mock.module("@teak/ui/components/ui/context-menu", () => ({
   ContextMenu: ({ children }: any) =>
     React.createElement("div", { className: "context-menu" }, children),
   ContextMenuTrigger: ({ children, disabled }: any) =>
@@ -32,14 +32,14 @@ mock.module("../../components/ui/context-menu", () => ({
     React.createElement("div", { className: "context-separator" }),
 }));
 
-mock.module("../../components/ui/card", () => ({
+mock.module("@teak/ui/components/ui/card", () => ({
   Card: ({ children, className }: any) =>
     React.createElement("div", { className, "data-card": "" }, children),
   CardContent: ({ children }: any) =>
     React.createElement("div", { className: "card-content" }, children),
 }));
 
-mock.module("../../components/ui/checkbox", () => ({
+mock.module("@teak/ui/components/ui/checkbox", () => ({
   Checkbox: ({ checked, className }: any) =>
     React.createElement("input", {
       type: "checkbox",

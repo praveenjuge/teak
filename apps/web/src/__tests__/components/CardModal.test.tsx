@@ -5,7 +5,7 @@ import { CardModal } from "../../components/CardModal";
 import type { CardModalCard } from "../../components/card-modal/types";
 
 // Mock Dialog component
-mock.module("../../components/ui/dialog", () => ({
+mock.module("@teak/ui/components/ui/dialog", () => ({
   Dialog: ({ children, open, onOpenChange: _onOpenChange }: any) =>
     React.createElement(
       "div",

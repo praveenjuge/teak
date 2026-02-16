@@ -1,13 +1,13 @@
-import { Copy } from "lucide-react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button } from "@teak/ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+} from "@teak/ui/components/ui/dialog";
+import { Label } from "@teak/ui/components/ui/label";
+import { Copy } from "lucide-react";
+import { toast } from "sonner";
 import { TOAST_IDS } from "@/lib/toastConfig";
 
 interface CardData {

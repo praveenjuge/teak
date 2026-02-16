@@ -9,6 +9,8 @@ import {
   VISUAL_STYLE_LABELS,
   type VisualStyle,
 } from "@teak/convex/shared/constants";
+import { Button, buttonVariants } from "@teak/ui/components/ui/button";
+import { Input } from "@teak/ui/components/ui/input";
 import {
   Clock,
   Droplets,
@@ -29,8 +31,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 interface SearchBarProps {

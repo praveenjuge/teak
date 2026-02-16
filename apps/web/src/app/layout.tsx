@@ -1,6 +1,7 @@
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import "./globals.css";
+import { Toaster } from "@teak/ui/components/ui/sonner";
 import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 import type { PropsWithChildren } from "react";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
@@ -11,7 +12,6 @@ import {
   websiteSchema,
 } from "@/components/JsonLd";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Toaster } from "@/components/ui/sonner";
 
 export const dynamic = "force-static";
 
@@ -47,10 +47,10 @@ export default function RootLayout({ children }: PropsWithChildren) {
               enableSystem={true}
             >
               <main className="mx-auto max-w-7xl px-4 pb-10">{children}</main>
+              <Toaster position="bottom-center" />
             </ThemeProvider>
           </ConvexQueryCacheProvider>
         </ConvexClientProvider>
-        <Toaster position="bottom-center" />
         <Analytics />
       </body>
     </html>

@@ -5,7 +5,7 @@ import React from "react";
 import { SearchBar } from "../../components/SearchBar";
 
 // Mock UI components
-mock.module("../../components/ui/input", () => ({
+mock.module("@teak/ui/components/ui/input", () => ({
   Input: ({
     value,
     onChange,
@@ -27,7 +27,7 @@ mock.module("../../components/ui/input", () => ({
     }),
 }));
 
-mock.module("../../components/ui/button", () => ({
+mock.module("@teak/ui/components/ui/button", () => ({
   Button: ({ children, onClick, variant, size }: any) =>
     React.createElement(
       "button",

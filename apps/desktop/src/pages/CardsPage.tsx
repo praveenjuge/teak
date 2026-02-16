@@ -1,10 +1,10 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api } from "@teak/convex";
+import { Spinner } from "@teak/ui/components/ui/spinner";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
 import { toast } from "sonner";
 import { CardGrid } from "@/components/CardGrid";
 import { EmptyState } from "@/components/EmptyState";
-import { Spinner } from "@/components/ui/spinner";
 import { getCardViewUrl } from "@/lib/web-urls";
 
 const CARDS_BATCH_SIZE = 24;

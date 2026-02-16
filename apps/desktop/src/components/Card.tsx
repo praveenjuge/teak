@@ -1,9 +1,9 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { CardContent, Card as UICard } from "@teak/ui/components/ui/card";
 import { Image } from "antd";
 import { File, Heart, Play } from "lucide-react";
 import type { SyntheticEvent } from "react";
 import { memo, useState } from "react";
-import { CardContent, Card as UICard } from "@/components/ui/card";
 
 export type DesktopCard = Doc<"cards"> & {
   fileUrl?: string;

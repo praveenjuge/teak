@@ -1,8 +1,8 @@
+import { Spinner } from "@teak/ui/components/ui/spinner";
 import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Layout } from "@/components/Layout";
-import { Spinner } from "@/components/ui/spinner";
 import { useDesktopMenuEvents } from "@/hooks/useDesktopMenuEvents";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useSilentUpdater } from "@/hooks/useSilentUpdater";

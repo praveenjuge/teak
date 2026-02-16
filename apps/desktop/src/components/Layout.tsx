@@ -1,6 +1,6 @@
+import { Button } from "@teak/ui/components/ui/button";
 import { LogOut } from "lucide-react";
 import type { PropsWithChildren } from "react";
-import { Button } from "@/components/ui/button";
 
 interface LayoutProps extends PropsWithChildren {
   isLoggingOut: boolean;

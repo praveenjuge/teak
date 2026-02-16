@@ -1,8 +1,8 @@
+import { Spinner } from "@teak/ui/components/ui/spinner";
 import type { MasonryProps } from "antd";
 import { Masonry } from "antd";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Card, type DesktopCard } from "@/components/Card";
-import { Spinner } from "@/components/ui/spinner";
 
 type MasonryItem = NonNullable<MasonryProps<DesktopCard>["items"]>[number];
 

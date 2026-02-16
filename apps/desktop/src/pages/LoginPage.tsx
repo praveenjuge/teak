@@ -1,8 +1,8 @@
+import { Button } from "@teak/ui/components/ui/button";
+import { Spinner } from "@teak/ui/components/ui/spinner";
 import Logo from "@teak/ui/logo";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { openAuthWindow } from "@/lib/auth-window";
 import {
   startDesktopAuthPolling,

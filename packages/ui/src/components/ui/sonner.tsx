@@ -1,6 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
+import type { CSSProperties } from "react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 const Toaster = ({ ...props }: ToasterProps) => {
@@ -18,7 +19,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-border": "transparent",
           "--width": "100%",
           "--border-radius": "0px",
-        } as React.CSSProperties
+        } as CSSProperties
       }
       theme={theme as ToasterProps["theme"]}
       toastOptions={{

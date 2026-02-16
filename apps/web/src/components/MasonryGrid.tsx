@@ -1,10 +1,10 @@
 import * as Sentry from "@sentry/nextjs";
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { Spinner } from "@teak/ui/components/ui/spinner";
 import type { MasonryProps } from "antd";
 import { Masonry } from "antd";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Spinner } from "@/components/ui/spinner";
 import { TOAST_IDS } from "@/lib/toastConfig";
 import { AddCardForm } from "./AddCardForm";
 import { BulkActionBar } from "./BulkActionBar";
