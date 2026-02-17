@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import type { CardWithUrls } from "@teak/ui/cards";
+import { Card } from "@teak/ui/cards";
 import { Spinner } from "@teak/ui/components/ui/spinner";
 import type { MasonryProps } from "antd";
 import { Masonry } from "antd";
@@ -8,7 +10,6 @@ import { toast } from "sonner";
 import { TOAST_IDS } from "@/lib/toastConfig";
 import { AddCardForm } from "./AddCardForm";
 import { BulkActionBar } from "./BulkActionBar";
-import { Card } from "./Card";
 
 // Define the item type for the masonry grid
 type CardItem = Doc<"cards"> | "add-form";
@@ -30,7 +31,7 @@ interface MasonryGridProps {
     deletedCount: number;
     failedIds: string[];
   }>;
-  onCardClick: (card: Doc<"cards">) => void;
+  onCardClick: (card: CardWithUrls & Record<string, unknown>) => void;
   onCopyImage?: (content: string, isImage: boolean) => void;
   onDeleteCard: (cardId: string) => Promise<boolean>;
   onLoadMore?: () => void;
@@ -198,7 +199,7 @@ export function MasonryGrid({
   }, []);
 
   const handleCardClick = useCallback(
-    (card: Doc<"cards">) => {
+    (card: CardWithUrls & Record<string, unknown>) => {
       if (isSelectionMode) {
         toggleCardSelection(card._id);
       } else {

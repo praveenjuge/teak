@@ -9,12 +9,11 @@ import {
 } from "@teak/ui/components/ui/card";
 import { Input } from "@teak/ui/components/ui/input";
 import { Label } from "@teak/ui/components/ui/label";
+import { AppleIcon, GoogleIcon } from "@teak/ui/icons";
 import { AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
-import { AppleIcon } from "@/components/icons/AppleIcon";
-import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { authClient } from "@/lib/auth-client";
 import { metrics } from "@/lib/metrics";
 import { cn } from "@/lib/utils";

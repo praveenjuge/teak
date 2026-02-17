@@ -5,6 +5,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@teak/ui/components/ui/dialog";
+import { Loading } from "@teak/ui/feedback/Loading";
 import { useState } from "react";
 import { useCardModal } from "@/hooks/useCardModal";
 import { metrics } from "@/lib/metrics";
@@ -12,7 +13,6 @@ import { CardMetadataPanel } from "./card-modal/CardMetadataPanel";
 import { CardModalOverlays } from "./card-modal/CardModalOverlays";
 import { CardModalPreview } from "./card-modal/CardModalPreview";
 import type { CardModalCard } from "./card-modal/types";
-import { Loading } from "./Loading";
 
 interface CardModalProps {
   card?: CardModalCard | null;

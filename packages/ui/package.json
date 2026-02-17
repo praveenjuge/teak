@@ -6,7 +6,14 @@
     "./logo": "./src/logo.tsx",
     "./styles.css": "./src/styles.css",
     "./lib/utils": "./src/lib/utils.ts",
-    "./components/ui/*": "./src/components/ui/*.tsx"
+    "./components/ui/*": "./src/components/ui/*.tsx",
+    "./cards": "./src/components/cards/index.ts",
+    "./cards/previews": "./src/components/cards/previews/index.ts",
+    "./feedback/CardSkeleton": "./src/feedback/CardSkeleton.tsx",
+    "./feedback/CardsGridSkeleton": "./src/feedback/CardSkeleton.tsx",
+    "./feedback/EmptyState": "./src/feedback/EmptyState.tsx",
+    "./feedback/Loading": "./src/feedback/Loading.tsx",
+    "./icons": "./src/icons/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -22,6 +29,7 @@
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
+    "antd": "^5.24.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.563.0",

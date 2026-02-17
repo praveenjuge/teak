@@ -14,13 +14,12 @@ import {
 import { Input } from "@teak/ui/components/ui/input";
 import { Label } from "@teak/ui/components/ui/label";
 import { Spinner } from "@teak/ui/components/ui/spinner";
+import { AppleIcon, GoogleIcon } from "@teak/ui/icons";
 import { AlertCircle, Loader2, Mail } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AppleIcon } from "@/components/icons/AppleIcon";
-import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { authClient } from "@/lib/auth-client";
 import { metrics } from "@/lib/metrics";
 import { AUTH_STICKY_TOAST_OPTIONS } from "@/lib/toastConfig";

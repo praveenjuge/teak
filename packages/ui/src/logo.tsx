@@ -10,9 +10,9 @@ const LOGO_COLORS = {
 type LogoVariant = keyof typeof LOGO_COLORS;
 
 interface WordmarkProps extends Omit<SVGProps<SVGSVGElement>, "color"> {
-  variant?: LogoVariant;
   color?: string;
   title?: string;
+  variant?: LogoVariant;
 }
 
 function Wordmark({
@@ -30,6 +30,7 @@ function Wordmark({
     svgProps["aria-labelledby"] === undefined;
 
   return (
+    // biome-ignore lint/a11y/noSvgWithoutTitle: <>
     <svg
       {...svgProps}
       aria-hidden={isDecorative ? true : svgProps["aria-hidden"]}

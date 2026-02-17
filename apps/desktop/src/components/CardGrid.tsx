@@ -1,17 +1,21 @@
+import type { CardWithUrls } from "@teak/ui/cards";
+import { Card } from "@teak/ui/cards";
 import { Spinner } from "@teak/ui/components/ui/spinner";
 import type { MasonryProps } from "antd";
 import { Masonry } from "antd";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Card, type DesktopCard } from "@/components/Card";
 
-type MasonryItem = NonNullable<MasonryProps<DesktopCard>["items"]>[number];
+type MasonryItem = NonNullable<MasonryProps<CardWithUrls>["items"]>[number];
 
 interface CardGridProps {
-  cards: DesktopCard[];
+  cards: CardWithUrls[];
   hasMore: boolean;
   isLoadingMore: boolean;
-  onCardClick: (card: DesktopCard) => void;
+  onAddTags?: (cardId: string) => void;
+  onCardClick: (card: CardWithUrls) => void;
+  onDelete?: (cardId: string) => void;
   onLoadMore: () => void;
+  onToggleFavorite?: (cardId: string) => void;
 }
 
 export function CardGrid({
@@ -20,6 +24,9 @@ export function CardGrid({
   isLoadingMore,
   onCardClick,
   onLoadMore,
+  onDelete,
+  onToggleFavorite,
+  onAddTags,
 }: CardGridProps) {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const loadRequestedRef = useRef(false);
@@ -59,9 +66,17 @@ export function CardGrid({
 
   const renderItem = useCallback(
     (item: MasonryItem & { index: number }) => {
-      return <Card card={item.data} onClick={onCardClick} />;
+      return (
+        <Card
+          card={item.data}
+          onAddTags={onAddTags}
+          onClick={onCardClick}
+          onDelete={onDelete}
+          onToggleFavorite={onToggleFavorite}
+        />
+      );
     },
-    [onCardClick]
+    [onCardClick, onDelete, onToggleFavorite, onAddTags]
   );
 
   return (

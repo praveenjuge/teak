@@ -14,7 +14,9 @@ import type {
   ColorHueBucket,
   VisualStyle,
 } from "@teak/convex/shared/constants";
+import type { CardWithUrls } from "@teak/ui/cards";
 import { Button } from "@teak/ui/components/ui/button";
+import { CardsGridSkeleton } from "@teak/ui/feedback/CardsGridSkeleton";
 import Logo from "@teak/ui/logo";
 import { Authenticated, AuthLoading, useMutation } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
@@ -22,7 +24,6 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AddCardForm } from "@/components/AddCardForm";
 import { CardModal } from "@/components/CardModal";
-import { CardsGridSkeleton } from "@/components/CardSkeleton";
 import { DragOverlay } from "@/components/DragOverlay";
 import { MasonryGrid } from "@/components/MasonryGrid";
 import { SearchBar } from "@/components/SearchBar";
@@ -614,7 +615,7 @@ export default function HomePage() {
     setTimeFilter(null);
   };
 
-  const handleCardClick = (card: Doc<"cards">) => {
+  const handleCardClick = (card: CardWithUrls & Record<string, unknown>) => {
     metrics.modalOpened("card");
     setEditingCardId(card._id);
   };
