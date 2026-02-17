@@ -58,8 +58,8 @@ const captureScreenshotWithKernel = async (
       {
         code: `
           await page.setViewportSize({ width: 1280, height: 720 });
-          await page.goto('${url.replace(/'/g, "\\'")}', { waitUntil: 'networkidle', timeout: 30000 });
-          await page.addStyleTag({ content: \`${screenshotCss.replace(/`/g, "\\`")}\` });
+          await page.goto('${url.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}', { waitUntil: 'networkidle', timeout: 30000 });
+          await page.addStyleTag({ content: \`${screenshotCss.replace(/\\/g, "\\\\").replace(/`/g, "\\`")}\` });
           const screenshot = await page.screenshot({ type: 'jpeg', quality: 80 });
           return screenshot.toString('base64');
         `,

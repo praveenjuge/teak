@@ -447,12 +447,11 @@ export type PaletteCopyFormat =
   | "css-variables";
 
 const toCssVariableName = (color: Color, index: number): string => {
+  // Limit input length to prevent ReDoS attacks
+  const name = color.name?.trim().toLowerCase().slice(0, 100) || "";
   const base =
-    color.name
-      ?.trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || `color-${index + 1}`;
+    name.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") ||
+    `color-${index + 1}`;
   return base;
 };
 

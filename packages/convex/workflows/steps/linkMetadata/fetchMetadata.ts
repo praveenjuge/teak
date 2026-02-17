@@ -159,9 +159,9 @@ const storeLinkPreviewImage = async (
 };
 
 const decodeHtmlEntities = (value: string): string => {
+  // Decode &amp; LAST to prevent double-unescaping vulnerabilities
   return value
     .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
     .replace(/&quot;/gi, '"')
@@ -171,7 +171,8 @@ const decodeHtmlEntities = (value: string): string => {
     )
     .replace(/&#([0-9]+);/g, (_, num) =>
       String.fromCharCode(Number.parseInt(num, 10))
-    );
+    )
+    .replace(/&amp;/gi, "&");
 };
 
 const extractTagAttributes = (tag: string): ScrapeAttribute[] => {
@@ -333,7 +334,7 @@ const scrapeWithKernel = async (
       await page.setDefaultNavigationTimeout(20000);
       await page.setDefaultTimeout(20000);
 
-      await page.goto('${url.replace(/'/g, "\\'")}', { waitUntil: 'domcontentloaded', timeout: 20000 });
+      await page.goto('${url.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}', { waitUntil: 'domcontentloaded', timeout: 20000 });
       await page.waitForTimeout(1000);
 
       const selectors = ${JSON.stringify(selectorStrings)};

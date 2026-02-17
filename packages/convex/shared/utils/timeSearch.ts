@@ -324,7 +324,8 @@ export function parseTimeSearchQuery(
   const now = options.now ?? new Date();
   const weekStart = options.weekStart ?? 0;
 
-  const fromMatch = normalized.match(/^from (.+) to (.+)$/);
+  // Use non-greedy quantifiers to prevent ReDoS attacks
+  const fromMatch = normalized.match(/^from (.+?) to (.+)$/);
   if (fromMatch) {
     const left = parseSingleExpression(fromMatch[1], now, weekStart);
     const right = parseSingleExpression(fromMatch[2], now, weekStart);
@@ -338,7 +339,7 @@ export function parseTimeSearchQuery(
     return null;
   }
 
-  const toMatch = normalized.match(/^(.+) to (.+)$/);
+  const toMatch = normalized.match(/^(.+?) to (.+)$/);
   if (toMatch) {
     const left = parseSingleExpression(toMatch[1], now, weekStart);
     const right = parseSingleExpression(toMatch[2], now, weekStart);
@@ -352,7 +353,7 @@ export function parseTimeSearchQuery(
     return null;
   }
 
-  const dashMatch = normalized.match(/^(.+)\s-\s(.+)$/);
+  const dashMatch = normalized.match(/^(.+?)\s-\s(.+)$/);
   if (dashMatch) {
     const left = parseSingleExpression(dashMatch[1], now, weekStart);
     const right = parseSingleExpression(dashMatch[2], now, weekStart);

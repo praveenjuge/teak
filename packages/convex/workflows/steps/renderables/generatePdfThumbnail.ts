@@ -108,7 +108,7 @@ export const generatePdfThumbnail = internalAction({
               await page.setViewportSize({ width: ${THUMBNAIL_MAX_WIDTH + 50}, height: 700 });
               
               // Use Mozilla's hosted PDF.js viewer
-              const viewerUrl = 'https://mozilla.github.io/pdf.js/web/viewer.html?file=' + encodeURIComponent('${pdfUrl.replace(/'/g, "\\'")}');
+              const viewerUrl = 'https://mozilla.github.io/pdf.js/web/viewer.html?file=' + encodeURIComponent('${pdfUrl.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}');
               
               await page.goto(viewerUrl, { 
                 waitUntil: 'networkidle',

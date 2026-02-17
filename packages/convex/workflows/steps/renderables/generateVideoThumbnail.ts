@@ -202,8 +202,8 @@ export const generateVideoThumbnail = internalAction({
                   video.src = videoUrl;
                   video.load();
                 });
-              }, { 
-                videoUrl: '${videoUrl.replace(/'/g, "\\'")}',
+              }, {
+                videoUrl: '${videoUrl.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}',
                 maxWidth: ${THUMBNAIL_MAX_WIDTH},
                 maxHeight: ${THUMBNAIL_MAX_HEIGHT}
               });
