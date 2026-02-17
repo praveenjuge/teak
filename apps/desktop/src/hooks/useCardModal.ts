@@ -63,10 +63,10 @@ export function useCardModal(
     if (!(cardId && hasUnsavedChanges)) return;
 
     const updates = Object.entries(pendingChanges)
-      .filter(([, value]) => value !== undefined && value !== "isFavorited")
+      .filter(
+        ([field, value]) => value !== undefined && field !== "isFavorited"
+      )
       .map(([field, value]) => ({ field, value }));
-
-    setPendingChanges({});
 
     try {
       for (const { field, value } of updates) {
@@ -76,6 +76,7 @@ export function useCardModal(
           value,
         });
       }
+      setPendingChanges({});
       toast.success("Changes saved");
     } catch (error) {
       console.error("Failed to save changes:", error);
@@ -99,10 +100,16 @@ export function useCardModal(
   const addTag = useCallback(async () => {
     if (!(cardId && tagInput.trim())) return;
     try {
+      const currentTags = card?.tags || [];
+      const newTag = tagInput.trim().toLowerCase();
+      if (currentTags.includes(newTag)) {
+        toast.error("Tag already exists");
+        return;
+      }
       await updateCardField({
         cardId: cardId as Id<"cards">,
         field: "tags",
-        value: [tagInput.trim().toLowerCase()],
+        value: [...currentTags, newTag],
       });
       setTagInput("");
       toast.success("Tag added");
@@ -110,7 +117,7 @@ export function useCardModal(
       console.error("Failed to add tag:", error);
       toast.error("Failed to add tag");
     }
-  }, [cardId, tagInput, updateCardField]);
+  }, [card?.tags, cardId, tagInput, updateCardField]);
 
   const removeTag = useCallback(
     async (tagToRemove: string) => {
