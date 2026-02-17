@@ -13,8 +13,10 @@ export function useSilentUpdater() {
         }
 
         await update.downloadAndInstall();
-      } catch {
-        // Intentionally silent to avoid interrupting user flow.
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.warn("[useSilentUpdater] Update check failed:", error);
+        }
       }
     })();
 

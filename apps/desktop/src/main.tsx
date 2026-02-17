@@ -4,6 +4,7 @@ import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 import { ThemeProvider } from "next-themes";
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import App from "./App";
 import { convex } from "./lib/convex-client";
 import { useDesktopConvexAuth } from "./lib/desktop-auth";
@@ -19,8 +20,10 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     >
       <ConvexProviderWithAuth client={convex} useAuth={useDesktopConvexAuth}>
         <ConvexQueryCacheProvider>
-          <App />
-          <Toaster position="bottom-center" />
+          <ErrorBoundary>
+            <App />
+            <Toaster position="bottom-center" />
+          </ErrorBoundary>
         </ConvexQueryCacheProvider>
       </ConvexProviderWithAuth>
     </ThemeProvider>
