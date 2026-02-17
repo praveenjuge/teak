@@ -1,19 +1,21 @@
 import { api } from "@teak/convex";
+import type { Id } from "@teak/convex/_generated/dataModel";
 import type { CardModalCard } from "@teak/ui/card-modal";
 import { CardModal } from "@teak/ui/card-modal";
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Spinner } from "@teak/ui/components/ui/spinner";
 import { EmptyState } from "@teak/ui/feedback/EmptyState";
+import { MasonryGrid } from "@teak/ui/grids";
+import { useCardModal } from "@teak/ui/hooks";
 import {
   MoreInformationModal,
   NotesEditModal,
   TagManagementModal,
 } from "@teak/ui/modals";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
 import { useCallback, useState } from "react";
-import { CardGrid } from "@/components/CardGrid";
-import { useCardModal } from "@/hooks/useCardModal";
+import { toast } from "sonner";
 
 const CARDS_BATCH_SIZE = 24;
 
@@ -36,6 +38,9 @@ export function CardsPage() {
 
   const cardModalActions = useCardModal(selectedCardId, { card: selectedCard });
 
+  const updateCardField = useMutation(api.cards.updateCardField);
+  const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
+
   const cards = results;
   const isLoadingFirstPage = status === "LoadingFirstPage";
   const isLoadingMore = status === "LoadingMore";
@@ -57,6 +62,68 @@ export function CardsPage() {
     setShowNotesEditModal(false);
   }, []);
 
+  const handleDeleteCard = useCallback(
+    async (cardId: string) => {
+      try {
+        await updateCardField({
+          cardId: cardId as Id<"cards">,
+          field: "delete",
+        });
+        toast.success("Card deleted");
+        return true;
+      } catch (error) {
+        console.error("Failed to delete card:", error);
+        toast.error("Failed to delete card");
+        return false;
+      }
+    },
+    [updateCardField]
+  );
+
+  const handleRestoreCard = useCallback(
+    async (cardId: string) => {
+      try {
+        await updateCardField({
+          cardId: cardId as Id<"cards">,
+          field: "restore",
+        });
+        toast.success("Card restored");
+      } catch (error) {
+        console.error("Failed to restore card:", error);
+        toast.error("Failed to restore card");
+      }
+    },
+    [updateCardField]
+  );
+
+  const handlePermanentDeleteCard = useCallback(
+    async (cardId: string) => {
+      try {
+        await permanentDeleteCard({ id: cardId as Id<"cards"> });
+        toast.success("Card permanently deleted");
+      } catch (error) {
+        console.error("Failed to permanently delete card:", error);
+        toast.error("Failed to permanently delete card");
+      }
+    },
+    [permanentDeleteCard]
+  );
+
+  const handleToggleFavorite = useCallback(
+    async (cardId: string) => {
+      try {
+        await updateCardField({
+          cardId: cardId as Id<"cards">,
+          field: "isFavorited",
+        });
+      } catch (error) {
+        console.error("Failed to toggle favorite:", error);
+        toast.error("Failed to update favorite");
+      }
+    },
+    [updateCardField]
+  );
+
   const cardWithUrls = selectedCard as CardModalCard | null;
 
   if (isLoadingFirstPage) {
@@ -73,13 +140,19 @@ export function CardsPage() {
 
   return (
     <>
-      <CardGrid
-        cards={cards as CardWithUrls[]}
+      <MasonryGrid
+        filteredCards={cards}
         hasMore={hasMore}
         isLoadingMore={isLoadingMore}
         onAddTags={handleAddTags}
         onCardClick={handleCardClick}
+        onDeleteCard={handleDeleteCard}
         onLoadMore={() => loadMore(CARDS_BATCH_SIZE)}
+        onPermanentDeleteCard={handlePermanentDeleteCard}
+        onRestoreCard={handleRestoreCard}
+        onToggleFavorite={handleToggleFavorite}
+        showAddForm={false}
+        showBulkActions={false}
       />
 
       <CardModal

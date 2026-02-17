@@ -4,8 +4,6 @@ import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useCardActions } from "@/hooks/useCardActions";
-import { TOAST_IDS } from "@/lib/toastConfig";
 
 function updateCardInSearchQueries(
   localStore: OptimisticLocalStore,
@@ -136,27 +134,8 @@ export function useCardModal(
         break;
     }
   });
-  const cardActions = useCardActions({
-    onDeleteSuccess: (message) => {
-      if (message) {
-        toast(message);
-        config.onSuccess?.(message);
-      }
-    },
-    onRestoreSuccess: (message) => {
-      if (message) {
-        toast(message);
-        config.onSuccess?.(message);
-      }
-    },
-    onPermanentDeleteSuccess: (message) => {
-      if (message) {
-        toast(message);
-        config.onSuccess?.(message);
-      }
-    },
-    onError: notifyError,
-  });
+
+  const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
 
   const hasUnsavedChanges = useMemo(() => {
     if (!card) {
@@ -179,7 +158,9 @@ export function useCardModal(
     }
 
     const updates = Object.entries(pendingChanges)
-      .filter(([, value]) => value !== undefined)
+      .filter(
+        ([field, value]) => value !== undefined && field !== "isFavorited"
+      )
       .map(([field, value]) => ({ field, value }));
 
     const currentPendingChanges = { ...pendingChanges };
@@ -196,7 +177,7 @@ export function useCardModal(
         });
       }
 
-      toast.success("Changes saved", { id: TOAST_IDS.cardSave });
+      toast.success("Changes saved");
       setTimeout(() => {
         setIsSaved(false);
       }, 2000);
@@ -276,18 +257,19 @@ export function useCardModal(
         });
         setPendingChanges((prev) => ({ ...prev, notes: undefined }));
         setIsSaved(true);
-        toast.success("Notes updated", { id: TOAST_IDS.notesSave });
+        toast.success("Notes updated");
         setTimeout(() => {
           setIsSaved(false);
         }, 2000);
         return true;
       } catch (error) {
         console.error("Failed to save notes:", error);
-        toast.error("Failed to update notes", { id: TOAST_IDS.notesSave });
+        toast.error("Failed to update notes");
         config.onError?.(error as Error, "update notes");
         return false;
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [cardId, updateCardField, config.onError]
   );
 
@@ -334,44 +316,53 @@ export function useCardModal(
 
   const handleDelete = useCallback(
     async (onClose?: () => void) => {
-      if (cardId) {
-        await cardActions.handleDeleteCard(cardId as Id<"cards">);
-        if (onClose) {
-          onClose();
-        } else {
-          config.onClose?.();
-        }
+      if (!cardId) return;
+      try {
+        await updateCardField({
+          cardId: cardId as Id<"cards">,
+          field: "delete",
+        });
+        toast.success("Card deleted");
+        onClose?.();
+      } catch (error) {
+        console.error("Failed to delete card:", error);
+        toast.error("Failed to delete card");
       }
     },
-    [cardId, cardActions, config.onClose]
+    [cardId, updateCardField]
   );
 
   const handleRestore = useCallback(
     async (onClose?: () => void) => {
-      if (cardId) {
-        await cardActions.handleRestoreCard(cardId as Id<"cards">);
-        if (onClose) {
-          onClose();
-        } else {
-          config.onClose?.();
-        }
+      if (!cardId) return;
+      try {
+        await updateCardField({
+          cardId: cardId as Id<"cards">,
+          field: "restore",
+        });
+        toast.success("Card restored");
+        onClose?.();
+      } catch (error) {
+        console.error("Failed to restore card:", error);
+        toast.error("Failed to restore card");
       }
     },
-    [cardId, cardActions, config.onClose]
+    [cardId, updateCardField]
   );
 
   const handlePermanentDelete = useCallback(
     async (onClose?: () => void) => {
-      if (cardId) {
-        await cardActions.handlePermanentDeleteCard(cardId as Id<"cards">);
-        if (onClose) {
-          onClose();
-        } else {
-          config.onClose?.();
-        }
+      if (!cardId) return;
+      try {
+        await permanentDeleteCard({ id: cardId as Id<"cards"> });
+        toast.success("Card permanently deleted");
+        onClose?.();
+      } catch (error) {
+        console.error("Failed to permanently delete card:", error);
+        toast.error("Failed to permanently delete card");
       }
     },
-    [cardId, cardActions, config.onClose]
+    [cardId, permanentDeleteCard]
   );
 
   const openLink = useCallback(() => {
@@ -382,6 +373,7 @@ export function useCardModal(
         window.open(card.url, "_blank", "noopener,noreferrer");
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card?.url, config.onOpenLink]);
 
   const fileUrl = card?.fileUrl;
@@ -417,6 +409,7 @@ export function useCardModal(
         }
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [tagInput, addTag, config.onClose]
   );
 
@@ -424,6 +417,7 @@ export function useCardModal(
     if (card?.type) {
       config.onCardTypeClick?.(card.type);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card?.type, config.onCardTypeClick]);
 
   const getCurrentValue = useCallback(

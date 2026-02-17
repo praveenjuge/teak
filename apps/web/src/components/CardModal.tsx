@@ -1,12 +1,12 @@
 import type { CardModalCard } from "@teak/ui/card-modal";
 import { CardModal as SharedCardModal } from "@teak/ui/card-modal";
+import { useCardModal } from "@teak/ui/hooks";
 import {
   MoreInformationModal,
   NotesEditModal,
   TagManagementModal,
 } from "@teak/ui/modals";
 import { useState } from "react";
-import { useCardModal } from "@/hooks/useCardModal";
 
 interface CardModalProps {
   card?: CardModalCard | null;

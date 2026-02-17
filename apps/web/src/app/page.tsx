@@ -203,10 +203,10 @@ export default function HomePage() {
   }, [cards.length, cardsStatus, hasActiveSearch, filterTags]);
 
   const cardActions = useCardActions({
-    onDeleteSuccess: (message) => message && toast(message),
-    onRestoreSuccess: (message) => message && toast(message),
-    onPermanentDeleteSuccess: (message) => message && toast(message),
-    onError: (_error, operation) => {
+    onDeleteSuccess: (message?: string) => message && toast(message),
+    onRestoreSuccess: (message?: string) => message && toast(message),
+    onPermanentDeleteSuccess: (message?: string) => message && toast(message),
+    onError: (_error: Error, operation: string) => {
       toast.error(`Failed to ${operation}`);
     },
   });

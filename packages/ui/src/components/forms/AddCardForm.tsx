@@ -17,12 +17,11 @@ import { Button } from "@teak/ui/components/ui/button";
 import { Card, CardContent } from "@teak/ui/components/ui/card";
 import { Textarea } from "@teak/ui/components/ui/textarea";
 import type { OptimisticLocalStore } from "convex/browser";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useQuery } from "convex-helpers/react/cache/hooks";
 import { AlertCircle, Mic, Sparkles, Square, Upload } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useFileUpload } from "@/hooks/useFileUpload";
 import { FullScreenAddCardDialog } from "./FullScreenAddCardDialog";
 
 function addCardToSearchQueries(
@@ -53,13 +52,30 @@ function addCardToSearchQueries(
   }
 }
 
-interface AddCardFormProps {
+export interface AddCardFormProps {
   autoFocus?: boolean;
+  canCreateCard?: boolean;
   onSuccess?: () => void;
+  UpgradeLinkComponent?: React.ComponentType<{
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }>;
+  upgradeUrl?: string;
+  uploadFile: (
+    file: File,
+    options?: { content?: string; additionalMetadata?: Record<string, unknown> }
+  ) => Promise<UploadFileResult>;
 }
 
-export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
-  const { uploadFile: uploadFileCore } = useFileUpload();
+export function AddCardForm({
+  onSuccess,
+  autoFocus,
+  canCreateCard: canCreateCardProp,
+  uploadFile,
+  UpgradeLinkComponent,
+  upgradeUrl = "/settings",
+}: AddCardFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -72,7 +88,7 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
   const [url, setUrl] = useState("");
 
   const currentUser = useQuery(api.auth.getCurrentUser);
-  const canCreateCard = currentUser?.canCreateCard ?? true;
+  const canCreateCard = canCreateCardProp ?? currentUser?.canCreateCard ?? true;
   const fullscreenShortcutLabel = isMac ? "Cmd+E" : "Ctrl+E";
   const basePlaceholderText = canCreateCard
     ? "Write or add a link..."
@@ -185,16 +201,6 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const uploadFile = async (
-    file: File,
-    options?: {
-      content?: string;
-      additionalMetadata?: Record<string, unknown>;
-    }
-  ): Promise<UploadFileResult> => {
-    return uploadFileCore(file, options);
   };
 
   const startRecording = async () => {
@@ -469,21 +475,38 @@ export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {
       return null;
     }
 
+    if (UpgradeLinkComponent) {
+      return (
+        <UpgradeLinkComponent className="block px-1 pb-1" href={upgradeUrl}>
+          <Alert>
+            <Sparkles className="stroke-primary" />
+            <AlertTitle className="font-medium text-primary">
+              Upgrade to Pro
+            </AlertTitle>
+            <AlertDescription>
+              <span className="font-medium text-primary">
+                You&apos;ve reached your free tier limit. Upgrade to Pro for
+                unlimited cards.
+              </span>
+            </AlertDescription>
+          </Alert>
+        </UpgradeLinkComponent>
+      );
+    }
+
     return (
-      <Link className="block px-1 pb-1" href="/settings">
-        <Alert>
-          <Sparkles className="stroke-primary" />
-          <AlertTitle className="font-medium text-primary">
-            Upgrade to Pro
-          </AlertTitle>
-          <AlertDescription>
-            <span className="font-medium text-primary">
-              You&apos;ve reached your free tier limit. Upgrade to Pro for
-              unlimited cards.
-            </span>
-          </AlertDescription>
-        </Alert>
-      </Link>
+      <Alert className="mx-1 mb-1">
+        <Sparkles className="stroke-primary" />
+        <AlertTitle className="font-medium text-primary">
+          Upgrade to Pro
+        </AlertTitle>
+        <AlertDescription>
+          <span className="font-medium text-primary">
+            You&apos;ve reached your free tier limit. Upgrade to Pro for
+            unlimited cards.
+          </span>
+        </AlertDescription>
+      </Alert>
     );
   };
 

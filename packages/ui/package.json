@@ -16,7 +16,12 @@
     "./feedback/CardsGridSkeleton": "./src/feedback/CardSkeleton.tsx",
     "./feedback/EmptyState": "./src/feedback/EmptyState.tsx",
     "./feedback/Loading": "./src/feedback/Loading.tsx",
-    "./icons": "./src/icons/index.ts"
+    "./icons": "./src/icons/index.ts",
+    "./grids": "./src/components/grids/index.ts",
+    "./forms": "./src/components/forms/index.ts",
+    "./selection": "./src/components/selection/index.ts",
+    "./search": "./src/components/search/index.ts",
+    "./hooks": "./src/hooks/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -32,23 +37,28 @@
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
-    "antd": "^5.24.0",
+    "antd": "^6.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.563.0",
+    "lucide-react": "^0.571.0",
     "next-themes": "^0.4.6",
+    "react-dropzone": "^14.4.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0"
   },
   "peerDependencies": {
     "@teak/convex": "workspace:*",
+    "convex": "^1.31.7",
+    "convex-helpers": "^0.1.112",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@teak/convex": "workspace:*",
-    "@types/react": "^19.2.10",
+    "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "convex": "^1.31.7",
+    "convex-helpers": "^0.1.112",
     "typescript": "^5.9.3"
   }
 }
