@@ -5,6 +5,10 @@ import { readStoreValue, writeStoreValue } from "@/lib/store";
 const WINDOW_WIDTH_KEY = "window.width";
 const WINDOW_HEIGHT_KEY = "window.height";
 const RESIZE_PERSIST_DELAY_MS = 250;
+const MIN_WIDTH = 900;
+const MIN_HEIGHT = 620;
+const MAX_WIDTH = 3840;
+const MAX_HEIGHT = 2160;
 
 export function useWindowSizePersistence() {
   useEffect(() => {
@@ -36,7 +40,11 @@ export function useWindowSizePersistence() {
       if (
         isMounted &&
         typeof savedWidth === "number" &&
-        typeof savedHeight === "number"
+        typeof savedHeight === "number" &&
+        savedWidth >= MIN_WIDTH &&
+        savedWidth <= MAX_WIDTH &&
+        savedHeight >= MIN_HEIGHT &&
+        savedHeight <= MAX_HEIGHT
       ) {
         await appWindow.setSize(new LogicalSize(savedWidth, savedHeight));
       }

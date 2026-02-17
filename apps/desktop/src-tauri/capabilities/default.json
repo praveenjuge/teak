@@ -9,6 +9,7 @@
     "core:window:allow-show",
     "core:window:allow-set-focus",
     "core:window:allow-close",
+    "core:window:allow-set-size",
     "opener:default",
     "process:default",
     "store:default",
