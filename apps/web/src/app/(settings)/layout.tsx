@@ -1,8 +1,8 @@
 "use client";
 
+import { TopPattern } from "@teak/ui/patterns";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { TopPattern } from "@/components/patterns/TopPattern";
 
 export default function SettingsLayout({ children }: { children: ReactNode }) {
   return (

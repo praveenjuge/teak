@@ -1,6 +1,7 @@
 import { Button } from "@teak/ui/components/ui/button";
 import { Spinner } from "@teak/ui/components/ui/spinner";
 import Logo from "@teak/ui/logo";
+import { BottomPattern, TopPattern } from "@teak/ui/patterns";
 import { useState } from "react";
 import { toast } from "sonner";
 import { openAuthWindow } from "@/lib/auth-window";
@@ -57,6 +58,8 @@ export function LoginPage({ isOnline }: LoginPageProps) {
       >
         {isLaunchingBrowser ? <Spinner /> : "Login"}
       </Button>
+      <TopPattern />
+      <BottomPattern />
     </section>
   );
 }
