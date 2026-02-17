@@ -284,12 +284,10 @@ describe("Content Script", () => {
 
     test("should sanitize user input before processing", () => {
       const userInput = "<script>alert('xss')</script>";
-      // Use textContent or DOMParser for proper HTML sanitization instead of regex
-      // This test demonstrates that we should use proper sanitization libraries
-      const sanitized = userInput.replace(
-        /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-        ""
-      );
+      // Use DOMParser for proper HTML sanitization instead of regex
+      // In production, use a library like DOMPurify
+      const doc = new DOMParser().parseFromString(userInput, "text/html");
+      const sanitized = doc.body.textContent || "";
 
       expect(sanitized).not.toContain("<script>");
     });

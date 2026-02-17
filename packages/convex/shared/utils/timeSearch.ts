@@ -324,11 +324,20 @@ export function parseTimeSearchQuery(
   const now = options.now ?? new Date();
   const weekStart = options.weekStart ?? 0;
 
-  // Use non-greedy quantifiers to prevent ReDoS attacks
-  const fromMatch = normalized.match(/^from (.+?) to (.+)$/);
-  if (fromMatch) {
-    const left = parseSingleExpression(fromMatch[1], now, weekStart);
-    const right = parseSingleExpression(fromMatch[2], now, weekStart);
+  // Limit input length to prevent ReDoS attacks
+  const safeInput = normalized.slice(0, 200);
+
+  // Split on known delimiters instead of using vulnerable regex patterns
+  const fromIndex = safeInput.indexOf(" from ");
+  const toIndex = safeInput.indexOf(" to ");
+  const dashIndex = safeInput.indexOf(" - ");
+
+  // Check for "from X to Y" pattern
+  if (safeInput.startsWith("from ") && toIndex > 5) {
+    const leftPart = safeInput.slice(5, toIndex).trim();
+    const rightPart = safeInput.slice(toIndex + 4).trim();
+    const left = parseSingleExpression(leftPart, now, weekStart);
+    const right = parseSingleExpression(rightPart, now, weekStart);
     if (left && right && left.start < right.end) {
       return {
         kind: "range",
@@ -339,10 +348,12 @@ export function parseTimeSearchQuery(
     return null;
   }
 
-  const toMatch = normalized.match(/^(.+?) to (.+)$/);
-  if (toMatch) {
-    const left = parseSingleExpression(toMatch[1], now, weekStart);
-    const right = parseSingleExpression(toMatch[2], now, weekStart);
+  // Check for "X to Y" pattern (must have "to" but not start with "from")
+  if (toIndex > 0 && !safeInput.startsWith("from ")) {
+    const leftPart = safeInput.slice(0, toIndex).trim();
+    const rightPart = safeInput.slice(toIndex + 4).trim();
+    const left = parseSingleExpression(leftPart, now, weekStart);
+    const right = parseSingleExpression(rightPart, now, weekStart);
     if (left && right && left.start < right.end) {
       return {
         kind: "range",
@@ -353,10 +364,12 @@ export function parseTimeSearchQuery(
     return null;
   }
 
-  const dashMatch = normalized.match(/^(.+?)\s-\s(.+)$/);
-  if (dashMatch) {
-    const left = parseSingleExpression(dashMatch[1], now, weekStart);
-    const right = parseSingleExpression(dashMatch[2], now, weekStart);
+  // Check for "X - Y" pattern
+  if (dashIndex > 0) {
+    const leftPart = safeInput.slice(0, dashIndex).trim();
+    const rightPart = safeInput.slice(dashIndex + 3).trim();
+    const left = parseSingleExpression(leftPart, now, weekStart);
+    const right = parseSingleExpression(rightPart, now, weekStart);
     if (left && right && left.start < right.end) {
       return {
         kind: "range",
