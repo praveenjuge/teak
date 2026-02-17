@@ -3,23 +3,23 @@ import { Button } from "@teak/ui/components/ui/button";
 import { Check } from "lucide-react";
 
 interface PricingCardProps {
+  badge?: string;
+  cta: {
+    text: string;
+    href: string;
+    primary?: boolean;
+  };
+  description: string;
+  features: string[];
+  isYearly?: boolean;
   name: string;
+  popular?: boolean;
   price:
     | string
     | {
         monthly: { amount: string; period: string };
         yearly: { amount: string; period: string };
       };
-  description: string;
-  features: string[];
-  cta: {
-    text: string;
-    href: string;
-    primary?: boolean;
-  };
-  popular?: boolean;
-  isYearly?: boolean;
-  badge?: string;
 }
 
 export function PricingCard({

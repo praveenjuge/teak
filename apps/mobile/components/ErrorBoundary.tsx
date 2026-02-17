@@ -2,8 +2,8 @@ import { Button, Host, Spacer, Text, VStack } from "@expo/ui/swift-ui";
 import React from "react";
 
 interface ErrorBoundaryState {
-  hasError: boolean;
   error?: Error;
+  hasError: boolean;
 }
 
 interface ErrorBoundaryProps {

@@ -3,9 +3,9 @@ import { Trash2, X } from "lucide-react";
 import { metrics } from "@/lib/metrics";
 
 interface BulkActionBarProps {
-  selectedCount: number;
-  onDelete: () => void;
   onCancel: () => void;
+  onDelete: () => void;
+  selectedCount: number;
 }
 
 export function BulkActionBar({

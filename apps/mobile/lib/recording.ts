@@ -1,20 +1,20 @@
 export interface AudioRecorderLike {
   isRecording: boolean;
-  uri: string | null;
   stop: () => Promise<void>;
+  uri: string | null;
 }
 
 interface StopRecordingParams {
   audioRecorder: AudioRecorderLike;
-  setIsRecording: (value: boolean) => void;
-  setIsStoppingRecording: (value: boolean) => void;
-  setRecordingDuration: (value: number) => void;
   handleFileUpload: (
     uri: string,
     fileName: string,
     mimeType: string
   ) => Promise<void>;
   onError?: (error: unknown) => void;
+  setIsRecording: (value: boolean) => void;
+  setIsStoppingRecording: (value: boolean) => void;
+  setRecordingDuration: (value: number) => void;
 }
 
 export async function stopAudioRecording({

@@ -2,10 +2,10 @@ import { Path, Svg } from "react-native-svg";
 import { colors } from "@/constants/colors";
 
 interface LogoProps {
+  color?: string;
+  height?: number;
   variant?: "default" | "primary" | "current" | "white";
   width?: number;
-  height?: number;
-  color?: string;
 }
 
 export default function Logo({

@@ -6,22 +6,17 @@
 
 @source "../../../packages/ui/src/**/*.{ts,tsx}";
 
-@media (min-width: 1000px) {
-  #nd-nav > div {
-    border: 0;
-    backdrop-filter: none;
-    font-weight: 500;
-    background: none;
-  }
-}
-
 #nd-sidebar,
 #nd-sidebar-mobile {
-  border: 0 !important;
   background: transparent !important;
+  border: 0 !important;
 }
 
 #nd-sidebar [data-active="true"],
 #nd-sidebar-mobile [data-active="true"] {
   background: var(--background) !important;
+}
+
+[data-toc-popover] {
+  @apply hidden md:hidden;
 }

@@ -18,27 +18,27 @@ const DEFAULT_BATCH_SIZE = 24;
 const DEFAULT_ROOT_MARGIN = "200px 0px";
 
 interface MasonryGridProps {
+  batchSize?: number;
   filteredCards: Doc<"cards">[];
-  showTrashOnly: boolean;
-  onCardClick: (card: Doc<"cards">) => void;
-  onDeleteCard: (cardId: string) => Promise<boolean>;
+  hasMore?: boolean;
+  initialBatchSize?: number;
+  isLoadingMore?: boolean;
+  loadMoreRootMargin?: string;
+  onAddTags?: (cardId: string) => void;
   onBulkDeleteCards?: (cardIds: string[]) => Promise<{
     requestedCount: number;
     deletedCount: number;
     failedIds: string[];
   }>;
-  onRestoreCard: (cardId: string) => void;
-  onPermanentDeleteCard: (cardId: string) => void;
-  onToggleFavorite: (cardId: string) => void;
-  onAddTags?: (cardId: string) => void;
+  onCardClick: (card: Doc<"cards">) => void;
   onCopyImage?: (content: string, isImage: boolean) => void;
-  initialBatchSize?: number;
-  batchSize?: number;
-  resetKey?: string | number | boolean;
+  onDeleteCard: (cardId: string) => Promise<boolean>;
   onLoadMore?: () => void;
-  hasMore?: boolean;
-  isLoadingMore?: boolean;
-  loadMoreRootMargin?: string;
+  onPermanentDeleteCard: (cardId: string) => void;
+  onRestoreCard: (cardId: string) => void;
+  onToggleFavorite: (cardId: string) => void;
+  resetKey?: string | number | boolean;
+  showTrashOnly: boolean;
 }
 
 export function MasonryGrid({

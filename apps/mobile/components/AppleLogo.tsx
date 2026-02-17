@@ -1,9 +1,9 @@
 import Svg, { Path } from "react-native-svg";
 
 interface AppleLogoProps {
-  width?: number;
-  height?: number;
   color?: string;
+  height?: number;
+  width?: number;
 }
 
 export default function AppleLogo({

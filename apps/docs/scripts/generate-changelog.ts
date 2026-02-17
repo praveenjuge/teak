@@ -29,7 +29,9 @@ Avoid fluff, marketing speak, or unnecessary detail. Keep everything brief.`;
 
 // Types
 interface GitHubCommit {
-  sha: string;
+  author: {
+    login: string;
+  } | null;
   commit: {
     message: string;
     author: {
@@ -37,17 +39,15 @@ interface GitHubCommit {
       date: string;
     };
   };
-  author: {
-    login: string;
-  } | null;
   html_url: string;
+  sha: string;
 }
 
 interface CommitBatch {
   batchNumber: number;
-  startDate: Date;
-  endDate: Date;
   commits: GitHubCommit[];
+  endDate: Date;
+  startDate: Date;
 }
 
 // Schema for AI-generated changelog summary

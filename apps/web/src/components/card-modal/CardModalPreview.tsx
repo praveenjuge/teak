@@ -13,11 +13,11 @@ import type { CardModalCard, GetCurrentValue } from "./types";
 
 interface CardModalPreviewProps {
   card: CardModalCard;
+  getCurrentValue: GetCurrentValue;
   hasUnsavedChanges: boolean;
   isSaved: boolean;
   saveChanges: () => Promise<void>;
   updateContent: (value: string) => void;
-  getCurrentValue: GetCurrentValue;
 }
 
 const renderPreviewByType = (

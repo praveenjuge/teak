@@ -34,19 +34,19 @@ type CardWithUrls = Doc<"cards"> & {
 };
 
 interface PendingChanges {
-  content?: string;
-  url?: string;
-  notes?: string;
   aiSummary?: string;
+  content?: string;
   isFavorited?: boolean;
+  notes?: string;
+  url?: string;
 }
 
 export interface CardModalConfig {
-  onError?: (error: Error, operation: string) => void;
-  onSuccess?: (message: string) => void;
-  onOpenLink?: (url: string) => void;
-  onClose?: () => void;
   onCardTypeClick?: (cardType: string) => void;
+  onClose?: () => void;
+  onError?: (error: Error, operation: string) => void;
+  onOpenLink?: (url: string) => void;
+  onSuccess?: (message: string) => void;
 }
 
 export interface CardModalOptions extends CardModalConfig {
@@ -62,10 +62,13 @@ export function useCardModal(
   const [pendingChanges, setPendingChanges] = useState<PendingChanges>({});
   const [isSaved, setIsSaved] = useState(false);
 
-  const notifyError = useCallback((error: Error, operation: string) => {
-    toast.error(`Failed to ${operation}`);
-    config.onError?.(error, operation);
-  }, []);
+  const notifyError = useCallback(
+    (error: Error, operation: string) => {
+      toast.error(`Failed to ${operation}`);
+      config.onError?.(error, operation);
+    },
+    [config.onError]
+  );
 
   const card = cardData;
 
@@ -301,7 +304,7 @@ export function useCardModal(
         return false;
       }
     },
-    [cardId, updateCardField]
+    [cardId, updateCardField, config.onError]
   );
 
   const updateAiSummary = useCallback((summary: string) => {
@@ -359,7 +362,7 @@ export function useCardModal(
         }
       }
     },
-    [cardId, cardActions]
+    [cardId, cardActions, config.onClose]
   );
 
   const handleRestore = useCallback(
@@ -373,7 +376,7 @@ export function useCardModal(
         }
       }
     },
-    [cardId, cardActions]
+    [cardId, cardActions, config.onClose]
   );
 
   const handlePermanentDelete = useCallback(
@@ -387,7 +390,7 @@ export function useCardModal(
         }
       }
     },
-    [cardId, cardActions]
+    [cardId, cardActions, config.onClose]
   );
 
   const openLink = useCallback(() => {
@@ -400,7 +403,7 @@ export function useCardModal(
         window.open(card.url, "_blank", "noopener,noreferrer");
       }
     }
-  }, [card?.url, card?.type]);
+  }, [card?.url, card?.type, config.onOpenLink]);
 
   const fileUrl = card?.fileUrl;
 
@@ -453,14 +456,14 @@ export function useCardModal(
         }
       }
     },
-    [tagInput, addTag]
+    [tagInput, addTag, config.onClose]
   );
 
   const handleCardTypeClick = useCallback(() => {
     if (card?.type) {
       config.onCardTypeClick?.(card.type);
     }
-  }, [card?.type]);
+  }, [card?.type, config.onCardTypeClick]);
 
   const getCurrentValue = useCallback(
     (field: "content" | "url" | "notes" | "aiSummary") => {

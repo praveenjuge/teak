@@ -4,20 +4,20 @@ import { TagManagementModal } from "@/components/TagManagementModal";
 import type { CardModalCard, GetCurrentValue } from "./types";
 
 interface CardModalOverlaysProps {
-  card: CardModalCard | null;
-  showTagManagementModal: boolean;
-  onTagManagementChange: (open: boolean) => void;
-  showMoreInfoModal: boolean;
-  onMoreInfoChange: (open: boolean) => void;
-  showNotesEditModal: boolean;
-  onNotesEditChange: (open: boolean) => void;
-  tagInput: string;
-  setTagInput: (value: string) => void;
   addTag: () => void;
-  removeTag: (tag: string) => void;
-  removeAiTag: (tag: string) => void;
+  card: CardModalCard | null;
   getCurrentValue: GetCurrentValue;
+  onMoreInfoChange: (open: boolean) => void;
+  onNotesEditChange: (open: boolean) => void;
+  onTagManagementChange: (open: boolean) => void;
+  removeAiTag: (tag: string) => void;
+  removeTag: (tag: string) => void;
   saveNotes: (notes: string) => Promise<boolean>;
+  setTagInput: (value: string) => void;
+  showMoreInfoModal: boolean;
+  showNotesEditModal: boolean;
+  showTagManagementModal: boolean;
+  tagInput: string;
 }
 
 export function CardModalOverlays({

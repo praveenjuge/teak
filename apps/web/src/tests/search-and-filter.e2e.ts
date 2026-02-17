@@ -9,6 +9,7 @@ const TEST_IMAGE_PATH = fileURLToPath(
 );
 
 test.describe("Search and Filter Workflows", () => {
+  // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
   test.skip(
     !(TEST_EMAIL && TEST_PASSWORD),
     "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run search tests."

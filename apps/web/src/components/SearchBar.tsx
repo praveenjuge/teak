@@ -34,27 +34,27 @@ import { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface SearchBarProps {
-  searchQuery: string;
-  onSearchChange: (value: string) => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  keywordTags: string[];
-  timeFilter?: TimeFilter | null;
   filterTags: CardType[];
-  styleFilters: VisualStyle[];
-  hueFilters: ColorHueBucket[];
   hexFilters: string[];
-  showFavoritesOnly: boolean;
-  showTrashOnly: boolean;
+  hueFilters: ColorHueBucket[];
+  keywordTags: string[];
   onAddFilter: (filter: CardType) => void;
+  onClearAll: () => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onRemoveFilter: (filter: CardType) => void;
-  onRemoveStyleFilter: (style: VisualStyle) => void;
-  onRemoveHueFilter: (hue: ColorHueBucket) => void;
   onRemoveHexFilter: (hex: string) => void;
+  onRemoveHueFilter: (hue: ColorHueBucket) => void;
   onRemoveKeyword: (keyword: string) => void;
+  onRemoveStyleFilter: (style: VisualStyle) => void;
   onRemoveTimeFilter: () => void;
+  onSearchChange: (value: string) => void;
   onToggleFavorites: () => void;
   onToggleTrash: () => void;
-  onClearAll: () => void;
+  searchQuery: string;
+  showFavoritesOnly: boolean;
+  showTrashOnly: boolean;
+  styleFilters: VisualStyle[];
+  timeFilter?: TimeFilter | null;
 }
 
 // Icon component mapping for Lucide React icons

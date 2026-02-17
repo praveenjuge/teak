@@ -1,9 +1,9 @@
 export interface FeedbackStatusPayload {
-  message: string;
-  title?: string;
-  iconName?: string;
   accentColor?: string;
   dismissAfterMs?: number;
+  iconName?: string;
+  message: string;
+  title?: string;
 }
 
 type Listener = (payload: FeedbackStatusPayload | null) => void;

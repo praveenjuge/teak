@@ -15,12 +15,12 @@ import type { CardModalCard } from "./card-modal/types";
 import { Loading } from "./Loading";
 
 interface CardModalProps {
-  cardId: string | null;
   card?: CardModalCard | null;
-  open: boolean;
+  cardId: string | null;
   onCancel?: () => void;
   onCardTypeClick?: (cardType: string) => void;
   onTagClick?: (tag: string) => void;
+  open: boolean;
 }
 
 export function CardModal({

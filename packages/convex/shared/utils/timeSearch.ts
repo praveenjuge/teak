@@ -328,7 +328,6 @@ export function parseTimeSearchQuery(
   const safeInput = normalized.slice(0, 200);
 
   // Split on known delimiters instead of using vulnerable regex patterns
-  const fromIndex = safeInput.indexOf(" from ");
   const toIndex = safeInput.indexOf(" to ");
   const dashIndex = safeInput.indexOf(" - ");
 

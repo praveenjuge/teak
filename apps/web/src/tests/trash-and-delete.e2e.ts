@@ -5,6 +5,7 @@ const TEST_EMAIL = process.env.E2E_BETTER_AUTH_USER_EMAIL;
 const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
 
 test.describe("Trash, Delete, and Restore Workflows", () => {
+  // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
   test.skip(
     !(TEST_EMAIL && TEST_PASSWORD),
     "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run delete tests."
@@ -106,6 +107,7 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
         const mainViewCount = await page.locator("[data-card-id]").count();
         expect(mainViewCount).toBeGreaterThan(0);
       } else {
+        // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
         test.skip(true, "Restore button not found");
       }
     });
@@ -189,6 +191,7 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
         const trashCountAfter = await page.locator("[data-card-id]").count();
         expect(trashCountAfter).toBeLessThan(trashCountBefore);
       } else {
+        // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
         test.skip(true, "Permanent delete button not found");
       }
     });
@@ -242,6 +245,7 @@ test.describe("Trash, Delete, and Restore Workflows", () => {
           }
         }
       } else {
+        // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
         test.skip(true, "Permanent delete button not found");
       }
     });

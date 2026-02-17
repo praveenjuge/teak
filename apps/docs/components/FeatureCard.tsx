@@ -1,9 +1,9 @@
 import { Heart, Layers, Search, Shield, Smartphone, Zap } from "lucide-react";
 
 interface FeatureCardProps {
+  description: string;
   icon: "shield" | "lightning" | "mobile" | "search" | "stack" | "heart";
   title: string;
-  description: string;
 }
 
 const iconMap = {

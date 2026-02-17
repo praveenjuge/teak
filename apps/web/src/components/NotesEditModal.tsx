@@ -12,11 +12,11 @@ import { Textarea } from "@teak/ui/components/ui/textarea";
 import { useEffect, useRef, useState } from "react";
 
 interface NotesEditModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   notes: string;
-  onSave: (notes: string) => Promise<boolean>;
   onCancel: () => void;
+  onOpenChange: (open: boolean) => void;
+  onSave: (notes: string) => Promise<boolean>;
+  open: boolean;
 }
 
 export function NotesEditModal({

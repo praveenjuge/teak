@@ -3,8 +3,8 @@ import { Textarea } from "@teak/ui/components/ui/textarea";
 
 interface TextPreviewProps {
   card: Doc<"cards">;
-  onContentChange: (content: string) => void;
   getCurrentValue?: (field: "content") => string | undefined;
+  onContentChange: (content: string) => void;
 }
 
 export function TextPreview({

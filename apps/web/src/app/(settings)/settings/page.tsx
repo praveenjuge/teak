@@ -65,10 +65,10 @@ const themeOptions = [
 type ThemeValue = (typeof themeOptions)[number]["value"];
 
 interface DeleteState {
-  open: boolean;
   confirmation: string;
   error: string | null;
   loading: boolean;
+  open: boolean;
   [key: string]: unknown;
 }
 
@@ -124,8 +124,8 @@ function SettingRow({
 }
 
 interface CustomerPortalButtonProps {
-  className?: string;
   children: ReactNode;
+  className?: string;
 }
 
 function CustomerPortalButton({
@@ -177,13 +177,13 @@ function CustomerPortalButton({
 }
 
 interface PlanOptionProps {
-  planId: string;
-  title: string;
-  priceAmount: number;
-  intervalLabel: string;
   badge?: string;
+  intervalLabel: string;
   isLoading: boolean;
   onCheckout: (planId: string) => void;
+  planId: string;
+  priceAmount: number;
+  title: string;
 }
 
 function PlanOption({
@@ -239,8 +239,8 @@ function PlanOption({
 }
 
 interface SubscriptionSectionProps {
-  onCheckout: (planId: string) => void;
   loadingPlanId: string | null;
+  onCheckout: (planId: string) => void;
 }
 
 function SubscriptionSection({

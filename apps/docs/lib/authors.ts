@@ -1,9 +1,9 @@
 export interface Author {
+  avatar: string;
+  bio: string;
   id: string;
   name: string;
   role: string;
-  bio: string;
-  avatar: string;
   social: {
     twitter?: string;
     github?: string;

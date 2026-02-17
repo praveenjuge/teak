@@ -45,10 +45,10 @@ export const metadata: Metadata = {
 };
 
 interface ChangelogEntry {
-  title: string;
-  endDate: string;
   batchNumber: number;
   body: ComponentType;
+  endDate: string;
+  title: string;
 }
 
 function formatDate(dateStr: string): string {

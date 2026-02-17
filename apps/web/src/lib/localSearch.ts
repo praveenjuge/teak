@@ -31,14 +31,14 @@ export const buildSearchableText = (card: Doc<"cards">) => {
 };
 
 export interface LocalSearchFilters {
-  searchTerms?: string;
-  types?: CardType[];
-  styleFilters?: string[];
-  hueFilters?: string[];
-  hexFilters?: string[];
-  favoritesOnly?: boolean;
-  showTrashOnly?: boolean;
   createdAtRange?: CreatedAtRange;
+  favoritesOnly?: boolean;
+  hexFilters?: string[];
+  hueFilters?: string[];
+  searchTerms?: string;
+  showTrashOnly?: boolean;
+  styleFilters?: string[];
+  types?: CardType[];
 }
 
 const matchesVisualFilters = (

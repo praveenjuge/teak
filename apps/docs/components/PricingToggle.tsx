@@ -3,8 +3,8 @@
 import { useState } from "react";
 
 interface PricingToggleProps {
-  onToggle: (isYearly: boolean) => void;
   defaultYearly?: boolean;
+  onToggle: (isYearly: boolean) => void;
 }
 
 export function PricingToggle({

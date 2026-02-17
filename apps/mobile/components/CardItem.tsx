@@ -47,12 +47,12 @@ const leadingIcon = (systemName: string) => (
 );
 
 interface RowProps {
-  leading?: ReactNode;
   content: ReactNode;
-  trailing?: ReactNode;
-  onPress?: () => void;
-  onDelete?: () => void;
   contextItems?: ReactNode[];
+  leading?: ReactNode;
+  onDelete?: () => void;
+  onPress?: () => void;
+  trailing?: ReactNode;
 }
 
 const Row = ({

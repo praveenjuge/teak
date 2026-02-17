@@ -19,10 +19,6 @@ import { getCardTypeIconComponent } from "./cardTypeIcon";
 import type { CardModalCard, GetCurrentValue } from "./types";
 
 interface CardMetadataPanelProps {
-  card: CardModalCard;
-  getCurrentValue: GetCurrentValue;
-  onCardTypeClick: () => void;
-  onTagClick?: (tag: string) => void;
   actions: {
     showMoreInfo: () => void;
     toggleFavorite: () => void;
@@ -34,6 +30,10 @@ interface CardMetadataPanelProps {
     restoreCard: () => void;
     permanentlyDeleteCard: () => void;
   };
+  card: CardModalCard;
+  getCurrentValue: GetCurrentValue;
+  onCardTypeClick: () => void;
+  onTagClick?: (tag: string) => void;
 }
 
 export function CardMetadataPanel({

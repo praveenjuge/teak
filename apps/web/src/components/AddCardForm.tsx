@@ -60,8 +60,8 @@ function addCardToSearchQueries(
 }
 
 interface AddCardFormProps {
-  onSuccess?: () => void;
   autoFocus?: boolean;
+  onSuccess?: () => void;
 }
 
 export function AddCardForm({ onSuccess, autoFocus }: AddCardFormProps) {

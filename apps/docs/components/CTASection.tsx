@@ -1,12 +1,12 @@
 import { Button } from "@teak/ui/components/ui/button";
 
 interface CTASectionProps {
-  title: string;
   description: string;
   primaryCTA: {
     text: string;
     href: string;
   };
+  title: string;
 }
 
 export function CTASection({

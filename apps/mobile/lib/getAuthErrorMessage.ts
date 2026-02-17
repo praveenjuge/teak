@@ -1,13 +1,13 @@
 interface BetterAuthError {
-  message?: string | null;
   cause?: string | null;
-  statusText?: string | null;
   error?:
     | string
     | {
         message?: string | null;
       }
     | null;
+  message?: string | null;
+  statusText?: string | null;
 }
 
 const isString = (value: unknown): value is string =>

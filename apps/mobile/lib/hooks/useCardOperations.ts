@@ -2,8 +2,8 @@ import { api } from "@teak/convex";
 import { useMutation } from "convex/react";
 
 export interface FileUploadConfig {
-  onUploadProgress?: (progress: number) => void;
   onUploadError?: (error: Error) => void;
+  onUploadProgress?: (progress: number) => void;
 }
 
 export const useCreateCard = () => useMutation(api.cards.createCard);

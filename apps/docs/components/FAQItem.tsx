@@ -1,6 +1,6 @@
 interface FAQItemProps {
-  question: string;
   answer: string;
+  question: string;
 }
 
 export function FAQItem({ question, answer }: FAQItemProps) {

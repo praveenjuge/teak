@@ -67,11 +67,11 @@ type PlatformAction =
     };
 
 interface PlatformCard {
-  name: string;
-  copy: string;
-  icon: ComponentType<LucideProps>;
   action: PlatformAction;
+  copy: string;
   footnote?: string;
+  icon: ComponentType<LucideProps>;
+  name: string;
 }
 
 const platformCards: PlatformCard[] = [

@@ -11,15 +11,15 @@ import { Plus, Sparkles, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 interface TagManagementModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  userTags: string[];
   aiTags: string[];
-  tagInput: string;
-  setTagInput: (value: string) => void;
   onAddTag: () => void;
-  onRemoveTag: (tag: string) => void;
+  onOpenChange: (open: boolean) => void;
   onRemoveAiTag: (tag: string) => void;
+  onRemoveTag: (tag: string) => void;
+  open: boolean;
+  setTagInput: (value: string) => void;
+  tagInput: string;
+  userTags: string[];
 }
 
 export function TagManagementModal({

@@ -13,10 +13,10 @@ import { Appearance, type ColorSchemeName, useColorScheme } from "react-native";
 type ThemePreference = "system" | "light" | "dark";
 
 interface ThemePreferenceContextValue {
+  isLoaded: boolean;
   preference: ThemePreference;
   resolvedScheme: Exclude<ColorSchemeName, null>;
   setPreference: (preference: ThemePreference) => void;
-  isLoaded: boolean;
 }
 
 const STORAGE_KEY = "teak.themePreference";

@@ -11,29 +11,29 @@ import { toast } from "sonner";
 import { TOAST_IDS } from "@/lib/toastConfig";
 
 interface CardData {
-  createdAt: number;
-  updatedAt: number;
-  url?: string;
   content?: string;
+  createdAt: number;
   fileMetadata?: {
     fileName?: string;
     fileSize?: number;
     mimeType?: string;
   };
   type?: string;
+  updatedAt: number;
+  url?: string;
 }
 
 interface MoreInformationModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   card: CardData | null;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
 }
 
 interface CopyableSectionProps {
   label: string;
-  value: string;
-  textClass?: string;
   onCopy: () => void;
+  textClass?: string;
+  value: string;
 }
 
 function CopyableSection({

@@ -52,17 +52,17 @@ type LinkPreviewMetadata = NonNullable<
 
 interface CardProps {
   card: CardWithUrls;
-  onClick?: (card: CardWithUrls) => void;
-  onDelete?: (cardId: string) => void;
-  onRestore?: (cardId: string) => void;
-  onPermanentDelete?: (cardId: string) => void;
-  onToggleFavorite?: (cardId: string) => void;
-  onAddTags?: (cardId: string) => void;
-  onCopyImage?: (content: string, isImage: boolean) => void;
-  isTrashMode?: boolean;
-  isSelectionMode?: boolean;
   isSelected?: boolean;
+  isSelectionMode?: boolean;
+  isTrashMode?: boolean;
+  onAddTags?: (cardId: string) => void;
+  onClick?: (card: CardWithUrls) => void;
+  onCopyImage?: (content: string, isImage: boolean) => void;
+  onDelete?: (cardId: string) => void;
   onEnterSelectionMode?: (cardId: string) => void;
+  onPermanentDelete?: (cardId: string) => void;
+  onRestore?: (cardId: string) => void;
+  onToggleFavorite?: (cardId: string) => void;
   onToggleSelection?: () => void;
 }
 

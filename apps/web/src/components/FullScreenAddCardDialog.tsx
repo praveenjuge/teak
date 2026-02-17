@@ -10,15 +10,15 @@ import { Textarea } from "@teak/ui/components/ui/textarea";
 import { useCallback, useEffect, useRef } from "react";
 
 interface FullScreenAddCardDialogProps {
-  open: boolean;
-  content: string;
   canCreateCard: boolean;
-  isSubmitting: boolean;
+  content: string;
   error: string | null;
-  placeholder: string;
+  isSubmitting: boolean;
   onContentChange: (value: string) => void;
-  onSave: () => void | Promise<void>;
   onRequestClose: () => void | Promise<void>;
+  onSave: () => void | Promise<void>;
+  open: boolean;
+  placeholder: string;
 }
 
 export function FullScreenAddCardDialog({

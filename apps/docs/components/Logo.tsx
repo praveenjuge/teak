@@ -1,4 +1,5 @@
 interface LogoProps {
+  className?: string;
   variant?: "default" | "primary" | "current";
 }
 
@@ -12,11 +13,11 @@ const getVariantClass = (variant: LogoProps["variant"]): string => {
   return "text-current/40";
 };
 
-export default function Logo({ variant = "default" }: LogoProps) {
+export default function Logo({ variant = "default", className }: LogoProps) {
   return (
     <svg
       aria-hidden="true"
-      className={`pointer-events-none h-5 w-auto shrink-0 select-none ${getVariantClass(variant)}`}
+      className={`pointer-events-none h-5 w-auto shrink-0 select-none ${getVariantClass(variant)} ${className ?? ""}`}
       fill="currentColor"
       height="92"
       viewBox="0 0 260 92"
