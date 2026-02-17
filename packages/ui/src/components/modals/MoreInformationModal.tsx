@@ -8,7 +8,6 @@ import {
 import { Label } from "@teak/ui/components/ui/label";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
-import { TOAST_IDS } from "@/lib/toastConfig";
 
 interface CardData {
   content?: string;
@@ -95,10 +94,10 @@ export function MoreInformationModal({
   const handleCopy = async (text: string, successMessage: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success(successMessage, { id: TOAST_IDS.copyFeedback });
+      toast.success(successMessage);
     } catch (error) {
       console.error("Failed to copy text:", error);
-      toast.error("Failed to copy", { id: TOAST_IDS.copyFeedback });
+      toast.error("Failed to copy");
     }
   };
 

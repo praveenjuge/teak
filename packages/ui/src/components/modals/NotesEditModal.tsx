@@ -37,7 +37,6 @@ export function NotesEditModal({
   useEffect(() => {
     if (open && textareaRef.current) {
       textareaRef.current.focus();
-      // Place cursor at end of text
       textareaRef.current.setSelectionRange(
         textareaRef.current.value.length,
         textareaRef.current.value.length
@@ -70,7 +69,7 @@ export function NotesEditModal({
     if (isSaving) {
       return;
     }
-    setLocalNotes(notes); // Reset to original value
+    setLocalNotes(notes);
     onCancel();
     onOpenChange(false);
   };

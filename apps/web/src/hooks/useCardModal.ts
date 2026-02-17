@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import type { OptimisticLocalStore } from "convex/browser";
@@ -6,10 +5,8 @@ import { useMutation } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useCardActions } from "@/hooks/useCardActions";
-import { metrics } from "@/lib/metrics";
 import { TOAST_IDS } from "@/lib/toastConfig";
 
-// Helper to update a card in all cached searchCards queries
 function updateCardInSearchQueries(
   localStore: OptimisticLocalStore,
   cardId: Id<"cards">,
@@ -136,7 +133,6 @@ export function useCardModal(
       }
 
       default:
-        // No optimistic update for unknown fields
         break;
     }
   });
@@ -206,10 +202,6 @@ export function useCardModal(
       }, 2000);
     } catch (error) {
       console.error("Failed to save changes:", error);
-      Sentry.captureException(error, {
-        tags: { source: "convex", mutation: "cards:updateCardField" },
-        extra: { cardId, fields: Object.keys(currentPendingChanges) },
-      });
       setPendingChanges(currentPendingChanges);
       setIsSaved(false);
       notifyError(error as Error, "save changes");
@@ -243,10 +235,6 @@ export function useCardModal(
         }
       } catch (error) {
         console.error(`Failed to update ${field}:`, error);
-        Sentry.captureException(error, {
-          tags: { source: "convex", mutation: "cards:updateCardField" },
-          extra: { cardId, field },
-        });
 
         if (field === "isFavorited") {
           setPendingChanges((prev) => {
@@ -295,10 +283,6 @@ export function useCardModal(
         return true;
       } catch (error) {
         console.error("Failed to save notes:", error);
-        Sentry.captureException(error, {
-          tags: { source: "convex", mutation: "cards:updateCardField" },
-          extra: { cardId, field: "notes" },
-        });
         toast.error("Failed to update notes", { id: TOAST_IDS.notesSave });
         config.onError?.(error as Error, "update notes");
         return false;
@@ -323,7 +307,6 @@ export function useCardModal(
 
   const removeAiTag = useCallback(
     (tagToRemove: string) => {
-      metrics.tagRemoved("ai");
       void updateField("removeAiTag", undefined, tagToRemove);
     },
     [updateField]
@@ -336,7 +319,6 @@ export function useCardModal(
     if (tag && !currentTags.includes(tag)) {
       const newTags = [...currentTags, tag];
       setTagInput("");
-      metrics.tagAdded("user");
       void updateField("tags", newTags);
     }
   }, [card?.tags, tagInput, updateField]);
@@ -345,7 +327,6 @@ export function useCardModal(
     (tagToRemove: string) => {
       const currentTags = card?.tags || [];
       const newTags = currentTags.filter((tag: string) => tag !== tagToRemove);
-      metrics.tagRemoved("user");
       void updateField("tags", newTags);
     },
     [card?.tags, updateField]
@@ -395,15 +376,13 @@ export function useCardModal(
 
   const openLink = useCallback(() => {
     if (card?.url) {
-      metrics.linkOpened(card.type);
-      metrics.featureUsed("open_link");
       if (config.onOpenLink) {
         config.onOpenLink(card.url);
       } else if (typeof window !== "undefined") {
         window.open(card.url, "_blank", "noopener,noreferrer");
       }
     }
-  }, [card?.url, card?.type, config.onOpenLink]);
+  }, [card?.url, config.onOpenLink]);
 
   const fileUrl = card?.fileUrl;
 
@@ -413,12 +392,6 @@ export function useCardModal(
     }
 
     try {
-      metrics.fileDownloaded(
-        card.type,
-        card.fileMetadata?.mimeType?.split("/")[0] || "unknown"
-      );
-      metrics.featureUsed("download_file");
-
       const link = document.createElement("a");
       link.href = fileUrl;
       link.download = card.fileMetadata.fileName;
@@ -427,21 +400,9 @@ export function useCardModal(
       document.body.removeChild(link);
     } catch (error) {
       console.error("Failed to download file:", error);
-      Sentry.captureException(error, {
-        tags: { source: "client", operation: "downloadFile" },
-        extra: { cardId, fileName: card?.fileMetadata?.fileName },
-      });
       notifyError(error as Error, "download file");
     }
-  }, [
-    card?.fileId,
-    card?.fileMetadata?.fileName,
-    card?.fileMetadata?.mimeType,
-    card?.type,
-    fileUrl,
-    notifyError,
-    cardId,
-  ]);
+  }, [card?.fileId, card?.fileMetadata?.fileName, fileUrl, notifyError]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, onClose?: () => void) => {

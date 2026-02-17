@@ -1,7 +1,12 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 
+type CardWithUrls = Doc<"cards"> & {
+  fileUrl?: string;
+  thumbnailUrl?: string;
+};
+
 interface VideoPreviewProps {
-  card: Doc<"cards"> & { fileUrl?: string };
+  card: CardWithUrls;
 }
 
 export function VideoPreview({ card }: VideoPreviewProps) {

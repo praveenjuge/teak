@@ -1,9 +1,15 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { Textarea } from "@teak/ui/components/ui/textarea";
+import type { GetCurrentValue } from "../card-modal/types";
+
+type CardWithUrls = Doc<"cards"> & {
+  fileUrl?: string;
+  thumbnailUrl?: string;
+};
 
 interface TextPreviewProps {
-  card: Doc<"cards">;
-  getCurrentValue?: (field: "content") => string | undefined;
+  card: CardWithUrls;
+  getCurrentValue?: GetCurrentValue;
   onContentChange: (content: string) => void;
 }
 

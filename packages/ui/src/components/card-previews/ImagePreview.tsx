@@ -1,10 +1,13 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { Image } from "antd";
 import { toast } from "sonner";
-import { TOAST_IDS } from "@/lib/toastConfig";
+
+type CardWithUrls = Doc<"cards"> & {
+  fileUrl?: string;
+  thumbnailUrl?: string;
+};
 
 interface ImagePreviewProps {
-  card: Doc<"cards"> & { fileUrl?: string };
+  card: CardWithUrls;
 }
 
 export function ImagePreview({ card }: ImagePreviewProps) {
@@ -15,10 +18,10 @@ export function ImagePreview({ card }: ImagePreviewProps) {
   const handleCopyColor = async (hex: string) => {
     try {
       await navigator.clipboard.writeText(hex);
-      toast.success(`Copied ${hex}`, { id: TOAST_IDS.copyFeedback });
+      toast.success(`Copied ${hex}`);
     } catch (error) {
       console.error("Failed to copy color", error);
-      toast.error("Failed to copy", { id: TOAST_IDS.copyFeedback });
+      toast.error("Failed to copy");
     }
   };
 
@@ -29,12 +32,12 @@ export function ImagePreview({ card }: ImagePreviewProps) {
   return (
     <div className="flex h-full w-full items-center justify-center">
       <div className="relative">
-        <Image
-          alt={card.content}
+        <img
+          alt={card.content || "Image"}
           className="max-h-[75vh] max-w-full overflow-hidden"
-          placeholder
-          preview={false}
+          height={card.fileMetadata?.height}
           src={fileUrl}
+          width={card.fileMetadata?.width}
         />
 
         {paletteColors.length > 0 && (

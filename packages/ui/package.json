@@ -9,6 +9,9 @@
     "./components/ui/*": "./src/components/ui/*.tsx",
     "./cards": "./src/components/cards/index.ts",
     "./cards/previews": "./src/components/cards/previews/index.ts",
+    "./card-modal": "./src/components/card-modal/index.ts",
+    "./card-previews": "./src/components/card-previews/index.ts",
+    "./modals": "./src/components/modals/index.ts",
     "./feedback/CardSkeleton": "./src/feedback/CardSkeleton.tsx",
     "./feedback/CardsGridSkeleton": "./src/feedback/CardSkeleton.tsx",
     "./feedback/EmptyState": "./src/feedback/EmptyState.tsx",
@@ -38,10 +41,12 @@
     "tailwind-merge": "^3.4.0"
   },
   "peerDependencies": {
+    "@teak/convex": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@teak/convex": "workspace:*",
     "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
     "typescript": "^5.9.3"

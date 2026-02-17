@@ -268,11 +268,13 @@
         "tailwind-merge": "^3.4.0",
       },
       "devDependencies": {
+        "@teak/convex": "workspace:*",
         "@types/react": "^19.2.10",
         "@types/react-dom": "^19.2.3",
         "typescript": "^5.9.3",
       },
       "peerDependencies": {
+        "@teak/convex": "workspace:*",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
       },

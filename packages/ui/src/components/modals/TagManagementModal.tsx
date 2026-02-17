@@ -58,7 +58,6 @@ export function TagManagementModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Add New Tag */}
           <div>
             <Label htmlFor="new-tag">Add New Tag</Label>
             <div className="mt-2 flex gap-2">
@@ -81,7 +80,6 @@ export function TagManagementModal({
             </div>
           </div>
 
-          {/* User Tags */}
           {userTags && userTags.length > 0 && (
             <div>
               <Label>Your Tags</Label>
@@ -109,7 +107,6 @@ export function TagManagementModal({
             </div>
           )}
 
-          {/* AI Tags */}
           {aiTags && aiTags.length > 0 && (
             <div>
               <Label>Tags by Teak</Label>
@@ -138,7 +135,6 @@ export function TagManagementModal({
             </div>
           )}
 
-          {/* Empty State */}
           {(!userTags || userTags.length === 0) &&
             (!aiTags || aiTags.length === 0) && (
               <div className="py-4 text-center text-muted-foreground">

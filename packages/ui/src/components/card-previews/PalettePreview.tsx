@@ -2,10 +2,14 @@ import type { Doc } from "@teak/convex/_generated/dataModel";
 import { Button } from "@teak/ui/components/ui/button";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
-import { TOAST_IDS } from "@/lib/toastConfig";
+
+type CardWithUrls = Doc<"cards"> & {
+  fileUrl?: string;
+  thumbnailUrl?: string;
+};
 
 interface PalettePreviewProps {
-  card: Doc<"cards">;
+  card: CardWithUrls;
 }
 
 export function PalettePreview({ card }: PalettePreviewProps) {
@@ -14,10 +18,10 @@ export function PalettePreview({ card }: PalettePreviewProps) {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success(`Copied ${text}`, { id: TOAST_IDS.copyFeedback });
+      toast.success(`Copied ${text}`);
     } catch (err) {
       console.error("Failed to copy:", err);
-      toast.error("Failed to copy", { id: TOAST_IDS.copyFeedback });
+      toast.error("Failed to copy");
     }
   };
 
@@ -31,10 +35,8 @@ export function PalettePreview({ card }: PalettePreviewProps) {
 
   return (
     <div className="space-y-2">
-      {/* Colors */}
       {colors.map((color, index) => (
         <div className="overflow-hidden rounded" key={`${color.hex}-${index}`}>
-          {/* Color Swatch with values inline */}
           <button
             className="flex w-full cursor-pointer items-center justify-end p-2"
             onClick={() => void copyToClipboard(color.hex)}

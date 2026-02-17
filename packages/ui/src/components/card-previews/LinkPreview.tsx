@@ -1,8 +1,13 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { Image } from "antd";
 import { ArrowUpRight } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+
+type CardWithUrls = Doc<"cards"> & {
+  fileUrl?: string;
+  thumbnailUrl?: string;
+  screenshotUrl?: string;
+  linkPreviewImageUrl?: string;
+};
 
 function FaviconImage({
   faviconUrl,
@@ -41,13 +46,21 @@ function FaviconImage({
 }
 
 interface LinkPreviewProps {
-  card: Doc<"cards"> & { screenshotUrl?: string; linkPreviewImageUrl?: string };
+  card: CardWithUrls;
+  LinkComponent?: React.ComponentType<{
+    href: string;
+    className?: string;
+    target?: string;
+    rel?: string;
+    children: React.ReactNode;
+  }>;
   showScreenshot?: boolean;
 }
 
 export function LinkPreview({
   card,
   showScreenshot = false,
+  LinkComponent,
 }: LinkPreviewProps) {
   const linkPreview =
     card.metadata?.linkPreview?.status === "success"
@@ -74,31 +87,26 @@ export function LinkPreview({
 
   const categoryMetadata = card.metadata?.linkCategory;
 
-  return (
-    <div className="flex flex-col gap-6">
-      <Link
-        className="flex w-full flex-col overflow-hidden rounded border hover:bg-accent sm:flex-row"
-        href={card.url || "#"}
-        rel="noopener noreferrer"
-        target="_blank"
-      >
+  const linkContent = (
+    <>
+      <div className="flex w-full flex-col overflow-hidden rounded border hover:bg-accent sm:flex-row">
         {linkImage && (
-          <Image
+          <img
             alt="Open Graph preview"
             className="h-auto max-h-60 w-full object-contain sm:h-full sm:max-h-40 sm:w-60"
-            placeholder
-            preview={false}
+            height={240}
             src={linkImage}
+            width={240}
           />
         )}
 
         {showScreenshot && screenshotUrl && !linkImage && (
-          <Image
+          <img
             alt="Rendered webpage screenshot"
             className="h-auto max-h-60 w-full object-contain sm:h-full sm:max-h-40 sm:w-60"
-            placeholder
-            preview={false}
+            height={240}
             src={screenshotUrl}
+            width={240}
           />
         )}
 
@@ -128,7 +136,7 @@ export function LinkPreview({
             </p>
           )}
         </div>
-      </Link>
+      </div>
 
       {categoryMetadata?.facts?.length ? (
         <div className="space-y-1 text-muted-foreground text-sm">
@@ -140,6 +148,34 @@ export function LinkPreview({
           ))}
         </div>
       ) : null}
+    </>
+  );
+
+  if (LinkComponent) {
+    return (
+      <div className="flex flex-col gap-6">
+        <LinkComponent
+          className="block"
+          href={card.url || "#"}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {linkContent}
+        </LinkComponent>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <a
+        className="block"
+        href={card.url || "#"}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        {linkContent}
+      </a>
     </div>
   );
 }

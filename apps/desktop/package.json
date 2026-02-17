@@ -8,7 +8,8 @@
     "build": "tauri build",
     "build:mac-silicon": "tauri build --target aarch64-apple-darwin",
     "build:vite": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",

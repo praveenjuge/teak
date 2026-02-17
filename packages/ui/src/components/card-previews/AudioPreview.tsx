@@ -1,8 +1,13 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { Sparkles } from "lucide-react";
 
+type CardWithUrls = Doc<"cards"> & {
+  fileUrl?: string;
+  thumbnailUrl?: string;
+};
+
 interface AudioPreviewProps {
-  card: Doc<"cards"> & { fileUrl?: string };
+  card: CardWithUrls;
 }
 
 export function AudioPreview({ card }: AudioPreviewProps) {
@@ -18,7 +23,6 @@ export function AudioPreview({ card }: AudioPreviewProps) {
         </audio>
       )}
 
-      {/* Transcript Section */}
       {card.aiTranscript && (
         <div className="rounded-lg border bg-background">
           <div className="flex w-full items-center gap-2 px-3 pt-3 text-left">

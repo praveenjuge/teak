@@ -1,21 +1,12 @@
-import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import {
   type CardActionsConfig,
   createCardActions,
-  setSentryCaptureFunction,
 } from "@teak/convex/shared/hooks/useCardActions";
 import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation } from "convex/react";
-import { metrics } from "@/lib/metrics";
 
-// Inject Sentry capture function into shared hook
-setSentryCaptureFunction((error, context) => {
-  Sentry.captureException(error, context);
-});
-
-// Helper to update a card in all cached searchCards queries
 const cardMatchesQueryArgs = (card: Doc<"cards">, args: any): boolean => {
   const isTrashQuery = Boolean(args.showTrashOnly);
   if (isTrashQuery ? card.isDeleted !== true : card.isDeleted === true) {
@@ -69,9 +60,8 @@ const cardMatchesQueryArgs = (card: Doc<"cards">, args: any): boolean => {
 function updateCardInSearchQueries(
   localStore: OptimisticLocalStore,
   cardId: Id<"cards">,
-  updater: (card: Doc<"cards">) => Doc<"cards"> | null // return null to remove
+  updater: (card: Doc<"cards">) => Doc<"cards"> | null
 ) {
-  // Get all active searchCards queries and update the card in each
   const allQueries = localStore.getAllQueries(api.cards.searchCards);
   for (const { args, value } of allQueries) {
     if (value !== undefined) {
@@ -88,7 +78,6 @@ function updateCardInSearchQueries(
   }
 }
 
-// Helper to update a single card query (getCard)
 function updateSingleCardQuery(
   localStore: OptimisticLocalStore,
   cardId: Id<"cards">,
@@ -115,7 +104,6 @@ export function useCardActions(config: CardActionsConfig = {}) {
 
     switch (field) {
       case "isFavorited": {
-        // Toggle favorite status optimistically
         const toggleFavorite = (card: Doc<"cards">): Doc<"cards"> => ({
           ...card,
           isFavorited: !card.isFavorited,
@@ -127,9 +115,7 @@ export function useCardActions(config: CardActionsConfig = {}) {
       }
 
       case "delete": {
-        // Soft delete optimistically - remove from non-trash views
         const markDeleted = (card: Doc<"cards">): Doc<"cards"> | null => {
-          // Return updated card for trash views, null for regular views
           return {
             ...card,
             isDeleted: true,
@@ -137,13 +123,11 @@ export function useCardActions(config: CardActionsConfig = {}) {
             updatedAt: now,
           };
         };
-        // For searchCards, we need to filter out deleted cards from non-trash views
         const allQueries = localStore.getAllQueries(api.cards.searchCards);
         for (const { args: queryArgs, value: cards } of allQueries) {
           if (cards !== undefined) {
             const typedCards = cards as Doc<"cards">[];
             if (queryArgs.showTrashOnly) {
-              // In trash view - add/update the deleted card
               const updatedCards = typedCards.map((card: Doc<"cards">) =>
                 card._id === cardId ? markDeleted(card)! : card
               );
@@ -153,7 +137,6 @@ export function useCardActions(config: CardActionsConfig = {}) {
                 updatedCards
               );
             } else {
-              // In regular view - remove the deleted card
               const filteredCards = typedCards.filter(
                 (card: Doc<"cards">) =>
                   card._id !== cardId && cardMatchesQueryArgs(card, queryArgs)
@@ -166,7 +149,6 @@ export function useCardActions(config: CardActionsConfig = {}) {
             }
           }
         }
-        // Update single card query
         updateSingleCardQuery(
           localStore,
           cardId,
@@ -176,14 +158,12 @@ export function useCardActions(config: CardActionsConfig = {}) {
       }
 
       case "restore": {
-        // Restore optimistically - remove from trash views
         const markRestored = (card: Doc<"cards">): Doc<"cards"> => ({
           ...card,
           isDeleted: undefined,
           deletedAt: undefined,
           updatedAt: now,
         });
-        // For searchCards, we need to filter out restored cards from trash views
         const allQueriesRestore = localStore.getAllQueries(
           api.cards.searchCards
         );
@@ -191,7 +171,6 @@ export function useCardActions(config: CardActionsConfig = {}) {
           if (cards !== undefined) {
             const typedCards = cards as Doc<"cards">[];
             if (queryArgs.showTrashOnly) {
-              // In trash view - remove the restored card
               const filteredCards = typedCards.filter(
                 (card: Doc<"cards">) => card._id !== cardId
               );
@@ -201,8 +180,6 @@ export function useCardActions(config: CardActionsConfig = {}) {
                 filteredCards
               );
             } else {
-              // In regular view - the card will reappear on query refresh
-              // We can't easily add it back without knowing all fields
               const filteredCards = typedCards.filter((card: Doc<"cards">) =>
                 cardMatchesQueryArgs(card, queryArgs)
               );
@@ -214,13 +191,11 @@ export function useCardActions(config: CardActionsConfig = {}) {
             }
           }
         }
-        // Update single card query
         updateSingleCardQuery(localStore, cardId, markRestored);
         break;
       }
 
       case "tags": {
-        // Update tags optimistically
         const updateTags = (card: Doc<"cards">): Doc<"cards"> => ({
           ...card,
           tags: Array.isArray(value) && value.length > 0 ? value : undefined,
@@ -257,7 +232,6 @@ export function useCardActions(config: CardActionsConfig = {}) {
       case "url":
       case "notes":
       case "aiSummary": {
-        // Update text fields optimistically
         const updateTextField = (card: Doc<"cards">): Doc<"cards"> => ({
           ...card,
           [field]:
@@ -270,48 +244,19 @@ export function useCardActions(config: CardActionsConfig = {}) {
       }
 
       default:
-        // No optimistic update for unknown fields
         break;
     }
   });
 
-  // Wrap the config to add metrics tracking
-  const wrappedConfig: CardActionsConfig = {
-    ...config,
-    onDeleteSuccess: (message) => {
-      metrics.cardDeleted("unknown"); // Card type not available here
-      config.onDeleteSuccess?.(message);
-    },
-    onRestoreSuccess: (message) => {
-      metrics.cardRestored("unknown");
-      config.onRestoreSuccess?.(message);
-    },
-    onPermanentDeleteSuccess: (message) => {
-      metrics.cardPermanentlyDeleted("unknown");
-      config.onPermanentDeleteSuccess?.(message);
-    },
-    onError: (error, operation) => {
-      metrics.errorOccurred("api", operation);
-      config.onError?.(error, operation);
-    },
-  };
-
   const cardActions = createCardActions(
     { permanentDeleteCard, updateCardField },
-    wrappedConfig
+    config
   );
 
   return {
     ...cardActions,
     handleBulkDeleteCards: async (cardIds: Id<"cards">[]) => {
-      const result = await cardActions.handleBulkDeleteCards(cardIds);
-      if (result.failedIds.length > 0) {
-        metrics.errorOccurred("api", "bulk delete");
-      }
-      for (let index = 0; index < result.deletedCount; index += 1) {
-        metrics.cardDeleted("unknown");
-      }
-      return result;
+      return cardActions.handleBulkDeleteCards(cardIds);
     },
   };
 }
