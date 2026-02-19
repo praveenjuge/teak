@@ -61,7 +61,6 @@ function App() {
     }
 
     void closeAuthWindow();
-    toast.success("Signed in successfully");
   }, [isAuthenticated]);
 
   useEffect(() => {

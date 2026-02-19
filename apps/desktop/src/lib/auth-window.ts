@@ -23,6 +23,8 @@ const createAuthWindow = async (url: string): Promise<TauriWebviewWindow> => {
       resizable: true,
       fullscreen: false,
       focus: true,
+      // Force fresh auth state each time so users can switch accounts on re-login.
+      incognito: true,
     });
 
     void authWindow.once("tauri://created", async () => {
