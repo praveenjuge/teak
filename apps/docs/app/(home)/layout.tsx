@@ -11,6 +11,11 @@ export default function Layout({ children }: { children: ReactNode }) {
         {children}
         <CTASection
           description="Start bookmarking, organizing, and managing your most important design inspiration with Teak."
+          emoji={{
+            src: "/emojis/cta-bookmark.webp",
+            alt: "Bookmark emoji",
+            size: 72,
+          }}
           primaryCTA={{
             text: "Get Started",
             href: "https://app.teakvault.com",

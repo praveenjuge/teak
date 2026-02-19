@@ -18,7 +18,7 @@ export function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const buttonClass = cn(
     buttonVariants({ variant: "ghost", size: "sm" }),
-    "bg-transparent text-white/80 hover:bg-white/10 hover:text-white"
+    "cursor-pointer bg-transparent text-white/80 hover:bg-white/10 hover:text-white"
   );
 
   return (
@@ -43,15 +43,12 @@ export function Header() {
           </div>
 
           <div className="flex items-center gap-1">
-            <a href="https://app.teakvault.com/login">
-              <Button className={buttonClass} size="sm" variant="ghost">
-                Login
-              </Button>
+            <a className={buttonClass} href="https://app.teakvault.com/login">
+              Login
             </a>
             <a href="https://app.teakvault.com/register">
               <Button size="sm">Register</Button>
             </a>
-
             <Button
               className="bg-transparent text-white/80 hover:bg-white/10 hover:text-white md:hidden"
               onClick={() => setIsOpen(!isOpen)}
