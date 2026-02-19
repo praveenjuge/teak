@@ -1,5 +1,28 @@
+import path from "node:path";
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
+
+const workspaceRoot = path.resolve(process.cwd(), "../..");
+const singletonAliasTargets = {
+  convex: path.join(workspaceRoot, "node_modules/convex"),
+  "convex/react": path.join(workspaceRoot, "node_modules/convex/react"),
+  "convex/browser": path.join(workspaceRoot, "node_modules/convex/browser"),
+  "convex-helpers": path.join(workspaceRoot, "node_modules/convex-helpers"),
+  react: path.join(workspaceRoot, "node_modules/react"),
+  "react-dom": path.join(workspaceRoot, "node_modules/react-dom"),
+} as const;
+
+const toRelativeSpecifier = (absolutePath: string): string => {
+  const relativePath = path.relative(process.cwd(), absolutePath);
+  return relativePath.split(path.sep).join("/");
+};
+
+const turbopackSingletonAliases = Object.fromEntries(
+  Object.entries(singletonAliasTargets).map(([packageName, targetPath]) => [
+    packageName,
+    toRelativeSpecifier(targetPath),
+  ])
+);
 
 const securityHeaders: { key: string; value: string }[] = [
   {
@@ -28,6 +51,17 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   experimental: {
     turbopackFileSystemCacheForDev: true,
+  },
+  turbopack: {
+    resolveAlias: turbopackSingletonAliases,
+  },
+  webpack(config) {
+    config.resolve ??= {};
+    config.resolve.alias = {
+      ...(config.resolve.alias ?? {}),
+      ...singletonAliasTargets,
+    };
+    return config;
   },
   async headers() {
     return [

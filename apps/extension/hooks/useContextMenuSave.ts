@@ -4,9 +4,9 @@ import { api } from "../lib/convex-api";
 import type { ContextMenuSaveState } from "../types/contextMenu";
 
 export interface UseContextMenuSaveResult {
-  state: ContextMenuSaveState;
-  isRecentSave: boolean;
   clearSave: () => void;
+  isRecentSave: boolean;
+  state: ContextMenuSaveState;
 }
 
 const RECENT_SAVE_THRESHOLD = 5000; // 5 seconds
