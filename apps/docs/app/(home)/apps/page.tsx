@@ -69,15 +69,23 @@ type PlatformAction =
 interface PlatformCard {
   action: PlatformAction;
   copy: string;
+  emojiAlt: string;
+  emojiSrc: string;
   footnote?: string;
   icon: ComponentType<LucideProps>;
   name: string;
 }
 
+// Emoji source references from thiings.co/things:
+// - https://lftz25oez4aqbxpq.public.blob.vercel-storage.com/image-UN1NRnC5SEYcBvC7jJ1HjGKB22Q6Eb.png
+// - https://lftz25oez4aqbxpq.public.blob.vercel-storage.com/image-LxbDZUY1gzuzF4AEv0OHAqsSGpAng8.png
+// - https://lftz25oez4aqbxpq.public.blob.vercel-storage.com/image-xqy5MjgcznB4xWNihuD1LFkf0MW1NK.png
 const platformCards: PlatformCard[] = [
   {
     name: "Web App",
     copy: "Manage every board, search instantly, and fly with keyboard shortcuts from any desktop browser.",
+    emojiAlt: "Website emoji",
+    emojiSrc: "/emojis/apps-web-website.webp",
     icon: Globe,
     action: {
       label: "Open Web App",
@@ -88,6 +96,8 @@ const platformCards: PlatformCard[] = [
   {
     name: "iOS App",
     copy: "Drop photos, voice notes, or links straight from the share sheet and they appear everywhere else instantly.",
+    emojiAlt: "Smartphone emoji",
+    emojiSrc: "/emojis/apps-ios-smartphone.webp",
     icon: Smartphone,
     action: {
       href: APP_STORE_URL,
@@ -101,11 +111,13 @@ const platformCards: PlatformCard[] = [
   {
     name: "Chrome Extension",
     copy: "Save tabs, screenshots, or selected text in a click and Teak auto-grabs the metadata for you.",
+    emojiAlt: "Puzzle piece emoji",
+    emojiSrc: "/emojis/apps-chrome-puzzle-piece.webp",
     icon: Puzzle,
     action: {
       type: "badge",
       href: CHROME_STORE_URL,
-      src: "/badges/chrome-web-store.svg",
+      src: "/badges/chrome-web-store-badge.svg",
       alt: "Available in the Chrome Web Store",
       width: 160,
       height: 45,
@@ -127,8 +139,8 @@ const platformCards: PlatformCard[] = [
 export default function AppsPage() {
   return (
     <main className="px-4 py-16">
-      <section className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center">
-        <h1 className="text-balance font-semibold text-4xl tracking-tight md:text-5xl">
+      <section className="mx-auto flex max-w-md flex-col items-center gap-4 text-center">
+        <h1 className="text-balance font-bold text-4xl tracking-tighter md:text-5xl">
           Teak, everywhere you create
         </h1>
         <p className="text-balance text-lg text-muted-foreground">
@@ -137,19 +149,27 @@ export default function AppsPage() {
         </p>
       </section>
 
-      <section className="mx-auto mt-12 grid w-full max-w-5xl gap-4 md:grid-cols-3">
+      <section className="mx-auto mt-12 flex w-full max-w-md flex-col gap-4">
         {platformCards.map((card) => {
           const ActionIcon =
             card.action.type === "button" ? card.action.icon : undefined;
 
           return (
             <div
-              className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-white p-6 text-center shadow-sm dark:bg-gray-900"
+              className="flex flex-col items-center gap-2 rounded-2xl border border-border/60 bg-white p-6 text-center shadow-xs dark:bg-gray-900"
               key={card.name}
             >
+              <Image
+                alt={card.emojiAlt}
+                className="size-14 object-contain"
+                height={56}
+                src={card.emojiSrc}
+                unoptimized
+                width={56}
+              />
               <div className="font-semibold">{card.name}</div>
-              <p className="text-muted-foreground">{card.copy}</p>
-              <div className="flex flex-col items-center gap-2 pt-2">
+              <p className="text-balance text-muted-foreground">{card.copy}</p>
+              <div className="flex flex-col items-center gap-2 pt-4">
                 {card.action.type === "button" ? (
                   <Button asChild className="w-auto" size="lg">
                     <a
