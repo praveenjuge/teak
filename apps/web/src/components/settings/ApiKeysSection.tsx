@@ -26,10 +26,10 @@ export function ApiKeysSection() {
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
-  const keys = useQuery(convexApi.apiKeys.listRaycastApiKeys, {}) as
+  const keys = useQuery(convexApi.apiKeys.listUserApiKeys, {}) as
     | ApiKeyListItem[]
     | undefined;
-  const createKey = useMutation(convexApi.apiKeys.createRaycastApiKey);
+  const createKey = useMutation(convexApi.apiKeys.createUserApiKey);
 
   const isLoading = keys === undefined;
   const activeKey = keys?.[0] ?? null;
@@ -41,7 +41,7 @@ export function ApiKeysSection() {
     });
     try {
       const created = (await createKey({
-        name: "Raycast Key",
+        name: "API Keys",
       })) as CreatedApiKey;
       setRevealedKey(created.key);
       toast.success(
@@ -75,7 +75,7 @@ export function ApiKeysSection() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <CardTitle>Raycast Key</CardTitle>
+        <CardTitle>API Keys</CardTitle>
         <div className="-mx-2.5 flex items-center justify-end gap-2 -space-x-2.5">
           {isLoading ? (
             <Button disabled size="sm" variant="ghost">

@@ -25,7 +25,7 @@ describe("ApiKeysSection", () => {
     mockedQueryResult = [
       {
         id: "k1",
-        name: "Raycast Key",
+        name: "API Keys",
         keyPrefix: "abc123",
         maskedKey: "abc123••••••••",
         access: "full_access",

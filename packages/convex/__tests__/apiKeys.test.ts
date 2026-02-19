@@ -1,10 +1,11 @@
 // @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
 import {
-  createRaycastApiKey,
-  listRaycastApiKeys,
-  revokeRaycastApiKey,
-  validateRaycastApiKey,
+  createUserApiKey,
+  listUserApiKeys,
+  revokeAllActiveApiKeysForPrefixCutover,
+  revokeUserApiKey,
+  validateUserApiKey,
 } from "../apiKeys";
 
 process.env.BETTER_AUTH_SECRET = "unit-test-pepper";
@@ -45,12 +46,12 @@ describe("apiKeys", () => {
       db,
     };
 
-    const result = await runHandler(createRaycastApiKey, ctx, {
-      name: "Raycast Key",
+    const result = await runHandler(createUserApiKey, ctx, {
+      name: "API Keys",
     });
 
     expect(result.id).toBe("new_key");
-    expect(result.key).toStartWith("teakrk_");
+    expect(result.key).toStartWith("teakapi_");
     expect(db.patch).toHaveBeenCalledWith(
       "apiKeys",
       "old_key",
@@ -69,7 +70,7 @@ describe("apiKeys", () => {
       {
         _id: "k1",
         userId: "user_1",
-        name: "Raycast Key",
+        name: "API Keys",
         keyPrefix: "abc123",
         access: "full_access",
         createdAt: 100,
@@ -93,7 +94,7 @@ describe("apiKeys", () => {
       },
     };
 
-    const result = await runHandler(listRaycastApiKeys, ctx, {});
+    const result = await runHandler(listUserApiKeys, ctx, {});
     expect(result).toHaveLength(1);
     expect(result[0].maskedKey).toContain("••••••••");
     expect(result[0].access).toBe("full_access");
@@ -114,7 +115,7 @@ describe("apiKeys", () => {
       },
     };
 
-    await runHandler(revokeRaycastApiKey, ctx, { keyId: "k1" });
+    await runHandler(revokeUserApiKey, ctx, { keyId: "k1" });
 
     expect(ctx.db.patch).toHaveBeenCalledWith(
       "apiKeys",
@@ -143,8 +144,8 @@ describe("apiKeys", () => {
       db: createDb,
     };
 
-    const created = await runHandler(createRaycastApiKey, createCtx, {
-      name: "Raycast Key",
+    const created = await runHandler(createUserApiKey, createCtx, {
+      name: "API Keys",
     });
 
     const insertedPayload = createDb.insert.mock.calls[0][1];
@@ -174,7 +175,7 @@ describe("apiKeys", () => {
       },
     };
 
-    const result = await runHandler(validateRaycastApiKey, validateCtx, {
+    const result = await runHandler(validateUserApiKey, validateCtx, {
       token: created.key,
     });
 
@@ -201,8 +202,8 @@ describe("apiKeys", () => {
       },
     };
 
-    const result = await runHandler(validateRaycastApiKey, ctx, {
-      token: "teakrk_badprefix_secret",
+    const result = await runHandler(validateUserApiKey, ctx, {
+      token: "teakapi_badprefix_secret",
     });
 
     expect(result).toBeNull();
@@ -229,8 +230,8 @@ describe("apiKeys", () => {
       db: createDb,
     };
 
-    const created = await runHandler(createRaycastApiKey, createCtx, {
-      name: "Raycast Key",
+    const created = await runHandler(createUserApiKey, createCtx, {
+      name: "API Keys",
     });
     const insertedPayload = createDb.insert.mock.calls[0][1];
     const matchedCandidate = {
@@ -255,7 +256,7 @@ describe("apiKeys", () => {
       },
     };
 
-    const result = await runHandler(validateRaycastApiKey, validateCtx, {
+    const result = await runHandler(validateUserApiKey, validateCtx, {
       token: created.key,
     });
 
@@ -263,6 +264,44 @@ describe("apiKeys", () => {
     expect(validateCtx.db.patch).toHaveBeenCalledWith(
       "apiKeys",
       "k_deleted",
+      expect.objectContaining({ revokedAt: expect.any(Number) })
+    );
+  });
+
+  test("cutover revoke-all revokes every active key", async () => {
+    const activeKeys = [
+      { _id: "k1", revokedAt: undefined },
+      { _id: "k2", revokedAt: undefined },
+    ];
+
+    const ctx = {
+      db: {
+        query: mock(() => ({
+          filter: mock(() => ({
+            collect: mock().mockResolvedValue(activeKeys),
+          })),
+        })),
+        patch: mock().mockResolvedValue(null),
+      },
+    };
+
+    const result = await runHandler(
+      revokeAllActiveApiKeysForPrefixCutover,
+      ctx,
+      {}
+    );
+
+    expect(result.revokedCount).toBe(2);
+    expect(result.revokedAt).toEqual(expect.any(Number));
+    expect(ctx.db.patch).toHaveBeenCalledTimes(2);
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "apiKeys",
+      "k1",
+      expect.objectContaining({ revokedAt: expect.any(Number) })
+    );
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "apiKeys",
+      "k2",
       expect.objectContaining({ revokedAt: expect.any(Number) })
     );
   });

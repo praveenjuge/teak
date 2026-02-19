@@ -98,7 +98,7 @@ const withAuthorizedUser = async (
   }
 
   const validated = await ctx.runMutation(
-    (internal as any).apiKeys.validateRaycastApiKey,
+    (internal as any).apiKeys.validateUserApiKey,
     {
       token,
     }

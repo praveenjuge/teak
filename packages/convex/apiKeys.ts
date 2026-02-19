@@ -7,8 +7,8 @@ import {
   query,
 } from "./_generated/server";
 
-const API_KEY_NAME_DEFAULT = "Raycast Key";
-const API_KEY_TOKEN_PREFIX = "teakrk";
+const API_KEY_NAME_DEFAULT = "API Keys";
+const API_KEY_TOKEN_PREFIX = "teakapi";
 const API_KEY_ACCESS = "full_access" as const;
 const KEY_PREFIX_BYTES = 6;
 const KEY_SECRET_BYTES = 24;
@@ -43,6 +43,11 @@ const validatedApiKeyValidator = v.union(
   }),
   v.null()
 );
+
+const revokeAllApiKeysResultValidator = v.object({
+  revokedCount: v.number(),
+  revokedAt: v.number(),
+});
 
 const toHex = (bytes: Uint8Array): string =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -110,7 +115,7 @@ const getAuthUserById = async (ctx: MutationCtx, userId: string) => {
   });
 };
 
-export const createRaycastApiKey = mutation({
+export const createUserApiKey = mutation({
   args: {
     name: v.optional(v.string()),
   },
@@ -151,7 +156,7 @@ export const createRaycastApiKey = mutation({
   },
 });
 
-export const listRaycastApiKeys = query({
+export const listUserApiKeys = query({
   args: {},
   returns: v.array(listedApiKeyValidator),
   handler: async (ctx) => {
@@ -181,7 +186,7 @@ export const listRaycastApiKeys = query({
   },
 });
 
-export const revokeRaycastApiKey = mutation({
+export const revokeUserApiKey = mutation({
   args: {
     keyId: v.optional(v.id("apiKeys")),
   },
@@ -211,7 +216,7 @@ export const revokeRaycastApiKey = mutation({
   },
 });
 
-export const validateRaycastApiKey = internalMutation({
+export const validateUserApiKey = internalMutation({
   args: {
     token: v.string(),
   },
@@ -273,5 +278,31 @@ export const validateRaycastApiKey = internalMutation({
     }
 
     return null;
+  },
+});
+
+// One-time cutover helper for rotating token prefix.
+// Run once during rollout to force regeneration under the new prefix format.
+export const revokeAllActiveApiKeysForPrefixCutover = internalMutation({
+  args: {},
+  returns: revokeAllApiKeysResultValidator,
+  handler: async (ctx) => {
+    const now = Date.now();
+    const activeKeys = await ctx.db
+      .query("apiKeys")
+      .filter((q) => q.eq(q.field("revokedAt"), undefined))
+      .collect();
+
+    for (const key of activeKeys) {
+      await ctx.db.patch("apiKeys", key._id, {
+        revokedAt: now,
+        updatedAt: now,
+      });
+    }
+
+    return {
+      revokedCount: activeKeys.length,
+      revokedAt: now,
+    };
   },
 });

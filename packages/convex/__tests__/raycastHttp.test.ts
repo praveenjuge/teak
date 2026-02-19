@@ -60,7 +60,7 @@ describe("raycastHttp", () => {
       new Request("https://example.com/api/raycast/quick-save", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakrk_abc_secret",
+          Authorization: "Bearer teakapi_abc_secret",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ content: "hello" }),
@@ -84,7 +84,7 @@ describe("raycastHttp", () => {
       new Request("https://example.com/api/raycast/quick-save", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakrk_abc_secret",
+          Authorization: "Bearer teakapi_abc_secret",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ content: "hello" }),
@@ -103,7 +103,7 @@ describe("raycastHttp", () => {
       new Request("https://example.com/api/raycast/quick-save", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakrk_abc_secret",
+          Authorization: "Bearer teakapi_abc_secret",
           "Content-Type": "application/json",
         },
         body: "{invalid",
@@ -122,7 +122,7 @@ describe("raycastHttp", () => {
       new Request("https://example.com/api/raycast/quick-save", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakrk_abc_secret",
+          Authorization: "Bearer teakapi_abc_secret",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ content: "    " }),
@@ -146,7 +146,7 @@ describe("raycastHttp", () => {
       new Request("https://example.com/api/raycast/quick-save", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakrk_abc_secret",
+          Authorization: "Bearer teakapi_abc_secret",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ content: "https://example.com" }),
@@ -172,7 +172,7 @@ describe("raycastHttp", () => {
       new Request("https://example.com/api/raycast/quick-save", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakrk_abc_secret",
+          Authorization: "Bearer teakapi_abc_secret",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ content: "hello" }),
@@ -217,7 +217,7 @@ describe("raycastHttp", () => {
       new Request("https://example.com/api/raycast/search?q=hello&limit=50", {
         method: "GET",
         headers: {
-          Authorization: "Bearer teakrk_abc_secret",
+          Authorization: "Bearer teakapi_abc_secret",
         },
       })
     );
@@ -238,7 +238,7 @@ describe("raycastHttp", () => {
       new Request("https://example.com/api/raycast/search?limit=999", {
         method: "GET",
         headers: {
-          Authorization: "Bearer teakrk_abc_secret",
+          Authorization: "Bearer teakapi_abc_secret",
         },
       })
     );
@@ -258,7 +258,7 @@ describe("raycastHttp", () => {
       new Request("https://example.com/api/raycast/favorites", {
         method: "GET",
         headers: {
-          Authorization: "Bearer teakrk_abc_secret",
+          Authorization: "Bearer teakapi_abc_secret",
         },
       })
     );
