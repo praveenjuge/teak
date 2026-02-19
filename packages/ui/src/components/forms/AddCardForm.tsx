@@ -7,7 +7,11 @@ import {
   MAX_FILES_PER_UPLOAD,
   resolveTextCardInput,
 } from "@teak/convex/shared";
-import type { UploadFileResult } from "@teak/convex/shared/types";
+import {
+  type FinalizeUploadedCardArgs,
+  type UploadAndCreateCardArgs,
+  useFileUploadCore,
+} from "@teak/convex/shared/hooks/useFileUpload";
 import {
   Alert,
   AlertDescription,
@@ -17,8 +21,7 @@ import { Button } from "@teak/ui/components/ui/button";
 import { Card, CardContent } from "@teak/ui/components/ui/card";
 import { Textarea } from "@teak/ui/components/ui/textarea";
 import type { OptimisticLocalStore } from "convex/browser";
-import { useMutation } from "convex/react";
-import { useQuery } from "convex-helpers/react/cache/hooks";
+import { useMutation, useQuery } from "convex/react";
 import { AlertCircle, Mic, Sparkles, Square, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -62,17 +65,12 @@ export interface AddCardFormProps {
     className?: string;
   }>;
   upgradeUrl?: string;
-  uploadFile: (
-    file: File,
-    options?: { content?: string; additionalMetadata?: Record<string, unknown> }
-  ) => Promise<UploadFileResult>;
 }
 
 export function AddCardForm({
   onSuccess,
   autoFocus,
   canCreateCard: canCreateCardProp,
-  uploadFile,
   UpgradeLinkComponent,
   upgradeUrl = "/settings",
 }: AddCardFormProps) {
@@ -137,6 +135,26 @@ export function AddCardForm({
       addCardToSearchQueries(localStore, optimisticCard);
     }
   );
+  const uploadAndCreateCardMutation = useMutation(
+    api.cards.uploadAndCreateCard
+  );
+  const finalizeUploadedCardMutation = useMutation(
+    api.cards.finalizeUploadedCard
+  );
+
+  const uploadAndCreateCard = (args: UploadAndCreateCardArgs) =>
+    uploadAndCreateCardMutation(args);
+
+  const finalizeUploadedCard = (args: FinalizeUploadedCardArgs) =>
+    finalizeUploadedCardMutation({
+      ...args,
+      fileId: args.fileId as Id<"_storage">,
+    });
+
+  const { uploadFile } = useFileUploadCore({
+    uploadAndCreateCard,
+    finalizeUploadedCard,
+  });
 
   const getCardErrorCode = (err: unknown): string | null => {
     if (!err || typeof err !== "object") {
@@ -206,6 +224,10 @@ export function AddCardForm({
   const startRecording = async () => {
     try {
       setError(null);
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setError("Microphone recording is not supported in this app context.");
+        return;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
@@ -239,8 +261,20 @@ export function AddCardForm({
       }, 1000);
     } catch (err) {
       console.error("Error starting recording:", err);
+      if (err instanceof DOMException && err.name === "NotAllowedError") {
+        setError(
+          "Microphone permission was denied. Please allow it and retry."
+        );
+        return;
+      }
+
+      if (err instanceof DOMException && err.name === "NotFoundError") {
+        setError("No microphone was detected. Please connect one and retry.");
+        return;
+      }
+
       setError(
-        "Failed to start recording. Please check your microphone permissions."
+        "Failed to start recording. Please check your microphone setup."
       );
     }
   };

@@ -30,7 +30,8 @@
     "targets": ["app"],
     "createUpdaterArtifacts": false,
     "macOS": {
-      "minimumSystemVersion": "13.0"
+      "minimumSystemVersion": "13.0",
+      "infoPlist": "Info.plist"
     },
     "icon": [
       "icons/32x32.png",

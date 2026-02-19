@@ -1,10 +1,11 @@
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import type { CardModalCard } from "@teak/ui/card-modal";
 import { CardModal } from "@teak/ui/card-modal";
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Spinner } from "@teak/ui/components/ui/spinner";
-import { EmptyState } from "@teak/ui/feedback/EmptyState";
+import { AddCardEmptyState, AddCardForm } from "@teak/ui/forms";
 import { MasonryGrid } from "@teak/ui/grids";
 import { useCardModal } from "@teak/ui/hooks";
 import {
@@ -14,10 +15,35 @@ import {
 } from "@teak/ui/modals";
 import { useMutation, useQuery } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
+import type { ReactNode } from "react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { buildWebUrl } from "@/lib/web-urls";
 
 const CARDS_BATCH_SIZE = 24;
+
+function DesktopUpgradeLink({
+  href,
+  children,
+  className,
+}: {
+  href: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <a
+      className={className}
+      href={href}
+      onClick={(event) => {
+        event.preventDefault();
+        void openUrl(href);
+      }}
+    >
+      {children}
+    </a>
+  );
+}
 
 export function CardsPage() {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -45,6 +71,7 @@ export function CardsPage() {
   const isLoadingFirstPage = status === "LoadingFirstPage";
   const isLoadingMore = status === "LoadingMore";
   const hasMore = status === "CanLoadMore";
+  const upgradeUrl = buildWebUrl("/settings");
 
   const handleCardClick = useCallback((card: CardWithUrls) => {
     setSelectedCardId(card._id);
@@ -135,12 +162,23 @@ export function CardsPage() {
   }
 
   if (cards.length === 0) {
-    return <EmptyState />;
+    return (
+      <AddCardEmptyState
+        UpgradeLinkComponent={DesktopUpgradeLink}
+        upgradeUrl={upgradeUrl}
+      />
+    );
   }
 
   return (
     <>
       <MasonryGrid
+        AddCardFormComponent={() => (
+          <AddCardForm
+            UpgradeLinkComponent={DesktopUpgradeLink}
+            upgradeUrl={upgradeUrl}
+          />
+        )}
         filteredCards={cards}
         hasMore={hasMore}
         isLoadingMore={isLoadingMore}
@@ -151,7 +189,7 @@ export function CardsPage() {
         onPermanentDeleteCard={handlePermanentDeleteCard}
         onRestoreCard={handleRestoreCard}
         onToggleFavorite={handleToggleFavorite}
-        showAddForm={false}
+        showAddForm={true}
         showBulkActions={false}
       />
 

@@ -1,8 +1,9 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import type { CardWithUrls } from "@teak/ui/cards";
+import { AddCardForm } from "@teak/ui/forms";
 import { MasonryGrid as SharedMasonryGrid } from "@teak/ui/grids";
+import Link from "next/link";
 import { useCallback } from "react";
-import { AddCardForm } from "./AddCardForm";
 
 interface MasonryGridProps {
   batchSize?: number;
@@ -69,7 +70,7 @@ export function MasonryGrid({
   );
 
   const AddCardFormWrapper = useCallback(() => {
-    return <AddCardForm />;
+    return <AddCardForm UpgradeLinkComponent={Link} upgradeUrl="/settings" />;
   }, []);
 
   return (

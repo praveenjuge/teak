@@ -25,6 +25,7 @@
     "./hooks": "./src/hooks/index.ts"
   },
   "scripts": {
+    "test": "bun test src/components/forms/__tests__ --coverage --dots",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -50,7 +51,7 @@
   "peerDependencies": {
     "@teak/convex": "workspace:*",
     "convex": "^1.31.7",
-    "convex-helpers": "^0.1.112",
+    "convex-helpers": "0.1.112",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -59,7 +60,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "convex": "^1.31.7",
-    "convex-helpers": "^0.1.112",
+    "convex-helpers": "0.1.112",
     "typescript": "^5.9.3"
   }
 }

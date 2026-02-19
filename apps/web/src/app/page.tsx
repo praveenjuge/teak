@@ -17,13 +17,13 @@ import type {
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Button } from "@teak/ui/components/ui/button";
 import { CardsGridSkeleton } from "@teak/ui/feedback/CardsGridSkeleton";
-import Logo from "@teak/ui/logo";
+import { AddCardEmptyState } from "@teak/ui/forms";
 import { TagManagementModal } from "@teak/ui/modals";
 import { Authenticated, AuthLoading, useMutation } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AddCardForm } from "@/components/AddCardForm";
 import { CardModal } from "@/components/CardModal";
 import { DragOverlay } from "@/components/DragOverlay";
 import { MasonryGrid } from "@/components/MasonryGrid";
@@ -654,16 +654,7 @@ export default function HomePage() {
 
     if (displayCards.length === 0 && hasNoFilters) {
       return (
-        <div className="mx-auto flex max-w-xs flex-col items-center gap-5 py-20 text-center">
-          <Logo variant="current" />
-          <AddCardForm autoFocus />
-          <div className="space-y-1">
-            <h3 className="font-medium">Let&apos;s add your first card!</h3>
-            <p className="text-balance text-muted-foreground">
-              Start capturing your thoughts, links, and media above
-            </p>
-          </div>
-        </div>
+        <AddCardEmptyState UpgradeLinkComponent={Link} upgradeUrl="/settings" />
       );
     }
 
