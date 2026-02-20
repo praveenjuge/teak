@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@teak/ui/components/ui/button";
+import Image from "next/image";
 import { useState } from "react";
 import { PricingCard } from "../../../components/PricingCard";
 import { PricingToggle } from "../../../components/PricingToggle";
@@ -9,6 +10,8 @@ const pricingPlans = [
   {
     id: "free",
     name: "Free",
+    emojiAlt: "Gift box emoji",
+    emojiSrc: "/emojis/pricing-free-gift-box.webp",
     price: "Free",
     description:
       "200 cards go further than you think. Your most important inspiration, completely free.",
@@ -30,6 +33,8 @@ const pricingPlans = [
   {
     id: "pro",
     name: "Pro",
+    emojiAlt: "Crown emoji",
+    emojiSrc: "/emojis/pricing-pro-crown.webp",
     price: {
       monthly: { amount: "$19", period: "month" },
       yearly: { amount: "$99", period: "year" },
@@ -57,8 +62,9 @@ const pricingPlans = [
 
 const selfHostedPlan = {
   name: "Self-Hosted",
-  description:
-    "Run Teak yourself. Unlimited cards, total control, zero cost. Perfect for agencies.",
+  emojiAlt: "Server rack emoji",
+  emojiSrc: "/emojis/pricing-self-hosted-server-rack.webp",
+  description: "Run Teak yourself. Unlimited cards, total control, zero cost.",
   cta: {
     text: "Setup Guide →",
     href: "/docs",
@@ -129,6 +135,8 @@ export default function PricingPageClient() {
               <PricingCard
                 cta={plan.cta}
                 description={plan.description}
+                emojiAlt={plan.emojiAlt}
+                emojiSrc={plan.emojiSrc}
                 features={plan.features}
                 isYearly={isYearly}
                 key={plan.id}
@@ -142,23 +150,29 @@ export default function PricingPageClient() {
       </section>
 
       {/* Self-Hosted Section */}
-      <section className="pb-20 md:pb-24">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-4xl">
-            <div className="relative flex justify-between rounded-lg border border-border bg-card p-8">
-              <div>
-                <h3 className="mb-2 font-semibold text-base">
-                  {selfHostedPlan.name}
-                </h3>
-                <p className="text-muted-foreground">
-                  {selfHostedPlan.description}
-                </p>
-              </div>
-              <Button asChild variant="outline">
-                <a href={selfHostedPlan.cta.href}>{selfHostedPlan.cta.text}</a>
-              </Button>
+      <section className="px-4 pb-20 md:pb-2">
+        <div className="mx-auto flex max-w-4xl flex-col gap-4 rounded-lg border border-border bg-card p-6 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-4">
+            <Image
+              alt={selfHostedPlan.emojiAlt}
+              className="size-14 object-contain"
+              height={56}
+              src={selfHostedPlan.emojiSrc}
+              unoptimized
+              width={56}
+            />
+            <div>
+              <h3 className="mb-2 font-semibold text-base">
+                {selfHostedPlan.name}
+              </h3>
+              <p className="text-muted-foreground">
+                {selfHostedPlan.description}
+              </p>
             </div>
           </div>
+          <Button asChild className="w-full md:w-auto" variant="outline">
+            <a href={selfHostedPlan.cta.href}>{selfHostedPlan.cta.text}</a>
+          </Button>
         </div>
       </section>
 

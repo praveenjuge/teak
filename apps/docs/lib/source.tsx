@@ -3,6 +3,7 @@ import { loader } from "fumadocs-core/source";
 import {
   BookOpen,
   Code,
+  Command,
   FileText,
   HelpCircle,
   Settings,
@@ -12,6 +13,7 @@ import {
 
 const iconMap = {
   BookOpen,
+  Command,
   Code,
   Sparkles,
   Settings,

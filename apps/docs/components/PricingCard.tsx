@@ -1,6 +1,7 @@
 import { Badge } from "@teak/ui/components/ui/badge";
 import { Button } from "@teak/ui/components/ui/button";
 import { Check } from "lucide-react";
+import Image from "next/image";
 
 interface PricingCardProps {
   badge?: string;
@@ -10,6 +11,8 @@ interface PricingCardProps {
     primary?: boolean;
   };
   description: string;
+  emojiAlt: string;
+  emojiSrc: string;
   features: string[];
   isYearly?: boolean;
   name: string;
@@ -23,9 +26,10 @@ interface PricingCardProps {
 }
 
 export function PricingCard({
-  name,
   price,
   description,
+  emojiAlt,
+  emojiSrc,
   features,
   cta,
   popular = false,
@@ -63,7 +67,7 @@ export function PricingCard({
     >
       {popular && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 transform">
-          <Badge>Most Popular</Badge>
+          <Badge>Pro - Most Popular</Badge>
         </div>
       )}
 
@@ -74,9 +78,14 @@ export function PricingCard({
       )}
 
       <div className="text-center">
-        <h3 className="mb-2 font-semibold text-base text-muted-foreground">
-          {name}
-        </h3>
+        <Image
+          alt={emojiAlt}
+          className="mx-auto mb-3 size-14 object-contain"
+          height={56}
+          src={emojiSrc}
+          unoptimized
+          width={56}
+        />
         {renderPrice()}
         <p className="mb-6 text-muted-foreground">{description}</p>
       </div>
