@@ -1,27 +1,29 @@
-import { Heart, Layers, Search, Shield, Smartphone, Zap } from "lucide-react";
+import Image from "next/image";
 
 interface FeatureCardProps {
   description: string;
-  icon: "shield" | "lightning" | "mobile" | "search" | "stack" | "heart";
+  emojiAlt: string;
+  emojiSrc: string;
   title: string;
 }
 
-const iconMap = {
-  shield: Shield,
-  lightning: Zap,
-  mobile: Smartphone,
-  search: Search,
-  stack: Layers,
-  heart: Heart,
-};
-
-export function FeatureCard({ icon, title, description }: FeatureCardProps) {
-  const IconComponent = iconMap[icon];
-
+export function FeatureCard({
+  emojiAlt,
+  emojiSrc,
+  title,
+  description,
+}: FeatureCardProps) {
   return (
     <div className="rounded-lg border border-border bg-card p-6">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-        <IconComponent className="h-6 w-6 text-primary" />
+      <div className="mb-4">
+        <Image
+          alt={emojiAlt}
+          className="size-14 object-contain"
+          height={56}
+          src={emojiSrc}
+          unoptimized
+          width={56}
+        />
       </div>
       <h3 className="mb-2 font-semibold text-xl">{title}</h3>
       <p className="text-muted-foreground">{description}</p>

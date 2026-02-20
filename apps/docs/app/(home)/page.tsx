@@ -1,17 +1,5 @@
 import { Button } from "@teak/ui/components/ui/button";
-import {
-  Camera,
-  Check,
-  File,
-  FileText,
-  FolderOpen,
-  Link,
-  Mic,
-  Search,
-  Smartphone,
-  Video,
-  X,
-} from "lucide-react";
+import { Check, X } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { FeatureCard } from "../../components/FeatureCard";
@@ -62,54 +50,112 @@ export const metadata: Metadata = {
   },
 };
 
+// Thiings source catalog: https://www.thiings.co/things
+// Pinned source URLs for these emojis are documented in task plan and mapped to /public/emojis/home-*.webp files below.
 const features = [
   {
-    icon: "lightning" as const,
+    emojiAlt: "Target face emoji",
+    emojiSrc: "/emojis/home-why-target-face.webp",
     title: "Find That Perfect Button in 2 Seconds",
     description:
       "Type 'blue button' and find it instantly. No more digging through 27 folders to find that one thing.",
   },
   {
-    icon: "mobile" as const,
+    emojiAlt: "Smartphone emoji",
+    emojiSrc: "/emojis/home-why-smartphone.webp",
     title: "Your Inspiration Follows You",
     description:
       "Web, iPhone, Android, Chrome. Save on your phone, find it on your laptop. It just works.",
   },
   {
-    icon: "search" as const,
+    emojiAlt: "Pressed leaf bookmark emoji",
+    emojiSrc: "/emojis/home-why-bookmark.webp",
     title: "It Organizes Itself. Seriously.",
     description:
       "Smart tags and visual grids. You just save, Teak handles the rest. No manual sorting required.",
   },
   {
-    icon: "heart" as const,
+    emojiAlt: "Heart emoji",
+    emojiSrc: "/emojis/home-why-heart.webp",
     title: "200 Cards Free (Enough for 6 Months)",
     description:
       "Try it with your most important inspiration. Upgrade when you need more. No credit card, no tricks.",
   },
 ];
 
+const saveContentTypes = [
+  {
+    title: "Design Notes",
+    description:
+      "Client feedback, design decisions, that brilliant idea you had in the shower. All searchable.",
+    emojiAlt: "Sticky note emoji",
+    emojiSrc: "/emojis/home-save-sticky-note.webp",
+  },
+  {
+    title: "Design Resources",
+    description:
+      "That color palette generator, the icon library you'll need next month, the tutorial you'll reference tomorrow.",
+    emojiAlt: "Retro web browser interface emoji",
+    emojiSrc: "/emojis/home-save-browser.webp",
+  },
+  {
+    title: "Visual References",
+    description:
+      "Screenshots, mockups, that perfect landing page you saw. Teak remembers why you saved it.",
+    emojiAlt: "Underwater camera emoji",
+    emojiSrc: "/emojis/home-save-camera.webp",
+  },
+  {
+    title: "Design Videos",
+    description:
+      "That Figma tutorial, the animation reference you'll need next week, the design process video that inspired you.",
+    emojiAlt: "Film reel emoji",
+    emojiSrc: "/emojis/home-save-film-reel.webp",
+  },
+  {
+    title: "Audio Notes",
+    description:
+      "Client feedback calls, that idea you recorded while driving, quick voice memos. All transcribed and searchable.",
+    emojiAlt: "Retro microphone emoji",
+    emojiSrc: "/emojis/home-save-microphone.webp",
+  },
+  {
+    title: "Design Files",
+    description:
+      "Brand guidelines, design systems, project files. Everything searchable with instant previews.",
+    emojiAlt: "File folder emoji",
+    emojiSrc: "/emojis/home-save-folder.webp",
+  },
+];
+
 const howItWorksSteps = [
   {
-    step: "1",
     title: "Save in 1 Click",
     description:
       "See something you like? Click the extension. That's it. Images, links, notes - all saved forever.",
-    icon: <Smartphone className="h-6 w-6" />,
+    emojiAlt: "Mobile phone emoji",
+    emojiSrc: "/emojis/home-steps-mobile-phone.webp",
   },
   {
-    step: "2",
     title: "It Organizes Itself",
     description:
-      "Teak tags everything automatically. No folders, no manual work. Your inspiration just stays organized.",
-    icon: <FolderOpen className="h-6 w-6" />,
+      "Teak tags everything automatically. No folders, no manual work.",
+    emojiAlt: "Drawer organizer emoji",
+    emojiSrc: "/emojis/home-steps-drawer-organizer.webp",
   },
   {
-    step: "3",
     title: "Find in 2 Seconds",
     description:
       "Type what you remember. 'Blue gradient button' or 'that Dribbble shot from last month'. Found it.",
-    icon: <Search className="h-6 w-6" />,
+    emojiAlt: "Target emoji",
+    emojiSrc: "/emojis/home-steps-target.webp",
+  },
+  {
+    title: "Ship Better Work",
+    description:
+      "Reach the finish line faster with every project because your references, notes, and decisions stay in one place.",
+    emojiAlt: "Finish line emoji",
+    emojiSrc: "/emojis/home-steps-finish-line.webp",
   },
 ];
 
@@ -325,7 +371,8 @@ export default function HomePage() {
             {features.map((feature) => (
               <FeatureCard
                 description={feature.description}
-                icon={feature.icon}
+                emojiAlt={feature.emojiAlt}
+                emojiSrc={feature.emojiSrc}
                 key={feature.title}
                 title={feature.title}
               />
@@ -347,84 +394,16 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-2 lg:grid-cols-3">
-            <div className="group relative rounded-lg border bg-card p-6 transition-all duration-300 hover:-translate-y-1">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <FileText className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="mb-2 text-balance font-semibold text-lg">
-                Design Notes
-              </h3>
-              <p className="text-muted-foreground">
-                Client feedback, design decisions, that brilliant idea you had
-                in the shower. All searchable.
-              </p>
-            </div>
-
-            <div className="group relative rounded-lg border bg-card p-6 transition-all duration-300 hover:-translate-y-1">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Link className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="mb-2 text-balance font-semibold text-lg">
-                Design Resources
-              </h3>
-              <p className="text-muted-foreground">
-                That color palette generator, the icon library you&apos;ll need
-                next month, the tutorial you&apos;ll reference tomorrow.
-              </p>
-            </div>
-
-            <div className="group relative rounded-lg border bg-card p-6 transition-all duration-300 hover:-translate-y-1">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Camera className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="mb-2 text-balance font-semibold text-lg">
-                Visual References
-              </h3>
-              <p className="text-muted-foreground">
-                Screenshots, mockups, that perfect landing page you saw. Teak
-                remembers why you saved it.
-              </p>
-            </div>
-
-            <div className="group relative rounded-lg border bg-card p-6 transition-all duration-300 hover:-translate-y-1">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Video className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="mb-2 text-balance font-semibold text-lg">
-                Design Videos
-              </h3>
-              <p className="text-muted-foreground">
-                That Figma tutorial, the animation reference you&apos;ll need
-                next week, the design process video that inspired you.
-              </p>
-            </div>
-
-            <div className="group relative rounded-lg border bg-card p-6 transition-all duration-300 hover:-translate-y-1">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Mic className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="mb-2 text-balance font-semibold text-lg">
-                Audio Notes
-              </h3>
-              <p className="text-muted-foreground">
-                Client feedback calls, that idea you recorded while driving,
-                quick voice memos. All transcribed and searchable.
-              </p>
-            </div>
-
-            <div className="group relative rounded-lg border bg-card p-6 transition-all duration-300 hover:-translate-y-1">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <File className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="mb-2 text-balance font-semibold text-lg">
-                Design Files
-              </h3>
-              <p className="text-muted-foreground">
-                Brand guidelines, design systems, project files. Everything
-                searchable with instant previews.
-              </p>
-            </div>
+          <div className="grid gap-8 md:grid-cols-2">
+            {saveContentTypes.map((contentType) => (
+              <FeatureCard
+                description={contentType.description}
+                emojiAlt={contentType.emojiAlt}
+                emojiSrc={contentType.emojiSrc}
+                key={contentType.title}
+                title={contentType.title}
+              />
+            ))}
           </div>
         </div>
       </section>
@@ -441,22 +420,15 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-3">
+          <div className="grid gap-8 md:grid-cols-2">
             {howItWorksSteps.map((step) => (
-              <div
-                className="group relative rounded-lg border bg-card p-8 transition-all duration-300 hover:-translate-y-1"
-                key={step.step}
-              >
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  {step.icon}
-                </div>
-                <h3 className="mb-3 text-balance font-semibold text-xl">
-                  {step.title}
-                </h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  {step.description}
-                </p>
-              </div>
+              <FeatureCard
+                description={step.description}
+                emojiAlt={step.emojiAlt}
+                emojiSrc={step.emojiSrc}
+                key={step.title}
+                title={step.title}
+              />
             ))}
           </div>
         </div>
@@ -464,7 +436,7 @@ export default function HomePage() {
 
       {/* FAQ Section */}
       <section className="py-20 md:py-24">
-        <div className="mx-auto max-w-5xl px-4">
+        <div className="mx-auto max-w-4xl px-4">
           <div className="mb-12 text-center">
             <h2 className="mb-4 text-balance font-bold text-3xl">
               Still have questions?
