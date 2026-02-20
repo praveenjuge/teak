@@ -77,7 +77,7 @@ const features = [
   {
     emojiAlt: "Heart emoji",
     emojiSrc: "/emojis/home-why-heart.webp",
-    title: "200 Cards Free (Enough for 6 Months)",
+    title: "200 Cards Free",
     description:
       "Try it with your most important inspiration. Upgrade when you need more. No credit card, no tricks.",
   },
@@ -436,7 +436,7 @@ export default function HomePage() {
 
       {/* FAQ Section */}
       <section className="py-20 md:py-24">
-        <div className="mx-auto max-w-4xl px-4">
+        <div className="mx-auto max-w-5xl px-4">
           <div className="mb-12 text-center">
             <h2 className="mb-4 text-balance font-bold text-3xl">
               Still have questions?
