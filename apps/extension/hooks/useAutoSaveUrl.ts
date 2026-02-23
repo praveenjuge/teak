@@ -1,7 +1,6 @@
-import { useMutation, useQuery } from "convex/react";
 import { useEffect, useRef, useState } from "react";
-import { api } from "../lib/convex-api";
 import type { ContextMenuSaveState } from "../types/contextMenu";
+import { MESSAGE_TYPES, type TeakSaveResponse } from "../types/messages";
 
 export type AutoSaveState =
   | "idle"
@@ -24,10 +23,10 @@ export type DuplicateCard = {
 };
 
 export interface UseAutoSaveUrlResult {
-  state: AutoSaveState;
-  error?: string;
   currentUrl?: string;
   duplicateCard?: DuplicateCard | null;
+  error?: string;
+  state: AutoSaveState;
 }
 
 const INVALID_URL_PATTERNS = [
@@ -61,14 +60,9 @@ export const useAutoSaveUrl = (
   const [state, setState] = useState<AutoSaveState>("idle");
   const [error, setError] = useState<string>();
   const [currentUrl, setCurrentUrl] = useState<string>();
-  const [urlToCheck, setUrlToCheck] = useState<string>();
   const hasCheckedRef = useRef(false);
-  const createCard = useMutation(api.cards.createCard);
-
-  // Query for duplicate card using Convex's useQuery
-  const duplicateCard = useQuery(
-    api.cards.findDuplicateCard,
-    urlToCheck ? { url: urlToCheck } : "skip"
+  const [duplicateCard, setDuplicateCard] = useState<DuplicateCard | null>(
+    null
   );
 
   // Step 1: Get the current tab URL
@@ -118,7 +112,52 @@ export const useAutoSaveUrl = (
         }
 
         setState("loading");
-        setUrlToCheck(currentTab.url);
+
+        const response = await new Promise<TeakSaveResponse>(
+          (resolve, reject) => {
+            chrome.runtime.sendMessage(
+              {
+                type: MESSAGE_TYPES.SAVE_CONTENT,
+                payload: {
+                  content: currentTab.url,
+                  source: "popup-auto-save",
+                },
+              },
+              (messageResponse: TeakSaveResponse) => {
+                const runtimeError = chrome.runtime.lastError;
+                if (runtimeError) {
+                  reject(new Error(runtimeError.message));
+                  return;
+                }
+                resolve(messageResponse);
+              }
+            );
+          }
+        );
+
+        if (response.status === "saved") {
+          setState("success");
+          hasCheckedRef.current = true;
+          return;
+        }
+
+        if (response.status === "duplicate") {
+          setDuplicateCard(null);
+          setState("duplicate");
+          hasCheckedRef.current = true;
+          return;
+        }
+
+        if (response.status === "unauthenticated") {
+          setState("error");
+          setError("Please log in to Teak to save links.");
+          hasCheckedRef.current = true;
+          return;
+        }
+
+        setState("error");
+        setError(response.message);
+        hasCheckedRef.current = true;
       } catch (err) {
         setState("error");
         setError(
@@ -132,45 +171,10 @@ export const useAutoSaveUrl = (
     return () => clearTimeout(timeoutId);
   }, [isAuthenticated]);
 
-  // Step 2: Handle duplicate check result and save if needed
-  useEffect(() => {
-    if (!urlToCheck || state !== "loading") {
-      return;
-    }
-
-    // If duplicate query is still loading, wait
-    if (duplicateCard === undefined) {
-      return;
-    }
-
-    // If duplicate found, show duplicate state
-    if (duplicateCard) {
-      setState("duplicate");
-      hasCheckedRef.current = true;
-      return;
-    }
-
-    // No duplicate - create the card
-    const saveCard = async () => {
-      try {
-        await createCard({
-          content: urlToCheck,
-        });
-        setState("success");
-      } catch (err) {
-        setState("error");
-        setError(err instanceof Error ? err.message : "Failed to save link");
-      }
-      hasCheckedRef.current = true;
-    };
-
-    saveCard();
-  }, [urlToCheck, duplicateCard, state, createCard]);
-
   return {
     state,
     error,
     currentUrl,
-    duplicateCard: duplicateCard ?? null,
+    duplicateCard,
   };
 };
