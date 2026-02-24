@@ -2,8 +2,8 @@ import Image from "next/image";
 
 interface FeatureCardProps {
   description: string;
-  emojiAlt: string;
-  emojiSrc: string;
+  emojiAlt?: string;
+  emojiSrc?: string;
   title: string;
 }
 
@@ -14,19 +14,19 @@ export function FeatureCard({
   description,
 }: FeatureCardProps) {
   return (
-    <div className="rounded-lg border border-border bg-card p-6">
-      <div className="mb-4">
+    <div className="flex flex-col items-center justify-center text-center">
+      {emojiSrc && (
         <Image
-          alt={emojiAlt}
+          alt={emojiAlt || ""}
           className="size-14 object-contain"
           height={56}
-          src={emojiSrc}
+          src={emojiSrc || ""}
           unoptimized
           width={56}
         />
-      </div>
-      <h3 className="mb-2 font-semibold text-xl">{title}</h3>
-      <p className="text-muted-foreground">{description}</p>
+      )}
+      <h3 className="mt-3 mb-1.5 font-semibold text-lg">{title}</h3>
+      <p className="text-balance text-muted-foreground">{description}</p>
     </div>
   );
 }

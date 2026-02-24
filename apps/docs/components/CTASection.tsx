@@ -22,7 +22,7 @@ export function CTASection({
   primaryCTA,
 }: CTASectionProps) {
   return (
-    <section className="border-border border-t bg-background py-20">
+    <section className="bg-background py-20">
       <div className="container mx-auto px-4 text-center">
         {/* Thiings source: https://lftz25oez4aqbxpq.public.blob.vercel-storage.com/image-WTzQemgI0sKVWwbmuJiv5AppLYBsEA.png */}
         <Image

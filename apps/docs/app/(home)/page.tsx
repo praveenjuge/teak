@@ -56,73 +56,63 @@ const features = [
   {
     emojiAlt: "Target face emoji",
     emojiSrc: "/emojis/home-why-target-face.webp",
-    title: "Find That Perfect Button in 2 Seconds",
-    description:
-      "Type 'blue button' and find it instantly. No more digging through 27 folders to find that one thing.",
+    title: "Find Anything in 2 Seconds",
+    description: "Type what you remember and find it instantly.",
   },
   {
     emojiAlt: "Smartphone emoji",
     emojiSrc: "/emojis/home-why-smartphone.webp",
     title: "Your Inspiration Follows You",
-    description:
-      "Web, iPhone, Android, Chrome. Save on your phone, find it on your laptop. It just works.",
+    description: "Save on one device and pick up anywhere.",
   },
   {
     emojiAlt: "Pressed leaf bookmark emoji",
     emojiSrc: "/emojis/home-why-bookmark.webp",
     title: "It Organizes Itself. Seriously.",
-    description:
-      "Smart tags and visual grids. You just save, Teak handles the rest. No manual sorting required.",
+    description: "Smart tags keep everything tidy automatically.",
   },
   {
     emojiAlt: "Heart emoji",
     emojiSrc: "/emojis/home-why-heart.webp",
     title: "200 Cards Free",
-    description:
-      "Try it with your most important inspiration. Upgrade when you need more. No credit card, no tricks.",
+    description: "Start free and upgrade only when you need.",
   },
 ];
 
 const saveContentTypes = [
   {
     title: "Design Notes",
-    description:
-      "Client feedback, design decisions, that brilliant idea you had in the shower. All searchable.",
+    description: "Notes, decisions, and ideas in one searchable place.",
     emojiAlt: "Sticky note emoji",
     emojiSrc: "/emojis/home-save-sticky-note.webp",
   },
   {
     title: "Design Resources",
-    description:
-      "That color palette generator, the icon library you'll need next month, the tutorial you'll reference tomorrow.",
+    description: "Tools, links, and references ready when you need them.",
     emojiAlt: "Retro web browser interface emoji",
     emojiSrc: "/emojis/home-save-browser.webp",
   },
   {
     title: "Visual References",
-    description:
-      "Screenshots, mockups, that perfect landing page you saw. Teak remembers why you saved it.",
+    description: "Screenshots and mockups with useful context attached.",
     emojiAlt: "Underwater camera emoji",
     emojiSrc: "/emojis/home-save-camera.webp",
   },
   {
     title: "Design Videos",
-    description:
-      "That Figma tutorial, the animation reference you'll need next week, the design process video that inspired you.",
+    description: "Tutorials and video inspiration, easy to find later.",
     emojiAlt: "Film reel emoji",
     emojiSrc: "/emojis/home-save-film-reel.webp",
   },
   {
     title: "Audio Notes",
-    description:
-      "Client feedback calls, that idea you recorded while driving, quick voice memos. All transcribed and searchable.",
+    description: "Voice memos and calls, transcribed and searchable.",
     emojiAlt: "Retro microphone emoji",
     emojiSrc: "/emojis/home-save-microphone.webp",
   },
   {
     title: "Design Files",
-    description:
-      "Brand guidelines, design systems, project files. Everything searchable with instant previews.",
+    description: "Files and docs with previews and quick search.",
     emojiAlt: "File folder emoji",
     emojiSrc: "/emojis/home-save-folder.webp",
   },
@@ -131,64 +121,66 @@ const saveContentTypes = [
 const howItWorksSteps = [
   {
     title: "Save in 1 Click",
-    description:
-      "See something you like? Click the extension. That's it. Images, links, notes - all saved forever.",
+    description: "See it, click once, and save it instantly.",
     emojiAlt: "Mobile phone emoji",
     emojiSrc: "/emojis/home-steps-mobile-phone.webp",
   },
   {
     title: "It Organizes Itself",
-    description:
-      "Teak tags everything automatically. No folders, no manual work.",
+    description: "Teak auto-tags everything in the background.",
     emojiAlt: "Drawer organizer emoji",
     emojiSrc: "/emojis/home-steps-drawer-organizer.webp",
   },
   {
     title: "Find in 2 Seconds",
-    description:
-      "Type what you remember. 'Blue gradient button' or 'that Dribbble shot from last month'. Found it.",
+    description: "Search naturally and pull up exactly what you need.",
     emojiAlt: "Target emoji",
     emojiSrc: "/emojis/home-steps-target.webp",
   },
   {
     title: "Ship Better Work",
-    description:
-      "Reach the finish line faster with every project because your references, notes, and decisions stay in one place.",
+    description: "Build faster with your references in one place.",
     emojiAlt: "Finish line emoji",
     emojiSrc: "/emojis/home-steps-finish-line.webp",
   },
 ];
 
+// Thiings source: https://lftz25oez4aqbxpq.public.blob.vercel-storage.com/image-52p9Ub8JEM1ahgmDoRazWouxX7h1DZ.png
+const problemEmoji = {
+  alt: "Search magnifier emoji",
+  src: "/emojis/home-problem-search-magnifier.webp",
+} as const;
+
+// Thiings source: https://lftz25oez4aqbxpq.public.blob.vercel-storage.com/image-QUD9QBFZRZ2ZYM6AV1VO3hYmCbUAq1.png
+const solutionEmoji = {
+  alt: "Target emoji",
+  src: "/emojis/home-solution-target.webp",
+} as const;
+
 const faqs = [
   {
-    question: "What exactly can I save?",
-    answer:
-      "Literally anything. Screenshots, Dribbble shots, CodePen links, voice notes, PDFs, videos. If you can see it, you can save it.",
+    question: "What can I save?",
+    answer: "Images, links, notes, files, audio, and videos.",
   },
   {
-    question: "Is my stuff actually private?",
-    answer:
-      "100% private. Encrypted everywhere. We're open source so you can check the code. Or self-host for total control.",
+    question: "Is my data private?",
+    answer: "Yes. Your data is encrypted, and you can self-host.",
   },
   {
-    question: "Will this work on my phone?",
-    answer:
-      "Yep. iPhone app, Android app, web app, Chrome extension, and Raycast. Save on your commute, find it at your desk.",
+    question: "Does it work on mobile?",
+    answer: "Yes. iOS, Android, web, Chrome extension, and Raycast.",
   },
   {
-    question: "How is this not just Pinterest?",
-    answer:
-      "Pinterest is for browsing and getting distracted. Teak is for working. No algorithms, no social pressure, just your personal library.",
+    question: "How is this different from Pinterest?",
+    answer: "Teak is for personal workflow, not social feeds or algorithms.",
   },
   {
-    question: "What happens when I hit 200 cards?",
-    answer:
-      "Your cards stay safe forever. You just can't add more until you go Pro ($19/month) or self-host (free). We never delete your stuff, not even when you hit 200.",
+    question: "What if I hit 200 cards?",
+    answer: "Your cards stay safe. Upgrade or self-host to add more.",
   },
   {
-    question: "Can I leave if I don't like it?",
-    answer:
-      "Absolutely. Export everything with one click. No lock-in, no tricks. Your data is yours, always.",
+    question: "Can I export and leave?",
+    answer: "Yes. Export anytime with no lock-in.",
   },
 ];
 
@@ -254,7 +246,7 @@ export default function HomePage() {
           </div>
 
           {/* Hero Image */}
-          <div className="mx-auto max-w-5xl">
+          <div className="mx-auto max-w-4xl">
             <div className="relative overflow-hidden rounded-lg">
               <Image
                 alt="Teak app interface showing various saved content types"
@@ -271,14 +263,24 @@ export default function HomePage() {
 
       {/* Problem/Solution Section */}
       <section className="py-20 md:py-24">
-        <div className="container mx-auto max-w-5xl px-4">
-          <div className="grid items-center gap-12 lg:grid-cols-2">
+        <div className="mx-auto max-w-4xl px-4 text-center">
+          <div className="grid gap-8 lg:grid-cols-2">
             <div>
-              <h2 className="mb-6 text-balance font-bold text-3xl md:text-4xl">
-                You&apos;re wasting hours looking for that one thing
+              <div className="mb-4 flex justify-center">
+                <Image
+                  alt={problemEmoji.alt}
+                  className="size-14 object-contain"
+                  height={56}
+                  src={problemEmoji.src}
+                  unoptimized
+                  width={56}
+                />
+              </div>
+              <h2 className="mb-4 font-bold text-2xl">
+                You&apos;re wasting hours searching
               </h2>
               <div className="space-y-4">
-                <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center gap-3">
                   <div className="mt-1 text-destructive">
                     <X className="h-4 w-4" />
                   </div>
@@ -286,7 +288,7 @@ export default function HomePage() {
                     47 browser bookmarks you&apos;ll never check again
                   </p>
                 </div>
-                <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center gap-3">
                   <div className="mt-1 text-destructive">
                     <X className="h-4 w-4" />
                   </div>
@@ -294,7 +296,7 @@ export default function HomePage() {
                     Pinterest showing you wedding dresses instead of UI
                   </p>
                 </div>
-                <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center gap-3">
                   <div className="mt-1 text-destructive">
                     <X className="h-4 w-4" />
                   </div>
@@ -302,7 +304,7 @@ export default function HomePage() {
                     23 screenshots named &apos;Screen Shot 2024-...&apos;
                   </p>
                 </div>
-                <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center gap-3">
                   <div className="mt-1 text-destructive">
                     <X className="h-4 w-4" />
                   </div>
@@ -312,40 +314,50 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
-            <div className="rounded-lg border border-border bg-card p-8">
-              <h3 className="mb-6 text-balance font-bold text-xl">
+            <div>
+              <div className="mb-4 flex justify-center">
+                <Image
+                  alt={solutionEmoji.alt}
+                  className="size-14 object-contain"
+                  height={56}
+                  src={solutionEmoji.src}
+                  unoptimized
+                  width={56}
+                />
+              </div>
+              <h3 className="mb-4 font-bold text-2xl">
                 Teak fixes this. Forever.
               </h3>
               <div className="space-y-4">
-                <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center gap-3">
                   <div className="mt-1 text-primary">
                     <Check className="h-4 w-4" />
                   </div>
-                  <p className="text-card-foreground">
+                  <p className="text-foreground">
                     Save anything in exactly 1 click
                   </p>
                 </div>
-                <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center gap-3">
                   <div className="mt-1 text-primary">
                     <Check className="h-4 w-4" />
                   </div>
-                  <p className="text-card-foreground">
+                  <p className="text-foreground">
                     Find that exact shade of blue in 2 seconds
                   </p>
                 </div>
-                <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center gap-3">
                   <div className="mt-1 text-primary">
                     <Check className="h-4 w-4" />
                   </div>
-                  <p className="text-card-foreground">
+                  <p className="text-foreground">
                     It works on your phone, laptop, and tablet
                   </p>
                 </div>
-                <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center gap-3">
                   <div className="mt-1 text-primary">
                     <Check className="h-4 w-4" />
                   </div>
-                  <p className="text-card-foreground">
+                  <p className="text-foreground">
                     It organizes itself. You just create.
                   </p>
                 </div>
@@ -357,7 +369,7 @@ export default function HomePage() {
 
       {/* Features Section */}
       <section className="bg-background py-20 md:py-24">
-        <div className="container mx-auto max-w-5xl px-4">
+        <div className="container mx-auto max-w-xl px-4">
           <div className="mb-16 text-center">
             <h2 className="mb-4 text-balance font-bold text-3xl">
               Why designers are switching to Teak
@@ -367,7 +379,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2">
+          <div className="grid gap-10 md:grid-cols-2">
             {features.map((feature) => (
               <FeatureCard
                 description={feature.description}
@@ -383,7 +395,7 @@ export default function HomePage() {
 
       {/* Content Types Preview */}
       <section className="py-20 md:py-24">
-        <div className="container mx-auto max-w-5xl px-4">
+        <div className="container mx-auto max-w-xl px-4">
           <div className="mb-16 text-center">
             <h2 className="mb-6 text-balance font-bold text-3xl md:text-4xl">
               Save everything. Find anything.
@@ -394,7 +406,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2">
+          <div className="grid gap-10 md:grid-cols-2">
             {saveContentTypes.map((contentType) => (
               <FeatureCard
                 description={contentType.description}
@@ -410,7 +422,7 @@ export default function HomePage() {
 
       {/* How It Works Section */}
       <section className="bg-background py-20 md:py-24">
-        <div className="container mx-auto max-w-5xl px-4">
+        <div className="container mx-auto max-w-xl px-4">
           <div className="mb-16 text-center">
             <h2 className="mb-6 text-balance font-bold text-3xl md:text-4xl">
               Master your inspiration in 3 minutes
@@ -420,7 +432,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2">
+          <div className="grid gap-10 md:grid-cols-2">
             {howItWorksSteps.map((step) => (
               <FeatureCard
                 description={step.description}
@@ -436,7 +448,7 @@ export default function HomePage() {
 
       {/* FAQ Section */}
       <section className="py-20 md:py-24">
-        <div className="mx-auto max-w-5xl px-4">
+        <div className="mx-auto max-w-4xl px-4">
           <div className="mb-12 text-center">
             <h2 className="mb-4 text-balance font-bold text-3xl">
               Still have questions?
@@ -446,17 +458,15 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
             {faqs.map((faq) => (
-              <div
-                className="rounded-lg border border-border bg-card p-6"
+              <FeatureCard
+                description={faq.answer}
+                emojiAlt=""
+                emojiSrc=""
                 key={faq.question}
-              >
-                <h3 className="mb-3 font-semibold text-foreground">
-                  {faq.question}
-                </h3>
-                <p className="text-muted-foreground">{faq.answer}</p>
-              </div>
+                title={faq.question}
+              />
             ))}
           </div>
         </div>
