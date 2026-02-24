@@ -230,13 +230,13 @@ export default function HomePage() {
       <section className="relative pt-14 md:pt-22">
         <div className="container mx-auto px-4">
           <div className="mx-auto mb-18 max-w-2xl text-center">
-            <Badge asChild className="mb-4" variant="outline">
+            <Badge asChild className="mb-4">
               <a
                 href={RAYCAST_STORE_URL}
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                Just released: Raycast extension
+                Just released: Raycast extension →
               </a>
             </Badge>
             <h1 className="mb-4 text-balance font-bold text-4xl tracking-tight md:text-5xl">
