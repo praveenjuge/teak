@@ -1,4 +1,15 @@
+import { saveToTeak } from "../lib/saveToTeak";
 import type { ContextMenuAction } from "../types/contextMenu";
+import {
+  type AuthStateResponse,
+  MESSAGE_TYPES,
+  type SaveContentRequest,
+  type SavePostRequest,
+  type TeakRuntimeRequest,
+  type TeakSaveResponse,
+} from "../types/messages";
+import { isSupportedSocialHost } from "../types/social";
+import { hasValidSession } from "../utils/getSessionFromCookies";
 
 // Check if a URL is restricted (can't inject scripts)
 function isRestrictedUrl(url?: string): boolean {
@@ -19,6 +30,105 @@ function isRestrictedUrl(url?: string): boolean {
   return restrictedPrefixes.some((prefix) => url.startsWith(prefix));
 }
 
+const getNormalizedHost = (urlString: string): string | null => {
+  try {
+    return new URL(urlString).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+};
+
+const isInlineSaveHostAllowed = (urlString: string): boolean => {
+  const host = getNormalizedHost(urlString);
+  if (!host) {
+    return false;
+  }
+  return isSupportedSocialHost(host);
+};
+
+const buildSaveError = (message: string, code?: string): TeakSaveResponse => ({
+  status: "error",
+  message,
+  code,
+});
+
+const buildContextMenuErrorMessage = (result: TeakSaveResponse): string => {
+  if (result.status === "unauthenticated") {
+    return "Please log in to Teak to save content.";
+  }
+
+  if (result.status === "error") {
+    return result.message;
+  }
+
+  return "Failed to save content";
+};
+
+async function extractContextMenuContent(
+  action: ContextMenuAction,
+  info: chrome.contextMenus.OnClickData,
+  tab: chrome.tabs.Tab
+): Promise<string> {
+  switch (action) {
+    case "save-page": {
+      if (!tab.url) {
+        throw new Error("Could not access page URL");
+      }
+      return tab.url;
+    }
+    case "save-text": {
+      if (!tab.id) {
+        throw new Error("Could not access page content");
+      }
+
+      if (typeof info.selectionText === "string" && info.selectionText.trim()) {
+        return info.selectionText.trim();
+      }
+
+      try {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const selection = window.getSelection();
+            const selectedText = selection ? selection.toString().trim() : "";
+            return selectedText || document.title || "";
+          },
+        });
+
+        const content = results[0]?.result;
+        if (typeof content === "string" && content.trim()) {
+          return content.trim();
+        }
+      } catch {
+        // Fall through to tab-title fallback below.
+      }
+
+      if (tab.title?.trim()) {
+        return tab.title.trim();
+      }
+
+      throw new Error(
+        "Could not access page content. Please select text and try again."
+      );
+    }
+    default:
+      throw new Error(`Unknown action: ${action}`);
+  }
+}
+
+const isRuntimeRequest = (message: unknown): message is TeakRuntimeRequest => {
+  if (!message || typeof message !== "object") {
+    return false;
+  }
+
+  const candidate = message as { type?: unknown };
+  return (
+    candidate.type === MESSAGE_TYPES.GET_AUTH_STATE ||
+    candidate.type === MESSAGE_TYPES.SAVE_CONTENT ||
+    candidate.type === MESSAGE_TYPES.SAVE_POST
+  );
+};
+
 export default defineBackground(() => {
   // Create context menus when extension starts
   chrome.runtime.onStartup.addListener(createContextMenus);
@@ -26,6 +136,7 @@ export default defineBackground(() => {
 
   // Handle context menu clicks
   chrome.contextMenus.onClicked.addListener(handleContextMenuClick);
+  chrome.runtime.onMessage.addListener(handleRuntimeMessage);
 
   // Create context menu items
   function createContextMenus() {
@@ -63,83 +174,35 @@ export default defineBackground(() => {
         );
       }
 
-      // Extract content based on action
-      let content: string | undefined;
-      let errorMessage: string | undefined;
-
-      switch (action) {
-        case "save-page":
-          content = tab.url;
-          if (!content) {
-            errorMessage = "Could not access page URL";
-          }
-          break;
-
-        case "save-text":
-          // Try to extract selected text with better error handling
-          try {
-            const results = await chrome.scripting.executeScript({
-              target: { tabId: tab.id },
-              func: () => {
-                const selection = window.getSelection();
-                const selectedText = selection
-                  ? selection.toString().trim()
-                  : "";
-
-                // If no text selected, try to get page title as fallback
-                if (!selectedText) {
-                  return {
-                    content: document.title || "",
-                    fallback: true,
-                  };
-                }
-
-                return {
-                  content: selectedText,
-                  fallback: false,
-                };
-              },
-            });
-
-            const result = results[0]?.result;
-            if (result?.content) {
-              content = result.content;
-            } else {
-              errorMessage =
-                "No text selected and could not access page content";
-            }
-          } catch {
-            // Fallback: use page title if available
-            if (tab.title) {
-              content = tab.title;
-            } else {
-              errorMessage =
-                "Could not access page content. Please select text and try again.";
-            }
-          }
-          break;
-        default:
-          errorMessage = `Unknown action: ${action}`;
-      }
-
-      if (!content) {
-        throw new Error(errorMessage || "No content to save");
-      }
+      const content = await extractContextMenuContent(action, info, tab);
 
       // Store content for processing
       const contextMenuState = {
         action,
         timestamp: Date.now(),
         status: "saving",
-        content,
       };
 
       await chrome.storage.local.set({
         contextMenuSave: contextMenuState,
       });
 
-      // Open popup to show progress and handle saving
-      void chrome.action.openPopup();
+      const saveResult = await saveToTeak({
+        content,
+        source: "context-menu",
+      });
+
+      if (saveResult.status === "saved" || saveResult.status === "duplicate") {
+        await chrome.storage.local.set({
+          contextMenuSave: {
+            action,
+            timestamp: Date.now(),
+            status: "success",
+          },
+        });
+      } else {
+        throw new Error(buildContextMenuErrorMessage(saveResult));
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to save content";
@@ -152,10 +215,95 @@ export default defineBackground(() => {
           error: errorMessage,
         },
       });
-
-      // Open popup to show error
-      void chrome.action.openPopup();
     }
+
+    // Open popup to show save status
+    void chrome.action.openPopup();
+  }
+
+  function handleRuntimeMessage(
+    message: unknown,
+    sender: chrome.runtime.MessageSender,
+    sendResponse: (response?: AuthStateResponse | TeakSaveResponse) => void
+  ): boolean | undefined {
+    if (!isRuntimeRequest(message)) {
+      return undefined;
+    }
+
+    void (async () => {
+      try {
+        if (message.type === MESSAGE_TYPES.GET_AUTH_STATE) {
+          const response: AuthStateResponse = {
+            authenticated: await hasValidSession(),
+          };
+          sendResponse(response);
+          return;
+        }
+
+        if (message.type === MESSAGE_TYPES.SAVE_CONTENT) {
+          const saveRequest = message as SaveContentRequest;
+          const result = await saveToTeak({
+            content: saveRequest.payload.content,
+            source: saveRequest.payload.source,
+          });
+          sendResponse(result);
+          return;
+        }
+
+        if (message.type === MESSAGE_TYPES.SAVE_POST) {
+          const postRequest = message as SavePostRequest;
+          const senderUrl = sender.tab?.url;
+
+          if (!(senderUrl && isInlineSaveHostAllowed(senderUrl))) {
+            sendResponse(
+              buildSaveError(
+                "Inline save is only supported on social feeds.",
+                "UNSUPPORTED_HOST"
+              )
+            );
+            return;
+          }
+
+          if (!isInlineSaveHostAllowed(postRequest.payload.permalink)) {
+            sendResponse(
+              buildSaveError(
+                "Invalid social post permalink.",
+                "UNSUPPORTED_HOST"
+              )
+            );
+            return;
+          }
+
+          const senderHost = getNormalizedHost(senderUrl);
+          const permalinkHost = getNormalizedHost(
+            postRequest.payload.permalink
+          );
+          if (!(senderHost && permalinkHost) || senderHost !== permalinkHost) {
+            sendResponse(
+              buildSaveError(
+                "Post host does not match current page host.",
+                "UNSUPPORTED_HOST"
+              )
+            );
+            return;
+          }
+
+          const result = await saveToTeak({
+            content: postRequest.payload.permalink,
+            enforceAllowedHosts: true,
+            source: "inline-post",
+          });
+          sendResponse(result);
+          return;
+        }
+      } catch (error) {
+        const messageText =
+          error instanceof Error ? error.message : "Unexpected save failure";
+        sendResponse(buildSaveError(messageText));
+      }
+    })();
+
+    return true;
   }
 
   // Initialize context menus immediately

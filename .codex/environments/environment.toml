@@ -12,3 +12,11 @@ command = '''
 bun install
 bun dev
 '''
+
+[[actions]]
+name = "Extension"
+icon = "run"
+command = '''
+bun install
+bun run dev:extension
+'''
