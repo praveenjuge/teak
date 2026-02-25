@@ -1,8 +1,8 @@
 import type { LinkCategoryDetail } from "@teak/convex/shared";
 
 export interface ProviderEnrichmentResult {
-  imageUrl?: string;
   facts?: LinkCategoryDetail[];
+  imageUrl?: string;
   raw?: Record<string, unknown>;
 }
 

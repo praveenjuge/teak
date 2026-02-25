@@ -91,8 +91,7 @@ export const parseCardsResponse = (payload: unknown): CardsResponse => {
   const { items, total } = payload;
 
   if (
-    !Array.isArray(items) ||
-    !items.every((item) => isRaycastCard(item)) ||
+    !(Array.isArray(items) && items.every((item) => isRaycastCard(item))) ||
     typeof total !== "number"
   ) {
     throw new RaycastApiError("REQUEST_FAILED");

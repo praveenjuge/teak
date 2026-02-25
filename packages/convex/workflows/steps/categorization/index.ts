@@ -54,14 +54,14 @@ const STRUCTURED_DATA_FIELDS = [
 
 export interface CategorizationContextCard {
   _id: Id<"cards">;
-  type: string;
-  url?: string;
   content?: string;
-  notes?: string;
   metadata?: any;
   metadataStatus?: string;
-  tags?: string[];
+  notes?: string;
   processingStatus?: any;
+  tags?: string[];
+  type: string;
+  url?: string;
 }
 
 export interface CategoryClassificationResult {

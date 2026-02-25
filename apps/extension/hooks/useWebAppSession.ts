@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { getSessionTokenFromCookies } from "../utils/getSessionFromCookies";
 
 interface User {
-  id: string;
   email: string;
-  name?: string;
+  id: string;
   image?: string;
+  name?: string;
 }
 
 interface Session {
@@ -14,8 +14,8 @@ interface Session {
 
 interface UseWebAppSessionResult {
   data: Session | null;
-  isPending: boolean;
   error: Error | null;
+  isPending: boolean;
   refetch: () => void;
 }
 

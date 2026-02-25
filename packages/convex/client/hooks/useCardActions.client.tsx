@@ -13,9 +13,9 @@ export function setSentryCaptureFunction(fn: SentryCaptureFunction) {
 
 export interface CardActionsConfig {
   onDeleteSuccess?: (message?: string) => void;
-  onRestoreSuccess?: (message?: string) => void;
-  onPermanentDeleteSuccess?: (message?: string) => void;
   onError?: (error: Error, operation: string) => void;
+  onPermanentDeleteSuccess?: (message?: string) => void;
+  onRestoreSuccess?: (message?: string) => void;
 }
 
 export type UpdateCardFieldArgs = {
@@ -44,9 +44,9 @@ export interface CardActionsDependencies {
 }
 
 export interface BulkDeleteResult {
-  requestedCount: number;
   deletedCount: number;
   failedIds: Id<"cards">[];
+  requestedCount: number;
 }
 
 export function createCardActions(

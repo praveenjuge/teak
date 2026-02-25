@@ -6,18 +6,18 @@ export interface ScrapeAttribute {
 }
 
 export interface ScrapeResultItem {
-  text?: string;
-  html?: string;
   attributes?: ScrapeAttribute[];
+  html?: string;
+  text?: string;
 }
 
 export interface ScrapeSelectorResult {
-  selector: string;
   results: ScrapeResultItem[];
+  selector: string;
 }
 
 export interface ScrapeResponse {
-  success: boolean;
+  errors?: Array<{ code?: number; message?: string }>;
   result?: {
     selectors: ScrapeSelectorResult[];
     primaryImage?: {
@@ -26,38 +26,38 @@ export interface ScrapeResponse {
       height?: number;
     };
   };
-  errors?: Array<{ code?: number; message?: string }>;
+  success: boolean;
 }
 
 export interface LinkPreviewMetadata {
-  source: "kernel_playwright";
-  status: "success" | "error";
-  fetchedAt: number;
-  url: string;
-  finalUrl?: string;
-  canonicalUrl?: string;
-  title?: string;
-  description?: string;
-  imageUrl?: string;
-  imageStorageId?: Id<"_storage">;
-  imageUpdatedAt?: number;
-  imageWidth?: number;
-  imageHeight?: number;
-  faviconUrl?: string;
-  siteName?: string;
   author?: string;
-  publisher?: string;
-  publishedAt?: string;
-  screenshotStorageId?: Id<"_storage">;
-  screenshotUpdatedAt?: number;
-  screenshotWidth?: number;
-  screenshotHeight?: number;
+  canonicalUrl?: string;
+  description?: string;
   error?: {
     type?: string;
     message?: string;
     details?: any;
   };
+  faviconUrl?: string;
+  fetchedAt: number;
+  finalUrl?: string;
+  imageHeight?: number;
+  imageStorageId?: Id<"_storage">;
+  imageUpdatedAt?: number;
+  imageUrl?: string;
+  imageWidth?: number;
+  publishedAt?: string;
+  publisher?: string;
   raw?: ScrapeSelectorResult[];
+  screenshotHeight?: number;
+  screenshotStorageId?: Id<"_storage">;
+  screenshotUpdatedAt?: number;
+  screenshotWidth?: number;
+  siteName?: string;
+  source: "kernel_playwright";
+  status: "success" | "error";
+  title?: string;
+  url: string;
 }
 
 export type SelectorSource = {

@@ -306,8 +306,8 @@ export const CARD_TYPE_ICONS: Record<CardType, string> = {
  * Card type configuration registry for centralized management
  */
 export interface CardTypeConfig {
-  label: string;
   icon: string;
+  label: string;
   searchLabel: string;
 }
 
@@ -375,8 +375,8 @@ export function getCardTypeLabel(cardType: CardType): string {
  * Typeahead option for search/filter dropdowns
  */
 export interface TypeaheadOption {
-  value: CardType | "favorites" | "trash";
   label: string;
+  value: CardType | "favorites" | "trash";
 }
 
 /**

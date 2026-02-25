@@ -3,16 +3,16 @@ import type { ColorHueBucket } from "../constants";
 
 export interface Color {
   hex: string;
+  hsl?: {
+    h: number;
+    s: number;
+    l: number;
+  };
   name?: string;
   rgb?: {
     r: number;
     g: number;
     b: number;
-  };
-  hsl?: {
-    h: number;
-    s: number;
-    l: number;
   };
 }
 

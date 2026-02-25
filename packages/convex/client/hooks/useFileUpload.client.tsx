@@ -91,61 +91,61 @@ export function setFileUploadSentryCaptureFunction(fn: SentryCaptureFunction) {
 }
 
 export interface UnifiedFileUploadConfig {
-  onSuccess?: (cardId: string) => void;
   onError?: (error: FileUploadError) => void;
   onProgress?: (progress: number) => void;
+  onSuccess?: (cardId: string) => void;
 }
 
 export interface FileUploadState {
-  isUploading: boolean;
-  progress: number;
   error: string | null;
   errorCode?: CardErrorCode;
+  isUploading: boolean;
+  progress: number;
 }
 
 export interface FileUploadError {
-  message: string;
   code?: CardErrorCode;
+  message: string;
 }
 
 export interface UploadAndCreateCardArgs {
-  fileName: string;
-  fileType: string;
-  fileSize: number;
+  additionalMetadata?: any;
   cardType: CardType;
   content?: string;
-  additionalMetadata?: any;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
 }
 
 export interface UploadAndCreateCardResult {
-  success: boolean;
-  uploadUrl?: string;
   error?: string;
   errorCode?: CardErrorCode | (string & {});
+  success: boolean;
+  uploadUrl?: string;
 }
 
 export interface FinalizeUploadedCardArgs {
-  fileId: string;
-  fileName: string;
+  additionalMetadata?: any;
   cardType: CardType;
   content?: string;
-  additionalMetadata?: any;
+  fileId: string;
+  fileName: string;
 }
 
 export interface FinalizeUploadedCardResult {
-  success: boolean;
   cardId?: string;
   error?: string;
   errorCode?: CardErrorCode | (string & {});
+  success: boolean;
 }
 
 export interface FileUploadDependencies {
-  uploadAndCreateCard: (
-    args: UploadAndCreateCardArgs
-  ) => Promise<UploadAndCreateCardResult>;
   finalizeUploadedCard: (
     args: FinalizeUploadedCardArgs
   ) => Promise<FinalizeUploadedCardResult>;
+  uploadAndCreateCard: (
+    args: UploadAndCreateCardArgs
+  ) => Promise<UploadAndCreateCardResult>;
 }
 
 type CodedError = Error & { code?: CardErrorCode };

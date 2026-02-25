@@ -55,20 +55,20 @@ export const LINK_CATEGORY_ICONS: Record<LinkCategory, string> = {
 };
 
 export interface LinkCategoryDetail {
+  icon?: string;
   label: string;
   value: string;
-  icon?: string;
 }
 
 export interface LinkCategoryMetadata {
   category: LinkCategory;
   confidence?: number;
   detectedProvider?: string;
-  fetchedAt: number;
-  sourceUrl: string;
-  imageUrl?: string;
   facts?: LinkCategoryDetail[];
+  fetchedAt: number;
+  imageUrl?: string;
   raw?: Record<string, unknown>;
+  sourceUrl: string;
 }
 
 export const LINK_CATEGORY_DEFAULT_CONFIDENCE = 0.6;
