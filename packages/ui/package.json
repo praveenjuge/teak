@@ -22,10 +22,12 @@
     "./selection": "./src/components/selection/index.ts",
     "./search": "./src/components/search/index.ts",
     "./patterns": "./src/components/patterns/index.ts",
-    "./hooks": "./src/hooks/index.ts"
+    "./hooks": "./src/hooks/index.ts",
+    "./settings": "./src/components/settings/index.ts",
+    "./constants/settings": "./src/constants/settings.ts"
   },
   "scripts": {
-    "test": "bun test src/components/forms/__tests__ --coverage --dots",
+    "test": "bun test src/components/forms/__tests__ src/components/settings/__tests__ --coverage --dots",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -5,3 +5,4 @@ export type { UseGlobalDragDropConfig } from "./useGlobalDragDrop";
 export { useGlobalDragDrop } from "./useGlobalDragDrop";
 export type { UseInfiniteScrollOptions } from "./useInfiniteScroll";
 export { useInfiniteScroll } from "./useInfiniteScroll";
+export { useObjectState } from "./useObjectState";

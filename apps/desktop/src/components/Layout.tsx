@@ -1,28 +1,27 @@
 import { Button } from "@teak/ui/components/ui/button";
 import Logo from "@teak/ui/logo";
-import { LogOut } from "lucide-react";
+import { Settings } from "lucide-react";
 import type { PropsWithChildren } from "react";
+import { useNavigate } from "react-router-dom";
 
-interface LayoutProps extends PropsWithChildren {
-  isLoggingOut: boolean;
-  onLogout: () => void;
-}
+interface LayoutProps extends PropsWithChildren {}
 
-export function Layout({ children, isLoggingOut, onLogout }: LayoutProps) {
+export function Layout({ children }: LayoutProps) {
+  const navigate = useNavigate();
+
   return (
     <main className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
           <Logo variant="primary" />
           <Button
-            disabled={isLoggingOut}
-            onClick={onLogout}
+            onClick={() => navigate("/settings")}
             size="sm"
             type="button"
-            variant="outline"
+            variant="ghost"
           >
-            <LogOut className="size-4" />
-            Logout
+            <Settings className="size-4" />
+            Settings
           </Button>
         </div>
       </header>

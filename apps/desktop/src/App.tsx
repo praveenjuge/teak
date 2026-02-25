@@ -2,7 +2,14 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { exit } from "@tauri-apps/plugin-process";
 import { Spinner } from "@teak/ui/components/ui/spinner";
 import { useConvexAuth } from "convex/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useNavigate,
+} from "react-router-dom";
 import { toast } from "sonner";
 import { Layout } from "@/components/Layout";
 import { useDesktopMenuEvents } from "@/hooks/useDesktopMenuEvents";
@@ -13,30 +20,30 @@ import { closeAuthWindow } from "@/lib/auth-window";
 import { logoutDesktopSession } from "@/lib/desktop-auth";
 import { CardsPage } from "./pages/CardsPage";
 import { LoginPage } from "./pages/LoginPage";
+import { SettingsPage } from "./pages/SettingsPage";
 
-function App() {
+function AppRoutes() {
+  const navigate = useNavigate();
   const { isOnline } = useNetworkStatus();
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const wasAuthenticatedRef = useRef(isAuthenticated);
 
   useSilentUpdater();
   useWindowSizePersistence();
 
   const handleLogout = useCallback(async () => {
-    setIsLoggingOut(true);
     try {
       await logoutDesktopSession();
     } catch {
       toast.error("Failed to logout");
-    } finally {
-      setIsLoggingOut(false);
     }
   }, []);
 
   const handlePreferencesMenuClick = useCallback(() => {
-    toast.message("Preferences are coming soon.");
-  }, []);
+    if (isAuthenticated) {
+      navigate("/settings");
+    }
+  }, [navigate, isAuthenticated]);
 
   useDesktopMenuEvents({
     onLogout: () => {
@@ -63,6 +70,7 @@ function App() {
     void closeAuthWindow();
   }, [isAuthenticated]);
 
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isCmdOrCtrl = e.metaKey || e.ctrlKey;
@@ -93,9 +101,26 @@ function App() {
   }
 
   return (
-    <Layout isLoggingOut={isLoggingOut} onLogout={() => void handleLogout()}>
-      <CardsPage />
-    </Layout>
+    <Routes>
+      <Route
+        element={
+          <Layout>
+            <CardsPage />
+          </Layout>
+        }
+        path="/"
+      />
+      <Route element={<SettingsPage />} path="/settings" />
+      <Route element={<Navigate replace to="/" />} path="*" />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
   );
 }
 

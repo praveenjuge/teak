@@ -1,55 +1,49 @@
-"use client";
-
-import { api } from "@teak/convex";
-import { Badge } from "@teak/ui/components/ui/badge";
-import { Button } from "@teak/ui/components/ui/button";
-import { CardTitle } from "@teak/ui/components/ui/card";
-import { Input } from "@teak/ui/components/ui/input";
-import { Spinner } from "@teak/ui/components/ui/spinner";
-import { useMutation } from "convex/react";
-import { useQuery } from "convex-helpers/react/cache/hooks";
 import { useState } from "react";
 import { toast } from "sonner";
-import { TOAST_IDS } from "@/lib/toastConfig";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { CardTitle } from "../ui/card";
+import { Input } from "../ui/input";
+import { Spinner } from "../ui/spinner";
 
-type ApiKeyListItem = {
+interface ApiKeyListItem {
   id: string;
-};
+}
 
-type CreatedApiKey = {
+interface CreatedApiKey {
   key: string;
-};
+}
 
-const convexApi = api as any;
+interface ApiKeysSectionProps {
+  isLoading: boolean;
+  keys: ApiKeyListItem[] | undefined;
+  onCreateKey: () => Promise<CreatedApiKey | null>;
+}
 
-export function ApiKeysSection() {
+export function ApiKeysSection({
+  keys,
+  isLoading,
+  onCreateKey,
+}: ApiKeysSectionProps) {
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
-  const keys = useQuery(convexApi.apiKeys.listUserApiKeys, {}) as
-    | ApiKeyListItem[]
-    | undefined;
-  const createKey = useMutation(convexApi.apiKeys.createUserApiKey);
-
-  const isLoading = keys === undefined;
   const activeKey = keys?.[0] ?? null;
 
   const handleCreateOrRotate = async () => {
     setIsCreating(true);
-    const toastId = toast.loading("Generating API key...", {
-      id: TOAST_IDS.apiKeyCreate,
-    });
+    const toastId = toast.loading("Generating API key...");
     try {
-      const created = (await createKey({
-        name: "API Keys",
-      })) as CreatedApiKey;
-      setRevealedKey(created.key);
-      toast.success(
-        "API key generated. Copy it now, it won't be shown again.",
-        {
-          id: toastId,
-        }
-      );
+      const created = await onCreateKey();
+      if (created) {
+        setRevealedKey(created.key);
+        toast.success(
+          "API key generated. Copy it now, it won't be shown again.",
+          {
+            id: toastId,
+          }
+        );
+      }
     } catch {
       toast.error("Failed to generate API key.", {
         id: toastId,
@@ -120,3 +114,5 @@ export function ApiKeysSection() {
     </div>
   );
 }
+
+export type { ApiKeyListItem, CreatedApiKey };
