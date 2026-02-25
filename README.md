@@ -2,41 +2,32 @@
 
 Teak is a personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations.
 
-- **Backend**: Convex
-- **Web App**: Next.js + React
-- **Mobile App**: React Native with Expo
-
 <br />
 <a href="https://vercel.com/oss">
   <img alt="Vercel OSS Program" src="https://vercel.com/oss/program-badge.svg" />
 </a>
 
-## 📁 Project Structure
+## Monorepo
 
-```
+```text
 teak/
 ├── apps/
-│   ├── web/         # Next.js 16 frontend (app router)
-│   ├── mobile/      # React Native Expo app
-│   ├── extension/   # Chrome browser extension (Wxt)
-│   └── docs/        # Documentation site (Fumadocs)
+│   ├── web/        # Next.js app
+│   ├── mobile/     # Expo app
+│   ├── desktop/    # Tauri desktop app
+│   ├── extension/  # Browser extension
+│   ├── raycast/    # Raycast extension
+│   └── docs/       # Documentation site
 ├── packages/
-│   └── convex/      # Convex backend (functions, workflows, schema)
-├── scripts/         # Build/setup scripts
-├── tests/           # E2E tests (Playwright)
-└── package.json     # Root package + workspaces
+│   ├── convex/     # Convex backend
+│   └── ui/         # Shared UI package
+└── package.json
 ```
 
-## 🚀 Getting Started
+## Docs
 
-For detailed development setup, environment configuration, and comprehensive documentation, visit our documentation site:
+[View docs →](https://teakvault.com/docs/)
 
-**🌟 [Features](https://teakvault.com/docs/features)** - Explore the powerful features that make Teak the ultimate personal knowledge hub
-
-**📖 [Development Guide](https://teakvault.com/docs/development)** - Complete setup instructions, commands, and workflow
-
-**⚙️ [Environment Settings](https://teakvault.com/docs/environment-settings)** - Configuration variables and environment setup
-
-## 📄 License
+## License
 
 MIT License - see LICENSE file for details.
