@@ -15,7 +15,6 @@ import { Layout } from "@/components/Layout";
 import { useDesktopMenuEvents } from "@/hooks/useDesktopMenuEvents";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useSilentUpdater } from "@/hooks/useSilentUpdater";
-import { useWindowSizePersistence } from "@/hooks/useWindowSizePersistence";
 import { closeAuthWindow } from "@/lib/auth-window";
 import { logoutDesktopSession } from "@/lib/desktop-auth";
 import { CardsPage } from "./pages/CardsPage";
@@ -29,7 +28,6 @@ function AppRoutes() {
   const wasAuthenticatedRef = useRef(isAuthenticated);
 
   useSilentUpdater();
-  useWindowSizePersistence();
 
   const handleLogout = useCallback(async () => {
     try {

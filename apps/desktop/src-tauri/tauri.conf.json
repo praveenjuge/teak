@@ -16,8 +16,8 @@
         "title": "Teak",
         "width": 1000,
         "height": 700,
-        "minWidth": 900,
-        "minHeight": 620
+        "minWidth": 800,
+        "minHeight": 600
       }
     ],
     "security": {
