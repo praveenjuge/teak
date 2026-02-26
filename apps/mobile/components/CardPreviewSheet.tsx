@@ -3,23 +3,36 @@ import { Circle } from "@expo/ui/src/swift-ui/Shapes";
 import {
   BottomSheet,
   Button,
-  CircularProgress,
   Host,
   HStack,
   Image,
   List,
+  ProgressView,
   Section,
   Spacer,
   Text,
   VStack,
   ZStack,
 } from "@expo/ui/swift-ui";
-import { foregroundStyle, frame, padding } from "@expo/ui/swift-ui/modifiers";
+import {
+  buttonStyle,
+  controlSize,
+  disabled as disabledModifier,
+  font,
+  foregroundStyle,
+  frame,
+  interactiveDismissDisabled,
+  lineLimit,
+  listStyle,
+  padding,
+  presentationDetents,
+  presentationDragIndicator,
+} from "@expo/ui/swift-ui/modifiers";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useEvent } from "expo";
-import { Audio } from "expo-av";
+import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import { useVideoPlayer, VideoView } from "expo-video";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Linking, Image as RNImage, useWindowDimensions } from "react-native";
 
 type Card = Doc<"cards"> & {
@@ -60,7 +73,13 @@ const FullHeightPlaceholder = ({
   >
     <Spacer />
     <Image color="secondary" size={28} systemName={icon as any} />
-    <Text color="secondary">{label}</Text>
+    <Text
+      modifiers={[
+        foregroundStyle({ type: "hierarchical", style: "secondary" }),
+      ]}
+    >
+      {label}
+    </Text>
     <Spacer />
   </VStack>
 );
@@ -132,7 +151,7 @@ const FullHeightMedia = ({
           height: "100%",
         }}
       />
-      {isLoading ? <CircularProgress /> : null}
+      {isLoading ? <ProgressView /> : null}
     </ZStack>
   );
 };
@@ -147,14 +166,21 @@ const ActionButton = ({
   disabled?: boolean;
 }) => (
   <Button
-    controlSize="large"
-    disabled={disabled}
+    modifiers={[
+      buttonStyle("bordered"),
+      controlSize("large"),
+      disabledModifier(disabled),
+    ]}
     onPress={onPress}
-    variant="bordered"
   >
     <HStack alignment="center" spacing={10}>
       <Spacer />
-      <Text color="primary" design="rounded">
+      <Text
+        modifiers={[
+          foregroundStyle({ type: "hierarchical", style: "primary" }),
+          font({ design: "rounded" }),
+        ]}
+      >
         {label}
       </Text>
       <Spacer />
@@ -186,7 +212,7 @@ const CenteredPanel = ({
   >
     <Spacer />
     <Image color="secondary" size={28} systemName={icon as any} />
-    <Text weight="semibold">{title}</Text>
+    <Text modifiers={[font({ weight: "semibold" })]}>{title}</Text>
     {subtitle}
     <Spacer />
     {actionLabel && onAction ? (
@@ -228,16 +254,23 @@ const AudioPreview = ({
           (isPlaying ? "pause.circle.fill" : "play.circle.fill") as any
         }
       />
-      <Text weight="semibold">{title}</Text>
+      <Text modifiers={[font({ weight: "semibold" })]}>{title}</Text>
       <Button
-        controlSize="large"
-        disabled={!hasSource || isLoading}
+        modifiers={[
+          buttonStyle("bordered"),
+          controlSize("large"),
+          disabledModifier(!hasSource || isLoading),
+        ]}
         onPress={onToggle}
-        variant="bordered"
       >
         <HStack alignment="center" spacing={10}>
           <Spacer />
-          <Text color="primary" design="rounded">
+          <Text
+            modifiers={[
+              foregroundStyle({ type: "hierarchical", style: "primary" }),
+              font({ design: "rounded" }),
+            ]}
+          >
             {hasSource
               ? isLoading
                 ? "Loading..."
@@ -324,7 +357,7 @@ const VideoPreview = ({
         player={player}
         style={{ width: "100%", height: "100%" }}
       />
-      {isLoading ? <CircularProgress /> : null}
+      {isLoading ? <ProgressView /> : null}
     </ZStack>
   );
 };
@@ -337,10 +370,7 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
     : Math.max(220, Math.round(height * 0.5));
 
   const audioUrl = card?.type === "audio" ? (card.fileUrl ?? null) : null;
-  const soundRef = useRef<Audio.Sound | null>(null);
-  const [isAudioLoading, setIsAudioLoading] = useState(false);
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-  const [audioError, setAudioError] = useState<string | null>(null);
+  const [audioError, _setAudioError] = useState<string | null>(null);
 
   const audioMime = card?.fileMetadata?.mimeType?.toLowerCase();
   const audioExt = card?.fileMetadata?.fileName?.toLowerCase().split(".").pop();
@@ -348,132 +378,39 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
     (audioMime ? !unsupportedAudioMimes.has(audioMime) : true) &&
     (audioExt ? !unsupportedAudioExts.has(audioExt) : true);
 
-  const stopAndUnloadAudio = useCallback(async () => {
-    const sound = soundRef.current;
-    if (!sound) {
-      setIsAudioLoading(false);
-      setIsAudioPlaying(false);
-      setAudioError(null);
-      return;
-    }
-    try {
-      await sound.stopAsync();
-    } catch (error) {
-      console.warn(
-        "Failed to stop audio preview:",
-        error instanceof Error ? error.message : error
-      );
-    }
-    try {
-      await sound.unloadAsync();
-    } catch (error) {
-      console.warn(
-        "Failed to unload audio preview:",
-        error instanceof Error ? error.message : error
-      );
-    }
-    soundRef.current = null;
-    setIsAudioLoading(false);
-    setIsAudioPlaying(false);
-    setAudioError(null);
-  }, []);
-
-  const loadAndPlayAudio = useCallback(async () => {
-    if (!audioUrl) {
-      return;
-    }
-    if (!isAudioSupported) {
-      setAudioError("Unsupported audio format");
-      return;
-    }
-    await stopAndUnloadAudio();
-    setIsAudioLoading(true);
-    setAudioError(null);
-    try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-        playThroughEarpieceAndroid: false,
-      });
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: audioUrl },
-        { shouldPlay: true },
-        (status) => {
-          if (!status.isLoaded) {
-            setIsAudioLoading(false);
-            setIsAudioPlaying(false);
-            if (status.error) {
-              setAudioError(status.error);
-            }
-            return;
-          }
-          setIsAudioLoading(status.isBuffering ?? false);
-          setIsAudioPlaying(status.isPlaying ?? false);
-        },
-        true
-      );
-      soundRef.current = sound;
-    } catch (error) {
-      console.warn(
-        "Failed to load audio preview:",
-        error instanceof Error ? error.message : error
-      );
-      setIsAudioLoading(false);
-      setIsAudioPlaying(false);
-      setAudioError("Failed to load audio");
-    }
-  }, [audioUrl, isAudioSupported, stopAndUnloadAudio]);
+  const audioSource = audioUrl && isAudioSupported ? { uri: audioUrl } : null;
+  const player = useAudioPlayer(audioSource);
+  const { playing: isAudioPlaying, isLoaded } = useEvent(
+    player,
+    "playbackStatusUpdate",
+    player.currentStatus
+  );
+  const isAudioLoading = !isLoaded;
 
   useEffect(() => {
-    if (card?.type !== "audio") {
-      void stopAndUnloadAudio();
-      return;
+    if (audioSource) {
+      void setAudioModeAsync({ playsInSilentMode: true });
     }
-    if (!audioUrl) {
-      void stopAndUnloadAudio();
-      return;
-    }
+  }, [audioSource]);
+
+  useEffect(() => {
+    if (card?.type !== "audio" || !audioSource) return;
     if (isOpen) {
-      void loadAndPlayAudio();
+      player.play();
     } else {
-      void stopAndUnloadAudio();
+      player.pause();
+      player.seekTo(0);
     }
-  }, [isOpen, card?.type, audioUrl, loadAndPlayAudio, stopAndUnloadAudio]);
+  }, [isOpen, card?.type, audioSource, player]);
 
-  useEffect(() => {
-    return () => {
-      void stopAndUnloadAudio();
-    };
-  }, [stopAndUnloadAudio]);
-
-  const handleToggleAudio = useCallback(async () => {
-    if (!(audioUrl && isAudioSupported)) {
-      return;
+  const handleToggleAudio = useCallback(() => {
+    if (!audioSource) return;
+    if (isAudioPlaying) {
+      player.pause();
+    } else {
+      player.play();
     }
-    const sound = soundRef.current;
-    if (!sound) {
-      await loadAndPlayAudio();
-      return;
-    }
-    try {
-      const status = await sound.getStatusAsync();
-      if (!status.isLoaded) {
-        await loadAndPlayAudio();
-        return;
-      }
-      if (status.isPlaying) {
-        await sound.pauseAsync();
-      } else {
-        await sound.playAsync();
-      }
-    } catch (error) {
-      console.warn(
-        "Failed to toggle audio preview:",
-        error instanceof Error ? error.message : error
-      );
-    }
-  }, [audioUrl, isAudioSupported, loadAndPlayAudio]);
+  }, [audioSource, isAudioPlaying, player]);
 
   const handleOpenLink = useCallback(async (url: string) => {
     try {
@@ -564,7 +501,7 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
         }
         return (
           <VStack modifiers={[frame({ height: sheetHeight })]}>
-            <List listStyle="insetGrouped">
+            <List modifiers={[listStyle("insetGrouped")]}>
               {card.colors.slice(0, 12).map((color, index) => (
                 <HStack
                   alignment="center"
@@ -595,7 +532,14 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
                 audioUrl ? () => void handleOpenLink(audioUrl) : undefined
               }
               subtitle={
-                <Text color="secondary">
+                <Text
+                  modifiers={[
+                    foregroundStyle({
+                      type: "hierarchical",
+                      style: "secondary",
+                    }),
+                  ]}
+                >
                   {audioError ||
                     (audioUrl
                       ? "Unsupported audio format"
@@ -626,7 +570,15 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
             onAction={linkUrl ? () => void handleOpenLink(linkUrl) : undefined}
             subtitle={
               linkUrl ? (
-                <Text color="secondary" lineLimit={2}>
+                <Text
+                  modifiers={[
+                    foregroundStyle({
+                      type: "hierarchical",
+                      style: "secondary",
+                    }),
+                    lineLimit(2),
+                  ]}
+                >
                   {linkUrl}
                 </Text>
               ) : undefined
@@ -648,7 +600,16 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
             }
             subtitle={
               card.fileMetadata?.mimeType ? (
-                <Text color="secondary">{card.fileMetadata.mimeType}</Text>
+                <Text
+                  modifiers={[
+                    foregroundStyle({
+                      type: "hierarchical",
+                      style: "secondary",
+                    }),
+                  ]}
+                >
+                  {card.fileMetadata.mimeType}
+                </Text>
               ) : undefined
             }
             title={title}
@@ -670,15 +631,17 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
       useViewportSizeMeasurement
     >
       <BottomSheet
-        interactiveDismissDisabled={false}
-        isOpened={isOpen}
-        onIsOpenedChange={(open) => {
-          if (!open) {
+        isPresented={isOpen}
+        modifiers={[
+          interactiveDismissDisabled(false),
+          presentationDetents(isMediaFullHeight ? ["large"] : ["medium"]),
+          presentationDragIndicator("visible"),
+        ]}
+        onIsPresentedChange={(isPresented) => {
+          if (!isPresented) {
             onClose();
           }
         }}
-        presentationDetents={isMediaFullHeight ? ["large"] : ["medium"]}
-        presentationDragIndicator="visible"
       >
         {renderBody()}
       </BottomSheet>

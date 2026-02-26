@@ -11,7 +11,18 @@ import {
   TextField,
   type TextFieldRef,
 } from "@expo/ui/swift-ui";
-import { frame } from "@expo/ui/swift-ui/modifiers";
+import {
+  buttonStyle,
+  controlSize,
+  disabled,
+  font,
+  foregroundStyle,
+  frame,
+  interactiveDismissDisabled,
+  presentationDetents,
+  presentationDragIndicator,
+  scrollDisabled,
+} from "@expo/ui/swift-ui/modifiers";
 import { CARD_ERROR_CODES, resolveTextCardInput } from "@teak/convex/shared";
 import {
   RecordingPresets,
@@ -386,10 +397,10 @@ export default function AddScreen() {
       />
       <ScrollView>
         <Host matchContents useViewportSizeMeasurement>
-          <List scrollEnabled={false}>
+          <List modifiers={[scrollDisabled(true)]}>
             <Section title="Add Content">
               <Button
-                disabled={isSavingCard || uploadState.isUploading}
+                modifiers={[disabled(isSavingCard || uploadState.isUploading)]}
                 onPress={() => setIsTextSheetOpen(true)}
               >
                 <HStack spacing={12}>
@@ -399,7 +410,16 @@ export default function AddScreen() {
                     size={14}
                     systemName="textformat"
                   />
-                  <Text color="primary">Text or URL</Text>
+                  <Text
+                    modifiers={[
+                      foregroundStyle({
+                        type: "hierarchical",
+                        style: "primary",
+                      }),
+                    ]}
+                  >
+                    Text or URL
+                  </Text>
                   <Spacer />
                   <Image
                     color="secondary"
@@ -409,9 +429,13 @@ export default function AddScreen() {
                 </HStack>
               </Button>
               <Button
-                disabled={
-                  uploadState.isUploading || isSavingCard || isStoppingRecording
-                }
+                modifiers={[
+                  disabled(
+                    uploadState.isUploading ||
+                      isSavingCard ||
+                      isStoppingRecording
+                  ),
+                ]}
                 onPress={startRecording}
               >
                 <HStack spacing={12}>
@@ -421,7 +445,16 @@ export default function AddScreen() {
                     size={14}
                     systemName="mic.fill"
                   />
-                  <Text color="primary">Record Audio</Text>
+                  <Text
+                    modifiers={[
+                      foregroundStyle({
+                        type: "hierarchical",
+                        style: "primary",
+                      }),
+                    ]}
+                  >
+                    Record Audio
+                  </Text>
                   <Spacer />
                   <Image
                     color="secondary"
@@ -433,7 +466,7 @@ export default function AddScreen() {
             </Section>
             <Section title="Upload Files">
               <Button
-                disabled={uploadState.isUploading || isSavingCard}
+                modifiers={[disabled(uploadState.isUploading || isSavingCard)]}
                 onPress={handleGalleryPicker}
               >
                 <HStack spacing={12}>
@@ -443,7 +476,16 @@ export default function AddScreen() {
                     size={14}
                     systemName="photo.on.rectangle"
                   />
-                  <Text color="primary">Photos/Videos from Gallery</Text>
+                  <Text
+                    modifiers={[
+                      foregroundStyle({
+                        type: "hierarchical",
+                        style: "primary",
+                      }),
+                    ]}
+                  >
+                    Photos/Videos from Gallery
+                  </Text>
                   <Spacer />
                   <Image
                     color="secondary"
@@ -453,7 +495,7 @@ export default function AddScreen() {
                 </HStack>
               </Button>
               <Button
-                disabled={uploadState.isUploading || isSavingCard}
+                modifiers={[disabled(uploadState.isUploading || isSavingCard)]}
                 onPress={handleCameraCapture}
               >
                 <HStack spacing={12}>
@@ -463,7 +505,16 @@ export default function AddScreen() {
                     size={14}
                     systemName="camera"
                   />
-                  <Text color="primary">Open Camera</Text>
+                  <Text
+                    modifiers={[
+                      foregroundStyle({
+                        type: "hierarchical",
+                        style: "primary",
+                      }),
+                    ]}
+                  >
+                    Open Camera
+                  </Text>
                   <Spacer />
                   <Image
                     color="secondary"
@@ -473,7 +524,7 @@ export default function AddScreen() {
                 </HStack>
               </Button>
               <Button
-                disabled={uploadState.isUploading || isSavingCard}
+                modifiers={[disabled(uploadState.isUploading || isSavingCard)]}
                 onPress={handleDocumentPicker}
               >
                 <HStack spacing={12}>
@@ -483,7 +534,16 @@ export default function AddScreen() {
                     size={14}
                     systemName="tray.and.arrow.up"
                   />
-                  <Text color="primary">Upload Files</Text>
+                  <Text
+                    modifiers={[
+                      foregroundStyle({
+                        type: "hierarchical",
+                        style: "primary",
+                      }),
+                    ]}
+                  >
+                    Upload Files
+                  </Text>
                   <Spacer />
                   <Image
                     color="secondary"
@@ -500,18 +560,20 @@ export default function AddScreen() {
           useViewportSizeMeasurement
         >
           <BottomSheet
-            interactiveDismissDisabled={isSavingCard}
-            isOpened={isTextSheetOpen}
-            onIsOpenedChange={(open) => {
-              setIsTextSheetOpen(open);
-              if (!open) {
+            isPresented={isTextSheetOpen}
+            modifiers={[
+              interactiveDismissDisabled(isSavingCard),
+              presentationDetents(["medium", "large"]),
+              presentationDragIndicator("visible"),
+            ]}
+            onIsPresentedChange={(isPresented) => {
+              setIsTextSheetOpen(isPresented);
+              if (!isPresented) {
                 setContent("");
                 textFieldRef.current?.setText("");
                 setTextFieldKey((value) => value + 1);
               }
             }}
-            presentationDetents={["medium", "large"]}
-            presentationDragIndicator="visible"
           >
             <List>
               <TextField
@@ -525,14 +587,23 @@ export default function AddScreen() {
                 ref={textFieldRef}
               />
               <Button
-                controlSize="large"
-                disabled={isSavingCard || uploadState.isUploading}
+                modifiers={[
+                  buttonStyle("bordered"),
+                  controlSize("large"),
+                  disabled(isSavingCard || uploadState.isUploading),
+                ]}
                 onPress={handleSaveText}
-                variant="bordered"
               >
                 <HStack alignment="center" spacing={10}>
                   <Spacer />
-                  <Text color="primary">
+                  <Text
+                    modifiers={[
+                      foregroundStyle({
+                        type: "hierarchical",
+                        style: "primary",
+                      }),
+                    ]}
+                  >
                     {isSavingCard || uploadState.isUploading
                       ? "Saving..."
                       : "Save"}
@@ -548,38 +619,58 @@ export default function AddScreen() {
           useViewportSizeMeasurement
         >
           <BottomSheet
-            interactiveDismissDisabled
-            isOpened={isRecording}
-            onIsOpenedChange={(open) => {
-              if (!open && isRecording) {
+            isPresented={isRecording}
+            modifiers={[
+              interactiveDismissDisabled(true),
+              presentationDetents(["medium"]),
+              presentationDragIndicator("visible"),
+            ]}
+            onIsPresentedChange={(isPresented) => {
+              if (!isPresented && isRecording) {
                 stopRecording();
               }
             }}
-            presentationDetents={["medium"]}
-            presentationDragIndicator="visible"
           >
             <List>
               <HStack alignment="center" spacing={8}>
-                <Text color="primary">
+                <Text
+                  modifiers={[
+                    foregroundStyle({ type: "hierarchical", style: "primary" }),
+                  ]}
+                >
                   {isStoppingRecording ? "Stopping..." : "Recording..."}
                 </Text>
                 <Spacer />
-                <Text color="secondary">
+                <Text
+                  modifiers={[
+                    foregroundStyle({
+                      type: "hierarchical",
+                      style: "secondary",
+                    }),
+                  ]}
+                >
                   {new Date(recordingDuration * 1000)
                     .toISOString()
                     .substring(14, 19)}
                 </Text>
               </HStack>
               <Button
-                controlSize="large"
-                disabled={isStoppingRecording}
+                modifiers={[
+                  buttonStyle("bordered"),
+                  controlSize("large"),
+                  disabled(isStoppingRecording),
+                ]}
                 onPress={stopRecording}
-                variant="bordered"
               >
                 <HStack alignment="center" spacing={8}>
                   <Spacer />
                   <Image color="red" size={18} systemName="stop.fill" />
-                  <Text color="red" design="rounded">
+                  <Text
+                    modifiers={[
+                      foregroundStyle("red"),
+                      font({ design: "rounded" }),
+                    ]}
+                  >
                     {isStoppingRecording ? "Stopping" : "Stop Recording"}
                   </Text>
                   <Spacer />

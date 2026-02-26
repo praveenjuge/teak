@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "scheme": "teak",
     "ios": {
       "supportsTablet": false,
@@ -48,7 +47,8 @@
       "expo-font",
       "expo-asset",
       "expo-apple-authentication",
-      "expo-video"
+      "expo-video",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

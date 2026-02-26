@@ -1,14 +1,21 @@
 import {
   Button,
-  CircularProgress,
   Host,
   HStack,
   Image,
   List,
+  ProgressView,
   Section,
   Spacer,
   Text,
 } from "@expo/ui/swift-ui";
+import {
+  buttonStyle,
+  disabled,
+  font,
+  foregroundStyle,
+  lineLimit,
+} from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
@@ -155,55 +162,82 @@ export default function SettingsScreen() {
         }}
       />
       <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
-        <List scrollEnabled>
+        <List>
           <Section title="Appearance">
             {appearanceOptions.map((option) => {
               const isSelected = preference === option.value;
 
               return (
-                <HStack
+                <Button
                   key={option.value}
+                  modifiers={[buttonStyle("plain")]}
                   onPress={() => setPreference(option.value)}
                 >
-                  <Text design="rounded">{option.title}</Text>
-                  <Spacer />
-                  {isSelected && (
-                    <Image
-                      color={
-                        isSelected ? colors.primary : (colors.border as any)
-                      }
-                      size={18}
-                      systemName="checkmark"
-                    />
-                  )}
-                </HStack>
+                  <HStack>
+                    <Text modifiers={[font({ design: "rounded" })]}>
+                      {option.title}
+                    </Text>
+                    <Spacer />
+                    {isSelected && (
+                      <Image
+                        color={
+                          isSelected ? colors.primary : (colors.border as any)
+                        }
+                        size={18}
+                        systemName="checkmark"
+                      />
+                    )}
+                  </HStack>
+                </Button>
               );
             })}
           </Section>
           <Section title="Profile">
             <HStack>
-              <Text design="rounded">Email</Text>
+              <Text modifiers={[font({ design: "rounded" })]}>Email</Text>
               <Spacer />
-              <Text color="secondary" design="rounded" lineLimit={1}>
+              <Text
+                modifiers={[
+                  foregroundStyle({ type: "hierarchical", style: "secondary" }),
+                  font({ design: "rounded" }),
+                  lineLimit(1),
+                ]}
+              >
                 {session?.user?.email ?? "Not logged in"}
               </Text>
             </HStack>
             <HStack>
-              <Text design="rounded">Usage</Text>
+              <Text modifiers={[font({ design: "rounded" })]}>Usage</Text>
               <Spacer />
               {currentUser === undefined ? (
-                <CircularProgress />
+                <ProgressView />
               ) : (
-                <Text color="secondary" design="rounded">
+                <Text
+                  modifiers={[
+                    foregroundStyle({
+                      type: "hierarchical",
+                      style: "secondary",
+                    }),
+                    font({ design: "rounded" }),
+                  ]}
+                >
                   {currentUser
                     ? `${currentUser.cardCount} Cards`
                     : "Not available"}
                 </Text>
               )}
             </HStack>
-            <Button disabled={isDeleting} onPress={handleDeleteAlert}>
+            <Button
+              modifiers={[disabled(isDeleting)]}
+              onPress={handleDeleteAlert}
+            >
               <HStack spacing={8}>
-                <Text color="primary" design="rounded">
+                <Text
+                  modifiers={[
+                    foregroundStyle({ type: "hierarchical", style: "primary" }),
+                    font({ design: "rounded" }),
+                  ]}
+                >
                   {`${isDeleting ? "Deleting..." : "Delete Account"}${deleteError ? ` - ${deleteError}` : ""}`}
                 </Text>
                 <Spacer />
@@ -212,7 +246,12 @@ export default function SettingsScreen() {
             </Button>
             <Button onPress={handleLogoutAlert}>
               <HStack spacing={8}>
-                <Text color="primary" design="rounded">
+                <Text
+                  modifiers={[
+                    foregroundStyle({ type: "hierarchical", style: "primary" }),
+                    font({ design: "rounded" }),
+                  ]}
+                >
                   Log Out
                 </Text>
                 <Spacer />
@@ -222,14 +261,24 @@ export default function SettingsScreen() {
           </Section>
           <Section title="About">
             <HStack>
-              <Text design="rounded">Teak</Text>
+              <Text modifiers={[font({ design: "rounded" })]}>Teak</Text>
               <Spacer />
-              <Text color="secondary" design="rounded">
+              <Text
+                modifiers={[
+                  foregroundStyle({ type: "hierarchical", style: "secondary" }),
+                  font({ design: "rounded" }),
+                ]}
+              >
                 by @praveenjuge
               </Text>
             </HStack>
             <HStack>
-              <Text color="secondary" design="rounded">
+              <Text
+                modifiers={[
+                  foregroundStyle({ type: "hierarchical", style: "secondary" }),
+                  font({ design: "rounded" }),
+                ]}
+              >
                 Hope you enjoy using Teak as much as I enjoyed creating it.
               </Text>
               <Spacer />

@@ -9,7 +9,14 @@ import {
   TextField,
   VStack,
 } from "@expo/ui/swift-ui";
-import { padding } from "@expo/ui/swift-ui/modifiers";
+import {
+  buttonStyle,
+  controlSize,
+  disabled,
+  font,
+  foregroundStyle,
+  padding,
+} from "@expo/ui/swift-ui/modifiers";
 import { useRouter } from "expo-router";
 import React from "react";
 import { Alert } from "react-native";
@@ -87,14 +94,21 @@ export default function SignInScreen() {
         </LabeledContent>
 
         <Button
-          controlSize="large"
-          disabled={isLoading || !emailAddress.trim() || !password.trim()}
+          modifiers={[
+            buttonStyle("bordered"),
+            controlSize("large"),
+            disabled(isLoading || !emailAddress.trim() || !password.trim()),
+          ]}
           onPress={onSignInPress}
-          variant="bordered"
         >
           <HStack alignment="center" spacing={10}>
             <Spacer />
-            <Text color="primary" design="rounded" weight="medium">
+            <Text
+              modifiers={[
+                foregroundStyle({ type: "hierarchical", style: "primary" }),
+                font({ design: "rounded", weight: "medium" }),
+              ]}
+            >
               {isLoading ? "Signing in..." : "Sign In"}
             </Text>
             <Spacer />

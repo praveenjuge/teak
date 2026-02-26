@@ -36,7 +36,7 @@ const resolveScheme = (
 
 const applyAppearancePreference = (preference: ThemePreference) => {
   if (preference === "system") {
-    Appearance.setColorScheme(null);
+    Appearance.setColorScheme(null as any);
     return;
   }
   Appearance.setColorScheme(preference);

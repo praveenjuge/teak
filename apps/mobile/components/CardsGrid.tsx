@@ -1,4 +1,10 @@
-import { CircularProgress, Host, List, Section, Text } from "@expo/ui/swift-ui";
+import { Host, List, ProgressView, Section, Text } from "@expo/ui/swift-ui";
+import {
+  font,
+  foregroundStyle,
+  lineLimit,
+  listStyle,
+} from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { parseTimeSearchQuery } from "@teak/convex/shared";
@@ -61,21 +67,31 @@ const CardsGrid = memo(function CardsGrid({
   return (
     <Host style={{ flex: 1 }} useViewportSizeMeasurement>
       {cards === undefined ? (
-        <CircularProgress />
+        <ProgressView />
       ) : cards.length === 0 ? (
         <List>
           <Section>
-            <Text color={colors.label as any} weight="semibold">
+            <Text
+              modifiers={[
+                foregroundStyle(colors.label as any),
+                font({ weight: "semibold" }),
+              ]}
+            >
               {emptyTitle}
             </Text>
-            <Text color={colors.secondaryLabel as any} lineLimit={3}>
+            <Text
+              modifiers={[
+                foregroundStyle(colors.secondaryLabel as any),
+                lineLimit(3),
+              ]}
+            >
               {description}
             </Text>
           </Section>
         </List>
       ) : (
         <>
-          <List listStyle="plain">
+          <List modifiers={[listStyle("plain")]}>
             {cards.map((card: Card) => (
               <CardItem
                 card={card}

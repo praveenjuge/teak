@@ -37,7 +37,7 @@
   "overrides": {
     "convex": "1.32.0",
     "convex-helpers": "0.1.112",
-    "@types/react": "19.2.7",
+    "@types/react": "19.2.10",
     "@types/react-dom": "19.2.3"
   },
   "devDependencies": {

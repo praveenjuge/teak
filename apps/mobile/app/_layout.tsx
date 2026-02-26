@@ -7,6 +7,13 @@ import {
   VStack,
 } from "@expo/ui/swift-ui";
 import {
+  font,
+  interactiveDismissDisabled,
+  lineLimit,
+  presentationDetents,
+  presentationDragIndicator,
+} from "@expo/ui/swift-ui/modifiers";
+import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
@@ -199,22 +206,29 @@ function FeedbackBottomSheet() {
       useViewportSizeMeasurement
     >
       <BottomSheet
-        interactiveDismissDisabled={false}
-        isOpened={isSheetOpen}
-        onIsOpenedChange={(open) => {
-          if (open) {
+        isPresented={isSheetOpen}
+        modifiers={[
+          interactiveDismissDisabled(false),
+          presentationDetents(["medium"]),
+          presentationDragIndicator("visible"),
+        ]}
+        onIsPresentedChange={(isPresented) => {
+          if (isPresented) {
             setIsSheetOpen(true);
             return;
           }
           finalizeDismiss();
         }}
-        presentationDetents={["medium"]}
-        presentationDragIndicator="visible"
       >
         <VStack alignment="center" spacing={14}>
           <Spacer />
           <Image systemName={(iconName ?? "checkmark.circle.fill") as any} />
-          <Text design="rounded" lineLimit={1} weight="semibold">
+          <Text
+            modifiers={[
+              font({ design: "rounded", weight: "semibold" }),
+              lineLimit(1),
+            ]}
+          >
             {message}
           </Text>
           <Spacer />

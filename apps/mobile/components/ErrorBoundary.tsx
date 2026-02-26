@@ -1,4 +1,11 @@
 import { Button, Host, Spacer, Text, VStack } from "@expo/ui/swift-ui";
+import {
+  buttonStyle,
+  controlSize,
+  font,
+  foregroundStyle,
+  lineLimit,
+} from "@expo/ui/swift-ui/modifiers";
 import React from "react";
 
 interface ErrorBoundaryState {
@@ -55,14 +62,27 @@ function DefaultErrorFallback({
     <Host style={{ flex: 1 }} useViewportSizeMeasurement>
       <VStack alignment="center" spacing={16}>
         <Spacer />
-        <Text design="rounded" size={20} weight="semibold">
+        <Text
+          modifiers={[
+            font({ design: "rounded", size: 20, weight: "semibold" }),
+          ]}
+        >
           Something went wrong
         </Text>
-        <Text color="secondary" design="rounded" lineLimit={4} size={16}>
+        <Text
+          modifiers={[
+            foregroundStyle({ type: "hierarchical", style: "secondary" }),
+            font({ design: "rounded", size: 16 }),
+            lineLimit(4),
+          ]}
+        >
           {error?.message || "An unexpected error occurred"}
         </Text>
-        <Button controlSize="large" onPress={retry} variant="bordered">
-          <Text design="rounded" weight="medium">
+        <Button
+          modifiers={[buttonStyle("bordered"), controlSize("large")]}
+          onPress={retry}
+        >
+          <Text modifiers={[font({ design: "rounded", weight: "medium" })]}>
             Try Again
           </Text>
         </Button>

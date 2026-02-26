@@ -9,7 +9,14 @@ import {
   TextField,
   VStack,
 } from "@expo/ui/swift-ui";
-import { padding } from "@expo/ui/swift-ui/modifiers";
+import {
+  buttonStyle,
+  controlSize,
+  disabled,
+  font,
+  foregroundStyle,
+  padding,
+} from "@expo/ui/swift-ui/modifiers";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Keyboard } from "react-native";
@@ -119,14 +126,21 @@ export default function SignUpScreen() {
         </LabeledContent>
 
         <Button
-          controlSize="large"
-          disabled={isSubmitting}
+          modifiers={[
+            buttonStyle("bordered"),
+            controlSize("large"),
+            disabled(isSubmitting),
+          ]}
           onPress={onSignUpPress}
-          variant="bordered"
         >
           <HStack alignment="center" spacing={10}>
             <Spacer />
-            <Text color="primary" design="rounded" weight="medium">
+            <Text
+              modifiers={[
+                foregroundStyle({ type: "hierarchical", style: "primary" }),
+                font({ design: "rounded", weight: "medium" }),
+              ]}
+            >
               {isSubmitting ? "Creating..." : "Create Account"}
             </Text>
             <Spacer />

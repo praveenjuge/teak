@@ -12,6 +12,8 @@ import {
   cornerRadius,
   foregroundStyle,
   frame,
+  lineLimit,
+  onTapGesture,
 } from "@expo/ui/swift-ui/modifiers";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import * as Clipboard from "expo-clipboard";
@@ -63,15 +65,13 @@ const Row = ({
   onDelete,
   contextItems = [],
 }: RowProps) => (
-  <ContextMenu activationMethod="longPress">
+  <ContextMenu>
     <ContextMenu.Items>
       {contextItems}
-      <Button onPress={onDelete} systemImage="trash">
-        Delete
-      </Button>
+      <Button label="Delete" onPress={onDelete} systemImage="trash" />
     </ContextMenu.Items>
     <ContextMenu.Trigger>
-      <HStack onPress={onPress} spacing={12}>
+      <HStack modifiers={onPress ? [onTapGesture(onPress)] : []} spacing={12}>
         {leading}
         {content}
         <Spacer />
@@ -329,11 +329,10 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
         ? [
             <Button
               key={key}
+              label="Download"
               onPress={() => void handleDownload(url, name)}
               systemImage="arrow.down.circle"
-            >
-              Download
-            </Button>,
+            />,
           ]
         : [];
 
@@ -348,26 +347,24 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
             : card.metadataTitle || card.url;
 
         return renderRow(
-          <Text lineLimit={1}>{linkTitle}</Text>,
+          <Text modifiers={[lineLimit(1)]}>{linkTitle}</Text>,
           <Favicon url={linkMeta?.favicon} />,
           undefined,
           [
             <Button
               key="copy-link"
+              label="Copy Link"
               onPress={() => void handleCopy(card.url)}
               systemImage="doc.on.doc"
-            >
-              Copy Link
-            </Button>,
+            />,
             <Button
               key="share-link"
+              label="Share"
               onPress={() =>
                 void handleShareText(card.url ?? "", linkMeta?.hostname)
               }
               systemImage="square.and.arrow.up"
-            >
-              Share
-            </Button>,
+            />,
           ]
         );
       }
@@ -377,25 +374,24 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
           card.metadataTitle || card.fileMetadata?.fileName || "Attachment";
         const documentUrl = card.fileUrl ?? card.url ?? null;
         return renderRow(
-          <Text lineLimit={1}>{title}</Text>,
+          <Text modifiers={[lineLimit(1)]}>{title}</Text>,
           leadingIcon("paperclip"),
           undefined,
           [
             ...downloadItem(documentUrl, "download-document", title),
             <Button
               key="share-document"
+              label="Share"
               onPress={() => void handleShareFromUrl(documentUrl, title)}
               systemImage="square.and.arrow.up"
-            >
-              Share
-            </Button>,
+            />,
           ]
         );
       }
 
       case "audio": {
         return renderRow(
-          <Text lineLimit={1}>
+          <Text modifiers={[lineLimit(1)]}>
             {card.aiTranscript && card.aiTranscript.length > 10
               ? card.aiTranscript
               : "Audio"}
@@ -410,6 +406,7 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
             ),
             <Button
               key="share-audio"
+              label="Share"
               onPress={() =>
                 void handleShareFromUrl(
                   card.fileUrl,
@@ -417,9 +414,7 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
                 )
               }
               systemImage="square.and.arrow.up"
-            >
-              Share
-            </Button>,
+            />,
           ]
         );
       }
@@ -430,7 +425,7 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
         const imageDownloadUrl =
           card.fileUrl ?? card.thumbnailUrl ?? card.screenshotUrl ?? null;
         return renderRow(
-          <Text lineLimit={1}>{imageTitle}</Text>,
+          <Text modifiers={[lineLimit(1)]}>{imageTitle}</Text>,
           <PreviewBox>
             {mediaUrl ? (
               <RNImage
@@ -447,13 +442,12 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
             ...downloadItem(imageDownloadUrl, "download-image", imageTitle),
             <Button
               key="share-image"
+              label="Share"
               onPress={() =>
                 void handleShareFromUrl(imageDownloadUrl, imageTitle)
               }
               systemImage="square.and.arrow.up"
-            >
-              Share
-            </Button>,
+            />,
           ]
         );
       }
@@ -464,20 +458,19 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
         const videoDownloadUrl =
           card.fileUrl ?? card.thumbnailUrl ?? card.screenshotUrl ?? null;
         return renderRow(
-          <Text lineLimit={1}>{videoTitle}</Text>,
+          <Text modifiers={[lineLimit(1)]}>{videoTitle}</Text>,
           leadingIcon("play.circle"),
           undefined,
           [
             ...downloadItem(videoDownloadUrl, "download-video", videoTitle),
             <Button
               key="share-video"
+              label="Share"
               onPress={() =>
                 void handleShareFromUrl(videoDownloadUrl, videoTitle)
               }
               systemImage="square.and.arrow.up"
-            >
-              Share
-            </Button>,
+            />,
           ]
         );
       }
@@ -497,17 +490,17 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
           [
             <Button
               key="copy-palette"
+              label="Copy Palette"
               onPress={() =>
                 void handleCopy(
                   card.colors?.map((color) => color.hex).join(", ") ?? ""
                 )
               }
               systemImage="doc.on.doc"
-            >
-              Copy Palette
-            </Button>,
+            />,
             <Button
               key="share-palette"
+              label="Share"
               onPress={() =>
                 void handleShareText(
                   card.colors?.map((color) => color.hex).join(", ") ?? "",
@@ -515,9 +508,7 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
                 )
               }
               systemImage="square.and.arrow.up"
-            >
-              Share
-            </Button>,
+            />,
           ]
         );
       }
@@ -525,24 +516,22 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
       case "quote": {
         const textContent = card.content || "Quote";
         return renderRow(
-          <Text lineLimit={1}>{`"${textContent}"`}</Text>,
+          <Text modifiers={[lineLimit(1)]}>{`"${textContent}"`}</Text>,
           leadingIcon("text.quote"),
           undefined,
           [
             <Button
               key="copy-quote"
+              label="Copy Quote"
               onPress={() => void handleCopy(textContent)}
               systemImage="doc.on.doc"
-            >
-              Copy Quote
-            </Button>,
+            />,
             <Button
               key="share-quote"
+              label="Share"
               onPress={() => void handleShareText(textContent, "quote")}
               systemImage="square.and.arrow.up"
-            >
-              Share
-            </Button>,
+            />,
           ]
         );
       }
@@ -550,31 +539,31 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
       case "text": {
         const textContent = card.content || "Note";
         return renderRow(
-          <Text lineLimit={1}>{textContent}</Text>,
+          <Text modifiers={[lineLimit(1)]}>{textContent}</Text>,
           leadingIcon("textformat"),
           undefined,
           [
             <Button
               key="copy-text"
+              label="Copy Text"
               onPress={() => void handleCopy(textContent)}
               systemImage="doc.on.doc"
-            >
-              Copy Text
-            </Button>,
+            />,
             <Button
               key="share-text"
+              label="Share"
               onPress={() => void handleShareText(textContent, "note")}
               systemImage="square.and.arrow.up"
-            >
-              Share
-            </Button>,
+            />,
           ]
         );
       }
 
       default:
         return renderRow(
-          <Text color={colors.secondaryLabel as any}>{card.content}</Text>,
+          <Text modifiers={[foregroundStyle(colors.secondaryLabel as any)]}>
+            {card.content}
+          </Text>,
           leadingIcon("questionmark"),
           undefined,
           []
