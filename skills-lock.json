@@ -1,10 +1,20 @@
 {
   "version": 1,
   "skills": {
+    "building-native-ui": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "computedHash": "342df93f481a0dba919f372d6c7b40d2b4bf5b51dd24363aea2e5d0bae27a6fa"
+    },
     "ultracite": {
       "source": "haydenbleasel/ultracite",
       "sourceType": "github",
       "computedHash": "3cb96bbf386ec392fcc27d5f5973657cf00b06464958ee5d07a79b8601ac7f82"
+    },
+    "upgrading-expo": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "computedHash": "b10c092308d8d7401e2fc75fd773a79762ba4dad4ec1c7f5f5551efb0ba2cfdc"
     }
   }
 }
