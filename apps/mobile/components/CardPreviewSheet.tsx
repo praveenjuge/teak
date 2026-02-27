@@ -142,17 +142,7 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
     >
       <HStack alignment="center" spacing={10}>
         <Spacer />
-        <Text
-          modifiers={[
-            options?.destructive
-              ? foregroundStyle("red")
-              : foregroundStyle({
-                  type: "hierarchical",
-                  style: "primary",
-                }),
-            font({ design: "rounded" }),
-          ]}
-        >
+        <Text modifiers={[font({ design: "rounded", weight: "medium" })]}>
           {label}
         </Text>
         <Spacer />
@@ -208,7 +198,7 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
         );
       case "palette":
         return (
-          <List modifiers={[listStyle("plain")]}>
+          <List modifiers={[listStyle("plain"), scrollDisabled()]}>
             {card.colors?.length ? (
               card.colors.slice(0, 12).map((color, index) => (
                 <HStack
@@ -218,11 +208,13 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
                 >
                   <Circle
                     modifiers={[
-                      frame({ height: 32, width: 32 }),
+                      frame({ height: 22, width: 22 }),
                       foregroundStyle(color.hex as any),
                     ]}
                   />
-                  <Text>{color.hex}</Text>
+                  <Text modifiers={[font({ design: "rounded" })]}>
+                    {color.hex}
+                  </Text>
                   <Spacer />
                 </HStack>
               ))
@@ -293,8 +285,10 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
         );
       case "link":
         return (
-          <List modifiers={[listStyle("plain")]}>
-            <Text modifiers={[font({ weight: "semibold" })]}>{linkTitle}</Text>
+          <List modifiers={[listStyle("plain"), scrollDisabled()]}>
+            <Text modifiers={[font({ design: "rounded", weight: "medium" })]}>
+              {linkTitle}
+            </Text>
             {linkUrl ? (
               <Text
                 modifiers={[
@@ -314,6 +308,7 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
                     type: "hierarchical",
                     style: "secondary",
                   }),
+                  font({ design: "rounded" }),
                 ]}
               >
                 Link unavailable
@@ -328,8 +323,10 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
         );
       default:
         return (
-          <List modifiers={[listStyle("plain")]}>
-            <Text modifiers={[font({ weight: "semibold" })]}>{title}</Text>
+          <List modifiers={[listStyle("plain"), scrollDisabled()]}>
+            <Text modifiers={[font({ design: "rounded", weight: "medium" })]}>
+              {title}
+            </Text>
             {card.fileMetadata?.mimeType ? (
               <Text
                 modifiers={[
@@ -337,6 +334,7 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
                     type: "hierarchical",
                     style: "secondary",
                   }),
+                  font({ design: "rounded" }),
                 ]}
               >
                 {card.fileMetadata.mimeType}
