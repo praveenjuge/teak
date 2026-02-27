@@ -3,7 +3,6 @@ import {
   HStack,
   List,
   ProgressView,
-  Section,
   Spacer,
   Text,
 } from "@expo/ui/swift-ui";
@@ -36,9 +35,7 @@ export default function CardPreviewRoute() {
           <CardPreviewSheet card={card} isOpen />
         ) : (
           <List>
-            <Section title="Card">
-              <Text>This card is no longer available.</Text>
-            </Section>
+            <Text>This card is no longer available.</Text>
           </List>
         )}
       </Host>

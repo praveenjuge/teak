@@ -1,12 +1,4 @@
-import {
-  Button,
-  Circle,
-  HStack,
-  List,
-  Section,
-  Spacer,
-  Text,
-} from "@expo/ui/swift-ui";
+import { Button, Circle, HStack, List, Spacer, Text } from "@expo/ui/swift-ui";
 import {
   buttonStyle,
   controlSize,
@@ -16,6 +8,8 @@ import {
   frame,
   lineLimit,
   listStyle,
+  scrollDisabled,
+  tint,
 } from "@expo/ui/swift-ui/modifiers";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useEvent } from "expo";
@@ -26,6 +20,7 @@ import {
   FullHeightMedia,
   VideoPreview,
 } from "@/components/card-preview/preview-sections";
+import { colors } from "@/constants/colors";
 
 type Card = Doc<"cards"> & {
   fileUrl?: string;
@@ -130,8 +125,9 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
   ) => (
     <Button
       modifiers={[
-        buttonStyle("bordered"),
+        buttonStyle("borderedProminent"),
         controlSize("large"),
+        tint(colors.primary),
         disabledModifier(options?.disabled ?? false),
       ]}
       onPress={onPress}
@@ -160,130 +156,92 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
     switch (card.type) {
       case "image":
         return (
-          <List modifiers={[listStyle("insetGrouped")]}>
-            <Section title="Image">
-              <FullHeightMedia
-                fallbackIcon="photo"
-                fallbackLabel="Image unavailable"
-                fallbackUri={imageFallback}
-                height={PREVIEW_HEIGHT}
-                primaryUri={imageUrl}
-              />
-            </Section>
+          <List modifiers={[listStyle("plain")]}>
+            <FullHeightMedia
+              fallbackIcon="photo"
+              fallbackLabel="Image unavailable"
+              fallbackUri={imageFallback}
+              height={PREVIEW_HEIGHT}
+              primaryUri={imageUrl}
+            />
           </List>
         );
       case "video":
         return (
-          <List modifiers={[listStyle("insetGrouped")]}>
-            <Section title="Video">
-              {card.fileUrl ? (
-                <VideoPreview
-                  height={PREVIEW_HEIGHT}
-                  isOpen={isOpen}
-                  posterUri={videoPoster}
-                  uri={card.fileUrl}
-                />
-              ) : (
-                <FullHeightMedia
-                  fallbackIcon="play.rectangle"
-                  fallbackLabel="Video preview unavailable"
-                  height={PREVIEW_HEIGHT}
-                  primaryUri={videoPoster}
-                />
-              )}
-            </Section>
+          <List modifiers={[listStyle("plain")]}>
+            {card.fileUrl ? (
+              <VideoPreview
+                height={PREVIEW_HEIGHT}
+                isOpen={isOpen}
+                posterUri={videoPoster}
+                uri={card.fileUrl}
+              />
+            ) : (
+              <FullHeightMedia
+                fallbackIcon="play.rectangle"
+                fallbackLabel="Video preview unavailable"
+                height={PREVIEW_HEIGHT}
+                primaryUri={videoPoster}
+              />
+            )}
           </List>
         );
       case "text":
         return (
-          <List modifiers={[listStyle("insetGrouped")]}>
-            <Section title="Text">
-              <Text>{textContent}</Text>
-            </Section>
+          <List modifiers={[listStyle("plain")]}>
+            <Text>{textContent}</Text>
           </List>
         );
       case "quote":
         return (
-          <List modifiers={[listStyle("insetGrouped")]}>
-            <Section title="Quote">
-              <Text>{`"${textContent}"`}</Text>
-            </Section>
+          <List modifiers={[listStyle("plain")]}>
+            <Text>{`"${textContent}"`}</Text>
           </List>
         );
       case "palette":
         return (
-          <List modifiers={[listStyle("insetGrouped")]}>
-            <Section title="Palette">
-              {card.colors?.length ? (
-                card.colors.slice(0, 12).map((color, index) => (
-                  <HStack
-                    alignment="center"
-                    key={`${color.hex}-${index}`}
-                    spacing={12}
-                  >
-                    <Circle
-                      modifiers={[
-                        frame({ height: 32, width: 32 }),
-                        foregroundStyle(color.hex as any),
-                      ]}
-                    />
-                    <Text>{color.hex}</Text>
-                    <Spacer />
-                  </HStack>
-                ))
-              ) : (
-                <Text
-                  modifiers={[
-                    foregroundStyle({
-                      type: "hierarchical",
-                      style: "secondary",
-                    }),
-                  ]}
+          <List modifiers={[listStyle("plain")]}>
+            {card.colors?.length ? (
+              card.colors.slice(0, 12).map((color, index) => (
+                <HStack
+                  alignment="center"
+                  key={`${color.hex}-${index}`}
+                  spacing={12}
                 >
-                  No colors saved
-                </Text>
-              )}
-            </Section>
+                  <Circle
+                    modifiers={[
+                      frame({ height: 32, width: 32 }),
+                      foregroundStyle(color.hex as any),
+                    ]}
+                  />
+                  <Text>{color.hex}</Text>
+                  <Spacer />
+                </HStack>
+              ))
+            ) : (
+              <Text
+                modifiers={[
+                  foregroundStyle({
+                    type: "hierarchical",
+                    style: "secondary",
+                  }),
+                ]}
+              >
+                No colors saved
+              </Text>
+            )}
           </List>
         );
       case "audio":
         return (
-          <List modifiers={[listStyle("insetGrouped")]}>
-            <Section title="Audio">
-              {audioUrl && isAudioSupported ? (
-                <>
-                  <HStack alignment="center">
-                    <Text modifiers={[font({ weight: "semibold" })]}>
-                      {card.metadataTitle || "Audio"}
-                    </Text>
-                    <Spacer />
-                    <Text
-                      modifiers={[
-                        foregroundStyle({
-                          type: "hierarchical",
-                          style: "secondary",
-                        }),
-                      ]}
-                    >
-                      {isAudioLoading
-                        ? "Loading..."
-                        : isAudioPlaying
-                          ? "Playing"
-                          : "Paused"}
-                    </Text>
-                  </HStack>
-                  {renderActionButton(
-                    isAudioLoading
-                      ? "Loading..."
-                      : isAudioPlaying
-                        ? "Pause"
-                        : "Play",
-                    handleToggleAudio,
-                    { disabled: isAudioLoading }
-                  )}
-                </>
-              ) : (
-                <>
+          <List modifiers={[listStyle("plain"), scrollDisabled()]}>
+            {audioUrl && isAudioSupported ? (
+              <>
+                <HStack alignment="center">
+                  <Text modifiers={[font({ weight: "semibold" })]}>
+                    {card.metadataTitle || "Audio"}
+                  </Text>
+                  <Spacer />
                   <Text
                     modifiers={[
                       foregroundStyle({
@@ -292,84 +250,100 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
                       }),
                     ]}
                   >
-                    {audioUrl
-                      ? "Unsupported audio format"
-                      : "Audio unavailable"}
+                    {isAudioLoading
+                      ? "Loading..."
+                      : isAudioPlaying
+                        ? "Playing"
+                        : "Paused"}
                   </Text>
-                  {audioUrl
-                    ? renderActionButton("Open File", () => {
-                        void handleOpenLink(audioUrl);
-                      })
-                    : null}
-                </>
-              )}
-            </Section>
+                </HStack>
+                {renderActionButton(
+                  isAudioLoading
+                    ? "Loading..."
+                    : isAudioPlaying
+                      ? "Pause"
+                      : "Play",
+                  handleToggleAudio,
+                  { disabled: isAudioLoading }
+                )}
+              </>
+            ) : (
+              <>
+                <Text
+                  modifiers={[
+                    foregroundStyle({
+                      type: "hierarchical",
+                      style: "secondary",
+                    }),
+                  ]}
+                >
+                  {audioUrl ? "Unsupported audio format" : "Audio unavailable"}
+                </Text>
+                {audioUrl
+                  ? renderActionButton("Open File", () => {
+                      void handleOpenLink(audioUrl);
+                    })
+                  : null}
+              </>
+            )}
           </List>
         );
       case "link":
         return (
-          <List modifiers={[listStyle("insetGrouped")]}>
-            <Section title="Link">
-              <Text modifiers={[font({ weight: "semibold" })]}>
-                {linkTitle}
+          <List modifiers={[listStyle("plain")]}>
+            <Text modifiers={[font({ weight: "semibold" })]}>{linkTitle}</Text>
+            {linkUrl ? (
+              <Text
+                modifiers={[
+                  foregroundStyle({
+                    type: "hierarchical",
+                    style: "secondary",
+                  }),
+                  lineLimit(2),
+                ]}
+              >
+                {linkUrl}
               </Text>
-              {linkUrl ? (
-                <Text
-                  modifiers={[
-                    foregroundStyle({
-                      type: "hierarchical",
-                      style: "secondary",
-                    }),
-                    lineLimit(2),
-                  ]}
-                >
-                  {linkUrl}
-                </Text>
-              ) : (
-                <Text
-                  modifiers={[
-                    foregroundStyle({
-                      type: "hierarchical",
-                      style: "secondary",
-                    }),
-                  ]}
-                >
-                  Link unavailable
-                </Text>
-              )}
-              {linkUrl
-                ? renderActionButton("Open Link", () => {
-                    void handleOpenLink(linkUrl);
-                  })
-                : null}
-            </Section>
+            ) : (
+              <Text
+                modifiers={[
+                  foregroundStyle({
+                    type: "hierarchical",
+                    style: "secondary",
+                  }),
+                ]}
+              >
+                Link unavailable
+              </Text>
+            )}
+            {linkUrl
+              ? renderActionButton("Open Link", () => {
+                  void handleOpenLink(linkUrl);
+                })
+              : null}
           </List>
         );
       default:
         return (
-          <List modifiers={[listStyle("insetGrouped")]}>
-            <Section
-              title={card.type === "document" ? "Document" : "Attachment"}
-            >
-              <Text modifiers={[font({ weight: "semibold" })]}>{title}</Text>
-              {card.fileMetadata?.mimeType ? (
-                <Text
-                  modifiers={[
-                    foregroundStyle({
-                      type: "hierarchical",
-                      style: "secondary",
-                    }),
-                  ]}
-                >
-                  {card.fileMetadata.mimeType}
-                </Text>
-              ) : null}
-              {card.type === "document" && documentUrl
-                ? renderActionButton("Open File", () => {
-                    void handleOpenLink(documentUrl);
-                  })
-                : null}
-            </Section>
+          <List modifiers={[listStyle("plain")]}>
+            <Text modifiers={[font({ weight: "semibold" })]}>{title}</Text>
+            {card.fileMetadata?.mimeType ? (
+              <Text
+                modifiers={[
+                  foregroundStyle({
+                    type: "hierarchical",
+                    style: "secondary",
+                  }),
+                ]}
+              >
+                {card.fileMetadata.mimeType}
+              </Text>
+            ) : null}
+            {card.type === "document" && documentUrl
+              ? renderActionButton("Open File", () => {
+                  void handleOpenLink(documentUrl);
+                })
+              : null}
           </List>
         );
     }
