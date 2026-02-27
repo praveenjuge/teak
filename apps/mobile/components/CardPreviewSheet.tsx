@@ -1,4 +1,12 @@
-import { Button, Circle, HStack, List, Spacer, Text } from "@expo/ui/swift-ui";
+import {
+  Button,
+  Circle,
+  ContentUnavailableView,
+  HStack,
+  List,
+  Spacer,
+  Text,
+} from "@expo/ui/swift-ui";
 import {
   buttonStyle,
   controlSize,
@@ -219,16 +227,11 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
                 </HStack>
               ))
             ) : (
-              <Text
-                modifiers={[
-                  foregroundStyle({
-                    type: "hierarchical",
-                    style: "secondary",
-                  }),
-                ]}
-              >
-                No colors saved
-              </Text>
+              <ContentUnavailableView
+                description="Save a palette card with extracted colors to preview them here."
+                systemImage="plus.circle"
+                title="No colors saved"
+              />
             )}
           </List>
         );

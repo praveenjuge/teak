@@ -1,29 +1,26 @@
 import {
-  Button,
   Host,
-  HStack,
   List,
-  Spacer,
   Text,
   TextField,
   type TextFieldRef,
 } from "@expo/ui/swift-ui";
 import {
-  buttonStyle,
-  controlSize,
-  disabled,
   font,
   foregroundStyle,
   listStyle,
   scrollDisabled,
-  tint,
 } from "@expo/ui/swift-ui/modifiers";
 import { resolveTextCardInput } from "@teak/convex/shared";
-import { router } from "expo-router";
+import { router, Stack } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { Alert } from "react-native";
-import { colors } from "@/constants/colors";
+import { Alert, PlatformColor, Pressable } from "react-native";
+import { IconSymbol } from "@/components/ui/IconSymbol";
 import { showSavingFeedback, showSuccessFeedback } from "@/lib/feedback-status";
+import {
+  triggerSuccessHaptic,
+  triggerValidationErrorHaptic,
+} from "@/lib/haptics";
 import { useCreateCard } from "@/lib/hooks/useCardOperations";
 
 export default function AddTextScreen() {
@@ -34,12 +31,14 @@ export default function AddTextScreen() {
   );
   const textFieldRef = useRef<TextFieldRef>(null);
   const createCard = useCreateCard();
+  const canSave = content.trim().length > 0 && !isSavingCard;
 
   const handleSaveText = useCallback(async () => {
     const trimmedContent = content.trim();
 
     if (!trimmedContent) {
       setValidationMessage("Enter a bookmark, URL, or note before saving.");
+      void triggerValidationErrorHaptic();
       Alert.alert("Error", "Please enter some content");
       return;
     }
@@ -61,6 +60,7 @@ export default function AddTextScreen() {
       });
 
       showSuccessFeedback();
+      void triggerSuccessHaptic();
       textFieldRef.current?.setText("");
       router.back();
     } catch (error) {
@@ -77,53 +77,57 @@ export default function AddTextScreen() {
   }, [content, createCard, isSavingCard]);
 
   return (
-    <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
-      <List modifiers={[listStyle("plain"), scrollDisabled()]}>
-        <TextField
-          allowNewlines
-          defaultValue={content}
-          multiline
-          numberOfLines={16}
-          onChangeText={setContent}
-          placeholder="Enter your bookmark, URL, or note"
-          ref={textFieldRef}
-        />
-        {validationMessage ? (
-          <Text
-            modifiers={[
-              foregroundStyle("red"),
-              font({ design: "rounded", size: 13 }),
-            ]}
-          >
-            {validationMessage}
-          </Text>
-        ) : null}
-        <Button
-          modifiers={[
-            disabled(isSavingCard),
-            buttonStyle("borderedProminent"),
-            controlSize("large"),
-            tint(colors.primary),
-          ]}
-          onPress={handleSaveText}
-        >
-          <HStack alignment="center" spacing={10}>
-            <Spacer />
-            <Text
-              modifiers={[
-                foregroundStyle({
-                  style: "primary",
-                  type: "hierarchical",
-                }),
-                font({ design: "rounded" }),
-              ]}
+    <>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Pressable
+              accessibilityHint="Saves this text card."
+              accessibilityLabel={isSavingCard ? "Saving card" : "Save card"}
+              accessibilityRole="button"
+              disabled={!canSave}
+              hitSlop={8}
+              onPress={() => void handleSaveText()}
             >
-              {isSavingCard ? "Saving..." : "Save"}
+              <IconSymbol
+                animationSpec={
+                  canSave
+                    ? {
+                        effect: {
+                          type: "bounce",
+                          direction: "up",
+                        },
+                      }
+                    : undefined
+                }
+                color={PlatformColor(canSave ? "label" : "tertiaryLabel")}
+                name={isSavingCard ? "hourglass" : "checkmark"}
+                weight={isSavingCard ? "regular" : "semibold"}
+              />
+            </Pressable>
+          ),
+        }}
+      />
+      <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
+        <List modifiers={[listStyle("plain"), scrollDisabled()]}>
+          <TextField
+            allowNewlines
+            defaultValue={content}
+            multiline
+            numberOfLines={16}
+            onChangeText={setContent}
+            placeholder="Enter your bookmark, URL, or note"
+            ref={textFieldRef}
+          />
+          {validationMessage ? (
+            <Text
+              modifiers={[foregroundStyle("red"), font({ design: "rounded" })]}
+            >
+              {validationMessage}
             </Text>
-            <Spacer />
-          </HStack>
-        </Button>
-      </List>
-    </Host>
+          ) : null}
+        </List>
+      </Host>
+    </>
   );
 }

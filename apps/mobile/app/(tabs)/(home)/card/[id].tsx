@@ -1,10 +1,9 @@
 import {
+  ContentUnavailableView,
   Host,
   HStack,
-  List,
   ProgressView,
   Spacer,
-  Text,
 } from "@expo/ui/swift-ui";
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
@@ -34,9 +33,11 @@ export default function CardPreviewRoute() {
         ) : card ? (
           <CardPreviewSheet card={card} isOpen />
         ) : (
-          <List>
-            <Text>This card is no longer available.</Text>
-          </List>
+          <ContentUnavailableView
+            description="It may have been deleted or moved."
+            systemImage="exclamationmark.triangle"
+            title="Card unavailable"
+          />
         )}
       </Host>
     </>

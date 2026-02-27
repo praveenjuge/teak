@@ -1,7 +1,7 @@
 import {
   BottomSheet,
   Host,
-  Image,
+  RNHostView,
   Spacer,
   Text,
   VStack,
@@ -28,6 +28,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { IconSymbol } from "@/components/ui/IconSymbol";
 import { colors } from "@/constants/colors";
 import {
   clearFeedbackStatus,
@@ -192,6 +193,22 @@ function FeedbackBottomSheet() {
   }
 
   const { message, iconName } = activeState;
+  const iconAnimation =
+    iconName === "hourglass"
+      ? {
+          effect: {
+            type: "pulse" as const,
+          },
+          repeating: true,
+        }
+      : iconName === "checkmark.circle.fill"
+        ? {
+            effect: {
+              direction: "up" as const,
+              type: "bounce" as const,
+            },
+          }
+        : undefined;
 
   return (
     <Host
@@ -222,7 +239,15 @@ function FeedbackBottomSheet() {
       >
         <VStack alignment="center" spacing={14}>
           <Spacer />
-          <Image systemName={(iconName ?? "checkmark.circle.fill") as any} />
+          <RNHostView matchContents>
+            <IconSymbol
+              animationSpec={iconAnimation}
+              color={colors.primary}
+              name={(iconName ?? "checkmark.circle.fill") as any}
+              size={34}
+              weight="semibold"
+            />
+          </RNHostView>
           <Text
             modifiers={[
               font({ design: "rounded", weight: "semibold" }),

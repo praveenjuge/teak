@@ -8,15 +8,18 @@ export function IconSymbol({
   color,
   style,
   weight = "regular",
+  animationSpec,
 }: {
   name: SymbolViewProps["name"];
   size?: number;
   color: string;
   style?: StyleProp<ViewStyle>;
   weight?: SymbolWeight;
+  animationSpec?: SymbolViewProps["animationSpec"];
 }) {
   return (
     <SymbolView
+      animationSpec={animationSpec}
       name={name}
       resizeMode="scaleAspectFit"
       style={[

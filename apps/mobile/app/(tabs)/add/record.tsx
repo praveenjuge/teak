@@ -16,15 +16,17 @@ import {
   setAudioModeAsync,
   useAudioRecorder,
 } from "expo-audio";
-import { router } from "expo-router";
+import { router, Stack } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert } from "react-native";
+import { Alert, Pressable } from "react-native";
+import { IconSymbol } from "@/components/ui/IconSymbol";
 import { colors } from "@/constants/colors";
 import {
   showErrorFeedback,
   showSavingFeedback,
   showSuccessFeedback,
 } from "@/lib/feedback-status";
+import { triggerSuccessHaptic } from "@/lib/haptics";
 import { useUploadFromUri } from "@/lib/hooks/use-upload-from-uri";
 import { stopAudioRecording } from "@/lib/recording";
 
@@ -45,6 +47,7 @@ export default function AddRecordScreen() {
     },
     onSuccess: () => {
       showSuccessFeedback("Recording saved successfully.");
+      void triggerSuccessHaptic();
       router.back();
     },
   });
@@ -131,84 +134,105 @@ export default function AddRecordScreen() {
     });
   }
 
-  return (
-    <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
-      <List modifiers={[listStyle("plain"), scrollDisabled()]}>
-        <HStack alignment="center" spacing={8}>
-          <Text
-            modifiers={[
-              foregroundStyle({
-                style: "primary",
-                type: "hierarchical",
-              }),
-              font({ design: "rounded" }),
-            ]}
-          >
-            {isStoppingRecording
-              ? "Stopping..."
-              : isRecording
-                ? "Recording..."
-                : "Ready to record"}
-          </Text>
-          <Spacer />
-          <Text
-            modifiers={[
-              foregroundStyle({
-                style: "secondary",
-                type: "hierarchical",
-              }),
-            ]}
-          >
-            {new Date(recordingDuration * 1000).toISOString().substring(14, 19)}
-          </Text>
-        </HStack>
+  const canSaveRecording =
+    isRecording && !isStoppingRecording && !uploadState.isUploading;
 
-        {isRecording ? (
-          <Button
-            modifiers={[
-              buttonStyle("borderedProminent"),
-              controlSize("large"),
-              tint(colors.primary),
-              disabled(isStoppingRecording),
-            ]}
-            onPress={stopRecording}
-          >
-            <HStack alignment="center" spacing={8}>
-              <Spacer />
-              <Text modifiers={[font({ design: "rounded" })]}>
-                {isStoppingRecording ? "Stopping" : "Stop Recording"}
-              </Text>
-              <Spacer />
-            </HStack>
-          </Button>
-        ) : (
-          <Button
-            modifiers={[
-              buttonStyle("borderedProminent"),
-              controlSize("large"),
-              tint(colors.primary),
-              disabled(uploadState.isUploading || isStoppingRecording),
-            ]}
-            onPress={startRecording}
-          >
-            <HStack alignment="center" spacing={8}>
-              <Spacer />
-              <Text
-                modifiers={[
-                  foregroundStyle({
-                    style: "primary",
-                    type: "hierarchical",
-                  }),
-                  font({ design: "rounded" }),
-                ]}
+  return (
+    <>
+      <Stack.Screen
+        options={{
+          headerRight: () =>
+            isRecording ? (
+              <Pressable
+                accessibilityHint="Stops the recording and saves it to your cards."
+                accessibilityLabel={
+                  isStoppingRecording ? "Saving recording" : "Save recording"
+                }
+                accessibilityRole="button"
+                disabled={!canSaveRecording}
+                onPress={() => void stopRecording()}
               >
-                Start Recording
-              </Text>
-              <Spacer />
-            </HStack>
-          </Button>
-        )}
-      </List>
-    </Host>
+                <IconSymbol
+                  animationSpec={
+                    canSaveRecording
+                      ? {
+                          effect: {
+                            type: "pulse",
+                          },
+                          repeating: true,
+                        }
+                      : undefined
+                  }
+                  name={isStoppingRecording ? "hourglass" : "stop.fill"}
+                  weight={isStoppingRecording ? "regular" : "semibold"}
+                />
+              </Pressable>
+            ) : null,
+        }}
+      />
+      <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
+        <List modifiers={[listStyle("plain"), scrollDisabled()]}>
+          <HStack alignment="center" spacing={8}>
+            <Text
+              modifiers={[
+                foregroundStyle({
+                  style: "primary",
+                  type: "hierarchical",
+                }),
+                font({ design: "rounded" }),
+              ]}
+            >
+              {isStoppingRecording
+                ? "Stopping..."
+                : isRecording
+                  ? "Recording..."
+                  : "Ready to record"}
+            </Text>
+            <Spacer />
+            <Text
+              modifiers={[
+                foregroundStyle({
+                  style: "secondary",
+                  type: "hierarchical",
+                }),
+                font({ design: "rounded" }),
+              ]}
+            >
+              {new Date(recordingDuration * 1000)
+                .toISOString()
+                .substring(14, 19)}
+            </Text>
+          </HStack>
+
+          {!isRecording && (
+            <Button
+              modifiers={[
+                buttonStyle("borderedProminent"),
+                controlSize("large"),
+                tint(colors.primary),
+                disabled(uploadState.isUploading || isStoppingRecording),
+              ]}
+              onPress={startRecording}
+            >
+              <HStack alignment="center" spacing={8}>
+                <Spacer />
+                <Text
+                  modifiers={[
+                    foregroundStyle({
+                      style: "primary",
+                      type: "hierarchical",
+                    }),
+                    font({ design: "rounded" }),
+                  ]}
+                >
+                  Start Recording
+                </Text>
+                <Spacer />
+              </HStack>
+            </Button>
+          )}
+        </List>
+      </Host>
+    </>
   );
 }

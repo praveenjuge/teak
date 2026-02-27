@@ -1,7 +1,7 @@
 // Fallback for using MaterialIcons on Android and web.
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import type { SymbolWeight } from "expo-symbols";
+import type { SymbolViewProps, SymbolWeight } from "expo-symbols";
 import type { ComponentProps } from "react";
 import type { OpaqueColorValue, StyleProp, TextStyle } from "react-native";
 
@@ -28,6 +28,7 @@ const MAPPING = {
   "checkmark.circle.fill": "check-circle",
   hourglass: "hourglass-empty",
   "exclamationmark.triangle.fill": "warning",
+  "info.circle.fill": "info",
 } as IconMapping;
 
 /**
@@ -43,9 +44,10 @@ export function IconSymbol({
 }: {
   name: IconSymbolName;
   size?: number;
-  color: string | OpaqueColorValue;
+  color?: string | OpaqueColorValue;
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
+  animationSpec?: SymbolViewProps["animationSpec"];
 }) {
   return (
     <MaterialIcons

@@ -1,25 +1,20 @@
 import {
+  ContentUnavailableView,
   Host,
   HStack,
   List,
   ProgressView,
-  Section,
   Spacer,
-  Text,
   VStack,
 } from "@expo/ui/swift-ui";
-import {
-  font,
-  foregroundStyle,
-  lineLimit,
-  listStyle,
-} from "@expo/ui/swift-ui/modifiers";
+import { listStyle } from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { parseTimeSearchQuery } from "@teak/convex/shared";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { useRouter } from "expo-router";
 import { memo, useCallback, useMemo } from "react";
+import { triggerCardTapHaptic } from "@/lib/haptics";
 import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
 import { CardItem } from "./CardItem";
 
@@ -61,6 +56,7 @@ const CardsGrid = memo(function CardsGrid({
 
   const handleCardPress = useCallback(
     (card: Card) => {
+      void triggerCardTapHaptic();
       router.push({
         params: { id: card._id },
         pathname: "/(tabs)/(home)/card/[id]",
@@ -75,6 +71,8 @@ const CardsGrid = memo(function CardsGrid({
     : searchQuery
       ? `No cards match "${searchQuery}"${selectedType ? ` in ${selectedType} cards` : ""}`
       : "Start by adding your first card";
+  const emptyIcon =
+    searchQuery || timeFilter ? "magnifyingglass" : "plus.circle";
 
   return (
     <Host style={{ flex: 1 }} useViewportSizeMeasurement>
@@ -89,19 +87,11 @@ const CardsGrid = memo(function CardsGrid({
           <Spacer />
         </VStack>
       ) : cards.length === 0 ? (
-        <List>
-          <Section>
-            <Text modifiers={[font({ weight: "semibold" })]}>{emptyTitle}</Text>
-            <Text
-              modifiers={[
-                foregroundStyle({ type: "hierarchical", style: "secondary" }),
-                lineLimit(3),
-              ]}
-            >
-              {description}
-            </Text>
-          </Section>
-        </List>
+        <ContentUnavailableView
+          description={description}
+          systemImage={emptyIcon as any}
+          title={emptyTitle}
+        />
       ) : (
         <List modifiers={[listStyle("plain")]}>
           {cards.map((card: Card) => (
