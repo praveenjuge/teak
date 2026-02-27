@@ -4,17 +4,20 @@ import {
   Host,
   HStack,
   Image,
+  LabeledContent,
+  Picker,
   ProgressView,
   Section,
   Spacer,
   Text,
 } from "@expo/ui/swift-ui";
 import {
-  buttonStyle,
   disabled,
   font,
   foregroundStyle,
   lineLimit,
+  pickerStyle,
+  tag,
 } from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
 import { useMutation } from "convex/react";
@@ -22,11 +25,11 @@ import { useQuery } from "convex-helpers/react/cache/hooks";
 import { Stack, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Alert } from "react-native";
-import { colors } from "@/constants/colors";
 import { authClient } from "@/lib/auth-client";
 import { useThemePreference } from "@/lib/theme-preference";
 
 const DELETE_CONFIRMATION_PHRASE = "delete account";
+type AppearanceOption = "system" | "light" | "dark";
 
 export default function SettingsScreen() {
   const { data: session } = authClient.useSession();
@@ -37,12 +40,9 @@ export default function SettingsScreen() {
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const appearanceOptions: {
-    title: string;
-    value: "system" | "light" | "dark";
-  }[] = [
+  const appearanceOptions: { title: string; value: AppearanceOption }[] = [
     {
-      title: "Match Device",
+      title: "Auto",
       value: "system",
     },
     {
@@ -54,6 +54,15 @@ export default function SettingsScreen() {
       value: "dark",
     },
   ];
+  const handleAppearanceSelection = (selection: string | number | null) => {
+    if (
+      selection === "system" ||
+      selection === "light" ||
+      selection === "dark"
+    ) {
+      setPreference(selection);
+    }
+  };
 
   const usageLabel = useMemo(() => {
     if (currentUser === undefined) {
@@ -182,70 +191,45 @@ export default function SettingsScreen() {
             modifiers={[font({ design: "rounded", weight: "medium" })]}
             title="Appearance"
           >
-            {appearanceOptions.map((option) => {
-              const isSelected = preference === option.value;
-
-              return (
-                <Button
-                  key={option.value}
-                  modifiers={[buttonStyle("plain")]}
-                  onPress={() => setPreference(option.value)}
-                >
-                  <HStack>
-                    <Text modifiers={[font({ design: "rounded" })]}>
-                      {option.title}
-                    </Text>
-                    <Spacer />
-                    {isSelected ? (
-                      <Image
-                        color={colors.primary}
-                        size={18}
-                        systemName="checkmark"
-                      />
-                    ) : null}
-                  </HStack>
-                </Button>
-              );
-            })}
+            <Picker
+              label="Theme"
+              modifiers={[pickerStyle("segmented")]}
+              onSelectionChange={handleAppearanceSelection}
+              selection={preference}
+            >
+              {appearanceOptions.map((option) => (
+                <Text key={option.value} modifiers={[tag(option.value)]}>
+                  {option.title}
+                </Text>
+              ))}
+            </Picker>
           </Section>
 
           <Section
             modifiers={[font({ design: "rounded", weight: "medium" })]}
             title="Profile"
           >
-            <HStack>
-              <Text modifiers={[font({ design: "rounded" })]}>Email</Text>
-              <Spacer />
-              <Text
-                modifiers={[
-                  foregroundStyle({ type: "hierarchical", style: "secondary" }),
-                  font({ design: "rounded" }),
-                  lineLimit(1),
-                ]}
-              >
+            <LabeledContent
+              label="Email"
+              modifiers={[font({ weight: "regular" })]}
+            >
+              <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
                 {session?.user?.email ?? "Not logged in"}
               </Text>
-            </HStack>
+            </LabeledContent>
 
-            <HStack>
-              <Text modifiers={[font({ design: "rounded" })]}>Usage</Text>
-              <Spacer />
+            <LabeledContent
+              label="Usage"
+              modifiers={[font({ weight: "regular" })]}
+            >
               {usageLabel ? (
-                <Text
-                  modifiers={[
-                    foregroundStyle({
-                      type: "hierarchical",
-                      style: "secondary",
-                    }),
-                    font({ design: "rounded" }),
-                  ]}
-                >
+                <Text modifiers={[font({ design: "rounded" })]}>
                   {usageLabel}
                 </Text>
               ) : (
                 <ProgressView />
               )}
-            </HStack>
+            </LabeledContent>
 
             <Button
               modifiers={[disabled(isDeleting)]}
@@ -285,18 +269,14 @@ export default function SettingsScreen() {
             modifiers={[font({ design: "rounded", weight: "medium" })]}
             title="About"
           >
-            <HStack>
-              <Text modifiers={[font({ design: "rounded" })]}>Teak</Text>
-              <Spacer />
-              <Text
-                modifiers={[
-                  foregroundStyle({ type: "hierarchical", style: "secondary" }),
-                  font({ design: "rounded" }),
-                ]}
-              >
+            <LabeledContent
+              label="Teak"
+              modifiers={[font({ weight: "regular" })]}
+            >
+              <Text modifiers={[font({ design: "rounded" })]}>
                 by @praveenjuge
               </Text>
-            </HStack>
+            </LabeledContent>
             <Text
               modifiers={[
                 foregroundStyle({ type: "hierarchical", style: "secondary" }),

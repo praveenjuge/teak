@@ -7,12 +7,13 @@ import {
   Spacer,
   VStack,
 } from "@expo/ui/swift-ui";
-import { listStyle } from "@expo/ui/swift-ui/modifiers";
+import { listStyle, refreshable } from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { parseTimeSearchQuery } from "@teak/convex/shared";
+import { useConvex } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
-import { useRouter } from "expo-router";
+import { Link } from "expo-router";
 import { memo, useCallback, useMemo } from "react";
 import { triggerCardTapHaptic } from "@/lib/haptics";
 import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
@@ -44,26 +45,45 @@ const CardsGrid = memo(function CardsGrid({
   const effectiveSearchQuery = timeFilter
     ? undefined
     : searchQuery || undefined;
-  const cards = useQuery(api.cards.searchCards, {
-    createdAtRange: timeFilter?.range,
-    limit: 100,
-    searchQuery: effectiveSearchQuery,
-    types: selectedType ? [selectedType as any] : undefined,
-  });
-
-  const cardActions = useCardActions();
-  const router = useRouter();
-
-  const handleCardPress = useCallback(
-    (card: Card) => {
-      void triggerCardTapHaptic();
-      router.push({
-        params: { id: card._id },
-        pathname: "/(tabs)/(home)/card/[id]",
-      });
-    },
-    [router]
+  const queryArgs = useMemo(
+    () => ({
+      createdAtRange: timeFilter?.range,
+      limit: 100,
+      searchQuery: effectiveSearchQuery,
+      types: selectedType ? [selectedType as any] : undefined,
+    }),
+    [effectiveSearchQuery, selectedType, timeFilter?.range]
   );
+  const cards = useQuery(api.cards.searchCards, queryArgs);
+  const convex = useConvex();
+  const cardActions = useCardActions();
+
+  const handleRefresh = useCallback(async () => {
+    await convex.query(api.cards.searchCards, queryArgs);
+  }, [convex, queryArgs]);
+
+  const handleDeleteBySwipe = useCallback(
+    (indices: number[]) => {
+      if (!cards?.length) {
+        return;
+      }
+
+      const descendingUniqueIndices = [...new Set(indices)].sort(
+        (a, b) => b - a
+      );
+      for (const index of descendingUniqueIndices) {
+        const card = cards[index];
+        if (card) {
+          void cardActions.handleDeleteCard(card._id);
+        }
+      }
+    },
+    [cardActions, cards]
+  );
+
+  const handleCardTap = useCallback(() => {
+    void triggerCardTapHaptic();
+  }, []);
 
   const emptyTitle = searchQuery ? "No cards found" : "No cards yet";
   const description = timeFilter
@@ -93,17 +113,27 @@ const CardsGrid = memo(function CardsGrid({
           title={emptyTitle}
         />
       ) : (
-        <List modifiers={[listStyle("plain")]}>
-          {cards.map((card: Card) => (
-            <CardItem
-              card={card}
-              key={card._id}
-              onDeleteRequest={() =>
-                void cardActions.handleDeleteCard(card._id)
-              }
-              onPress={() => handleCardPress(card)}
-            />
-          ))}
+        <List modifiers={[listStyle("plain"), refreshable(handleRefresh)]}>
+          <List.ForEach onDelete={handleDeleteBySwipe}>
+            {cards.map((card: Card) => (
+              <Link
+                asChild
+                href={{
+                  params: { id: card._id },
+                  pathname: "/(tabs)/(home)/card/[id]",
+                }}
+                key={card._id}
+              >
+                <CardItem
+                  card={card}
+                  onDeleteRequest={() =>
+                    void cardActions.handleDeleteCard(card._id)
+                  }
+                  onPress={handleCardTap}
+                />
+              </Link>
+            ))}
+          </List.ForEach>
         </List>
       )}
     </Host>
