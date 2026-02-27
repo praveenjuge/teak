@@ -21,11 +21,6 @@ import { useEffect, useState } from "react";
 import { Alert, Pressable } from "react-native";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { colors } from "@/constants/colors";
-import {
-  showErrorFeedback,
-  showSavingFeedback,
-  showSuccessFeedback,
-} from "@/lib/feedback-status";
 import { triggerSuccessHaptic } from "@/lib/haptics";
 import { useUploadFromUri } from "@/lib/hooks/use-upload-from-uri";
 import { stopAudioRecording } from "@/lib/recording";
@@ -38,7 +33,6 @@ export default function AddRecordScreen() {
 
   const { uploadFromUri, uploadState } = useUploadFromUri({
     onError: (error) => {
-      showErrorFeedback(error.message || "Failed to upload recording.");
       if (error.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
         Alert.alert("Upgrade Required", error.message);
       } else {
@@ -46,7 +40,6 @@ export default function AddRecordScreen() {
       }
     },
     onSuccess: () => {
-      showSuccessFeedback("Recording saved successfully.");
       void triggerSuccessHaptic();
       router.back();
     },
@@ -108,8 +101,6 @@ export default function AddRecordScreen() {
       return;
     }
 
-    showSavingFeedback("Saving recording...");
-
     await stopAudioRecording({
       audioRecorder,
       handleFileUpload: async (uri, fileName, mimeType) => {
@@ -125,7 +116,6 @@ export default function AddRecordScreen() {
           "Failed to stop recording:",
           error instanceof Error ? error.message : error
         );
-        showErrorFeedback("Failed to save recording. Please try again.");
         Alert.alert("Error", "Failed to save recording. Please try again.");
       },
       setIsRecording,

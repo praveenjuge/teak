@@ -21,7 +21,6 @@ import { useRouter } from "expo-router";
 import React from "react";
 import { Alert } from "react-native";
 import { authClient } from "@/lib/auth-client";
-import { showSuccessFeedback } from "@/lib/feedback-status";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function SignInScreen() {
@@ -61,7 +60,6 @@ export default function SignInScreen() {
         return;
       }
 
-      showSuccessFeedback("Signed in.", 1000);
       router.replace("/(tabs)/(home)");
     } catch (error) {
       const message = getAuthErrorMessage(

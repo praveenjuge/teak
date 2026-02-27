@@ -23,7 +23,6 @@ import * as Sharing from "expo-sharing";
 import { memo, type ReactNode, useMemo, useState } from "react";
 import { Alert, Platform, Image as RNImage } from "react-native";
 import { colors } from "@/constants/colors";
-import { showErrorFeedback, showSuccessFeedback } from "@/lib/feedback-status";
 
 const WWW_PREFIX_REGEX = /^www\./;
 
@@ -191,9 +190,9 @@ const CardItem = memo(function CardItem({
 
     try {
       await Clipboard.setStringAsync(value);
-      showSuccessFeedback("Copied to clipboard.", 900);
     } catch (error) {
-      showErrorFeedback(
+      Alert.alert(
+        "Error",
         error instanceof Error ? error.message : "Failed to copy content."
       );
     }
@@ -216,7 +215,6 @@ const CardItem = memo(function CardItem({
             ...getShareOptions(name),
             dialogTitle: "Save to Files",
           });
-          showSuccessFeedback("Opened share sheet.", 1000);
         }
 
         return;
@@ -252,7 +250,8 @@ const CardItem = memo(function CardItem({
         Alert.alert("Sharing Unavailable", "Sharing is not available here.");
       }
     } catch (error) {
-      showErrorFeedback(
+      Alert.alert(
+        "Error",
         error instanceof Error ? error.message : "Failed to share content."
       );
     }
@@ -274,7 +273,8 @@ const CardItem = memo(function CardItem({
         Alert.alert("Sharing Unavailable", "Sharing is not available here.");
       }
     } catch (error) {
-      showErrorFeedback(
+      Alert.alert(
+        "Error",
         error instanceof Error ? error.message : "Failed to share file."
       );
     }

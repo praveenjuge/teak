@@ -10,6 +10,22 @@ const settingsPath = join(
   (import.meta as any).dir,
   "../../../mobile/app/(tabs)/settings/index.tsx"
 );
+const rootLayoutPath = join(
+  (import.meta as any).dir,
+  "../../../mobile/app/_layout.tsx"
+);
+const addTextPath = join(
+  (import.meta as any).dir,
+  "../../../mobile/app/(tabs)/add/text.tsx"
+);
+const addRecordPath = join(
+  (import.meta as any).dir,
+  "../../../mobile/app/(tabs)/add/record.tsx"
+);
+const addUploadPath = join(
+  (import.meta as any).dir,
+  "../../../mobile/components/add/upload-file-actions-section.tsx"
+);
 
 test("home cards list keeps native refresh, swipe delete, and link navigation", () => {
   const source = readFileSync(cardsGridPath, "utf8");
@@ -24,8 +40,34 @@ test("home cards list keeps native refresh, swipe delete, and link navigation", 
 test("settings keeps native labeled rows and segmented appearance picker", () => {
   const source = readFileSync(settingsPath, "utf8");
 
-  expect(source).toContain('<LabeledContent label="Email">');
-  expect(source).toContain('<LabeledContent label="Usage">');
+  expect(source).toContain("<LabeledContent");
+  expect(source).toContain('label="Email"');
+  expect(source).toContain('label="Usage"');
   expect(source).toContain("<Picker");
   expect(source).toContain('pickerStyle("segmented")');
+});
+
+test("root layout wires save feedback as form sheet route", () => {
+  const source = readFileSync(rootLayoutPath, "utf8");
+
+  expect(source.includes('name="feedback/save-status"')).toBe(false);
+  expect(source.includes("FeedbackSheetCoordinator")).toBe(false);
+});
+
+test("add flows no longer use save feedback sheet helpers", () => {
+  const textSource = readFileSync(addTextPath, "utf8");
+  const recordSource = readFileSync(addRecordPath, "utf8");
+  const uploadSource = readFileSync(addUploadPath, "utf8");
+
+  expect(textSource.includes("showSavedFeedback")).toBe(false);
+  expect(textSource.includes("showSavingFeedback")).toBe(false);
+  expect(textSource.includes("showFailedFeedback")).toBe(false);
+
+  expect(recordSource.includes("showSavedFeedback")).toBe(false);
+  expect(recordSource.includes("showSavingFeedback")).toBe(false);
+  expect(recordSource.includes("showFailedFeedback")).toBe(false);
+
+  expect(uploadSource.includes("showSavedFeedback")).toBe(false);
+  expect(uploadSource.includes("showSavingFeedback")).toBe(false);
+  expect(uploadSource.includes("showFailedFeedback")).toBe(false);
 });

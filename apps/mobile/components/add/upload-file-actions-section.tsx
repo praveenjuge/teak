@@ -5,11 +5,6 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { useCallback } from "react";
 import { Alert, PlatformColor } from "react-native";
-import {
-  showErrorFeedback,
-  showSavingFeedback,
-  showSuccessFeedback,
-} from "@/lib/feedback-status";
 import { useUploadFromUri } from "@/lib/hooks/use-upload-from-uri";
 
 type UploadFileActionsSectionProps = {
@@ -21,7 +16,6 @@ export function UploadFileActionsSection({
 }: UploadFileActionsSectionProps) {
   const { uploadFromUri, uploadState } = useUploadFromUri({
     onError: (error) => {
-      showErrorFeedback(error.message);
       if (error.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
         Alert.alert("Upgrade Required", error.message);
       } else {
@@ -29,7 +23,6 @@ export function UploadFileActionsSection({
       }
     },
     onSuccess: () => {
-      showSuccessFeedback();
       onSuccess?.();
     },
   });
@@ -63,7 +56,6 @@ export function UploadFileActionsSection({
       }
 
       const asset = result.assets[0];
-      showSavingFeedback();
       await uploadFromUri({
         additionalMetadata: {
           duration: asset.duration,
@@ -115,7 +107,6 @@ export function UploadFileActionsSection({
       }
 
       const asset = result.assets[0];
-      showSavingFeedback();
       await uploadFromUri({
         additionalMetadata: {
           duration: asset.duration,
@@ -156,7 +147,6 @@ export function UploadFileActionsSection({
       }
 
       const asset = result.assets[0];
-      showSavingFeedback();
       await uploadFromUri({
         content: asset.name,
         fileName: asset.name,

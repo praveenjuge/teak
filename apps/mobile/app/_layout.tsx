@@ -1,19 +1,4 @@
 import {
-  BottomSheet,
-  Host,
-  RNHostView,
-  Spacer,
-  Text,
-  VStack,
-} from "@expo/ui/swift-ui";
-import {
-  font,
-  interactiveDismissDisabled,
-  lineLimit,
-  presentationDetents,
-  presentationDragIndicator,
-} from "@expo/ui/swift-ui/modifiers";
-import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
@@ -26,16 +11,9 @@ import {
   preventAutoHideAsync,
 } from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { IconSymbol } from "@/components/ui/IconSymbol";
 import { colors } from "@/constants/colors";
-import {
-  clearFeedbackStatus,
-  type FeedbackStatusPayload,
-  getFeedbackStatus,
-  subscribeFeedbackStatus,
-} from "@/lib/feedbackBridge";
 import {
   ThemePreferenceProvider,
   useThemePreference,
@@ -43,8 +21,6 @@ import {
 import ConvexClientProvider from "../ConvexClientProvider";
 
 void preventAutoHideAsync();
-const AUTO_DISMISS_MS = 2000;
-const DISMISS_ANIMATION_MS = 350;
 
 export default function RootLayout() {
   return (
@@ -81,7 +57,6 @@ function RootLayoutContent() {
         <ConvexQueryCacheProvider>
           <ThemeProvider value={isDark ? CustomDarkTheme : CustomDefaultTheme}>
             <RootNavigator />
-            <FeedbackBottomSheet />
             <StatusBar style={isDark ? "light" : "dark"} />
           </ThemeProvider>
         </ConvexQueryCacheProvider>
@@ -114,151 +89,5 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
       </Stack.Protected>
     </Stack>
-  );
-}
-
-function FeedbackBottomSheet() {
-  const [feedbackState, setFeedbackState] =
-    useState<FeedbackStatusPayload | null>(() => getFeedbackStatus());
-  const [isSheetOpen, setIsSheetOpen] = useState<boolean>(() =>
-    Boolean(getFeedbackStatus())
-  );
-  const isDismissingRef = useRef(false);
-  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const activeState = useMemo(() => feedbackState, [feedbackState]);
-
-  const finalizeDismiss = useCallback(() => {
-    if (dismissTimerRef.current) {
-      clearTimeout(dismissTimerRef.current);
-      dismissTimerRef.current = null;
-    }
-    setFeedbackState(null);
-    clearFeedbackStatus();
-    isDismissingRef.current = false;
-  }, []);
-
-  const beginDismiss = useCallback(() => {
-    if (isDismissingRef.current) {
-      return;
-    }
-    isDismissingRef.current = true;
-    setIsSheetOpen(false);
-    if (dismissTimerRef.current) {
-      clearTimeout(dismissTimerRef.current);
-    }
-    dismissTimerRef.current = setTimeout(() => {
-      finalizeDismiss();
-    }, DISMISS_ANIMATION_MS);
-  }, [finalizeDismiss]);
-
-  useEffect(() => {
-    return subscribeFeedbackStatus((state) => {
-      if (dismissTimerRef.current) {
-        clearTimeout(dismissTimerRef.current);
-        dismissTimerRef.current = null;
-      }
-      isDismissingRef.current = false;
-      setFeedbackState(state);
-      setIsSheetOpen(Boolean(state));
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!activeState?.message) {
-      return;
-    }
-
-    const dismissAfterMs = activeState.dismissAfterMs;
-    const autoDismissInterval =
-      typeof dismissAfterMs === "number" && !Number.isNaN(dismissAfterMs)
-        ? dismissAfterMs
-        : undefined;
-
-    if (autoDismissInterval === -1) {
-      return;
-    }
-
-    const timeoutMs = autoDismissInterval ?? AUTO_DISMISS_MS;
-
-    const timer = setTimeout(() => {
-      beginDismiss();
-    }, timeoutMs);
-
-    return () => clearTimeout(timer);
-  }, [activeState, beginDismiss]);
-
-  if (!activeState) {
-    return null;
-  }
-
-  const { message, iconName } = activeState;
-  const iconAnimation =
-    iconName === "hourglass"
-      ? {
-          effect: {
-            type: "pulse" as const,
-          },
-          repeating: true,
-        }
-      : iconName === "checkmark.circle.fill"
-        ? {
-            effect: {
-              direction: "up" as const,
-              type: "bounce" as const,
-            },
-          }
-        : undefined;
-
-  return (
-    <Host
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        pointerEvents: isSheetOpen ? "box-none" : "none",
-      }}
-      useViewportSizeMeasurement
-    >
-      <BottomSheet
-        isPresented={isSheetOpen}
-        modifiers={[
-          interactiveDismissDisabled(false),
-          presentationDetents(["medium"]),
-          presentationDragIndicator("visible"),
-        ]}
-        onIsPresentedChange={(isPresented) => {
-          if (isPresented) {
-            setIsSheetOpen(true);
-            return;
-          }
-          finalizeDismiss();
-        }}
-      >
-        <VStack alignment="center" spacing={14}>
-          <Spacer />
-          <RNHostView matchContents>
-            <IconSymbol
-              animationSpec={iconAnimation}
-              color={colors.primary}
-              name={(iconName ?? "checkmark.circle.fill") as any}
-              size={34}
-              weight="semibold"
-            />
-          </RNHostView>
-          <Text
-            modifiers={[
-              font({ design: "rounded", weight: "semibold" }),
-              lineLimit(1),
-            ]}
-          >
-            {message}
-          </Text>
-          <Spacer />
-        </VStack>
-      </BottomSheet>
-    </Host>
   );
 }

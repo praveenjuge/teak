@@ -16,7 +16,6 @@ import { router, Stack } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { Alert, PlatformColor, Pressable } from "react-native";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import { showSavingFeedback, showSuccessFeedback } from "@/lib/feedback-status";
 import {
   triggerSuccessHaptic,
   triggerValidationErrorHaptic,
@@ -49,7 +48,6 @@ export default function AddTextScreen() {
 
     setValidationMessage(null);
     setIsSavingCard(true);
-    showSavingFeedback();
 
     try {
       const resolved = resolveTextCardInput({ content: trimmedContent });
@@ -59,7 +57,6 @@ export default function AddTextScreen() {
         url: resolved.url,
       });
 
-      showSuccessFeedback();
       void triggerSuccessHaptic();
       textFieldRef.current?.setText("");
       router.back();
