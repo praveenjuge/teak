@@ -3,7 +3,6 @@ import {
   Host,
   HStack,
   List,
-  Section,
   Spacer,
   Text,
   TextField,
@@ -15,11 +14,15 @@ import {
   disabled,
   font,
   foregroundStyle,
+  listStyle,
+  scrollDisabled,
+  tint,
 } from "@expo/ui/swift-ui/modifiers";
 import { resolveTextCardInput } from "@teak/convex/shared";
 import { router } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { Alert } from "react-native";
+import { colors } from "@/constants/colors";
 import { showSavingFeedback, showSuccessFeedback } from "@/lib/feedback-status";
 import { useCreateCard } from "@/lib/hooks/useCardOperations";
 
@@ -75,52 +78,51 @@ export default function AddTextScreen() {
 
   return (
     <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
-      <List>
-        <Section title="Text or URL">
-          <TextField
-            allowNewlines
-            defaultValue={content}
-            multiline
-            numberOfLines={8}
-            onChangeText={setContent}
-            placeholder="Enter your bookmark, URL, or note"
-            ref={textFieldRef}
-          />
-          {validationMessage ? (
+      <List modifiers={[listStyle("plain"), scrollDisabled()]}>
+        <TextField
+          allowNewlines
+          defaultValue={content}
+          multiline
+          numberOfLines={16}
+          onChangeText={setContent}
+          placeholder="Enter your bookmark, URL, or note"
+          ref={textFieldRef}
+        />
+        {validationMessage ? (
+          <Text
+            modifiers={[
+              foregroundStyle("red"),
+              font({ design: "rounded", size: 13 }),
+            ]}
+          >
+            {validationMessage}
+          </Text>
+        ) : null}
+        <Button
+          modifiers={[
+            disabled(isSavingCard),
+            buttonStyle("borderedProminent"),
+            controlSize("large"),
+            tint(colors.primary),
+          ]}
+          onPress={handleSaveText}
+        >
+          <HStack alignment="center" spacing={10}>
+            <Spacer />
             <Text
               modifiers={[
-                foregroundStyle("red"),
-                font({ design: "rounded", size: 13 }),
+                foregroundStyle({
+                  style: "primary",
+                  type: "hierarchical",
+                }),
+                font({ design: "rounded" }),
               ]}
             >
-              {validationMessage}
+              {isSavingCard ? "Saving..." : "Save"}
             </Text>
-          ) : null}
-          <Button
-            modifiers={[
-              buttonStyle("bordered"),
-              controlSize("large"),
-              disabled(isSavingCard),
-            ]}
-            onPress={handleSaveText}
-          >
-            <HStack alignment="center" spacing={10}>
-              <Spacer />
-              <Text
-                modifiers={[
-                  foregroundStyle({
-                    style: "primary",
-                    type: "hierarchical",
-                  }),
-                  font({ design: "rounded" }),
-                ]}
-              >
-                {isSavingCard ? "Saving..." : "Save"}
-              </Text>
-              <Spacer />
-            </HStack>
-          </Button>
-        </Section>
+            <Spacer />
+          </HStack>
+        </Button>
       </List>
     </Host>
   );

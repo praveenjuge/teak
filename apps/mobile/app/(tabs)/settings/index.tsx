@@ -22,6 +22,7 @@ import { useQuery } from "convex-helpers/react/cache/hooks";
 import { Stack, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Alert } from "react-native";
+import { colors } from "@/constants/colors";
 import { authClient } from "@/lib/auth-client";
 import { useThemePreference } from "@/lib/theme-preference";
 
@@ -177,7 +178,10 @@ export default function SettingsScreen() {
       />
       <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
         <Form>
-          <Section title="Appearance">
+          <Section
+            modifiers={[font({ design: "rounded", weight: "medium" })]}
+            title="Appearance"
+          >
             {appearanceOptions.map((option) => {
               const isSelected = preference === option.value;
 
@@ -193,7 +197,11 @@ export default function SettingsScreen() {
                     </Text>
                     <Spacer />
                     {isSelected ? (
-                      <Image color="primary" size={18} systemName="checkmark" />
+                      <Image
+                        color={colors.primary}
+                        size={18}
+                        systemName="checkmark"
+                      />
                     ) : null}
                   </HStack>
                 </Button>
@@ -201,7 +209,10 @@ export default function SettingsScreen() {
             })}
           </Section>
 
-          <Section title="Profile">
+          <Section
+            modifiers={[font({ design: "rounded", weight: "medium" })]}
+            title="Profile"
+          >
             <HStack>
               <Text modifiers={[font({ design: "rounded" })]}>Email</Text>
               <Spacer />
@@ -270,7 +281,10 @@ export default function SettingsScreen() {
             </Button>
           </Section>
 
-          <Section title="About">
+          <Section
+            modifiers={[font({ design: "rounded", weight: "medium" })]}
+            title="About"
+          >
             <HStack>
               <Text modifiers={[font({ design: "rounded" })]}>Teak</Text>
               <Spacer />

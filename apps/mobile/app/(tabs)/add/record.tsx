@@ -1,18 +1,13 @@
-import {
-  Button,
-  Host,
-  HStack,
-  List,
-  Section,
-  Spacer,
-  Text,
-} from "@expo/ui/swift-ui";
+import { Button, Host, HStack, List, Spacer, Text } from "@expo/ui/swift-ui";
 import {
   buttonStyle,
   controlSize,
   disabled,
   font,
   foregroundStyle,
+  listStyle,
+  scrollDisabled,
+  tint,
 } from "@expo/ui/swift-ui/modifiers";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import {
@@ -24,6 +19,7 @@ import {
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert } from "react-native";
+import { colors } from "@/constants/colors";
 import {
   showErrorFeedback,
   showSavingFeedback,
@@ -137,88 +133,81 @@ export default function AddRecordScreen() {
 
   return (
     <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
-      <List>
-        <Section title="Audio Recording">
-          <HStack alignment="center" spacing={8}>
-            <Text
-              modifiers={[
-                foregroundStyle({
-                  style: "primary",
-                  type: "hierarchical",
-                }),
-                font({ design: "rounded" }),
-              ]}
-            >
-              {isStoppingRecording
-                ? "Stopping..."
-                : isRecording
-                  ? "Recording..."
-                  : "Ready to record"}
-            </Text>
-            <Spacer />
-            <Text
-              modifiers={[
-                foregroundStyle({
-                  style: "secondary",
-                  type: "hierarchical",
-                }),
-              ]}
-            >
-              {new Date(recordingDuration * 1000)
-                .toISOString()
-                .substring(14, 19)}
-            </Text>
-          </HStack>
+      <List modifiers={[listStyle("plain"), scrollDisabled()]}>
+        <HStack alignment="center" spacing={8}>
+          <Text
+            modifiers={[
+              foregroundStyle({
+                style: "primary",
+                type: "hierarchical",
+              }),
+              font({ design: "rounded" }),
+            ]}
+          >
+            {isStoppingRecording
+              ? "Stopping..."
+              : isRecording
+                ? "Recording..."
+                : "Ready to record"}
+          </Text>
+          <Spacer />
+          <Text
+            modifiers={[
+              foregroundStyle({
+                style: "secondary",
+                type: "hierarchical",
+              }),
+            ]}
+          >
+            {new Date(recordingDuration * 1000).toISOString().substring(14, 19)}
+          </Text>
+        </HStack>
 
-          {isRecording ? (
-            <Button
-              modifiers={[
-                buttonStyle("bordered"),
-                controlSize("large"),
-                disabled(isStoppingRecording),
-              ]}
-              onPress={stopRecording}
-            >
-              <HStack alignment="center" spacing={8}>
-                <Spacer />
-                <Text
-                  modifiers={[
-                    foregroundStyle("red"),
-                    font({ design: "rounded" }),
-                  ]}
-                >
-                  {isStoppingRecording ? "Stopping" : "Stop Recording"}
-                </Text>
-                <Spacer />
-              </HStack>
-            </Button>
-          ) : (
-            <Button
-              modifiers={[
-                buttonStyle("bordered"),
-                controlSize("large"),
-                disabled(uploadState.isUploading || isStoppingRecording),
-              ]}
-              onPress={startRecording}
-            >
-              <HStack alignment="center" spacing={8}>
-                <Spacer />
-                <Text
-                  modifiers={[
-                    foregroundStyle({
-                      style: "primary",
-                      type: "hierarchical",
-                    }),
-                    font({ design: "rounded" }),
-                  ]}
-                >
-                  Start Recording
-                </Text>
-                <Spacer />
-              </HStack>
-            </Button>
-          )}
-        </Section>
+        {isRecording ? (
+          <Button
+            modifiers={[
+              buttonStyle("borderedProminent"),
+              controlSize("large"),
+              tint(colors.primary),
+              disabled(isStoppingRecording),
+            ]}
+            onPress={stopRecording}
+          >
+            <HStack alignment="center" spacing={8}>
+              <Spacer />
+              <Text modifiers={[font({ design: "rounded" })]}>
+                {isStoppingRecording ? "Stopping" : "Stop Recording"}
+              </Text>
+              <Spacer />
+            </HStack>
+          </Button>
+        ) : (
+          <Button
+            modifiers={[
+              buttonStyle("borderedProminent"),
+              controlSize("large"),
+              tint(colors.primary),
+              disabled(uploadState.isUploading || isStoppingRecording),
+            ]}
+            onPress={startRecording}
+          >
+            <HStack alignment="center" spacing={8}>
+              <Spacer />
+              <Text
+                modifiers={[
+                  foregroundStyle({
+                    style: "primary",
+                    type: "hierarchical",
+                  }),
+                  font({ design: "rounded" }),
+                ]}
+              >
+                Start Recording
+              </Text>
+              <Spacer />
+            </HStack>
+          </Button>
+        )}
       </List>
     </Host>
   );

@@ -8,8 +8,9 @@ import {
   Spacer,
   Text,
 } from "@expo/ui/swift-ui";
-import { foregroundStyle, frame } from "@expo/ui/swift-ui/modifiers";
+import { font, frame, tint } from "@expo/ui/swift-ui/modifiers";
 import { useRouter } from "expo-router";
+import { PlatformColor } from "react-native";
 import { UploadFileActionsSection } from "@/components/add/upload-file-actions-section";
 
 const addActions = [
@@ -31,27 +32,23 @@ export default function AddScreen() {
   return (
     <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
       <List>
-        <Section title="Add Content">
+        <Section
+          modifiers={[font({ design: "rounded", weight: "medium" })]}
+          title="Add Content"
+        >
           {addActions.map((action) => (
             <Button
               key={action.href}
+              modifiers={[tint(PlatformColor("label"))]}
               onPress={() => router.push(action.href as never)}
             >
               <HStack spacing={12}>
                 <Image
-                  color="primary"
                   modifiers={[frame({ height: 18, width: 18 })]}
                   size={14}
                   systemName={action.icon}
                 />
-                <Text
-                  modifiers={[
-                    foregroundStyle({
-                      style: "primary",
-                      type: "hierarchical",
-                    }),
-                  ]}
-                >
+                <Text modifiers={[font({ design: "rounded" })]}>
                   {action.label}
                 </Text>
                 <Spacer />
@@ -60,7 +57,12 @@ export default function AddScreen() {
             </Button>
           ))}
         </Section>
-        <UploadFileActionsSection />
+        <Section
+          modifiers={[font({ design: "rounded", weight: "medium" })]}
+          title="Upload Files"
+        >
+          <UploadFileActionsSection />
+        </Section>
       </List>
     </Host>
   );

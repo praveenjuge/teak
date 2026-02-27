@@ -1,17 +1,10 @@
-import {
-  Button,
-  HStack,
-  Image,
-  Section,
-  Spacer,
-  Text,
-} from "@expo/ui/swift-ui";
-import { disabled, foregroundStyle, frame } from "@expo/ui/swift-ui/modifiers";
+import { Button, HStack, Image, Spacer, Text } from "@expo/ui/swift-ui";
+import { disabled, font, frame, tint } from "@expo/ui/swift-ui/modifiers";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { useCallback } from "react";
-import { Alert } from "react-native";
+import { Alert, PlatformColor } from "react-native";
 import {
   showErrorFeedback,
   showSavingFeedback,
@@ -180,23 +173,18 @@ export function UploadFileActionsSection({
   }, [isUploading, uploadFromUri]);
 
   return (
-    <Section title="Upload Files">
-      <Button modifiers={[disabled(isUploading)]} onPress={handleGalleryPicker}>
+    <>
+      <Button
+        modifiers={[tint(PlatformColor("label")), disabled(isUploading)]}
+        onPress={handleGalleryPicker}
+      >
         <HStack spacing={12}>
           <Image
-            color="primary"
             modifiers={[frame({ height: 18, width: 18 })]}
             size={14}
             systemName="photo.on.rectangle"
           />
-          <Text
-            modifiers={[
-              foregroundStyle({
-                style: "primary",
-                type: "hierarchical",
-              }),
-            ]}
-          >
+          <Text modifiers={[font({ design: "rounded" })]}>
             Photos/Videos from Gallery
           </Text>
           <Spacer />
@@ -204,54 +192,37 @@ export function UploadFileActionsSection({
         </HStack>
       </Button>
 
-      <Button modifiers={[disabled(isUploading)]} onPress={handleCameraCapture}>
+      <Button
+        modifiers={[tint(PlatformColor("label")), disabled(isUploading)]}
+        onPress={handleCameraCapture}
+      >
         <HStack spacing={12}>
           <Image
-            color="primary"
             modifiers={[frame({ height: 18, width: 18 })]}
             size={14}
             systemName="camera"
           />
-          <Text
-            modifiers={[
-              foregroundStyle({
-                style: "primary",
-                type: "hierarchical",
-              }),
-            ]}
-          >
-            Open Camera
-          </Text>
+          <Text modifiers={[font({ design: "rounded" })]}>Open Camera</Text>
           <Spacer />
           <Image color="secondary" size={14} systemName="chevron.right" />
         </HStack>
       </Button>
 
       <Button
-        modifiers={[disabled(isUploading)]}
+        modifiers={[tint(PlatformColor("label")), disabled(isUploading)]}
         onPress={handleDocumentPicker}
       >
         <HStack spacing={12}>
           <Image
-            color="primary"
             modifiers={[frame({ height: 18, width: 18 })]}
             size={14}
             systemName="tray.and.arrow.up"
           />
-          <Text
-            modifiers={[
-              foregroundStyle({
-                style: "primary",
-                type: "hierarchical",
-              }),
-            ]}
-          >
-            Upload Files
-          </Text>
+          <Text modifiers={[font({ design: "rounded" })]}>Upload Files</Text>
           <Spacer />
           <Image color="secondary" size={14} systemName="chevron.right" />
         </HStack>
       </Button>
-    </Section>
+    </>
   );
 }
