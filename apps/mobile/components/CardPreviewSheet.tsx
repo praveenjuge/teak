@@ -1,18 +1,11 @@
-// @ts-expect-error - @expo/ui internal import not exported
-import { Circle } from "@expo/ui/src/swift-ui/Shapes";
 import {
-  BottomSheet,
   Button,
-  Host,
+  Circle,
   HStack,
-  Image,
   List,
-  ProgressView,
   Section,
   Spacer,
   Text,
-  VStack,
-  ZStack,
 } from "@expo/ui/swift-ui";
 import {
   buttonStyle,
@@ -21,25 +14,29 @@ import {
   font,
   foregroundStyle,
   frame,
-  interactiveDismissDisabled,
   lineLimit,
   listStyle,
-  padding,
-  presentationDetents,
-  presentationDragIndicator,
 } from "@expo/ui/swift-ui/modifiers";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useEvent } from "expo";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
-import { useVideoPlayer, VideoView } from "expo-video";
-import { useCallback, useEffect, useState } from "react";
-import { Linking, Image as RNImage, useWindowDimensions } from "react-native";
+import { useCallback, useEffect } from "react";
+import { Linking } from "react-native";
+import {
+  FullHeightMedia,
+  VideoPreview,
+} from "@/components/card-preview/preview-sections";
 
 type Card = Doc<"cards"> & {
   fileUrl?: string;
-  thumbnailUrl?: string;
   screenshotUrl?: string;
+  thumbnailUrl?: string;
 };
+
+interface CardPreviewSheetProps {
+  card: Card;
+  isOpen: boolean;
+}
 
 const unsupportedAudioMimes = new Set([
   "audio/webm",
@@ -50,327 +47,10 @@ const unsupportedAudioMimes = new Set([
 ]);
 
 const unsupportedAudioExts = new Set(["webm", "ogg", "opus"]);
+const PREVIEW_HEIGHT = 260;
 
-interface CardPreviewSheetProps {
-  card: Card | null;
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-const FullHeightPlaceholder = ({
-  icon,
-  label,
-  height,
-}: {
-  icon: string;
-  label: string;
-  height: number;
-}) => (
-  <VStack
-    alignment="center"
-    modifiers={[frame({ height }), padding({ all: 16 })]}
-    spacing={12}
-  >
-    <Spacer />
-    <Image color="secondary" size={28} systemName={icon as any} />
-    <Text
-      modifiers={[
-        foregroundStyle({ type: "hierarchical", style: "secondary" }),
-      ]}
-    >
-      {label}
-    </Text>
-    <Spacer />
-  </VStack>
-);
-
-const FullHeightMedia = ({
-  primaryUri,
-  fallbackUri,
-  height,
-  fallbackIcon,
-  fallbackLabel,
-}: {
-  primaryUri?: string | null;
-  fallbackUri?: string | null;
-  height: number;
-  fallbackIcon: string;
-  fallbackLabel: string;
-}) => {
-  // Show thumbnail immediately while full image loads
-  const [activeUri, setActiveUri] = useState<string | null>(
-    fallbackUri ?? primaryUri ?? null
-  );
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const isPrimary = activeUri === primaryUri;
-
-  useEffect(() => {
-    // Start with thumbnail, then load full image
-    if (fallbackUri) {
-      setActiveUri(fallbackUri);
-    }
-    if (primaryUri) {
-      setActiveUri(primaryUri);
-    }
-    setIsLoading(true);
-    setHasError(false);
-  }, [primaryUri, fallbackUri]);
-
-  if (!activeUri || hasError) {
-    return (
-      <FullHeightPlaceholder
-        height={height}
-        icon={fallbackIcon}
-        label={fallbackLabel}
-      />
-    );
-  }
-
-  const handleError = () => {
-    if (activeUri === primaryUri && fallbackUri) {
-      setActiveUri(fallbackUri);
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(false);
-    setHasError(true);
-  };
-
-  return (
-    <ZStack modifiers={[frame({ height })]}>
-      <RNImage
-        key={activeUri}
-        onError={handleError}
-        onLoadEnd={() => setIsLoading(false)}
-        onLoadStart={() => isPrimary && setIsLoading(true)}
-        resizeMode="contain"
-        source={{ uri: activeUri, cache: "force-cache" }}
-        style={{
-          width: "100%",
-          height: "100%",
-        }}
-      />
-      {isLoading ? <ProgressView /> : null}
-    </ZStack>
-  );
-};
-
-const ActionButton = ({
-  label,
-  onPress,
-  disabled,
-}: {
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-}) => (
-  <Button
-    modifiers={[
-      buttonStyle("bordered"),
-      controlSize("large"),
-      disabledModifier(disabled),
-    ]}
-    onPress={onPress}
-  >
-    <HStack alignment="center" spacing={10}>
-      <Spacer />
-      <Text
-        modifiers={[
-          foregroundStyle({ type: "hierarchical", style: "primary" }),
-          font({ design: "rounded" }),
-        ]}
-      >
-        {label}
-      </Text>
-      <Spacer />
-    </HStack>
-  </Button>
-);
-
-const CenteredPanel = ({
-  icon,
-  title,
-  subtitle,
-  height,
-  actionLabel,
-  onAction,
-  actionDisabled,
-}: {
-  icon: string;
-  title: string;
-  subtitle?: React.ReactNode;
-  height: number;
-  actionLabel?: string;
-  onAction?: () => void;
-  actionDisabled?: boolean;
-}) => (
-  <VStack
-    alignment="center"
-    modifiers={[frame({ height }), padding({ all: 16 })]}
-    spacing={12}
-  >
-    <Spacer />
-    <Image color="secondary" size={28} systemName={icon as any} />
-    <Text modifiers={[font({ weight: "semibold" })]}>{title}</Text>
-    {subtitle}
-    <Spacer />
-    {actionLabel && onAction ? (
-      <ActionButton
-        disabled={actionDisabled}
-        label={actionLabel}
-        onPress={onAction}
-      />
-    ) : null}
-  </VStack>
-);
-
-const AudioPreview = ({
-  title,
-  height,
-  isPlaying,
-  isLoading,
-  hasSource,
-  onToggle,
-}: {
-  title: string;
-  height: number;
-  isPlaying: boolean;
-  isLoading: boolean;
-  hasSource: boolean;
-  onToggle: () => void;
-}) => {
-  return (
-    <VStack
-      alignment="center"
-      modifiers={[frame({ height }), padding({ all: 16 })]}
-      spacing={16}
-    >
-      <Spacer />
-      <Image
-        color="primary"
-        size={42}
-        systemName={
-          (isPlaying ? "pause.circle.fill" : "play.circle.fill") as any
-        }
-      />
-      <Text modifiers={[font({ weight: "semibold" })]}>{title}</Text>
-      <Button
-        modifiers={[
-          buttonStyle("bordered"),
-          controlSize("large"),
-          disabledModifier(!hasSource || isLoading),
-        ]}
-        onPress={onToggle}
-      >
-        <HStack alignment="center" spacing={10}>
-          <Spacer />
-          <Text
-            modifiers={[
-              foregroundStyle({ type: "hierarchical", style: "primary" }),
-              font({ design: "rounded" }),
-            ]}
-          >
-            {hasSource
-              ? isLoading
-                ? "Loading..."
-                : isPlaying
-                  ? "Pause"
-                  : "Play"
-              : "Audio unavailable"}
-          </Text>
-          <Spacer />
-        </HStack>
-      </Button>
-      <Spacer />
-    </VStack>
-  );
-};
-
-const VideoPreview = ({
-  uri,
-  height,
-  isOpen,
-  posterUri,
-}: {
-  uri: string;
-  height: number;
-  isOpen: boolean;
-  posterUri?: string | null;
-}) => {
-  const player = useVideoPlayer(uri);
-  const { status } = useEvent(player, "statusChange", {
-    status: player.status,
-  });
-  const isLoading = status === "loading" || status === "idle";
-  const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
-
-  useEffect(() => {
-    const safePlay = () => {
-      try {
-        player.play();
-        setHasStartedPlaying(true);
-      } catch (error) {
-        console.warn(
-          "Failed to start video preview:",
-          error instanceof Error ? error.message : error
-        );
-      }
-    };
-
-    const safePause = () => {
-      try {
-        player.pause();
-      } catch (error) {
-        console.warn(
-          "Failed to pause video preview:",
-          error instanceof Error ? error.message : error
-        );
-      }
-    };
-
-    if (isOpen) {
-      safePlay();
-    } else {
-      safePause();
-      setHasStartedPlaying(false);
-    }
-
-    return () => {
-      safePause();
-    };
-  }, [isOpen, player]);
-
-  return (
-    <ZStack modifiers={[frame({ height })]}>
-      {/* Show poster while video loads */}
-      {posterUri && !hasStartedPlaying ? (
-        <RNImage
-          resizeMode="contain"
-          source={{ uri: posterUri, cache: "force-cache" }}
-          style={{ width: "100%", height: "100%" }}
-        />
-      ) : null}
-      <VideoView
-        contentFit="contain"
-        nativeControls
-        player={player}
-        style={{ width: "100%", height: "100%" }}
-      />
-      {isLoading ? <ProgressView /> : null}
-    </ZStack>
-  );
-};
-
-function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
-  const { height } = useWindowDimensions();
-  const isMediaFullHeight = card?.type === "image" || card?.type === "video";
-  const sheetHeight = isMediaFullHeight
-    ? height
-    : Math.max(220, Math.round(height * 0.5));
-
+function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
   const audioUrl = card?.type === "audio" ? (card.fileUrl ?? null) : null;
-  const [audioError, _setAudioError] = useState<string | null>(null);
 
   const audioMime = card?.fileMetadata?.mimeType?.toLowerCase();
   const audioExt = card?.fileMetadata?.fileName?.toLowerCase().split(".").pop();
@@ -394,17 +74,21 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
   }, [audioSource]);
 
   useEffect(() => {
-    if (card?.type !== "audio" || !audioSource) return;
-    if (isOpen) {
-      player.play();
-    } else {
+    if (card?.type !== "audio" || !audioSource) {
+      return;
+    }
+
+    if (!isOpen) {
       player.pause();
       player.seekTo(0);
     }
   }, [isOpen, card?.type, audioSource, player]);
 
   const handleToggleAudio = useCallback(() => {
-    if (!audioSource) return;
+    if (!audioSource) {
+      return;
+    }
+
     if (isAudioPlaying) {
       player.pause();
     } else {
@@ -426,10 +110,6 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
     }
   }, []);
 
-  if (!card) {
-    return null;
-  }
-
   const textContent = card.content?.trim() || "No content";
   const title =
     card.metadataTitle || card.fileMetadata?.fileName || "Attachment";
@@ -442,96 +122,116 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
       ? card.metadata.linkPreview.title || card.url || "Link"
       : card.metadataTitle || card.url || "Link";
   const linkUrl = card.url ?? "";
-  const quoteText = `"${textContent}"`;
-  const renderTextBlock = (value: string) => (
-    <VStack modifiers={[frame({ height: sheetHeight })]}>
-      <List>
-        <Section>
-          <Text>{value}</Text>
-        </Section>
-      </List>
-    </VStack>
+
+  const renderActionButton = (
+    label: string,
+    onPress: () => void,
+    options?: { disabled?: boolean; destructive?: boolean }
+  ) => (
+    <Button
+      modifiers={[
+        buttonStyle("bordered"),
+        controlSize("large"),
+        disabledModifier(options?.disabled ?? false),
+      ]}
+      onPress={onPress}
+    >
+      <HStack alignment="center" spacing={10}>
+        <Spacer />
+        <Text
+          modifiers={[
+            options?.destructive
+              ? foregroundStyle("red")
+              : foregroundStyle({
+                  type: "hierarchical",
+                  style: "primary",
+                }),
+            font({ design: "rounded" }),
+          ]}
+        >
+          {label}
+        </Text>
+        <Spacer />
+      </HStack>
+    </Button>
   );
 
   const renderBody = () => {
     switch (card.type) {
       case "image":
         return (
-          <FullHeightMedia
-            fallbackIcon="photo"
-            fallbackLabel="Image unavailable"
-            fallbackUri={imageFallback}
-            height={sheetHeight}
-            primaryUri={imageUrl}
-          />
+          <List modifiers={[listStyle("insetGrouped")]}>
+            <Section title="Image">
+              <FullHeightMedia
+                fallbackIcon="photo"
+                fallbackLabel="Image unavailable"
+                fallbackUri={imageFallback}
+                height={PREVIEW_HEIGHT}
+                primaryUri={imageUrl}
+              />
+            </Section>
+          </List>
         );
       case "video":
-        if (!card.fileUrl) {
-          return (
-            <FullHeightMedia
-              fallbackIcon="play.rectangle"
-              fallbackLabel="Video preview unavailable"
-              height={sheetHeight}
-              primaryUri={videoPoster}
-            />
-          );
-        }
         return (
-          <VideoPreview
-            height={sheetHeight}
-            isOpen={isOpen}
-            posterUri={videoPoster}
-            uri={card.fileUrl}
-          />
+          <List modifiers={[listStyle("insetGrouped")]}>
+            <Section title="Video">
+              {card.fileUrl ? (
+                <VideoPreview
+                  height={PREVIEW_HEIGHT}
+                  isOpen={isOpen}
+                  posterUri={videoPoster}
+                  uri={card.fileUrl}
+                />
+              ) : (
+                <FullHeightMedia
+                  fallbackIcon="play.rectangle"
+                  fallbackLabel="Video preview unavailable"
+                  height={PREVIEW_HEIGHT}
+                  primaryUri={videoPoster}
+                />
+              )}
+            </Section>
+          </List>
         );
       case "text":
-        return renderTextBlock(textContent);
-      case "quote": {
-        return renderTextBlock(quoteText);
-      }
-      case "palette":
-        if (!card.colors?.length) {
-          return (
-            <FullHeightPlaceholder
-              height={sheetHeight}
-              icon="paintpalette"
-              label="No colors saved"
-            />
-          );
-        }
         return (
-          <VStack modifiers={[frame({ height: sheetHeight })]}>
-            <List modifiers={[listStyle("insetGrouped")]}>
-              {card.colors.slice(0, 12).map((color, index) => (
-                <HStack
-                  alignment="center"
-                  key={`${color.hex}-${index}`}
-                  spacing={12}
-                >
-                  <Circle
-                    modifiers={[
-                      frame({ width: 32, height: 32 }),
-                      foregroundStyle(color.hex as any),
-                    ]}
-                  />
-                  <Text>{color.hex}</Text>
-                  <Spacer />
-                </HStack>
-              ))}
-            </List>
-          </VStack>
+          <List modifiers={[listStyle("insetGrouped")]}>
+            <Section title="Text">
+              <Text>{textContent}</Text>
+            </Section>
+          </List>
         );
-      case "audio":
-        if (!audioUrl || audioError || !isAudioSupported) {
-          return (
-            <CenteredPanel
-              actionLabel={audioUrl ? "Open link" : undefined}
-              height={sheetHeight}
-              icon="waveform"
-              onAction={
-                audioUrl ? () => void handleOpenLink(audioUrl) : undefined
-              }
-              subtitle={
+      case "quote":
+        return (
+          <List modifiers={[listStyle("insetGrouped")]}>
+            <Section title="Quote">
+              <Text>{`"${textContent}"`}</Text>
+            </Section>
+          </List>
+        );
+      case "palette":
+        return (
+          <List modifiers={[listStyle("insetGrouped")]}>
+            <Section title="Palette">
+              {card.colors?.length ? (
+                card.colors.slice(0, 12).map((color, index) => (
+                  <HStack
+                    alignment="center"
+                    key={`${color.hex}-${index}`}
+                    spacing={12}
+                  >
+                    <Circle
+                      modifiers={[
+                        frame({ height: 32, width: 32 }),
+                        foregroundStyle(color.hex as any),
+                      ]}
+                    />
+                    <Text>{color.hex}</Text>
+                    <Spacer />
+                  </HStack>
+                ))
+              ) : (
                 <Text
                   modifiers={[
                     foregroundStyle({
@@ -540,36 +240,80 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
                     }),
                   ]}
                 >
-                  {audioError ||
-                    (audioUrl
-                      ? "Unsupported audio format"
-                      : "Audio unavailable")}
+                  No colors saved
                 </Text>
-              }
-              title="Audio"
-            />
-          );
-        }
+              )}
+            </Section>
+          </List>
+        );
+      case "audio":
         return (
-          <AudioPreview
-            hasSource={!!audioUrl}
-            height={sheetHeight}
-            isLoading={isAudioLoading}
-            isPlaying={isAudioPlaying}
-            onToggle={handleToggleAudio}
-            title={card.metadataTitle || "Audio"}
-          />
+          <List modifiers={[listStyle("insetGrouped")]}>
+            <Section title="Audio">
+              {audioUrl && isAudioSupported ? (
+                <>
+                  <HStack alignment="center">
+                    <Text modifiers={[font({ weight: "semibold" })]}>
+                      {card.metadataTitle || "Audio"}
+                    </Text>
+                    <Spacer />
+                    <Text
+                      modifiers={[
+                        foregroundStyle({
+                          type: "hierarchical",
+                          style: "secondary",
+                        }),
+                      ]}
+                    >
+                      {isAudioLoading
+                        ? "Loading..."
+                        : isAudioPlaying
+                          ? "Playing"
+                          : "Paused"}
+                    </Text>
+                  </HStack>
+                  {renderActionButton(
+                    isAudioLoading
+                      ? "Loading..."
+                      : isAudioPlaying
+                        ? "Pause"
+                        : "Play",
+                    handleToggleAudio,
+                    { disabled: isAudioLoading }
+                  )}
+                </>
+              ) : (
+                <>
+                  <Text
+                    modifiers={[
+                      foregroundStyle({
+                        type: "hierarchical",
+                        style: "secondary",
+                      }),
+                    ]}
+                  >
+                    {audioUrl
+                      ? "Unsupported audio format"
+                      : "Audio unavailable"}
+                  </Text>
+                  {audioUrl
+                    ? renderActionButton("Open File", () => {
+                        void handleOpenLink(audioUrl);
+                      })
+                    : null}
+                </>
+              )}
+            </Section>
+          </List>
         );
       case "link":
         return (
-          <CenteredPanel
-            actionDisabled={!linkUrl}
-            actionLabel="Open link"
-            height={sheetHeight}
-            icon="link"
-            onAction={linkUrl ? () => void handleOpenLink(linkUrl) : undefined}
-            subtitle={
-              linkUrl ? (
+          <List modifiers={[listStyle("insetGrouped")]}>
+            <Section title="Link">
+              <Text modifiers={[font({ weight: "semibold" })]}>
+                {linkTitle}
+              </Text>
+              {linkUrl ? (
                 <Text
                   modifiers={[
                     foregroundStyle({
@@ -581,25 +325,34 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
                 >
                   {linkUrl}
                 </Text>
-              ) : undefined
-            }
-            title={linkTitle}
-          />
+              ) : (
+                <Text
+                  modifiers={[
+                    foregroundStyle({
+                      type: "hierarchical",
+                      style: "secondary",
+                    }),
+                  ]}
+                >
+                  Link unavailable
+                </Text>
+              )}
+              {linkUrl
+                ? renderActionButton("Open Link", () => {
+                    void handleOpenLink(linkUrl);
+                  })
+                : null}
+            </Section>
+          </List>
         );
       default:
         return (
-          <CenteredPanel
-            actionDisabled={!documentUrl}
-            actionLabel={card.type === "document" ? "Open link" : undefined}
-            height={sheetHeight}
-            icon="doc.text"
-            onAction={
-              card.type === "document" && documentUrl
-                ? () => void handleOpenLink(documentUrl)
-                : undefined
-            }
-            subtitle={
-              card.fileMetadata?.mimeType ? (
+          <List modifiers={[listStyle("insetGrouped")]}>
+            <Section
+              title={card.type === "document" ? "Document" : "Attachment"}
+            >
+              <Text modifiers={[font({ weight: "semibold" })]}>{title}</Text>
+              {card.fileMetadata?.mimeType ? (
                 <Text
                   modifiers={[
                     foregroundStyle({
@@ -610,43 +363,19 @@ function CardPreviewSheet({ card, isOpen, onClose }: CardPreviewSheetProps) {
                 >
                   {card.fileMetadata.mimeType}
                 </Text>
-              ) : undefined
-            }
-            title={title}
-          />
+              ) : null}
+              {card.type === "document" && documentUrl
+                ? renderActionButton("Open File", () => {
+                    void handleOpenLink(documentUrl);
+                  })
+                : null}
+            </Section>
+          </List>
         );
     }
   };
 
-  return (
-    <Host
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        pointerEvents: isOpen ? "auto" : "none",
-      }}
-      useViewportSizeMeasurement
-    >
-      <BottomSheet
-        isPresented={isOpen}
-        modifiers={[
-          interactiveDismissDisabled(false),
-          presentationDetents(isMediaFullHeight ? ["large"] : ["medium"]),
-          presentationDragIndicator("visible"),
-        ]}
-        onIsPresentedChange={(isPresented) => {
-          if (!isPresented) {
-            onClose();
-          }
-        }}
-      >
-        {renderBody()}
-      </BottomSheet>
-    </Host>
-  );
+  return renderBody();
 }
 
 export { CardPreviewSheet };

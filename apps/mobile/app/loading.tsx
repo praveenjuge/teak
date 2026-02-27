@@ -1,9 +1,13 @@
-import { ActivityIndicator, View } from "react-native";
+import { Host, ProgressView, Spacer, VStack } from "@expo/ui/swift-ui";
 
 export default function LoadingScreen() {
   return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <ActivityIndicator size="large" />
-    </View>
+    <Host style={{ flex: 1 }} useViewportSizeMeasurement>
+      <VStack alignment="center" spacing={16}>
+        <Spacer />
+        <ProgressView />
+        <Spacer />
+      </VStack>
+    </Host>
   );
 }

@@ -1,9 +1,9 @@
 import {
   Button,
+  Form,
   Host,
   HStack,
   Image,
-  List,
   ProgressView,
   Section,
   Spacer,
@@ -20,11 +20,12 @@ import { api } from "@teak/convex";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { Stack, useRouter } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Alert } from "react-native";
 import { authClient } from "@/lib/auth-client";
 import { useThemePreference } from "@/lib/theme-preference";
-import { colors } from "../../../constants/colors";
+
+const DELETE_CONFIRMATION_PHRASE = "delete account";
 
 export default function SettingsScreen() {
   const { data: session } = authClient.useSession();
@@ -32,8 +33,38 @@ export default function SettingsScreen() {
   const router = useRouter();
   const currentUser = useQuery(api.auth.getCurrentUser, {});
   const deleteAccount = useMutation(api.auth.deleteAccount);
+
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const appearanceOptions: {
+    title: string;
+    value: "system" | "light" | "dark";
+  }[] = [
+    {
+      title: "Match Device",
+      value: "system",
+    },
+    {
+      title: "Light",
+      value: "light",
+    },
+    {
+      title: "Dark",
+      value: "dark",
+    },
+  ];
+
+  const usageLabel = useMemo(() => {
+    if (currentUser === undefined) {
+      return null;
+    }
+
+    if (!currentUser) {
+      return "Not available";
+    }
+
+    return `${currentUser.cardCount} Cards`;
+  }, [currentUser]);
 
   const signOut = async () => {
     try {
@@ -61,8 +92,8 @@ export default function SettingsScreen() {
 
     setDeleteError(null);
 
-    if (confirmation.trim().toLowerCase() !== "delete account") {
-      setDeleteError('Type "delete account" to confirm.');
+    if (confirmation.trim().toLowerCase() !== DELETE_CONFIRMATION_PHRASE) {
+      setDeleteError(`Type "${DELETE_CONFIRMATION_PHRASE}" to confirm.`);
       return;
     }
 
@@ -73,12 +104,12 @@ export default function SettingsScreen() {
 
       let deleteUserFailed = false;
       await authClient.deleteUser(undefined, {
-        onSuccess: () => {
-          router.replace("/(auth)/welcome");
-        },
         onError: (ctx) => {
           setDeleteError(ctx.error?.message ?? "Failed to delete account.");
           deleteUserFailed = true;
+        },
+        onSuccess: () => {
+          router.replace("/(auth)/welcome");
         },
       });
 
@@ -86,11 +117,11 @@ export default function SettingsScreen() {
         return;
       }
     } catch (error) {
+      setDeleteError("Something went wrong while deleting your account.");
       console.error(
         "Delete account error:",
         error instanceof Error ? error.message : error
       );
-      setDeleteError("Something went wrong while deleting your account.");
     } finally {
       setIsDeleting(false);
     }
@@ -108,7 +139,7 @@ export default function SettingsScreen() {
           onPress: () => {
             Alert.prompt(
               "Delete Account",
-              'Type "delete account" to confirm.',
+              `Type "${DELETE_CONFIRMATION_PHRASE}" to confirm.`,
               [
                 {
                   text: "Cancel",
@@ -117,8 +148,8 @@ export default function SettingsScreen() {
                 {
                   text: "Delete",
                   style: "destructive",
-                  onPress: (confirmation: string | undefined) => {
-                    handleDeleteAccount(confirmation ?? "").catch(
+                  onPress: (typedConfirmation: string | undefined) => {
+                    handleDeleteAccount(typedConfirmation ?? "").catch(
                       console.error
                     );
                   },
@@ -132,24 +163,6 @@ export default function SettingsScreen() {
     );
   };
 
-  const appearanceOptions: {
-    value: Parameters<typeof setPreference>[0];
-    title: string;
-  }[] = [
-    {
-      value: "system",
-      title: "Match Device",
-    },
-    {
-      value: "light",
-      title: "Light",
-    },
-    {
-      value: "dark",
-      title: "Dark",
-    },
-  ];
-
   if (!isLoaded) {
     return null;
   }
@@ -159,10 +172,11 @@ export default function SettingsScreen() {
       <Stack.Screen
         options={{
           title: "Settings",
+          headerLargeTitle: true,
         }}
       />
       <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
-        <List>
+        <Form>
           <Section title="Appearance">
             {appearanceOptions.map((option) => {
               const isSelected = preference === option.value;
@@ -178,20 +192,15 @@ export default function SettingsScreen() {
                       {option.title}
                     </Text>
                     <Spacer />
-                    {isSelected && (
-                      <Image
-                        color={
-                          isSelected ? colors.primary : (colors.border as any)
-                        }
-                        size={18}
-                        systemName="checkmark"
-                      />
-                    )}
+                    {isSelected ? (
+                      <Image color="primary" size={18} systemName="checkmark" />
+                    ) : null}
                   </HStack>
                 </Button>
               );
             })}
           </Section>
+
           <Section title="Profile">
             <HStack>
               <Text modifiers={[font({ design: "rounded" })]}>Email</Text>
@@ -206,12 +215,11 @@ export default function SettingsScreen() {
                 {session?.user?.email ?? "Not logged in"}
               </Text>
             </HStack>
+
             <HStack>
               <Text modifiers={[font({ design: "rounded" })]}>Usage</Text>
               <Spacer />
-              {currentUser === undefined ? (
-                <ProgressView />
-              ) : (
+              {usageLabel ? (
                 <Text
                   modifiers={[
                     foregroundStyle({
@@ -221,12 +229,13 @@ export default function SettingsScreen() {
                     font({ design: "rounded" }),
                   ]}
                 >
-                  {currentUser
-                    ? `${currentUser.cardCount} Cards`
-                    : "Not available"}
+                  {usageLabel}
                 </Text>
+              ) : (
+                <ProgressView />
               )}
             </HStack>
+
             <Button
               modifiers={[disabled(isDeleting)]}
               onPress={handleDeleteAlert}
@@ -244,6 +253,7 @@ export default function SettingsScreen() {
                 <Image color="secondary" size={14} systemName="chevron.right" />
               </HStack>
             </Button>
+
             <Button onPress={handleLogoutAlert}>
               <HStack spacing={8}>
                 <Text
@@ -259,6 +269,7 @@ export default function SettingsScreen() {
               </HStack>
             </Button>
           </Section>
+
           <Section title="About">
             <HStack>
               <Text modifiers={[font({ design: "rounded" })]}>Teak</Text>
@@ -272,19 +283,16 @@ export default function SettingsScreen() {
                 by @praveenjuge
               </Text>
             </HStack>
-            <HStack>
-              <Text
-                modifiers={[
-                  foregroundStyle({ type: "hierarchical", style: "secondary" }),
-                  font({ design: "rounded" }),
-                ]}
-              >
-                Hope you enjoy using Teak as much as I enjoyed creating it.
-              </Text>
-              <Spacer />
-            </HStack>
+            <Text
+              modifiers={[
+                foregroundStyle({ type: "hierarchical", style: "secondary" }),
+                font({ design: "rounded" }),
+              ]}
+            >
+              Hope you enjoy using Teak as much as I enjoyed creating it.
+            </Text>
           </Section>
-        </List>
+        </Form>
       </Host>
     </>
   );

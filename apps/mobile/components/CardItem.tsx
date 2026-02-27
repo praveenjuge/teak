@@ -3,6 +3,7 @@ import {
   ContextMenu,
   HStack,
   Image,
+  RNHostView,
   RoundedRectangle,
   Spacer,
   Text,
@@ -22,31 +23,21 @@ import * as Sharing from "expo-sharing";
 import { memo, type ReactNode, useMemo, useState } from "react";
 import { Alert, Platform, Image as RNImage } from "react-native";
 import { colors } from "@/constants/colors";
-import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
+import { showErrorFeedback, showSuccessFeedback } from "@/lib/feedback-status";
 
 const WWW_PREFIX_REGEX = /^www\./;
 
 type Card = Doc<"cards"> & {
   fileUrl?: string;
-  thumbnailUrl?: string;
   screenshotUrl?: string;
+  thumbnailUrl?: string;
 };
 
 interface CardItemProps {
   card: Card;
+  onDeleteRequest?: () => void;
   onPress?: () => void;
 }
-
-const iconModifiers = [frame({ width: 28, height: 28 })];
-
-const leadingIcon = (systemName: string) => (
-  <Image
-    color="secondary"
-    modifiers={iconModifiers}
-    size={16}
-    systemName={systemName as any}
-  />
-);
 
 interface RowProps {
   content: ReactNode;
@@ -56,6 +47,17 @@ interface RowProps {
   onPress?: () => void;
   trailing?: ReactNode;
 }
+
+const iconModifiers = [frame({ height: 28, width: 28 })];
+
+const leadingIcon = (systemName: string) => (
+  <Image
+    color="secondary"
+    modifiers={iconModifiers}
+    size={16}
+    systemName={systemName as any}
+  />
+);
 
 const Row = ({
   leading,
@@ -86,29 +88,26 @@ const Favicon = ({ url }: { url?: string }) => {
   const showFallback = !url || hasError;
 
   return (
-    <VStack alignment="center" modifiers={[frame({ width: 28, height: 28 })]}>
+    <VStack alignment="center" modifiers={[frame({ height: 28, width: 28 })]}>
       {showFallback ? (
         <Image
           color="secondary"
-          modifiers={[frame({ width: 28, height: 28 })]}
+          modifiers={[frame({ height: 28, width: 28 })]}
           size={18}
           systemName="globe"
         />
       ) : (
-        <HStack
-          alignment="center"
-          modifiers={[frame({ width: 20, height: 20 })]}
-        >
+        <RNHostView matchContents>
           <RNImage
             onError={() => setHasError(true)}
             resizeMode="cover"
             source={{ uri: url }}
             style={{
-              width: 20,
               height: 20,
+              width: 20,
             }}
           />
-        </HStack>
+        </RNHostView>
       )}
     </VStack>
   );
@@ -117,117 +116,123 @@ const Favicon = ({ url }: { url?: string }) => {
 const PreviewBox = ({ children }: { children: React.ReactNode }) => (
   <VStack
     alignment="center"
-    modifiers={[frame({ width: 28, height: 28 }), cornerRadius(2)]}
+    modifiers={[frame({ height: 28, width: 28 }), cornerRadius(2)]}
   >
     {children}
   </VStack>
 );
 
-const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
+const getShareOptions = (name?: string) => {
+  const extension = name?.split(".").pop()?.toLowerCase();
+
+  switch (extension) {
+    case "m4a":
+      return { UTI: "public.mpeg-4-audio", mimeType: "audio/mp4" };
+    case "mp3":
+      return { UTI: "public.mp3", mimeType: "audio/mpeg" };
+    case "wav":
+      return { UTI: "com.microsoft.waveform-audio", mimeType: "audio/wav" };
+    case "mp4":
+      return { UTI: "public.mpeg-4", mimeType: "video/mp4" };
+    case "mov":
+      return {
+        UTI: "com.apple.quicktime-movie",
+        mimeType: "video/quicktime",
+      };
+    case "png":
+      return { UTI: "public.png", mimeType: "image/png" };
+    case "jpg":
+    case "jpeg":
+      return { UTI: "public.jpeg", mimeType: "image/jpeg" };
+    case "gif":
+      return { UTI: "com.compuserve.gif", mimeType: "image/gif" };
+    case "pdf":
+      return { UTI: "com.adobe.pdf", mimeType: "application/pdf" };
+    case "txt":
+      return { UTI: "public.plain-text", mimeType: "text/plain" };
+    default:
+      return {};
+  }
+};
+
+const buildFileName = (url?: string | null, fallback?: string) => {
+  if (fallback) {
+    return fallback;
+  }
+
+  if (!url) {
+    return `download-${Date.now()}`;
+  }
+
+  try {
+    const parsed = new URL(url);
+    const lastSegment = parsed.pathname.split("/").filter(Boolean).pop();
+    if (lastSegment) {
+      return lastSegment;
+    }
+  } catch {
+    // Ignore parse errors.
+  }
+
+  return `download-${Date.now()}`;
+};
+
+const CardItem = memo(function CardItem({
+  card,
+  onPress,
+  onDeleteRequest,
+}: CardItemProps) {
   const mediaUrl = card.thumbnailUrl ?? card.fileUrl ?? null;
-  const cardActions = useCardActions();
 
   const handleCopy = async (value?: string | null) => {
     if (!value) {
       return;
     }
+
     try {
       await Clipboard.setStringAsync(value);
+      showSuccessFeedback("Copied to clipboard.", 900);
     } catch (error) {
-      console.warn(
-        "Failed to copy content:",
-        error instanceof Error ? error.message : error
+      showErrorFeedback(
+        error instanceof Error ? error.message : "Failed to copy content."
       );
     }
-  };
-
-  const buildFileName = (url?: string | null, fallback?: string) => {
-    if (fallback) {
-      return fallback;
-    }
-    if (!url) {
-      return `download-${Date.now()}`;
-    }
-    try {
-      const parsed = new URL(url);
-      const lastSegment = parsed.pathname.split("/").filter(Boolean).pop();
-      if (lastSegment) {
-        return lastSegment;
-      }
-    } catch {
-      // Ignore parse errors.
-    }
-    return `download-${Date.now()}`;
   };
 
   const handleDownload = async (url?: string | null, fileName?: string) => {
     if (!url) {
       return;
     }
+
     try {
       const name = buildFileName(url, fileName);
 
-      // On iOS, use Sharing to allow saving to Downloads folder via "Save to Files"
       if (Platform.OS === "ios") {
         const destination = `${FileSystem.cacheDirectory ?? ""}${name}`;
         const result = await FileSystem.downloadAsync(url, destination);
+
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(result.uri, {
             ...getShareOptions(name),
-            dialogTitle: "Save to Downloads",
+            dialogTitle: "Save to Files",
           });
+          showSuccessFeedback("Opened share sheet.", 1000);
         }
-      } else {
-        // On Android, save to Downloads directory directly
-        const destination = `${FileSystem.documentDirectory ?? ""}${name}`;
-        const result = await FileSystem.downloadAsync(url, destination);
-        Alert.alert("Downloaded", `Saved to ${result.uri}`);
+
+        return;
       }
+
+      const destination = `${FileSystem.documentDirectory ?? ""}${name}`;
+      const result = await FileSystem.downloadAsync(url, destination);
+      Alert.alert("Downloaded", `Saved to ${result.uri}`);
     } catch (error) {
-      // User cancelled sharing or actual error
       if (
         !(
           error instanceof Error && error.message.includes("User did not share")
         )
       ) {
-        console.warn(
-          "Failed to download file:",
-          error instanceof Error ? error.message : error
-        );
         Alert.alert("Download Failed", "Unable to download this file.");
       }
-    }
-  };
-
-  const getShareOptions = (name?: string) => {
-    const extension = name?.split(".").pop()?.toLowerCase();
-    switch (extension) {
-      case "m4a":
-        return { UTI: "public.mpeg-4-audio", mimeType: "audio/mp4" };
-      case "mp3":
-        return { UTI: "public.mp3", mimeType: "audio/mpeg" };
-      case "wav":
-        return { UTI: "com.microsoft.waveform-audio", mimeType: "audio/wav" };
-      case "mp4":
-        return { UTI: "public.mpeg-4", mimeType: "video/mp4" };
-      case "mov":
-        return {
-          UTI: "com.apple.quicktime-movie",
-          mimeType: "video/quicktime",
-        };
-      case "png":
-        return { UTI: "public.png", mimeType: "image/png" };
-      case "jpg":
-      case "jpeg":
-        return { UTI: "public.jpeg", mimeType: "image/jpeg" };
-      case "gif":
-        return { UTI: "com.compuserve.gif", mimeType: "image/gif" };
-      case "pdf":
-        return { UTI: "com.adobe.pdf", mimeType: "application/pdf" };
-      case "txt":
-        return { UTI: "public.plain-text", mimeType: "text/plain" };
-      default:
-        return {};
     }
   };
 
@@ -235,19 +240,20 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
     if (!value) {
       return;
     }
+
     try {
       const fileName = name ? `${name}.txt` : `teak-share-${Date.now()}.txt`;
       const destination = `${FileSystem.cacheDirectory ?? ""}${fileName}`;
       await FileSystem.writeAsStringAsync(destination, value);
+
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(destination, getShareOptions(fileName));
       } else {
         Alert.alert("Sharing Unavailable", "Sharing is not available here.");
       }
     } catch (error) {
-      console.warn(
-        "Failed to share text:",
-        error instanceof Error ? error.message : error
+      showErrorFeedback(
+        error instanceof Error ? error.message : "Failed to share content."
       );
     }
   };
@@ -256,19 +262,20 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
     if (!url) {
       return;
     }
+
     try {
       const fileName = buildFileName(url, name);
       const destination = `${FileSystem.cacheDirectory ?? ""}${fileName}`;
       const result = await FileSystem.downloadAsync(url, destination);
+
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(result.uri, getShareOptions(fileName));
       } else {
         Alert.alert("Sharing Unavailable", "Sharing is not available here.");
       }
     } catch (error) {
-      console.warn(
-        "Failed to share file:",
-        error instanceof Error ? error.message : error
+      showErrorFeedback(
+        error instanceof Error ? error.message : "Failed to share file."
       );
     }
   };
@@ -279,7 +286,7 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
       {
         text: "Delete",
         style: "destructive",
-        onPress: () => void cardActions.handleDeleteCard(card._id),
+        onPress: () => onDeleteRequest?.(),
       },
     ]);
   };
@@ -288,17 +295,19 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
     if (!card.url) {
       return null;
     }
+
     try {
       const parsed = new URL(card.url);
       const hostname = parsed.hostname.replace(WWW_PREFIX_REGEX, "");
+
       return {
-        hostname,
         favicon: `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`,
+        hostname,
       };
     } catch {
       return {
-        hostname: card.url,
         favicon: `https://www.google.com/s2/favicons?domain=${card.url}&sz=64`,
+        hostname: card.url,
       };
     }
   }, [card.url]);
@@ -341,6 +350,7 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
         if (!card.url) {
           return null;
         }
+
         const linkTitle =
           card.metadata?.linkPreview?.status === "success"
             ? card.metadata.linkPreview.title || card.url
@@ -373,6 +383,7 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
         const title =
           card.metadataTitle || card.fileMetadata?.fileName || "Attachment";
         const documentUrl = card.fileUrl ?? card.url ?? null;
+
         return renderRow(
           <Text modifiers={[lineLimit(1)]}>{title}</Text>,
           leadingIcon("paperclip"),
@@ -424,15 +435,18 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
           card.fileMetadata?.fileName || card.metadataTitle || "Image";
         const imageDownloadUrl =
           card.fileUrl ?? card.thumbnailUrl ?? card.screenshotUrl ?? null;
+
         return renderRow(
           <Text modifiers={[lineLimit(1)]}>{imageTitle}</Text>,
           <PreviewBox>
             {mediaUrl ? (
-              <RNImage
-                resizeMode="cover"
-                source={{ uri: mediaUrl }}
-                style={{ width: 28, height: 28 }}
-              />
+              <RNHostView matchContents>
+                <RNImage
+                  resizeMode="cover"
+                  source={{ uri: mediaUrl }}
+                  style={{ height: 28, width: 28 }}
+                />
+              </RNHostView>
             ) : (
               leadingIcon("photo")
             )}
@@ -457,6 +471,7 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
           card.fileMetadata?.fileName || card.metadataTitle || "Video";
         const videoDownloadUrl =
           card.fileUrl ?? card.thumbnailUrl ?? card.screenshotUrl ?? null;
+
         return renderRow(
           <Text modifiers={[lineLimit(1)]}>{videoTitle}</Text>,
           leadingIcon("play.circle"),
@@ -515,6 +530,7 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
 
       case "quote": {
         const textContent = card.content || "Quote";
+
         return renderRow(
           <Text modifiers={[lineLimit(1)]}>{`"${textContent}"`}</Text>,
           leadingIcon("text.quote"),
@@ -538,6 +554,7 @@ const CardItem = memo(function CardItem({ card, onPress }: CardItemProps) {
 
       case "text": {
         const textContent = card.content || "Note";
+
         return renderRow(
           <Text modifiers={[lineLimit(1)]}>{textContent}</Text>,
           leadingIcon("textformat"),

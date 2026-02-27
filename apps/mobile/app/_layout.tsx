@@ -101,7 +101,7 @@ function RootNavigator() {
   if (isLoading) {
     return (
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(loading)" />
+        <Stack.Screen name="loading" />
       </Stack>
     );
   }

@@ -27,6 +27,7 @@ export default function SignUpScreen() {
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -44,7 +45,6 @@ export default function SignUpScreen() {
     []
   );
 
-  // Handle submission of sign-up form
   const onSignUpPress = async () => {
     if (isSubmitting) {
       return;
@@ -54,18 +54,23 @@ export default function SignUpScreen() {
     await waitForKeyboardToSettle();
 
     if (!(emailAddress.trim() && password.trim())) {
-      Alert.alert("Error", "Please fill in all fields.");
+      const message = "Please fill in all fields.";
+      setErrorMessage(message);
+      Alert.alert("Error", message);
       return;
     }
 
     if (password.length < 8) {
-      Alert.alert("Error", "Password must be at least 8 characters long.");
+      const message = "Password must be at least 8 characters long.";
+      setErrorMessage(message);
+      Alert.alert("Error", message);
       return;
     }
 
     const derivedName = emailAddress.trim().split("@")[0]?.trim() || "User";
 
     setIsSubmitting(true);
+    setErrorMessage(null);
 
     try {
       const response = await authClient.signUp.email({
@@ -73,34 +78,28 @@ export default function SignUpScreen() {
         password,
         name: derivedName,
       });
+
       if (response.error) {
-        Alert.alert(
-          "Sign Up Failed",
-          getAuthErrorMessage(
-            response.error,
-            "Failed to create account. Please try again."
-          )
+        const message = getAuthErrorMessage(
+          response.error,
+          "Failed to create account. Please try again."
         );
+        setErrorMessage(message);
+        Alert.alert("Sign Up Failed", message);
         return;
       }
-      if (response) {
-        Alert.alert(
-          "Verify your email",
-          "We just sent you a verification link. Please check your inbox to activate your account."
-        );
-      }
-    } catch (error) {
-      console.error(
-        "Sign up error:",
-        error instanceof Error ? error.message : error
-      );
+
       Alert.alert(
-        "Sign Up Failed",
-        getAuthErrorMessage(
-          error,
-          "Failed to create account. Please try again."
-        )
+        "Verify your email",
+        "We just sent you a verification link. Please check your inbox to activate your account."
       );
+    } catch (error) {
+      const message = getAuthErrorMessage(
+        error,
+        "Failed to create account. Please try again."
+      );
+      setErrorMessage(message);
+      Alert.alert("Sign Up Failed", message);
     } finally {
       setIsSubmitting(false);
     }
@@ -124,6 +123,17 @@ export default function SignUpScreen() {
             placeholder="Enter your password (min. 8 characters)"
           />
         </LabeledContent>
+
+        {errorMessage ? (
+          <Text
+            modifiers={[
+              foregroundStyle("red"),
+              font({ design: "rounded", size: 13 }),
+            ]}
+          >
+            {errorMessage}
+          </Text>
+        ) : null}
 
         <Button
           modifiers={[
