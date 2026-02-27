@@ -193,7 +193,9 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
       case "quote":
         return (
           <List modifiers={[listStyle("plain")]}>
-            <Text>{`"${textContent}"`}</Text>
+            <Text
+              modifiers={[font({ design: "serif" })]}
+            >{`"${textContent}"`}</Text>
           </List>
         );
       case "palette":
