@@ -7,19 +7,19 @@ export default function AuthLayout() {
       <Stack.Screen
         name="sign-in"
         options={{
+          presentation: "formSheet",
+          sheetGrabberVisible: true,
           headerShown: true,
           title: "Welcome Back",
-          headerBackTitle: "Back",
-          presentation: "modal",
         }}
       />
       <Stack.Screen
         name="sign-up"
         options={{
+          presentation: "formSheet",
+          sheetGrabberVisible: true,
           headerShown: true,
           title: "Create an Account",
-          headerBackTitle: "Back",
-          presentation: "modal",
         }}
       />
     </Stack>

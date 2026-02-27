@@ -3,11 +3,11 @@ import {
   Host,
   HStack,
   LabeledContent,
+  List,
   SecureField,
   Spacer,
   Text,
   TextField,
-  VStack,
 } from "@expo/ui/swift-ui";
 import {
   buttonStyle,
@@ -15,11 +15,14 @@ import {
   disabled,
   font,
   foregroundStyle,
-  padding,
+  listStyle,
+  scrollDisabled,
+  tint,
 } from "@expo/ui/swift-ui/modifiers";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Keyboard } from "react-native";
+import { colors } from "@/constants/colors";
 import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
@@ -106,8 +109,8 @@ export default function SignUpScreen() {
   };
 
   return (
-    <Host matchContents useViewportSizeMeasurement>
-      <VStack modifiers={[padding({ all: 24 })]} spacing={24}>
+    <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
+      <List modifiers={[listStyle("plain"), scrollDisabled()]}>
         <LabeledContent label="Email">
           <TextField
             autocorrection={false}
@@ -126,10 +129,7 @@ export default function SignUpScreen() {
 
         {errorMessage ? (
           <Text
-            modifiers={[
-              foregroundStyle("red"),
-              font({ design: "rounded", size: 13 }),
-            ]}
+            modifiers={[foregroundStyle("red"), font({ design: "rounded" })]}
           >
             {errorMessage}
           </Text>
@@ -137,26 +137,22 @@ export default function SignUpScreen() {
 
         <Button
           modifiers={[
-            buttonStyle("bordered"),
+            buttonStyle("borderedProminent"),
             controlSize("large"),
+            tint(colors.primary),
             disabled(isSubmitting),
           ]}
           onPress={onSignUpPress}
         >
-          <HStack alignment="center" spacing={10}>
+          <HStack>
             <Spacer />
-            <Text
-              modifiers={[
-                foregroundStyle({ type: "hierarchical", style: "primary" }),
-                font({ design: "rounded", weight: "medium" }),
-              ]}
-            >
+            <Text modifiers={[font({ design: "rounded", weight: "medium" })]}>
               {isSubmitting ? "Creating..." : "Create Account"}
             </Text>
             <Spacer />
           </HStack>
         </Button>
-      </VStack>
+      </List>
     </Host>
   );
 }

@@ -8,11 +8,12 @@ import {
   frame,
   lineLimit,
   padding,
+  tint,
 } from "@expo/ui/swift-ui/modifiers";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { router } from "expo-router";
 import React from "react";
-import { Alert, Platform, useColorScheme } from "react-native";
+import { Alert, Platform, PlatformColor, useColorScheme } from "react-native";
 import AppleLogo from "@/components/AppleLogo";
 import GoogleLogo from "@/components/GoogleLogo";
 import Logo from "@/components/Logo";
@@ -137,11 +138,7 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <Host
-      style={{
-        flex: 1,
-      }}
-    >
+    <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
       <VStack
         modifiers={[
           padding({ leading: 28, trailing: 28, top: 32, bottom: 12 }),
@@ -163,7 +160,7 @@ export default function OnboardingScreen() {
             modifiers={[
               foregroundStyle({ type: "hierarchical", style: "secondary" }),
               font({ design: "rounded", size: 16 }),
-              lineLimit(4),
+              lineLimit(5),
             ]}
           >
             Your personal everything management system. Organize, save, and
@@ -181,6 +178,7 @@ export default function OnboardingScreen() {
                   buttonStyle("bordered"),
                   controlSize("large"),
                   disabled(isGoogleLoading || isAppleLoading),
+                  tint(PlatformColor("label")),
                 ]}
                 onPress={onAppleSignInPress}
               >
@@ -190,13 +188,7 @@ export default function OnboardingScreen() {
                     <AppleLogo color={appleIconColor} />
                   </HStack>
                   <Text
-                    modifiers={[
-                      foregroundStyle({
-                        type: "hierarchical",
-                        style: "primary",
-                      }),
-                      font({ design: "rounded", weight: "medium" }),
-                    ]}
+                    modifiers={[font({ design: "rounded", weight: "medium" })]}
                   >
                     {isAppleLoading ? "Signing in..." : "Continue with Apple"}
                   </Text>
@@ -210,6 +202,7 @@ export default function OnboardingScreen() {
                 buttonStyle("bordered"),
                 controlSize("large"),
                 disabled(isGoogleLoading || isAppleLoading),
+                tint(PlatformColor("label")),
               ]}
               onPress={onGoogleSignInPress}
             >
@@ -219,10 +212,7 @@ export default function OnboardingScreen() {
                   <GoogleLogo />
                 </HStack>
                 <Text
-                  modifiers={[
-                    foregroundStyle({ type: "hierarchical", style: "primary" }),
-                    font({ design: "rounded", weight: "medium" }),
-                  ]}
+                  modifiers={[font({ design: "rounded", weight: "medium" })]}
                 >
                   {isGoogleLoading ? "Signing in..." : "Continue with Google"}
                 </Text>
@@ -235,16 +225,14 @@ export default function OnboardingScreen() {
                 buttonStyle("bordered"),
                 controlSize("large"),
                 disabled(isGoogleLoading || isAppleLoading),
+                tint(PlatformColor("label")),
               ]}
               onPress={() => router.push("/(auth)/sign-up")}
             >
               <HStack alignment="center" spacing={10}>
                 <Spacer />
                 <Text
-                  modifiers={[
-                    foregroundStyle({ type: "hierarchical", style: "primary" }),
-                    font({ design: "rounded", weight: "medium" }),
-                  ]}
+                  modifiers={[font({ design: "rounded", weight: "medium" })]}
                 >
                   Register with Email
                 </Text>
@@ -257,17 +245,13 @@ export default function OnboardingScreen() {
               buttonStyle("bordered"),
               controlSize("large"),
               disabled(isGoogleLoading || isAppleLoading),
+              tint(PlatformColor("label")),
             ]}
             onPress={() => router.push("/(auth)/sign-in")}
           >
             <HStack alignment="center" spacing={10}>
               <Spacer />
-              <Text
-                modifiers={[
-                  foregroundStyle({ type: "hierarchical", style: "primary" }),
-                  font({ design: "rounded", weight: "medium" }),
-                ]}
-              >
+              <Text modifiers={[font({ design: "rounded", weight: "medium" })]}>
                 Login with Email
               </Text>
               <Spacer />

@@ -3,11 +3,11 @@ import {
   Host,
   HStack,
   LabeledContent,
+  List,
   SecureField,
   Spacer,
   Text,
   TextField,
-  VStack,
 } from "@expo/ui/swift-ui";
 import {
   buttonStyle,
@@ -15,11 +15,14 @@ import {
   disabled,
   font,
   foregroundStyle,
-  padding,
+  listStyle,
+  scrollDisabled,
+  tint,
 } from "@expo/ui/swift-ui/modifiers";
 import { useRouter } from "expo-router";
 import React from "react";
 import { Alert } from "react-native";
+import { colors } from "@/constants/colors";
 import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
@@ -74,8 +77,8 @@ export default function SignInScreen() {
   };
 
   return (
-    <Host matchContents>
-      <VStack modifiers={[padding({ all: 24 })]} spacing={24}>
+    <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
+      <List modifiers={[listStyle("plain"), scrollDisabled()]}>
         <LabeledContent label="Email">
           <TextField
             autocorrection={false}
@@ -94,10 +97,7 @@ export default function SignInScreen() {
 
         {errorMessage ? (
           <Text
-            modifiers={[
-              foregroundStyle("red"),
-              font({ design: "rounded", size: 13 }),
-            ]}
+            modifiers={[foregroundStyle("red"), font({ design: "rounded" })]}
           >
             {errorMessage}
           </Text>
@@ -105,26 +105,22 @@ export default function SignInScreen() {
 
         <Button
           modifiers={[
-            buttonStyle("bordered"),
+            buttonStyle("borderedProminent"),
             controlSize("large"),
+            tint(colors.primary),
             disabled(isLoading || !emailAddress.trim() || !password.trim()),
           ]}
           onPress={onSignInPress}
         >
-          <HStack alignment="center" spacing={10}>
+          <HStack>
             <Spacer />
-            <Text
-              modifiers={[
-                foregroundStyle({ type: "hierarchical", style: "primary" }),
-                font({ design: "rounded", weight: "medium" }),
-              ]}
-            >
+            <Text modifiers={[font({ design: "rounded", weight: "medium" })]}>
               {isLoading ? "Signing in..." : "Sign In"}
             </Text>
             <Spacer />
           </HStack>
         </Button>
-      </VStack>
+      </List>
     </Host>
   );
 }
