@@ -1,28 +1,21 @@
 import {
-  Button,
   Host,
-  HStack,
   LabeledContent,
   List,
   SecureField,
-  Spacer,
   Text,
   TextField,
 } from "@expo/ui/swift-ui";
 import {
-  buttonStyle,
-  controlSize,
-  disabled,
   font,
   foregroundStyle,
   listStyle,
   scrollDisabled,
-  tint,
 } from "@expo/ui/swift-ui/modifiers";
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import React from "react";
-import { Alert } from "react-native";
-import { colors } from "@/constants/colors";
+import { Alert, PlatformColor, Pressable } from "react-native";
+import { IconSymbol } from "@/components/ui/IconSymbol";
 import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
@@ -32,6 +25,8 @@ export default function SignInScreen() {
   const [emailAddress, setEmailAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const canSubmit =
+    !isLoading && emailAddress.trim().length > 0 && password.trim().length > 0;
 
   const onSignInPress = async () => {
     if (isLoading) {
@@ -77,50 +72,64 @@ export default function SignInScreen() {
   };
 
   return (
-    <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
-      <List modifiers={[listStyle("plain"), scrollDisabled()]}>
-        <LabeledContent label="Email">
-          <TextField
-            autocorrection={false}
-            keyboardType="email-address"
-            onChangeText={setEmailAddress}
-            placeholder="Enter your email"
-          />
-        </LabeledContent>
+    <>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Pressable
+              accessibilityHint="Signs in with your email and password."
+              accessibilityLabel={isLoading ? "Signing in" : "Sign in"}
+              accessibilityRole="button"
+              disabled={!canSubmit}
+              hitSlop={8}
+              onPress={() => void onSignInPress()}
+            >
+              <IconSymbol
+                animationSpec={
+                  canSubmit
+                    ? {
+                        effect: {
+                          type: "bounce",
+                          direction: "up",
+                        },
+                      }
+                    : undefined
+                }
+                color={PlatformColor(canSubmit ? "label" : "tertiaryLabel")}
+                name={isLoading ? "hourglass" : "checkmark"}
+                weight={isLoading ? "regular" : "semibold"}
+              />
+            </Pressable>
+          ),
+        }}
+      />
+      <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
+        <List modifiers={[listStyle("plain"), scrollDisabled()]}>
+          <LabeledContent label="Email">
+            <TextField
+              autocorrection={false}
+              keyboardType="email-address"
+              onChangeText={setEmailAddress}
+              placeholder="Enter your email"
+            />
+          </LabeledContent>
 
-        <LabeledContent label="Password">
-          <SecureField
-            onChangeText={setPassword}
-            placeholder="Enter your password"
-          />
-        </LabeledContent>
+          <LabeledContent label="Password">
+            <SecureField
+              onChangeText={setPassword}
+              placeholder="Enter your password"
+            />
+          </LabeledContent>
 
-        {errorMessage ? (
-          <Text
-            modifiers={[foregroundStyle("red"), font({ design: "rounded" })]}
-          >
-            {errorMessage}
-          </Text>
-        ) : null}
-
-        <Button
-          modifiers={[
-            buttonStyle("borderedProminent"),
-            controlSize("large"),
-            tint(colors.primary),
-            disabled(isLoading || !emailAddress.trim() || !password.trim()),
-          ]}
-          onPress={onSignInPress}
-        >
-          <HStack>
-            <Spacer />
-            <Text modifiers={[font({ design: "rounded", weight: "medium" })]}>
-              {isLoading ? "Signing in..." : "Sign In"}
+          {errorMessage ? (
+            <Text
+              modifiers={[foregroundStyle("red"), font({ design: "rounded" })]}
+            >
+              {errorMessage}
             </Text>
-            <Spacer />
-          </HStack>
-        </Button>
-      </List>
-    </Host>
+          ) : null}
+        </List>
+      </Host>
+    </>
   );
 }

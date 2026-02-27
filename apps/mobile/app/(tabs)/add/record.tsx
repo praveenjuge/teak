@@ -140,6 +140,7 @@ export default function AddRecordScreen() {
                 }
                 accessibilityRole="button"
                 disabled={!canSaveRecording}
+                hitSlop={8}
                 onPress={() => void stopRecording()}
               >
                 <IconSymbol
