@@ -16,11 +16,16 @@ import {
 import { useMutation, useQuery } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
 import type { ReactNode } from "react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { buildWebUrl } from "@/lib/web-urls";
 
 const CARDS_BATCH_SIZE = 24;
+
+// Convex IDs are non-empty alphanumeric strings (with underscores).
+// This rejects obviously malformed values like spaces, slashes, or empty strings.
+const CONVEX_ID_PATTERN = /^[a-zA-Z0-9_]+$/;
 
 function DesktopUpgradeLink({
   href,
@@ -46,10 +51,45 @@ function DesktopUpgradeLink({
 }
 
 export function CardsPage() {
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const cardIdFromUrl = searchParams.get("card");
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(
+    cardIdFromUrl
+  );
   const [showTagManagementModal, setShowTagManagementModal] = useState(false);
   const [showMoreInfoModal, setShowMoreInfoModal] = useState(false);
   const [showNotesEditModal, setShowNotesEditModal] = useState(false);
+
+  const setCardQueryParam = useCallback(
+    (cardId: string | null, replace = false) => {
+      setSearchParams(
+        (prev) => {
+          const nextParams = new URLSearchParams(prev);
+          const currentCardId = nextParams.get("card");
+
+          if (cardId) {
+            if (currentCardId === cardId) {
+              return prev;
+            }
+            nextParams.set("card", cardId);
+          } else {
+            if (!currentCardId) {
+              return prev;
+            }
+            nextParams.delete("card");
+          }
+
+          return nextParams;
+        },
+        { replace }
+      );
+    },
+    [setSearchParams]
+  );
+
+  useEffect(() => {
+    setSelectedCardId(cardIdFromUrl);
+  }, [cardIdFromUrl]);
 
   const { results, status, loadMore } = usePaginatedQuery(
     api.cards.searchCardsPaginated,
@@ -57,9 +97,15 @@ export function CardsPage() {
     { initialNumItems: CARDS_BATCH_SIZE }
   );
 
+  const isValidCardId = selectedCardId
+    ? CONVEX_ID_PATTERN.test(selectedCardId)
+    : false;
+
   const selectedCard = useQuery(
     api.cards.getCard,
-    selectedCardId ? { id: selectedCardId } : "skip"
+    selectedCardId && isValidCardId
+      ? { id: selectedCardId as Id<"cards"> }
+      : "skip"
   );
 
   const cardModalActions = useCardModal(selectedCardId, { card: selectedCard });
@@ -73,21 +119,36 @@ export function CardsPage() {
   const hasMore = status === "CanLoadMore";
   const upgradeUrl = buildWebUrl("/settings");
 
-  const handleCardClick = useCallback((card: CardWithUrls) => {
-    setSelectedCardId(card._id);
-  }, []);
+  const handleCardClick = useCallback(
+    (card: CardWithUrls) => {
+      setSelectedCardId(card._id);
+      setCardQueryParam(card._id);
+    },
+    [setCardQueryParam]
+  );
 
-  const handleAddTags = useCallback((cardId: string) => {
-    setSelectedCardId(cardId);
-    setShowTagManagementModal(true);
-  }, []);
+  const handleAddTags = useCallback(
+    (cardId: string) => {
+      setSelectedCardId(cardId);
+      setCardQueryParam(cardId);
+      setShowTagManagementModal(true);
+    },
+    [setCardQueryParam]
+  );
 
   const handleModalClose = useCallback(() => {
     setSelectedCardId(null);
+    setCardQueryParam(null, true);
     setShowTagManagementModal(false);
     setShowMoreInfoModal(false);
     setShowNotesEditModal(false);
-  }, []);
+  }, [setCardQueryParam]);
+
+  useEffect(() => {
+    if (selectedCardId && (!isValidCardId || selectedCard === null)) {
+      handleModalClose();
+    }
+  }, [handleModalClose, isValidCardId, selectedCard, selectedCardId]);
 
   const handleDeleteCard = useCallback(
     async (cardId: string) => {

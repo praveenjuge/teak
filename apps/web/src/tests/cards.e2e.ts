@@ -207,6 +207,52 @@ test.describe("Card Modal", () => {
     await authHelper.signOut();
   });
 
+  test("syncs card modal state with URL", async ({ page }) => {
+    const authHelper = new AuthHelper(page);
+    const uiHelper = new UiHelper(page);
+
+    await authHelper.signInWithEmailAndPassword(email!, password!);
+
+    const cardContent = generateTestContent("Modal URL sync");
+    await uiHelper.createTextCard(cardContent);
+
+    await page.getByRole("main").getByText(cardContent).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get("card"))
+      .not.toBeNull();
+
+    await uiHelper.closeModal();
+    await expect(page.getByRole("dialog")).not.toBeVisible();
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get("card"))
+      .toBeNull();
+
+    await authHelper.signOut();
+  });
+
+  test("opens modal when deep-link URL is loaded", async ({ page }) => {
+    const authHelper = new AuthHelper(page);
+    const uiHelper = new UiHelper(page);
+
+    await authHelper.signInWithEmailAndPassword(email!, password!);
+
+    const cardContent = generateTestContent("Modal deep link");
+    await uiHelper.createTextCard(cardContent);
+
+    await page.getByRole("main").getByText(cardContent).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+
+    const deepLink = page.url();
+    await page.goto(deepLink);
+    await page.waitForLoadState("networkidle");
+
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByRole("dialog").getByText(cardContent)).toBeVisible();
+
+    await authHelper.signOut();
+  });
+
   test("shows card metadata in modal", async ({ page }) => {
     const authHelper = new AuthHelper(page);
     const uiHelper = new UiHelper(page);

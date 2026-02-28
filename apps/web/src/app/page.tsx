@@ -22,7 +22,8 @@ import { TagManagementModal } from "@teak/ui/modals";
 import { Authenticated, AuthLoading, useMutation } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CardModal } from "@/components/CardModal";
 import { DragOverlay } from "@/components/DragOverlay";
@@ -39,7 +40,13 @@ const SEARCH_TOKEN_SEPARATOR = /\s+/;
 const SEARCH_TOKEN_TRIM_PATTERN = /^[,.;:!?()[\]{}"']+|[,.;:!?()[\]{}"']+$/g;
 
 export default function HomePage() {
-  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const cardIdFromUrl = searchParams.get("card");
+  const [editingCardId, setEditingCardId] = useState<string | null>(
+    cardIdFromUrl
+  );
   const [tagManagementCardId, setTagManagementCardId] = useState<string | null>(
     null
   );
@@ -54,6 +61,33 @@ export default function HomePage() {
   const [showTrashOnly, setShowTrashOnly] = useState(false);
   const [timeFilter, setTimeFilter] = useState<TimeFilter | null>(null);
   const [localCards, setLocalCards] = useState<Doc<"cards">[]>([]);
+
+  const setCardUrlParam = useCallback(
+    (cardId: string | null, replace = false) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (cardId) {
+        params.set("card", cardId);
+      } else {
+        params.delete("card");
+      }
+
+      const nextQuery = params.toString();
+      const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+
+      if (replace) {
+        router.replace(nextUrl);
+        return;
+      }
+
+      router.push(nextUrl);
+    },
+    [pathname, router, searchParams]
+  );
+
+  useEffect(() => {
+    setEditingCardId(cardIdFromUrl);
+  }, [cardIdFromUrl]);
 
   const searchTerms = useMemo(
     () =>
@@ -618,19 +652,28 @@ export default function HomePage() {
   const handleCardClick = (card: CardWithUrls & Record<string, unknown>) => {
     metrics.modalOpened("card");
     setEditingCardId(card._id);
+    setCardUrlParam(card._id);
   };
 
   const handleEditCancel = () => {
     setEditingCardId(null);
+    setCardUrlParam(null, true);
+  };
+
+  const handleInvalidCard = () => {
+    setEditingCardId(null);
+    setCardUrlParam(null, true);
   };
 
   const handleCardTypeClick = (cardType: string) => {
     setEditingCardId(null);
+    setCardUrlParam(null, true);
     addFilter(cardType as CardType);
   };
 
   const handleTagClick = (tag: string) => {
     setEditingCardId(null);
+    setCardUrlParam(null, true);
     if (!keywordTags.includes(tag)) {
       setKeywordTags((prev) => [...prev, tag]);
     }
@@ -752,6 +795,7 @@ export default function HomePage() {
         cardId={editingCardId}
         onCancel={handleEditCancel}
         onCardTypeClick={handleCardTypeClick}
+        onInvalidCard={handleInvalidCard}
         onTagClick={handleTagClick}
         open={!!editingCardId}
       />
