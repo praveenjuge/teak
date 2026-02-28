@@ -212,7 +212,6 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
 
     return () => {
       isCancelled = true;
-      isProcessingRef.current = false;
     };
   }, [
     clearSharedPayloads,

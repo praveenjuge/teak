@@ -40,10 +40,10 @@ export function createIncomingShareSignature(
   return items
     .map((item) => {
       if (item.kind === "text") {
-        return `${item.id}|text|${item.content}`;
+        return `text|${item.content}`;
       }
 
-      return `${item.id}|file|${item.fileUri}|${item.fileName}|${item.mimeType}`;
+      return `file|${item.fileUri}|${item.fileName}|${item.mimeType}`;
     })
     .join("::");
 }

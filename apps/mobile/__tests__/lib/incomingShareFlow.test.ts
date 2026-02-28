@@ -78,7 +78,7 @@ describe("incoming-share flow helpers", () => {
 
   test("produces the same signature for duplicate payloads in session", () => {
     const payloadA = [createTextItem("item-1", "hello world")];
-    const payloadB = [createTextItem("item-1", "hello world")];
+    const payloadB = [createTextItem("item-2", "hello world")];
 
     const signatureA = createIncomingShareSignature(payloadA);
     const signatureB = createIncomingShareSignature(payloadB);
