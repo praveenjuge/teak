@@ -2,7 +2,7 @@
   "expo": {
     "name": "Teak",
     "slug": "teak",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -48,7 +48,27 @@
       "expo-asset",
       "expo-apple-authentication",
       "expo-video",
-      "expo-sharing"
+      [
+        "expo-sharing",
+        {
+          "ios": {
+            "enabled": true,
+            "extensionBundleIdentifier": "com.praveenjuge.teak.share-extension",
+            "appGroupId": "group.com.praveenjuge.teak",
+            "activationRule": {
+              "supportsText": true,
+              "supportsWebUrlWithMaxCount": 5,
+              "supportsImageWithMaxCount": 5,
+              "supportsMovieWithMaxCount": 5,
+              "supportsFileWithMaxCount": 5,
+              "supportsAttachmentsWithMaxCount": 5
+            }
+          },
+          "android": {
+            "enabled": false
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

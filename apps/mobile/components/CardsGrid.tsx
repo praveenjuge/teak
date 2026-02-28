@@ -95,7 +95,7 @@ const CardsGrid = memo(function CardsGrid({
     searchQuery || timeFilter ? "magnifyingglass" : "plus.circle";
 
   return (
-    <Host style={{ flex: 1 }} useViewportSizeMeasurement>
+    <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
       {cards === undefined ? (
         <VStack alignment="center" spacing={16}>
           <Spacer />

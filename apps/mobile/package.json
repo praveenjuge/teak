@@ -1,6 +1,6 @@
 {
   "name": "@teak/mobile",
-  "version": "0.0.1",
+  "version": "1.0.1",
   "main": "expo-router/entry",
   "scripts": {
     "build": "expo export --platform web",

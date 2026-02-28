@@ -59,20 +59,16 @@ function DefaultErrorFallback({
   retry: () => void;
 }) {
   return (
-    <Host style={{ flex: 1 }} useViewportSizeMeasurement>
+    <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
       <VStack alignment="center" spacing={16}>
         <Spacer />
-        <Text
-          modifiers={[
-            font({ design: "rounded", size: 20, weight: "semibold" }),
-          ]}
-        >
+        <Text modifiers={[font({ design: "rounded", weight: "semibold" })]}>
           Something went wrong
         </Text>
         <Text
           modifiers={[
             foregroundStyle({ type: "hierarchical", style: "secondary" }),
-            font({ design: "rounded", size: 16 }),
+            font({ design: "rounded" }),
             lineLimit(4),
           ]}
         >

@@ -9,16 +9,13 @@
       "distribution": "internal",
       "ios": {
         "simulator": true
-      },
-      "node": "22.0.0"
+      }
     },
     "preview": {
-      "distribution": "internal",
-      "node": "22.0.0"
+      "distribution": "internal"
     },
     "production": {
       "autoIncrement": true,
-      "node": "22.0.0",
       "env": {
         "SKIP_SIMPLE_GIT_HOOKS": "1"
       }

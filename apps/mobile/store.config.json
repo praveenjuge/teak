@@ -1,7 +1,7 @@
 {
   "configVersion": 0,
   "apple": {
-    "version": "1.0.0",
+    "version": "1.0.1",
     "copyright": "Praveen Juge. All rights reserved.",
     "release": {
       "automaticRelease": true

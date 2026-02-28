@@ -11,11 +11,11 @@ import {
   listStyle,
   scrollDisabled,
 } from "@expo/ui/swift-ui/modifiers";
-import { resolveTextCardInput } from "@teak/convex/shared";
 import { router, Stack } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { Alert, PlatformColor, Pressable } from "react-native";
 import { IconSymbol } from "@/components/ui/IconSymbol";
+import { createCardFromText } from "@/lib/createCardFromText";
 import {
   triggerSuccessHaptic,
   triggerValidationErrorHaptic,
@@ -50,11 +50,8 @@ export default function AddTextScreen() {
     setIsSavingCard(true);
 
     try {
-      const resolved = resolveTextCardInput({ content: trimmedContent });
-      await createCard({
-        content: resolved.content,
-        type: resolved.type === "link" ? resolved.type : undefined,
-        url: resolved.url,
+      await createCardFromText(trimmedContent, {
+        createCard,
       });
 
       void triggerSuccessHaptic();

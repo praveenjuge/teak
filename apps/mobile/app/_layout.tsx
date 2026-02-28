@@ -14,6 +14,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { colors } from "@/constants/colors";
+import { INCOMING_SHARE_SCREEN } from "@/lib/share/constants";
 import {
   ThemePreferenceProvider,
   useThemePreference,
@@ -85,6 +86,15 @@ function RootNavigator() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" />
+      <Stack.Screen
+        name={INCOMING_SHARE_SCREEN}
+        options={{
+          sheetGrabberVisible: true,
+          headerShown: true,
+          title: "Save to Teak",
+          presentation: "formSheet",
+        }}
+      />
       <Stack.Protected guard={isAuthenticated && !isLoading}>
         <Stack.Screen name="(tabs)" />
       </Stack.Protected>

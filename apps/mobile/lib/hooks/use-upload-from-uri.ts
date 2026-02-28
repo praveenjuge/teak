@@ -1,7 +1,9 @@
 import { useCallback } from "react";
 import { useFileUpload } from "@/lib/hooks/useFileUpload";
+import type { ShareUploadResult } from "@/lib/share/types";
+import { uploadFileFromUri as uploadFileFromUriHelper } from "@/lib/share/uploadFileFromUri";
 
-interface UploadFromUriParams {
+export interface UploadFromUriParams {
   additionalMetadata?: Record<string, unknown>;
   content: string;
   fileName: string;
@@ -53,7 +55,6 @@ export function useUploadFromUri({
   onError,
 }: UseUploadFromUriOptions = {}) {
   const { uploadFile, state } = useFileUpload({
-    onError: (error) => onError?.(normalizeError(error)),
     onSuccess: () => onSuccess?.(),
   });
 
@@ -64,21 +65,39 @@ export function useUploadFromUri({
       mimeType,
       content,
       additionalMetadata,
-    }: UploadFromUriParams) => {
+    }: UploadFromUriParams): Promise<ShareUploadResult> => {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30_000);
-        const response = await fetch(fileUri, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        const blob = await response.blob();
-        const file = new File([blob], fileName, { type: mimeType });
+        const result = await uploadFileFromUriHelper(
+          {
+            fileUri,
+            fileName,
+            mimeType,
+            content,
+            additionalMetadata,
+          },
+          { uploadFile }
+        );
 
-        await uploadFile(file, {
-          additionalMetadata,
-          content,
-        });
+        if (!result.success) {
+          onError?.({
+            code:
+              typeof result.errorCode === "string"
+                ? result.errorCode
+                : undefined,
+            message: result.error || "File upload failed.",
+          });
+        }
+
+        return result;
       } catch (error) {
-        onError?.(normalizeError(error));
+        const normalizedError = normalizeError(error);
+        onError?.(normalizedError);
+
+        return {
+          success: false,
+          error: normalizedError.message,
+          errorCode: normalizedError.code,
+        };
       }
     },
     [onError, uploadFile]
