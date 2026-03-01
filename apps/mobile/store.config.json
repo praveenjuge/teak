@@ -20,6 +20,7 @@
         ],
         "marketingUrl": "https://teakvault.com",
         "promoText": "Capture, organize, and access your creative inspiration anywhere.",
+        "releaseNotes": "NEW: Share content directly from other apps into Teak via the iOS Share Extension. NEW: Choose your preferred theme with light/dark mode support. IMPROVED: Enhanced haptic feedback throughout the app for a more responsive experience. IMPROVED: Better loading states and error handling in cards grid. IMPROVED: Refined UI with updated card previews, authentication screens, and accessibility. FIXED: Various bug fixes and performance improvements for a smoother experience.",
         "supportUrl": "https://teakvault.com/docs",
         "title": "Teak: Save Inspirations",
         "subtitle": "Your Design Inspiration Vault",
