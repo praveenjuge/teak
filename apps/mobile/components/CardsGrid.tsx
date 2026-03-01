@@ -62,25 +62,6 @@ const CardsGrid = memo(function CardsGrid({
     await convex.query(api.cards.searchCards, queryArgs);
   }, [convex, queryArgs]);
 
-  const handleDeleteBySwipe = useCallback(
-    (indices: number[]) => {
-      if (!cards?.length) {
-        return;
-      }
-
-      const descendingUniqueIndices = [...new Set(indices)].sort(
-        (a, b) => b - a
-      );
-      for (const index of descendingUniqueIndices) {
-        const card = cards[index];
-        if (card) {
-          void cardActions.handleDeleteCard(card._id);
-        }
-      }
-    },
-    [cardActions, cards]
-  );
-
   const handleCardTap = useCallback(() => {
     void triggerCardTapHaptic();
   }, []);
@@ -114,7 +95,7 @@ const CardsGrid = memo(function CardsGrid({
         />
       ) : (
         <List modifiers={[listStyle("plain"), refreshable(handleRefresh)]}>
-          <List.ForEach onDelete={handleDeleteBySwipe}>
+          <List.ForEach>
             {cards.map((card: Card) => (
               <Link
                 asChild

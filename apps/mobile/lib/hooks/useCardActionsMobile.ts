@@ -10,9 +10,6 @@ export function useCardActions() {
   return createCardActions(
     { permanentDeleteCard, updateCardField },
     {
-      onDeleteSuccess: (message) => {
-        Alert.alert("Success", message || "Card deleted successfully");
-      },
       onRestoreSuccess: (message) => {
         Alert.alert("Success", message || "Card restored successfully");
       },

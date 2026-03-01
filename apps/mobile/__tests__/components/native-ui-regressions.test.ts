@@ -27,11 +27,12 @@ const addUploadPath = join(
   "../../../mobile/components/add/upload-file-actions-section.tsx"
 );
 
-test("home cards list keeps native refresh, swipe delete, and link navigation", () => {
+test("home cards list keeps native refresh and link navigation without swipe delete", () => {
   const source = readFileSync(cardsGridPath, "utf8");
 
   expect(source).toContain("refreshable(handleRefresh)");
-  expect(source).toContain("<List.ForEach onDelete={handleDeleteBySwipe}>");
+  expect(source).toContain("<List.ForEach>");
+  expect(source.includes("onDelete={handleDeleteBySwipe}")).toBe(false);
   expect(source).toContain("<Link");
   expect(source).toContain("asChild");
   expect(source.includes("router.push(")).toBe(false);
