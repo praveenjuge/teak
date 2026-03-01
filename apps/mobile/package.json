@@ -1,6 +1,6 @@
 {
   "name": "@teak/mobile",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "main": "expo-router/entry",
   "scripts": {
     "build": "expo export --platform web",
@@ -12,7 +12,9 @@
     "test": "bun test __tests__ --coverage --dots",
     "typecheck": "tsc --noEmit",
     "build:local": "eas build --platform ios --local",
-    "build:submit": "eas submit --platform ios"
+    "build:submit": "eas submit --platform ios",
+    "metadata:pull": "eas metadata:pull",
+    "metadata:push": "eas metadata:push"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.6",
