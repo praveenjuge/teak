@@ -1,11 +1,59 @@
+# Keep EAS archive aligned with mobile .gitignore.
+# Note: .easignore overrides .gitignore, so these must be repeated here.
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+package-lock.json
+
+/ios
+/android
+
+# Local binary artifact
+build-*.ipa
+
 # Avoid recursive symlink walks from the local @teak/convex dependency.
 node_modules/@teak/convex/**/node_modules/**
 node_modules/@teak/convex/**/.old-*/**
-node_modules/@teak/convex/**/.old-*
+node_modules/@teak/convex/*_/.old-_
 
 # The mobile app does not need other monorepo apps/packages bundled.
-node_modules/@teak/convex/extension/**
-node_modules/@teak/convex/docs/**
 node_modules/@teak/convex/src/**
 node_modules/@teak/convex/public/**
 node_modules/@teak/convex/.next/**
+node_modules/@teak/desktop/**
+node_modules/@teak/extension/**
+node_modules/@teak/docs/**
+node_modules/@teak/web/**
