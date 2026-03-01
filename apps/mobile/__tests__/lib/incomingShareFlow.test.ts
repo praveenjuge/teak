@@ -15,6 +15,22 @@ function createTextItem(id: string, content: string): NormalizedShareItem {
   };
 }
 
+function createFileItem(
+  id: string,
+  fileUri: string,
+  fileName: string
+): NormalizedShareItem {
+  return {
+    id,
+    source: "resolved",
+    kind: "file",
+    content: fileName,
+    fileName,
+    fileUri,
+    mimeType: "image/jpeg",
+  };
+}
+
 describe("incoming-share flow helpers", () => {
   test("supports resolving -> saving -> saved transition sequence", () => {
     const resolvingStatus = getPreImportStatus({
@@ -79,6 +95,20 @@ describe("incoming-share flow helpers", () => {
   test("produces the same signature for duplicate payloads in session", () => {
     const payloadA = [createTextItem("item-1", "hello world")];
     const payloadB = [createTextItem("item-2", "hello world")];
+
+    const signatureA = createIncomingShareSignature(payloadA);
+    const signatureB = createIncomingShareSignature(payloadB);
+
+    expect(signatureA).toBe(signatureB);
+  });
+
+  test("keeps file signatures stable across re-materialized payload arrays", () => {
+    const payloadA = [
+      createFileItem("item-1", "file:///tmp/photo.jpg", "photo.jpg"),
+    ];
+    const payloadB = [
+      createFileItem("item-2", "file:///tmp/photo.jpg", "photo.jpg"),
+    ];
 
     const signatureA = createIncomingShareSignature(payloadA);
     const signatureB = createIncomingShareSignature(payloadB);

@@ -16,7 +16,10 @@ import {
   getPreImportStatus,
 } from "@/lib/share/incomingShareFlow";
 import { normalizeIncomingSharePayloads } from "@/lib/share/normalizeIncomingShare";
-import type { IncomingShareStatus } from "@/lib/share/types";
+import type {
+  IncomingShareStatus,
+  NormalizedShareItem,
+} from "@/lib/share/types";
 
 export interface UseIncomingShareImportResult {
   errorDetail: string | null;
@@ -42,7 +45,13 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
   const processedSignatureRef = useRef("");
   const authRequiredHandledRef = useRef(false);
   const isProcessingRef = useRef(false);
+  const isMountedRef = useRef(true);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearSharedPayloadsRef = useRef<() => void>(() => {});
+  const createCardRef = useRef(createCard);
+  const normalizedItemsRef = useRef<NormalizedShareItem[]>([]);
+  const uploadFromUriRef = useRef(uploadFromUri);
+  const routerRef = useRef(router);
 
   const {
     clearSharedPayloads,
@@ -61,6 +70,8 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
       }),
     [resolvedSharedPayloads, sharedPayloads]
   );
+  const normalizedItemCount = normalized.items.length;
+  const shareResolveErrorMessage = shareResolveError?.message ?? null;
 
   const shareSignature = useMemo(
     () => createIncomingShareSignature(normalized.items),
@@ -71,21 +82,44 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
     ? INCOMING_SHARE_HOME_ROUTE
     : INCOMING_SHARE_AUTH_ROUTE;
 
-  const clearAndReplace = useCallback(
-    (route: Href) => {
-      clearSharedPayloads();
-      router.replace(route);
-    },
-    [clearSharedPayloads, router]
-  );
+  useEffect(() => {
+    clearSharedPayloadsRef.current = clearSharedPayloads;
+  }, [clearSharedPayloads]);
+
+  useEffect(() => {
+    createCardRef.current = createCard;
+  }, [createCard]);
+
+  useEffect(() => {
+    normalizedItemsRef.current = normalized.items;
+  }, [normalized.items]);
+
+  useEffect(() => {
+    uploadFromUriRef.current = uploadFromUri;
+  }, [uploadFromUri]);
+
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
+
+  const clearAndCloseTo = useCallback((route: Href) => {
+    clearSharedPayloadsRef.current();
+
+    if (routerRef.current.canDismiss()) {
+      routerRef.current.dismissTo(route);
+      return;
+    }
+
+    routerRef.current.replace(route);
+  }, []);
 
   const handleClose = useCallback(() => {
-    clearAndReplace(closeRoute);
-  }, [clearAndReplace, closeRoute]);
+    clearAndCloseTo(closeRoute);
+  }, [clearAndCloseTo, closeRoute]);
 
   const handleOpenLogin = useCallback(() => {
-    clearAndReplace(INCOMING_SHARE_AUTH_ROUTE);
-  }, [clearAndReplace]);
+    clearAndCloseTo(INCOMING_SHARE_AUTH_ROUTE);
+  }, [clearAndCloseTo]);
 
   useEffect(() => {
     refreshSharePayloads();
@@ -93,6 +127,8 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
 
   useEffect(
     () => () => {
+      isMountedRef.current = false;
+
       if (successTimeoutRef.current) {
         clearTimeout(successTimeoutRef.current);
       }
@@ -106,17 +142,17 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
   // already been cleared.
   useEffect(() => {
     if (status === "empty" && !isResolving && !isLoading) {
-      clearAndReplace(closeRoute);
+      clearAndCloseTo(closeRoute);
     }
-  }, [status, isResolving, isLoading, clearAndReplace, closeRoute]);
+  }, [status, isResolving, isLoading, clearAndCloseTo, closeRoute]);
 
   useEffect(() => {
     const preImportStatus = getPreImportStatus({
       isLoadingAuth: isLoading,
       isResolving,
       isAuthenticated,
-      normalizedItemCount: normalized.items.length,
-      hasResolveError: Boolean(shareResolveError),
+      normalizedItemCount,
+      hasResolveError: shareResolveErrorMessage !== null,
     });
 
     if (preImportStatus === "resolving") {
@@ -134,7 +170,7 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
 
     if (preImportStatus === "error") {
       setErrorDetail(
-        shareResolveError?.message ?? "Failed to read shared content."
+        shareResolveErrorMessage ?? "Failed to read shared content."
       );
       setStatus("error");
       return;
@@ -144,7 +180,7 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
       authRequiredHandledRef.current = true;
 
       if (processedSignatureRef.current !== shareSignature) {
-        clearSharedPayloads();
+        clearSharedPayloadsRef.current();
         processedSignatureRef.current = shareSignature;
       }
 
@@ -161,7 +197,6 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
       return;
     }
 
-    let isCancelled = false;
     isProcessingRef.current = true;
     setErrorDetail(null);
     setStatus("saving");
@@ -169,22 +204,22 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
     void (async () => {
       try {
         const importResult = await importIncomingShareItems(
-          normalized.items,
+          normalizedItemsRef.current,
           {
-            createCard,
-            uploadFileFromUri: uploadFromUri,
+            createCard: createCardRef.current,
+            uploadFileFromUri: uploadFromUriRef.current,
           },
           {
             isAuthenticated: true,
           }
         );
 
-        if (isCancelled) {
+        if (!isMountedRef.current) {
           return;
         }
 
         processedSignatureRef.current = shareSignature;
-        clearSharedPayloads();
+        clearSharedPayloadsRef.current();
 
         const postImportStatus = getPostImportStatus(importResult);
         setStatus(postImportStatus);
@@ -194,12 +229,15 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
         }
 
         if (postImportStatus === "saved") {
+          if (successTimeoutRef.current) {
+            clearTimeout(successTimeoutRef.current);
+          }
           successTimeoutRef.current = setTimeout(() => {
-            router.replace(INCOMING_SHARE_HOME_ROUTE);
+            clearAndCloseTo(INCOMING_SHARE_HOME_ROUTE);
           }, INCOMING_SHARE_SUCCESS_REDIRECT_DELAY_MS);
         }
       } catch (error) {
-        if (!isCancelled) {
+        if (isMountedRef.current) {
           setErrorDetail(
             getErrorMessage(error, "Shared content could not be saved.")
           );
@@ -209,21 +247,14 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
         isProcessingRef.current = false;
       }
     })();
-
-    return () => {
-      isCancelled = true;
-    };
   }, [
-    clearSharedPayloads,
-    createCard,
+    clearAndCloseTo,
     isAuthenticated,
     isLoading,
     isResolving,
-    normalized.items,
-    router,
-    shareResolveError,
+    normalizedItemCount,
+    shareResolveErrorMessage,
     shareSignature,
-    uploadFromUri,
   ]);
 
   return {
