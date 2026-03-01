@@ -38,14 +38,17 @@ test("home cards list keeps native refresh and link navigation without swipe del
   expect(source.includes("router.push(")).toBe(false);
 });
 
-test("home cards list uses paginated query with 20-item first page and explicit load more", () => {
+test("home cards list uses paginated query with near-bottom auto load", () => {
   const source = readFileSync(cardsGridPath, "utf8");
 
   expect(source).toContain("usePaginatedQuery(");
   expect(source).toContain("api.cards.searchCardsPaginated");
   expect(source).toContain("const PAGE_SIZE = 20");
   expect(source).toContain("initialNumItems: PAGE_SIZE");
-  expect(source).toContain(">Load more<");
+  expect(source).toContain("AUTO_LOAD_THRESHOLD_FROM_END = 5");
+  expect(source).toContain("onAppear(handleAutoLoadMore)");
+  expect(source).toContain("loadMore(PAGE_SIZE)");
+  expect(source.includes(">Load more<")).toBe(false);
 });
 
 test("settings keeps native labeled rows and segmented appearance picker", () => {

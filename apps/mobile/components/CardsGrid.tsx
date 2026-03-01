@@ -1,21 +1,19 @@
 import {
-  Button,
   ContentUnavailableView,
   Host,
   HStack,
   List,
   ProgressView,
   Spacer,
-  Text,
   VStack,
 } from "@expo/ui/swift-ui";
-import { listStyle, refreshable } from "@expo/ui/swift-ui/modifiers";
+import { listStyle, onAppear, refreshable } from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { parseTimeSearchQuery } from "@teak/convex/shared";
 import { useConvex, usePaginatedQuery } from "convex/react";
 import { Link } from "expo-router";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { triggerCardTapHaptic } from "@/lib/haptics";
 import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
 import { CardItem } from "./CardItem";
@@ -41,6 +39,7 @@ interface SearchCardsPaginatedArgs {
 }
 
 const PAGE_SIZE = 20;
+const AUTO_LOAD_THRESHOLD_FROM_END = 5;
 
 interface PaginatedCardsListProps {
   description: string;
@@ -71,6 +70,20 @@ function PaginatedCardsList({
   const isLoadingFirstPage = status === "LoadingFirstPage";
   const isLoadingMore = status === "LoadingMore";
   const canLoadMore = status === "CanLoadMore";
+  const lastAutoLoadAtCount = useRef<number | null>(null);
+
+  const handleAutoLoadMore = useCallback(() => {
+    if (!canLoadMore) {
+      return;
+    }
+
+    if (lastAutoLoadAtCount.current === results.length) {
+      return;
+    }
+
+    lastAutoLoadAtCount.current = results.length;
+    loadMore(PAGE_SIZE);
+  }, [canLoadMore, loadMore, results.length]);
 
   if (isLoadingFirstPage && results.length === 0) {
     return (
@@ -99,24 +112,33 @@ function PaginatedCardsList({
   return (
     <List modifiers={[listStyle("plain"), refreshable(onRefresh)]}>
       <List.ForEach>
-        {results.map((card: Card) => (
-          <Link
-            asChild
-            href={{
-              params: { id: card._id },
-              pathname: "/(tabs)/(home)/card/[id]",
-            }}
-            key={card._id}
-          >
-            <CardItem
-              card={card}
-              onDeleteRequest={() =>
-                void cardActions.handleDeleteCard(card._id)
-              }
-              onPress={handleCardTap}
-            />
-          </Link>
-        ))}
+        {results.map((card: Card, index) => {
+          const isNearBottom =
+            index >= Math.max(0, results.length - AUTO_LOAD_THRESHOLD_FROM_END);
+
+          return (
+            <VStack
+              key={card._id}
+              modifiers={isNearBottom ? [onAppear(handleAutoLoadMore)] : []}
+            >
+              <Link
+                asChild
+                href={{
+                  params: { id: card._id },
+                  pathname: "/(tabs)/(home)/card/[id]",
+                }}
+              >
+                <CardItem
+                  card={card}
+                  onDeleteRequest={() =>
+                    void cardActions.handleDeleteCard(card._id)
+                  }
+                  onPress={handleCardTap}
+                />
+              </Link>
+            </VStack>
+          );
+        })}
       </List.ForEach>
 
       {isLoadingMore ? (
@@ -125,16 +147,6 @@ function PaginatedCardsList({
           <ProgressView />
           <Spacer />
         </HStack>
-      ) : null}
-
-      {canLoadMore ? (
-        <Button onPress={() => loadMore(PAGE_SIZE)}>
-          <HStack alignment="center" spacing={8}>
-            <Spacer />
-            <Text>Load more</Text>
-            <Spacer />
-          </HStack>
-        </Button>
       ) : null}
     </List>
   );
