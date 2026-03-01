@@ -85,7 +85,12 @@ function RootNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(auth)" />
+      {/* Auth routes - only accessible when NOT authenticated */}
+      <Stack.Protected guard={!isAuthenticated}>
+        <Stack.Screen name="(auth)" />
+      </Stack.Protected>
+
+      {/* Share extension - accessible to all */}
       <Stack.Screen
         name={INCOMING_SHARE_SCREEN}
         options={{
@@ -95,7 +100,9 @@ function RootNavigator() {
           presentation: "formSheet",
         }}
       />
-      <Stack.Protected guard={isAuthenticated && !isLoading}>
+
+      {/* Protected routes - only accessible when authenticated */}
+      <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(tabs)" />
       </Stack.Protected>
     </Stack>
