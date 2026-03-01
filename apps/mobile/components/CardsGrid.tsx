@@ -1,20 +1,21 @@
 import {
+  Button,
   ContentUnavailableView,
   Host,
   HStack,
   List,
   ProgressView,
   Spacer,
+  Text,
   VStack,
 } from "@expo/ui/swift-ui";
 import { listStyle, refreshable } from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { parseTimeSearchQuery } from "@teak/convex/shared";
-import { useConvex } from "convex/react";
-import { useQuery } from "convex-helpers/react/cache/hooks";
+import { useConvex, usePaginatedQuery } from "convex/react";
 import { Link } from "expo-router";
-import { memo, useCallback, useMemo } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { triggerCardTapHaptic } from "@/lib/haptics";
 import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
 import { CardItem } from "./CardItem";
@@ -30,10 +31,122 @@ interface CardsGridProps {
   selectedType?: string;
 }
 
+interface SearchCardsPaginatedArgs {
+  createdAtRange?: {
+    end: number;
+    start: number;
+  };
+  searchQuery?: string;
+  types?: string[];
+}
+
+const PAGE_SIZE = 20;
+
+interface PaginatedCardsListProps {
+  description: string;
+  emptyIcon: string;
+  emptyTitle: string;
+  onRefresh: () => Promise<void>;
+  queryArgs: SearchCardsPaginatedArgs;
+}
+
+function PaginatedCardsList({
+  description,
+  emptyIcon,
+  emptyTitle,
+  onRefresh,
+  queryArgs,
+}: PaginatedCardsListProps) {
+  const cardActions = useCardActions();
+  const { loadMore, results, status } = usePaginatedQuery(
+    api.cards.searchCardsPaginated,
+    queryArgs,
+    { initialNumItems: PAGE_SIZE }
+  );
+
+  const handleCardTap = useCallback(() => {
+    void triggerCardTapHaptic();
+  }, []);
+
+  const isLoadingFirstPage = status === "LoadingFirstPage";
+  const isLoadingMore = status === "LoadingMore";
+  const canLoadMore = status === "CanLoadMore";
+
+  if (isLoadingFirstPage && results.length === 0) {
+    return (
+      <VStack alignment="center" spacing={16}>
+        <Spacer />
+        <HStack alignment="center" spacing={0}>
+          <Spacer />
+          <ProgressView />
+          <Spacer />
+        </HStack>
+        <Spacer />
+      </VStack>
+    );
+  }
+
+  if (results.length === 0) {
+    return (
+      <ContentUnavailableView
+        description={description}
+        systemImage={emptyIcon as any}
+        title={emptyTitle}
+      />
+    );
+  }
+
+  return (
+    <List modifiers={[listStyle("plain"), refreshable(onRefresh)]}>
+      <List.ForEach>
+        {results.map((card: Card) => (
+          <Link
+            asChild
+            href={{
+              params: { id: card._id },
+              pathname: "/(tabs)/(home)/card/[id]",
+            }}
+            key={card._id}
+          >
+            <CardItem
+              card={card}
+              onDeleteRequest={() =>
+                void cardActions.handleDeleteCard(card._id)
+              }
+              onPress={handleCardTap}
+            />
+          </Link>
+        ))}
+      </List.ForEach>
+
+      {isLoadingMore ? (
+        <HStack alignment="center" spacing={8}>
+          <Spacer />
+          <ProgressView />
+          <Spacer />
+        </HStack>
+      ) : null}
+
+      {canLoadMore ? (
+        <Button onPress={() => loadMore(PAGE_SIZE)}>
+          <HStack alignment="center" spacing={8}>
+            <Spacer />
+            <Text>Load more</Text>
+            <Spacer />
+          </HStack>
+        </Button>
+      ) : null}
+    </List>
+  );
+}
+
 const CardsGrid = memo(function CardsGrid({
   searchQuery,
   selectedType,
 }: CardsGridProps) {
+  const convex = useConvex();
+  const [refreshVersion, setRefreshVersion] = useState(0);
+
   const timeFilter = useMemo(() => {
     if (!searchQuery?.trim()) {
       return null;
@@ -48,23 +161,24 @@ const CardsGrid = memo(function CardsGrid({
   const queryArgs = useMemo(
     () => ({
       createdAtRange: timeFilter?.range,
-      limit: 100,
       searchQuery: effectiveSearchQuery,
-      types: selectedType ? [selectedType as any] : undefined,
+      types: selectedType ? [selectedType] : undefined,
     }),
     [effectiveSearchQuery, selectedType, timeFilter?.range]
   );
-  const cards = useQuery(api.cards.searchCards, queryArgs);
-  const convex = useConvex();
-  const cardActions = useCardActions();
+
+  const queryKey = useMemo(
+    () => JSON.stringify({ queryArgs, refreshVersion }),
+    [queryArgs, refreshVersion]
+  );
 
   const handleRefresh = useCallback(async () => {
-    await convex.query(api.cards.searchCards, queryArgs);
+    await convex.query(api.cards.searchCardsPaginated, {
+      ...queryArgs,
+      paginationOpts: { cursor: null, numItems: PAGE_SIZE },
+    });
+    setRefreshVersion((value) => value + 1);
   }, [convex, queryArgs]);
-
-  const handleCardTap = useCallback(() => {
-    void triggerCardTapHaptic();
-  }, []);
 
   const emptyTitle = searchQuery ? "No cards found" : "No cards yet";
   const description = timeFilter
@@ -77,46 +191,14 @@ const CardsGrid = memo(function CardsGrid({
 
   return (
     <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
-      {cards === undefined ? (
-        <VStack alignment="center" spacing={16}>
-          <Spacer />
-          <HStack alignment="center" spacing={0}>
-            <Spacer />
-            <ProgressView />
-            <Spacer />
-          </HStack>
-          <Spacer />
-        </VStack>
-      ) : cards.length === 0 ? (
-        <ContentUnavailableView
-          description={description}
-          systemImage={emptyIcon as any}
-          title={emptyTitle}
-        />
-      ) : (
-        <List modifiers={[listStyle("plain"), refreshable(handleRefresh)]}>
-          <List.ForEach>
-            {cards.map((card: Card) => (
-              <Link
-                asChild
-                href={{
-                  params: { id: card._id },
-                  pathname: "/(tabs)/(home)/card/[id]",
-                }}
-                key={card._id}
-              >
-                <CardItem
-                  card={card}
-                  onDeleteRequest={() =>
-                    void cardActions.handleDeleteCard(card._id)
-                  }
-                  onPress={handleCardTap}
-                />
-              </Link>
-            ))}
-          </List.ForEach>
-        </List>
-      )}
+      <PaginatedCardsList
+        description={description}
+        emptyIcon={emptyIcon}
+        emptyTitle={emptyTitle}
+        key={queryKey}
+        onRefresh={handleRefresh}
+        queryArgs={queryArgs}
+      />
     </Host>
   );
 });

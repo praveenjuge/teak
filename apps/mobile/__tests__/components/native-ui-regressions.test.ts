@@ -30,12 +30,22 @@ const addUploadPath = join(
 test("home cards list keeps native refresh and link navigation without swipe delete", () => {
   const source = readFileSync(cardsGridPath, "utf8");
 
-  expect(source).toContain("refreshable(handleRefresh)");
+  expect(source).toContain("refreshable(onRefresh)");
   expect(source).toContain("<List.ForEach>");
   expect(source.includes("onDelete={handleDeleteBySwipe}")).toBe(false);
   expect(source).toContain("<Link");
   expect(source).toContain("asChild");
   expect(source.includes("router.push(")).toBe(false);
+});
+
+test("home cards list uses paginated query with 20-item first page and explicit load more", () => {
+  const source = readFileSync(cardsGridPath, "utf8");
+
+  expect(source).toContain("usePaginatedQuery(");
+  expect(source).toContain("api.cards.searchCardsPaginated");
+  expect(source).toContain("const PAGE_SIZE = 20");
+  expect(source).toContain("initialNumItems: PAGE_SIZE");
+  expect(source).toContain(">Load more<");
 });
 
 test("settings keeps native labeled rows and segmented appearance picker", () => {
@@ -53,6 +63,12 @@ test("root layout wires save feedback as form sheet route", () => {
 
   expect(source.includes('name="feedback/save-status"')).toBe(false);
   expect(source.includes("FeedbackSheetCoordinator")).toBe(false);
+  expect(source).toContain(
+    "const { isLoaded, resolvedScheme } = useThemePreference()"
+  );
+  expect(source).toContain("if (!isLoaded)");
+  expect(source).toContain("requestAnimationFrame(() =>");
+  expect(source).not.toContain("if (!isLoading) {\n      hideSplashScreen();");
 });
 
 test("add flows no longer use save feedback sheet helpers", () => {

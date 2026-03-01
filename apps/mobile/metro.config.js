@@ -14,4 +14,13 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, "node_modules"),
 ];
 
+config.transformer = {
+  ...config.transformer,
+  getTransformOptions: async () => ({
+    transform: {
+      inlineRequires: true,
+    },
+  }),
+};
+
 export default config;

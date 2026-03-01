@@ -11,7 +11,7 @@ import {
   preventAutoHideAsync,
 } from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { colors } from "@/constants/colors";
 import { INCOMING_SHARE_SCREEN } from "@/lib/share/constants";
@@ -23,6 +23,22 @@ import ConvexClientProvider from "../ConvexClientProvider";
 
 void preventAutoHideAsync();
 
+const customDefaultTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: colors.primary,
+  },
+};
+
+const customDarkTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: colors.primary,
+  },
+};
+
 export default function RootLayout() {
   return (
     <ThemePreferenceProvider>
@@ -32,31 +48,32 @@ export default function RootLayout() {
 }
 
 function RootLayoutContent() {
-  const { resolvedScheme } = useThemePreference();
+  const { isLoaded, resolvedScheme } = useThemePreference();
   const isDark = resolvedScheme === "dark";
+  const hasHiddenSplash = useRef(false);
 
-  // Create custom theme with our primary color
-  const CustomDefaultTheme = {
-    ...DefaultTheme,
-    colors: {
-      ...DefaultTheme.colors,
-      primary: colors.primary,
-    },
-  };
+  useEffect(() => {
+    if (!isLoaded || hasHiddenSplash.current) {
+      return;
+    }
 
-  const CustomDarkTheme = {
-    ...DarkTheme,
-    colors: {
-      ...DarkTheme.colors,
-      primary: colors.primary,
-    },
-  };
+    const frame = requestAnimationFrame(() => {
+      void hideSplashScreen();
+      hasHiddenSplash.current = true;
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [isLoaded]);
+
+  if (!isLoaded) {
+    return null;
+  }
 
   return (
     <ErrorBoundary>
       <ConvexClientProvider>
         <ConvexQueryCacheProvider>
-          <ThemeProvider value={isDark ? CustomDarkTheme : CustomDefaultTheme}>
+          <ThemeProvider value={isDark ? customDarkTheme : customDefaultTheme}>
             <RootNavigator />
             <StatusBar style={isDark ? "light" : "dark"} />
           </ThemeProvider>
@@ -68,12 +85,6 @@ function RootLayoutContent() {
 
 function RootNavigator() {
   const { isLoading, isAuthenticated } = useConvexAuth();
-
-  useEffect(() => {
-    if (!isLoading) {
-      hideSplashScreen();
-    }
-  }, [isLoading]);
 
   if (isLoading) {
     return (

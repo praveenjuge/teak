@@ -20,11 +20,13 @@ import type { Doc } from "@teak/convex/_generated/dataModel";
 import * as Clipboard from "expo-clipboard";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
-import { memo, type ReactNode, useMemo, useState } from "react";
+import { memo, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Alert, Platform, Image as RNImage } from "react-native";
 import { colors } from "@/constants/colors";
 
 const WWW_PREFIX_REGEX = /^www\./;
+const FAVICON_RENDER_DELAY_MS = 250;
+const failedFaviconHosts = new Set<string>();
 
 type Card = Doc<"cards"> & {
   fileUrl?: string;
@@ -82,9 +84,33 @@ const Row = ({
   </ContextMenu>
 );
 
-const Favicon = ({ url }: { url?: string }) => {
+const Favicon = ({ hostname, url }: { hostname?: string; url?: string }) => {
   const [hasError, setHasError] = useState(false);
-  const showFallback = !url || hasError;
+  const [isReadyToRenderRemote, setIsReadyToRenderRemote] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+    setIsReadyToRenderRemote(false);
+
+    if (!(url && hostname) || failedFaviconHosts.has(hostname)) {
+      return;
+    }
+
+    const delay = setTimeout(() => {
+      setIsReadyToRenderRemote(true);
+    }, FAVICON_RENDER_DELAY_MS);
+
+    return () => clearTimeout(delay);
+  }, [hostname, url]);
+
+  const shouldShowRemoteImage = Boolean(
+    url &&
+      hostname &&
+      !hasError &&
+      isReadyToRenderRemote &&
+      !failedFaviconHosts.has(hostname)
+  );
+  const showFallback = !shouldShowRemoteImage;
 
   return (
     <VStack alignment="center" modifiers={[frame({ height: 28, width: 28 })]}>
@@ -98,7 +124,12 @@ const Favicon = ({ url }: { url?: string }) => {
       ) : (
         <RNHostView matchContents>
           <RNImage
-            onError={() => setHasError(true)}
+            onError={() => {
+              setHasError(true);
+              if (hostname) {
+                failedFaviconHosts.add(hostname);
+              }
+            }}
             resizeMode="cover"
             source={{ uri: url }}
             style={{
@@ -358,7 +389,7 @@ const CardItem = memo(function CardItem({
 
         return renderRow(
           <Text modifiers={[lineLimit(1)]}>{linkTitle}</Text>,
-          <Favicon url={linkMeta?.favicon} />,
+          <Favicon hostname={linkMeta?.hostname} url={linkMeta?.favicon} />,
           undefined,
           [
             <Button

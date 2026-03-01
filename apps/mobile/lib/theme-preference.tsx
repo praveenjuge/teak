@@ -1,4 +1,3 @@
-import * as SecureStore from "expo-secure-store";
 import type React from "react";
 import {
   createContext,
@@ -9,8 +8,11 @@ import {
   useState,
 } from "react";
 import { Appearance, type ColorSchemeName, useColorScheme } from "react-native";
-
-type ThemePreference = "system" | "light" | "dark";
+import {
+  loadThemePreference,
+  persistThemePreference,
+  type ThemePreference,
+} from "@/lib/theme-preference-storage";
 
 interface ThemePreferenceContextValue {
   isLoaded: boolean;
@@ -18,8 +20,6 @@ interface ThemePreferenceContextValue {
   resolvedScheme: Exclude<ColorSchemeName, null>;
   setPreference: (preference: ThemePreference) => void;
 }
-
-const STORAGE_KEY = "teak.themePreference";
 
 const ThemePreferenceContext =
   createContext<ThemePreferenceContextValue | null>(null);
@@ -54,19 +54,13 @@ export function ThemePreferenceProvider({
   useEffect(() => {
     let isMounted = true;
     (async () => {
-      try {
-        const stored = await SecureStore.getItemAsync(STORAGE_KEY);
-        if (
-          isMounted &&
-          (stored === "light" || stored === "dark" || stored === "system")
-        ) {
-          setPreferenceState(stored);
-          applyAppearancePreference(stored);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoaded(true);
-        }
+      const stored = await loadThemePreference();
+      if (isMounted && stored) {
+        setPreferenceState(stored);
+        applyAppearancePreference(stored);
+      }
+      if (isMounted) {
+        setIsLoaded(true);
       }
     })();
 
@@ -81,11 +75,7 @@ export function ThemePreferenceProvider({
 
   const setPreference = useCallback((next: ThemePreference) => {
     setPreferenceState(next);
-    if (next === "system") {
-      void SecureStore.deleteItemAsync(STORAGE_KEY);
-      return;
-    }
-    void SecureStore.setItemAsync(STORAGE_KEY, next);
+    void persistThemePreference(next);
   }, []);
 
   const resolvedScheme = useMemo(
