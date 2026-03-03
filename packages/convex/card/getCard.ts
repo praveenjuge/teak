@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Id } from "../_generated/dataModel";
 import { internalQuery, query } from "../_generated/server";
 import { cardValidator } from "../schema";
 import {
@@ -17,6 +18,39 @@ const cardReturnValidator = v.object({
   linkPreviewImageUrl: v.optional(v.string()),
 });
 
+export const getCardForUserHandler = async (
+  ctx: any,
+  userId: string,
+  cardId: Id<"cards">
+) => {
+  const card = await ctx.db.get("cards", cardId);
+  if (!card || card.userId !== userId) {
+    return null;
+  }
+
+  const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] =
+    await Promise.all([
+      card.fileId ? ctx.storage.getUrl(card.fileId) : Promise.resolve(null),
+      card.thumbnailId
+        ? ctx.storage.getUrl(card.thumbnailId)
+        : Promise.resolve(null),
+      card.metadata?.linkPreview?.screenshotStorageId
+        ? ctx.storage.getUrl(card.metadata.linkPreview.screenshotStorageId)
+        : Promise.resolve(null),
+      card.metadata?.linkPreview?.imageStorageId
+        ? ctx.storage.getUrl(card.metadata.linkPreview.imageStorageId)
+        : Promise.resolve(null),
+    ]);
+
+  return applyQuoteDisplayFormatting({
+    ...card,
+    fileUrl: fileUrl || undefined,
+    thumbnailUrl: thumbnailUrl || undefined,
+    screenshotUrl: screenshotUrl || undefined,
+    linkPreviewImageUrl: linkPreviewImageUrl || undefined,
+  });
+};
+
 export const getCard = query({
   args: {
     id: v.id("cards"),
@@ -28,32 +62,7 @@ export const getCard = query({
       return null;
     }
 
-    const card = await ctx.db.get("cards", id);
-    if (!card || card.userId !== user.subject) {
-      return null;
-    }
-
-    const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] =
-      await Promise.all([
-        card.fileId ? ctx.storage.getUrl(card.fileId) : Promise.resolve(null),
-        card.thumbnailId
-          ? ctx.storage.getUrl(card.thumbnailId)
-          : Promise.resolve(null),
-        card.metadata?.linkPreview?.screenshotStorageId
-          ? ctx.storage.getUrl(card.metadata.linkPreview.screenshotStorageId)
-          : Promise.resolve(null),
-        card.metadata?.linkPreview?.imageStorageId
-          ? ctx.storage.getUrl(card.metadata.linkPreview.imageStorageId)
-          : Promise.resolve(null),
-      ]);
-
-    return applyQuoteDisplayFormatting({
-      ...card,
-      fileUrl: fileUrl || undefined,
-      thumbnailUrl: thumbnailUrl || undefined,
-      screenshotUrl: screenshotUrl || undefined,
-      linkPreviewImageUrl: linkPreviewImageUrl || undefined,
-    });
+    return getCardForUserHandler(ctx, user.subject, id);
   },
 });
 
@@ -92,5 +101,16 @@ export const getCardInternal = internalQuery({
   handler: async (ctx, args) => {
     const card = await ctx.db.get("cards", args.cardId);
     return card;
+  },
+});
+
+export const getCardForUser = internalQuery({
+  args: {
+    userId: v.string(),
+    cardId: v.id("cards"),
+  },
+  returns: v.union(v.null(), cardReturnValidator),
+  handler: async (ctx, args) => {
+    return getCardForUserHandler(ctx, args.userId, args.cardId);
   },
 });

@@ -32,21 +32,23 @@ const sampleCard = {
 
 const createCardsResponse = (
   status = 200,
-  body: Record<string, unknown> = {},
+  body: Record<string, unknown> = {}
 ) => {
   return new Response(
     JSON.stringify(status === 200 ? { items: [sampleCard], total: 1 } : body),
     {
       headers: { "Content-Type": "application/json" },
       status,
-    },
+    }
   );
 };
 
 const originalFetch = globalThis.fetch;
+const originalRequestTimeout = process.env.TEAK_API_REQUEST_TIMEOUT_MS;
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  process.env.TEAK_API_REQUEST_TIMEOUT_MS = originalRequestTimeout;
   getPreferenceValuesMock.mockReset();
   getPreferenceValuesMock.mockImplementation(() => ({
     apiKey: "valid-test-key",
@@ -60,11 +62,11 @@ describe("raycast request handling", () => {
       async (_input: RequestInfo | URL, init?: RequestInit) => {
         capturedHeaders = new Headers(init?.headers);
         return createCardsResponse();
-      },
+      }
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    await request("/api/raycast/search?limit=1", parseCardsResponse, {
+    await request("/cards/search?limit=1", parseCardsResponse, {
       headers: {
         Authorization: "Bearer attacker",
         "Content-Type": "text/plain",
@@ -89,14 +91,36 @@ describe("raycast request handling", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "NETWORK_ERROR",
+        "NETWORK_ERROR"
+      );
+    }
+  });
+
+  test("maps timed out requests to NETWORK_ERROR", async () => {
+    process.env.TEAK_API_REQUEST_TIMEOUT_MS = "5";
+
+    globalThis.fetch = mock((_input: RequestInfo | URL, init?: RequestInit) => {
+      return new Promise((_, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new Error("Request aborted"));
+        });
+      });
+    }) as unknown as typeof fetch;
+
+    try {
+      await searchCards("", 1);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(RaycastApiError);
+      expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
+        "NETWORK_ERROR"
       );
     }
   });
 
   test("maps 401 responses to INVALID_API_KEY", async () => {
     globalThis.fetch = mock(async () =>
-      createCardsResponse(401),
+      createCardsResponse(401)
     ) as unknown as typeof fetch;
 
     try {
@@ -105,14 +129,14 @@ describe("raycast request handling", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "INVALID_API_KEY",
+        "INVALID_API_KEY"
       );
     }
   });
 
   test("maps 429 responses to RATE_LIMITED", async () => {
     globalThis.fetch = mock(async () =>
-      createCardsResponse(429),
+      createCardsResponse(429)
     ) as unknown as typeof fetch;
 
     try {
@@ -121,7 +145,7 @@ describe("raycast request handling", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "RATE_LIMITED",
+        "RATE_LIMITED"
       );
     }
   });
@@ -137,7 +161,7 @@ describe("raycast request handling", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "MISSING_API_KEY",
+        "MISSING_API_KEY"
       );
     }
 

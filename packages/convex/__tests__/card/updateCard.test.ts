@@ -440,8 +440,62 @@ describe("card/updateCard.ts", () => {
     const handler = (updateCardField as any).handler ?? updateCardField;
     const result = await handler(ctx, { cardId: "c1", field: "removeAiTag" });
 
-    expect(result).toEqual(card);
+    expect(result).toBeNull();
     expect(ctx.db.patch).not.toHaveBeenCalled();
+  });
+
+  test("updateCardField clears notes when value is null", async () => {
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          notes: "Old notes",
+        }),
+        patch: mock().mockResolvedValue(null),
+      },
+      scheduler: { runAfter: mock() },
+    } as any;
+
+    const handler = (updateCardField as any).handler ?? updateCardField;
+    await handler(ctx, { cardId: "c1", field: "notes", value: null });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "cards",
+      "c1",
+      expect.objectContaining({ notes: undefined })
+    );
+  });
+
+  test("updateCardField supports explicit favorite state", async () => {
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          isFavorited: true,
+        }),
+        patch: mock().mockResolvedValue(null),
+      },
+      scheduler: { runAfter: mock() },
+    } as any;
+
+    const handler = (updateCardField as any).handler ?? updateCardField;
+    await handler(ctx, {
+      cardId: "c1",
+      field: "isFavorited",
+      value: false,
+    });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "cards",
+      "c1",
+      expect.objectContaining({ isFavorited: false })
+    );
   });
 
   test("updateCardField marks card as deleted", async () => {

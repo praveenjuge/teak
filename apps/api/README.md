@@ -1,28 +1,42 @@
-Prerequisites:
+# Teak API Gateway (`apps/api`)
 
-- [Vercel CLI](https://vercel.com/docs/cli) installed globally
+Thin Hono proxy for Teak public API routes served at `https://api.teakvault.com/v1`.
 
-To develop locally:
+## Environment
 
-```
-npm install
-vc dev
-```
+- `CONVEX_HTTP_BASE_URL` (required)
+  - Example: `https://uncommon-ladybug-882.convex.site`
+  - Loaded automatically from `apps/api/.env` during `bun run dev`
 
-```
-open http://localhost:3000
-```
+## Local Development
 
-To build locally:
-
-```
-npm install
-vc build
+```bash
+cd apps/api
+bun install
+echo "CONVEX_HTTP_BASE_URL=https://uncommon-ladybug-882.convex.site" > .env
+bun run dev
 ```
 
-To deploy:
+Local server defaults to `http://localhost:8787`.
 
-```
-npm install
-vc deploy
+## Endpoints
+
+- `GET /healthz`
+- `GET /v1`
+- `POST /v1/cards`
+- `GET /v1/cards/search`
+- `GET /v1/cards/favorites`
+- `PATCH /v1/cards/:cardId`
+- `DELETE /v1/cards/:cardId`
+- `PATCH /v1/cards/:cardId/favorite`
+
+## Commands
+
+```bash
+bun run dev
+bun run build
+bun run start
+bun run typecheck
+bun run lint
+bun run test
 ```

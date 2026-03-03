@@ -1,0 +1,153 @@
+---
+title: API
+description: Public Teak API for creating, searching, editing, deleting, and favoriting cards
+icon: Code
+---
+
+Teak provides a public API at `https://api.teakvault.com/v1`.
+
+## Base URLs
+
+- Production: `https://api.teakvault.com/v1`
+- Local development: `http://localhost:8787/v1`
+
+## Authentication
+
+All API requests require your Teak API key in the `Authorization` header:
+
+```bash
+Authorization: Bearer teakapi_xxx_xxx
+```
+
+Generate API keys in Teak Settings: `https://app.teakvault.com/settings`.
+
+## Endpoints
+
+### Create Card
+
+```http
+POST /v1/cards
+Content-Type: application/json
+```
+
+```json
+{
+  "content": "https://teakvault.com"
+}
+```
+
+Response:
+
+```json
+{
+  "status": "created",
+  "cardId": "j57fnzw9zy6m3qbjxm4j5f8j2d7st9q8"
+}
+```
+
+`status` can be `created` or `duplicate`.
+
+### Search Cards
+
+```http
+GET /v1/cards/search?q=design&limit=50
+```
+
+Response:
+
+```json
+{
+  "items": [],
+  "total": 0
+}
+```
+
+### Favorite Cards (List)
+
+```http
+GET /v1/cards/favorites?q=design&limit=50
+```
+
+Response shape matches search:
+
+```json
+{
+  "items": [],
+  "total": 0
+}
+```
+
+### Edit Card
+
+```http
+PATCH /v1/cards/:cardId
+Content-Type: application/json
+```
+
+Request fields (any subset):
+
+- `content: string`
+- `url: string`
+- `notes: string | null`
+- `tags: string[]`
+
+Examples:
+
+```json
+{
+  "notes": null,
+  "tags": []
+}
+```
+
+- `notes: null` clears notes
+- `tags: []` clears tags
+
+Response: `200` with updated card object.
+
+### Soft Delete Card
+
+```http
+DELETE /v1/cards/:cardId
+```
+
+Response: `204 No Content`
+
+### Set Favorite State
+
+```http
+PATCH /v1/cards/:cardId/favorite
+Content-Type: application/json
+```
+
+```json
+{
+  "isFavorited": true
+}
+```
+
+Response: `200` with updated card object.
+
+## Limits
+
+- `limit` is clamped to `1..100`
+- Missing/empty `q` on search endpoints returns latest cards
+
+## Error Behavior
+
+Common error codes:
+
+- `UNAUTHORIZED` / `INVALID_API_KEY`
+- `RATE_LIMITED`
+- `BAD_REQUEST` / `INVALID_INPUT`
+- `NOT_FOUND`
+- `INTERNAL_ERROR`
+
+Errors are returned as JSON:
+
+```json
+{
+  "code": "INVALID_INPUT",
+  "error": "Field `content` must be a non-empty string"
+}
+```

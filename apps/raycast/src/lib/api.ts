@@ -12,7 +12,7 @@ import {
   parseQuickSaveResponse,
   type QuickSaveResponse,
 } from "./apiParsers";
-import { getConvexBaseUrl } from "./constants";
+import { getApiBaseUrl } from "./constants";
 import { getPreferences } from "./preferences";
 
 export {
@@ -27,7 +27,7 @@ export type { RaycastCard } from "./apiParsers";
 
 const getErrorCodeFromResponse = (
   payloadCode: string | undefined,
-  status: number,
+  status: number
 ): RaycastApiErrorCode => {
   if (status === 401) {
     return toErrorCode(payloadCode, "INVALID_API_KEY");
@@ -38,6 +38,30 @@ const getErrorCodeFromResponse = (
   }
 
   return toErrorCode(payloadCode, "REQUEST_FAILED");
+};
+
+const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
+
+const getRequestTimeoutMs = (): number => {
+  const rawValue = process.env.TEAK_API_REQUEST_TIMEOUT_MS;
+  if (!rawValue) {
+    return DEFAULT_REQUEST_TIMEOUT_MS;
+  }
+
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_REQUEST_TIMEOUT_MS;
+  }
+
+  return parsed;
+};
+
+const withLoopbackFallback = (url: string): string => {
+  if (!url.includes("localhost")) {
+    return url;
+  }
+
+  return url.replace("localhost", "127.0.0.1");
 };
 
 const parseJson = async (response: Response): Promise<unknown> => {
@@ -54,7 +78,7 @@ const buildHeaders = (apiKey: string, initHeaders?: HeadersInit): Headers => {
 export const request = async <T>(
   path: string,
   parseResponse: (payload: unknown) => T,
-  init?: RequestInit,
+  init?: RequestInit
 ): Promise<T> => {
   const { apiKey } = getPreferences();
   const normalizedApiKey = apiKey?.trim();
@@ -64,63 +88,83 @@ export const request = async <T>(
   }
 
   let response: Response;
+  const baseUrl = getApiBaseUrl();
+  const timeoutMs = getRequestTimeoutMs();
+  const abortController = new AbortController();
+  const timeoutHandle = setTimeout(() => {
+    abortController.abort(new Error(`Request timed out after ${timeoutMs}ms`));
+  }, timeoutMs);
+
+  const requestUrl = `${baseUrl}${path}`;
+  const fallbackUrl = withLoopbackFallback(requestUrl);
+  const requestInit: RequestInit = {
+    ...init,
+    headers: buildHeaders(normalizedApiKey, init?.headers),
+    signal: abortController.signal,
+  };
 
   try {
-    response = await fetch(`${getConvexBaseUrl()}${path}`, {
-      ...init,
-      headers: buildHeaders(normalizedApiKey, init?.headers),
-    });
+    response = await fetch(requestUrl, requestInit);
   } catch {
-    throw new RaycastApiError("NETWORK_ERROR");
+    if (fallbackUrl !== requestUrl) {
+      try {
+        response = await fetch(fallbackUrl, requestInit);
+      } catch {
+        throw new RaycastApiError("NETWORK_ERROR");
+      }
+      // Continue with normal response parsing/error mapping below.
+    } else {
+      throw new RaycastApiError("NETWORK_ERROR");
+    }
+  } finally {
+    clearTimeout(timeoutHandle);
   }
 
   if (response.ok) {
-    return parseResponse(await parseJson(response));
+    const payload = await parseJson(response);
+    return parseResponse(payload);
   }
 
   const payload = await parseJson(response);
+  const payloadCode = getPayloadCode(payload);
 
   throw new RaycastApiError(
-    getErrorCodeFromResponse(getPayloadCode(payload), response.status),
-    response.status,
+    getErrorCodeFromResponse(payloadCode, response.status),
+    response.status
   );
 };
 
 export const quickSaveCard = async (
-  content: string,
+  content: string
 ): Promise<QuickSaveResponse> => {
-  return request<QuickSaveResponse>(
-    "/api/raycast/quick-save",
-    parseQuickSaveResponse,
-    {
-      method: "POST",
-      body: JSON.stringify({ content }),
-    },
-  );
+  return request<QuickSaveResponse>("/cards", parseQuickSaveResponse, {
+    method: "POST",
+    body: JSON.stringify({ content }),
+  });
 };
 
 export const searchCards = async (
   query: string,
-  limit = DEFAULT_LIMIT,
+  limit = DEFAULT_LIMIT
 ): Promise<CardsResponse> => {
   return request<CardsResponse>(
-    `/api/raycast/search?${buildCardsSearchParams(query, limit)}`,
+    `/cards/search?${buildCardsSearchParams(query, limit)}`,
     parseCardsResponse,
     {
       method: "GET",
-    },
+    }
   );
 };
 
 export const getFavoriteCards = async (
   query: string,
-  limit = DEFAULT_LIMIT,
+  limit = DEFAULT_LIMIT
 ): Promise<CardsResponse> => {
   return request<CardsResponse>(
-    `/api/raycast/favorites?${buildCardsSearchParams(query, limit)}`,
+    `/cards/favorites?${buildCardsSearchParams(query, limit)}`,
     parseCardsResponse,
     {
       method: "GET",
-    },
+    }
   );
 };

@@ -1,7 +1,18 @@
 {
-  "name": "hono",
+  "name": "@teak/api",
+  "private": true,
   "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "lint": "ultracite check src",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test src --dots"
+  },
   "dependencies": {
+    "@hono/node-server": "^1.19.9",
+    "dotenv": "^17.2.2",
     "hono": "^4.12.3"
   },
   "devDependencies": {

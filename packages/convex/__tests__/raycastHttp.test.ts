@@ -2,7 +2,15 @@
 
 import { describe, expect, mock, test } from "bun:test";
 import { ConvexError } from "convex/values";
-import { favoriteCards, quickSave, searchCards } from "../raycastHttp";
+import {
+  cardByIdV1,
+  createCardV1,
+  favoriteCards,
+  favoriteCardsV1,
+  quickSave,
+  searchCards,
+  searchCardsV1,
+} from "../raycastHttp";
 
 const runHandler = async (fn: any, ctx: any, request: Request) => {
   const handler = (fn as any).handler ?? fn;
@@ -71,6 +79,56 @@ describe("raycastHttp", () => {
     const payload = await response.json();
     expect(payload.code).toBe("RATE_LIMITED");
     expect(typeof payload.retryAt).toBe("number");
+  });
+
+  test("quickSave maps rate limit contention errors to 429", async () => {
+    const runMutation = mock().mockRejectedValueOnce(
+      new Error(
+        'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry.'
+      )
+    );
+
+    const response = await runHandler(
+      quickSave,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/api/raycast/quick-save", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "hello" }),
+      })
+    );
+
+    expect(response.status).toBe(429);
+    const payload = await response.json();
+    expect(payload.code).toBe("RATE_LIMITED");
+  });
+
+  test("quickSave returns 500 when auth mutation throws unexpected error", async () => {
+    const runMutation = mock().mockRejectedValueOnce(
+      new Error("db unavailable")
+    );
+
+    const response = await runHandler(
+      quickSave,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/api/raycast/quick-save", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "hello" }),
+      })
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      code: "INTERNAL_ERROR",
+      error: "Failed to authorize request",
+    });
   });
 
   test("quickSave returns 401 for invalid API key", async () => {
@@ -280,5 +338,180 @@ describe("raycastHttp", () => {
     expect(response.status).toBe(405);
     const payload = await response.json();
     expect(payload.code).toBe("METHOD_NOT_ALLOWED");
+  });
+
+  test("createCardV1 uses quick-save contract", async () => {
+    const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+      status: "created",
+      cardId: "card_9",
+    });
+
+    const response = await runHandler(
+      createCardV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "new card" }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      status: "created",
+      cardId: "card_9",
+    });
+  });
+
+  test("searchCardsV1 returns items and total", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+    const runQuery = mock().mockResolvedValue([]);
+
+    const response = await runHandler(
+      searchCardsV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/search?limit=10", {
+        method: "GET",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+        },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ items: [], total: 0 });
+  });
+
+  test("favoriteCardsV1 returns items and total", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+    const runQuery = mock().mockResolvedValue([]);
+
+    const response = await runHandler(
+      favoriteCardsV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/favorites?limit=10", {
+        method: "GET",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+        },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ items: [], total: 0 });
+  });
+
+  test("cardByIdV1 returns 404 for invalid card id", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+    const runQuery = mock().mockResolvedValueOnce(null);
+
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/not-an-id", {
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ notes: null }),
+      })
+    );
+
+    expect(response.status).toBe(404);
+    const payload = await response.json();
+    expect(payload.code).toBe("NOT_FOUND");
+  });
+
+  test("cardByIdV1 patches card fields", async () => {
+    const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+      _id: "card_1",
+      type: "text",
+      content: "hello",
+      notes: undefined,
+      url: undefined,
+      tags: [],
+      aiTags: [],
+      aiSummary: undefined,
+      isFavorited: false,
+      createdAt: 1,
+      updatedAt: 2,
+      fileUrl: undefined,
+      thumbnailUrl: undefined,
+      screenshotUrl: undefined,
+      linkPreviewImageUrl: undefined,
+      metadataTitle: undefined,
+      metadataDescription: undefined,
+    });
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" });
+
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/card_1", {
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ notes: null, tags: [] }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(payload.id).toBe("card_1");
+    expect(payload.notes).toBeNull();
+    expect(payload.tags).toEqual([]);
+  });
+
+  test("cardByIdV1 rejects invalid favorite payload", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" });
+
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/card_1/favorite", {
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ isFavorited: "yes" }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    const payload = await response.json();
+    expect(payload.code).toBe("INVALID_INPUT");
+  });
+
+  test("cardByIdV1 supports soft delete", async () => {
+    const runMutation =
+      buildAuthorizedMutationMock().mockResolvedValueOnce(null);
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" });
+
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/card_1", {
+        method: "DELETE",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+        },
+      })
+    );
+
+    expect(response.status).toBe(204);
   });
 });

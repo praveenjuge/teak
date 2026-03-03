@@ -1,15 +1,19 @@
 import { ConvexError, v } from "convex/values";
+import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import {
   internalMutation,
   internalQuery,
+  type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
 import { createCardForUserHandler } from "./card/createCard";
 import { findDuplicateCardForUserHandler } from "./card/findDuplicateCard";
+import { getCardForUserHandler } from "./card/getCard";
 import { cardReturnValidator } from "./card/getCards";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
+import { updateCardFieldForUserHandler } from "./card/updateCard";
 import { rateLimiter } from "./shared/rateLimits";
 
 const DEFAULT_LIMIT = 50;
@@ -25,8 +29,41 @@ const raycastRateLimitResultValidator = v.object({
   retryAt: v.optional(v.number()),
 });
 
+const patchCardForUserArgs = {
+  userId: v.string(),
+  cardId: v.id("cards"),
+  content: v.optional(v.string()),
+  url: v.optional(v.string()),
+  notes: v.optional(v.union(v.string(), v.null())),
+  tags: v.optional(v.array(v.string())),
+} as const;
+
+const setCardFavoriteForUserArgs = {
+  userId: v.string(),
+  cardId: v.id("cards"),
+  isFavorited: v.boolean(),
+} as const;
+
+const cardReferenceArgs = {
+  userId: v.string(),
+  cardId: v.id("cards"),
+} as const;
+
 const toHex = (bytes: Uint8Array): string =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+
+const isRateLimitContentionError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    error.message.includes('"rateLimits" table') &&
+    error.message.includes(
+      "changed while this mutation was being run and on every subsequent retry"
+    )
+  );
+};
 
 const hashRateLimitKey = async (value: string): Promise<string> => {
   const pepper = process.env.BETTER_AUTH_SECRET ?? "";
@@ -194,6 +231,27 @@ const getCardsForUser = async (
   return applyQuoteFormattingToList(cardsWithUrls);
 };
 
+const applyPatchField = async (
+  ctx: MutationCtx,
+  args: {
+    userId: string;
+    cardId: Id<"cards">;
+    field: "content" | "url" | "notes" | "tags";
+    value?: unknown;
+  }
+) => {
+  return updateCardFieldForUserHandler(
+    ctx,
+    {
+      userId: args.userId,
+      cardId: args.cardId,
+      field: args.field,
+      value: args.value,
+    },
+    { deferPipelineSchedule: true }
+  );
+};
+
 export const quickSaveForUser = internalMutation({
   args: {
     userId: v.string(),
@@ -270,6 +328,124 @@ export const favoriteCardsForUser = internalQuery({
   },
 });
 
+export const resolveCardIdForUserRequest = internalQuery({
+  args: {
+    cardId: v.string(),
+  },
+  returns: v.union(v.id("cards"), v.null()),
+  handler: async (ctx, args) => {
+    return ctx.db.normalizeId("cards", args.cardId);
+  },
+});
+
+export const patchCardForUser = internalMutation({
+  args: patchCardForUserArgs,
+  returns: v.union(v.null(), cardReturnValidator),
+  handler: async (ctx, args) => {
+    const requestedFields: Array<"content" | "url" | "notes" | "tags"> = [];
+    let shouldSchedulePipeline = false;
+
+    if (args.content !== undefined) {
+      requestedFields.push("content");
+    }
+    if (args.url !== undefined) {
+      requestedFields.push("url");
+    }
+    if (args.notes !== undefined) {
+      requestedFields.push("notes");
+    }
+    if (args.tags !== undefined) {
+      requestedFields.push("tags");
+    }
+
+    if (requestedFields.length === 0) {
+      return getCardForUserHandler(ctx, args.userId, args.cardId);
+    }
+
+    for (const field of requestedFields) {
+      switch (field) {
+        case "content":
+          shouldSchedulePipeline =
+            (await applyPatchField(ctx, {
+              userId: args.userId,
+              cardId: args.cardId,
+              field,
+              value: args.content,
+            })).shouldSchedulePipeline || shouldSchedulePipeline;
+          break;
+        case "url":
+          shouldSchedulePipeline =
+            (await applyPatchField(ctx, {
+              userId: args.userId,
+              cardId: args.cardId,
+              field,
+              value: args.url,
+            })).shouldSchedulePipeline || shouldSchedulePipeline;
+          break;
+        case "notes":
+          shouldSchedulePipeline =
+            (await applyPatchField(ctx, {
+              userId: args.userId,
+              cardId: args.cardId,
+              field,
+              value: args.notes,
+            })).shouldSchedulePipeline || shouldSchedulePipeline;
+          break;
+        case "tags":
+          shouldSchedulePipeline =
+            (await applyPatchField(ctx, {
+              userId: args.userId,
+              cardId: args.cardId,
+              field,
+              value: args.tags,
+            })).shouldSchedulePipeline || shouldSchedulePipeline;
+          break;
+        default:
+          throw new Error(`Unsupported field: ${field}`);
+      }
+    }
+
+    if (shouldSchedulePipeline) {
+      await ctx.scheduler.runAfter(
+        0,
+        (internal as any)["workflows/manager"].startCardProcessingWorkflow,
+        {
+          cardId: args.cardId,
+        }
+      );
+    }
+
+    return getCardForUserHandler(ctx, args.userId, args.cardId);
+  },
+});
+
+export const softDeleteCardForUser = internalMutation({
+  args: cardReferenceArgs,
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await updateCardFieldForUserHandler(ctx, {
+      userId: args.userId,
+      cardId: args.cardId,
+      field: "delete",
+    });
+    return null;
+  },
+});
+
+export const setCardFavoriteForUser = internalMutation({
+  args: setCardFavoriteForUserArgs,
+  returns: v.union(v.null(), cardReturnValidator),
+  handler: async (ctx, args) => {
+    await updateCardFieldForUserHandler(ctx, {
+      userId: args.userId,
+      cardId: args.cardId,
+      field: "isFavorited",
+      value: args.isFavorited,
+    });
+    return getCardForUserHandler(ctx, args.userId, args.cardId);
+  },
+});
+
 export const checkApiRateLimit = internalMutation({
   args: {
     token: v.string(),
@@ -282,10 +458,22 @@ export const checkApiRateLimit = internalMutation({
     }
 
     const key = await hashRateLimitKey(token);
-    const result = await rateLimiter.limit(ctx, "raycastApiRequests", {
-      key,
-      throws: false,
-    });
+    let result: Awaited<ReturnType<typeof rateLimiter.limit>>;
+    try {
+      result = await rateLimiter.limit(ctx, "raycastApiRequests", {
+        key,
+        throws: false,
+      });
+    } catch (error) {
+      if (isRateLimitContentionError(error)) {
+        return {
+          ok: false,
+          retryAt: Date.now() + 1000,
+        };
+      }
+
+      throw error;
+    }
 
     return {
       ok: result.ok,
