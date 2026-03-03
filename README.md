@@ -13,6 +13,7 @@ Teak is a personal knowledge hub designed to help creative minds effortlessly co
 teak/
 ├── apps/
 │   ├── web/        # Next.js app
+│   ├── api/        # Hono API gateway
 │   ├── mobile/     # Expo app
 │   ├── desktop/    # Tauri desktop app
 │   ├── extension/  # Browser extension

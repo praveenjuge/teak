@@ -23,6 +23,45 @@ Generate API keys in Teak Settings: `https://app.teakvault.com/settings`.
 
 ## Endpoints
 
+### Service Health
+
+```http
+GET /healthz
+```
+
+Response:
+
+```json
+{
+  "status": "ok",
+  "service": "teak-api",
+  "version": "v1"
+}
+```
+
+### API Info
+
+```http
+GET /v1
+```
+
+Response:
+
+```json
+{
+  "version": "v1",
+  "endpoints": [
+    "POST /v1/cards",
+    "GET /v1/cards/search",
+    "GET /v1/cards/favorites",
+    "PATCH /v1/cards/:cardId",
+    "DELETE /v1/cards/:cardId",
+    "PATCH /v1/cards/:cardId/favorite"
+  ],
+  "auth": "Authorization: Bearer <api_key>"
+}
+```
+
 ### Create Card
 
 ```http
@@ -128,6 +167,12 @@ Content-Type: application/json
 
 Response: `200` with updated card object.
 
+## Gateway Behavior
+
+- Default upstream timeout is `10_000ms`.
+- Successful upstream responses are validated as JSON payloads.
+- When upstream response status/body are valid, the gateway passes through status and response body.
+
 ## Limits
 
 - `limit` is clamped to `1..100`
@@ -142,6 +187,10 @@ Common error codes:
 - `BAD_REQUEST` / `INVALID_INPUT`
 - `NOT_FOUND`
 - `INTERNAL_ERROR`
+- `UPSTREAM_TIMEOUT`
+- `UPSTREAM_UNAVAILABLE`
+- `UPSTREAM_INVALID_RESPONSE`
+- `CONFIG_ERROR`
 
 Errors are returned as JSON:
 

@@ -18,6 +18,7 @@ bun install
 
 - Web App: http://localhost:3000
 - Admin: http://localhost:3000/admin
+- API Gateway: http://localhost:8787
 - Convex Dashboard: opens after `bunx convex dev`
 - Mobile: Expo Go or simulator
 - Extension: Chrome dev mode
@@ -29,6 +30,7 @@ bun install
 teak/
 ├── apps/
 │   ├── web/         # Next.js frontend (app router, shadcn/ui)
+│   ├── api/         # Hono API gateway (public API proxy)
 │   ├── mobile/      # Expo React Native
 │   ├── extension/   # Chrome extension (Wxt)
 │   ├── raycast/     # Raycast extension
@@ -65,12 +67,13 @@ teak/
 # Web + Convex backend
 bun run dev
 
-# All services (web, mobile, extension, docs, convex)
+# All services (web, api, mobile, extension, raycast, docs, convex)
 bun run dev:all
 
 # Individual services
 bun run dev:convex     # Convex backend only
 bun run dev:web        # Next.js web + Convex
+bun run dev:api        # API gateway (Hono)
 bun run dev:mobile     # Expo mobile + Convex
 bun run dev:extension  # Browser extension + Convex
 bun run dev:raycast    # Raycast extension
@@ -100,6 +103,16 @@ bunx convex env set SITE_URL http://localhost:3000
 1. `BETTER_AUTH_SECRET` signs Better Auth sessions—set it once per environment.
 2. `SITE_URL` must match your Next.js origin locally and inside Convex.
 3. `CONVEX_SITE_URL` is the `.site` domain Convex assigns; copy it from the dashboard after running `bunx convex dev`.
+
+### API Gateway
+
+Set `CONVEX_HTTP_BASE_URL` for `apps/api` before running `bun run dev:api`.
+
+Example:
+
+```bash
+echo "CONVEX_HTTP_BASE_URL=https://<your-deployment>.convex.site" > apps/api/.env
+```
 
 ### Environment Variables
 
