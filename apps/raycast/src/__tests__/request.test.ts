@@ -32,14 +32,14 @@ const sampleCard = {
 
 const createCardsResponse = (
   status = 200,
-  body: Record<string, unknown> = {}
+  body: Record<string, unknown> = {},
 ) => {
   return new Response(
     JSON.stringify(status === 200 ? { items: [sampleCard], total: 1 } : body),
     {
       headers: { "Content-Type": "application/json" },
       status,
-    }
+    },
   );
 };
 
@@ -62,7 +62,7 @@ describe("raycast request handling", () => {
       async (_input: RequestInfo | URL, init?: RequestInit) => {
         capturedHeaders = new Headers(init?.headers);
         return createCardsResponse();
-      }
+      },
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
@@ -91,7 +91,7 @@ describe("raycast request handling", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "NETWORK_ERROR"
+        "NETWORK_ERROR",
       );
     }
   });
@@ -113,14 +113,14 @@ describe("raycast request handling", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "NETWORK_ERROR"
+        "NETWORK_ERROR",
       );
     }
   });
 
   test("maps 401 responses to INVALID_API_KEY", async () => {
     globalThis.fetch = mock(async () =>
-      createCardsResponse(401)
+      createCardsResponse(401),
     ) as unknown as typeof fetch;
 
     try {
@@ -129,14 +129,14 @@ describe("raycast request handling", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "INVALID_API_KEY"
+        "INVALID_API_KEY",
       );
     }
   });
 
   test("maps 429 responses to RATE_LIMITED", async () => {
     globalThis.fetch = mock(async () =>
-      createCardsResponse(429)
+      createCardsResponse(429),
     ) as unknown as typeof fetch;
 
     try {
@@ -145,7 +145,7 @@ describe("raycast request handling", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "RATE_LIMITED"
+        "RATE_LIMITED",
       );
     }
   });
@@ -161,7 +161,7 @@ describe("raycast request handling", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "MISSING_API_KEY"
+        "MISSING_API_KEY",
       );
     }
 
