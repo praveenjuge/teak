@@ -345,11 +345,11 @@ describe("createCardActions", () => {
 
     test("calls updateCardField with aiSummary field", async () => {
       mockUpdateCardField.mockResolvedValue(undefined);
-      await actions.updateField("c1" as any, "aiSummary", "AI summary");
+      await actions.updateField("c1" as any, "aiSummary", "Teak summary");
       expect(mockUpdateCardField).toHaveBeenCalledWith({
         cardId: "c1",
         field: "aiSummary",
-        value: "AI summary",
+        value: "Teak summary",
         tagToRemove: undefined,
       });
     });

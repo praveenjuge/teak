@@ -10,7 +10,9 @@ import {
   getPayloadCode,
   parseCardsResponse,
   parseQuickSaveResponse,
+  parseRaycastCard,
   type QuickSaveResponse,
+  type RaycastCard,
 } from "./apiParsers";
 import { getApiBaseUrl } from "./constants";
 import { getPreferences } from "./preferences";
@@ -35,6 +37,10 @@ const getErrorCodeFromResponse = (
 
   if (status === 429) {
     return "RATE_LIMITED";
+  }
+
+  if (status === 404) {
+    return toErrorCode(payloadCode, "NOT_FOUND");
   }
 
   return toErrorCode(payloadCode, "REQUEST_FAILED");
@@ -165,6 +171,40 @@ export const getFavoriteCards = async (
     parseCardsResponse,
     {
       method: "GET",
+    },
+  );
+};
+
+export const setCardFavorite = async (
+  cardId: string,
+  isFavorited: boolean,
+): Promise<RaycastCard> => {
+  const normalizedCardId = cardId.trim();
+  if (!normalizedCardId) {
+    throw new RaycastApiError("INVALID_INPUT");
+  }
+
+  return request(
+    `/cards/${encodeURIComponent(normalizedCardId)}/favorite`,
+    parseRaycastCard,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ isFavorited }),
+    },
+  );
+};
+
+export const softDeleteCard = async (cardId: string): Promise<void> => {
+  const normalizedCardId = cardId.trim();
+  if (!normalizedCardId) {
+    throw new RaycastApiError("INVALID_INPUT");
+  }
+
+  await request<void>(
+    `/cards/${encodeURIComponent(normalizedCardId)}`,
+    () => undefined,
+    {
+      method: "DELETE",
     },
   );
 };

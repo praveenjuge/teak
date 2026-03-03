@@ -75,6 +75,14 @@ const isRaycastCard = (value: unknown): value is RaycastCard => {
   );
 };
 
+export const parseRaycastCard = (payload: unknown): RaycastCard => {
+  if (!isRaycastCard(payload)) {
+    throw new RaycastApiError("REQUEST_FAILED");
+  }
+
+  return payload;
+};
+
 export const getPayloadCode = (payload: unknown): string | undefined => {
   if (!isJsonObject(payload)) {
     return undefined;
