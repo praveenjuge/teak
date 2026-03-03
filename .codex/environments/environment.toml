@@ -28,3 +28,11 @@ command = '''
 bun install
 bun run dev:docs
 '''
+
+[[actions]]
+name = "Raycast"
+icon = "run"
+command = '''
+bun i
+bun run dev:raycast
+'''
