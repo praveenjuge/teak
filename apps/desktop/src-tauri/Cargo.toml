@@ -1,6 +1,6 @@
 [package]
 name = "teak"
-version = "1.0.10"
+version = "1.0.21"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
