@@ -6,3 +6,18 @@ export { useGlobalDragDrop } from "./useGlobalDragDrop";
 export type { UseInfiniteScrollOptions } from "./useInfiniteScroll";
 export { useInfiniteScroll } from "./useInfiniteScroll";
 export { useObjectState } from "./useObjectState";
+export {
+  applyBackspaceToCardsSearchState,
+  applyEnterToCardsSearchState,
+  buildCardsSearchQueryArgs,
+  buildCardsSearchResetKey,
+  buildCardsSearchTerms,
+  createInitialCardsSearchState,
+  useCardsSearchController,
+} from "./useCardsSearchController";
+export type {
+  CardsSearchQueryArgs,
+  CardsSearchState,
+  UseCardsSearchControllerOptions,
+  UseCardsSearchControllerResult,
+} from "./useCardsSearchController";

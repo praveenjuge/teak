@@ -1,27 +1,29 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import { SEARCH_DEFAULT_CARD_LIMIT } from "@teak/convex/shared";
 import type { CardModalCard } from "@teak/ui/card-modal";
 import { CardModal } from "@teak/ui/card-modal";
 import type { CardWithUrls } from "@teak/ui/cards";
-import { Spinner } from "@teak/ui/components/ui/spinner";
+import { Button } from "@teak/ui/components/ui/button";
+import { CardsGridSkeleton } from "@teak/ui/feedback/CardsGridSkeleton";
 import { AddCardEmptyState, AddCardForm } from "@teak/ui/forms";
 import { MasonryGrid } from "@teak/ui/grids";
-import { useCardModal } from "@teak/ui/hooks";
+import { useCardModal, useCardsSearchController } from "@teak/ui/hooks";
 import {
   MoreInformationModal,
   NotesEditModal,
   TagManagementModal,
 } from "@teak/ui/modals";
+import { CardsSearchHeader } from "@teak/ui/search";
 import { useMutation, useQuery } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
+import { Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { buildWebUrl } from "@/lib/web-urls";
-
-const CARDS_BATCH_SIZE = 24;
 
 // Convex IDs are non-empty alphanumeric strings (with underscores).
 // This rejects obviously malformed values like spaces, slashes, or empty strings.
@@ -51,6 +53,8 @@ function DesktopUpgradeLink({
 }
 
 export function CardsPage() {
+  const navigate = useNavigate();
+  const searchController = useCardsSearchController();
   const [searchParams, setSearchParams] = useSearchParams();
   const cardIdFromUrl = searchParams.get("card");
   const [selectedCardId, setSelectedCardId] = useState<string | null>(
@@ -93,9 +97,23 @@ export function CardsPage() {
 
   const { results, status, loadMore } = usePaginatedQuery(
     api.cards.searchCardsPaginated,
-    {},
-    { initialNumItems: CARDS_BATCH_SIZE }
+    searchController.queryArgs,
+    { initialNumItems: SEARCH_DEFAULT_CARD_LIMIT }
   );
+
+  const {
+    clearAllFilters,
+    displayCards,
+    hasNoFilters,
+    resetKey,
+    searchBarProps,
+    setRemoteCards,
+    showTrashOnly,
+  } = searchController;
+
+  useEffect(() => {
+    setRemoteCards(results);
+  }, [results, setRemoteCards]);
 
   const isValidCardId = selectedCardId
     ? CONVEX_ID_PATTERN.test(selectedCardId)
@@ -113,8 +131,6 @@ export function CardsPage() {
   const updateCardField = useMutation(api.cards.updateCardField);
   const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
 
-  const cards = results;
-  const isLoadingFirstPage = status === "LoadingFirstPage";
   const isLoadingMore = status === "LoadingMore";
   const hasMore = status === "CanLoadMore";
   const upgradeUrl = buildWebUrl("/settings");
@@ -214,45 +230,77 @@ export function CardsPage() {
 
   const cardWithUrls = selectedCard as CardModalCard | null;
 
-  if (isLoadingFirstPage) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <Spinner className="size-5 text-muted-foreground" />
-      </div>
-    );
-  }
+  const settingsButton = (
+    <Button
+      onClick={() => navigate("/settings")}
+      size="icon"
+      type="button"
+      variant="outline"
+    >
+      <Settings className="size-4" />
+    </Button>
+  );
 
-  if (cards.length === 0) {
-    return (
-      <AddCardEmptyState
-        UpgradeLinkComponent={DesktopUpgradeLink}
-        upgradeUrl={upgradeUrl}
-      />
-    );
-  }
+  const renderEmptyState = () => {
+    if (status === "LoadingFirstPage") {
+      return <CardsGridSkeleton />;
+    }
+
+    if (displayCards.length === 0 && hasNoFilters) {
+      return (
+        <AddCardEmptyState
+          UpgradeLinkComponent={DesktopUpgradeLink}
+          upgradeUrl={upgradeUrl}
+        />
+      );
+    }
+
+    if (displayCards.length === 0) {
+      return (
+        <div className="space-y-4 py-12 text-center">
+          <p className="text-muted-foreground">
+            Nothing found matching your filters
+          </p>
+          <Button onClick={clearAllFilters} variant="outline">
+            Clear filters
+          </Button>
+        </div>
+      );
+    }
+
+    return null;
+  };
 
   return (
-    <>
-      <MasonryGrid
-        AddCardFormComponent={() => (
-          <AddCardForm
-            UpgradeLinkComponent={DesktopUpgradeLink}
-            upgradeUrl={upgradeUrl}
-          />
-        )}
-        filteredCards={cards}
-        hasMore={hasMore}
-        isLoadingMore={isLoadingMore}
-        onAddTags={handleAddTags}
-        onCardClick={handleCardClick}
-        onDeleteCard={handleDeleteCard}
-        onLoadMore={() => loadMore(CARDS_BATCH_SIZE)}
-        onPermanentDeleteCard={handlePermanentDeleteCard}
-        onRestoreCard={handleRestoreCard}
-        onToggleFavorite={handleToggleFavorite}
-        showAddForm={true}
-        showBulkActions={false}
-      />
+    <main className="mx-auto max-w-7xl px-4 pb-10">
+      <CardsSearchHeader {...searchBarProps} SettingsButton={settingsButton} />
+
+      {displayCards.length > 0 ? (
+        <MasonryGrid
+          AddCardFormComponent={() => (
+            <AddCardForm
+              UpgradeLinkComponent={DesktopUpgradeLink}
+              upgradeUrl={upgradeUrl}
+            />
+          )}
+          filteredCards={displayCards}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
+          onAddTags={handleAddTags}
+          onCardClick={handleCardClick}
+          onDeleteCard={handleDeleteCard}
+          onLoadMore={() => loadMore(SEARCH_DEFAULT_CARD_LIMIT)}
+          onPermanentDeleteCard={handlePermanentDeleteCard}
+          onRestoreCard={handleRestoreCard}
+          onToggleFavorite={handleToggleFavorite}
+          resetKey={resetKey}
+          showAddForm={!showTrashOnly}
+          showBulkActions={true}
+          showTrashOnly={showTrashOnly}
+        />
+      ) : (
+        renderEmptyState()
+      )}
 
       <CardModal
         card={cardWithUrls}
@@ -304,6 +352,6 @@ export function CardsPage() {
         toggleFavorite={cardModalActions.toggleFavorite}
         updateContent={cardModalActions.updateContent}
       />
-    </>
+    </main>
   );
 }

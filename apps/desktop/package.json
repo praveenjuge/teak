@@ -9,6 +9,7 @@
     "build:mac-silicon": "tauri build --target aarch64-apple-darwin",
     "build:vite": "tsc && vite build",
     "preview": "vite preview",
+    "test": "bun test src/__tests__ --coverage --dots",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

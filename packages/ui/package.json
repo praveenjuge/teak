@@ -27,7 +27,7 @@
     "./constants/settings": "./src/constants/settings.ts"
   },
   "scripts": {
-    "test": "bun test src/components/forms/__tests__ src/components/settings/__tests__ --coverage --dots",
+    "test": "bun test src/components/forms/__tests__ src/components/settings/__tests__ src/hooks/__tests__ --coverage --dots",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

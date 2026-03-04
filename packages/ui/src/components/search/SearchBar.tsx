@@ -31,7 +31,7 @@ import {
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 
-interface SearchBarProps {
+export interface SearchBarProps {
   filterTags: CardType[];
   hexFilters: string[];
   hueFilters: ColorHueBucket[];

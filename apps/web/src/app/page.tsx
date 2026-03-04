@@ -2,25 +2,18 @@
 
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import {
-  normalizeColorHueBucket,
-  normalizeHexColor,
-  normalizeVisualStyle,
-  parseTimeSearchQuery,
-  type TimeFilter,
-} from "@teak/convex/shared";
-import type {
-  CardType,
-  ColorHueBucket,
-  VisualStyle,
-} from "@teak/convex/shared/constants";
+import { SEARCH_DEFAULT_CARD_LIMIT } from "@teak/convex/shared";
+import type { CardType } from "@teak/convex/shared/constants";
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Button } from "@teak/ui/components/ui/button";
 import { CardsGridSkeleton } from "@teak/ui/feedback/CardsGridSkeleton";
 import { AddCardEmptyState } from "@teak/ui/forms";
+import { useCardsSearchController } from "@teak/ui/hooks";
 import { TagManagementModal } from "@teak/ui/modals";
+import { CardsSearchHeader } from "@teak/ui/search";
 import { Authenticated, AuthLoading, useMutation } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
+import { Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -28,16 +21,9 @@ import { toast } from "sonner";
 import { CardModal } from "@/components/CardModal";
 import { DragOverlay } from "@/components/DragOverlay";
 import { MasonryGrid } from "@/components/MasonryGrid";
-import { SearchBar } from "@/components/SearchBar";
 import { useCardActions } from "@/hooks/useCardActions";
 import { useGlobalDragDrop } from "@/hooks/useGlobalDragDrop";
-import { filterLocalCards } from "@/lib/localSearch";
 import { metrics } from "@/lib/metrics";
-
-const DEFAULT_CARD_LIMIT = 100;
-const LOCAL_SEARCH_CACHE_LIMIT = 1000;
-const SEARCH_TOKEN_SEPARATOR = /\s+/;
-const SEARCH_TOKEN_TRIM_PATTERN = /^[,.;:!?()[\]{}"']+|[,.;:!?()[\]{}"']+$/g;
 
 export default function HomePage() {
   const router = useRouter();
@@ -51,16 +37,7 @@ export default function HomePage() {
     null
   );
   const [tagInput, setTagInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [keywordTags, setKeywordTags] = useState<string[]>([]);
-  const [filterTags, setFilterTags] = useState<CardType[]>([]);
-  const [styleFilters, setStyleFilters] = useState<VisualStyle[]>([]);
-  const [hueFilters, setHueFilters] = useState<ColorHueBucket[]>([]);
-  const [hexFilters, setHexFilters] = useState<string[]>([]);
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const [showTrashOnly, setShowTrashOnly] = useState(false);
-  const [timeFilter, setTimeFilter] = useState<TimeFilter | null>(null);
-  const [localCards, setLocalCards] = useState<Doc<"cards">[]>([]);
+  const searchController = useCardsSearchController();
 
   const setCardUrlParam = useCallback(
     (cardId: string | null, replace = false) => {
@@ -89,140 +66,31 @@ export default function HomePage() {
     setEditingCardId(cardIdFromUrl);
   }, [cardIdFromUrl]);
 
-  const searchTerms = useMemo(
-    () =>
-      [
-        ...keywordTags,
-        ...(searchQuery.trim() ? [searchQuery.trim()] : []),
-      ].join(" "),
-    [keywordTags, searchQuery]
-  );
-
-  const queryArgs = useMemo(
-    () => ({
-      searchQuery: searchTerms || undefined,
-      types: filterTags.length > 0 ? filterTags : undefined,
-      favoritesOnly: showFavoritesOnly || undefined,
-      showTrashOnly: showTrashOnly || undefined,
-      styleFilters: styleFilters.length > 0 ? styleFilters : undefined,
-      hueFilters: hueFilters.length > 0 ? hueFilters : undefined,
-      hexFilters: hexFilters.length > 0 ? hexFilters : undefined,
-      createdAtRange: timeFilter?.range,
-    }),
-    [
-      filterTags,
-      hexFilters,
-      hueFilters,
-      searchTerms,
-      showFavoritesOnly,
-      showTrashOnly,
-      styleFilters,
-      timeFilter,
-    ]
-  );
+  const queryArgs = searchController.queryArgs;
 
   const {
     results: cards,
     status: cardsStatus,
     loadMore,
   } = usePaginatedQuery(api.cards.searchCardsPaginated, queryArgs, {
-    initialNumItems: DEFAULT_CARD_LIMIT,
+    initialNumItems: SEARCH_DEFAULT_CARD_LIMIT,
   });
 
-  useEffect(() => {
-    if (!cards || cards.length === 0) {
-      return;
-    }
-
-    setLocalCards((prev) => {
-      const map = new Map(prev.map((card) => [card._id, card]));
-      let changed = false;
-
-      for (const card of cards) {
-        const existing = map.get(card._id);
-        if (!existing || existing.updatedAt !== card.updatedAt) {
-          map.set(card._id, card);
-          changed = true;
-        }
-      }
-
-      if (!changed) {
-        return prev;
-      }
-
-      const merged = Array.from(map.values());
-      if (merged.length <= LOCAL_SEARCH_CACHE_LIMIT) {
-        return merged;
-      }
-
-      return merged
-        .sort((a, b) => b.createdAt - a.createdAt)
-        .slice(0, LOCAL_SEARCH_CACHE_LIMIT);
-    });
-  }, [cards]);
-
-  // Track search when results change and filters are active
-  const hasActiveSearch =
-    searchTerms ||
-    filterTags.length > 0 ||
-    styleFilters.length > 0 ||
-    hueFilters.length > 0 ||
-    hexFilters.length > 0 ||
-    showFavoritesOnly ||
-    showTrashOnly ||
-    Boolean(timeFilter);
-
-  const localSearchResults = useMemo(() => {
-    if (!hasActiveSearch) {
-      return [];
-    }
-    return filterLocalCards(localCards, {
-      searchTerms,
-      types: filterTags,
-      styleFilters,
-      hueFilters,
-      hexFilters,
-      favoritesOnly: showFavoritesOnly,
-      showTrashOnly,
-      createdAtRange: timeFilter?.range,
-    });
-  }, [
-    filterTags,
-    hexFilters,
-    hasActiveSearch,
-    hueFilters,
-    localCards,
-    searchTerms,
-    showFavoritesOnly,
+  const {
+    addFilter,
+    addKeywordTag,
+    clearAllFilters,
+    displayCards,
+    hasNoFilters,
+    resetKey,
+    searchBarProps,
+    setRemoteCards,
     showTrashOnly,
-    styleFilters,
-    timeFilter,
-  ]);
+  } = searchController;
 
-  const displayCards = useMemo(() => {
-    if (!hasActiveSearch) {
-      return cards ?? [];
-    }
-
-    if (!cards || cards.length === 0) {
-      return localSearchResults;
-    }
-
-    if (localSearchResults.length === 0) {
-      return cards;
-    }
-
-    const localIds = new Set(localSearchResults.map((card) => card._id));
-    const merged = [...localSearchResults];
-
-    for (const card of cards) {
-      if (!localIds.has(card._id)) {
-        merged.push(card);
-      }
-    }
-
-    return merged;
-  }, [cards, hasActiveSearch, localSearchResults]);
+  useEffect(() => {
+    setRemoteCards(cards);
+  }, [cards, setRemoteCards]);
 
   const selectedCard = useMemo(
     () =>
@@ -230,11 +98,6 @@ export default function HomePage() {
       null,
     [displayCards, editingCardId]
   );
-  useEffect(() => {
-    if (hasActiveSearch && cardsStatus !== "LoadingFirstPage") {
-      metrics.searchPerformed(cards.length, filterTags);
-    }
-  }, [cards.length, cardsStatus, hasActiveSearch, filterTags]);
 
   const cardActions = useCardActions({
     onDeleteSuccess: (message?: string) => message && toast(message),
@@ -451,204 +314,6 @@ export default function HomePage() {
 
   const { getRootProps, getInputProps, isDragActive } = useGlobalDragDrop();
 
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      const parsedTime = parseTimeSearchQuery(searchQuery, {
-        now: new Date(),
-        weekStart: 0,
-      });
-
-      if (parsedTime) {
-        setTimeFilter(parsedTime);
-        setSearchQuery("");
-        return;
-      }
-
-      if (
-        ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
-      ) {
-        setShowFavoritesOnly(!showFavoritesOnly);
-        setSearchQuery("");
-        return;
-      }
-
-      if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
-        setShowTrashOnly(!showTrashOnly);
-        setSearchQuery("");
-        return;
-      }
-
-      const styleAdditions: VisualStyle[] = [];
-      const hueAdditions: ColorHueBucket[] = [];
-      const hexAdditions: string[] = [];
-      const keywordAdditions: string[] = [];
-
-      for (const token of searchQuery.split(SEARCH_TOKEN_SEPARATOR)) {
-        const normalizedToken = token.replace(SEARCH_TOKEN_TRIM_PATTERN, "");
-        if (!normalizedToken) {
-          continue;
-        }
-
-        const styleFilter = normalizeVisualStyle(normalizedToken);
-        if (styleFilter) {
-          if (
-            !(
-              styleFilters.includes(styleFilter) ||
-              styleAdditions.includes(styleFilter)
-            )
-          ) {
-            styleAdditions.push(styleFilter);
-            metrics.filterApplied("style");
-          }
-          continue;
-        }
-
-        const hueFilter = normalizeColorHueBucket(normalizedToken);
-        if (hueFilter) {
-          if (
-            !(
-              hueFilters.includes(hueFilter) || hueAdditions.includes(hueFilter)
-            )
-          ) {
-            hueAdditions.push(hueFilter);
-            metrics.filterApplied("color");
-          }
-          continue;
-        }
-
-        const hexFilter = normalizeHexColor(normalizedToken);
-        if (hexFilter) {
-          if (
-            !(
-              hexFilters.includes(hexFilter) || hexAdditions.includes(hexFilter)
-            )
-          ) {
-            hexAdditions.push(hexFilter);
-            metrics.filterApplied("color");
-          }
-          continue;
-        }
-
-        const keyword = normalizedToken.toLowerCase();
-        if (
-          !(keywordTags.includes(keyword) || keywordAdditions.includes(keyword))
-        ) {
-          keywordAdditions.push(keyword);
-          metrics.filterApplied("keyword");
-        }
-      }
-
-      if (styleAdditions.length > 0) {
-        setStyleFilters((prev) => [...prev, ...styleAdditions]);
-      }
-      if (hueAdditions.length > 0) {
-        setHueFilters((prev) => [...prev, ...hueAdditions]);
-      }
-      if (hexAdditions.length > 0) {
-        setHexFilters((prev) => [...prev, ...hexAdditions]);
-      }
-      if (keywordAdditions.length > 0) {
-        setKeywordTags((prev) => [...prev, ...keywordAdditions]);
-      }
-      setSearchQuery("");
-    } else if (
-      e.key === "Backspace" &&
-      searchQuery === "" &&
-      (keywordTags.length > 0 ||
-        filterTags.length > 0 ||
-        styleFilters.length > 0 ||
-        hueFilters.length > 0 ||
-        hexFilters.length > 0 ||
-        showFavoritesOnly ||
-        showTrashOnly ||
-        timeFilter)
-    ) {
-      if (hexFilters.length > 0) {
-        setHexFilters((prev) => prev.slice(0, -1));
-      } else if (hueFilters.length > 0) {
-        setHueFilters((prev) => prev.slice(0, -1));
-      } else if (styleFilters.length > 0) {
-        setStyleFilters((prev) => prev.slice(0, -1));
-      } else if (showTrashOnly) {
-        setShowTrashOnly(false);
-      } else if (showFavoritesOnly) {
-        setShowFavoritesOnly(false);
-      } else if (filterTags.length > 0) {
-        setFilterTags((prev) => prev.slice(0, -1));
-      } else if (timeFilter) {
-        setTimeFilter(null);
-      } else if (keywordTags.length > 0) {
-        setKeywordTags((prev) => prev.slice(0, -1));
-      }
-    }
-  };
-
-  const addFilter = (filter: CardType) => {
-    if (!filterTags.includes(filter)) {
-      metrics.filterApplied("type");
-      setFilterTags((prev) => [...prev, filter]);
-    }
-  };
-
-  const removeFilter = (filter: CardType) => {
-    setFilterTags((prev) => prev.filter((tag) => tag !== filter));
-  };
-
-  const removeStyleFilter = (style: VisualStyle) => {
-    setStyleFilters((prev) =>
-      prev.filter((activeStyle) => activeStyle !== style)
-    );
-  };
-
-  const removeHueFilter = (hue: ColorHueBucket) => {
-    setHueFilters((prev) => prev.filter((activeHue) => activeHue !== hue));
-  };
-
-  const removeHexFilter = (hex: string) => {
-    const normalizedHex = normalizeHexColor(hex);
-    if (!normalizedHex) {
-      return;
-    }
-    setHexFilters((prev) =>
-      prev.filter((activeHex) => activeHex !== normalizedHex)
-    );
-  };
-
-  const removeKeyword = (keyword: string) => {
-    setKeywordTags((prev) => prev.filter((tag) => tag !== keyword));
-  };
-
-  const toggleFavorites = () => {
-    if (!showFavoritesOnly) {
-      metrics.filterApplied("favorites");
-    }
-    setShowFavoritesOnly(!showFavoritesOnly);
-  };
-
-  const toggleTrash = () => {
-    if (!showTrashOnly) {
-      metrics.filterApplied("trash");
-    }
-    setShowTrashOnly(!showTrashOnly);
-  };
-
-  const clearAllFilters = () => {
-    setSearchQuery("");
-    setKeywordTags([]);
-    setFilterTags([]);
-    setStyleFilters([]);
-    setHueFilters([]);
-    setHexFilters([]);
-    setShowFavoritesOnly(false);
-    setShowTrashOnly(false);
-    setTimeFilter(null);
-  };
-
   const handleCardClick = (card: CardWithUrls & Record<string, unknown>) => {
     metrics.modalOpened("card");
     setEditingCardId(card._id);
@@ -674,21 +339,16 @@ export default function HomePage() {
   const handleTagClick = (tag: string) => {
     setEditingCardId(null);
     setCardUrlParam(null, true);
-    if (!keywordTags.includes(tag)) {
-      setKeywordTags((prev) => [...prev, tag]);
-    }
+    addKeywordTag(tag);
   };
 
-  const hasNoFilters =
-    keywordTags.length === 0 &&
-    filterTags.length === 0 &&
-    styleFilters.length === 0 &&
-    hueFilters.length === 0 &&
-    hexFilters.length === 0 &&
-    !showFavoritesOnly &&
-    !showTrashOnly &&
-    !searchQuery &&
-    !timeFilter;
+  const settingsButton = (
+    <Button asChild size="icon" variant="outline">
+      <Link href="/settings">
+        <Settings />
+      </Link>
+    </Button>
+  );
 
   const renderEmptyState = () => {
     if (cardsStatus === "LoadingFirstPage") {
@@ -720,38 +380,16 @@ export default function HomePage() {
   return (
     <div {...getRootProps()} className="relative">
       <input {...getInputProps()} />
-      <SearchBar
-        filterTags={filterTags}
-        hexFilters={hexFilters}
-        hueFilters={hueFilters}
-        keywordTags={keywordTags}
-        onAddFilter={addFilter}
-        onClearAll={clearAllFilters}
-        onKeyDown={handleKeyDown}
-        onRemoveFilter={removeFilter}
-        onRemoveHexFilter={removeHexFilter}
-        onRemoveHueFilter={removeHueFilter}
-        onRemoveKeyword={removeKeyword}
-        onRemoveStyleFilter={removeStyleFilter}
-        onRemoveTimeFilter={() => setTimeFilter(null)}
-        onSearchChange={handleSearchChange}
-        onToggleFavorites={toggleFavorites}
-        onToggleTrash={toggleTrash}
-        searchQuery={searchQuery}
-        showFavoritesOnly={showFavoritesOnly}
-        showTrashOnly={showTrashOnly}
-        styleFilters={styleFilters}
-        timeFilter={timeFilter}
-      />
+      <CardsSearchHeader {...searchBarProps} SettingsButton={settingsButton} />
 
       {displayCards.length > 0 ? (
         <MasonryGrid
-          batchSize={DEFAULT_CARD_LIMIT}
+          batchSize={SEARCH_DEFAULT_CARD_LIMIT}
           filteredCards={displayCards}
           hasMore={
             cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore"
           }
-          initialBatchSize={DEFAULT_CARD_LIMIT}
+          initialBatchSize={SEARCH_DEFAULT_CARD_LIMIT}
           isLoadingMore={cardsStatus === "LoadingMore"}
           onAddTags={handleAddTags}
           onBulkDeleteCards={async (cardIds) => {
@@ -768,7 +406,7 @@ export default function HomePage() {
           onDeleteCard={async (cardId) =>
             cardActions.handleDeleteCard(cardId as Id<"cards">)
           }
-          onLoadMore={() => loadMore(DEFAULT_CARD_LIMIT)}
+          onLoadMore={() => loadMore(SEARCH_DEFAULT_CARD_LIMIT)}
           onPermanentDeleteCard={(cardId) =>
             cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)
           }
@@ -778,7 +416,7 @@ export default function HomePage() {
           onToggleFavorite={(cardId) =>
             cardActions.handleToggleFavorite(cardId as Id<"cards">)
           }
-          resetKey={`${searchTerms}::${filterTags.join(",")}::${styleFilters.join(",")}::${hueFilters.join(",")}::${hexFilters.join(",")}::${showFavoritesOnly}::${showTrashOnly}::${timeFilter?.range.start ?? ""}-${timeFilter?.range.end ?? ""}`}
+          resetKey={resetKey}
           showTrashOnly={showTrashOnly}
         />
       ) : (

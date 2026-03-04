@@ -1,19 +1,27 @@
-import type { Doc } from "@teak/convex/_generated/dataModel";
-import { type CreatedAtRange, normalizeHexFilters } from "@teak/convex/shared";
+import type { Doc } from "../../_generated/dataModel";
+import type { CardType } from "../constants";
 import {
-  type CardType,
   normalizeHueFilters,
   normalizeVisualStyleFilters,
-} from "@teak/convex/shared/constants";
+} from "../constants";
+import type { CreatedAtRange } from "../utils/timeSearch";
+import { normalizeHexFilters } from "../utils/colorUtils";
+import { SEARCH_LOCAL_SEARCH_CACHE_LIMIT } from "./constants";
+import { tokenizeSearchInput } from "./tokenization";
 
-const normalizeSearchTerm = (value: string) => value.toLowerCase().trim();
+export interface LocalSearchFilters {
+  createdAtRange?: CreatedAtRange;
+  favoritesOnly?: boolean;
+  hexFilters?: string[];
+  hueFilters?: string[];
+  searchTerms?: string;
+  showTrashOnly?: boolean;
+  styleFilters?: string[];
+  types?: CardType[];
+}
 
 export const tokenizeSearchQuery = (query: string) =>
-  query
-    .split(/\s+/)
-    .map((term) => term.trim())
-    .filter(Boolean)
-    .map(normalizeSearchTerm);
+  tokenizeSearchInput(query).map((term) => term.toLowerCase());
 
 export const buildSearchableText = (card: Doc<"cards">) => {
   const parts: Array<string | undefined> = [
@@ -29,17 +37,6 @@ export const buildSearchableText = (card: Doc<"cards">) => {
 
   return parts.filter(Boolean).join(" ").toLowerCase();
 };
-
-export interface LocalSearchFilters {
-  createdAtRange?: CreatedAtRange;
-  favoritesOnly?: boolean;
-  hexFilters?: string[];
-  hueFilters?: string[];
-  searchTerms?: string;
-  showTrashOnly?: boolean;
-  styleFilters?: string[];
-  types?: CardType[];
-}
 
 const matchesVisualFilters = (
   card: Doc<"cards">,
@@ -148,3 +145,64 @@ export const filterLocalCards = (
     })
     .sort((a, b) => b.createdAt - a.createdAt);
 };
+
+export function mergeCardsIntoLocalSearchCache(
+  previousCards: Doc<"cards">[],
+  incomingCards: Doc<"cards">[],
+  cacheLimit = SEARCH_LOCAL_SEARCH_CACHE_LIMIT
+) {
+  if (incomingCards.length === 0) {
+    return previousCards;
+  }
+
+  const cacheById = new Map(previousCards.map((card) => [card._id, card]));
+  let changed = false;
+
+  for (const card of incomingCards) {
+    const existing = cacheById.get(card._id);
+    if (!existing || existing.updatedAt !== card.updatedAt) {
+      cacheById.set(card._id, card);
+      changed = true;
+    }
+  }
+
+  if (!changed) {
+    return previousCards;
+  }
+
+  const merged = Array.from(cacheById.values());
+  if (merged.length <= cacheLimit) {
+    return merged;
+  }
+
+  return merged.sort((a, b) => b.createdAt - a.createdAt).slice(0, cacheLimit);
+}
+
+export function mergeLocalAndRemoteSearchResults(
+  remoteCards: Doc<"cards">[],
+  localSearchResults: Doc<"cards">[],
+  hasActiveSearch: boolean
+) {
+  if (!hasActiveSearch) {
+    return remoteCards;
+  }
+
+  if (remoteCards.length === 0) {
+    return localSearchResults;
+  }
+
+  if (localSearchResults.length === 0) {
+    return remoteCards;
+  }
+
+  const localIds = new Set(localSearchResults.map((card) => card._id));
+  const merged = [...localSearchResults];
+
+  for (const card of remoteCards) {
+    if (!localIds.has(card._id)) {
+      merged.push(card);
+    }
+  }
+
+  return merged;
+}

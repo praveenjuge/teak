@@ -11,7 +11,6 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { toast } from "sonner";
-import { Layout } from "@/components/Layout";
 import { useDesktopMenuEvents } from "@/hooks/useDesktopMenuEvents";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useSilentUpdater } from "@/hooks/useSilentUpdater";
@@ -100,14 +99,7 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route
-        element={
-          <Layout>
-            <CardsPage />
-          </Layout>
-        }
-        path="/"
-      />
+      <Route element={<CardsPage />} path="/" />
       <Route element={<SettingsPage />} path="/settings" />
       <Route element={<Navigate replace to="/" />} path="*" />
     </Routes>

@@ -1,11 +1,15 @@
 import { describe, expect, it } from "bun:test";
 
-import type { Doc, Id } from "@teak/convex/_generated/dataModel";
+import type { Doc, Id } from "../../../_generated/dataModel";
 import {
   buildSearchableText,
+  classifySearchToken,
   filterLocalCards,
+  mergeLocalAndRemoteSearchResults,
+  mergeCardsIntoLocalSearchCache,
+  resolveQuickSearchCommand,
   tokenizeSearchQuery,
-} from "../lib/localSearch";
+} from "../../../shared/search";
 
 type CardOverrides = Partial<Omit<Doc<"cards">, "_id">> & {
   _id?: Id<"cards"> | string;
@@ -28,9 +32,34 @@ const makeCard = (overrides: CardOverrides): Doc<"cards"> =>
     ...overrides,
   }) as Doc<"cards">;
 
-describe("localSearch helpers", () => {
+describe("shared search helpers", () => {
   it("tokenizes and normalizes search terms", () => {
     expect(tokenizeSearchQuery("  Foo   BAR ")).toEqual(["foo", "bar"]);
+  });
+
+  it("classifies style/hue/hex/keyword tokens", () => {
+    expect(classifySearchToken("vintage")).toEqual({
+      kind: "style",
+      value: "vintage",
+    });
+    expect(classifySearchToken("violet")).toEqual({
+      kind: "hue",
+      value: "purple",
+    });
+    expect(classifySearchToken("663399")).toEqual({
+      kind: "hex",
+      value: "#663399",
+    });
+    expect(classifySearchToken("mytag")).toEqual({
+      kind: "keyword",
+      value: "mytag",
+    });
+  });
+
+  it("resolves quick commands", () => {
+    expect(resolveQuickSearchCommand("favorites")).toBe("favorites");
+    expect(resolveQuickSearchCommand("trash")).toBe("trash");
+    expect(resolveQuickSearchCommand("other")).toBeNull();
   });
 
   it("builds searchable text from core fields and tags", () => {
@@ -174,5 +203,68 @@ describe("localSearch helpers", () => {
       hexFilters: ["663399"],
     });
     expect(results.map((card) => card._id)).toEqual(["1", "2"]);
+  });
+
+  it("merges local and remote search results without duplicates", () => {
+    const localResults = [
+      makeCard({
+        _id: "1",
+        content: "Local first",
+        createdAt: 2,
+        updatedAt: 2,
+      }),
+    ];
+    const remoteResults = [
+      makeCard({
+        _id: "1",
+        content: "Remote duplicate",
+        createdAt: 2,
+        updatedAt: 3,
+      }),
+      makeCard({
+        _id: "2",
+        content: "Remote unique",
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    ];
+
+    const merged = mergeLocalAndRemoteSearchResults(
+      remoteResults,
+      localResults,
+      true
+    );
+    expect(merged.map((card) => card._id)).toEqual(["1", "2"]);
+  });
+
+  it("updates local cache by id+updatedAt and enforces max size", () => {
+    const current = [
+      makeCard({
+        _id: "1",
+        createdAt: 3,
+        updatedAt: 3,
+      }),
+      makeCard({
+        _id: "2",
+        createdAt: 2,
+        updatedAt: 2,
+      }),
+    ];
+    const incoming = [
+      makeCard({
+        _id: "2",
+        createdAt: 2,
+        updatedAt: 4,
+      }),
+      makeCard({
+        _id: "3",
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    ];
+
+    const next = mergeCardsIntoLocalSearchCache(current, incoming, 2);
+    expect(next.map((card) => card._id)).toEqual(["1", "2"]);
+    expect(next.find((card) => card._id === "2")?.updatedAt).toBe(4);
   });
 });
