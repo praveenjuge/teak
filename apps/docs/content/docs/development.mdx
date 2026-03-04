@@ -19,6 +19,7 @@ bun install
 - Web App: http://localhost:3000
 - Admin: http://localhost:3000/admin
 - API Gateway: http://localhost:8787
+- MCP Endpoint: http://localhost:8787/mcp
 - Convex Dashboard: opens after `bunx convex dev`
 - Mobile: Expo Go or simulator
 - Extension: Chrome dev mode
@@ -113,6 +114,11 @@ Example:
 ```bash
 echo "CONVEX_HTTP_BASE_URL=https://<your-deployment>.convex.site" > apps/api/.env
 ```
+
+The same service exposes:
+
+- REST API: `http://localhost:8787/v1`
+- MCP endpoint: `http://localhost:8787/mcp`
 
 ### Environment Variables
 

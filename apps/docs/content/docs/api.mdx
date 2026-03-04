@@ -11,6 +11,15 @@ Teak provides a public API at `https://api.teakvault.com/v1`.
 - Production: `https://api.teakvault.com/v1`
 - Local development: `http://localhost:8787/v1`
 
+## MCP Endpoint
+
+Teak also exposes a remote MCP server:
+
+- Production: `https://api.teakvault.com/mcp`
+- Local development: `http://localhost:8787/mcp`
+
+See the dedicated [MCP docs](./mcp) for tool contracts and JSON-RPC examples.
+
 ## Authentication
 
 All API requests require your Teak API key in the `Authorization` header:
@@ -58,7 +67,12 @@ Response:
     "DELETE /v1/cards/:cardId",
     "PATCH /v1/cards/:cardId/favorite"
   ],
-  "auth": "Authorization: Bearer <api_key>"
+  "auth": "Authorization: Bearer <api_key>",
+  "mcp": {
+    "endpoint": "https://api.teakvault.com/mcp",
+    "transport": "streamable-http",
+    "auth": "Authorization: Bearer <api_key>"
+  }
 }
 ```
 

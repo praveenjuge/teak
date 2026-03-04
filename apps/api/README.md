@@ -1,6 +1,9 @@
 # Teak API Gateway (`apps/api`)
 
-Thin Hono proxy for Teak public API routes served at `https://api.teakvault.com/v1`.
+Hono gateway for Teak public REST API and MCP server:
+
+- REST: `https://api.teakvault.com/v1`
+- MCP: `https://api.teakvault.com/mcp`
 
 ## Environment
 
@@ -29,6 +32,8 @@ Local server defaults to `http://localhost:8787`.
 - `PATCH /v1/cards/:cardId`
 - `DELETE /v1/cards/:cardId`
 - `PATCH /v1/cards/:cardId/favorite`
+- `ALL /mcp`
+- `ALL /mcp/`
 
 ## Commands
 

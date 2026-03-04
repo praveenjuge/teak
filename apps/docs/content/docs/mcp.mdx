@@ -1,0 +1,109 @@
+---
+title: MCP
+description: Remote MCP server for Teak card operations
+icon: Command
+---
+
+Teak provides a remote MCP server at `https://api.teakvault.com/mcp`.
+
+## Base URLs
+
+- Production: `https://api.teakvault.com/mcp`
+- Local development: `http://localhost:8787/mcp`
+
+## Authentication
+
+All MCP requests require your Teak API key in the `Authorization` header:
+
+```bash
+Authorization: Bearer teakapi_xxx_xxx
+```
+
+Generate API keys in Teak Settings: `https://app.teakvault.com/settings`.
+
+## Transport
+
+- Protocol: MCP Streamable HTTP
+- Endpoint path: `/mcp`
+- Also supported: `/mcp/`
+- Server mode: stateless JSON response mode
+
+## Available Tools
+
+- `teak_v1_create_card`
+  - Input: `{ content: string }`
+  - Output: `{ status: "created" | "duplicate", cardId: string }`
+- `teak_v1_search_cards`
+  - Input: `{ q?: string, limit?: number }`
+  - Output: `{ items: Card[], total: number }`
+- `teak_v1_list_favorite_cards`
+  - Input: `{ q?: string, limit?: number }`
+  - Output: `{ items: Card[], total: number }`
+- `teak_v1_update_card`
+  - Input: `{ cardId: string, content?: string, url?: string, notes?: string | null, tags?: string[] }`
+  - Output: updated card object
+- `teak_v1_set_card_favorite`
+  - Input: `{ cardId: string, isFavorited: boolean }`
+  - Output: updated card object
+- `teak_v1_delete_card`
+  - Input: `{ cardId: string, confirm: true }`
+  - Output: `{ status: "deleted", cardId: string }`
+
+## Error Format
+
+Tool failures are returned as MCP tool errors with this structured shape:
+
+```json
+{
+  "status": 429,
+  "code": "RATE_LIMITED",
+  "error": "Too many requests"
+}
+```
+
+## JSON-RPC Examples
+
+Initialize:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-06-18",
+    "capabilities": {},
+    "clientInfo": {
+      "name": "my-client",
+      "version": "1.0.0"
+    }
+  }
+}
+```
+
+List tools:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/list",
+  "params": {}
+}
+```
+
+Call `teak_v1_create_card`:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "teak_v1_create_card",
+    "arguments": {
+      "content": "https://teakvault.com"
+    }
+  }
+}
+```

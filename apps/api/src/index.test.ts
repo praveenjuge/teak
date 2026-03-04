@@ -30,6 +30,19 @@ describe("apps/api proxy", () => {
     const payload = await response.json();
     expect(payload.version).toBe("v1");
     expect(payload.endpoints).toContain("POST /v1/cards");
+    expect(payload.mcp).toEqual({
+      endpoint: "http://localhost/mcp",
+      transport: "streamable-http",
+      auth: "Authorization: Bearer <api_key>",
+    });
+  });
+
+  test("derives MCP endpoint from request host", async () => {
+    const response = await app.request("https://api.teakvault.com/v1");
+
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(payload.mcp.endpoint).toBe("https://api.teakvault.com/mcp");
   });
 
   test("fails fast when CONVEX_HTTP_BASE_URL is missing", async () => {
