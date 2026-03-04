@@ -58,7 +58,15 @@ jobs:
           EXPECTED_VERSION="${{ steps.release.outputs.version }}"
           PACKAGE_VERSION="$(jq -r '.version' apps/desktop/package.json)"
           TAURI_VERSION="$(jq -r '.version' apps/desktop/src-tauri/tauri.conf.json)"
-          CARGO_VERSION="$(awk '/^\[package\]/{in_package=1} in_package && /^version\s*=/{gsub(/\"/, "", $3); print $3; exit}' apps/desktop/src-tauri/Cargo.toml)"
+          CARGO_VERSION="$(awk '
+            /^\[package\]$/ { in_package=1; next }
+            /^\[/ { if (in_package) exit }
+            in_package && $1 == "version" {
+              gsub(/"/, "", $3)
+              print $3
+              exit
+            }
+          ' apps/desktop/src-tauri/Cargo.toml)"
 
           if [[ "$PACKAGE_VERSION" != "$EXPECTED_VERSION" ]]; then
             echo "apps/desktop/package.json version mismatch: $PACKAGE_VERSION != $EXPECTED_VERSION"
