@@ -1,7 +1,7 @@
 {
   "name": "@teak/desktop",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.10",
   "type": "module",
   "scripts": {
     "dev": "tauri dev",
