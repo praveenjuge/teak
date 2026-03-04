@@ -29,7 +29,7 @@
     },
     "apps/desktop": {
       "name": "@teak/desktop",
-      "version": "0.1.0",
+      "version": "1.0.10",
       "dependencies": {
         "@tailwindcss/vite": "^4.2.0",
         "@tauri-apps/api": "^2",

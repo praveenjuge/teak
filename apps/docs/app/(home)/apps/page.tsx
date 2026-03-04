@@ -4,6 +4,7 @@ import {
   type LucideProps,
   Monitor,
   Puzzle,
+  Server,
   Smartphone,
 } from "lucide-react";
 import type { Metadata } from "next";
@@ -17,21 +18,22 @@ const CHROME_STORE_URL =
   "https://chromewebstore.google.com/detail/empty-title/negnmfifahnnagnbnfppmlgfajngdpob";
 const DESKTOP_DOWNLOAD_URL =
   "https://github.com/praveenjuge/teak/releases/latest";
+const API_DOCS_URL = "/docs/api";
 const RAYCAST_STORE_URL = "https://www.raycast.com/praveenjuge/teak-raycast";
 const RAYCAST_INSTALL_BUTTON_URL =
   "https://www.raycast.com/praveenjuge/teak-raycast/install_button@2x.png?v=1.1";
 
 export const metadata: Metadata = {
-  title: "Teak Apps | Desktop, Web, iOS, Chrome Extension, and Raycast",
+  title: "Teak Apps | Desktop, Web, API, iOS, Chrome Extension, and Raycast",
   description:
-    "Use Teak on desktop, web, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device.",
+    "Use Teak on desktop, web, API, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device.",
   keywords:
-    "teak desktop app, teak apps, teak ios, teak chrome extension, teak raycast extension, teak web app, visual bookmarking apps, cross platform inspiration",
+    "teak desktop app, teak apps, teak api, teak ios, teak chrome extension, teak raycast extension, teak web app, visual bookmarking apps, cross platform inspiration",
   authors: [{ name: "Teak Team" }],
   openGraph: {
     title: "Teak Apps",
     description:
-      "Use Teak on desktop, web, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device.",
+      "Use Teak on desktop, web, API, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device.",
     type: "website",
     url: "https://teakvault.com/apps",
     siteName: "Teak",
@@ -41,7 +43,7 @@ export const metadata: Metadata = {
         url: "/hero-image.png",
         width: 1200,
         height: 630,
-        alt: "Teak - Desktop, Web, iOS, Chrome Extension, and Raycast",
+        alt: "Teak - Desktop, Web, API, iOS, Chrome Extension, and Raycast",
       },
     ],
   },
@@ -49,7 +51,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Teak Apps",
     description:
-      "Use Teak on desktop, web, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device.",
+      "Use Teak on desktop, web, API, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device.",
     images: ["/hero-image.png"],
   },
   robots: {
@@ -91,6 +93,8 @@ interface PlatformCard {
 // - https://lftz25oez4aqbxpq.public.blob.vercel-storage.com/image-UN1NRnC5SEYcBvC7jJ1HjGKB22Q6Eb.png
 // - https://lftz25oez4aqbxpq.public.blob.vercel-storage.com/image-LxbDZUY1gzuzF4AEv0OHAqsSGpAng8.png
 // - https://lftz25oez4aqbxpq.public.blob.vercel-storage.com/image-xqy5MjgcznB4xWNihuD1LFkf0MW1NK.png
+// - https://lftz25oez4aqbxpq.public.blob.vercel-storage.com/image-3NnRZYSd3R3CDbeMlwYANaxhf9plnG.png
+// - https://lftz25oez4aqbxpq.public.blob.vercel-storage.com/image-nbFzyTbWb2lyzHuEKm0KgJgFifnIxw.png
 const platformCards: PlatformCard[] = [
   {
     name: "Web App",
@@ -137,12 +141,24 @@ const platformCards: PlatformCard[] = [
   {
     name: "Desktop App (macOS)",
     copy: "Install the signed native desktop app for Apple Silicon and stay current with built-in auto updates.",
-    emojiAlt: "Teak desktop app icon",
-    emojiSrc: "/apps-desktop-icon.svg",
+    emojiAlt: "Desktop computer emoji",
+    emojiSrc: "/emojis/apps-desktop-computer-monitor.png",
     icon: Monitor,
     action: {
       label: "Download for macOS",
       href: DESKTOP_DOWNLOAD_URL,
+      type: "button",
+    },
+  },
+  {
+    name: "API",
+    copy: "Build on Teak with documented API routes, auth details, and practical request/response examples.",
+    emojiAlt: "Command line terminal emoji",
+    emojiSrc: "/emojis/apps-api-terminal.png",
+    icon: Server,
+    action: {
+      label: "View API Docs",
+      href: API_DOCS_URL,
       type: "button",
     },
   },
@@ -171,8 +187,8 @@ export default function AppsPage() {
           Teak, everywhere you create
         </h1>
         <p className="text-lg text-muted-foreground">
-          Desktop, web, iPhone, Chrome, and Raycast stay perfectly in sync so
-          the inspiration you save once is waiting on every device.
+          Desktop, web, API, iPhone, Chrome, and Raycast stay perfectly in sync
+          so the inspiration you save once is waiting on every device.
         </p>
       </section>
 
@@ -180,6 +196,9 @@ export default function AppsPage() {
         {platformCards.map((card) => {
           const ActionIcon =
             card.action.type === "button" ? card.action.icon : undefined;
+          const isRemoteEmoji = card.emojiSrc.startsWith("http");
+          const isRemoteActionImage =
+            card.action.type === "badge" && card.action.src.startsWith("http");
 
           return (
             <a
@@ -195,7 +214,7 @@ export default function AppsPage() {
                 className="size-14 object-contain"
                 height={56}
                 src={card.emojiSrc}
-                unoptimized
+                unoptimized={isRemoteEmoji}
                 width={56}
               />
               <div className="font-semibold">{card.name}</div>
@@ -215,7 +234,7 @@ export default function AppsPage() {
                       className="h-auto max-w-52.5 object-contain"
                       height={card.action.height}
                       src={card.action.src}
-                      unoptimized
+                      unoptimized={isRemoteActionImage}
                       width={card.action.width}
                     />
                   </span>
