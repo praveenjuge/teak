@@ -2,6 +2,7 @@ import {
   Command,
   Globe,
   type LucideProps,
+  Monitor,
   Puzzle,
   Smartphone,
 } from "lucide-react";
@@ -14,21 +15,23 @@ const APP_STORE_URL =
   "https://apps.apple.com/us/app/teak-save-inspirations/id6756574989";
 const CHROME_STORE_URL =
   "https://chromewebstore.google.com/detail/empty-title/negnmfifahnnagnbnfppmlgfajngdpob";
+const DESKTOP_DOWNLOAD_URL =
+  "https://github.com/praveenjuge/teak/releases/latest";
 const RAYCAST_STORE_URL = "https://www.raycast.com/praveenjuge/teak-raycast";
 const RAYCAST_INSTALL_BUTTON_URL =
   "https://www.raycast.com/praveenjuge/teak-raycast/install_button@2x.png?v=1.1";
 
 export const metadata: Metadata = {
-  title: "Teak Apps | Web, iOS, Chrome Extension, and Raycast",
+  title: "Teak Apps | Desktop, Web, iOS, Chrome Extension, and Raycast",
   description:
-    "Use Teak on the web, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device.",
+    "Use Teak on desktop, web, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device.",
   keywords:
-    "teak apps, teak ios, teak chrome extension, teak raycast extension, teak web app, visual bookmarking apps, cross platform inspiration",
+    "teak desktop app, teak apps, teak ios, teak chrome extension, teak raycast extension, teak web app, visual bookmarking apps, cross platform inspiration",
   authors: [{ name: "Teak Team" }],
   openGraph: {
     title: "Teak Apps",
     description:
-      "Use Teak on the web, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device.",
+      "Use Teak on desktop, web, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device.",
     type: "website",
     url: "https://teakvault.com/apps",
     siteName: "Teak",
@@ -38,7 +41,7 @@ export const metadata: Metadata = {
         url: "/hero-image.png",
         width: 1200,
         height: 630,
-        alt: "Teak - Web, iOS, Chrome Extension, and Raycast",
+        alt: "Teak - Desktop, Web, iOS, Chrome Extension, and Raycast",
       },
     ],
   },
@@ -46,7 +49,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Teak Apps",
     description:
-      "Use Teak on the web, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device.",
+      "Use Teak on desktop, web, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device.",
     images: ["/hero-image.png"],
   },
   robots: {
@@ -132,6 +135,18 @@ const platformCards: PlatformCard[] = [
     },
   },
   {
+    name: "Desktop App (macOS)",
+    copy: "Install the signed native desktop app for Apple Silicon and stay current with built-in auto updates.",
+    emojiAlt: "Teak desktop app icon",
+    emojiSrc: "/apps-desktop-icon.svg",
+    icon: Monitor,
+    action: {
+      label: "Download for macOS",
+      href: DESKTOP_DOWNLOAD_URL,
+      type: "button",
+    },
+  },
+  {
     name: "Raycast Extension",
     copy: "Save your clipboard, search your cards, and jump to favorites directly from Raycast.",
     emojiAlt: "Target face emoji",
@@ -156,8 +171,8 @@ export default function AppsPage() {
           Teak, everywhere you create
         </h1>
         <p className="text-lg text-muted-foreground">
-          Web, iPhone, Chrome, and Raycast stay perfectly in sync so the
-          inspiration you save once is waiting on every device.
+          Desktop, web, iPhone, Chrome, and Raycast stay perfectly in sync so
+          the inspiration you save once is waiting on every device.
         </p>
       </section>
 

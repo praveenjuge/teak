@@ -1,0 +1,79 @@
+---
+title: Desktop App (macOS)
+description: Install, update, and troubleshoot the Teak desktop app on Apple Silicon Macs
+icon: Monitor
+---
+
+Teak Desktop gives you a native macOS app with automatic updates and the same real-time sync as web and mobile.
+
+## Requirements
+
+- macOS 13.0 or newer
+- Apple Silicon Mac (M1, M2, M3, or newer)
+- Internet connection for sign-in and sync
+
+## Install
+
+1. Download the latest macOS build from [GitHub Releases](https://github.com/praveenjuge/teak/releases/latest).
+2. Open the `.dmg` file.
+3. Drag **Teak.app** to **Applications**.
+4. Launch Teak from Applications.
+
+## First Launch Security Checks
+
+Teak desktop releases are signed and notarized.
+
+If Gatekeeper blocks launch:
+
+1. Open **System Settings → Privacy & Security**.
+2. Find the Teak block message and choose **Open Anyway**.
+3. Relaunch Teak.
+
+## Sign In
+
+Desktop sign-in opens a secure browser-based authentication window and returns you to the app automatically after login.
+
+## Auto Updates
+
+Teak checks for updates silently in the background.
+
+- If an update is available, it is downloaded and installed automatically.
+- The app restarts with the new version.
+- If update checks fail (for example network outage), Teak continues running and retries on next launch.
+
+## Manual Update / Recovery
+
+If you need to update manually or recover from a failed install:
+
+1. Quit Teak.
+2. Download the latest release from [GitHub Releases](https://github.com/praveenjuge/teak/releases/latest).
+3. Replace **Teak.app** in Applications.
+4. Relaunch Teak.
+
+## Rollback
+
+If a release is unstable:
+
+1. Download the prior stable release from GitHub Releases.
+2. Replace **Teak.app** in Applications with that version.
+3. Relaunch Teak.
+
+Your account data stays in Teak backend storage and local session state is preserved unless you sign out.
+
+## Troubleshooting
+
+### App opens but cannot sign in
+
+- Check network connectivity.
+- Confirm your system clock is correct.
+- Retry after a minute in case of temporary auth service issues.
+
+### Update does not apply
+
+- Relaunch the app and wait for update check.
+- Confirm `updates.teakvault.com` is reachable from your network.
+- Install the latest release manually from GitHub.
+
+### Still stuck?
+
+Reach out via [Support](/docs/support).

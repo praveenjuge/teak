@@ -1,7 +1,7 @@
 {
   "name": "@teak/desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "tauri dev",
@@ -10,7 +10,8 @@
     "build:vite": "tsc && vite build",
     "preview": "vite preview",
     "test": "bun test src/__tests__ --coverage --dots",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "version:sync": "node ./scripts/sync-desktop-version.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.0",

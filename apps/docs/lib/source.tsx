@@ -6,6 +6,7 @@ import {
   Command,
   FileText,
   HelpCircle,
+  Monitor,
   Settings,
   Shield,
   Sparkles,
@@ -20,6 +21,7 @@ const iconMap = {
   Shield,
   FileText,
   HelpCircle,
+  Monitor,
 };
 
 // See https://fumadocs.vercel.app/docs/headless/source-api for more info
