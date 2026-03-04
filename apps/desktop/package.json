@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "tauri dev",
-    "build": "tauri build",
-    "build:mac-silicon": "tauri build --target aarch64-apple-darwin",
+    "build": "bun run build:vite",
+    "bundle": "tauri build",
+    "bundle:mac-silicon": "tauri build --target aarch64-apple-darwin",
+    "build:mac-silicon": "bun run bundle:mac-silicon",
     "build:vite": "tsc && vite build",
     "preview": "vite preview",
     "test": "bun test src/__tests__ --coverage --dots",
