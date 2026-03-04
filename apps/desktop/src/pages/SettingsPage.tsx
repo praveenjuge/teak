@@ -4,7 +4,7 @@ import { exit } from "@tauri-apps/plugin-process";
 import { api } from "@teak/convex";
 import { Badge } from "@teak/ui/components/ui/badge";
 import { Button } from "@teak/ui/components/ui/button";
-import { Dialog, DialogContent } from "@teak/ui/components/ui/dialog";
+import { PageLoadingState } from "@teak/ui/feedback/PageLoadingState";
 import { Spinner } from "@teak/ui/components/ui/spinner";
 import { TopPattern } from "@teak/ui/patterns";
 import {
@@ -13,7 +13,6 @@ import {
   DeleteAccountDialog,
   SettingRow,
   SettingsFooter,
-  SubscriptionSection,
   ThemeToggle,
 } from "@teak/ui/settings";
 import { useAction, useMutation } from "convex/react";
@@ -27,26 +26,15 @@ import { buildWebUrl } from "@/lib/web-urls";
 
 const convexApi = api as any;
 
-const isProduction = import.meta.env.PROD;
-const monthlyPlanId = isProduction
-  ? "d46c71a7-61dc-4dc8-b53d-9a73d0204c28"
-  : "a02153cd-c49d-49ae-8be6-464296a39a23";
-const yearlyPlanId = isProduction
-  ? "6fb24b68-09e0-42c4-b090-f0e03cb7de56"
-  : "f3073c34-8b4d-40b7-8123-2f8cbacbc609";
-
 export function SettingsPage() {
   const navigate = useNavigate();
   const user = useQuery(api.auth.getCurrentUser);
   const cardCount = user?.cardCount ?? 0;
   const hasPremium = user?.hasPremium;
   const [signOutLoading, setSignOutLoading] = useState(false);
-  const [subscriptionOpen, setSubscriptionOpen] = useState(false);
-  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const createCheckoutLink = useAction(api.billing.createCheckoutLink);
   const createCustomerPortal = useAction(api.billing.createCustomerPortal);
 
   // API Keys
@@ -74,24 +62,6 @@ export function SettingsPage() {
   }, []);
 
   const isLoading = user === undefined;
-
-  const handleCheckout = async (planId: string) => {
-    setLoadingPlanId(planId);
-    const toastId = toast.loading("Opening checkout...");
-    try {
-      const checkoutUrl = await createCheckoutLink({ productId: planId });
-      await openUrl(checkoutUrl);
-      toast.success("Checkout opened in browser", { id: toastId });
-      setSubscriptionOpen(false);
-    } catch (error) {
-      console.error("Failed to open checkout", error);
-      toast.error("Failed to start checkout. Please try again.", {
-        id: toastId,
-      });
-    } finally {
-      setLoadingPlanId(null);
-    }
-  };
 
   const handleCreateCustomerPortal = async () => {
     const toastId = toast.loading("Opening customer portal...");
@@ -141,6 +111,10 @@ export function SettingsPage() {
     await openUrl(upgradeUrl);
   };
 
+  if (isLoading) {
+    return <PageLoadingState />;
+  }
+
   return (
     <main className="min-h-screen">
       <section className="relative mx-auto my-10 w-full max-w-md space-y-5 px-4">
@@ -156,22 +130,18 @@ export function SettingsPage() {
 
           <SettingRow title="Email">
             <Button disabled size="sm" variant="ghost">
-              {isLoading ? <Spinner /> : (user?.email ?? "Not available")}
+              {user?.email ?? "Not available"}
             </Button>
           </SettingRow>
 
           <SettingRow title="Usage">
             <Button disabled size="sm" variant="ghost">
-              {isLoading ? <Spinner /> : `${cardCount} Cards`}
+              {`${cardCount} Cards`}
             </Button>
           </SettingRow>
 
           <SettingRow title="Plan">
-            {isLoading ? (
-              <Button disabled size="sm" variant="ghost">
-                <Spinner />
-              </Button>
-            ) : hasPremium ? (
+            {hasPremium ? (
               <>
                 <Badge>Pro</Badge>
                 <CustomerPortalButton
@@ -218,17 +188,6 @@ export function SettingsPage() {
         </div>
         <TopPattern />
       </section>
-
-      <Dialog onOpenChange={setSubscriptionOpen} open={subscriptionOpen}>
-        <DialogContent className="max-w-3xl">
-          <SubscriptionSection
-            loadingPlanId={loadingPlanId}
-            monthlyPlanId={monthlyPlanId}
-            onCheckout={handleCheckout}
-            yearlyPlanId={yearlyPlanId}
-          />
-        </DialogContent>
-      </Dialog>
 
       <DeleteAccountDialog
         error={deleteError}

@@ -3,12 +3,16 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { SEARCH_DEFAULT_CARD_LIMIT } from "@teak/convex/shared";
-import type { CardType } from "@teak/convex/shared/constants";
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Button } from "@teak/ui/components/ui/button";
 import { CardsGridSkeleton } from "@teak/ui/feedback/CardsGridSkeleton";
+import { DragOverlay } from "@teak/ui/feedback/DragOverlay";
 import { AddCardEmptyState } from "@teak/ui/forms";
-import { useCardsSearchController } from "@teak/ui/hooks";
+import {
+  useCardClipboard,
+  useCardModalFilterActions,
+  useCardsSearchController,
+} from "@teak/ui/hooks";
 import { TagManagementModal } from "@teak/ui/modals";
 import { CardsSearchHeader } from "@teak/ui/search";
 import { Authenticated, AuthLoading, useMutation } from "convex/react";
@@ -19,7 +23,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CardModal } from "@/components/CardModal";
-import { DragOverlay } from "@/components/DragOverlay";
 import { MasonryGrid } from "@/components/MasonryGrid";
 import { useCardActions } from "@/hooks/useCardActions";
 import { useGlobalDragDrop } from "@/hooks/useGlobalDragDrop";
@@ -123,152 +126,7 @@ export default function HomePage() {
   const handleAddTags = (cardId: string) => {
     setTagManagementCardId(cardId);
   };
-
-  // Helper to convert blob to PNG
-  const convertToPng = async (
-    blob: Blob,
-    fallbackWidth = 500,
-    fallbackHeight = 500
-  ): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      // Don't set crossOrigin for blob URLs (they're same-origin)
-      const blobUrl = URL.createObjectURL(blob);
-
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-
-      img.onload = () => {
-        // Use natural dimensions, fallback to current dimensions, then defaults
-        const width = img.naturalWidth || img.width || fallbackWidth;
-        const height = img.naturalHeight || img.height || fallbackHeight;
-        canvas.width = width;
-        canvas.height = height;
-        ctx?.drawImage(img, 0, 0, width, height);
-        URL.revokeObjectURL(blobUrl);
-
-        canvas.toBlob((b) => {
-          if (b) {
-            resolve(b);
-          } else {
-            reject(new Error("Failed to create PNG blob"));
-          }
-        }, "image/png");
-      };
-
-      img.onerror = (err) => {
-        URL.revokeObjectURL(blobUrl);
-        reject(err);
-      };
-
-      img.src = blobUrl;
-    });
-  };
-
-  // Helper to get SVG dimensions from content
-  const getSvgDimensions = (
-    svgText: string
-  ): { width: number; height: number } => {
-    // Try to extract viewBox (width, height from viewBox="x y w h")
-    const viewBoxMatch = svgText.match(/viewBox=["']([^"']+)["']/);
-    if (viewBoxMatch) {
-      const parts = viewBoxMatch[1].split(/\s+/);
-      if (parts.length === 4) {
-        return { width: Number(parts[2]), height: Number(parts[3]) };
-      }
-    }
-
-    // Try to extract width and height attributes
-    const widthMatch = svgText.match(/width=["'](\d+(?:\.\d+)?)["']/);
-    const heightMatch = svgText.match(/height=["'](\d+(?:\.\d+)?)["']/);
-    if (widthMatch && heightMatch) {
-      return { width: Number(widthMatch[1]), height: Number(heightMatch[1]) };
-    }
-
-    // Default dimensions
-    return { width: 500, height: 500 };
-  };
-
-  // Handler for copying to clipboard
-  const handleCopyImage = async (content: string, isImage: boolean) => {
-    if (isImage) {
-      // Show loading toast immediately
-      toast.loading("Copying image...", { id: "copy-image" });
-    }
-
-    try {
-      if (isImage) {
-        // Fetch the image in its original format
-        const response = await fetch(content);
-        const blob = await response.blob();
-
-        // Try to copy in original format first
-        try {
-          await navigator.clipboard.write([
-            new ClipboardItem({ [blob.type]: blob }),
-          ]);
-          toast.success("Image copied to clipboard", { id: "copy-image" });
-          return;
-        } catch (originalError) {
-          // If original format isn't supported, try PNG as fallback
-          if (
-            originalError instanceof DOMException &&
-            originalError.name === "NotAllowedError"
-          ) {
-            // Special handling for SVG - get dimensions from SVG content
-            if (blob.type === "image/svg+xml") {
-              const svgText = await blob.text();
-              const { width, height } = getSvgDimensions(svgText);
-
-              // Create a new blob with explicit dimensions
-              const svgWithDimensions = svgText.replace(
-                /<svg/,
-                `<svg width="${width}" height="${height}"`
-              );
-              const sizedBlob = new Blob([svgWithDimensions], {
-                type: "image/svg+xml",
-              });
-
-              try {
-                const pngBlob = await convertToPng(sizedBlob, width, height);
-                await navigator.clipboard.write([
-                  new ClipboardItem({ "image/png": pngBlob }),
-                ]);
-                toast.success("Image copied to clipboard", {
-                  id: "copy-image",
-                });
-                return;
-              } catch {
-                throw new Error("Failed to convert SVG to PNG");
-              }
-            }
-
-            // For other formats
-            const pngBlob = await convertToPng(blob);
-            await navigator.clipboard.write([
-              new ClipboardItem({ "image/png": pngBlob }),
-            ]);
-            toast.success("Image copied to clipboard", { id: "copy-image" });
-            return;
-          }
-          throw originalError;
-        }
-      } else {
-        // For text/link, copy as text
-        await navigator.clipboard.writeText(content);
-        toast.success("Copied to clipboard");
-      }
-    } catch (error) {
-      console.error("Failed to copy:", error);
-      // Fallback: copy the URL instead
-      try {
-        await navigator.clipboard.writeText(content);
-        toast.success("Link copied to clipboard", { id: "copy-image" });
-      } catch {
-        toast.error("Failed to copy to clipboard", { id: "copy-image" });
-      }
-    }
-  };
+  const { handleCopyImage } = useCardClipboard();
 
   // Tag management handlers
   const handleAddTag = () => {
@@ -330,17 +188,11 @@ export default function HomePage() {
     setCardUrlParam(null, true);
   };
 
-  const handleCardTypeClick = (cardType: string) => {
-    setEditingCardId(null);
-    setCardUrlParam(null, true);
-    addFilter(cardType as CardType);
-  };
-
-  const handleTagClick = (tag: string) => {
-    setEditingCardId(null);
-    setCardUrlParam(null, true);
-    addKeywordTag(tag);
-  };
+  const { handleCardTypeClick, handleTagClick } = useCardModalFilterActions({
+    addFilter,
+    addKeywordTag,
+    onCloseModal: handleEditCancel,
+  });
 
   const settingsButton = (
     <Button asChild size="icon" variant="outline">

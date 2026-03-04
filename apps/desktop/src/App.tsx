@@ -1,6 +1,6 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { exit } from "@tauri-apps/plugin-process";
-import { Spinner } from "@teak/ui/components/ui/spinner";
+import { PageLoadingState } from "@teak/ui/feedback/PageLoadingState";
 import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect, useRef } from "react";
 import {
@@ -86,11 +86,7 @@ function AppRoutes() {
   }, []);
 
   if (isLoading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center">
-        <Spinner className="size-5 text-muted-foreground" />
-      </main>
-    );
+    return <PageLoadingState />;
   }
 
   if (!isAuthenticated) {

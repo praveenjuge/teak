@@ -6,23 +6,31 @@ import type { CardModalCard } from "@teak/ui/card-modal";
 import { CardModal } from "@teak/ui/card-modal";
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Button } from "@teak/ui/components/ui/button";
-import { CardsGridSkeleton } from "@teak/ui/feedback/CardsGridSkeleton";
+import { DragOverlay } from "@teak/ui/feedback/DragOverlay";
+import { PageLoadingState } from "@teak/ui/feedback/PageLoadingState";
 import { AddCardEmptyState, AddCardForm } from "@teak/ui/forms";
 import { MasonryGrid } from "@teak/ui/grids";
-import { useCardModal, useCardsSearchController } from "@teak/ui/hooks";
+import {
+  useCardActions,
+  useCardClipboard,
+  useCardModal,
+  useCardModalFilterActions,
+  useCardsSearchController,
+} from "@teak/ui/hooks";
 import {
   MoreInformationModal,
   NotesEditModal,
   TagManagementModal,
 } from "@teak/ui/modals";
 import { CardsSearchHeader } from "@teak/ui/search";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
 import { Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { useGlobalDragDrop } from "@/hooks/useGlobalDragDrop";
 import { buildWebUrl } from "@/lib/web-urls";
 
 // Convex IDs are non-empty alphanumeric strings (with underscores).
@@ -102,6 +110,8 @@ export function CardsPage() {
   );
 
   const {
+    addFilter,
+    addKeywordTag,
     clearAllFilters,
     displayCards,
     hasNoFilters,
@@ -127,9 +137,17 @@ export function CardsPage() {
   );
 
   const cardModalActions = useCardModal(selectedCardId, { card: selectedCard });
-
-  const updateCardField = useMutation(api.cards.updateCardField);
-  const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
+  const cardActions = useCardActions({
+    onDeleteSuccess: (message?: string) => message && toast.success(message),
+    onRestoreSuccess: (message?: string) => message && toast.success(message),
+    onPermanentDeleteSuccess: (message?: string) =>
+      message && toast.success(message),
+    onError: (_error: Error, operation: string) => {
+      toast.error(`Failed to ${operation}`);
+    },
+  });
+  const { handleCopyImage } = useCardClipboard();
+  const { getRootProps, getInputProps, isDragActive } = useGlobalDragDrop();
 
   const isLoadingMore = status === "LoadingMore";
   const hasMore = status === "CanLoadMore";
@@ -166,67 +184,11 @@ export function CardsPage() {
     }
   }, [handleModalClose, isValidCardId, selectedCard, selectedCardId]);
 
-  const handleDeleteCard = useCallback(
-    async (cardId: string) => {
-      try {
-        await updateCardField({
-          cardId: cardId as Id<"cards">,
-          field: "delete",
-        });
-        toast.success("Card deleted");
-        return true;
-      } catch (error) {
-        console.error("Failed to delete card:", error);
-        toast.error("Failed to delete card");
-        return false;
-      }
-    },
-    [updateCardField]
-  );
-
-  const handleRestoreCard = useCallback(
-    async (cardId: string) => {
-      try {
-        await updateCardField({
-          cardId: cardId as Id<"cards">,
-          field: "restore",
-        });
-        toast.success("Card restored");
-      } catch (error) {
-        console.error("Failed to restore card:", error);
-        toast.error("Failed to restore card");
-      }
-    },
-    [updateCardField]
-  );
-
-  const handlePermanentDeleteCard = useCallback(
-    async (cardId: string) => {
-      try {
-        await permanentDeleteCard({ id: cardId as Id<"cards"> });
-        toast.success("Card permanently deleted");
-      } catch (error) {
-        console.error("Failed to permanently delete card:", error);
-        toast.error("Failed to permanently delete card");
-      }
-    },
-    [permanentDeleteCard]
-  );
-
-  const handleToggleFavorite = useCallback(
-    async (cardId: string) => {
-      try {
-        await updateCardField({
-          cardId: cardId as Id<"cards">,
-          field: "isFavorited",
-        });
-      } catch (error) {
-        console.error("Failed to toggle favorite:", error);
-        toast.error("Failed to update favorite");
-      }
-    },
-    [updateCardField]
-  );
+  const { handleCardTypeClick, handleTagClick } = useCardModalFilterActions({
+    addFilter,
+    addKeywordTag,
+    onCloseModal: handleModalClose,
+  });
 
   const cardWithUrls = selectedCard as CardModalCard | null;
 
@@ -243,7 +205,7 @@ export function CardsPage() {
 
   const renderEmptyState = () => {
     if (status === "LoadingFirstPage") {
-      return <CardsGridSkeleton />;
+      return <PageLoadingState fullScreen={false} />;
     }
 
     if (displayCards.length === 0 && hasNoFilters) {
@@ -272,86 +234,110 @@ export function CardsPage() {
   };
 
   return (
-    <main className="mx-auto max-w-7xl px-4 pb-10">
-      <CardsSearchHeader {...searchBarProps} SettingsButton={settingsButton} />
+    <div {...getRootProps()} className="relative">
+      <input {...getInputProps()} />
+      <main className="mx-auto max-w-7xl px-4 pb-10">
+        <CardsSearchHeader {...searchBarProps} SettingsButton={settingsButton} />
 
-      {displayCards.length > 0 ? (
-        <MasonryGrid
-          AddCardFormComponent={() => (
-            <AddCardForm
-              UpgradeLinkComponent={DesktopUpgradeLink}
-              upgradeUrl={upgradeUrl}
+        {displayCards.length > 0 ? (
+          <MasonryGrid
+            AddCardFormComponent={() => (
+              <AddCardForm
+                UpgradeLinkComponent={DesktopUpgradeLink}
+                upgradeUrl={upgradeUrl}
+              />
+            )}
+            filteredCards={displayCards}
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
+            onAddTags={handleAddTags}
+            onBulkDeleteCards={async (cardIds) => {
+              const result = await cardActions.handleBulkDeleteCards(
+                cardIds as Id<"cards">[]
+              );
+              return {
+                ...result,
+                failedIds: result.failedIds as string[],
+              };
+            }}
+            onCardClick={handleCardClick}
+            onCopyImage={handleCopyImage}
+            onDeleteCard={async (cardId) =>
+              cardActions.handleDeleteCard(cardId as Id<"cards">)
+            }
+            onLoadMore={() => loadMore(SEARCH_DEFAULT_CARD_LIMIT)}
+            onPermanentDeleteCard={(cardId) =>
+              cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)
+            }
+            onRestoreCard={(cardId) =>
+              cardActions.handleRestoreCard(cardId as Id<"cards">)
+            }
+            onToggleFavorite={(cardId) =>
+              cardActions.handleToggleFavorite(cardId as Id<"cards">)
+            }
+            resetKey={resetKey}
+            showAddForm={!showTrashOnly}
+            showBulkActions={true}
+            showTrashOnly={showTrashOnly}
+          />
+        ) : (
+          renderEmptyState()
+        )}
+
+        <CardModal
+          card={cardWithUrls}
+          downloadFile={cardModalActions.downloadFile}
+          getCurrentValue={cardModalActions.getCurrentValue}
+          handleDelete={cardModalActions.handleDelete}
+          handlePermanentDelete={cardModalActions.handlePermanentDelete}
+          handleRestore={cardModalActions.handleRestore}
+          hasUnsavedChanges={cardModalActions.hasUnsavedChanges}
+          MoreInformationModal={
+            <MoreInformationModal
+              card={cardWithUrls}
+              onOpenChange={setShowMoreInfoModal}
+              open={showMoreInfoModal}
             />
-          )}
-          filteredCards={displayCards}
-          hasMore={hasMore}
-          isLoadingMore={isLoadingMore}
-          onAddTags={handleAddTags}
-          onCardClick={handleCardClick}
-          onDeleteCard={handleDeleteCard}
-          onLoadMore={() => loadMore(SEARCH_DEFAULT_CARD_LIMIT)}
-          onPermanentDeleteCard={handlePermanentDeleteCard}
-          onRestoreCard={handleRestoreCard}
-          onToggleFavorite={handleToggleFavorite}
-          resetKey={resetKey}
-          showAddForm={!showTrashOnly}
-          showBulkActions={true}
-          showTrashOnly={showTrashOnly}
+          }
+          NotesEditModal={
+            <NotesEditModal
+              notes={cardModalActions.getCurrentValue("notes") || ""}
+              onCancel={() => {}}
+              onOpenChange={setShowNotesEditModal}
+              onSave={cardModalActions.saveNotes}
+              open={showNotesEditModal}
+            />
+          }
+          onCancel={handleModalClose}
+          onCardTypeClick={handleCardTypeClick}
+          onTagClick={handleTagClick}
+          open={!!selectedCardId}
+          openLink={cardModalActions.openLink}
+          saveChanges={cardModalActions.saveChanges}
+          setShowMoreInfoModal={setShowMoreInfoModal}
+          setShowNotesEditModal={setShowNotesEditModal}
+          setShowTagManagementModal={setShowTagManagementModal}
+          showMoreInfoModal={showMoreInfoModal}
+          showNotesEditModal={showNotesEditModal}
+          showTagManagementModal={showTagManagementModal}
+          TagManagementModal={
+            <TagManagementModal
+              aiTags={cardWithUrls?.aiTags || []}
+              onAddTag={cardModalActions.addTag}
+              onOpenChange={setShowTagManagementModal}
+              onRemoveAiTag={cardModalActions.removeAiTag}
+              onRemoveTag={cardModalActions.removeTag}
+              open={showTagManagementModal}
+              setTagInput={cardModalActions.setTagInput}
+              tagInput={cardModalActions.tagInput}
+              userTags={cardWithUrls?.tags || []}
+            />
+          }
+          toggleFavorite={cardModalActions.toggleFavorite}
+          updateContent={cardModalActions.updateContent}
         />
-      ) : (
-        renderEmptyState()
-      )}
-
-      <CardModal
-        card={cardWithUrls}
-        downloadFile={cardModalActions.downloadFile}
-        getCurrentValue={cardModalActions.getCurrentValue}
-        handleDelete={cardModalActions.handleDelete}
-        handlePermanentDelete={cardModalActions.handlePermanentDelete}
-        handleRestore={cardModalActions.handleRestore}
-        hasUnsavedChanges={cardModalActions.hasUnsavedChanges}
-        MoreInformationModal={
-          <MoreInformationModal
-            card={cardWithUrls}
-            onOpenChange={setShowMoreInfoModal}
-            open={showMoreInfoModal}
-          />
-        }
-        NotesEditModal={
-          <NotesEditModal
-            notes={cardModalActions.getCurrentValue("notes") || ""}
-            onCancel={() => {}}
-            onOpenChange={setShowNotesEditModal}
-            onSave={cardModalActions.saveNotes}
-            open={showNotesEditModal}
-          />
-        }
-        onCancel={handleModalClose}
-        open={!!selectedCardId}
-        openLink={cardModalActions.openLink}
-        saveChanges={cardModalActions.saveChanges}
-        setShowMoreInfoModal={setShowMoreInfoModal}
-        setShowNotesEditModal={setShowNotesEditModal}
-        setShowTagManagementModal={setShowTagManagementModal}
-        showMoreInfoModal={showMoreInfoModal}
-        showNotesEditModal={showNotesEditModal}
-        showTagManagementModal={showTagManagementModal}
-        TagManagementModal={
-          <TagManagementModal
-            aiTags={cardWithUrls?.aiTags || []}
-            onAddTag={cardModalActions.addTag}
-            onOpenChange={setShowTagManagementModal}
-            onRemoveAiTag={cardModalActions.removeAiTag}
-            onRemoveTag={cardModalActions.removeTag}
-            open={showTagManagementModal}
-            setTagInput={cardModalActions.setTagInput}
-            tagInput={cardModalActions.tagInput}
-            userTags={cardWithUrls?.tags || []}
-          />
-        }
-        toggleFavorite={cardModalActions.toggleFavorite}
-        updateContent={cardModalActions.updateContent}
-      />
-    </main>
+      </main>
+      <DragOverlay isDragActive={isDragActive} />
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Button } from "@teak/ui/components/ui/button";
+import { PageErrorState } from "@teak/ui/feedback/PageErrorState";
 import React from "react";
 
 type ErrorBoundaryProps = {
@@ -33,19 +33,7 @@ export class ErrorBoundary extends React.Component<
 
   render(): React.ReactNode {
     if (this.state.hasError) {
-      return (
-        <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-          <div className="space-y-2">
-            <h1 className="font-semibold text-foreground text-xl">
-              Something went wrong
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              An unexpected error occurred. Please try again.
-            </p>
-          </div>
-          <Button onClick={this.handleRetry}>Retry</Button>
-        </main>
-      );
+      return <PageErrorState onRetry={this.handleRetry} />;
     }
 
     return this.props.children;
