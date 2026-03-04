@@ -116,10 +116,10 @@ jobs:
           chmod 600 "$APPLE_KEY_PATH"
           echo "APPLE_API_KEY_PATH=$APPLE_KEY_PATH" >> "$GITHUB_ENV"
 
-      - name: Build and publish GitHub release artifacts
-        uses: tauri-apps/tauri-action@v0
+      - name: Build signed + notarized desktop artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -131,19 +131,57 @@ jobs:
           VITE_WEB_URL: ${{ secrets.VITE_WEB_URL }}
           VITE_PUBLIC_CONVEX_URL: ${{ secrets.VITE_PUBLIC_CONVEX_URL }}
           VITE_PUBLIC_CONVEX_SITE_URL: ${{ secrets.VITE_PUBLIC_CONVEX_SITE_URL }}
-        with:
-          projectPath: apps/desktop
-          tagName: ${{ steps.release.outputs.tag }}
-          releaseName: Teak Desktop ${{ steps.release.outputs.tag }}
-          releaseBody: |
-            ## Teak Desktop ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
 
-            - Signed + notarized macOS Apple Silicon build
-            - Direct download DMG
-            - In-app updater artifacts published
-          releaseDraft: false
-          prerelease: false
-          args: --target aarch64-apple-darwin
+          RELEASE_TAG="${{ steps.release.outputs.tag }}"
+          RELEASE_NAME="Teak Desktop ${RELEASE_TAG}"
+          RELEASE_BODY_FILE="$RUNNER_TEMP/release-notes.md"
+
+          cat > "$RELEASE_BODY_FILE" <<'MD'
+          ## Teak Desktop Release
+
+          - Signed + notarized macOS Apple Silicon build
+          - Direct download DMG
+          - In-app updater artifacts published
+          MD
+
+          bun run --filter @teak/desktop bundle:mac-silicon
+
+          TARGET_DIR="apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle"
+          DMG_PATH="$(find "$TARGET_DIR/dmg" -maxdepth 1 -type f -name '*.dmg' | head -n 1)"
+          APP_TAR_PATH="$(find "$TARGET_DIR/macos" -maxdepth 1 -type f -name '*.app.tar.gz' | head -n 1)"
+          SIG_PATH="${APP_TAR_PATH}.sig"
+
+          if [[ -z "$DMG_PATH" || -z "$APP_TAR_PATH" || ! -f "$SIG_PATH" ]]; then
+            echo "Missing expected release artifacts."
+            echo "DMG_PATH=$DMG_PATH"
+            echo "APP_TAR_PATH=$APP_TAR_PATH"
+            echo "SIG_PATH=$SIG_PATH"
+            exit 1
+          fi
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$RELEASE_NAME" \
+              --notes-file "$RELEASE_BODY_FILE"
+            gh release upload "$RELEASE_TAG" \
+              "$DMG_PATH" \
+              "$APP_TAR_PATH" \
+              "$SIG_PATH" \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          else
+            gh release create "$RELEASE_TAG" \
+              "$DMG_PATH" \
+              "$APP_TAR_PATH" \
+              "$SIG_PATH" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$RELEASE_NAME" \
+              --notes-file "$RELEASE_BODY_FILE"
+          fi
 
       - name: Post-build signing checks
         shell: bash
