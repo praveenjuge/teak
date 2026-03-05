@@ -36,3 +36,11 @@ command = '''
 bun i
 bun run dev:raycast
 '''
+
+[[actions]]
+name = "Desktop"
+icon = "run"
+command = '''
+bun i
+bun run dev:desktop
+'''
