@@ -36,14 +36,14 @@ teak/
 │   ├── desktop/     # Tauri v2 desktop app (Rust + React)
 │   ├── extension/   # Chrome extension (Wxt)
 │   ├── raycast/     # Raycast extension
+│   ├── updates/     # Desktop auto-update static site (updates.teakvault.com)
 │   └── docs/        # Documentation site (Fumadocs)
 ├── packages/
-│   └── convex/      # Convex backend
-│       ├── ai/      # AI metadata helpers
-│       ├── card/    # Card mutations/queries
-│       └── workflows/ # AI pipeline orchestration
-├── scripts/         # Build/setup scripts
-├── tests/           # E2E tests (Playwright)
+│   ├── convex/      # Convex backend
+│   │   ├── ai/      # AI metadata helpers
+│   │   ├── card/    # Card mutations/queries
+│   │   └── workflows/ # AI pipeline orchestration
+│   └── ui/          # Shared UI components and hooks
 ├── turbo.json       # Turborepo pipeline config
 └── package.json     # Root package + workspaces
 ```
@@ -60,7 +60,7 @@ teak/
 - AI: Groq API
 - Screenshots: Kernel
 - Billing: Polar
-- Testing: Playwright
+- Testing: Bun (unit tests), Playwright (E2E in web)
 - Monorepo: Turborepo
 
 ## Core Commands
@@ -90,7 +90,7 @@ bun run lint
 bun run typecheck
 
 # Test
-bun run test           # E2E tests
+bun run test           # Unit tests (all packages)
 ```
 
 ## Setup Checklist
