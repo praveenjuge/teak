@@ -1,0 +1,18 @@
+---
+title: "Desktop Native Menus and Interactive Update Checks"
+startDate: "2026-03-05"
+endDate: "2026-03-05"
+commitCount: 1
+batchNumber: 19
+---
+
+The Teak desktop app now includes a full native menu bar on macOS and Linux, and exposes an interactive **Check for Updates** action in addition to the existing silent background update check.
+
+### Highlights
+
+- ✨ **New Feature**: macOS app menu with About, Settings, Check for Updates, Services, Hide/Show, Logout, and Quit.
+- ✨ **New Feature**: Linux File / Edit / Help menus with appropriate items and keyboard accelerators.
+- ✨ **New Feature**: Interactive "Check for Updates" flow — shows current version, release notes, and an install confirmation dialog.
+- 💪 **Improvement**: Silent background update check is preserved; the app still installs updates automatically on launch when available.
+- 💪 **Improvement**: "Preferences" renamed to "Settings" throughout menus and events for consistency.
+- 🧹 **Cleanup**: Removed redundant JS-level Cmd+W / Cmd+Q shortcuts now handled natively by the menu bar.
