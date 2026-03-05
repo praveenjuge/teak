@@ -1,0 +1,19 @@
+---
+title: "Shared UI Package Consolidation and Raycast Error Handling"
+startDate: "2026-03-05"
+endDate: "2026-03-05"
+commitCount: 1
+batchNumber: 20
+---
+
+Shared components and hooks have been centralized into `packages/ui`, reducing duplication across the web, desktop, and Raycast apps. The Raycast extension also gains structured error handling with clear, actionable messages for every failure mode.
+
+### Highlights
+
+- 💪 **Improvement**: `CardModal`, `MasonryGrid`, `ErrorBoundary`, `useFileUpload`, and `useNetworkStatus` consolidated into `@teak/ui` and imported from a single source across all surfaces.
+- 💪 **Improvement**: Raycast extension now surfaces structured error codes (`INVALID_API_KEY`, `RATE_LIMITED`, `NETWORK_ERROR`, etc.) with user-friendly messages and recovery hints.
+- 💪 **Improvement**: Raycast `CardDetail` model extracted into a dedicated module with deterministic title derivation and image-type detection.
+- 💪 **Improvement**: Convex search updated with improved local tokenization for more accurate full-text results.
+- 🧹 **Cleanup**: Duplicate components removed from `apps/web` and `apps/desktop`; all imports updated to `@teak/ui`.
+- 🧹 **Cleanup**: Web global error handling and auth pages tidied up.
+- 🔍 **Observability**: Sentry client instrumentation added to the web app for real-time error and performance monitoring.

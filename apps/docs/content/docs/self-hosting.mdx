@@ -134,3 +134,7 @@ VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
   - `KERNEL_API_KEY`: Get from [Kernel](https://onkernel.com/) for automated link screenshots.
   - `RESEND_API_KEY`: Get from [Resend](https://resend.com/) for email verification and password resets.
   - `POLAR_*`: Get from [Polar](https://polar.sh/) if you want to use the built-in billing system.
+
+## Error Monitoring (Sentry)
+
+The web app ships with Sentry pre-configured for the hosted Teak service. If you are self-hosting and want your own error tracking, replace the DSN in `apps/web/sentry.server.config.ts`, `apps/web/sentry.edge.config.ts`, and `apps/web/src/instrumentation-client.ts` with your own [Sentry DSN](https://docs.sentry.io/product/sentry-basics/dsn-explainer/). To disable Sentry entirely, remove the `@sentry/nextjs` initialisation calls from those three files and uninstall the package.
