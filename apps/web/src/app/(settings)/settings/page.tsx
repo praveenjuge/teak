@@ -3,31 +3,17 @@
 import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
-import { Badge } from "@teak/ui/components/ui/badge";
-import { Button } from "@teak/ui/components/ui/button";
 import { Dialog, DialogContent } from "@teak/ui/components/ui/dialog";
-import { Spinner } from "@teak/ui/components/ui/spinner";
 import { TOAST_IDS } from "@teak/ui/constants/toast";
-import { cn } from "@teak/ui/lib/utils";
-import {
-  ApiKeysSection,
-  CustomerPortalButton,
-  DeleteAccountDialog,
-  SettingRow,
-  SettingsFooter,
-  SubscriptionSection,
-  ThemeToggle,
-} from "@teak/ui/settings";
+import { useQuery } from "@teak/ui/convex-query-hooks";
+import { openCustomerPortal } from "@teak/ui/lib/customerPortal";
+import { SettingsContent, SubscriptionSection } from "@teak/ui/settings";
 import { useAction, useMutation } from "convex/react";
-import { useQuery } from "convex-helpers/react/cache/hooks";
-import { ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
-import { openCustomerPortal } from "@/lib/customerPortal";
-import { metrics } from "@/lib/metrics";
 
 const convexApi = api as any;
 
@@ -49,7 +35,6 @@ export default function ProfileSettingsPage() {
   const { theme } = useTheme();
   const router = useRouter();
 
-  // API Keys
   const keys = useQuery(convexApi.apiKeys.listUserApiKeys, {}) as
     | { id: string }[]
     | undefined;
@@ -63,21 +48,17 @@ export default function ProfileSettingsPage() {
 
   const handleCheckout = async (planId: string) => {
     setLoadingPlanId(planId);
-    const planType = planId.includes("monthly") ? "monthly" : "yearly";
-    metrics.checkoutInitiated(planType);
     const toastId = toast.loading("Opening checkout...", {
       id: TOAST_IDS.checkoutOpen,
     });
+
     try {
       const checkoutUrl = await createCheckoutLink({ productId: planId });
 
-      // Determine the effective theme for Polar checkout
-      // Polar only supports "light" or "dark", so we need to resolve "system"
       let effectiveTheme: "light" | "dark" = "light";
       if (theme === "dark") {
         effectiveTheme = "dark";
       } else if (theme === "system") {
-        // Detect system preference
         effectiveTheme = window.matchMedia("(prefers-color-scheme: dark)")
           .matches
           ? "dark"
@@ -95,7 +76,6 @@ export default function ProfileSettingsPage() {
       checkout.addEventListener(
         "success",
         (event: CustomEvent<{ redirect?: string | boolean }>) => {
-          metrics.checkoutCompleted(planType, true);
           if (!event.detail.redirect) {
             toast.success(
               "Welcome to Pro! Your subscription has been activated."
@@ -110,7 +90,6 @@ export default function ProfileSettingsPage() {
       });
     } catch (error) {
       console.error("Failed to open checkout", error);
-      metrics.checkoutCompleted(planType, false);
       Sentry.captureException(error, {
         tags: { source: "convex", action: "billing:createCheckoutLink" },
       });
@@ -140,7 +119,6 @@ export default function ProfileSettingsPage() {
 
       await authClient.deleteUser(undefined, {
         onSuccess: async () => {
-          metrics.accountDeleted();
           router.push("/login");
         },
         onError: (ctx) => {
@@ -156,7 +134,6 @@ export default function ProfileSettingsPage() {
 
   const handleSignOut = async () => {
     setSignOutLoading(true);
-    metrics.logout();
     try {
       await authClient.signOut({
         fetchOptions: {
@@ -178,10 +155,10 @@ export default function ProfileSettingsPage() {
   };
 
   const handleCreateCustomerPortal = async () => {
-    metrics.customerPortalOpened();
     const toastId = toast.loading("Opening customer portal...", {
       id: TOAST_IDS.customerPortal,
     });
+
     try {
       await openCustomerPortal({
         createCustomerPortal: () => createCustomerPortal({}),
@@ -199,97 +176,36 @@ export default function ProfileSettingsPage() {
   };
 
   return (
-    <>
-      <h1 className="font-semibold text-xl tracking-tight">Settings</h1>
-
-      <SettingRow title="Email">
-        <Button disabled size="sm" variant="ghost">
-          {isLoading ? <Spinner /> : (user?.email ?? "Not available")}
-        </Button>
-      </SettingRow>
-
-      <SettingRow title="Usage">
-        <Button disabled size="sm" variant="ghost">
-          {isLoading ? <Spinner /> : `${cardCount} Cards`}
-        </Button>
-      </SettingRow>
-
-      <SettingRow title="Plan">
-        {isLoading ? (
-          <Button disabled size="sm" variant="ghost">
-            <Spinner />
-          </Button>
-        ) : hasPremium ? (
-          <>
-            <Badge>Pro</Badge>
-            <CustomerPortalButton
-              className={cn(
-                "inline-flex items-center gap-1 font-medium text-primary text-sm hover:underline"
-              )}
-              onCreatePortal={handleCreateCustomerPortal}
-            >
-              Manage
-              <ExternalLink className="size-4" />
-            </CustomerPortalButton>
-          </>
-        ) : (
-          <>
-            <Badge variant="outline">Free Plan</Badge>
-            <Button
-              onClick={() => {
-                metrics.modalOpened("upgrade");
-                setSubscriptionOpen(true);
-              }}
-              size="sm"
-              variant="link"
-            >
-              Upgrade
-            </Button>
-          </>
-        )}
-      </SettingRow>
-
-      <ApiKeysSection
-        isLoading={keys === undefined}
-        keys={keys}
-        onCreateKey={handleCreateApiKey}
-      />
-
-      <SettingRow title="Theme">
-        <ThemeToggle onThemeChange={(value) => metrics.themeChanged(value)} />
-      </SettingRow>
-
-      <SettingRow title="Sign out">
-        <Button
-          disabled={signOutLoading}
-          onClick={handleSignOut}
-          size="sm"
-          variant="link"
-        >
-          {signOutLoading ? <Spinner /> : "Sign out"}
-        </Button>
-      </SettingRow>
-
-      <SettingsFooter onDeleteClick={() => setDeleteDialogOpen(true)} />
-
-      <Dialog onOpenChange={setSubscriptionOpen} open={subscriptionOpen}>
-        <DialogContent className="max-w-3xl">
-          <SubscriptionSection
-            loadingPlanId={loadingPlanId}
-            monthlyPlanId={monthlyPlanId}
-            onCheckout={handleCheckout}
-            yearlyPlanId={yearlyPlanId}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <DeleteAccountDialog
-        error={deleteError}
-        loading={deleteLoading}
-        onDelete={handleDeleteAccount}
-        onOpenChange={setDeleteDialogOpen}
-        open={deleteDialogOpen}
-      />
-    </>
+    <SettingsContent
+      cardCount={cardCount}
+      deleteDialogError={deleteError}
+      deleteDialogOpen={deleteDialogOpen}
+      deleteLoading={deleteLoading}
+      email={user?.email}
+      hasPremium={hasPremium}
+      isLoading={isLoading}
+      keys={keys}
+      onCreateApiKey={handleCreateApiKey}
+      onCreateCustomerPortal={handleCreateCustomerPortal}
+      onDeleteAccount={handleDeleteAccount}
+      onDeleteDialogOpenChange={setDeleteDialogOpen}
+      onSignOut={handleSignOut}
+      onUpgrade={() => {
+        setSubscriptionOpen(true);
+      }}
+      signOutLoading={signOutLoading}
+      subscriptionDialog={
+        <Dialog onOpenChange={setSubscriptionOpen} open={subscriptionOpen}>
+          <DialogContent className="max-w-3xl">
+            <SubscriptionSection
+              loadingPlanId={loadingPlanId}
+              monthlyPlanId={monthlyPlanId}
+              onCheckout={handleCheckout}
+              yearlyPlanId={yearlyPlanId}
+            />
+          </DialogContent>
+        </Dialog>
+      }
+    />
   );
 }

@@ -1,7 +1,7 @@
 import { Button } from "@teak/ui/components/ui/button";
 import { Spinner } from "@teak/ui/components/ui/spinner";
 import Logo from "@teak/ui/logo";
-import { BottomPattern, TopPattern } from "@teak/ui/patterns";
+import { AuthScreenShell } from "@teak/ui/screens";
 import { useState } from "react";
 import { toast } from "sonner";
 import { openAuthWindow } from "@/lib/auth-window";
@@ -48,18 +48,17 @@ export function LoginPage({ isOnline }: LoginPageProps) {
   };
 
   return (
-    <section className="mx-auto flex min-h-screen w-full max-w-xs flex-col items-center justify-center gap-8 px-4">
-      <Logo variant="primary" />
-      <Button
-        className="w-full"
-        disabled={!isOnline || isLaunchingBrowser}
-        onClick={() => void handleLogin()}
-        type="button"
-      >
-        {isLaunchingBrowser ? <Spinner /> : "Login"}
-      </Button>
-      <TopPattern />
-      <BottomPattern />
-    </section>
+    <AuthScreenShell logo={<Logo variant="primary" />}>
+      <div className="px-6">
+        <Button
+          className="w-full"
+          disabled={!isOnline || isLaunchingBrowser}
+          onClick={() => void handleLogin()}
+          type="button"
+        >
+          {isLaunchingBrowser ? <Spinner /> : "Login"}
+        </Button>
+      </div>
+    </AuthScreenShell>
   );
 }

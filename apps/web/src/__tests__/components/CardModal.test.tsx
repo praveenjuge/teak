@@ -79,13 +79,6 @@ mock.module("../../hooks/useCardModal", () => ({
   })),
 }));
 
-// Mock metrics
-mock.module("../../lib/metrics", () => ({
-  metrics: {
-    modalOpened: mock(),
-  },
-}));
-
 describe("CardModal Component", () => {
   let mockOnCancel: any;
   let mockOnCardTypeClick: any;

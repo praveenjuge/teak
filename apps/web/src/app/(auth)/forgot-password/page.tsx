@@ -18,7 +18,6 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
-import { metrics } from "@/lib/metrics";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -53,7 +52,6 @@ export default function ForgotPassword() {
           setError(ctx.error?.message ?? "We couldn't send the reset email.");
         },
         onSuccess: () => {
-          metrics.passwordResetRequested();
           setSent(true);
           toast.success("Reset link sent (if account exists).", {
             ...AUTH_STICKY_TOAST_OPTIONS,

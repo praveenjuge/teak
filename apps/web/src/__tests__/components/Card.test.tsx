@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { Card } from "@teak/ui/cards";
 import React from "react";
-import { Card } from "../../components/Card";
 
 // Mock Ant Design Image component
 mock.module("antd", () => ({

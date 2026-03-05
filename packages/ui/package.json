@@ -6,6 +6,9 @@
     "./logo": "./src/logo.tsx",
     "./styles.css": "./src/styles.css",
     "./lib/utils": "./src/lib/utils.ts",
+    "./lib/customerPortal": "./src/lib/customerPortal.ts",
+    "./convex-query-cache": "./src/convexQueryCache.ts",
+    "./convex-query-hooks": "./src/convexQueryHooks.ts",
     "./components/ui/*": "./src/components/ui/*.tsx",
     "./cards": "./src/components/cards/index.ts",
     "./cards/previews": "./src/components/cards/previews/index.ts",
@@ -29,6 +32,7 @@
     "./patterns": "./src/components/patterns/index.ts",
     "./hooks": "./src/hooks/index.ts",
     "./settings": "./src/components/settings/index.ts",
+    "./screens": "./src/screens/index.ts",
     "./constants/settings": "./src/constants/settings.ts",
     "./constants/toast": "./src/constants/toast.ts"
   },

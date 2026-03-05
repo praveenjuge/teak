@@ -19,7 +19,6 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
-import { metrics } from "@/lib/metrics";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -103,7 +102,6 @@ export default function ResetPassword() {
     setLoading(false);
 
     if (resetError) {
-      metrics.passwordResetCompleted(false);
       setError(
         resetError.message ??
           "We couldn't update your password. Request a new link and try again."
@@ -111,7 +109,6 @@ export default function ResetPassword() {
       return;
     }
 
-    metrics.passwordResetCompleted(true);
     setSuccess(true);
     toast.success("Password updated.", {
       ...AUTH_STICKY_TOAST_OPTIONS,

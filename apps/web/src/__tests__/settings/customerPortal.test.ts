@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
-import { openCustomerPortal } from "../../lib/customerPortal";
+import { openCustomerPortal } from "@teak/ui/lib/customerPortal";
 
 const originalFetch = globalThis.fetch;
 

@@ -23,7 +23,6 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
-import { metrics } from "@/lib/metrics";
 
 export default function SignUp() {
   const searchParams = useSearchParams();
@@ -68,18 +67,14 @@ export default function SignUp() {
         callbackURL: nextPath,
       });
       if (response?.error) {
-        metrics.registrationFailed("google", response.error.message);
         setError(
           response.error.message ??
             "Failed to sign in with Google. Please try again."
         );
-      } else {
-        metrics.registrationSuccess("google");
       }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to sign in with Google";
-      metrics.registrationFailed("google", errorMessage);
       setError(errorMessage);
     } finally {
       setGoogleLoading(false);
@@ -95,18 +90,14 @@ export default function SignUp() {
         callbackURL: nextPath,
       });
       if (response?.error) {
-        metrics.registrationFailed("apple", response.error.message);
         setError(
           response.error.message ??
             "Failed to sign in with Apple. Please try again."
         );
-      } else {
-        metrics.registrationSuccess("apple");
       }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to sign in with Apple";
-      metrics.registrationFailed("apple", errorMessage);
       setError(errorMessage);
     } finally {
       setAppleLoading(false);
@@ -215,12 +206,10 @@ export default function SignUp() {
                   setLoading(false);
                   const message =
                     ctx.error?.message ?? "Failed to create account";
-                  metrics.registrationFailed("email", message);
                   setError(message);
                 },
                 onSuccess: async () => {
                   setLoading(false);
-                  metrics.registrationSuccess("email");
                   setShowSuccessAlert(true);
                   toast.success(`Verification email sent to ${email}.`, {
                     ...AUTH_STICKY_TOAST_OPTIONS,

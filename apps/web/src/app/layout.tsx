@@ -2,7 +2,7 @@ import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@teak/ui/components/ui/sonner";
-import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
+import { ConvexQueryCacheProvider } from "@teak/ui/convex-query-cache";
 import type { PropsWithChildren } from "react";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
 import {

@@ -16,7 +16,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { authClient } from "@/lib/auth-client";
-import { metrics } from "@/lib/metrics";
 
 export default function SignIn() {
   const router = useRouter();
@@ -44,18 +43,14 @@ export default function SignIn() {
         callbackURL: nextPath,
       });
       if (response?.error) {
-        metrics.loginFailed("google", response.error.message);
         setError(
           response.error.message ??
             "Failed to sign in with Google. Please try again."
         );
-      } else {
-        metrics.loginSuccess("google");
       }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to sign in with Google";
-      metrics.loginFailed("google", errorMessage);
       setError(errorMessage);
     } finally {
       setGoogleLoading(false);
@@ -71,18 +66,14 @@ export default function SignIn() {
         callbackURL: nextPath,
       });
       if (response?.error) {
-        metrics.loginFailed("apple", response.error.message);
         setError(
           response.error.message ??
             "Failed to sign in with Apple. Please try again."
         );
-      } else {
-        metrics.loginSuccess("apple");
       }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to sign in with Apple";
-      metrics.loginFailed("apple", errorMessage);
       setError(errorMessage);
     } finally {
       setAppleLoading(false);
@@ -164,14 +155,12 @@ export default function SignIn() {
                 },
                 onSuccess: () => {
                   setLoading(false);
-                  metrics.loginSuccess("email");
                   router.push(nextPath);
                 },
                 onError: (ctx) => {
                   setLoading(false);
                   const errorMessage =
                     ctx.error?.message ?? "Invalid email or password";
-                  metrics.loginFailed("email", errorMessage);
 
                   // Check if the error is related to email verification
                   if (

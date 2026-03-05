@@ -1,7 +1,7 @@
 import { Toaster } from "@teak/ui/components/ui/sonner";
+import { ConvexQueryCacheProvider } from "@teak/ui/convex-query-cache";
 import { ErrorBoundary } from "@teak/ui/feedback";
 import { ConvexProviderWithAuth } from "convex/react";
-import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 import { ThemeProvider } from "next-themes";
 import React from "react";
 import ReactDOM from "react-dom/client";

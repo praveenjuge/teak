@@ -4,6 +4,7 @@ export * from "./DeleteAccountDialog";
 export * from "./ErrorAlert";
 export * from "./PlanOption";
 export * from "./SettingRow";
+export * from "./SettingsContent";
 export * from "./SettingsFooter";
 export * from "./SubscriptionSection";
 export * from "./ThemeToggle";
