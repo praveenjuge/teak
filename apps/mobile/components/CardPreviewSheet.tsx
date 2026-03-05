@@ -202,12 +202,8 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
         return (
           <List modifiers={[listStyle("plain"), scrollDisabled()]}>
             {card.colors?.length ? (
-              card.colors.slice(0, 12).map((color, index) => (
-                <HStack
-                  alignment="center"
-                  key={`${color.hex}-${index}`}
-                  spacing={12}
-                >
+              card.colors.slice(0, 12).map((color) => (
+                <HStack alignment="center" key={color.hex} spacing={12}>
                   <Circle
                     modifiers={[
                       frame({ height: 22, width: 22 }),
