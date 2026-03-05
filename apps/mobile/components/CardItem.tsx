@@ -525,9 +525,9 @@ const CardItem = memo(function CardItem({
         return renderRow(
           card.colors
             ?.slice(0, 10)
-            .map((color, index) => (
+            .map((color) => (
               <RoundedRectangle
-                key={`${color.hex}-${index}`}
+                key={color.hex}
                 modifiers={[foregroundStyle(color.hex as any), cornerRadius(6)]}
               />
             )),

@@ -21,7 +21,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/groq": "^3.0.19",
+    "@ai-sdk/groq": "^3.0.29",
     "@better-auth/expo": "1.4.9",
     "@cf-wasm/photon": "^0.3.4",
     "@convex-dev/better-auth": "0.10.10",
@@ -33,7 +33,7 @@
     "@convex-dev/workpool": "^0.3.1",
     "@onkernel/sdk": "^0.29.0",
     "@polar-sh/sdk": "^0.42.1",
-    "ai": "^6.0.64",
+    "ai": "^6.0.116",
     "better-auth": "1.4.9",
     "convex": "^1.31.7",
     "convex-helpers": "0.1.112",
