@@ -1,9 +1,9 @@
 import { getVersion } from "@tauri-apps/api/app";
 import {
-  confirm,
-  message,
   type ConfirmDialogOptions,
+  confirm,
   type MessageDialogOptions,
+  message,
 } from "@tauri-apps/plugin-dialog";
 import { check } from "@tauri-apps/plugin-updater";
 import { useCallback, useEffect, useRef } from "react";
@@ -144,14 +144,11 @@ export async function runDesktopUpdateCheck(
 export function useDesktopUpdater() {
   const isCancelledRef = useRef(false);
 
-  const runUpdateCheck = useCallback(
-    async (mode: DesktopUpdateCheckMode) => {
-      await runDesktopUpdateCheck(mode, {
-        isCancelled: () => isCancelledRef.current,
-      });
-    },
-    []
-  );
+  const runUpdateCheck = useCallback(async (mode: DesktopUpdateCheckMode) => {
+    await runDesktopUpdateCheck(mode, {
+      isCancelled: () => isCancelledRef.current,
+    });
+  }, []);
 
   useEffect(() => {
     isCancelledRef.current = false;

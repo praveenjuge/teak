@@ -1,4 +1,5 @@
 import { PageLoadingState } from "@teak/ui/feedback/PageLoadingState";
+import { useNetworkStatus } from "@teak/ui/hooks";
 import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect, useRef } from "react";
 import {
@@ -11,7 +12,6 @@ import {
 import { toast } from "sonner";
 import { useDesktopMenuEvents } from "@/hooks/useDesktopMenuEvents";
 import { useDesktopUpdater } from "@/hooks/useDesktopUpdater";
-import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { closeAuthWindow } from "@/lib/auth-window";
 import { logoutDesktopSession } from "@/lib/desktop-auth";
 import { CardsPage } from "./pages/CardsPage";

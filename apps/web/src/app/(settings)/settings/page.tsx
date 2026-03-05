@@ -7,6 +7,8 @@ import { Badge } from "@teak/ui/components/ui/badge";
 import { Button } from "@teak/ui/components/ui/button";
 import { Dialog, DialogContent } from "@teak/ui/components/ui/dialog";
 import { Spinner } from "@teak/ui/components/ui/spinner";
+import { TOAST_IDS } from "@teak/ui/constants/toast";
+import { cn } from "@teak/ui/lib/utils";
 import {
   ApiKeysSection,
   CustomerPortalButton,
@@ -26,8 +28,6 @@ import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { openCustomerPortal } from "@/lib/customerPortal";
 import { metrics } from "@/lib/metrics";
-import { TOAST_IDS } from "@/lib/toastConfig";
-import { cn } from "@/lib/utils";
 
 const convexApi = api as any;
 

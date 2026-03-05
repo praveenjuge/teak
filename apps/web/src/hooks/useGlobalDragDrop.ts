@@ -1,5 +1,7 @@
-import { useGlobalDragDrop as useSharedGlobalDragDrop } from "@teak/ui/hooks";
-import { useFileUpload } from "./useFileUpload";
+import {
+  useFileUpload,
+  useGlobalDragDrop as useSharedGlobalDragDrop,
+} from "@teak/ui/hooks";
 
 export function useGlobalDragDrop() {
   const { uploadMultipleFiles } = useFileUpload();

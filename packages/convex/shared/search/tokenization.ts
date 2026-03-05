@@ -1,7 +1,7 @@
 import {
+  type ColorHueBucket,
   normalizeColorHueBucket,
   normalizeVisualStyle,
-  type ColorHueBucket,
   type VisualStyle,
 } from "../constants";
 import { normalizeHexColor } from "../utils/colorUtils";

@@ -5,8 +5,8 @@ import {
   buildSearchableText,
   classifySearchToken,
   filterLocalCards,
-  mergeLocalAndRemoteSearchResults,
   mergeCardsIntoLocalSearchCache,
+  mergeLocalAndRemoteSearchResults,
   resolveQuickSearchCommand,
   tokenizeSearchQuery,
 } from "../../../shared/search";

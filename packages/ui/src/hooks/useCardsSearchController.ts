@@ -100,7 +100,8 @@ export function buildCardsSearchQueryArgs(
     types: state.filterTags.length > 0 ? state.filterTags : undefined,
     favoritesOnly: state.showFavoritesOnly || undefined,
     showTrashOnly: state.showTrashOnly || undefined,
-    styleFilters: state.styleFilters.length > 0 ? state.styleFilters : undefined,
+    styleFilters:
+      state.styleFilters.length > 0 ? state.styleFilters : undefined,
     hueFilters: state.hueFilters.length > 0 ? state.hueFilters : undefined,
     hexFilters: state.hexFilters.length > 0 ? state.hexFilters : undefined,
     createdAtRange: state.timeFilter?.range,
@@ -248,7 +249,9 @@ export function applyEnterToCardsSearchState(
         ? [...state.hueFilters, ...hueAdditions]
         : state.hueFilters,
     hexFilters:
-      hexAdditions.length > 0 ? [...state.hexFilters, ...hexAdditions] : state.hexFilters,
+      hexAdditions.length > 0
+        ? [...state.hexFilters, ...hexAdditions]
+        : state.hexFilters,
     keywordTags:
       keywordAdditions.length > 0
         ? [...state.keywordTags, ...keywordAdditions]
@@ -260,10 +263,7 @@ export function applyEnterToCardsSearchState(
 export function applyBackspaceToCardsSearchState(
   state: CardsSearchState
 ): CardsSearchState {
-  if (
-    state.searchQuery !== "" ||
-    getHasNoFilters(state)
-  ) {
+  if (state.searchQuery !== "" || getHasNoFilters(state)) {
     return state;
   }
 
@@ -329,8 +329,10 @@ export function applyBackspaceToCardsSearchState(
 export function useCardsSearchController(
   options: UseCardsSearchControllerOptions = {}
 ): UseCardsSearchControllerResult {
-  const { weekStart = 0, localSearchCacheLimit = SEARCH_LOCAL_SEARCH_CACHE_LIMIT } =
-    options;
+  const {
+    weekStart = 0,
+    localSearchCacheLimit = SEARCH_LOCAL_SEARCH_CACHE_LIMIT,
+  } = options;
   const [searchState, setSearchState] = useState(createInitialCardsSearchState);
   const [remoteCards, setRemoteCardsState] = useState<Doc<"cards">[]>([]);
   const [localCards, setLocalCards] = useState<Doc<"cards">[]>([]);
@@ -396,7 +398,10 @@ export function useCardsSearchController(
     [searchState]
   );
 
-  const hasNoFilters = useMemo(() => getHasNoFilters(searchState), [searchState]);
+  const hasNoFilters = useMemo(
+    () => getHasNoFilters(searchState),
+    [searchState]
+  );
 
   const onSearchChange = useCallback((value: string) => {
     setSearchState((prev) => ({

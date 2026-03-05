@@ -12,7 +12,7 @@
   },
   "aliases": {
     "components": "@/components",
-    "utils": "@/lib/utils",
+    "utils": "@teak/ui/lib/utils",
     "ui": "@teak/ui/components/ui",
     "lib": "@/lib",
     "hooks": "@/hooks"

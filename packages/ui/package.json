@@ -16,6 +16,7 @@
     "./feedback/CardsGridSkeleton": "./src/feedback/CardSkeleton.tsx",
     "./feedback/DragOverlay": "./src/feedback/DragOverlay.tsx",
     "./feedback/EmptyState": "./src/feedback/EmptyState.tsx",
+    "./feedback/ErrorBoundary": "./src/feedback/ErrorBoundary.tsx",
     "./feedback/Loading": "./src/feedback/Loading.tsx",
     "./feedback/PageErrorState": "./src/feedback/PageErrorState.tsx",
     "./feedback/PageLoadingState": "./src/feedback/PageLoadingState.tsx",
@@ -28,7 +29,8 @@
     "./patterns": "./src/components/patterns/index.ts",
     "./hooks": "./src/hooks/index.ts",
     "./settings": "./src/components/settings/index.ts",
-    "./constants/settings": "./src/constants/settings.ts"
+    "./constants/settings": "./src/constants/settings.ts",
+    "./constants/toast": "./src/constants/toast.ts"
   },
   "scripts": {
     "test": "bun test src/components/forms/__tests__ src/components/settings/__tests__ src/hooks/__tests__ --coverage --dots",

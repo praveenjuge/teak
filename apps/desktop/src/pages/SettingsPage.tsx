@@ -4,8 +4,8 @@ import { exit } from "@tauri-apps/plugin-process";
 import { api } from "@teak/convex";
 import { Badge } from "@teak/ui/components/ui/badge";
 import { Button } from "@teak/ui/components/ui/button";
-import { PageLoadingState } from "@teak/ui/feedback/PageLoadingState";
 import { Spinner } from "@teak/ui/components/ui/spinner";
+import { PageLoadingState } from "@teak/ui/feedback/PageLoadingState";
 import { TopPattern } from "@teak/ui/patterns";
 import {
   ApiKeysSection,

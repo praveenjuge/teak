@@ -18,10 +18,10 @@ describe("desktop menu wiring", () => {
     expect(appSource).toContain("onCheckForUpdates");
     expect(appSource).toContain("checkForUpdatesInteractively");
     expect(appSource).not.toContain("onPreferences");
-    expect(appSource).not.toContain("window.addEventListener(\"keydown\"");
+    expect(appSource).not.toContain('window.addEventListener("keydown"');
 
-    expect(menuHookSource).toContain("\"desktop://menu/settings\"");
-    expect(menuHookSource).toContain("\"desktop://menu/check-for-updates\"");
-    expect(menuHookSource).not.toContain("\"desktop://menu/preferences\"");
+    expect(menuHookSource).toContain('"desktop://menu/settings"');
+    expect(menuHookSource).toContain('"desktop://menu/check-for-updates"');
+    expect(menuHookSource).not.toContain('"desktop://menu/preferences"');
   });
 });

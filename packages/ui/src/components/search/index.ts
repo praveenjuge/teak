@@ -1,4 +1,4 @@
-export { CardsSearchHeader } from "./CardsSearchHeader";
-export { SearchBar } from "./SearchBar";
 export type { CardsSearchHeaderProps } from "./CardsSearchHeader";
+export { CardsSearchHeader } from "./CardsSearchHeader";
 export type { SearchBarProps } from "./SearchBar";
+export { SearchBar } from "./SearchBar";

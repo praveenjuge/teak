@@ -1,11 +1,8 @@
 import type { Doc } from "../../_generated/dataModel";
 import type { CardType } from "../constants";
-import {
-  normalizeHueFilters,
-  normalizeVisualStyleFilters,
-} from "../constants";
-import type { CreatedAtRange } from "../utils/timeSearch";
+import { normalizeHueFilters, normalizeVisualStyleFilters } from "../constants";
 import { normalizeHexFilters } from "../utils/colorUtils";
+import type { CreatedAtRange } from "../utils/timeSearch";
 import { SEARCH_LOCAL_SEARCH_CACHE_LIMIT } from "./constants";
 import { tokenizeSearchInput } from "./tokenization";
 

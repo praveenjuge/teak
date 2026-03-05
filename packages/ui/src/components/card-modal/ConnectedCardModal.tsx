@@ -1,39 +1,43 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
-import type { CardModalCard } from "@teak/ui/card-modal";
-import { CardModal as SharedCardModal } from "@teak/ui/card-modal";
-import { useCardModal } from "@teak/ui/hooks";
+import { useQuery } from "convex/react";
+import { useEffect, useState } from "react";
+import { useCardModal } from "../../hooks/useCardModal";
 import {
   MoreInformationModal,
   NotesEditModal,
   TagManagementModal,
-} from "@teak/ui/modals";
-import { useQuery } from "convex/react";
-import { useEffect, useState } from "react";
+} from "../modals";
+import { CardModal } from "./CardModal";
+import type { CardModalCard } from "./types";
 
 // Convex IDs are non-empty alphanumeric strings (with underscores).
 // This rejects obviously malformed values like spaces, slashes, or empty strings.
 const CONVEX_ID_PATTERN = /^[a-zA-Z0-9_]+$/;
 
-interface CardModalProps {
+interface ConnectedCardModalProps {
   card?: CardModalCard | null;
   cardId: string | null;
   onCancel?: () => void;
   onCardTypeClick?: (cardType: string) => void;
   onInvalidCard?: () => void;
   onTagClick?: (tag: string) => void;
+  onTagManagementOpenChange?: (open: boolean) => void;
   open: boolean;
+  openTagManagement?: boolean;
 }
 
-export function CardModal({
+export function ConnectedCardModal({
   cardId,
   card: cardData,
   open,
   onCancel,
   onCardTypeClick,
   onInvalidCard,
+  onTagManagementOpenChange,
   onTagClick,
-}: CardModalProps) {
+  openTagManagement = false,
+}: ConnectedCardModalProps) {
   const [showTagManagementModal, setShowTagManagementModal] = useState(false);
   const [showMoreInfoModal, setShowMoreInfoModal] = useState(false);
   const [showNotesEditModal, setShowNotesEditModal] = useState(false);
@@ -48,6 +52,11 @@ export function CardModal({
   );
 
   const resolvedCard = cardData ?? hydratedCard ?? null;
+
+  const setTagManagementModalOpen = (nextOpen: boolean) => {
+    setShowTagManagementModal(nextOpen);
+    onTagManagementOpenChange?.(nextOpen);
+  };
 
   const {
     card,
@@ -70,21 +79,30 @@ export function CardModal({
   } = useCardModal(cardId, { card: resolvedCard, onCardTypeClick });
 
   useEffect(() => {
-    if (cardId && !cardData) {
-      // Invalid format — fire immediately without waiting for a query
-      if (!isValidCardId) {
-        onInvalidCard?.();
-        return;
-      }
-      // Valid format but query resolved to null (not found / unauthorized)
-      if (hydratedCard === null) {
-        onInvalidCard?.();
-      }
+    if (!(open && cardId && !cardData)) {
+      return;
     }
-  }, [cardData, cardId, hydratedCard, isValidCardId, onInvalidCard]);
+
+    if (!isValidCardId) {
+      onInvalidCard?.();
+      return;
+    }
+
+    if (hydratedCard === null) {
+      onInvalidCard?.();
+    }
+  }, [cardData, cardId, hydratedCard, isValidCardId, onInvalidCard, open]);
+
+  useEffect(() => {
+    if (open && openTagManagement) {
+      setTagManagementModalOpen(true);
+    }
+    // Intentionally not depending on callback identity to avoid re-opening loops.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, openTagManagement]);
 
   return (
-    <SharedCardModal
+    <CardModal
       card={card}
       downloadFile={downloadFile}
       getCurrentValue={getCurrentValue}
@@ -116,7 +134,7 @@ export function CardModal({
       saveChanges={saveChanges}
       setShowMoreInfoModal={setShowMoreInfoModal}
       setShowNotesEditModal={setShowNotesEditModal}
-      setShowTagManagementModal={setShowTagManagementModal}
+      setShowTagManagementModal={setTagManagementModalOpen}
       showMoreInfoModal={showMoreInfoModal}
       showNotesEditModal={showNotesEditModal}
       showTagManagementModal={showTagManagementModal}
@@ -124,7 +142,7 @@ export function CardModal({
         <TagManagementModal
           aiTags={card?.aiTags || []}
           onAddTag={addTag}
-          onOpenChange={setShowTagManagementModal}
+          onOpenChange={setTagManagementModalOpen}
           onRemoveAiTag={removeAiTag}
           onRemoveTag={removeTag}
           open={showTagManagementModal}

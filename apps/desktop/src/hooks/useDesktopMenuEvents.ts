@@ -2,9 +2,9 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
 
 interface UseDesktopMenuEventsOptions {
+  onCheckForUpdates: () => void;
   onLogout: () => void;
   onSettings: () => void;
-  onCheckForUpdates: () => void;
 }
 
 export function useDesktopMenuEvents({
@@ -19,10 +19,7 @@ export function useDesktopMenuEvents({
 
     void (async () => {
       unlistenLogout = await listen("desktop://menu/logout", onLogout);
-      unlistenSettings = await listen(
-        "desktop://menu/settings",
-        onSettings
-      );
+      unlistenSettings = await listen("desktop://menu/settings", onSettings);
       unlistenCheckForUpdates = await listen(
         "desktop://menu/check-for-updates",
         onCheckForUpdates

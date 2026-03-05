@@ -4,9 +4,7 @@ interface PageLoadingStateProps {
   fullScreen?: boolean;
 }
 
-export function PageLoadingState({
-  fullScreen = true,
-}: PageLoadingStateProps) {
+export function PageLoadingState({ fullScreen = true }: PageLoadingStateProps) {
   if (!fullScreen) {
     return (
       <div className="flex items-center justify-center">

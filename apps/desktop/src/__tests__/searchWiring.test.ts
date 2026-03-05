@@ -18,6 +18,6 @@ describe("desktop search wiring", () => {
     expect(source).toContain("onCardTypeClick={handleCardTypeClick}");
     expect(source).toContain("onTagClick={handleTagClick}");
     expect(source).toContain("CardsSearchHeader");
-    expect(source).toContain("navigate(\"/settings\")");
+    expect(source).toContain('navigate("/settings")');
   });
 });

@@ -366,39 +366,47 @@ export const patchCardForUser = internalMutation({
       switch (field) {
         case "content":
           shouldSchedulePipeline =
-            (await applyPatchField(ctx, {
-              userId: args.userId,
-              cardId: args.cardId,
-              field,
-              value: args.content,
-            })).shouldSchedulePipeline || shouldSchedulePipeline;
+            (
+              await applyPatchField(ctx, {
+                userId: args.userId,
+                cardId: args.cardId,
+                field,
+                value: args.content,
+              })
+            ).shouldSchedulePipeline || shouldSchedulePipeline;
           break;
         case "url":
           shouldSchedulePipeline =
-            (await applyPatchField(ctx, {
-              userId: args.userId,
-              cardId: args.cardId,
-              field,
-              value: args.url,
-            })).shouldSchedulePipeline || shouldSchedulePipeline;
+            (
+              await applyPatchField(ctx, {
+                userId: args.userId,
+                cardId: args.cardId,
+                field,
+                value: args.url,
+              })
+            ).shouldSchedulePipeline || shouldSchedulePipeline;
           break;
         case "notes":
           shouldSchedulePipeline =
-            (await applyPatchField(ctx, {
-              userId: args.userId,
-              cardId: args.cardId,
-              field,
-              value: args.notes,
-            })).shouldSchedulePipeline || shouldSchedulePipeline;
+            (
+              await applyPatchField(ctx, {
+                userId: args.userId,
+                cardId: args.cardId,
+                field,
+                value: args.notes,
+              })
+            ).shouldSchedulePipeline || shouldSchedulePipeline;
           break;
         case "tags":
           shouldSchedulePipeline =
-            (await applyPatchField(ctx, {
-              userId: args.userId,
-              cardId: args.cardId,
-              field,
-              value: args.tags,
-            })).shouldSchedulePipeline || shouldSchedulePipeline;
+            (
+              await applyPatchField(ctx, {
+                userId: args.userId,
+                cardId: args.cardId,
+                field,
+                value: args.tags,
+              })
+            ).shouldSchedulePipeline || shouldSchedulePipeline;
           break;
         default:
           throw new Error(`Unsupported field: ${field}`);

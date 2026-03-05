@@ -10,7 +10,7 @@ describe("desktop settings wiring", () => {
       "utf8"
     );
 
-    expect(source).toContain("buildWebUrl(\"/settings\")");
+    expect(source).toContain('buildWebUrl("/settings")');
     expect(source).toContain("createCustomerPortal");
 
     expect(source).not.toContain("subscriptionOpen");

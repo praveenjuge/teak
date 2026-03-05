@@ -11,6 +11,8 @@ import {
 } from "@teak/ui/components/ui/card";
 import { Input } from "@teak/ui/components/ui/input";
 import { Label } from "@teak/ui/components/ui/label";
+import { AUTH_STICKY_TOAST_OPTIONS } from "@teak/ui/constants/toast";
+import { cn } from "@teak/ui/lib/utils";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -18,8 +20,6 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { metrics } from "@/lib/metrics";
-import { AUTH_STICKY_TOAST_OPTIONS } from "@/lib/toastConfig";
-import { cn } from "@/lib/utils";
 
 const MIN_PASSWORD_LENGTH = 8;
 

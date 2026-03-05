@@ -3,11 +3,13 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { SEARCH_DEFAULT_CARD_LIMIT } from "@teak/convex/shared";
+import { ConnectedCardModal } from "@teak/ui/card-modal";
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Button } from "@teak/ui/components/ui/button";
 import { CardsGridSkeleton } from "@teak/ui/feedback/CardsGridSkeleton";
 import { DragOverlay } from "@teak/ui/feedback/DragOverlay";
-import { AddCardEmptyState } from "@teak/ui/forms";
+import { AddCardEmptyState, AddCardForm } from "@teak/ui/forms";
+import { MasonryGrid } from "@teak/ui/grids";
 import {
   useCardClipboard,
   useCardModalFilterActions,
@@ -22,8 +24,6 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CardModal } from "@/components/CardModal";
-import { MasonryGrid } from "@/components/MasonryGrid";
 import { useCardActions } from "@/hooks/useCardActions";
 import { useGlobalDragDrop } from "@/hooks/useGlobalDragDrop";
 import { metrics } from "@/lib/metrics";
@@ -202,6 +202,10 @@ export default function HomePage() {
     </Button>
   );
 
+  const AddCardFormWrapper = useCallback(() => {
+    return <AddCardForm UpgradeLinkComponent={Link} upgradeUrl="/settings" />;
+  }, []);
+
   const renderEmptyState = () => {
     if (cardsStatus === "LoadingFirstPage") {
       return <CardsGridSkeleton />;
@@ -236,6 +240,7 @@ export default function HomePage() {
 
       {displayCards.length > 0 ? (
         <MasonryGrid
+          AddCardFormComponent={AddCardFormWrapper}
           batchSize={SEARCH_DEFAULT_CARD_LIMIT}
           filteredCards={displayCards}
           hasMore={
@@ -269,7 +274,10 @@ export default function HomePage() {
             cardActions.handleToggleFavorite(cardId as Id<"cards">)
           }
           resetKey={resetKey}
+          showAddForm={!showTrashOnly}
+          showBulkActions={true}
           showTrashOnly={showTrashOnly}
+          toastIdPrefix="web-masonry"
         />
       ) : (
         <>
@@ -280,7 +288,7 @@ export default function HomePage() {
         </>
       )}
 
-      <CardModal
+      <ConnectedCardModal
         card={selectedCard}
         cardId={editingCardId}
         onCancel={handleEditCancel}

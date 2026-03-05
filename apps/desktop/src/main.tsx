@@ -1,10 +1,10 @@
 import { Toaster } from "@teak/ui/components/ui/sonner";
+import { ErrorBoundary } from "@teak/ui/feedback";
 import { ConvexProviderWithAuth } from "convex/react";
 import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 import { ThemeProvider } from "next-themes";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
 import App from "./App";
 import { convex } from "./lib/convex-client";
 import { useDesktopConvexAuth } from "./lib/desktop-auth";

@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { CardModalCard } from "@teak/ui/card-modal";
+import { ConnectedCardModal as CardModal } from "@teak/ui/card-modal";
 import React from "react";
-import { CardModal } from "../../components/CardModal";
-import type { CardModalCard } from "../../components/card-modal/types";
 
 // Mock Dialog component
 mock.module("@teak/ui/components/ui/dialog", () => ({

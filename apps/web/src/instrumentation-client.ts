@@ -3,6 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { configureFileUploadErrorCapture } from "@teak/ui/hooks";
 
 Sentry.init({
   dsn: "https://9206eebecdbbbd9229ddc419b82165c7@o4509483678236672.ingest.us.sentry.io/4510434608480256",
@@ -37,6 +38,10 @@ Sentry.init({
       },
     }),
   ],
+});
+
+configureFileUploadErrorCapture((error, context) => {
+  Sentry.captureException(error, context);
 });
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

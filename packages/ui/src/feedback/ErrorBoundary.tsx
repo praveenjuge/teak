@@ -1,5 +1,5 @@
-import { PageErrorState } from "@teak/ui/feedback/PageErrorState";
 import React from "react";
+import { PageErrorState } from "./PageErrorState";
 
 type ErrorBoundaryProps = {
   children: React.ReactNode;

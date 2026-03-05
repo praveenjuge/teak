@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import {
@@ -10,10 +9,18 @@ import {
 } from "@teak/convex/shared/hooks/useFileUpload";
 import { useMutation } from "convex/react";
 
-// Inject Sentry capture function into shared hook
-setFileUploadSentryCaptureFunction((error, context) => {
-  Sentry.captureException(error, context);
-});
+export type FileUploadErrorCaptureFunction = (
+  error: unknown,
+  context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }
+) => void;
+
+const noopCapture: FileUploadErrorCaptureFunction = () => {};
+
+export function configureFileUploadErrorCapture(
+  capture?: FileUploadErrorCaptureFunction
+) {
+  setFileUploadSentryCaptureFunction(capture ?? noopCapture);
+}
 
 export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
   const uploadAndCreateCardMutation = useMutation(

@@ -1,5 +1,5 @@
 import { convexBetterAuthNextJs } from "@convex-dev/better-auth/nextjs";
-import { isAuthError } from "@/lib/utils";
+import { isAuthError } from "@teak/ui/lib/utils";
 
 export const {
   handler,
