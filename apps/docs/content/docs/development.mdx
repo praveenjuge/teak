@@ -125,3 +125,21 @@ The same service exposes:
 ### Environment Variables
 
 See **[Self-Hosting → Environment settings](./self-hosting#environment-settings)** for every env var required across web, mobile, extension, and the Convex backend.
+
+## Automated Workflows
+
+The repository uses agentic GitHub Actions workflows for continuous maintenance. These run automatically on a schedule and may open PRs or issues.
+
+| Workflow | Trigger | Purpose |
+|---|---|---|
+| **Daily Documentation Updater** | Daily + push to main | Reviews merged PRs and updates documentation to match code changes |
+| **Update Docs** | Every push to main | Analyzes diffs and creates draft PRs to keep docs in sync |
+| **Documentation Unbloat** | Daily + `/unbloat` slash command | Reduces verbosity in docs while preserving clarity |
+| **Documentation Noob Tester** | Daily | Tests getting-started guides as a first-time user would |
+| **Code Simplifier** | Daily | Identifies overly complex code and opens PRs with clarifications |
+| **Duplicate Code Detector** | Daily + manual | Finds duplicate patterns and suggests refactoring |
+| **Repository Quality Improver** | Weekdays at 1 PM UTC | Audits repository health and opens improvement PRs |
+| **Workflow Health Manager** | Daily | Monitors the health of all other automation workflows |
+| **Security Compliance Campaign** | Manual | Scans for vulnerabilities and tracks fixes toward an audit deadline |
+
+These workflows are powered by [GitHub Copilot agentic workflows](https://docs.github.com/en/copilot). Each has a corresponding `.md` definition file in `.github/workflows/` that can be customized.
