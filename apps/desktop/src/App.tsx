@@ -1,5 +1,3 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { exit } from "@tauri-apps/plugin-process";
 import { PageLoadingState } from "@teak/ui/feedback/PageLoadingState";
 import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect, useRef } from "react";
@@ -12,8 +10,8 @@ import {
 } from "react-router-dom";
 import { toast } from "sonner";
 import { useDesktopMenuEvents } from "@/hooks/useDesktopMenuEvents";
+import { useDesktopUpdater } from "@/hooks/useDesktopUpdater";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
-import { useSilentUpdater } from "@/hooks/useSilentUpdater";
 import { closeAuthWindow } from "@/lib/auth-window";
 import { logoutDesktopSession } from "@/lib/desktop-auth";
 import { CardsPage } from "./pages/CardsPage";
@@ -25,8 +23,7 @@ function AppRoutes() {
   const { isOnline } = useNetworkStatus();
   const { isAuthenticated, isLoading } = useConvexAuth();
   const wasAuthenticatedRef = useRef(isAuthenticated);
-
-  useSilentUpdater();
+  const { checkForUpdatesInteractively } = useDesktopUpdater();
 
   const handleLogout = useCallback(async () => {
     try {
@@ -36,7 +33,7 @@ function AppRoutes() {
     }
   }, []);
 
-  const handlePreferencesMenuClick = useCallback(() => {
+  const handleSettingsMenuClick = useCallback(() => {
     if (isAuthenticated) {
       navigate("/settings");
     }
@@ -46,7 +43,10 @@ function AppRoutes() {
     onLogout: () => {
       void handleLogout();
     },
-    onPreferences: handlePreferencesMenuClick,
+    onSettings: handleSettingsMenuClick,
+    onCheckForUpdates: () => {
+      void checkForUpdatesInteractively();
+    },
   });
 
   useEffect(() => {
@@ -66,24 +66,6 @@ function AppRoutes() {
 
     void closeAuthWindow();
   }, [isAuthenticated]);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
-
-      if (isCmdOrCtrl && e.key === "w") {
-        e.preventDefault();
-        void getCurrentWindow().close();
-      } else if (isCmdOrCtrl && e.key === "q") {
-        e.preventDefault();
-        void exit(0);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
 
   if (isLoading) {
     return <PageLoadingState />;

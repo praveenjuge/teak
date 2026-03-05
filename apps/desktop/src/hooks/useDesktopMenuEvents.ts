@@ -3,22 +3,29 @@ import { useEffect } from "react";
 
 interface UseDesktopMenuEventsOptions {
   onLogout: () => void;
-  onPreferences: () => void;
+  onSettings: () => void;
+  onCheckForUpdates: () => void;
 }
 
 export function useDesktopMenuEvents({
   onLogout,
-  onPreferences,
+  onSettings,
+  onCheckForUpdates,
 }: UseDesktopMenuEventsOptions) {
   useEffect(() => {
     let unlistenLogout: (() => void) | null = null;
-    let unlistenPreferences: (() => void) | null = null;
+    let unlistenSettings: (() => void) | null = null;
+    let unlistenCheckForUpdates: (() => void) | null = null;
 
     void (async () => {
       unlistenLogout = await listen("desktop://menu/logout", onLogout);
-      unlistenPreferences = await listen(
-        "desktop://menu/preferences",
-        onPreferences
+      unlistenSettings = await listen(
+        "desktop://menu/settings",
+        onSettings
+      );
+      unlistenCheckForUpdates = await listen(
+        "desktop://menu/check-for-updates",
+        onCheckForUpdates
       );
     })();
 
@@ -26,9 +33,12 @@ export function useDesktopMenuEvents({
       if (unlistenLogout) {
         unlistenLogout();
       }
-      if (unlistenPreferences) {
-        unlistenPreferences();
+      if (unlistenSettings) {
+        unlistenSettings();
+      }
+      if (unlistenCheckForUpdates) {
+        unlistenCheckForUpdates();
       }
     };
-  }, [onLogout, onPreferences]);
+  }, [onLogout, onSettings, onCheckForUpdates]);
 }

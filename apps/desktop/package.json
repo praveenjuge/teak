@@ -18,6 +18,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.2.0",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-process": "^2",
     "@tauri-apps/plugin-store": "^2",
