@@ -67,21 +67,34 @@ Save highlighted quotes with source context. Perfect for design principles, test
 
 ## Search & Organization
 
-### Visual Search
-Search across all your cards using natural language. Teak searches titles, descriptions, tags, transcriptions, and extracted text.
+### Smart Search
+
+Type any word or phrase to search across card titles, descriptions, tags, transcriptions, and extracted text. Teak also recognizes special search tokens automatically:
+
+| Token type | Examples | What it does |
+|---|---|---|
+| **Color name** | `red`, `blue`, `teal`, `purple`, `pink` | Filters cards by dominant palette color |
+| **Visual style** | `minimal`, `dark`, `abstract`, `cinematic`, `pastel` | Filters cards by visual aesthetic |
+| **Hex color** | `#FF5733`, `#3B82F6` | Filters cards by exact color match |
+| **Date shorthand** | `today`, `this week`, `january`, `last year` | Filters cards by creation date |
+| **Keyword** | anything else | Full-text match on card content |
+
+Mix multiple tokens in one search — Teak applies all recognized filters simultaneously.
 
 ```
 Examples:
 - "blue button hover state"
+- "minimal dark"
+- "#3B82F6"
+- "feedback from Sarah this week"
 - "onboarding flow mobile"
-- "feedback from Sarah"
 ```
 
 ### Smart Tagging
 AI automatically analyzes your content and applies relevant tags. You can also add custom tags manually.
 
 ### Filtering
-Filter by card type, favorites, tags, or date. Combine filters to narrow down large collections quickly.
+Filter by card type, favorites, visual style, color, or date. Active filters appear as removable pills in the search bar. Combine multiple filters to narrow down large collections quickly.
 
 ### Masonry Grid
 Browse your inspiration in a Pinterest-style grid that adapts to different content sizes and aspect ratios.
