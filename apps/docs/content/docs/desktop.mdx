@@ -33,6 +33,26 @@ If Gatekeeper blocks launch:
 
 Desktop sign-in opens a secure browser-based authentication window and returns you to the app automatically after login.
 
+## Teak Menu
+
+The **Teak** menu in the macOS menu bar exposes these actions:
+
+| Item | What it does |
+|---|---|
+| **Check for Updates…** | Checks for a new release and shows an interactive install dialog |
+| **Settings…** | Opens the Settings panel (account info, API keys, billing) |
+| **Log Out** | Signs you out and returns to the login screen |
+
+## Settings
+
+Open **Teak menu → Settings…** to manage your account:
+
+- **Account**: View your email address and card count.
+- **Upgrade / Billing**: Upgrade to Pro or open the customer portal to manage your subscription.
+- **API Keys**: Generate API keys for the [Teak API](/docs/api) and [Raycast extension](/docs/raycast).
+- **Sign Out**: Ends your desktop session and returns to the login screen.
+- **Delete Account**: Opens `app.teakvault.com/settings` in your browser to complete account deletion.
+
 ## Auto Updates
 
 Teak checks for updates silently on each launch.
@@ -76,7 +96,7 @@ Your account data stays in Teak backend storage and local session state is prese
 
 - Relaunch the app and wait for update check.
 - Confirm `teakvault.com/updates` is reachable from your network.
-- Install the latest release manually from GitHub.
+- If you are on a build older than 1.0.22, it may still point to the legacy `updates.teakvault.com` host, which is no longer active. Install the latest release manually from GitHub to restore auto-updates.
 
 ### Still stuck?
 
