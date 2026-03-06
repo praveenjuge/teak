@@ -233,7 +233,7 @@ jobs:
 
           echo "path=$METADATA_PATH" >> "$GITHUB_OUTPUT"
 
-      - name: Commit updater metadata into apps/updates
+      - name: Commit updater metadata into apps/docs/public/updates
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           METADATA_PATH: ${{ steps.metadata.outputs.path }}
@@ -249,7 +249,7 @@ jobs:
           RELEASES_JSON="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 200 --json tagName,isDraft,isPrerelease)"
           VERSION_LIST="$(echo "$RELEASES_JSON" | jq -r '[.[] | select((.isDraft | not) and (.isPrerelease | not) and (.tagName | test("^v[0-9]+\\.[0-9]+\\.[0-9]+([-.][0-9A-Za-z.-]+)?$"))) | .tagName | ltrimstr("v")] | unique | .[]')"
 
-          UPDATES_PATH="apps/updates/darwin/aarch64"
+          UPDATES_PATH="apps/docs/public/updates/darwin/aarch64"
           mkdir -p "$UPDATES_PATH"
 
           cp "$METADATA_PATH" "$UPDATES_PATH/latest.json"

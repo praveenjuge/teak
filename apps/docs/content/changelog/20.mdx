@@ -1,0 +1,16 @@
+---
+title: "Desktop Updater Metadata Moved to teakvault.com"
+startDate: "2026-03-06"
+endDate: "2026-03-06"
+commitCount: 1
+batchNumber: 20
+---
+
+Teak desktop updater metadata is now served directly from `teakvault.com/updates` via the docs app, replacing the dedicated `updates.teakvault.com` host.
+
+### Highlights
+
+- 💪 **Improvement**: Unified updater metadata hosting under `apps/docs/public/updates`.
+- 💪 **Improvement**: Desktop app updater endpoint now targets `https://teakvault.com/updates/...`.
+- 🧹 **Cleanup**: Removed the legacy `apps/updates` static host path.
+- ⚠️ **Compatibility note**: Older desktop builds pinned to `updates.teakvault.com` may require manual DMG updates.

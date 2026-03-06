@@ -9,13 +9,12 @@ This runbook defines Teak desktop launch and incident response for macOS Apple S
 - Incident channel: `#desktop-release`
 - On-call window: first 72 hours after each production desktop release
 
-## One-Time `updates.teakvault.com` Setup (Vercel)
+## One-Time `teakvault.com/updates` Setup (Vercel)
 
-1. Create a dedicated Vercel project for updater metadata (for example `teak-updates`).
-2. Set the Vercel project Root Directory to `apps/updates`.
-3. Connect the Vercel project to this repository and enable automatic production deployments from `main`.
-4. In Vercel Domains, assign `updates.teakvault.com` to that project.
-5. Deploy once from `main` so the rewrite rules in `apps/updates/vercel.json` are active.
+1. Use the existing `teakvault.com` docs Vercel project.
+2. Ensure the Vercel project Root Directory is `apps/docs`.
+3. Confirm automatic production deployments from `main` are enabled.
+4. Deploy once from `main` so the updater rewrite in `apps/docs/vercel.json` is active.
 
 ## Promotion Procedure
 
@@ -27,17 +26,17 @@ This runbook defines Teak desktop launch and incident response for macOS Apple S
 3. `Desktop Release` workflow runs from that tag:
    - Builds/signs/notarizes/staples macOS Apple Silicon release
    - Publishes GitHub Release assets
-   - Writes updater metadata JSON files into `apps/updates/darwin/aarch64/`
+   - Writes updater metadata JSON files into `apps/docs/public/updates/darwin/aarch64/`
    - Pushes metadata commit to `main`
-4. Vercel detects the new `apps/updates` commit and deploys `updates.teakvault.com`.
+4. Vercel detects the new `apps/docs` commit and deploys `teakvault.com`.
 5. Validate release gates:
    - Codesign verification
    - Gatekeeper assessment
    - Stapler validation
    - Smoke test install from DMG
 6. Verify updater metadata publish:
-   - `https://updates.teakvault.com/darwin/aarch64/latest.json`
-   - `https://updates.teakvault.com/darwin/aarch64/<current_version>`
+   - `https://teakvault.com/updates/darwin/aarch64/latest.json`
+   - `https://teakvault.com/updates/darwin/aarch64/<current_version>`
 7. Announce release in team channel with:
    - Version
    - Release URL
@@ -48,10 +47,10 @@ This runbook defines Teak desktop launch and incident response for macOS Apple S
 Use rollback when critical regressions impact launch, auth, sync, or update safety.
 
 1. Identify last known good release tag.
-2. Repoint updater metadata on `updates.teakvault.com` to the last good bundle for:
+2. Repoint updater metadata on `teakvault.com/updates` to the last good bundle for:
    - `darwin/aarch64/latest.json`
    - all active current-version paths (`darwin/aarch64/<version>`)
-3. Re-deploy Vercel updates project after metadata rollback commit to `main`.
+3. Re-deploy Vercel docs project after metadata rollback commit to `main`.
 4. Mark bad GitHub Release as pre-release or add a warning note.
 5. Update `/apps` and support communications to steer users to stable build.
 6. Post-incident notes:

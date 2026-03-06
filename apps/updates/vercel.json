@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/darwin/aarch64/:currentVersion",
-      "destination": "/darwin/aarch64/:currentVersion.json"
-    }
-  ]
-}

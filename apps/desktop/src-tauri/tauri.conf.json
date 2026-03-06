@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://localhost:* ws://localhost:* https://*.convex.cloud https://*.convex.site wss://*.convex.cloud wss://*.convex.site https://app.teakvault.com https://updates.teakvault.com; img-src 'self' asset: data: blob: https:; media-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none';",
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://localhost:* ws://localhost:* https://*.convex.cloud https://*.convex.site wss://*.convex.cloud wss://*.convex.site https://app.teakvault.com https://teakvault.com; img-src 'self' asset: data: blob: https:; media-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none';",
       "capabilities": ["default"]
     }
   },
@@ -44,7 +44,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://updates.teakvault.com/{{target}}/{{arch}}/{{current_version}}"
+        "https://teakvault.com/updates/{{target}}/{{arch}}/{{current_version}}"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE2NkQ2QkU3MzU5MDlEOEUKUldTT25aQTE1MnR0Rm45cFd1OEM3eUg0eUpzTkU2dDVES2VMaXd4SU50NVJKckVVK0xhUjRPVUcK"
     }

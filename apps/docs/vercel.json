@@ -2,5 +2,11 @@
   "buildCommand": "bun run build",
   "installCommand": "bun install",
   "framework": "nextjs",
-  "bunVersion": "1.x"
+  "bunVersion": "1.x",
+  "rewrites": [
+    {
+      "source": "/updates/darwin/aarch64/:currentVersion",
+      "destination": "/updates/darwin/aarch64/:currentVersion.json"
+    }
+  ]
 }
