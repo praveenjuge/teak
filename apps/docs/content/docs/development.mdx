@@ -84,6 +84,8 @@ bun run dev:docs       # Documentation site
 
 # Build
 bun run build          # Production build (all)
+bun run build:extension  # Package Chrome extension
+bun run build:raycast    # Build Raycast extension
 
 # Lint & Typecheck
 bun run lint
@@ -91,6 +93,15 @@ bun run typecheck
 
 # Test
 bun run test           # Unit tests (all packages)
+
+# Quality checks (Ultracite — lint + format)
+bun run check          # Report issues
+bun run fix            # Auto-fix issues
+
+# Other
+bun run pre-commit     # Same checks run by the git pre-commit hook
+bun run publish:raycast  # Publish Raycast extension to the store
+bun run clean          # Remove all Turborepo caches and node_modules/.cache
 ```
 
 ## Setup Checklist
