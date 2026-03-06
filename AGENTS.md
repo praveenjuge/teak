@@ -13,7 +13,7 @@ bun run dev
 bun run dev:web        # Next.js web + Convex
 bun run dev:convex     # Convex backend only
 bun run dev:api        # Hono API gateway
-bun run dev:mobile     # Expo mobile + Convex
+bun run dev:mobile     # Expo mobile app
 bun run dev:desktop    # Tauri desktop app
 bun run dev:extension  # Browser extension + Convex
 bun run dev:raycast    # Raycast extension
