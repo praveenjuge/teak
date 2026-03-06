@@ -123,6 +123,16 @@ VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 ```
 
+### API Gateway (`apps/api/.env`)
+
+```bash
+CONVEX_HTTP_BASE_URL=https://deployment.convex.site   # Required: Convex .site URL
+CONVEX_UPSTREAM_TIMEOUT_MS=10000                      # Optional: upstream timeout in ms (default: 10000)
+PORT=8787                                             # Optional: listening port (default: 8787)
+```
+
+The `CONVEX_HTTP_BASE_URL` must point to your Convex `.site` domain (the same value as `NEXT_PUBLIC_CONVEX_SITE_URL` in `apps/web`). The API gateway forwards all authenticated `/v1` and `/mcp` requests to this URL.
+
 ## Where to get the values
 
 - **Convex URLs**: Run `bunx convex dev`. It prints both `CONVEX_URL` (for the client) and `CONVEX_SITE_URL` (for the site/auth endpoint). You can also find these in the Convex Dashboard under "Settings" -> "Deployment".
