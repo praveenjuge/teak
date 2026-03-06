@@ -69,7 +69,7 @@ Use rollback when critical regressions impact launch, auth, sync, or update safe
 
 - DMG installer for manual install.
 - Signed updater archive + `.sig` for auto-update flow.
-- GitHub Release notes based on `.github/templates/desktop-release-notes.md`.
+- GitHub Release description is intentionally left empty by the release workflow.
 
 ## Required CI Secrets
 

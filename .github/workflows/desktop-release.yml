@@ -138,14 +138,7 @@ jobs:
           RELEASE_TAG="${{ steps.release.outputs.tag }}"
           RELEASE_NAME="Teak Desktop ${RELEASE_TAG}"
           RELEASE_BODY_FILE="$RUNNER_TEMP/release-notes.md"
-
-          cat > "$RELEASE_BODY_FILE" <<'MD'
-          ## Teak Desktop Release
-
-          - Signed + notarized macOS Apple Silicon build
-          - Direct download DMG
-          - In-app updater artifacts published
-          MD
+          : > "$RELEASE_BODY_FILE"
 
           bun run --filter @teak/desktop bundle:mac-silicon
 
