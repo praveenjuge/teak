@@ -7,8 +7,10 @@ import {
   FileText,
   HelpCircle,
   Monitor,
+  Plug,
   Settings,
   Shield,
+  Smartphone,
   Sparkles,
 } from "lucide-react";
 
@@ -22,6 +24,8 @@ const iconMap = {
   FileText,
   HelpCircle,
   Monitor,
+  Plug,
+  Smartphone,
 };
 
 // See https://fumadocs.vercel.app/docs/headless/source-api for more info
