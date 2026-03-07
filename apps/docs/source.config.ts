@@ -18,16 +18,13 @@ export const docs = defineDocs({
   },
 });
 
-// Changelog collection for AI-generated batch summaries (40 commits per batch)
+// Changelog collection for manually authored release notes.
 export const changelog = defineCollections({
   type: "doc",
   dir: "./content/changelog",
   schema: z.object({
     title: z.string(),
-    startDate: z.string(),
-    endDate: z.string(),
-    commitCount: z.number(),
-    batchNumber: z.number(),
+    date: z.string(),
   }),
 });
 

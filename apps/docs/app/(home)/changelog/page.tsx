@@ -1,10 +1,9 @@
 import { Button } from "@teak/ui/components/ui/button";
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import type { ComponentType } from "react";
 import { getDefaultAuthor } from "@/lib/authors";
-import { changelogCollection } from "@/lib/source";
+import { getSortedChangelogEntries } from "@/lib/source";
 
 export const metadata: Metadata = {
   title: "What's New in Teak",
@@ -45,9 +44,8 @@ export const metadata: Metadata = {
 };
 
 interface ChangelogEntry {
-  batchNumber: number;
   body: ComponentType;
-  endDate: string;
+  date: string;
   title: string;
 }
 
@@ -61,11 +59,7 @@ function formatDate(dateStr: string): string {
 }
 
 export default function ChangelogPage() {
-  // Sort entries by batchNumber descending (newest first)
-  const sortedEntries = [...changelogCollection].sort((a, b) => {
-    return b.batchNumber - a.batchNumber;
-  });
-
+  const sortedEntries = getSortedChangelogEntries();
   const author = getDefaultAuthor();
 
   return (
@@ -105,11 +99,20 @@ export default function ChangelogPage() {
           return (
             <article
               className="rounded-xl border bg-background p-7"
-              key={data.batchNumber}
+              key={`${data.date}-${data.title}`}
             >
-              <p className="mb-2 text-muted-foreground">
-                {formatDate(data.endDate)}
-              </p>
+              <div className="mb-4 flex gap-2">
+                <p className="text-muted-foreground text-sm">
+                  {formatDate(data.date)}
+                </p>
+                {/* Author Attribution */}
+                <Link
+                  className="inline-flex items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+                  href={`/authors/${author.id}`}
+                >
+                  •<span>By {author.name}</span>
+                </Link>
+              </div>
 
               <h2 className="mb-4 text-balance font-semibold text-2xl">
                 {data.title}
@@ -117,24 +120,6 @@ export default function ChangelogPage() {
 
               <div className="prose max-w-none">
                 <MDXContent />
-              </div>
-
-              {/* Author Attribution */}
-              <div className="mt-6 border-t pt-4">
-                <Link
-                  className="inline-flex items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
-                  href={`/authors/${author.id}`}
-                >
-                  <Image
-                    alt={author.name}
-                    className="rounded-full"
-                    height={24}
-                    src={author.avatar}
-                    unoptimized
-                    width={24}
-                  />
-                  <span>By {author.name}</span>
-                </Link>
               </div>
             </article>
           );

@@ -6,15 +6,11 @@
     "lint": "biome check .",
     "start": "next start",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
-    "postinstall": "fumadocs-mdx",
-    "generate:changelog": "bun run scripts/generate-changelog.ts",
-    "regenerate:changelog": "bun run scripts/generate-changelog.ts --force"
+    "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
-    "@ai-sdk/groq": "^3.0.29",
     "@teak/ui": "workspace:*",
     "@vercel/analytics": "^1.6.1",
-    "ai": "^6.0.116",
     "fumadocs-core": "16.6.9",
     "fumadocs-mdx": "14.2.9",
     "fumadocs-ui": "16.6.9",

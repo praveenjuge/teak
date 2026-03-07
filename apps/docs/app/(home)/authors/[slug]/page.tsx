@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { authors, getAuthor } from "@/lib/authors";
-import { changelogCollection } from "@/lib/source";
+import { getSortedChangelogEntries } from "@/lib/source";
 
 interface AuthorPageProps {
   params: Promise<{ slug: string }>;
@@ -60,10 +60,7 @@ export default async function AuthorPage({ params }: AuthorPageProps) {
     notFound();
   }
 
-  // Get all changelog entries (authored by default author for now)
-  const sortedEntries = [...changelogCollection].sort((a, b) => {
-    return b.batchNumber - a.batchNumber;
-  });
+  const sortedEntries = getSortedChangelogEntries();
 
   return (
     <div className="container mx-auto max-w-2xl px-4 py-12">
@@ -141,10 +138,10 @@ export default async function AuthorPage({ params }: AuthorPageProps) {
               <Link
                 className="block rounded-lg border bg-background p-4 transition-colors hover:border-primary/50 hover:bg-muted/50"
                 href="/changelog"
-                key={entry.batchNumber}
+                key={`${entry.date}-${entry.title}`}
               >
                 <p className="mb-1 text-muted-foreground text-sm">
-                  {new Date(entry.endDate).toLocaleDateString("en-US", {
+                  {new Date(entry.date).toLocaleDateString("en-US", {
                     month: "long",
                     day: "numeric",
                     year: "numeric",

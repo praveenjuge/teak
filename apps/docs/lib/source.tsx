@@ -38,5 +38,10 @@ export const source = loader({
   },
 });
 
-// Export changelog collection for use in changelog page
 export const changelogCollection = changelog;
+
+export const getSortedChangelogEntries = () => {
+  return [...changelogCollection].sort((entryA, entryB) => {
+    return new Date(entryB.date).getTime() - new Date(entryA.date).getTime();
+  });
+};
