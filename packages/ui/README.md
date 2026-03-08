@@ -73,8 +73,51 @@ import {
 **Card modal** (detail view with actions):
 
 ```tsx
-import { CardModal } from "@teak/ui/card-modal";
+import {
+  CardModal,
+  ConnectedCardModal,
+  CardMetadataPanel,
+  getCardTypeIconComponent,
+} from "@teak/ui/card-modal";
+import type { CardModalCard, GetCurrentValue } from "@teak/ui/card-modal";
 ```
+
+| Export | Description |
+|--------|-------------|
+| `CardModal` | Headless modal UI — accepts a fully-resolved card object |
+| `ConnectedCardModal` | Wired modal that fetches card data from Convex by ID |
+| `CardMetadataPanel` | Side-panel showing card metadata, tags, and action buttons |
+| `getCardTypeIconComponent` | Returns the Lucide icon component for a given card type |
+
+---
+
+### Card Detail Previews
+
+Full-screen content previews rendered inside the card modal, one per card type:
+
+```tsx
+import {
+  AudioPreview,
+  DocumentPreview,
+  ImagePreview,
+  LinkPreview,
+  PalettePreview,
+  QuotePreview,
+  TextPreview,
+  VideoPreview,
+} from "@teak/ui/card-previews";
+```
+
+| Component | Card type |
+|-----------|-----------|
+| `AudioPreview` | Audio — inline player + AI transcript |
+| `DocumentPreview` | Document — PDF / file viewer |
+| `ImagePreview` | Image — scrollable preview for tall images |
+| `LinkPreview` | Link — metadata, screenshot, and open button |
+| `PalettePreview` | Palette — extracted colors with hex values |
+| `QuotePreview` | Quote — formatted quote with source |
+| `TextPreview` | Text — editable Markdown content |
+| `VideoPreview` | Video — inline player |
 
 ---
 
