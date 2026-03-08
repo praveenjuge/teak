@@ -8,7 +8,7 @@ export default defineConfig({
     name: "Teak",
     description:
       "Your personal knowledge hub. Save, organize, and rediscover web content effortlessly.",
-    version: "1.0.1",
+    version: "1.0.23",
     author: {
       email: "hi@praveenjuge.com",
     },

@@ -18,9 +18,11 @@ This runbook defines Teak desktop launch and incident response for macOS Apple S
 
 ## Promotion Procedure
 
-1. Update only `apps/desktop/package.json` `version`, then push to `main`.
-2. `Desktop Auto Tag` workflow runs automatically:
+1. Update root `package.json` `version`, then push to `main`.
+2. `Version Bump` workflow runs automatically:
+   - Syncs every workspace `package.json` to the root version
    - Syncs `apps/desktop/src-tauri/tauri.conf.json` and `apps/desktop/src-tauri/Cargo.toml`
+   - Syncs `apps/mobile/app.json`, `apps/mobile/store.config.json`, and `apps/extension/wxt.config.ts`
    - Pushes sync commit if needed
    - Creates and pushes `v<version>` tag
 3. `Desktop Release` workflow runs from that tag:

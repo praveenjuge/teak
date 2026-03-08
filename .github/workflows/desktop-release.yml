@@ -50,12 +50,13 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Validate desktop manifest versions
+      - name: Validate release versions
         shell: bash
         run: |
           set -euo pipefail
 
           EXPECTED_VERSION="${{ steps.release.outputs.version }}"
+          ROOT_VERSION="$(jq -r '.version' package.json)"
           PACKAGE_VERSION="$(jq -r '.version' apps/desktop/package.json)"
           TAURI_VERSION="$(jq -r '.version' apps/desktop/src-tauri/tauri.conf.json)"
           CARGO_VERSION="$(awk '
@@ -67,6 +68,11 @@ jobs:
               exit
             }
           ' apps/desktop/src-tauri/Cargo.toml)"
+
+          if [[ "$ROOT_VERSION" != "$EXPECTED_VERSION" ]]; then
+            echo "package.json version mismatch: $ROOT_VERSION != $EXPECTED_VERSION"
+            exit 1
+          fi
 
           if [[ "$PACKAGE_VERSION" != "$EXPECTED_VERSION" ]]; then
             echo "apps/desktop/package.json version mismatch: $PACKAGE_VERSION != $EXPECTED_VERSION"

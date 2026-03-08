@@ -40,5 +40,6 @@
     "plugins": [
       "@tailwindcss/postcss"
     ]
-  }
+  },
+  "version": "1.0.23"
 }

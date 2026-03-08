@@ -12,8 +12,7 @@
     "build:vite": "tsc && vite build",
     "preview": "vite preview",
     "test": "bun test src/__tests__ --coverage --dots",
-    "typecheck": "tsc --noEmit",
-    "version:sync": "node ./scripts/sync-desktop-version.mjs"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.0",

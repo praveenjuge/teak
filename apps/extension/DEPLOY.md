@@ -2,14 +2,9 @@
 
 ## 1. Increment Version
 
-Edit `wxt.config.ts` and increment the version number:
+Edit the root `package.json` version and push to `main`. The version sync workflow will update `wxt.config.ts` and the extension package manifest automatically.
 
-```ts
-manifest: {
-  version: '1.0.1', // Increment this (e.g., 1.0.2)
-  ...
-}
-```
+After the sync commit lands, build the extension from the updated repo state.
 
 ## 2. Build & Create ZIP
 
