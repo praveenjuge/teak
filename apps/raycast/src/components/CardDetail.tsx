@@ -63,7 +63,7 @@ const toToastMessage = (error: unknown): string => {
 };
 
 const statusColor = (
-  kind: ReturnType<typeof getDetailStatusChips>[number]["kind"]
+  kind: ReturnType<typeof getDetailStatusChips>[number]["kind"],
 ): string => {
   switch (kind) {
     case "type":
@@ -103,7 +103,7 @@ export function CardDetail({
       setCardState(next);
       onCardUpdated(next);
     },
-    [onCardUpdated]
+    [onCardUpdated],
   );
 
   const patchFavorite = useCallback(
@@ -119,7 +119,7 @@ export function CardDetail({
         return next;
       });
     },
-    [onCardUpdated]
+    [onCardUpdated],
   );
 
   const flushFavoriteCommit = useCallback(async () => {
@@ -180,7 +180,7 @@ export function CardDetail({
         void flushFavoriteCommit();
       }, FAVORITE_MUTATION_DEBOUNCE_MS);
     },
-    [flushFavoriteCommit]
+    [flushFavoriteCommit],
   );
 
   const handleToggleFavorite = useCallback(() => {
@@ -237,7 +237,7 @@ export function CardDetail({
       onFilterByTag(tag);
       pop();
     },
-    [onFilterByTag, pop]
+    [onFilterByTag, pop],
   );
 
   useEffect(() => {

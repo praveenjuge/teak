@@ -52,7 +52,7 @@ describe("card detail model", () => {
       linkPreviewImageUrl: "https://cdn.teak.test/link.png",
     };
     expect(getHeroMediaUrl(screenshotFirst)).toBe(
-      screenshotFirst.screenshotUrl
+      screenshotFirst.screenshotUrl,
     );
 
     const fileAsFallback = {
@@ -75,7 +75,7 @@ describe("card detail model", () => {
 
     expect(getOpenableUrl(baseCard)).toBe("https://teakvault.com");
     expect(
-      getOpenableUrl({ ...baseCard, url: "mailto:test@teakvault.com" })
+      getOpenableUrl({ ...baseCard, url: "mailto:test@teakvault.com" }),
     ).toBeNull();
   });
 
@@ -93,7 +93,7 @@ describe("card detail model", () => {
         isFavorited: false,
         aiSummary: null,
         aiTags: [],
-      })
+      }),
     ).toEqual([
       { kind: "type", text: "link" },
       { kind: "favorite", text: "Not Favorited" },

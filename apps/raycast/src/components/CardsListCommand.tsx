@@ -55,7 +55,7 @@ export function CardsListCommand({
         setIsLoading(false);
       }
     },
-    [loadCards]
+    [loadCards],
   );
 
   useEffect(() => {
@@ -74,10 +74,10 @@ export function CardsListCommand({
       setItems((previous) =>
         upsertCard(previous, next, {
           removeWhenUnfavorited: removeUnfavoritedFromList,
-        })
+        }),
       );
     },
-    [removeUnfavoritedFromList]
+    [removeUnfavoritedFromList],
   );
 
   const handleCardDeleted = useCallback((cardId: string) => {

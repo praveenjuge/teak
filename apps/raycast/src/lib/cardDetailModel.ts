@@ -78,7 +78,7 @@ const isRenderableImageUrl = (value: string | null | undefined): boolean => {
     const parsed = new URL(value);
     const pathname = parsed.pathname.toLowerCase();
     return Array.from(IMAGE_EXTENSIONS).some((extension) =>
-      pathname.endsWith(extension)
+      pathname.endsWith(extension),
     );
   } catch {
     return false;

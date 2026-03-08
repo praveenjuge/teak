@@ -9,7 +9,7 @@ export const upsertCard = (
   next: RaycastCard,
   options?: {
     removeWhenUnfavorited?: boolean;
-  }
+  },
 ): RaycastCard[] => {
   if (options?.removeWhenUnfavorited && !next.isFavorited) {
     return cards.filter((card) => card.id !== next.id);
@@ -27,7 +27,7 @@ export const upsertCard = (
 
 export const removeCardById = (
   cards: RaycastCard[],
-  cardId: string
+  cardId: string,
 ): {
   cards: RaycastCard[];
   removedCard: RaycastCard | null;
