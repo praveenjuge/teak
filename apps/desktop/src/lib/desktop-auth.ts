@@ -111,10 +111,6 @@ function randomBase64Url(size: number): string {
   return toBase64Url(bytes);
 }
 
-function randomUuid(): string {
-  return crypto.randomUUID();
-}
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -199,7 +195,7 @@ export async function getDesktopDeviceId(): Promise<string> {
     return storedDeviceId;
   }
 
-  const nextDeviceId = randomUuid();
+  const nextDeviceId = crypto.randomUUID();
   await writeStoreValue(DEVICE_ID_KEY, nextDeviceId);
   return nextDeviceId;
 }

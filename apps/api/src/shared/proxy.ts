@@ -66,11 +66,8 @@ const isJsonResponse = (response: Response): boolean => {
   return contentType?.toLowerCase().includes("application/json") ?? false;
 };
 
-const readResponseText = async (response: Response): Promise<string> => {
-  return response
-    .text()
-    .then((value) => value)
-    .catch(() => "");
+const readResponseText = (response: Response): Promise<string> => {
+  return response.text().catch(() => "");
 };
 
 const getUpstreamTimeoutMs = (): number => {
@@ -147,14 +144,14 @@ export const proxyToConvex = async (request: Request): Promise<Response> => {
     const responseText = await readResponseText(upstreamResponse);
     const normalizedResponseText = responseText.trim();
 
-    if (upstreamResponse.ok && !isJsonResponse(upstreamResponse)) {
-      return json(502, {
-        code: "UPSTREAM_INVALID_RESPONSE",
-        error: "Upstream returned an invalid success payload",
-      });
-    }
+    if (upstreamResponse.ok) {
+      if (!isJsonResponse(upstreamResponse)) {
+        return json(502, {
+          code: "UPSTREAM_INVALID_RESPONSE",
+          error: "Upstream returned an invalid success payload",
+        });
+      }
 
-    if (upstreamResponse.ok && isJsonResponse(upstreamResponse)) {
       if (!normalizedResponseText) {
         return json(502, {
           code: "UPSTREAM_INVALID_RESPONSE",
