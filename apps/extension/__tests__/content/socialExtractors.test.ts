@@ -94,12 +94,59 @@ describe("social platform extractors", () => {
   });
 
   test("findPinterestPosts delegates to expected selector", () => {
-    const querySelectorAll = mock(() => [{}]);
+    setWindowOrigin("https://www.pinterest.com");
+
+    const pinPost = createPost([createAnchor("/pin/123456789012345/")]);
+    const querySelectorAll = mock((selector: string) => {
+      if (selector === '[data-test-id="pin"]') {
+        return [pinPost];
+      }
+
+      if (selector === '[data-test-id="pinWrapper"]') {
+        return [];
+      }
+
+      if (selector === '[data-grid-item="true"]') {
+        return [];
+      }
+
+      return [];
+    });
     const root = { querySelectorAll } as unknown as ParentNode;
 
     expect(findPinterestPosts(root).length).toBe(1);
+    expect(querySelectorAll).toHaveBeenCalledWith('[data-test-id="pin"]');
     expect(querySelectorAll).toHaveBeenCalledWith(
-      '[data-test-id="pin"], [data-test-id="pinWrapper"], [data-grid-item="true"]'
+      '[data-test-id="pinWrapper"]'
     );
+    expect(querySelectorAll).toHaveBeenCalledWith('[data-grid-item="true"]');
+  });
+
+  test("findPinterestPosts deduplicates nested containers for the same pin", () => {
+    setWindowOrigin("https://www.pinterest.com");
+
+    const pinAnchor = createAnchor("/pin/123456789012345/");
+    const pinElement = createPost([pinAnchor]);
+    const pinWrapperElement = createPost([pinAnchor]);
+    const gridItemElement = createPost([pinAnchor]);
+    const querySelectorAll = mock((selector: string) => {
+      if (selector === '[data-test-id="pin"]') {
+        return [pinElement];
+      }
+
+      if (selector === '[data-test-id="pinWrapper"]') {
+        return [pinWrapperElement];
+      }
+
+      if (selector === '[data-grid-item="true"]') {
+        return [gridItemElement];
+      }
+
+      return [];
+    });
+
+    const root = { querySelectorAll } as unknown as ParentNode;
+
+    expect(findPinterestPosts(root)).toEqual([pinElement]);
   });
 });

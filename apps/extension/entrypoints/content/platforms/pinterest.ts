@@ -1,7 +1,11 @@
 import type { ExtractedPost } from "../../../types/social";
 
-const PINTEREST_POST_SELECTOR =
-  '[data-test-id="pin"], [data-test-id="pinWrapper"], [data-grid-item="true"]';
+const PINTEREST_POST_SELECTORS = [
+  '[data-test-id="pin"]',
+  '[data-test-id="pinWrapper"]',
+  '[data-grid-item="true"]',
+] as const;
+const PINTEREST_POST_SELECTOR = PINTEREST_POST_SELECTORS.join(", ");
 const PINTEREST_PATH = /^\/pin\/(\d+)/i;
 
 const isPinterestHost = (hostname: string): boolean => {
@@ -34,9 +38,6 @@ const parsePermalink = (
   }
 };
 
-export const findPinterestPosts = (root: ParentNode): HTMLElement[] =>
-  Array.from(root.querySelectorAll<HTMLElement>(PINTEREST_POST_SELECTOR));
-
 export const extractPinterestPost = (
   postElement: HTMLElement
 ): ExtractedPost | null => {
@@ -62,4 +63,24 @@ export const extractPinterestPost = (
   }
 
   return null;
+};
+
+export const findPinterestPosts = (root: ParentNode): HTMLElement[] => {
+  const matchedPosts: HTMLElement[] = [];
+  const seenPostKeys = new Set<string>();
+
+  for (const selector of PINTEREST_POST_SELECTORS) {
+    const candidates = root.querySelectorAll<HTMLElement>(selector);
+    for (const candidate of candidates) {
+      const extractedPost = extractPinterestPost(candidate);
+      if (!extractedPost || seenPostKeys.has(extractedPost.postKey)) {
+        continue;
+      }
+
+      seenPostKeys.add(extractedPost.postKey);
+      matchedPosts.push(candidate);
+    }
+  }
+
+  return matchedPosts;
 };

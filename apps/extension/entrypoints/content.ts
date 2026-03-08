@@ -9,6 +9,7 @@ import {
   mapSaveResponseToButtonState,
   shouldAllowClick,
 } from "./content/buttonStateMachine";
+import { getInlineSaveButtonPosition } from "./content/platformButtonLayout";
 import {
   extractInstagramPost,
   findInstagramPosts,
@@ -191,8 +192,10 @@ const injectStyleTag = () => {
       height: 30px;
       justify-content: center;
       position: absolute;
-      top: 8px;
-      right: 8px;
+      top: var(--teak-save-button-top, 24px);
+      right: var(--teak-save-button-right, 8px);
+      bottom: var(--teak-save-button-bottom, auto);
+      left: var(--teak-save-button-left, auto);
       transition: transform 0.15s ease, background-color 0.15s ease;
       width: 30px;
       z-index: 2147483000;
@@ -204,7 +207,6 @@ const injectStyleTag = () => {
       [data-teak-save-bound='1'] > .teak-save-button[data-state="idle"] {
         opacity: 0;
         pointer-events: none;
-        transform: translateY(2px);
         transition:
           opacity 0.15s ease,
           transform 0.15s ease,
@@ -216,7 +218,6 @@ const injectStyleTag = () => {
       [data-teak-save-bound='1'] > .teak-save-button[data-state="idle"]:focus-visible {
         opacity: 1;
         pointer-events: auto;
-        transform: translateY(0);
       }
     }
 
@@ -316,6 +317,11 @@ const createSaveButton = (
   button.dataset.postKey = extractedPost.postKey;
   button.dataset.permalink = extractedPost.permalink;
   button.dataset.platform = extractedPost.platform;
+  const buttonPosition = getInlineSaveButtonPosition(extractedPost.platform);
+  button.style.setProperty("--teak-save-button-top", buttonPosition.top);
+  button.style.setProperty("--teak-save-button-right", buttonPosition.right);
+  button.style.setProperty("--teak-save-button-bottom", buttonPosition.bottom);
+  button.style.setProperty("--teak-save-button-left", buttonPosition.left);
 
   if (savedPostKeys.has(extractedPost.postKey)) {
     setButtonState(button, "saved");
