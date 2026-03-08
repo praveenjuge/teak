@@ -35,15 +35,18 @@ Context menu saves are available on all standard web pages.
 
 ## Social Media Inline Save Buttons
 
-On **Instagram**, **Pinterest**, and **X (Twitter)**, Teak injects a save button directly into each post. You can save individual posts without leaving the feed.
+On **Instagram**, **Pinterest**, **X (Twitter)**, and **Hacker News**, Teak injects a save button directly into each post or story. You can save individual items without leaving the feed.
 
 | Platform | Supported content |
 |---|---|
 | [instagram.com](https://www.instagram.com) | Posts and Reels |
 | [pinterest.com](https://www.pinterest.com) | Pins |
 | [x.com](https://x.com) | Posts (tweets) |
+| [news.ycombinator.com](https://news.ycombinator.com) | Story links (outbound URLs from story listings) |
 
-Inline save buttons appear automatically once you are signed in to the extension. Each saved post is deduplicated — saving the same post twice will not create a duplicate card.
+Inline save buttons appear automatically once you are signed in to the extension. Each saved item is deduplicated — saving the same post or story twice will not create a duplicate card.
+
+> **Note:** On Hacker News, inline save buttons appear only on story listing pages (e.g. the front page, `/news`, `/newest`, `/ask`). They do not appear on individual discussion pages (`/item?id=…`). Clicking the button saves the story's outbound link, not the Hacker News discussion URL.
 
 ## Free Tier Limit
 
@@ -60,11 +63,12 @@ If you are not signed in, the popup shows **Login** and **Create Account** butto
 - Check that you are signed in at [app.teakvault.com](https://app.teakvault.com).
 - Reload the tab you are trying to save and try again.
 
-### Inline buttons do not appear on Instagram / Pinterest / X
+### Inline buttons do not appear on Instagram / Pinterest / X / Hacker News
 
 - Make sure you are signed in to the extension.
-- Reload the social media page. Buttons are injected after the page fully loads.
+- Reload the page. Buttons are injected after the page fully loads.
 - Verify the extension is enabled in `chrome://extensions`.
+- On Hacker News, buttons only appear on story listing pages, not on discussion (`/item`) pages.
 
 ### Still stuck?
 
