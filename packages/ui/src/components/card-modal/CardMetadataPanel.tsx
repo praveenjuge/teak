@@ -1,4 +1,5 @@
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
+import { normalizeHexColor } from "@teak/convex/shared/utils/colorUtils";
 import { badgeVariants } from "@teak/ui/components/ui/badge";
 import { Button } from "@teak/ui/components/ui/button";
 import { Label } from "@teak/ui/components/ui/label";
@@ -14,7 +15,7 @@ import {
   Trash,
   Trash2,
 } from "lucide-react";
-import { useMemo } from "react";
+import { toast } from "sonner";
 import { cn } from "../../lib/utils";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
 import type { CardModalCard, GetCurrentValue } from "./types";
@@ -38,6 +39,21 @@ interface CardMetadataPanelProps {
   onTagClick?: (tag: string) => void;
 }
 
+const metadataBadgeClassName = cn(
+  badgeVariants({ variant: "outline" }),
+  "cursor-pointer gap-2 rounded-full px-3 py-1 text-sm [&_svg]:size-3.5!"
+);
+
+export async function copyColorHexToClipboard(hex: string) {
+  try {
+    await navigator.clipboard.writeText(hex);
+    toast.success(`Copied ${hex}`);
+  } catch (error) {
+    console.error("Failed to copy color", error);
+    toast.error("Failed to copy");
+  }
+}
+
 export function CardMetadataPanel({
   card,
   getCurrentValue,
@@ -46,10 +62,18 @@ export function CardMetadataPanel({
   actions,
   isDownloading,
 }: CardMetadataPanelProps) {
-  const IconComponent = useMemo(
-    () => getCardTypeIconComponent(card.type as CardType),
-    [card.type]
-  );
+  const IconComponent = getCardTypeIconComponent(card.type as CardType);
+  const uniqueHexes = new Set<string>();
+
+  for (const color of card.colors ?? []) {
+    const normalizedHex = normalizeHexColor(color.hex);
+
+    if (normalizedHex) {
+      uniqueHexes.add(normalizedHex);
+    }
+  }
+
+  const paletteHexes = [...uniqueHexes];
   const iconClass = "size-3 md:size-4";
 
   return (
@@ -76,10 +100,7 @@ export function CardMetadataPanel({
         <div className="flex flex-wrap gap-1">
           {card.type && (
             <button
-              className={cn(
-                badgeVariants({ variant: "outline" }),
-                "cursor-pointer gap-2 rounded-full px-3 py-1 text-sm [&_svg]:size-3.5!"
-              )}
+              className={metadataBadgeClassName}
               onClick={onCardTypeClick}
               type="button"
             >
@@ -90,10 +111,7 @@ export function CardMetadataPanel({
 
           {card.tags?.map((tag: string) => (
             <button
-              className={cn(
-                badgeVariants({ variant: "outline" }),
-                "cursor-pointer gap-2 rounded-full px-3 py-1 text-sm [&_svg]:size-3.5!"
-              )}
+              className={metadataBadgeClassName}
               key={tag}
               onClick={() => onTagClick?.(tag)}
               type="button"
@@ -102,12 +120,34 @@ export function CardMetadataPanel({
             </button>
           )) || []}
 
+          {paletteHexes.map((hex) => (
+            <button
+              aria-label={`Copy ${hex}`}
+              className={cn(
+                metadataBadgeClassName,
+                "group relative overflow-visible px-2"
+              )}
+              key={hex}
+              onClick={() => void copyColorHexToClipboard(hex)}
+              type="button"
+            >
+              <span
+                aria-hidden="true"
+                className="size-3.5 rounded-full border border-black/10 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]"
+                style={{ backgroundColor: hex }}
+              />
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-[11px] text-background opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+              >
+                {hex}
+              </span>
+            </button>
+          ))}
+
           {card.aiTags?.map((tag: string) => (
             <button
-              className={cn(
-                badgeVariants({ variant: "outline" }),
-                "cursor-pointer gap-2 rounded-full px-3 py-1 text-sm [&_svg]:size-3.5!"
-              )}
+              className={metadataBadgeClassName}
               key={`ai-${tag}`}
               onClick={() => onTagClick?.(tag)}
               type="button"

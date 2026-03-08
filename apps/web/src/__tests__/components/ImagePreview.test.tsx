@@ -51,4 +51,19 @@ describe("ImagePreview", () => {
     expect(markup).toContain("max-h-[75vh] max-w-full object-contain");
     expect(markup).not.toContain("h-auto w-full object-contain");
   });
+
+  test("does not render the legacy in-preview palette overlay", () => {
+    const markup = renderToStaticMarkup(
+      <ImagePreview
+        card={
+          createImageCard({
+            colors: [{ hex: "#112233" }, { hex: "#445566" }],
+          }) as any
+        }
+      />
+    );
+
+    expect(markup).not.toContain("absolute bottom-4 left-3");
+    expect(markup).not.toContain('title="#112233"');
+  });
 });

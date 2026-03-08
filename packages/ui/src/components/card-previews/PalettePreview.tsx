@@ -1,5 +1,6 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { Button } from "@teak/ui/components/ui/button";
+import { buttonVariants } from "@teak/ui/components/ui/button";
+import { cn } from "@teak/ui/lib/utils";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 
@@ -35,26 +36,23 @@ export function PalettePreview({ card }: PalettePreviewProps) {
 
   return (
     <div className="space-y-2">
-      {colors.map((color, index) => (
-        <div className="overflow-hidden rounded" key={`${color.hex}-${index}`}>
+      {colors.map((color) => (
+        <div className="overflow-hidden rounded-lg" key={`${color.hex}`}>
           <button
-            className="flex w-full cursor-pointer items-center justify-end p-2"
+            className="flex w-full cursor-pointer items-center justify-end rounded-lg border border-black/10 p-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]"
             onClick={() => void copyToClipboard(color.hex)}
             style={{ backgroundColor: color.hex }}
             type="button"
           >
-            <Button
-              className="dark:bg-background"
-              onClick={(e) => {
-                e.stopPropagation();
-                void copyToClipboard(color.hex);
-              }}
-              size="sm"
-              variant="outline"
+            <span
+              className={cn(
+                buttonVariants({ size: "sm", variant: "outline" }),
+                "pointer-events-none border-0 dark:bg-background"
+              )}
             >
               <Copy />
               {color.hex}
-            </Button>
+            </span>
           </button>
         </div>
       ))}
