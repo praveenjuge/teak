@@ -46,6 +46,7 @@ export interface LinkPreviewMetadata {
   imageUpdatedAt?: number;
   imageUrl?: string;
   imageWidth?: number;
+  media?: LinkPreviewMediaItem[];
   publishedAt?: string;
   publisher?: string;
   raw?: ScrapeSelectorResult[];
@@ -58,6 +59,20 @@ export interface LinkPreviewMetadata {
   status: "success" | "error";
   title?: string;
   url: string;
+}
+
+export interface LinkPreviewMediaItem {
+  contentType?: string;
+  height?: number;
+  posterContentType?: string;
+  posterHeight?: number;
+  posterStorageId?: Id<"_storage">;
+  posterUpdatedAt?: number;
+  posterWidth?: number;
+  storageId: Id<"_storage">;
+  type: "image" | "video";
+  updatedAt: number;
+  width?: number;
 }
 
 export type SelectorSource = {

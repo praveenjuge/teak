@@ -57,6 +57,72 @@ describe("card/getCard.ts", () => {
     expect(result.screenshotUrl).toBe("file://s1");
   });
 
+  test("getCard hydrates stored link media and falls back preview image to first attachment", async () => {
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          _creationTime: 1,
+          userId: "u1",
+          type: "link",
+          content: "X post",
+          metadata: {
+            linkPreview: {
+              media: [
+                {
+                  type: "image",
+                  storageId: "img1",
+                  updatedAt: 1,
+                  width: 1200,
+                  height: 900,
+                },
+                {
+                  type: "video",
+                  storageId: "vid1",
+                  posterStorageId: "poster1",
+                  updatedAt: 1,
+                },
+              ],
+            },
+          },
+        }),
+      },
+      storage: {
+        getUrl: mock((id: string) => Promise.resolve(`file://${id}`)),
+      },
+    } as any;
+
+    const handler = (getCard as any).handler ?? getCard;
+    const result = await handler(ctx, { id: "c1" });
+
+    expect(result.linkPreviewImageUrl).toBe("file://img1");
+    expect(result.linkPreviewMedia).toEqual([
+      {
+        type: "image",
+        url: "file://img1",
+        contentType: undefined,
+        width: 1200,
+        height: 900,
+        posterUrl: undefined,
+        posterContentType: undefined,
+        posterWidth: undefined,
+        posterHeight: undefined,
+      },
+      {
+        type: "video",
+        url: "file://vid1",
+        contentType: undefined,
+        width: undefined,
+        height: undefined,
+        posterUrl: "file://poster1",
+        posterContentType: undefined,
+        posterWidth: undefined,
+        posterHeight: undefined,
+      },
+    ]);
+  });
+
   test("getDeletedCards returns deleted list", async () => {
     const cards = [
       {

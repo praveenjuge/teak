@@ -4,8 +4,7 @@ date: "2026-03-08"
 ---
 
 - The Chrome extension now injects a save button directly into Instagram posts, Pinterest pins, X (Twitter) tweets, Hacker News story lists, Sidebar, Web Designer News, and HeyDesigner feed pages — no need to open the popup. It saves the real outbound article URL instead of site wrapper links.
-- X (Twitter) post saves now resolve tweet text and author metadata from X's oEmbed endpoint instead of the generic app shell, so saved tweet cards show the actual post details consistently.
-- X (Twitter) screenshots now stay on the normal page capture flow, but they wait longer for tweet content to load and hide the logged-out bottom bar before capture.
+- X (Twitter) post saves now resolve tweet text and author metadata from X's oEmbed endpoint instead of the generic app shell, so saved tweet cards show the actual post details consistently. Saved X (Twitter) post cards now persist attached post media too: multi-image tweets render every image in order inside the card modal, and tweets with video render the downloaded video inline below the link preview. X (Twitter) screenshots now stay on the normal page capture flow, but they wait longer for tweet content to load and hide the logged-out bottom bar before capture.
 - Saving the same post twice is safe: duplicates are detected and skipped automatically.
 - The mobile app now has dedicated sign-in and sign-up screens presented as native iOS form sheets, making authentication feel more at home on the platform.
 - Very tall images now expand to the modal's preview width instead of shrinking into a narrow strip.

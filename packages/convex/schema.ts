@@ -97,6 +97,23 @@ export const metadataValidator = v.optional(
         canonicalUrl: v.optional(v.string()),
         title: v.optional(v.string()),
         description: v.optional(v.string()),
+        media: v.optional(
+          v.array(
+            v.object({
+              type: v.union(v.literal("image"), v.literal("video")),
+              storageId: v.id("_storage"),
+              updatedAt: v.number(),
+              contentType: v.optional(v.string()),
+              width: v.optional(v.number()),
+              height: v.optional(v.number()),
+              posterStorageId: v.optional(v.id("_storage")),
+              posterUpdatedAt: v.optional(v.number()),
+              posterContentType: v.optional(v.string()),
+              posterWidth: v.optional(v.number()),
+              posterHeight: v.optional(v.number()),
+            })
+          )
+        ),
         imageUrl: v.optional(v.string()),
         imageStorageId: v.optional(v.id("_storage")),
         imageUpdatedAt: v.optional(v.number()),

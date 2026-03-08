@@ -24,6 +24,21 @@ export const cardReturnValidator = v.object({
   fileUrl: v.optional(v.string()),
   thumbnailUrl: v.optional(v.string()),
   screenshotUrl: v.optional(v.string()),
+  linkPreviewMedia: v.optional(
+    v.array(
+      v.object({
+        type: v.union(v.literal("image"), v.literal("video")),
+        url: v.string(),
+        contentType: v.optional(v.string()),
+        width: v.optional(v.number()),
+        height: v.optional(v.number()),
+        posterUrl: v.optional(v.string()),
+        posterContentType: v.optional(v.string()),
+        posterWidth: v.optional(v.number()),
+        posterHeight: v.optional(v.number()),
+      })
+    )
+  ),
   linkPreviewImageUrl: v.optional(v.string()),
 });
 

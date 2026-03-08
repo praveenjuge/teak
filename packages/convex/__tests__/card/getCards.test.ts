@@ -148,6 +148,70 @@ describe("card/getCards.ts", () => {
       expect(result[0].linkPreviewImageUrl).toBe("file://img1");
     });
 
+    test("hydrates linkPreviewMedia and falls back to the first attached image", async () => {
+      const cards = [
+        {
+          _id: "c1",
+          _creationTime: 1,
+          userId: "u1",
+          content: "Hello",
+          type: "link",
+          metadata: {
+            linkPreview: {
+              media: [
+                {
+                  type: "image",
+                  storageId: "img1",
+                  updatedAt: 1,
+                },
+                {
+                  type: "video",
+                  storageId: "vid1",
+                  posterStorageId: "poster1",
+                  updatedAt: 1,
+                },
+              ],
+            },
+          },
+        },
+      ];
+      const ctx = {
+        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+        db: { query: mock().mockReturnValue(buildQuery(cards)) },
+        storage: {
+          getUrl: mock((id: string) => Promise.resolve(`file://${id}`)),
+        },
+      } as any;
+
+      const handler = (getCards as any).handler ?? getCards;
+      const result = await handler(ctx, {});
+      expect(result[0].linkPreviewImageUrl).toBe("file://img1");
+      expect(result[0].linkPreviewMedia).toEqual([
+        {
+          type: "image",
+          url: "file://img1",
+          contentType: undefined,
+          width: undefined,
+          height: undefined,
+          posterUrl: undefined,
+          posterContentType: undefined,
+          posterWidth: undefined,
+          posterHeight: undefined,
+        },
+        {
+          type: "video",
+          url: "file://vid1",
+          contentType: undefined,
+          width: undefined,
+          height: undefined,
+          posterUrl: "file://poster1",
+          posterContentType: undefined,
+          posterWidth: undefined,
+          posterHeight: undefined,
+        },
+      ]);
+    });
+
     test("handles null storage URLs gracefully", async () => {
       const cards = [
         {

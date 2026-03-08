@@ -252,6 +252,111 @@ describe("linkMetadata", () => {
       );
     });
 
+    test("replaces stored media attachments and deletes stale assets", async () => {
+      const ctx = createMockCtx();
+      ctx.db.get.mockResolvedValue({
+        _id: "card_123",
+        type: "link",
+        metadata: {
+          linkPreview: {
+            media: [
+              {
+                type: "image",
+                storageId: "old_image",
+                updatedAt: 1,
+              },
+              {
+                type: "video",
+                storageId: "old_video",
+                posterStorageId: "old_poster",
+                updatedAt: 1,
+              },
+            ],
+          },
+        },
+      });
+
+      await updateCardMetadataHandler(ctx, {
+        cardId: "card_123",
+        linkPreview: {
+          media: [
+            {
+              type: "image",
+              storageId: "new_image",
+              updatedAt: 2,
+            },
+          ],
+        },
+        status: "completed",
+      });
+
+      expect(ctx.storage.delete).toHaveBeenCalledWith("old_image");
+      expect(ctx.storage.delete).toHaveBeenCalledWith("old_video");
+      expect(ctx.storage.delete).toHaveBeenCalledWith("old_poster");
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "cards",
+        "card_123",
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            linkPreview: expect.objectContaining({
+              media: [
+                {
+                  type: "image",
+                  storageId: "new_image",
+                  updatedAt: 2,
+                },
+              ],
+            }),
+          }),
+        })
+      );
+    });
+
+    test("preserves existing media when the refreshed preview omits them", async () => {
+      const ctx = createMockCtx();
+      ctx.db.get.mockResolvedValue({
+        _id: "card_123",
+        type: "link",
+        metadata: {
+          linkPreview: {
+            media: [
+              {
+                type: "image",
+                storageId: "existing_image",
+                updatedAt: 1,
+              },
+            ],
+          },
+        },
+      });
+
+      await updateCardMetadataHandler(ctx, {
+        cardId: "card_123",
+        linkPreview: { title: "Updated title" },
+        status: "completed",
+      });
+
+      expect(ctx.storage.delete).not.toHaveBeenCalledWith("existing_image");
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "cards",
+        "card_123",
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            linkPreview: expect.objectContaining({
+              title: "Updated title",
+              media: [
+                {
+                  type: "image",
+                  storageId: "existing_image",
+                  updatedAt: 1,
+                },
+              ],
+            }),
+          }),
+        })
+      );
+    });
+
     test("preserves existing category for non-link card", async () => {
       const ctx = createMockCtx();
       const card = {

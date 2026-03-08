@@ -40,6 +40,20 @@ export const updateCardMetadataHandler = async (
 
   const previousLinkPreview = existingCard.metadata?.linkPreview;
   const nextLinkPreview = linkPreview ? { ...linkPreview } : undefined;
+  const collectMediaStorageIds = (mediaItems: any[] | undefined) => {
+    const storageIds = new Set<string>();
+
+    for (const item of mediaItems ?? []) {
+      if (item?.storageId) {
+        storageIds.add(item.storageId);
+      }
+      if (item?.posterStorageId) {
+        storageIds.add(item.posterStorageId);
+      }
+    }
+
+    return storageIds;
+  };
 
   if (previousLinkPreview?.imageStorageId) {
     if (
@@ -101,6 +115,34 @@ export const updateCardMetadataHandler = async (
       nextLinkPreview.screenshotHeight =
         nextLinkPreview.screenshotHeight ??
         previousLinkPreview.screenshotHeight;
+    }
+  }
+
+  if (previousLinkPreview?.media?.length) {
+    if (nextLinkPreview?.media) {
+      const nextMediaStorageIds = collectMediaStorageIds(nextLinkPreview.media);
+      const previousMediaStorageIds = collectMediaStorageIds(
+        previousLinkPreview.media
+      );
+
+      await Promise.all(
+        Array.from(previousMediaStorageIds).map(async (storageId) => {
+          if (nextMediaStorageIds.has(storageId)) {
+            return;
+          }
+
+          try {
+            await ctx.storage.delete(storageId);
+          } catch (error) {
+            console.error(
+              `[linkMetadata] Failed to delete previous media ${storageId} for card ${cardId}:`,
+              error
+            );
+          }
+        })
+      );
+    } else if (nextLinkPreview) {
+      nextLinkPreview.media = previousLinkPreview.media;
     }
   }
 

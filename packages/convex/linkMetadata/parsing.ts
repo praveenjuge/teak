@@ -223,7 +223,7 @@ export const parseLinkPreview = (
 
 export const buildSuccessPreview = (
   url: string,
-  parsed: ReturnType<typeof parseLinkPreview>
+  parsed: Omit<LinkPreviewMetadata, "fetchedAt" | "source" | "status" | "url">
 ): LinkPreviewMetadata => ({
   source: "kernel_playwright",
   status: "success",

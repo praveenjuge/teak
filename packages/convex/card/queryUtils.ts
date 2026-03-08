@@ -1,10 +1,22 @@
 import type { Doc } from "../_generated/dataModel";
+import type { LinkPreviewMediaItem } from "../linkMetadata";
 import type { CreatedAtRange } from "../shared";
 
 export type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
   thumbnailUrl?: string;
   screenshotUrl?: string;
+  linkPreviewMedia?: Array<{
+    contentType?: string;
+    height?: number;
+    posterContentType?: string;
+    posterHeight?: number;
+    posterUrl?: string;
+    posterWidth?: number;
+    type: "image" | "video";
+    url: string;
+    width?: number;
+  }>;
   linkPreviewImageUrl?: string;
 };
 
@@ -25,18 +37,27 @@ export const attachFileUrls = async (
   cards: Doc<"cards">[]
 ): Promise<CardWithUrls[]> => {
   const storageIds = new Set<string>();
-  const cardToIds = new Map<
-    string,
-    {
-      fileId?: string;
-      thumbnailId?: string;
-      screenshotId?: string;
-      linkPreviewImageId?: string;
-    }
-  >();
+  type CardStorageIds = {
+    fileId?: string;
+    thumbnailId?: string;
+    screenshotId?: string;
+    linkPreviewImageId?: string;
+    linkPreviewMedia?: Array<{
+      contentType?: string;
+      height?: number;
+      posterContentType?: string;
+      posterHeight?: number;
+      posterId?: string;
+      posterWidth?: number;
+      storageId: string;
+      type: "image" | "video";
+      width?: number;
+    }>;
+  };
+  const cardToIds = new Map<string, CardStorageIds>();
 
   for (const card of cards) {
-    const ids: Record<string, string | undefined> = {};
+    const ids: CardStorageIds = {};
     if (card.fileId) {
       storageIds.add(card.fileId);
       ids.fileId = card.fileId;
@@ -48,6 +69,28 @@ export const attachFileUrls = async (
     if (card.metadata?.linkPreview?.imageStorageId) {
       storageIds.add(card.metadata.linkPreview.imageStorageId);
       ids.linkPreviewImageId = card.metadata.linkPreview.imageStorageId;
+    }
+    const hydratedMedia = (card.metadata?.linkPreview?.media ?? [])?.map(
+      (item: LinkPreviewMediaItem) => {
+        storageIds.add(item.storageId);
+        if (item.posterStorageId) {
+          storageIds.add(item.posterStorageId);
+        }
+        return {
+          type: item.type,
+          storageId: item.storageId,
+          posterId: item.posterStorageId,
+          contentType: item.contentType,
+          width: item.width,
+          height: item.height,
+          posterContentType: item.posterContentType,
+          posterWidth: item.posterWidth,
+          posterHeight: item.posterHeight,
+        };
+      }
+    );
+    if (hydratedMedia?.length) {
+      ids.linkPreviewMedia = hydratedMedia;
     }
     if (card.metadata?.linkPreview?.screenshotStorageId) {
       storageIds.add(card.metadata.linkPreview.screenshotStorageId);
@@ -64,7 +107,35 @@ export const attachFileUrls = async (
   const urlMap = new Map(urlResults.map((result) => [result.id, result.url]));
 
   return cards.map((card) => {
-    const ids = cardToIds.get(card._id) || {};
+    const ids = cardToIds.get(card._id) || ({} as CardStorageIds);
+    const linkPreviewMedia =
+      ids.linkPreviewMedia
+        ?.map((item) => {
+          const url = urlMap.get(item.storageId);
+          if (!url) {
+            return null;
+          }
+
+          return {
+            type: item.type,
+            url,
+            contentType: item.contentType,
+            width: item.width,
+            height: item.height,
+            posterUrl: item.posterId
+              ? (urlMap.get(item.posterId) ?? undefined)
+              : undefined,
+            posterContentType: item.posterContentType,
+            posterWidth: item.posterWidth,
+            posterHeight: item.posterHeight,
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => Boolean(item)) ??
+      undefined;
+    const fallbackLinkPreviewImageUrl =
+      linkPreviewMedia?.find((item) => item.type === "image")?.url ??
+      linkPreviewMedia?.find((item) => item.type === "video")?.posterUrl;
+
     return {
       ...card,
       fileUrl: ids.fileId ? (urlMap.get(ids.fileId) ?? undefined) : undefined,
@@ -74,9 +145,10 @@ export const attachFileUrls = async (
       screenshotUrl: ids.screenshotId
         ? (urlMap.get(ids.screenshotId) ?? undefined)
         : undefined,
+      linkPreviewMedia: linkPreviewMedia?.length ? linkPreviewMedia : undefined,
       linkPreviewImageUrl: ids.linkPreviewImageId
         ? (urlMap.get(ids.linkPreviewImageId) ?? undefined)
-        : undefined,
+        : fallbackLinkPreviewImageUrl,
     };
   });
 };

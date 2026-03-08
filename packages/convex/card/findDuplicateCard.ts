@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalQuery, query } from "../_generated/server";
+import type { LinkPreviewMediaItem } from "../linkMetadata";
 import { cardReturnValidator } from "./getCards";
 
 export const findDuplicateCardForUserHandler = async (
@@ -21,23 +22,55 @@ export const findDuplicateCardForUserHandler = async (
   }
 
   // Attach file URLs like getCards does
-  const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] =
-    await Promise.all([
-      duplicate.fileId ? ctx.storage.getUrl(duplicate.fileId) : null,
-      duplicate.thumbnailId ? ctx.storage.getUrl(duplicate.thumbnailId) : null,
-      duplicate.metadata?.linkPreview?.screenshotStorageId
-        ? ctx.storage.getUrl(duplicate.metadata.linkPreview.screenshotStorageId)
-        : null,
-      duplicate.metadata?.linkPreview?.imageStorageId
-        ? ctx.storage.getUrl(duplicate.metadata.linkPreview.imageStorageId)
-        : null,
-    ]);
+  const linkPreviewMedia = await Promise.all(
+    (
+      (duplicate.metadata?.linkPreview?.media ?? []) as LinkPreviewMediaItem[]
+    ).map(async (item) => {
+      const url = await ctx.storage.getUrl(item.storageId);
+      if (!url) {
+        return null;
+      }
+
+      return {
+        type: item.type,
+        url,
+        contentType: item.contentType,
+        width: item.width,
+        height: item.height,
+        posterUrl: item.posterStorageId
+          ? ((await ctx.storage.getUrl(item.posterStorageId)) ?? undefined)
+          : undefined,
+        posterContentType: item.posterContentType,
+        posterWidth: item.posterWidth,
+        posterHeight: item.posterHeight,
+      };
+    })
+  );
+  const fileUrl = duplicate.fileId
+    ? await ctx.storage.getUrl(duplicate.fileId)
+    : null;
+  const thumbnailUrl = duplicate.thumbnailId
+    ? await ctx.storage.getUrl(duplicate.thumbnailId)
+    : null;
+  const screenshotUrl = duplicate.metadata?.linkPreview?.screenshotStorageId
+    ? await ctx.storage.getUrl(
+        duplicate.metadata.linkPreview.screenshotStorageId
+      )
+    : null;
+  const linkPreviewImageUrl =
+    (duplicate.metadata?.linkPreview?.imageStorageId
+      ? await ctx.storage.getUrl(duplicate.metadata.linkPreview.imageStorageId)
+      : null) ??
+    linkPreviewMedia.find((item) => item?.type === "image")?.url ??
+    linkPreviewMedia.find((item) => item?.type === "video")?.posterUrl ??
+    undefined;
 
   return {
     ...duplicate,
     fileUrl: fileUrl || undefined,
     thumbnailUrl: thumbnailUrl || undefined,
     screenshotUrl: screenshotUrl || undefined,
+    linkPreviewMedia: linkPreviewMedia.filter(Boolean),
     linkPreviewImageUrl: linkPreviewImageUrl || undefined,
   };
 };

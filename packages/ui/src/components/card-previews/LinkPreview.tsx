@@ -6,6 +6,17 @@ type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
   thumbnailUrl?: string;
   screenshotUrl?: string;
+  linkPreviewMedia?: Array<{
+    contentType?: string;
+    height?: number;
+    posterContentType?: string;
+    posterHeight?: number;
+    posterUrl?: string;
+    posterWidth?: number;
+    type: "image" | "video";
+    url: string;
+    width?: number;
+  }>;
   linkPreviewImageUrl?: string;
 };
 
@@ -71,6 +82,7 @@ export function LinkPreview({
     linkPreview?.title || card.metadataTitle || card.url || "Link";
   const linkDescription = linkPreview?.description || card.metadataDescription;
   const linkImage = card.linkPreviewImageUrl ?? linkPreview?.imageUrl;
+  const linkMedia = card.linkPreviewMedia ?? [];
   const linkFavicon = linkPreview?.faviconUrl;
 
   const screenshotUrl = showScreenshot ? card.screenshotUrl : undefined;
@@ -162,6 +174,33 @@ export function LinkPreview({
         >
           {linkContent}
         </LinkComponent>
+        {linkMedia.length ? (
+          <div className="flex flex-col gap-4">
+            {linkMedia.map((media, index) =>
+              media.type === "video" ? (
+                <video
+                  className="w-full rounded-xl border bg-black"
+                  controls
+                  key={`${media.type}-${media.url}-${index}`}
+                  playsInline
+                  poster={media.posterUrl}
+                  preload="metadata"
+                >
+                  <source src={media.url} type={media.contentType} />
+                </video>
+              ) : (
+                <img
+                  alt={`Attached post media ${index + 1}`}
+                  className="w-full rounded-xl border object-contain"
+                  height={media.height}
+                  key={`${media.type}-${media.url}-${index}`}
+                  src={media.url}
+                  width={media.width}
+                />
+              )
+            )}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -176,6 +215,33 @@ export function LinkPreview({
       >
         {linkContent}
       </a>
+      {linkMedia.length ? (
+        <div className="flex flex-col gap-4">
+          {linkMedia.map((media, index) =>
+            media.type === "video" ? (
+              <video
+                className="w-full rounded-xl border bg-black"
+                controls
+                key={`${media.type}-${media.url}-${index}`}
+                playsInline
+                poster={media.posterUrl}
+                preload="metadata"
+              >
+                <source src={media.url} type={media.contentType} />
+              </video>
+            ) : (
+              <img
+                alt={`Attached post media ${index + 1}`}
+                className="w-full rounded-xl border object-contain"
+                height={media.height}
+                key={`${media.type}-${media.url}-${index}`}
+                src={media.url}
+                width={media.width}
+              />
+            )
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -10,6 +10,18 @@ export type LinkPreviewMetadata = {
   screenshotHeight?: number;
 };
 
+export type LinkPreviewMedia = {
+  contentType?: string;
+  height?: number;
+  posterContentType?: string;
+  posterHeight?: number;
+  posterUrl?: string;
+  posterWidth?: number;
+  type: "image" | "video";
+  url: string;
+  width?: number;
+};
+
 export type CardWithUrls = {
   _id: string;
   type?: string;
@@ -35,6 +47,7 @@ export type CardWithUrls = {
   fileUrl?: string;
   thumbnailUrl?: string;
   screenshotUrl?: string;
+  linkPreviewMedia?: LinkPreviewMedia[];
   linkPreviewImageUrl?: string;
 };
 

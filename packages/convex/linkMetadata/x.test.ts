@@ -90,14 +90,32 @@ describe("x link metadata", () => {
 
   describe("fetchXStatusMetadata", () => {
     test("maps oEmbed data into link preview metadata", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          author_name: "jack",
-          author_url: "https://x.com/jack",
-          html: `<blockquote class="twitter-tweet"><p lang="en" dir="ltr">just setting up my twttr</p>&mdash; jack (@jack) <a href="https://x.com/jack/status/20">March 21, 2006</a></blockquote>`,
-          url: "https://x.com/jack/status/20",
-        }),
+      mockFetch.mockImplementation(async (input: string | URL | Request) => {
+        const url = String(input);
+        if (url.includes("publish.x.com/oembed")) {
+          return {
+            ok: true,
+            json: async () => ({
+              author_name: "jack",
+              author_url: "https://x.com/jack",
+              html: `<blockquote class="twitter-tweet"><p lang="en" dir="ltr">just setting up my twttr</p>&mdash; jack (@jack) <a href="https://x.com/jack/status/20">March 21, 2006</a></blockquote>`,
+              url: "https://x.com/jack/status/20",
+            }),
+          };
+        }
+
+        if (url.includes("cdn.syndication.twimg.com")) {
+          return {
+            ok: true,
+            json: async () => ({
+              id_str: "20",
+              text: "just setting up my twttr",
+              user: { name: "jack", screen_name: "jack" },
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected fetch URL: ${url}`);
       });
 
       const result = await fetchXStatusMetadata("https://x.com/jack/status/20");
@@ -113,20 +131,40 @@ describe("x link metadata", () => {
     });
 
     test("falls back to publish.twitter.com when publish.x.com is empty", async () => {
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({}),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            author_name: "Teak",
-            author_url: "https://twitter.com/teak",
-            html: `<blockquote class="twitter-tweet"><p>Collect ideas faster</p>&mdash; Teak (@teak) <a href="https://twitter.com/teak/status/123">March 8, 2026</a></blockquote>`,
-            url: "https://twitter.com/teak/status/123",
-          }),
-        });
+      mockFetch.mockImplementation(async (input: string | URL | Request) => {
+        const url = String(input);
+        if (url.includes("publish.x.com/oembed")) {
+          return {
+            ok: true,
+            json: async () => ({}),
+          };
+        }
+
+        if (url.includes("publish.twitter.com/oembed")) {
+          return {
+            ok: true,
+            json: async () => ({
+              author_name: "Teak",
+              author_url: "https://twitter.com/teak",
+              html: `<blockquote class="twitter-tweet"><p>Collect ideas faster</p>&mdash; Teak (@teak) <a href="https://twitter.com/teak/status/123">March 8, 2026</a></blockquote>`,
+              url: "https://twitter.com/teak/status/123",
+            }),
+          };
+        }
+
+        if (url.includes("cdn.syndication.twimg.com")) {
+          return {
+            ok: true,
+            json: async () => ({
+              id_str: "123",
+              text: "Collect ideas faster",
+              user: { name: "Teak", screen_name: "teak" },
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected fetch URL: ${url}`);
+      });
 
       const result = await fetchXStatusMetadata(
         "https://x.com/teak/status/123"
@@ -134,7 +172,87 @@ describe("x link metadata", () => {
 
       expect(result?.title).toBe("Collect ideas faster");
       expect(result?.description).toBe("Teak (@teak) on X · March 8, 2026");
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    test("extracts attached media from X syndication payload", async () => {
+      mockFetch.mockImplementation(async (input: string | URL | Request) => {
+        const url = String(input);
+        if (url.includes("publish.x.com/oembed")) {
+          return {
+            ok: true,
+            json: async () => ({
+              author_name: "Teak",
+              author_url: "https://x.com/teak",
+              html: `<blockquote class="twitter-tweet"><p>Collect ideas faster</p>&mdash; Teak (@teak) <a href="https://x.com/teak/status/123">March 8, 2026</a></blockquote>`,
+              url: "https://x.com/teak/status/123",
+            }),
+          };
+        }
+
+        if (url.includes("cdn.syndication.twimg.com")) {
+          return {
+            ok: true,
+            json: async () => ({
+              id_str: "123",
+              mediaDetails: [
+                {
+                  type: "photo",
+                  media_url_https: "https://pbs.twimg.com/media/one.jpg",
+                  original_info: { width: 1200, height: 900 },
+                },
+                {
+                  type: "video",
+                  media_url_https: "https://pbs.twimg.com/media/poster.jpg",
+                  original_info: { width: 1280, height: 720 },
+                  video_info: {
+                    variants: [
+                      {
+                        content_type: "video/mp4",
+                        bitrate: 832_000,
+                        url: "https://video.twimg.com/vid/640x360/video.mp4",
+                      },
+                      {
+                        content_type: "video/mp4",
+                        bitrate: 2_176_000,
+                        url: "https://video.twimg.com/vid/1280x720/video.mp4",
+                      },
+                    ],
+                  },
+                },
+              ],
+              user: { name: "Teak", screen_name: "teak" },
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected fetch URL: ${url}`);
+      });
+
+      const result = await fetchXStatusMetadata(
+        "https://x.com/teak/status/123"
+      );
+
+      expect(result?.media).toEqual([
+        {
+          type: "image",
+          url: "https://pbs.twimg.com/media/one.jpg",
+          contentType: "image/jpeg",
+          width: 1200,
+          height: 900,
+        },
+        {
+          type: "video",
+          url: "https://video.twimg.com/vid/1280x720/video.mp4",
+          contentType: "video/mp4",
+          width: 1280,
+          height: 720,
+          posterUrl: "https://pbs.twimg.com/media/poster.jpg",
+          posterContentType: "image/jpeg",
+          posterWidth: 1280,
+          posterHeight: 720,
+        },
+      ]);
     });
 
     test("returns null for non-status URLs", async () => {

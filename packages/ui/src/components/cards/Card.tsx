@@ -127,16 +127,40 @@ export const Card = memo(function Card({
       : undefined;
   const linkCardTitle =
     linkPreview?.title || card.metadataTitle || card.url || "Link";
-  const linkCardImage = card.linkPreviewImageUrl ?? linkPreview?.imageUrl;
+  const primaryAttachedMedia =
+    card.linkPreviewMedia?.find((item) => item.type === "image") ??
+    card.linkPreviewMedia?.find(
+      (item) => item.type === "video" && typeof item.posterUrl === "string"
+    );
+  const linkCardImage =
+    primaryAttachedMedia?.type === "image"
+      ? primaryAttachedMedia.url
+      : (primaryAttachedMedia?.posterUrl ??
+        card.linkPreviewImageUrl ??
+        linkPreview?.imageUrl);
   const resolvedScreenshotUrl =
     typeof card.screenshotUrl === "string" ? card.screenshotUrl : undefined;
   const [useFallbackImage, setUseFallbackImage] = useState(false);
 
   const primaryImageSize =
-    typeof linkPreview?.imageWidth === "number" &&
-    typeof linkPreview?.imageHeight === "number"
-      ? { width: linkPreview.imageWidth, height: linkPreview.imageHeight }
-      : undefined;
+    primaryAttachedMedia?.type === "image" &&
+    typeof primaryAttachedMedia.width === "number" &&
+    typeof primaryAttachedMedia.height === "number"
+      ? {
+          width: primaryAttachedMedia.width,
+          height: primaryAttachedMedia.height,
+        }
+      : primaryAttachedMedia?.type === "video" &&
+          typeof primaryAttachedMedia.posterWidth === "number" &&
+          typeof primaryAttachedMedia.posterHeight === "number"
+        ? {
+            width: primaryAttachedMedia.posterWidth,
+            height: primaryAttachedMedia.posterHeight,
+          }
+        : typeof linkPreview?.imageWidth === "number" &&
+            typeof linkPreview?.imageHeight === "number"
+          ? { width: linkPreview.imageWidth, height: linkPreview.imageHeight }
+          : undefined;
   const fallbackImageSize =
     typeof linkPreview?.screenshotWidth === "number" &&
     typeof linkPreview?.screenshotHeight === "number"

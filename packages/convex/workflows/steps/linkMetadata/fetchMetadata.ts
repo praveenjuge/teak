@@ -6,6 +6,7 @@ import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import type {
+  LinkPreviewMediaItem,
   ScrapeAttribute,
   ScrapeResponse,
   ScrapeResultItem,
@@ -20,14 +21,21 @@ import {
   parseLinkPreview,
   SCRAPE_ELEMENTS,
 } from "../../../linkMetadata";
-import { fetchXStatusMetadata, isXStatusUrl } from "../../../linkMetadata/x";
+import {
+  fetchXStatusMetadata,
+  isXStatusUrl,
+  type XStatusMedia,
+} from "../../../linkMetadata/x";
 import type { Id } from "../../../shared/types";
 
 // Top-level regex patterns for performance
 const IMAGE_EXTENSION_REGEX = /\.(png|jpe?g|webp|gif|avif|svg)(?:[?#]|$)/;
+const VIDEO_EXTENSION_REGEX = /\.(mp4|mov|m4v)(?:[?#]|$)/;
 const TITLE_TAG_REGEX = /<title[^>]*>([\s\S]*?)<\/title>/i;
 const META_SELECTOR_REGEX = /^meta\[(property|name)=['"]([^'"]+)['"]\]$/i;
 const LINK_SELECTOR_REGEX = /^link\[rel=['"]([^'"]+)['"]\]$/i;
+const MAX_REMOTE_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_REMOTE_VIDEO_BYTES = 50 * 1024 * 1024;
 
 export type LinkMetadataRetryableError = {
   type: string;
@@ -54,6 +62,13 @@ type StoredLinkImage = {
   imageUpdatedAt: number;
   imageWidth: number;
   imageHeight: number;
+};
+
+type StoredRemoteAsset = {
+  bytes: Uint8Array;
+  contentType: string;
+  storageId: Id<"_storage">;
+  updatedAt: number;
 };
 
 const readImageDimensions = (
@@ -94,6 +109,23 @@ const guessImageContentType = (imageUrl: string): string | null => {
   }
 };
 
+const guessVideoContentType = (assetUrl: string): string | null => {
+  const match = assetUrl.toLowerCase().match(VIDEO_EXTENSION_REGEX);
+  if (!match) {
+    return null;
+  }
+  switch (match[1]) {
+    case "mp4":
+      return "video/mp4";
+    case "mov":
+      return "video/quicktime";
+    case "m4v":
+      return "video/x-m4v";
+    default:
+      return null;
+  }
+};
+
 const resolveImageContentType = (
   headerValue: string | null,
   imageUrl: string
@@ -113,50 +145,203 @@ const resolveImageContentType = (
   return guessImageContentType(imageUrl);
 };
 
-const storeLinkPreviewImage = async (
+const resolveAssetContentType = (
+  headerValue: string | null,
+  assetUrl: string,
+  fallbackContentType?: string
+): string | null => {
+  const normalizedHeader = headerValue?.split(";")[0]?.trim();
+  if (normalizedHeader) {
+    return normalizedHeader;
+  }
+
+  if (fallbackContentType) {
+    return fallbackContentType;
+  }
+
+  return guessImageContentType(assetUrl) ?? guessVideoContentType(assetUrl);
+};
+
+const hasAllowedContentType = (
+  contentType: string,
+  allowedPrefixes: readonly string[]
+): boolean => allowedPrefixes.some((prefix) => contentType.startsWith(prefix));
+
+const storeRemoteAsset = async (
   ctx: any,
-  imageUrl: string
-): Promise<StoredLinkImage | null> => {
+  assetUrl: string,
+  {
+    allowedContentTypePrefixes,
+    fallbackContentType,
+    maxBytes,
+  }: {
+    allowedContentTypePrefixes: readonly string[];
+    fallbackContentType?: string;
+    maxBytes: number;
+  }
+): Promise<StoredRemoteAsset | null> => {
   try {
-    const response = await fetch(imageUrl);
+    const response = await fetch(assetUrl);
     if (!response.ok) {
       console.warn(
-        `[linkMetadata] OG image fetch failed (${response.status}) for ${imageUrl}`
+        `[linkMetadata] Remote asset fetch failed (${response.status}) for ${assetUrl}`
       );
       return null;
     }
 
-    const contentType = resolveImageContentType(
+    const contentLengthHeader = response.headers.get("content-length");
+    if (contentLengthHeader) {
+      const contentLength = Number(contentLengthHeader);
+      if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+        console.warn(
+          `[linkMetadata] Remote asset skipped due to size (${contentLength}) for ${assetUrl}`
+        );
+        return null;
+      }
+    }
+
+    const contentType = resolveAssetContentType(
       response.headers.get("content-type"),
-      imageUrl
+      assetUrl,
+      fallbackContentType
     );
-    if (!contentType) {
+    if (
+      !(
+        contentType &&
+        hasAllowedContentType(contentType, allowedContentTypePrefixes)
+      )
+    ) {
       console.warn(
-        `[linkMetadata] OG image skipped due to unknown content type for ${imageUrl}`
+        `[linkMetadata] Remote asset skipped due to unsupported content type for ${assetUrl}`
       );
       return null;
     }
 
     const arrayBuffer = await response.arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
-    const dimensions = readImageDimensions(bytes);
-    if (!dimensions) {
+    if (!arrayBuffer.byteLength || arrayBuffer.byteLength > maxBytes) {
+      console.warn(
+        `[linkMetadata] Remote asset skipped due to downloaded size (${arrayBuffer.byteLength}) for ${assetUrl}`
+      );
       return null;
     }
 
-    const imageBlob = new Blob([arrayBuffer], { type: contentType });
-    const imageStorageId = await ctx.storage.store(imageBlob);
+    const bytes = new Uint8Array(arrayBuffer);
+    const storageId = await ctx.storage.store(
+      new Blob([arrayBuffer], { type: contentType })
+    );
 
     return {
-      imageStorageId,
-      imageUpdatedAt: Date.now(),
-      imageWidth: dimensions.width,
-      imageHeight: dimensions.height,
+      bytes,
+      contentType,
+      storageId,
+      updatedAt: Date.now(),
     };
   } catch (error) {
-    console.warn("[linkMetadata] OG image fetch error", error);
+    console.warn("[linkMetadata] Remote asset fetch error", error);
     return null;
   }
+};
+
+const storeLinkPreviewImage = async (
+  ctx: any,
+  imageUrl: string
+): Promise<StoredLinkImage | null> => {
+  const storedAsset = await storeRemoteAsset(ctx, imageUrl, {
+    allowedContentTypePrefixes: ["image/"],
+    fallbackContentType: resolveImageContentType(null, imageUrl) ?? undefined,
+    maxBytes: MAX_REMOTE_IMAGE_BYTES,
+  });
+
+  if (!storedAsset) {
+    return null;
+  }
+
+  const dimensions = readImageDimensions(storedAsset.bytes);
+  if (!dimensions) {
+    return null;
+  }
+
+  return {
+    imageStorageId: storedAsset.storageId,
+    imageUpdatedAt: storedAsset.updatedAt,
+    imageWidth: dimensions.width,
+    imageHeight: dimensions.height,
+  };
+};
+
+const storeXMediaItem = async (
+  ctx: any,
+  media: XStatusMedia
+): Promise<LinkPreviewMediaItem | null> => {
+  const storedMedia = await storeRemoteAsset(ctx, media.url, {
+    allowedContentTypePrefixes:
+      media.type === "image" ? ["image/"] : ["video/"],
+    fallbackContentType: media.contentType,
+    maxBytes:
+      media.type === "image" ? MAX_REMOTE_IMAGE_BYTES : MAX_REMOTE_VIDEO_BYTES,
+  });
+
+  if (!storedMedia) {
+    return null;
+  }
+
+  let posterStorageId: Id<"_storage"> | undefined;
+  let posterUpdatedAt: number | undefined;
+  let posterContentType: string | undefined;
+  let posterWidth = media.posterWidth;
+  let posterHeight = media.posterHeight;
+
+  if (media.type === "video" && media.posterUrl) {
+    const storedPoster = await storeRemoteAsset(ctx, media.posterUrl, {
+      allowedContentTypePrefixes: ["image/"],
+      fallbackContentType: media.posterContentType,
+      maxBytes: MAX_REMOTE_IMAGE_BYTES,
+    });
+
+    if (storedPoster) {
+      const posterDimensions = readImageDimensions(storedPoster.bytes);
+      posterStorageId = storedPoster.storageId;
+      posterUpdatedAt = storedPoster.updatedAt;
+      posterContentType = storedPoster.contentType;
+      posterWidth = posterDimensions?.width ?? posterWidth;
+      posterHeight = posterDimensions?.height ?? posterHeight;
+    }
+  }
+
+  return {
+    type: media.type,
+    storageId: storedMedia.storageId,
+    updatedAt: storedMedia.updatedAt,
+    contentType: storedMedia.contentType,
+    width: media.width,
+    height: media.height,
+    ...(posterStorageId
+      ? {
+          posterStorageId,
+          posterUpdatedAt,
+          posterContentType,
+          posterWidth,
+          posterHeight,
+        }
+      : {}),
+  };
+};
+
+const storeXMedia = async (
+  ctx: any,
+  media: XStatusMedia[] | undefined
+): Promise<LinkPreviewMediaItem[] | undefined> => {
+  if (!media?.length) {
+    return undefined;
+  }
+
+  const storedMedia = await Promise.all(
+    media.map((item) => storeXMediaItem(ctx, item))
+  );
+  const persistedMedia = storedMedia.filter(
+    (item): item is LinkPreviewMediaItem => Boolean(item)
+  );
+  return persistedMedia.length ? persistedMedia : undefined;
 };
 
 const decodeHtmlEntities = (value: string): string => {
@@ -481,7 +666,11 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
       const xStatusMetadata = await fetchXStatusMetadata(normalizedUrl);
 
       if (xStatusMetadata) {
-        const linkPreview = buildSuccessPreview(normalizedUrl, xStatusMetadata);
+        const storedMedia = await storeXMedia(ctx, xStatusMetadata.media);
+        const linkPreview = buildSuccessPreview(normalizedUrl, {
+          ...xStatusMetadata,
+          media: storedMedia,
+        });
 
         await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
           cardId,
