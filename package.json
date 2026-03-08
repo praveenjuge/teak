@@ -1,6 +1,6 @@
 {
   "name": "teak",
-  "version": "1.0.23",
+  "version": "1.0.24",
   "private": true,
   "packageManager": "bun@1.3.5",
   "workspaces": [
