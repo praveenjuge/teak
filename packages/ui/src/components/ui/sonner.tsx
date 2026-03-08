@@ -27,7 +27,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "!rounded-none !shadow-none !border-0 !w-full !max-w-none !items-center !justify-center !text-center",
         descriptionClassName: "!text-primary-foreground !text-center",
         classNames: {
-          content: "!items-center !text-center",
+          actionButton: "!order-3",
+          cancelButton: "!order-3",
+          closeButton:
+            "!static !order-2 !ml-0 !size-6 !translate-none !rounded-none !border-0 !bg-transparent !p-0 !text-primary-foreground/70 hover:!border-0 hover:!bg-transparent hover:!text-primary-foreground focus-visible:!outline-none focus-visible:!ring-0 [&_svg]:stroke-3 [&_svg]:size-4 [&_svg]:text-white !transform-none",
+          content: "!order-1 !items-center !text-center",
           title: "!text-center",
           icon: "!mx-2",
         },

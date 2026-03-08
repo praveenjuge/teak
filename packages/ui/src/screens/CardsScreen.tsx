@@ -36,6 +36,7 @@ interface CardsScreenProps {
   isDragActive: boolean;
   onCloseCard: () => void;
   onOpenCard: (cardId: string) => void;
+  onUpgrade?: AddCardFormProps["onUpgrade"];
   SettingsButton?: ReactNode;
   selectedCardId: string | null;
   toastIdPrefix?: string;
@@ -47,6 +48,7 @@ export function CardsScreen({
   selectedCardId,
   onOpenCard,
   onCloseCard,
+  onUpgrade,
   SettingsButton,
   UpgradeLinkComponent,
   upgradeUrl,
@@ -179,11 +181,12 @@ export function CardsScreen({
   const AddCardFormWrapper = useCallback(() => {
     return (
       <AddCardForm
+        onUpgrade={onUpgrade}
         UpgradeLinkComponent={UpgradeLinkComponent}
         upgradeUrl={upgradeUrl}
       />
     );
-  }, [UpgradeLinkComponent, upgradeUrl]);
+  }, [UpgradeLinkComponent, onUpgrade, upgradeUrl]);
 
   const renderEmptyState = () => {
     if (cardsStatus === "LoadingFirstPage") {

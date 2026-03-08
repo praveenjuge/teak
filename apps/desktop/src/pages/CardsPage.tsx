@@ -97,6 +97,10 @@ export function CardsPage() {
     </Button>
   );
 
+  const handleUpgrade = useCallback(() => {
+    void openUrl(buildWebUrl("/settings"));
+  }, []);
+
   return (
     <CardsScreen
       contentContainerClassName="mx-auto max-w-7xl px-4 pb-10"
@@ -105,6 +109,7 @@ export function CardsPage() {
       isDragActive={isDragActive}
       onCloseCard={closeCard}
       onOpenCard={openCard}
+      onUpgrade={handleUpgrade}
       SettingsButton={settingsButton}
       selectedCardId={selectedCardId}
       UpgradeLinkComponent={DesktopUpgradeLink}

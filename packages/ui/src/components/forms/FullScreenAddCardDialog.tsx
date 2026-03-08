@@ -1,4 +1,3 @@
-import { Alert, AlertDescription } from "@teak/ui/components/ui/alert";
 import { Button } from "@teak/ui/components/ui/button";
 import {
   Dialog,
@@ -12,7 +11,6 @@ import { useCallback, useEffect, useRef } from "react";
 interface FullScreenAddCardDialogProps {
   canCreateCard: boolean;
   content: string;
-  error: string | null;
   isSubmitting: boolean;
   onContentChange: (value: string) => void;
   onRequestClose: () => void | Promise<void>;
@@ -26,7 +24,6 @@ export function FullScreenAddCardDialog({
   content,
   canCreateCard,
   isSubmitting,
-  error,
   placeholder,
   onContentChange,
   onSave,
@@ -105,7 +102,7 @@ export function FullScreenAddCardDialog({
       open={open}
     >
       <DialogContent
-        className="!translate-x-0 !translate-y-0 !rounded-none fixed top-0 left-0 h-dvh w-dvw max-w-none transform-none overscroll-contain border-0 p-0 shadow-none sm:max-w-none"
+        className="fixed top-0 left-0 h-dvh w-dvw max-w-none translate-x-0! translate-y-0! transform-none overscroll-contain rounded-none! border-0 p-0 shadow-none sm:max-w-none"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">Full-screen note</DialogTitle>
@@ -150,12 +147,6 @@ export function FullScreenAddCardDialog({
                   ref={textareaRef}
                   value={content}
                 />
-
-                {error && (
-                  <Alert className="mt-4" variant="destructive">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
               </div>
             </div>
           </label>

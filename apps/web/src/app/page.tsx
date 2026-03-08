@@ -58,6 +58,10 @@ export default function HomePage() {
     </Button>
   );
 
+  const handleUpgrade = useCallback(() => {
+    router.push("/settings");
+  }, [router]);
+
   return (
     <CardsScreen
       getInputProps={getInputProps}
@@ -65,6 +69,7 @@ export default function HomePage() {
       isDragActive={isDragActive}
       onCloseCard={closeCard}
       onOpenCard={openCard}
+      onUpgrade={handleUpgrade}
       SettingsButton={settingsButton}
       selectedCardId={selectedCardId}
       toastIdPrefix="web-masonry"

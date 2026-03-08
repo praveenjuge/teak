@@ -3,6 +3,7 @@ import type { ExternalToast } from "sonner";
 export const TOAST_IDS = {
   copyFeedback: "copy-feedback",
   cardSave: "card-save",
+  cardLimit: "card-limit",
   notesSave: "notes-save",
   bulkDelete: "bulk-delete",
   customerPortal: "customer-portal",
@@ -10,8 +11,11 @@ export const TOAST_IDS = {
   apiKeyCreate: "api-key-create",
 } as const;
 
-export const AUTH_STICKY_TOAST_OPTIONS: ExternalToast = {
+export const MANUAL_CLOSE_TOAST_OPTIONS: ExternalToast = {
   duration: Number.POSITIVE_INFINITY,
   closeButton: true,
   dismissible: true,
 };
+
+export const AUTH_STICKY_TOAST_OPTIONS: ExternalToast =
+  MANUAL_CLOSE_TOAST_OPTIONS;

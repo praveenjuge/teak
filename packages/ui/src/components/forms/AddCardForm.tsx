@@ -2,7 +2,6 @@ import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import {
   CARD_ERROR_CODES,
-  CARD_ERROR_MESSAGES,
   MAX_FILE_SIZE,
   MAX_FILES_PER_UPLOAD,
   resolveTextCardInput,
@@ -12,18 +11,17 @@ import {
   type UploadAndCreateCardArgs,
   useFileUploadCore,
 } from "@teak/convex/shared/hooks/useFileUpload";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@teak/ui/components/ui/alert";
 import { Button } from "@teak/ui/components/ui/button";
 import { Card, CardContent } from "@teak/ui/components/ui/card";
 import { Textarea } from "@teak/ui/components/ui/textarea";
+import {
+  MANUAL_CLOSE_TOAST_OPTIONS,
+  TOAST_IDS,
+} from "@teak/ui/constants/toast";
 import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation, useQuery } from "convex/react";
-import { AlertCircle, Mic, Sparkles, Square, Upload } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Mic, Square, Upload } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FullScreenAddCardDialog } from "./FullScreenAddCardDialog";
 
@@ -59,6 +57,7 @@ export interface AddCardFormProps {
   autoFocus?: boolean;
   canCreateCard?: boolean;
   onSuccess?: () => void;
+  onUpgrade?: () => void;
   UpgradeLinkComponent?: React.ComponentType<{
     href: string;
     children: React.ReactNode;
@@ -71,14 +70,12 @@ export function AddCardForm({
   onSuccess,
   autoFocus,
   canCreateCard: canCreateCardProp,
-  UpgradeLinkComponent,
+  onUpgrade,
   upgradeUrl = "/settings",
 }: AddCardFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false);
   const [isMac, setIsMac] = useState(false);
 
@@ -96,12 +93,47 @@ export function AddCardForm({
     : basePlaceholderText;
   const fullScreenPlaceholderText = basePlaceholderText;
   const hasContent = Boolean(content.trim());
+  const hasShownBlockedToastRef = useRef(false);
+
+  const handleUpgrade = useCallback(() => {
+    if (onUpgrade) {
+      onUpgrade();
+      return;
+    }
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.location.assign(upgradeUrl);
+  }, [onUpgrade, upgradeUrl]);
+
+  const showUpgradeToast = useCallback(
+    (toastId: string | number = TOAST_IDS.cardLimit) => {
+      toast.error(
+        "You've reached your free tier limit. Upgrade to Pro for unlimited cards.",
+        {
+          ...MANUAL_CLOSE_TOAST_OPTIONS,
+          action: {
+            label: "Upgrade",
+            onClick: handleUpgrade,
+          },
+          id: toastId,
+        }
+      );
+    },
+    [handleUpgrade]
+  );
 
   useEffect(() => {
-    if (currentUser && !currentUser.canCreateCard) {
-      setShowUpgradePrompt(true);
+    if (currentUser?.canCreateCard === false) {
+      if (!hasShownBlockedToastRef.current) {
+        showUpgradeToast();
+        hasShownBlockedToastRef.current = true;
+      }
+      return;
     }
-  }, [currentUser]);
+
+    hasShownBlockedToastRef.current = false;
+  }, [currentUser?.canCreateCard, showUpgradeToast]);
 
   useEffect(() => {
     if (typeof navigator === "undefined") {
@@ -223,9 +255,10 @@ export function AddCardForm({
 
   const startRecording = async () => {
     try {
-      setError(null);
       if (!navigator.mediaDevices?.getUserMedia) {
-        setError("Microphone recording is not supported in this app context.");
+        toast.error(
+          "Microphone recording is not supported in this app context."
+        );
         return;
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -262,18 +295,20 @@ export function AddCardForm({
     } catch (err) {
       console.error("Error starting recording:", err);
       if (err instanceof DOMException && err.name === "NotAllowedError") {
-        setError(
+        toast.error(
           "Microphone permission was denied. Please allow it and retry."
         );
         return;
       }
 
       if (err instanceof DOMException && err.name === "NotFoundError") {
-        setError("No microphone was detected. Please connect one and retry.");
+        toast.error(
+          "No microphone was detected. Please connect one and retry."
+        );
         return;
       }
 
-      setError(
+      toast.error(
         "Failed to start recording. Please check your microphone setup."
       );
     }
@@ -315,8 +350,7 @@ export function AddCardForm({
         toast.success("Audio recording saved", { id: toastId });
       } else {
         if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
-          toast.error("Card limit reached", { id: toastId });
-          setShowUpgradePrompt(true);
+          showUpgradeToast(toastId);
           return;
         }
 
@@ -337,14 +371,14 @@ export function AddCardForm({
           ? error.message
           : "Failed to save audio recording";
 
-      toast.error("Failed to save audio recording", { id: toastId });
-
       if (isCardLimitError(error)) {
-        setShowUpgradePrompt(true);
+        showUpgradeToast(toastId);
       } else if (isRateLimitError(error)) {
-        setError("Too many cards created. Please wait a moment and try again.");
+        toast.error("Too many cards created. Please wait a moment.", {
+          id: toastId,
+        });
       } else {
-        setError(errorMessage);
+        toast.error(errorMessage, { id: toastId });
       }
     } finally {
       setIsSubmitting(false);
@@ -368,9 +402,9 @@ export function AddCardForm({
       }
 
       if (files.length > MAX_FILES_PER_UPLOAD) {
-        setError(CARD_ERROR_MESSAGES.TOO_MANY_FILES);
         toast.error(
-          `You can only upload up to ${MAX_FILES_PER_UPLOAD} files at a time`
+          `You can only upload up to ${MAX_FILES_PER_UPLOAD} files at a time`,
+          MANUAL_CLOSE_TOAST_OPTIONS
         );
         return;
       }
@@ -378,7 +412,6 @@ export function AddCardForm({
       const oversizedFiles = files.filter((file) => file.size > MAX_FILE_SIZE);
       if (oversizedFiles.length > 0) {
         const fileNames = oversizedFiles.map((f) => f.name).join(", ");
-        setError(`Files too large (max 20MB): ${fileNames}`);
         toast.error(`Some files exceed the 20MB limit: ${fileNames}`);
         return;
       }
@@ -395,8 +428,7 @@ export function AddCardForm({
           onSuccess?.();
         } else {
           if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
-            toast.error("Card limit reached", { id: toastId });
-            setShowUpgradePrompt(true);
+            showUpgradeToast(toastId);
             break;
           }
           if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
@@ -406,8 +438,9 @@ export function AddCardForm({
             break;
           }
           const errorMessage = result.error || "Failed to upload file";
-          toast.error(`Failed to upload ${file.name}`, { id: toastId });
-          setError(errorMessage);
+          toast.error(`Failed to upload ${file.name}: ${errorMessage}`, {
+            id: toastId,
+          });
         }
       }
     };
@@ -457,15 +490,12 @@ export function AddCardForm({
         error instanceof Error ? error.message : "Failed to create card";
 
       if (isCardLimitError(error)) {
-        setShowUpgradePrompt(true);
-        toast.error("Card limit reached", { id: toastId });
+        showUpgradeToast(toastId);
       } else if (isRateLimitError(error)) {
-        setError("Too many cards created. Please wait a moment and try again.");
         toast.error("Too many cards created. Please wait a moment.", {
           id: toastId,
         });
       } else {
-        setError(errorMessage);
         toast.error(errorMessage, { id: toastId });
       }
       return false;
@@ -504,46 +534,6 @@ export function AddCardForm({
     return true;
   };
 
-  const renderUpgradePrompt = () => {
-    if (!(showUpgradePrompt && !canCreateCard)) {
-      return null;
-    }
-
-    if (UpgradeLinkComponent) {
-      return (
-        <UpgradeLinkComponent className="block px-1 pb-1" href={upgradeUrl}>
-          <Alert>
-            <Sparkles className="stroke-primary" />
-            <AlertTitle className="font-medium text-primary">
-              Upgrade to Pro
-            </AlertTitle>
-            <AlertDescription>
-              <span className="font-medium text-primary">
-                You&apos;ve reached your free tier limit. Upgrade to Pro for
-                unlimited cards.
-              </span>
-            </AlertDescription>
-          </Alert>
-        </UpgradeLinkComponent>
-      );
-    }
-
-    return (
-      <Alert className="mx-1 mb-1">
-        <Sparkles className="stroke-primary" />
-        <AlertTitle className="font-medium text-primary">
-          Upgrade to Pro
-        </AlertTitle>
-        <AlertDescription>
-          <span className="font-medium text-primary">
-            You&apos;ve reached your free tier limit. Upgrade to Pro for
-            unlimited cards.
-          </span>
-        </AlertDescription>
-      </Alert>
-    );
-  };
-
   if (isRecording) {
     return (
       <Card className="min-h-36 w-full border-red-200 p-4 shadow-none">
@@ -563,12 +553,6 @@ export function AddCardForm({
           <p className="font-medium font-mono text-destructive">
             {formatTime(recordingTime)}
           </p>
-
-          {error && (
-            <div className="mt-4 rounded border border-red-200 bg-red-50 p-3 text-center text-destructive">
-              {error}
-            </div>
-          )}
         </CardContent>
       </Card>
     );
@@ -579,7 +563,6 @@ export function AddCardForm({
       <FullScreenAddCardDialog
         canCreateCard={canCreateCard}
         content={content}
-        error={error}
         isSubmitting={isSubmitting}
         onContentChange={setContent}
         onRequestClose={requestFullScreenClose}
@@ -650,18 +633,6 @@ export function AddCardForm({
               )}
             </div>
           </form>
-
-          {error && (
-            <Alert
-              className="rounded-none border-0 border-t"
-              variant="destructive"
-            >
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {renderUpgradePrompt()}
         </CardContent>
       </Card>
     </>
