@@ -214,3 +214,13 @@ Errors are returned as JSON:
   "error": "Field `content` must be a non-empty string"
 }
 ```
+
+`RATE_LIMITED` responses include an optional `retryAt` field (Unix milliseconds) indicating when the client may retry:
+
+```json
+{
+  "code": "RATE_LIMITED",
+  "error": "Too many requests",
+  "retryAt": 1741480000000
+}
+```
