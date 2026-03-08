@@ -27,6 +27,7 @@ interface CardModalProps {
   handlePermanentDelete: (onClose?: () => void) => Promise<void>;
   handleRestore: (onClose?: () => void) => Promise<void>;
   hasUnsavedChanges: boolean;
+  isDownloading?: boolean;
   MoreInformationModal: React.ReactNode;
   NotesEditModal: React.ReactNode;
   onCancel?: () => void;
@@ -68,6 +69,7 @@ export function CardModal({
   TagManagementModal,
   MoreInformationModal,
   NotesEditModal,
+  isDownloading,
 }: CardModalProps) {
   const card = cardData;
 
@@ -189,6 +191,7 @@ export function CardModal({
                   }}
                   card={card}
                   getCurrentValue={getCurrentValue}
+                  isDownloading={isDownloading}
                   onCardTypeClick={handleCardTypeClick}
                   onTagClick={onTagClick}
                 />

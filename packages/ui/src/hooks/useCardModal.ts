@@ -56,6 +56,7 @@ export function useCardModal(
   const [tagInput, setTagInput] = useState("");
   const [pendingChanges, setPendingChanges] = useState<PendingChanges>({});
   const [isSaved, setIsSaved] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const notifyError = useCallback(
     (error: Error, operation: string) => {
@@ -378,21 +379,35 @@ export function useCardModal(
 
   const fileUrl = card?.fileUrl;
 
-  const downloadFile = useCallback(() => {
+  const downloadFile = useCallback(async () => {
     if (!(card?.fileId && card?.fileMetadata?.fileName && fileUrl)) {
       return;
     }
 
+    setIsDownloading(true);
     try {
+      const response = await fetch(fileUrl);
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch file: ${response.status} ${response.statusText}`
+        );
+      }
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
       const link = document.createElement("a");
-      link.href = fileUrl;
+      link.href = blobUrl;
       link.download = card.fileMetadata.fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      window.URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error("Failed to download file:", error);
       notifyError(error as Error, "download file");
+    } finally {
+      setIsDownloading(false);
     }
   }, [card?.fileId, card?.fileMetadata?.fileName, fileUrl, notifyError]);
 
@@ -466,5 +481,6 @@ export function useCardModal(
     hasUnsavedChanges,
     getCurrentValue,
     isSaved,
+    isDownloading,
   };
 }

@@ -2,6 +2,7 @@ import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { badgeVariants } from "@teak/ui/components/ui/badge";
 import { Button } from "@teak/ui/components/ui/button";
 import { Label } from "@teak/ui/components/ui/label";
+import { Spinner } from "@teak/ui/components/ui/spinner";
 import {
   Download,
   Edit,
@@ -32,6 +33,7 @@ interface CardMetadataPanelProps {
   };
   card: CardModalCard;
   getCurrentValue: GetCurrentValue;
+  isDownloading?: boolean;
   onCardTypeClick: () => void;
   onTagClick?: (tag: string) => void;
 }
@@ -42,6 +44,7 @@ export function CardMetadataPanel({
   onCardTypeClick,
   onTagClick,
   actions,
+  isDownloading,
 }: CardMetadataPanelProps) {
   const IconComponent = useMemo(
     () => getCardTypeIconComponent(card.type as CardType),
@@ -141,10 +144,17 @@ export function CardMetadataPanel({
 
           {actions.downloadFile && (
             <PanelButton
-              icon={<Download className={iconClass} />}
+              disabled={isDownloading}
+              icon={
+                isDownloading ? (
+                  <Spinner className={iconClass} />
+                ) : (
+                  <Download className={iconClass} />
+                )
+              }
               onClick={actions.downloadFile}
             >
-              Download
+              {isDownloading ? "Downloading..." : "Download"}
             </PanelButton>
           )}
 
@@ -196,6 +206,7 @@ export function CardMetadataPanel({
 
 interface PanelButtonProps {
   children: React.ReactNode;
+  disabled?: boolean;
   icon: React.ReactNode;
   onClick: () => void;
   variant?: "outline" | "destructive";
@@ -203,11 +214,18 @@ interface PanelButtonProps {
 
 const PanelButton = ({
   children,
+  disabled,
   icon,
   onClick,
   variant = "outline",
 }: PanelButtonProps) => (
-  <Button className="gap-2" onClick={onClick} size="sm" variant={variant}>
+  <Button
+    className="gap-2"
+    disabled={disabled}
+    onClick={onClick}
+    size="sm"
+    variant={variant}
+  >
     {icon}
     <span>{children}</span>
   </Button>

@@ -76,6 +76,7 @@ export function ConnectedCardModal({
     saveNotes,
     hasUnsavedChanges,
     getCurrentValue,
+    isDownloading,
   } = useCardModal(cardId, { card: resolvedCard, onCardTypeClick });
 
   useEffect(() => {
@@ -110,6 +111,7 @@ export function ConnectedCardModal({
       handlePermanentDelete={handlePermanentDelete}
       handleRestore={handleRestore}
       hasUnsavedChanges={hasUnsavedChanges}
+      isDownloading={isDownloading}
       MoreInformationModal={
         <MoreInformationModal
           card={card ?? null}
