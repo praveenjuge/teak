@@ -1,7 +1,7 @@
 {
-  "version": "1.0.23",
-  "notes": "## Teak Desktop Release\n\n- Signed + notarized macOS Apple Silicon build\n- Direct download DMG\n- In-app updater artifacts published",
-  "pub_date": "2026-03-06T06:33:56Z",
-  "url": "https://github.com/praveenjuge/teak/releases/download/v1.0.23/Teak.app.tar.gz",
-  "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTT25aQTE1MnR0Rm1kZm9vKzdhQThtUWpDOUFZZmtNSGFkRjhjOFdwRUo5aklmR0ZNK0dsRmtYM2pFYlVEdzFneWxKYVJaQkhXbTZXYXkvcEN4MkhWSDJqMGF6clZMZEFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzcyNzc4ODMzCWZpbGU6VGVhay5hcHAudGFyLmd6Cmsxbk8zQmM0Kzc4SEdLT2xneTJ3RGlGakU4NUQ4MU1ocFhlTzF5NU1rWUJPaDY1MEtjMUh5cVYrN252ZllneGkzVkgwU1ZTOFhXOTZvNlNpTlUrM0JRPT0K"
+  "version": "1.0.24",
+  "notes": "",
+  "pub_date": "2026-03-08T13:23:33Z",
+  "url": "https://github.com/praveenjuge/teak/releases/download/v1.0.24/Teak.app.tar.gz",
+  "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTT25aQTE1MnR0RnFEWFFZejdBdk90ZFVDVEcwRmlBdHA3bGxZQTVVYVovdTVRVkdYTWxrS0gycjJ0NnBNSnl1TlNPTmFycGMxenhPZFF6dkxrYVFKM05qdXZJVXdDeUFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzcyOTc2MjA5CWZpbGU6VGVhay5hcHAudGFyLmd6Ck5TbUNqVVU2V3B2a2NRUzlYUHlvOWtIQm5tNDBoZkhla1l2ajZGcUQxSEp3NlZDa2o3Q21TUXIrcG53aWxzS0ZqaXdmczR1ODUzNkVXWStyV2ZFOENRPT0K"
 }
