@@ -1,10 +1,5 @@
 "use client";
 
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@teak/ui/components/ui/alert";
 import { Button, buttonVariants } from "@teak/ui/components/ui/button";
 import {
   CardContent,
@@ -14,10 +9,13 @@ import {
 import { Input } from "@teak/ui/components/ui/input";
 import { Label } from "@teak/ui/components/ui/label";
 import { Spinner } from "@teak/ui/components/ui/spinner";
-import { AUTH_STICKY_TOAST_OPTIONS } from "@teak/ui/constants/toast";
+import {
+  AUTH_STICKY_TOAST_OPTIONS,
+  MANUAL_CLOSE_TOAST_OPTIONS,
+} from "@teak/ui/constants/toast";
 import { AppleIcon, GoogleIcon } from "@teak/ui/icons";
 import { cn } from "@teak/ui/lib/utils";
-import { AlertCircle, Loader2, Mail } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -29,9 +27,7 @@ export default function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [passwordTouched, setPasswordTouched] = useState(false);
-  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
   const nextPath = useMemo(() => {
@@ -46,7 +42,6 @@ export default function SignUp() {
     const shouldShow = sessionStorage.getItem("teak-verify-alert");
     const storedEmail = sessionStorage.getItem("teak-verify-email");
     if (shouldShow) {
-      setShowSuccessAlert(true);
       if (storedEmail) {
         setEmail(storedEmail);
         toast.success(`Verification email sent to ${storedEmail}.`, {
@@ -59,7 +54,6 @@ export default function SignUp() {
   }, []);
 
   const handleGoogleSignIn = async () => {
-    setError(null);
     setGoogleLoading(true);
     try {
       const response = await authClient.signIn.social({
@@ -67,22 +61,22 @@ export default function SignUp() {
         callbackURL: nextPath,
       });
       if (response?.error) {
-        setError(
+        toast.error(
           response.error.message ??
-            "Failed to sign in with Google. Please try again."
+            "Failed to sign in with Google. Please try again.",
+          MANUAL_CLOSE_TOAST_OPTIONS
         );
       }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to sign in with Google";
-      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setGoogleLoading(false);
     }
   };
 
   const handleAppleSignIn = async () => {
-    setError(null);
     setAppleLoading(true);
     try {
       const response = await authClient.signIn.social({
@@ -90,7 +84,7 @@ export default function SignUp() {
         callbackURL: nextPath,
       });
       if (response?.error) {
-        setError(
+        toast.error(
           response.error.message ??
             "Failed to sign in with Apple. Please try again."
         );
@@ -98,7 +92,7 @@ export default function SignUp() {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to sign in with Apple";
-      setError(errorMessage);
+      toast.error(errorMessage, MANUAL_CLOSE_TOAST_OPTIONS);
     } finally {
       setAppleLoading(false);
     }
@@ -111,24 +105,6 @@ export default function SignUp() {
     <>
       <CardTitle className="text-center text-lg">Get started on Teak</CardTitle>
       <CardContent>
-        {error && (
-          <Alert className="mb-4" variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        {showSuccessAlert && (
-          <Alert className="mb-4">
-            <Mail />
-            <div>
-              <AlertTitle>Verify your email</AlertTitle>
-              <AlertDescription>
-                We just sent a verification link to {email || "your email"}.
-                Please open it to activate your account.
-              </AlertDescription>
-            </div>
-          </Alert>
-        )}
         <div className="grid gap-2">
           <Button
             className="w-full"
@@ -178,12 +154,13 @@ export default function SignUp() {
           className="grid gap-4"
           onSubmit={async (e) => {
             e.preventDefault();
-            setError(null);
-            setShowSuccessAlert(false);
 
             // Validate password length
             if (password.length < 8) {
-              setError("Password must be at least 8 characters long");
+              toast.error(
+                "Password must be at least 8 characters long",
+                MANUAL_CLOSE_TOAST_OPTIONS
+              );
               return;
             }
 
@@ -206,11 +183,10 @@ export default function SignUp() {
                   setLoading(false);
                   const message =
                     ctx.error?.message ?? "Failed to create account";
-                  setError(message);
+                  toast.error(message, MANUAL_CLOSE_TOAST_OPTIONS);
                 },
                 onSuccess: async () => {
                   setLoading(false);
-                  setShowSuccessAlert(true);
                   toast.success(`Verification email sent to ${email}.`, {
                     ...AUTH_STICKY_TOAST_OPTIONS,
                   });

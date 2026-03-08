@@ -1,6 +1,5 @@
 "use client";
 
-import { Alert, AlertDescription } from "@teak/ui/components/ui/alert";
 import { Button, buttonVariants } from "@teak/ui/components/ui/button";
 import {
   CardContent,
@@ -11,9 +10,12 @@ import {
 } from "@teak/ui/components/ui/card";
 import { Input } from "@teak/ui/components/ui/input";
 import { Label } from "@teak/ui/components/ui/label";
-import { AUTH_STICKY_TOAST_OPTIONS } from "@teak/ui/constants/toast";
+import {
+  AUTH_STICKY_TOAST_OPTIONS,
+  MANUAL_CLOSE_TOAST_OPTIONS,
+} from "@teak/ui/constants/toast";
 import { cn } from "@teak/ui/lib/utils";
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -36,42 +38,40 @@ export default function ResetPassword() {
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  useEffect(() => {
-    if (errorCode) {
-      setError(
-        errorMessages[errorCode] ??
-          "We couldn't verify your reset link. Request a new one."
-      );
-    }
-  }, [errorCode]);
-
-  const helperText = useMemo(() => {
-    if (error) {
-      return { text: error, variant: "error" as const };
-    }
-    if (!token) {
-      return {
-        text: "We need a valid reset link to finish updating your password.",
-        variant: "error" as const,
-      };
-    }
+  const validationMessage = useMemo(() => {
     if (password && password.length < MIN_PASSWORD_LENGTH) {
-      return {
-        text: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
-        variant: "error" as const,
-      };
+      return `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
     }
     if (password && passwordConfirmation && password !== passwordConfirmation) {
-      return {
-        text: "Passwords must match.",
-        variant: "error" as const,
-      };
+      return "Passwords must match.";
     }
     return null;
-  }, [error, password, passwordConfirmation, token]);
+  }, [password, passwordConfirmation]);
+
+  const linkErrorMessage = useMemo(() => {
+    if (errorCode) {
+      return (
+        errorMessages[errorCode] ??
+        "We couldn't verify your reset link. Request a new one."
+      );
+    }
+
+    if (!token) {
+      return "We need a valid reset link to finish updating your password.";
+    }
+
+    return null;
+  }, [errorCode, token]);
+
+  useEffect(() => {
+    if (!linkErrorMessage) {
+      return;
+    }
+
+    toast.error(linkErrorMessage, MANUAL_CLOSE_TOAST_OPTIONS);
+  }, [linkErrorMessage]);
 
   const canSubmit =
     Boolean(token) &&
@@ -83,7 +83,10 @@ export default function ResetPassword() {
     e.preventDefault();
 
     if (!token) {
-      setError("This link is missing its token. Request a new reset email.");
+      toast.error(
+        "This link is missing its token. Request a new reset email.",
+        MANUAL_CLOSE_TOAST_OPTIONS
+      );
       return;
     }
 
@@ -92,7 +95,6 @@ export default function ResetPassword() {
     }
 
     setLoading(true);
-    setError(null);
 
     const { error: resetError } = await authClient.resetPassword({
       token,
@@ -102,9 +104,10 @@ export default function ResetPassword() {
     setLoading(false);
 
     if (resetError) {
-      setError(
+      toast.error(
         resetError.message ??
-          "We couldn't update your password. Request a new link and try again."
+          "We couldn't update your password. Request a new link and try again.",
+        MANUAL_CLOSE_TOAST_OPTIONS
       );
       return;
     }
@@ -165,15 +168,8 @@ export default function ResetPassword() {
               />
             </div>
 
-            {helperText && (
-              <Alert
-                variant={
-                  helperText.variant === "error" ? "destructive" : "default"
-                }
-              >
-                {helperText.variant === "error" && <AlertCircle />}
-                <AlertDescription>{helperText.text}</AlertDescription>
-              </Alert>
+            {validationMessage && (
+              <p className="text-destructive text-sm">{validationMessage}</p>
             )}
 
             <Button className="w-full" disabled={!canSubmit} type="submit">

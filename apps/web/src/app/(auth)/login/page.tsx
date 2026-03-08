@@ -1,6 +1,5 @@
 "use client";
 
-import { Alert, AlertDescription } from "@teak/ui/components/ui/alert";
 import { Button, buttonVariants } from "@teak/ui/components/ui/button";
 import {
   CardContent,
@@ -9,12 +8,14 @@ import {
 } from "@teak/ui/components/ui/card";
 import { Input } from "@teak/ui/components/ui/input";
 import { Label } from "@teak/ui/components/ui/label";
+import { AUTH_STICKY_TOAST_OPTIONS } from "@teak/ui/constants/toast";
 import { AppleIcon, GoogleIcon } from "@teak/ui/icons";
 import { cn } from "@teak/ui/lib/utils";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 
 export default function SignIn() {
@@ -25,7 +26,6 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const nextPath = useMemo(() => {
     const rawValue = searchParams.get("next");
     if (!(rawValue?.startsWith("/") && !rawValue.startsWith("//"))) {
@@ -34,8 +34,25 @@ export default function SignIn() {
     return rawValue;
   }, [searchParams]);
 
+  const showSignInError = (message: string) => {
+    const normalizedMessage = message.toLowerCase();
+    const isVerificationError =
+      normalizedMessage.includes("verification") ||
+      normalizedMessage.includes("verify") ||
+      normalizedMessage.includes("unverified");
+
+    if (isVerificationError) {
+      toast.error(
+        "Please check your email (including the spam folder) and click the verification link before signing in.",
+        AUTH_STICKY_TOAST_OPTIONS
+      );
+      return;
+    }
+
+    toast.error(message);
+  };
+
   const handleGoogleSignIn = async () => {
-    setError(null);
     setGoogleLoading(true);
     try {
       const response = await authClient.signIn.social({
@@ -43,7 +60,7 @@ export default function SignIn() {
         callbackURL: nextPath,
       });
       if (response?.error) {
-        setError(
+        showSignInError(
           response.error.message ??
             "Failed to sign in with Google. Please try again."
         );
@@ -51,14 +68,13 @@ export default function SignIn() {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to sign in with Google";
-      setError(errorMessage);
+      showSignInError(errorMessage);
     } finally {
       setGoogleLoading(false);
     }
   };
 
   const handleAppleSignIn = async () => {
-    setError(null);
     setAppleLoading(true);
     try {
       const response = await authClient.signIn.social({
@@ -66,7 +82,7 @@ export default function SignIn() {
         callbackURL: nextPath,
       });
       if (response?.error) {
-        setError(
+        showSignInError(
           response.error.message ??
             "Failed to sign in with Apple. Please try again."
         );
@@ -74,7 +90,7 @@ export default function SignIn() {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to sign in with Apple";
-      setError(errorMessage);
+      showSignInError(errorMessage);
     } finally {
       setAppleLoading(false);
     }
@@ -84,13 +100,6 @@ export default function SignIn() {
     <>
       <CardTitle className="text-center text-lg">Login to Teak</CardTitle>
       <CardContent>
-        {error && (
-          <Alert className="mb-4" variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
         <div className="grid gap-2">
           <Button
             className="w-full"
@@ -139,7 +148,6 @@ export default function SignIn() {
           className="grid gap-4"
           onSubmit={async (e) => {
             e.preventDefault();
-            setError(null);
             await authClient.signIn.email(
               {
                 email,
@@ -161,19 +169,7 @@ export default function SignIn() {
                   setLoading(false);
                   const errorMessage =
                     ctx.error?.message ?? "Invalid email or password";
-
-                  // Check if the error is related to email verification
-                  if (
-                    errorMessage.toLowerCase().includes("verification") ||
-                    errorMessage.toLowerCase().includes("verify") ||
-                    errorMessage.toLowerCase().includes("unverified")
-                  ) {
-                    setError(
-                      "Please check your email and click the verification link before signing in. If you didn't receive the email, check your spam folder."
-                    );
-                  } else {
-                    setError(errorMessage);
-                  }
+                  showSignInError(errorMessage);
                 },
               }
             );

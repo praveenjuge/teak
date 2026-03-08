@@ -1,6 +1,5 @@
 "use client";
 
-import { Alert, AlertDescription } from "@teak/ui/components/ui/alert";
 import { Button, buttonVariants } from "@teak/ui/components/ui/button";
 import {
   CardContent,
@@ -13,7 +12,7 @@ import { Input } from "@teak/ui/components/ui/input";
 import { Label } from "@teak/ui/components/ui/label";
 import { AUTH_STICKY_TOAST_OPTIONS } from "@teak/ui/constants/toast";
 import { cn } from "@teak/ui/lib/utils";
-import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -23,7 +22,6 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const redirectTo = useMemo(() => {
     if (typeof window === "undefined") {
@@ -42,14 +40,15 @@ export default function ForgotPassword() {
       fetchOptions: {
         onRequest: () => {
           setLoading(true);
-          setError(null);
           setSent(false);
         },
         onResponse: () => {
           setLoading(false);
         },
         onError: (ctx) => {
-          setError(ctx.error?.message ?? "We couldn't send the reset email.");
+          toast.error(
+            ctx.error?.message ?? "We couldn't send the reset email."
+          );
         },
         onSuccess: () => {
           setSent(true);
@@ -84,21 +83,6 @@ export default function ForgotPassword() {
               value={email}
             />
           </div>
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          {sent && (
-            <Alert>
-              <CheckCircle />
-              <AlertDescription>
-                If the email address is registered, a password reset link will
-                be sent.
-              </AlertDescription>
-            </Alert>
-          )}
           <Button className="w-full" disabled={loading} type="submit">
             {loading ? (
               <Loader2 className="animate-spin" size={16} />

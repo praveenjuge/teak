@@ -42,9 +42,9 @@
     "@types/react-dom": "19.2.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.5",
+    "@biomejs/biome": "2.4.6",
     "simple-git-hooks": "^2.11.1",
-    "turbo": "^2.8.13",
-    "ultracite": "7.2.4"
+    "turbo": "^2.8.14",
+    "ultracite": "7.2.5"
   }
 }
