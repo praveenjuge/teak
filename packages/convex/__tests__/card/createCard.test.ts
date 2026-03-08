@@ -149,4 +149,36 @@ describe("card/createCard.ts", () => {
       })
     );
   });
+
+  test("preserves metadata source when provided", async () => {
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        system: { get: mock().mockResolvedValue(null) },
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+          }),
+        }),
+        insert: mock().mockResolvedValue("c4"),
+      },
+    } as any;
+
+    const handler = (createCard as any).handler ?? createCard;
+    await handler(ctx, {
+      content: "https://example.com/article",
+      metadata: { source: "raycast_browser_tab" },
+      type: "link",
+      url: "https://example.com/article",
+    });
+
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "cards",
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          source: "raycast_browser_tab",
+        }),
+      })
+    );
+  });
 });

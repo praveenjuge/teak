@@ -33,5 +33,7 @@ export const registerRestRoutes = (app: Hono): void => {
   app.post("/v1/cards", (c) => proxyToConvex(c.req.raw));
   app.get("/v1/cards/search", (c) => proxyToConvex(c.req.raw));
   app.get("/v1/cards/favorites", (c) => proxyToConvex(c.req.raw));
-  app.on(["PATCH", "DELETE"], "/v1/cards/*", (c) => proxyToConvex(c.req.raw));
+  app.on(["GET", "PATCH", "DELETE"], "/v1/cards/*", (c) =>
+    proxyToConvex(c.req.raw)
+  );
 };

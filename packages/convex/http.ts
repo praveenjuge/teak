@@ -74,6 +74,12 @@ http.route({
 
 http.route({
   pathPrefix: "/v1/cards/",
+  method: "GET",
+  handler: cardByIdV1,
+});
+
+http.route({
+  pathPrefix: "/v1/cards/",
   method: "PATCH",
   handler: cardByIdV1,
 });

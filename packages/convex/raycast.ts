@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import {
   internalMutation,
   internalQuery,
@@ -8,26 +8,53 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { createCardForUserHandler } from "./card/createCard";
-import { findDuplicateCardForUserHandler } from "./card/findDuplicateCard";
 import { getCardForUserHandler } from "./card/getCard";
 import { cardReturnValidator } from "./card/getCards";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import { updateCardFieldForUserHandler } from "./card/updateCard";
+import { cardTypeValidator } from "./schema";
 import { rateLimiter } from "./shared/rateLimits";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
+const SEARCH_MULTIPLIER = 4;
+const MAX_QUERY_SCAN = 400;
+
+const sortValidator = v.union(v.literal("newest"), v.literal("oldest"));
+type RaycastSort = "newest" | "oldest";
+
+const searchArgs = {
+  userId: v.string(),
+  searchQuery: v.optional(v.string()),
+  type: v.optional(cardTypeValidator),
+  tag: v.optional(v.string()),
+  favoritesOnly: v.optional(v.boolean()),
+  createdAfter: v.optional(v.number()),
+  createdBefore: v.optional(v.number()),
+  sort: v.optional(sortValidator),
+  limit: v.optional(v.number()),
+} as const;
 
 const quickSaveResultValidator = v.object({
-  status: v.union(v.literal("created"), v.literal("duplicate")),
+  status: v.literal("created"),
   cardId: v.id("cards"),
+  card: v.optional(cardReturnValidator),
 });
 
 const raycastRateLimitResultValidator = v.object({
   ok: v.boolean(),
   retryAt: v.optional(v.number()),
 });
+
+const createCardForUserArgs = {
+  userId: v.string(),
+  content: v.optional(v.string()),
+  url: v.optional(v.string()),
+  notes: v.optional(v.union(v.string(), v.null())),
+  tags: v.optional(v.array(v.string())),
+  source: v.optional(v.string()),
+} as const;
 
 const patchCardForUserArgs = {
   userId: v.string(),
@@ -48,6 +75,28 @@ const cardReferenceArgs = {
   userId: v.string(),
   cardId: v.id("cards"),
 } as const;
+
+type SearchOptions = {
+  createdAfter?: number;
+  createdBefore?: number;
+  favoritesOnly?: boolean;
+  limit?: number;
+  searchQuery?: string;
+  sort?: RaycastSort;
+  tag?: string;
+  type?: Doc<"cards">["type"];
+};
+
+const SEARCH_INDEXES = [
+  { field: "content", index: "search_content" },
+  { field: "notes", index: "search_notes" },
+  { field: "aiSummary", index: "search_ai_summary" },
+  { field: "aiTranscript", index: "search_ai_transcript" },
+  { field: "metadataTitle", index: "search_metadata_title" },
+  { field: "metadataDescription", index: "search_metadata_description" },
+  { field: "tags", index: "search_tags" },
+  { field: "aiTags", index: "search_ai_tags" },
+] as const;
 
 const toHex = (bytes: Uint8Array): string =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -74,160 +123,354 @@ const hashRateLimitKey = async (value: string): Promise<string> => {
   return toHex(new Uint8Array(digest));
 };
 
-const isHttpUrl = (value: string): boolean => {
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch {
-    return false;
-  }
-};
-
 const normalizeLimit = (limit?: number): number => {
   if (!limit || Number.isNaN(limit)) {
     return DEFAULT_LIMIT;
   }
+
   return Math.max(1, Math.min(limit, MAX_LIMIT));
 };
 
-const applySearchFilters = (
+const normalizeSearchText = (value?: string): string | undefined => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+};
+
+const normalizeTag = (value?: string): string | undefined => {
+  const trimmed = value?.trim().toLowerCase();
+  return trimmed ? trimmed : undefined;
+};
+
+const normalizeCreatedTimestamp = (value?: number): number | undefined => {
+  if (!(typeof value === "number" && Number.isFinite(value))) {
+    return undefined;
+  }
+
+  return value;
+};
+
+const normalizeSort = (value?: RaycastSort): RaycastSort =>
+  value === "oldest" ? "oldest" : "newest";
+
+const normalizeTags = (tags?: string[]): string[] | undefined => {
+  if (!Array.isArray(tags)) {
+    return undefined;
+  }
+
+  const normalized = Array.from(
+    new Set(tags.map((tag) => tag.trim()).filter(Boolean))
+  );
+
+  return normalized.length > 0 ? normalized : undefined;
+};
+
+const compareCards = (
+  left: Pick<Doc<"cards">, "createdAt">,
+  right: Pick<Doc<"cards">, "createdAt">,
+  sort: RaycastSort
+): number => {
+  return sort === "oldest"
+    ? left.createdAt - right.createdAt
+    : right.createdAt - left.createdAt;
+};
+
+const matchesCreatedAt = (
+  createdAt: number,
+  options: SearchOptions
+): boolean => {
+  if (options.createdAfter !== undefined && createdAt < options.createdAfter) {
+    return false;
+  }
+
+  if (
+    options.createdBefore !== undefined &&
+    createdAt > options.createdBefore
+  ) {
+    return false;
+  }
+
+  return true;
+};
+
+const matchesStructuredFilters = (
+  card: Doc<"cards">,
+  options: SearchOptions
+): boolean => {
+  if (options.type && card.type !== options.type) {
+    return false;
+  }
+
+  if (options.favoritesOnly && card.isFavorited !== true) {
+    return false;
+  }
+
+  if (!matchesCreatedAt(card.createdAt, options)) {
+    return false;
+  }
+
+  if (options.tag) {
+    const tags = [...(card.tags ?? []), ...(card.aiTags ?? [])];
+    const tagSet = new Set(tags.map((tag) => tag.toLowerCase()));
+    if (!tagSet.has(options.tag)) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const applySearchIndexFilters = (
   query: any,
   userId: string,
-  favoritesOnly: boolean
+  options: SearchOptions
 ) => {
-  const filteredQuery = query.eq("userId", userId).eq("isDeleted", undefined);
-  return favoritesOnly ? filteredQuery.eq("isFavorited", true) : filteredQuery;
+  let filteredQuery = query.eq("userId", userId).eq("isDeleted", undefined);
+
+  if (options.type) {
+    filteredQuery = filteredQuery.eq("type", options.type);
+  }
+
+  if (options.favoritesOnly) {
+    filteredQuery = filteredQuery.eq("isFavorited", true);
+  }
+
+  return filteredQuery;
+};
+
+const sortAndLimitCards = (
+  cards: Doc<"cards">[],
+  options: SearchOptions
+): Doc<"cards">[] => {
+  const sort = normalizeSort(options.sort);
+  const limit = normalizeLimit(options.limit);
+  return cards
+    .sort((left, right) => compareCards(left, right, sort))
+    .slice(0, limit);
+};
+
+const collectFromBaseQuery = async (
+  baseQuery: any,
+  options: SearchOptions
+): Promise<Doc<"cards">[]> => {
+  const sort = normalizeSort(options.sort);
+  const limit = normalizeLimit(options.limit);
+  const pageSize = Math.min(Math.max(limit * 2, 50), 100);
+  const matches: Doc<"cards">[] = [];
+  let cursor: string | null = null;
+  let scanned = 0;
+
+  while (matches.length < limit && scanned < MAX_QUERY_SCAN) {
+    const page: {
+      continueCursor: string | null;
+      isDone: boolean;
+      page: Doc<"cards">[];
+    } = await baseQuery.order(sort === "oldest" ? "asc" : "desc").paginate({
+      cursor,
+      numItems: pageSize,
+    });
+
+    for (const card of page.page as Doc<"cards">[]) {
+      scanned += 1;
+      if (matchesStructuredFilters(card, options)) {
+        matches.push(card);
+        if (matches.length >= limit) {
+          break;
+        }
+      }
+    }
+
+    if (page.isDone || !page.continueCursor) {
+      break;
+    }
+
+    cursor = page.continueCursor;
+  }
+
+  return matches;
+};
+
+const searchCardsByQuery = async (
+  ctx: QueryCtx,
+  userId: string,
+  options: SearchOptions
+): Promise<Doc<"cards">[]> => {
+  const trimmedQuery = normalizeSearchText(options.searchQuery);
+  if (!trimmedQuery) {
+    return [];
+  }
+
+  const searchLimit = Math.max(
+    normalizeLimit(options.limit) * SEARCH_MULTIPLIER,
+    normalizeLimit(options.limit) + 20
+  );
+
+  const searchResults = await Promise.all(
+    SEARCH_INDEXES.map(({ field, index }) =>
+      ctx.db
+        .query("cards")
+        .withSearchIndex(index, (query: any) =>
+          applySearchIndexFilters(query, userId, options).search(
+            field,
+            trimmedQuery
+          )
+        )
+        .take(searchLimit)
+    )
+  );
+
+  const unique = Array.from(
+    new Map(searchResults.flat().map((card) => [card._id, card])).values()
+  ).filter((card) => matchesStructuredFilters(card, options));
+
+  return sortAndLimitCards(unique, options);
+};
+
+const searchCardsByTag = async (
+  ctx: QueryCtx,
+  userId: string,
+  options: SearchOptions
+): Promise<Doc<"cards">[]> => {
+  const normalizedTag = normalizeTag(options.tag);
+  if (!normalizedTag) {
+    return [];
+  }
+
+  const searchLimit = Math.max(
+    normalizeLimit(options.limit) * SEARCH_MULTIPLIER,
+    normalizeLimit(options.limit) + 20
+  );
+
+  const searchResults = await Promise.all([
+    ctx.db
+      .query("cards")
+      .withSearchIndex("search_tags", (query: any) =>
+        applySearchIndexFilters(query, userId, options).search(
+          "tags",
+          normalizedTag
+        )
+      )
+      .take(searchLimit),
+    ctx.db
+      .query("cards")
+      .withSearchIndex("search_ai_tags", (query: any) =>
+        applySearchIndexFilters(query, userId, options).search(
+          "aiTags",
+          normalizedTag
+        )
+      )
+      .take(searchLimit),
+  ]);
+
+  const unique = Array.from(
+    new Map(searchResults.flat().map((card) => [card._id, card])).values()
+  ).filter((card) => matchesStructuredFilters(card, options));
+
+  return sortAndLimitCards(unique, options);
 };
 
 const getCardsForUser = async (
   ctx: QueryCtx,
   userId: string,
-  {
-    searchQuery,
-    favoritesOnly,
-    limit,
-  }: {
-    searchQuery?: string;
-    favoritesOnly?: boolean;
-    limit?: number;
-  }
+  options: SearchOptions
 ) => {
-  const normalizedLimit = normalizeLimit(limit);
-  const trimmedQuery = searchQuery?.trim();
+  const normalizedOptions: SearchOptions = {
+    ...options,
+    createdAfter: normalizeCreatedTimestamp(options.createdAfter),
+    createdBefore: normalizeCreatedTimestamp(options.createdBefore),
+    favoritesOnly: Boolean(options.favoritesOnly),
+    limit: normalizeLimit(options.limit),
+    searchQuery: normalizeSearchText(options.searchQuery),
+    sort: normalizeSort(options.sort),
+    tag: normalizeTag(options.tag),
+  };
 
-  if (!trimmedQuery) {
-    const baseQuery = favoritesOnly
-      ? ctx.db
-          .query("cards")
-          .withIndex("by_user_favorites_deleted", (q) =>
-            q
-              .eq("userId", userId)
-              .eq("isFavorited", true)
-              .eq("isDeleted", undefined)
-          )
-      : ctx.db
-          .query("cards")
-          .withIndex("by_user_deleted", (q) =>
-            q.eq("userId", userId).eq("isDeleted", undefined)
-          );
-
-    const cards = await baseQuery.order("desc").take(normalizedLimit);
-    const cardsWithUrls = await attachFileUrls(ctx, cards);
-    return applyQuoteFormattingToList(cardsWithUrls);
+  if (
+    normalizedOptions.createdAfter !== undefined &&
+    normalizedOptions.createdBefore !== undefined &&
+    normalizedOptions.createdAfter > normalizedOptions.createdBefore
+  ) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "`createdAfter` must be less than or equal to `createdBefore`",
+    });
   }
 
-  const searchResults = await Promise.all([
-    ctx.db
-      .query("cards")
-      .withSearchIndex("search_content", (q) =>
-        applySearchFilters(
-          q.search("content", trimmedQuery),
-          userId,
-          Boolean(favoritesOnly)
-        )
-      )
-      .take(normalizedLimit),
-    ctx.db
-      .query("cards")
-      .withSearchIndex("search_notes", (q) =>
-        applySearchFilters(
-          q.search("notes", trimmedQuery),
-          userId,
-          Boolean(favoritesOnly)
-        )
-      )
-      .take(normalizedLimit),
-    ctx.db
-      .query("cards")
-      .withSearchIndex("search_ai_summary", (q) =>
-        applySearchFilters(
-          q.search("aiSummary", trimmedQuery),
-          userId,
-          Boolean(favoritesOnly)
-        )
-      )
-      .take(normalizedLimit),
-    ctx.db
-      .query("cards")
-      .withSearchIndex("search_ai_transcript", (q) =>
-        applySearchFilters(
-          q.search("aiTranscript", trimmedQuery),
-          userId,
-          Boolean(favoritesOnly)
-        )
-      )
-      .take(normalizedLimit),
-    ctx.db
-      .query("cards")
-      .withSearchIndex("search_metadata_title", (q) =>
-        applySearchFilters(
-          q.search("metadataTitle", trimmedQuery),
-          userId,
-          Boolean(favoritesOnly)
-        )
-      )
-      .take(normalizedLimit),
-    ctx.db
-      .query("cards")
-      .withSearchIndex("search_metadata_description", (q) =>
-        applySearchFilters(
-          q.search("metadataDescription", trimmedQuery),
-          userId,
-          Boolean(favoritesOnly)
-        )
-      )
-      .take(normalizedLimit),
-    ctx.db
-      .query("cards")
-      .withSearchIndex("search_tags", (q) =>
-        applySearchFilters(
-          q.search("tags", trimmedQuery),
-          userId,
-          Boolean(favoritesOnly)
-        )
-      )
-      .take(normalizedLimit),
-    ctx.db
-      .query("cards")
-      .withSearchIndex("search_ai_tags", (q) =>
-        applySearchFilters(
-          q.search("aiTags", trimmedQuery),
-          userId,
-          Boolean(favoritesOnly)
-        )
-      )
-      .take(normalizedLimit),
-  ]);
+  let cards: Doc<"cards">[];
 
-  const allResults = searchResults.flat();
-  const unique = Array.from(
-    new Map(allResults.map((card) => [card._id, card])).values()
-  )
-    .filter((card) => !favoritesOnly || card.isFavorited)
-    .sort((a, b) => b.createdAt - a.createdAt)
-    .slice(0, normalizedLimit);
+  if (normalizedOptions.searchQuery) {
+    cards = await searchCardsByQuery(ctx, userId, normalizedOptions);
+  } else if (normalizedOptions.tag) {
+    cards = await searchCardsByTag(ctx, userId, normalizedOptions);
+  } else {
+    let baseQuery = ctx.db
+      .query("cards")
+      .withIndex("by_user_deleted", (query) =>
+        query.eq("userId", userId).eq("isDeleted", undefined)
+      );
 
-  const cardsWithUrls = await attachFileUrls(ctx, unique);
+    if (
+      normalizedOptions.type &&
+      !normalizedOptions.favoritesOnly &&
+      normalizedOptions.createdAfter === undefined &&
+      normalizedOptions.createdBefore === undefined
+    ) {
+      baseQuery = ctx.db
+        .query("cards")
+        .withIndex("by_user_type_deleted", (query) =>
+          query
+            .eq("userId", userId)
+            .eq("type", normalizedOptions.type!)
+            .eq("isDeleted", undefined)
+        );
+    } else if (
+      normalizedOptions.favoritesOnly &&
+      normalizedOptions.createdAfter === undefined &&
+      normalizedOptions.createdBefore === undefined
+    ) {
+      baseQuery = ctx.db
+        .query("cards")
+        .withIndex("by_user_favorites_deleted", (query) =>
+          query
+            .eq("userId", userId)
+            .eq("isFavorited", true)
+            .eq("isDeleted", undefined)
+        );
+    } else if (
+      normalizedOptions.createdAfter !== undefined ||
+      normalizedOptions.createdBefore !== undefined
+    ) {
+      baseQuery = ctx.db.query("cards").withIndex("by_created", (query) => {
+        if (
+          normalizedOptions.createdAfter !== undefined &&
+          normalizedOptions.createdBefore !== undefined
+        ) {
+          return query
+            .eq("userId", userId)
+            .gte("createdAt", normalizedOptions.createdAfter)
+            .lt("createdAt", normalizedOptions.createdBefore + 1);
+        }
+
+        if (normalizedOptions.createdAfter !== undefined) {
+          return query
+            .eq("userId", userId)
+            .gte("createdAt", normalizedOptions.createdAfter);
+        }
+
+        if (normalizedOptions.createdBefore !== undefined) {
+          return query
+            .eq("userId", userId)
+            .lt("createdAt", normalizedOptions.createdBefore + 1);
+        }
+
+        return query.eq("userId", userId);
+      });
+    }
+
+    cards = await collectFromBaseQuery(baseQuery, normalizedOptions);
+    cards = sortAndLimitCards(cards, normalizedOptions);
+  }
+
+  const cardsWithUrls = await attachFileUrls(ctx, cards);
   return applyQuoteFormattingToList(cardsWithUrls);
 };
 
@@ -253,77 +496,75 @@ const applyPatchField = async (
 };
 
 export const quickSaveForUser = internalMutation({
-  args: {
-    userId: v.string(),
-    content: v.string(),
-  },
+  args: createCardForUserArgs,
   returns: quickSaveResultValidator,
   handler: async (ctx, args) => {
-    const content = args.content.trim();
-    if (!content) {
+    const normalizedContent = args.content?.trim();
+    const normalizedUrl = args.url?.trim();
+    const normalizedNotes =
+      typeof args.notes === "string"
+        ? args.notes.trim() || undefined
+        : undefined;
+    const normalizedTags = normalizeTags(args.tags);
+    const normalizedSource = args.source?.trim() || undefined;
+
+    if (!(normalizedContent || normalizedUrl)) {
       throw new ConvexError({
         code: "INVALID_INPUT",
-        message: "Content cannot be empty",
+        message: "Provide `content` or `url` to create a card",
       });
     }
 
-    if (isHttpUrl(content)) {
-      const duplicate = await findDuplicateCardForUserHandler(
-        ctx,
-        args.userId,
-        content
-      );
-      if (duplicate) {
-        return {
-          status: "duplicate" as const,
-          cardId: duplicate._id as Id<"cards">,
-        };
-      }
+    const createArgs: Parameters<typeof createCardForUserHandler>[2] = {
+      content: normalizedContent ?? normalizedUrl!,
+      metadata: normalizedSource ? { source: normalizedSource } : undefined,
+      notes: normalizedNotes,
+      tags: normalizedTags,
+      type: normalizedUrl ? "link" : undefined,
+      url: normalizedUrl,
+    };
 
-      const cardId = await createCardForUserHandler(ctx, args.userId, {
-        content,
-        type: "link",
-        url: content,
-      });
-      return { status: "created" as const, cardId };
-    }
+    const cardId = await createCardForUserHandler(ctx, args.userId, createArgs);
+    const card = await getCardForUserHandler(ctx, args.userId, cardId);
 
-    const cardId = await createCardForUserHandler(ctx, args.userId, {
-      content,
-      type: "text",
-    });
-    return { status: "created" as const, cardId };
+    return {
+      status: "created" as const,
+      card: card ?? undefined,
+      cardId,
+    };
   },
 });
 
 export const searchCardsForUser = internalQuery({
-  args: {
-    userId: v.string(),
-    searchQuery: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
+  args: searchArgs,
   returns: v.array(cardReturnValidator),
   handler: async (ctx, args) => {
     return getCardsForUser(ctx, args.userId, {
-      searchQuery: args.searchQuery,
-      favoritesOnly: false,
+      createdAfter: args.createdAfter,
+      createdBefore: args.createdBefore,
+      favoritesOnly: Boolean(args.favoritesOnly),
       limit: args.limit,
+      searchQuery: args.searchQuery,
+      sort: args.sort,
+      tag: args.tag,
+      type: args.type,
     });
   },
 });
 
 export const favoriteCardsForUser = internalQuery({
-  args: {
-    userId: v.string(),
-    searchQuery: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
+  args: searchArgs,
   returns: v.array(cardReturnValidator),
   handler: async (ctx, args) => {
     return getCardsForUser(ctx, args.userId, {
-      searchQuery: args.searchQuery,
+      createdAfter: args.createdAfter,
+      createdBefore: args.createdBefore,
       favoritesOnly: true,
       limit: args.limit,
+      searchQuery: args.searchQuery,
+      sort: args.sort,
+      tag: args.tag,
+      type: args.type,
     });
   },
 });
@@ -335,6 +576,14 @@ export const resolveCardIdForUserRequest = internalQuery({
   returns: v.union(v.id("cards"), v.null()),
   handler: async (ctx, args) => {
     return ctx.db.normalizeId("cards", args.cardId);
+  },
+});
+
+export const getCardForUser = internalQuery({
+  args: cardReferenceArgs,
+  returns: v.union(v.null(), cardReturnValidator),
+  handler: async (ctx, args) => {
+    return getCardForUserHandler(ctx, args.userId, args.cardId);
   },
 });
 

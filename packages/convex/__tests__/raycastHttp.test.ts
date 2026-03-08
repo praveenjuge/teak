@@ -192,9 +192,9 @@ describe("raycastHttp", () => {
     expect(payload.code).toBe("INVALID_INPUT");
   });
 
-  test("quickSave returns duplicate/create payload", async () => {
+  test("quickSave returns created payload", async () => {
     const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
-      status: "duplicate",
+      status: "created",
       cardId: "card_1",
     });
 
@@ -213,7 +213,11 @@ describe("raycastHttp", () => {
 
     expect(response.status).toBe(200);
     const payload = await response.json();
-    expect(payload).toEqual({ status: "duplicate", cardId: "card_1" });
+    expect(payload).toEqual({
+      appUrl: "https://app.teakvault.com/?card=card_1",
+      cardId: "card_1",
+      status: "created",
+    });
   });
 
   test("quickSave maps ConvexError payload to stable code", async () => {
@@ -361,8 +365,9 @@ describe("raycastHttp", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      status: "created",
+      appUrl: "https://app.teakvault.com/?card=card_9",
       cardId: "card_9",
+      status: "created",
     });
   });
 

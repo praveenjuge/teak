@@ -4,6 +4,19 @@ import { httpAction } from "./_generated/server";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
+const APP_PROD_URL = "https://app.teakvault.com";
+const APP_DEV_URL = "http://localhost:3000";
+const CARD_TYPES = new Set([
+  "text",
+  "link",
+  "image",
+  "video",
+  "audio",
+  "document",
+  "palette",
+  "quote",
+]);
+const CARD_SORTS = new Set(["newest", "oldest"]);
 
 type ErrorCode =
   | "BAD_REQUEST"
@@ -22,13 +35,30 @@ type AuthorizedUser = {
 };
 
 type AuthResult = { validated: AuthorizedUser } | { error: Response };
+type CardsQueryOptions = {
+  createdAfter?: number;
+  createdBefore?: number;
+  favoritesOnly: boolean;
+  limit: number;
+  searchQuery?: string;
+  sort?: "newest" | "oldest";
+  tag?: string;
+  type?: string;
+};
+type CreateCardPayload = {
+  content?: string;
+  notes?: string | null;
+  source?: string;
+  tags?: string[];
+  url?: string;
+};
 
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), {
     status,
     headers: {
-      "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
     },
   });
 
@@ -172,24 +202,38 @@ const withAuthorizedUser = async (
   return { validated };
 };
 
-const serializeCard = (card: any) => ({
-  id: card._id,
-  type: card.type,
-  content: card.content,
-  notes: card.notes ?? null,
-  url: card.url ?? null,
-  tags: card.tags ?? [],
-  aiTags: card.aiTags ?? [],
+const getAppBaseUrl = (requestUrl: string): string => {
+  const { hostname } = new URL(requestUrl);
+  return hostname === "localhost" || hostname === "127.0.0.1"
+    ? APP_DEV_URL
+    : APP_PROD_URL;
+};
+
+const getCardAppUrl = (requestUrl: string, cardId: string): string => {
+  const appUrl = new URL(getAppBaseUrl(requestUrl));
+  appUrl.searchParams.set("card", cardId);
+  return appUrl.toString();
+};
+
+const serializeCard = (card: any, requestUrl: string) => ({
   aiSummary: card.aiSummary ?? null,
-  isFavorited: Boolean(card.isFavorited),
+  aiTags: card.aiTags ?? [],
+  appUrl: getCardAppUrl(requestUrl, card._id),
+  content: card.content,
   createdAt: card.createdAt,
-  updatedAt: card.updatedAt,
   fileUrl: card.fileUrl ?? null,
-  thumbnailUrl: card.thumbnailUrl ?? null,
-  screenshotUrl: card.screenshotUrl ?? null,
+  id: card._id,
+  isFavorited: Boolean(card.isFavorited),
   linkPreviewImageUrl: card.linkPreviewImageUrl ?? null,
-  metadataTitle: card.metadataTitle ?? null,
   metadataDescription: card.metadataDescription ?? null,
+  metadataTitle: card.metadataTitle ?? null,
+  notes: card.notes ?? null,
+  screenshotUrl: card.screenshotUrl ?? null,
+  tags: card.tags ?? [],
+  thumbnailUrl: card.thumbnailUrl ?? null,
+  type: card.type,
+  updatedAt: card.updatedAt,
+  url: card.url ?? null,
 });
 
 const mapConvexErrorToResponse = (
@@ -218,7 +262,200 @@ const mapConvexErrorToResponse = (
   return errorResponse(500, "INTERNAL_ERROR", fallbackMessage);
 };
 
-const handleQuickSaveRequest = async (
+const parseOptionalString = (value: unknown): string | undefined => {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+};
+
+const parseOptionalNullableString = (
+  value: unknown
+): string | null | undefined => {
+  if (value === null) {
+    return null;
+  }
+
+  return parseOptionalString(value);
+};
+
+const parseStringArray = (value: unknown): string[] | undefined => {
+  if (
+    !(Array.isArray(value) && value.every((entry) => typeof entry === "string"))
+  ) {
+    return undefined;
+  }
+
+  const normalized = Array.from(
+    new Set(value.map((entry) => entry.trim()).filter(Boolean))
+  );
+
+  return normalized.length > 0 ? normalized : [];
+};
+
+const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const source = payload as Record<string, unknown>;
+  const allowedKeys = new Set(["content", "notes", "source", "tags", "url"]);
+
+  for (const key of Object.keys(source)) {
+    if (!allowedKeys.has(key)) {
+      return null;
+    }
+  }
+
+  const content = parseOptionalString(source.content);
+  const url = parseOptionalString(source.url);
+  const notes = parseOptionalNullableString(source.notes);
+  const sourceValue = parseOptionalString(source.source);
+  const tags =
+    source.tags === undefined ? undefined : parseStringArray(source.tags);
+
+  if (source.tags !== undefined && tags === undefined) {
+    return null;
+  }
+
+  if (
+    source.notes !== undefined &&
+    !(typeof source.notes === "string" || source.notes === null)
+  ) {
+    return null;
+  }
+
+  if (!(content || url)) {
+    return null;
+  }
+
+  return {
+    content,
+    notes,
+    source: sourceValue,
+    tags,
+    url,
+  };
+};
+
+const parseBooleanQuery = (value: string | null): boolean | undefined => {
+  if (!value) {
+    return undefined;
+  }
+
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  return undefined;
+};
+
+const parseTimestampQuery = (value: string | null): number | undefined => {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+};
+
+const parseCardsQueryOptions = (
+  request: Request,
+  favoritesOnly: boolean
+): CardsQueryOptions | Response => {
+  const { searchParams } = new URL(request.url);
+  const query = parseOptionalString(searchParams.get("q"));
+  const type = parseOptionalString(searchParams.get("type"));
+  const tag = parseOptionalString(searchParams.get("tag"));
+  const sort = parseOptionalString(searchParams.get("sort"));
+  const createdAfter = parseTimestampQuery(searchParams.get("createdAfter"));
+  const createdBefore = parseTimestampQuery(searchParams.get("createdBefore"));
+  const favorited = parseBooleanQuery(searchParams.get("favorited"));
+
+  if (type && !CARD_TYPES.has(type)) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `type` is invalid"
+    );
+  }
+
+  if (sort && !CARD_SORTS.has(sort)) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `sort` must be `newest` or `oldest`"
+    );
+  }
+
+  if (createdAfter !== undefined && Number.isNaN(createdAfter)) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `createdAfter` must be a number"
+    );
+  }
+
+  if (createdBefore !== undefined && Number.isNaN(createdBefore)) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `createdBefore` must be a number"
+    );
+  }
+
+  if (
+    createdAfter !== undefined &&
+    createdBefore !== undefined &&
+    createdAfter > createdBefore
+  ) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "`createdAfter` must be less than or equal to `createdBefore`"
+    );
+  }
+
+  if (searchParams.has("favorited") && favorited === undefined) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `favorited` must be `true` or `false`"
+    );
+  }
+
+  return {
+    createdAfter,
+    createdBefore,
+    favoritesOnly: favoritesOnly || favorited === true,
+    limit: parseLimit(searchParams.get("limit")),
+    searchQuery: query,
+    sort: sort as CardsQueryOptions["sort"] | undefined,
+    tag,
+    type,
+  };
+};
+
+const buildCreateCardResponse = (
+  result: { card?: any; cardId: string; status: "created" },
+  requestUrl: string
+) => {
+  const card = result.card ? serializeCard(result.card, requestUrl) : undefined;
+  return {
+    appUrl: getCardAppUrl(requestUrl, result.cardId),
+    card,
+    cardId: result.cardId,
+    status: result.status,
+  };
+};
+
+const handleCreateCardRequest = async (
   ctx: any,
   request: Request
 ): Promise<Response> => {
@@ -234,16 +471,12 @@ const handleQuickSaveRequest = async (
     return errorResponse(400, "BAD_REQUEST", "Invalid JSON body");
   }
 
-  const content =
-    payload && typeof payload === "object" && "content" in payload
-      ? (payload as { content?: unknown }).content
-      : undefined;
-
-  if (typeof content !== "string" || !content.trim()) {
+  const createPayload = validateCreatePayload(payload);
+  if (!createPayload) {
     return errorResponse(
       400,
       "INVALID_INPUT",
-      "Field `content` must be a non-empty string"
+      "Body must include `content` or `url` and only valid fields: content, url, notes, tags, source"
     );
   }
 
@@ -251,12 +484,16 @@ const handleQuickSaveRequest = async (
     const result = await ctx.runMutation(
       (internal as any).raycast.quickSaveForUser,
       {
+        content: createPayload.content,
+        notes: createPayload.notes === null ? undefined : createPayload.notes,
+        source: createPayload.source,
+        tags: createPayload.tags,
+        url: createPayload.url,
         userId: auth.validated.userId,
-        content,
       }
     );
 
-    return json(200, result);
+    return json(200, buildCreateCardResponse(result, request.url));
   } catch (error) {
     return mapConvexErrorToResponse(error, "Failed to save card");
   }
@@ -272,9 +509,10 @@ const handleCardsQueryRequest = async (
     return auth.error;
   }
 
-  const { searchParams } = new URL(request.url);
-  const query = searchParams.get("q") ?? undefined;
-  const limit = parseLimit(searchParams.get("limit"));
+  const options = parseCardsQueryOptions(request, favoritesOnly);
+  if (options instanceof Response) {
+    return options;
+  }
 
   try {
     const cards = await ctx.runQuery(
@@ -282,14 +520,13 @@ const handleCardsQueryRequest = async (
         ? (internal as any).raycast.favoriteCardsForUser
         : (internal as any).raycast.searchCardsForUser,
       {
+        ...options,
         userId: auth.validated.userId,
-        searchQuery: query,
-        limit,
       }
     );
 
     return json(200, {
-      items: cards.map(serializeCard),
+      items: cards.map((card: any) => serializeCard(card, request.url)),
       total: cards.length,
     });
   } catch {
@@ -305,7 +542,7 @@ const parseCardRoute = (
   request: Request
 ): {
   cardId: string;
-  operation: "patch" | "delete" | "favorite";
+  operation: "delete" | "favorite" | "get" | "patch";
 } | null => {
   const { pathname } = new URL(request.url);
   const segments = pathname.split("/").filter(Boolean);
@@ -317,6 +554,10 @@ const parseCardRoute = (
   const cardId = segments[2];
   if (!cardId) {
     return null;
+  }
+
+  if (request.method === "GET" && segments.length === 3) {
+    return { cardId, operation: "get" };
   }
 
   if (request.method === "DELETE" && segments.length === 3) {
@@ -352,9 +593,9 @@ const ensureCardExistsForUser = async (
   userId: string,
   cardId: string
 ): Promise<any | null> => {
-  return ctx.runQuery((internal as any)["card/getCard"].getCardForUser, {
-    userId,
+  return ctx.runQuery((internal as any).raycast.getCardForUser, {
     cardId,
+    userId,
   });
 };
 
@@ -390,33 +631,30 @@ const validatePatchPayload = (
     if (typeof source.content !== "string" || !source.content.trim()) {
       return null;
     }
-    next.content = source.content;
+    next.content = source.content.trim();
   }
 
   if ("url" in source) {
     if (typeof source.url !== "string" || !source.url.trim()) {
       return null;
     }
-    next.url = source.url;
+    next.url = source.url.trim();
   }
 
   if ("notes" in source) {
     if (!(typeof source.notes === "string" || source.notes === null)) {
       return null;
     }
-    next.notes = source.notes;
+    next.notes =
+      typeof source.notes === "string" ? source.notes.trim() || null : null;
   }
 
   if ("tags" in source) {
-    if (
-      !(
-        Array.isArray(source.tags) &&
-        source.tags.every((tag) => typeof tag === "string")
-      )
-    ) {
+    const tags = parseStringArray(source.tags);
+    if (tags === undefined) {
       return null;
     }
-    next.tags = source.tags;
+    next.tags = tags;
   }
 
   if (Object.keys(next).length === 0) {
@@ -473,11 +711,15 @@ const handleCardsByIdV1Request = async (
     return errorResponse(404, "NOT_FOUND", "Card not found");
   }
 
+  if (route.operation === "get") {
+    return json(200, serializeCard(currentCard, request.url));
+  }
+
   if (route.operation === "delete") {
     try {
       await ctx.runMutation((internal as any).raycast.softDeleteCardForUser, {
-        userId: auth.validated.userId,
         cardId: normalizedCardId,
+        userId: auth.validated.userId,
       });
       return new Response(null, {
         status: 204,
@@ -511,9 +753,9 @@ const handleCardsByIdV1Request = async (
       const updated = await ctx.runMutation(
         (internal as any).raycast.patchCardForUser,
         {
-          userId: auth.validated.userId,
-          cardId: normalizedCardId,
           ...patchPayload,
+          cardId: normalizedCardId,
+          userId: auth.validated.userId,
         }
       );
 
@@ -521,7 +763,7 @@ const handleCardsByIdV1Request = async (
         return errorResponse(404, "NOT_FOUND", "Card not found");
       }
 
-      return json(200, serializeCard(updated));
+      return json(200, serializeCard(updated, request.url));
     } catch (error) {
       return mapConvexErrorToResponse(error, "Failed to update card");
     }
@@ -540,9 +782,9 @@ const handleCardsByIdV1Request = async (
     const updated = await ctx.runMutation(
       (internal as any).raycast.setCardFavoriteForUser,
       {
-        userId: auth.validated.userId,
         cardId: normalizedCardId,
         isFavorited: favoritePayload.isFavorited,
+        userId: auth.validated.userId,
       }
     );
 
@@ -550,7 +792,7 @@ const handleCardsByIdV1Request = async (
       return errorResponse(404, "NOT_FOUND", "Card not found");
     }
 
-    return json(200, serializeCard(updated));
+    return json(200, serializeCard(updated, request.url));
   } catch (error) {
     return mapConvexErrorToResponse(error, "Failed to update favorite status");
   }
@@ -561,7 +803,7 @@ export const quickSave = httpAction(async (ctx, request) => {
     return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
   }
 
-  return handleQuickSaveRequest(ctx, request);
+  return handleCreateCardRequest(ctx, request);
 });
 
 export const searchCards = httpAction(async (ctx, request) => {
@@ -585,7 +827,7 @@ export const createCardV1 = httpAction(async (ctx, request) => {
     return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
   }
 
-  return handleQuickSaveRequest(ctx, request);
+  return handleCreateCardRequest(ctx, request);
 });
 
 export const searchCardsV1 = httpAction(async (ctx, request) => {
@@ -605,7 +847,13 @@ export const favoriteCardsV1 = httpAction(async (ctx, request) => {
 });
 
 export const cardByIdV1 = httpAction(async (ctx, request) => {
-  if (!(request.method === "PATCH" || request.method === "DELETE")) {
+  if (
+    !(
+      request.method === "DELETE" ||
+      request.method === "GET" ||
+      request.method === "PATCH"
+    )
+  ) {
     return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
   }
 
