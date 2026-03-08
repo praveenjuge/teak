@@ -1,4 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { cn } from "@teak/ui/lib/utils";
 import { toast } from "sonner";
 
 type CardWithUrls = Doc<"cards"> & {
@@ -10,8 +11,17 @@ interface ImagePreviewProps {
   card: CardWithUrls;
 }
 
+const TALL_IMAGE_RATIO = 1.5;
+
 export function ImagePreview({ card }: ImagePreviewProps) {
   const fileUrl = card.fileUrl;
+  const imageWidth = card.fileMetadata?.width;
+  const imageHeight = card.fileMetadata?.height;
+  const isTallImage =
+    typeof imageWidth === "number" &&
+    typeof imageHeight === "number" &&
+    imageWidth > 0 &&
+    imageHeight / imageWidth >= TALL_IMAGE_RATIO;
 
   const paletteColors = (card.colors ?? []).slice(0, 5);
 
@@ -30,14 +40,24 @@ export function ImagePreview({ card }: ImagePreviewProps) {
   }
 
   return (
-    <div className="flex h-full w-full items-center justify-center">
-      <div className="relative">
+    <div
+      className={cn(
+        "flex w-full justify-center",
+        isTallImage ? "min-h-full items-start" : "h-full items-center"
+      )}
+    >
+      <div className={cn("relative", isTallImage ? "w-full" : "max-w-full")}>
         <img
           alt={card.content || "Image"}
-          className="max-h-[75vh] max-w-full overflow-hidden"
-          height={card.fileMetadata?.height}
+          className={cn(
+            "block overflow-hidden",
+            isTallImage
+              ? "h-auto w-full object-contain"
+              : "max-h-[75vh] max-w-full object-contain"
+          )}
+          height={imageHeight}
           src={fileUrl}
-          width={card.fileMetadata?.width}
+          width={imageWidth}
         />
 
         {paletteColors.length > 0 && (
