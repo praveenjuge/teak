@@ -16,6 +16,7 @@ tools:
   bash:
     - "*"
 safe-outputs:
+  noop: false
   upload-asset:
   create-discussion:
     category: "audits"

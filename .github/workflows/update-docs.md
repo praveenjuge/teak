@@ -16,6 +16,7 @@ permissions: read-all
 network: defaults
 
 safe-outputs:
+  noop: false
   create-pull-request:
     draft: true
     labels: [automation, documentation]

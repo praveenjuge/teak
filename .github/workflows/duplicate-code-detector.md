@@ -12,6 +12,7 @@ engine: copilot
 tools:
   serena: ["go"]
 safe-outputs:
+  noop: false
   create-issue:
     expires: 2d
     title-prefix: "[duplicate-code] "

@@ -26,6 +26,7 @@ permissions:
 engine: copilot
 
 safe-outputs:
+  noop: false
   create-issue:
     expires: 2d
     max: 100  # 1 epic + vulnerability tasks

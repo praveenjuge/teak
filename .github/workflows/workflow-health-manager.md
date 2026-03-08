@@ -17,19 +17,14 @@ tools:
     file-glob: "**"
     max-file-size: 102400  # 100KB
 safe-outputs:
-  create-issue:
-    max: 10
-    expires: 1d
-    group: true
-    labels: [cookie]
-  add-comment:
-    max: 15
-  update-issue:
-    max: 5
+  noop: false
+  create-discussion:
+    category: "audits"
+    max: 1
+    fallback-to-issue: false
 timeout-minutes: 30
 imports:
   - shared/mood.md
-  - shared/reporting.md
 source: github/gh-aw/.github/workflows/workflow-health-manager.md@852cb06ad52958b402ed982b69957ffc57ca0619
 ---
 
@@ -292,31 +287,26 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
 
 ### Phase 5: Execution (2 minutes)
 
-11. **Create maintenance issues:**
-    - For P0/P1 workflows: Create detailed issue with:
-      - Workflow name and description
-      - Failure pattern and frequency
-      - Error messages and logs
-      - Suggested fixes
-      - Impact assessment
-    - Label with: `workflow-health`, `priority-{p0|p1|p2}`, `type-{failure|optimization|maintenance}`
+11. **Persist the health dashboard to repo memory only:**
+    - Write the canonical summary to `workflow-health-latest.md`
+    - Keep the file concise, current, and overwrite stale report content
+    - Include summary metrics, trends, warnings, and recommended next actions
 
-12. **Update existing issues:**
-    - If issue already exists for a workflow:
-      - Add comment with latest status
-      - Update priority if situation changed
-      - Close if issue is resolved
+12. **Coordinate via shared memory, not GitHub issues:**
+    - Update `shared-alerts.md` only when another orchestrator should react
+    - Reference severe regressions, systemic failures, or conflicts that affect multiple workflows
+    - Remove stale alerts when the underlying issue is resolved
 
-13. **Generate health report:**
-    - Create/update pinned issue with workflow health dashboard
-    - Include summary metrics and trends
-    - List top issues and recommendations
+13. **Do not create GitHub report artifacts:**
+    - Do not create or update GitHub issues, issue groups, comments, or discussions for routine health reporting
+    - Keep routine health tracking inside repo memory and the Actions run summary
+    - If a workflow is unhealthy, record the evidence and a concrete remediation recommendation in repo memory instead of opening a tracking issue
 
 ## Output Format
 
-### Workflow Health Dashboard Issue
+### Repo Memory Dashboard
 
-Create or update a pinned issue with this structure:
+Write `workflow-health-latest.md` with this structure:
 
 ```markdown
 # Workflow Health Dashboard - [DATE]
@@ -334,14 +324,14 @@ Create or update a pinned issue with this structure:
 - **Status:** Failing consistently (X/10 recent runs failed)
 - **Error:** Permission denied when accessing GitHub API
 - **Impact:** Unable to create issues for campaign tracking
-- **Action:** Issue #XXX created for investigation
+- **Action:** Recommend specific remediation in the workflow source or configuration
 - **Priority:** P0
 
 ### Workflow Name 2 (Score: XX/100)
 - **Status:** Timeout on every run
 - **Error:** Operation exceeds 10 minute timeout
 - **Impact:** Campaign metrics not being updated
-- **Action:** Issue #XXX created with optimization suggestions
+- **Action:** Recommend a concrete timeout, scheduling, or implementation fix
 - **Priority:** P1
 
 ## Warnings ⚠️
@@ -349,12 +339,12 @@ Create or update a pinned issue with this structure:
 ### Workflow Name 3 (Score: XX/100)
 - **Issue:** Compilation warnings about deprecated syntax
 - **Recommendation:** Update to use new safe-outputs format
-- **Action:** Issue #XXX created with migration guide
+- **Action:** Record the migration guidance directly in this file
 
 ### Workflow Name 4 (Score: XX/100)
 - **Issue:** High resource usage (15 min average run time)
 - **Recommendation:** Consider splitting into smaller workflows
-- **Action:** Tracked for future optimization
+- **Action:** Track for future optimization in repo memory
 
 ## Healthy Workflows ✅
 
@@ -366,13 +356,13 @@ XXX workflows operating normally with no issues detected.
 - **Affected workflows:** XX workflows
 - **Pattern:** Workflows running simultaneously hitting rate limits
 - **Recommendation:** Stagger schedule times across workflows
-- **Action:** Issue #XXX created with scheduling optimization plan
+- **Action:** Add the scheduling optimization plan here and in `shared-alerts.md` if cross-workflow coordination is needed
 
 ### Issue: Deprecated Tool Versions
 - **Affected workflows:** XX workflows
 - **Pattern:** Using MCP tools with outdated versions
 - **Recommendation:** Update to latest MCP server versions
-- **Action:** Issue #XXX created with upgrade plan
+- **Action:** Add the upgrade plan here
 
 ## Recommendations
 
@@ -400,15 +390,16 @@ XXX workflows operating normally with no issues detected.
 
 ## Actions Taken This Run
 
-- Created X new issues for critical workflows
-- Updated X existing issues with status
-- Closed X resolved issues
+- Updated `workflow-health-latest.md`
+- Updated `shared-alerts.md` if cross-workflow coordination was needed
 - Recommended X optimizations
 
 ---
 > Last updated: [TIMESTAMP]
 > Next check: [TIMESTAMP]
 ```
+
+Do not create or update GitHub issues, issue groups, or comments as part of this workflow unless a future repository-specific instruction explicitly re-enables them.
 
 ## Important Guidelines
 
@@ -420,8 +411,8 @@ XXX workflows operating normally with no issues detected.
 
 **Evidence-based assessment:**
 - Base health scores on concrete metrics (run success rate, error patterns)
-- Cite specific workflow runs when reporting issues
-- Include error messages and logs in issue reports
+- Cite specific workflow runs when recording findings in repo memory
+- Include error messages and logs in the repo-memory dashboard
 - Compare current state with historical data
 
 **Actionable recommendations:**
@@ -436,11 +427,10 @@ XXX workflows operating normally with no issues detected.
 - Address systemic issues affecting multiple workflows first
 - Balance urgent fixes with long-term improvements
 
-**Issue hygiene:**
-- Don't create duplicate issues for the same workflow
-- Update existing issues rather than creating new ones
-- Close issues when workflows are fixed
-- Use consistent labels for tracking and filtering
+**Noise control:**
+- Keep workflow health reporting out of the GitHub Issues list
+- Prefer repo memory for longitudinal tracking and coordination
+- Avoid generating routine status artifacts outside the workflow run itself
 
 ## Success Metrics
 

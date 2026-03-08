@@ -70,6 +70,7 @@ tools:
 
 # Safe outputs configuration
 safe-outputs:
+  noop: false
   create-pull-request:
     expires: 2d
     title-prefix: "[docs] "

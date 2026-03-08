@@ -29,7 +29,7 @@
 #
 # Source: githubnext/agentics/workflows/update-docs.md@b466f28f0f65b68d6f2b10b15b44f51d787b93be
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3eb92d2120ba8d872aa367c9632e90322f39c376de5375f6c5b91344d4a3bff3","compiler_version":"v0.53.2"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"5d7d8a443270d3eadbb96f433b800c1907653903dc8154499f9b3a3230b37400","compiler_version":"v0.53.2"}
 
 name: "Update Docs"
 "on":
@@ -134,7 +134,7 @@ jobs:
           cat "/opt/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
-          Tools: create_pull_request, missing_tool, missing_data, noop
+          Tools: create_pull_request, missing_tool, missing_data
           GH_AW_PROMPT_EOF
           cat "/opt/gh-aw/prompts/safe_outputs_create_pull_request.md"
           cat << 'GH_AW_PROMPT_EOF'
@@ -324,7 +324,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"create_pull_request":{"draft":true,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"create_pull_request":{"draft":true,"max":1},"missing_data":{},"missing_tool":{}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
@@ -409,31 +409,6 @@ jobs:
                 "type": "object"
               },
               "name": "missing_tool"
-            },
-            {
-              "description": "Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "integrity": {
-                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
-                    "type": "string"
-                  },
-                  "message": {
-                    "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').",
-                    "type": "string"
-                  },
-                  "secrecy": {
-                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "message"
-                ],
-                "type": "object"
-              },
-              "name": "noop"
             },
             {
               "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
@@ -553,17 +528,6 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 128
-                }
-              }
-            },
-            "noop": {
-              "defaultMax": 1,
-              "fields": {
-                "message": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
                 }
               }
             }
@@ -967,7 +931,6 @@ jobs:
       issues: write
       pull-requests: write
     outputs:
-      noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
@@ -988,22 +951,6 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Process No-Op Messages
-        id: noop
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_NOOP_MAX: "1"
-          GH_AW_WORKFLOW_NAME: "Update Docs"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/update-docs.md@b466f28f0f65b68d6f2b10b15b44f51d787b93be"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/b466f28f0f65b68d6f2b10b15b44f51d787b93be/workflows/update-docs.md"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/noop.cjs');
-            await main();
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1054,8 +1001,6 @@ jobs:
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/b466f28f0f65b68d6f2b10b15b44f51d787b93be/workflows/update-docs.md"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_NOOP_MESSAGE: ${{ steps.noop.outputs.noop_message }}
-          GH_AW_NOOP_REPORT_AS_ISSUE: "false"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

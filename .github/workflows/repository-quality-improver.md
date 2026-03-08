@@ -21,6 +21,7 @@ tools:
     toolsets:
       - default
 safe-outputs:
+  noop: false
   create-discussion:
     category: "audits"
     max: 1

@@ -22,6 +22,7 @@ network:
     - github
 
 safe-outputs:
+  noop: false
   create-pull-request:
     expires: 1d
     title-prefix: "[docs] "
