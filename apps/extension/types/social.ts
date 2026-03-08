@@ -23,50 +23,51 @@ type InlineSaveHostRule = {
   permalinkPolicy: InlineSavePermalinkPolicy;
 };
 
-export const INLINE_SAVE_PLATFORM_RULES: Record<Platform, InlineSaveHostRule> = {
-  x: {
-    hosts: ["x.com"],
-    allowSubdomains: true,
-    buttonVariant: "overlay",
-    permalinkPolicy: "same-host",
-  },
-  instagram: {
-    hosts: ["instagram.com"],
-    allowSubdomains: true,
-    buttonVariant: "overlay",
-    permalinkPolicy: "same-host",
-  },
-  pinterest: {
-    hosts: ["pinterest.com"],
-    allowSubdomains: true,
-    buttonVariant: "overlay",
-    permalinkPolicy: "same-host",
-  },
-  hackernews: {
-    hosts: ["news.ycombinator.com"],
-    allowSubdomains: false,
-    buttonVariant: "compact",
-    permalinkPolicy: "external-http",
-  },
-  sidebar: {
-    hosts: ["sidebar.io"],
-    allowSubdomains: true,
-    buttonVariant: "compact",
-    permalinkPolicy: "external-http",
-  },
-  webdesignernews: {
-    hosts: ["webdesignernews.com"],
-    allowSubdomains: true,
-    buttonVariant: "compact",
-    permalinkPolicy: "external-http",
-  },
-  heydesigner: {
-    hosts: ["heydesigner.com"],
-    allowSubdomains: true,
-    buttonVariant: "compact",
-    permalinkPolicy: "external-http",
-  },
-} as const;
+export const INLINE_SAVE_PLATFORM_RULES: Record<Platform, InlineSaveHostRule> =
+  {
+    x: {
+      hosts: ["x.com"],
+      allowSubdomains: true,
+      buttonVariant: "overlay",
+      permalinkPolicy: "same-host",
+    },
+    instagram: {
+      hosts: ["instagram.com"],
+      allowSubdomains: true,
+      buttonVariant: "overlay",
+      permalinkPolicy: "same-host",
+    },
+    pinterest: {
+      hosts: ["pinterest.com"],
+      allowSubdomains: true,
+      buttonVariant: "overlay",
+      permalinkPolicy: "same-host",
+    },
+    hackernews: {
+      hosts: ["news.ycombinator.com"],
+      allowSubdomains: false,
+      buttonVariant: "compact",
+      permalinkPolicy: "external-http",
+    },
+    sidebar: {
+      hosts: ["sidebar.io"],
+      allowSubdomains: true,
+      buttonVariant: "compact",
+      permalinkPolicy: "external-http",
+    },
+    webdesignernews: {
+      hosts: ["webdesignernews.com"],
+      allowSubdomains: true,
+      buttonVariant: "compact",
+      permalinkPolicy: "external-http",
+    },
+    heydesigner: {
+      hosts: ["heydesigner.com"],
+      allowSubdomains: true,
+      buttonVariant: "compact",
+      permalinkPolicy: "external-http",
+    },
+  } as const;
 
 const normalizeHost = (hostname: string): string =>
   hostname.trim().toLowerCase().replace(/\.$/u, "");
@@ -86,7 +87,8 @@ const matchesInlineSaveHostRule = (
 export const isPlatformInlineSaveHost = (
   platform: Platform,
   hostname: string
-): boolean => matchesInlineSaveHostRule(hostname, INLINE_SAVE_PLATFORM_RULES[platform]);
+): boolean =>
+  matchesInlineSaveHostRule(hostname, INLINE_SAVE_PLATFORM_RULES[platform]);
 
 export const getInlineSavePlatformRule = (
   platform: Platform
@@ -133,5 +135,7 @@ export const isInlineSavePermalinkAllowed = (
     return !isPlatformInlineSaveHost(platform, parsedPermalink.hostname);
   }
 
-  return normalizeHost(pageUrl.hostname) === normalizeHost(parsedPermalink.hostname);
+  return (
+    normalizeHost(pageUrl.hostname) === normalizeHost(parsedPermalink.hostname)
+  );
 };

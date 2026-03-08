@@ -1,13 +1,13 @@
 // @ts-nocheck
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
-  extractHeyDesignerPost,
-  findHeyDesignerPosts,
-} from "../../entrypoints/content/platforms/heydesigner";
-import {
   extractHackerNewsPost,
   findHackerNewsPosts,
 } from "../../entrypoints/content/platforms/hackernews";
+import {
+  extractHeyDesignerPost,
+  findHeyDesignerPosts,
+} from "../../entrypoints/content/platforms/heydesigner";
 import {
   extractInstagramPost,
   findInstagramPosts,
@@ -165,7 +165,9 @@ describe("social platform extractors", () => {
   test("skips Sidebar rows without a valid outbound article URL", () => {
     setWindowOrigin("https://sidebar.io");
 
-    const post = createPost([createAnchor("https://sidebar.io/out?url=mailto:test@example.com")]);
+    const post = createPost([
+      createAnchor("https://sidebar.io/out?url=mailto:test@example.com"),
+    ]);
 
     expect(extractSidebarPost(post)).toBeNull();
   });
@@ -174,7 +176,9 @@ describe("social platform extractors", () => {
     setWindowOrigin("https://www.webdesignernews.com");
 
     const post = createQuerySelectorPost(
-      createAnchor("https://example.com/story/?utm_source=feed&utm_medium=rss#summary")
+      createAnchor(
+        "https://example.com/story/?utm_source=feed&utm_medium=rss#summary"
+      )
     );
     const extracted = extractWebDesignerNewsPost(post);
 
@@ -290,7 +294,9 @@ describe("social platform extractors", () => {
     const root = { querySelectorAll } as unknown as ParentNode;
 
     expect(findHeyDesignerPosts(root).length).toBe(2);
-    expect(querySelectorAll).toHaveBeenCalledWith("main article > section > ul > li");
+    expect(querySelectorAll).toHaveBeenCalledWith(
+      "main article > section > ul > li"
+    );
   });
 
   test("findPinterestPosts delegates to expected selector", () => {

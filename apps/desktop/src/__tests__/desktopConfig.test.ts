@@ -37,7 +37,9 @@ describe("desktop config", () => {
     });
 
     expect(config.webBaseUrl).toBe("https://app.example.com");
-    expect(config.buildWebUrl("/settings")).toBe("https://app.example.com/settings");
+    expect(config.buildWebUrl("/settings")).toBe(
+      "https://app.example.com/settings"
+    );
     expect(config.convexSiteBaseUrl).toBe("https://teak.example.com");
     expect(config.convexUrl).toBe("https://happy-animal-123.convex.cloud");
   });

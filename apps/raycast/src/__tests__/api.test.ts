@@ -11,7 +11,7 @@ import {
 describe("raycast api helpers", () => {
   test("buildCardsSearchParams trims and encodes query params", () => {
     expect(buildCardsSearchParams("  design systems  ", 50)).toBe(
-      "q=design+systems&limit=50",
+      "q=design+systems&limit=50"
     );
   });
 
@@ -27,11 +27,11 @@ describe("raycast api helpers", () => {
 
   test("toErrorCode falls back for unknown values", () => {
     expect(toErrorCode("INVALID_API_KEY", "REQUEST_FAILED")).toBe(
-      "INVALID_API_KEY",
+      "INVALID_API_KEY"
     );
     expect(toErrorCode("NOT_FOUND", "REQUEST_FAILED")).toBe("NOT_FOUND");
     expect(toErrorCode("SOMETHING_ELSE", "REQUEST_FAILED")).toBe(
-      "REQUEST_FAILED",
+      "REQUEST_FAILED"
     );
   });
 
@@ -55,7 +55,7 @@ describe("raycast api helpers", () => {
 
   test("handles unknown error values", () => {
     expect(getUserFacingErrorMessage(null)).toContain(
-      "temporarily unavailable",
+      "temporarily unavailable"
     );
   });
 });

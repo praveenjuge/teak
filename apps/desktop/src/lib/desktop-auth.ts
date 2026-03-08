@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
-import {
-  buildWebUrl,
-  getDesktopConfig,
-} from "@/lib/desktop-config";
+import { buildWebUrl, getDesktopConfig } from "@/lib/desktop-config";
 import { readStoreValue, writeStoreValue } from "@/lib/store";
 
 const SESSION_TOKEN_KEY = "auth.sessionToken";

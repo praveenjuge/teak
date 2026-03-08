@@ -38,7 +38,7 @@ const sampleCard = {
 
 const createCardsResponse = (
   status = 200,
-  body: Record<string, unknown> = {},
+  body: Record<string, unknown> = {}
 ) => {
   const payload =
     status === 200 && Object.keys(body).length === 0
@@ -77,7 +77,7 @@ describe("raycast request handling", () => {
       async (_input: RequestInfo | URL, init?: RequestInit) => {
         capturedHeaders = new Headers(init?.headers);
         return createCardsResponse();
-      },
+      }
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
@@ -106,7 +106,7 @@ describe("raycast request handling", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "NETWORK_ERROR",
+        "NETWORK_ERROR"
       );
     }
   });
@@ -128,14 +128,14 @@ describe("raycast request handling", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "NETWORK_ERROR",
+        "NETWORK_ERROR"
       );
     }
   });
 
   test("maps 401 responses to INVALID_API_KEY", async () => {
     globalThis.fetch = mock(async () =>
-      createCardsResponse(401),
+      createCardsResponse(401)
     ) as unknown as typeof fetch;
 
     try {
@@ -144,14 +144,14 @@ describe("raycast request handling", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "INVALID_API_KEY",
+        "INVALID_API_KEY"
       );
     }
   });
 
   test("maps 429 responses to RATE_LIMITED", async () => {
     globalThis.fetch = mock(async () =>
-      createCardsResponse(429),
+      createCardsResponse(429)
     ) as unknown as typeof fetch;
 
     try {
@@ -160,14 +160,14 @@ describe("raycast request handling", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "RATE_LIMITED",
+        "RATE_LIMITED"
       );
     }
   });
 
   test("maps 404 responses to NOT_FOUND", async () => {
     globalThis.fetch = mock(async () =>
-      createCardsResponse(404),
+      createCardsResponse(404)
     ) as unknown as typeof fetch;
 
     try {
@@ -176,7 +176,7 @@ describe("raycast request handling", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "NOT_FOUND",
+        "NOT_FOUND"
       );
     }
   });
@@ -195,7 +195,7 @@ describe("raycast request handling", () => {
           ...sampleCard,
           isFavorited: false,
         });
-      },
+      }
     ) as unknown as typeof fetch;
 
     const updated = await setCardFavorite("card_123", false);
@@ -215,7 +215,7 @@ describe("raycast request handling", () => {
         capturedUrl = String(input);
         capturedMethod = init?.method ?? null;
         return createEmptyResponse(204);
-      },
+      }
     ) as unknown as typeof fetch;
 
     await softDeleteCard("card_123");
@@ -235,7 +235,7 @@ describe("raycast request handling", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "MISSING_API_KEY",
+        "MISSING_API_KEY"
       );
     }
 

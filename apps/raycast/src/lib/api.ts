@@ -29,7 +29,7 @@ export type { RaycastCard } from "./apiParsers";
 
 const getErrorCodeFromResponse = (
   payloadCode: string | undefined,
-  status: number,
+  status: number
 ): RaycastApiErrorCode => {
   if (status === 401) {
     return toErrorCode(payloadCode, "INVALID_API_KEY");
@@ -84,7 +84,7 @@ const buildHeaders = (apiKey: string, initHeaders?: HeadersInit): Headers => {
 export const request = async <T>(
   path: string,
   parseResponse: (payload: unknown) => T,
-  init?: RequestInit,
+  init?: RequestInit
 ): Promise<T> => {
   const { apiKey } = getPreferences();
   const normalizedApiKey = apiKey?.trim();
@@ -136,12 +136,12 @@ export const request = async <T>(
 
   throw new RaycastApiError(
     getErrorCodeFromResponse(payloadCode, response.status),
-    response.status,
+    response.status
   );
 };
 
 export const quickSaveCard = async (
-  content: string,
+  content: string
 ): Promise<QuickSaveResponse> => {
   return request<QuickSaveResponse>("/cards", parseQuickSaveResponse, {
     method: "POST",
@@ -151,33 +151,33 @@ export const quickSaveCard = async (
 
 export const searchCards = async (
   query: string,
-  limit = DEFAULT_LIMIT,
+  limit = DEFAULT_LIMIT
 ): Promise<CardsResponse> => {
   return request<CardsResponse>(
     `/cards/search?${buildCardsSearchParams(query, limit)}`,
     parseCardsResponse,
     {
       method: "GET",
-    },
+    }
   );
 };
 
 export const getFavoriteCards = async (
   query: string,
-  limit = DEFAULT_LIMIT,
+  limit = DEFAULT_LIMIT
 ): Promise<CardsResponse> => {
   return request<CardsResponse>(
     `/cards/favorites?${buildCardsSearchParams(query, limit)}`,
     parseCardsResponse,
     {
       method: "GET",
-    },
+    }
   );
 };
 
 export const setCardFavorite = async (
   cardId: string,
-  isFavorited: boolean,
+  isFavorited: boolean
 ): Promise<RaycastCard> => {
   const normalizedCardId = cardId.trim();
   if (!normalizedCardId) {
@@ -190,7 +190,7 @@ export const setCardFavorite = async (
     {
       method: "PATCH",
       body: JSON.stringify({ isFavorited }),
-    },
+    }
   );
 };
 
@@ -205,6 +205,6 @@ export const softDeleteCard = async (cardId: string): Promise<void> => {
     () => undefined,
     {
       method: "DELETE",
-    },
+    }
   );
 };

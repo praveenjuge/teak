@@ -32,7 +32,8 @@ export const extractHackerNewsPost = (
     return null;
   }
 
-  const titleAnchor = postElement.querySelector<HTMLAnchorElement>(".titleline > a");
+  const titleAnchor =
+    postElement.querySelector<HTMLAnchorElement>(".titleline > a");
   const href = titleAnchor?.getAttribute("href");
   if (!href) {
     return null;

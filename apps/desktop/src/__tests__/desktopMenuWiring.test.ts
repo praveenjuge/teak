@@ -34,12 +34,14 @@ describe("desktop menu wiring", () => {
     expect(settingsSource).not.toContain('window.addEventListener("keydown"');
 
     expect(rustSource).toContain("const MENU_ACTIONS: [MenuAction; 5]");
-    expect(rustSource).toContain('event_name: Some(MENU_SETTINGS_EVENT)');
-    expect(rustSource).toContain('event_name: Some(MENU_CHECK_UPDATES_EVENT)');
-    expect(rustSource).toContain('event_name: Some(MENU_LOGOUT_EVENT)');
+    expect(rustSource).toContain("event_name: Some(MENU_SETTINGS_EVENT)");
+    expect(rustSource).toContain("event_name: Some(MENU_CHECK_UPDATES_EVENT)");
+    expect(rustSource).toContain("event_name: Some(MENU_LOGOUT_EVENT)");
     expect(rustSource).toContain(
       "native_handler: Some(NativeMenuHandler::CloseWindow)"
     );
-    expect(rustSource).toContain("native_handler: Some(NativeMenuHandler::Quit)");
+    expect(rustSource).toContain(
+      "native_handler: Some(NativeMenuHandler::Quit)"
+    );
   });
 });

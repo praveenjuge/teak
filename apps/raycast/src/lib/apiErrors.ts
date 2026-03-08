@@ -18,7 +18,7 @@ const KNOWN_ERROR_CODES = [
 export type RaycastApiErrorCode = (typeof KNOWN_ERROR_CODES)[number];
 
 const isKnownErrorCode = (
-  value: string | undefined,
+  value: string | undefined
 ): value is RaycastApiErrorCode => {
   return (
     Boolean(value) && KNOWN_ERROR_CODES.includes(value as RaycastApiErrorCode)
@@ -62,7 +62,7 @@ export const normalizeLimit = (limit?: number): number => {
 
 export const buildCardsSearchParams = (
   query: string,
-  limit = DEFAULT_LIMIT,
+  limit = DEFAULT_LIMIT
 ): string => {
   const search = new URLSearchParams();
   const trimmedQuery = query.trim();
@@ -77,7 +77,7 @@ export const buildCardsSearchParams = (
 
 export const toErrorCode = (
   payloadCode: string | undefined,
-  fallback: RaycastApiErrorCode,
+  fallback: RaycastApiErrorCode
 ): RaycastApiErrorCode => {
   return isKnownErrorCode(payloadCode) ? payloadCode : fallback;
 };
