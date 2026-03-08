@@ -35,13 +35,14 @@ Context menu saves are available on all standard web pages.
 
 ## Social Media Inline Save Buttons
 
-On **Instagram**, **Pinterest**, and **X (Twitter)**, Teak injects a save button directly into each post. You can save individual posts without leaving the feed.
+On **Instagram**, **Pinterest**, **X (Twitter)**, and **Hacker News**, Teak injects a save button directly into each post or story listing. You can save individual items without leaving the feed.
 
 | Platform | Supported content |
 |---|---|
 | [instagram.com](https://www.instagram.com) | Posts and Reels |
 | [pinterest.com](https://www.pinterest.com) | Pins |
 | [x.com](https://x.com) | Posts (tweets) |
+| [news.ycombinator.com](https://news.ycombinator.com) | Outbound story links (front page and listing pages) |
 
 Inline save buttons appear automatically once you are signed in to the extension. Each saved post is deduplicated — saving the same post twice will not create a duplicate card.
 
@@ -60,11 +61,12 @@ If you are not signed in, the popup shows **Login** and **Create Account** butto
 - Check that you are signed in at [app.teakvault.com](https://app.teakvault.com).
 - Reload the tab you are trying to save and try again.
 
-### Inline buttons do not appear on Instagram / Pinterest / X
+### Inline buttons do not appear on Instagram / Pinterest / X / Hacker News
 
 - Make sure you are signed in to the extension.
 - Reload the social media page. Buttons are injected after the page fully loads.
 - Verify the extension is enabled in `chrome://extensions`.
+- On Hacker News, inline save buttons only appear on story listing pages (front page, `/news`, `/ask`, `/show`, etc.) — they are not shown on individual item pages (`/item`).
 
 ### Still stuck?
 
