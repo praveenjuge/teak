@@ -31,7 +31,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"02e02cb1d3605d0f0cda3a0001dda5cfce153163e9d3de158423cb5ffad9e9c2","compiler_version":"v0.53.2"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"92da121b9386120c8ea209fec667d93bdb953c2c7682f2428b3abd89f810fcf6","compiler_version":"v0.53.2"}
 
 name: "Documentation Unbloat"
 "on":
@@ -335,21 +335,16 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
         with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: 'docs/package-lock.json'
-          package-manager-cache: false
+          bun-version: 1.3.5
       - name: Install dependencies
-        run: npm ci
-        working-directory: ./docs
+        run: bun install --frozen-lockfile
       - env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Build documentation
-        run: npm run build
-        working-directory: ./docs
+        run: bun run build --filter=@teak/docs
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -852,6 +847,7 @@ jobs:
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
         # --allow-tool safeoutputs
+        # --allow-tool shell(bun *)
         # --allow-tool shell(cat *)
         # --allow-tool shell(cat)
         # --allow-tool shell(cd *)
@@ -860,7 +856,7 @@ jobs:
         # --allow-tool shell(date)
         # --allow-tool shell(echo *)
         # --allow-tool shell(echo)
-        # --allow-tool shell(find docs/src/content/docs -name '*.md')
+        # --allow-tool shell(find apps/docs/content/docs -name '*.md' -o -name '*.mdx')
         # --allow-tool shell(git add:*)
         # --allow-tool shell(git branch:*)
         # --allow-tool shell(git checkout:*)
@@ -879,7 +875,6 @@ jobs:
         # --allow-tool shell(mkdir *)
         # --allow-tool shell(mv *)
         # --allow-tool shell(node *)
-        # --allow-tool shell(npm *)
         # --allow-tool shell(ps *)
         # --allow-tool shell(pwd)
         # --allow-tool shell(sleep *)
@@ -896,7 +891,7 @@ jobs:
           set -o pipefail
           # shellcheck disable=SC1003
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains "*.githubusercontent.com,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com" --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.23.0 --skip-pull --enable-api-proxy \
-            -- /bin/bash -c '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool '\''shell(cat *)'\'' --allow-tool '\''shell(cat)'\'' --allow-tool '\''shell(cd *)'\'' --allow-tool '\''shell(cp *)'\'' --allow-tool '\''shell(curl *)'\'' --allow-tool '\''shell(date)'\'' --allow-tool '\''shell(echo *)'\'' --allow-tool '\''shell(echo)'\'' --allow-tool '\''shell(find docs/src/content/docs -name '\''\'\'''\''*.md'\''\'\'''\'')'\'' --allow-tool '\''shell(git add:*)'\'' --allow-tool '\''shell(git branch:*)'\'' --allow-tool '\''shell(git checkout:*)'\'' --allow-tool '\''shell(git commit:*)'\'' --allow-tool '\''shell(git merge:*)'\'' --allow-tool '\''shell(git rm:*)'\'' --allow-tool '\''shell(git status)'\'' --allow-tool '\''shell(git switch:*)'\'' --allow-tool '\''shell(git:*)'\'' --allow-tool '\''shell(grep -n *)'\'' --allow-tool '\''shell(grep)'\'' --allow-tool '\''shell(head *)'\'' --allow-tool '\''shell(head)'\'' --allow-tool '\''shell(kill *)'\'' --allow-tool '\''shell(ls)'\'' --allow-tool '\''shell(mkdir *)'\'' --allow-tool '\''shell(mv *)'\'' --allow-tool '\''shell(node *)'\'' --allow-tool '\''shell(npm *)'\'' --allow-tool '\''shell(ps *)'\'' --allow-tool '\''shell(pwd)'\'' --allow-tool '\''shell(sleep *)'\'' --allow-tool '\''shell(sort)'\'' --allow-tool '\''shell(tail *)'\'' --allow-tool '\''shell(tail)'\'' --allow-tool '\''shell(uniq)'\'' --allow-tool '\''shell(wc -l *)'\'' --allow-tool '\''shell(wc)'\'' --allow-tool '\''shell(yq)'\'' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+            -- /bin/bash -c '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool '\''shell(bun *)'\'' --allow-tool '\''shell(cat *)'\'' --allow-tool '\''shell(cat)'\'' --allow-tool '\''shell(cd *)'\'' --allow-tool '\''shell(cp *)'\'' --allow-tool '\''shell(curl *)'\'' --allow-tool '\''shell(date)'\'' --allow-tool '\''shell(echo *)'\'' --allow-tool '\''shell(echo)'\'' --allow-tool '\''shell(find apps/docs/content/docs -name '\''\'\'''\''*.md'\''\'\'''\'' -o -name '\''\'\'''\''*.mdx'\''\'\'''\'')'\'' --allow-tool '\''shell(git add:*)'\'' --allow-tool '\''shell(git branch:*)'\'' --allow-tool '\''shell(git checkout:*)'\'' --allow-tool '\''shell(git commit:*)'\'' --allow-tool '\''shell(git merge:*)'\'' --allow-tool '\''shell(git rm:*)'\'' --allow-tool '\''shell(git status)'\'' --allow-tool '\''shell(git switch:*)'\'' --allow-tool '\''shell(git:*)'\'' --allow-tool '\''shell(grep -n *)'\'' --allow-tool '\''shell(grep)'\'' --allow-tool '\''shell(head *)'\'' --allow-tool '\''shell(head)'\'' --allow-tool '\''shell(kill *)'\'' --allow-tool '\''shell(ls)'\'' --allow-tool '\''shell(mkdir *)'\'' --allow-tool '\''shell(mv *)'\'' --allow-tool '\''shell(node *)'\'' --allow-tool '\''shell(ps *)'\'' --allow-tool '\''shell(pwd)'\'' --allow-tool '\''shell(sleep *)'\'' --allow-tool '\''shell(sort)'\'' --allow-tool '\''shell(tail *)'\'' --allow-tool '\''shell(tail)'\'' --allow-tool '\''shell(uniq)'\'' --allow-tool '\''shell(wc -l *)'\'' --allow-tool '\''shell(wc)'\'' --allow-tool '\''shell(yq)'\'' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

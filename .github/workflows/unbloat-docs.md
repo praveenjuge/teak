@@ -49,7 +49,7 @@ tools:
   playwright:
     args: ["--viewport-size", "1920x1080"]
   bash:
-    - "find docs/src/content/docs -name '*.md'"
+    - "find apps/docs/content/docs -name '*.md' -o -name '*.mdx'"
     - "wc -l *"
     - "grep -n *"
     - "git"
@@ -58,7 +58,7 @@ tools:
     - "tail *"
     - "cd *"
     - "node *"
-    - "npm *"
+    - "bun *"
     - "curl *"
     - "ps *"
     - "kill *"
@@ -97,22 +97,18 @@ steps:
     with:
       persist-credentials: false
 
-  - name: Setup Node.js
-    uses: actions/setup-node@v6
+  - name: Setup Bun
+    uses: oven-sh/setup-bun@v2
     with:
-      node-version: '24'
-      cache: 'npm'
-      cache-dependency-path: 'docs/package-lock.json'
+      bun-version: '1.3.5'
 
   - name: Install dependencies
-    working-directory: ./docs
-    run: npm ci
+    run: bun install --frozen-lockfile
 
   - name: Build documentation
-    working-directory: ./docs
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: npm run build
+    run: bun run build --filter=@teak/docs
 source: github/gh-aw/.github/workflows/unbloat-docs.md@852cb06ad52958b402ed982b69957ffc57ca0619
 ---
 
@@ -137,7 +133,7 @@ Documentation bloat includes:
 
 ## Your Task
 
-Analyze documentation files in the `docs/` directory and make targeted improvements:
+Analyze documentation files in the `apps/docs/content/docs/` directory and make targeted improvements:
 
 ### 1. Check Cache Memory for Previous Cleanups
 
@@ -151,17 +147,14 @@ This will help you avoid re-cleaning files that were recently processed.
 
 ### 2. Find Documentation Files
 
-Scan the `docs/` directory for markdown files, excluding code-generated files and blog posts:
+Scan the `apps/docs/content/docs/` directory for markdown files:
 ```bash
-find docs/src/content/docs -path 'docs/src/content/docs/blog' -prune -o -name '*.md' -type f ! -name 'frontmatter-full.md' -print
+find apps/docs/content/docs -type f \( -name '*.md' -o -name '*.mdx' \) -print
 ```
 
-**IMPORTANT**: Exclude these directories and files:
-- `docs/src/content/docs/blog/` - Blog posts have a different writing style and purpose
-- `frontmatter-full.md` - Automatically generated from the JSON schema by `scripts/generate-schema-docs.js` and should not be manually edited
-- **Files with `disable-agentic-editing: true` in frontmatter** - These files are protected from automated editing
+**IMPORTANT**: Exclude files with `disable-agentic-editing: true` in frontmatter.
 
-Focus on files that were recently modified or are in the `docs/src/content/docs/` directory (excluding blog).
+Focus on files that were recently modified or are in `apps/docs/content/docs/`.
 
 {{#if ${{ github.event.pull_request.number }}}}
 **Pull Request Context**: Since this workflow is running in the context of PR #${{ github.event.pull_request.number }}, prioritize reviewing the documentation files that were modified in this pull request. Use the GitHub API to get the list of changed files:
@@ -170,17 +163,14 @@ Focus on files that were recently modified or are in the `docs/src/content/docs/
 # Get PR file changes using the pull_request_read tool
 ```
 
-Focus on markdown files in the `docs/` directory that appear in the PR's changed files list.
+Focus on Markdown or MDX files in `apps/docs/content/docs/` that appear in the PR's changed files list.
 {{/if}}
 
 ### 3. Select ONE File to Improve
 
 **IMPORTANT**: Work on only **ONE file at a time** to keep changes small and reviewable.
 
-**NEVER select these directories or code-generated files**:
-- `docs/src/content/docs/blog/` - Blog posts have a different writing style and should not be unbloated
-- `docs/src/content/docs/reference/frontmatter-full.md` - Auto-generated from JSON schema
-- **Files with `disable-agentic-editing: true` in frontmatter** - These files are explicitly protected from automated editing
+**NEVER select files with `disable-agentic-editing: true` in frontmatter.**
 
 Before selecting a file, check its frontmatter to ensure it doesn't have `disable-agentic-editing: true`:
 ```bash
