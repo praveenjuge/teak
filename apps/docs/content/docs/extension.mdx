@@ -35,15 +35,23 @@ Context menu saves are available on all standard web pages.
 
 ## Social Media Inline Save Buttons
 
-On **Instagram**, **Pinterest**, and **X (Twitter)**, Teak injects a save button directly into each post. You can save individual posts without leaving the feed.
+On **Instagram**, **Pinterest**, **X (Twitter)**, and several design and tech news feeds, Teak injects a save button directly into each post or story. You can save individual posts without leaving the feed.
 
 | Platform | Supported content |
 |---|---|
 | [instagram.com](https://www.instagram.com) | Posts and Reels |
 | [pinterest.com](https://www.pinterest.com) | Pins |
-| [x.com](https://x.com) | Posts (tweets) |
+| [x.com](https://x.com) | Posts (tweets), including attached images and video |
+| [news.ycombinator.com](https://news.ycombinator.com) | Story links |
+| [sidebar.io](https://sidebar.io) | Article links |
+| [webdesignernews.com](https://www.webdesignernews.com) | Article links |
+| [heydesigner.com](https://heydesigner.com) | Article links |
 
 Inline save buttons appear automatically once you are signed in to the extension. Each saved post is deduplicated — saving the same post twice will not create a duplicate card.
+
+For design and tech news feeds, the extension resolves the real outbound article URL instead of the site's wrapper link, so the saved card points directly to the source.
+
+When you save an X (Twitter) post, Teak fetches the tweet's text and author metadata via the oEmbed API for reliable card details. Attached images are saved in order inside the card modal, and attached videos are saved and play inline below the link preview.
 
 ## Free Tier Limit
 
@@ -60,10 +68,10 @@ If you are not signed in, the popup shows **Login** and **Create Account** butto
 - Check that you are signed in at [app.teakvault.com](https://app.teakvault.com).
 - Reload the tab you are trying to save and try again.
 
-### Inline buttons do not appear on Instagram / Pinterest / X
+### Inline buttons do not appear on Instagram / Pinterest / X / news feeds
 
 - Make sure you are signed in to the extension.
-- Reload the social media page. Buttons are injected after the page fully loads.
+- Reload the page. Buttons are injected after the page fully loads.
 - Verify the extension is enabled in `chrome://extensions`.
 
 ### Still stuck?
