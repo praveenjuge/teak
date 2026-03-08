@@ -33,17 +33,21 @@ Right-click anywhere on a page to access quick-save actions:
 
 Context menu saves are available on all standard web pages.
 
-## Social Media Inline Save Buttons
+## Inline Save Buttons
 
-On **Instagram**, **Pinterest**, and **X (Twitter)**, Teak injects a save button directly into each post. You can save individual posts without leaving the feed.
+On supported sites, Teak injects a save button directly into each item. You can save individual posts or links without leaving the feed.
 
-| Platform | Supported content |
-|---|---|
-| [instagram.com](https://www.instagram.com) | Posts and Reels |
-| [pinterest.com](https://www.pinterest.com) | Pins |
-| [x.com](https://x.com) | Posts (tweets) |
+| Platform | URL | Supported content |
+|---|---|---|
+| Instagram | [instagram.com](https://www.instagram.com) | Posts and Reels |
+| Pinterest | [pinterest.com](https://www.pinterest.com) | Pins |
+| X (Twitter) | [x.com](https://x.com) | Posts (tweets) |
+| Hacker News | [news.ycombinator.com](https://news.ycombinator.com) | Story links (front page and listing pages) |
+| Sidebar | [sidebar.io](https://sidebar.io) | Article links |
+| Web Designer News | [webdesignernews.com](https://www.webdesignernews.com) | Article links |
+| HeyDesigner | [heydesigner.com](https://heydesigner.com) | Article links |
 
-Inline save buttons appear automatically once you are signed in to the extension. Each saved post is deduplicated — saving the same post twice will not create a duplicate card.
+Inline save buttons appear automatically once you are signed in to the extension. Each saved item is deduplicated — saving the same item twice will not create a duplicate card. For link aggregator sites (Hacker News, Sidebar, Web Designer News, HeyDesigner), Teak saves the real outbound article URL rather than the site's wrapper link.
 
 ## Free Tier Limit
 
@@ -60,10 +64,10 @@ If you are not signed in, the popup shows **Login** and **Create Account** butto
 - Check that you are signed in at [app.teakvault.com](https://app.teakvault.com).
 - Reload the tab you are trying to save and try again.
 
-### Inline buttons do not appear on Instagram / Pinterest / X
+### Inline buttons do not appear on Instagram / Pinterest / X / Hacker News / Sidebar / Web Designer News / HeyDesigner
 
 - Make sure you are signed in to the extension.
-- Reload the social media page. Buttons are injected after the page fully loads.
+- Reload the page. Buttons are injected after the page fully loads.
 - Verify the extension is enabled in `chrome://extensions`.
 
 ### Still stuck?
