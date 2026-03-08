@@ -39,4 +39,25 @@ describe("platformButtonLayout", () => {
       left: "auto",
     });
   });
+
+  test("keeps compact aggregator platforms aligned with Hacker News", () => {
+    expect(getInlineSaveButtonPosition("sidebar")).toEqual({
+      top: "8px",
+      right: "8px",
+      bottom: "auto",
+      left: "auto",
+    });
+    expect(getInlineSaveButtonPosition("webdesignernews")).toEqual({
+      top: "8px",
+      right: "8px",
+      bottom: "auto",
+      left: "auto",
+    });
+    expect(getInlineSaveButtonPosition("heydesigner")).toEqual({
+      top: "8px",
+      right: "8px",
+      bottom: "auto",
+      left: "auto",
+    });
+  });
 });

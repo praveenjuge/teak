@@ -33,6 +33,24 @@ const INLINE_SAVE_BUTTON_POSITIONS: Record<Platform, InlineSaveButtonPosition> =
       bottom: "auto",
       left: "auto",
     },
+    sidebar: {
+      top: "8px",
+      right: "8px",
+      bottom: "auto",
+      left: "auto",
+    },
+    webdesignernews: {
+      top: "8px",
+      right: "8px",
+      bottom: "auto",
+      left: "auto",
+    },
+    heydesigner: {
+      top: "8px",
+      right: "8px",
+      bottom: "auto",
+      left: "auto",
+    },
   };
 
 export const getInlineSaveButtonPosition = (

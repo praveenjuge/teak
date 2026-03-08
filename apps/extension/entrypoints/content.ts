@@ -5,6 +5,7 @@ import {
 } from "../types/messages";
 import {
   type ExtractedPost,
+  getInlineSaveButtonVariant,
   isPlatformInlineSaveHost,
   type Platform,
 } from "../types/social";
@@ -19,6 +20,10 @@ import {
   findHackerNewsPosts,
 } from "./content/platforms/hackernews";
 import {
+  extractHeyDesignerPost,
+  findHeyDesignerPosts,
+} from "./content/platforms/heydesigner";
+import {
   extractInstagramPost,
   findInstagramPosts,
 } from "./content/platforms/instagram";
@@ -26,6 +31,14 @@ import {
   extractPinterestPost,
   findPinterestPosts,
 } from "./content/platforms/pinterest";
+import {
+  extractSidebarPost,
+  findSidebarPosts,
+} from "./content/platforms/sidebar";
+import {
+  extractWebDesignerNewsPost,
+  findWebDesignerNewsPosts,
+} from "./content/platforms/webdesignernews";
 import { extractXPost, findXPosts } from "./content/platforms/x";
 
 export default defineContentScript({
@@ -131,9 +144,14 @@ export default defineContentScript({
 });
 
 type PlatformBinding = {
+  bindHoverScope?: (postElement: HTMLElement) => void;
   extractPost: (postElement: HTMLElement) => ExtractedPost | null;
   findPosts: (root: ParentNode) => HTMLElement[];
   hostMatches: (host: string) => boolean;
+  mountButton?: (
+    postElement: HTMLElement,
+    button: HTMLButtonElement
+  ) => boolean;
   platform: Platform;
 };
 
@@ -149,6 +167,16 @@ const PLATFORM_BINDINGS: PlatformBinding[] = [
     hostMatches: (host) => isPlatformInlineSaveHost("hackernews", host),
     findPosts: findHackerNewsPosts,
     extractPost: extractHackerNewsPost,
+    mountButton: (postElement, button) => {
+      const titleLine = postElement.querySelector<HTMLElement>(".titleline");
+      if (!titleLine) {
+        return false;
+      }
+
+      titleLine.append(button);
+      return true;
+    },
+    bindHoverScope: bindHackerNewsHoverState,
   },
   {
     platform: "instagram",
@@ -161,6 +189,45 @@ const PLATFORM_BINDINGS: PlatformBinding[] = [
     hostMatches: (host) => isPlatformInlineSaveHost("pinterest", host),
     findPosts: findPinterestPosts,
     extractPost: extractPinterestPost,
+  },
+  {
+    platform: "sidebar",
+    hostMatches: (host) => isPlatformInlineSaveHost("sidebar", host),
+    findPosts: findSidebarPosts,
+    extractPost: extractSidebarPost,
+    mountButton: (postElement, button) => {
+      const title = postElement.querySelector<HTMLElement>(".post-title");
+      if (!title) {
+        return false;
+      }
+
+      title.append(button);
+      return true;
+    },
+  },
+  {
+    platform: "webdesignernews",
+    hostMatches: (host) => isPlatformInlineSaveHost("webdesignernews", host),
+    findPosts: findWebDesignerNewsPosts,
+    extractPost: extractWebDesignerNewsPost,
+    mountButton: (postElement, button) => {
+      const title = postElement.querySelector<HTMLElement>(
+        ".single-post-text h3"
+      );
+      if (!title) {
+        return false;
+      }
+
+      title.append(button);
+      return true;
+    },
+  },
+  {
+    platform: "heydesigner",
+    hostMatches: (host) => isPlatformInlineSaveHost("heydesigner", host),
+    findPosts: findHeyDesignerPosts,
+    extractPost: extractHeyDesignerPost,
+    mountButton: (postElement, button) => (postElement.append(button), true),
   },
 ];
 
@@ -240,6 +307,10 @@ const injectStyleTag = () => {
     .teak-save-button .teak-brand-icon {
       height: 18px;
       width: 18px;
+      background-color: transparent;
+      padding: 0;
+      margin: 0;
+      top: 0;
     }
 
     .teak-save-button .teak-brand-icon svg {
@@ -274,7 +345,7 @@ const injectStyleTag = () => {
       animation: teak-spin 0.9s linear infinite;
     }
 
-    .teak-save-button--hackernews {
+    .teak-save-button--compact {
       position: static;
       height: 18px;
       width: 18px;
@@ -286,7 +357,7 @@ const injectStyleTag = () => {
       flex: 0 0 auto;
     }
 
-    .teak-save-button--hackernews[data-state="idle"] {
+    .teak-save-button--compact[data-state="idle"] {
       opacity: 0;
       pointer-events: none;
       transition:
@@ -295,20 +366,21 @@ const injectStyleTag = () => {
         background-color 0.15s ease;
     }
 
-    [data-teak-save-bound='1'].teak-hn-hovering .teak-save-button--hackernews[data-state="idle"],
-    [data-teak-save-bound='1']:focus-within .teak-save-button--hackernews[data-state="idle"],
-    .teak-save-button--hackernews[data-state="idle"]:focus-visible {
+    [data-teak-save-bound='1']:hover .teak-save-button--compact[data-state="idle"],
+    [data-teak-save-bound='1'].teak-hn-hovering .teak-save-button--compact[data-state="idle"],
+    [data-teak-save-bound='1']:focus-within .teak-save-button--compact[data-state="idle"],
+    .teak-save-button--compact[data-state="idle"]:focus-visible {
       opacity: 1;
       pointer-events: auto;
     }
 
-    .teak-save-button--hackernews .teak-brand-icon,
-    .teak-save-button--hackernews .teak-brand-icon svg {
+    .teak-save-button--compact .teak-brand-icon,
+    .teak-save-button--compact .teak-brand-icon svg {
       height: 12px;
       width: 12px;
     }
 
-    .teak-save-button--hackernews > svg {
+    .teak-save-button--compact > svg {
       height: 12px;
       width: 12px;
     }
@@ -369,14 +441,19 @@ const createSaveButton = (
   button.dataset.postKey = extractedPost.postKey;
   button.dataset.permalink = extractedPost.permalink;
   button.dataset.platform = extractedPost.platform;
-  if (extractedPost.platform === "hackernews") {
-    button.classList.add("teak-save-button--hackernews");
+  const buttonVariant = getInlineSaveButtonVariant(extractedPost.platform);
+  if (buttonVariant === "compact") {
+    button.classList.add("teak-save-button--compact");
+  } else {
+    const buttonPosition = getInlineSaveButtonPosition(extractedPost.platform);
+    button.style.setProperty("--teak-save-button-top", buttonPosition.top);
+    button.style.setProperty("--teak-save-button-right", buttonPosition.right);
+    button.style.setProperty(
+      "--teak-save-button-bottom",
+      buttonPosition.bottom
+    );
+    button.style.setProperty("--teak-save-button-left", buttonPosition.left);
   }
-  const buttonPosition = getInlineSaveButtonPosition(extractedPost.platform);
-  button.style.setProperty("--teak-save-button-top", buttonPosition.top);
-  button.style.setProperty("--teak-save-button-right", buttonPosition.right);
-  button.style.setProperty("--teak-save-button-bottom", buttonPosition.bottom);
-  button.style.setProperty("--teak-save-button-left", buttonPosition.left);
 
   if (savedPostKeys.has(extractedPost.postKey)) {
     setButtonState(button, "saved");
@@ -449,18 +526,7 @@ const handleButtonClick = async (
   }
 };
 
-const getButtonMountTarget = (
-  postElement: HTMLElement,
-  extractedPost: ExtractedPost
-): HTMLElement | null => {
-  if (extractedPost.platform === "hackernews") {
-    return postElement.querySelector<HTMLElement>(".titleline");
-  }
-
-  return postElement;
-};
-
-const bindHackerNewsHoverState = (postElement: HTMLElement) => {
+function bindHackerNewsHoverState(postElement: HTMLElement) {
   if (postElement.dataset.teakHoverScopeBound === "1") {
     return;
   }
@@ -503,7 +569,7 @@ const bindHackerNewsHoverState = (postElement: HTMLElement) => {
   }
 
   postElement.dataset.teakHoverScopeBound = "1";
-};
+}
 
 const scanAndInjectButtons = ({
   platformBinding,
@@ -523,17 +589,10 @@ const scanAndInjectButtons = ({
       continue;
     }
 
-    const mountTarget = getButtonMountTarget(postElement, extractedPost);
-    if (!mountTarget) {
-      continue;
-    }
-
-    if (extractedPost.platform === "hackernews") {
-      bindHackerNewsHoverState(postElement);
-    }
+    platformBinding.bindHoverScope?.(postElement);
 
     if (
-      mountTarget === postElement &&
+      getInlineSaveButtonVariant(extractedPost.platform) === "overlay" &&
       getComputedStyle(postElement).position === "static"
     ) {
       postElement.dataset.teakPositionManaged = "1";
@@ -546,7 +605,13 @@ const scanAndInjectButtons = ({
       void handleButtonClick(button, savedPostKeys);
     });
 
-    mountTarget.append(button);
+    const didMount =
+      platformBinding.mountButton?.(postElement, button) ??
+      (postElement.append(button), true);
+    if (!didMount) {
+      continue;
+    }
+
     postElement.dataset.teakSaveBound = "1";
   }
 };

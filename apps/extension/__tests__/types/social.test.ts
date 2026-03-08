@@ -2,6 +2,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  getInlineSaveButtonVariant,
   isInlineSavePermalinkAllowed,
   isPlatformInlineSaveHost,
   isSupportedInlineSaveHost,
@@ -40,6 +41,51 @@ describe("inline save platform rules", () => {
         "https://news.ycombinator.com/item?id=47295537"
       )
     ).toBe(false);
+  });
+
+  test("recognizes Sidebar, Web Designer News, and HeyDesigner hosts", () => {
+    expect(isSupportedInlineSaveHost("sidebar.io")).toBe(true);
+    expect(isSupportedInlineSaveHost("www.webdesignernews.com")).toBe(true);
+    expect(isSupportedInlineSaveHost("heydesigner.com")).toBe(true);
+    expect(isPlatformInlineSaveHost("sidebar", "sidebar.io")).toBe(true);
+    expect(
+      isPlatformInlineSaveHost("webdesignernews", "www.webdesignernews.com")
+    ).toBe(true);
+    expect(isPlatformInlineSaveHost("heydesigner", "heydesigner.com")).toBe(
+      true
+    );
+  });
+
+  test("allows outbound article permalinks on aggregator pages", () => {
+    expect(
+      isInlineSavePermalinkAllowed(
+        "sidebar",
+        "https://sidebar.io",
+        "https://example.com/story"
+      )
+    ).toBe(true);
+    expect(
+      isInlineSavePermalinkAllowed(
+        "webdesignernews",
+        "https://www.webdesignernews.com",
+        "https://example.com/story"
+      )
+    ).toBe(true);
+    expect(
+      isInlineSavePermalinkAllowed(
+        "heydesigner",
+        "https://heydesigner.com",
+        "https://example.com/story"
+      )
+    ).toBe(true);
+  });
+
+  test("marks aggregator platforms as compact buttons", () => {
+    expect(getInlineSaveButtonVariant("hackernews")).toBe("compact");
+    expect(getInlineSaveButtonVariant("sidebar")).toBe("compact");
+    expect(getInlineSaveButtonVariant("webdesignernews")).toBe("compact");
+    expect(getInlineSaveButtonVariant("heydesigner")).toBe("compact");
+    expect(getInlineSaveButtonVariant("x")).toBe("overlay");
   });
 
   test("keeps same-host validation for X permalinks", () => {

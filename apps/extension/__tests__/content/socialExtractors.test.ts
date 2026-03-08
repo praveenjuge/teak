@@ -1,6 +1,10 @@
 // @ts-nocheck
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
+  extractHeyDesignerPost,
+  findHeyDesignerPosts,
+} from "../../entrypoints/content/platforms/heydesigner";
+import {
   extractHackerNewsPost,
   findHackerNewsPosts,
 } from "../../entrypoints/content/platforms/hackernews";
@@ -12,6 +16,14 @@ import {
   extractPinterestPost,
   findPinterestPosts,
 } from "../../entrypoints/content/platforms/pinterest";
+import {
+  extractSidebarPost,
+  findSidebarPosts,
+} from "../../entrypoints/content/platforms/sidebar";
+import {
+  extractWebDesignerNewsPost,
+  findWebDesignerNewsPosts,
+} from "../../entrypoints/content/platforms/webdesignernews";
 import {
   extractXPost,
   findXPosts,
@@ -33,6 +45,11 @@ const createAnchor = (href: string) =>
 const createPost = (anchors: HTMLAnchorElement[]) =>
   ({
     querySelectorAll: () => anchors,
+  }) as unknown as HTMLElement;
+
+const createQuerySelectorPost = (anchor: HTMLAnchorElement | null) =>
+  ({
+    querySelector: () => anchor,
   }) as unknown as HTMLElement;
 
 const createHackerNewsCell = ({
@@ -128,6 +145,79 @@ describe("social platform extractors", () => {
     expect(extractHackerNewsPost(post)).toBeNull();
   });
 
+  test("extracts Sidebar post permalink and key from the outbound wrapper", () => {
+    setWindowOrigin("https://sidebar.io");
+
+    const post = createPost([
+      createAnchor(
+        "https://sidebar.io/out?url=https%3A%2F%2Fexample.com%2Fstory%2F%3Fref%3Dsidebar#top"
+      ),
+    ]);
+    const extracted = extractSidebarPost(post);
+
+    expect(extracted).toEqual({
+      platform: "sidebar",
+      permalink: "https://example.com/story",
+      postKey: "sidebar:https://example.com/story",
+    });
+  });
+
+  test("skips Sidebar rows without a valid outbound article URL", () => {
+    setWindowOrigin("https://sidebar.io");
+
+    const post = createPost([createAnchor("https://sidebar.io/out?url=mailto:test@example.com")]);
+
+    expect(extractSidebarPost(post)).toBeNull();
+  });
+
+  test("extracts Web Designer News post permalink and key", () => {
+    setWindowOrigin("https://www.webdesignernews.com");
+
+    const post = createQuerySelectorPost(
+      createAnchor("https://example.com/story/?utm_source=feed&utm_medium=rss#summary")
+    );
+    const extracted = extractWebDesignerNewsPost(post);
+
+    expect(extracted).toEqual({
+      platform: "webdesignernews",
+      permalink: "https://example.com/story",
+      postKey: "webdesignernews:https://example.com/story",
+    });
+  });
+
+  test("skips Web Designer News rows without a valid outbound article URL", () => {
+    setWindowOrigin("https://www.webdesignernews.com");
+
+    const post = createQuerySelectorPost(createAnchor("javascript:void(0)"));
+
+    expect(extractWebDesignerNewsPost(post)).toBeNull();
+  });
+
+  test("extracts HeyDesigner post permalink and key", () => {
+    setWindowOrigin("https://heydesigner.com");
+
+    const post = createQuerySelectorPost(
+      createAnchor(
+        "https://example.com/story/?utm_source=heydesigner.com&utm_campaign=daily#section"
+      )
+    );
+    const extracted = extractHeyDesignerPost(post);
+
+    expect(extracted).toEqual({
+      platform: "heydesigner",
+      permalink: "https://example.com/story",
+      postKey: "heydesigner:https://example.com/story",
+    });
+  });
+
+  test("skips HeyDesigner rows without a valid outbound article URL", () => {
+    setWindowOrigin("https://heydesigner.com");
+
+    const post = createQuerySelectorPost(null);
+
+    expect(extractHeyDesignerPost(post)).toBeNull();
+  });
+
   test("skips Hacker News rows without a story id", () => {
     setWindowOrigin("https://news.ycombinator.com");
 
@@ -177,6 +267,30 @@ describe("social platform extractors", () => {
 
     expect(findHackerNewsPosts(root)).toEqual([]);
     expect(querySelectorAll).not.toHaveBeenCalled();
+  });
+
+  test("findSidebarPosts delegates to expected selector", () => {
+    const querySelectorAll = mock(() => [{}, {}]);
+    const root = { querySelectorAll } as unknown as ParentNode;
+
+    expect(findSidebarPosts(root).length).toBe(2);
+    expect(querySelectorAll).toHaveBeenCalledWith(".post-content");
+  });
+
+  test("findWebDesignerNewsPosts delegates to expected selector", () => {
+    const querySelectorAll = mock(() => [{}, {}]);
+    const root = { querySelectorAll } as unknown as ParentNode;
+
+    expect(findWebDesignerNewsPosts(root).length).toBe(2);
+    expect(querySelectorAll).toHaveBeenCalledWith(".posts_wrap > .single-post");
+  });
+
+  test("findHeyDesignerPosts delegates to expected selector", () => {
+    const querySelectorAll = mock(() => [{}, {}]);
+    const root = { querySelectorAll } as unknown as ParentNode;
+
+    expect(findHeyDesignerPosts(root).length).toBe(2);
+    expect(querySelectorAll).toHaveBeenCalledWith("main article > section > ul > li");
   });
 
   test("findPinterestPosts delegates to expected selector", () => {

@@ -9,6 +9,7 @@ import {
   type TeakSaveResponse,
 } from "../types/messages";
 import {
+  getInlineSavePlatformRule,
   isInlineSavePermalinkAllowed,
   isSupportedInlineSaveHost,
 } from "../types/social";
@@ -256,6 +257,9 @@ export default defineBackground(() => {
         if (message.type === MESSAGE_TYPES.SAVE_POST) {
           const postRequest = message as SavePostRequest;
           const senderUrl = sender.tab?.url;
+          const platformRule = getInlineSavePlatformRule(
+            postRequest.payload.platform
+          );
 
           if (!(senderUrl && isInlineSaveHostAllowed(senderUrl))) {
             sendResponse(
@@ -291,7 +295,7 @@ export default defineBackground(() => {
             postRequest.payload.permalink
           );
           if (
-            postRequest.payload.platform !== "hackernews" &&
+            platformRule.permalinkPolicy === "same-host" &&
             (!(senderHost && permalinkHost) || senderHost !== permalinkHost)
           ) {
             sendResponse(
@@ -305,7 +309,7 @@ export default defineBackground(() => {
 
           const result = await saveToTeak({
             content: postRequest.payload.permalink,
-            enforceAllowedHosts: postRequest.payload.platform !== "hackernews",
+            enforceAllowedHosts: platformRule.permalinkPolicy === "same-host",
             source: "inline-post",
           });
           sendResponse(result);
