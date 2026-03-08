@@ -44,6 +44,7 @@ import type * as linkMetadata_parsing from "../linkMetadata/parsing.js";
 import type * as linkMetadata_selectors from "../linkMetadata/selectors.js";
 import type * as linkMetadata_types from "../linkMetadata/types.js";
 import type * as linkMetadata_url from "../linkMetadata/url.js";
+import type * as linkMetadata_x from "../linkMetadata/x.js";
 import type * as migrations from "../migrations.js";
 import type * as raycast from "../raycast.js";
 import type * as raycastHttp from "../raycastHttp.js";
@@ -140,6 +141,7 @@ declare const fullApi: ApiFromModules<{
   "linkMetadata/selectors": typeof linkMetadata_selectors;
   "linkMetadata/types": typeof linkMetadata_types;
   "linkMetadata/url": typeof linkMetadata_url;
+  "linkMetadata/x": typeof linkMetadata_x;
   migrations: typeof migrations;
   raycast: typeof raycast;
   raycastHttp: typeof raycastHttp;

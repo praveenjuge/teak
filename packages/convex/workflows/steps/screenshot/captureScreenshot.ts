@@ -6,6 +6,7 @@ import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import { normalizeUrl } from "../../../linkMetadata";
+import { isXStatusUrl } from "../../../linkMetadata/x";
 import type { Id } from "../../../shared/types";
 
 const internalFunctions = internal as Record<string, any>;
@@ -24,6 +25,40 @@ export const SCREENSHOT_RETRYABLE_PREFIX = "workflow:screenshot:retryable:";
 const throwRetryable = (info: ScreenshotRetryableError): never => {
   throw new Error(`${SCREENSHOT_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
 };
+
+export const buildGenericScreenshotCode = (
+  url: string,
+  screenshotCss: string
+): string => `
+  const isXStatus = ${JSON.stringify(isXStatusUrl(url))};
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto(${JSON.stringify(url)}, {
+    waitUntil: isXStatus ? 'domcontentloaded' : 'networkidle',
+    timeout: isXStatus ? 45000 : 30000
+  });
+  if (isXStatus) {
+    await page.waitForTimeout(8000);
+    await page.waitForFunction(() => {
+      const tweet = document.querySelector('article[data-testid="tweet"]');
+      const tweetText = document.querySelector('[data-testid="tweetText"]');
+      const spinner =
+        document.querySelector('[role="progressbar"]') ||
+        document.querySelector('[aria-label="Loading…"]') ||
+        document.querySelector('#placeholder');
+      return Boolean(tweet || tweetText) && !spinner;
+    }, { timeout: 45000 }).catch(() => null);
+    await page.evaluate(() => {
+      const tweet = document.querySelector('article[data-testid="tweet"]');
+      if (tweet instanceof HTMLElement) {
+        tweet.scrollIntoView({ block: 'start', inline: 'nearest' });
+      }
+    }).catch(() => null);
+    await page.waitForTimeout(2500);
+  }
+  await page.addStyleTag({ content: ${JSON.stringify(screenshotCss)} });
+  const screenshot = await page.screenshot({ type: 'jpeg', quality: 80 });
+  return screenshot.toString('base64');
+`;
 
 const captureScreenshotWithKernel = async (
   ctx: any,
@@ -50,19 +85,13 @@ const captureScreenshotWithKernel = async (
       .cookie-banner, .cookie-consent, .privacy-popup, .newsletter-popup, .modal-overlay, .popup, .ad, .advertisement, .sponsored { display: none !important; visibility: hidden !important; }
       body { margin: 0 !important; padding: 0 !important; min-height: 100vh !important; }
       .floating, .sticky, .fixed { display: none !important; }
+      [data-testid="BottomBar"], [data-testid="sheetDialog"], [data-testid="HoverCard"], [data-testid="app-bar-close"], [aria-label="Sign up"] { display: none !important; visibility: hidden !important; }
     `;
 
-    // Execute Playwright code to capture screenshot
     const response = await kernel.browsers.playwright.execute(
       kernelBrowser.session_id,
       {
-        code: `
-          await page.setViewportSize({ width: 1280, height: 720 });
-          await page.goto('${url.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}', { waitUntil: 'networkidle', timeout: 30000 });
-          await page.addStyleTag({ content: \`${screenshotCss.replace(/\\/g, "\\\\").replace(/`/g, "\\`")}\` });
-          const screenshot = await page.screenshot({ type: 'jpeg', quality: 80 });
-          return screenshot.toString('base64');
-        `,
+        code: buildGenericScreenshotCode(url, screenshotCss),
         timeout_sec: 60,
       }
     );

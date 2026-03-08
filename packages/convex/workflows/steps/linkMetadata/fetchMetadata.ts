@@ -20,6 +20,7 @@ import {
   parseLinkPreview,
   SCRAPE_ELEMENTS,
 } from "../../../linkMetadata";
+import { fetchXStatusMetadata, isXStatusUrl } from "../../../linkMetadata/x";
 import type { Id } from "../../../shared/types";
 
 // Top-level regex patterns for performance
@@ -476,6 +477,26 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
   const normalizedUrl = normalizeUrl(card.url);
 
   try {
+    if (isXStatusUrl(normalizedUrl)) {
+      const xStatusMetadata = await fetchXStatusMetadata(normalizedUrl);
+
+      if (xStatusMetadata) {
+        const linkPreview = buildSuccessPreview(normalizedUrl, xStatusMetadata);
+
+        await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
+          cardId,
+          linkPreview,
+          status: "completed",
+        });
+
+        return {
+          status: "success" as const,
+          normalizedUrl,
+          linkPreview,
+        };
+      }
+    }
+
     let payload = await scrapeWithKernel(normalizedUrl, SCRAPE_ELEMENTS);
 
     if (!payload.success) {

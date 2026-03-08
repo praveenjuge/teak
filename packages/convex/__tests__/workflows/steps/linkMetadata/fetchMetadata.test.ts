@@ -163,6 +163,37 @@ describe("fetchMetadata", () => {
     );
   });
 
+  test("uses X oEmbed metadata for status URLs before scraping", async () => {
+    mockRunQuery.mockResolvedValue({
+      _id: "c1",
+      type: "link",
+      url: "https://x.com/jack/status/20",
+      metadata: { linkCategory: { status: "completed" } },
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        author_name: "jack",
+        author_url: "https://x.com/jack",
+        html: `<blockquote class="twitter-tweet"><p lang="en" dir="ltr">just setting up my twttr</p>&mdash; jack (@jack) <a href="https://x.com/jack/status/20">March 21, 2006</a></blockquote>`,
+        url: "https://x.com/jack/status/20",
+      }),
+    });
+
+    const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+
+    expect(result.status).toBe("success");
+    expect(mockKernelExecute).not.toHaveBeenCalled();
+    expect(mockParseLinkPreview).not.toHaveBeenCalled();
+    expect(mockRunMutation).toHaveBeenCalledWith(
+      internal.linkMetadata.updateCardMetadata,
+      expect.objectContaining({
+        cardId: "c1",
+        status: "completed",
+      })
+    );
+  });
+
   test("handles scrape failure (retryable)", async () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
