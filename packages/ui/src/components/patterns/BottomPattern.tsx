@@ -1,8 +1,17 @@
-export function BottomPattern() {
+import { cn } from "../../lib/utils";
+
+interface BottomPatternProps {
+  className?: string;
+}
+
+export function BottomPattern({ className }: BottomPatternProps) {
   return (
     <svg
       aria-hidden="true"
-      className="pointer-events-none fixed right-0 bottom-0 z-[-1] select-none"
+      className={cn(
+        "pointer-events-none fixed right-0 bottom-0 z-[-1] select-none",
+        className
+      )}
       fill="none"
       height="272"
       viewBox="0 0 674 272"
