@@ -13,7 +13,7 @@
     },
     "apps/api": {
       "name": "@teak/api",
-      "version": "1.0.24",
+      "version": "1.0.25",
       "dependencies": {
         "@hono/mcp": "^0.2.4",
         "@hono/node-server": "^1.19.9",
@@ -30,7 +30,7 @@
     },
     "apps/desktop": {
       "name": "@teak/desktop",
-      "version": "1.0.24",
+      "version": "1.0.25",
       "dependencies": {
         "@tailwindcss/vite": "^4.2.0",
         "@tauri-apps/api": "^2",
@@ -63,7 +63,7 @@
     },
     "apps/docs": {
       "name": "@teak/docs",
-      "version": "1.0.24",
+      "version": "1.0.25",
       "dependencies": {
         "@teak/ui": "workspace:*",
         "@vercel/analytics": "^1.6.1",
@@ -91,7 +91,7 @@
     },
     "apps/extension": {
       "name": "@teak/extension",
-      "version": "1.0.24",
+      "version": "1.0.25",
       "dependencies": {
         "@convex-dev/better-auth": "^0.10.10",
         "@tailwindcss/vite": "^4.1.18",
@@ -114,7 +114,7 @@
     },
     "apps/mobile": {
       "name": "@teak/mobile",
-      "version": "1.0.24",
+      "version": "1.0.25",
       "dependencies": {
         "@babel/runtime": "^7.28.6",
         "@better-auth/expo": "1.4.9",
@@ -171,7 +171,7 @@
     },
     "apps/raycast": {
       "name": "teak-raycast",
-      "version": "1.0.24",
+      "version": "1.0.25",
       "dependencies": {
         "@raycast/api": "^1.104.6",
         "@raycast/utils": "^2.2.2",
@@ -184,7 +184,7 @@
     },
     "apps/web": {
       "name": "@teak/web",
-      "version": "1.0.24",
+      "version": "1.0.25",
       "dependencies": {
         "@cf-wasm/photon": "^0.3.4",
         "@convex-dev/better-auth": "^0.10.10",
@@ -229,7 +229,7 @@
     },
     "packages/convex": {
       "name": "@teak/convex",
-      "version": "1.0.24",
+      "version": "1.0.25",
       "dependencies": {
         "@ai-sdk/groq": "^3.0.29",
         "@better-auth/expo": "1.4.9",
@@ -258,7 +258,7 @@
     },
     "packages/ui": {
       "name": "@teak/ui",
-      "version": "1.0.24",
+      "version": "1.0.25",
       "dependencies": {
         "@radix-ui/react-avatar": "^1.1.11",
         "@radix-ui/react-checkbox": "^1.3.3",
