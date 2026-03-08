@@ -1,6 +1,10 @@
 // @ts-nocheck
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
+  extractHackerNewsPost,
+  findHackerNewsPosts,
+} from "../../entrypoints/content/platforms/hackernews";
+import {
   extractInstagramPost,
   findInstagramPosts,
 } from "../../entrypoints/content/platforms/instagram";
@@ -15,9 +19,9 @@ import {
 
 const previousWindow = (globalThis as { window?: unknown }).window;
 
-const setWindowOrigin = (origin: string) => {
+const setWindowOrigin = (origin: string, pathname = "/") => {
   (globalThis as { window?: unknown }).window = {
-    location: { origin },
+    location: { origin, pathname },
   };
 };
 
@@ -29,6 +33,28 @@ const createAnchor = (href: string) =>
 const createPost = (anchors: HTMLAnchorElement[]) =>
   ({
     querySelectorAll: () => anchors,
+  }) as unknown as HTMLElement;
+
+const createHackerNewsCell = ({
+  href,
+  storyId,
+}: {
+  href: string | null;
+  storyId: string | null;
+}) =>
+  ({
+    closest: () =>
+      storyId === null
+        ? null
+        : ({
+            getAttribute: (name: string) => (name === "id" ? storyId : null),
+          } as unknown as HTMLElement),
+    querySelector: () =>
+      href === null
+        ? null
+        : ({
+            getAttribute: (name: string) => (name === "href" ? href : null),
+          } as unknown as HTMLAnchorElement),
   }) as unknown as HTMLElement;
 
 afterEach(() => {
@@ -75,6 +101,44 @@ describe("social platform extractors", () => {
     });
   });
 
+  test("extracts Hacker News story permalink and key", () => {
+    setWindowOrigin("https://news.ycombinator.com");
+
+    const post = createHackerNewsCell({
+      href: "https://example.com/story",
+      storyId: "47295537",
+    });
+    const extracted = extractHackerNewsPost(post);
+
+    expect(extracted).toEqual({
+      platform: "hackernews",
+      permalink: "https://example.com/story",
+      postKey: "hackernews:47295537",
+    });
+  });
+
+  test("skips Hacker News self-post rows", () => {
+    setWindowOrigin("https://news.ycombinator.com");
+
+    const post = createHackerNewsCell({
+      href: "item?id=47295537",
+      storyId: "47295537",
+    });
+
+    expect(extractHackerNewsPost(post)).toBeNull();
+  });
+
+  test("skips Hacker News rows without a story id", () => {
+    setWindowOrigin("https://news.ycombinator.com");
+
+    const post = createHackerNewsCell({
+      href: "https://example.com/story",
+      storyId: null,
+    });
+
+    expect(extractHackerNewsPost(post)).toBeNull();
+  });
+
   test("findXPosts delegates to expected selector", () => {
     const querySelectorAll = mock(() => [{}, {}]);
     const root = { querySelectorAll } as unknown as ParentNode;
@@ -91,6 +155,28 @@ describe("social platform extractors", () => {
 
     expect(findInstagramPosts(root).length).toBe(1);
     expect(querySelectorAll).toHaveBeenCalledWith("article");
+  });
+
+  test("findHackerNewsPosts delegates to expected selector", () => {
+    setWindowOrigin("https://news.ycombinator.com");
+
+    const querySelectorAll = mock(() => [{}, {}]);
+    const root = { querySelectorAll } as unknown as ParentNode;
+
+    expect(findHackerNewsPosts(root).length).toBe(2);
+    expect(querySelectorAll).toHaveBeenCalledWith(
+      "tr.athing > td.title:last-child"
+    );
+  });
+
+  test("findHackerNewsPosts skips item detail pages", () => {
+    setWindowOrigin("https://news.ycombinator.com", "/item");
+
+    const querySelectorAll = mock(() => [{}, {}]);
+    const root = { querySelectorAll } as unknown as ParentNode;
+
+    expect(findHackerNewsPosts(root)).toEqual([]);
+    expect(querySelectorAll).not.toHaveBeenCalled();
   });
 
   test("findPinterestPosts delegates to expected selector", () => {

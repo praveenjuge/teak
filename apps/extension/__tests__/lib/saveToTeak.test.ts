@@ -72,6 +72,40 @@ describe("saveToTeak", () => {
     expect(mutation).not.toHaveBeenCalled();
   });
 
+  test("saves article URLs when inline-host enforcement is disabled", async () => {
+    const query = mock(async () => null);
+    const mutation = mock(async () => "card_hn");
+
+    const result = await saveToTeak(
+      {
+        content: "https://example.com/story",
+        source: "inline-post",
+      },
+      {
+        createClient: () => ({ query, mutation }),
+        fetchImpl: mock(
+          async () =>
+            new Response(
+              JSON.stringify({ token: "header.payload.signature" }),
+              {
+                status: 200,
+              }
+            )
+        ) as unknown as typeof fetch,
+        getSessionToken: async () => "session_token",
+      }
+    );
+
+    expect(result).toEqual({
+      status: "saved",
+      cardId: "card_hn",
+    });
+    expect(query).toHaveBeenCalledWith(expect.anything(), {
+      url: "https://example.com/story",
+    });
+    expect(mutation).toHaveBeenCalled();
+  });
+
   test("saves non-url content without duplicate lookup", async () => {
     const query = mock(async () => null);
     const mutation = mock(async () => "card_saved");

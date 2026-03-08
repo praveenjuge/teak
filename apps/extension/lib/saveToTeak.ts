@@ -1,6 +1,6 @@
 import { ConvexHttpClient } from "convex/browser";
 import type { TeakSaveResponse } from "../types/messages";
-import { isSupportedSocialHost } from "../types/social";
+import { isSupportedInlineSaveHost } from "../types/social";
 import { getSessionTokenFromCookies } from "../utils/getSessionFromCookies";
 import { api } from "./convex-api";
 
@@ -95,7 +95,7 @@ const parseContentAsUrl = (content: string): URL | null => {
 };
 
 const isAllowedInlineHost = (hostname: string): boolean =>
-  isSupportedSocialHost(hostname.toLowerCase());
+  isSupportedInlineSaveHost(hostname.toLowerCase());
 
 const getConvexAuthToken = async (
   dependencies: SaveToTeakDependencies

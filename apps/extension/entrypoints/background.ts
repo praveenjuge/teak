@@ -8,7 +8,10 @@ import {
   type TeakRuntimeRequest,
   type TeakSaveResponse,
 } from "../types/messages";
-import { isSupportedSocialHost } from "../types/social";
+import {
+  isInlineSavePermalinkAllowed,
+  isSupportedInlineSaveHost,
+} from "../types/social";
 import { hasValidSession } from "../utils/getSessionFromCookies";
 
 // Check if a URL is restricted (can't inject scripts)
@@ -32,7 +35,7 @@ function isRestrictedUrl(url?: string): boolean {
 
 const getNormalizedHost = (urlString: string): string | null => {
   try {
-    return new URL(urlString).hostname.toLowerCase().replace(/^www\./, "");
+    return new URL(urlString).hostname.toLowerCase();
   } catch {
     return null;
   }
@@ -43,7 +46,7 @@ const isInlineSaveHostAllowed = (urlString: string): boolean => {
   if (!host) {
     return false;
   }
-  return isSupportedSocialHost(host);
+  return isSupportedInlineSaveHost(host);
 };
 
 const buildSaveError = (message: string, code?: string): TeakSaveResponse => ({
@@ -257,17 +260,26 @@ export default defineBackground(() => {
           if (!(senderUrl && isInlineSaveHostAllowed(senderUrl))) {
             sendResponse(
               buildSaveError(
-                "Inline save is only supported on social feeds.",
+                "Inline save is only supported on supported feed pages.",
                 "UNSUPPORTED_HOST"
               )
             );
             return;
           }
 
-          if (!isInlineSaveHostAllowed(postRequest.payload.permalink)) {
+          if (
+            !(
+              senderUrl &&
+              isInlineSavePermalinkAllowed(
+                postRequest.payload.platform,
+                senderUrl,
+                postRequest.payload.permalink
+              )
+            )
+          ) {
             sendResponse(
               buildSaveError(
-                "Invalid social post permalink.",
+                "Invalid inline save permalink.",
                 "UNSUPPORTED_HOST"
               )
             );
@@ -278,7 +290,10 @@ export default defineBackground(() => {
           const permalinkHost = getNormalizedHost(
             postRequest.payload.permalink
           );
-          if (!(senderHost && permalinkHost) || senderHost !== permalinkHost) {
+          if (
+            postRequest.payload.platform !== "hackernews" &&
+            (!(senderHost && permalinkHost) || senderHost !== permalinkHost)
+          ) {
             sendResponse(
               buildSaveError(
                 "Post host does not match current page host.",
@@ -290,7 +305,7 @@ export default defineBackground(() => {
 
           const result = await saveToTeak({
             content: postRequest.payload.permalink,
-            enforceAllowedHosts: true,
+            enforceAllowedHosts: postRequest.payload.platform !== "hackernews",
             source: "inline-post",
           });
           sendResponse(result);

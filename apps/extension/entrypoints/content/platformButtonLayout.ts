@@ -27,6 +27,12 @@ const INLINE_SAVE_BUTTON_POSITIONS: Record<Platform, InlineSaveButtonPosition> =
       bottom: "auto",
       left: "auto",
     },
+    hackernews: {
+      top: "8px",
+      right: "8px",
+      bottom: "auto",
+      left: "auto",
+    },
   };
 
 export const getInlineSaveButtonPosition = (
