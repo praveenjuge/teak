@@ -162,7 +162,7 @@ export default function PricingPageClient() {
               width={56}
             />
             <div>
-              <h3 className="mb-2 font-semibold text-base">
+              <h3 className="mb-1 font-semibold text-base">
                 {selfHostedPlan.name}
               </h3>
               <p className="text-muted-foreground">

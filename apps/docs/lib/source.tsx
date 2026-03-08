@@ -2,26 +2,36 @@ import { changelog, docs } from "fumadocs-mdx:collections/server";
 import { loader } from "fumadocs-core/source";
 import {
   BookOpen,
-  Code,
+  Bot,
+  Braces,
   Command,
-  FileText,
-  HelpCircle,
+  LifeBuoy,
   Monitor,
+  Puzzle,
+  ScrollText,
+  Server,
   Settings,
   Shield,
+  Smartphone,
   Sparkles,
+  Wrench,
 } from "lucide-react";
 
 const iconMap = {
+  Bot,
   BookOpen,
+  Braces,
   Command,
-  Code,
-  Sparkles,
+  LifeBuoy,
+  Monitor,
+  Puzzle,
+  ScrollText,
+  Server,
   Settings,
   Shield,
-  FileText,
-  HelpCircle,
-  Monitor,
+  Smartphone,
+  Sparkles,
+  Wrench,
 };
 
 // See https://fumadocs.vercel.app/docs/headless/source-api for more info

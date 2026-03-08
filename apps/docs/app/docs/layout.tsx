@@ -11,6 +11,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         <DocsLayout
           nav={{ enabled: false }}
           sidebar={{ collapsible: false }}
+          themeSwitch={{ enabled: false }}
           tree={source.pageTree}
         >
           {children}
