@@ -18,5 +18,6 @@ describe("desktop settings wiring", () => {
     expect(source).not.toContain("monthlyPlanId");
     expect(source).not.toContain("yearlyPlanId");
     expect(source).not.toContain("SubscriptionSection");
+    expect(source).not.toContain('window.addEventListener("keydown"');
   });
 });

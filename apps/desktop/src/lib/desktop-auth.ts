@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import {
+  buildWebUrl,
+  getDesktopConfig,
+} from "@/lib/desktop-config";
 import { readStoreValue, writeStoreValue } from "@/lib/store";
-import { buildWebUrl } from "@/lib/web-urls";
 
 const SESSION_TOKEN_KEY = "auth.sessionToken";
 const DEVICE_ID_KEY = "auth.deviceId";
@@ -40,12 +43,6 @@ const PKCE_CODE_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
 const CALLBACK_STATE_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
 const DEVICE_ID_PATTERN = /^[A-Za-z0-9-]{16,128}$/;
 
-const convexSiteUrl = import.meta.env.VITE_PUBLIC_CONVEX_SITE_URL;
-
-if (!convexSiteUrl) {
-  throw new Error("Missing VITE_PUBLIC_CONVEX_SITE_URL in desktop environment");
-}
-
 let state: DesktopAuthState = {
   isInitialized: false,
   sessionToken: null,
@@ -78,19 +75,7 @@ function setState(nextState: DesktopAuthState) {
   notifyListeners();
 }
 
-function normalizeConvexSiteUrl(rawUrl: string): string {
-  try {
-    const parsed = new URL(rawUrl);
-    parsed.pathname = "";
-    parsed.search = "";
-    parsed.hash = "";
-    return parsed.toString().replace(/\/$/, "");
-  } catch {
-    throw new Error("Invalid VITE_PUBLIC_CONVEX_SITE_URL");
-  }
-}
-
-const convexSiteBaseUrl = normalizeConvexSiteUrl(convexSiteUrl);
+const { convexSiteBaseUrl } = getDesktopConfig();
 
 function toBase64Url(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes))

@@ -1,12 +1,10 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { exit } from "@tauri-apps/plugin-process";
 import { api } from "@teak/convex";
 import { useQuery } from "@teak/ui/convex-query-hooks";
 import { SettingsShell } from "@teak/ui/screens";
 import { SettingsContent } from "@teak/ui/settings";
 import { useAction, useMutation } from "convex/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { logoutDesktopSession } from "@/lib/desktop-auth";
@@ -29,23 +27,6 @@ export function SettingsPage() {
     | { id: string }[]
     | undefined;
   const createKey = useMutation(convexApi.apiKeys.createUserApiKey);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
-
-      if (isCmdOrCtrl && e.key === "w") {
-        e.preventDefault();
-        void getCurrentWindow().close();
-      } else if (isCmdOrCtrl && e.key === "q") {
-        e.preventDefault();
-        void exit(0);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
 
   const isLoading = user === undefined;
 

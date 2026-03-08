@@ -12,7 +12,6 @@
     "core:window:allow-set-size",
     "dialog:default",
     "opener:default",
-    "process:default",
     "store:default",
     "updater:default"
   ]
