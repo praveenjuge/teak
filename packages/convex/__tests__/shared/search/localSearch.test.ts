@@ -37,6 +37,17 @@ describe("shared search helpers", () => {
     expect(tokenizeSearchQuery("  Foo   BAR ")).toEqual(["foo", "bar"]);
   });
 
+  it("trims configured punctuation without regex backtracking", () => {
+    expect(tokenizeSearchQuery(`  !!!"Foo,"   [bar]...  `)).toEqual([
+      "foo",
+      "bar",
+    ]);
+    expect(classifySearchToken("(((#663399)))")).toEqual({
+      kind: "hex",
+      value: "#663399",
+    });
+  });
+
   it("classifies style/hue/hex/keyword tokens", () => {
     expect(classifySearchToken("vintage")).toEqual({
       kind: "style",

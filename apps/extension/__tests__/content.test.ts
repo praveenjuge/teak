@@ -284,9 +284,11 @@ describe("Content Script", () => {
 
     test("should sanitize user input before processing", () => {
       const userInput = "<script>alert('xss')</script>";
-      const sanitized = userInput.replace(/<[^>]*>/g, "");
+      const sanitized = userInput.replaceAll("<", "").replaceAll(">", "");
 
       expect(sanitized).not.toContain("<script>");
+      expect(sanitized).not.toContain("<");
+      expect(sanitized).not.toContain(">");
     });
 
     test("should validate messages from page context", () => {

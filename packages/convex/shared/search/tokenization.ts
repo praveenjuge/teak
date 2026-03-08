@@ -5,7 +5,10 @@ import {
   type VisualStyle,
 } from "../constants";
 import { normalizeHexColor } from "../utils/colorUtils";
-import { SEARCH_TOKEN_SEPARATOR, SEARCH_TOKEN_TRIM_PATTERN } from "./constants";
+import {
+  SEARCH_TOKEN_SEPARATOR,
+  SEARCH_TOKEN_TRIM_CHARACTERS,
+} from "./constants";
 
 export type SearchTokenClassification =
   | { kind: "style"; value: VisualStyle }
@@ -14,7 +17,29 @@ export type SearchTokenClassification =
   | { kind: "keyword"; value: string };
 
 export function normalizeSearchToken(token: string): string {
-  return token.replace(SEARCH_TOKEN_TRIM_PATTERN, "").trim();
+  const trimmedToken = token.trim();
+  if (!trimmedToken) {
+    return "";
+  }
+
+  let start = 0;
+  let end = trimmedToken.length;
+
+  while (
+    start < end &&
+    SEARCH_TOKEN_TRIM_CHARACTERS.includes(trimmedToken[start] ?? "")
+  ) {
+    start += 1;
+  }
+
+  while (
+    end > start &&
+    SEARCH_TOKEN_TRIM_CHARACTERS.includes(trimmedToken[end - 1] ?? "")
+  ) {
+    end -= 1;
+  }
+
+  return trimmedToken.slice(start, end);
 }
 
 export function tokenizeSearchInput(query: string): string[] {

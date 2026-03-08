@@ -2,8 +2,7 @@ export const SEARCH_DEFAULT_CARD_LIMIT = 100;
 export const SEARCH_LOCAL_SEARCH_CACHE_LIMIT = 1000;
 
 export const SEARCH_TOKEN_SEPARATOR = /\s+/;
-export const SEARCH_TOKEN_TRIM_PATTERN =
-  /^[,.;:!?()[\]{}"']+|[,.;:!?()[\]{}"']+$/g;
+export const SEARCH_TOKEN_TRIM_CHARACTERS = `,.;:!?()[]{}"'`;
 
 const FAVORITES_SEARCH_COMMANDS = new Set([
   "fav",
