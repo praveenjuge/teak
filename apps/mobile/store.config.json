@@ -1,7 +1,7 @@
 {
   "configVersion": 0,
   "apple": {
-    "version": "1.0.24",
+    "version": "1.0.25",
     "copyright": "Praveen Juge. All rights reserved.",
     "release": {
       "automaticRelease": true
@@ -28,7 +28,10 @@
         "privacyChoicesUrl": "https://teakvault.com/docs/privacy-policy"
       }
     },
-    "categories": ["PRODUCTIVITY", "LIFESTYLE"],
+    "categories": [
+      "PRODUCTIVITY",
+      "LIFESTYLE"
+    ],
     "advisory": {
       "ageRatingOverride": "NONE",
       "alcoholTobaccoOrDrugUseOrReferences": "NONE",
