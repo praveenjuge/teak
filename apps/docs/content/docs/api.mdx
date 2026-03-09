@@ -279,3 +279,14 @@ Errors preserve the stable `{ code, error }` shape. Some responses may also incl
   "error": "Body must include `content` or `url`"
 }
 ```
+
+### Idempotency Key Errors
+
+When using `Idempotency-Key` on `POST /v1/cards` or `POST /v1/cards/bulk`, two `409 Conflict` scenarios may occur:
+
+| Situation | `code` | `error` |
+|---|---|---|
+| A request with the same key is still in flight | `CONFLICT` | `Idempotency-Key is already being processed` |
+| The key was already used with a different request body | `CONFLICT` | `Idempotency-Key was already used with a different request` |
+
+If the key was previously used with an identical request body, the original response is replayed without re-processing the operation.
