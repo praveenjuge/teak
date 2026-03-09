@@ -80,6 +80,14 @@ Supported query parameters:
 - `createdBefore`
 - `include=content,metadata,processing`
 
+The `include` parameter is a comma-separated list of field groups to add to each item. Omitting it returns the base fields only.
+
+| `include` value | Extra fields added |
+|---|---|
+| `content` | `content`, `notes`, `aiSummary` |
+| `metadata` | `fileUrl`, `linkPreviewImageUrl`, `screenshotUrl`, `thumbnailUrl` |
+| `processing` | `processingStatus`, `metadataStatus`, `aiTranscript` |
+
 Response:
 
 ```json
