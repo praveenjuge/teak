@@ -20,6 +20,7 @@ const CARD_SORTS = new Set(["newest", "oldest"]);
 
 type ErrorCode =
   | "BAD_REQUEST"
+  | "CONFLICT"
   | "INTERNAL_ERROR"
   | "INVALID_API_KEY"
   | "INVALID_INPUT"
@@ -38,6 +39,7 @@ type AuthResult = { validated: AuthorizedUser } | { error: Response };
 type CardsQueryOptions = {
   createdAfter?: number;
   createdBefore?: number;
+  cursor?: string;
   favoritesOnly: boolean;
   limit: number;
   searchQuery?: string;
@@ -53,12 +55,15 @@ type CreateCardPayload = {
   url?: string;
 };
 
-const json = (status: number, body: unknown): Response =>
+type CardListInclude = "content" | "metadata" | "processing";
+
+const json = (status: number, body: unknown, headers?: HeadersInit): Response =>
   new Response(JSON.stringify(body), {
     status,
     headers: {
       "Cache-Control": "no-store",
       "Content-Type": "application/json; charset=utf-8",
+      ...(headers ?? {}),
     },
   });
 
@@ -66,9 +71,27 @@ const errorResponse = (
   status: number,
   code: ErrorCode,
   error: string,
-  extras?: Record<string, unknown>
+  extras?: Record<string, unknown>,
+  headers?: HeadersInit
 ): Response => {
-  return json(status, { code, error, ...(extras ?? {}) });
+  return json(status, { code, error, ...(extras ?? {}) }, headers);
+};
+
+const buildRateLimitHeaders = (retryAt?: number): HeadersInit | undefined => {
+  if (!(typeof retryAt === "number" && Number.isFinite(retryAt))) {
+    return undefined;
+  }
+
+  const retryAfterSeconds = Math.max(
+    1,
+    Math.ceil((retryAt - Date.now()) / 1000)
+  );
+  return {
+    "RateLimit-Limit": "120",
+    "RateLimit-Remaining": "0",
+    "RateLimit-Reset": String(retryAt),
+    "Retry-After": String(retryAfterSeconds),
+  };
 };
 
 const parseBearerToken = (request: Request): string | null => {
@@ -107,6 +130,147 @@ const parseJsonBody = async (request: Request): Promise<unknown> => {
       message: "Invalid JSON body",
     });
   }
+};
+
+const toHex = (bytes: Uint8Array): string =>
+  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+
+const sha256 = async (value: string): Promise<string> => {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value)
+  );
+  return toHex(new Uint8Array(digest));
+};
+
+const buildIdempotentResponse = (record: {
+  responseBody: unknown;
+  responseStatus: number;
+}): Response => json(record.responseStatus, record.responseBody);
+
+type IdempotencyState = {
+  keyHash: string;
+  requestHash: string;
+  reserved: boolean;
+  replayed?: Response;
+};
+
+const maybeHandleIdempotency = async (
+  ctx: any,
+  args: {
+    userId: string;
+    method: "POST";
+    path: string;
+    requestBody: unknown;
+    request: Request;
+  }
+): Promise<IdempotencyState | Response> => {
+  const idempotencyKey = parseOptionalString(
+    args.request.headers.get("idempotency-key")
+  );
+  if (!idempotencyKey) {
+    return {
+      keyHash: "",
+      requestHash: "",
+      reserved: false,
+    };
+  }
+
+  const [keyHash, requestHash] = await Promise.all([
+    sha256(`${args.userId}:${idempotencyKey}`),
+    sha256(
+      JSON.stringify({
+        body: args.requestBody,
+        method: args.method,
+        path: args.path,
+      })
+    ),
+  ]);
+
+  const reservation = await ctx.runMutation(
+    (internal as any).idempotency.beginIdempotencyRequestForUser,
+    {
+      keyHash,
+      method: args.method,
+      path: args.path,
+      requestHash,
+      userId: args.userId,
+    }
+  );
+
+  switch (reservation.status) {
+    case "started":
+      return { keyHash, requestHash, reserved: true };
+    case "replay":
+      return {
+        keyHash,
+        requestHash,
+        reserved: false,
+        replayed: buildIdempotentResponse(reservation.record),
+      };
+    case "in_progress":
+      return errorResponse(
+        409,
+        "CONFLICT",
+        "Idempotency-Key is already being processed"
+      );
+    case "conflict":
+      return errorResponse(
+        409,
+        "CONFLICT",
+        "Idempotency-Key was already used with a different request"
+      );
+    default:
+      return errorResponse(
+        500,
+        "INTERNAL_ERROR",
+        "Failed to reserve Idempotency-Key"
+      );
+  }
+};
+
+const completeIdempotencyResponse = async (
+  ctx: any,
+  args: {
+    userId: string;
+    keyHash: string;
+    requestHash: string;
+    responseBody: unknown;
+    responseStatus: number;
+  }
+): Promise<void> => {
+  if (!args.keyHash) {
+    return;
+  }
+
+  await ctx.runMutation(
+    (internal as any).idempotency.completeIdempotencyRequestForUser,
+    {
+      keyHash: args.keyHash,
+      requestHash: args.requestHash,
+      responseBody: args.responseBody,
+      responseStatus: args.responseStatus,
+      userId: args.userId,
+    }
+  );
+};
+
+const releaseIdempotencyResponse = async (
+  ctx: any,
+  args: {
+    userId: string;
+    keyHash: string;
+    requestHash: string;
+  }
+): Promise<void> => {
+  if (!args.keyHash) {
+    return;
+  }
+
+  await ctx.runMutation(
+    (internal as any).idempotency.releaseIdempotencyRequestForUser,
+    args
+  );
 };
 
 const isRateLimitContentionError = (error: unknown): boolean => {
@@ -148,9 +312,15 @@ const withAuthorizedUser = async (
   } catch (error) {
     if (isRateLimitContentionError(error)) {
       return {
-        error: errorResponse(429, "RATE_LIMITED", "Too many requests", {
-          retryAt: Date.now() + 1000,
-        }),
+        error: errorResponse(
+          429,
+          "RATE_LIMITED",
+          "Too many requests",
+          {
+            retryAt: Date.now() + 1000,
+          },
+          buildRateLimitHeaders(Date.now() + 1000)
+        ),
       };
     }
 
@@ -165,9 +335,15 @@ const withAuthorizedUser = async (
 
   if (!rateLimit?.ok) {
     return {
-      error: errorResponse(429, "RATE_LIMITED", "Too many requests", {
-        retryAt: rateLimit?.retryAt,
-      }),
+      error: errorResponse(
+        429,
+        "RATE_LIMITED",
+        "Too many requests",
+        {
+          retryAt: rateLimit?.retryAt,
+        },
+        buildRateLimitHeaders(rateLimit?.retryAt)
+      ),
     };
   }
 
@@ -236,6 +412,52 @@ const serializeCard = (card: any, requestUrl: string) => ({
   url: card.url ?? null,
 });
 
+const serializeListCard = (
+  card: any,
+  requestUrl: string,
+  include: Set<CardListInclude>
+) => {
+  const base = {
+    aiTags: card.aiTags ?? [],
+    appUrl: getCardAppUrl(requestUrl, card._id),
+    createdAt: card.createdAt,
+    id: card._id,
+    isFavorited: Boolean(card.isFavorited),
+    metadataDescription: card.metadataDescription ?? null,
+    metadataTitle: card.metadataTitle ?? null,
+    tags: card.tags ?? [],
+    type: card.type,
+    updatedAt: card.updatedAt,
+    url: card.url ?? null,
+  };
+
+  return {
+    ...base,
+    ...(include.has("content")
+      ? {
+          aiSummary: card.aiSummary ?? null,
+          content: card.content,
+          notes: card.notes ?? null,
+        }
+      : {}),
+    ...(include.has("metadata")
+      ? {
+          fileUrl: card.fileUrl ?? null,
+          linkPreviewImageUrl: card.linkPreviewImageUrl ?? null,
+          screenshotUrl: card.screenshotUrl ?? null,
+          thumbnailUrl: card.thumbnailUrl ?? null,
+        }
+      : {}),
+    ...(include.has("processing")
+      ? {
+          aiTranscript: card.aiTranscript ?? null,
+          metadataStatus: card.metadataStatus ?? null,
+          processingStatus: card.processingStatus ?? null,
+        }
+      : {}),
+  };
+};
+
 const mapConvexErrorToResponse = (
   error: unknown,
   fallbackMessage: string
@@ -293,6 +515,32 @@ const parseStringArray = (value: unknown): string[] | undefined => {
   );
 
   return normalized.length > 0 ? normalized : [];
+};
+
+const parseIncludeSet = (value: string | null): Set<CardListInclude> | null => {
+  if (!value) {
+    return new Set();
+  }
+
+  const allowed = new Set<CardListInclude>([
+    "content",
+    "metadata",
+    "processing",
+  ]);
+  const requested = new Set<CardListInclude>();
+
+  for (const token of value.split(",")) {
+    const normalized = token.trim();
+    if (!normalized) {
+      continue;
+    }
+    if (!allowed.has(normalized as CardListInclude)) {
+      return null;
+    }
+    requested.add(normalized as CardListInclude);
+  }
+
+  return requested;
 };
 
 const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
@@ -433,6 +681,7 @@ const parseCardsQueryOptions = (
   return {
     createdAfter,
     createdBefore,
+    cursor: parseOptionalString(searchParams.get("cursor")),
     favoritesOnly: favoritesOnly || favorited === true,
     limit: parseLimit(searchParams.get("limit")),
     searchQuery: query,
@@ -480,7 +729,25 @@ const handleCreateCardRequest = async (
     );
   }
 
+  let idempotencyState: IdempotencyState | null = null;
+  let operationCommitted = false;
+
   try {
+    const idempotency = await maybeHandleIdempotency(ctx, {
+      method: "POST",
+      path: "/v1/cards",
+      request,
+      requestBody: createPayload,
+      userId: auth.validated.userId,
+    });
+    if (idempotency instanceof Response) {
+      return idempotency;
+    }
+    if (idempotency.replayed) {
+      return idempotency.replayed;
+    }
+    idempotencyState = idempotency;
+
     const result = await ctx.runMutation(
       (internal as any).raycast.quickSaveForUser,
       {
@@ -492,9 +759,29 @@ const handleCreateCardRequest = async (
         userId: auth.validated.userId,
       }
     );
+    operationCommitted = true;
+    const responseBody = buildCreateCardResponse(result, request.url);
+    await completeIdempotencyResponse(ctx, {
+      keyHash: idempotencyState.keyHash,
+      requestHash: idempotencyState.requestHash,
+      responseBody,
+      responseStatus: 200,
+      userId: auth.validated.userId,
+    });
 
-    return json(200, buildCreateCardResponse(result, request.url));
+    return json(200, responseBody);
   } catch (error) {
+    if (idempotencyState?.reserved && !operationCommitted) {
+      try {
+        await releaseIdempotencyResponse(ctx, {
+          keyHash: idempotencyState.keyHash,
+          requestHash: idempotencyState.requestHash,
+          userId: auth.validated.userId,
+        });
+      } catch {
+        // Preserve the original mutation error when reservation cleanup fails.
+      }
+    }
     return mapConvexErrorToResponse(error, "Failed to save card");
   }
 };
@@ -535,6 +822,59 @@ const handleCardsQueryRequest = async (
       "INTERNAL_ERROR",
       favoritesOnly ? "Failed to fetch favorite cards" : "Failed to fetch cards"
     );
+  }
+};
+
+const handleCardsListRequest = async (
+  ctx: any,
+  request: Request
+): Promise<Response> => {
+  const auth = await withAuthorizedUser(ctx, request);
+  if ("error" in auth) {
+    return auth.error;
+  }
+
+  const options = parseCardsQueryOptions(request, false);
+  if (options instanceof Response) {
+    return options;
+  }
+
+  const include = parseIncludeSet(
+    new URL(request.url).searchParams.get("include")
+  );
+  if (include === null) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `include` must contain only: content, metadata, processing"
+    );
+  }
+
+  try {
+    const cardsPage = await ctx.runQuery(
+      (internal as any).publicApi.listCardsPageForUser,
+      {
+        createdAfter: options.createdAfter,
+        createdBefore: options.createdBefore,
+        cursor: options.cursor,
+        favorited: options.favoritesOnly ? true : undefined,
+        limit: options.limit,
+        searchQuery: options.searchQuery,
+        sort: options.sort,
+        tag: options.tag,
+        type: options.type,
+        userId: auth.validated.userId,
+      }
+    );
+
+    return json(200, {
+      items: cardsPage.items.map((card: any) =>
+        serializeListCard(card, request.url, include)
+      ),
+      pageInfo: cardsPage.pageInfo,
+    });
+  } catch {
+    return errorResponse(500, "INTERNAL_ERROR", "Failed to fetch cards");
   }
 };
 
@@ -770,31 +1110,194 @@ const handleCardsByIdV1Request = async (
   }
 
   const favoritePayload = validateFavoritePayload(payload);
-  if (!favoritePayload) {
+  if (route.operation === "favorite") {
+    if (!favoritePayload) {
+      return errorResponse(
+        400,
+        "INVALID_INPUT",
+        "Body must include `isFavorited` as a boolean"
+      );
+    }
+
+    try {
+      const updated = await ctx.runMutation(
+        (internal as any).raycast.setCardFavoriteForUser,
+        {
+          cardId: normalizedCardId,
+          isFavorited: favoritePayload.isFavorited,
+          userId: auth.validated.userId,
+        }
+      );
+
+      if (!updated) {
+        return errorResponse(404, "NOT_FOUND", "Card not found");
+      }
+
+      return json(200, serializeCard(updated, request.url));
+    } catch (error) {
+      return mapConvexErrorToResponse(
+        error,
+        "Failed to update favorite status"
+      );
+    }
+  }
+
+  return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
+};
+
+const handleTagsRequest = async (
+  ctx: any,
+  request: Request
+): Promise<Response> => {
+  const auth = await withAuthorizedUser(ctx, request);
+  if ("error" in auth) {
+    return auth.error;
+  }
+
+  try {
+    const tags = await ctx.runQuery(
+      (internal as any).publicApi.listTagsForUser,
+      {
+        userId: auth.validated.userId,
+      }
+    );
+    return json(200, { items: tags });
+  } catch {
+    return errorResponse(500, "INTERNAL_ERROR", "Failed to fetch tags");
+  }
+};
+
+const handleCardChangesRequest = async (
+  ctx: any,
+  request: Request
+): Promise<Response> => {
+  const auth = await withAuthorizedUser(ctx, request);
+  if ("error" in auth) {
+    return auth.error;
+  }
+
+  const { searchParams } = new URL(request.url);
+  const since = parseTimestampQuery(searchParams.get("since"));
+  if (!(typeof since === "number" && Number.isFinite(since))) {
     return errorResponse(
       400,
       "INVALID_INPUT",
-      "Body must include `isFavorited` as a boolean"
+      "Query parameter `since` must be a number"
     );
   }
 
   try {
-    const updated = await ctx.runMutation(
-      (internal as any).raycast.setCardFavoriteForUser,
+    const changes = await ctx.runQuery(
+      (internal as any).publicApi.listCardChangesForUser,
       {
-        cardId: normalizedCardId,
-        isFavorited: favoritePayload.isFavorited,
+        cursor: parseOptionalString(searchParams.get("cursor")),
+        limit: parseLimit(searchParams.get("limit")),
+        since,
         userId: auth.validated.userId,
       }
     );
 
-    if (!updated) {
-      return errorResponse(404, "NOT_FOUND", "Card not found");
-    }
+    return json(200, {
+      deletedIds: changes.deletedIds,
+      items: changes.items.map((card: any) => serializeCard(card, request.url)),
+      pageInfo: changes.pageInfo,
+    });
+  } catch {
+    return errorResponse(500, "INTERNAL_ERROR", "Failed to fetch card changes");
+  }
+};
 
-    return json(200, serializeCard(updated, request.url));
+const handleBulkCardsRequest = async (
+  ctx: any,
+  request: Request
+): Promise<Response> => {
+  const auth = await withAuthorizedUser(ctx, request);
+  if ("error" in auth) {
+    return auth.error;
+  }
+
+  let payload: unknown;
+  try {
+    payload = await parseJsonBody(request);
+  } catch {
+    return errorResponse(400, "BAD_REQUEST", "Invalid JSON body");
+  }
+
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Body must include `operation` and `items`"
+    );
+  }
+
+  const source = payload as Record<string, unknown>;
+  const operation = parseOptionalString(source.operation);
+  const items = Array.isArray(source.items) ? source.items : null;
+  if (
+    !(
+      operation &&
+      items &&
+      ["create", "update", "favorite", "delete"].includes(operation)
+    )
+  ) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Body must include a valid `operation` and `items`"
+    );
+  }
+
+  let idempotencyState: IdempotencyState | null = null;
+  let operationCommitted = false;
+
+  try {
+    const idempotency = await maybeHandleIdempotency(ctx, {
+      method: "POST",
+      path: "/v1/cards/bulk",
+      request,
+      requestBody: { items, operation },
+      userId: auth.validated.userId,
+    });
+    if (idempotency instanceof Response) {
+      return idempotency;
+    }
+    if (idempotency.replayed) {
+      return idempotency.replayed;
+    }
+    idempotencyState = idempotency;
+
+    const result = await ctx.runMutation(
+      (internal as any).publicApi.executeBulkCardsForUser,
+      {
+        items,
+        operation,
+        userId: auth.validated.userId,
+      }
+    );
+    operationCommitted = true;
+    await completeIdempotencyResponse(ctx, {
+      keyHash: idempotencyState.keyHash,
+      requestHash: idempotencyState.requestHash,
+      responseBody: result,
+      responseStatus: 200,
+      userId: auth.validated.userId,
+    });
+
+    return json(200, result);
   } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to update favorite status");
+    if (idempotencyState?.reserved && !operationCommitted) {
+      try {
+        await releaseIdempotencyResponse(ctx, {
+          keyHash: idempotencyState.keyHash,
+          requestHash: idempotencyState.requestHash,
+          userId: auth.validated.userId,
+        });
+      } catch {
+        // Preserve the original mutation error when reservation cleanup fails.
+      }
+    }
+    return mapConvexErrorToResponse(error, "Failed to execute bulk operation");
   }
 };
 
@@ -830,6 +1333,14 @@ export const createCardV1 = httpAction(async (ctx, request) => {
   return handleCreateCardRequest(ctx, request);
 });
 
+export const listCardsV1 = httpAction(async (ctx, request) => {
+  if (request.method !== "GET") {
+    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
+  }
+
+  return handleCardsListRequest(ctx, request);
+});
+
 export const searchCardsV1 = httpAction(async (ctx, request) => {
   if (request.method !== "GET") {
     return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
@@ -858,4 +1369,28 @@ export const cardByIdV1 = httpAction(async (ctx, request) => {
   }
 
   return handleCardsByIdV1Request(ctx, request);
+});
+
+export const bulkCardsV1 = httpAction(async (ctx, request) => {
+  if (request.method !== "POST") {
+    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
+  }
+
+  return handleBulkCardsRequest(ctx, request);
+});
+
+export const changesCardsV1 = httpAction(async (ctx, request) => {
+  if (request.method !== "GET") {
+    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
+  }
+
+  return handleCardChangesRequest(ctx, request);
+});
+
+export const tagsV1 = httpAction(async (ctx, request) => {
+  if (request.method !== "GET") {
+    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
+  }
+
+  return handleTagsRequest(ctx, request);
 });

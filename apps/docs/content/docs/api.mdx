@@ -1,6 +1,6 @@
 ---
 title: API
-description: Public Teak API for creating, searching, editing, deleting, and favoriting cards
+description: Public Teak API for creating, querying, and syncing cards
 icon: Braces
 ---
 
@@ -10,6 +10,7 @@ Teak provides a public API at `https://api.teakvault.com/v1`.
 
 - Production: `https://api.teakvault.com/v1`
 - Local development: `http://localhost:8787/v1`
+- OpenAPI: `https://api.teakvault.com/openapi.json`
 
 ## MCP Endpoint
 
@@ -30,6 +31,12 @@ Authorization: Bearer teakapi_xxx_xxx
 
 Generate API keys in Teak Settings: `https://app.teakvault.com/settings`.
 
+## Headers
+
+- `X-Request-Id` is returned on every gateway response.
+- `Idempotency-Key` is supported on `POST /v1/cards` and `POST /v1/cards/bulk`.
+- Rate-limited responses may include `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`, and `Retry-After`.
+
 ## Endpoints
 
 ### Service Health
@@ -37,8 +44,6 @@ Generate API keys in Teak Settings: `https://app.teakvault.com/settings`.
 ```http
 GET /healthz
 ```
-
-Response:
 
 ```json
 {
@@ -54,24 +59,47 @@ Response:
 GET /v1
 ```
 
+Response includes the current v1 route list plus MCP connection details.
+
+### Canonical Card Listing
+
+```http
+GET /v1/cards?q=design&limit=25&cursor=opaque&include=content,metadata
+```
+
+Supported query parameters:
+
+- `q`
+- `limit`
+- `cursor`
+- `sort=newest|oldest`
+- `type`
+- `tag`
+- `favorited=true|false`
+- `createdAfter`
+- `createdBefore`
+- `include=content,metadata,processing`
+
 Response:
 
 ```json
 {
-  "version": "v1",
-  "endpoints": [
-    "POST /v1/cards",
-    "GET /v1/cards/search",
-    "GET /v1/cards/favorites",
-    "PATCH /v1/cards/:cardId",
-    "DELETE /v1/cards/:cardId",
-    "PATCH /v1/cards/:cardId/favorite"
+  "items": [
+    {
+      "id": "card_1",
+      "appUrl": "https://app.teakvault.com/?card=card_1",
+      "createdAt": 1,
+      "isFavorited": true,
+      "metadataTitle": "Example",
+      "tags": ["design"],
+      "type": "link",
+      "updatedAt": 2,
+      "url": "https://example.com"
+    }
   ],
-  "auth": "Authorization: Bearer <api_key>",
-  "mcp": {
-    "endpoint": "https://api.teakvault.com/mcp",
-    "transport": "streamable-http",
-    "auth": "Authorization: Bearer <api_key>"
+  "pageInfo": {
+    "hasMore": false,
+    "nextCursor": null
   }
 }
 ```
@@ -81,47 +109,94 @@ Response:
 ```http
 POST /v1/cards
 Content-Type: application/json
+Idempotency-Key: save-link-123
 ```
 
 ```json
 {
-  "content": "https://teakvault.com"
+  "content": "https://teakvault.com",
+  "tags": ["design"]
 }
 ```
-
-Response:
 
 ```json
 {
   "status": "created",
-  "cardId": "j57fnzw9zy6m3qbjxm4j5f8j2d7st9q8"
+  "cardId": "card_1",
+  "appUrl": "https://app.teakvault.com/?card=card_1"
 }
 ```
 
-`status` can be `created` or `duplicate`.
-
-### Search Cards
+### Bulk Card Operations
 
 ```http
-GET /v1/cards/search?q=design&limit=50
+POST /v1/cards/bulk
+Content-Type: application/json
+Idempotency-Key: bulk-ops-001
 ```
+
+```json
+{
+  "operation": "favorite",
+  "items": [{ "cardId": "card_1", "isFavorited": true }]
+}
+```
+
+Supported operations:
+
+- `create`
+- `update`
+- `favorite`
+- `delete`
 
 Response:
 
 ```json
 {
-  "items": [],
-  "total": 0
+  "operation": "favorite",
+  "results": [{ "index": 0, "status": "success", "cardId": "card_1" }],
+  "summary": { "total": 1, "succeeded": 1, "failed": 0 }
 }
 ```
 
-### Favorite Cards (List)
+### Incremental Sync
 
 ```http
+GET /v1/cards/changes?since=1710000000000&limit=50
+```
+
+```json
+{
+  "items": [],
+  "deletedIds": ["card_2"],
+  "pageInfo": {
+    "hasMore": false,
+    "nextCursor": null
+  }
+}
+```
+
+### Legacy Search Endpoints
+
+These remain stable for existing consumers:
+
+```http
+GET /v1/cards/search?q=design&limit=50
 GET /v1/cards/favorites?q=design&limit=50
 ```
 
-Response shape matches search:
+Supported filters on both legacy endpoints:
+
+- `q`
+- `limit`
+- `type`
+- `tag`
+- `sort`
+- `favorited`
+- `createdAfter`
+- `createdBefore`
+
+Legacy response shape remains:
 
 ```json
 {
@@ -130,33 +205,36 @@ Response shape matches search:
 }
 ```
 
-### Edit Card
+### Get Card
+
+```http
+GET /v1/cards/:cardId
+```
+
+Returns the full card object.
+
+### Update Card
 
 ```http
 PATCH /v1/cards/:cardId
 Content-Type: application/json
 ```
 
-Request fields (any subset):
+Allowed fields:
 
-- `content: string`
-- `url: string`
-- `notes: string | null`
-- `tags: string[]`
+- `content`
+- `url`
+- `notes`
+- `tags`
 
-Examples:
+Example:
 
 ```json
 {
-  "notes": null,
-  "tags": []
+  "notes": "Updated note",
+  "tags": ["reference"]
 }
 ```
-
-- `notes: null` clears notes
-- `tags: []` clears tags
-
-Response: `200` with updated card object.
 
 ### Delete Card
 
@@ -166,7 +244,7 @@ DELETE /v1/cards/:cardId
 
 Response: `204 No Content`
 
-### Set Favorite State
+### Favorite State
 
 ```http
 PATCH /v1/cards/:cardId/favorite
@@ -179,38 +257,25 @@ Content-Type: application/json
 }
 ```
 
-Response: `200` with updated card object.
+### Tags
 
-## Gateway Behavior
+```http
+GET /v1/tags
+```
 
-- Default upstream timeout is `10_000ms`.
-- Successful upstream responses are validated as JSON payloads.
-- When upstream response status/body are valid, the gateway passes through status and response body.
+```json
+{
+  "items": [{ "name": "design", "count": 3 }]
+}
+```
 
-## Limits
+## Errors
 
-- `limit` is clamped to `1..100`
-- Missing/empty `q` on search endpoints returns latest cards
-
-## Error Behavior
-
-Common error codes:
-
-- `UNAUTHORIZED` / `INVALID_API_KEY`
-- `RATE_LIMITED`
-- `BAD_REQUEST` / `INVALID_INPUT`
-- `NOT_FOUND`
-- `INTERNAL_ERROR`
-- `UPSTREAM_TIMEOUT`
-- `UPSTREAM_UNAVAILABLE`
-- `UPSTREAM_INVALID_RESPONSE`
-- `CONFIG_ERROR`
-
-Errors are returned as JSON:
+Errors preserve the stable `{ code, error }` shape. Some responses may also include `requestId`, `details`, or `retryAt`.
 
 ```json
 {
   "code": "INVALID_INPUT",
-  "error": "Field `content` must be a non-empty string"
+  "error": "Body must include `content` or `url`"
 }
 ```

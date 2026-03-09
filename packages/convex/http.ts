@@ -3,13 +3,17 @@ import { authComponent, createAuth } from "./auth";
 import { exchangeDesktopAuthOptions, pollDesktopAuthCode } from "./authDesktop";
 import { polar } from "./billing";
 import {
+  bulkCardsV1,
   cardByIdV1,
+  changesCardsV1,
   createCardV1,
   favoriteCards,
   favoriteCardsV1,
+  listCardsV1,
   quickSave,
   searchCards,
   searchCardsV1,
+  tagsV1,
 } from "./raycastHttp";
 
 const http = httpRouter();
@@ -56,8 +60,26 @@ http.route({
 // Register public API v1 routes (used by apps/api proxy).
 http.route({
   path: "/v1/cards",
+  method: "GET",
+  handler: listCardsV1,
+});
+
+http.route({
+  path: "/v1/cards",
   method: "POST",
   handler: createCardV1,
+});
+
+http.route({
+  path: "/v1/cards/bulk",
+  method: "POST",
+  handler: bulkCardsV1,
+});
+
+http.route({
+  path: "/v1/cards/changes",
+  method: "GET",
+  handler: changesCardsV1,
 });
 
 http.route({
@@ -70,6 +92,12 @@ http.route({
   path: "/v1/cards/favorites",
   method: "GET",
   handler: favoriteCardsV1,
+});
+
+http.route({
+  path: "/v1/tags",
+  method: "GET",
+  handler: tagsV1,
 });
 
 http.route({

@@ -16,6 +16,7 @@ describe("apps/api proxy", () => {
     const response = await app.request("/healthz");
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("x-request-id")).toBeTruthy();
     expect(await response.json()).toEqual({
       status: "ok",
       service: "teak-api",
@@ -232,5 +233,16 @@ describe("apps/api proxy", () => {
       code: "UPSTREAM_TIMEOUT",
       error: "Upstream request timed out",
     });
+  });
+
+  test("returns new v1 endpoints in discovery", async () => {
+    const response = await app.request("/v1");
+
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(payload.endpoints).toContain("GET /v1/cards");
+    expect(payload.endpoints).toContain("POST /v1/cards/bulk");
+    expect(payload.endpoints).toContain("GET /v1/cards/changes");
+    expect(payload.endpoints).toContain("GET /v1/tags");
   });
 });

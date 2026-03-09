@@ -1,4 +1,5 @@
 import type { Hono } from "hono";
+import { openApiSpec } from "../openapi.js";
 import { proxyToConvex } from "../shared/proxy.js";
 import {
   API_AUTH_HINT,
@@ -30,9 +31,15 @@ export const registerRestRoutes = (app: Hono): void => {
     });
   });
 
+  app.get("/openapi.json", (c) => c.json(openApiSpec));
+
+  app.get("/v1/cards", (c) => proxyToConvex(c.req.raw));
   app.post("/v1/cards", (c) => proxyToConvex(c.req.raw));
+  app.post("/v1/cards/bulk", (c) => proxyToConvex(c.req.raw));
+  app.get("/v1/cards/changes", (c) => proxyToConvex(c.req.raw));
   app.get("/v1/cards/search", (c) => proxyToConvex(c.req.raw));
   app.get("/v1/cards/favorites", (c) => proxyToConvex(c.req.raw));
+  app.get("/v1/tags", (c) => proxyToConvex(c.req.raw));
   app.on(["GET", "PATCH", "DELETE"], "/v1/cards/*", (c) =>
     proxyToConvex(c.req.raw)
   );

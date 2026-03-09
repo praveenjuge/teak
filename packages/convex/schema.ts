@@ -177,6 +177,20 @@ export const apiKeyValidator = v.object({
   revokedAt: v.optional(v.number()),
 });
 
+export const apiIdempotencyKeyValidator = v.object({
+  userId: v.string(),
+  keyHash: v.string(),
+  method: v.string(),
+  path: v.string(),
+  requestHash: v.string(),
+  state: v.union(v.literal("pending"), v.literal("completed")),
+  responseStatus: v.number(),
+  responseBody: v.any(),
+  expiresAt: v.number(),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+});
+
 export const desktopAuthCodeValidator = v.object({
   sessionId: v.string(),
   userId: v.string(),
@@ -238,6 +252,7 @@ export default defineSchema({
     .index("by_user_favorites_deleted", ["userId", "isFavorited", "isDeleted"])
     .index("by_user_deleted", ["userId", "isDeleted"])
     .index("by_created", ["userId", "createdAt"])
+    .index("by_updated", ["userId", "updatedAt"])
     // Index for duplicate URL checking
     .index("by_user_url_deleted", ["userId", "url", "isDeleted"])
     // Search indexes for efficient full-text search
@@ -290,6 +305,9 @@ export default defineSchema({
   apiKeys: defineTable(apiKeyValidator)
     .index("by_user_revoked", ["userId", "revokedAt"])
     .index("by_prefix_revoked", ["keyPrefix", "revokedAt"]),
+  apiIdempotencyKeys: defineTable(apiIdempotencyKeyValidator)
+    .index("by_user_key_hash", ["userId", "keyHash"])
+    .index("by_expires_at", ["expiresAt"]),
   desktopAuthCodes: defineTable(desktopAuthCodeValidator)
     .index("by_expires_at", ["expiresAt"])
     .index("by_device_state_consumed", ["deviceId", "state", "consumedAt"])

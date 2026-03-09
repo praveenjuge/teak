@@ -5,6 +5,12 @@ import { json } from "./shared/http.js";
 
 const app = new Hono();
 
+app.use("*", async (c, next) => {
+  const requestId = crypto.randomUUID();
+  await next();
+  c.res.headers.set("X-Request-Id", requestId);
+});
+
 registerRestRoutes(app);
 registerMcpRoutes(app);
 
