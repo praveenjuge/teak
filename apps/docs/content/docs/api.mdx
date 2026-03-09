@@ -120,6 +120,14 @@ Content-Type: application/json
 Idempotency-Key: save-link-123
 ```
 
+Supported request body fields:
+
+- `content` — text or URL to save (required if `url` is not set)
+- `url` — URL to save (required if `content` is not set)
+- `notes` — optional freeform notes attached to the card (string or null)
+- `tags` — optional array of tag strings
+- `source` — optional string identifying the client or integration (e.g. `"raycast_quick_save"`)
+
 ```json
 {
   "content": "https://teakvault.com",
