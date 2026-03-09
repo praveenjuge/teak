@@ -40,35 +40,15 @@ npx convex env set GROQ_API_KEY gsk_...
 
 4. Create local env files:
 
-Copy the values from your Convex dashboard (or the `convex dev` output) into these files:
+Copy the Convex URLs from your dashboard into each app's `.env.local`. Each app uses a framework-specific prefix for the same two vars:
 
-**`apps/web/.env.local`** (Web)
+| App | Prefix |
+|-----|--------|
+| `apps/web` | `NEXT_PUBLIC_` |
+| `apps/mobile` | `EXPO_PUBLIC_` |
+| `apps/extension`, `apps/desktop` | `VITE_PUBLIC_` |
 
-```bash
-NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
-NEXT_PUBLIC_CONVEX_SITE_URL=https://your-deployment.convex.site
-```
-
-**`apps/mobile/.env.local`** (Mobile)
-
-```bash
-EXPO_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
-EXPO_PUBLIC_CONVEX_SITE_URL=https://your-deployment.convex.site
-```
-
-**`apps/extension/.env.local`** (Extension)
-
-```bash
-VITE_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
-VITE_PUBLIC_CONVEX_SITE_URL=https://your-deployment.convex.site
-```
-
-**`apps/desktop/.env.local`** (Desktop)
-
-```bash
-VITE_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
-VITE_PUBLIC_CONVEX_SITE_URL=https://your-deployment.convex.site
-```
+See [Detailed Environment Reference](#detailed-environment-reference) for the full variable list.
 
 5. Start the stack:
 
@@ -117,28 +97,15 @@ NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 TEAK_DEV_APP_URL=http://app.teak.localhost:1355   # Optional local override
 ```
 
-### Mobile (`apps/mobile/.env.local`)
+### Client Apps (`apps/mobile`, `apps/extension`, `apps/desktop`)
 
-```bash
-EXPO_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
-EXPO_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
-```
-
-### Extension (`apps/extension/.env.local`)
+Mobile, Extension, and Desktop share the same base variables (use `EXPO_PUBLIC_` prefix for mobile, `VITE_PUBLIC_` for extension and desktop):
 
 ```bash
 VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 TEAK_DEV_APP_URL=http://app.teak.localhost:1355   # Optional local override
-```
-
-### Desktop (`apps/desktop/.env.local`)
-
-```bash
-VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
-VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
-TEAK_DEV_APP_URL=http://app.teak.localhost:1355   # Optional local override
-VITE_WEB_URL=https://app.yourdomain.com   # Optional: defaults to https://app.teakvault.com
+VITE_WEB_URL=https://app.yourdomain.com           # Desktop only; defaults to https://app.teakvault.com
 ```
 
 ### API Gateway (`apps/api/.env`)
