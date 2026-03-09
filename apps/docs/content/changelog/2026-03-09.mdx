@@ -1,0 +1,8 @@
+---
+title: "Idempotency key support for card operations"
+date: "2026-03-09"
+---
+
+- Card creation (`POST /v1/cards`) and bulk operations (`POST /v1/cards/bulk`) now accept an `Idempotency-Key` header to prevent duplicate processing when retrying requests.
+- Sending the same key with an identical request body replays the original response without re-creating the card.
+- Sending the same key while a request is still in flight, or with a different request body, returns a `409 Conflict` error with a `CONFLICT` code and a descriptive message.
