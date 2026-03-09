@@ -32,7 +32,7 @@ Generate API keys in Teak Settings: `https://app.teakvault.com/settings`.
 
 - `teak_v1_create_card`
   - Input: `{ content: string }`
-  - Output: `{ status: "created" | "duplicate", cardId: string }`
+  - Output: `{ status: "created", cardId: string, appUrl: string }`
 - `teak_v1_search_cards`
   - Input: `{ q?: string, limit?: number }`
   - Output: `{ items: Card[], total: number }`
