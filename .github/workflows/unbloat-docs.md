@@ -5,10 +5,12 @@ on:
   # Daily (scattered execution time)
   schedule: daily
   
-  # Command trigger for /unbloat in PR comments
-  slash_command:
-    name: unbloat
-    events: [pull_request_comment]
+  # Run automatically when documentation content changes in a PR
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "apps/docs/content/docs/**/*.md"
+      - "apps/docs/content/docs/**/*.mdx"
   
   # Manual trigger for testing
   workflow_dispatch:
