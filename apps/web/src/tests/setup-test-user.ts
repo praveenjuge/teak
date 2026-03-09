@@ -1,15 +1,17 @@
 #!/usr/bin/env bun
+
 /**
  * Script to create a verified test user for E2E testing.
  * Usage: bun run src/tests/setup-test-user.ts (from apps/web)
  */
 
+import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
 import dotenv from "dotenv";
 
 dotenv.config({ path: "../../.env.local" });
 
 const APP_URL =
-  process.env.NEXT_PUBLIC_CONVEX_SITE_URL || "http://localhost:3000";
+  process.env.NEXT_PUBLIC_CONVEX_SITE_URL || resolveTeakDevAppUrl(process.env);
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 const TEST_EMAIL = "e2e-test@teakvault.local";
 const TEST_PASSWORD = "TestPassword123!";

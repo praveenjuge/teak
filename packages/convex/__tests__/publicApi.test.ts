@@ -93,7 +93,8 @@ describe("publicApi", () => {
         getUrl: mock(),
       },
     } as any;
-    const handler = (listCardsPageForUser as any).handler ?? listCardsPageForUser;
+    const handler =
+      (listCardsPageForUser as any).handler ?? listCardsPageForUser;
 
     const firstPage = await handler(ctx, {
       createdAfter: 0,

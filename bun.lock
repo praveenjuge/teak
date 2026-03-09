@@ -6,6 +6,7 @@
       "name": "teak",
       "devDependencies": {
         "@biomejs/biome": "2.4.6",
+        "portless": "0.5.2",
         "simple-git-hooks": "^2.11.1",
         "turbo": "^2.8.14",
         "ultracite": "7.2.5",
@@ -18,6 +19,7 @@
         "@hono/mcp": "^0.2.4",
         "@hono/node-server": "^1.19.9",
         "@modelcontextprotocol/sdk": "^1.27.1",
+        "@teak/config": "workspace:*",
         "dotenv": "^17.2.2",
         "hono": "^4.12.5",
         "zod": "^4.3.6",
@@ -38,6 +40,7 @@
         "@tauri-apps/plugin-opener": "^2",
         "@tauri-apps/plugin-store": "^2",
         "@tauri-apps/plugin-updater": "^2",
+        "@teak/config": "workspace:*",
         "@teak/convex": "workspace:*",
         "@teak/ui": "workspace:*",
         "convex": "^1.32.0",
@@ -95,6 +98,7 @@
       "dependencies": {
         "@convex-dev/better-auth": "^0.10.10",
         "@tailwindcss/vite": "^4.1.18",
+        "@teak/config": "workspace:*",
         "@teak/convex": "workspace:*",
         "better-auth": "1.4.9",
         "convex": "^1.31.1",
@@ -175,6 +179,7 @@
       "dependencies": {
         "@raycast/api": "^1.104.6",
         "@raycast/utils": "^2.2.2",
+        "@teak/config": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^25.3.0",
@@ -190,6 +195,7 @@
         "@convex-dev/better-auth": "^0.10.10",
         "@polar-sh/checkout": "^0.2.0",
         "@sentry/nextjs": "^10.42.0",
+        "@teak/config": "workspace:*",
         "@teak/convex": "workspace:*",
         "@teak/ui": "workspace:*",
         "@vercel/analytics": "^1.6.1",
@@ -227,6 +233,13 @@
         "typescript": "^5.9.3",
       },
     },
+    "packages/config": {
+      "name": "@teak/config",
+      "version": "1.0.25",
+      "devDependencies": {
+        "typescript": "^5.9.3",
+      },
+    },
     "packages/convex": {
       "name": "@teak/convex",
       "version": "1.0.25",
@@ -243,6 +256,7 @@
         "@convex-dev/workpool": "^0.3.1",
         "@onkernel/sdk": "^0.29.0",
         "@polar-sh/sdk": "^0.42.1",
+        "@teak/config": "workspace:*",
         "ai": "^6.0.116",
         "better-auth": "1.4.9",
         "convex": "^1.31.7",
@@ -1435,6 +1449,8 @@
     "@tauri-apps/plugin-updater": ["@tauri-apps/plugin-updater@2.10.0", "", { "dependencies": { "@tauri-apps/api": "^2.10.1" } }, "sha512-ljN8jPlnT0aSn8ecYhuBib84alxfMx6Hc8vJSKMJyzGbTPFZAC44T2I1QNFZssgWKrAlofvJqCC6Rr472JWfkQ=="],
 
     "@teak/api": ["@teak/api@workspace:apps/api"],
+
+    "@teak/config": ["@teak/config@workspace:packages/config"],
 
     "@teak/convex": ["@teak/convex@workspace:packages/convex"],
 
@@ -2919,6 +2935,8 @@
     "plist": ["plist@3.1.0", "", { "dependencies": { "@xmldom/xmldom": "^0.8.8", "base64-js": "^1.5.1", "xmlbuilder": "^15.1.1" } }, "sha512-uysumyrvkUX0rX/dEVqt8gC3sTBzd4zoWfLeS29nb53imdaXVvLINYXTI2GNqzaMuvacNx4uJQ8+b3zXR0pkgQ=="],
 
     "pngjs": ["pngjs@3.4.0", "", {}, "sha512-NCrCHhWmnQklfH4MtJMRjZ2a8c80qXeMlQMv2uVp9ISJMTt562SbGd6n2oq0PaPgKm7Z6pL9E2UlLIhC+SHL3w=="],
+
+    "portless": ["portless@0.5.2", "", { "dependencies": { "chalk": "^5.3.0" }, "os": [ "linux", "darwin", ], "bin": { "portless": "dist/cli.js" } }, "sha512-LnJvnFUduG4QSIDqc4og9WCLRA6L0+btA96nn6icY6cxyEAR44cnWaIxVzmw7y74KQ+R7zJM1HpenankphympA=="],
 
     "postal-mime": ["postal-mime@2.7.3", "", {}, "sha512-MjhXadAJaWgYzevi46+3kLak8y6gbg0ku14O1gO/LNOuay8dO+1PtcSGvAdgDR0DoIsSaiIA8y/Ddw6MnrO0Tw=="],
 

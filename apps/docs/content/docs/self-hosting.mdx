@@ -32,7 +32,7 @@ Run these commands to set the minimum required secrets in your Convex dashboard:
 ```bash
 # Security & Auth
 npx convex env set BETTER_AUTH_SECRET $(openssl rand -base64 32)
-npx convex env set SITE_URL http://localhost:3000
+npx convex env set SITE_URL http://app.teak.localhost:1355
 
 # Optional: AI (if you want card processing)
 npx convex env set GROQ_API_KEY gsk_...
@@ -97,7 +97,7 @@ Add these to your env files before running locally or deploying.
 ### Backend (`packages/convex/.env.local`)
 
 ```bash
-SITE_URL=http://localhost:3000
+SITE_URL=http://app.teak.localhost:1355
 BETTER_AUTH_SECRET=your-secret               # Better Auth security
 KERNEL_API_KEY=token                         # Kernel Browser
 GROQ_API_KEY=gsk_...                         # AI processing
@@ -114,6 +114,7 @@ RESEND_API_KEY=token                         # Email service
 CONVEX_DEPLOY_KEY=
 NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+TEAK_DEV_APP_URL=http://app.teak.localhost:1355   # Optional local override
 ```
 
 ### Mobile (`apps/mobile/.env.local`)
@@ -128,6 +129,7 @@ EXPO_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 ```bash
 VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+TEAK_DEV_APP_URL=http://app.teak.localhost:1355   # Optional local override
 ```
 
 ### Desktop (`apps/desktop/.env.local`)
@@ -135,6 +137,7 @@ VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 ```bash
 VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+TEAK_DEV_APP_URL=http://app.teak.localhost:1355   # Optional local override
 VITE_WEB_URL=https://app.yourdomain.com   # Optional: defaults to https://app.teakvault.com
 ```
 
@@ -143,7 +146,7 @@ VITE_WEB_URL=https://app.yourdomain.com   # Optional: defaults to https://app.te
 ```bash
 CONVEX_HTTP_BASE_URL=https://deployment.convex.site   # Required: Convex .site URL
 CONVEX_UPSTREAM_TIMEOUT_MS=10000                      # Optional: upstream timeout in ms (default: 10000)
-PORT=8787                                             # Optional: listening port (default: 8787)
+TEAK_DEV_API_URL=http://api.teak.localhost:1355      # Optional local override
 ```
 
 The `CONVEX_HTTP_BASE_URL` must point to your Convex `.site` domain (the same value as `NEXT_PUBLIC_CONVEX_SITE_URL` in `apps/web`). The API gateway forwards all authenticated `/v1` and `/mcp` requests to this URL.
@@ -153,7 +156,7 @@ The `CONVEX_HTTP_BASE_URL` must point to your Convex `.site` domain (the same va
 - **Convex URLs**: Run `bunx convex dev`. It prints both `CONVEX_URL` (for the client) and `CONVEX_SITE_URL` (for the site/auth endpoint). You can also find these in the Convex Dashboard under "Settings" -> "Deployment".
 - **Better Auth**:
   - `BETTER_AUTH_SECRET`: Generate a random string (e.g., via `openssl rand -base64 32`).
-  - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://localhost:3000`.
+  - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://app.teak.localhost:1355`.
 - **Optional Features**:
   - `GROQ_API_KEY`: Get from [Groq Console](https://console.groq.com/) for AI-powered card processing.
   - `KERNEL_API_KEY`: Get from [Kernel](https://onkernel.com/) for automated link screenshots.

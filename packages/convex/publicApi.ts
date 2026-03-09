@@ -222,7 +222,8 @@ const decodeCursor = (cursor?: string): ApiCursor => {
         mode: "index",
         cursor: typeof parsed.cursor === "string" ? parsed.cursor : null,
         pageOffset:
-          typeof parsed.pageOffset === "number" && Number.isFinite(parsed.pageOffset)
+          typeof parsed.pageOffset === "number" &&
+          Number.isFinite(parsed.pageOffset)
             ? Math.max(0, parsed.pageOffset)
             : 0,
       };
@@ -395,7 +396,8 @@ const listCardsWithBaseQuery = async (
   const baseQuery = buildBaseQuery(ctx, userId, options);
   const matches: Doc<"cards">[] = [];
   let cursor = decodedCursor.mode === "index" ? decodedCursor.cursor : null;
-  let pageOffset = decodedCursor.mode === "index" ? decodedCursor.pageOffset : 0;
+  let pageOffset =
+    decodedCursor.mode === "index" ? decodedCursor.pageOffset : 0;
   let hasMore = false;
   let nextCursor: string | null = null;
 
@@ -776,7 +778,8 @@ export const executeBulkCardsForUser = internalMutation({
             if (shouldSchedulePipeline) {
               await ctx.scheduler.runAfter(
                 0,
-                (internal as any)["workflows/manager"].startCardProcessingWorkflow,
+                (internal as any)["workflows/manager"]
+                  .startCardProcessingWorkflow,
                 {
                   cardId,
                 }

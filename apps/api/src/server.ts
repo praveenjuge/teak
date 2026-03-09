@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { serve } from "@hono/node-server";
+import { resolveTeakDevApiUrl } from "@teak/config/dev-urls";
 import app from "./index.js";
 
 const DEFAULT_PORT = 8787;
@@ -16,6 +17,7 @@ serve(
     port: resolvePort(),
   },
   (info) => {
-    console.log(`teak-api listening on http://localhost:${info.port}`);
+    const url = process.env.PORTLESS_URL || resolveTeakDevApiUrl(process.env);
+    console.log(`teak-api listening on ${url} (upstream port ${info.port})`);
   }
 );

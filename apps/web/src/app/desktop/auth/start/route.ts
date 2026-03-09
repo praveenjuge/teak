@@ -1,3 +1,4 @@
+import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
 import { api } from "@teak/convex";
 import { NextResponse } from "next/server";
 import { fetchAuthMutation, isAuthenticated } from "@/lib/auth-server";
@@ -8,7 +9,7 @@ const DEVICE_ID_PATTERN = /^[A-Za-z0-9-]{16,128}$/;
 const PKCE_CHALLENGE_PATTERN = /^[A-Za-z0-9_-]{43,128}$/;
 const STATE_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
 const ALLOWED_COMPLETION_REDIRECTS = new Set([
-  "http://localhost:3000/desktop/auth/complete",
+  `${resolveTeakDevAppUrl(process.env)}/desktop/auth/complete`,
   "https://app.teakvault.com/desktop/auth/complete",
 ]);
 

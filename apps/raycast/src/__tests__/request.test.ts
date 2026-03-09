@@ -3,10 +3,14 @@ import { parseCardsResponse } from "../lib/apiParsers";
 
 const getPreferenceValuesMock = mock(() => ({ apiKey: "valid-test-key" }));
 
-mock.module("@raycast/api", () => ({
-  environment: { isDevelopment: false },
-  getPreferenceValues: getPreferenceValuesMock,
-}));
+const mockRaycastApi = (isDevelopment: boolean) => {
+  mock.module("@raycast/api", () => ({
+    environment: { isDevelopment },
+    getPreferenceValues: getPreferenceValuesMock,
+  }));
+};
+
+mockRaycastApi(false);
 
 const {
   createCard,
@@ -72,6 +76,7 @@ afterEach(() => {
   getPreferenceValuesMock.mockImplementation(() => ({
     apiKey: "valid-test-key",
   }));
+  mockRaycastApi(false);
 });
 
 describe("raycast request handling", () => {
@@ -113,6 +118,34 @@ describe("raycast request handling", () => {
         "NETWORK_ERROR",
       );
     }
+  });
+
+  test("retries development requests against a valid loopback URL", async () => {
+    mockRaycastApi(true);
+    const { searchCards: searchCardsInDev } = await import(
+      `../lib/api?dev-fallback=${crypto.randomUUID()}`
+    );
+    const capturedUrls: string[] = [];
+
+    globalThis.fetch = mock((input: RequestInfo | URL) => {
+      capturedUrls.push(String(input));
+      throw new Error("Connection failed");
+    }) as unknown as typeof fetch;
+
+    try {
+      await searchCardsInDev({ limit: 1 });
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(RaycastApiError);
+      expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
+        "NETWORK_ERROR",
+      );
+    }
+
+    expect(capturedUrls).toEqual([
+      "http://api.teak.localhost:1355/v1/cards/search?limit=1",
+      "http://127.0.0.1:1355/v1/cards/search?limit=1",
+    ]);
   });
 
   test("maps timed out requests to NETWORK_ERROR", async () => {

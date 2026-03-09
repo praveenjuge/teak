@@ -1,10 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
+import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
 import dotenv from "dotenv";
 
 // Load .env.local for E2E tests
 dotenv.config({ path: ".env.local" });
 
-const DEFAULT_PORT = process.env.PORT || "3000";
+const DEFAULT_BASE_URL = resolveTeakDevAppUrl(process.env);
 const shouldStartServer = !process.env.PLAYWRIGHT_SKIP_WEBSERVER;
 
 export default defineConfig({
@@ -19,8 +20,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
-    baseURL:
-      process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${DEFAULT_PORT}`,
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || DEFAULT_BASE_URL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
@@ -30,13 +30,9 @@ export default defineConfig({
     ? {
         command: "bun run dev",
         cwd: "../..",
-        port: Number(DEFAULT_PORT),
+        url: process.env.PLAYWRIGHT_BASE_URL || DEFAULT_BASE_URL,
         timeout: 120_000,
         reuseExistingServer: !process.env.CI,
-        env: {
-          ...process.env,
-          PORT: DEFAULT_PORT,
-        },
       }
     : undefined,
   projects: [

@@ -90,11 +90,21 @@ const getRequestTimeoutMs = (): number => {
 };
 
 const withLoopbackFallback = (url: string): string => {
-  if (!url.includes("localhost")) {
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(url);
+  } catch {
     return url;
   }
 
-  return url.replace("localhost", "127.0.0.1");
+  const hostname = parsedUrl.hostname.toLowerCase();
+  if (hostname !== "localhost" && !hostname.endsWith(".localhost")) {
+    return url;
+  }
+
+  parsedUrl.hostname = "127.0.0.1";
+  return parsedUrl.toString();
 };
 
 const parseJson = async (response: Response): Promise<unknown> => {

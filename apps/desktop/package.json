@@ -21,6 +21,7 @@
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-store": "^2",
     "@tauri-apps/plugin-updater": "^2",
+    "@teak/config": "workspace:*",
     "@teak/convex": "workspace:*",
     "@teak/ui": "workspace:*",
     "convex": "^1.32.0",

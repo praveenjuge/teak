@@ -1,5 +1,6 @@
 import { Polar } from "@convex-dev/polar";
 import { Polar as PolarBilling } from "@polar-sh/sdk";
+import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
 import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
 import { action, query } from "./_generated/server";
@@ -33,6 +34,7 @@ export const polar = new Polar(components.polar, {
 });
 
 export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
+  const devAppUrl = resolveTeakDevAppUrl(process.env);
   const user = await ctx.runQuery(api.billing.getUserInfo);
 
   const polar = new PolarBilling({
@@ -76,7 +78,7 @@ export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
     embedOrigin:
       process.env.POLAR_SERVER === "production"
         ? "https://app.teakvault.com"
-        : "http://localhost:3000",
+        : devAppUrl,
   });
 
   return checkout.url;

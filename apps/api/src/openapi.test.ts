@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { resolveTeakDevApiUrl } from "@teak/config/dev-urls";
 import app from "./index";
 import { openApiSpec } from "./openapi";
 
@@ -15,6 +16,13 @@ describe("openapi", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(openApiSpec);
+  });
+
+  test("uses the portless local server URL in the OpenAPI spec", () => {
+    expect(openApiSpec.servers).toEqual([
+      { url: "https://api.teakvault.com" },
+      { url: resolveTeakDevApiUrl(process.env) },
+    ]);
   });
 
   test("documents key routes in both mdx and openapi", () => {

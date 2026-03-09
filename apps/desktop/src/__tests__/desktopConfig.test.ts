@@ -14,7 +14,7 @@ describe("desktop config", () => {
       DEV: true,
     });
 
-    expect(config.webBaseUrl).toBe("http://localhost:3000");
+    expect(config.webBaseUrl).toBe("http://app.teak.localhost:1355");
   });
 
   it("uses the production web fallback when VITE_WEB_URL is missing", () => {

@@ -1,3 +1,4 @@
+import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
 import { ConvexError, v } from "convex/values";
 import { components, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
@@ -12,7 +13,7 @@ const DESKTOP_AUTH_CODE_TTL_MS = 5 * 60 * 1000;
 const DESKTOP_AUTH_ALLOWED_ORIGINS = new Set([
   "http://localhost:1420",
   "http://127.0.0.1:1420",
-  "http://localhost:3000",
+  resolveTeakDevAppUrl(process.env),
   "https://app.teakvault.com",
   "tauri://localhost",
 ]);

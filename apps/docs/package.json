@@ -2,7 +2,7 @@
   "name": "@teak/docs",
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "portless docs.teak next dev",
     "lint": "biome check .",
     "start": "next start",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",

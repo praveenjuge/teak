@@ -16,14 +16,14 @@ bun install
 
 ## Access Points
 
-- Web App: http://localhost:3000
-- Admin: http://localhost:3000/admin
-- API Gateway: http://localhost:8787
-- MCP Endpoint: http://localhost:8787/mcp
+- Web App: http://app.teak.localhost:1355
+- Admin: http://app.teak.localhost:1355/admin
+- API Gateway: http://api.teak.localhost:1355
+- MCP Endpoint: http://api.teak.localhost:1355/mcp
 - Convex Dashboard: opens after `bunx convex dev`
 - Mobile: Expo Go or simulator
 - Extension: Chrome dev mode
-- Docs: http://localhost:3001
+- Docs: http://docs.teak.localhost:1355
 
 ## Project Layout
 
@@ -110,7 +110,7 @@ bun run clean          # Remove all Turborepo caches and node_modules/.cache
 ```bash
 bunx convex dev  # Creates Convex deployment
 bunx convex env set BETTER_AUTH_SECRET=$(openssl rand -base64 32)
-bunx convex env set SITE_URL http://localhost:3000
+bunx convex env set SITE_URL http://app.teak.localhost:1355
 ```
 
 1. `BETTER_AUTH_SECRET` signs Better Auth sessions—set it once per environment.
@@ -129,12 +129,18 @@ echo "CONVEX_HTTP_BASE_URL=https://<your-deployment>.convex.site" > apps/api/.en
 
 The same service exposes:
 
-- REST API: `http://localhost:8787/v1`
-- MCP endpoint: `http://localhost:8787/mcp`
+- REST API: `http://api.teak.localhost:1355/v1`
+- MCP endpoint: `http://api.teak.localhost:1355/mcp`
 
 ### Environment Variables
 
 See **[Self-Hosting → Environment settings](./self-hosting#environment-settings)** for every env var required across web, mobile, extension, and the Convex backend.
+
+Optional local overrides:
+
+- `TEAK_DEV_APP_URL` defaults to `http://app.teak.localhost:1355`
+- `TEAK_DEV_API_URL` defaults to `http://api.teak.localhost:1355`
+- `TEAK_DEV_DOCS_URL` defaults to `http://docs.teak.localhost:1355`
 
 ## Automated Workflows
 

@@ -1,3 +1,4 @@
+import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
 import {
   AlertTriangle,
   ArrowRight,
@@ -24,7 +25,7 @@ function isCardLimitError(errorMessage: string | undefined): boolean {
 // Upgrade prompt component for when free tier limit is reached
 function UpgradePrompt() {
   const baseUrl = import.meta.env.DEV
-    ? "http://localhost:3000"
+    ? resolveTeakDevAppUrl(import.meta.env)
     : "https://app.teakvault.com";
 
   const handleUpgradeClick = () => {
@@ -128,7 +129,7 @@ function AuthPanel({
   onLoginSuccess: () => void;
 }) {
   const baseUrl = import.meta.env.DEV
-    ? "http://localhost:3000"
+    ? resolveTeakDevAppUrl(import.meta.env)
     : "https://app.teakvault.com";
 
   const handleLogin = () => {

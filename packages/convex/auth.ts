@@ -3,6 +3,10 @@ import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { requireActionCtx } from "@convex-dev/better-auth/utils";
 import { Resend } from "@convex-dev/resend";
+import {
+  isLocalDevelopmentUrl,
+  resolveTeakDevAppUrl,
+} from "@teak/config/dev-urls";
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { ConvexError } from "convex/values";
 import { api, components } from "./_generated/api";
@@ -26,15 +30,7 @@ const googleClientId = process.env.GOOGLE_CLIENT_ID!;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET!;
 const siteUrl = process.env.SITE_URL!;
 const desktopDevOrigins = ["http://localhost:1420", "http://127.0.0.1:1420"];
-
-function isLocalDevelopmentSite(url: string): boolean {
-  try {
-    const hostname = new URL(url).hostname;
-    return hostname === "localhost" || hostname === "127.0.0.1";
-  } catch {
-    return false;
-  }
-}
+const appDevUrl = resolveTeakDevAppUrl(process.env);
 
 // The component client has methods needed for integrating Convex with Better Auth,
 // as well as helper methods for general use.
@@ -54,9 +50,9 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       "teak://",
       "teak://*",
       "chrome-extension://negnmfifahnnagnbnfppmlgfajngdpob",
-      "http://localhost:3000",
+      appDevUrl,
       "https://appleid.apple.com",
-      ...(isLocalDevelopmentSite(siteUrl)
+      ...(isLocalDevelopmentUrl(siteUrl)
         ? [
             ...desktopDevOrigins,
             "exp+teak://*",

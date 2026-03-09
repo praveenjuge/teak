@@ -1,3 +1,4 @@
+import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
 import { ConvexHttpClient } from "convex/browser";
 import type { TeakSaveResponse } from "../types/messages";
 import { isSupportedInlineSaveHost } from "../types/social";
@@ -8,7 +9,7 @@ const CARD_LIMIT_REACHED_CODE = "CARD_LIMIT_REACHED";
 const JWT_EXPIRY_SKEW_MS = 10_000;
 
 const WEB_APP_BASE_URL = import.meta.env.DEV
-  ? "http://localhost:3000"
+  ? resolveTeakDevAppUrl(import.meta.env)
   : "https://app.teakvault.com";
 
 type SaveSource = "context-menu" | "inline-post" | "popup-auto-save";

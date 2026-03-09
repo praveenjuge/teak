@@ -20,7 +20,7 @@ echo "CONVEX_HTTP_BASE_URL=https://uncommon-ladybug-882.convex.site" > .env
 bun run dev
 ```
 
-Local server defaults to `http://localhost:8787`.
+Local server is exposed through portless at `http://api.teak.localhost:1355`.
 
 ## Endpoints
 

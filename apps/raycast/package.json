@@ -90,7 +90,8 @@
   },
   "dependencies": {
     "@raycast/api": "^1.104.6",
-    "@raycast/utils": "^2.2.2"
+    "@raycast/utils": "^2.2.2",
+    "@teak/config": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.3.0",

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "portless app.teak next dev",
     "lint": "biome check .",
     "start": "next start",
     "test": "CLAUDECODE=1 AGENT=1 bun test src/__tests__ --coverage --dots",
@@ -16,6 +16,7 @@
     "@convex-dev/better-auth": "^0.10.10",
     "@polar-sh/checkout": "^0.2.0",
     "@sentry/nextjs": "^10.42.0",
+    "@teak/config": "workspace:*",
     "@teak/convex": "workspace:*",
     "@teak/ui": "workspace:*",
     "@vercel/analytics": "^1.6.1",

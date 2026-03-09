@@ -1,10 +1,12 @@
+import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
+
 /**
  * Gets the Better Auth session token from the web app's cookies.
  * This allows the extension to share the session with the web app.
  */
 export async function getSessionTokenFromCookies(): Promise<string | null> {
   const url = import.meta.env.DEV
-    ? "http://localhost:3000"
+    ? resolveTeakDevAppUrl(import.meta.env)
     : "https://app.teakvault.com";
 
   // Cookie names differ between dev and prod:

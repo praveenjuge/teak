@@ -1,3 +1,4 @@
+import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
 import { useCallback, useEffect, useState } from "react";
 import { getSessionTokenFromCookies } from "../utils/getSessionFromCookies";
 
@@ -20,7 +21,7 @@ interface UseWebAppSessionResult {
 }
 
 const baseURL = import.meta.env.DEV
-  ? "http://localhost:3000"
+  ? resolveTeakDevAppUrl(import.meta.env)
   : "https://app.teakvault.com";
 
 /**

@@ -1,4 +1,5 @@
-const DEV_WEB_URL = "http://localhost:3000";
+import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
+
 const PROD_WEB_URL = "https://app.teakvault.com";
 
 type DesktopConfigEnv = {
@@ -34,7 +35,9 @@ function resolveRequiredBaseUrl(label: string, rawUrl: string | undefined) {
 
 function resolveWebBaseUrl(rawUrl: string | undefined, isDev: boolean) {
   if (!rawUrl?.trim()) {
-    const fallback = isDev ? DEV_WEB_URL : PROD_WEB_URL;
+    const fallback = isDev
+      ? resolveTeakDevAppUrl(import.meta.env)
+      : PROD_WEB_URL;
     return normalizeBaseUrl("VITE_WEB_URL", fallback);
   }
 

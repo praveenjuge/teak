@@ -173,7 +173,7 @@ describe("useAutoSaveUrl Hook", () => {
     });
 
     test("should handle localhost URLs", () => {
-      const url = "http://localhost:3000";
+      const url = "http://app.teak.localhost:1355";
 
       const isValid = url.startsWith("http://") || url.startsWith("https://");
 

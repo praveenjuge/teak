@@ -1,5 +1,7 @@
 // @ts-nocheck
+
 import { describe, expect, test } from "bun:test";
+import { DEFAULT_TEAK_DEV_APP_URL } from "@teak/config/dev-urls";
 
 describe("billing.ts", () => {
   test("module exports", async () => {
@@ -63,7 +65,7 @@ describe("billing.ts", () => {
   });
 
   test("embed origin configuration uses SITE_URL", () => {
-    const siteUrl = process.env.SITE_URL || "http://localhost:3000";
+    const siteUrl = process.env.SITE_URL || DEFAULT_TEAK_DEV_APP_URL;
     expect(siteUrl).toBeDefined();
   });
 

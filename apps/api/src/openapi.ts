@@ -1,3 +1,5 @@
+import { resolveTeakDevApiUrl } from "@teak/config/dev-urls";
+
 const apiKeySecurity = [{ bearerAuth: [] }];
 
 const cardProperties = {
@@ -257,7 +259,7 @@ export const openApiSpec = {
   },
   servers: [
     { url: "https://api.teakvault.com" },
-    { url: "http://localhost:8787" },
+    { url: resolveTeakDevApiUrl(process.env) },
   ],
   components,
   paths: {

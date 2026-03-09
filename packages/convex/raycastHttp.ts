@@ -1,3 +1,7 @@
+import {
+  isLocalDevelopmentHostname,
+  resolveTeakDevAppUrl,
+} from "@teak/config/dev-urls";
 import { ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
@@ -5,7 +9,7 @@ import { httpAction } from "./_generated/server";
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 const APP_PROD_URL = "https://app.teakvault.com";
-const APP_DEV_URL = "http://localhost:3000";
+const APP_DEV_URL = resolveTeakDevAppUrl(process.env);
 const CARD_TYPES = new Set([
   "text",
   "link",
@@ -380,9 +384,7 @@ const withAuthorizedUser = async (
 
 const getAppBaseUrl = (requestUrl: string): string => {
   const { hostname } = new URL(requestUrl);
-  return hostname === "localhost" || hostname === "127.0.0.1"
-    ? APP_DEV_URL
-    : APP_PROD_URL;
+  return isLocalDevelopmentHostname(hostname) ? APP_DEV_URL : APP_PROD_URL;
 };
 
 const getCardAppUrl = (requestUrl: string, cardId: string): string => {

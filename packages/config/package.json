@@ -1,0 +1,16 @@
+{
+  "name": "@teak/config",
+  "version": "1.0.25",
+  "private": true,
+  "exports": {
+    ".": "./index.ts",
+    "./dev-urls": "./dev-urls.ts"
+  },
+  "scripts": {
+    "test": "bun test *.test.ts --dots",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

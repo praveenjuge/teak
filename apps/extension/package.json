@@ -19,6 +19,7 @@
   "dependencies": {
     "@convex-dev/better-auth": "^0.10.10",
     "@tailwindcss/vite": "^4.1.18",
+    "@teak/config": "workspace:*",
     "@teak/convex": "workspace:*",
     "better-auth": "1.4.9",
     "convex": "^1.31.1",

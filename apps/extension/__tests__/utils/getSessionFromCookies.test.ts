@@ -5,20 +5,24 @@ describe("getSessionTokenFromCookies", () => {
   describe("URL Configuration", () => {
     test("should use localhost URL in development", () => {
       const isDev = true;
-      const url = isDev ? "http://localhost:3000" : "https://app.teakvault.com";
+      const url = isDev
+        ? "http://app.teak.localhost:1355"
+        : "https://app.teakvault.com";
 
-      expect(url).toBe("http://localhost:3000");
+      expect(url).toBe("http://app.teak.localhost:1355");
     });
 
     test("should use production URL in production", () => {
       const isDev = false;
-      const url = isDev ? "http://localhost:3000" : "https://app.teakvault.com";
+      const url = isDev
+        ? "http://app.teak.localhost:1355"
+        : "https://app.teakvault.com";
 
       expect(url).toBe("https://app.teakvault.com");
     });
 
     test("should use http protocol for development", () => {
-      const devUrl = "http://localhost:3000";
+      const devUrl = "http://app.teak.localhost:1355";
 
       expect(devUrl).toStartWith("http://");
     });
@@ -30,15 +34,15 @@ describe("getSessionTokenFromCookies", () => {
     });
 
     test("should use localhost hostname in development", () => {
-      const devUrl = "http://localhost:3000";
+      const devUrl = "http://app.teak.localhost:1355";
 
       expect(devUrl).toContain("localhost");
     });
 
-    test("should use port 3000 in development", () => {
-      const devUrl = "http://localhost:3000";
+    test("should use port 1355 in development", () => {
+      const devUrl = "http://app.teak.localhost:1355";
 
-      expect(devUrl).toContain(":3000");
+      expect(devUrl).toContain(":1355");
     });
 
     test("should use app.teakvault.com domain in production", () => {
@@ -102,18 +106,18 @@ describe("getSessionTokenFromCookies", () => {
         Promise.resolve({
           name: "better-auth.session_token",
           value: "dev-session-token-123",
-          domain: "localhost",
+          domain: "app.teak.localhost",
         })
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
       expect(cookie.value).toBe("dev-session-token-123");
       expect(mockGet).toHaveBeenCalledWith({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
     });
@@ -149,7 +153,7 @@ describe("getSessionTokenFromCookies", () => {
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -161,7 +165,7 @@ describe("getSessionTokenFromCookies", () => {
         Promise.resolve({
           name: "better-auth.session_token",
           value: "session-token-abc",
-          domain: "localhost",
+          domain: "app.teak.localhost",
           path: "/",
           httpOnly: true,
           secure: false,
@@ -169,12 +173,12 @@ describe("getSessionTokenFromCookies", () => {
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
       expect(cookie.value).toBe("session-token-abc");
-      expect(cookie.domain).toBe("localhost");
+      expect(cookie.domain).toBe("app.teak.localhost");
       expect(cookie.path).toBe("/");
       expect(cookie.httpOnly).toBe(true);
     });
@@ -188,7 +192,7 @@ describe("getSessionTokenFromCookies", () => {
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -202,7 +206,7 @@ describe("getSessionTokenFromCookies", () => {
       const mockGet = mock(() => Promise.resolve(null));
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -213,7 +217,7 @@ describe("getSessionTokenFromCookies", () => {
       const mockGet = mock(() => Promise.resolve(undefined));
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -228,7 +232,7 @@ describe("getSessionTokenFromCookies", () => {
 
       try {
         await mockGet({
-          url: "http://localhost:3000",
+          url: "http://app.teak.localhost:1355",
           name: "better-auth.session_token",
         });
       } catch (error) {
@@ -239,12 +243,12 @@ describe("getSessionTokenFromCookies", () => {
     test("should handle missing cookie name", async () => {
       const mockGet = mock(() =>
         Promise.resolve({
-          url: "http://localhost:3000",
+          url: "http://app.teak.localhost:1355",
         })
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -259,7 +263,7 @@ describe("getSessionTokenFromCookies", () => {
 
       try {
         await mockGet({
-          url: "http://localhost:3000",
+          url: "http://app.teak.localhost:1355",
           name: "better-auth.session_token",
         });
       } catch {
@@ -287,7 +291,7 @@ describe("getSessionTokenFromCookies", () => {
 
       try {
         await mockGet({
-          url: "http://localhost:3000",
+          url: "http://app.teak.localhost:1355",
           name: "better-auth.session_token",
         });
       } catch (error) {
@@ -299,7 +303,7 @@ describe("getSessionTokenFromCookies", () => {
   describe("Chrome Cookies API", () => {
     test("should call chrome.cookies.get with correct parameters", async () => {
       const mockGet = mock(() => Promise.resolve(null));
-      const url = "http://localhost:3000";
+      const url = "http://app.teak.localhost:1355";
       const name = "better-auth.session_token";
 
       await mockGet({ url, name });
@@ -312,7 +316,7 @@ describe("getSessionTokenFromCookies", () => {
         Promise.resolve({
           name: "better-auth.session_token",
           value: "token-value",
-          domain: "localhost",
+          domain: "app.teak.localhost",
           hostOnly: true,
           path: "/",
           secure: false,
@@ -322,7 +326,7 @@ describe("getSessionTokenFromCookies", () => {
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -431,7 +435,7 @@ describe("getSessionTokenFromCookies", () => {
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -448,7 +452,7 @@ describe("getSessionTokenFromCookies", () => {
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -482,7 +486,7 @@ describe("getSessionTokenFromCookies", () => {
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -495,13 +499,13 @@ describe("getSessionTokenFromCookies", () => {
       const webAppCookie = {
         name: "better-auth.session_token",
         value: "shared-session-token",
-        domain: "localhost",
+        domain: "app.teak.localhost",
       };
 
       const mockGet = mock(() => Promise.resolve(webAppCookie));
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -552,7 +556,7 @@ describe("getSessionTokenFromCookies", () => {
 
       try {
         await mockGet({
-          url: "http://localhost:3000",
+          url: "http://app.teak.localhost:1355",
           name: "better-auth.session_token",
         });
       } catch {
@@ -570,7 +574,7 @@ describe("getSessionTokenFromCookies", () => {
       let result: string | null = null;
       try {
         await mockGet({
-          url: "http://localhost:3000",
+          url: "http://app.teak.localhost:1355",
           name: "better-auth.session_token",
         });
       } catch {
@@ -587,7 +591,7 @@ describe("getSessionTokenFromCookies", () => {
 
       try {
         await mockGet({
-          url: "http://localhost:3000",
+          url: "http://app.teak.localhost:1355",
           name: "better-auth.session_token",
         });
       } catch (error) {
@@ -611,11 +615,13 @@ describe("getSessionTokenFromCookies", () => {
 
     test("should use appropriate URL based on environment", () => {
       const isDev = true;
-      const url = isDev ? "http://localhost:3000" : "https://app.teakvault.com";
+      const url = isDev
+        ? "http://app.teak.localhost:1355"
+        : "https://app.teakvault.com";
 
       expect(
         isDev
-          ? url === "http://localhost:3000"
+          ? url === "http://app.teak.localhost:1355"
           : url === "https://app.teakvault.com"
       ).toBe(true);
     });
@@ -645,7 +651,7 @@ describe("getSessionTokenFromCookies", () => {
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -664,7 +670,7 @@ describe("getSessionTokenFromCookies", () => {
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -683,7 +689,7 @@ describe("getSessionTokenFromCookies", () => {
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -701,7 +707,7 @@ describe("getSessionTokenFromCookies", () => {
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -712,7 +718,7 @@ describe("getSessionTokenFromCookies", () => {
       const mockGet = mock(() => Promise.resolve(null));
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -723,7 +729,7 @@ describe("getSessionTokenFromCookies", () => {
       const mockGet = mock(() => Promise.resolve("token"));
 
       const result = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -747,7 +753,7 @@ describe("getSessionTokenFromCookies", () => {
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -765,7 +771,7 @@ describe("getSessionTokenFromCookies", () => {
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
@@ -785,7 +791,7 @@ describe("getSessionTokenFromCookies", () => {
       );
 
       const cookie = await mockGet({
-        url: "http://localhost:3000",
+        url: "http://app.teak.localhost:1355",
         name: "better-auth.session_token",
       });
 
