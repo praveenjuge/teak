@@ -71,6 +71,7 @@ Documentation‑as‑Code, transparency, single source of truth, continuous impr
      - Inclusive naming conventions
      - Microsoft Writing Style Guide standards
    - Identify missing or outdated documentation
+   - Identify bloated sections that can be tightened without losing accuracy, examples, or important nuance
 
 3. **Create or Update Documentation**
    
@@ -79,6 +80,7 @@ Documentation‑as‑Code, transparency, single source of truth, continuous impr
    - Follow progressive disclosure: high-level concepts first, detailed examples second
    - Ensure content is accessible and internationalization-ready
    - Create clear, actionable documentation that serves both newcomers and power users
+   - When touching a documentation file, opportunistically unbloat nearby sections by removing repetition, flattening overlong prose, and tightening examples, but do not rewrite unrelated docs just to shorten them
 
 4. **Documentation Structure & Organization**
    
@@ -105,8 +107,8 @@ Documentation‑as‑Code, transparency, single source of truth, continuous impr
 ### Output Requirements
 
 - **Create Draft Pull Requests**: When documentation needs updates, create focused draft pull requests with clear descriptions
-- **Use `noop` for healthy no-op runs**: If the docs are already current or no user-facing documentation changes are required, call the safe-outputs `noop` tool with a short reason and finish successfully
-- **Treat `noop` as terminal**: After calling the safe-outputs `noop` tool, stop instead of adding extra prose or fallback tool calls
+- **Use `noop` for healthy no-op runs**: If the docs are already current or no user-facing documentation changes are required, call the safe-outputs `noop` tool immediately with a short reason and finish successfully
+- **Treat `noop` as terminal**: After calling the safe-outputs `noop` tool, stop instead of adding extra prose, additional analysis, or fallback tool calls
 - **Reserve `missing_tool` for real capability gaps**: Do not use `missing_tool` when the repository is already fully documented for the analyzed changes
 
 ### Technical Implementation
@@ -122,8 +124,8 @@ Documentation‑as‑Code, transparency, single source of truth, continuous impr
 ### Exit Conditions
 
 - Exit if the repository has no implementation code yet (empty repository)
-- Exit if no code changes require documentation updates by calling the safe-outputs `noop` tool with the reason
-- Exit if all documentation is already up-to-date and comprehensive by calling the safe-outputs `noop` tool with the reason
+- Exit if no code changes require documentation updates by calling the safe-outputs `noop` tool with the reason and then stopping
+- Exit if all documentation is already up-to-date and comprehensive by calling the safe-outputs `noop` tool with the reason and then stopping
 
 > NOTE: Never make direct pushes to the main branch. Always create a pull request for documentation changes.
 
