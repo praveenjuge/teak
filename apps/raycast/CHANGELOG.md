@@ -6,6 +6,7 @@
 - Update API Endpoint
 - Add **Save Clipboard** command: saves the current clipboard contents to Teak in one step without opening a form
 - Add **Save Current Browser Tab** command: saves the active browser tab via the Raycast Browser Extension
+- Add **AI Tools**: exposes three tools for Raycast AI — **Save to Teak**, **Search Teak Cards**, and **Get Teak Card** — reusing the same API key, no extra configuration needed
 
 ## 0.1.0 - 2026-02-23
 
