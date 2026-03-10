@@ -178,6 +178,11 @@ export function CardsScreen({
     onCloseModal: onCloseCard,
   });
 
+  const handleInvalidSelectedCard = useCallback(() => {
+    onCloseCard();
+    toast.error("Card not found");
+  }, [onCloseCard]);
+
   const AddCardFormWrapper = useCallback(() => {
     return (
       <AddCardForm
@@ -277,7 +282,7 @@ export function CardsScreen({
         cardId={selectedCardId}
         onCancel={onCloseCard}
         onCardTypeClick={handleCardTypeClick}
-        onInvalidCard={onCloseCard}
+        onInvalidCard={handleInvalidSelectedCard}
         onTagClick={handleTagClick}
         open={!!selectedCardId}
       />

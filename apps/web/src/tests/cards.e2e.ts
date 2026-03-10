@@ -253,6 +253,28 @@ test.describe("Card Modal", () => {
     await authHelper.signOut();
   });
 
+  test("shows a toast when a deep-link card does not exist", async ({
+    page,
+  }) => {
+    const authHelper = new AuthHelper(page);
+
+    await authHelper.signInWithEmailAndPassword(email!, password!);
+
+    const invalidDeepLink = new URL(page.url());
+    invalidDeepLink.searchParams.set("card", "12345");
+
+    await page.goto(invalidDeepLink.toString());
+    await page.waitForLoadState("networkidle");
+
+    await expect(page.getByText("Card not found")).toBeVisible();
+    await expect(page.getByRole("dialog")).not.toBeVisible();
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get("card"))
+      .toBeNull();
+
+    await authHelper.signOut();
+  });
+
   test("shows card metadata in modal", async ({ page }) => {
     const authHelper = new AuthHelper(page);
     const uiHelper = new UiHelper(page);

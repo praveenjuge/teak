@@ -153,6 +153,34 @@ export const getCard = query({
   },
 });
 
+export const getCardByUrlId = query({
+  args: {
+    id: v.string(),
+  },
+  returns: v.union(v.null(), cardReturnValidator),
+  handler: async (ctx, { id }) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      return null;
+    }
+
+    const normalizedId = id.trim();
+    if (!normalizedId) {
+      return null;
+    }
+
+    try {
+      return await getCardForUserHandler(
+        ctx,
+        user.subject,
+        normalizedId as Id<"cards">
+      );
+    } catch {
+      return null;
+    }
+  },
+});
+
 export const getDeletedCards = query({
   args: {
     limit: v.optional(v.number()),

@@ -1,5 +1,4 @@
 import { api } from "@teak/convex";
-import type { Id } from "@teak/convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 import { useCardModal } from "../../hooks/useCardModal";
@@ -10,10 +9,6 @@ import {
 } from "../modals";
 import { CardModal } from "./CardModal";
 import type { CardModalCard } from "./types";
-
-// Convex IDs are non-empty alphanumeric strings (with underscores).
-// This rejects obviously malformed values like spaces, slashes, or empty strings.
-const CONVEX_ID_PATTERN = /^[a-zA-Z0-9_]+$/;
 
 interface ConnectedCardModalProps {
   card?: CardModalCard | null;
@@ -42,13 +37,9 @@ export function ConnectedCardModal({
   const [showMoreInfoModal, setShowMoreInfoModal] = useState(false);
   const [showNotesEditModal, setShowNotesEditModal] = useState(false);
 
-  const isValidCardId = cardId ? CONVEX_ID_PATTERN.test(cardId) : false;
-
   const hydratedCard = useQuery(
-    api.cards.getCard,
-    cardId && !cardData && isValidCardId
-      ? { id: cardId as Id<"cards"> }
-      : "skip"
+    api.cards.getCardByUrlId,
+    cardId && !cardData ? { id: cardId } : "skip"
   );
 
   const resolvedCard = cardData ?? hydratedCard ?? null;
@@ -84,15 +75,10 @@ export function ConnectedCardModal({
       return;
     }
 
-    if (!isValidCardId) {
-      onInvalidCard?.();
-      return;
-    }
-
     if (hydratedCard === null) {
       onInvalidCard?.();
     }
-  }, [cardData, cardId, hydratedCard, isValidCardId, onInvalidCard, open]);
+  }, [cardData, cardId, hydratedCard, onInvalidCard, open]);
 
   useEffect(() => {
     if (open && openTagManagement) {

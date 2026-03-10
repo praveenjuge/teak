@@ -9,11 +9,13 @@ const buildQuery = (cards: any[]) => ({
 
 describe("card/getCard.ts", () => {
   let getCard: any;
+  let getCardByUrlId: any;
   let getDeletedCards: any;
 
   beforeEach(async () => {
     const module = await import("../../card/getCard");
     getCard = module.getCard;
+    getCardByUrlId = module.getCardByUrlId;
     getDeletedCards = module.getDeletedCards;
   });
 
@@ -55,6 +57,23 @@ describe("card/getCard.ts", () => {
     expect(result.fileUrl).toBe("file://f1");
     expect(result.thumbnailUrl).toBe("file://t1");
     expect(result.screenshotUrl).toBe("file://s1");
+  });
+
+  test("getCardByUrlId returns null for malformed ids", async () => {
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        get: mock().mockImplementation(() => {
+          throw new Error("invalid id");
+        }),
+      },
+      storage: { getUrl: mock() },
+    } as any;
+
+    const handler = (getCardByUrlId as any).handler ?? getCardByUrlId;
+    const result = await handler(ctx, { id: "12345" });
+
+    expect(result).toBeNull();
   });
 
   test("getCard hydrates stored link media and falls back preview image to first attachment", async () => {
