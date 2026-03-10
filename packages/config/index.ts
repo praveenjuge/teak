@@ -1,1 +1,1 @@
-export * from "./dev-urls";
+export * from "./dev-urls.js";
