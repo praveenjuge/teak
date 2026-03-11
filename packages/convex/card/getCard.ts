@@ -109,7 +109,7 @@ export const getCardForUserHandler = async (
         (
           item: HydratedLinkPreviewMedia | null
         ): item is HydratedLinkPreviewMedia => Boolean(item)
-      ) || undefined;
+      );
 
   const linkPreviewImageUrl =
     (card.metadata?.linkPreview?.imageStorageId
@@ -204,19 +204,13 @@ export const getDeletedCards = query({
   },
 });
 
-/**
- * Internal query to get card details for background tasks
- * Used by thumbnail generation and similar internal processes
- */
+// Internal query to get card details for background tasks (thumbnail generation, etc.)
 export const getCardInternal = internalQuery({
   args: {
     cardId: v.id("cards"),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
-    const card = await ctx.db.get("cards", args.cardId);
-    return card;
-  },
+  handler: (ctx, args) => ctx.db.get("cards", args.cardId),
 });
 
 export const getCardForUser = internalQuery({
