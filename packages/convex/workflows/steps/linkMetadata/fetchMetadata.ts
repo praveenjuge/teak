@@ -16,11 +16,14 @@ import {
   buildErrorPreview,
   buildInstagramPrimaryImageSnippet,
   buildSuccessPreview,
+  isInstagramPostUrl,
   isInstagramUrl,
+  normalizeInstagramExtractedMedia,
   normalizeUrl,
   parseLinkPreview,
   SCRAPE_ELEMENTS,
 } from "../../../linkMetadata";
+import type { InstagramPostMedia } from "../../../linkMetadata/instagram";
 import {
   fetchXStatusMetadata,
   isXStatusUrl,
@@ -36,6 +39,8 @@ const META_SELECTOR_REGEX = /^meta\[(property|name)=['"]([^'"]+)['"]\]$/i;
 const LINK_SELECTOR_REGEX = /^link\[rel=['"]([^'"]+)['"]\]$/i;
 const MAX_REMOTE_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_REMOTE_VIDEO_BYTES = 50 * 1024 * 1024;
+
+type PersistableLinkMedia = XStatusMedia | InstagramPostMedia;
 
 export type LinkMetadataRetryableError = {
   type: string;
@@ -269,9 +274,9 @@ const storeLinkPreviewImage = async (
   };
 };
 
-const storeXMediaItem = async (
+const storeLinkPreviewMediaItem = async (
   ctx: any,
-  media: XStatusMedia
+  media: PersistableLinkMedia
 ): Promise<LinkPreviewMediaItem | null> => {
   const storedMedia = await storeRemoteAsset(ctx, media.url, {
     allowedContentTypePrefixes:
@@ -327,16 +332,16 @@ const storeXMediaItem = async (
   };
 };
 
-const storeXMedia = async (
+const storeLinkPreviewMedia = async (
   ctx: any,
-  media: XStatusMedia[] | undefined
+  media: PersistableLinkMedia[] | undefined
 ): Promise<LinkPreviewMediaItem[] | undefined> => {
   if (!media?.length) {
     return undefined;
   }
 
   const storedMedia = await Promise.all(
-    media.map((item) => storeXMediaItem(ctx, item))
+    media.map((item) => storeLinkPreviewMediaItem(ctx, item))
   );
   const persistedMedia = storedMedia.filter(
     (item): item is LinkPreviewMediaItem => Boolean(item)
@@ -562,10 +567,12 @@ const scrapeWithKernel = async (
       }
 
       let primaryImage = null;
+      let instagramMedia = undefined;
 ${instagramPrimaryImageSnippet}
 
       return {
         selectors: results,
+        instagramMedia: Array.isArray(instagramMedia) ? instagramMedia : undefined,
         primaryImage: primaryImage || undefined
       };
     `;
@@ -666,7 +673,10 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
       const xStatusMetadata = await fetchXStatusMetadata(normalizedUrl);
 
       if (xStatusMetadata) {
-        const storedMedia = await storeXMedia(ctx, xStatusMetadata.media);
+        const storedMedia = await storeLinkPreviewMedia(
+          ctx,
+          xStatusMetadata.media
+        );
         const linkPreview = buildSuccessPreview(normalizedUrl, {
           ...xStatusMetadata,
           media: storedMedia,
@@ -737,20 +747,47 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
     }
 
     const parsed = parseLinkPreview(normalizedUrl, payload.result?.selectors);
+    const extractedInstagramMedia =
+      isInstagramPostUrl(normalizedUrl) && payload.result?.instagramMedia
+        ? normalizeInstagramExtractedMedia(
+            normalizedUrl,
+            payload.result.instagramMedia
+          )
+        : undefined;
+    const storedInstagramMedia = extractedInstagramMedia?.length
+      ? await storeLinkPreviewMedia(ctx, extractedInstagramMedia)
+      : undefined;
+    const attachedPreviewImageUrl =
+      extractedInstagramMedia?.find((item) => item.type === "image")?.url ??
+      extractedInstagramMedia?.find((item) => item.type === "video")?.posterUrl;
+    const hasStoredAttachedPreview = Boolean(
+      storedInstagramMedia?.some(
+        (item) =>
+          item.type === "image" ||
+          (item.type === "video" && Boolean(item.posterStorageId))
+      )
+    );
     const primaryImageCandidate = payload.result?.primaryImage?.url;
     const primaryImageUrl =
       primaryImageCandidate && isInstagramUrl(normalizedUrl)
         ? primaryImageCandidate
         : undefined;
-    const resolvedImageUrl = primaryImageUrl ?? parsed.imageUrl;
+    const resolvedImageUrl =
+      primaryImageUrl ?? attachedPreviewImageUrl ?? parsed.imageUrl;
     const parsedWithPrimary = resolvedImageUrl
       ? { ...parsed, imageUrl: resolvedImageUrl }
       : parsed;
-    const storedImage = resolvedImageUrl
-      ? await storeLinkPreviewImage(ctx, resolvedImageUrl)
+    const shouldStorePreviewImage =
+      Boolean(resolvedImageUrl) &&
+      (!attachedPreviewImageUrl ||
+        resolvedImageUrl !== attachedPreviewImageUrl ||
+        !hasStoredAttachedPreview);
+    const storedImage = shouldStorePreviewImage
+      ? await storeLinkPreviewImage(ctx, resolvedImageUrl!)
       : null;
     const linkPreview = buildSuccessPreview(normalizedUrl, {
       ...parsedWithPrimary,
+      ...(storedInstagramMedia?.length ? { media: storedInstagramMedia } : {}),
       ...(storedImage ?? {}),
     });
 

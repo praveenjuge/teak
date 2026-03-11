@@ -1,12 +1,17 @@
 import { describe, expect, it } from "bun:test";
 import {
   buildInstagramPrimaryImageSnippet,
+  extractInstagramPostCode,
   INSTAGRAM_HOSTNAME,
+  INSTAGRAM_MEDIA_EVALUATOR,
+  INSTAGRAM_MEDIA_MIN_DIM,
   INSTAGRAM_PRIMARY_IMAGE_EVALUATOR,
   INSTAGRAM_PRIMARY_IMAGE_MIN_DIM,
   INSTAGRAM_PRIMARY_IMAGE_WAIT_MS,
   isInstagramHostname,
+  isInstagramPostUrl,
   isInstagramUrl,
+  normalizeInstagramExtractedMedia,
 } from "./instagram";
 
 describe("instagram constants", () => {
@@ -16,6 +21,10 @@ describe("instagram constants", () => {
 
   it("should have minimum dimension of 400", () => {
     expect(INSTAGRAM_PRIMARY_IMAGE_MIN_DIM).toBe(400);
+  });
+
+  it("should have media minimum dimension of 200", () => {
+    expect(INSTAGRAM_MEDIA_MIN_DIM).toBe(200);
   });
 
   it("should have wait time of 3000ms", () => {
@@ -138,6 +147,140 @@ describe("isInstagramUrl", () => {
   });
 });
 
+describe("Instagram post helpers", () => {
+  it("extracts post or reel codes from supported URLs", () => {
+    expect(
+      extractInstagramPostCode("https://www.instagram.com/p/DBY4WfSxA0a/")
+    ).toBe("DBY4WfSxA0a");
+    expect(
+      extractInstagramPostCode("https://www.instagram.com/reel/Cr9Lx2xJ0Ab/")
+    ).toBe("Cr9Lx2xJ0Ab");
+  });
+
+  it("returns undefined for non-post URLs", () => {
+    expect(
+      extractInstagramPostCode("https://www.instagram.com/teakvault/")
+    ).toBeUndefined();
+  });
+
+  it("detects supported Instagram post URLs", () => {
+    expect(isInstagramPostUrl("https://www.instagram.com/p/DBY4WfSxA0a/")).toBe(
+      true
+    );
+    expect(
+      isInstagramPostUrl("https://www.instagram.com/reel/Cr9Lx2xJ0Ab/")
+    ).toBe(true);
+    expect(isInstagramPostUrl("https://www.instagram.com/teakvault/")).toBe(
+      false
+    );
+  });
+});
+
+describe("normalizeInstagramExtractedMedia", () => {
+  it("normalizes and deduplicates ordered instagram media", () => {
+    const result = normalizeInstagramExtractedMedia(
+      "https://www.instagram.com/p/DBY4WfSxA0a/",
+      [
+        {
+          type: "image",
+          url: "https://cdninstagram.com/media/one.jpg",
+          contentType: "image/jpeg; charset=utf-8",
+          width: 1080,
+          height: 1350,
+        },
+        {
+          type: "video",
+          url: "https://cdninstagram.com/media/two.mp4?dl=1",
+          posterUrl: "https://cdninstagram.com/media/two.jpg",
+          posterContentType: "image/jpeg",
+          width: 720,
+          height: 1280,
+          posterWidth: 720,
+          posterHeight: 1280,
+        },
+        {
+          type: "image",
+          url: "https://cdninstagram.com/media/one.jpg",
+          width: 1080,
+          height: 1350,
+        },
+      ]
+    );
+
+    expect(result).toEqual([
+      {
+        type: "image",
+        url: "https://cdninstagram.com/media/one.jpg",
+        contentType: "image/jpeg",
+        width: 1080,
+        height: 1350,
+      },
+      {
+        type: "video",
+        url: "https://cdninstagram.com/media/two.mp4?dl=1",
+        contentType: undefined,
+        width: 720,
+        height: 1280,
+        posterUrl: "https://cdninstagram.com/media/two.jpg",
+        posterContentType: "image/jpeg",
+        posterWidth: 720,
+        posterHeight: 1280,
+      },
+    ]);
+  });
+
+  it("infers media types and ignores invalid items", () => {
+    const result = normalizeInstagramExtractedMedia(
+      "https://www.instagram.com/p/DBY4WfSxA0a/",
+      [
+        {
+          url: "https://cdninstagram.com/media/one.webp",
+          width: 1080,
+          height: 1080,
+        },
+        {
+          url: "javascript:alert(1)",
+        },
+        {
+          contentType: "video/mp4",
+          url: "https://cdninstagram.com/media/reel.mp4",
+          posterUrl: "https://cdninstagram.com/media/reel.jpg",
+        },
+      ]
+    );
+
+    expect(result).toEqual([
+      {
+        type: "image",
+        url: "https://cdninstagram.com/media/one.webp",
+        contentType: undefined,
+        width: 1080,
+        height: 1080,
+      },
+      {
+        type: "video",
+        url: "https://cdninstagram.com/media/reel.mp4",
+        contentType: "video/mp4",
+        width: undefined,
+        height: undefined,
+        posterUrl: "https://cdninstagram.com/media/reel.jpg",
+        posterContentType: "image/jpeg",
+        posterWidth: undefined,
+        posterHeight: undefined,
+      },
+    ]);
+  });
+
+  it("returns undefined when no valid media is present", () => {
+    expect(
+      normalizeInstagramExtractedMedia(
+        "https://www.instagram.com/p/DBY4WfSxA0a/",
+        [{ url: "mailto:test@example.com" }]
+      )
+    ).toBeUndefined();
+  });
+});
+
 describe("INSTAGRAM_PRIMARY_IMAGE_EVALUATOR", () => {
   it("should be a non-empty string", () => {
     expect(INSTAGRAM_PRIMARY_IMAGE_EVALUATOR.length).toBeGreaterThan(0);
@@ -161,6 +304,38 @@ describe("INSTAGRAM_PRIMARY_IMAGE_EVALUATOR", () => {
   });
 });
 
+describe("INSTAGRAM_MEDIA_EVALUATOR", () => {
+  it("should be a non-empty string", () => {
+    expect(INSTAGRAM_MEDIA_EVALUATOR.length).toBeGreaterThan(0);
+  });
+
+  it("should collect images, videos, and json payloads", () => {
+    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain('querySelectorAll("img")');
+    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain('querySelectorAll("video")');
+    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain(
+      "xdt_api__v1__media__shortcode__web_info"
+    );
+    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain("pushMedia");
+  });
+
+  it("should prefer relay post media before dom fallback", () => {
+    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain("if (media.length === 0)");
+    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain("addRelayMedia");
+    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain("findRelayPostItem");
+  });
+
+  it("should match relay payloads for posts and reels when only code is present", () => {
+    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain('"/p/" + code + "/"');
+    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain('"/reel/" + code + "/"');
+  });
+
+  it("should filter out gif and chrome images", () => {
+    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain("profile picture");
+    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain("header, footer, nav, aside");
+    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain("\\.(gif)");
+  });
+});
+
 describe("buildInstagramPrimaryImageSnippet", () => {
   it("should return a non-empty string", () => {
     const snippet = buildInstagramPrimaryImageSnippet();
@@ -178,6 +353,12 @@ describe("buildInstagramPrimaryImageSnippet", () => {
     expect(snippet).toContain("instagram.com");
   });
 
+  it("should detect supported instagram post paths", () => {
+    const snippet = buildInstagramPrimaryImageSnippet();
+    expect(snippet).toContain("isInstagramPost");
+    expect(snippet).toContain("\\/(p|reel)\\/");
+  });
+
   it("should include wait timeout constant", () => {
     const snippet = buildInstagramPrimaryImageSnippet();
     expect(snippet).toContain("3000");
@@ -191,6 +372,14 @@ describe("buildInstagramPrimaryImageSnippet", () => {
   it("should include page.evaluate call", () => {
     const snippet = buildInstagramPrimaryImageSnippet();
     expect(snippet).toContain("page.evaluate");
+  });
+
+  it("should extract instagramMedia when available", () => {
+    const snippet = buildInstagramPrimaryImageSnippet();
+    expect(snippet).toContain("instagramMedia");
+    expect(snippet).toContain(
+      "const instagramExtraction = await page.evaluate"
+    );
   });
 
   it("should include waitForFunction for image loading", () => {
