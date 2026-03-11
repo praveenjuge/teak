@@ -50,58 +50,47 @@ teak/
 
 ## Tech Stack
 
-- Backend: Convex (real-time DB + serverless)
-- Web: Next.js, React, TypeScript, TailwindCSS
-- Mobile: Expo React Native
-- Extension: Wxt framework
-- Raycast: Raycast API
-- Auth: Better Auth
-- UI: shadcn/ui + Radix
-- AI: Groq API
-- Screenshots: Kernel
-- Billing: Polar
-- Testing: Bun (unit tests), Playwright (E2E in web)
-- Monorepo: Turborepo
+| Layer | Technology |
+|---|---|
+| Backend | Convex (real-time DB + serverless) |
+| Web | Next.js, React, TypeScript, TailwindCSS |
+| Mobile | Expo React Native |
+| Extension | Wxt framework |
+| Auth | Better Auth |
+| UI | shadcn/ui + Radix |
+| AI | Groq API |
+| Billing | Polar |
+| Testing | Bun (unit), Playwright (E2E) |
+| Monorepo | Turborepo |
 
 ## Core Commands
 
 ```bash
-# Web + Convex backend
-bun run dev
+bun run dev              # Web + Convex backend
+bun run dev:all          # All services
 
-# All services (web, api, mobile, extension, raycast, docs, convex)
-bun run dev:all
+bun run dev:convex       # Convex backend only
+bun run dev:web          # Next.js web
+bun run dev:api          # API gateway (Hono)
+bun run dev:mobile       # Expo mobile
+bun run dev:desktop      # Tauri desktop
+bun run dev:extension    # Chrome extension
+bun run dev:raycast      # Raycast extension
+bun run dev:docs         # Docs site
 
-# Individual services
-bun run dev:convex     # Convex backend only
-bun run dev:web        # Next.js web + Convex
-bun run dev:api        # API gateway (Hono)
-bun run dev:mobile     # Expo mobile app
-bun run dev:desktop    # Tauri desktop app
-bun run dev:extension  # Browser extension + Convex
-bun run dev:raycast    # Raycast extension
-bun run dev:docs       # Documentation site
-
-# Build
-bun run build          # Production build (all)
+bun run build            # Production build (all)
 bun run build:extension  # Package Chrome extension
 bun run build:raycast    # Build Raycast extension
 
-# Lint & Typecheck
-bun run lint
-bun run typecheck
+bun run lint && bun run typecheck
+bun run test             # Unit tests
 
-# Test
-bun run test           # Unit tests (all packages)
+bun run check            # Quality report (Ultracite)
+bun run fix              # Auto-fix issues
 
-# Quality checks (Ultracite — lint + format)
-bun run check          # Report issues
-bun run fix            # Auto-fix issues
-
-# Other
-bun run pre-commit     # Same checks run by the git pre-commit hook
-bun run publish:raycast  # Publish Raycast extension to the store
-bun run clean          # Remove all Turborepo caches and node_modules/.cache
+bun run pre-commit       # Pre-commit checks
+bun run publish:raycast  # Publish to Raycast store
+bun run clean            # Clear Turborepo caches
 ```
 
 ## Setup Checklist
@@ -114,9 +103,7 @@ bunx convex env set BETTER_AUTH_SECRET=$(openssl rand -base64 32)
 bunx convex env set SITE_URL http://app.teak.localhost:1355
 ```
 
-1. `BETTER_AUTH_SECRET` signs Better Auth sessions—set it once per environment.
-2. `SITE_URL` must match your Next.js origin locally and inside Convex.
-3. `CONVEX_SITE_URL` is the `.site` domain Convex assigns; copy it from the dashboard after running `bunx convex dev`.
+`BETTER_AUTH_SECRET` signs sessions (set once per environment). `SITE_URL` must match your Next.js origin. `CONVEX_SITE_URL` is the `.site` domain assigned by Convex—copy it from the dashboard.
 
 ### API Gateway
 
@@ -128,20 +115,13 @@ Example:
 echo "CONVEX_HTTP_BASE_URL=https://<your-deployment>.convex.site" > apps/api/.env
 ```
 
-The same service exposes:
-
-- REST API: `http://api.teak.localhost:1355/v1`
-- MCP endpoint: `http://api.teak.localhost:1355/mcp`
+The same service exposes the REST API at `/v1` and MCP endpoint at `/mcp`.
 
 ### Environment Variables
 
 See **[Self-Hosting → Environment settings](./self-hosting#environment-settings)** for every env var required across web, mobile, extension, and the Convex backend.
 
-Optional local overrides:
-
-- `TEAK_DEV_APP_URL` defaults to `http://app.teak.localhost:1355`
-- `TEAK_DEV_API_URL` defaults to `http://api.teak.localhost:1355`
-- `TEAK_DEV_DOCS_URL` defaults to `http://docs.teak.localhost:1355`
+Optional local overrides: `TEAK_DEV_APP_URL` (default: `http://app.teak.localhost:1355`), `TEAK_DEV_API_URL` (default: `http://api.teak.localhost:1355`), `TEAK_DEV_DOCS_URL` (default: `http://docs.teak.localhost:1355`).
 
 ## Automated Workflows
 
