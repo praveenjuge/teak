@@ -14,6 +14,7 @@ import { AUTH_STICKY_TOAST_OPTIONS } from "@teak/ui/constants/toast";
 import { cn } from "@teak/ui/lib/utils";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import posthog from "posthog-js";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
@@ -52,6 +53,7 @@ export default function ForgotPassword() {
         },
         onSuccess: () => {
           setSent(true);
+          posthog.capture("password_reset_requested");
           toast.success("Reset link sent (if account exists).", {
             ...AUTH_STICKY_TOAST_OPTIONS,
           });

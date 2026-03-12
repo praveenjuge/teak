@@ -11,6 +11,7 @@ import { SettingsContent, SubscriptionSection } from "@teak/ui/settings";
 import { useAction, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import posthog from "posthog-js";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
@@ -54,6 +55,7 @@ export default function ProfileSettingsPage() {
 
     try {
       const checkoutUrl = await createCheckoutLink({ productId: planId });
+      posthog.capture("subscription_checkout_started", { plan_id: planId });
 
       let effectiveTheme: "light" | "dark" = "light";
       if (theme === "dark") {
@@ -76,6 +78,7 @@ export default function ProfileSettingsPage() {
       checkout.addEventListener(
         "success",
         (event: CustomEvent<{ redirect?: string | boolean }>) => {
+          posthog.capture("subscription_activated", { plan_id: planId });
           if (!event.detail.redirect) {
             toast.success(
               "Welcome to Pro! Your subscription has been activated."
@@ -93,6 +96,7 @@ export default function ProfileSettingsPage() {
       Sentry.captureException(error, {
         tags: { source: "convex", action: "billing:createCheckoutLink" },
       });
+      posthog.captureException(error);
       toast.error("Failed to start checkout. Please try again.", {
         id: toastId,
       });
@@ -119,6 +123,8 @@ export default function ProfileSettingsPage() {
 
       await authClient.deleteUser(undefined, {
         onSuccess: async () => {
+          posthog.capture("account_deleted");
+          posthog.reset();
           router.push("/login");
         },
         onError: (ctx) => {
@@ -138,6 +144,8 @@ export default function ProfileSettingsPage() {
       await authClient.signOut({
         fetchOptions: {
           onSuccess: () => {
+            posthog.capture("user_logged_out");
+            posthog.reset();
             router.refresh();
             router.push("/login");
           },
@@ -151,7 +159,9 @@ export default function ProfileSettingsPage() {
   };
 
   const handleCreateApiKey = async () => {
-    return (await createKey({ name: "API Keys" })) as { key: string };
+    const result = (await createKey({ name: "API Keys" })) as { key: string };
+    posthog.capture("api_key_created");
+    return result;
   };
 
   const handleCreateCustomerPortal = async () => {
@@ -165,12 +175,14 @@ export default function ProfileSettingsPage() {
         openWindow: (url, target, features) =>
           window.open(url, target, features),
       });
+      posthog.capture("customer_portal_opened");
       toast.success("Customer portal opened", { id: toastId });
     } catch (error) {
       console.error("Failed to open customer portal", error);
       Sentry.captureException(error, {
         tags: { source: "convex", action: "billing:createCustomerPortal" },
       });
+      posthog.captureException(error);
       toast.error("Could not open portal", { id: toastId });
     }
   };

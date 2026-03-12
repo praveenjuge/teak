@@ -18,6 +18,7 @@ import { cn } from "@teak/ui/lib/utils";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import posthog from "posthog-js";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
@@ -113,6 +114,7 @@ export default function ResetPassword() {
     }
 
     setSuccess(true);
+    posthog.capture("password_reset_completed");
     toast.success("Password updated.", {
       ...AUTH_STICKY_TOAST_OPTIONS,
     });

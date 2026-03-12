@@ -14,6 +14,7 @@ import { cn } from "@teak/ui/lib/utils";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import posthog from "posthog-js";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
@@ -64,6 +65,8 @@ export default function SignIn() {
           response.error.message ??
             "Failed to sign in with Google. Please try again."
         );
+      } else {
+        posthog.capture("user_logged_in_social", { provider: "google" });
       }
     } catch (err) {
       const errorMessage =
@@ -86,6 +89,8 @@ export default function SignIn() {
           response.error.message ??
             "Failed to sign in with Apple. Please try again."
         );
+      } else {
+        posthog.capture("user_logged_in_social", { provider: "apple" });
       }
     } catch (err) {
       const errorMessage =
@@ -161,8 +166,14 @@ export default function SignIn() {
                 onResponse: () => {
                   setLoading(false);
                 },
-                onSuccess: () => {
+                onSuccess: (ctx) => {
                   setLoading(false);
+                  const userId = ctx.data?.user?.id;
+                  const userEmail = ctx.data?.user?.email;
+                  if (userId) {
+                    posthog.identify(userId, { email: userEmail });
+                  }
+                  posthog.capture("user_logged_in", { method: "email" });
                   router.push(nextPath);
                 },
                 onError: (ctx) => {

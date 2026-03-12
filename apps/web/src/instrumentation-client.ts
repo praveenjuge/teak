@@ -4,6 +4,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { configureFileUploadErrorCapture } from "@teak/ui/hooks";
+import posthog from "posthog-js";
 
 Sentry.init({
   dsn: "https://9206eebecdbbbd9229ddc419b82165c7@o4509483678236672.ingest.us.sentry.io/4510434608480256",
@@ -45,3 +46,11 @@ configureFileUploadErrorCapture((error, context) => {
 });
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+
+posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
+  api_host: "/ingest",
+  ui_host: "https://us.posthog.com",
+  defaults: "2026-01-30",
+  capture_exceptions: true,
+  debug: process.env.NODE_ENV === "development",
+});

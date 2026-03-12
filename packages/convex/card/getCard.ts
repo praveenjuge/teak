@@ -84,32 +84,31 @@ export const getCardForUserHandler = async (
   );
   const urlMap = new Map(resolvedUrls);
 
-  const linkPreviewMedia =
-    (card.metadata?.linkPreview?.media ?? [])
-      .map((item: LinkPreviewMediaItem) => {
-        const url = urlMap.get(item.storageId);
-        if (!url) {
-          return null;
-        }
-        return {
-          type: item.type,
-          url,
-          contentType: item.contentType,
-          width: item.width,
-          height: item.height,
-          posterUrl: item.posterStorageId
-            ? (urlMap.get(item.posterStorageId) ?? undefined)
-            : undefined,
-          posterContentType: item.posterContentType,
-          posterWidth: item.posterWidth,
-          posterHeight: item.posterHeight,
-        };
-      })
-      .filter(
-        (
-          item: HydratedLinkPreviewMedia | null
-        ): item is HydratedLinkPreviewMedia => Boolean(item)
-      );
+  const linkPreviewMedia = (card.metadata?.linkPreview?.media ?? [])
+    .map((item: LinkPreviewMediaItem) => {
+      const url = urlMap.get(item.storageId);
+      if (!url) {
+        return null;
+      }
+      return {
+        type: item.type,
+        url,
+        contentType: item.contentType,
+        width: item.width,
+        height: item.height,
+        posterUrl: item.posterStorageId
+          ? (urlMap.get(item.posterStorageId) ?? undefined)
+          : undefined,
+        posterContentType: item.posterContentType,
+        posterWidth: item.posterWidth,
+        posterHeight: item.posterHeight,
+      };
+    })
+    .filter(
+      (
+        item: HydratedLinkPreviewMedia | null
+      ): item is HydratedLinkPreviewMedia => Boolean(item)
+    );
 
   const linkPreviewImageUrl =
     (card.metadata?.linkPreview?.imageStorageId

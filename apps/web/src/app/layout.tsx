@@ -11,6 +11,7 @@ import {
   softwareApplicationSchema,
   websiteSchema,
 } from "@/components/JsonLd";
+import { SentryUserManager } from "@/components/SentryUserManager";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export const dynamic = "force-static";
@@ -37,7 +38,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
           ]}
         />
       </head>
-      <body className='touch-manipulation font-sans text-sm antialiased caret-primary accent-primary [font-feature-settings:"ss01"] [text-rendering:optimizeLegibility] selection:bg-primary selection:text-primary-foreground'>
+      <body className='touch-manipulation font-features-["ss01"] font-sans text-sm antialiased caret-primary accent-primary [text-rendering:optimizeLegibility] selection:bg-primary selection:text-primary-foreground'>
         <ConvexClientProvider>
           <ConvexQueryCacheProvider>
             <ThemeProvider
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
               disableTransitionOnChange
               enableSystem={true}
             >
+              <SentryUserManager />
               <main className="mx-auto max-w-7xl px-4 pb-10">{children}</main>
               <Toaster position="bottom-center" />
             </ThemeProvider>
