@@ -230,7 +230,7 @@ describe("fetchMetadata", () => {
             ? input.toString()
             : input;
 
-      if (typeof url === "string" && url.includes("cdninstagram.com")) {
+      if (typeof url === "string" && new URL(url).hostname.endsWith("cdninstagram.com")) {
         return {
           ok: true,
           status: 200,
