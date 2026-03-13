@@ -42,6 +42,10 @@
         "noImgElement": "off",
         "useTopLevelRegex": "off"
       },
+      "correctness": {
+        "noUnresolvedImports": "off",
+        "useImportExtensions": "off"
+      },
       "suspicious": {
         "noExplicitAny": "off",
         "noBitwiseOperators": "off",
