@@ -51,7 +51,7 @@
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
-    "antd": "^6.3.0",
+    "antd": "^6.3.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.577.0",
@@ -62,8 +62,8 @@
   },
   "peerDependencies": {
     "@teak/convex": "workspace:*",
-    "convex": "^1.31.7",
-    "convex-helpers": "0.1.112",
+    "convex": "^1.33.0",
+    "convex-helpers": "0.1.114",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

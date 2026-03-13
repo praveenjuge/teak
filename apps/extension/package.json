@@ -17,12 +17,12 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "@convex-dev/better-auth": "^0.10.10",
+    "@convex-dev/better-auth": "^0.11.1",
     "@tailwindcss/vite": "^4.1.18",
     "@teak/config": "workspace:*",
     "@teak/convex": "workspace:*",
-    "better-auth": "1.4.9",
-    "convex": "^1.31.1",
+    "better-auth": "1.5.3",
+    "convex": "^1.33.0",
     "lucide-react": "^0.577.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

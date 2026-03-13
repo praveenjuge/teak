@@ -11,9 +11,9 @@
   "dependencies": {
     "@teak/ui": "workspace:*",
     "@vercel/analytics": "^1.6.1",
-    "fumadocs-core": "16.6.9",
+    "fumadocs-core": "16.6.16",
     "fumadocs-mdx": "14.2.9",
-    "fumadocs-ui": "16.6.9",
+    "fumadocs-ui": "16.6.16",
     "lucide-react": "^0.577.0",
     "next": "16.1.6",
     "react": "19.2.4",
