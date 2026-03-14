@@ -230,20 +230,23 @@ describe("fetchMetadata", () => {
             ? input.toString()
             : input;
 
-      if (typeof url === "string" && new URL(url).hostname.endsWith("cdninstagram.com")) {
-        return {
-          ok: true,
-          status: 200,
-          headers: {
-            get: (header: string) =>
-              header === "content-type"
-                ? url.endsWith(".mp4")
-                  ? "video/mp4"
-                  : "image/jpeg"
-                : null,
-          },
-          arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
-        };
+      if (typeof url === "string") {
+        const hostname = new URL(url).hostname;
+        if (hostname === "cdninstagram.com") {
+          return {
+            ok: true,
+            status: 200,
+            headers: {
+              get: (header: string) =>
+                header === "content-type"
+                  ? url.endsWith(".mp4")
+                    ? "video/mp4"
+                    : "image/jpeg"
+                  : null,
+            },
+            arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
+          };
+        }
       }
 
       throw new Error(`Unexpected fetch URL: ${String(url)}`);
