@@ -51,6 +51,11 @@ export const organizationSchema = {
     url: ORGANIZATION_LOGO,
   },
   sameAs: ["https://github.com/teakvault"],
+  contactPoint: {
+    "@type": "ContactPoint",
+    email: "hi@praveenjuge.com",
+    contactType: "Customer Support",
+  },
 } as const;
 
 // Shared WebSite schema with search action

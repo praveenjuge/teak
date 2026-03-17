@@ -1,4 +1,10 @@
 import type { Metadata } from "next";
+import type { Thing, WithContext } from "schema-dts";
+import {
+  JsonLd,
+  organizationSchema,
+  SITE_URL,
+} from "../../../components/JsonLd";
 import PricingPageClient from "./PricingPageClient";
 
 export const metadata: Metadata = {
@@ -41,6 +47,68 @@ export const metadata: Metadata = {
   },
 };
 
+// Breadcrumb schema for pricing page
+const breadcrumbSchema = {
+  "@context": "https://schema.org" as const,
+  "@type": "BreadcrumbList" as const,
+  itemListElement: [
+    {
+      "@type": "ListItem" as const,
+      position: 1,
+      name: "Home",
+      item: SITE_URL,
+    },
+    {
+      "@type": "ListItem" as const,
+      position: 2,
+      name: "Pricing",
+      item: `${SITE_URL}/pricing`,
+    },
+  ],
+};
+
+// Product schema for Teak Pro subscription
+const productSchema = {
+  "@context": "https://schema.org",
+  "@type": "Product",
+  name: "Teak Pro",
+  description:
+    "Unlimited visual bookmarking for designers and developers. Save inspiration in 1 click, find it in 2 seconds.",
+  brand: {
+    "@type": "Brand",
+    name: "Teak",
+  },
+  offers: [
+    {
+      "@type": "Offer",
+      name: "Teak Pro - Monthly",
+      price: "19.00",
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+      url: `${SITE_URL}/pricing`,
+      priceValidUntil: new Date(
+        new Date().setFullYear(new Date().getFullYear() + 1)
+      ).toISOString(),
+    },
+    {
+      "@type": "Offer",
+      name: "Teak Pro - Yearly",
+      price: "99.00",
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+      url: `${SITE_URL}/pricing`,
+      priceValidUntil: new Date(
+        new Date().setFullYear(new Date().getFullYear() + 1)
+      ).toISOString(),
+    },
+  ],
+} as WithContext<Thing>;
+
 export default function PricingPage() {
-  return <PricingPageClient />;
+  return (
+    <>
+      <JsonLd schema={[organizationSchema, productSchema, breadcrumbSchema]} />
+      <PricingPageClient />
+    </>
+  );
 }
