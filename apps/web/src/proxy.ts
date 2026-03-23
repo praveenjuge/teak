@@ -1,5 +1,6 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
+import { buildPublicAppUrl } from "@/lib/public-app-url";
 
 const signInRoutes = [
   "/login",
@@ -36,15 +37,17 @@ export default function middleware(request: NextRequest) {
   }
 
   if (!(isSignInRoute || sessionCookie)) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(buildPublicAppUrl("/login", request.nextUrl));
   }
 
   if (isSignInRoute && sessionCookie) {
     const nextPath = getSafeNextPath(request.nextUrl.searchParams.get("next"));
     if (nextPath) {
-      return NextResponse.redirect(new URL(nextPath, request.url));
+      return NextResponse.redirect(
+        buildPublicAppUrl(nextPath, request.nextUrl)
+      );
     }
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(buildPublicAppUrl("/", request.nextUrl));
   }
 
   return NextResponse.next();

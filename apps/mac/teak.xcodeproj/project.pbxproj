@@ -373,6 +373,7 @@
 				DEVELOPMENT_TEAM = LW385M78LW;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -380,6 +381,9 @@
 				INFOPLIST_KEY_CFBundleName = Teak;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_TeakConvexSiteURL = "$(TEAK_CONVEX_SITE_URL)";
+				INFOPLIST_KEY_TeakConvexURL = "$(TEAK_CONVEX_URL)";
+				INFOPLIST_KEY_TeakWebURL = "$(TEAK_WEB_URL)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -394,6 +398,9 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
+				TEAK_CONVEX_SITE_URL = "https://reminiscent-kangaroo-59.convex.site";
+				TEAK_CONVEX_URL = "https://reminiscent-kangaroo-59.convex.cloud";
+				TEAK_WEB_URL = "http://app.teak.localhost:1355";
 			};
 			name = Debug;
 		};
@@ -409,6 +416,7 @@
 				DEVELOPMENT_TEAM = LW385M78LW;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -416,6 +424,9 @@
 				INFOPLIST_KEY_CFBundleName = Teak;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_TeakConvexSiteURL = "$(TEAK_CONVEX_SITE_URL)";
+				INFOPLIST_KEY_TeakConvexURL = "$(TEAK_CONVEX_URL)";
+				INFOPLIST_KEY_TeakWebURL = "$(TEAK_WEB_URL)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -430,6 +441,9 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
+				TEAK_CONVEX_SITE_URL = "https://reminiscent-kangaroo-59.convex.site";
+				TEAK_CONVEX_URL = "https://reminiscent-kangaroo-59.convex.cloud";
+				TEAK_WEB_URL = "http://app.teak.localhost:1355";
 			};
 			name = Release;
 		};

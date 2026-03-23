@@ -2,6 +2,7 @@ import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
 import { api } from "@teak/convex";
 import { NextResponse } from "next/server";
 import { fetchAuthMutation, isAuthenticated } from "@/lib/auth-server";
+import { buildPublicAppUrl } from "@/lib/public-app-url";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ const ALLOWED_COMPLETION_REDIRECTS = new Set([
 ]);
 
 function buildLoginRedirect(requestUrl: URL): NextResponse {
-  const loginUrl = new URL("/login", requestUrl);
+  const loginUrl = buildPublicAppUrl("/login", requestUrl);
   loginUrl.searchParams.set(
     "next",
     `${requestUrl.pathname}${requestUrl.search}`

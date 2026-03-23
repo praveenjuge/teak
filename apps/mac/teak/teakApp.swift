@@ -13,5 +13,6 @@ struct TeakApp: App {
         WindowGroup {
             ContentView()
         }
+        .windowResizability(.contentSize)
     }
 }
