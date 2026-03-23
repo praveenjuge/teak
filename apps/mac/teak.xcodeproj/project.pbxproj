@@ -36,7 +36,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		2083B8562F716A1900E58820 /* teak.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = teak.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2083B8562F716A1900E58820 /* Teak.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Teak.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2083B86E2F716A7500E58820 /* safari-extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "safari-extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -101,7 +101,7 @@
 		2083B8572F716A1900E58820 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				2083B8562F716A1900E58820 /* teak.app */,
+				2083B8562F716A1900E58820 /* Teak.app */,
 				2083B86E2F716A7500E58820 /* safari-extension.appex */,
 			);
 			name = Products;
@@ -131,8 +131,8 @@
 			packageProductDependencies = (
 				2083B88D2F716AEB00E58820 /* ConvexMobile */,
 			);
-			productName = teak;
-			productReference = 2083B8562F716A1900E58820 /* teak.app */;
+			productName = Teak;
+			productReference = 2083B8562F716A1900E58820 /* Teak.app */;
 			productType = "com.apple.product-type.application";
 		};
 		2083B86D2F716A7500E58820 /* safari-extension */ = {
@@ -366,6 +366,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -375,17 +376,17 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-INFOPLIST_KEY_CFBundleDisplayName = Teak;
-			INFOPLIST_KEY_CFBundleName = Teak;
-			INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-			INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_CFBundleDisplayName = Teak;
+				INFOPLIST_KEY_CFBundleName = Teak;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.praveenjuge.teak;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = Teak;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -401,6 +402,7 @@ INFOPLIST_KEY_CFBundleDisplayName = Teak;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -410,17 +412,17 @@ INFOPLIST_KEY_CFBundleDisplayName = Teak;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-INFOPLIST_KEY_CFBundleDisplayName = Teak;
-			INFOPLIST_KEY_CFBundleName = Teak;
-			INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-			INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_CFBundleDisplayName = Teak;
+				INFOPLIST_KEY_CFBundleName = Teak;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.praveenjuge.teak;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = Teak;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -441,9 +443,9 @@ INFOPLIST_KEY_CFBundleDisplayName = Teak;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-INFOPLIST_FILE = "safari-extension/Info.plist";
-			INFOPLIST_KEY_CFBundleDisplayName = Teak;
-			INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_FILE = "safari-extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Teak;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -476,9 +478,9 @@ INFOPLIST_FILE = "safari-extension/Info.plist";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-INFOPLIST_FILE = "safari-extension/Info.plist";
-			INFOPLIST_KEY_CFBundleDisplayName = Teak;
-			INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_FILE = "safari-extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Teak;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
