@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  teak
+//  Teak
 //
 //  Created by Praveen Juge on 23/03/26.
 //
