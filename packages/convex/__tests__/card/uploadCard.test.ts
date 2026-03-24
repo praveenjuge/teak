@@ -1,6 +1,12 @@
 // @ts-nocheck
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
+const mockCaptureBackendEvent = mock().mockResolvedValue(undefined);
+
+mock.module("../../posthog", () => ({
+  captureBackendEvent: mockCaptureBackendEvent,
+}));
+
 describe("card/uploadCard.ts", () => {
   let uploadAndCreateCard: any;
   let finalizeUploadedCard: any;
@@ -8,6 +14,7 @@ describe("card/uploadCard.ts", () => {
   let originalGetSubscription: any;
 
   beforeEach(async () => {
+    mockCaptureBackendEvent.mockClear();
     const rateLimitsModule = await import("../../shared/rateLimits");
     const billingModule = await import("../../billing");
     originalLimit = rateLimitsModule.rateLimiter.limit;
@@ -67,6 +74,13 @@ describe("card/uploadCard.ts", () => {
     });
     expect(result.success).toBe(true);
     expect(result.uploadUrl).toBe("https://upload");
+    expect(mockCaptureBackendEvent).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        event: "backend_card_upload_prepared",
+        distinctId: "u1",
+      })
+    );
   });
 
   test("uploadAndCreateCard returns error with code when rate limit exceeded", async () => {
@@ -212,6 +226,17 @@ describe("card/uploadCard.ts", () => {
       })
     );
     expect(ctx.scheduler.runAfter).toHaveBeenCalled();
+    expect(mockCaptureBackendEvent).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        event: "backend_card_created",
+        distinctId: "u1",
+        properties: expect.objectContaining({
+          creation_method: "upload",
+          card_type: "image",
+        }),
+      })
+    );
   });
 
   test("finalizeUploadedCard returns type mismatch", async () => {

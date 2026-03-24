@@ -1,10 +1,17 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
+const mockCaptureBackendEvent = mock().mockResolvedValue(undefined);
+
+mock.module("../../posthog", () => ({
+  captureBackendEvent: mockCaptureBackendEvent,
+}));
+
 describe("card/deleteCard.ts", () => {
   let permanentDeleteCard: any;
 
   beforeEach(async () => {
+    mockCaptureBackendEvent.mockClear();
     permanentDeleteCard = (await import("../../card/deleteCard"))
       .permanentDeleteCard;
   });
@@ -26,6 +33,7 @@ describe("card/deleteCard.ts", () => {
         get: mock().mockResolvedValue({
           _id: "c1",
           userId: "u1",
+          type: "image",
           fileId: "f1",
           thumbnailId: "t1",
         }),
@@ -39,5 +47,16 @@ describe("card/deleteCard.ts", () => {
     expect(ctx.storage.delete).toHaveBeenCalledWith("f1");
     expect(ctx.storage.delete).toHaveBeenCalledWith("t1");
     expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
+    expect(mockCaptureBackendEvent).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        event: "backend_card_state_changed",
+        distinctId: "u1",
+        properties: expect.objectContaining({
+          state_change: "permanently_deleted",
+          card_type: "image",
+        }),
+      })
+    );
   });
 });

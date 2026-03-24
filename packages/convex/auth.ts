@@ -19,6 +19,7 @@ import {
 } from "./_generated/server";
 import authConfig from "./auth.config";
 import { polar } from "./billing";
+import { captureBackendEvent } from "./posthog";
 import {
   CARD_ERROR_CODES,
   CARD_ERROR_MESSAGES,
@@ -258,6 +259,7 @@ export const deleteAccountHandler = async (ctx: any) => {
   }
 
   const userId = identity.subject;
+  let deletedStorageObjectCount = 0;
 
   // Use by_user_deleted index with partial match (just userId)
   // This works because Convex allows querying on prefix of compound indexes
@@ -269,13 +271,24 @@ export const deleteAccountHandler = async (ctx: any) => {
   for (const card of cards) {
     if (card.fileId) {
       await ctx.storage.delete(card.fileId);
+      deletedStorageObjectCount += 1;
     }
     if (card.thumbnailId) {
       await ctx.storage.delete(card.thumbnailId);
+      deletedStorageObjectCount += 1;
     }
 
     await ctx.db.delete("cards", card._id);
   }
+
+  await captureBackendEvent(ctx, {
+    event: "backend_account_deleted",
+    distinctId: userId,
+    properties: {
+      deleted_cards_count: cards.length,
+      deleted_storage_object_count: deletedStorageObjectCount,
+    },
+  });
 
   return { deletedCards: cards.length };
 };

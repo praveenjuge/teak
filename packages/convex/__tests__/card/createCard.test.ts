@@ -9,6 +9,12 @@ process.env.APPLE_CLIENT_SECRET = "test-apple-client-secret";
 
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
+const mockCaptureBackendEvent = mock().mockResolvedValue(undefined);
+
+mock.module("../../posthog", () => ({
+  captureBackendEvent: mockCaptureBackendEvent,
+}));
+
 describe("card/createCard.ts", () => {
   let createCard: any;
   let workflow: any;
@@ -16,6 +22,7 @@ describe("card/createCard.ts", () => {
   let originalGetSubscription: any;
 
   beforeEach(async () => {
+    mockCaptureBackendEvent.mockClear();
     const managerModule = await import("../../workflows/manager");
     workflow = managerModule.workflow;
     workflow.start = mock().mockResolvedValue(undefined);
@@ -79,6 +86,17 @@ describe("card/createCard.ts", () => {
       })
     );
     expect(workflow.start).toHaveBeenCalled();
+    expect(mockCaptureBackendEvent).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        event: "backend_card_created",
+        distinctId: "u1",
+        properties: expect.objectContaining({
+          card_type: "quote",
+          creation_method: "direct",
+        }),
+      })
+    );
   });
 
   test("sets metadataStatus pending for link cards", async () => {

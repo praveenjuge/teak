@@ -47,6 +47,7 @@ import type * as linkMetadata_types from "../linkMetadata/types.js";
 import type * as linkMetadata_url from "../linkMetadata/url.js";
 import type * as linkMetadata_x from "../linkMetadata/x.js";
 import type * as migrations from "../migrations.js";
+import type * as posthog from "../posthog.js";
 import type * as publicApi from "../publicApi.js";
 import type * as raycast from "../raycast.js";
 import type * as raycastHttp from "../raycastHttp.js";
@@ -146,6 +147,7 @@ declare const fullApi: ApiFromModules<{
   "linkMetadata/url": typeof linkMetadata_url;
   "linkMetadata/x": typeof linkMetadata_x;
   migrations: typeof migrations;
+  posthog: typeof posthog;
   publicApi: typeof publicApi;
   raycast: typeof raycast;
   raycastHttp: typeof raycastHttp;
@@ -22706,6 +22708,174 @@ export declare const components: {
         "internal",
         { key?: string; name: string },
         null
+      >;
+    };
+  };
+  posthog: {
+    lib: {
+      alias: FunctionReference<
+        "action",
+        "internal",
+        {
+          alias: string;
+          apiKey: string;
+          disableGeoip?: boolean;
+          distinctId: string;
+          host: string;
+        },
+        any
+      >;
+      capture: FunctionReference<
+        "action",
+        "internal",
+        {
+          apiKey: string;
+          disableGeoip?: boolean;
+          distinctId: string;
+          event: string;
+          groups?: string;
+          host: string;
+          properties?: string;
+          sendFeatureFlags?: boolean;
+          timestamp?: number;
+          uuid?: string;
+        },
+        any
+      >;
+      captureException: FunctionReference<
+        "action",
+        "internal",
+        {
+          additionalProperties?: string;
+          apiKey: string;
+          distinctId?: string;
+          errorMessage: string;
+          errorName?: string;
+          errorStack?: string;
+          host: string;
+        },
+        any
+      >;
+      getAllFlags: FunctionReference<
+        "action",
+        "internal",
+        {
+          apiKey: string;
+          disableGeoip?: boolean;
+          distinctId: string;
+          flagKeys?: Array<string>;
+          groupProperties?: any;
+          groups?: any;
+          host: string;
+          personProperties?: any;
+        },
+        any
+      >;
+      getAllFlagsAndPayloads: FunctionReference<
+        "action",
+        "internal",
+        {
+          apiKey: string;
+          disableGeoip?: boolean;
+          distinctId: string;
+          flagKeys?: Array<string>;
+          groupProperties?: any;
+          groups?: any;
+          host: string;
+          personProperties?: any;
+        },
+        any
+      >;
+      getFeatureFlag: FunctionReference<
+        "action",
+        "internal",
+        {
+          apiKey: string;
+          disableGeoip?: boolean;
+          distinctId: string;
+          groupProperties?: any;
+          groups?: any;
+          host: string;
+          key: string;
+          personProperties?: any;
+          sendFeatureFlagEvents?: boolean;
+        },
+        any
+      >;
+      getFeatureFlagPayload: FunctionReference<
+        "action",
+        "internal",
+        {
+          apiKey: string;
+          disableGeoip?: boolean;
+          distinctId: string;
+          groupProperties?: any;
+          groups?: any;
+          host: string;
+          key: string;
+          matchValue?: string | boolean;
+          personProperties?: any;
+          sendFeatureFlagEvents?: boolean;
+        },
+        any
+      >;
+      getFeatureFlagResult: FunctionReference<
+        "action",
+        "internal",
+        {
+          apiKey: string;
+          disableGeoip?: boolean;
+          distinctId: string;
+          groupProperties?: any;
+          groups?: any;
+          host: string;
+          key: string;
+          personProperties?: any;
+          sendFeatureFlagEvents?: boolean;
+        },
+        any
+      >;
+      groupIdentify: FunctionReference<
+        "action",
+        "internal",
+        {
+          apiKey: string;
+          disableGeoip?: boolean;
+          distinctId?: string;
+          groupKey: string;
+          groupType: string;
+          host: string;
+          properties?: string;
+        },
+        any
+      >;
+      identify: FunctionReference<
+        "action",
+        "internal",
+        {
+          apiKey: string;
+          disableGeoip?: boolean;
+          distinctId: string;
+          host: string;
+          properties?: string;
+        },
+        any
+      >;
+      isFeatureEnabled: FunctionReference<
+        "action",
+        "internal",
+        {
+          apiKey: string;
+          disableGeoip?: boolean;
+          distinctId: string;
+          groupProperties?: any;
+          groups?: any;
+          host: string;
+          key: string;
+          personProperties?: any;
+          sendFeatureFlagEvents?: boolean;
+        },
+        any
       >;
     };
   };

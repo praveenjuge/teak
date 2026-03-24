@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "../_generated/server";
+import { captureBackendEvent } from "../posthog";
 
 export const permanentDeleteCard = mutation({
   args: {
@@ -32,6 +33,18 @@ export const permanentDeleteCard = mutation({
 
     // Permanently remove from database
     await ctx.db.delete("cards", args.id);
+
+    await captureBackendEvent(ctx, {
+      event: "backend_card_state_changed",
+      distinctId: user.subject,
+      properties: {
+        card_type: card.type,
+        state_change: "permanently_deleted",
+        had_file: Boolean(card.fileId),
+        had_thumbnail: Boolean(card.thumbnailId),
+      },
+    });
+
     return null;
   },
 });

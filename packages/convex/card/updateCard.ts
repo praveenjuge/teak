@@ -6,6 +6,7 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
+import { captureBackendEvent } from "../posthog";
 import {
   buildInitialProcessingStatus,
   type ProcessingStatus,
@@ -118,6 +119,22 @@ export const updateCard = mutation({
           cardId: id,
         }
       );
+    }
+
+    const changedFields = Object.keys(updates).filter(
+      (field) => updates[field as keyof typeof updates] !== undefined
+    );
+
+    if (changedFields.length > 0) {
+      await captureBackendEvent(ctx, {
+        event: "backend_card_updated",
+        distinctId: user.subject,
+        properties: {
+          card_type: card.type,
+          updated_fields: changedFields,
+          triggered_processing_pipeline: updates.content !== undefined,
+        },
+      });
     }
 
     return null;
@@ -271,6 +288,42 @@ export const updateCardFieldForUserHandler = async (
         cardId,
       }
     );
+  }
+
+  const updateEventProperties = {
+    card_type: card.type,
+    field,
+    triggered_processing_pipeline: shouldSchedulePipeline,
+  };
+
+  if (
+    field === "content" ||
+    field === "url" ||
+    field === "notes" ||
+    field === "tags" ||
+    field === "aiSummary"
+  ) {
+    await captureBackendEvent(ctx, {
+      event: "backend_card_updated",
+      distinctId: userId,
+      properties: updateEventProperties,
+    });
+  }
+
+  if (field === "isFavorited" || field === "delete" || field === "restore") {
+    await captureBackendEvent(ctx, {
+      event: "backend_card_state_changed",
+      distinctId: userId,
+      properties: {
+        card_type: card.type,
+        state_change:
+          field === "isFavorited"
+            ? updateData.isFavorited
+              ? "favorited"
+              : "unfavorited"
+            : field,
+      },
+    });
   }
 
   return { shouldSchedulePipeline };

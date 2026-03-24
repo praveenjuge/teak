@@ -11,6 +11,7 @@ import {
   mutation,
 } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
+import { captureBackendEvent } from "../posthog";
 import { cardTypeValidator, colorValidator } from "../schema";
 import { workflow } from "../workflows/manager";
 import {
@@ -185,6 +186,27 @@ export const createCardForUserHandler = async (
     (internal as any)["workflows/cardProcessing"].cardProcessingWorkflow,
     { cardId }
   );
+
+  await captureBackendEvent(ctx, {
+    event: "backend_card_created",
+    distinctId: userId,
+    properties: {
+      card_type: cardType,
+      creation_method: args.fileId ? "file_reference" : "direct",
+      auto_detected_type: !providedType,
+      has_url: Boolean(finalUrl),
+      has_file: Boolean(args.fileId),
+      has_tags: Boolean(args.tags?.length),
+      tag_count: args.tags?.length ?? 0,
+      has_notes: Boolean(args.notes?.trim()),
+      has_metadata: Boolean(Object.keys(processedMetadata).length),
+      has_colors: Boolean(resolvedColors?.length),
+      metadata_source:
+        typeof processedMetadata.source === "string"
+          ? processedMetadata.source
+          : undefined,
+    },
+  });
 
   return cardId;
 };

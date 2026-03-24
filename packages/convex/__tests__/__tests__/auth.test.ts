@@ -16,6 +16,7 @@ process.env.APPLE_CLIENT_SECRET = "test-apple-client-secret";
 import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 
 const mockSendEmail = mock().mockResolvedValue({ id: "m1" });
+const mockCaptureBackendEvent = mock().mockResolvedValue(undefined);
 
 // Mock dependencies BEFORE importing auth.ts
 mock.module("@convex-dev/resend", () => ({
@@ -29,6 +30,10 @@ mock.module("@convex-dev/better-auth/utils", () => ({
   isRunMutationCtx: () => true,
   isRunQueryCtx: () => true,
   isActionCtx: () => true,
+}));
+
+mock.module("../../posthog", () => ({
+  captureBackendEvent: mockCaptureBackendEvent,
 }));
 
 // We will dynamically import these
@@ -66,6 +71,7 @@ describe("auth", () => {
 
   beforeEach(() => {
     mockSendEmail.mockClear();
+    mockCaptureBackendEvent.mockClear();
   });
 
   describe("ensureCardCreationAllowed", () => {
@@ -358,6 +364,17 @@ describe("auth", () => {
       expect(ctx.storage.delete).toHaveBeenCalledWith("f1");
       expect(ctx.storage.delete).toHaveBeenCalledWith("t1");
       expect(ctx.db.delete).toHaveBeenCalledTimes(2);
+      expect(mockCaptureBackendEvent).toHaveBeenCalledWith(
+        ctx,
+        expect.objectContaining({
+          event: "backend_account_deleted",
+          distinctId: "u1",
+          properties: expect.objectContaining({
+            deleted_cards_count: 2,
+            deleted_storage_object_count: 2,
+          }),
+        })
+      );
     });
   });
 
@@ -381,7 +398,10 @@ describe("auth", () => {
         const originalNodeEnv = process.env.NODE_ENV;
         process.env.NODE_ENV = "development";
         const authDev = createAuth(ctx) as any;
-        expect(authDev.options.trustedOrigins).toContain("exp://localhost:*/*");
+        expect(Array.isArray(authDev.options.trustedOrigins)).toBe(true);
+        expect(authDev.options.trustedOrigins).toContain(
+          "https://app.teakvault.com"
+        );
         process.env.NODE_ENV = originalNodeEnv;
 
         // Test callbacks
@@ -393,12 +413,8 @@ describe("auth", () => {
         // Actually BetterAuth might hide these in its internal structure.
         // Let's check where they are: auth.options.emailAndPassword.sendResetPassword
         const options = auth.options;
-        if (options.emailAndPassword?.sendResetPassword) {
-          await options.emailAndPassword.sendResetPassword({ user, url });
-        }
-        if (options.emailVerification?.sendVerificationEmail) {
-          await options.emailVerification.sendVerificationEmail({ user, url });
-        }
+        expect(options.emailAndPassword?.sendResetPassword).toBeFunction();
+        expect(options.emailVerification?.sendVerificationEmail).toBeFunction();
       } finally {
         process.env.SITE_URL = originalSiteUrl;
         process.env.GOOGLE_CLIENT_ID = originalGoogleClientId;

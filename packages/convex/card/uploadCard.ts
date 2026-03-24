@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import { mutation } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
+import { captureBackendEvent } from "../posthog";
 import { type CardType, cardTypeValidator } from "../schema";
 import {
   buildInitialProcessingStatus,
@@ -56,7 +57,7 @@ export const uploadAndCreateCard = mutation({
     error: v.optional(v.string()),
     errorCode: v.optional(v.string()),
   }),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
     if (!user) {
       return { success: false, error: "User must be authenticated" };
@@ -68,6 +69,21 @@ export const uploadAndCreateCard = mutation({
 
       // Generate upload URL
       const uploadUrl = await ctx.storage.generateUploadUrl();
+
+      await captureBackendEvent(ctx, {
+        event: "backend_card_upload_prepared",
+        distinctId: user.subject,
+        properties: {
+          card_type: args.cardType,
+          file_type: args.fileType,
+          file_size_bytes: args.fileSize,
+          has_content: Boolean(args.content?.trim()),
+          has_additional_metadata: Boolean(
+            args.additionalMetadata &&
+              Object.keys(args.additionalMetadata).length > 0
+          ),
+        },
+      });
 
       return {
         success: true,
@@ -202,6 +218,22 @@ export const finalizeUploadedCard = mutation({
         (internal as any)["workflows/manager"].startCardProcessingWorkflow,
         { cardId }
       );
+
+      await captureBackendEvent(ctx, {
+        event: "backend_card_created",
+        distinctId: user.subject,
+        properties: {
+          card_type: cardType,
+          creation_method: "upload",
+          has_file: true,
+          file_type: fileMetadata.contentType,
+          file_size_bytes: fileMetadata.size,
+          has_content: Boolean(args.content?.trim()),
+          has_metadata: Boolean(metadata),
+          metadata_source:
+            typeof metadata?.source === "string" ? metadata.source : undefined,
+        },
+      });
 
       return { success: true, cardId };
     } catch (error) {
