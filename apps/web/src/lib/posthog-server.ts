@@ -9,6 +9,12 @@ export function getPostHogClient() {
       flushAt: 1,
       flushInterval: 0,
     });
+
+    // Register super properties for server-side events
+    posthogClient.register({
+      teak_source: "web",
+      teak_version: "1.0.25",
+    });
   }
   return posthogClient;
 }

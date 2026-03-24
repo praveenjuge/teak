@@ -53,4 +53,10 @@ posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
   defaults: "2026-01-30",
   capture_exceptions: true,
   debug: process.env.NODE_ENV === "development",
+  loaded: (posthog) => {
+    posthog.register({
+      teak_source: "web",
+      teak_version: "1.0.25",
+    });
+  },
 });

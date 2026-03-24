@@ -14,3 +14,11 @@ export const posthog = new PostHog(apiKey || "placeholder_key", {
   flushAt: 20,
   flushInterval: 10_000,
 });
+
+// Register super properties to identify the mobile app as the source
+if (isPostHogConfigured) {
+  posthog.register({
+    teak_source: "mobile",
+    teak_version: "1.0.25",
+  });
+}

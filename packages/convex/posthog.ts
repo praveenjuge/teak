@@ -44,6 +44,8 @@ export const captureBackendEvent = async (
       distinctId,
       properties: {
         analytics_source: "convex_backend",
+        teak_source: "convex",
+        teak_version: "1.0.25",
         ...properties,
       },
     });
