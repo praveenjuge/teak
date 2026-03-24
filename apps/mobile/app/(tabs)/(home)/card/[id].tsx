@@ -9,11 +9,20 @@ import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { Stack, useLocalSearchParams } from "expo-router";
+import { usePostHog } from "posthog-react-native";
+import { useEffect } from "react";
 import { CardPreviewSheet } from "@/components/CardPreviewSheet";
 
 export default function CardPreviewRoute() {
+  const posthog = usePostHog();
   const { id } = useLocalSearchParams<{ id: string }>();
   const card = useQuery(api.cards.getCard, { id: id as Id<"cards"> });
+
+  useEffect(() => {
+    if (card) {
+      posthog.capture("card_viewed", { card_type: card.type });
+    }
+  }, [card, posthog]);
 
   return (
     <>

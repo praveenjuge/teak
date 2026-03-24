@@ -17,6 +17,7 @@ import {
   useAudioRecorder,
 } from "expo-audio";
 import { router, Stack } from "expo-router";
+import { usePostHog } from "posthog-react-native";
 import { useEffect, useState } from "react";
 import { Alert, Pressable } from "react-native";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -26,6 +27,7 @@ import { useUploadFromUri } from "@/lib/hooks/use-upload-from-uri";
 import { stopAudioRecording } from "@/lib/recording";
 
 export default function AddRecordScreen() {
+  const posthog = usePostHog();
   const [isRecording, setIsRecording] = useState(false);
   const [isStoppingRecording, setIsStoppingRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -40,6 +42,9 @@ export default function AddRecordScreen() {
       }
     },
     onSuccess: () => {
+      posthog.capture("audio_recording_saved", {
+        duration_seconds: Math.round(recordingDuration),
+      });
       void triggerSuccessHaptic();
       router.back();
     },
@@ -87,6 +92,7 @@ export default function AddRecordScreen() {
       audioRecorder.record();
       setIsRecording(true);
       setRecordingDuration(0);
+      posthog.capture("audio_recording_started");
     } catch (error) {
       console.error(
         "Failed to start recording:",

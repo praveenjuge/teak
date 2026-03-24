@@ -1,6 +1,7 @@
 import { useConvexAuth } from "convex/react";
 import { type Href, useRouter } from "expo-router";
 import { useIncomingShare } from "expo-sharing";
+import { usePostHog } from "posthog-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUploadFromUri } from "@/lib/hooks/use-upload-from-uri";
 import { useCreateCard } from "@/lib/hooks/useCardOperations";
@@ -38,6 +39,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 export function useIncomingShareImport(): UseIncomingShareImportResult {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useConvexAuth();
+  const posthog = usePostHog();
   const createCard = useCreateCard();
   const { uploadFromUri } = useUploadFromUri();
   const [status, setStatus] = useState<IncomingShareStatus>("resolving");
@@ -226,9 +228,16 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
 
         if (postImportStatus === "error" && importResult.failures.length > 0) {
           setErrorDetail(importResult.failures[0]?.message ?? null);
+          posthog.capture("incoming_share_failed", {
+            error_detail: importResult.failures[0]?.message ?? null,
+            item_count: normalizedItemsRef.current.length,
+          });
         }
 
         if (postImportStatus === "saved") {
+          posthog.capture("incoming_share_saved", {
+            item_count: normalizedItemsRef.current.length,
+          });
           if (successTimeoutRef.current) {
             clearTimeout(successTimeoutRef.current);
           }
@@ -238,10 +247,15 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
         }
       } catch (error) {
         if (isMountedRef.current) {
-          setErrorDetail(
-            getErrorMessage(error, "Shared content could not be saved.")
+          const errorMessage = getErrorMessage(
+            error,
+            "Shared content could not be saved."
           );
+          setErrorDetail(errorMessage);
           setStatus("error");
+          posthog.capture("incoming_share_failed", {
+            error_detail: errorMessage,
+          });
         }
       } finally {
         isProcessingRef.current = false;
@@ -253,6 +267,7 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
     isLoading,
     isResolving,
     normalizedItemCount,
+    posthog,
     shareResolveErrorMessage,
     shareSignature,
   ]);

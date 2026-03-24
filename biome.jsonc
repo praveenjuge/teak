@@ -6,7 +6,7 @@
     "ultracite/biome/next"
   ],
   "javascript": {
-    "globals": ["chrome", "defineBackground", "defineContentScript"]
+    "globals": ["chrome", "defineBackground", "defineContentScript", "__DEV__"]
   },
   "overrides": [
     {

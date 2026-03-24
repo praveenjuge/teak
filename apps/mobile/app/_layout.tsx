@@ -5,15 +5,17 @@ import {
 } from "@react-navigation/native";
 import { useConvexAuth } from "convex/react";
 import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
 import {
   hide as hideSplashScreen,
   preventAutoHideAsync,
 } from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import { PostHogProvider } from "posthog-react-native";
 import { useEffect, useRef } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { colors } from "@/constants/colors";
+import { posthog } from "@/lib/posthog";
 import { INCOMING_SHARE_SCREEN } from "@/lib/share/constants";
 import {
   ThemePreferenceProvider,
@@ -41,9 +43,14 @@ const customDarkTheme = {
 
 export default function RootLayout() {
   return (
-    <ThemePreferenceProvider>
-      <RootLayoutContent />
-    </ThemePreferenceProvider>
+    <PostHogProvider
+      autocapture={{ captureScreens: false, captureTouches: true }}
+      client={posthog}
+    >
+      <ThemePreferenceProvider>
+        <RootLayoutContent />
+      </ThemePreferenceProvider>
+    </PostHogProvider>
   );
 }
 
@@ -51,6 +58,17 @@ function RootLayoutContent() {
   const { isLoaded, resolvedScheme } = useThemePreference();
   const isDark = resolvedScheme === "dark";
   const hasHiddenSplash = useRef(false);
+  const pathname = usePathname();
+  const previousPathname = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (previousPathname.current !== pathname) {
+      posthog.screen(pathname, {
+        previous_screen: previousPathname.current ?? null,
+      });
+      previousPathname.current = pathname;
+    }
+  }, [pathname]);
 
   useEffect(() => {
     if (!isLoaded || hasHiddenSplash.current) {

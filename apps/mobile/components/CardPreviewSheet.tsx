@@ -22,6 +22,7 @@ import {
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useEvent } from "expo";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
+import { usePostHog } from "posthog-react-native";
 import { useCallback, useEffect } from "react";
 import { Linking } from "react-native";
 import {
@@ -53,6 +54,7 @@ const unsupportedAudioExts = new Set(["webm", "ogg", "opus"]);
 const PREVIEW_HEIGHT = 260;
 
 function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
+  const posthog = usePostHog();
   const audioUrl = card?.type === "audio" ? (card.fileUrl ?? null) : null;
 
   const audioMime = card?.fileMetadata?.mimeType?.toLowerCase();
@@ -92,26 +94,35 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
       return;
     }
 
+    const nextState = isAudioPlaying ? "pause" : "play";
+    posthog.capture("audio_playback_toggled", {
+      action: nextState,
+      card_type: card.type,
+    });
     if (isAudioPlaying) {
       player.pause();
     } else {
       player.play();
     }
-  }, [audioSource, isAudioPlaying, player]);
+  }, [audioSource, isAudioPlaying, player, card.type, posthog]);
 
-  const handleOpenLink = useCallback(async (url: string) => {
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
+  const handleOpenLink = useCallback(
+    async (url: string) => {
+      posthog.capture("card_link_opened", { card_type: card.type });
+      try {
+        const supported = await Linking.canOpenURL(url);
+        if (supported) {
+          await Linking.openURL(url);
+        }
+      } catch (error) {
+        console.error(
+          "Failed to open URL:",
+          error instanceof Error ? error.message : error
+        );
       }
-    } catch (error) {
-      console.error(
-        "Failed to open URL:",
-        error instanceof Error ? error.message : error
-      );
-    }
-  }, []);
+    },
+    [card.type, posthog]
+  );
 
   const textContent = card.content?.trim() || "No content";
   const title =

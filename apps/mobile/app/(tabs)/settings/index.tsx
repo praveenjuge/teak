@@ -23,6 +23,7 @@ import { api } from "@teak/convex";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { Stack, useRouter } from "expo-router";
+import { usePostHog } from "posthog-react-native";
 import { useMemo, useState } from "react";
 import { Alert } from "react-native";
 import { authClient } from "@/lib/auth-client";
@@ -32,6 +33,7 @@ const DELETE_CONFIRMATION_PHRASE = "delete account";
 type AppearanceOption = "system" | "light" | "dark";
 
 export default function SettingsScreen() {
+  const posthog = usePostHog();
   const { data: session } = authClient.useSession();
   const { preference, setPreference, isLoaded } = useThemePreference();
   const router = useRouter();
@@ -78,6 +80,8 @@ export default function SettingsScreen() {
 
   const signOut = async () => {
     try {
+      posthog.capture("user_signed_out");
+      posthog.reset();
       await authClient.signOut();
       router.replace("/(auth)/welcome");
     } catch (error) {
@@ -119,6 +123,8 @@ export default function SettingsScreen() {
           deleteUserFailed = true;
         },
         onSuccess: () => {
+          posthog.capture("account_deleted");
+          posthog.reset();
           router.replace("/(auth)/welcome");
         },
       });

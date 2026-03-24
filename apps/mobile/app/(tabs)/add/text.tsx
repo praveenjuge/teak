@@ -12,6 +12,7 @@ import {
   scrollDisabled,
 } from "@expo/ui/swift-ui/modifiers";
 import { router, Stack } from "expo-router";
+import { usePostHog } from "posthog-react-native";
 import { useCallback, useRef, useState } from "react";
 import { Alert, PlatformColor, Pressable } from "react-native";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -23,6 +24,7 @@ import {
 import { useCreateCard } from "@/lib/hooks/useCardOperations";
 
 export default function AddTextScreen() {
+  const posthog = usePostHog();
   const [content, setContent] = useState("");
   const [isSavingCard, setIsSavingCard] = useState(false);
   const [validationMessage, setValidationMessage] = useState<string | null>(
@@ -54,6 +56,13 @@ export default function AddTextScreen() {
         createCard,
       });
 
+      const isUrl =
+        trimmedContent.startsWith("http://") ||
+        trimmedContent.startsWith("https://");
+      posthog.capture("card_created_text", {
+        content_type: isUrl ? "url" : "text",
+        content_length: trimmedContent.length,
+      });
       void triggerSuccessHaptic();
       textFieldRef.current?.setText("");
       router.back();
@@ -68,7 +77,7 @@ export default function AddTextScreen() {
     } finally {
       setIsSavingCard(false);
     }
-  }, [content, createCard, isSavingCard]);
+  }, [content, createCard, isSavingCard, posthog]);
 
   return (
     <>
