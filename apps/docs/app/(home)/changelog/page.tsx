@@ -1,7 +1,7 @@
-import { Button } from "@teak/ui/components/ui/button";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ComponentType } from "react";
+import { FollowOnXButton } from "@/components/FollowOnXButton";
 import { getDefaultAuthor } from "@/lib/authors";
 import { getSortedChangelogEntries } from "@/lib/source";
 
@@ -71,24 +71,7 @@ export default function ChangelogPage() {
         <p className="mb-6 text-balance text-lg text-muted-foreground">
           Real updates that make Teak better. No corporate fluff, promise.
         </p>
-        <Button asChild variant="outline">
-          <a
-            href="https://x.com/praveenjuge"
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            <svg
-              aria-hidden="true"
-              className="h-4 w-4"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <title>X Logo</title>
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-            </svg>
-            Follow on X
-          </a>
-        </Button>
+        <FollowOnXButton />
       </div>
 
       <div className="space-y-8">

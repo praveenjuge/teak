@@ -4,6 +4,7 @@ import { Button, buttonVariants } from "@teak/ui/components/ui/button";
 import { cn } from "@teak/ui/lib/utils";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
+import posthog from "posthog-js";
 import { useState } from "react";
 import Logo from "@/components/Logo";
 
@@ -43,10 +44,17 @@ export function Header() {
           </div>
 
           <div className="flex items-center gap-1">
-            <a className={buttonClass} href="https://app.teakvault.com/login">
+            <a
+              className={buttonClass}
+              href="https://app.teakvault.com/login"
+              onClick={() => posthog.capture("header_login_clicked")}
+            >
               Login
             </a>
-            <a href="https://app.teakvault.com/register">
+            <a
+              href="https://app.teakvault.com/register"
+              onClick={() => posthog.capture("header_register_clicked")}
+            >
               <Button size="sm">Register</Button>
             </a>
             <Button

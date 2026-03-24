@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import { useState } from "react";
 
 interface PricingToggleProps {
@@ -16,6 +17,9 @@ export function PricingToggle({
   const handleToggle = (yearly: boolean) => {
     setIsYearly(yearly);
     onToggle(yearly);
+    posthog.capture("pricing_billing_period_changed", {
+      billing_period: yearly ? "yearly" : "monthly",
+    });
   };
 
   return (

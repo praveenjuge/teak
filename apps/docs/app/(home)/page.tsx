@@ -1,8 +1,8 @@
-import { Button } from "@teak/ui/components/ui/button";
 import { Check, X } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { FeatureCard } from "../../components/FeatureCard";
+import { HomeCTA } from "../../components/HomeCTA";
 import {
   JsonLd,
   organizationSchema,
@@ -234,15 +234,7 @@ export default function HomePage() {
               Save inspiration in 1 click, find it in 2 seconds. Never lose your
               best ideas again.
             </p>
-            <Button asChild size="lg">
-              <a
-                href="https://app.teakvault.com/register"
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                Start Free
-              </a>
-            </Button>
+            <HomeCTA />
           </div>
 
           {/* Hero Image */}

@@ -1,0 +1,42 @@
+[
+  {
+    "event": "cta_clicked",
+    "description": "User clicks the primary 'Start Free' call-to-action button on the home page hero section",
+    "file": "app/(home)/page.tsx"
+  },
+  {
+    "event": "pricing_plan_cta_clicked",
+    "description": "User clicks a plan CTA button (Start Free or Get Pro) on a pricing card",
+    "file": "components/PricingCard.tsx"
+  },
+  {
+    "event": "pricing_billing_period_changed",
+    "description": "User switches between monthly and yearly billing on the pricing page",
+    "file": "components/PricingToggle.tsx"
+  },
+  {
+    "event": "app_platform_clicked",
+    "description": "User clicks on a platform app card (Web App, iOS, Chrome Extension, Desktop, API, Raycast)",
+    "file": "app/(home)/apps/page.tsx"
+  },
+  {
+    "event": "header_register_clicked",
+    "description": "User clicks the Register button in the site header",
+    "file": "components/Header.tsx"
+  },
+  {
+    "event": "header_login_clicked",
+    "description": "User clicks the Login button in the site header",
+    "file": "components/Header.tsx"
+  },
+  {
+    "event": "self_hosted_guide_clicked",
+    "description": "User clicks the 'Setup Guide' link on the self-hosted section of the pricing page",
+    "file": "app/(home)/pricing/PricingPageClient.tsx"
+  },
+  {
+    "event": "changelog_follow_x_clicked",
+    "description": "User clicks the 'Follow on X' button on the changelog page",
+    "file": "app/(home)/changelog/page.tsx"
+  }
+]
