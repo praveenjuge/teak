@@ -12,6 +12,7 @@ import type { DuplicateCard } from "../../hooks/useAutoSaveUrl";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
 import { useContextMenuSave } from "../../hooks/useContextMenuSave";
 import { useWebAppSession } from "../../hooks/useWebAppSession";
+import { POSTHOG_USER_ID_KEY, posthog } from "../../lib/posthog";
 import { getAuthErrorMessage } from "../../utils/getAuthErrorMessage";
 
 // Error code constant for card limit - should match convex/shared/constants.ts
@@ -29,6 +30,7 @@ function UpgradePrompt() {
     : "https://app.teakvault.com";
 
   const handleUpgradeClick = () => {
+    posthog.capture("upgrade clicked");
     chrome.tabs.create({ url: `${baseUrl}/settings` });
     window.close();
   };
@@ -72,6 +74,13 @@ function App() {
     error: sessionError,
     refetch,
   } = useWebAppSession();
+
+  useEffect(() => {
+    if (!session) return;
+    const { id, email, name } = session.user;
+    posthog.identify(id, { email, name });
+    void chrome.storage.local.set({ [POSTHOG_USER_ID_KEY]: id });
+  }, [session]);
 
   if (isPending) {
     return (
@@ -133,11 +142,13 @@ function AuthPanel({
     : "https://app.teakvault.com";
 
   const handleLogin = () => {
+    posthog.capture("login clicked");
     chrome.tabs.create({ url: `${baseUrl}/login` });
     window.close();
   };
 
   const handleRegister = () => {
+    posthog.capture("register clicked");
     chrome.tabs.create({ url: `${baseUrl}/register` });
     window.close();
   };

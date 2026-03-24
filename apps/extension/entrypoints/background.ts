@@ -1,3 +1,4 @@
+import { posthog } from "../lib/posthog";
 import { saveToTeak } from "../lib/saveToTeak";
 import type { ContextMenuAction } from "../types/contextMenu";
 import {
@@ -14,6 +15,29 @@ import {
   isSupportedInlineSaveHost,
 } from "../types/social";
 import { hasValidSession } from "../utils/getSessionFromCookies";
+
+function captureSaveResult(
+  result: TeakSaveResponse,
+  source: string,
+  contentType: "url" | "text"
+) {
+  if (result.status === "saved") {
+    posthog.capture("content saved", { source, content_type: contentType });
+  } else if (result.status === "duplicate") {
+    posthog.capture("duplicate content detected", {
+      source,
+      content_type: contentType,
+    });
+  } else if (result.status === "error" || result.status === "unauthenticated") {
+    posthog.capture("content save failed", {
+      source,
+      content_type: contentType,
+      error_code: result.status === "error" ? result.code : "unauthenticated",
+      error_message:
+        result.status === "error" ? result.message : "User not authenticated",
+    });
+  }
+}
 
 // Check if a URL is restricted (can't inject scripts)
 function isRestrictedUrl(url?: string): boolean {
@@ -195,6 +219,11 @@ export default defineBackground(() => {
         content,
         source: "context-menu",
       });
+      void captureSaveResult(
+        saveResult,
+        "context-menu",
+        action === "save-text" ? "text" : "url"
+      );
 
       if (saveResult.status === "saved" || saveResult.status === "duplicate") {
         await chrome.storage.local.set({
@@ -250,6 +279,14 @@ export default defineBackground(() => {
             content: saveRequest.payload.content,
             source: saveRequest.payload.source,
           });
+          const isUrl =
+            saveRequest.payload.content.startsWith("http://") ||
+            saveRequest.payload.content.startsWith("https://");
+          void captureSaveResult(
+            result,
+            saveRequest.payload.source,
+            isUrl ? "url" : "text"
+          );
           sendResponse(result);
           return;
         }
@@ -312,6 +349,7 @@ export default defineBackground(() => {
             enforceAllowedHosts: platformRule.permalinkPolicy === "same-host",
             source: "inline-post",
           });
+          void captureSaveResult(result, "inline-post", "url");
           sendResponse(result);
           return;
         }
