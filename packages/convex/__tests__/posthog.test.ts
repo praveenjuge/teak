@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { components } from "../_generated/api";
 
 const posthogConstructorCalls: Array<{
@@ -8,14 +8,41 @@ const posthogConstructorCalls: Array<{
   };
 }> = [];
 
+const posthogCaptureCalls: Array<{
+  ctx: unknown;
+  payload: {
+    event: string;
+    distinctId?: string;
+    properties?: Record<string, unknown>;
+  };
+}> = [];
+
 class MockPostHog {
+  component: unknown;
+  options: {
+    identify?: (ctx: unknown) => Promise<{ distinctId: string } | null>;
+  };
+
   constructor(
-    public component: unknown,
-    public options: {
+    component: unknown,
+    options: {
       identify?: (ctx: unknown) => Promise<{ distinctId: string } | null>;
     }
   ) {
+    this.component = component;
+    this.options = options;
     posthogConstructorCalls.push({ component, options });
+  }
+
+  async capture(
+    ctx: unknown,
+    payload: {
+      event: string;
+      distinctId?: string;
+      properties?: Record<string, unknown>;
+    }
+  ) {
+    posthogCaptureCalls.push({ ctx, payload });
   }
 }
 
@@ -24,6 +51,10 @@ mock.module("@posthog/convex", () => ({
 }));
 
 describe("posthog.ts", () => {
+  beforeEach(() => {
+    posthogCaptureCalls.length = 0;
+  });
+
   test("configures PostHog with the Convex component and identify callback", async () => {
     const module = await import("../posthog");
     const [{ component, options }] = posthogConstructorCalls;
@@ -51,5 +82,34 @@ describe("posthog.ts", () => {
     ).resolves.toBeNull();
 
     await expect(identify?.({})).resolves.toBeNull();
+  });
+
+  test("captures backend events with merged Teak super properties", async () => {
+    const module = await import("../posthog");
+    const ctx = { scheduler: {} };
+
+    await module.captureBackendEvent(ctx, {
+      event: "backend_card_created",
+      distinctId: "user_123",
+      properties: {
+        cardType: "link",
+      },
+    });
+
+    expect(posthogCaptureCalls).toHaveLength(1);
+    expect(posthogCaptureCalls[0]).toMatchObject({
+      ctx,
+      payload: {
+        event: "backend_card_created",
+        distinctId: "user_123",
+        properties: {
+          analytics_source: "convex_backend",
+          cardType: "link",
+          teak_environment: "development",
+          teak_source: "convex",
+          teak_version: "1.0.25",
+        },
+      },
+    });
   });
 });

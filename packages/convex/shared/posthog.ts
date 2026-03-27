@@ -1,6 +1,6 @@
 /**
- * Shared PostHog configuration for the Teak monorepo
- * Provides super properties to identify which app/package events originate from
+ * Shared PostHog configuration for the Teak monorepo.
+ * Provides super properties to identify which app/package events originate from.
  */
 
 export type AppSource =
@@ -21,8 +21,22 @@ export interface TeakSuperProperties {
   teak_version?: string;
 }
 
+const getTeakEnvironment = (): TeakSuperProperties["teak_environment"] => {
+  const nodeEnv = (
+    globalThis as {
+      process?: {
+        env?: {
+          NODE_ENV?: string;
+        };
+      };
+    }
+  ).process?.env?.NODE_ENV;
+
+  return nodeEnv === "production" ? "production" : "development";
+};
+
 /**
- * Default super properties applied to all PostHog events
+ * Default super properties applied to all PostHog events.
  */
 export const getDefaultSuperProperties = (
   source: AppSource,
@@ -30,12 +44,11 @@ export const getDefaultSuperProperties = (
 ): TeakSuperProperties => ({
   teak_source: source,
   teak_version: version,
-  teak_environment:
-    process.env.NODE_ENV === "production" ? "production" : "development",
+  teak_environment: getTeakEnvironment(),
 });
 
 /**
- * Get super properties with additional custom properties merged in
+ * Get super properties with additional custom properties merged in.
  */
 export const getSuperProperties = (
   source: AppSource,

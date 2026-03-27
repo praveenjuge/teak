@@ -1,5 +1,6 @@
 import { PostHog } from "@posthog/convex";
 import { components } from "./_generated/api";
+import { getSuperProperties } from "./shared/posthog";
 
 type PostHogIdentityCtx = {
   auth?: {
@@ -42,12 +43,14 @@ export const captureBackendEvent = async (
     await posthog.capture(ctx as never, {
       event,
       distinctId,
-      properties: {
-        analytics_source: "convex_backend",
-        teak_source: "convex",
-        teak_version: "1.0.25",
-        ...properties,
-      },
+      properties: getSuperProperties(
+        "convex",
+        {
+          analytics_source: "convex_backend",
+          ...properties,
+        },
+        "1.0.25"
+      ),
     });
   } catch (error) {
     console.error("Failed to capture backend PostHog event", {
