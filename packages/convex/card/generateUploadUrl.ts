@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "../_generated/server";
+import { isR2Configured, prepareR2Upload } from "../fileStorage";
 
 export const generateUploadUrl = mutation({
   args: {
@@ -12,9 +13,14 @@ export const generateUploadUrl = mutation({
       throw new Error("User must be authenticated");
     }
 
-    // Generate upload URL - Convex handles storage internally
-    // File organization is managed through the cards table with userId
-    const uploadUrl = await ctx.storage.generateUploadUrl();
+    const uploadUrl = isR2Configured()
+      ? (
+          await prepareR2Upload({
+            fileName: args.fileName,
+            userId: user.subject,
+          })
+        ).uploadUrl
+      : await ctx.storage.generateUploadUrl();
 
     // Log upload request for debugging/monitoring (optional)
     console.log(

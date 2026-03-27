@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { internalQuery, query } from "../_generated/server";
+import { getStorageUrl } from "../fileStorage";
 import type { LinkPreviewMediaItem } from "../linkMetadata";
 import { cardValidator } from "../schema";
 import {
@@ -79,7 +80,7 @@ export const getCardForUserHandler = async (
 
   const resolvedUrls = await Promise.all(
     Array.from(storageIds).map(
-      async (id) => [id, await ctx.storage.getUrl(id)] as const
+      async (id) => [id, await getStorageUrl(ctx, id)] as const
     )
   );
   const urlMap = new Map(resolvedUrls);

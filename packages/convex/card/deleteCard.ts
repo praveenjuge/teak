@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "../_generated/server";
+import { deleteStorageObject } from "../fileStorage";
 import { captureBackendEvent } from "../posthog";
 
 export const permanentDeleteCard = mutation({
@@ -25,10 +26,10 @@ export const permanentDeleteCard = mutation({
 
     // Delete associated files if they exist
     if (card.fileId) {
-      await ctx.storage.delete(card.fileId);
+      await deleteStorageObject(ctx, card.fileId);
     }
     if (card.thumbnailId) {
-      await ctx.storage.delete(card.thumbnailId);
+      await deleteStorageObject(ctx, card.thumbnailId);
     }
 
     // Permanently remove from database

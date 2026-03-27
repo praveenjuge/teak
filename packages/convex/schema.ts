@@ -1,6 +1,8 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { LINK_CATEGORIES } from "./shared/linkCategories";
+import { storageMigrationKindLiterals } from "./storageMigrationHelpers";
+import { storageRefValidator } from "./storageRefs";
 
 // Card types as literals for validator
 export const cardTypes = [
@@ -102,12 +104,12 @@ export const metadataValidator = v.optional(
           v.array(
             v.object({
               type: v.union(v.literal("image"), v.literal("video")),
-              storageId: v.id("_storage"),
+              storageId: storageRefValidator,
               updatedAt: v.number(),
               contentType: v.optional(v.string()),
               width: v.optional(v.number()),
               height: v.optional(v.number()),
-              posterStorageId: v.optional(v.id("_storage")),
+              posterStorageId: v.optional(storageRefValidator),
               posterUpdatedAt: v.optional(v.number()),
               posterContentType: v.optional(v.string()),
               posterWidth: v.optional(v.number()),
@@ -116,7 +118,7 @@ export const metadataValidator = v.optional(
           )
         ),
         imageUrl: v.optional(v.string()),
-        imageStorageId: v.optional(v.id("_storage")),
+        imageStorageId: v.optional(storageRefValidator),
         imageUpdatedAt: v.optional(v.number()),
         imageWidth: v.optional(v.number()),
         imageHeight: v.optional(v.number()),
@@ -125,7 +127,7 @@ export const metadataValidator = v.optional(
         author: v.optional(v.string()),
         publisher: v.optional(v.string()),
         publishedAt: v.optional(v.string()),
-        screenshotStorageId: v.optional(v.id("_storage")),
+        screenshotStorageId: v.optional(storageRefValidator),
         screenshotUpdatedAt: v.optional(v.number()),
         screenshotWidth: v.optional(v.number()),
         screenshotHeight: v.optional(v.number()),
@@ -164,6 +166,16 @@ export const colorValidator = v.object({
 });
 
 export const apiKeyAccessValidator = v.literal("full_access");
+
+const storageMigrationKindValidator = v.union(
+  ...storageMigrationKindLiterals.map((kind) => v.literal(kind))
+);
+
+const storageMigrationStatusValidator = v.union(
+  v.literal("copied"),
+  v.literal("cleaned_up"),
+  v.literal("cleanup_failed")
+);
 
 export const apiKeyValidator = v.object({
   userId: v.string(),
@@ -210,8 +222,8 @@ export const cardValidator = v.object({
   content: v.string(),
   type: cardTypeValidator,
   url: v.optional(v.string()),
-  fileId: v.optional(v.id("_storage")),
-  thumbnailId: v.optional(v.id("_storage")),
+  fileId: v.optional(storageRefValidator),
+  thumbnailId: v.optional(storageRefValidator),
   tags: v.optional(v.array(v.string())),
   notes: v.optional(v.string()),
   isFavorited: v.optional(v.boolean()),
@@ -302,6 +314,24 @@ export default defineSchema({
       searchField: "colorHues",
       filterFields: ["userId", "isDeleted", "type", "isFavorited"],
     }),
+  storageMigrations: defineTable(
+    v.object({
+      cardId: v.id("cards"),
+      createdAt: v.number(),
+      fieldPath: v.string(),
+      kind: storageMigrationKindValidator,
+      lastError: v.optional(v.string()),
+      legacyDeletedAt: v.optional(v.number()),
+      legacyRef: storageRefValidator,
+      r2Ref: storageRefValidator,
+      status: storageMigrationStatusValidator,
+      updatedAt: v.number(),
+      userId: v.string(),
+    })
+  )
+    .index("by_card_and_field", ["cardId", "fieldPath"])
+    .index("by_status_updated", ["status", "updatedAt"])
+    .index("by_legacy_ref", ["legacyRef"]),
   apiKeys: defineTable(apiKeyValidator)
     .index("by_user_revoked", ["userId", "revokedAt"])
     .index("by_prefix_revoked", ["keyPrefix", "revokedAt"]),

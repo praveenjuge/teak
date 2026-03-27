@@ -4,6 +4,8 @@ import Kernel from "@onkernel/sdk";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
+import { getStorageUrl, storeBlobInR2 } from "../../../fileStorage";
+import { storageRefValidator } from "../../../storageRefs";
 
 // Maximum thumbnail dimensions - matches image thumbnail settings
 const THUMBNAIL_MAX_WIDTH = 400;
@@ -21,7 +23,7 @@ export const generateVideoThumbnail = internalAction({
   returns: v.object({
     success: v.boolean(),
     generated: v.boolean(),
-    thumbnailId: v.optional(v.id("_storage")),
+    thumbnailId: v.optional(storageRefValidator),
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
@@ -64,7 +66,7 @@ export const generateVideoThumbnail = internalAction({
       }
 
       // Get the video URL from storage
-      const videoUrl = await ctx.storage.getUrl(card.fileId);
+      const videoUrl = await getStorageUrl(ctx, card.fileId);
       if (!videoUrl) {
         console.log(
           `[renderables/video] Could not get URL for fileId ${card.fileId}`
@@ -96,18 +98,21 @@ export const generateVideoThumbnail = internalAction({
           {
             code: `
               await page.setViewportSize({ width: 800, height: 600 });
-              
-              // Navigate to a blank page first
+
               await page.goto('about:blank');
-              
-              // Execute frame extraction entirely within page.evaluate
-              const result = await page.evaluate(async ({ videoUrl, maxWidth, maxHeight }) => {
+
+              await page.setContent('<!doctype html><html><body style="margin:0;display:grid;place-items:center;min-height:100vh;background:#000;"></body></html>');
+
+              const metadata = await page.evaluate(async ({ videoUrl, maxWidth, maxHeight }) => {
                 return new Promise((resolve) => {
                   const video = document.createElement('video');
-                  video.crossOrigin = 'anonymous';
+                  video.id = 'thumbnail-source-video';
                   video.preload = 'metadata';
                   video.muted = true;
                   video.playsInline = true;
+                  video.controls = false;
+                  video.style.display = 'block';
+                  video.style.background = '#000';
                   
                   let resolved = false;
                   const timeout = setTimeout(() => {
@@ -137,10 +142,6 @@ export const generateVideoThumbnail = internalAction({
                     clearTimeout(timeout);
                     
                     try {
-                      const canvas = document.createElement('canvas');
-                      const ctx = canvas.getContext('2d');
-                      
-                      // Calculate thumbnail dimensions
                       const originalWidth = video.videoWidth;
                       const originalHeight = video.videoHeight;
                       
@@ -168,37 +169,26 @@ export const generateVideoThumbnail = internalAction({
                         targetHeight = maxHeight;
                         targetWidth = Math.round(targetHeight * aspectRatio);
                       }
-                      
-                      canvas.width = targetWidth;
-                      canvas.height = targetHeight;
-                      ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
-                      
-                      // Convert to base64 - try WebP first, fall back to JPEG
-                      let dataUrl = canvas.toDataURL('image/webp', 0.8);
-                      let mimeType = 'image/webp';
-                      
-                      // Check if WebP is supported (some browsers return PNG for unsupported formats)
-                      if (!dataUrl.startsWith('data:image/webp')) {
-                        dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-                        mimeType = 'image/jpeg';
-                      }
-                      
-                      const base64 = dataUrl.split(',')[1];
+
+                      video.width = targetWidth;
+                      video.height = targetHeight;
+                      video.style.width = targetWidth + 'px';
+                      video.style.height = targetHeight + 'px';
+                      document.body.appendChild(video);
                       
                       resolve({
                         success: true,
-                        data: base64,
                         width: targetWidth,
                         height: targetHeight,
                         originalWidth: originalWidth,
                         originalHeight: originalHeight,
-                        mimeType: mimeType,
                       });
                     } catch (err) {
                       resolve({ success: false, error: err.message || 'Canvas error' });
                     }
                   };
                   
+                  document.body.appendChild(video);
                   video.src = videoUrl;
                   video.load();
                 });
@@ -207,8 +197,20 @@ export const generateVideoThumbnail = internalAction({
                 maxWidth: ${THUMBNAIL_MAX_WIDTH},
                 maxHeight: ${THUMBNAIL_MAX_HEIGHT}
               });
-              
-              return JSON.stringify(result);
+
+              if (!metadata.success) {
+                return JSON.stringify(metadata);
+              }
+
+              const videoElement = page.locator('#thumbnail-source-video');
+              await videoElement.waitFor({ state: 'visible' });
+              const screenshot = await videoElement.screenshot({ type: 'png' });
+
+              return JSON.stringify({
+                ...metadata,
+                data: screenshot.toString('base64'),
+                mimeType: 'image/png',
+              });
             `,
             timeout_sec: 120,
           }
@@ -248,9 +250,14 @@ export const generateVideoThumbnail = internalAction({
         );
 
         const thumbnailBlob = new Blob([imageArrayBuffer], {
-          type: result.mimeType || "image/webp",
+          type: result.mimeType || "image/png",
         });
-        const thumbnailId = await ctx.storage.store(thumbnailBlob);
+        const thumbnailId = await storeBlobInR2(ctx, thumbnailBlob, {
+          kind: "thumbnails",
+          fileName: `${args.cardId}.png`,
+          type: result.mimeType || "image/png",
+          userId: card.userId,
+        });
 
         // Extract original video dimensions from the result
         // These are the videoWidth and videoHeight from the HTMLVideoElement

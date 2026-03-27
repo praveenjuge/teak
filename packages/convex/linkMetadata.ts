@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
+import { deleteStorageObject } from "./fileStorage";
+import { storageRefValidator } from "./storageRefs";
 
 export * from "./linkMetadata/instagram";
 export {
@@ -61,7 +63,7 @@ export const updateCardMetadataHandler = async (
       nextLinkPreview.imageStorageId !== previousLinkPreview.imageStorageId
     ) {
       try {
-        await ctx.storage.delete(previousLinkPreview.imageStorageId);
+        await deleteStorageObject(ctx, previousLinkPreview.imageStorageId);
       } catch (error) {
         console.error(
           `[linkMetadata] Failed to delete previous OG image ${previousLinkPreview.imageStorageId} for card ${cardId}:`,
@@ -92,7 +94,7 @@ export const updateCardMetadataHandler = async (
         previousLinkPreview.screenshotStorageId
     ) {
       try {
-        await ctx.storage.delete(previousLinkPreview.screenshotStorageId);
+        await deleteStorageObject(ctx, previousLinkPreview.screenshotStorageId);
       } catch (error) {
         console.error(
           `[linkMetadata] Failed to delete previous screenshot ${previousLinkPreview.screenshotStorageId} for card ${cardId}:`,
@@ -132,7 +134,7 @@ export const updateCardMetadataHandler = async (
           }
 
           try {
-            await ctx.storage.delete(storageId);
+            await deleteStorageObject(ctx, storageId);
           } catch (error) {
             console.error(
               `[linkMetadata] Failed to delete previous media ${storageId} for card ${cardId}:`,
@@ -216,7 +218,7 @@ export const updateCardScreenshotHandler = async (
     existingLinkPreview.screenshotStorageId !== screenshotStorageId
   ) {
     try {
-      await ctx.storage.delete(existingLinkPreview.screenshotStorageId);
+      await deleteStorageObject(ctx, existingLinkPreview.screenshotStorageId);
     } catch (error) {
       console.error(
         `[linkMetadata] Failed to delete previous screenshot ${existingLinkPreview.screenshotStorageId} for card ${cardId}:`,
@@ -247,7 +249,7 @@ export const updateCardScreenshotHandler = async (
 export const updateCardScreenshot = internalMutation({
   args: {
     cardId: v.id("cards"),
-    screenshotStorageId: v.id("_storage"),
+    screenshotStorageId: storageRefValidator,
     screenshotUpdatedAt: v.number(),
     screenshotWidth: v.optional(v.number()),
     screenshotHeight: v.optional(v.number()),

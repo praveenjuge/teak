@@ -15,6 +15,13 @@ import type {
   ProcessingStatus,
 } from "./card/processingStatus";
 import { stagePending } from "./card/processingStatus";
+import {
+  deleteStorageObject,
+  getStorageDeploymentPrefix,
+  getStorageUrl,
+  isR2Configured,
+  storeBlobInR2,
+} from "./fileStorage";
 
 type StageSummary = {
   pending: number;
@@ -107,15 +114,15 @@ const attachCardUrls = async (
     cards.map(async (card) => {
       const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] =
         await Promise.all([
-          card.fileId ? ctx.storage.getUrl(card.fileId) : Promise.resolve(null),
+          card.fileId ? getStorageUrl(ctx, card.fileId) : Promise.resolve(null),
           card.thumbnailId
-            ? ctx.storage.getUrl(card.thumbnailId)
+            ? getStorageUrl(ctx, card.thumbnailId)
             : Promise.resolve(null),
           card.metadata?.linkPreview?.screenshotStorageId
-            ? ctx.storage.getUrl(card.metadata.linkPreview.screenshotStorageId)
+            ? getStorageUrl(ctx, card.metadata.linkPreview.screenshotStorageId)
             : Promise.resolve(null),
           card.metadata?.linkPreview?.imageStorageId
-            ? ctx.storage.getUrl(card.metadata.linkPreview.imageStorageId)
+            ? getStorageUrl(ctx, card.metadata.linkPreview.imageStorageId)
             : Promise.resolve(null),
         ]);
 
@@ -464,6 +471,32 @@ type AiBackfillWorkflowResult = {
   failedCardIds: Id<"cards">[];
 };
 
+type StorageBackfillFailure = {
+  cardId: Id<"cards">;
+  fieldPath: string;
+  legacyRef: string;
+  message: string;
+};
+
+const storageBackfillFailureValidator = v.object({
+  cardId: v.id("cards"),
+  fieldPath: v.string(),
+  legacyRef: v.string(),
+  message: v.string(),
+});
+
+const ensureDevStorageMigration = () => {
+  if (getStorageDeploymentPrefix() !== "dev") {
+    throw new Error(
+      "Storage migration actions are limited to dev deployments until production cutover is approved"
+    );
+  }
+
+  if (!isR2Configured()) {
+    throw new Error("R2 is not configured for storage backfill");
+  }
+};
+
 export const resetCardProcessingState = internalMutation({
   args: {
     cardId: v.id("cards"),
@@ -480,7 +513,7 @@ export const resetCardProcessingState = internalMutation({
     let clearedThumbnail = false;
     if (card.thumbnailId) {
       try {
-        await ctx.storage.delete(card.thumbnailId);
+        await deleteStorageObject(ctx, card.thumbnailId);
       } catch (error) {
         console.error("[admin] Failed to delete thumbnail during refresh", {
           cardId,
@@ -538,6 +571,234 @@ export const retryAiBackfill = action({
       enqueuedCount: normalizedResult.enqueuedCount,
       pendingSampleCount: pendingSample.length,
       failedCardIds: normalizedResult.failedCardIds,
+    };
+  },
+});
+
+export const backfillLegacyStorageToR2 = action({
+  args: {
+    batchSize: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+    maxPages: v.optional(v.number()),
+  },
+  returns: v.object({
+    failedAssets: v.array(storageBackfillFailureValidator),
+    isDone: v.boolean(),
+    migratedAssets: v.number(),
+    migratedCards: v.number(),
+    nextCursor: v.union(v.string(), v.null()),
+    requestedAt: v.number(),
+    scannedCards: v.number(),
+  }),
+  handler: async (ctx, { batchSize, cursor, maxPages }) => {
+    await ensureAdmin(ctx);
+    ensureDevStorageMigration();
+
+    const safeBatchSize = Math.min(Math.max(batchSize ?? 25, 1), 100);
+    const safeMaxPages = Math.min(Math.max(maxPages ?? 5, 1), 20);
+
+    let currentCursor = cursor ?? null;
+    let isDone = false;
+    let migratedAssets = 0;
+    let migratedCards = 0;
+    let scannedCards = 0;
+    const failedAssets: StorageBackfillFailure[] = [];
+
+    for (let pageIndex = 0; pageIndex < safeMaxPages; pageIndex += 1) {
+      const batch = (await ctx.runQuery(
+        (internal as any).storageMigration.listLegacyStorageBackfillCandidates,
+        {
+          paginationOpts: {
+            cursor: currentCursor,
+            numItems: safeBatchSize,
+          },
+        }
+      )) as {
+        continueCursor: string;
+        isDone: boolean;
+        page: Array<{
+          assets: Array<{
+            contentType?: string;
+            fieldPath: string;
+            fileName?: string;
+            kind:
+              | "uploads"
+              | "thumbnails"
+              | "screenshots"
+              | "link-previews"
+              | "media"
+              | "posters";
+            legacyRef: string;
+          }>;
+          cardId: Id<"cards">;
+          userId: string;
+        }>;
+        scannedCount: number;
+      };
+
+      scannedCards += batch.scannedCount;
+      currentCursor = batch.continueCursor;
+      isDone = batch.isDone;
+
+      for (const candidate of batch.page) {
+        const successfulMigrations: Array<{
+          contentType?: string;
+          fieldPath: string;
+          fileName?: string;
+          kind:
+            | "uploads"
+            | "thumbnails"
+            | "screenshots"
+            | "link-previews"
+            | "media"
+            | "posters";
+          legacyRef: string;
+          r2Ref: string;
+        }> = [];
+
+        for (const asset of candidate.assets) {
+          try {
+            const sourceUrl = await getStorageUrl(ctx, asset.legacyRef);
+            if (!sourceUrl) {
+              throw new Error("Legacy storage URL unavailable");
+            }
+
+            const response = await fetch(sourceUrl);
+            if (!response.ok) {
+              throw new Error(
+                `Legacy storage fetch failed (${response.status})`
+              );
+            }
+
+            const r2Ref = await storeBlobInR2(
+              ctx,
+              new Uint8Array(await response.arrayBuffer()),
+              {
+                fileName: asset.fileName,
+                kind: asset.kind,
+                type:
+                  asset.contentType ??
+                  response.headers.get("content-type") ??
+                  undefined,
+                userId: candidate.userId,
+              }
+            );
+
+            successfulMigrations.push({
+              ...asset,
+              r2Ref,
+            });
+          } catch (error) {
+            failedAssets.push({
+              cardId: candidate.cardId,
+              fieldPath: asset.fieldPath,
+              legacyRef: asset.legacyRef,
+              message: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+
+        if (successfulMigrations.length === 0) {
+          continue;
+        }
+
+        const applied = (await ctx.runMutation(
+          (internal as any).storageMigration.applyBackfilledStorageRefs,
+          {
+            cardId: candidate.cardId,
+            migrations: successfulMigrations,
+            userId: candidate.userId,
+          }
+        )) as {
+          appliedCount: number;
+          skippedCount: number;
+        };
+
+        if (applied.appliedCount > 0) {
+          migratedCards += 1;
+          migratedAssets += applied.appliedCount;
+        }
+      }
+
+      if (isDone) {
+        break;
+      }
+    }
+
+    return {
+      failedAssets,
+      isDone,
+      migratedAssets,
+      migratedCards,
+      nextCursor: isDone ? null : currentCursor,
+      requestedAt: Date.now(),
+      scannedCards,
+    };
+  },
+});
+
+export const cleanupLegacyConvexStorage = action({
+  args: {
+    batchSize: v.optional(v.number()),
+    includeFailed: v.optional(v.boolean()),
+  },
+  returns: v.object({
+    cleanedUpCount: v.number(),
+    failedCount: v.number(),
+    processedCount: v.number(),
+    requestedAt: v.number(),
+    skippedCount: v.number(),
+  }),
+  handler: async (ctx, { batchSize, includeFailed }) => {
+    await ensureAdmin(ctx);
+    ensureDevStorageMigration();
+
+    const candidates = (await ctx.runQuery(
+      (internal as any).storageMigration.listLegacyStorageCleanupCandidates,
+      {
+        batchSize,
+        includeFailed,
+      }
+    )) as {
+      page: Array<{
+        migrationId: Id<"storageMigrations">;
+      }>;
+    };
+
+    let cleanedUpCount = 0;
+    let failedCount = 0;
+    let skippedCount = 0;
+
+    for (const candidate of candidates.page) {
+      const result = (await ctx.runMutation(
+        (internal as any).storageMigration.cleanupLegacyStorageRef,
+        {
+          migrationId: candidate.migrationId,
+        }
+      )) as {
+        cleanedUp: boolean;
+        reason?: string;
+      };
+
+      if (result.cleanedUp) {
+        cleanedUpCount += 1;
+        continue;
+      }
+
+      if (result.reason === "delete_failed") {
+        failedCount += 1;
+        continue;
+      }
+
+      skippedCount += 1;
+    }
+
+    return {
+      cleanedUpCount,
+      failedCount,
+      processedCount: candidates.page.length,
+      requestedAt: Date.now(),
+      skippedCount,
     };
   },
 });

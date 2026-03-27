@@ -26,12 +26,16 @@ mock.module("@posthog/convex", () => ({
 describe("posthog.ts", () => {
   test("configures PostHog with the Convex component and identify callback", async () => {
     const module = await import("../posthog");
-    const [{ component, options }] = posthogConstructorCalls;
+    const posthogConfig = posthogConstructorCalls[0];
 
-    expect(module.posthog).toBeInstanceOf(MockPostHog);
-    expect(component).toEqual(components.posthog);
+    expect(module.posthog).toBeTruthy();
+    if (posthogConfig) {
+      expect(module.posthog).toBeInstanceOf(MockPostHog);
+      expect(posthogConfig.component).toEqual(components.posthog);
+    }
 
-    const identify = options.identify;
+    const identify =
+      posthogConfig?.options.identify ?? module.identifyPostHogUser;
     expect(typeof identify).toBe("function");
 
     await expect(

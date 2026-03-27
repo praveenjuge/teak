@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation, internalQuery } from "../_generated/server";
+import { deleteStorageObject } from "../fileStorage";
 import { workflow } from "./manager";
 
 const internalWorkflow = internal as Record<string, any>;
@@ -62,7 +63,7 @@ export const cleanupDeletedCard = internalMutation({
 
     if (card.fileId) {
       try {
-        await ctx.storage.delete(card.fileId);
+        await deleteStorageObject(ctx, card.fileId);
       } catch (error) {
         console.error(`${WORKFLOW_LOG_PREFIX} Failed to delete file`, {
           cardId,
@@ -73,7 +74,7 @@ export const cleanupDeletedCard = internalMutation({
     }
     if (card.thumbnailId) {
       try {
-        await ctx.storage.delete(card.thumbnailId);
+        await deleteStorageObject(ctx, card.thumbnailId);
       } catch (error) {
         console.error(`${WORKFLOW_LOG_PREFIX} Failed to delete thumbnail`, {
           cardId,

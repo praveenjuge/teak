@@ -1,4 +1,5 @@
 import type { Doc } from "../_generated/dataModel";
+import { getStorageUrl } from "../fileStorage";
 import type { LinkPreviewMediaItem } from "../linkMetadata";
 import type { CreatedAtRange } from "../shared";
 
@@ -101,7 +102,7 @@ export const attachFileUrls = async (
 
   const urlPromises = Array.from(storageIds).map(async (id) => ({
     id,
-    url: await ctx.storage.getUrl(id as any),
+    url: await getStorageUrl(ctx, id),
   }));
   const urlResults = await Promise.all(urlPromises);
   const urlMap = new Map(urlResults.map((result) => [result.id, result.url]));

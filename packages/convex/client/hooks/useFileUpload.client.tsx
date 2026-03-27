@@ -120,6 +120,7 @@ export interface UploadAndCreateCardArgs {
 export interface UploadAndCreateCardResult {
   error?: string;
   errorCode?: CardErrorCode | (string & {});
+  fileId?: string;
   success: boolean;
   uploadUrl?: string;
 }
@@ -130,6 +131,8 @@ export interface FinalizeUploadedCardArgs {
   content?: string;
   fileId: string;
   fileName: string;
+  fileSize: number;
+  fileType: string;
 }
 
 export interface FinalizeUploadedCardResult {
@@ -220,12 +223,14 @@ export function useFileUploadCore(
           throw codedError;
         }
 
-        // Step 2: Upload file to Convex storage
+        // Step 2: Upload file to storage
         config.onProgress?.(25);
         setProgress(25);
 
+        const preparedFileId = uploadResult.fileId;
+
         const uploadResponse = await fetch(uploadResult.uploadUrl, {
-          method: "POST",
+          method: preparedFileId ? "PUT" : "POST",
           headers: { "Content-Type": file.type || "application/octet-stream" },
           body: file,
         });
@@ -234,15 +239,24 @@ export function useFileUploadCore(
           throw new Error(`Upload failed with status ${uploadResponse.status}`);
         }
 
-        const { storageId } = await uploadResponse.json();
+        let uploadedFileId = preparedFileId;
+        if (!uploadedFileId) {
+          const { storageId } = await uploadResponse.json();
+          uploadedFileId = storageId;
+        }
+        if (!uploadedFileId) {
+          throw new Error("Upload completed without a file reference");
+        }
 
         config.onProgress?.(75);
         setProgress(75);
 
         // Step 3: Finalize card creation
         const finalizeResult = await finalizeUploadedCard({
-          fileId: storageId,
+          fileId: uploadedFileId,
           fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
           cardType,
           content: options.content,
           additionalMetadata: mergedAdditionalMetadata,

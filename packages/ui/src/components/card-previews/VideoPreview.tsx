@@ -21,9 +21,11 @@ export function VideoPreview({ card }: VideoPreviewProps) {
       autoPlay
       className="h-full w-full rounded-lg bg-black object-contain"
       controls
+      key={fileUrl}
+      playsInline
       preload="metadata"
+      src={fileUrl}
     >
-      <source src={fileUrl} type={card.fileMetadata?.mimeType} />
       <track kind="captions" />
       Your browser does not support the video tag.
     </video>

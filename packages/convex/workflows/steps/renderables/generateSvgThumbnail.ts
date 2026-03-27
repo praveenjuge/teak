@@ -4,6 +4,8 @@ import Kernel from "@onkernel/sdk";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
+import { getStorageUrl, storeBlobInR2 } from "../../../fileStorage";
+import { storageRefValidator } from "../../../storageRefs";
 
 // Maximum thumbnail dimensions - matches image thumbnail settings
 const THUMBNAIL_MAX_WIDTH = 500;
@@ -80,7 +82,7 @@ export const generateSvgThumbnail = internalAction({
   returns: v.object({
     success: v.boolean(),
     generated: v.boolean(),
-    thumbnailId: v.optional(v.id("_storage")),
+    thumbnailId: v.optional(storageRefValidator),
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
@@ -128,7 +130,7 @@ export const generateSvgThumbnail = internalAction({
       }
 
       // Get the SVG URL from storage
-      const svgUrl = await ctx.storage.getUrl(card.fileId);
+      const svgUrl = await getStorageUrl(ctx, card.fileId);
       if (!svgUrl) {
         console.log(
           `[renderables/svg] Could not get URL for fileId ${card.fileId}`
@@ -337,7 +339,12 @@ export const generateSvgThumbnail = internalAction({
         const thumbnailBlob = new Blob([imageArrayBuffer], {
           type: "image/png",
         });
-        const thumbnailId = await ctx.storage.store(thumbnailBlob);
+        const thumbnailId = await storeBlobInR2(ctx, thumbnailBlob, {
+          kind: "thumbnails",
+          fileName: `${args.cardId}.png`,
+          type: "image/png",
+          userId: card.userId,
+        });
 
         // Use extracted dimensions or fall back to rendered dimensions
         const finalOriginalWidth =

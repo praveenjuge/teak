@@ -181,19 +181,20 @@ export function LinkPreview({
                 <video
                   className="w-full rounded-xl border bg-black"
                   controls
-                  key={`${media.type}-${media.url}-${index}`}
+                  key={`${media.type}-${media.url}`}
                   playsInline
                   poster={media.posterUrl}
                   preload="metadata"
+                  src={media.url}
                 >
-                  <source src={media.url} type={media.contentType} />
+                  <track kind="captions" />
                 </video>
               ) : (
                 <img
                   alt={`Attached post media ${index + 1}`}
                   className="w-full rounded-xl border object-contain"
                   height={media.height}
-                  key={`${media.type}-${media.url}-${index}`}
+                  key={`${media.type}-${media.url}`}
                   src={media.url}
                   width={media.width}
                 />
@@ -222,19 +223,20 @@ export function LinkPreview({
               <video
                 className="w-full rounded-xl border bg-black"
                 controls
-                key={`${media.type}-${media.url}-${index}`}
+                key={`${media.type}-${media.url}`}
                 playsInline
                 poster={media.posterUrl}
                 preload="metadata"
+                src={media.url}
               >
-                <source src={media.url} type={media.contentType} />
+                <track kind="captions" />
               </video>
             ) : (
               <img
                 alt={`Attached post media ${index + 1}`}
                 className="w-full rounded-xl border object-contain"
                 height={media.height}
-                key={`${media.type}-${media.url}-${index}`}
+                key={`${media.type}-${media.url}`}
                 src={media.url}
                 width={media.width}
               />

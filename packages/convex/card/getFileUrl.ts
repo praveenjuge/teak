@@ -1,10 +1,13 @@
 import { v } from "convex/values";
 import { query } from "../_generated/server";
+import { getStorageUrl } from "../fileStorage";
+import { storageRefValidator } from "../storageRefs";
 
 export const getFileUrl = query({
   args: {
-    fileId: v.id("_storage"),
+    fileId: storageRefValidator,
     cardId: v.id("cards"),
+    urlRefreshToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
@@ -31,6 +34,6 @@ export const getFileUrl = query({
       throw new Error("File does not belong to the specified card");
     }
 
-    return await ctx.storage.getUrl(args.fileId);
+    return await getStorageUrl(ctx, args.fileId);
   },
 });

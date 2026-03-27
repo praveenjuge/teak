@@ -2,8 +2,14 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import { mutation } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
+import {
+  getUploadMetadataFromArgs,
+  isR2Configured,
+  prepareR2Upload,
+} from "../fileStorage";
 import { captureBackendEvent } from "../posthog";
 import { type CardType, cardTypeValidator } from "../schema";
+import { isR2StorageRef, storageRefValidator } from "../storageRefs";
 import {
   buildInitialProcessingStatus,
   stageCompleted,
@@ -53,6 +59,7 @@ export const uploadAndCreateCard = mutation({
   returns: v.object({
     success: v.boolean(),
     cardId: v.optional(v.id("cards")),
+    fileId: v.optional(storageRefValidator),
     uploadUrl: v.optional(v.string()),
     error: v.optional(v.string()),
     errorCode: v.optional(v.string()),
@@ -67,8 +74,15 @@ export const uploadAndCreateCard = mutation({
       // Check rate limit and card count limit
       await ensureCardCreationAllowed(ctx, user.subject);
 
-      // Generate upload URL
-      const uploadUrl = await ctx.storage.generateUploadUrl();
+      const uploadPreparation = isR2Configured()
+        ? await prepareR2Upload({
+            fileName: args.fileName,
+            userId: user.subject,
+          })
+        : {
+            fileRef: undefined,
+            uploadUrl: await ctx.storage.generateUploadUrl(),
+          };
 
       await captureBackendEvent(ctx, {
         event: "backend_card_upload_prepared",
@@ -87,7 +101,8 @@ export const uploadAndCreateCard = mutation({
 
       return {
         success: true,
-        uploadUrl,
+        fileId: uploadPreparation.fileRef,
+        uploadUrl: uploadPreparation.uploadUrl,
         cardId: undefined, // Will be set after successful upload
       };
     } catch (error) {
@@ -121,8 +136,10 @@ export const uploadAndCreateCard = mutation({
 // Mutation to finalize card creation after successful upload
 export const finalizeUploadedCard = mutation({
   args: {
-    fileId: v.id("_storage"),
+    fileId: storageRefValidator,
     fileName: v.string(),
+    fileType: v.string(),
+    fileSize: v.number(),
     cardType: cardTypeValidator,
     content: v.optional(v.string()),
     additionalMetadata: v.optional(v.any()),
@@ -145,15 +162,25 @@ export const finalizeUploadedCard = mutation({
       // Check rate limit and card count limit
       await ensureCardCreationAllowed(ctx, user.subject);
 
-      // Get file metadata from storage
-      const fileMetadata = await ctx.db.system.get("_storage", args.fileId);
-      if (!fileMetadata) {
-        return { success: false, error: "File not found in storage" };
-      }
-
       validateFileCardType(args.cardType);
 
-      if (!mimeMatchesCardType(fileMetadata.contentType, args.cardType)) {
+      let resolvedFileType = args.fileType;
+      let resolvedFileSize = args.fileSize;
+
+      if (!isR2StorageRef(args.fileId)) {
+        const legacyFile = await (ctx.db.system as any).get(args.fileId);
+        if (!legacyFile) {
+          return {
+            success: false,
+            error: "File not found in storage",
+          };
+        }
+
+        resolvedFileType = resolvedFileType ?? legacyFile.contentType ?? "";
+        resolvedFileSize = resolvedFileSize ?? legacyFile.size ?? 0;
+      }
+
+      if (!mimeMatchesCardType(resolvedFileType, args.cardType)) {
         throw new ConvexError({
           code: "TYPE_MISMATCH",
           message: `Uploaded file does not match expected ${args.cardType} type`,
@@ -166,18 +193,12 @@ export const finalizeUploadedCard = mutation({
       const additionalMeta = args.additionalMetadata || {};
 
       // Build comprehensive file metadata (including any file-related fields from additionalMetadata)
-      const fileMetadataObj = {
+      const fileMetadataObj = getUploadMetadataFromArgs({
         fileName: args.fileName,
-        fileSize: fileMetadata.size,
-        mimeType: fileMetadata.contentType,
-        // Include file-related fields from additionalMetadata
-        ...(additionalMeta.recordingTimestamp && {
-          recordingTimestamp: additionalMeta.recordingTimestamp,
-        }),
-        ...(additionalMeta.duration && { duration: additionalMeta.duration }),
-        ...(additionalMeta.width && { width: additionalMeta.width }),
-        ...(additionalMeta.height && { height: additionalMeta.height }),
-      };
+        fileSize: resolvedFileSize ?? 0,
+        fileType: resolvedFileType ?? "",
+        additionalMetadata: additionalMeta,
+      });
 
       // Build non-file metadata (only keep fields that aren't file-related)
       const {
@@ -215,6 +236,14 @@ export const finalizeUploadedCard = mutation({
 
       await ctx.scheduler.runAfter(
         0,
+        (internal as any).storage.syncUploadedStorageMetadata,
+        {
+          fileRef: args.fileId,
+        }
+      );
+
+      await ctx.scheduler.runAfter(
+        0,
         (internal as any)["workflows/manager"].startCardProcessingWorkflow,
         { cardId }
       );
@@ -226,8 +255,8 @@ export const finalizeUploadedCard = mutation({
           card_type: cardType,
           creation_method: "upload",
           has_file: true,
-          file_type: fileMetadata.contentType,
-          file_size_bytes: fileMetadata.size,
+          file_type: resolvedFileType,
+          file_size_bytes: resolvedFileSize,
           has_content: Boolean(args.content?.trim()),
           has_metadata: Boolean(metadata),
           metadata_source:

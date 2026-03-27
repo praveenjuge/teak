@@ -5,9 +5,9 @@ import Kernel from "@onkernel/sdk";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
+import { storeBlobInR2 } from "../../../fileStorage";
 import { normalizeUrl } from "../../../linkMetadata";
 import { isXStatusUrl } from "../../../linkMetadata/x";
-import type { Id } from "../../../shared/types";
 
 const internalFunctions = internal as Record<string, any>;
 const linkMetadataInternal = internalFunctions.linkMetadata as Record<
@@ -64,7 +64,7 @@ const captureScreenshotWithKernel = async (
   ctx: any,
   { url }: { url: string }
 ): Promise<{
-  screenshotId?: Id<"_storage">;
+  screenshotId?: string;
   screenshotUpdatedAt?: number;
   screenshotWidth?: number;
   screenshotHeight?: number;
@@ -153,7 +153,11 @@ const captureScreenshotWithKernel = async (
       type: "image/jpeg",
     });
 
-    const screenshotId = await ctx.storage.store(screenshotBlob);
+    const screenshotId = await storeBlobInR2(ctx, screenshotBlob, {
+      kind: "screenshots",
+      fileName: `${Date.now()}.jpg`,
+      type: "image/jpeg",
+    });
     return {
       screenshotId,
       screenshotUpdatedAt: Date.now(),

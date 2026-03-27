@@ -11,6 +11,7 @@ import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
 import { stageCompleted } from "../../card/processingStatus";
+import { getStorageUrl } from "../../fileStorage";
 import type { CardType } from "../../schema";
 import { extractVisualStylesFromTags } from "../../shared/constants";
 import type { Id } from "../../shared/types";
@@ -153,7 +154,7 @@ export async function generateHandler(
         isSvgFile && card.thumbnailId ? card.thumbnailId : card.fileId;
 
       if (imageFileId) {
-        const imageUrl = await ctx.storage.getUrl(imageFileId);
+        const imageUrl = await getStorageUrl(ctx, imageFileId);
         if (imageUrl) {
           const result = await generateImageMetadata(imageUrl);
           aiTags = result.aiTags;
@@ -167,7 +168,7 @@ export async function generateHandler(
     }
     case "video": {
       if (card.thumbnailId) {
-        const thumbnailUrl = await ctx.storage.getUrl(card.thumbnailId);
+        const thumbnailUrl = await getStorageUrl(ctx, card.thumbnailId);
         if (thumbnailUrl) {
           const title =
             card.fileMetadata?.fileName ||
@@ -183,7 +184,7 @@ export async function generateHandler(
     }
     case "audio": {
       if (card.fileId) {
-        const audioUrl = await ctx.storage.getUrl(card.fileId);
+        const audioUrl = await getStorageUrl(ctx, card.fileId);
         if (audioUrl) {
           const transcriptResult = await generateTranscript(
             audioUrl,

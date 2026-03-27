@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalQuery, query } from "../_generated/server";
+import { getStorageUrl } from "../fileStorage";
 import type { LinkPreviewMediaItem } from "../linkMetadata";
 import { cardReturnValidator } from "./getCards";
 
@@ -26,7 +27,7 @@ export const findDuplicateCardForUserHandler = async (
     (
       (duplicate.metadata?.linkPreview?.media ?? []) as LinkPreviewMediaItem[]
     ).map(async (item) => {
-      const url = await ctx.storage.getUrl(item.storageId);
+      const url = await getStorageUrl(ctx, item.storageId);
       if (!url) {
         return null;
       }
@@ -38,7 +39,7 @@ export const findDuplicateCardForUserHandler = async (
         width: item.width,
         height: item.height,
         posterUrl: item.posterStorageId
-          ? ((await ctx.storage.getUrl(item.posterStorageId)) ?? undefined)
+          ? ((await getStorageUrl(ctx, item.posterStorageId)) ?? undefined)
           : undefined,
         posterContentType: item.posterContentType,
         posterWidth: item.posterWidth,
@@ -47,30 +48,34 @@ export const findDuplicateCardForUserHandler = async (
     })
   );
   const fileUrl = duplicate.fileId
-    ? await ctx.storage.getUrl(duplicate.fileId)
+    ? await getStorageUrl(ctx, duplicate.fileId)
     : null;
   const thumbnailUrl = duplicate.thumbnailId
-    ? await ctx.storage.getUrl(duplicate.thumbnailId)
+    ? await getStorageUrl(ctx, duplicate.thumbnailId)
     : null;
   const screenshotUrl = duplicate.metadata?.linkPreview?.screenshotStorageId
-    ? await ctx.storage.getUrl(
+    ? await getStorageUrl(
+        ctx,
         duplicate.metadata.linkPreview.screenshotStorageId
       )
     : null;
   const linkPreviewImageUrl =
     (duplicate.metadata?.linkPreview?.imageStorageId
-      ? await ctx.storage.getUrl(duplicate.metadata.linkPreview.imageStorageId)
+      ? await getStorageUrl(ctx, duplicate.metadata.linkPreview.imageStorageId)
       : null) ??
     linkPreviewMedia.find((item) => item?.type === "image")?.url ??
     linkPreviewMedia.find((item) => item?.type === "video")?.posterUrl ??
     undefined;
+  const resolvedLinkPreviewMedia = linkPreviewMedia.filter(Boolean);
 
   return {
     ...duplicate,
     fileUrl: fileUrl || undefined,
     thumbnailUrl: thumbnailUrl || undefined,
     screenshotUrl: screenshotUrl || undefined,
-    linkPreviewMedia: linkPreviewMedia.filter(Boolean),
+    ...(resolvedLinkPreviewMedia.length > 0
+      ? { linkPreviewMedia: resolvedLinkPreviewMedia }
+      : {}),
     linkPreviewImageUrl: linkPreviewImageUrl || undefined,
   };
 };

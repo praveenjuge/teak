@@ -1,9 +1,11 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import type { OptimisticLocalStore } from "convex/browser";
-import { useMutation } from "convex/react";
-import { useCallback, useMemo, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+
+const FILE_URL_REFRESH_INTERVAL_MS = 45 * 60 * 1000;
 
 function updateCardInSearchQueries(
   localStore: OptimisticLocalStore,
@@ -68,6 +70,19 @@ export function useCardModal(
   const [pendingChanges, setPendingChanges] = useState<PendingChanges>({});
   const [isSaved, setIsSaved] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [fileUrlRefreshTick, setFileUrlRefreshTick] = useState(() =>
+    Date.now()
+  );
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setFileUrlRefreshTick(Date.now());
+    }, FILE_URL_REFRESH_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   const notifyError = useCallback(
     (error: Error, operation: string) => {
@@ -78,6 +93,21 @@ export function useCardModal(
   );
 
   const card = cardData;
+  const fileUrlRefreshToken = useMemo(
+    () =>
+      Math.floor(fileUrlRefreshTick / FILE_URL_REFRESH_INTERVAL_MS).toString(),
+    [fileUrlRefreshTick]
+  );
+  const refreshedFileUrl = useQuery(
+    api.cards.getFileUrl,
+    card?._id && card.fileId
+      ? {
+          cardId: card._id as Id<"cards">,
+          fileId: card.fileId,
+          urlRefreshToken: fileUrlRefreshToken,
+        }
+      : "skip"
+  );
 
   const updateCardField = useMutation(
     api.cards.updateCardField
@@ -461,12 +491,13 @@ export function useCardModal(
     }
     return {
       ...card,
+      fileUrl: refreshedFileUrl ?? card.fileUrl,
       isFavorited:
         pendingChanges.isFavorited !== undefined
           ? pendingChanges.isFavorited
           : card.isFavorited,
     } satisfies CardWithUrls;
-  }, [card, pendingChanges.isFavorited]);
+  }, [card, pendingChanges.isFavorited, refreshedFileUrl]);
 
   return {
     card: cardWithOptimisticUpdates,

@@ -5,6 +5,7 @@ import Kernel from "@onkernel/sdk";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
+import { storeBlobInR2 } from "../../../fileStorage";
 import type {
   LinkPreviewMediaItem,
   ScrapeAttribute,
@@ -29,7 +30,7 @@ import {
   isXStatusUrl,
   type XStatusMedia,
 } from "../../../linkMetadata/x";
-import type { Id } from "../../../shared/types";
+import type { StorageRef } from "../../../storageRefs";
 
 // Top-level regex patterns for performance
 const IMAGE_EXTENSION_REGEX = /\.(png|jpe?g|webp|gif|avif|svg)(?:[?#]|$)/;
@@ -63,7 +64,7 @@ const throwRetryable = (info: LinkMetadataRetryableError): never => {
 };
 
 type StoredLinkImage = {
-  imageStorageId: Id<"_storage">;
+  imageStorageId: StorageRef;
   imageUpdatedAt: number;
   imageWidth: number;
   imageHeight: number;
@@ -72,7 +73,7 @@ type StoredLinkImage = {
 type StoredRemoteAsset = {
   bytes: Uint8Array;
   contentType: string;
-  storageId: Id<"_storage">;
+  storageId: StorageRef;
   updatedAt: number;
 };
 
@@ -231,8 +232,13 @@ const storeRemoteAsset = async (
     }
 
     const bytes = new Uint8Array(arrayBuffer);
-    const storageId = await ctx.storage.store(
-      new Blob([arrayBuffer], { type: contentType })
+    const storageId = await storeBlobInR2(
+      ctx,
+      new Blob([arrayBuffer], { type: contentType }),
+      {
+        kind: "link-previews",
+        type: contentType,
+      }
     );
 
     return {
@@ -290,7 +296,7 @@ const storeLinkPreviewMediaItem = async (
     return null;
   }
 
-  let posterStorageId: Id<"_storage"> | undefined;
+  let posterStorageId: StorageRef | undefined;
   let posterUpdatedAt: number | undefined;
   let posterContentType: string | undefined;
   let posterWidth = media.posterWidth;

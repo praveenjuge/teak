@@ -36,6 +36,7 @@ import type * as card_validationUtils from "../card/validationUtils.js";
 import type * as card_visualFilters from "../card/visualFilters.js";
 import type * as cards from "../cards.js";
 import type * as crons from "../crons.js";
+import type * as fileStorage from "../fileStorage.js";
 import type * as http from "../http.js";
 import type * as idempotency from "../idempotency.js";
 import type * as index from "../index.js";
@@ -64,6 +65,10 @@ import type * as shared_utils_colorUtils from "../shared/utils/colorUtils.js";
 import type * as shared_utils_linkCategoryResolver from "../shared/utils/linkCategoryResolver.js";
 import type * as shared_utils_linkDetection from "../shared/utils/linkDetection.js";
 import type * as shared_utils_timeSearch from "../shared/utils/timeSearch.js";
+import type * as storage from "../storage.js";
+import type * as storageMigration from "../storageMigration.js";
+import type * as storageMigrationHelpers from "../storageMigrationHelpers.js";
+import type * as storageRefs from "../storageRefs.js";
 import type * as workflows_aiBackfill from "../workflows/aiBackfill.js";
 import type * as workflows_aiMetadata_actions from "../workflows/aiMetadata/actions.js";
 import type * as workflows_aiMetadata_generators from "../workflows/aiMetadata/generators.js";
@@ -136,6 +141,7 @@ declare const fullApi: ApiFromModules<{
   "card/visualFilters": typeof card_visualFilters;
   cards: typeof cards;
   crons: typeof crons;
+  fileStorage: typeof fileStorage;
   http: typeof http;
   idempotency: typeof idempotency;
   index: typeof index;
@@ -164,6 +170,10 @@ declare const fullApi: ApiFromModules<{
   "shared/utils/linkCategoryResolver": typeof shared_utils_linkCategoryResolver;
   "shared/utils/linkDetection": typeof shared_utils_linkDetection;
   "shared/utils/timeSearch": typeof shared_utils_timeSearch;
+  storage: typeof storage;
+  storageMigration: typeof storageMigration;
+  storageMigrationHelpers: typeof storageMigrationHelpers;
+  storageRefs: typeof storageRefs;
   "workflows/aiBackfill": typeof workflows_aiBackfill;
   "workflows/aiMetadata/actions": typeof workflows_aiMetadata_actions;
   "workflows/aiMetadata/generators": typeof workflows_aiMetadata_generators;
@@ -22708,6 +22718,130 @@ export declare const components: {
         "internal",
         { key?: string; name: string },
         null
+      >;
+    };
+  };
+  r2: {
+    lib: {
+      deleteMetadata: FunctionReference<
+        "mutation",
+        "internal",
+        { bucket: string; key: string },
+        null
+      >;
+      deleteObject: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          accessKeyId: string;
+          bucket: string;
+          endpoint: string;
+          key: string;
+          secretAccessKey: string;
+        },
+        null
+      >;
+      deleteR2Object: FunctionReference<
+        "action",
+        "internal",
+        {
+          accessKeyId: string;
+          bucket: string;
+          endpoint: string;
+          key: string;
+          secretAccessKey: string;
+        },
+        null
+      >;
+      getMetadata: FunctionReference<
+        "query",
+        "internal",
+        {
+          accessKeyId: string;
+          bucket: string;
+          endpoint: string;
+          key: string;
+          secretAccessKey: string;
+        },
+        {
+          bucket: string;
+          bucketLink: string;
+          contentType?: string;
+          key: string;
+          lastModified: string;
+          link: string;
+          sha256?: string;
+          size?: number;
+          url: string;
+        } | null
+      >;
+      listMetadata: FunctionReference<
+        "query",
+        "internal",
+        {
+          accessKeyId: string;
+          bucket: string;
+          cursor?: string;
+          endpoint: string;
+          limit?: number;
+          secretAccessKey: string;
+        },
+        {
+          continueCursor: string;
+          isDone: boolean;
+          page: Array<{
+            bucket: string;
+            bucketLink: string;
+            contentType?: string;
+            key: string;
+            lastModified: string;
+            link: string;
+            sha256?: string;
+            size?: number;
+            url: string;
+          }>;
+          pageStatus?: null | "SplitRecommended" | "SplitRequired";
+          splitCursor?: null | string;
+        }
+      >;
+      store: FunctionReference<
+        "action",
+        "internal",
+        {
+          accessKeyId: string;
+          bucket: string;
+          endpoint: string;
+          secretAccessKey: string;
+          url: string;
+        },
+        any
+      >;
+      syncMetadata: FunctionReference<
+        "action",
+        "internal",
+        {
+          accessKeyId: string;
+          bucket: string;
+          endpoint: string;
+          key: string;
+          onComplete?: string;
+          secretAccessKey: string;
+        },
+        null
+      >;
+      upsertMetadata: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          bucket: string;
+          contentType?: string;
+          key: string;
+          lastModified: string;
+          link: string;
+          sha256?: string;
+          size?: number;
+        },
+        { isNew: boolean }
       >;
     };
   };

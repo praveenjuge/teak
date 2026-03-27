@@ -19,6 +19,7 @@ import {
 } from "./_generated/server";
 import authConfig from "./auth.config";
 import { polar } from "./billing";
+import { deleteStorageObject } from "./fileStorage";
 import { captureBackendEvent } from "./posthog";
 import {
   CARD_ERROR_CODES,
@@ -270,11 +271,11 @@ export const deleteAccountHandler = async (ctx: any) => {
 
   for (const card of cards) {
     if (card.fileId) {
-      await ctx.storage.delete(card.fileId);
+      await deleteStorageObject(ctx, card.fileId);
       deletedStorageObjectCount += 1;
     }
     if (card.thumbnailId) {
-      await ctx.storage.delete(card.thumbnailId);
+      await deleteStorageObject(ctx, card.thumbnailId);
       deletedStorageObjectCount += 1;
     }
 

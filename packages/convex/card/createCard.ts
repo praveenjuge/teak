@@ -13,6 +13,11 @@ import {
 import { ensureCardCreationAllowed } from "../auth";
 import { captureBackendEvent } from "../posthog";
 import { cardTypeValidator, colorValidator } from "../schema";
+import {
+  isR2StorageRef,
+  type StorageRef,
+  storageRefValidator,
+} from "../storageRefs";
 import { workflow } from "../workflows/manager";
 import {
   buildInitialProcessingStatus,
@@ -26,8 +31,8 @@ const createCardArgs = {
   content: v.string(),
   type: v.optional(cardTypeValidator), // Make type optional for auto-detection
   url: v.optional(v.string()),
-  fileId: v.optional(v.id("_storage")),
-  thumbnailId: v.optional(v.id("_storage")),
+  fileId: v.optional(storageRefValidator),
+  thumbnailId: v.optional(storageRefValidator),
   tags: v.optional(v.array(v.string())),
   notes: v.optional(v.string()),
   metadata: v.optional(v.any()), // Allow any metadata from client, we'll process it
@@ -46,8 +51,8 @@ type CreateCardArgs = {
     | "palette"
     | "quote";
   url?: string;
-  fileId?: Id<"_storage">;
-  thumbnailId?: Id<"_storage">;
+  fileId?: StorageRef;
+  thumbnailId?: StorageRef;
   tags?: string[];
   notes?: string;
   metadata?: unknown;
@@ -103,7 +108,9 @@ export const createCardForUserHandler = async (
   }
 
   if (args.fileId) {
-    const systemFileMetadata = await ctx.db.system.get("_storage", args.fileId);
+    const systemFileMetadata = isR2StorageRef(args.fileId)
+      ? null
+      : await ctx.db.system.get("_storage", args.fileId as any);
     if (systemFileMetadata?.contentType) {
       fileMetadata = {
         fileName: extractedFileMetadata.fileName || `file_${now}`,

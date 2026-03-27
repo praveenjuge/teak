@@ -4,6 +4,7 @@ import { PhotonImage } from "@cf-wasm/photon";
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
+import { getStorageUrl } from "../../fileStorage";
 
 const MAX_COLORS = 5;
 const SAMPLE_TARGET = 4000;
@@ -86,7 +87,7 @@ export const extractPaletteFromImage = internalAction({
       return undefined;
     }
 
-    const fileUrl = await ctx.storage.getUrl(fileIdForPalette);
+    const fileUrl = await getStorageUrl(ctx, fileIdForPalette);
     if (!fileUrl) {
       return undefined;
     }

@@ -12,6 +12,8 @@ import { v } from "convex/values";
 import { orientation } from "exifr";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
+import { getStorageUrl, storeBlobInR2 } from "../../../fileStorage";
+import { storageRefValidator } from "../../../storageRefs";
 
 // Maximum thumbnail dimensions
 const THUMBNAIL_MAX_WIDTH = 500;
@@ -117,7 +119,7 @@ export const generateThumbnail = internalAction({
   returns: v.object({
     success: v.boolean(),
     generated: v.boolean(),
-    thumbnailId: v.optional(v.id("_storage")),
+    thumbnailId: v.optional(storageRefValidator),
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
@@ -153,7 +155,7 @@ export const generateThumbnail = internalAction({
       }
 
       // Get the original image URL from storage
-      const originalImageUrl = await ctx.storage.getUrl(card.fileId);
+      const originalImageUrl = await getStorageUrl(ctx, card.fileId);
       if (!originalImageUrl) {
         return {
           success: false,
@@ -256,7 +258,12 @@ export const generateThumbnail = internalAction({
       });
 
       // Store the thumbnail in Convex storage
-      const thumbnailId = await ctx.storage.store(thumbnailBlob);
+      const thumbnailId = await storeBlobInR2(ctx, thumbnailBlob, {
+        kind: "thumbnails",
+        fileName: `${args.cardId}.webp`,
+        type: useJpeg ? "image/jpeg" : "image/webp",
+        userId: card.userId,
+      });
 
       // Update the card with the thumbnail and original dimensions via internal mutation
       await ctx.runMutation(

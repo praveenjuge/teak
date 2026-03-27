@@ -1,12 +1,36 @@
 "use node";
 
+import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import Kernel from "@onkernel/sdk";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
+import { getStorageUrl, storeBlobInR2 } from "../../../fileStorage";
+import { storageRefValidator } from "../../../storageRefs";
 
 // Maximum thumbnail width - height will scale proportionally to maintain document aspect ratio
 const THUMBNAIL_MAX_WIDTH = 400;
+const require = createRequire(import.meta.url);
+
+let pdfJsBundlePromise: Promise<string> | undefined;
+let pdfJsWorkerBundlePromise: Promise<string> | undefined;
+
+async function getPdfJsBundle() {
+  pdfJsBundlePromise ??= readFile(
+    require.resolve("pdfjs-dist/build/pdf.min.js"),
+    "utf8"
+  );
+  return pdfJsBundlePromise;
+}
+
+async function getPdfJsWorkerBundle() {
+  pdfJsWorkerBundlePromise ??= readFile(
+    require.resolve("pdfjs-dist/build/pdf.worker.min.js"),
+    "utf8"
+  );
+  return pdfJsWorkerBundlePromise;
+}
 
 /**
  * Generate a thumbnail image from the first page of a PDF document.
@@ -19,7 +43,7 @@ export const generatePdfThumbnail = internalAction({
   returns: v.object({
     success: v.boolean(),
     generated: v.boolean(),
-    thumbnailId: v.optional(v.id("_storage")),
+    thumbnailId: v.optional(storageRefValidator),
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
@@ -74,7 +98,7 @@ export const generatePdfThumbnail = internalAction({
       }
 
       // Get the PDF URL from storage
-      const pdfUrl = await ctx.storage.getUrl(card.fileId);
+      const pdfUrl = await getStorageUrl(ctx, card.fileId);
       if (!pdfUrl) {
         console.log(
           `[renderables/pdf] Could not get URL for fileId ${card.fileId}`
@@ -88,6 +112,11 @@ export const generatePdfThumbnail = internalAction({
 
       console.log(`[renderables/pdf] Processing PDF for card ${args.cardId}`);
 
+      const [pdfJsBundle, pdfJsWorkerBundle] = await Promise.all([
+        getPdfJsBundle(),
+        getPdfJsWorkerBundle(),
+      ]);
+
       // Use Kernel with Playwright to render the PDF
       const kernel = new Kernel();
       let kernelBrowser: { session_id: string } | undefined;
@@ -98,58 +127,98 @@ export const generatePdfThumbnail = internalAction({
           stealth: true,
         });
 
-        // Execute Playwright code to render PDF and capture screenshot
-        // Use Mozilla's PDF.js viewer which is hosted and works reliably
+        // Execute Playwright code to render the first PDF page directly.
+        // Avoid depending on a hosted viewer DOM structure, which is brittle.
         const response = await kernel.browsers.playwright.execute(
           kernelBrowser.session_id,
           {
             code: `
-              // Set viewport size
               await page.setViewportSize({ width: ${THUMBNAIL_MAX_WIDTH + 50}, height: 700 });
-              
-              // Use Mozilla's hosted PDF.js viewer
-              const viewerUrl = 'https://mozilla.github.io/pdf.js/web/viewer.html?file=' + encodeURIComponent('${pdfUrl.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}');
-              
-              await page.goto(viewerUrl, { 
-                waitUntil: 'networkidle',
-                timeout: 60000 
+
+              await page.goto('about:blank');
+              await page.setContent('<!doctype html><html><body style="margin:0;display:grid;place-items:center;min-height:100vh;background:#fff;"></body></html>');
+
+              await page.addScriptTag({
+                content: ${JSON.stringify(pdfJsBundle)}
               });
-              
-              // Wait for PDF to render - look for the canvas element
-              await page.waitForSelector('#viewer .page canvas', { timeout: 30000 });
-              
-              // Wait a bit more for rendering to complete
-              await new Promise(r => setTimeout(r, 2000));
-              
-              // Inject CSS to remove shadows and gray areas
-              await page.addStyleTag({
-                content: \`
-                  body, html { 
-                    margin: 0 !important;
-                    padding: 0 !important;
-                    box-shadow: none !important;
-                    border: none !important;
+
+              const result = await page.evaluate(async ({ pdfUrl, maxWidth, workerScript }) => {
+                const renderPdf = async () => {
+                  const pdfjsLib = window.pdfjsLib;
+                  if (!pdfjsLib) {
+                    return { success: false, error: 'pdfjs_not_loaded' };
                   }
-                  .page { 
-                    box-shadow: none !important; 
-                    border: none !important;
-                    margin: 0 !important;
+
+                  const workerBlob = new Blob([workerScript], {
+                    type: 'text/javascript',
+                  });
+                  const workerUrl = URL.createObjectURL(workerBlob);
+                  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+
+                  try {
+                    const loadingTask = pdfjsLib.getDocument({
+                      url: pdfUrl,
+                      withCredentials: false,
+                    });
+
+                    const pdf = await loadingTask.promise;
+                    const firstPage = await pdf.getPage(1);
+                    const initialViewport = firstPage.getViewport({ scale: 1 });
+                    const scale = Math.min(1, maxWidth / initialViewport.width);
+                    const viewport = firstPage.getViewport({ scale });
+
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    if (!context) {
+                      return { success: false, error: 'missing_canvas_context' };
+                    }
+
+                    canvas.width = Math.ceil(viewport.width);
+                    canvas.height = Math.ceil(viewport.height);
+                    canvas.style.width = canvas.width + 'px';
+                    canvas.style.height = canvas.height + 'px';
+                    document.body.replaceChildren(canvas);
+
+                    await firstPage.render({
+                      canvasContext: context,
+                      viewport,
+                    }).promise;
+
+                    const dataUrl = canvas.toDataURL('image/png');
+
+                    return {
+                      success: true,
+                      width: canvas.width,
+                      height: canvas.height,
+                      data: dataUrl.split(',')[1],
+                    };
+                  } finally {
+                    URL.revokeObjectURL(workerUrl);
                   }
-                  .page canvas {
-                    box-shadow: none !important;
-                    border: none !important;
-                  }
-                \`
+                };
+
+                try {
+                  return await Promise.race([
+                    renderPdf(),
+                    new Promise((resolve) => {
+                      setTimeout(() => {
+                        resolve({ success: false, error: 'pdf_render_timeout' });
+                      }, 60000);
+                    }),
+                  ]);
+                } catch (error) {
+                  return {
+                    success: false,
+                    error: error instanceof Error ? error.message : 'pdf_render_failed',
+                  };
+                }
+              }, {
+                pdfUrl: '${pdfUrl.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}',
+                maxWidth: ${THUMBNAIL_MAX_WIDTH},
+                workerScript: ${JSON.stringify(pdfJsWorkerBundle)},
               });
-              
-              // Get the canvas element directly for a clean screenshot
-              const canvas = await page.$('#viewer .page canvas');
-              if (!canvas) {
-                throw new Error('Could not find PDF canvas element');
-              }
-              
-              const screenshot = await canvas.screenshot({ type: 'png' });
-              return screenshot.toString('base64');
+
+              return JSON.stringify(result);
             `,
             timeout_sec: 120,
           }
@@ -167,7 +236,37 @@ export const generatePdfThumbnail = internalAction({
           };
         }
 
-        const base64Screenshot = response.result as string;
+        const result = JSON.parse(response.result as string) as {
+          success: boolean;
+          data?: string;
+          error?: string;
+        };
+
+        if (!result.success) {
+          console.error(
+            `[renderables/pdf] PDF thumbnail generation failed for card ${args.cardId}:`,
+            result.error
+          );
+          return {
+            success: false,
+            generated: false,
+            error: result.error || "thumbnail_generation_failed",
+          };
+        }
+
+        if (!result.data) {
+          console.error(
+            `[renderables/pdf] PDF thumbnail generation failed for card ${args.cardId}:`,
+            result.error
+          );
+          return {
+            success: false,
+            generated: false,
+            error: result.error || "thumbnail_generation_failed",
+          };
+        }
+
+        const base64Screenshot = result.data;
         const buffer = Buffer.from(base64Screenshot, "base64");
         const imageArrayBuffer = buffer.buffer.slice(
           buffer.byteOffset,
@@ -177,7 +276,12 @@ export const generatePdfThumbnail = internalAction({
         const thumbnailBlob = new Blob([imageArrayBuffer], {
           type: "image/png",
         });
-        const thumbnailId = await ctx.storage.store(thumbnailBlob);
+        const thumbnailId = await storeBlobInR2(ctx, thumbnailBlob, {
+          kind: "thumbnails",
+          fileName: `${args.cardId}.png`,
+          type: "image/png",
+          userId: card.userId,
+        });
 
         // Update the card with the thumbnail
         await ctx.runMutation(
