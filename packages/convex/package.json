@@ -22,9 +22,8 @@
   },
   "dependencies": {
     "@ai-sdk/groq": "^3.0.29",
-    "@better-auth/expo": "1.5.3",
     "@cf-wasm/photon": "^0.3.4",
-    "@convex-dev/better-auth": "0.11.1",
+    "@clerk/backend": "^3.2.2",
     "@convex-dev/migrations": "^0.3.0",
     "@convex-dev/polar": "^0.7.1",
     "@convex-dev/ratelimiter": "^0.1.7",
@@ -36,7 +35,6 @@
     "@posthog/convex": "^0.1.13",
     "@teak/config": "workspace:*",
     "ai": "^6.0.116",
-    "better-auth": "1.5.3",
     "convex": "^1.33.0",
     "convex-helpers": "0.1.114",
     "exifr": "^7.1.3",

@@ -1,3 +1,4 @@
+import { useSSO } from "@clerk/expo";
 import { Button, Host, HStack, Spacer, Text, VStack } from "@expo/ui/swift-ui";
 import {
   buttonStyle,
@@ -10,29 +11,26 @@ import {
   padding,
   tint,
 } from "@expo/ui/swift-ui/modifiers";
-import * as AppleAuthentication from "expo-apple-authentication";
+import * as AuthSession from "expo-auth-session";
 import { router } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import React from "react";
 import { Alert, Platform, PlatformColor, useColorScheme } from "react-native";
 import AppleLogo from "@/components/AppleLogo";
 import GoogleLogo from "@/components/GoogleLogo";
 import Logo from "@/components/Logo";
-import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
+void WebBrowser.maybeCompleteAuthSession();
+
 export default function OnboardingScreen() {
+  const { startSSOFlow } = useSSO();
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
   const [isAppleLoading, setIsAppleLoading] = React.useState(false);
-  const [isAppleAvailable, setIsAppleAvailable] = React.useState(false);
+  const isAppleAvailable = Platform.OS === "ios";
   const colorScheme = useColorScheme();
   const appleIconColor = colorScheme === "dark" ? "#FFFFFF" : "#000000";
-
-  React.useEffect(() => {
-    // Check if Apple Authentication is available (iOS only)
-    if (Platform.OS === "ios") {
-      AppleAuthentication.isAvailableAsync().then(setIsAppleAvailable);
-    }
-  }, []);
+  const redirectUrl = AuthSession.makeRedirectUri({ scheme: "teak" });
 
   const onGoogleSignInPress = async () => {
     if (isGoogleLoading) {
@@ -41,21 +39,18 @@ export default function OnboardingScreen() {
     setIsGoogleLoading(true);
 
     try {
-      const response = await authClient.signIn.social({
-        provider: "google",
-        callbackURL: "teak://",
+      const result = await startSSOFlow({
+        strategy: "oauth_google",
+        redirectUrl,
       });
-      if (response.error) {
-        Alert.alert(
-          "Google Sign In Failed",
-          getAuthErrorMessage(
-            response.error,
-            "Failed to sign in with Google. Please try again."
-          )
-        );
-      } else {
+
+      if (result.createdSessionId && result.setActive) {
+        await result.setActive({ session: result.createdSessionId });
         router.replace("/(tabs)/(home)");
+        return;
       }
+
+      throw new Error("Google sign in could not be completed.");
     } catch (error) {
       console.error(
         "Google sign in error:",
@@ -80,39 +75,19 @@ export default function OnboardingScreen() {
     setIsAppleLoading(true);
 
     try {
-      // Use native Apple Authentication
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
+      const result = await startSSOFlow({
+        strategy: "oauth_apple",
+        redirectUrl,
       });
 
-      if (!credential.identityToken) {
-        throw new Error("No identity token received from Apple");
-      }
-
-      // Use the ID token flow with Better Auth
-      const response = await authClient.signIn.social({
-        provider: "apple",
-        idToken: {
-          token: credential.identityToken,
-        },
-      });
-
-      if (response.error) {
-        Alert.alert(
-          "Apple Sign In Failed",
-          getAuthErrorMessage(
-            response.error,
-            "Failed to sign in with Apple. Please try again."
-          )
-        );
-      } else {
+      if (result.createdSessionId && result.setActive) {
+        await result.setActive({ session: result.createdSessionId });
         router.replace("/(tabs)/(home)");
+        return;
       }
+
+      throw new Error("Apple sign in could not be completed.");
     } catch (error: unknown) {
-      // Don't show error if user cancelled
       if (
         error &&
         typeof error === "object" &&

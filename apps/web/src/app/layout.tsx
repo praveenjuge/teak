@@ -1,6 +1,7 @@
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import "./globals.css";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@teak/ui/components/ui/sonner";
 import { ConvexQueryCacheProvider } from "@teak/ui/convex-query-cache";
 import type { PropsWithChildren } from "react";
@@ -13,8 +14,6 @@ import {
 } from "@/components/JsonLd";
 import { SentryUserManager } from "@/components/SentryUserManager";
 import { ThemeProvider } from "@/components/theme-provider";
-
-export const dynamic = "force-static";
 
 export const metadata: Metadata = {
   title: "Teak",
@@ -39,20 +38,26 @@ export default function RootLayout({ children }: PropsWithChildren) {
         />
       </head>
       <body className='touch-manipulation font-features-["ss01"] font-sans text-sm antialiased caret-primary accent-primary [text-rendering:optimizeLegibility] selection:bg-primary selection:text-primary-foreground'>
-        <ConvexClientProvider>
-          <ConvexQueryCacheProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              disableTransitionOnChange
-              enableSystem={true}
-            >
-              <SentryUserManager />
-              <main className="mx-auto max-w-7xl px-4 pb-10">{children}</main>
-              <Toaster position="bottom-center" />
-            </ThemeProvider>
-          </ConvexQueryCacheProvider>
-        </ConvexClientProvider>
+        <ClerkProvider
+          afterSignOutUrl="/login"
+          signInUrl="/login"
+          signUpUrl="/register"
+        >
+          <ConvexClientProvider>
+            <ConvexQueryCacheProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="system"
+                disableTransitionOnChange
+                enableSystem={true}
+              >
+                <SentryUserManager />
+                <main className="mx-auto max-w-7xl px-4 pb-10">{children}</main>
+                <Toaster position="bottom-center" />
+              </ThemeProvider>
+            </ConvexQueryCacheProvider>
+          </ConvexClientProvider>
+        </ClerkProvider>
         <Analytics />
       </body>
     </html>

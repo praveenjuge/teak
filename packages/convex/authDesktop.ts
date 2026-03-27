@@ -1,6 +1,6 @@
 import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
 import { ConvexError, v } from "convex/values";
-import { components, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import {
   httpAction,
@@ -8,6 +8,7 @@ import {
   type MutationCtx,
   mutation,
 } from "./_generated/server";
+import { requireCurrentUserId } from "./authHelpers";
 
 const DESKTOP_AUTH_CODE_TTL_MS = 5 * 60 * 1000;
 const DESKTOP_AUTH_ALLOWED_ORIGINS = new Set([
@@ -28,7 +29,7 @@ const createDesktopAuthCodeResultValidator = v.object({
 });
 
 const exchangeDesktopAuthResultValidator = v.object({
-  sessionToken: v.string(),
+  convexToken: v.string(),
   expiresAt: v.number(),
 });
 
@@ -146,30 +147,24 @@ const buildCorsHeaders = (origin: string | null): HeadersInit => {
 };
 
 const resolveSessionForRecord = async (
-  ctx: MutationCtx,
+  _ctx: MutationCtx,
   record: DesktopAuthCodeRecord,
   now: number
 ) => {
-  const session = await ctx.runQuery(components.betterAuth.adapter.findOne, {
-    model: "session",
-    where: [{ field: "_id", value: record.sessionId }],
-  });
-
   if (
-    !session ||
-    typeof session.token !== "string" ||
-    session.expiresAt <= now ||
-    session.userId !== record.userId
+    typeof record.convexToken !== "string" ||
+    typeof record.tokenExpiresAt !== "number" ||
+    record.tokenExpiresAt <= now
   ) {
     throw new ConvexError({
-      code: "SESSION_INVALID",
-      message: "Session is no longer valid",
+      code: "TOKEN_INVALID",
+      message: "Desktop token is no longer valid",
     });
   }
 
   return {
-    sessionToken: session.token,
-    expiresAt: session.expiresAt,
+    convexToken: record.convexToken,
+    expiresAt: record.tokenExpiresAt,
   };
 };
 
@@ -232,18 +227,12 @@ export const createDesktopAuthCode = mutation({
     deviceId: v.string(),
     codeChallenge: v.string(),
     state: v.string(),
+    convexToken: v.string(),
+    tokenExpiresAt: v.number(),
   },
   returns: createDesktopAuthCodeResultValidator,
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
-    const sessionId =
-      user && typeof user.sessionId === "string" ? user.sessionId : null;
-    if (!(user?.subject && sessionId)) {
-      throw new ConvexError({
-        code: "UNAUTHENTICATED",
-        message: "User must be authenticated",
-      });
-    }
+    const userId = await requireCurrentUserId(ctx);
 
     if (!DEVICE_ID_PATTERN.test(args.deviceId)) {
       throw new ConvexError({
@@ -265,14 +254,18 @@ export const createDesktopAuthCode = mutation({
     }
 
     const now = Date.now();
-    const expiresAt = now + DESKTOP_AUTH_CODE_TTL_MS;
+    const expiresAt = Math.min(
+      now + DESKTOP_AUTH_CODE_TTL_MS,
+      args.tokenExpiresAt
+    );
 
     await ctx.db.insert("desktopAuthCodes", {
-      sessionId,
-      userId: user.subject,
+      userId,
       deviceId: args.deviceId,
       codeChallenge: args.codeChallenge,
       state: args.state,
+      convexToken: args.convexToken,
+      tokenExpiresAt: args.tokenExpiresAt,
       expiresAt,
       consumedAt: undefined,
       createdAt: now,

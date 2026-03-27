@@ -192,7 +192,7 @@ export const apiIdempotencyKeyValidator = v.object({
 });
 
 export const desktopAuthCodeValidator = v.object({
-  sessionId: v.string(),
+  sessionId: v.optional(v.string()),
   userId: v.string(),
   deviceId: v.string(),
   // Backward compatibility for pre-polling-only records.
@@ -200,9 +200,27 @@ export const desktopAuthCodeValidator = v.object({
   codeHash: v.optional(v.string()),
   codeChallenge: v.string(),
   state: v.string(),
+  convexToken: v.optional(v.string()),
+  tokenExpiresAt: v.optional(v.number()),
   expiresAt: v.number(),
   consumedAt: v.optional(v.number()),
   createdAt: v.number(),
+});
+
+export const userMigrationStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("active"),
+  v.literal("completed")
+);
+
+export const userIdMappingValidator = v.object({
+  betterAuthId: v.optional(v.string()),
+  clerkId: v.optional(v.string()),
+  email: v.string(),
+  migrationStatus: userMigrationStatusValidator,
+  createdAt: v.number(),
+  updatedAt: v.number(),
+  mappedAt: v.optional(v.number()),
 });
 
 export const cardValidator = v.object({
@@ -312,4 +330,10 @@ export default defineSchema({
     .index("by_expires_at", ["expiresAt"])
     .index("by_device_state_consumed", ["deviceId", "state", "consumedAt"])
     .index("by_user", ["userId"]),
+  userIdMappings: defineTable(userIdMappingValidator)
+    .index("by_better_auth_id", ["betterAuthId"])
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_email", ["email"])
+    .index("by_migration_status", ["migrationStatus"])
+    .index("by_created", ["createdAt"]),
 });

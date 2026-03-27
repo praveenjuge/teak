@@ -167,15 +167,14 @@ test.describe("Authentication Flows", () => {
     // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
     test.skip(
       !(
-        process.env.E2E_BETTER_AUTH_USER_EMAIL &&
-        process.env.E2E_BETTER_AUTH_USER_PASSWORD
+        process.env.E2E_CLERK_USER_EMAIL && process.env.E2E_CLERK_USER_PASSWORD
       ),
-      "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run email auth tests."
+      "Set E2E_CLERK_USER_EMAIL and E2E_CLERK_USER_PASSWORD to run email auth tests."
     );
 
     test("should sign in with valid credentials", async ({ page }) => {
-      const email = process.env.E2E_BETTER_AUTH_USER_EMAIL!;
-      const password = process.env.E2E_BETTER_AUTH_USER_PASSWORD!;
+      const email = process.env.E2E_CLERK_USER_EMAIL!;
+      const password = process.env.E2E_CLERK_USER_PASSWORD!;
       const authHelper = new AuthHelper(page);
 
       // Sign up will create the user if they don't exist, or sign in if they do
@@ -207,8 +206,8 @@ test.describe("Authentication Flows", () => {
     });
 
     test("should redirect authenticated users to home", async ({ page }) => {
-      const email = process.env.E2E_BETTER_AUTH_USER_EMAIL!;
-      const password = process.env.E2E_BETTER_AUTH_USER_PASSWORD!;
+      const email = process.env.E2E_CLERK_USER_EMAIL!;
+      const password = process.env.E2E_CLERK_USER_PASSWORD!;
       const authHelper = new AuthHelper(page);
 
       // First, sign up to create the user
@@ -230,15 +229,14 @@ test.describe("Authentication Flows", () => {
     // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
     test.skip(
       !(
-        process.env.E2E_BETTER_AUTH_USER_EMAIL &&
-        process.env.E2E_BETTER_AUTH_USER_PASSWORD
+        process.env.E2E_CLERK_USER_EMAIL && process.env.E2E_CLERK_USER_PASSWORD
       ),
-      "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run sign out tests."
+      "Set E2E_CLERK_USER_EMAIL and E2E_CLERK_USER_PASSWORD to run sign out tests."
     );
 
     test("should sign out successfully", async ({ page }) => {
-      const email = process.env.E2E_BETTER_AUTH_USER_EMAIL!;
-      const password = process.env.E2E_BETTER_AUTH_USER_PASSWORD!;
+      const email = process.env.E2E_CLERK_USER_EMAIL!;
+      const password = process.env.E2E_CLERK_USER_PASSWORD!;
       const authHelper = new AuthHelper(page);
 
       // Sign up first (creates and signs in the user)

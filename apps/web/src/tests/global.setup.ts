@@ -3,8 +3,8 @@ import dotenv from "dotenv";
 // Load .env.local for E2E tests
 dotenv.config({ path: ".env.local" });
 
-const TEST_EMAIL = process.env.E2E_BETTER_AUTH_USER_EMAIL;
-const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
+const TEST_EMAIL = process.env.E2E_CLERK_USER_EMAIL;
+const TEST_PASSWORD = process.env.E2E_CLERK_USER_PASSWORD;
 
 /**
  * Global setup for E2E tests.

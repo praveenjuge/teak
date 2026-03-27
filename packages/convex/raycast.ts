@@ -115,7 +115,7 @@ const isRateLimitContentionError = (error: unknown): boolean => {
 };
 
 const hashRateLimitKey = async (value: string): Promise<string> => {
-  const pepper = process.env.BETTER_AUTH_SECRET ?? "";
+  const pepper = process.env.AUTH_SECRET_PEPPER ?? "";
   const digest = await crypto.subtle.digest(
     "SHA-256",
     new TextEncoder().encode(`${value}:${pepper}`)

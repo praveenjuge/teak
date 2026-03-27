@@ -1,23 +1,7 @@
-import { expo } from "@better-auth/expo";
-import { createClient, type GenericCtx } from "@convex-dev/better-auth";
-import { convex } from "@convex-dev/better-auth/plugins";
-import { requireActionCtx } from "@convex-dev/better-auth/utils";
-import { Resend } from "@convex-dev/resend";
-import {
-  isLocalDevelopmentUrl,
-  resolveTeakDevAppUrl,
-} from "@teak/config/dev-urls";
-import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { ConvexError } from "convex/values";
-import { api, components } from "./_generated/api";
-import type { DataModel } from "./_generated/dataModel";
-import {
-  internalAction,
-  type MutationCtx,
-  mutation,
-  query,
-} from "./_generated/server";
-import authConfig from "./auth.config";
+import type { MutationCtx } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
+import { getCurrentAuthUser, requireCurrentUserId } from "./authHelpers";
 import { polar } from "./billing";
 import { captureBackendEvent } from "./posthog";
 import {
@@ -27,135 +11,12 @@ import {
 } from "./shared/constants";
 import { rateLimiter } from "./shared/rateLimits";
 
-const googleClientId = process.env.GOOGLE_CLIENT_ID!;
-const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET!;
-const siteUrl = process.env.SITE_URL!;
-const desktopDevOrigins = ["http://localhost:1420", "http://127.0.0.1:1420"];
-const appDevUrl = resolveTeakDevAppUrl(process.env);
-
-// The component client has methods needed for integrating Convex with Better Auth,
-// as well as helper methods for general use.
-export const authComponent = createClient<DataModel>(components.betterAuth);
-
-export const resend = new Resend(components.resend, {
-  testMode: false,
-});
-
-export const createAuth = (ctx: GenericCtx<DataModel>) => {
-  return betterAuth({
-    trustedOrigins: [
-      siteUrl,
-      "https://*.teakvault.com",
-      "https://app.teakvault.com",
-      "tauri://localhost",
-      "teak://",
-      "teak://*",
-      "chrome-extension://negnmfifahnnagnbnfppmlgfajngdpob",
-      appDevUrl,
-      "https://appleid.apple.com",
-      ...(isLocalDevelopmentUrl(siteUrl)
-        ? [
-            ...desktopDevOrigins,
-            "exp+teak://*",
-            "exp://*/*", // Trust all Expo development URLs
-            "exp://10.0.0.*:*/*", // Trust 10.0.0.x IP range
-            "exp://192.168.*.*:*/*", // Trust 192.168.x.x IP range
-            "exp://172.*.*.*:*/*", // Trust 172.x.x.x IP range
-            "exp://localhost:*/*", // Trust localhost
-          ]
-        : []),
-    ],
-    baseURL: siteUrl,
-    database: authComponent.adapter(ctx),
-    socialProviders: {
-      google: {
-        clientId: googleClientId,
-        clientSecret: googleClientSecret,
-        prompt: "select_account",
-      },
-      apple: {
-        clientId: process.env.APPLE_CLIENT_ID as string,
-        clientSecret: process.env.APPLE_CLIENT_SECRET as string,
-        // Optional
-        appBundleIdentifier: process.env.APPLE_APP_BUNDLE_IDENTIFIER as string,
-      },
-    },
-    emailAndPassword: {
-      enabled: true,
-      // Disable email verification requirement in development for E2E testing
-      requireEmailVerification: process.env.NODE_ENV !== "development",
-      sendResetPassword: async ({ user, url }) => {
-        await resend.sendEmail(requireActionCtx(ctx), {
-          from: "Teak <hello@teakvault.com>",
-          to: user.email,
-          subject: "Reset your Password",
-          html: `<p>Click <a target="_blank" href="${url}">here</a> to reset your password.</p>`,
-        });
-      },
-    },
-    emailVerification: {
-      sendOnSignUp: process.env.NODE_ENV === "production",
-      autoSignInAfterVerification: true,
-      sendVerificationEmail: async ({ user, url }) => {
-        await resend.sendEmail(requireActionCtx(ctx), {
-          from: "Teak <hello@teakvault.com>",
-          to: user.email,
-          subject: "Verify your email address",
-          html: `<p>Click <a target="_blank" href="${url}">here</a> to verify your email address.</p>`,
-        });
-      },
-    },
-    user: {
-      deleteUser: {
-        enabled: true,
-      },
-    },
-    plugins: [
-      expo(),
-      convex({
-        authConfig,
-        jwksRotateOnTokenGenerationError: true,
-        jwks: process.env.JWKS,
-      }),
-    ],
-    databaseHooks: {
-      user: {
-        create: {
-          after: async (user) => {
-            // Schedule default card creation asynchronously
-            // Using scheduler to avoid blocking user creation
-            // @ts-expect-error - scheduler exists on MutationCtx
-            ctx.scheduler
-              .runAfter(0, api.card.defaultCards.createDefaultCardsForUser, {
-                userId: user.id,
-              })
-              .catch((err: Error) => {
-                // Log but don't throw - user creation should succeed even if card creation fails
-                console.error("Failed to schedule default cards:", err);
-              });
-          },
-        },
-      },
-    },
-  } satisfies BetterAuthOptions);
-};
-
 // Get the current user
 export const getCurrentUserHandler = async (ctx: any) => {
-  // After sign-out the client may still briefly call this query; treat missing
-  // session as a non-error so we don't spam Convex logs with "Unauthenticated".
-  let user: Awaited<ReturnType<typeof authComponent.getAuthUser>> | undefined;
-  try {
-    user = await authComponent.getAuthUser(ctx);
-  } catch (error) {
-    if (error instanceof Error && error.message === "Unauthenticated") {
-      return null;
-    }
-    throw error;
-  }
+  const user = await getCurrentAuthUser(ctx);
   if (!user) return null;
 
-  const userId = (user as any).id ?? (user as any)._id ?? (user as any).subject;
+  const userId = user.userId;
 
   let hasPremium = false;
   try {
@@ -177,7 +38,11 @@ export const getCurrentUserHandler = async (ctx: any) => {
   const canCreateCard = hasPremium || cardCount < FREE_TIER_LIMIT;
 
   return {
-    ...user,
+    ...user.identity,
+    id: userId,
+    subject: userId,
+    email: user.email ?? undefined,
+    name: user.name,
     hasPremium,
     cardCount,
     canCreateCard,
@@ -253,12 +118,7 @@ export async function ensureCardCreationAllowed(
 }
 
 export const deleteAccountHandler = async (ctx: any) => {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    throw new Error("User must be authenticated");
-  }
-
-  const userId = identity.subject;
+  const userId = await requireCurrentUserId(ctx);
   let deletedStorageObjectCount = 0;
 
   // Use by_user_deleted index with partial match (just userId)
@@ -296,14 +156,4 @@ export const deleteAccountHandler = async (ctx: any) => {
 export const deleteAccount = mutation({
   args: {},
   handler: deleteAccountHandler,
-});
-
-export const getLatestJwks = internalAction({
-  args: {},
-  handler: async (ctx) => {
-    const auth = createAuth(ctx);
-    // This method is added by the Convex Better Auth plugin and is
-    // available via `auth.api` only, not exposed as a route.
-    return await auth.api.getLatestJwks();
-  },
 });

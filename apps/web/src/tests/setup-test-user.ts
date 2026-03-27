@@ -12,93 +12,96 @@ dotenv.config({ path: "../../.env.local" });
 
 const APP_URL =
   process.env.NEXT_PUBLIC_CONVEX_SITE_URL || resolveTeakDevAppUrl(process.env);
-const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
+const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY;
 const TEST_EMAIL = "e2e-test@teakvault.local";
 const TEST_PASSWORD = "TestPassword123!";
-const TEST_NAME = "E2E Test User";
+const TEST_FIRST_NAME = "E2E";
+const TEST_LAST_NAME = "Test User";
+const CLERK_API_BASE_URL = "https://api.clerk.com/v1";
+
+function getClerkHeaders() {
+  if (!CLERK_SECRET_KEY) {
+    throw new Error("Missing CLERK_SECRET_KEY");
+  }
+
+  return {
+    Authorization: `Bearer ${CLERK_SECRET_KEY}`,
+    "Content-Type": "application/json",
+  };
+}
+
+async function fetchExistingUserId(): Promise<string | null> {
+  const url = new URL(`${CLERK_API_BASE_URL}/users`);
+  url.searchParams.append("email_address[]", TEST_EMAIL);
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: getClerkHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to list Clerk users (${response.status}): ${await response.text()}`
+    );
+  }
+
+  const result = (await response.json()) as {
+    data?: Array<{ id?: string }>;
+  };
+
+  return result.data?.[0]?.id ?? null;
+}
+
+async function deleteExistingUser(userId: string): Promise<void> {
+  const response = await fetch(`${CLERK_API_BASE_URL}/users/${userId}`, {
+    method: "DELETE",
+    headers: getClerkHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to delete Clerk user (${response.status}): ${await response.text()}`
+    );
+  }
+}
+
+async function createTestUser(): Promise<void> {
+  const response = await fetch(`${CLERK_API_BASE_URL}/users`, {
+    method: "POST",
+    headers: getClerkHeaders(),
+    body: JSON.stringify({
+      email_address: [TEST_EMAIL],
+      password: TEST_PASSWORD,
+      first_name: TEST_FIRST_NAME,
+      last_name: TEST_LAST_NAME,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to create Clerk user (${response.status}): ${await response.text()}`
+    );
+  }
+}
 
 async function setupTestUser() {
   console.log(`[setup-test-user] Creating test user: ${TEST_EMAIL}`);
   console.log(`[setup-test-user] App URL: ${APP_URL}`);
-  console.log(`[setup-test-user] Convex URL: ${CONVEX_URL}`);
+  console.log("[setup-test-user] Provisioning via Clerk Backend API");
 
-  // Step 1: Sign up the user via Better Auth
-  // Use the app URL which proxies to Convex
-  let signUpUrl = `${APP_URL}/api/auth/sign-up`;
-  if (APP_URL.includes("convex.site")) {
-    // For Convex site, use the correct URL structure
-    signUpUrl = `${APP_URL}/api/auth/sign-up`;
-  }
-
-  console.log(`[setup-test-user] Calling sign-up at: ${signUpUrl}`);
-
-  const signUpResponse = await fetch(signUpUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      email: TEST_EMAIL,
-      password: TEST_PASSWORD,
-      name: TEST_NAME,
-    }),
-  });
-
-  if (signUpResponse.ok) {
-    console.log("[setup-test-user] Sign-up successful");
-  } else {
-    const errorText = await signUpResponse.text();
-    if (signUpResponse.status === 400 || signUpResponse.status === 422) {
-      if (errorText.includes("already") || errorText.includes("exists")) {
-        console.log("[setup-test-user] User already exists, will verify...");
-      } else {
-        console.log(
-          `[setup-test-user] Sign-up validation failed (${signUpResponse.status}): ${errorText}`
-        );
-        console.log("[setup-test-user] Continuing to verification step...");
-      }
-    } else {
-      console.error(
-        `[setup-test-user] Sign-up failed (${signUpResponse.status}): ${errorText}`
-      );
-      process.exit(1);
-    }
-  }
-
-  // Step 2: Mark the user as verified
-  const verifyResponse = await fetch(
-    `${CONVEX_URL}/api/internal/testSetup:markUserVerified`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: TEST_EMAIL,
-      }),
-    }
-  );
-
-  if (!verifyResponse.ok) {
-    const errorText = await verifyResponse.text();
-    console.error(
-      `[setup-test-user] Verification failed (${verifyResponse.status}): ${errorText}`
+  const existingUserId = await fetchExistingUserId();
+  if (existingUserId) {
+    console.log(
+      `[setup-test-user] Removing existing Clerk user: ${existingUserId}`
     );
-    process.exit(1);
+    await deleteExistingUser(existingUserId);
   }
 
-  const result = (await verifyResponse.json()) as {
-    found: boolean;
-    verified: boolean;
-  };
-  if (result.found && result.verified) {
-    console.log("[setup-test-user] Test user verified successfully!");
-    console.log(`[setup-test-user] Email: ${TEST_EMAIL}`);
-    console.log(`[setup-test-user] Password: ${TEST_PASSWORD}`);
-  } else if (!result.found) {
-    console.error("[setup-test-user] User not found after sign-up");
-    process.exit(1);
-  }
+  await createTestUser();
+
+  console.log("[setup-test-user] Clerk user created successfully");
+  console.log(`[setup-test-user] Email: ${TEST_EMAIL}`);
+  console.log(`[setup-test-user] Password: ${TEST_PASSWORD}`);
 
   console.log("[setup-test-user] Done!");
 }

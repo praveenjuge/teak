@@ -1,3 +1,4 @@
+import { useSignUp } from "@clerk/expo/legacy";
 import {
   Host,
   LabeledContent,
@@ -17,19 +18,22 @@ import { usePostHog } from "posthog-react-native";
 import { useCallback, useState } from "react";
 import { Alert, Keyboard, PlatformColor, Pressable } from "react-native";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function SignUpScreen() {
   const posthog = usePostHog();
+  const { signUp, isLoaded, setActive } = useSignUp();
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPendingVerification, setIsPendingVerification] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const canSubmit =
     !isSubmitting &&
-    emailAddress.trim().length > 0 &&
-    password.trim().length > 0;
+    (isPendingVerification
+      ? verificationCode.trim().length > 0
+      : emailAddress.trim().length > 0 && password.trim().length > 0);
 
   useFocusEffect(
     useCallback(() => {
@@ -55,7 +59,47 @@ export default function SignUpScreen() {
     Keyboard.dismiss();
     await waitForKeyboardToSettle();
 
-    if (!(emailAddress.trim() && password.trim())) {
+    const hasEmailAndPassword =
+      emailAddress.trim().length > 0 && password.trim().length > 0;
+
+    if (isPendingVerification) {
+      setIsSubmitting(true);
+      setErrorMessage(null);
+
+      try {
+        if (!(isLoaded && signUp)) {
+          throw new Error("Authentication is still loading.");
+        }
+
+        const result = await signUp.attemptEmailAddressVerification({
+          code: verificationCode.trim(),
+        });
+
+        if (result.status !== "complete" || !result.createdSessionId) {
+          throw new Error("Verification could not be completed.");
+        }
+
+        await setActive({ session: result.createdSessionId });
+        posthog.identify(emailAddress.trim(), {
+          $set: { email: emailAddress.trim() },
+          $set_once: { sign_up_date: new Date().toISOString() },
+        });
+        posthog.capture("user_signed_up", { method: "email" });
+      } catch (error) {
+        const message = getAuthErrorMessage(
+          error,
+          "Failed to create account. Please try again."
+        );
+        setErrorMessage(message);
+        Alert.alert("Sign Up Failed", message);
+      } finally {
+        setIsSubmitting(false);
+      }
+
+      return;
+    }
+
+    if (!hasEmailAndPassword) {
       const message = "Please fill in all fields.";
       setErrorMessage(message);
       Alert.alert("Error", message);
@@ -69,36 +113,23 @@ export default function SignUpScreen() {
       return;
     }
 
-    const derivedName = emailAddress.trim().split("@")[0]?.trim() || "User";
-
     setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
-      const response = await authClient.signUp.email({
-        email: emailAddress.trim(),
-        password,
-        name: derivedName,
-      });
-
-      if (response.error) {
-        const message = getAuthErrorMessage(
-          response.error,
-          "Failed to create account. Please try again."
-        );
-        setErrorMessage(message);
-        Alert.alert("Sign Up Failed", message);
-        return;
+      if (!(isLoaded && signUp)) {
+        throw new Error("Authentication is still loading.");
       }
 
-      posthog.identify(emailAddress.trim(), {
-        $set: { email: emailAddress.trim(), name: derivedName },
-        $set_once: { sign_up_date: new Date().toISOString() },
+      await signUp.create({
+        emailAddress: emailAddress.trim(),
+        password,
       });
-      posthog.capture("user_signed_up", { method: "email" });
+      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      setIsPendingVerification(true);
       Alert.alert(
         "Verify your email",
-        "We just sent you a verification link. Please check your inbox to activate your account."
+        "We just sent you a verification code. Enter it here to activate your account."
       );
     } catch (error) {
       const message = getAuthErrorMessage(
@@ -120,7 +151,11 @@ export default function SignUpScreen() {
             <Pressable
               accessibilityHint="Creates your account with the entered credentials."
               accessibilityLabel={
-                isSubmitting ? "Creating account" : "Create account"
+                isSubmitting
+                  ? "Creating account"
+                  : isPendingVerification
+                    ? "Verify email"
+                    : "Create account"
               }
               accessibilityRole="button"
               disabled={!canSubmit}
@@ -148,21 +183,36 @@ export default function SignUpScreen() {
       />
       <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
         <List modifiers={[listStyle("plain"), scrollDisabled()]}>
-          <LabeledContent label="Email">
-            <TextField
-              autocorrection={false}
-              keyboardType="email-address"
-              onChangeText={setEmailAddress}
-              placeholder="Enter your email"
-            />
-          </LabeledContent>
+          {isPendingVerification ? (
+            <LabeledContent label="Code">
+              <TextField
+                defaultValue={verificationCode}
+                keyboardType="numeric"
+                onChangeText={setVerificationCode}
+                placeholder="Enter the email code"
+              />
+            </LabeledContent>
+          ) : (
+            <>
+              <LabeledContent label="Email">
+                <TextField
+                  autocorrection={false}
+                  defaultValue={emailAddress}
+                  keyboardType="email-address"
+                  onChangeText={setEmailAddress}
+                  placeholder="Enter your email"
+                />
+              </LabeledContent>
 
-          <LabeledContent label="Password">
-            <SecureField
-              onChangeText={setPassword}
-              placeholder="Enter your password (min. 8 characters)"
-            />
-          </LabeledContent>
+              <LabeledContent label="Password">
+                <SecureField
+                  defaultValue={password}
+                  onChangeText={setPassword}
+                  placeholder="Enter your password (min. 8 characters)"
+                />
+              </LabeledContent>
+            </>
+          )}
 
           {errorMessage ? (
             <Text

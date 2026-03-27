@@ -5,7 +5,6 @@ import Combine
 import ConvexMobile
 
 struct NativeSession: Sendable {
-    let sessionToken: String
     let convexToken: String
 }
 
@@ -30,40 +29,6 @@ final class AuthAPIClient {
 
     init(config: AppConfig) {
         self.config = config
-    }
-
-    func signOut(sessionToken: String) async {
-        let url = config.convexSiteURL.appending(path: "/api/auth/sign-out")
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(sessionToken)", forHTTPHeaderField: "Authorization")
-        _ = try? await URLSession.shared.data(for: request)
-    }
-
-    func fetchConvexToken(sessionToken: String) async throws -> String {
-        let url = config.convexSiteURL.appending(path: "/api/auth/convex/token")
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(sessionToken)", forHTTPHeaderField: "Authorization")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AuthServiceError.invalidResponse
-        }
-
-        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-            throw AuthServiceError.unauthorized
-        }
-
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            throw try decodeServiceError(from: data, fallback: "Failed to fetch Convex auth token.")
-        }
-
-        let payload = try JSONDecoder().decode(ConvexTokenResponse.self, from: data)
-        guard !payload.token.isEmpty else {
-            throw AuthServiceError.invalidResponse
-        }
-        return payload.token
     }
 
     func fetchCurrentUser(with client: ConvexClientWithAuth<NativeSession>) async throws -> CurrentUser? {
@@ -123,8 +88,8 @@ final class AuthAPIClient {
                 )
             )
 
-            if let sessionToken = response?.sessionToken, !sessionToken.isEmpty {
-                return sessionToken
+            if let convexToken = response?.convexToken, !convexToken.isEmpty {
+                return convexToken
             }
 
             try await Task.sleep(for: .seconds(2))
@@ -226,9 +191,8 @@ final class TeakAuthProvider: AuthProvider {
         }
 
         do {
-            let convexToken = try await apiClient.fetchConvexToken(sessionToken: sessionToken)
-            onIdToken(convexToken)
-            return NativeSession(sessionToken: sessionToken, convexToken: convexToken)
+            onIdToken(sessionToken)
+            return NativeSession(convexToken: sessionToken)
         } catch {
             await sessionStore.clearSessionToken()
             onIdToken(nil)
@@ -237,9 +201,6 @@ final class TeakAuthProvider: AuthProvider {
     }
 
     func logout() async throws {
-        if let sessionToken = await sessionStore.loadSessionToken(), !sessionToken.isEmpty {
-            await apiClient.signOut(sessionToken: sessionToken)
-        }
         await sessionStore.clearSessionToken()
     }
 
@@ -255,10 +216,6 @@ struct BrowserAuthRequest: Sendable {
     let deviceID: String
 }
 
-private struct ConvexTokenResponse: Decodable {
-    let token: String
-}
-
 private struct BrowserPollBody: Encodable {
     let state: String
     let deviceId: String
@@ -266,7 +223,7 @@ private struct BrowserPollBody: Encodable {
 }
 
 private struct BrowserPollResult: Decodable {
-    let sessionToken: String
+    let convexToken: String
 }
 
 private struct AuthErrorPayload: Decodable {

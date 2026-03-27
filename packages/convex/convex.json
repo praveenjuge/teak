@@ -1,6 +1,6 @@
 {
   "functions": ".",
   "node": {
-    "externalPackages": ["react", "@better-auth/expo", "@cf-wasm/photon"]
+    "externalPackages": ["react", "@cf-wasm/photon"]
   }
 }

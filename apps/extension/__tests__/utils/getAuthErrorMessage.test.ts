@@ -309,7 +309,7 @@ describe("getAuthErrorMessage", () => {
       expect(result).toBe("Network error");
     });
 
-    test("should handle Better Auth error responses", () => {
+    test("should handle auth provider error responses", () => {
       const error = {
         message: "Authentication error",
         error: {
@@ -480,7 +480,7 @@ describe("getAuthErrorMessage", () => {
   });
 
   describe("Real-World Scenarios", () => {
-    test("should handle Better Auth login failure", () => {
+    test("should handle auth provider login failure", () => {
       const error = {
         message: "Invalid email or password",
         cause: "Authentication failed",

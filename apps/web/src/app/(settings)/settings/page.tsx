@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth, useClerk, useUser } from "@clerk/nextjs";
 import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
@@ -14,12 +15,14 @@ import { useTheme } from "next-themes";
 import posthog from "posthog-js";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { authClient } from "@/lib/auth-client";
 
 const convexApi = api as any;
 
 export default function ProfileSettingsPage() {
   const user = useQuery(api.auth.getCurrentUser);
+  const { getToken } = useAuth();
+  const { signOut } = useClerk();
+  const { user: clerkUser } = useUser();
   const cardCount = user?.cardCount ?? 0;
   const hasPremium = user?.hasPremium;
   const deleteAccount = useMutation(api.auth.deleteAccount);
@@ -121,17 +124,28 @@ export default function ProfileSettingsPage() {
     try {
       await deleteAccount({});
 
-      await authClient.deleteUser(undefined, {
-        onSuccess: async () => {
-          posthog.capture("account_deleted");
-          posthog.reset();
-          router.push("/login");
-        },
-        onError: (ctx) => {
-          setDeleteError(ctx.error?.message ?? "Failed to delete account.");
-          setDeleteLoading(false);
-        },
+      const sessionToken = await getToken();
+      const response = await fetch("/api/clerk/delete-account", {
+        method: "DELETE",
+        headers: sessionToken
+          ? {
+              Authorization: `Bearer ${sessionToken}`,
+            }
+          : undefined,
       });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setDeleteError(payload?.error ?? "Failed to delete account.");
+        setDeleteLoading(false);
+        return;
+      }
+
+      posthog.capture("account_deleted");
+      posthog.reset();
+      router.push("/login");
     } catch {
       setDeleteError("Something went wrong while deleting your account.");
       setDeleteLoading(false);
@@ -141,16 +155,11 @@ export default function ProfileSettingsPage() {
   const handleSignOut = async () => {
     setSignOutLoading(true);
     try {
-      await authClient.signOut({
-        fetchOptions: {
-          onSuccess: () => {
-            posthog.capture("user_logged_out");
-            posthog.reset();
-            router.refresh();
-            router.push("/login");
-          },
-        },
-      });
+      await signOut({ redirectUrl: "/login" });
+      posthog.capture("user_logged_out");
+      posthog.reset();
+      router.refresh();
+      router.push("/login");
     } catch {
       toast.error("Failed to sign out. Please try again.");
     } finally {
@@ -193,7 +202,7 @@ export default function ProfileSettingsPage() {
       deleteDialogError={deleteError}
       deleteDialogOpen={deleteDialogOpen}
       deleteLoading={deleteLoading}
-      email={user?.email}
+      email={user?.email ?? clerkUser?.primaryEmailAddress?.emailAddress}
       hasPremium={hasPremium}
       isLoading={isLoading}
       keys={keys}

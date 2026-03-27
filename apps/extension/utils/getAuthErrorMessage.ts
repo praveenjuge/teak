@@ -1,4 +1,4 @@
-type BetterAuthError = {
+type AuthProviderError = {
   message?: string | null;
   cause?: string | null;
   statusText?: string | null;
@@ -14,7 +14,7 @@ const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
 /**
- * Normalizes Better Auth error responses into a user-friendly string.
+ * Normalizes auth provider error responses into a user-friendly string.
  */
 export function getAuthErrorMessage(
   error: unknown,
@@ -30,7 +30,7 @@ export function getAuthErrorMessage(
       cause,
       statusText,
       error: nested,
-    } = error as BetterAuthError;
+    } = error as AuthProviderError;
 
     if (isNonEmptyString(cause)) {
       return cause;

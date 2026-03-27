@@ -15,7 +15,7 @@ import {
   validateUserApiKey,
 } from "../apiKeys";
 
-process.env.BETTER_AUTH_SECRET = "unit-test-pepper";
+process.env.AUTH_SECRET_PEPPER = "unit-test-pepper";
 
 const runHandler = async (fn: any, ctx: any, args: any) => {
   const handler = (fn as any).handler ?? fn;
@@ -180,9 +180,6 @@ describe("apiKeys", () => {
     ]);
 
     const validateCtx = {
-      runQuery: mock().mockResolvedValue({
-        _id: "user_1",
-      }),
       db: {
         query: mock(() => ({
           withIndex: mock(() => ({
@@ -207,7 +204,6 @@ describe("apiKeys", () => {
       "k_new",
       expect.objectContaining({ lastUsedAt: expect.any(Number) })
     );
-    expect(validateCtx.runQuery).toHaveBeenCalled();
   });
 
   test("validate rejects invalid key", async () => {
@@ -226,64 +222,6 @@ describe("apiKeys", () => {
 
     expect(result).toBeNull();
     expect(ctx.db.patch).not.toHaveBeenCalled();
-  });
-
-  test("validate revokes matched key when auth user no longer exists", async () => {
-    const createCollectMock = mock().mockResolvedValue([]);
-    const createDb = {
-      query: mock(() => ({
-        withIndex: mock(() => ({
-          collect: createCollectMock,
-          order: mock(() => ({ collect: createCollectMock })),
-        })),
-      })),
-      patch: mock().mockResolvedValue(null),
-      insert: mock().mockResolvedValue("k_deleted"),
-    };
-
-    const createCtx = {
-      auth: {
-        getUserIdentity: mock().mockResolvedValue({ subject: "deleted_user" }),
-      },
-      db: createDb,
-    };
-
-    const created = await runHandler(createUserApiKey, createCtx, {
-      name: "API Keys",
-    });
-    const insertedPayload = createDb.insert.mock.calls[0][1];
-    const matchedCandidate = {
-      _id: "k_deleted",
-      userId: "deleted_user",
-      keyPrefix: insertedPayload.keyPrefix,
-      keyHash: insertedPayload.keyHash,
-      access: "full_access",
-      revokedAt: undefined,
-    };
-    const validateCollectMock = mock().mockResolvedValue([matchedCandidate]);
-
-    const validateCtx = {
-      runQuery: mock().mockResolvedValue(null),
-      db: {
-        query: mock(() => ({
-          withIndex: mock(() => ({
-            collect: validateCollectMock,
-          })),
-        })),
-        patch: mock().mockResolvedValue(null),
-      },
-    };
-
-    const result = await runHandler(validateUserApiKey, validateCtx, {
-      token: created.key,
-    });
-
-    expect(result).toBeNull();
-    expect(validateCtx.db.patch).toHaveBeenCalledWith(
-      "apiKeys",
-      "k_deleted",
-      expect.objectContaining({ revokedAt: expect.any(Number) })
-    );
   });
 
   test("cutover revoke-all revokes every active key", async () => {

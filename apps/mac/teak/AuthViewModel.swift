@@ -51,8 +51,8 @@ final class AuthViewModel: ObservableObject {
                 let deviceID = await sessionStore.loadOrCreateDeviceID()
                 let request = apiClient.makeBrowserAuthRequest(deviceID: deviceID)
                 try apiClient.openBrowser(for: request)
-                let sessionToken = try await apiClient.pollForBrowserSession(request)
-                try await sessionStore.saveSessionToken(sessionToken)
+                let convexToken = try await apiClient.pollForBrowserSession(request)
+                try await sessionStore.saveSessionToken(convexToken)
                 try await refreshAuthenticatedState()
             } catch {
                 await sessionStore.clearSessionToken()

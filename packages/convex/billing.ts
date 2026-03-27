@@ -4,13 +4,19 @@ import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
 import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
 import { action, query } from "./_generated/server";
+import { getCurrentAuthUser } from "./authHelpers";
 import { captureBackendEvent } from "./posthog";
 
 // User query to use in the Polar component
 export const getUserInfoHandler = async (ctx: any) => {
-  const user = await ctx.auth.getUserIdentity();
+  const user = await getCurrentAuthUser(ctx);
   if (!user) throw new ConvexError("User not found");
-  return user;
+  return {
+    ...user.identity,
+    subject: user.userId,
+    email: user.email,
+    name: user.name,
+  };
 };
 
 export const getUserInfo = query({

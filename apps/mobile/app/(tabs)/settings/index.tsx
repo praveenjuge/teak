@@ -1,3 +1,4 @@
+import { useAuth, useClerk, useUser } from "@clerk/expo";
 import {
   Button,
   Form,
@@ -26,7 +27,6 @@ import { Stack, useRouter } from "expo-router";
 import { usePostHog } from "posthog-react-native";
 import { useMemo, useState } from "react";
 import { Alert } from "react-native";
-import { authClient } from "@/lib/auth-client";
 import { useThemePreference } from "@/lib/theme-preference";
 
 const DELETE_CONFIRMATION_PHRASE = "delete account";
@@ -34,7 +34,9 @@ type AppearanceOption = "system" | "light" | "dark";
 
 export default function SettingsScreen() {
   const posthog = usePostHog();
-  const { data: session } = authClient.useSession();
+  const { getToken } = useAuth();
+  const { signOut: clerkSignOut } = useClerk();
+  const { user } = useUser();
   const { preference, setPreference, isLoaded } = useThemePreference();
   const router = useRouter();
   const currentUser = useQuery(api.auth.getCurrentUser, {});
@@ -78,11 +80,11 @@ export default function SettingsScreen() {
     return `${currentUser.cardCount} Cards`;
   }, [currentUser]);
 
-  const signOut = async () => {
+  const handleSignOut = async () => {
     try {
       posthog.capture("user_signed_out");
       posthog.reset();
-      await authClient.signOut();
+      await clerkSignOut();
       router.replace("/(auth)/welcome");
     } catch (error) {
       console.error(
@@ -95,7 +97,7 @@ export default function SettingsScreen() {
   const handleLogoutAlert = () => {
     Alert.alert("Log Out", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Log Out", style: "destructive", onPress: signOut },
+      { text: "Log Out", style: "destructive", onPress: handleSignOut },
     ]);
   };
 
@@ -116,22 +118,30 @@ export default function SettingsScreen() {
     try {
       await deleteAccount({});
 
-      let deleteUserFailed = false;
-      await authClient.deleteUser(undefined, {
-        onError: (ctx) => {
-          setDeleteError(ctx.error?.message ?? "Failed to delete account.");
-          deleteUserFailed = true;
-        },
-        onSuccess: () => {
-          posthog.capture("account_deleted");
-          posthog.reset();
-          router.replace("/(auth)/welcome");
-        },
-      });
+      const sessionToken = await getToken();
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_CONVEX_SITE_URL}/api/clerk/delete-account`,
+        {
+          method: "DELETE",
+          headers: sessionToken
+            ? {
+                Authorization: `Bearer ${sessionToken}`,
+              }
+            : undefined,
+        }
+      );
 
-      if (deleteUserFailed) {
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setDeleteError(payload?.error ?? "Failed to delete account.");
         return;
       }
+
+      posthog.capture("account_deleted");
+      posthog.reset();
+      router.replace("/(auth)/welcome");
     } catch (error) {
       setDeleteError("Something went wrong while deleting your account.");
       console.error(
@@ -220,7 +230,7 @@ export default function SettingsScreen() {
               modifiers={[font({ weight: "regular" })]}
             >
               <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
-                {session?.user?.email ?? "Not logged in"}
+                {user?.primaryEmailAddress?.emailAddress ?? "Not logged in"}
               </Text>
             </LabeledContent>
 

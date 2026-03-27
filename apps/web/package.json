@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@cf-wasm/photon": "^0.3.4",
-    "@convex-dev/better-auth": "^0.11.1",
+    "@clerk/nextjs": "^7.0.6",
     "@polar-sh/checkout": "^0.2.0",
     "@sentry/nextjs": "^10.43.0",
     "@teak/config": "workspace:*",
@@ -22,7 +22,6 @@
     "@vercel/analytics": "^1.6.1",
     "@vercel/og": "^0.8.6",
     "antd": "^6.3.2",
-    "better-auth": "1.5.3",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "convex": "^1.33.0",

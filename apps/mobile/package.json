@@ -18,8 +18,7 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.28.6",
-    "@better-auth/expo": "1.5.3",
-    "@convex-dev/better-auth": "^0.11.1",
+    "@clerk/expo": "^2.13.11",
     "@expo/metro-runtime": "~55.0.6",
     "@expo/ui": "55.0.2",
     "@expo/vector-icons": "^15.0.3",
@@ -29,7 +28,6 @@
     "@react-navigation/core": "^7.14.0",
     "@react-navigation/native": "^7.1.28",
     "@teak/convex": "workspace:*",
-    "better-auth": "1.5.3",
     "convex": "^1.33.0",
     "convex-helpers": "0.1.114",
     "expo": "^55.0.2",

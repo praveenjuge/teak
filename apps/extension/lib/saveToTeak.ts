@@ -118,7 +118,7 @@ const getConvexAuthToken = async (
 
   const fetchImpl = dependencies.fetchImpl ?? fetch;
   const response = await fetchImpl(
-    `${WEB_APP_BASE_URL}/api/auth/convex/token`,
+    `${WEB_APP_BASE_URL}/api/clerk/convex-token`,
     {
       method: "GET",
       headers: {

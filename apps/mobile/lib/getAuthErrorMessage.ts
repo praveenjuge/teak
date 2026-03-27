@@ -1,4 +1,4 @@
-interface BetterAuthError {
+interface AuthProviderError {
   cause?: string | null;
   error?:
     | string
@@ -14,7 +14,7 @@ const isString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
 /**
- * Returns a user-friendly error message coming from Better Auth responses.
+ * Returns a user-friendly error message from auth provider responses.
  */
 export function getAuthErrorMessage(
   error: unknown,
@@ -30,7 +30,7 @@ export function getAuthErrorMessage(
       cause,
       statusText,
       error: nestedError,
-    } = error as BetterAuthError;
+    } = error as AuthProviderError;
 
     if (isString(cause)) {
       return cause;

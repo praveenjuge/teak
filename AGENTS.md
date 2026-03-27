@@ -69,7 +69,6 @@ teak/
 
 - **Queries**: Real-time cached data via `convex-helpers/react/cache` `useQuery`, wrapped by `ConvexQueryCacheProvider`.
 - **Mutations**: Server actions through `useMutation` / `useAction` from `@teak/convex`.
-- **Auth context**: Better Auth sessions flow automatically to Convex with `@convex-dev/better-auth`.
 - **App wrapping**: `ConvexClientProvider` + `ConvexQueryCacheProvider` wrap trees (web, mobile, extension) to share auth + cached queries; real-time updates propagate automatically.
 - **Imports**: `import { api } from "@teak/convex"`, `import { Doc } from "@teak/convex/_generated/dataModel"`, `import { CARD_TYPES } from "@teak/convex/shared/constants"`.
 - **Card Types**: text, link, image, video, audio, document, palette, quote.

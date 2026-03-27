@@ -1,12 +1,11 @@
 import { v } from "convex/values";
-import { components } from "./_generated/api";
-import { captureBackendEvent } from "./posthog";
 import {
   internalMutation,
   type MutationCtx,
   mutation,
   query,
 } from "./_generated/server";
+import { captureBackendEvent } from "./posthog";
 
 const API_KEY_NAME_DEFAULT = "API Keys";
 const API_KEY_TOKEN_PREFIX = "teakapi";
@@ -67,7 +66,7 @@ const buildApiKey = (): { key: string; keyPrefix: string } => {
 };
 
 const hashApiKey = async (key: string): Promise<string> => {
-  const pepper = process.env.BETTER_AUTH_SECRET ?? "";
+  const pepper = process.env.AUTH_SECRET_PEPPER ?? "";
   const payload = `${key}:${pepper}`;
   const digest = await crypto.subtle.digest(
     "SHA-256",
@@ -109,13 +108,6 @@ const revokeActiveKeysForUser = async (
   }
 
   return activeKeys.length;
-};
-
-const getAuthUserById = async (ctx: MutationCtx, userId: string) => {
-  return ctx.runQuery(components.betterAuth.adapter.findOne, {
-    model: "user",
-    where: [{ field: "_id", operator: "eq", value: userId }],
-  });
 };
 
 export const createUserApiKey = mutation({
@@ -273,15 +265,6 @@ export const validateUserApiKey = internalMutation({
       }
 
       const now = Date.now();
-      const authUser = await getAuthUserById(ctx, candidate.userId);
-      if (!authUser) {
-        await ctx.db.patch("apiKeys", candidate._id, {
-          revokedAt: now,
-          updatedAt: now,
-        });
-        continue;
-      }
-
       await ctx.db.patch("apiKeys", candidate._id, {
         lastUsedAt: now,
         updatedAt: now,

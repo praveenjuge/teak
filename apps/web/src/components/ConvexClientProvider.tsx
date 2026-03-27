@@ -1,30 +1,53 @@
 "use client";
 
-import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
-import { ConvexReactClient } from "convex/react";
+import { useAuth } from "@clerk/nextjs";
+import { ConvexProviderWithAuth, ConvexReactClient } from "convex/react";
 import type { ReactNode } from "react";
-import { authClient } from "@/lib/auth-client";
+import { useCallback, useMemo } from "react";
 
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!, {
   verbose: true,
-  // Optionally pause queries until the user is authenticated
-  // expectAuth: true,
 });
+
+function useConvexClerkAuth() {
+  const { getToken, isLoaded, isSignedIn } = useAuth();
+
+  const fetchAccessToken = useCallback(
+    async ({
+      forceRefreshToken,
+    }: {
+      forceRefreshToken: boolean;
+    }): Promise<string | null> => {
+      try {
+        return await getToken({
+          skipCache: forceRefreshToken,
+          template: "convex",
+        });
+      } catch {
+        return null;
+      }
+    },
+    [getToken]
+  );
+
+  return useMemo(
+    () => ({
+      isLoading: !isLoaded,
+      isAuthenticated: isSignedIn ?? false,
+      fetchAccessToken,
+    }),
+    [fetchAccessToken, isLoaded, isSignedIn]
+  );
+}
 
 export default function ConvexClientProvider({
   children,
-  initialToken,
 }: {
   children: ReactNode;
-  initialToken?: string | null;
 }) {
   return (
-    <ConvexBetterAuthProvider
-      authClient={authClient}
-      client={convex}
-      initialToken={initialToken}
-    >
+    <ConvexProviderWithAuth client={convex} useAuth={useConvexClerkAuth}>
       {children}
-    </ConvexBetterAuthProvider>
+    </ConvexProviderWithAuth>
   );
 }

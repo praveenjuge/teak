@@ -1,5 +1,5 @@
-import { getSessionCookie } from "better-auth/cookies";
-import { type NextRequest, NextResponse } from "next/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 import { buildPublicAppUrl } from "@/lib/public-app-url";
 
 const signInRoutes = [
@@ -8,6 +8,14 @@ const signInRoutes = [
   "/reset-password",
   "/forgot-password",
 ];
+
+const isPublicRoute = createRouteMatcher([
+  "/login(.*)",
+  "/register(.*)",
+  "/forgot-password(.*)",
+  "/reset-password(.*)",
+  "/desktop/auth(.*)",
+]);
 
 function getSafeNextPath(rawNext: string | null): string | null {
   if (!(rawNext?.startsWith("/") && !rawNext.startsWith("//"))) {
@@ -22,25 +30,15 @@ function getSafeNextPath(rawNext: string | null): string | null {
   return rawNext;
 }
 
-export default function middleware(request: NextRequest) {
-  const sessionCookie = getSessionCookie(request);
+export default clerkMiddleware(async (auth, request) => {
+  const authState = await auth();
   const isSignInRoute = signInRoutes.includes(request.nextUrl.pathname);
-  const isDesktopAuthRoute =
-    request.nextUrl.pathname.startsWith("/desktop/auth");
 
-  if (isDesktopAuthRoute) {
-    return NextResponse.next();
+  if (!isPublicRoute(request)) {
+    await auth.protect();
   }
 
-  if (isSignInRoute && !sessionCookie) {
-    return NextResponse.next();
-  }
-
-  if (!(isSignInRoute || sessionCookie)) {
-    return NextResponse.redirect(buildPublicAppUrl("/login", request.nextUrl));
-  }
-
-  if (isSignInRoute && sessionCookie) {
+  if (isSignInRoute && authState.userId) {
     const nextPath = getSafeNextPath(request.nextUrl.searchParams.get("next"));
     if (nextPath) {
       return NextResponse.redirect(
@@ -51,9 +49,11 @@ export default function middleware(request: NextRequest) {
   }
 
   return NextResponse.next();
-}
+});
 
 export const config = {
-  // Run middleware on all routes except static assets and api routes
-  matcher: ["/((?!.*\\..*|_next|api/auth).*)", "/", "/trpc(.*)"],
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
 };

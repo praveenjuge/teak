@@ -1,11 +1,12 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
-import { components, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   type ActionCtx,
   action,
   internalMutation,
+  internalQuery,
   type QueryCtx,
   query,
 } from "./_generated/server";
@@ -59,16 +60,29 @@ const SINGLE_RESULT_PAGE = {
   numItems: 1,
 } as const;
 
-const getFirstUserId = async (ctx: AdminCtx) => {
-  const result = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
-    model: "user",
-    sortBy: { field: "createdAt", direction: "asc" },
-    limit: 1,
-    paginationOpts: SINGLE_RESULT_PAGE,
-  })) as { page?: Array<{ _id: string }> };
+const getFirstUserIdFromDb = async (ctx: QueryCtx): Promise<string | null> => {
+  const result = await ctx.db
+    .query("userIdMappings")
+    .withIndex("by_created")
+    .order("asc")
+    .paginate(SINGLE_RESULT_PAGE);
 
-  const firstUser = result?.page?.[0];
-  return firstUser?._id ?? null;
+  const firstUser = result.page[0];
+  return firstUser?.clerkId ?? firstUser?.betterAuthId ?? null;
+};
+
+export const getFirstAdminUserId = internalQuery({
+  args: {},
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx) => getFirstUserIdFromDb(ctx),
+});
+
+const getFirstUserId = async (ctx: AdminCtx): Promise<string | null> => {
+  if ("db" in ctx) {
+    return getFirstUserIdFromDb(ctx);
+  }
+
+  return ctx.runQuery((internal as any).admin.getFirstAdminUserId, {});
 };
 
 const ensureAdmin = async (ctx: AdminCtx) => {
@@ -145,14 +159,16 @@ const getActiveCardCountForUser = async (
 
 export const getAccess = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<{ allowed: boolean }> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       return { allowed: false } as const;
     }
 
     const firstUserId = await getFirstUserId(ctx);
-    const allowed = Boolean(firstUserId && identity.subject === firstUserId);
+    const allowed: boolean = Boolean(
+      firstUserId && identity.subject === firstUserId
+    );
 
     return {
       allowed,
@@ -382,17 +398,6 @@ export const listAllCards = query({
   },
 });
 
-const normalizeUserId = (user: Record<string, unknown>) =>
-  (user as { _id?: string; id?: string; userId?: string; subject?: string })
-    ._id ??
-  (user as { _id?: string; id?: string; userId?: string; subject?: string })
-    .id ??
-  (user as { _id?: string; id?: string; userId?: string; subject?: string })
-    .userId ??
-  (user as { _id?: string; id?: string; userId?: string; subject?: string })
-    .subject ??
-  null;
-
 export const listAllUsers = query({
   args: {
     paginationOpts: paginationOptsValidator,
@@ -402,43 +407,31 @@ export const listAllUsers = query({
 
     const safePagination = clampPagination(paginationOpts);
 
-    const result = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
-      model: "user",
-      sortBy: { field: "createdAt", direction: "desc" },
-      limit: safePagination.numItems,
-      paginationOpts: safePagination,
-    })) as {
-      page?: Record<string, unknown>[];
-      continueCursor?: string | null;
-      isDone?: boolean;
-    };
+    const result = await ctx.db
+      .query("userIdMappings")
+      .withIndex("by_created")
+      .order("desc")
+      .paginate(safePagination);
 
     const page = await Promise.all(
-      (result.page ?? []).map(async (user) => {
-        const id = normalizeUserId(user);
+      result.page.map(async (user) => {
+        const id = user.clerkId ?? user.betterAuthId ?? null;
         const cardsCount = id ? await getActiveCardCountForUser(ctx, id) : 0;
 
         return {
           id,
-          email: (user as { email?: string }).email ?? null,
-          name: (user as { name?: string }).name ?? null,
-          image: (user as { image?: string | null }).image ?? null,
-          createdAt: (user as { createdAt?: number }).createdAt ?? null,
-          updatedAt: (user as { updatedAt?: number }).updatedAt ?? null,
-          emailVerified:
-            (user as { emailVerified?: boolean }).emailVerified ?? null,
-          isAnonymous: (user as { isAnonymous?: boolean }).isAnonymous ?? null,
-          displayUsername:
-            (user as { displayUsername?: string | null }).displayUsername ??
-            null,
-          username: (user as { username?: string | null }).username ?? null,
-          phoneNumber:
-            (user as { phoneNumber?: string | null }).phoneNumber ?? null,
-          phoneNumberVerified:
-            (user as { phoneNumberVerified?: boolean }).phoneNumberVerified ??
-            null,
-          twoFactorEnabled:
-            (user as { twoFactorEnabled?: boolean }).twoFactorEnabled ?? null,
+          email: user.email ?? null,
+          name: null,
+          image: null,
+          createdAt: user.createdAt ?? null,
+          updatedAt: user.updatedAt ?? null,
+          emailVerified: null,
+          isAnonymous: null,
+          displayUsername: null,
+          username: null,
+          phoneNumber: null,
+          phoneNumberVerified: null,
+          twoFactorEnabled: null,
           cardsCount,
         };
       })

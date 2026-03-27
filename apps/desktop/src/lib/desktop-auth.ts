@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { buildWebUrl, getDesktopConfig } from "@/lib/desktop-config";
 import { readStoreValue, writeStoreValue } from "@/lib/store";
 
-const SESSION_TOKEN_KEY = "auth.sessionToken";
+const CONVEX_TOKEN_KEY = "auth.convexToken";
 const DEVICE_ID_KEY = "auth.deviceId";
 const PENDING_AUTH_KEY = "auth.pendingDesktopFlow";
 const DESKTOP_PENDING_MAX_AGE_MS = 10 * 60 * 1000;
@@ -11,7 +11,7 @@ const JWT_EXPIRY_SKEW_MS = 10_000;
 
 type DesktopAuthState = {
   isInitialized: boolean;
-  sessionToken: string | null;
+  convexToken: string | null;
 };
 
 type PendingDesktopAuth = {
@@ -27,7 +27,7 @@ type CachedJwt = {
 };
 
 type ExchangeResponse = {
-  sessionToken: string;
+  convexToken: string;
   expiresAt: number;
 };
 
@@ -42,7 +42,7 @@ const DEVICE_ID_PATTERN = /^[A-Za-z0-9-]{16,128}$/;
 
 let state: DesktopAuthState = {
   isInitialized: false,
-  sessionToken: null,
+  convexToken: null,
 };
 
 let cachedJwt: CachedJwt | null = null;
@@ -132,12 +132,12 @@ async function ensureInitialized(): Promise<void> {
 
   if (!initializationPromise) {
     initializationPromise = (async () => {
-      const sessionToken = await readStoreValue<string>(SESSION_TOKEN_KEY);
+      const convexToken = await readStoreValue<string>(CONVEX_TOKEN_KEY);
       setState({
         isInitialized: true,
-        sessionToken:
-          typeof sessionToken === "string" && sessionToken.trim()
-            ? sessionToken
+        convexToken:
+          typeof convexToken === "string" && convexToken.trim()
+            ? convexToken
             : null,
       });
     })().finally(() => {
@@ -148,27 +148,27 @@ async function ensureInitialized(): Promise<void> {
   await initializationPromise;
 }
 
-async function setSessionToken(sessionToken: string): Promise<void> {
-  await writeStoreValue(SESSION_TOKEN_KEY, sessionToken);
+async function setConvexToken(convexToken: string): Promise<void> {
+  await writeStoreValue(CONVEX_TOKEN_KEY, convexToken);
   cachedJwt = null;
   setState({
     isInitialized: true,
-    sessionToken,
+    convexToken,
   });
 }
 
-export async function clearDesktopSessionToken(): Promise<void> {
-  await writeStoreValue(SESSION_TOKEN_KEY, null);
+export async function clearDesktopConvexToken(): Promise<void> {
+  await writeStoreValue(CONVEX_TOKEN_KEY, null);
   cachedJwt = null;
   setState({
     isInitialized: true,
-    sessionToken: null,
+    convexToken: null,
   });
 }
 
-export async function getDesktopSessionToken(): Promise<string | null> {
+export async function getDesktopConvexToken(): Promise<string | null> {
   await ensureInitialized();
-  return state.sessionToken;
+  return state.convexToken;
 }
 
 export async function getDesktopDeviceId(): Promise<string> {
@@ -233,12 +233,12 @@ async function pollDesktopCodeByState(params: {
   }
 
   const data = (await response.json()) as Partial<ExchangeResponse>;
-  if (!(data.sessionToken && typeof data.sessionToken === "string")) {
+  if (!(data.convexToken && typeof data.convexToken === "string")) {
     throw new Error("Desktop login polling response is invalid");
   }
 
   return {
-    sessionToken: data.sessionToken,
+    convexToken: data.convexToken,
     expiresAt: typeof data.expiresAt === "number" ? data.expiresAt : Date.now(),
   };
 }
@@ -258,7 +258,7 @@ export function startDesktopAuthPolling(): Promise<DesktopAuthPollingResult> {
         return "cancelled";
       }
 
-      if (getSnapshot().sessionToken) {
+      if (getSnapshot().convexToken) {
         await writeStoreValue(PENDING_AUTH_KEY, null);
         return "authenticated";
       }
@@ -290,7 +290,7 @@ export function startDesktopAuthPolling(): Promise<DesktopAuthPollingResult> {
 
         if (exchangeResult) {
           await writeStoreValue(PENDING_AUTH_KEY, null);
-          await setSessionToken(exchangeResult.sessionToken);
+          await setConvexToken(exchangeResult.convexToken);
           return "authenticated";
         }
       } catch {
@@ -311,7 +311,7 @@ export function startDesktopAuthPolling(): Promise<DesktopAuthPollingResult> {
 }
 
 async function fetchConvexJwt(
-  sessionToken: string,
+  convexToken: string,
   forceRefreshToken: boolean
 ): Promise<string | null> {
   if (
@@ -322,49 +322,17 @@ async function fetchConvexJwt(
     return cachedJwt.token;
   }
 
-  const response = await fetch(`${convexSiteBaseUrl}/api/auth/convex/token`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${sessionToken}`,
-    },
-  });
-
-  if (response.status === 401 || response.status === 403) {
-    await clearDesktopSessionToken();
-    return null;
-  }
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch Convex auth token");
-  }
-
-  const data = (await response.json()) as { token?: unknown };
-  if (typeof data.token !== "string" || !data.token) {
-    throw new Error("Convex auth token response is invalid");
-  }
-
-  const expiresAt = parseJwtExpiry(data.token) ?? Date.now() + 5 * 60 * 1000;
+  const expiresAt = parseJwtExpiry(convexToken) ?? Date.now() + 5 * 60 * 1000;
   cachedJwt = {
-    token: data.token,
+    token: convexToken,
     expiresAt,
   };
 
-  return data.token;
+  return convexToken;
 }
 
 export async function logoutDesktopSession(): Promise<void> {
-  const sessionToken = await getDesktopSessionToken();
-
-  if (sessionToken) {
-    await fetch(`${convexSiteBaseUrl}/api/auth/sign-out`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${sessionToken}`,
-      },
-    }).catch(() => undefined);
-  }
-
-  await clearDesktopSessionToken();
+  await clearDesktopConvexToken();
   await writeStoreValue(PENDING_AUTH_KEY, null);
 }
 
@@ -382,12 +350,12 @@ export function useDesktopConvexAuth() {
       forceRefreshToken?: boolean;
     } = {}): Promise<string | null> => {
       await ensureInitialized();
-      const sessionToken = getSnapshot().sessionToken;
-      if (!sessionToken) {
+      const convexToken = getSnapshot().convexToken;
+      if (!convexToken) {
         return null;
       }
 
-      return fetchConvexJwt(sessionToken, forceRefreshToken);
+      return fetchConvexJwt(convexToken, forceRefreshToken);
     },
     []
   );
@@ -395,9 +363,9 @@ export function useDesktopConvexAuth() {
   return useMemo(
     () => ({
       isLoading: !snapshot.isInitialized,
-      isAuthenticated: Boolean(snapshot.sessionToken),
+      isAuthenticated: Boolean(snapshot.convexToken),
       fetchAccessToken,
     }),
-    [fetchAccessToken, snapshot.isInitialized, snapshot.sessionToken]
+    [fetchAccessToken, snapshot.convexToken, snapshot.isInitialized]
   );
 }

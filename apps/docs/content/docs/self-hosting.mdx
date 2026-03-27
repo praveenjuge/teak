@@ -17,7 +17,7 @@ icon: Server
 bun install
 ```
 
-2. Start Convex dev and set up Better Auth defaults:
+2. Start Convex dev and set up Clerk defaults:
 
 ```bash
 bunx convex dev
@@ -31,7 +31,9 @@ Run these commands to set the minimum required secrets in your Convex dashboard:
 
 ```bash
 # Security & Auth
-npx convex env set BETTER_AUTH_SECRET $(openssl rand -base64 32)
+npx convex env set CLERK_JWT_ISSUER_DOMAIN https://your-instance.clerk.accounts.dev
+npx convex env set CLERK_WEBHOOK_SECRET whsec_...
+npx convex env set AUTH_SECRET_PEPPER $(openssl rand -base64 32)
 npx convex env set SITE_URL http://app.teak.localhost:1355
 
 # Optional: AI (if you want card processing)
@@ -78,7 +80,9 @@ Add these to your env files before running locally or deploying.
 
 ```bash
 SITE_URL=http://app.teak.localhost:1355
-BETTER_AUTH_SECRET=your-secret               # Better Auth security
+CLERK_JWT_ISSUER_DOMAIN=https://your-instance.clerk.accounts.dev
+CLERK_WEBHOOK_SECRET=whsec_...
+AUTH_SECRET_PEPPER=your-secret               # API key and rate-limit hashing
 KERNEL_API_KEY=token                         # Kernel Browser
 GROQ_API_KEY=gsk_...                         # AI processing
 POLAR_ACCESS_TOKEN=token                     # Billing
@@ -94,6 +98,8 @@ RESEND_API_KEY=token                         # Email service
 CONVEX_DEPLOY_KEY=
 NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
 TEAK_DEV_APP_URL=http://app.teak.localhost:1355   # Optional local override
 ```
 
@@ -104,6 +110,7 @@ Mobile, Extension, and Desktop share the same base variables (use `EXPO_PUBLIC_`
 ```bash
 VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...     # Mobile only
 TEAK_DEV_APP_URL=http://app.teak.localhost:1355   # Optional local override
 VITE_WEB_URL=https://app.yourdomain.com           # Desktop only; defaults to https://app.teakvault.com
 ```
@@ -121,8 +128,12 @@ The `CONVEX_HTTP_BASE_URL` must point to your Convex `.site` domain (the same va
 ## Where to get the values
 
 - **Convex URLs**: Run `bunx convex dev`. It prints both `CONVEX_URL` (for the client) and `CONVEX_SITE_URL` (for the site/auth endpoint). You can also find these in the Convex Dashboard under "Settings" -> "Deployment".
-- **Better Auth**:
-  - `BETTER_AUTH_SECRET`: Generate a random string (e.g., via `openssl rand -base64 32`).
+- **Clerk**:
+  - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`: From your Clerk dashboard for web and mobile clients.
+  - `CLERK_SECRET_KEY`: Server-side key for the Next.js app and E2E setup script.
+  - `CLERK_JWT_ISSUER_DOMAIN`: Clerk issuer domain used by Convex auth.
+  - `CLERK_WEBHOOK_SECRET`: Signing secret for the Convex Clerk webhook endpoint.
+  - `AUTH_SECRET_PEPPER`: Random string used to hash API keys and rate-limit keys.
   - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://app.teak.localhost:1355`.
 - **Optional Features**:
   - `GROQ_API_KEY`: Get from [Groq Console](https://console.groq.com/) for AI-powered card processing.

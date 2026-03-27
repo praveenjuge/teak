@@ -3,7 +3,7 @@ import type { Locator, Page } from "@playwright/test";
 const DEFAULT_TIMEOUT = 30_000;
 
 /**
- * Better Auth Test Helper for E2E testing
+ * Clerk test helper for E2E testing
  *
  * Provides helper methods for authentication flows in Playwright tests.
  */
@@ -201,7 +201,7 @@ export class AuthHelper {
   async setSessionCookie(sessionToken: string): Promise<void> {
     const cookies = [
       {
-        name: "better-auth.session_token",
+        name: "__session",
         value: sessionToken,
         domain: "localhost",
         path: "/",

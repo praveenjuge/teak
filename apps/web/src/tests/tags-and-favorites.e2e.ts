@@ -1,14 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { AuthHelper, UiHelper } from "./test-helpers";
 
-const TEST_EMAIL = process.env.E2E_BETTER_AUTH_USER_EMAIL;
-const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
+const TEST_EMAIL = process.env.E2E_CLERK_USER_EMAIL;
+const TEST_PASSWORD = process.env.E2E_CLERK_USER_PASSWORD;
 
 test.describe("Tag Management", () => {
   // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
   test.skip(
     !(TEST_EMAIL && TEST_PASSWORD),
-    "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run tag tests."
+    "Set E2E_CLERK_USER_EMAIL and E2E_CLERK_USER_PASSWORD to run tag tests."
   );
 
   test.beforeEach(async ({ page }) => {
@@ -232,7 +232,7 @@ test.describe("Favorites Functionality", () => {
   // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
   test.skip(
     !(TEST_EMAIL && TEST_PASSWORD),
-    "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run favorites tests."
+    "Set E2E_CLERK_USER_EMAIL and E2E_CLERK_USER_PASSWORD to run favorites tests."
   );
 
   test.beforeEach(async ({ page }) => {
@@ -417,7 +417,7 @@ test.describe("Combined Tag and Favorites Workflows", () => {
   // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
   test.skip(
     !(TEST_EMAIL && TEST_PASSWORD),
-    "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run combined tests."
+    "Set E2E_CLERK_USER_EMAIL and E2E_CLERK_USER_PASSWORD to run combined tests."
   );
 
   test("should filter by tags and favorites together", async ({ page }) => {

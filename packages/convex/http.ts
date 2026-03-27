@@ -1,7 +1,7 @@
 import { httpRouter } from "convex/server";
-import { authComponent, createAuth } from "./auth";
 import { exchangeDesktopAuthOptions, pollDesktopAuthCode } from "./authDesktop";
 import { polar } from "./billing";
+import { handleClerkUserWebhook } from "./clerkWebhooks";
 import {
   bulkCardsV1,
   cardByIdV1,
@@ -21,9 +21,10 @@ const http = httpRouter();
 // Register the webhook handler at /polar/events
 polar.registerRoutes(http as any);
 
-// Register authentication routes with CORS for cross-origin desktop auth requests.
-authComponent.registerRoutes(http, createAuth, {
-  cors: true,
+http.route({
+  path: "/api/clerk/webhooks/user",
+  method: "POST",
+  handler: handleClerkUserWebhook,
 });
 
 http.route({

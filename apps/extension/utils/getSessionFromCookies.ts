@@ -1,25 +1,17 @@
 import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
 
 /**
- * Gets the Better Auth session token from the web app's cookies.
- * This allows the extension to share the session with the web app.
+ * Gets the Clerk session token from the web app's cookies.
  */
 export async function getSessionTokenFromCookies(): Promise<string | null> {
   const url = import.meta.env.DEV
     ? resolveTeakDevAppUrl(import.meta.env)
     : "https://app.teakvault.com";
 
-  // Cookie names differ between dev and prod:
-  // - Dev (HTTP): "better-auth.session_token"
-  // - Prod (HTTPS): "__Secure-better-auth.session_token"
-  const cookieName = import.meta.env.DEV
-    ? "better-auth.session_token"
-    : "__Secure-better-auth.session_token";
-
   try {
     const cookie = await chrome.cookies.get({
       url,
-      name: cookieName,
+      name: "__session",
     });
 
     return cookie?.value ?? null;

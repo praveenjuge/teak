@@ -3,7 +3,7 @@ import Security
 
 actor SessionStore {
     private let service = Bundle.main.bundleIdentifier ?? "com.praveenjuge.teak"
-    private let sessionAccount = "better-auth.session-token"
+    private let sessionAccount = "clerk.convex-token"
     private let defaults = UserDefaults.standard
     private let deviceIDKey = "teak.auth.device-id"
 

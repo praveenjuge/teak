@@ -1,3 +1,4 @@
+import { useSignIn } from "@clerk/expo/legacy";
 import {
   Host,
   LabeledContent,
@@ -17,12 +18,12 @@ import { usePostHog } from "posthog-react-native";
 import React from "react";
 import { Alert, PlatformColor, Pressable } from "react-native";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function SignInScreen() {
   const router = useRouter();
   const posthog = usePostHog();
+  const { signIn, isLoaded, setActive } = useSignIn();
   const [isLoading, setIsLoading] = React.useState(false);
   const [emailAddress, setEmailAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -46,19 +47,20 @@ export default function SignInScreen() {
     setErrorMessage(null);
 
     try {
-      const response = await authClient.signIn.email({
-        email: emailAddress.trim(),
+      if (!(isLoaded && signIn)) {
+        throw new Error("Authentication is still loading.");
+      }
+
+      const result = await signIn.create({
+        identifier: emailAddress.trim(),
         password,
       });
-      if (response.error) {
-        const message = getAuthErrorMessage(
-          response.error,
-          "Invalid email or password. Please try again."
-        );
-        setErrorMessage(message);
-        Alert.alert("Sign In Failed", message);
-        return;
+
+      if (result.status !== "complete" || !result.createdSessionId) {
+        throw new Error("Sign in could not be completed.");
       }
+
+      await setActive({ session: result.createdSessionId });
 
       posthog.identify(emailAddress.trim(), {
         $set: { email: emailAddress.trim() },
@@ -115,6 +117,7 @@ export default function SignInScreen() {
           <LabeledContent label="Email">
             <TextField
               autocorrection={false}
+              defaultValue={emailAddress}
               keyboardType="email-address"
               onChangeText={setEmailAddress}
               placeholder="Enter your email"
@@ -123,6 +126,7 @@ export default function SignInScreen() {
 
           <LabeledContent label="Password">
             <SecureField
+              defaultValue={password}
               onChangeText={setPassword}
               placeholder="Enter your password"
             />
