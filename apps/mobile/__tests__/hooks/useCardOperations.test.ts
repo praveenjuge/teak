@@ -166,7 +166,7 @@ describe("useCardOperations", () => {
 
     test("should integrate with fetch for uploads", () => {
       // Validate fetch integration
-      const fetchFn = typeof fetch !== "undefined" ? fetch : mock();
+      const fetchFn = typeof fetch === "undefined" ? mock() : fetch;
       expect(fetchFn).toBeDefined();
     });
   });

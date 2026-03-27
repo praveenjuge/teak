@@ -195,9 +195,7 @@ export default function AddRecordScreen() {
                 font({ design: "rounded" }),
               ]}
             >
-              {new Date(recordingDuration * 1000)
-                .toISOString()
-                .substring(14, 19)}
+              {new Date(recordingDuration * 1000).toISOString().slice(14, 19)}
             </Text>
           </HStack>
 
