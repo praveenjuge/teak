@@ -16,7 +16,7 @@
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@teak/config": "workspace:*",
     "dotenv": "^17.2.2",
-    "hono": "^4.12.7",
+    "hono": "^4.12.9",
     "zod": "^4.3.6"
   },
   "devDependencies": {

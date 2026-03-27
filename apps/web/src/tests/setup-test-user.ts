@@ -18,10 +18,6 @@ const TEST_PASSWORD = "TestPassword123!";
 const TEST_NAME = "E2E Test User";
 
 async function setupTestUser() {
-  console.log(`[setup-test-user] Creating test user: ${TEST_EMAIL}`);
-  console.log(`[setup-test-user] App URL: ${APP_URL}`);
-  console.log(`[setup-test-user] Convex URL: ${CONVEX_URL}`);
-
   // Step 1: Sign up the user via Better Auth
   // Use the app URL which proxies to Convex
   let signUpUrl = `${APP_URL}/api/auth/sign-up`;
@@ -29,8 +25,6 @@ async function setupTestUser() {
     // For Convex site, use the correct URL structure
     signUpUrl = `${APP_URL}/api/auth/sign-up`;
   }
-
-  console.log(`[setup-test-user] Calling sign-up at: ${signUpUrl}`);
 
   const signUpResponse = await fetch(signUpUrl, {
     method: "POST",
@@ -44,20 +38,9 @@ async function setupTestUser() {
     }),
   });
 
-  if (signUpResponse.ok) {
-    console.log("[setup-test-user] Sign-up successful");
-  } else {
+  if (!signUpResponse.ok) {
     const errorText = await signUpResponse.text();
-    if (signUpResponse.status === 400 || signUpResponse.status === 422) {
-      if (errorText.includes("already") || errorText.includes("exists")) {
-        console.log("[setup-test-user] User already exists, will verify...");
-      } else {
-        console.log(
-          `[setup-test-user] Sign-up validation failed (${signUpResponse.status}): ${errorText}`
-        );
-        console.log("[setup-test-user] Continuing to verification step...");
-      }
-    } else {
+    if (!(signUpResponse.status === 400 || signUpResponse.status === 422)) {
       console.error(
         `[setup-test-user] Sign-up failed (${signUpResponse.status}): ${errorText}`
       );
@@ -91,16 +74,10 @@ async function setupTestUser() {
     found: boolean;
     verified: boolean;
   };
-  if (result.found && result.verified) {
-    console.log("[setup-test-user] Test user verified successfully!");
-    console.log(`[setup-test-user] Email: ${TEST_EMAIL}`);
-    console.log(`[setup-test-user] Password: ${TEST_PASSWORD}`);
-  } else if (!result.found) {
+  if (!result.found) {
     console.error("[setup-test-user] User not found after sign-up");
     process.exit(1);
   }
-
-  console.log("[setup-test-user] Done!");
 }
 
 setupTestUser().catch((error) => {

@@ -87,7 +87,6 @@ export class AuthHelper {
 
         if (hasError) {
           // User already exists, just sign in instead
-          console.log("[TestHelper] User already exists, signing in instead");
           await this.signInWithEmailAndPassword(email, password);
           return;
         }

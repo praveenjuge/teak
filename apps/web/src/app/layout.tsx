@@ -53,7 +53,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
             </ThemeProvider>
           </ConvexQueryCacheProvider>
         </ConvexClientProvider>
-        <Analytics />
+        <Analytics debug={false} />
       </body>
     </html>
   );

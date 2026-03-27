@@ -52,6 +52,7 @@ const nextConfig: NextConfig = {
   experimental: {
     turbopackFileSystemCacheForDev: true,
   },
+  allowedDevOrigins: ["app.teak.localhost"],
   turbopack: {
     resolveAlias: turbopackSingletonAliases,
   },

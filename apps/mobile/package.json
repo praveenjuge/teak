@@ -30,7 +30,7 @@
     "@react-navigation/native": "^7.1.28",
     "@teak/convex": "workspace:*",
     "better-auth": "1.5.3",
-    "convex": "^1.33.0",
+    "convex": "^1.34.1",
     "convex-helpers": "0.1.114",
     "expo": "^55.0.2",
     "expo-apple-authentication": "~55.0.8",

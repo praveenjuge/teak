@@ -1,5 +1,5 @@
 import { Button } from "@teak/ui/components/ui/button";
-import { ExternalLink, Github, Globe, Twitter } from "lucide-react";
+import { ExternalLink, Globe } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -92,7 +92,6 @@ export default async function AuthorPage({ params }: AuthorPageProps) {
                     rel="noopener noreferrer"
                     target="_blank"
                   >
-                    <Twitter className="mr-1 h-4 w-4" />
                     Twitter
                     <ExternalLink className="ml-1 h-3 w-3" />
                   </a>
@@ -105,7 +104,6 @@ export default async function AuthorPage({ params }: AuthorPageProps) {
                     rel="noopener noreferrer"
                     target="_blank"
                   >
-                    <Github className="mr-1 h-4 w-4" />
                     GitHub
                     <ExternalLink className="ml-1 h-3 w-3" />
                   </a>
