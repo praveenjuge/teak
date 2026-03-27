@@ -39,6 +39,7 @@ mock.module("../../posthog", () => ({
 // We will dynamically import these
 let ensureCardCreationAllowed: any;
 let getCurrentUserHandler: any;
+let getCardCreationStatusHandler: any;
 let deleteAccountHandler: any;
 let authComponent: any;
 let createAuth: any;
@@ -54,6 +55,7 @@ describe("auth", () => {
     const authModule = await import("../../auth");
     ensureCardCreationAllowed = authModule.ensureCardCreationAllowed;
     getCurrentUserHandler = authModule.getCurrentUserHandler;
+    getCardCreationStatusHandler = authModule.getCardCreationStatusHandler;
     deleteAccountHandler = authModule.deleteAccountHandler;
     authComponent = authModule.authComponent;
     createAuth = authModule.createAuth;
@@ -103,8 +105,8 @@ describe("auth", () => {
             withIndex: (_name: any, cb: any) => {
               if (cb) cb({ eq: () => ({ eq: () => {} }) });
               return {
-                collect: async () =>
-                  Array.from({ length: FREE_TIER_LIMIT - 1 }),
+                take: async (limit: number) =>
+                  Array.from({ length: Math.min(limit, FREE_TIER_LIMIT - 1) }),
               };
             },
           }),
@@ -130,7 +132,8 @@ describe("auth", () => {
             withIndex: (_name: any, cb: any) => {
               if (cb) cb({ eq: () => ({ eq: () => {} }) });
               return {
-                collect: async () => Array.from({ length: FREE_TIER_LIMIT }),
+                take: async (limit: number) =>
+                  Array.from({ length: Math.min(limit, FREE_TIER_LIMIT) }),
               };
             },
           }),
@@ -161,8 +164,8 @@ describe("auth", () => {
             withIndex: (_name: any, cb: any) => {
               if (cb) cb({ eq: () => ({ eq: () => {} }) });
               return {
-                collect: async () =>
-                  Array.from({ length: FREE_TIER_LIMIT - 1 }),
+                take: async (limit: number) =>
+                  Array.from({ length: Math.min(limit, FREE_TIER_LIMIT - 1) }),
               };
             },
           }),
@@ -187,7 +190,10 @@ describe("auth", () => {
             return {
               withIndex: (_name: any, cb: any) => {
                 if (cb) cb({ eq: () => ({ eq: () => {} }) });
-                return { collect: async () => [] };
+                return {
+                  collect: async () => [],
+                  take: async () => [],
+                };
               },
             };
           },
@@ -268,7 +274,10 @@ describe("auth", () => {
           query: () => ({
             withIndex: (_name: any, cb: any) => {
               if (cb) cb({ eq: () => ({ eq: () => {} }) });
-              return { collect: async () => [] };
+              return {
+                collect: async () => [],
+                take: async () => [],
+              };
             },
           }),
         },
@@ -289,7 +298,10 @@ describe("auth", () => {
           query: () => ({
             withIndex: (_name: any, cb: any) => {
               if (cb) cb({ eq: () => ({ eq: () => {} }) });
-              return { collect: async () => [] };
+              return {
+                collect: async () => [],
+                take: async () => [],
+              };
             },
           }),
         },
@@ -314,7 +326,11 @@ describe("auth", () => {
           query: () => ({
             withIndex: (_name: any, cb: any) => {
               if (cb) cb({ eq: () => ({ eq: () => {} }) });
-              return { collect: async () => Array.from({ length: 100 }) };
+              return {
+                collect: async () => Array.from({ length: 100 }),
+                take: async (limit: number) =>
+                  Array.from({ length: Math.min(limit, 100) }),
+              };
             },
           }),
         },
@@ -325,6 +341,32 @@ describe("auth", () => {
       expect(result!.hasPremium).toBe(true);
       expect(result!.canCreateCard).toBe(true);
       expect(result!.cardCount).toBe(100);
+    });
+
+    it("returns lightweight card creation status for AddCardForm gating", async () => {
+      const user = { subject: "u1" };
+      mockGetAuthUser.mockResolvedValue(user);
+      mockGetCurrentSubscription.mockResolvedValue(null);
+
+      const ctx = {
+        db: {
+          query: () => ({
+            withIndex: (_name: any, cb: any) => {
+              if (cb) cb({ eq: () => ({ eq: () => {} }) });
+              return {
+                take: async (limit: number) =>
+                  Array.from({ length: Math.min(limit, FREE_TIER_LIMIT) }),
+              };
+            },
+          }),
+        },
+      } as any;
+
+      const result = await getCardCreationStatusHandler(ctx);
+      expect(result).toEqual({
+        hasPremium: false,
+        canCreateCard: false,
+      });
     });
   });
 
@@ -405,9 +447,6 @@ describe("auth", () => {
         process.env.NODE_ENV = originalNodeEnv;
 
         // Test callbacks
-        const user = { email: "test@example.com" };
-        const url = "https://example.com";
-
         // We need to mock resend.sendEmail which is used in callbacks
         // But it's a global export in auth.ts.
         // Actually BetterAuth might hide these in its internal structure.

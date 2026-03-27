@@ -57,6 +57,35 @@ const createdAtRangeValidator = v.object({
   end: v.number(),
 });
 
+const MIN_SEARCH_BATCH_SIZE = 12;
+const PRIMARY_SEARCH_BUFFER = 8;
+const SECONDARY_SEARCH_BUFFER = 6;
+const TAG_SEARCH_BUFFER = 10;
+const VISUAL_SEARCH_BUFFER = 12;
+
+const getSearchBatchLimit = (remainingSlots: number, buffer: number) =>
+  Math.max(remainingSlots + buffer, MIN_SEARCH_BATCH_SIZE);
+
+type SearchFieldName =
+  | "content"
+  | "metadataTitle"
+  | "notes"
+  | "metadataDescription"
+  | "aiSummary"
+  | "aiTranscript"
+  | "tags"
+  | "aiTags";
+
+type SearchIndexName =
+  | "search_content"
+  | "search_metadata_title"
+  | "search_notes"
+  | "search_metadata_description"
+  | "search_ai_summary"
+  | "search_ai_transcript"
+  | "search_tags"
+  | "search_ai_tags";
+
 export const getCards = query({
   args: {
     type: v.optional(cardTypeValidator),
@@ -505,9 +534,6 @@ export const searchCardsPaginated = query({
         Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0;
       const pageSize = paginationOpts.numItems;
       const desiredLimit = offset + pageSize + 1;
-      // Reduced multipliers - with <1000 cards per user, aggressive over-fetch isn't needed
-      const searchLimit = Math.max(desiredLimit + 20, pageSize);
-      const tagSearchLimit = Math.max(searchLimit + 20, searchLimit + 1);
 
       // Helper to apply optional filters to search queries
       const applySearchFilters = (q: any) => {
@@ -544,77 +570,65 @@ export const searchCardsPaginated = query({
       // 6. aiTranscript - only for audio type
       // 7. tags - small value set, less selective
       // 8. aiTags - small value set, less selective
-      const queryBatches: Array<Array<() => Promise<Doc<"cards">[]>>> = [
-        [
-          () =>
-            ctx.db
-              .query("cards")
-              .withSearchIndex("search_content", (q) =>
-                applySearchFilters(q).search("content", searchQuery)
-              )
-              .take(searchLimit),
-          () =>
-            ctx.db
-              .query("cards")
-              .withSearchIndex("search_metadata_title", (q) =>
-                applySearchFilters(q).search("metadataTitle", searchQuery)
-              )
-              .take(searchLimit),
-          () =>
-            ctx.db
-              .query("cards")
-              .withSearchIndex("search_notes", (q) =>
-                applySearchFilters(q).search("notes", searchQuery)
-              )
-              .take(searchLimit),
-        ],
-        [
-          () =>
-            ctx.db
-              .query("cards")
-              .withSearchIndex("search_metadata_description", (q) =>
-                applySearchFilters(q).search("metadataDescription", searchQuery)
-              )
-              .take(searchLimit),
-          ...(includeAiSummary
-            ? [
-                () =>
-                  ctx.db
-                    .query("cards")
-                    .withSearchIndex("search_ai_summary", (q) =>
-                      applySearchFilters(q).search("aiSummary", searchQuery)
-                    )
-                    .take(searchLimit),
-              ]
-            : []),
-          ...(includeAiTranscript
-            ? [
-                () =>
-                  ctx.db
-                    .query("cards")
-                    .withSearchIndex("search_ai_transcript", (q) =>
-                      applySearchFilters(q).search("aiTranscript", searchQuery)
-                    )
-                    .take(searchLimit),
-              ]
-            : []),
-        ],
-        [
-          () =>
-            ctx.db
-              .query("cards")
-              .withSearchIndex("search_tags", (q) =>
-                applySearchFilters(q).search("tags", searchQuery)
-              )
-              .take(tagSearchLimit),
-          () =>
-            ctx.db
-              .query("cards")
-              .withSearchIndex("search_ai_tags", (q) =>
-                applySearchFilters(q).search("aiTags", searchQuery)
-              )
-              .take(tagSearchLimit),
-        ],
+      const buildSearchQuery = (
+        indexName: SearchIndexName,
+        fieldName: SearchFieldName
+      ) => {
+        return (limit: number) =>
+          ctx.db
+            .query("cards")
+            .withSearchIndex(indexName, (q) =>
+              applySearchFilters(q).search(fieldName, searchQuery)
+            )
+            .take(limit);
+      };
+
+      const buildPrimaryBatch = (limit: number) => [
+        buildSearchQuery("search_content", "content")(limit),
+        buildSearchQuery("search_metadata_title", "metadataTitle")(limit),
+        buildSearchQuery("search_notes", "notes")(limit),
+      ];
+
+      const buildSecondaryBatch = (limit: number) => [
+        buildSearchQuery(
+          "search_metadata_description",
+          "metadataDescription"
+        )(limit),
+        ...(includeAiSummary
+          ? [buildSearchQuery("search_ai_summary", "aiSummary")(limit)]
+          : []),
+        ...(includeAiTranscript
+          ? [buildSearchQuery("search_ai_transcript", "aiTranscript")(limit)]
+          : []),
+      ];
+
+      const buildTagBatch = (limit: number) => [
+        buildSearchQuery("search_tags", "tags")(limit),
+        buildSearchQuery("search_ai_tags", "aiTags")(limit),
+      ];
+
+      const queryBatches: (() => Promise<Doc<"cards">[]>[])[] = [
+        () =>
+          buildPrimaryBatch(
+            getSearchBatchLimit(
+              desiredLimit - uniqueResults.length,
+              PRIMARY_SEARCH_BUFFER
+            )
+          ),
+        () =>
+          buildSecondaryBatch(
+            getSearchBatchLimit(
+              desiredLimit - uniqueResults.length,
+              SECONDARY_SEARCH_BUFFER
+            )
+          ),
+        () =>
+          buildTagBatch(
+            getSearchBatchLimit(
+              desiredLimit - uniqueResults.length,
+              TAG_SEARCH_BUFFER
+            )
+          ),
       ];
 
       // Incrementally deduplicate with early termination
@@ -622,10 +636,8 @@ export const searchCardsPaginated = query({
       const seenIds = new Set<string>();
       const uniqueResults: Doc<"cards">[] = [];
 
-      for (const batch of queryBatches) {
-        const batchResults = await Promise.all(
-          batch.map((runQuery) => runQuery())
-        );
+      for (const getBatch of queryBatches) {
+        const batchResults = await Promise.all(getBatch());
         for (const results of batchResults) {
           for (const card of results) {
             if (seenIds.has(card._id)) continue;
@@ -674,7 +686,7 @@ export const searchCardsPaginated = query({
         favoritesOnly,
         createdAtRange,
         visualFilters,
-        limit: Math.max(desiredLimit * 2, desiredLimit + 40),
+        limit: getSearchBatchLimit(desiredLimit, VISUAL_SEARCH_BUFFER),
       });
 
       const page = visualResults.slice(offset, offset + pageSize);

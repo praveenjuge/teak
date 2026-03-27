@@ -82,8 +82,9 @@ export function AddCardForm({
   const [content, setContent] = useState("");
   const [url, setUrl] = useState("");
 
-  const currentUser = useQuery(api.auth.getCurrentUser);
-  const canCreateCard = canCreateCardProp ?? currentUser?.canCreateCard ?? true;
+  const cardCreationStatus = useQuery(api.auth.getCardCreationStatus);
+  const canCreateCard =
+    canCreateCardProp ?? cardCreationStatus?.canCreateCard ?? true;
   const fullscreenShortcutLabel = isMac ? "Cmd+E" : "Ctrl+E";
   const basePlaceholderText = canCreateCard
     ? "Write or add a link..."
@@ -124,7 +125,7 @@ export function AddCardForm({
   );
 
   useEffect(() => {
-    if (currentUser?.canCreateCard === false) {
+    if (cardCreationStatus?.canCreateCard === false) {
       if (!hasShownBlockedToastRef.current) {
         showUpgradeToast();
         hasShownBlockedToastRef.current = true;
@@ -133,7 +134,7 @@ export function AddCardForm({
     }
 
     hasShownBlockedToastRef.current = false;
-  }, [currentUser?.canCreateCard, showUpgradeToast]);
+  }, [cardCreationStatus?.canCreateCard, showUpgradeToast]);
 
   useEffect(() => {
     if (typeof navigator === "undefined") {

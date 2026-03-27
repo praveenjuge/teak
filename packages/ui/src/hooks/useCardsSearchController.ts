@@ -15,7 +15,7 @@ import type {
   VisualStyle,
 } from "@teak/convex/shared/constants";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import type { SearchBarProps } from "../components/search";
 
 export interface CardsSearchState {
@@ -358,9 +358,15 @@ export function useCardsSearchController(
     [searchState]
   );
 
+  const deferredSearchQuery = useDeferredValue(searchState.searchQuery);
+
   const queryArgs = useMemo(
-    () => buildCardsSearchQueryArgs(searchState),
-    [searchState]
+    () =>
+      buildCardsSearchQueryArgs({
+        ...searchState,
+        searchQuery: deferredSearchQuery,
+      }),
+    [deferredSearchQuery, searchState]
   );
 
   const hasActiveSearch = useMemo(
@@ -383,14 +389,17 @@ export function useCardsSearchController(
     [localCards, searchState, searchTerms]
   );
 
+  const suppressRemoteCards =
+    hasActiveSearch && deferredSearchQuery !== searchState.searchQuery;
+
   const displayCards = useMemo(
     () =>
       mergeLocalAndRemoteSearchResults(
-        remoteCards,
+        suppressRemoteCards ? [] : remoteCards,
         localSearchResults,
         hasActiveSearch
       ),
-    [hasActiveSearch, localSearchResults, remoteCards]
+    [hasActiveSearch, localSearchResults, remoteCards, suppressRemoteCards]
   );
 
   const resetKey = useMemo(

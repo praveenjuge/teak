@@ -167,13 +167,14 @@ export const getCurrentUserHandler = async (ctx: any) => {
     hasPremium = false;
   }
 
-  const cards = await ctx.db
+  const cardsQuery = ctx.db
     .query("cards")
     .withIndex("by_user_deleted", (q: any) =>
       q.eq("userId", userId).eq("isDeleted", undefined)
-    )
-    .collect();
-  const cardCount = cards.length;
+    );
+  const cardCount = hasPremium
+    ? (await cardsQuery.collect()).length
+    : (await cardsQuery.take(FREE_TIER_LIMIT)).length;
   const canCreateCard = hasPremium || cardCount < FREE_TIER_LIMIT;
 
   return {
@@ -187,6 +188,59 @@ export const getCurrentUserHandler = async (ctx: any) => {
 export const getCurrentUser = query({
   args: {},
   handler: getCurrentUserHandler,
+});
+
+export const getCardCreationStatusHandler = async (ctx: any) => {
+  // After sign-out the client may still briefly call this query; treat missing
+  // session as a non-error so we don't spam Convex logs with "Unauthenticated".
+  let user: Awaited<ReturnType<typeof authComponent.getAuthUser>> | undefined;
+  try {
+    user = await authComponent.getAuthUser(ctx);
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthenticated") {
+      return null;
+    }
+    throw error;
+  }
+  if (!user) return null;
+
+  const userId = (user as any).id ?? (user as any)._id ?? (user as any).subject;
+
+  let hasPremium = false;
+  try {
+    const subscription = await polar.getCurrentSubscription(ctx, {
+      userId,
+    });
+    hasPremium = subscription?.status === "active";
+  } catch {
+    hasPremium = false;
+  }
+
+  if (hasPremium) {
+    return {
+      hasPremium,
+      canCreateCard: true,
+    };
+  }
+
+  const activeCardCount = (
+    await ctx.db
+      .query("cards")
+      .withIndex("by_user_deleted", (q: any) =>
+        q.eq("userId", userId).eq("isDeleted", undefined)
+      )
+      .take(FREE_TIER_LIMIT)
+  ).length;
+
+  return {
+    hasPremium,
+    canCreateCard: activeCardCount < FREE_TIER_LIMIT,
+  };
+};
+
+export const getCardCreationStatus = query({
+  args: {},
+  handler: getCardCreationStatusHandler,
 });
 
 /**
@@ -237,14 +291,16 @@ export async function ensureCardCreationAllowed(
     return;
   }
 
-  const cards = await ctx.db
-    .query("cards")
-    .withIndex("by_user_deleted", (q) =>
-      q.eq("userId", userId).eq("isDeleted", undefined)
-    )
-    .collect();
+  const cardCount = (
+    await ctx.db
+      .query("cards")
+      .withIndex("by_user_deleted", (q) =>
+        q.eq("userId", userId).eq("isDeleted", undefined)
+      )
+      .take(FREE_TIER_LIMIT)
+  ).length;
 
-  if (cards.length >= FREE_TIER_LIMIT) {
+  if (cardCount >= FREE_TIER_LIMIT) {
     throw new ConvexError({
       code: CARD_ERROR_CODES.CARD_LIMIT_REACHED,
       message: CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED,

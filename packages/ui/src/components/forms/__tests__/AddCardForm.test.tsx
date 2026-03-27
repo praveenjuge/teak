@@ -99,6 +99,7 @@ mock.module("@teak/convex", () => ({
     },
     auth: {
       getCurrentUser: {},
+      getCardCreationStatus: {},
     },
   },
 }));
