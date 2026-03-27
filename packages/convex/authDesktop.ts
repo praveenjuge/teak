@@ -1,4 +1,3 @@
-import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
 import { ConvexError, v } from "convex/values";
 import { components, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
@@ -8,6 +7,7 @@ import {
   type MutationCtx,
   mutation,
 } from "./_generated/server";
+import { resolveTeakDevAppUrl } from "./devUrls";
 
 const DESKTOP_AUTH_CODE_TTL_MS = 5 * 60 * 1000;
 const DESKTOP_AUTH_ALLOWED_ORIGINS = new Set([

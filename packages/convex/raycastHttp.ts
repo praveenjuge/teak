@@ -1,10 +1,7 @@
-import {
-  isLocalDevelopmentHostname,
-  resolveTeakDevAppUrl,
-} from "@teak/config/dev-urls";
 import { ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
+import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;

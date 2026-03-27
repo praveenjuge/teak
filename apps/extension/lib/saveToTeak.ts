@@ -1,4 +1,4 @@
-import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
+import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 import { ConvexHttpClient } from "convex/browser";
 import type { TeakSaveResponse } from "../types/messages";
 import { isSupportedInlineSaveHost } from "../types/social";

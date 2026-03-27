@@ -36,6 +36,7 @@ import type * as card_validationUtils from "../card/validationUtils.js";
 import type * as card_visualFilters from "../card/visualFilters.js";
 import type * as cards from "../cards.js";
 import type * as crons from "../crons.js";
+import type * as devUrls from "../devUrls.js";
 import type * as http from "../http.js";
 import type * as idempotency from "../idempotency.js";
 import type * as index from "../index.js";
@@ -136,6 +137,7 @@ declare const fullApi: ApiFromModules<{
   "card/visualFilters": typeof card_visualFilters;
   cards: typeof cards;
   crons: typeof crons;
+  devUrls: typeof devUrls;
   http: typeof http;
   idempotency: typeof idempotency;
   index: typeof index;

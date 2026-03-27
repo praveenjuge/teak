@@ -1,7 +1,7 @@
 import {
   isLocalDevelopmentHostname,
   resolveTeakDevAppUrl,
-} from "@teak/config/dev-urls";
+} from "@teak/convex/dev-urls";
 
 export const resolvePublicAppOrigin = (requestUrl: URL): string => {
   if (isLocalDevelopmentHostname(requestUrl.hostname)) {

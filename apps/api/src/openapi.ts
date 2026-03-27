@@ -1,4 +1,4 @@
-import { resolveTeakDevApiUrl } from "@teak/config/dev-urls";
+import { resolveTeakDevApiUrl } from "@teak/convex/dev-urls";
 
 const apiKeySecurity = [{ bearerAuth: [] }];
 

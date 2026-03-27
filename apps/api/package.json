@@ -14,7 +14,7 @@
     "@hono/mcp": "^0.2.4",
     "@hono/node-server": "^1.19.11",
     "@modelcontextprotocol/sdk": "^1.27.1",
-    "@teak/config": "workspace:*",
+    "@teak/convex": "workspace:*",
     "dotenv": "^17.2.2",
     "hono": "^4.12.9",
     "zod": "^4.3.6"

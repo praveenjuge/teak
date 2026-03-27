@@ -5,7 +5,7 @@
  * Usage: bun run src/tests/setup-test-user.ts (from apps/web)
  */
 
-import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
+import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 import dotenv from "dotenv";
 
 dotenv.config({ path: "../../.env.local" });

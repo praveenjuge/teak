@@ -3,10 +3,6 @@ import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { requireActionCtx } from "@convex-dev/better-auth/utils";
 import { Resend } from "@convex-dev/resend";
-import {
-  isLocalDevelopmentUrl,
-  resolveTeakDevAppUrl,
-} from "@teak/config/dev-urls";
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { ConvexError } from "convex/values";
 import { api, components } from "./_generated/api";
@@ -19,6 +15,7 @@ import {
 } from "./_generated/server";
 import authConfig from "./auth.config";
 import { polar } from "./billing";
+import { isLocalDevelopmentUrl, resolveTeakDevAppUrl } from "./devUrls";
 import { captureBackendEvent } from "./posthog";
 import {
   CARD_ERROR_CODES,

@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import { describe, expect, mock, test } from "bun:test";
-import { DEFAULT_TEAK_DEV_APP_URL } from "@teak/config/dev-urls";
+import { DEFAULT_TEAK_DEV_APP_URL } from "../devUrls";
 
 const mockCaptureBackendEvent = mock().mockResolvedValue(undefined);
 const mockCustomersCreate = mock().mockResolvedValue({ id: "cust_1" });

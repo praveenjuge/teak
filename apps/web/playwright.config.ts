@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
+import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 import dotenv from "dotenv";
 
 // Load .env.local for E2E tests

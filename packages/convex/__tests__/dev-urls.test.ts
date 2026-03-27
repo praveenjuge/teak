@@ -8,7 +8,7 @@ import {
   resolveTeakDevApiUrl,
   resolveTeakDevAppUrl,
   resolveTeakDevDocsUrl,
-} from "./dev-urls";
+} from "../devUrls";
 
 describe("dev URL config", () => {
   test("uses the canonical Teak local defaults", () => {

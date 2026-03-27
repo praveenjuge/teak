@@ -1,9 +1,9 @@
 import { Polar } from "@convex-dev/polar";
 import { Polar as PolarBilling } from "@polar-sh/sdk";
-import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
 import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
 import { action, query } from "./_generated/server";
+import { resolveTeakDevAppUrl } from "./devUrls";
 import { captureBackendEvent } from "./posthog";
 
 // User query to use in the Polar component

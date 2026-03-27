@@ -1,4 +1,4 @@
-import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
+import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 
 /**
  * Gets the Better Auth session token from the web app's cookies.

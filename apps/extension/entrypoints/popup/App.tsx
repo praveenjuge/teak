@@ -1,4 +1,4 @@
-import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
+import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 import {
   AlertTriangle,
   ArrowRight,

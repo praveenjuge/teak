@@ -7,6 +7,9 @@ export { api, internal } from "./_generated/api";
 // Type exports (no runtime code)
 export type { Doc, Id } from "./_generated/dataModel";
 
+// Shared runtime-safe utilities
+export * from "./devUrls";
+
 // Shared utilities and constants (client-safe)
 export * from "./shared";
 

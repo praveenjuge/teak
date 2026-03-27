@@ -1,5 +1,5 @@
-import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
 import { api } from "@teak/convex";
+import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 import { NextResponse } from "next/server";
 import { fetchAuthMutation, isAuthenticated } from "@/lib/auth-server";
 import { buildPublicAppUrl } from "@/lib/public-app-url";

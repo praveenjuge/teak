@@ -1,4 +1,4 @@
-import { resolveTeakDevAppUrl } from "@teak/config/dev-urls";
+import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 
 const PROD_WEB_URL = "https://app.teakvault.com";
 

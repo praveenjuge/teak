@@ -2,7 +2,7 @@ import { environment } from "@raycast/api";
 import {
   resolveTeakDevApiUrl,
   resolveTeakDevAppUrl,
-} from "@teak/config/dev-urls";
+} from "@teak/convex/dev-urls";
 
 export const TEAK_APP_URL = "https://app.teakvault.com";
 export const TEAK_DEV_APP_URL = resolveTeakDevAppUrl(process.env);
