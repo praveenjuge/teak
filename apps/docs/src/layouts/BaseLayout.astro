@@ -1,6 +1,7 @@
 ---
+import { Font } from "astro:assets";
 import BackgroundPattern from "../components/BackgroundPattern.astro";
-import "../styles/global.css";
+import "../styles/starlight.css";
 
 interface Props {
   title?: string;
@@ -51,6 +52,7 @@ function buildJsonLd(schema: object | object[]) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <Font cssVariable="--font-sn-pro" preload />
     <link rel="icon" type="image/png" href="/icon.png" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
@@ -86,7 +88,7 @@ function buildJsonLd(schema: object | object[]) {
 
     <meta name="referrer" content="strict-origin-when-cross-origin" />
   </head>
-  <body class="flex min-h-screen flex-col font-sans text-base antialiased [font-feature-settings:'ss01'] [text-rendering:optimizeLegibility]">
+  <body class="flex min-h-screen flex-col font-sans text-base antialiased font-feature-settings-['ss01'] [text-rendering:optimizeLegibility]">
     <!-- Background Pattern -->
     <div class="pointer-events-none absolute top-0 left-0 -z-10 h-150 w-full overflow-hidden">
       <BackgroundPattern />

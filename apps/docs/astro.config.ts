@@ -1,14 +1,41 @@
 import sitemap from "@astrojs/sitemap";
 import starlight from "@astrojs/starlight";
 import tailwindcss from "@tailwindcss/vite";
-import { defineConfig } from "astro/config";
+import { defineConfig, fontProviders } from "astro/config";
 
 export default defineConfig({
   site: "https://teakvault.com",
   output: "static",
+  fonts: [
+    {
+      provider: fontProviders.local(),
+      name: "SN Pro",
+      cssVariable: "--font-sn-pro",
+      options: {
+        variants: [
+          {
+            weight: "200 900",
+            style: "normal",
+            src: [
+              "./src/assets/fonts/SNPro-VariableRegular.woff2",
+              "./src/assets/fonts/SNPro-VariableRegular.woff",
+            ],
+          },
+          {
+            weight: "200 900",
+            style: "italic",
+            src: ["./src/assets/fonts/SNPro-VariableItalic.woff2"],
+          },
+        ],
+      },
+    },
+  ],
   integrations: [
     starlight({
       title: "Teak",
+      components: {
+        Head: "./src/components/StarlightHead.astro",
+      },
       logo: {
         dark: "./src/assets/logo-dark.svg",
         light: "./src/assets/logo-light.svg",
@@ -74,10 +101,5 @@ export default defineConfig({
   },
   security: {
     csp: true,
-  },
-  experimental: {
-    queuedRendering: {
-      enabled: true,
-    },
   },
 });
