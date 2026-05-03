@@ -1,0 +1,24 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  emojiSrc?: string;
+  emojiAlt?: string;
+}
+
+const { title, description, emojiSrc, emojiAlt } = Astro.props;
+---
+
+<div class="flex flex-col items-center justify-center text-center">
+  {emojiSrc && (
+    <img
+      alt={emojiAlt || ""}
+      class="size-14 object-contain"
+      height="56"
+      src={emojiSrc}
+      width="56"
+    />
+  )}
+  <h3 class="mt-3 mb-1.5 font-semibold text-lg">{title}</h3>
+  <p class="text-balance text-muted-foreground">{description}</p>
+</div>

@@ -1,0 +1,26 @@
+---
+import HomeLayout from "../layouts/HomeLayout.astro";
+import { AppsGrid } from "../components/AppsGrid";
+---
+
+<HomeLayout
+  title="Teak Apps | Desktop, Web, API, iOS, Chrome Extension, and Raycast"
+  description="Use Teak on desktop, web, API, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device."
+  canonical="https://teakvault.com/apps"
+  ogTitle="Teak Apps"
+  ogDescription="Use Teak on desktop, web, API, iPhone, Chrome, and Raycast. Capture ideas anywhere and reopen them instantly on every device."
+  keywords="teak desktop app, teak apps, teak api, teak ios, teak chrome extension, teak raycast extension, teak web app, visual bookmarking apps, cross platform inspiration"
+>
+  <main class="px-4 py-16">
+    <section class="mx-auto flex max-w-md flex-col items-center gap-4 text-center">
+      <h1 class="text-balance font-bold text-4xl tracking-tighter md:text-5xl">
+        Teak, everywhere you create
+      </h1>
+      <p class="text-lg text-muted-foreground">
+        Desktop, web, API, iPhone, Chrome, and Raycast stay perfectly in sync
+        so the inspiration you save once is waiting on every device.
+      </p>
+    </section>
+    <AppsGrid client:load />
+  </main>
+</HomeLayout>

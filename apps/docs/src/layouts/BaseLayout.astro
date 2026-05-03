@@ -1,0 +1,109 @@
+---
+import BackgroundPattern from "../components/BackgroundPattern.astro";
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+  canonical?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogType?: string;
+  ogImage?: string;
+  twitterCard?: string;
+  keywords?: string;
+  jsonLd?: object | object[];
+  noIndex?: boolean;
+}
+
+const {
+  title = "Never Lose That Perfect Design Again | Teak",
+  description = "Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again. The visual bookmarking tool made for designers and developers.",
+  canonical = "https://teakvault.com",
+  ogTitle = "Teak - Visual Bookmarking & Design Inspiration Manager",
+  ogDescription = "Complete guide to setting up and using Teak for visual bookmarking and design inspiration management across all platforms",
+  ogType = "website",
+  ogImage = "/hero-image.png",
+  twitterCard = "summary_large_image",
+  keywords = "teak, visual bookmarking, design inspiration management, design bookmarks, visual inspiration, design workflow, developer resources",
+  jsonLd,
+  noIndex = false,
+} = Astro.props;
+
+const fullTitle = title.includes("| Teak") ? title : `${title} | Teak`;
+
+function buildJsonLd(schema: object | object[]) {
+  if (Array.isArray(schema)) {
+    return JSON.stringify({
+      "@context": "https://schema.org",
+      "@graph": schema.map((item) => {
+        const { "@context": _, ...rest } = item as Record<string, unknown>;
+        return rest;
+      }),
+    });
+  }
+  return JSON.stringify(schema);
+}
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    {keywords && <meta name="keywords" content={keywords} />}
+    <meta name="author" content="Teak Team" />
+    <link rel="canonical" href={canonical} />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content={ogTitle || title} />
+    <meta property="og:description" content={ogDescription || description} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content="Teak" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content={twitterCard} />
+    <meta name="twitter:title" content={ogTitle || title} />
+    <meta name="twitter:description" content={ogDescription || description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <!-- Robots -->
+    {noIndex ? (
+      <meta name="robots" content="noindex, nofollow" />
+    ) : (
+      <meta name="robots" content="index, follow" />
+    )}
+
+    <!-- JSON-LD -->
+    {jsonLd && <script is:inline type="application/ld+json" set:html={buildJsonLd(jsonLd)} />}
+
+    <!-- Security Headers (handled by Vercel, but meta fallbacks) -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+  </head>
+  <body class="flex min-h-screen flex-col font-sans text-base antialiased [font-feature-settings:'ss01'] [text-rendering:optimizeLegibility]">
+    <!-- Background Pattern -->
+    <div class="pointer-events-none absolute top-0 left-0 -z-10 h-150 w-full overflow-hidden">
+      <BackgroundPattern />
+    </div>
+    <slot />
+    <!-- PostHog Analytics -->
+    <script>
+      import posthog from "posthog-js";
+      posthog.init("phc_jQhSE8ny0K3dgwqH0L8AyIPo1LPbVTqyfcJ2eCPgcSZ", {
+        api_host: "https://us.i.posthog.com",
+        ui_host: "https://us.posthog.com",
+        defaults: "2026-01-30",
+        capture_exceptions: true,
+        debug: import.meta.env.DEV,
+      });
+    </script>
+  </body>
+</html>

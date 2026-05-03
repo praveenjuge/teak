@@ -1,0 +1,49 @@
+---
+import HomeLayout from "../../layouts/HomeLayout.astro";
+import { authors } from "../../lib/authors";
+
+const authorList = Object.values(authors);
+---
+
+<HomeLayout
+  title="Team"
+  description="Meet the team behind Teak, the visual bookmarking platform."
+  canonical="https://teakvault.com/authors"
+  ogTitle="Teak Team"
+  ogDescription="Meet the team behind Teak, the visual bookmarking platform."
+  keywords="teak team, teak authors, teak developers, who made teak"
+>
+  <div class="container mx-auto max-w-2xl px-4 py-12">
+    <div class="mx-auto mt-10 mb-12 max-w-md text-center">
+      <h1 class="mb-4 text-balance font-bold text-4xl tracking-tight md:text-5xl">
+        Team
+      </h1>
+      <p class="text-balance text-lg text-muted-foreground">
+        The people building Teak
+      </p>
+    </div>
+    <div class="grid gap-6">
+      {authorList.map((author) => (
+        <a
+          class="flex items-center gap-4 rounded-xl border bg-background p-6 transition-colors hover:border-primary/50 hover:bg-muted/50"
+          href={`/authors/${author.id}`}
+        >
+          <img
+            alt={author.name}
+            class="rounded-full"
+            height="64"
+            src={author.avatar}
+            width="64"
+          />
+          <div>
+            <h2 class="font-semibold text-lg">{author.name}</h2>
+            <p class="text-primary text-sm">{author.role}</p>
+            <p class="mt-1 line-clamp-2 text-muted-foreground text-sm">
+              {author.bio}
+            </p>
+          </div>
+        </a>
+      ))}
+    </div>
+  </div>
+</HomeLayout>

@@ -1,0 +1,314 @@
+---
+import HomeLayout from "../layouts/HomeLayout.astro";
+import FeatureCard from "../components/FeatureCard.astro";
+import { HomeCTA } from "../components/HomeCTA";
+import {
+  organizationSchema,
+  websiteSchema,
+  SITE_URL,
+} from "../lib/jsonld";
+
+const features = [
+  { emojiAlt: "Target face emoji", emojiSrc: "/emojis/home-why-target-face.webp", title: "Find Anything in 2 Seconds", description: "Type what you remember and find it instantly." },
+  { emojiAlt: "Smartphone emoji", emojiSrc: "/emojis/home-why-smartphone.webp", title: "Your Inspiration Follows You", description: "Save on one device and pick up anywhere." },
+  { emojiAlt: "Pressed leaf bookmark emoji", emojiSrc: "/emojis/home-why-bookmark.webp", title: "It Organizes Itself. Seriously.", description: "Smart tags keep everything tidy automatically." },
+  { emojiAlt: "Heart emoji", emojiSrc: "/emojis/home-why-heart.webp", title: "200 Cards Free", description: "Start free and upgrade only when you need." },
+];
+
+const saveContentTypes = [
+  { title: "Design Notes", description: "Notes, decisions, and ideas in one searchable place.", emojiAlt: "Sticky note emoji", emojiSrc: "/emojis/home-save-sticky-note.webp" },
+  { title: "Design Resources", description: "Tools, links, and references ready when you need them.", emojiAlt: "Retro web browser interface emoji", emojiSrc: "/emojis/home-save-browser.webp" },
+  { title: "Visual References", description: "Screenshots and mockups with useful context attached.", emojiAlt: "Underwater camera emoji", emojiSrc: "/emojis/home-save-camera.webp" },
+  { title: "Design Videos", description: "Tutorials and video inspiration, easy to find later.", emojiAlt: "Film reel emoji", emojiSrc: "/emojis/home-save-film-reel.webp" },
+  { title: "Audio Notes", description: "Voice memos and calls, transcribed and searchable.", emojiAlt: "Retro microphone emoji", emojiSrc: "/emojis/home-save-microphone.webp" },
+  { title: "Design Files", description: "Files and docs with previews and quick search.", emojiAlt: "File folder emoji", emojiSrc: "/emojis/home-save-folder.webp" },
+];
+
+const howItWorksSteps = [
+  { title: "Save in 1 Click", description: "See it, click once, and save it instantly.", emojiAlt: "Mobile phone emoji", emojiSrc: "/emojis/home-steps-mobile-phone.webp" },
+  { title: "It Organizes Itself", description: "Teak auto-tags everything in the background.", emojiAlt: "Drawer organizer emoji", emojiSrc: "/emojis/home-steps-drawer-organizer.webp" },
+  { title: "Find in 2 Seconds", description: "Search naturally and pull up exactly what you need.", emojiAlt: "Target emoji", emojiSrc: "/emojis/home-steps-target.webp" },
+  { title: "Ship Better Work", description: "Build faster with your references in one place.", emojiAlt: "Finish line emoji", emojiSrc: "/emojis/home-steps-finish-line.webp" },
+];
+
+const faqs = [
+  { question: "What can I save?", answer: "Images, links, notes, files, audio, and videos." },
+  { question: "Is my data private?", answer: "Yes. Your data is encrypted, and you can self-host." },
+  { question: "Does it work on mobile?", answer: "Yes. iOS, Android, web, Chrome extension, and Raycast." },
+  { question: "How is this different from Pinterest?", answer: "Teak is for personal workflow, not social feeds or algorithms." },
+  { question: "What if I hit 200 cards?", answer: "Your cards stay safe. Upgrade or self-host to add more." },
+  { question: "Can I export and leave?", answer: "Yes. Export anytime with no lock-in." },
+];
+
+const faqPageSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((faq) => ({
+    "@type": "Question",
+    name: faq.question,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: faq.answer,
+    },
+  })),
+};
+
+const webPageSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "@id": `${SITE_URL}/#webpage`,
+  url: SITE_URL,
+  name: "Never Lose That Perfect Design Again | Teak",
+  description: "Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again.",
+  isPartOf: { "@id": `${SITE_URL}/#website` },
+  about: { "@id": `${SITE_URL}/#organization` },
+  primaryImageOfPage: {
+    "@type": "ImageObject",
+    url: `${SITE_URL}/hero-image.png`,
+  },
+};
+---
+
+<HomeLayout
+  title="Never Lose That Perfect Design Again"
+  description="Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again."
+  canonical="https://teakvault.com"
+  ogTitle="Never Lose That Perfect Design Again"
+  ogDescription="Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again."
+  keywords="design bookmarking, visual inspiration, design organization, creative workflow, designer tools, bookmark manager"
+  jsonLd={[organizationSchema, websiteSchema, faqPageSchema, webPageSchema]}
+>
+  <!-- Hero Section -->
+  <section class="relative pt-14 md:pt-22">
+    <div class="container mx-auto px-4">
+      <div class="mx-auto mb-18 max-w-2xl text-center">
+        <h1 class="mb-4 text-balance font-bold text-4xl tracking-tight md:text-5xl">
+          Never lose that perfect design again
+        </h1>
+        <p class="mx-auto mb-6 max-w-xl text-balance text-lg text-muted-foreground">
+          Save inspiration in 1 click, find it in 2 seconds. Never lose your
+          best ideas again.
+        </p>
+        <HomeCTA client:load />
+      </div>
+
+      <!-- Hero Image -->
+      <div class="mx-auto max-w-4xl">
+        <div class="relative overflow-hidden rounded-lg">
+          <img
+            alt="Teak app interface showing various saved content types"
+            class="h-auto w-full"
+            height="800"
+            src="/hero-image.png"
+            width="1200"
+          />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Problem/Solution Section -->
+  <section class="py-20 md:py-24">
+    <div class="mx-auto max-w-4xl px-4 text-center">
+      <div class="grid gap-8 lg:grid-cols-2">
+        <div>
+          <div class="mb-4 flex justify-center">
+            <img
+              alt="Search magnifier emoji"
+              class="size-14 object-contain"
+              height="56"
+              src="/emojis/home-problem-search-magnifier.webp"
+              width="56"
+            />
+          </div>
+          <h2 class="mb-4 font-bold text-2xl">
+            You're wasting hours searching
+          </h2>
+          <div class="space-y-4">
+            <div class="flex items-center justify-center gap-3">
+              <div class="mt-1 text-destructive">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </div>
+              <p class="text-muted-foreground">
+                47 browser bookmarks you'll never check again
+              </p>
+            </div>
+            <div class="flex items-center justify-center gap-3">
+              <div class="mt-1 text-destructive">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </div>
+              <p class="text-muted-foreground">
+                Pinterest showing you wedding dresses instead of UI
+              </p>
+            </div>
+            <div class="flex items-center justify-center gap-3">
+              <div class="mt-1 text-destructive">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </div>
+              <p class="text-muted-foreground">
+                23 screenshots named 'Screen Shot 2024-...'
+              </p>
+            </div>
+            <div class="flex items-center justify-center gap-3">
+              <div class="mt-1 text-destructive">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </div>
+              <p class="text-muted-foreground">
+                That perfect button style you can't find anymore
+              </p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="mb-4 flex justify-center">
+            <img
+              alt="Target emoji"
+              class="size-14 object-contain"
+              height="56"
+              src="/emojis/home-solution-target.webp"
+              width="56"
+            />
+          </div>
+          <h3 class="mb-4 font-bold text-2xl">
+            Teak fixes this. Forever.
+          </h3>
+          <div class="space-y-4">
+            <div class="flex items-center justify-center gap-3">
+              <div class="mt-1 text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </div>
+              <p class="text-foreground">
+                Save anything in exactly 1 click
+              </p>
+            </div>
+            <div class="flex items-center justify-center gap-3">
+              <div class="mt-1 text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </div>
+              <p class="text-foreground">
+                Find that exact shade of blue in 2 seconds
+              </p>
+            </div>
+            <div class="flex items-center justify-center gap-3">
+              <div class="mt-1 text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </div>
+              <p class="text-foreground">
+                It works on your phone, laptop, and tablet
+              </p>
+            </div>
+            <div class="flex items-center justify-center gap-3">
+              <div class="mt-1 text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </div>
+              <p class="text-foreground">
+                It organizes itself. You just create.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="bg-background py-20 md:py-24">
+    <div class="container mx-auto max-w-xl px-4">
+      <div class="mb-16 text-center">
+        <h2 class="mb-4 text-balance font-bold text-3xl">
+          Why designers are switching to Teak
+        </h2>
+        <p class="mx-auto max-w-xl text-balance text-lg text-muted-foreground">
+          Finally, a bookmarking tool that doesn't suck.
+        </p>
+      </div>
+
+      <div class="grid gap-10 md:grid-cols-2">
+        {features.map((feature) => (
+          <FeatureCard
+            description={feature.description}
+            emojiAlt={feature.emojiAlt}
+            emojiSrc={feature.emojiSrc}
+            title={feature.title}
+          />
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Content Types Preview -->
+  <section class="py-20 md:py-24">
+    <div class="container mx-auto max-w-xl px-4">
+      <div class="mb-16 text-center">
+        <h2 class="mb-6 text-balance font-bold text-3xl md:text-4xl">
+          Save everything. Find anything.
+        </h2>
+        <p class="mx-auto mb-12 max-w-2xl text-balance text-lg text-muted-foreground">
+          That perfect Dribbble shot, that CodePen you'll need later,
+          that voice note about the client's feedback. Save it all.
+        </p>
+      </div>
+
+      <div class="grid gap-10 md:grid-cols-2">
+        {saveContentTypes.map((contentType) => (
+          <FeatureCard
+            description={contentType.description}
+            emojiAlt={contentType.emojiAlt}
+            emojiSrc={contentType.emojiSrc}
+            title={contentType.title}
+          />
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section class="bg-background py-20 md:py-24">
+    <div class="container mx-auto max-w-xl px-4">
+      <div class="mb-16 text-center">
+        <h2 class="mb-6 text-balance font-bold text-3xl md:text-4xl">
+          Master your inspiration in 3 minutes
+        </h2>
+        <p class="mx-auto mb-12 max-w-2xl text-balance text-lg text-muted-foreground">
+          No tutorial needed. Just save, find, create.
+        </p>
+      </div>
+
+      <div class="grid gap-10 md:grid-cols-2">
+        {howItWorksSteps.map((step) => (
+          <FeatureCard
+            description={step.description}
+            emojiAlt={step.emojiAlt}
+            emojiSrc={step.emojiSrc}
+            title={step.title}
+          />
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section class="py-20 md:py-24">
+    <div class="mx-auto max-w-4xl px-4">
+      <div class="mb-12 text-center">
+        <h2 class="mb-4 text-balance font-bold text-3xl">
+          Still have questions?
+        </h2>
+        <p class="mx-auto max-w-xl text-balance text-lg text-muted-foreground">
+          We've got answers. No corporate speak, promise.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-8 md:grid-cols-2">
+        {faqs.map((faq) => (
+          <FeatureCard
+            description={faq.answer}
+            emojiAlt=""
+            emojiSrc=""
+            title={faq.question}
+          />
+        ))}
+      </div>
+    </div>
+  </section>
+</HomeLayout>

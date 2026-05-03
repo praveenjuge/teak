@@ -1,0 +1,38 @@
+---
+import HomeLayout from "../layouts/HomeLayout.astro";
+import PricingPageClient from "../components/PricingPageClient";
+import { organizationSchema, SITE_URL } from "../lib/jsonld";
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+    { "@type": "ListItem", position: 2, name: "Pricing", item: `${SITE_URL}/pricing` },
+  ],
+};
+
+const productSchema = {
+  "@context": "https://schema.org",
+  "@type": "Product",
+  name: "Teak Pro",
+  description: "Unlimited visual bookmarking for designers and developers.",
+  brand: { "@type": "Brand", name: "Teak" },
+  offers: [
+    { "@type": "Offer", name: "Teak Pro - Monthly", price: "19.00", priceCurrency: "USD", availability: "https://schema.org/InStock", url: `${SITE_URL}/pricing` },
+    { "@type": "Offer", name: "Teak Pro - Yearly", price: "99.00", priceCurrency: "USD", availability: "https://schema.org/InStock", url: `${SITE_URL}/pricing` },
+  ],
+};
+---
+
+<HomeLayout
+  title="200 Cards Free. $19/month After. No Tricks."
+  description="Try Teak free with 200 cards. Pro is $19/month - less than 2 coffees. Or self-host for free. Simple pricing."
+  canonical="https://teakvault.com/pricing"
+  ogTitle="200 Cards Free. $19/month After. No Tricks."
+  ogDescription="Try Teak free with 200 cards. Pro is $19/month - less than 2 coffees. Or self-host for free."
+  keywords="design bookmarking pricing, visual inspiration tool, designer subscription, creative workflow pricing"
+  jsonLd={[organizationSchema, productSchema, breadcrumbSchema]}
+>
+  <PricingPageClient client:load />
+</HomeLayout>

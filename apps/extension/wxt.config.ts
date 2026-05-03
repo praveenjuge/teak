@@ -35,7 +35,7 @@ export default defineConfig({
     },
   },
   vite: () => ({
-    plugins: [tailwindcss()],
+    plugins: [tailwindcss()] as any,
     optimizeDeps: {
       // Avoid pre-bundling server-side Convex package in the browser, which pulls in Node globals.
       exclude: ["@teak/convex"],

@@ -1,7 +1,8 @@
 {
   "buildCommand": "bun run build",
   "installCommand": "bun install",
-  "framework": "nextjs",
+  "framework": null,
+  "outputDirectory": "dist",
   "bunVersion": "1.x",
   "rewrites": [
     {

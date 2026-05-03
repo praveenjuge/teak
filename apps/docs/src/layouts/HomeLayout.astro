@@ -1,0 +1,29 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+
+interface Props {
+  title?: string;
+  description?: string;
+  canonical?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogType?: string;
+  ogImage?: string;
+  twitterCard?: string;
+  keywords?: string;
+  jsonLd?: object | object[];
+  noIndex?: boolean;
+}
+
+const props = Astro.props;
+---
+
+<BaseLayout {...props}>
+  <Header />
+  <div class="pt-20">
+    <slot />
+    <Footer />
+  </div>
+</BaseLayout>

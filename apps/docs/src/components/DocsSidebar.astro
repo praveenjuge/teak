@@ -1,0 +1,39 @@
+---
+import {
+  BookOpen, Bot, Braces, Command, LifeBuoy, Monitor,
+  Puzzle, ScrollText, Server, Shield, Smartphone, Sparkles, Wrench,
+} from "lucide-react";
+import { docsNavItems, isDocsNavItemActive } from "../lib/docs-navigation";
+
+interface Props {
+  currentPath: string;
+}
+
+const { currentPath } = Astro.props;
+
+const iconMap: Record<string, any> = {
+  BookOpen, Bot, Braces, Command, LifeBuoy, Monitor,
+  Puzzle, ScrollText, Server, Shield, Smartphone, Sparkles, Wrench,
+};
+---
+
+<nav class="space-y-1">
+  {docsNavItems.map((item) => {
+    const active = isDocsNavItemActive(item.href, currentPath);
+    const Icon = iconMap[item.icon];
+    return (
+      <a
+        href={item.href}
+        class:list={[
+          "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+          active
+            ? "bg-background font-medium text-foreground"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        ]}
+      >
+        {Icon && <Icon className="size-4 shrink-0" />}
+        <span>{item.title}</span>
+      </a>
+    );
+  })}
+</nav>

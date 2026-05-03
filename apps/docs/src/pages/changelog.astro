@@ -1,0 +1,77 @@
+---
+import { getCollection, render } from "astro:content";
+import type { CollectionEntry } from "astro:content";
+import HomeLayout from "../layouts/HomeLayout.astro";
+import { FollowOnXButton } from "../components/FollowOnXButton";
+import { getDefaultAuthor } from "../lib/authors";
+
+const entries = await getCollection("changelog");
+const sortedEntries = entries.sort(
+  (a: CollectionEntry<"changelog">, b: CollectionEntry<"changelog">) =>
+    new Date(b.data.date).getTime() - new Date(a.data.date).getTime()
+);
+
+const author = getDefaultAuthor();
+
+// Pre-render all changelog entries
+const renderedEntries = await Promise.all(
+  sortedEntries.map(async (entry: CollectionEntry<"changelog">) => {
+    const { Content } = await render(entry);
+    return { entry, Content };
+  })
+);
+
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+---
+
+<HomeLayout
+  title="What's New in Teak"
+  description="See how we're making Teak better every week. Real updates, no fluff."
+  canonical="https://teakvault.com/changelog"
+  ogTitle="What's New in Teak"
+  ogDescription="See how we're making Teak better every week. Real updates, no fluff."
+  keywords="teak changelog, teak updates, what's new teak, teak release notes, teak new features"
+>
+  <div class="container mx-auto max-w-2xl px-4 py-12">
+    <div class="mx-auto mt-10 mb-12 max-w-md text-center">
+      <h1 class="mb-4 text-balance font-bold text-4xl tracking-tight md:text-5xl">
+        What's New
+      </h1>
+      <p class="mb-6 text-balance text-lg text-muted-foreground">
+        Real updates that make Teak better. No corporate fluff, promise.
+      </p>
+      <FollowOnXButton client:load />
+    </div>
+
+    <div class="space-y-8">
+      {renderedEntries.map(({ entry, Content }) => (
+        <article class="rounded-xl border bg-background p-7">
+          <div class="mb-4 flex gap-2">
+            <p class="text-muted-foreground text-sm">
+              {formatDate(entry.data.date)}
+            </p>
+            <a
+              class="inline-flex items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+              href={`/authors/${author.id}`}
+            >
+              &bull;<span>By {author.name}</span>
+            </a>
+          </div>
+          <h2 class="mb-4 text-balance font-semibold text-2xl">
+            {entry.data.title}
+          </h2>
+          <div class="prose prose-zinc max-w-none">
+            <Content />
+          </div>
+        </article>
+      ))}
+    </div>
+  </div>
+</HomeLayout>
