@@ -10,6 +10,8 @@ const config: Configuration = {
     buildResources: "build",
   },
 
+  forceCodeSigning: true,
+
   files: ["out/**/*"],
 
   mac: {
@@ -25,8 +27,12 @@ const config: Configuration = {
     ],
     category: "public.app-category.productivity",
     minimumSystemVersion: "13.0",
-    identity: null,
+    hardenedRuntime: true,
+    identity: "Juge Praveen (LW385M78LW)",
+    entitlements: "build/entitlements.mac.plist",
+    entitlementsInherit: "build/entitlements.mac.inherit.plist",
     icon: "build/icon.icns",
+    notarize: true,
   },
 
   dmg: {

@@ -9,6 +9,9 @@ concurrency:
   group: desktop-release-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  contents: write
+
 jobs:
   build-mac-arm64:
     runs-on: macos-14
@@ -26,6 +29,32 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Prepare Apple signing credentials
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+        run: |
+          missing=()
+          for name in APPLE_API_KEY_ID APPLE_API_KEY_P8 APPLE_API_ISSUER CSC_KEY_PASSWORD CSC_LINK; do
+            if [ -z "${!name}" ]; then
+              missing+=("$name")
+            fi
+          done
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required desktop release secret(s): %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
+          key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY_P8" > "$key_path"
+          chmod 600 "$key_path"
+
+          echo "APPLE_API_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+
       - name: Build Electron app
         working-directory: apps/desktop
         env:
@@ -34,8 +63,47 @@ jobs:
           VITE_PUBLIC_CONVEX_SITE_URL: https://uncommon-ladybug-882.convex.site
         run: bun run build
 
-      - name: Package and publish
+      - name: Package signed and notarized app
+        working-directory: apps/desktop
+        env:
+          APPLE_API_KEY: ${{ env.APPLE_API_KEY_PATH }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+        run: npx electron-builder --mac --arm64 --config electron-builder.config.ts --publish never
+
+      - name: Verify macOS release artifacts
+        working-directory: apps/desktop
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          version="${TAG_NAME#v}"
+          app_path="release/mac-arm64/Teak.app"
+          codesign --verify --deep --strict --verbose=4 "$app_path"
+          spctl --assess --type execute --verbose=4 "$app_path"
+          xcrun stapler validate "$app_path"
+          test -f release/latest-mac.yml
+          test -f "release/Teak-${version}-arm64.dmg"
+          test -f "release/Teak-${version}-arm64-mac.zip"
+
+      - name: Publish GitHub release assets
         working-directory: apps/desktop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --mac --arm64 --config electron-builder.config.ts --publish always
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          version="${TAG_NAME#v}"
+          assets=(
+            "release/latest-mac.yml"
+            "release/Teak-${version}-arm64.dmg"
+            "release/Teak-${version}-arm64.dmg.blockmap"
+            "release/Teak-${version}-arm64-mac.zip"
+            "release/Teak-${version}-arm64-mac.zip.blockmap"
+          )
+
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "${assets[@]}" --clobber
+          else
+            gh release create "$TAG_NAME" "${assets[@]}" --title "$version" --verify-tag
+          fi

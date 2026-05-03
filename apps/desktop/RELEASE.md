@@ -19,8 +19,10 @@ This runbook defines Teak desktop launch and incident response for macOS Apple S
    - Creates and pushes `v<version>` tag
 3. `Desktop Release` workflow runs from that tag:
    - Builds renderer, main, and preload via `electron-vite build`
-   - Packages, signs, and notarizes macOS Apple Silicon DMG/zip via `electron-builder`
-   - Publishes GitHub Release assets including `latest-mac.yml` updater metadata
+   - Imports signing credentials from GitHub Actions secrets
+   - Packages, signs, and notarizes the macOS Apple Silicon app via `electron-builder`
+   - Verifies codesign, Gatekeeper assessment, and the stapled notarization ticket
+   - Publishes GitHub Release assets including `latest-mac.yml` updater metadata only after verification passes
 4. Validate release gates:
    - Codesign verification (`codesign --verify --deep --strict`)
    - Gatekeeper assessment (`spctl --assess --type execute`)
@@ -62,11 +64,11 @@ Use rollback when critical regressions impact launch, auth, sync, or update safe
 
 ## Required CI Secrets
 
-- `CSC_LINK` — Base64-encoded `.p12` signing certificate
+- `CSC_LINK` — Base64-encoded Developer ID Application `.p12` signing certificate
 - `CSC_KEY_PASSWORD` — Password for the signing certificate
-- `APPLE_TEAM_ID` — Apple Developer Team ID for notarization
-- `APPLE_ID` — Apple ID email for notarization
-- `APPLE_APP_SPECIFIC_PASSWORD` — App-specific password for notarization
+- `APPLE_API_KEY_ID` — App Store Connect API key ID for notarization
+- `APPLE_API_KEY_P8` — Raw `.p8` App Store Connect API private key content for notarization
+- `APPLE_API_ISSUER` — App Store Connect API issuer UUID for notarization
 - `GH_TOKEN` — GitHub token for publishing releases
 - `VITE_WEB_URL`
 - `VITE_PUBLIC_CONVEX_URL`
