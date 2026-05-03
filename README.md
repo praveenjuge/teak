@@ -15,7 +15,7 @@ teak/
 │   ├── web/        # Next.js app
 │   ├── api/        # Hono API gateway
 │   ├── mobile/     # Expo app
-│   ├── desktop/    # Tauri desktop app
+│   ├── desktop/    # Electron desktop app
 │   ├── extension/  # Browser extension
 │   ├── raycast/    # Raycast extension
 │   └── docs/       # Documentation site (Astro)

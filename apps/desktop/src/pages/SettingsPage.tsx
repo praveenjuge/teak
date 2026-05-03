@@ -1,4 +1,3 @@
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { api } from "@teak/convex";
 import { useQuery } from "@teak/ui/convex-query-hooks";
 import { SettingsShell } from "@teak/ui/screens";
@@ -34,7 +33,7 @@ export function SettingsPage() {
     const toastId = toast.loading("Opening customer portal...");
     try {
       const portalUrl = await createCustomerPortal({});
-      await openUrl(portalUrl);
+      await window.teakDesktop.shell.openExternal(portalUrl);
       toast.success("Customer portal opened", { id: toastId });
     } catch (error) {
       console.error("Failed to open customer portal", error);
@@ -63,7 +62,7 @@ export function SettingsPage() {
 
     try {
       const deleteUrl = buildWebUrl("/settings");
-      await openUrl(deleteUrl);
+      await window.teakDesktop.shell.openExternal(deleteUrl);
       setDeleteDialogOpen(false);
     } catch {
       setDeleteError("Failed to open account deletion page.");
@@ -74,7 +73,7 @@ export function SettingsPage() {
 
   const handleUpgradeClick = async () => {
     const upgradeUrl = buildWebUrl("/settings");
-    await openUrl(upgradeUrl);
+    await window.teakDesktop.shell.openExternal(upgradeUrl);
   };
 
   return (

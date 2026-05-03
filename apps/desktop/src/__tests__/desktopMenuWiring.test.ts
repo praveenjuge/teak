@@ -4,44 +4,64 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("desktop menu wiring", () => {
-  it("wires shared menu events through the declarative registry", () => {
+  it("wires shared menu events through the Electron preload bridge", () => {
     const appSource = readFileSync(
       resolve(import.meta.dir, "../App.tsx"),
-      "utf8"
-    );
-    const settingsSource = readFileSync(
-      resolve(import.meta.dir, "../pages/SettingsPage.tsx"),
       "utf8"
     );
     const menuHookSource = readFileSync(
       resolve(import.meta.dir, "../hooks/useDesktopMenuEvents.ts"),
       "utf8"
     );
-    const rustSource = readFileSync(
-      resolve(import.meta.dir, "../../src-tauri/src/lib.rs"),
+    const mainSource = readFileSync(
+      resolve(import.meta.dir, "../main/index.ts"),
+      "utf8"
+    );
+    const preloadSource = readFileSync(
+      resolve(import.meta.dir, "../preload/index.ts"),
       "utf8"
     );
 
+    // App wires settings and logout menu events
     expect(appSource).toContain("onSettings: handleSettingsMenuClick");
-    expect(appSource).toContain("onCheckForUpdates");
-    expect(appSource).toContain("checkForUpdatesInteractively");
+    expect(appSource).toContain("onLogout");
     expect(appSource).not.toContain("onPreferences");
+    // Check for Updates is postponed in Electron migration
+    expect(appSource).not.toContain("onCheckForUpdates");
 
+    // Menu hook uses the preload bridge, not Tauri event listener
+    expect(menuHookSource).toContain("window.teakDesktop.onMenuEvent");
     expect(menuHookSource).toContain('"desktop://menu/settings"');
-    expect(menuHookSource).toContain('"desktop://menu/check-for-updates"');
-    expect(menuHookSource).not.toContain('"desktop://menu/preferences"');
+    expect(menuHookSource).toContain('"desktop://menu/logout"');
+    expect(menuHookSource).not.toContain("@tauri-apps");
 
-    expect(settingsSource).not.toContain('window.addEventListener("keydown"');
+    // Main process defines the macOS menu with Settings and Log Out
+    expect(mainSource).toContain('"Settings..."');
+    expect(mainSource).toContain('"Log Out"');
+    expect(mainSource).toContain("desktop://menu/settings");
+    expect(mainSource).toContain("desktop://menu/logout");
 
-    expect(rustSource).toContain("const MENU_ACTIONS: [MenuAction; 5]");
-    expect(rustSource).toContain("event_name: Some(MENU_SETTINGS_EVENT)");
-    expect(rustSource).toContain("event_name: Some(MENU_CHECK_UPDATES_EVENT)");
-    expect(rustSource).toContain("event_name: Some(MENU_LOGOUT_EVENT)");
-    expect(rustSource).toContain(
-      "native_handler: Some(NativeMenuHandler::CloseWindow)"
-    );
-    expect(rustSource).toContain(
-      "native_handler: Some(NativeMenuHandler::Quit)"
-    );
+    // Preload exposes onMenuEvent with allowed channels
+    expect(preloadSource).toContain("desktop://menu/settings");
+    expect(preloadSource).toContain("desktop://menu/logout");
+    expect(preloadSource).toContain("contextBridge.exposeInMainWorld");
+  });
+
+  it("does not import any Tauri packages in renderer code", () => {
+    const files = [
+      "../App.tsx",
+      "../hooks/useDesktopMenuEvents.ts",
+      "../hooks/useDesktopUpdater.ts",
+      "../hooks/useGlobalDragDrop.ts",
+      "../lib/auth-window.ts",
+      "../lib/store.ts",
+      "../pages/CardsPage.tsx",
+      "../pages/SettingsPage.tsx",
+    ];
+
+    for (const file of files) {
+      const source = readFileSync(resolve(import.meta.dir, file), "utf8");
+      expect(source).not.toContain("@tauri-apps");
+    }
   });
 });

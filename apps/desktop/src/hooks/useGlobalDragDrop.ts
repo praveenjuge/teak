@@ -1,4 +1,3 @@
-import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   useFileUpload,
   useGlobalDragDrop as useSharedGlobalDragDrop,
@@ -10,7 +9,7 @@ export function useGlobalDragDrop() {
   const { uploadMultipleFiles } = useFileUpload();
 
   const handleUpgrade = useCallback(() => {
-    void openUrl(buildWebUrl("/settings"));
+    void window.teakDesktop.shell.openExternal(buildWebUrl("/settings"));
   }, []);
 
   return useSharedGlobalDragDrop({

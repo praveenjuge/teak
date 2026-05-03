@@ -17,7 +17,7 @@ bun run dev:web        # Next.js web + Convex
 bun run dev:convex     # Convex backend only
 bun run dev:api        # Hono API gateway
 bun run dev:mobile     # Expo mobile app
-bun run dev:desktop    # Tauri desktop app
+bun run dev:desktop    # Electron desktop app
 bun run dev:extension  # Browser extension + Convex
 bun run dev:raycast    # Raycast extension
 bun run dev:docs       # Documentation site
@@ -59,7 +59,7 @@ teak/
 │   ├── web/         # Next.js frontend (app router, shadcn/ui)
 │   ├── api/         # Public API gateway (Hono)
 │   ├── mobile/      # Expo RN mobile app
-│   ├── desktop/     # Tauri v2 desktop app (Rust + React)
+│   ├── desktop/     # Electron desktop app (React)
 │   ├── extension/   # Chrome extension (Wxt)
 │   ├── raycast/     # Raycast extension
 │   └── docs/        # Documentation site (Astro + Starlight)
@@ -90,7 +90,7 @@ teak/
 
 - **Web (apps/web/)**: `src/app/(auth)/`, `src/app/(settings)/admin`, `src/globals.css`, `src/layout.tsx`, `src/page.tsx`; components include `ConvexClientProvider`, card previews, `DragOverlay`, `CardModal`, `AddCardForm`, `MasonryGrid`, `SearchBar`, patterns, shadcn/ui; hooks (`useCardActions`, `useCardModal`, `useGlobalDragDrop`); config (`next.config.ts`, `eslint.config.mjs`, `components.json`).
 - **Mobile (apps/mobile/)**: `app/(auth)/`, `app/(tabs)/index.tsx|add.tsx|settings.tsx`, `_layout.tsx`; components (Expo UI, `CardItem`, `CardsGrid`); `lib/hooks`; `package.json`.
-- **Desktop (apps/desktop/)**: Tauri v2 app with React frontend; `src/` for React components; `src-tauri/` for Rust backend (commands, permissions, capabilities); `vite.config.ts`, `tauri.conf.json`.
+- **Desktop (apps/desktop/)**: Electron app with React frontend; `src/main/` for Electron main process; `src/preload/` for context bridge; `src/` for React renderer components; `electron.vite.config.ts`, `electron-builder.config.ts`.
 - **Extension (apps/extension/)**: `src/background.ts`, `content.tsx`, `popup.tsx`; hooks (`useAutoSaveLink`, `useContextMenuSave`, `useContextMenuState`); types `contextMenu.ts`; `style.css`; assets `icon.png`; `package.json`; `tsconfig.json`.
 - **Raycast (apps/raycast/)**: Raycast extension with commands (`quick-save`, `search-cards`, `favorites`), API client helpers, and extension metadata/changelog.
 - **API (apps/api/)**: Hono-based API gateway for public endpoints and health/version routes; source in `src/index.ts` and runtime entrypoint `src/server.ts`.

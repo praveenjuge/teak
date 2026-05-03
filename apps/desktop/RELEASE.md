@@ -9,37 +9,26 @@ This runbook defines Teak desktop launch and incident response for macOS Apple S
 - Incident channel: `#desktop-release`
 - On-call window: first 72 hours after each production desktop release
 
-## One-Time `teakvault.com/updates` Setup (Vercel)
-
-1. Use the existing `teakvault.com` docs Vercel project.
-2. Ensure the Vercel project Root Directory is `apps/docs`.
-3. Confirm automatic production deployments from `main` are enabled.
-4. Deploy once from `main` so the updater rewrite in `apps/docs/vercel.json` is active.
-
 ## Promotion Procedure
 
 1. Update root `package.json` `version`, then push to `main`.
 2. `Version Bump` workflow runs automatically:
    - Syncs every workspace `package.json` to the root version
-   - Syncs `apps/desktop/src-tauri/tauri.conf.json` and `apps/desktop/src-tauri/Cargo.toml`
    - Syncs `apps/mobile/app.json`, `apps/mobile/store.config.json`, and `apps/extension/wxt.config.ts`
    - Pushes sync commit if needed
    - Creates and pushes `v<version>` tag
 3. `Desktop Release` workflow runs from that tag:
-   - Builds/signs/notarizes/staples macOS Apple Silicon release
-   - Publishes GitHub Release assets
-   - Writes updater metadata JSON files into `apps/docs/public/updates/darwin/aarch64/`
-   - Pushes metadata commit to `main`
-4. Vercel detects the new `apps/docs` commit and deploys `teakvault.com`.
-5. Validate release gates:
-   - Codesign verification
-   - Gatekeeper assessment
-   - Stapler validation
+   - Builds renderer, main, and preload via `electron-vite build`
+   - Packages, signs, and notarizes macOS Apple Silicon DMG/zip via `electron-builder`
+   - Publishes GitHub Release assets including `latest-mac.yml` updater metadata
+4. Validate release gates:
+   - Codesign verification (`codesign --verify --deep --strict`)
+   - Gatekeeper assessment (`spctl --assess --type execute`)
    - Smoke test install from DMG
-6. Verify updater metadata publish:
-   - `https://teakvault.com/updates/darwin/aarch64/latest.json`
-   - `https://teakvault.com/updates/darwin/aarch64/<current_version>`
-7. Announce release in team channel with:
+5. Verify updater metadata publish:
+   - `latest-mac.yml` is present in the GitHub Release assets
+   - `electron-updater` resolves the new version on a test machine
+6. Announce release in team channel with:
    - Version
    - Release URL
    - Known issues (if any)
@@ -49,13 +38,10 @@ This runbook defines Teak desktop launch and incident response for macOS Apple S
 Use rollback when critical regressions impact launch, auth, sync, or update safety.
 
 1. Identify last known good release tag.
-2. Repoint updater metadata on `teakvault.com/updates` to the last good bundle for:
-   - `darwin/aarch64/latest.json`
-   - all active current-version paths (`darwin/aarch64/<version>`)
-3. Re-deploy Vercel docs project after metadata rollback commit to `main`.
-4. Mark bad GitHub Release as pre-release or add a warning note.
-5. Update `/apps` and support communications to steer users to stable build.
-6. Post-incident notes:
+2. Edit the GitHub Release for the bad version: mark as pre-release or add a warning note.
+3. Re-publish the last good version's `latest-mac.yml` as a new GitHub Release so `electron-updater` picks it up.
+4. Update `/apps` and support communications to steer users to stable build.
+5. Post-incident notes:
    - impact window
    - root cause
    - corrective actions
@@ -70,23 +56,18 @@ Use rollback when critical regressions impact launch, auth, sync, or update safe
 ## Release Artifacts
 
 - DMG installer for manual install.
-- Signed updater archive + `.sig` for auto-update flow.
+- Zip archive for auto-update delivery via `electron-updater`.
+- `latest-mac.yml` metadata for `electron-updater` version resolution.
 - GitHub Release description is intentionally left empty by the release workflow.
 
 ## Required CI Secrets
 
-- Updater keypair (generated with `bunx tauri signer generate`):
-  - Public key belongs in `apps/desktop/src-tauri/tauri.conf.json`
-  - Private key goes to `TAURI_SIGNING_PRIVATE_KEY`
-  - Password goes to `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
-- `TAURI_SIGNING_PRIVATE_KEY`
-- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
-- `APPLE_CERTIFICATE_BASE64`
-- `APPLE_CERTIFICATE_PASSWORD`
-- `APPLE_SIGNING_IDENTITY`
-- `APPLE_API_ISSUER`
-- `APPLE_API_KEY_ID`
-- `APPLE_API_KEY_P8_BASE64`
+- `CSC_LINK` — Base64-encoded `.p12` signing certificate
+- `CSC_KEY_PASSWORD` — Password for the signing certificate
+- `APPLE_TEAM_ID` — Apple Developer Team ID for notarization
+- `APPLE_ID` — Apple ID email for notarization
+- `APPLE_APP_SPECIFIC_PASSWORD` — App-specific password for notarization
+- `GH_TOKEN` — GitHub token for publishing releases
 - `VITE_WEB_URL`
 - `VITE_PUBLIC_CONVEX_URL`
 - `VITE_PUBLIC_CONVEX_SITE_URL`

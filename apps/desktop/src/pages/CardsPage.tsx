@@ -1,4 +1,3 @@
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { Button } from "@teak/ui/components/ui/button";
 import { useCardQueryParamState } from "@teak/ui/hooks";
 import { CardsScreen } from "@teak/ui/screens";
@@ -24,7 +23,7 @@ function DesktopUpgradeLink({
       href={href}
       onClick={(event) => {
         event.preventDefault();
-        void openUrl(href);
+        void window.teakDesktop.shell.openExternal(href);
       }}
     >
       {children}
@@ -98,7 +97,7 @@ export function CardsPage() {
   );
 
   const handleUpgrade = useCallback(() => {
-    void openUrl(buildWebUrl("/settings"));
+    void window.teakDesktop.shell.openExternal(buildWebUrl("/settings"));
   }, []);
 
   return (

@@ -11,7 +11,6 @@ import {
 } from "react-router-dom";
 import { toast } from "sonner";
 import { useDesktopMenuEvents } from "@/hooks/useDesktopMenuEvents";
-import { useDesktopUpdater } from "@/hooks/useDesktopUpdater";
 import { closeAuthWindow } from "@/lib/auth-window";
 import { logoutDesktopSession } from "@/lib/desktop-auth";
 import { CardsPage } from "./pages/CardsPage";
@@ -23,7 +22,6 @@ function AppRoutes() {
   const { isOnline } = useNetworkStatus();
   const { isAuthenticated, isLoading } = useConvexAuth();
   const wasAuthenticatedRef = useRef(isAuthenticated);
-  const { checkForUpdatesInteractively } = useDesktopUpdater();
 
   const handleLogout = useCallback(async () => {
     try {
@@ -44,9 +42,6 @@ function AppRoutes() {
       void handleLogout();
     },
     onSettings: handleSettingsMenuClick,
-    onCheckForUpdates: () => {
-      void checkForUpdatesInteractively();
-    },
   });
 
   useEffect(() => {
