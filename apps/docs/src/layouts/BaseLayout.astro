@@ -1,5 +1,4 @@
 ---
-import { ClientRouter } from "astro:transitions";
 import BackgroundPattern from "../components/BackgroundPattern.astro";
 import "../styles/global.css";
 
@@ -86,9 +85,6 @@ function buildJsonLd(schema: object | object[]) {
     {jsonLd && <script is:inline type="application/ld+json" set:html={buildJsonLd(jsonLd)} />}
 
     <meta name="referrer" content="strict-origin-when-cross-origin" />
-
-    <!-- View Transitions -->
-    <ClientRouter />
   </head>
   <body class="flex min-h-screen flex-col font-sans text-base antialiased [font-feature-settings:'ss01'] [text-rendering:optimizeLegibility]">
     <!-- Background Pattern -->
