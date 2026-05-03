@@ -26,14 +26,19 @@ Local server is exposed through portless at `http://api.teak.localhost:1355`.
 
 - `GET /healthz`
 - `GET /v1`
+- `GET /openapi.json`
+- `GET /v1/cards`
 - `POST /v1/cards`
+- `POST /v1/cards/bulk`
+- `GET /v1/cards/changes`
 - `GET /v1/cards/search`
 - `GET /v1/cards/favorites`
+- `GET /v1/tags`
+- `GET /v1/cards/:cardId`
 - `PATCH /v1/cards/:cardId`
 - `DELETE /v1/cards/:cardId`
 - `PATCH /v1/cards/:cardId/favorite`
 - `ALL /mcp`
-- `ALL /mcp/`
 
 ## Commands
 

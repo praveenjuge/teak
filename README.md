@@ -18,7 +18,7 @@ teak/
 │   ├── desktop/    # Tauri desktop app
 │   ├── extension/  # Browser extension
 │   ├── raycast/    # Raycast extension
-│   └── docs/       # Documentation site
+│   └── docs/       # Documentation site (Astro)
 ├── packages/
 │   ├── convex/     # Convex backend
 │   └── ui/         # Shared UI package
