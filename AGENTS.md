@@ -112,3 +112,22 @@ teak/
 - Add/extend tests for new features or bug fixes.
 - Update or add fixtures/test data so tests are deterministic.
 - Keep tests fast; avoid extra network calls unless the feature requires it.
+
+## Desktop Release Process
+
+The desktop app uses Electron with `electron-builder` and ships via GitHub Releases.
+
+To publish a new desktop release:
+
+1. Bump the `version` field in **every** `package.json` across the monorepo (root + all workspaces under `apps/*` and `packages/*`).
+2. Commit and push to `main`.
+3. Create and push a version tag:
+   ```bash
+   git tag v<version>
+   git push origin v<version>
+   ```
+4. The `Desktop Release` workflow (`.github/workflows/desktop-release.yml`) triggers on the `v*` tag and automatically:
+   - Builds the renderer, main process, and preload via `electron-vite build` with production env vars.
+   - Packages an unsigned macOS ARM DMG + zip via `electron-builder`.
+   - Publishes all artifacts plus `latest-mac.yml` updater metadata to a GitHub Release.
+5. Existing installs pick up the update silently via `electron-updater` on next launch.
