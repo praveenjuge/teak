@@ -7,7 +7,7 @@ import { getDefaultAuthor } from "../lib/authors";
 const entries = await getCollection("changelog");
 const sortedEntries = entries.sort(
   (a: CollectionEntry<"changelog">, b: CollectionEntry<"changelog">) =>
-    new Date(b.data.date).getTime() - new Date(a.data.date).getTime()
+    b.data.date.getTime() - a.data.date.getTime()
 );
 
 const author = getDefaultAuthor();
@@ -20,8 +20,7 @@ const renderedEntries = await Promise.all(
   })
 );
 
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
+function formatDate(date: Date): string {
   return date.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",

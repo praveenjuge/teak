@@ -1,0 +1,29 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@teak/ui/styles.css";
+
+@plugin "@tailwindcss/typography";
+
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+
+/* Starlight custom overrides to match Teak brand */
+:root {
+  --sl-color-accent-low: #fef2f2;
+  --sl-color-accent: #e7000b;
+  --sl-color-accent-high: #7f1d1d;
+  --sl-font:
+    "SN Pro", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+:root[data-theme="dark"] {
+  --sl-color-accent-low: #450a0a;
+  --sl-color-accent: #ef4444;
+  --sl-color-accent-high: #fecaca;
+}
+
+/* Tighten up the logo sizing */
+.site-title img {
+  width: auto;
+  height: 1.25rem;
+}

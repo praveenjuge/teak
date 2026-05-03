@@ -9,10 +9,7 @@ export const organizationSchema = {
   "@id": `${SITE_URL}/#organization`,
   name: SITE_NAME,
   url: SITE_URL,
-  logo: {
-    "@type": "ImageObject",
-    url: ORGANIZATION_LOGO,
-  },
+  logo: { "@type": "ImageObject", url: ORGANIZATION_LOGO },
   sameAs: ["https://github.com/teakvault"],
   contactPoint: {
     "@type": "ContactPoint",
@@ -28,81 +25,91 @@ export const websiteSchema = {
   name: SITE_NAME,
   url: SITE_URL,
   publisher: { "@id": `${SITE_URL}/#organization` },
-  potentialAction: {
-    "@type": "SearchAction",
-    target: {
-      "@type": "EntryPoint",
-      urlTemplate: `${SITE_URL}/docs?q={search_term_string}`,
-    },
-    "query-input": "required name=search_term_string",
-  },
 } as const;
 
-// --- Schema builders ---
-
-interface ArticleOptions {
-  description?: string;
+/**
+ * Auto-generate common JSON-LD schemas from page metadata.
+ * Replaces the old per-page manual schema builder calls.
+ */
+export function buildPageSchemas(opts: {
   title: string;
+  description?: string;
   url: string;
-}
+  type?: "article" | "webpage" | "product";
+  breadcrumbs?: { name: string; url: string }[];
+  faqs?: { question: string; answer: string }[];
+}) {
+  const schemas: object[] = [organizationSchema, websiteSchema];
 
-export function buildArticleSchema({
-  title,
-  description,
-  url,
-}: ArticleOptions) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    "@id": `${url}/#article`,
-    headline: title,
-    description,
-    url,
-    isPartOf: { "@id": `${SITE_URL}/#website` },
-    author: { "@id": `${SITE_URL}/#organization` },
-    publisher: { "@id": `${SITE_URL}/#organization` },
-    image: `${SITE_URL}/hero-image.png`,
-  };
-}
-
-export function buildBreadcrumbSchema(items: { name: string; url: string }[]) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: items.map((item, i) => ({
-      "@type": "ListItem",
-      position: i + 1,
-      name: item.name,
-      item: item.url,
-    })),
-  };
-}
-
-export function buildFaqSchema(faqs: { question: string; answer: string }[]) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: faqs.map((faq) => ({
-      "@type": "Question",
-      name: faq.question,
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: faq.answer,
+  // Article or WebPage
+  if (opts.type === "article") {
+    schemas.push({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "@id": `${opts.url}/#article`,
+      headline: opts.title,
+      description: opts.description,
+      url: opts.url,
+      isPartOf: { "@id": `${SITE_URL}/#website` },
+      author: { "@id": `${SITE_URL}/#organization` },
+      publisher: { "@id": `${SITE_URL}/#organization` },
+      image: `${SITE_URL}/hero-image.png`,
+    });
+  } else {
+    schemas.push({
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": `${opts.url}/#webpage`,
+      url: opts.url,
+      name: opts.title,
+      description: opts.description,
+      isPartOf: { "@id": `${SITE_URL}/#website` },
+      about: { "@id": `${SITE_URL}/#organization` },
+      primaryImageOfPage: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/hero-image.png`,
       },
-    })),
-  };
-}
+    });
+  }
 
-interface ProductOffer {
-  name: string;
-  price: string;
-  priceCurrency?: string;
+  // Breadcrumbs
+  if (opts.breadcrumbs?.length) {
+    schemas.push({
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: opts.breadcrumbs.map((item, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: item.name,
+        item: item.url,
+      })),
+    });
+  }
+
+  // FAQs
+  if (opts.faqs?.length) {
+    schemas.push({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: opts.faqs.map((faq) => ({
+        "@type": "Question",
+        name: faq.question,
+        acceptedAnswer: { "@type": "Answer", text: faq.answer },
+      })),
+    });
+  }
+
+  return schemas;
 }
 
 export function buildProductSchema(
   name: string,
   description: string,
-  offers: ProductOffer[]
+  offers: {
+    name: string;
+    price: string;
+    priceCurrency?: string;
+  }[]
 ) {
   return {
     "@context": "https://schema.org",
@@ -118,26 +125,5 @@ export function buildProductSchema(
       availability: "https://schema.org/InStock",
       url: `${SITE_URL}/pricing`,
     })),
-  };
-}
-
-export function buildWebPageSchema(
-  name: string,
-  description: string,
-  url: string = SITE_URL
-) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "WebPage",
-    "@id": `${url}/#webpage`,
-    url,
-    name,
-    description,
-    isPartOf: { "@id": `${SITE_URL}/#website` },
-    about: { "@id": `${SITE_URL}/#organization` },
-    primaryImageOfPage: {
-      "@type": "ImageObject",
-      url: `${SITE_URL}/hero-image.png`,
-    },
   };
 }

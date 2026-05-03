@@ -1,0 +1,128 @@
+---
+const WEB_APP_URL = "https://app.teakvault.com";
+const APP_STORE_URL = "https://apps.apple.com/us/app/teak-save-inspirations/id6756574989";
+const CHROME_STORE_URL = "https://chromewebstore.google.com/detail/empty-title/negnmfifahnnagnbnfppmlgfajngdpob";
+const DESKTOP_DOWNLOAD_URL = "https://github.com/praveenjuge/teak/releases/latest";
+const API_DOCS_URL = "/docs/api";
+const RAYCAST_STORE_URL = "https://www.raycast.com/praveenjuge/teak-raycast";
+const RAYCAST_INSTALL_BUTTON_URL = "https://www.raycast.com/praveenjuge/teak-raycast/install_button@2x.png?v=1.1";
+
+interface PlatformCard {
+  name: string;
+  copy: string;
+  emojiAlt: string;
+  emojiSrc: string;
+  href: string;
+  actionType: "button" | "badge";
+  label?: string;
+  badgeSrc?: string;
+  badgeAlt?: string;
+  badgeWidth?: number;
+  badgeHeight?: number;
+}
+
+const platformCards: PlatformCard[] = [
+  {
+    name: "Web App",
+    copy: "Manage every board, search instantly, and fly with keyboard shortcuts from any desktop browser.",
+    emojiAlt: "Website emoji",
+    emojiSrc: "/emojis/apps-web-website.webp",
+    href: WEB_APP_URL,
+    actionType: "button",
+    label: "Open Web App",
+  },
+  {
+    name: "iOS App",
+    copy: "Drop photos, voice notes, or links straight from the share sheet and they appear everywhere else instantly.",
+    emojiAlt: "Smartphone emoji",
+    emojiSrc: "/emojis/apps-ios-smartphone.webp",
+    href: APP_STORE_URL,
+    actionType: "badge",
+    badgeSrc: "/badges/app-store.svg",
+    badgeAlt: "Download on the App Store",
+    badgeWidth: 140,
+    badgeHeight: 47,
+  },
+  {
+    name: "Chrome Extension",
+    copy: "Save tabs, screenshots, or selected text in a click and Teak auto-grabs the metadata for you.",
+    emojiAlt: "Puzzle piece emoji",
+    emojiSrc: "/emojis/apps-chrome-puzzle-piece.webp",
+    href: CHROME_STORE_URL,
+    actionType: "badge",
+    badgeSrc: "/badges/chrome-web-store-badge.svg",
+    badgeAlt: "Available in the Chrome Web Store",
+    badgeWidth: 160,
+    badgeHeight: 45,
+  },
+  {
+    name: "Desktop App (macOS)",
+    copy: "Install the signed native desktop app for Apple Silicon and stay current with built-in auto updates.",
+    emojiAlt: "Desktop computer emoji",
+    emojiSrc: "/emojis/apps-desktop-computer-monitor.png",
+    href: DESKTOP_DOWNLOAD_URL,
+    actionType: "button",
+    label: "Download for macOS",
+  },
+  {
+    name: "API",
+    copy: "Build on Teak with documented API routes, auth details, and practical request/response examples.",
+    emojiAlt: "Command line terminal emoji",
+    emojiSrc: "/emojis/apps-api-terminal.png",
+    href: API_DOCS_URL,
+    actionType: "button",
+    label: "View API Docs",
+  },
+  {
+    name: "Raycast Extension",
+    copy: "Save your clipboard, search your cards, and jump to favorites directly from Raycast.",
+    emojiAlt: "Target face emoji",
+    emojiSrc: "/emojis/home-why-target-face.webp",
+    href: RAYCAST_STORE_URL,
+    actionType: "badge",
+    badgeSrc: RAYCAST_INSTALL_BUTTON_URL,
+    badgeAlt: "Install teak-raycast Raycast Extension",
+    badgeWidth: 256,
+    badgeHeight: 64,
+  },
+];
+---
+
+<section class="mx-auto mt-12 grid w-full max-w-4xl grid-cols-1 gap-4 sm:grid-cols-2">
+  {platformCards.map((card) => (
+    <a
+      aria-label={`Open ${card.name}`}
+      class="group flex flex-col items-center gap-2 rounded-2xl border border-border/60 bg-white p-6 text-center shadow-xs transition-colors hover:border-border dark:bg-gray-900"
+      href={card.href}
+      rel="noopener noreferrer"
+      target="_blank"
+    >
+      <img
+        alt={card.emojiAlt}
+        class="size-14 object-contain"
+        height="56"
+        src={card.emojiSrc}
+        width="56"
+      />
+      <div class="font-semibold">{card.name}</div>
+      <p class="text-balance text-muted-foreground">{card.copy}</p>
+      <div class="flex flex-col items-center gap-2 pt-4">
+        {card.actionType === "button" ? (
+          <span class="inline-flex h-11 w-auto items-center justify-center gap-2 rounded-md bg-primary px-6 text-primary-foreground text-sm shadow-xs transition-opacity group-hover:opacity-90">
+            {card.label}
+          </span>
+        ) : (
+          <span class="inline-flex justify-center transition-opacity group-hover:opacity-90">
+            <img
+              alt={card.badgeAlt}
+              class="h-auto max-w-52.5 object-contain"
+              height={card.badgeHeight}
+              src={card.badgeSrc}
+              width={card.badgeWidth}
+            />
+          </span>
+        )}
+      </div>
+    </a>
+  ))}
+</section>

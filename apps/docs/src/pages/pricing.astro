@@ -2,12 +2,7 @@
 import HomeLayout from "../layouts/HomeLayout.astro";
 import PricingCard from "../components/PricingCard.astro";
 import PricingToggle from "../components/PricingToggle.astro";
-import {
-  organizationSchema,
-  buildProductSchema,
-  buildBreadcrumbSchema,
-  SITE_URL,
-} from "../lib/jsonld";
+import { buildPageSchemas, buildProductSchema, SITE_URL } from "../lib/jsonld";
 import { pricingPlans, selfHostedPlan, pricingFaqs } from "../data/pricing";
 
 const productSchema = buildProductSchema(
@@ -19,10 +14,15 @@ const productSchema = buildProductSchema(
   ],
 );
 
-const breadcrumbSchema = buildBreadcrumbSchema([
-  { name: "Home", url: SITE_URL },
-  { name: "Pricing", url: `${SITE_URL}/pricing` },
-]);
+const pageSchemas = buildPageSchemas({
+  title: "Pricing",
+  description: "Try Teak free with 200 cards. Pro is $19/month.",
+  url: `${SITE_URL}/pricing`,
+  breadcrumbs: [
+    { name: "Home", url: SITE_URL },
+    { name: "Pricing", url: `${SITE_URL}/pricing` },
+  ],
+});
 ---
 
 <HomeLayout
@@ -32,7 +32,7 @@ const breadcrumbSchema = buildBreadcrumbSchema([
   ogTitle="200 Cards Free. $19/month After. No Tricks."
   ogDescription="Try Teak free with 200 cards. Pro is $19/month - less than 2 coffees. Or self-host for free."
   keywords="design bookmarking pricing, visual inspiration tool, designer subscription, creative workflow pricing"
-  jsonLd={[organizationSchema, productSchema, breadcrumbSchema]}
+  jsonLd={[...pageSchemas, productSchema]}
 >
   <main class="flex flex-1 flex-col">
     <!-- Hero Section -->

@@ -1,6 +1,6 @@
 ---
 import HomeLayout from "../layouts/HomeLayout.astro";
-import { AppsGrid } from "../components/AppsGrid";
+import AppsGrid from "../components/AppsGrid.astro";
 ---
 
 <HomeLayout
@@ -21,6 +21,6 @@ import { AppsGrid } from "../components/AppsGrid";
         so the inspiration you save once is waiting on every device.
       </p>
     </section>
-    <AppsGrid client:only="react" />
+    <AppsGrid />
   </main>
 </HomeLayout>
