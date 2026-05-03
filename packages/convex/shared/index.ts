@@ -1,6 +1,5 @@
 export * from "./constants";
 export * from "./linkCategories";
-export * from "./posthog";
 export * from "./search";
 export * from "./types";
 export * from "./utils/colorUtils";

@@ -13,7 +13,6 @@ import {
   scrollDisabled,
 } from "@expo/ui/swift-ui/modifiers";
 import { Stack, useRouter } from "expo-router";
-import { usePostHog } from "posthog-react-native";
 import React from "react";
 import { Alert, PlatformColor, Pressable } from "react-native";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -22,7 +21,6 @@ import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function SignInScreen() {
   const router = useRouter();
-  const posthog = usePostHog();
   const [isLoading, setIsLoading] = React.useState(false);
   const [emailAddress, setEmailAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -60,11 +58,6 @@ export default function SignInScreen() {
         return;
       }
 
-      posthog.identify(emailAddress.trim(), {
-        $set: { email: emailAddress.trim() },
-        $set_once: { first_sign_in_date: new Date().toISOString() },
-      });
-      posthog.capture("user_signed_in", { method: "email" });
       router.replace("/(tabs)/(home)");
     } catch (error) {
       const message = getAuthErrorMessage(

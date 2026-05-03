@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { components } from "./_generated/api";
-import { captureBackendEvent } from "./posthog";
 import {
   internalMutation,
   type MutationCtx,
@@ -130,7 +129,7 @@ export const createUserApiKey = mutation({
     }
 
     const now = Date.now();
-    const revokedActiveKeyCount = await revokeActiveKeysForUser(
+    await revokeActiveKeysForUser(
       ctx,
       user.subject,
       now
@@ -150,16 +149,6 @@ export const createUserApiKey = mutation({
       updatedAt: now,
       lastUsedAt: undefined,
       revokedAt: undefined,
-    });
-
-    await captureBackendEvent(ctx, {
-      event: "backend_api_key_created",
-      distinctId: user.subject,
-      properties: {
-        access: API_KEY_ACCESS,
-        revoked_active_key_count: revokedActiveKeyCount,
-        used_default_name: !args.name?.trim(),
-      },
     });
 
     return {

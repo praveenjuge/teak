@@ -13,7 +13,6 @@ import {
   scrollDisabled,
 } from "@expo/ui/swift-ui/modifiers";
 import { Stack, useFocusEffect } from "expo-router";
-import { usePostHog } from "posthog-react-native";
 import { useCallback, useState } from "react";
 import { Alert, Keyboard, PlatformColor, Pressable } from "react-native";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -21,7 +20,6 @@ import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function SignUpScreen() {
-  const posthog = usePostHog();
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,11 +89,6 @@ export default function SignUpScreen() {
         return;
       }
 
-      posthog.identify(emailAddress.trim(), {
-        $set: { email: emailAddress.trim(), name: derivedName },
-        $set_once: { sign_up_date: new Date().toISOString() },
-      });
-      posthog.capture("user_signed_up", { method: "email" });
       Alert.alert(
         "Verify your email",
         "We just sent you a verification link. Please check your inbox to activate your account."

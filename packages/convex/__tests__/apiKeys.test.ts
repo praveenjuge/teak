@@ -1,12 +1,6 @@
 // @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
 
-const mockCaptureBackendEvent = mock().mockResolvedValue(undefined);
-
-mock.module("../posthog", () => ({
-  captureBackendEvent: mockCaptureBackendEvent,
-}));
-
 import {
   createUserApiKey,
   listUserApiKeys,
@@ -24,7 +18,6 @@ const runHandler = async (fn: any, ctx: any, args: any) => {
 
 describe("apiKeys", () => {
   test("create stores only hashed key and revokes active key", async () => {
-    mockCaptureBackendEvent.mockClear();
     const collectMock = mock()
       .mockResolvedValueOnce([
         {
@@ -71,16 +64,6 @@ describe("apiKeys", () => {
     expect(insertCall[1].keyHash).toBeString();
     expect(insertCall[1].keyHash).not.toContain(result.key);
     expect(insertCall[1]).not.toHaveProperty("key");
-    expect(mockCaptureBackendEvent).toHaveBeenCalledWith(
-      ctx,
-      expect.objectContaining({
-        event: "backend_api_key_created",
-        distinctId: "user_1",
-        properties: expect.objectContaining({
-          revoked_active_key_count: 1,
-        }),
-      })
-    );
   });
 
   test("list returns masked key metadata", async () => {

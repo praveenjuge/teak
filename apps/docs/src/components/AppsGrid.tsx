@@ -7,7 +7,6 @@ import {
   Server,
   Smartphone,
 } from "lucide-react";
-import posthog from "posthog-js";
 import type { ComponentType } from "react";
 
 const WEB_APP_URL = "https://app.teakvault.com";
@@ -151,11 +150,6 @@ export function AppsGrid() {
             className="group flex flex-col items-center gap-2 rounded-2xl border border-border/60 bg-white p-6 text-center shadow-xs transition-colors hover:border-border dark:bg-gray-900"
             href={card.action.href}
             key={card.name}
-            onClick={() =>
-              posthog.capture("app_platform_clicked", {
-                platform_name: card.name,
-              })
-            }
             rel="noopener noreferrer"
             target="_blank"
           >

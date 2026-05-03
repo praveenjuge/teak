@@ -1,4 +1,3 @@
-import { posthog } from "../lib/posthog";
 import { saveToTeak } from "../lib/saveToTeak";
 import type { ContextMenuAction } from "../types/contextMenu";
 import {
@@ -21,22 +20,7 @@ function captureSaveResult(
   source: string,
   contentType: "url" | "text"
 ) {
-  if (result.status === "saved") {
-    posthog.capture("content saved", { source, content_type: contentType });
-  } else if (result.status === "duplicate") {
-    posthog.capture("duplicate content detected", {
-      source,
-      content_type: contentType,
-    });
-  } else if (result.status === "error" || result.status === "unauthenticated") {
-    posthog.capture("content save failed", {
-      source,
-      content_type: contentType,
-      error_code: result.status === "error" ? result.code : "unauthenticated",
-      error_message:
-        result.status === "error" ? result.message : "User not authenticated",
-    });
-  }
+  // Analytics removed
 }
 
 // Check if a URL is restricted (can't inject scripts)

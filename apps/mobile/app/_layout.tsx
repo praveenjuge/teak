@@ -11,11 +11,9 @@ import {
   preventAutoHideAsync,
 } from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { PostHogProvider } from "posthog-react-native";
 import { useEffect, useRef } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { colors } from "@/constants/colors";
-import { posthog } from "@/lib/posthog";
 import { INCOMING_SHARE_SCREEN } from "@/lib/share/constants";
 import {
   ThemePreferenceProvider,
@@ -43,14 +41,9 @@ const customDarkTheme = {
 
 export default function RootLayout() {
   return (
-    <PostHogProvider
-      autocapture={{ captureScreens: false, captureTouches: true }}
-      client={posthog}
-    >
-      <ThemePreferenceProvider>
-        <RootLayoutContent />
-      </ThemePreferenceProvider>
-    </PostHogProvider>
+    <ThemePreferenceProvider>
+      <RootLayoutContent />
+    </ThemePreferenceProvider>
   );
 }
 
@@ -63,9 +56,6 @@ function RootLayoutContent() {
 
   useEffect(() => {
     if (previousPathname.current !== pathname) {
-      posthog.screen(pathname, {
-        previous_screen: previousPathname.current ?? null,
-      });
       previousPathname.current = pathname;
     }
   }, [pathname]);

@@ -94,16 +94,5 @@ function buildJsonLd(schema: object | object[]) {
       <BackgroundPattern />
     </div>
     <slot />
-    <!-- PostHog Analytics -->
-    <script>
-      import posthog from "posthog-js";
-      posthog.init("phc_jQhSE8ny0K3dgwqH0L8AyIPo1LPbVTqyfcJ2eCPgcSZ", {
-        api_host: "https://us.i.posthog.com",
-        ui_host: "https://us.posthog.com",
-        defaults: "2026-01-30",
-        capture_exceptions: true,
-        debug: import.meta.env.DEV,
-      });
-    </script>
   </body>
 </html>

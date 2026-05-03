@@ -4,7 +4,6 @@ import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
 import { action, query } from "./_generated/server";
 import { resolveTeakDevAppUrl } from "./devUrls";
-import { captureBackendEvent } from "./posthog";
 
 // User query to use in the Polar component
 export const getUserInfoHandler = async (ctx: any) => {
@@ -82,17 +81,6 @@ export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
         : devAppUrl,
   });
 
-  await captureBackendEvent(ctx, {
-    event: "backend_billing_checkout_started",
-    distinctId: user.subject,
-    properties: {
-      product_id: args.productId,
-      had_existing_customer: Boolean(dbCustomer?.id),
-      billing_server:
-        process.env.POLAR_SERVER === "production" ? "production" : "sandbox",
-    },
-  });
-
   return checkout.url;
 };
 
@@ -119,16 +107,6 @@ export const createCustomerPortalHandler = async (ctx: any) => {
 
   const result = await polarSdk.customerSessions.create({
     customerId: subscription.customerId,
-  });
-
-  await captureBackendEvent(ctx, {
-    event: "backend_billing_customer_portal_opened",
-    distinctId: user.subject,
-    properties: {
-      billing_server:
-        process.env.POLAR_SERVER === "production" ? "production" : "sandbox",
-      subscription_status: subscription.status,
-    },
   });
 
   return result.customerPortalUrl;

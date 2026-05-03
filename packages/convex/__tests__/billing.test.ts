@@ -3,7 +3,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { DEFAULT_TEAK_DEV_APP_URL } from "../devUrls";
 
-const mockCaptureBackendEvent = mock().mockResolvedValue(undefined);
 const mockCustomersCreate = mock().mockResolvedValue({ id: "cust_1" });
 const mockCheckoutsCreate = mock().mockResolvedValue({
   url: "https://checkout.example",
@@ -11,10 +10,6 @@ const mockCheckoutsCreate = mock().mockResolvedValue({
 const mockCustomerSessionsCreate = mock().mockResolvedValue({
   customerPortalUrl: "https://portal.example",
 });
-
-mock.module("../posthog", () => ({
-  captureBackendEvent: mockCaptureBackendEvent,
-}));
 
 mock.module("@polar-sh/sdk", () => ({
   Polar: class {
@@ -65,7 +60,6 @@ describe("billing.ts", () => {
   });
 
   test("createCheckoutLinkHandler captures checkout start", async () => {
-    mockCaptureBackendEvent.mockClear();
     const module = await import("../billing");
     const ctx = {
       runQuery: mock()
@@ -82,17 +76,6 @@ describe("billing.ts", () => {
     });
 
     expect(url).toBe("https://checkout.example");
-    expect(mockCaptureBackendEvent).toHaveBeenCalledWith(
-      ctx,
-      expect.objectContaining({
-        event: "backend_billing_checkout_started",
-        distinctId: "user_1",
-        properties: expect.objectContaining({
-          product_id: "prod_123",
-          had_existing_customer: false,
-        }),
-      })
-    );
   });
 
   test("createCustomerPortal opens customer portal", async () => {
@@ -101,7 +84,6 @@ describe("billing.ts", () => {
   });
 
   test("createCustomerPortalHandler captures portal open", async () => {
-    mockCaptureBackendEvent.mockClear();
     const module = await import("../billing");
     module.polar.getCurrentSubscription = mock().mockResolvedValue({
       status: "active",
@@ -118,16 +100,6 @@ describe("billing.ts", () => {
     const url = await module.createCustomerPortalHandler(ctx);
 
     expect(url).toBe("https://portal.example");
-    expect(mockCaptureBackendEvent).toHaveBeenCalledWith(
-      ctx,
-      expect.objectContaining({
-        event: "backend_billing_customer_portal_opened",
-        distinctId: "user_1",
-        properties: expect.objectContaining({
-          subscription_status: "active",
-        }),
-      })
-    );
   });
 
   test("polarUserInfoProvider returns user data", async () => {

@@ -1,5 +1,4 @@
 import { Button } from "@teak/ui/components/ui/button";
-import posthog from "posthog-js";
 import { useState } from "react";
 import { PricingCard } from "./PricingCard";
 import { PricingToggle } from "./PricingToggle";
@@ -168,12 +167,7 @@ export default function PricingPageClient() {
             </div>
           </div>
           <Button asChild className="w-full md:w-auto" variant="outline">
-            <a
-              href={selfHostedPlan.cta.href}
-              onClick={() => posthog.capture("self_hosted_guide_clicked")}
-            >
-              {selfHostedPlan.cta.text}
-            </a>
+            <a href={selfHostedPlan.cta.href}>{selfHostedPlan.cta.text}</a>
           </Button>
         </div>
       </section>

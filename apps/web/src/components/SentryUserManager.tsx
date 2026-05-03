@@ -1,12 +1,11 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
-import posthog from "posthog-js";
 import { useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 
 /**
- * Component that syncs the authenticated user's data to Sentry and PostHog.
+ * Component that syncs the authenticated user's data to Sentry.
  * This enables better error tracking and user identification.
  * Must be rendered within the ConvexBetterAuthProvider tree.
  */
@@ -20,10 +19,6 @@ export function SentryUserManager() {
         id: session.user.id,
         email: session.user.email,
         username: session.user.name || undefined,
-      });
-      posthog.identify(session.user.id, {
-        email: session.user.email,
-        name: session.user.name || undefined,
       });
     } else {
       // Clear user data when logged out

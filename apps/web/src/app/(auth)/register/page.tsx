@@ -18,7 +18,6 @@ import { cn } from "@teak/ui/lib/utils";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import posthog from "posthog-js";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
@@ -67,8 +66,6 @@ export default function SignUp() {
             "Failed to sign in with Google. Please try again.",
           MANUAL_CLOSE_TOAST_OPTIONS
         );
-      } else {
-        posthog.capture("user_signed_up_social", { provider: "google" });
       }
     } catch (err) {
       const errorMessage =
@@ -91,8 +88,6 @@ export default function SignUp() {
           response.error.message ??
             "Failed to sign in with Apple. Please try again."
         );
-      } else {
-        posthog.capture("user_signed_up_social", { provider: "apple" });
       }
     } catch (err) {
       const errorMessage =
@@ -190,13 +185,8 @@ export default function SignUp() {
                     ctx.error?.message ?? "Failed to create account";
                   toast.error(message, MANUAL_CLOSE_TOAST_OPTIONS);
                 },
-                onSuccess: async (ctx) => {
+                onSuccess: async () => {
                   setLoading(false);
-                  const userId = ctx.data?.user?.id;
-                  if (userId) {
-                    posthog.identify(userId, { email });
-                  }
-                  posthog.capture("user_signed_up", { method: "email" });
                   toast.success(`Verification email sent to ${email}.`, {
                     ...AUTH_STICKY_TOAST_OPTIONS,
                   });

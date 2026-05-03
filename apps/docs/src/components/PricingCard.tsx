@@ -1,7 +1,6 @@
 import { Badge } from "@teak/ui/components/ui/badge";
 import { Button } from "@teak/ui/components/ui/button";
 import { Check } from "lucide-react";
-import posthog from "posthog-js";
 
 interface PricingCardProps {
   badge?: string;
@@ -32,7 +31,7 @@ export function PricingCard({
   emojiSrc,
   features,
   cta,
-  name,
+  name: _name,
   popular = false,
   isYearly = false,
   badge,
@@ -106,18 +105,7 @@ export function PricingCard({
         className="w-full"
         variant={cta.primary ? "default" : "outline"}
       >
-        <a
-          href={cta.href}
-          onClick={() =>
-            posthog.capture("pricing_plan_cta_clicked", {
-              plan_name: name,
-              billing_period: isYearly ? "yearly" : "monthly",
-              cta_text: cta.text,
-            })
-          }
-          rel="noopener noreferrer"
-          target="_blank"
-        >
+        <a href={cta.href} rel="noopener noreferrer" target="_blank">
           {cta.text}
         </a>
       </Button>

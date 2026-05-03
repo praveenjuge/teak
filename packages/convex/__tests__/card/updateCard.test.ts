@@ -1,18 +1,11 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
-const mockCaptureBackendEvent = mock().mockResolvedValue(undefined);
-
-mock.module("../../posthog", () => ({
-  captureBackendEvent: mockCaptureBackendEvent,
-}));
-
 describe("card/updateCard.ts", () => {
   let updateCard: any;
   let updateCardField: any;
 
   beforeEach(async () => {
-    mockCaptureBackendEvent.mockClear();
     const module = await import("../../card/updateCard");
     updateCard = module.updateCard;
     updateCardField = module.updateCardField;
@@ -55,13 +48,6 @@ describe("card/updateCard.ts", () => {
       expect.objectContaining({ content: "New quote" })
     );
     expect(ctx.scheduler.runAfter).toHaveBeenCalled();
-    expect(mockCaptureBackendEvent).toHaveBeenCalledWith(
-      ctx,
-      expect.objectContaining({
-        event: "backend_card_updated",
-        distinctId: "u1",
-      })
-    );
   });
 
   test("updateCard throws when card not found", async () => {
@@ -224,16 +210,6 @@ describe("card/updateCard.ts", () => {
       })
     );
     expect(ctx.scheduler.runAfter).toHaveBeenCalled();
-    expect(mockCaptureBackendEvent).toHaveBeenCalledWith(
-      ctx,
-      expect.objectContaining({
-        event: "backend_card_updated",
-        distinctId: "u1",
-        properties: expect.objectContaining({
-          field: "url",
-        }),
-      })
-    );
   });
 
   test("updateCardField captures favorite state changes", async () => {
@@ -258,18 +234,6 @@ describe("card/updateCard.ts", () => {
       field: "isFavorited",
       value: true,
     });
-
-    expect(mockCaptureBackendEvent).toHaveBeenCalledWith(
-      ctx,
-      expect.objectContaining({
-        event: "backend_card_state_changed",
-        distinctId: "u1",
-        properties: expect.objectContaining({
-          state_change: "favorited",
-          card_type: "image",
-        }),
-      })
-    );
   });
 
   test("updateCardField updates notes field", async () => {

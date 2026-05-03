@@ -1,12 +1,10 @@
 import { Button } from "@teak/ui/components/ui/button";
-import posthog from "posthog-js";
 
 export function FollowOnXButton() {
   return (
     <Button asChild variant="outline">
       <a
         href="https://x.com/praveenjuge"
-        onClick={() => posthog.capture("changelog_follow_x_clicked")}
         rel="noopener noreferrer"
         target="_blank"
       >
