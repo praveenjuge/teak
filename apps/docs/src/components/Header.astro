@@ -1,5 +1,94 @@
 ---
-import { Header as HeaderReact } from "./Header";
+import Logo from "./Logo";
+
+const navLinks = [
+  { name: "Pricing", href: "/pricing" },
+  { name: "Apps", href: "/apps" },
+  { name: "Changelog", href: "/changelog" },
+  { name: "Docs", href: "/docs" },
+];
 ---
 
-<HeaderReact client:only="react" />
+<header class="fixed top-0 left-0 z-50 w-full md:top-4 md:left-1/2 md:w-auto md:-translate-x-1/2">
+  <nav
+    class="relative z-50 flex items-center justify-between gap-1 bg-zinc-900 py-2 pr-2 pl-4.5 md:rounded-xl"
+    data-header-nav
+  >
+    <div class="flex w-full items-center justify-between">
+      <a class="mr-3 flex items-center justify-center" href="/">
+        <Logo className="h-4.5 text-primary-foreground" variant="current" />
+      </a>
+
+      <div class="hidden items-center gap-1 md:flex">
+        {navLinks.map((link) => (
+          <a
+            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium text-sm cursor-pointer bg-transparent text-white/80 hover:bg-white/10 hover:text-white h-8 px-3"
+            href={link.href}
+          >
+            {link.name}
+          </a>
+        ))}
+      </div>
+
+      <div class="flex items-center gap-1">
+        <a
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium text-sm cursor-pointer bg-transparent text-white/80 hover:bg-white/10 hover:text-white h-8 px-3"
+          href="https://app.teakvault.com/login"
+        >
+          Login
+        </a>
+        <a
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary text-primary-foreground font-medium text-sm h-8 px-3 hover:bg-primary/90"
+          href="https://app.teakvault.com/register"
+        >
+          Register
+        </a>
+        <button
+          aria-label="Toggle menu"
+          class="inline-flex items-center justify-center size-8 rounded-md bg-transparent text-white/80 hover:bg-white/10 hover:text-white md:hidden cursor-pointer"
+          data-menu-toggle
+          type="button"
+        >
+          <svg class="size-5" data-menu-icon xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+          <svg class="size-5 hidden" data-close-icon xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="my-2 hidden w-full flex-col gap-2 md:hidden!" data-mobile-menu>
+      {navLinks.map((link) => (
+        <a
+          class="rounded-lg py-3 font-medium text-white/80 text-xl transition-colors hover:text-white"
+          href={link.href}
+        >
+          {link.name}
+        </a>
+      ))}
+    </div>
+  </nav>
+</header>
+
+<script>
+  const toggle = document.querySelector<HTMLButtonElement>("[data-menu-toggle]");
+  const menu = document.querySelector<HTMLDivElement>("[data-mobile-menu]");
+  const nav = document.querySelector<HTMLElement>("[data-header-nav]");
+  const menuIcon = document.querySelector<SVGElement>("[data-menu-icon]");
+  const closeIcon = document.querySelector<SVGElement>("[data-close-icon]");
+
+  toggle?.addEventListener("click", () => {
+    const isOpen = !menu?.classList.contains("hidden");
+    if (isOpen) {
+      menu?.classList.add("hidden");
+      menu?.classList.remove("flex");
+      nav?.classList.remove("flex-col", "items-start");
+      menuIcon?.classList.remove("hidden");
+      closeIcon?.classList.add("hidden");
+    } else {
+      menu?.classList.remove("hidden");
+      menu?.classList.add("flex");
+      nav?.classList.add("flex-col", "items-start");
+      menuIcon?.classList.add("hidden");
+      closeIcon?.classList.remove("hidden");
+    }
+  });
+</script>

@@ -20,4 +20,12 @@ export default defineConfig({
   redirects: {
     "/docs/environment-settings": "/docs/self-hosting#environment-settings",
   },
+  security: {
+    csp: true,
+  },
+  experimental: {
+    queuedRendering: {
+      enabled: true,
+    },
+  },
 });

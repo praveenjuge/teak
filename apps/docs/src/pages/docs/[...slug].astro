@@ -2,7 +2,12 @@
 import { getCollection, render } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import DocsLayout from "../../layouts/DocsLayout.astro";
-import { organizationSchema, SITE_URL } from "../../lib/jsonld";
+import {
+  organizationSchema,
+  buildArticleSchema,
+  buildBreadcrumbSchema,
+  SITE_URL,
+} from "../../lib/jsonld";
 
 export async function getStaticPaths() {
   const docs = await getCollection("docs");
@@ -23,28 +28,17 @@ const { Content, headings } = await render(entry);
 
 const pageUrl = `${SITE_URL}/docs/${entry.id}`;
 
-const articleSchema = {
-  "@context": "https://schema.org",
-  "@type": "Article",
-  "@id": `${pageUrl}/#article`,
-  headline: entry.data.title,
+const articleSchema = buildArticleSchema({
+  title: entry.data.title,
   description: entry.data.description,
   url: pageUrl,
-  isPartOf: { "@id": `${SITE_URL}/#website` },
-  author: { "@id": `${SITE_URL}/#organization` },
-  publisher: { "@id": `${SITE_URL}/#organization` },
-  image: `${SITE_URL}/hero-image.png`,
-};
+});
 
-const breadcrumbSchema = {
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  itemListElement: [
-    { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
-    { "@type": "ListItem", position: 2, name: "Docs", item: `${SITE_URL}/docs` },
-    { "@type": "ListItem", position: 3, name: entry.data.title, item: pageUrl },
-  ],
-};
+const breadcrumbSchema = buildBreadcrumbSchema([
+  { name: "Home", url: SITE_URL },
+  { name: "Docs", url: `${SITE_URL}/docs` },
+  { name: entry.data.title, url: pageUrl },
+]);
 ---
 
 <DocsLayout

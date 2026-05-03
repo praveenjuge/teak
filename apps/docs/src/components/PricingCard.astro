@@ -1,0 +1,87 @@
+---
+interface Props {
+  name: string;
+  description: string;
+  emojiAlt: string;
+  emojiSrc: string;
+  features: readonly string[];
+  price: string | {
+    monthly: { amount: string; period: string };
+    yearly: { amount: string; period: string };
+  };
+  ctaText: string;
+  ctaHref: string;
+  ctaPrimary?: boolean;
+  popular?: boolean;
+}
+
+const { name: _name, description, emojiAlt, emojiSrc, features, price, ctaText, ctaHref, ctaPrimary = false, popular = false } = Astro.props;
+const isFixedPrice = typeof price === "string";
+---
+
+<div class:list={[
+  "relative rounded-lg border bg-card p-8",
+  popular ? "border-primary ring-1 ring-primary" : "border-border",
+]}>
+  {popular && (
+    <div class="absolute -top-3 left-1/2 -translate-x-1/2 transform">
+      <span class="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-xs bg-primary text-primary-foreground border-transparent">
+        Pro - Most Popular
+      </span>
+    </div>
+  )}
+
+  <div class="text-center">
+    <img
+      alt={emojiAlt}
+      class="mx-auto mb-3 size-14 object-contain"
+      height="56"
+      src={emojiSrc}
+      width="56"
+    />
+
+    {isFixedPrice ? (
+      <div class="mb-4">
+        <span class="font-bold text-4xl tracking-tight">{price}</span>
+      </div>
+    ) : (
+      <>
+        <div class="mb-4" data-price-monthly>
+          <span class="font-bold text-4xl tracking-tight">{price.monthly.amount}</span>
+          <span class="text-muted-foreground">/{price.monthly.period}</span>
+        </div>
+        <div class="mb-4 hidden" data-price-yearly>
+          <span class="font-bold text-4xl tracking-tight">{price.yearly.amount}</span>
+          <span class="text-muted-foreground">/{price.yearly.period}</span>
+        </div>
+      </>
+    )}
+
+    <p class="mb-6 text-muted-foreground">{description}</p>
+  </div>
+
+  <ul class="mb-8 space-y-3">
+    {features.map((feature) => (
+      <li class="flex items-start gap-3">
+        <div class="mt-1 text-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </div>
+        <span>{feature}</span>
+      </li>
+    ))}
+  </ul>
+
+  <a
+    class:list={[
+      "inline-flex w-full items-center justify-center rounded-md font-medium text-sm h-10 px-4",
+      ctaPrimary
+        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+        : "border bg-background hover:bg-accent hover:text-accent-foreground",
+    ]}
+    href={ctaHref}
+    rel="noopener noreferrer"
+    target="_blank"
+  >
+    {ctaText}
+  </a>
+</div>

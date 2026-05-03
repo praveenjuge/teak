@@ -84,8 +84,6 @@ function buildJsonLd(schema: object | object[]) {
     <!-- JSON-LD -->
     {jsonLd && <script is:inline type="application/ld+json" set:html={buildJsonLd(jsonLd)} />}
 
-    <!-- Security Headers (handled by Vercel, but meta fallbacks) -->
-    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
   </head>
   <body class="flex min-h-screen flex-col font-sans text-base antialiased [font-feature-settings:'ss01'] [text-rendering:optimizeLegibility]">

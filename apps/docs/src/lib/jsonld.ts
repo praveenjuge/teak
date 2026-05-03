@@ -37,3 +37,107 @@ export const websiteSchema = {
     "query-input": "required name=search_term_string",
   },
 } as const;
+
+// --- Schema builders ---
+
+interface ArticleOptions {
+  description?: string;
+  title: string;
+  url: string;
+}
+
+export function buildArticleSchema({
+  title,
+  description,
+  url,
+}: ArticleOptions) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "@id": `${url}/#article`,
+    headline: title,
+    description,
+    url,
+    isPartOf: { "@id": `${SITE_URL}/#website` },
+    author: { "@id": `${SITE_URL}/#organization` },
+    publisher: { "@id": `${SITE_URL}/#organization` },
+    image: `${SITE_URL}/hero-image.png`,
+  };
+}
+
+export function buildBreadcrumbSchema(items: { name: string; url: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
+
+export function buildFaqSchema(faqs: { question: string; answer: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
+  };
+}
+
+interface ProductOffer {
+  name: string;
+  price: string;
+  priceCurrency?: string;
+}
+
+export function buildProductSchema(
+  name: string,
+  description: string,
+  offers: ProductOffer[]
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name,
+    description,
+    brand: { "@type": "Brand", name: SITE_NAME },
+    offers: offers.map((offer) => ({
+      "@type": "Offer",
+      name: offer.name,
+      price: offer.price,
+      priceCurrency: offer.priceCurrency ?? "USD",
+      availability: "https://schema.org/InStock",
+      url: `${SITE_URL}/pricing`,
+    })),
+  };
+}
+
+export function buildWebPageSchema(
+  name: string,
+  description: string,
+  url: string = SITE_URL
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": `${url}/#webpage`,
+    url,
+    name,
+    description,
+    isPartOf: { "@id": `${SITE_URL}/#website` },
+    about: { "@id": `${SITE_URL}/#organization` },
+    primaryImageOfPage: {
+      "@type": "ImageObject",
+      url: `${SITE_URL}/hero-image.png`,
+    },
+  };
+}

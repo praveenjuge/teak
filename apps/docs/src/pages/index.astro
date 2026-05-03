@@ -1,72 +1,19 @@
 ---
 import HomeLayout from "../layouts/HomeLayout.astro";
 import FeatureCard from "../components/FeatureCard.astro";
-import { HomeCTA } from "../components/HomeCTA";
 import {
   organizationSchema,
   websiteSchema,
-  SITE_URL,
+  buildFaqSchema,
+  buildWebPageSchema,
 } from "../lib/jsonld";
+import { features, saveContentTypes, howItWorksSteps, faqs } from "../data/home";
 
-const features = [
-  { emojiAlt: "Target face emoji", emojiSrc: "/emojis/home-why-target-face.webp", title: "Find Anything in 2 Seconds", description: "Type what you remember and find it instantly." },
-  { emojiAlt: "Smartphone emoji", emojiSrc: "/emojis/home-why-smartphone.webp", title: "Your Inspiration Follows You", description: "Save on one device and pick up anywhere." },
-  { emojiAlt: "Pressed leaf bookmark emoji", emojiSrc: "/emojis/home-why-bookmark.webp", title: "It Organizes Itself. Seriously.", description: "Smart tags keep everything tidy automatically." },
-  { emojiAlt: "Heart emoji", emojiSrc: "/emojis/home-why-heart.webp", title: "200 Cards Free", description: "Start free and upgrade only when you need." },
-];
-
-const saveContentTypes = [
-  { title: "Design Notes", description: "Notes, decisions, and ideas in one searchable place.", emojiAlt: "Sticky note emoji", emojiSrc: "/emojis/home-save-sticky-note.webp" },
-  { title: "Design Resources", description: "Tools, links, and references ready when you need them.", emojiAlt: "Retro web browser interface emoji", emojiSrc: "/emojis/home-save-browser.webp" },
-  { title: "Visual References", description: "Screenshots and mockups with useful context attached.", emojiAlt: "Underwater camera emoji", emojiSrc: "/emojis/home-save-camera.webp" },
-  { title: "Design Videos", description: "Tutorials and video inspiration, easy to find later.", emojiAlt: "Film reel emoji", emojiSrc: "/emojis/home-save-film-reel.webp" },
-  { title: "Audio Notes", description: "Voice memos and calls, transcribed and searchable.", emojiAlt: "Retro microphone emoji", emojiSrc: "/emojis/home-save-microphone.webp" },
-  { title: "Design Files", description: "Files and docs with previews and quick search.", emojiAlt: "File folder emoji", emojiSrc: "/emojis/home-save-folder.webp" },
-];
-
-const howItWorksSteps = [
-  { title: "Save in 1 Click", description: "See it, click once, and save it instantly.", emojiAlt: "Mobile phone emoji", emojiSrc: "/emojis/home-steps-mobile-phone.webp" },
-  { title: "It Organizes Itself", description: "Teak auto-tags everything in the background.", emojiAlt: "Drawer organizer emoji", emojiSrc: "/emojis/home-steps-drawer-organizer.webp" },
-  { title: "Find in 2 Seconds", description: "Search naturally and pull up exactly what you need.", emojiAlt: "Target emoji", emojiSrc: "/emojis/home-steps-target.webp" },
-  { title: "Ship Better Work", description: "Build faster with your references in one place.", emojiAlt: "Finish line emoji", emojiSrc: "/emojis/home-steps-finish-line.webp" },
-];
-
-const faqs = [
-  { question: "What can I save?", answer: "Images, links, notes, files, audio, and videos." },
-  { question: "Is my data private?", answer: "Yes. Your data is encrypted, and you can self-host." },
-  { question: "Does it work on mobile?", answer: "Yes. iOS, Android, web, Chrome extension, and Raycast." },
-  { question: "How is this different from Pinterest?", answer: "Teak is for personal workflow, not social feeds or algorithms." },
-  { question: "What if I hit 200 cards?", answer: "Your cards stay safe. Upgrade or self-host to add more." },
-  { question: "Can I export and leave?", answer: "Yes. Export anytime with no lock-in." },
-];
-
-const faqPageSchema = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: faqs.map((faq) => ({
-    "@type": "Question",
-    name: faq.question,
-    acceptedAnswer: {
-      "@type": "Answer",
-      text: faq.answer,
-    },
-  })),
-};
-
-const webPageSchema = {
-  "@context": "https://schema.org",
-  "@type": "WebPage",
-  "@id": `${SITE_URL}/#webpage`,
-  url: SITE_URL,
-  name: "Never Lose That Perfect Design Again | Teak",
-  description: "Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again.",
-  isPartOf: { "@id": `${SITE_URL}/#website` },
-  about: { "@id": `${SITE_URL}/#organization` },
-  primaryImageOfPage: {
-    "@type": "ImageObject",
-    url: `${SITE_URL}/hero-image.png`,
-  },
-};
+const faqPageSchema = buildFaqSchema(faqs);
+const webPageSchema = buildWebPageSchema(
+  "Never Lose That Perfect Design Again | Teak",
+  "Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again.",
+);
 ---
 
 <HomeLayout
@@ -89,7 +36,14 @@ const webPageSchema = {
           Save inspiration in 1 click, find it in 2 seconds. Never lose your
           best ideas again.
         </p>
-        <HomeCTA client:only="react" />
+        <a
+          class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium text-sm bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-8"
+          href="https://app.teakvault.com/register"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          Start Free
+        </a>
       </div>
 
       <!-- Hero Image -->

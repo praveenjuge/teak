@@ -1,28 +1,28 @@
 ---
 import HomeLayout from "../layouts/HomeLayout.astro";
-import PricingPageClient from "../components/PricingPageClient";
-import { organizationSchema, SITE_URL } from "../lib/jsonld";
+import PricingCard from "../components/PricingCard.astro";
+import PricingToggle from "../components/PricingToggle.astro";
+import {
+  organizationSchema,
+  buildProductSchema,
+  buildBreadcrumbSchema,
+  SITE_URL,
+} from "../lib/jsonld";
+import { pricingPlans, selfHostedPlan, pricingFaqs } from "../data/pricing";
 
-const breadcrumbSchema = {
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  itemListElement: [
-    { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
-    { "@type": "ListItem", position: 2, name: "Pricing", item: `${SITE_URL}/pricing` },
+const productSchema = buildProductSchema(
+  "Teak Pro",
+  "Unlimited visual bookmarking for designers and developers.",
+  [
+    { name: "Teak Pro - Monthly", price: "19.00" },
+    { name: "Teak Pro - Yearly", price: "99.00" },
   ],
-};
+);
 
-const productSchema = {
-  "@context": "https://schema.org",
-  "@type": "Product",
-  name: "Teak Pro",
-  description: "Unlimited visual bookmarking for designers and developers.",
-  brand: { "@type": "Brand", name: "Teak" },
-  offers: [
-    { "@type": "Offer", name: "Teak Pro - Monthly", price: "19.00", priceCurrency: "USD", availability: "https://schema.org/InStock", url: `${SITE_URL}/pricing` },
-    { "@type": "Offer", name: "Teak Pro - Yearly", price: "99.00", priceCurrency: "USD", availability: "https://schema.org/InStock", url: `${SITE_URL}/pricing` },
-  ],
-};
+const breadcrumbSchema = buildBreadcrumbSchema([
+  { name: "Home", url: SITE_URL },
+  { name: "Pricing", url: `${SITE_URL}/pricing` },
+]);
 ---
 
 <HomeLayout
@@ -34,5 +34,97 @@ const productSchema = {
   keywords="design bookmarking pricing, visual inspiration tool, designer subscription, creative workflow pricing"
   jsonLd={[organizationSchema, productSchema, breadcrumbSchema]}
 >
-  <PricingPageClient client:only="react" />
+  <main class="flex flex-1 flex-col">
+    <!-- Hero Section -->
+    <section class="pt-20 pb-8">
+      <div class="container mx-auto max-w-xl px-4 text-center">
+        <h1 class="mb-4 text-balance font-bold text-4xl tracking-tight md:text-5xl">
+          200 cards free. $19/month after.
+        </h1>
+        <p class="mx-auto max-w-2xl text-balance text-lg text-muted-foreground">
+          Try it free with your most important inspiration. Upgrade when you
+          need more. No tricks, ever.
+        </p>
+      </div>
+    </section>
+
+    <!-- Pricing Toggle -->
+    <div class="container mx-auto px-4 pb-4">
+      <PricingToggle />
+    </div>
+
+    <!-- Pricing Cards -->
+    <section class="pb-12">
+      <div class="container mx-auto px-4">
+        <div class="mx-auto grid max-w-4xl gap-8 md:grid-cols-2">
+          {pricingPlans.map((plan) => (
+            <PricingCard
+              name={plan.name}
+              description={plan.description}
+              emojiAlt={plan.emojiAlt}
+              emojiSrc={plan.emojiSrc}
+              features={plan.features}
+              price={plan.price}
+              ctaText={plan.cta.text}
+              ctaHref={plan.cta.href}
+              ctaPrimary={"primary" in plan.cta && plan.cta.primary}
+              popular={"popular" in plan && plan.popular}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- Self-Hosted Section -->
+    <section class="px-4 pb-20 md:pb-2">
+      <div class="mx-auto flex max-w-4xl flex-col gap-4 rounded-lg border border-border bg-card p-6 md:flex-row md:items-center md:justify-between">
+        <div class="flex items-center gap-4">
+          <img
+            alt={selfHostedPlan.emojiAlt}
+            class="size-14 object-contain"
+            height="56"
+            src={selfHostedPlan.emojiSrc}
+            width="56"
+          />
+          <div>
+            <h3 class="mb-1 font-semibold text-base">
+              {selfHostedPlan.name}
+            </h3>
+            <p class="text-muted-foreground">
+              {selfHostedPlan.description}
+            </p>
+          </div>
+        </div>
+        <a
+          class="inline-flex w-full items-center justify-center rounded-md border bg-background font-medium text-sm h-10 px-4 hover:bg-accent hover:text-accent-foreground md:w-auto"
+          href={selfHostedPlan.cta.href}
+        >
+          {selfHostedPlan.cta.text}
+        </a>
+      </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="py-20 md:py-24">
+      <div class="container mx-auto px-4">
+        <div class="mb-12 text-center">
+          <h2 class="mb-4 text-balance font-bold text-3xl">FAQ</h2>
+          <p class="mx-auto max-w-xl text-balance text-muted-foreground">
+            Real answers. No corporate jargon, promise.
+          </p>
+        </div>
+
+        <div class="mx-auto max-w-2xl space-y-4">
+          {pricingFaqs.map((faq) => (
+            <div class="rounded-lg border border-border bg-card p-6">
+              <h3 class="mb-3 font-semibold text-foreground">
+                {faq.question}
+              </h3>
+              <p class="text-muted-foreground">{faq.answer}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  </main>
 </HomeLayout>

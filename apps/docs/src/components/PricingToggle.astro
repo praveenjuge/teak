@@ -1,0 +1,43 @@
+---
+---
+
+<div class="mb-8 flex items-center justify-center">
+  <div class="relative inline-flex rounded-lg border bg-muted p-px">
+    <button
+      class="relative rounded-md px-4 py-1.5 font-medium border bg-background text-foreground cursor-pointer"
+      data-pricing-toggle="monthly"
+      type="button"
+    >
+      Monthly
+    </button>
+    <button
+      class="relative rounded-md px-4 py-1.5 font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+      data-pricing-toggle="yearly"
+      type="button"
+    >
+      Yearly
+    </button>
+  </div>
+</div>
+
+<script>
+  const buttons = document.querySelectorAll<HTMLButtonElement>("[data-pricing-toggle]");
+  const monthlyPrices = document.querySelectorAll<HTMLElement>("[data-price-monthly]");
+  const yearlyPrices = document.querySelectorAll<HTMLElement>("[data-price-yearly]");
+
+  buttons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const isYearly = btn.dataset.pricingToggle === "yearly";
+
+      buttons.forEach((b) => {
+        const active = b.dataset.pricingToggle === (isYearly ? "yearly" : "monthly");
+        b.className = active
+          ? "relative rounded-md px-4 py-1.5 font-medium border bg-background text-foreground cursor-pointer"
+          : "relative rounded-md px-4 py-1.5 font-medium text-muted-foreground hover:text-foreground cursor-pointer";
+      });
+
+      monthlyPrices.forEach((el) => el.classList.toggle("hidden", isYearly));
+      yearlyPrices.forEach((el) => el.classList.toggle("hidden", !isYearly));
+    });
+  });
+</script>
