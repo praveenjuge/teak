@@ -107,16 +107,14 @@ export default function SignInScreen() {
         <List modifiers={[listStyle("plain"), scrollDisabled()]}>
           <LabeledContent label="Email">
             <TextField
-              autocorrection={false}
-              keyboardType="email-address"
-              onChangeText={setEmailAddress}
+              onValueChange={setEmailAddress}
               placeholder="Enter your email"
             />
           </LabeledContent>
 
           <LabeledContent label="Password">
             <SecureField
-              onChangeText={setPassword}
+              onValueChange={setPassword}
               placeholder="Enter your password"
             />
           </LabeledContent>

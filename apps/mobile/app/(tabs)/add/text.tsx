@@ -105,11 +105,9 @@ export default function AddTextScreen() {
       <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
         <List modifiers={[listStyle("plain"), scrollDisabled()]}>
           <TextField
-            allowNewlines
+            axis="vertical"
             defaultValue={content}
-            multiline
-            numberOfLines={16}
-            onChangeText={setContent}
+            onValueChange={setContent}
             placeholder="Enter your bookmark, URL, or note"
             ref={textFieldRef}
           />
