@@ -11,7 +11,6 @@ import {
 } from "react-router-dom";
 import { toast } from "sonner";
 import { useDesktopMenuEvents } from "@/hooks/useDesktopMenuEvents";
-import { closeAuthWindow } from "@/lib/auth-window";
 import { logoutDesktopSession } from "@/lib/desktop-auth";
 import { CardsPage } from "./pages/CardsPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -52,14 +51,7 @@ function AppRoutes() {
   }, [isOnline]);
 
   useEffect(() => {
-    const becameAuthenticated = !wasAuthenticatedRef.current && isAuthenticated;
     wasAuthenticatedRef.current = isAuthenticated;
-
-    if (!becameAuthenticated) {
-      return;
-    }
-
-    void closeAuthWindow();
   }, [isAuthenticated]);
 
   if (isLoading) {

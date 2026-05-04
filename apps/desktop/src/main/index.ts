@@ -1,13 +1,13 @@
+import { join } from "node:path";
 import {
   app,
   BrowserWindow,
   ipcMain,
   Menu,
-  shell,
   type MenuItemConstructorOptions,
+  shell,
 } from "electron";
 import electronUpdater from "electron-updater";
-import { join } from "node:path";
 import { createStore, readStoreValue, writeStoreValue } from "./store";
 
 const { autoUpdater } = electronUpdater;
@@ -109,7 +109,7 @@ function closeAuthWindow(): void {
 // ── Main Window ────────────────────────────────────────────────────────────────
 
 function createMainWindow(): BrowserWindow {
-  const preloadPath = join(__dirname, "../preload/index.js");
+  const preloadPath = join(import.meta.dirname, "../preload/index.js");
   console.log("[main] preload path:", preloadPath);
 
   mainWindow = new BrowserWindow({
@@ -118,12 +118,13 @@ function createMainWindow(): BrowserWindow {
     minWidth: MAIN_WINDOW_MIN_WIDTH,
     minHeight: MAIN_WINDOW_MIN_HEIGHT,
     title: "Teak",
-    icon: join(__dirname, "../../build/icon.png"),
+    icon: join(import.meta.dirname, "../../build/icon.png"),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
       preload: preloadPath,
+      webviewTag: true,
     },
   });
 
@@ -143,7 +144,7 @@ function createMainWindow(): BrowserWindow {
                 "style-src 'self' 'unsafe-inline'",
                 "font-src 'self' data:",
                 "script-src 'self'",
-                "frame-src 'none'",
+                "frame-src https://app.teakvault.com https://teakvault.com https://localhost:* http://localhost:*",
                 "object-src 'none'",
                 "base-uri 'none'",
               ].join("; "),
@@ -187,7 +188,7 @@ function createMainWindow(): BrowserWindow {
   if (process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
-    mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+    mainWindow.loadFile(join(import.meta.dirname, "../renderer/index.html"));
   }
 
   // Auto-open DevTools in dev mode
@@ -260,9 +261,7 @@ function setupIpcHandlers(): void {
     closeAuthWindow();
   });
 
-  ipcMain.handle("app:get-version", () => {
-    return app.getVersion();
-  });
+  ipcMain.handle("app:get-version", () => app.getVersion());
 }
 
 // ── Menu ───────────────────────────────────────────────────────────────────────
