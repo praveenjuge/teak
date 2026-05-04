@@ -53,7 +53,7 @@ describe("electron main process wiring", () => {
     expect(channelsSource).toContain('"desktop://menu/logout"');
   });
 
-  it("sets up silent auto-updater via electron-updater", () => {
+  it("sets up auto-updater with native dialogs via electron-updater", () => {
     const source = readFileSync(
       resolve(import.meta.dir, "../main/index.ts"),
       "utf8"
@@ -61,9 +61,13 @@ describe("electron main process wiring", () => {
 
     expect(source).toContain('import electronUpdater from "electron-updater"');
     expect(source).toContain("const { autoUpdater } = electronUpdater");
-    expect(source).toContain("autoUpdater.autoDownload = true");
+    expect(source).toContain("autoUpdater.autoDownload = false");
     expect(source).toContain("autoUpdater.autoInstallOnAppQuit = true");
     expect(source).toContain("autoUpdater.checkForUpdates()");
+    expect(source).toContain('autoUpdater.on("update-available"');
+    expect(source).toContain('autoUpdater.on("update-downloaded"');
+    expect(source).toContain('autoUpdater.on("update-not-available"');
+    expect(source).toContain("Check for Updates...");
   });
 
   it("validates store keys in the main process store", () => {

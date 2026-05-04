@@ -2,6 +2,7 @@ import { join } from "node:path";
 import {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   Menu,
   type MenuItemConstructorOptions,
@@ -25,6 +26,7 @@ const ALLOWED_URL_PROTOCOLS = new Set(["https:", "http:"]);
 // ── State ──────────────────────────────────────────────────────────────────────
 
 let mainWindow: BrowserWindow | null = null;
+let manualUpdateCheck = false;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -189,6 +191,26 @@ function buildAppMenu(): void {
       submenu: [
         { role: "about", label: `About ${appName}` },
         {
+          label: "Check for Updates...",
+          click: () => {
+            manualUpdateCheck = true;
+            autoUpdater.checkForUpdates().catch((err) => {
+              manualUpdateCheck = false;
+              // In dev mode there's no app-update.yml, so show a helpful message
+              const isDev = !!process.env.ELECTRON_RENDERER_URL;
+              dialog.showMessageBox({
+                type: isDev ? "info" : "error",
+                title: isDev ? "Development Mode" : "Update Error",
+                message: isDev
+                  ? "Auto-updates are only available in packaged builds."
+                  : "Unable to check for updates.",
+                detail: isDev ? undefined : err?.message,
+                buttons: ["OK"],
+              });
+            });
+          },
+        },
+        {
           label: "Settings...",
           accelerator: "CmdOrCtrl+,",
           click: () => emitMenuEvent("desktop://menu/settings"),
@@ -252,13 +274,75 @@ function buildAppMenu(): void {
   Menu.setApplicationMenu(menu);
 }
 
-// ── Silent Auto-Updater ────────────────────────────────────────────────────────
+// ── Auto-Updater ───────────────────────────────────────────────────────────────
 
 function setupAutoUpdater(): void {
-  autoUpdater.autoDownload = true;
+  autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.logger = null; // silent
+  autoUpdater.logger = null;
 
+  autoUpdater.on("update-available", (info) => {
+    dialog
+      .showMessageBox({
+        type: "info",
+        title: "Update Available",
+        message: `A new version (${info.version}) is available.`,
+        detail: "Would you like to download it now?",
+        buttons: ["Download", "Later"],
+        defaultId: 0,
+        cancelId: 1,
+      })
+      .then(({ response }) => {
+        if (response === 0) {
+          autoUpdater.downloadUpdate();
+        }
+      });
+  });
+
+  autoUpdater.on("update-downloaded", (info) => {
+    dialog
+      .showMessageBox({
+        type: "info",
+        title: "Update Ready",
+        message: `Version ${info.version} has been downloaded.`,
+        detail: "Restart now to apply the update?",
+        buttons: ["Restart", "Later"],
+        defaultId: 0,
+        cancelId: 1,
+      })
+      .then(({ response }) => {
+        if (response === 0) {
+          autoUpdater.quitAndInstall();
+        }
+      });
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    if (manualUpdateCheck) {
+      dialog.showMessageBox({
+        type: "info",
+        title: "You're up to date!",
+        message: `Teak ${app.getVersion()} is currently the newest version available.`,
+        buttons: ["OK"],
+      });
+      manualUpdateCheck = false;
+    }
+  });
+
+  autoUpdater.on("error", (err) => {
+    if (manualUpdateCheck) {
+      dialog.showMessageBox({
+        type: "error",
+        title: "Update Error",
+        message: "Failed to check for updates.",
+        detail: err.message,
+        buttons: ["OK"],
+      });
+      manualUpdateCheck = false;
+    }
+  });
+
+  // Check on launch — dialogs only appear if an update is found
   autoUpdater.checkForUpdates().catch(() => {
     // Silent failure — retry on next launch
   });
