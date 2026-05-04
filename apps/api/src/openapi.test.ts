@@ -7,7 +7,7 @@ import { openApiSpec } from "./openapi";
 
 const docsPath = path.resolve(
   import.meta.dir,
-  "../../docs/content/docs/api.mdx"
+  "../../docs/src/content/docs/api.mdx"
 );
 
 describe("openapi", () => {
