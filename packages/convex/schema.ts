@@ -191,6 +191,19 @@ export const apiIdempotencyKeyValidator = v.object({
   updatedAt: v.number(),
 });
 
+export const apiIdempotencyAnalyticsValidator = v.object({
+  date: v.string(),
+  endpoint: v.string(),
+  totalRequests: v.number(),
+  withKey: v.number(),
+  skipped: v.number(),
+  started: v.number(),
+  replayed: v.number(),
+  conflicts: v.number(),
+  inProgress: v.number(),
+  errors: v.number(),
+});
+
 export const desktopAuthCodeValidator = v.object({
   sessionId: v.string(),
   userId: v.string(),
@@ -308,6 +321,8 @@ export default defineSchema({
   apiIdempotencyKeys: defineTable(apiIdempotencyKeyValidator)
     .index("by_user_key_hash", ["userId", "keyHash"])
     .index("by_expires_at", ["expiresAt"]),
+  apiIdempotencyAnalytics: defineTable(apiIdempotencyAnalyticsValidator)
+    .index("by_date_endpoint", ["date", "endpoint"]),
   desktopAuthCodes: defineTable(desktopAuthCodeValidator)
     .index("by_expires_at", ["expiresAt"])
     .index("by_device_state_consumed", ["deviceId", "state", "consumedAt"])

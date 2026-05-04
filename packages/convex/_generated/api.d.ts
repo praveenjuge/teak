@@ -39,6 +39,7 @@ import type * as crons from "../crons.js";
 import type * as devUrls from "../devUrls.js";
 import type * as http from "../http.js";
 import type * as idempotency from "../idempotency.js";
+import type * as idempotencyAnalytics from "../idempotencyAnalytics.js";
 import type * as index from "../index.js";
 import type * as linkMetadata from "../linkMetadata.js";
 import type * as linkMetadata_instagram from "../linkMetadata/instagram.js";
@@ -139,6 +140,7 @@ declare const fullApi: ApiFromModules<{
   devUrls: typeof devUrls;
   http: typeof http;
   idempotency: typeof idempotency;
+  idempotencyAnalytics: typeof idempotencyAnalytics;
   index: typeof index;
   linkMetadata: typeof linkMetadata;
   "linkMetadata/instagram": typeof linkMetadata_instagram;
