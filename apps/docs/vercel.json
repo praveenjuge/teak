@@ -3,11 +3,5 @@
   "installCommand": "bun install",
   "framework": null,
   "outputDirectory": "dist",
-  "bunVersion": "1.x",
-  "rewrites": [
-    {
-      "source": "/updates/darwin/aarch64/:currentVersion",
-      "destination": "/updates/darwin/aarch64/:currentVersion.json"
-    }
-  ]
+  "bunVersion": "1.x"
 }

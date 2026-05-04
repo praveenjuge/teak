@@ -96,9 +96,6 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss() as any],
   },
-  redirects: {
-    "/docs/environment-settings": "/docs/self-hosting#environment-settings",
-  },
   security: {
     csp: true,
   },
