@@ -110,10 +110,13 @@ export const getCardForUserHandler = async (
       ): item is HydratedLinkPreviewMedia => Boolean(item)
     );
 
+  const linkPreviewOgImageUrl: string | undefined = card.metadata?.linkPreview
+    ?.imageStorageId
+    ? (urlMap.get(card.metadata.linkPreview.imageStorageId) ?? undefined)
+    : undefined;
+
   const linkPreviewImageUrl =
-    (card.metadata?.linkPreview?.imageStorageId
-      ? (urlMap.get(card.metadata.linkPreview.imageStorageId) ?? undefined)
-      : undefined) ??
+    linkPreviewOgImageUrl ??
     linkPreviewMedia?.find(
       (item: NonNullable<(typeof linkPreviewMedia)[number]>) =>
         item.type === "image"
@@ -218,7 +221,6 @@ export const getCardForUser = internalQuery({
     cardId: v.id("cards"),
   },
   returns: v.union(v.null(), cardReturnValidator),
-  handler: async (ctx, args) => {
-    return getCardForUserHandler(ctx, args.userId, args.cardId);
-  },
+  handler: async (ctx, args) =>
+    getCardForUserHandler(ctx, args.userId, args.cardId),
 });
