@@ -19,11 +19,6 @@ describe("preload API shape", () => {
     expect(source).toContain("shell:");
     expect(source).toContain('"shell:open-external"');
 
-    // Auth API
-    expect(source).toContain("auth:");
-    expect(source).toContain('"auth:open-window"');
-    expect(source).toContain('"auth:close-window"');
-
     // App API
     expect(source).toContain("app:");
     expect(source).toContain('"app:get-version"');
@@ -36,14 +31,13 @@ describe("preload API shape", () => {
     expect(source).toContain('"teakDesktop"');
   });
 
-  it("validates menu event channels in the preload", () => {
+  it("uses shared channel constants for menu event validation", () => {
     const source = readFileSync(
       resolve(import.meta.dir, "../preload/index.ts"),
       "utf8"
     );
 
-    expect(source).toContain("allowedChannels");
-    expect(source).toContain('"desktop://menu/settings"');
-    expect(source).toContain('"desktop://menu/logout"');
+    expect(source).toContain("allowedMenuChannels");
+    expect(source).toContain("MENU_CHANNELS");
   });
 });

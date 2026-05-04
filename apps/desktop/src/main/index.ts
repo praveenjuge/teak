@@ -8,6 +8,7 @@ import {
   shell,
 } from "electron";
 import electronUpdater from "electron-updater";
+import { IPC_CHANNELS, MENU_CHANNELS } from "./channels";
 import { createStore, readStoreValue, writeStoreValue } from "./store";
 
 const { autoUpdater } = electronUpdater;
@@ -19,24 +20,11 @@ const MAIN_WINDOW_HEIGHT = 700;
 const MAIN_WINDOW_MIN_WIDTH = 800;
 const MAIN_WINDOW_MIN_HEIGHT = 600;
 
-const AUTH_WINDOW_WIDTH = 480;
-const AUTH_WINDOW_HEIGHT = 760;
-
-const IPC_CHANNELS = new Set([
-  "store:read",
-  "store:write",
-  "shell:open-external",
-  "auth:open-window",
-  "auth:close-window",
-  "app:get-version",
-]);
-
 const ALLOWED_URL_PROTOCOLS = new Set(["https:", "http:"]);
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
 let mainWindow: BrowserWindow | null = null;
-let authWindow: BrowserWindow | null = null;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -46,63 +34,6 @@ function isValidExternalUrl(url: string): boolean {
     return ALLOWED_URL_PROTOCOLS.has(parsed.protocol);
   } catch {
     return false;
-  }
-}
-
-function isValidIpcChannel(channel: string): boolean {
-  return IPC_CHANNELS.has(channel);
-}
-
-// ── Auth Window ────────────────────────────────────────────────────────────────
-
-function createAuthWindow(url: string): BrowserWindow {
-  if (authWindow && !authWindow.isDestroyed()) {
-    authWindow.close();
-  }
-
-  authWindow = new BrowserWindow({
-    width: AUTH_WINDOW_WIDTH,
-    height: AUTH_WINDOW_HEIGHT,
-    center: true,
-    resizable: true,
-    fullscreenable: false,
-    title: "Teak Login",
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-      // Ephemeral partition — fresh session each time (like Tauri incognito),
-      // and isolated from the main window's CSP headers.
-      partition: `auth-${Date.now()}`,
-      // No preload for auth window — it's a plain browser window
-    },
-  });
-
-  authWindow.loadURL(url);
-
-  // Open DevTools in dev mode for debugging
-  if (process.env.ELECTRON_RENDERER_URL) {
-    authWindow.webContents.openDevTools();
-  }
-
-  authWindow.on("closed", () => {
-    authWindow = null;
-  });
-
-  // Prevent navigation to unexpected URLs within the auth window
-  authWindow.webContents.on("will-navigate", (event, navigationUrl) => {
-    if (!isValidExternalUrl(navigationUrl)) {
-      event.preventDefault();
-    }
-  });
-
-  return authWindow;
-}
-
-function closeAuthWindow(): void {
-  if (authWindow && !authWindow.isDestroyed()) {
-    authWindow.close();
-    authWindow = null;
   }
 }
 
@@ -124,7 +55,6 @@ function createMainWindow(): BrowserWindow {
       contextIsolation: true,
       sandbox: true,
       preload: preloadPath,
-      webviewTag: true,
     },
   });
 
@@ -144,7 +74,6 @@ function createMainWindow(): BrowserWindow {
                 "style-src 'self' 'unsafe-inline'",
                 "font-src 'self' data:",
                 "script-src 'self'",
-                "frame-src https://app.teakvault.com https://teakvault.com https://localhost:* http://localhost:*",
                 "object-src 'none'",
                 "base-uri 'none'",
               ].join("; "),
@@ -206,13 +135,6 @@ function createMainWindow(): BrowserWindow {
 // ── IPC Handlers ───────────────────────────────────────────────────────────────
 
 function setupIpcHandlers(): void {
-  // Validate all IPC messages come from known channels
-  ipcMain.on("*", (_event: Electron.IpcMainEvent, channel: string) => {
-    if (!isValidIpcChannel(channel)) {
-      console.warn(`[main] Rejected unknown IPC channel: ${channel}`);
-    }
-  });
-
   ipcMain.handle(
     "store:read",
     async (_event: Electron.IpcMainInvokeEvent, key: string) => {
@@ -246,20 +168,6 @@ function setupIpcHandlers(): void {
       await shell.openExternal(url);
     }
   );
-
-  ipcMain.handle(
-    "auth:open-window",
-    (_event: Electron.IpcMainInvokeEvent, url: string) => {
-      if (typeof url !== "string" || !isValidExternalUrl(url)) {
-        throw new Error("Invalid auth URL");
-      }
-      createAuthWindow(url);
-    }
-  );
-
-  ipcMain.handle("auth:close-window", () => {
-    closeAuthWindow();
-  });
 
   ipcMain.handle("app:get-version", () => app.getVersion());
 }

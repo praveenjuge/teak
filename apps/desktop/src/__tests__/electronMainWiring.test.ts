@@ -22,10 +22,6 @@ describe("electron main process wiring", () => {
     // URL validation
     expect(source).toContain("isValidExternalUrl");
     expect(source).toContain("ALLOWED_URL_PROTOCOLS");
-
-    // IPC channel validation
-    expect(source).toContain("IPC_CHANNELS");
-    expect(source).toContain("isValidIpcChannel");
   });
 
   it("configures the main window with correct dimensions", () => {
@@ -40,14 +36,21 @@ describe("electron main process wiring", () => {
     expect(source).toContain("MAIN_WINDOW_MIN_HEIGHT = 600");
   });
 
-  it("configures the auth window with correct dimensions", () => {
-    const source = readFileSync(
-      resolve(import.meta.dir, "../main/index.ts"),
+  it("uses shared channel constants from channels.ts", () => {
+    const channelsSource = readFileSync(
+      resolve(import.meta.dir, "../main/channels.ts"),
       "utf8"
     );
 
-    expect(source).toContain("AUTH_WINDOW_WIDTH = 480");
-    expect(source).toContain("AUTH_WINDOW_HEIGHT = 760");
+    // Shared channel definitions
+    expect(channelsSource).toContain("IPC_CHANNELS");
+    expect(channelsSource).toContain("MENU_CHANNELS");
+    expect(channelsSource).toContain('"store:read"');
+    expect(channelsSource).toContain('"store:write"');
+    expect(channelsSource).toContain('"shell:open-external"');
+    expect(channelsSource).toContain('"app:get-version"');
+    expect(channelsSource).toContain('"desktop://menu/settings"');
+    expect(channelsSource).toContain('"desktop://menu/logout"');
   });
 
   it("sets up silent auto-updater via electron-updater", () => {

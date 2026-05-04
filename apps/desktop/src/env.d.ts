@@ -12,10 +12,6 @@ interface TeakDesktopApi {
   shell: {
     openExternal: (url: string) => Promise<void>;
   };
-  auth: {
-    openWindow: (url: string) => Promise<void>;
-    closeWindow: () => Promise<void>;
-  };
   app: {
     getVersion: () => Promise<string>;
   };

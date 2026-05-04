@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { buildWebUrl, getDesktopConfig } from "@/lib/desktop-config";
-import { readStoreValue, writeStoreValue } from "@/lib/store";
+
+// ── Constants ──────────────────────────────────────────────────────────────────
 
 const SESSION_TOKEN_KEY = "auth.sessionToken";
 const DEVICE_ID_KEY = "auth.deviceId";
@@ -8,6 +9,8 @@ const PENDING_AUTH_KEY = "auth.pendingDesktopFlow";
 const DESKTOP_PENDING_MAX_AGE_MS = 10 * 60 * 1000;
 const DESKTOP_AUTH_POLL_INTERVAL_MS = 2000;
 const JWT_EXPIRY_SKEW_MS = 10_000;
+
+// ── Types ──────────────────────────────────────────────────────────────────────
 
 type DesktopAuthState = {
   isInitialized: boolean;
@@ -36,9 +39,23 @@ export type DesktopAuthPollingResult =
   | "timeout"
   | "cancelled";
 
+// ── Validation patterns ────────────────────────────────────────────────────────
+
 const PKCE_CODE_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
 const CALLBACK_STATE_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
 const DEVICE_ID_PATTERN = /^[A-Za-z0-9-]{16,128}$/;
+
+// ── Store helpers (thin wrappers over the preload bridge) ──────────────────────
+
+function readStoreValue<T>(key: string): Promise<T | null> {
+  return window.teakDesktop.store.read<T>(key);
+}
+
+function writeStoreValue(key: string, value: unknown): Promise<void> {
+  return window.teakDesktop.store.write(key, value);
+}
+
+// ── External store for React ───────────────────────────────────────────────────
 
 let state: DesktopAuthState = {
   isInitialized: false,
@@ -71,6 +88,8 @@ function setState(nextState: DesktopAuthState) {
   state = nextState;
   notifyListeners();
 }
+
+// ── Crypto helpers ─────────────────────────────────────────────────────────────
 
 const { convexSiteBaseUrl } = getDesktopConfig();
 
@@ -125,6 +144,8 @@ function parseJwtExpiry(token: string): number | null {
   }
 }
 
+// ── Initialization ─────────────────────────────────────────────────────────────
+
 async function ensureInitialized(): Promise<void> {
   if (state.isInitialized) {
     return;
@@ -147,6 +168,8 @@ async function ensureInitialized(): Promise<void> {
 
   await initializationPromise;
 }
+
+// ── Session management ─────────────────────────────────────────────────────────
 
 async function setSessionToken(sessionToken: string): Promise<void> {
   await writeStoreValue(SESSION_TOKEN_KEY, sessionToken);
@@ -181,6 +204,8 @@ export async function getDesktopDeviceId(): Promise<string> {
   await writeStoreValue(DEVICE_ID_KEY, nextDeviceId);
   return nextDeviceId;
 }
+
+// ── Auth flow ──────────────────────────────────────────────────────────────────
 
 export async function startDesktopAuthRequest(): Promise<string> {
   const deviceId = await getDesktopDeviceId();
@@ -310,6 +335,8 @@ export function startDesktopAuthPolling(): Promise<DesktopAuthPollingResult> {
   return pollingPromise;
 }
 
+// ── JWT fetching ───────────────────────────────────────────────────────────────
+
 async function fetchConvexJwt(
   sessionToken: string,
   forceRefreshToken: boolean
@@ -352,6 +379,8 @@ async function fetchConvexJwt(
   return data.token;
 }
 
+// ── Logout ─────────────────────────────────────────────────────────────────────
+
 export async function logoutDesktopSession(): Promise<void> {
   const sessionToken = await getDesktopSessionToken();
 
@@ -367,6 +396,8 @@ export async function logoutDesktopSession(): Promise<void> {
   await clearDesktopSessionToken();
   await writeStoreValue(PENDING_AUTH_KEY, null);
 }
+
+// ── React hook for ConvexProviderWithAuth ──────────────────────────────────────
 
 export function useDesktopConvexAuth() {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);

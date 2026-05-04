@@ -14,6 +14,6 @@ describe("desktop search wiring", () => {
     expect(source).toContain("useCardQueryParamState");
     expect(source).toContain("useGlobalDragDrop");
     expect(source).toContain("SettingsButton={settingsButton}");
-    expect(source).toContain('navigate("/settings")');
+    expect(source).toContain("onNavigateToSettings");
   });
 });

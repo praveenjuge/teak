@@ -1,14 +1,7 @@
 import { PageLoadingState } from "@teak/ui/feedback/PageLoadingState";
 import { useNetworkStatus } from "@teak/ui/hooks";
 import { useConvexAuth } from "convex/react";
-import { useCallback, useEffect, useRef } from "react";
-import {
-  BrowserRouter,
-  Navigate,
-  Route,
-  Routes,
-  useNavigate,
-} from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useDesktopMenuEvents } from "@/hooks/useDesktopMenuEvents";
 import { logoutDesktopSession } from "@/lib/desktop-auth";
@@ -16,11 +9,12 @@ import { CardsPage } from "./pages/CardsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { SettingsPage } from "./pages/SettingsPage";
 
-function AppRoutes() {
-  const navigate = useNavigate();
+export type DesktopPage = "cards" | "settings";
+
+function App() {
+  const [page, setPage] = useState<DesktopPage>("cards");
   const { isOnline } = useNetworkStatus();
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const wasAuthenticatedRef = useRef(isAuthenticated);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -32,9 +26,9 @@ function AppRoutes() {
 
   const handleSettingsMenuClick = useCallback(() => {
     if (isAuthenticated) {
-      navigate("/settings");
+      setPage("settings");
     }
-  }, [navigate, isAuthenticated]);
+  }, [isAuthenticated]);
 
   useDesktopMenuEvents({
     onLogout: () => {
@@ -50,10 +44,6 @@ function AppRoutes() {
     toast.error("You are offline. Login and sync may be unavailable.");
   }, [isOnline]);
 
-  useEffect(() => {
-    wasAuthenticatedRef.current = isAuthenticated;
-  }, [isAuthenticated]);
-
   if (isLoading) {
     return <PageLoadingState />;
   }
@@ -62,21 +52,11 @@ function AppRoutes() {
     return <LoginPage isOnline={isOnline} />;
   }
 
-  return (
-    <Routes>
-      <Route element={<CardsPage />} path="/" />
-      <Route element={<SettingsPage />} path="/settings" />
-      <Route element={<Navigate replace to="/" />} path="*" />
-    </Routes>
-  );
-}
+  if (page === "settings") {
+    return <SettingsPage onNavigateBack={() => setPage("cards")} />;
+  }
 
-function App() {
-  return (
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
-  );
+  return <CardsPage onNavigateToSettings={() => setPage("settings")} />;
 }
 
 export default App;

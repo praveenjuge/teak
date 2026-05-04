@@ -1,6 +1,9 @@
 import { contextBridge, ipcRenderer } from "electron";
+import { MENU_CHANNELS } from "../main/channels";
 
 console.log("[preload] loading teakDesktop bridge");
+
+const allowedMenuChannels = new Set<string>(MENU_CHANNELS);
 
 /**
  * Typed preload API exposed to the renderer as `window.teakDesktop`.
@@ -23,14 +26,6 @@ const teakDesktopApi = {
       ipcRenderer.invoke("shell:open-external", url),
   },
 
-  // ── Auth Window ────────────────────────────────────────────────────────────
-  auth: {
-    openWindow: (url: string): Promise<void> =>
-      ipcRenderer.invoke("auth:open-window", url),
-    closeWindow: (): Promise<void> =>
-      ipcRenderer.invoke("auth:close-window"),
-  },
-
   // ── App ────────────────────────────────────────────────────────────────────
   app: {
     getVersion: (): Promise<string> =>
@@ -42,12 +37,7 @@ const teakDesktopApi = {
     channel: string,
     callback: () => void
   ): (() => void) => {
-    const allowedChannels = new Set([
-      "desktop://menu/settings",
-      "desktop://menu/logout",
-    ]);
-
-    if (!allowedChannels.has(channel)) {
+    if (!allowedMenuChannels.has(channel)) {
       return () => {};
     }
 

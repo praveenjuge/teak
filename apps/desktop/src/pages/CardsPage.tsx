@@ -3,91 +3,60 @@ import { useCardQueryParamState } from "@teak/ui/hooks";
 import { CardsScreen } from "@teak/ui/screens";
 import { Settings } from "lucide-react";
 import type { ReactNode } from "react";
-import { useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useCallback, useState } from "react";
 import { useGlobalDragDrop } from "@/hooks/useGlobalDragDrop";
-import { buildWebUrl } from "@/lib/web-urls";
+import { buildWebUrl } from "@/lib/desktop-config";
 
-function DesktopUpgradeLink({
-  href,
-  children,
-  className,
-}: {
-  href: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <a
-      className={className}
-      href={href}
-      onClick={(event) => {
-        event.preventDefault();
-        void window.teakDesktop.shell.openExternal(href);
-      }}
-    >
-      {children}
-    </a>
-  );
+interface CardsPageProps {
+  onNavigateToSettings: () => void;
 }
 
-export function CardsPage() {
-  const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const cardIdFromUrl = searchParams.get("card");
-
-  const pushCardId = useCallback(
-    (cardId: string) => {
-      setSearchParams(
-        (prev) => {
-          const nextParams = new URLSearchParams(prev);
-          if (nextParams.get("card") === cardId) {
-            return prev;
-          }
-
-          nextParams.set("card", cardId);
-          return nextParams;
-        },
-        { replace: false }
-      );
-    },
-    [setSearchParams]
-  );
-
-  const replaceCardId = useCallback(
-    (cardId: string | null) => {
-      setSearchParams(
-        (prev) => {
-          const nextParams = new URLSearchParams(prev);
-
-          if (cardId) {
-            nextParams.set("card", cardId);
-          } else {
-            if (!nextParams.has("card")) {
-              return prev;
-            }
-            nextParams.delete("card");
-          }
-
-          return nextParams;
-        },
-        { replace: true }
-      );
-    },
-    [setSearchParams]
-  );
+export function CardsPage({ onNavigateToSettings }: CardsPageProps) {
+  const [cardId, setCardId] = useState<string | null>(null);
 
   const { selectedCardId, openCard, closeCard } = useCardQueryParamState({
-    cardIdFromUrl,
-    pushCardId,
-    replaceCardId,
+    cardIdFromUrl: cardId,
+    pushCardId: setCardId,
+    replaceCardId: setCardId,
   });
 
   const { getRootProps, getInputProps, isDragActive } = useGlobalDragDrop();
 
+  const handleOpenExternal = useCallback((url: string) => {
+    void window.teakDesktop.shell.openExternal(url);
+  }, []);
+
+  const handleUpgrade = useCallback(() => {
+    handleOpenExternal(buildWebUrl("/settings"));
+  }, [handleOpenExternal]);
+
+  const UpgradeLinkComponent = useCallback(
+    ({
+      href,
+      children,
+      className,
+    }: {
+      href: string;
+      children: ReactNode;
+      className?: string;
+    }) => (
+      <a
+        className={className}
+        href={href}
+        onClick={(event) => {
+          event.preventDefault();
+          handleOpenExternal(href);
+        }}
+      >
+        {children}
+      </a>
+    ),
+    [handleOpenExternal]
+  );
+
   const settingsButton = (
     <Button
-      onClick={() => navigate("/settings")}
+      onClick={onNavigateToSettings}
       size="icon"
       type="button"
       variant="outline"
@@ -95,10 +64,6 @@ export function CardsPage() {
       <Settings className="size-4" />
     </Button>
   );
-
-  const handleUpgrade = useCallback(() => {
-    void window.teakDesktop.shell.openExternal(buildWebUrl("/settings"));
-  }, []);
 
   return (
     <CardsScreen
@@ -111,7 +76,7 @@ export function CardsPage() {
       onUpgrade={handleUpgrade}
       SettingsButton={settingsButton}
       selectedCardId={selectedCardId}
-      UpgradeLinkComponent={DesktopUpgradeLink}
+      UpgradeLinkComponent={UpgradeLinkComponent}
       upgradeUrl={buildWebUrl("/settings")}
     />
   );

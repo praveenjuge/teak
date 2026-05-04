@@ -3,7 +3,7 @@ import {
   useGlobalDragDrop as useSharedGlobalDragDrop,
 } from "@teak/ui/hooks";
 import { useCallback } from "react";
-import { buildWebUrl } from "@/lib/web-urls";
+import { buildWebUrl } from "@/lib/desktop-config";
 
 export function useGlobalDragDrop() {
   const { uploadMultipleFiles } = useFileUpload();

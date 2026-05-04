@@ -41,20 +41,25 @@ describe("desktop menu wiring", () => {
     expect(mainSource).toContain("desktop://menu/settings");
     expect(mainSource).toContain("desktop://menu/logout");
 
-    // Preload exposes onMenuEvent with allowed channels
-    expect(preloadSource).toContain("desktop://menu/settings");
-    expect(preloadSource).toContain("desktop://menu/logout");
+    // Preload exposes onMenuEvent and uses shared channel constants
+    expect(preloadSource).toContain("MENU_CHANNELS");
+    expect(preloadSource).toContain("allowedMenuChannels");
     expect(preloadSource).toContain("contextBridge.exposeInMainWorld");
+
+    // Channel strings are defined in the shared channels module
+    const channelsSource = readFileSync(
+      resolve(import.meta.dir, "../main/channels.ts"),
+      "utf8"
+    );
+    expect(channelsSource).toContain('"desktop://menu/settings"');
+    expect(channelsSource).toContain('"desktop://menu/logout"');
   });
 
   it("does not import any Tauri packages in renderer code", () => {
     const files = [
       "../App.tsx",
       "../hooks/useDesktopMenuEvents.ts",
-      "../hooks/useDesktopUpdater.ts",
       "../hooks/useGlobalDragDrop.ts",
-      "../lib/auth-window.ts",
-      "../lib/store.ts",
       "../pages/CardsPage.tsx",
       "../pages/SettingsPage.tsx",
     ];

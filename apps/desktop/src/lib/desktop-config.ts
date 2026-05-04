@@ -84,6 +84,12 @@ export function getDesktopConfig() {
   return cachedDesktopConfig;
 }
 
+/** Build a full web URL for a given pathname. */
 export function buildWebUrl(pathname: string) {
   return getDesktopConfig().buildWebUrl(pathname);
+}
+
+/** Get the base web URL (no pathname). */
+export function getWebUrl(): string {
+  return getDesktopConfig().webBaseUrl;
 }

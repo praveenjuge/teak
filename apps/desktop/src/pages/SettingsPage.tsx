@@ -4,15 +4,17 @@ import { SettingsShell } from "@teak/ui/screens";
 import { SettingsContent } from "@teak/ui/settings";
 import { useAction, useMutation } from "convex/react";
 import { useCallback, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { logoutDesktopSession } from "@/lib/desktop-auth";
-import { buildWebUrl } from "@/lib/web-urls";
+import { buildWebUrl } from "@/lib/desktop-config";
 
 const convexApi = api as any;
 
-export function SettingsPage() {
-  const navigate = useNavigate();
+interface SettingsPageProps {
+  onNavigateBack: () => void;
+}
+
+export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
   const user = useQuery(api.auth.getCurrentUser);
   const cardCount = user?.cardCount ?? 0;
   const hasPremium = user?.hasPremium;
@@ -81,7 +83,7 @@ export function SettingsPage() {
       backControl={
         <button
           className="inline-block font-medium text-primary hover:underline"
-          onClick={() => navigate("/")}
+          onClick={onNavigateBack}
           type="button"
         >
           &larr; Back
