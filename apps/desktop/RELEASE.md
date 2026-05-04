@@ -11,26 +11,27 @@ This runbook defines Teak desktop launch and incident response for macOS Apple S
 
 ## Promotion Procedure
 
-1. Update root `package.json` `version`, then push to `main`.
-2. `Version Bump` workflow runs automatically:
-   - Syncs every workspace `package.json` to the root version
-   - Syncs `apps/mobile/app.json`, `apps/mobile/store.config.json`, and `apps/extension/wxt.config.ts`
-   - Pushes sync commit if needed
-   - Creates and pushes `v<version>` tag
-3. `Desktop Release` workflow runs from that tag:
+1. Bump the `version` field in **every** `package.json` across the monorepo (root + all workspaces under `apps/*` and `packages/*`).
+2. Commit and push to `main`.
+3. Create and push a version tag:
+   ```bash
+   git tag v<version>
+   git push origin v<version>
+   ```
+4. `Desktop Release` workflow (`.github/workflows/desktop-release.yml`) runs from that tag:
    - Builds renderer, main, and preload via `electron-vite build`
    - Imports signing credentials from GitHub Actions secrets
    - Packages, signs, and notarizes the macOS Apple Silicon app via `electron-builder`
    - Verifies codesign, Gatekeeper assessment, and the stapled notarization ticket
    - Publishes GitHub Release assets including `latest-mac.yml` updater metadata only after verification passes
-4. Validate release gates:
+5. Validate release gates:
    - Codesign verification (`codesign --verify --deep --strict`)
    - Gatekeeper assessment (`spctl --assess --type execute`)
    - Smoke test install from DMG
-5. Verify updater metadata publish:
+6. Verify updater metadata publish:
    - `latest-mac.yml` is present in the GitHub Release assets
    - `electron-updater` resolves the new version on a test machine
-6. Announce release in team channel with:
+7. Announce release in team channel with:
    - Version
    - Release URL
    - Known issues (if any)
@@ -69,7 +70,10 @@ Use rollback when critical regressions impact launch, auth, sync, or update safe
 - `APPLE_API_KEY_ID` — App Store Connect API key ID for notarization
 - `APPLE_API_KEY_P8` — Raw `.p8` App Store Connect API private key content for notarization
 - `APPLE_API_ISSUER` — App Store Connect API issuer UUID for notarization
-- `GH_TOKEN` — GitHub token for publishing releases
-- `VITE_WEB_URL`
-- `VITE_PUBLIC_CONVEX_URL`
-- `VITE_PUBLIC_CONVEX_SITE_URL`
+- `GH_TOKEN` — GitHub token for publishing releases (provided automatically by `secrets.GITHUB_TOKEN`)
+
+### Build-Time Environment Variables (hardcoded in workflow)
+
+- `VITE_WEB_URL` — Production web app URL
+- `VITE_PUBLIC_CONVEX_URL` — Production Convex deployment URL
+- `VITE_PUBLIC_CONVEX_SITE_URL` — Production Convex site URL
