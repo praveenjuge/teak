@@ -30,11 +30,12 @@ export default function SignUpScreen() {
     password.trim().length > 0;
 
   useFocusEffect(
-    useCallback(() => {
-      return () => {
+    useCallback(
+      () => () => {
         Keyboard.dismiss();
-      };
-    }, [])
+      },
+      []
+    )
   );
 
   const waitForKeyboardToSettle = useCallback(
