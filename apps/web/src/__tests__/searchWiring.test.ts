@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 describe("web search wiring", () => {
   it("uses shared cards screen and shared query-param state", () => {
     const source = readFileSync(
-      resolve(import.meta.dir, "../app/page.tsx"),
+      resolve(import.meta.dir, "../app/HomePageClient.tsx"),
       "utf8"
     );
 

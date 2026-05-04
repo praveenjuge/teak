@@ -66,9 +66,8 @@ const isJsonResponse = (response: Response): boolean => {
   return contentType?.toLowerCase().includes("application/json") ?? false;
 };
 
-const readResponseText = (response: Response): Promise<string> => {
-  return response.text().catch(() => "");
-};
+const readResponseText = (response: Response): Promise<string> =>
+  response.text().catch(() => "");
 
 const getUpstreamTimeoutMs = (): number => {
   const rawTimeout = process.env.CONVEX_UPSTREAM_TIMEOUT_MS;

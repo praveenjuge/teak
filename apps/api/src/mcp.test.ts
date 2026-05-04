@@ -44,8 +44,8 @@ const mcpRequest = async (
 const initializeMcp = async (options?: {
   path?: "/mcp" | "/mcp/";
   authorization?: string;
-}) => {
-  return mcpRequest(
+}) =>
+  mcpRequest(
     {
       jsonrpc: "2.0",
       id: 1,
@@ -61,7 +61,6 @@ const initializeMcp = async (options?: {
     },
     options
   );
-};
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
@@ -94,18 +93,19 @@ describe("apps/api MCP endpoint", () => {
   test("returns 401 for invalid API key on MCP control methods", async () => {
     process.env.CONVEX_HTTP_BASE_URL = CONVEX_BASE_URL;
 
-    globalThis.fetch = mock(async () => {
-      return new Response(
-        JSON.stringify({
-          code: "INVALID_API_KEY",
-          error: "Invalid or revoked API key",
-        }),
-        {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }) as unknown as typeof fetch;
+    globalThis.fetch = mock(
+      async () =>
+        new Response(
+          JSON.stringify({
+            code: "INVALID_API_KEY",
+            error: "Invalid or revoked API key",
+          }),
+          {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+    ) as unknown as typeof fetch;
 
     const initializeResponse = await initializeMcp({
       authorization: "Bearer teakapi_invalid",
@@ -135,12 +135,13 @@ describe("apps/api MCP endpoint", () => {
   test("supports /mcp and /mcp/ paths", async () => {
     const authorization = "Bearer teakapi_supports";
     process.env.CONVEX_HTTP_BASE_URL = CONVEX_BASE_URL;
-    globalThis.fetch = mock(async () => {
-      return new Response(JSON.stringify({ items: [], total: 0 }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    }) as unknown as typeof fetch;
+    globalThis.fetch = mock(
+      async () =>
+        new Response(JSON.stringify({ items: [], total: 0 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+    ) as unknown as typeof fetch;
 
     const response = await initializeMcp({
       authorization,
@@ -155,12 +156,13 @@ describe("apps/api MCP endpoint", () => {
   test("initializes and lists the six teak_v1 tools", async () => {
     const authorization = "Bearer teakapi_list";
     process.env.CONVEX_HTTP_BASE_URL = CONVEX_BASE_URL;
-    globalThis.fetch = mock(async () => {
-      return new Response(JSON.stringify({ items: [], total: 0 }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    }) as unknown as typeof fetch;
+    globalThis.fetch = mock(
+      async () =>
+        new Response(JSON.stringify({ items: [], total: 0 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+    ) as unknown as typeof fetch;
 
     const initResponse = await initializeMcp({
       authorization,
@@ -389,9 +391,9 @@ describe("apps/api MCP endpoint", () => {
   test("requires confirm=true for delete tool", async () => {
     const authorization = "Bearer teakapi_delete_confirm";
     process.env.CONVEX_HTTP_BASE_URL = CONVEX_BASE_URL;
-    globalThis.fetch = mock(async () => {
-      return new Response(null, { status: 204 });
-    }) as unknown as typeof fetch;
+    globalThis.fetch = mock(
+      async () => new Response(null, { status: 204 })
+    ) as unknown as typeof fetch;
 
     await initializeMcp({ authorization });
 

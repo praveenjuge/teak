@@ -10,16 +10,16 @@ import {
 } from "../shared/v1.js";
 
 export const registerRestRoutes = (app: Hono): void => {
-  app.get("/healthz", (c) => {
-    return c.json({
+  app.get("/healthz", (c) =>
+    c.json({
       status: "ok",
       service: "teak-api",
       version: API_VERSION,
-    });
-  });
+    })
+  );
 
-  app.get("/v1", (c) => {
-    return c.json({
+  app.get("/v1", (c) =>
+    c.json({
       version: API_VERSION,
       endpoints: V1_ENDPOINTS,
       auth: API_AUTH_HINT,
@@ -28,8 +28,8 @@ export const registerRestRoutes = (app: Hono): void => {
         transport: MCP_TRANSPORT,
         auth: API_AUTH_HINT,
       },
-    });
-  });
+    })
+  );
 
   app.get("/openapi.json", (c) => c.json(openApiSpec));
 

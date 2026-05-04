@@ -1,11 +1,15 @@
 import { expo } from "@better-auth/expo";
-import { createClient, type GenericCtx } from "@convex-dev/better-auth";
+import {
+  type AuthFunctions,
+  createClient,
+  type GenericCtx,
+} from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { requireActionCtx } from "@convex-dev/better-auth/utils";
 import { Resend } from "@convex-dev/resend";
-import { type BetterAuthOptions, betterAuth } from "better-auth";
+import { type BetterAuthOptions, betterAuth } from "better-auth/minimal";
 import { ConvexError } from "convex/values";
-import { api, components } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import {
   internalAction,
@@ -28,10 +32,52 @@ const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET!;
 const siteUrl = process.env.SITE_URL!;
 const desktopDevOrigins = ["http://localhost:1420", "http://127.0.0.1:1420"];
 const appDevUrl = resolveTeakDevAppUrl(process.env);
+const usesSecureCookies = new URL(siteUrl).protocol === "https:";
+
+export const trustedOrigins = [
+  siteUrl,
+  "https://*.teakvault.com",
+  "https://app.teakvault.com",
+  "tauri://localhost",
+  "teak://",
+  "teak://*",
+  "chrome-extension://negnmfifahnnagnbnfppmlgfajngdpob",
+  appDevUrl,
+  "https://appleid.apple.com",
+  ...(isLocalDevelopmentUrl(siteUrl)
+    ? [
+        ...desktopDevOrigins,
+        "exp+teak://*",
+        "exp://*/*",
+        "exp://10.0.0.*:*/*",
+        "exp://192.168.*.*:*/*",
+        "exp://172.*.*.*:*/*",
+        "exp://localhost:*/*",
+      ]
+    : []),
+];
 
 // The component client has methods needed for integrating Convex with Better Auth,
 // as well as helper methods for general use.
-export const authComponent = createClient<DataModel>(components.betterAuth);
+const authFunctions = (internal as any).auth as AuthFunctions;
+
+export const authComponent = createClient<DataModel>(components.betterAuth, {
+  authFunctions,
+  triggers: {
+    user: {
+      onCreate: async (ctx, user) => {
+        await ctx.scheduler.runAfter(
+          0,
+          internal.card.defaultCards.createDefaultCardsForUser,
+          { userId: user._id }
+        );
+      },
+    },
+  },
+});
+
+export const { getAuthUser } = authComponent.clientApi();
+export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
 export const resend = new Resend(components.resend, {
   testMode: false,
@@ -39,30 +85,50 @@ export const resend = new Resend(components.resend, {
 
 export const createAuth = (ctx: GenericCtx<DataModel>) => {
   return betterAuth({
-    trustedOrigins: [
-      siteUrl,
-      "https://*.teakvault.com",
-      "https://app.teakvault.com",
-      "tauri://localhost",
-      "teak://",
-      "teak://*",
-      "chrome-extension://negnmfifahnnagnbnfppmlgfajngdpob",
-      appDevUrl,
-      "https://appleid.apple.com",
-      ...(isLocalDevelopmentUrl(siteUrl)
-        ? [
-            ...desktopDevOrigins,
-            "exp+teak://*",
-            "exp://*/*", // Trust all Expo development URLs
-            "exp://10.0.0.*:*/*", // Trust 10.0.0.x IP range
-            "exp://192.168.*.*:*/*", // Trust 192.168.x.x IP range
-            "exp://172.*.*.*:*/*", // Trust 172.x.x.x IP range
-            "exp://localhost:*/*", // Trust localhost
-          ]
-        : []),
-    ],
+    trustedOrigins,
     baseURL: siteUrl,
     database: authComponent.adapter(ctx),
+    rateLimit: {
+      enabled: true,
+      window: 60,
+      max: 120,
+      storage: "database",
+      customRules: {
+        "/sign-in/email": { window: 60, max: 10 },
+        "/sign-up/email": { window: 60, max: 5 },
+        "/request-password-reset": { window: 300, max: 5 },
+        "/reset-password": { window: 300, max: 5 },
+      },
+    },
+    session: {
+      expiresIn: 60 * 60 * 24 * 30,
+      freshAge: 60 * 10,
+      updateAge: 60 * 60 * 24,
+    },
+    account: {
+      encryptOAuthTokens: true,
+      updateAccountOnSignIn: true,
+      accountLinking: {
+        enabled: true,
+        trustedProviders: ["google", "apple", "email-password"],
+        allowDifferentEmails: false,
+        allowUnlinkingAll: false,
+      },
+    },
+    advanced: {
+      useSecureCookies: usesSecureCookies,
+      disableCSRFCheck: false,
+      disableOriginCheck: false,
+    },
+    telemetry: {
+      enabled: false,
+    },
+    onAPIError: {
+      errorURL: "/login",
+      onError: (error) => {
+        console.error("Better Auth error:", error);
+      },
+    },
     socialProviders: {
       google: {
         clientId: googleClientId,
@@ -114,25 +180,6 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         jwks: process.env.JWKS,
       }),
     ],
-    databaseHooks: {
-      user: {
-        create: {
-          after: async (user) => {
-            // Schedule default card creation asynchronously
-            // Using scheduler to avoid blocking user creation
-            // @ts-expect-error - scheduler exists on MutationCtx
-            ctx.scheduler
-              .runAfter(0, api.card.defaultCards.createDefaultCardsForUser, {
-                userId: user.id,
-              })
-              .catch((err: Error) => {
-                // Log but don't throw - user creation should succeed even if card creation fails
-                console.error("Failed to schedule default cards:", err);
-              });
-          },
-        },
-      },
-    },
   } satisfies BetterAuthOptions);
 };
 
@@ -333,7 +380,7 @@ export const deleteAccountHandler = async (ctx: any) => {
     await ctx.db.delete("cards", card._id);
   }
 
-  return { deletedCards: cards.length };
+  return { deletedCards: cards.length, deletedStorageObjectCount };
 };
 
 export const deleteAccount = mutation({

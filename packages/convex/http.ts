@@ -1,5 +1,5 @@
 import { httpRouter } from "convex/server";
-import { authComponent, createAuth } from "./auth";
+import { authComponent, createAuth, trustedOrigins } from "./auth";
 import { exchangeDesktopAuthOptions, pollDesktopAuthCode } from "./authDesktop";
 import { polar } from "./billing";
 import {
@@ -22,8 +22,9 @@ const http = httpRouter();
 polar.registerRoutes(http as any);
 
 // Register authentication routes with CORS for cross-origin desktop auth requests.
-authComponent.registerRoutes(http, createAuth, {
+authComponent.registerRoutesLazy(http, createAuth, {
   cors: true,
+  trustedOrigins,
 });
 
 http.route({

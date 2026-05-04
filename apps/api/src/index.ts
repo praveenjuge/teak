@@ -14,11 +14,11 @@ app.use("*", async (c, next) => {
 registerRestRoutes(app);
 registerMcpRoutes(app);
 
-app.notFound(() => {
-  return json(404, {
+app.notFound(() =>
+  json(404, {
     code: "NOT_FOUND",
     error: "Route not found",
-  });
-});
+  })
+);
 
 export default app;

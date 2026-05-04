@@ -46,9 +46,9 @@ const updateCardInputSchema = z
     }
   });
 
-const createTextContent = (text: string): CallToolResult["content"] => {
-  return [{ type: "text", text }];
-};
+const createTextContent = (text: string): CallToolResult["content"] => [
+  { type: "text", text },
+];
 
 const toObjectPayload = (payload: unknown): JsonObject => {
   if (payload && typeof payload === "object" && !Array.isArray(payload)) {
@@ -78,12 +78,10 @@ const parseResponsePayload = async (response: Response): Promise<unknown> => {
 const successResult = (
   structuredContent: JsonObject,
   summary: string
-): CallToolResult => {
-  return {
-    structuredContent,
-    content: createTextContent(summary),
-  };
-};
+): CallToolResult => ({
+  structuredContent,
+  content: createTextContent(summary),
+});
 
 const errorResult = (status: number, payload: unknown): CallToolResult => {
   const objectPayload = toObjectPayload(payload);
@@ -108,9 +106,8 @@ const errorResult = (status: number, payload: unknown): CallToolResult => {
   };
 };
 
-const getAuthorizationHeader = (extra: ToolRequestExtra): string | null => {
-  return getHeaderValue(extra.requestInfo?.headers, "authorization");
-};
+const getAuthorizationHeader = (extra: ToolRequestExtra): string | null =>
+  getHeaderValue(extra.requestInfo?.headers, "authorization");
 
 const executeToolOperation = async (
   operation: Parameters<typeof executeGatewayOperation>[0],

@@ -106,6 +106,10 @@ teak/
 - Any MCP endpoint change in `apps/api/src/routes/mcp.ts` must update `apps/docs/src/content/docs/docs/mcp.mdx` in the same PR.
 - Any Raycast command/auth change in `apps/raycast` must update `apps/docs/src/content/docs/docs/raycast.mdx` in the same PR.
 
+## Git Commit Rules
+
+- Never use `--no-verify` when committing. Pre-commit hooks exist to catch lint and build errors before they land. If the hook fails, fix the underlying issue instead of bypassing it.
+
 ## Release Notes Hygiene
 
 - Any user-visible feature change across web, mobile, desktop, extension, Raycast, API, or backend behavior must include a docs changelog update in `apps/docs/src/content/changelog/*.mdx`.

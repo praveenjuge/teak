@@ -13,13 +13,19 @@ import { AppleIcon, GoogleIcon } from "@teak/ui/icons";
 import { cn } from "@teak/ui/lib/utils";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 
+const authRoutes = new Set([
+  "/login",
+  "/register",
+  "/reset-password",
+  "/forgot-password",
+]);
+
 export default function SignIn() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,6 +35,10 @@ export default function SignIn() {
   const nextPath = useMemo(() => {
     const rawValue = searchParams.get("next");
     if (!(rawValue?.startsWith("/") && !rawValue.startsWith("//"))) {
+      return "/";
+    }
+    const targetPath = rawValue.split("?")[0] ?? rawValue;
+    if (authRoutes.has(targetPath)) {
       return "/";
     }
     return rawValue;
@@ -148,36 +158,36 @@ export default function SignIn() {
           className="grid gap-4"
           onSubmit={async (e) => {
             e.preventDefault();
-            await authClient.signIn.email(
-              {
+            setLoading(true);
+            try {
+              const response = await authClient.signIn.email({
                 email,
                 password,
-                callbackURL: nextPath,
-              },
-              {
-                onRequest: () => {
-                  setLoading(true);
-                },
-                onResponse: () => {
-                  setLoading(false);
-                },
-                onSuccess: () => {
-                  setLoading(false);
-                  router.push(nextPath);
-                },
-                onError: (ctx) => {
-                  setLoading(false);
-                  const errorMessage =
-                    ctx.error?.message ?? "Invalid email or password";
-                  showSignInError(errorMessage);
-                },
+              });
+
+              if (response.error) {
+                showSignInError(
+                  response.error.message ?? "Invalid email or password"
+                );
+                setLoading(false);
+                return;
               }
-            );
+
+              window.location.replace(
+                new URL(nextPath, window.location.origin).toString()
+              );
+            } catch (err) {
+              setLoading(false);
+              showSignInError(
+                err instanceof Error ? err.message : "Invalid email or password"
+              );
+            }
           }}
         >
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
             <Input
+              autoComplete="email"
               id="email"
               onChange={(e) => {
                 setEmail(e.target.value);
@@ -208,7 +218,7 @@ export default function SignIn() {
             </div>
 
             <Input
-              autoComplete="password"
+              autoComplete="current-password"
               id="password"
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"

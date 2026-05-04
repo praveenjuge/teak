@@ -94,17 +94,15 @@ describe("apps/api proxy", () => {
   test("passes through upstream status and payload", async () => {
     process.env.CONVEX_HTTP_BASE_URL = "https://example.convex.site";
 
-    globalThis.fetch = mock(async () => {
-      return new Response(
-        JSON.stringify({ code: "INVALID_INPUT", error: "Bad" }),
-        {
+    globalThis.fetch = mock(
+      async () =>
+        new Response(JSON.stringify({ code: "INVALID_INPUT", error: "Bad" }), {
           headers: {
             "Content-Type": "application/json",
           },
           status: 400,
-        }
-      );
-    }) as unknown as typeof fetch;
+        })
+    ) as unknown as typeof fetch;
 
     const response = await app.request("/v1/cards", {
       body: JSON.stringify({ content: "" }),
@@ -124,14 +122,15 @@ describe("apps/api proxy", () => {
   test("fails when upstream returns non-JSON on successful response", async () => {
     process.env.CONVEX_HTTP_BASE_URL = "https://example.convex.site";
 
-    globalThis.fetch = mock(async () => {
-      return new Response("<html>ok</html>", {
-        headers: {
-          "Content-Type": "text/html",
-        },
-        status: 200,
-      });
-    }) as unknown as typeof fetch;
+    globalThis.fetch = mock(
+      async () =>
+        new Response("<html>ok</html>", {
+          headers: {
+            "Content-Type": "text/html",
+          },
+          status: 200,
+        })
+    ) as unknown as typeof fetch;
 
     const response = await app.request("/v1/cards/favorites?limit=10", {
       method: "GET",
@@ -147,14 +146,15 @@ describe("apps/api proxy", () => {
   test("fails when upstream returns empty JSON payload on success", async () => {
     process.env.CONVEX_HTTP_BASE_URL = "https://example.convex.site";
 
-    globalThis.fetch = mock(async () => {
-      return new Response("", {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        status: 200,
-      });
-    }) as unknown as typeof fetch;
+    globalThis.fetch = mock(
+      async () =>
+        new Response("", {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          status: 200,
+        })
+    ) as unknown as typeof fetch;
 
     const response = await app.request("/v1/cards/search?limit=10", {
       method: "GET",
@@ -170,14 +170,15 @@ describe("apps/api proxy", () => {
   test("fails when upstream returns malformed JSON payload on success", async () => {
     process.env.CONVEX_HTTP_BASE_URL = "https://example.convex.site";
 
-    globalThis.fetch = mock(async () => {
-      return new Response("{", {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        status: 200,
-      });
-    }) as unknown as typeof fetch;
+    globalThis.fetch = mock(
+      async () =>
+        new Response("{", {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          status: 200,
+        })
+    ) as unknown as typeof fetch;
 
     const response = await app.request("/v1/cards/search?limit=10", {
       method: "GET",
@@ -193,15 +194,16 @@ describe("apps/api proxy", () => {
   test("strips content-encoding when forwarding reconstructed JSON body", async () => {
     process.env.CONVEX_HTTP_BASE_URL = "https://example.convex.site";
 
-    globalThis.fetch = mock(async () => {
-      return new Response(JSON.stringify({ items: [], total: 0 }), {
-        headers: {
-          "Content-Encoding": "gzip",
-          "Content-Type": "application/json; charset=utf-8",
-        },
-        status: 200,
-      });
-    }) as unknown as typeof fetch;
+    globalThis.fetch = mock(
+      async () =>
+        new Response(JSON.stringify({ items: [], total: 0 }), {
+          headers: {
+            "Content-Encoding": "gzip",
+            "Content-Type": "application/json; charset=utf-8",
+          },
+          status: 200,
+        })
+    ) as unknown as typeof fetch;
 
     const response = await app.request("/v1/cards/search?limit=10", {
       method: "GET",
@@ -216,13 +218,14 @@ describe("apps/api proxy", () => {
     process.env.CONVEX_HTTP_BASE_URL = "https://example.convex.site";
     process.env.CONVEX_UPSTREAM_TIMEOUT_MS = "5";
 
-    globalThis.fetch = mock((_input: RequestInfo | URL, init?: RequestInit) => {
-      return new Promise((_, reject) => {
-        init?.signal?.addEventListener("abort", () => {
-          reject(new Error("Request aborted"));
-        });
-      });
-    }) as unknown as typeof fetch;
+    globalThis.fetch = mock(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise((_, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new Error("Request aborted"));
+          });
+        })
+    ) as unknown as typeof fetch;
 
     const response = await app.request("/v1/cards/favorites?limit=10", {
       method: "GET",

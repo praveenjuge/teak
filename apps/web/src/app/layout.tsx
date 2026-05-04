@@ -2,16 +2,13 @@ import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@teak/ui/components/ui/sonner";
-import { ConvexQueryCacheProvider } from "@teak/ui/convex-query-cache";
 import type { PropsWithChildren } from "react";
-import ConvexClientProvider from "@/components/ConvexClientProvider";
 import {
   JsonLd,
   organizationSchema,
   softwareApplicationSchema,
   websiteSchema,
 } from "@/components/JsonLd";
-import { SentryUserManager } from "@/components/SentryUserManager";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export const dynamic = "force-static";
@@ -39,20 +36,15 @@ export default function RootLayout({ children }: PropsWithChildren) {
         />
       </head>
       <body className='touch-manipulation font-features-["ss01"] font-sans text-sm antialiased caret-primary accent-primary [text-rendering:optimizeLegibility] selection:bg-primary selection:text-primary-foreground'>
-        <ConvexClientProvider>
-          <ConvexQueryCacheProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              disableTransitionOnChange
-              enableSystem={true}
-            >
-              <SentryUserManager />
-              <main className="mx-auto max-w-7xl px-4 pb-10">{children}</main>
-              <Toaster position="bottom-center" />
-            </ThemeProvider>
-          </ConvexQueryCacheProvider>
-        </ConvexClientProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          disableTransitionOnChange
+          enableSystem={true}
+        >
+          <main className="mx-auto max-w-7xl px-4 pb-10">{children}</main>
+          <Toaster position="bottom-center" />
+        </ThemeProvider>
         <Analytics debug={false} />
       </body>
     </html>

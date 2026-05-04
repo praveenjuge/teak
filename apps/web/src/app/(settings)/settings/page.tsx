@@ -40,11 +40,12 @@ export default function ProfileSettingsPage() {
     | undefined;
   const createKey = useMutation(convexApi.apiKeys.createUserApiKey);
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       checkoutInstance?.close();
-    };
-  }, [checkoutInstance]);
+    },
+    [checkoutInstance]
+  );
 
   const handleCheckout = async (planId: string) => {
     setLoadingPlanId(planId);
