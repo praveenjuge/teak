@@ -11,8 +11,10 @@ import {
   parseCardsResponse,
   parseQuickSaveResponse,
   parseRaycastCard,
+  parseTagsResponse,
   type QuickSaveResponse,
   type RaycastCard,
+  type TagsResponse,
 } from "./apiParsers";
 import { getApiBaseUrl } from "./constants";
 import { getPreferences } from "./preferences";
@@ -27,6 +29,7 @@ export {
 } from "./apiErrors";
 
 export type { RaycastCard } from "./apiParsers";
+export type { TagSummary, TagsResponse } from "./apiParsers";
 
 export type CardSearchInput = {
   createdAfter?: number;
@@ -293,4 +296,10 @@ export const softDeleteCard = async (cardId: string): Promise<void> => {
       method: "DELETE",
     },
   );
+};
+
+export const listTags = async (): Promise<TagsResponse> => {
+  return request<TagsResponse>("/tags", parseTagsResponse, {
+    method: "GET",
+  });
 };

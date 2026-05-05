@@ -49,6 +49,7 @@ describe("card/uploadCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
           }),
         }),
       },
@@ -86,6 +87,7 @@ describe("card/uploadCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
           }),
         }),
       },
@@ -113,6 +115,7 @@ describe("card/uploadCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
           }),
         }),
       },
@@ -156,6 +159,7 @@ describe("card/uploadCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
           }),
         }),
       },
@@ -182,6 +186,7 @@ describe("card/uploadCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
           }),
         }),
         insert: mock().mockResolvedValue("c1"),
@@ -224,6 +229,7 @@ describe("card/uploadCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
           }),
         }),
         insert: mock().mockResolvedValue("c1"),
@@ -257,6 +263,7 @@ describe("card/uploadCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
           }),
         }),
         insert: mock().mockResolvedValue("c1"),
@@ -298,6 +305,7 @@ describe("card/uploadCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
           }),
         }),
         insert: mock().mockResolvedValue("c1"),
@@ -339,6 +347,7 @@ describe("card/uploadCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
           }),
         }),
         insert: mock().mockResolvedValue("c1"),
@@ -372,6 +381,7 @@ describe("card/uploadCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
           }),
         }),
         insert: mock().mockResolvedValue("c1"),
@@ -408,6 +418,7 @@ describe("card/uploadCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
           }),
         }),
       },
@@ -439,6 +450,7 @@ describe("card/uploadCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
           }),
         }),
         insert: mock().mockResolvedValue("c1"),
@@ -468,6 +480,7 @@ describe("card/uploadCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
           }),
         }),
         insert: mock().mockResolvedValue("c1"),

@@ -21,6 +21,15 @@ export type RaycastCard = {
   metadataDescription: string | null;
 };
 
+export type TagSummary = {
+  name: string;
+  count: number;
+};
+
+export type TagsResponse = {
+  items: TagSummary[];
+};
+
 export type CardsResponse = {
   items: RaycastCard[];
   total: number;
@@ -112,6 +121,30 @@ export const parseCardsResponse = (payload: unknown): CardsResponse => {
   return {
     items,
     total,
+  };
+};
+
+const isTagSummary = (value: unknown): value is TagSummary => {
+  if (!isJsonObject(value)) {
+    return false;
+  }
+
+  return typeof value.name === "string" && typeof value.count === "number";
+};
+
+export const parseTagsResponse = (payload: unknown): TagsResponse => {
+  if (!isJsonObject(payload)) {
+    throw new RaycastApiError("REQUEST_FAILED");
+  }
+
+  const { items } = payload;
+
+  if (!(Array.isArray(items) && items.every((item) => isTagSummary(item)))) {
+    throw new RaycastApiError("REQUEST_FAILED");
+  }
+
+  return {
+    items,
   };
 };
 

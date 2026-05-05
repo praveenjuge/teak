@@ -65,13 +65,17 @@ export const findDuplicateCardForUserHandler = async (
     linkPreviewMedia.find((item) => item?.type === "video")?.posterUrl ??
     undefined;
 
+  const filteredLinkPreviewMedia = linkPreviewMedia.filter(Boolean);
+
   return {
     ...duplicate,
     fileUrl: fileUrl || undefined,
     thumbnailUrl: thumbnailUrl || undefined,
     screenshotUrl: screenshotUrl || undefined,
-    linkPreviewMedia: linkPreviewMedia.filter(Boolean),
     linkPreviewImageUrl: linkPreviewImageUrl || undefined,
+    ...(filteredLinkPreviewMedia.length > 0
+      ? { linkPreviewMedia: filteredLinkPreviewMedia }
+      : {}),
   };
 };
 

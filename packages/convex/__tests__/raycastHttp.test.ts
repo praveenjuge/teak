@@ -30,6 +30,9 @@ const buildAuthorizedMutationMock = () =>
       access: "full_access",
     });
 
+const buildAuthorizedMutationMockWithIdempotencySkip = () =>
+  buildAuthorizedMutationMock().mockResolvedValueOnce(undefined);
+
 describe("raycastHttp", () => {
   test("quickSave returns 405 for non-POST methods", async () => {
     const response = await runHandler(
@@ -197,10 +200,11 @@ describe("raycastHttp", () => {
   });
 
   test("quickSave returns created payload", async () => {
-    const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
-      status: "created",
-      cardId: "card_1",
-    });
+    const runMutation =
+      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
+        status: "created",
+        cardId: "card_1",
+      });
 
     const response = await runHandler(
       quickSave,
@@ -225,12 +229,13 @@ describe("raycastHttp", () => {
   });
 
   test("quickSave maps ConvexError payload to stable code", async () => {
-    const runMutation = buildAuthorizedMutationMock().mockRejectedValueOnce(
-      new ConvexError({
-        code: "INVALID_INPUT",
-        message: "Content cannot be empty",
-      })
-    );
+    const runMutation =
+      buildAuthorizedMutationMockWithIdempotencySkip().mockRejectedValueOnce(
+        new ConvexError({
+          code: "INVALID_INPUT",
+          message: "Content cannot be empty",
+        })
+      );
 
     const response = await runHandler(
       quickSave,
@@ -349,10 +354,11 @@ describe("raycastHttp", () => {
   });
 
   test("createCardV1 uses quick-save contract", async () => {
-    const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
-      status: "created",
-      cardId: "card_9",
-    });
+    const runMutation =
+      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
+        status: "created",
+        cardId: "card_9",
+      });
 
     const response = await runHandler(
       createCardV1,
@@ -421,7 +427,8 @@ describe("raycastHttp", () => {
       code: "CONFLICT",
       error: "Idempotency-Key is already being processed",
     });
-    expect(runMutation).toHaveBeenCalledTimes(3);
+    // rateLimit + validate + beginIdempotencyRequest + trackIdempotencyOutcome
+    expect(runMutation).toHaveBeenCalledTimes(4);
   });
 
   test("searchCardsV1 returns items and total", async () => {
@@ -504,11 +511,12 @@ describe("raycastHttp", () => {
   });
 
   test("bulkCardsV1 executes bulk operations", async () => {
-    const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
-      operation: "favorite",
-      results: [{ index: 0, status: "success", cardId: "card_1" }],
-      summary: { total: 1, succeeded: 1, failed: 0 },
-    });
+    const runMutation =
+      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
+        operation: "favorite",
+        results: [{ index: 0, status: "success", cardId: "card_1" }],
+        summary: { total: 1, succeeded: 1, failed: 0 },
+      });
 
     const response = await runHandler(
       bulkCardsV1,

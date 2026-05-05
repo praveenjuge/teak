@@ -17,20 +17,26 @@ Use Teak in Raycast to save ideas and find cards without leaving your keyboard f
 ## Commands
 
 - **Quick Save**: Open an input form to type or paste text and URLs to save.
-- **Save Clipboard**: Save the current clipboard contents to Teak in one step — no form, just run the command.
+- **Save to Teak**: Save any text or URL in one step. Accepts an optional argument and works as a [Raycast fallback command](https://manual.raycast.com/fallback-commands), so pressing Enter on a root search with no results can save that query straight to Teak.
+- **Save Clipboard**: Save the current clipboard contents to Teak with no prompt.
+- **Save Selected Text**: Save the text currently highlighted in any app. Ideal paired with a global hotkey.
 - **Save Current Browser Tab**: Save the active browser tab directly from Raycast. Requires the [Raycast Browser Extension](https://www.raycast.com/browser-extension).
 - **Search Cards**: Find and open cards instantly.
 - **Favorites**: Jump to your starred cards.
+- **Browse Tags**: See every tag in your vault with per-tag card counts, then drill into a tag to search within it.
 
 ## AI Tools
 
-Teak exposes three tools for [Raycast AI](https://www.raycast.com/ai):
+Teak exposes the following tools for [Raycast AI](https://www.raycast.com/ai):
 
 | Tool | What it does |
 |---|---|
 | **Save to Teak** | Save a note or URL to your Teak library. |
 | **Search Teak Cards** | Search cards by text, type, tags, favorite state, and sort order. |
+| **Get Recent Teak Cards** | Fetch the newest cards without a search query. |
 | **Get Teak Card** | Fetch the full details of a specific card by ID. |
+| **List Teak Tags** | List your tags with per-tag card counts. |
+| **Toggle Favorite** | Favorite or unfavorite a card. Requires confirmation. |
 
 AI tools use the same API key as the extension — no extra setup required.
 
