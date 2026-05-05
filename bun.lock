@@ -162,7 +162,6 @@
       "dependencies": {
         "@raycast/api": "^1.104.15",
         "@raycast/utils": "^2.2.4",
-        "@teak/convex": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^25.6.0",
