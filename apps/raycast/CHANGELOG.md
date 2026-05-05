@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.30 - {PR_MERGED_AT}
+
+- Add **Save to Teak** fallback command so you can capture text or URLs from Raycast root search
+- Add **Save Selected Text** command to send the currently highlighted text from any app to Teak
+- Add **Browse Tags** command to list every tag with per-tag card counts and drill into cards by tag
+- Add AI tools: **Get Recent Teak Cards**, **List Teak Tags**, and **Toggle Favorite**
+
 ## 0.2.0 - 2026-03-09
 
 - Update design for single card details page
