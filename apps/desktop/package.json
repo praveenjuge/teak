@@ -2,7 +2,7 @@
   "name": "@teak/desktop",
   "productName": "Teak",
   "private": true,
-  "version": "1.0.32",
+  "version": "1.0.33",
   "type": "module",
   "main": ".vite/build/main.js",
   "scripts": {
@@ -14,7 +14,7 @@
     "bundle:mac-silicon": "bun run build && electron-builder --mac --arm64 --config electron-builder.config.ts",
     "preview": "node scripts/ensure-electron.mjs && electron-forge start",
     "test": "bun test src/__tests__ --coverage --dots",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.main.json && tsc --noEmit -p tsconfig.preload.json"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",

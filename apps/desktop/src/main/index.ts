@@ -1,8 +1,11 @@
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import type { MenuItemConstructorOptions } from "electron";
+import type {
+  BrowserWindow as BrowserWindowInstance,
+  MenuItemConstructorOptions,
+  OnHeadersReceivedListenerDetails,
+} from "electron";
 import electronUpdater from "electron-updater";
-import { IPC_CHANNELS, MENU_CHANNELS } from "./channels";
 import { createStore, readStoreValue, writeStoreValue } from "./store";
 
 // Route the `electron` import through Node's CJS loader.
@@ -21,7 +24,8 @@ import { createStore, readStoreValue, writeStoreValue } from "./store";
 // reverted when Electron 43 ships (see electron/electron PR 50419).
 const require = createRequire(import.meta.url);
 const electron = require("electron") as typeof import("electron");
-const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = electron;
+const { app, BrowserWindow, dialog, ipcMain, Menu, Notification, shell } =
+  electron;
 
 const { autoUpdater } = electronUpdater;
 
@@ -41,7 +45,7 @@ const ALLOWED_URL_PROTOCOLS = new Set(["https:", "http:"]);
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
-let mainWindow: BrowserWindow | null = null;
+let mainWindow: BrowserWindowInstance | null = null;
 let manualUpdateCheck = false;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -55,9 +59,27 @@ function isValidExternalUrl(url: string): boolean {
   }
 }
 
+/**
+ * Show a transient macOS-style system notification. Used for auto-updater
+ * progress states ("Checking…", "Downloading…", "Installing…") so the user
+ * gets feedback without a blocking modal.
+ *
+ * Silently no-ops if the OS has notifications disabled for the app.
+ */
+function showUpdateNotification(title: string, body: string): void {
+  if (!Notification.isSupported()) {
+    return;
+  }
+  try {
+    new Notification({ title, body, silent: true }).show();
+  } catch {
+    // Notifications can fail in unsigned dev builds — non-critical, ignore.
+  }
+}
+
 // ── Main Window ────────────────────────────────────────────────────────────────
 
-function createMainWindow(): BrowserWindow {
+function createMainWindow(): BrowserWindowInstance {
   // Forge's plugin-vite emits the preload bundle alongside the main bundle.
   // Our preload Vite config names the output `preload.js`, sibling to `main.js`.
   const preloadPath = join(import.meta.dirname, "preload.js");
@@ -81,7 +103,12 @@ function createMainWindow(): BrowserWindow {
   // CSP for the renderer — only in production; Vite dev server needs inline scripts for HMR
   if (!isDevServer) {
     mainWindow.webContents.session.webRequest.onHeadersReceived(
-      (details, callback) => {
+      (
+        details: OnHeadersReceivedListenerDetails,
+        callback: (response: {
+          responseHeaders?: Record<string, string | string[]>;
+        }) => void
+      ) => {
         callback({
           responseHeaders: {
             ...details.responseHeaders,
@@ -105,7 +132,7 @@ function createMainWindow(): BrowserWindow {
   }
 
   // Prevent arbitrary navigation
-  mainWindow.webContents.on("will-navigate", (event, url) => {
+  mainWindow.webContents.on("will-navigate", (event: Electron.Event, url: string) => {
     // Allow same-origin navigation for the renderer SPA
     const rendererOrigin = mainWindow?.webContents.getURL();
     if (rendererOrigin) {
@@ -126,7 +153,7 @@ function createMainWindow(): BrowserWindow {
   });
 
   // Prevent new window creation except for approved external URLs
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+  mainWindow.webContents.setWindowOpenHandler(({ url }: { url: string }) => {
     if (isValidExternalUrl(url)) {
       shell.openExternal(url);
     }
@@ -217,6 +244,15 @@ function buildAppMenu(): void {
           label: "Check for Updates...",
           click: () => {
             manualUpdateCheck = true;
+            // Give the user immediate feedback that a check is in flight.
+            // The updater's event handlers will surface the outcome
+            // (update found, up-to-date, or error) via dialogs below.
+            if (!isDevServer) {
+              showUpdateNotification(
+                "Checking for updates…",
+                "Teak is looking for a newer version."
+              );
+            }
             autoUpdater.checkForUpdates().catch((err) => {
               manualUpdateCheck = false;
               // In dev mode there's no app-update.yml, so show a helpful message
@@ -317,12 +353,28 @@ function setupAutoUpdater(): void {
       })
       .then(({ response }) => {
         if (response === 0) {
+          showUpdateNotification(
+            `Downloading Teak ${info.version}…`,
+            "Teak will let you know when the download is ready to install."
+          );
           autoUpdater.downloadUpdate();
         }
       });
   });
 
+  // Reflect download progress in the Dock icon so the user can see the
+  // update is still making progress even with the window minimized.
+  // `percent` is 0-100; electron wants 0.0-1.0 or -1 to clear.
+  autoUpdater.on("download-progress", ({ percent }) => {
+    if (app.dock) {
+      app.dock.setBadge(`${Math.round(percent)}%`);
+    }
+  });
+
   autoUpdater.on("update-downloaded", (info) => {
+    if (app.dock) {
+      app.dock.setBadge("");
+    }
     dialog
       .showMessageBox({
         type: "info",
@@ -335,6 +387,10 @@ function setupAutoUpdater(): void {
       })
       .then(({ response }) => {
         if (response === 0) {
+          showUpdateNotification(
+            `Installing Teak ${info.version}…`,
+            "Teak will quit and relaunch with the new version."
+          );
           autoUpdater.quitAndInstall();
         }
       });
@@ -353,6 +409,9 @@ function setupAutoUpdater(): void {
   });
 
   autoUpdater.on("error", (err) => {
+    if (app.dock) {
+      app.dock.setBadge("");
+    }
     if (manualUpdateCheck) {
       dialog.showMessageBox({
         type: "error",
