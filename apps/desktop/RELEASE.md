@@ -19,7 +19,7 @@ This runbook defines Teak desktop launch and incident response for macOS Apple S
    git push origin v<version>
    ```
 4. `Desktop Release` workflow (`.github/workflows/desktop-release.yml`) runs from that tag:
-   - Builds renderer, main, and preload via `electron-vite build`
+   - Builds renderer, main, and preload via `vite build` (orchestrated through `bun run build`, driven by `@electron-forge/plugin-vite` configs)
    - Imports signing credentials from GitHub Actions secrets
    - Packages, signs, and notarizes the macOS Apple Silicon app via `electron-builder`
    - Verifies codesign, Gatekeeper assessment, and the stapled notarization ticket

@@ -12,7 +12,7 @@ const config: Configuration = {
 
   forceCodeSigning: true,
 
-  files: ["out/**/*"],
+  files: [".vite/**/*", "package.json"],
 
   mac: {
     target: [

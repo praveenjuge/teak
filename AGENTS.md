@@ -132,7 +132,7 @@ To publish a new desktop release:
    git push origin v<version>
    ```
 4. The `Desktop Release` workflow (`.github/workflows/desktop-release.yml`) triggers on the `v*` tag and automatically:
-   - Builds the renderer, main process, and preload via `electron-vite build` with production env vars.
+   - Builds the renderer, main process, and preload via `vite build` (orchestrated by `bun run build`, driven by `@electron-forge/plugin-vite` configs) with production env vars.
    - Imports signing credentials (Developer ID certificate + App Store Connect API key) from GitHub Actions secrets.
    - Packages, code-signs, and notarizes the macOS ARM64 app via `electron-builder`.
    - Verifies codesign (`codesign --verify --deep --strict`), Gatekeeper assessment (`spctl --assess`), and stapled notarization ticket.

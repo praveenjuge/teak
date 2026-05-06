@@ -1,0 +1,8 @@
+---
+title: "Desktop app build tooling modernized"
+date: "2026-05-06"
+---
+
+- Rebuilt the macOS desktop app on Electron Forge with `@electron-forge/plugin-vite`, replacing the previous `electron-vite` setup. No changes to your workflow.
+- Upgraded the desktop app to Electron 42 and `@vitejs/plugin-react` 6.
+- Auto-updates continue to work unchanged. Existing installs on 1.0.30 will pick up this release silently via `electron-updater` on next launch.

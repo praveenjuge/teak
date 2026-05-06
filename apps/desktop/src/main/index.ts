@@ -14,6 +14,11 @@ import { createStore, readStoreValue, writeStoreValue } from "./store";
 
 const { autoUpdater } = electronUpdater;
 
+// `MAIN_WINDOW_VITE_DEV_SERVER_URL` and `MAIN_WINDOW_VITE_NAME` are injected
+// at build time by `@electron-forge/plugin-vite`. In dev the URL points at
+// the Vite dev server; in prod it's `undefined` and we load the built HTML.
+const isDevServer = typeof MAIN_WINDOW_VITE_DEV_SERVER_URL === "string";
+
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const MAIN_WINDOW_WIDTH = 1000;
@@ -42,7 +47,9 @@ function isValidExternalUrl(url: string): boolean {
 // ── Main Window ────────────────────────────────────────────────────────────────
 
 function createMainWindow(): BrowserWindow {
-  const preloadPath = join(import.meta.dirname, "../preload/index.js");
+  // Forge's plugin-vite emits the preload bundle alongside the main bundle.
+  // Our preload Vite config names the output `preload.js`, sibling to `main.js`.
+  const preloadPath = join(import.meta.dirname, "preload.js");
   console.log("[main] preload path:", preloadPath);
 
   mainWindow = new BrowserWindow({
@@ -61,7 +68,7 @@ function createMainWindow(): BrowserWindow {
   });
 
   // CSP for the renderer — only in production; Vite dev server needs inline scripts for HMR
-  if (!process.env.ELECTRON_RENDERER_URL) {
+  if (!isDevServer) {
     mainWindow.webContents.session.webRequest.onHeadersReceived(
       (details, callback) => {
         callback({
@@ -116,14 +123,19 @@ function createMainWindow(): BrowserWindow {
   });
 
   // Load the renderer
-  if (process.env.ELECTRON_RENDERER_URL) {
-    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
+  if (isDevServer && MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
-    mainWindow.loadFile(join(import.meta.dirname, "../renderer/index.html"));
+    mainWindow.loadFile(
+      join(
+        import.meta.dirname,
+        `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`
+      )
+    );
   }
 
   // Auto-open DevTools in dev mode
-  if (process.env.ELECTRON_RENDERER_URL) {
+  if (isDevServer) {
     mainWindow.webContents.openDevTools();
   }
 
@@ -197,7 +209,7 @@ function buildAppMenu(): void {
             autoUpdater.checkForUpdates().catch((err) => {
               manualUpdateCheck = false;
               // In dev mode there's no app-update.yml, so show a helpful message
-              const isDev = !!process.env.ELECTRON_RENDERER_URL;
+              const isDev = isDevServer;
               dialog.showMessageBox({
                 type: isDev ? "info" : "error",
                 title: isDev ? "Development Mode" : "Update Error",
