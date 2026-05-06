@@ -1,16 +1,27 @@
+import { createRequire } from "node:module";
 import { join } from "node:path";
-import {
-  app,
-  BrowserWindow,
-  dialog,
-  ipcMain,
-  Menu,
-  type MenuItemConstructorOptions,
-  shell,
-} from "electron";
+import type { MenuItemConstructorOptions } from "electron";
 import electronUpdater from "electron-updater";
 import { IPC_CHANNELS, MENU_CHANNELS } from "./channels";
 import { createStore, readStoreValue, writeStoreValue } from "./store";
+
+// Route the `electron` import through Node's CJS loader.
+//
+// Why: Node's ESM loader evaluates CJS module getters eagerly when building
+// a namespace binding. The `electron` module exposes lazy getters for every
+// API, including `safeStorage`. Any static ESM import form — including
+// `import { app } from "electron"`, `import electron from "electron"`,
+// and `await import("electron")` — fires all those getters. The
+// `safeStorage` getter touches the macOS keychain on every app launch,
+// which shows a "Teak Safe Storage" password prompt for some users.
+//
+// `require("electron")` returns the raw CJS exports object without iterating
+// properties, so the `safeStorage` getter is never invoked unless we
+// actually read it. Fix for the Electron ESM keychain issue; can be
+// reverted when Electron 43 ships (see electron/electron PR 50419).
+const require = createRequire(import.meta.url);
+const electron = require("electron") as typeof import("electron");
+const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = electron;
 
 const { autoUpdater } = electronUpdater;
 
