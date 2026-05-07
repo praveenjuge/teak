@@ -57,17 +57,32 @@ export default defineConfig({
       sidebar: [
         { label: "Welcome to Teak", slug: "docs" },
         { label: "Features", slug: "docs/features" },
-        { label: "Desktop App (macOS)", slug: "docs/desktop" },
-        { label: "Mobile App (iOS)", slug: "docs/mobile" },
-        { label: "Browser Extension", slug: "docs/extension" },
-        { label: "Raycast Extension", slug: "docs/raycast" },
-        { label: "API", slug: "docs/api" },
-        { label: "MCP", slug: "docs/mcp" },
-        { label: "Development Guide", slug: "docs/development" },
-        { label: "Self-Hosting", slug: "docs/self-hosting" },
-        { label: "Privacy Policy", slug: "docs/privacy-policy" },
-        { label: "Terms of Service", slug: "docs/terms-of-service" },
-        { label: "Support", slug: "docs/support" },
+        {
+          label: "Apps",
+          items: [
+            { label: "Desktop App (macOS)", slug: "docs/desktop" },
+            { label: "Mobile App (iOS)", slug: "docs/mobile" },
+            { label: "Browser Extension", slug: "docs/extension" },
+            { label: "Raycast Extension", slug: "docs/raycast" },
+          ],
+        },
+        {
+          label: "Developers",
+          items: [
+            { label: "API", slug: "docs/api" },
+            { label: "MCP", slug: "docs/mcp" },
+            { label: "Development Guide", slug: "docs/development" },
+            { label: "Self-Hosting", slug: "docs/self-hosting" },
+          ],
+        },
+        {
+          label: "Legal & Support",
+          items: [
+            { label: "Privacy Policy", slug: "docs/privacy-policy" },
+            { label: "Terms of Service", slug: "docs/terms-of-service" },
+            { label: "Support", slug: "docs/support" },
+          ],
+        },
       ],
       head: [
         {

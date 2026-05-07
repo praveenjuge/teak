@@ -12,8 +12,8 @@
   "dependencies": {
     "@astrojs/check": "^0.9.9",
     "@astrojs/sitemap": "^3.7.2",
-    "@astrojs/starlight": "^0.38.4",
-    "astro": "^6.2.1"
+    "@astrojs/starlight": "^0.39.0",
+    "astro": "^6.3.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.4",
