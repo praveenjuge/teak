@@ -137,7 +137,7 @@ To publish a new desktop release:
    - Packages, code-signs, and notarizes the macOS ARM64 app via `electron-builder`.
    - Verifies codesign (`codesign --verify --deep --strict`), Gatekeeper assessment (`spctl --assess`), and stapled notarization ticket.
    - Publishes all artifacts (DMG, zip, blockmaps, `latest-mac.yml`) to a GitHub Release only after verification passes.
-5. Existing installs pick up the update silently via `electron-updater` on next launch.
+5. Existing installs pick up the update via `electron-updater` on next launch (with notifications and prompts).
 
 <!-- convex-ai-start -->
 

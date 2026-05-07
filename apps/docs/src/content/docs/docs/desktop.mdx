@@ -39,6 +39,7 @@ The **Teak** menu in the macOS menu bar exposes these actions:
 | Item | What it does |
 |---|---|
 | **About Teak** | Shows the installed version, copyright, and app icon |
+| **Check for Updates…** | Manually checks for new versions and shows a notification while checking |
 | **Settings…** | Opens the Settings panel (account info, API keys, billing) |
 | **Log Out** | Signs you out and returns to the login screen |
 
@@ -55,10 +56,11 @@ Open **Teak menu → Settings…** to manage your account:
 
 ## Auto Updates
 
-Teak checks for updates silently on each launch via GitHub Releases.
+Teak checks for updates on each launch via GitHub Releases.
 
-- If an update is available, it is downloaded and installed automatically.
-- The app will apply the update on the next restart.
+- If an update is available, you'll see a prompt asking whether to download now or later.
+- During download, a macOS notification and a percent badge on the Dock icon show progress.
+- After download completes, you'll see a prompt to restart now or later to install the update.
 - If update checks fail (for example network outage), Teak continues running and retries on next launch.
 
 ## Manual Update / Recovery
