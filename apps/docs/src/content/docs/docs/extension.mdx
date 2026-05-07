@@ -3,12 +3,55 @@ title: Browser Extension
 description: Save anything from the web to Teak with the Chrome extension
 ---
 
+import { Tabs, TabItem, Steps } from "@astrojs/starlight/components";
+
 The Teak browser extension lets you save pages, images, links, text, and social media posts to your Teak library in one click — without leaving your current tab.
 
 ## Install
 
-1. Install the extension from the [Chrome Web Store](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob).
-2. Click the Teak icon in your browser toolbar to sign in.
+<Tabs syncKey="browser">
+  <TabItem label="Chrome" icon="chrome">
+
+    <Steps>
+
+    1. Open the [Teak extension](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) in the Chrome Web Store.
+
+    2. Click **Add to Chrome**, then confirm by clicking **Add extension**.
+
+    3. Click the Teak icon in your Chrome toolbar to sign in.
+
+    </Steps>
+
+  </TabItem>
+  <TabItem label="Edge" icon="edge">
+
+    <Steps>
+
+    1. Open the [Teak extension](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) in the Chrome Web Store.
+
+    2. Edge will prompt you to allow extensions from other stores — accept it.
+
+    3. Click **Add to Chrome**, then confirm in the Edge dialog.
+
+    4. Click the Teak icon in your Edge toolbar to sign in.
+
+    </Steps>
+
+  </TabItem>
+  <TabItem label="Brave / Arc / other Chromium">
+
+    <Steps>
+
+    1. Open the [Teak extension](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) in the Chrome Web Store.
+
+    2. Click **Add to Brave** (or your browser's equivalent), then confirm.
+
+    3. Pin the Teak icon to your toolbar and click it to sign in.
+
+    </Steps>
+
+  </TabItem>
+</Tabs>
 
 The extension works in Chrome and any Chromium-based browser (Edge, Brave, Arc, etc.).
 

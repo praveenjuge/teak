@@ -3,6 +3,8 @@ title: Welcome to Teak
 description: Your personal design library that never loses anything
 ---
 
+import { CardGrid, LinkCard } from "@astrojs/starlight/components";
+
 Teak helps designers save inspiration in 1 click and find it in 2 seconds—no more lost bookmarks or messy folders.
 
 ## Why Teak?
@@ -32,15 +34,53 @@ Extract color palettes from any image. Save font pairings and typography example
 
 ## Start Here
 
-- [🖥 Desktop App](/docs/desktop)
-- [📱 Mobile App](/docs/mobile)
-- [🧩 Browser Extension](/docs/extension)
-- [⌘ Raycast Extension](/docs/raycast)
-- [🚀 Development](/docs/development)
-- [🛠 Self-Hosting](/docs/self-hosting)
-- [✨ Features](/docs/features)
-- [🔌 API](/docs/api)
-- [🤖 MCP](/docs/mcp)
+<CardGrid>
+  <LinkCard
+    title="Desktop App"
+    href="/docs/desktop"
+    description="Native macOS app with automatic updates and real-time sync."
+  />
+  <LinkCard
+    title="Mobile App"
+    href="/docs/mobile"
+    description="Save on the go from iOS, including the system share sheet."
+  />
+  <LinkCard
+    title="Browser Extension"
+    href="/docs/extension"
+    description="One-click saves from Chrome, Edge, Brave, and Arc."
+  />
+  <LinkCard
+    title="Raycast Extension"
+    href="/docs/raycast"
+    description="Save and search cards without leaving your keyboard."
+  />
+  <LinkCard
+    title="Features"
+    href="/docs/features"
+    description="Tour every card type, AI pipeline step, and search surface."
+  />
+  <LinkCard
+    title="API"
+    href="/docs/api"
+    description="Programmatic access to your cards over HTTP."
+  />
+  <LinkCard
+    title="MCP"
+    href="/docs/mcp"
+    description="Connect Teak to any MCP-compatible AI client."
+  />
+  <LinkCard
+    title="Development"
+    href="/docs/development"
+    description="Clone, install, and run the monorepo locally."
+  />
+  <LinkCard
+    title="Self-Hosting"
+    href="/docs/self-hosting"
+    description="Run Teak on your own Convex deployment."
+  />
+</CardGrid>
 
 ## How It Works
 
@@ -65,6 +105,20 @@ Extract color palettes from any image. Save font pairings and typography example
 
 ## Policies & Help
 
-- [🔒 Privacy Policy](/docs/privacy-policy)
-- [📋 Terms of Service](/docs/terms-of-service)
-- [❓ Support](/docs/support)
+<CardGrid>
+  <LinkCard
+    title="Privacy Policy"
+    href="/docs/privacy-policy"
+    description="How we collect, use, and safeguard your data."
+  />
+  <LinkCard
+    title="Terms of Service"
+    href="/docs/terms-of-service"
+    description="The rules for using Teak."
+  />
+  <LinkCard
+    title="Support"
+    href="/docs/support"
+    description="Contact channels and how to get help fast."
+  />
+</CardGrid>

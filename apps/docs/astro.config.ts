@@ -33,6 +33,13 @@ export default defineConfig({
   integrations: [
     starlight({
       title: "Teak",
+      lastUpdated: true,
+      expressiveCode: {
+        themes: ["github-dark-default", "github-light-default"],
+        styleOverrides: {
+          borderRadius: "0.5rem",
+        },
+      },
       components: {
         Head: "./src/components/StarlightHead.astro",
       },
@@ -70,9 +77,17 @@ export default defineConfig({
           label: "Developers",
           items: [
             { label: "API", slug: "docs/api" },
-            { label: "MCP", slug: "docs/mcp" },
+            {
+              label: "MCP",
+              slug: "docs/mcp",
+              badge: { text: "New", variant: "success" },
+            },
             { label: "Development Guide", slug: "docs/development" },
-            { label: "Self-Hosting", slug: "docs/self-hosting" },
+            {
+              label: "Self-Hosting",
+              slug: "docs/self-hosting",
+              badge: { text: "Beta", variant: "caution" },
+            },
           ],
         },
         {

@@ -3,6 +3,8 @@ title: Desktop App (macOS)
 description: Install, update, and troubleshoot the Teak desktop app on Apple Silicon Macs
 ---
 
+import { Steps } from "@astrojs/starlight/components";
+
 Teak Desktop gives you a native macOS app with automatic updates and the same real-time sync as web and mobile.
 
 ## Requirements
@@ -13,10 +15,17 @@ Teak Desktop gives you a native macOS app with automatic updates and the same re
 
 ## Install
 
+<Steps>
+
 1. Download the latest macOS build from [GitHub Releases](https://github.com/praveenjuge/teak/releases/latest).
+
 2. Open the `.dmg` file.
+
 3. Drag **Teak.app** to **Applications**.
+
 4. Launch Teak from Applications.
+
+</Steps>
 
 ## First Launch Security Checks
 
@@ -24,9 +33,15 @@ Teak desktop releases are signed and notarized.
 
 If Gatekeeper blocks launch:
 
+<Steps>
+
 1. Open **System Settings → Privacy & Security**.
+
 2. Find the Teak block message and choose **Open Anyway**.
+
 3. Relaunch Teak.
+
+</Steps>
 
 ## Sign In
 
@@ -67,18 +82,31 @@ Teak checks for updates on each launch via GitHub Releases.
 
 If you need to update manually or recover from a failed install:
 
+<Steps>
+
 1. Quit Teak.
+
 2. Download the latest release from [GitHub Releases](https://github.com/praveenjuge/teak/releases/latest).
+
 3. Replace **Teak.app** in Applications.
+
 4. Relaunch Teak.
+
+</Steps>
 
 ## Rollback
 
 If a release is unstable:
 
+<Steps>
+
 1. Download the prior stable release from GitHub Releases.
+
 2. Replace **Teak.app** in Applications with that version.
+
 3. Relaunch Teak.
+
+</Steps>
 
 Your account data stays in Teak backend storage and local session state is preserved unless you sign out.
 

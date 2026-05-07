@@ -3,6 +3,8 @@ title: Mobile App (iOS)
 description: Install, set up, and use the Teak mobile app on iPhone
 ---
 
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
 The Teak mobile app lets you save inspiration on the go, capture voice notes, upload files, and browse your full library — all synced in real time with your other devices.
 
 ## Requirements
@@ -18,12 +20,25 @@ Download the app from the [App Store](https://apps.apple.com/app/teak/id67381788
 
 On first launch, Teak shows the welcome screen. Choose how you want to continue:
 
-- **Continue with Apple** — one-tap authentication using your Apple ID (iOS only)
-- **Continue with Google** — OAuth sign-in via browser redirect
-- **Login with Email** — sign in with email and password
-- **Register with Email** — create a new account with email and password
+<Tabs>
+  <TabItem label="Apple" icon="apple">
 
-Both email options open a native iOS form sheet. Tap the checkmark to confirm. For new accounts, use a password of at least 8 characters — Teak will send a verification email you must open before signing in.
+    One-tap authentication using your Apple ID. Tap **Continue with Apple** and approve with Face ID or Touch ID. Fastest option on iOS.
+
+  </TabItem>
+  <TabItem label="Google">
+
+    OAuth sign-in via a browser redirect. Tap **Continue with Google**, pick an account in the browser sheet, and you'll return to Teak when it completes.
+
+  </TabItem>
+  <TabItem label="Email" icon="email">
+
+    Tap **Login with Email** or **Register with Email** to open a native iOS form sheet. Both options take an email and password — tap the checkmark to confirm.
+
+    For new accounts, use a password of at least 8 characters. Teak will send a verification email you must open before signing in.
+
+  </TabItem>
+</Tabs>
 
 ## Browsing Your Library
 

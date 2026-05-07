@@ -3,6 +3,8 @@ title: Self-Hosting
 description: Self-hosting gives you full control over your data and billing while matching the hosted experience.
 ---
 
+import { Steps } from "@astrojs/starlight/components";
+
 ## What you'll need
 
 - Convex CLI (`npm i -g convex`)
@@ -10,64 +12,75 @@ description: Self-hosting gives you full control over your data and billing whil
 
 ## Quickstart (local)
 
+<Steps>
+
 1. Clone the repo and install dependencies:
 
-```bash
-bun install
-```
+   ```bash
+   bun install
+   ```
 
 2. Start Convex dev and set up Better Auth defaults:
 
-```bash
-bunx convex dev
-```
+   ```bash
+   bunx convex dev
+   ```
 
-This creates a dev deployment and prints the `CONVEX_SITE_URL` and `CONVEX_URL`.
+   This creates a dev deployment and prints the `CONVEX_SITE_URL` and `CONVEX_URL`.
 
-3. Configure essential secrets:
+3. Configure essential secrets.
 
-Run these commands to set the minimum required secrets in your Convex dashboard:
+   Run these commands to set the minimum required secrets in your Convex dashboard:
 
-```bash
-# Security & Auth
-npx convex env set BETTER_AUTH_SECRET $(openssl rand -base64 32)
-npx convex env set SITE_URL http://app.teak.localhost:1355
+   ```bash
+   # Security & Auth
+   npx convex env set BETTER_AUTH_SECRET $(openssl rand -base64 32)
+   npx convex env set SITE_URL http://app.teak.localhost:1355
 
-# Optional: AI (if you want card processing)
-npx convex env set GROQ_API_KEY gsk_...
-```
+   # Optional: AI (if you want card processing)
+   npx convex env set GROQ_API_KEY gsk_...
+   ```
 
-4. Create local env files:
+4. Create local env files.
 
-Copy the Convex URLs from your dashboard into each app's `.env.local`. Each app uses a framework-specific prefix for the same two vars:
+   Copy the Convex URLs from your dashboard into each app's `.env.local`. Each app uses a framework-specific prefix for the same two vars:
 
-| App | Prefix |
-|-----|--------|
-| `apps/web` | `NEXT_PUBLIC_` |
-| `apps/mobile` | `EXPO_PUBLIC_` |
-| `apps/extension`, `apps/desktop` | `VITE_PUBLIC_` |
+   | App | Prefix |
+   |-----|--------|
+   | `apps/web` | `NEXT_PUBLIC_` |
+   | `apps/mobile` | `EXPO_PUBLIC_` |
+   | `apps/extension`, `apps/desktop` | `VITE_PUBLIC_` |
 
-See [Detailed Environment Reference](#detailed-environment-reference) for the full variable list.
+   See [Detailed Environment Reference](#detailed-environment-reference) for the full variable list.
 
 5. Start the stack:
 
-```bash
-bun run dev
-```
+   ```bash
+   bun run dev
+   ```
+
+</Steps>
 
 ## Production basics
 
-When moving to production:
+<Steps>
 
 1. Update `SITE_URL` in Convex to your public domain (e.g., `https://app.yourdomain.com`).
-2. Update the `CONVEX_SITE_URL` and `CONVEX_URL` in your client env files to point to your production deployment.
+
+2. Update `CONVEX_SITE_URL` and `CONVEX_URL` in your client env files to point to your production deployment.
+
 3. Point your domain's `SITE_URL` to wherever you are hosting the Next.js app.
+
 4. Add email (`RESEND_API_KEY`) and billing (Polar) keys to Convex env if needed.
 
-```bash
-bun run build
-bun run start
-```
+5. Build and start the production stack:
+
+   ```bash
+   bun run build
+   bun run start
+   ```
+
+</Steps>
 
 ## Detailed Environment Reference
 
