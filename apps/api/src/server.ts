@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { serve } from "@hono/node-server";
-import { resolveTeakDevApiUrl } from "@teak/convex/dev-urls";
 import app from "./index.js";
+import { resolveTeakDevApiUrl } from "./shared/devUrl.js";
 
 const DEFAULT_PORT = 8787;
 

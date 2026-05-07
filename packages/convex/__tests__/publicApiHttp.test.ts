@@ -7,14 +7,11 @@ import {
   cardByIdV1,
   changesCardsV1,
   createCardV1,
-  favoriteCards,
   favoriteCardsV1,
   listCardsV1,
-  quickSave,
-  searchCards,
   searchCardsV1,
   tagsV1,
-} from "../raycastHttp";
+} from "../publicApiHttp";
 
 const runHandler = async (fn: any, ctx: any, request: Request) => {
   const handler = (fn as any).handler ?? fn;
@@ -33,12 +30,12 @@ const buildAuthorizedMutationMock = () =>
 const buildAuthorizedMutationMockWithIdempotencySkip = () =>
   buildAuthorizedMutationMock().mockResolvedValueOnce(undefined);
 
-describe("raycastHttp", () => {
-  test("quickSave returns 405 for non-POST methods", async () => {
+describe("publicApiHttp", () => {
+  test("createCardV1 returns 405 for non-POST methods", async () => {
     const response = await runHandler(
-      quickSave,
+      createCardV1,
       { runMutation: mock(), runQuery: mock() },
-      new Request("https://example.com/api/raycast/quick-save", {
+      new Request("https://example.com/v1/cards", {
         method: "GET",
       })
     );
@@ -48,11 +45,11 @@ describe("raycastHttp", () => {
     expect(payload.code).toBe("METHOD_NOT_ALLOWED");
   });
 
-  test("quickSave returns 401 without bearer token", async () => {
+  test("createCardV1 returns 401 without bearer token", async () => {
     const response = await runHandler(
-      quickSave,
+      createCardV1,
       { runMutation: mock(), runQuery: mock() },
-      new Request("https://example.com/api/raycast/quick-save", {
+      new Request("https://example.com/v1/cards", {
         method: "POST",
         body: JSON.stringify({ content: "hello" }),
       })
@@ -63,16 +60,16 @@ describe("raycastHttp", () => {
     expect(payload.code).toBe("UNAUTHORIZED");
   });
 
-  test("quickSave returns 429 when rate limited", async () => {
+  test("createCardV1 returns 429 when rate limited", async () => {
     const runMutation = mock().mockResolvedValueOnce({
       ok: false,
       retryAt: Date.now() + 30_000,
     });
 
     const response = await runHandler(
-      quickSave,
+      createCardV1,
       { runMutation, runQuery: mock() },
-      new Request("https://example.com/api/raycast/quick-save", {
+      new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
           Authorization: "Bearer teakapi_abc_secret",
@@ -88,7 +85,7 @@ describe("raycastHttp", () => {
     expect(typeof payload.retryAt).toBe("number");
   });
 
-  test("quickSave maps rate limit contention errors to 429", async () => {
+  test("createCardV1 maps rate limit contention errors to 429", async () => {
     const runMutation = mock().mockRejectedValueOnce(
       new Error(
         'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry.'
@@ -96,9 +93,9 @@ describe("raycastHttp", () => {
     );
 
     const response = await runHandler(
-      quickSave,
+      createCardV1,
       { runMutation, runQuery: mock() },
-      new Request("https://example.com/api/raycast/quick-save", {
+      new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
           Authorization: "Bearer teakapi_abc_secret",
@@ -113,15 +110,15 @@ describe("raycastHttp", () => {
     expect(payload.code).toBe("RATE_LIMITED");
   });
 
-  test("quickSave returns 500 when auth mutation throws unexpected error", async () => {
+  test("createCardV1 returns 500 when auth mutation throws unexpected error", async () => {
     const runMutation = mock().mockRejectedValueOnce(
       new Error("db unavailable")
     );
 
     const response = await runHandler(
-      quickSave,
+      createCardV1,
       { runMutation, runQuery: mock() },
-      new Request("https://example.com/api/raycast/quick-save", {
+      new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
           Authorization: "Bearer teakapi_abc_secret",
@@ -138,15 +135,15 @@ describe("raycastHttp", () => {
     });
   });
 
-  test("quickSave returns 401 for invalid API key", async () => {
+  test("createCardV1 returns 401 for invalid API key", async () => {
     const runMutation = mock()
       .mockResolvedValueOnce({ ok: true, retryAt: undefined })
       .mockResolvedValueOnce(null);
 
     const response = await runHandler(
-      quickSave,
+      createCardV1,
       { runMutation, runQuery: mock() },
-      new Request("https://example.com/api/raycast/quick-save", {
+      new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
           Authorization: "Bearer teakapi_abc_secret",
@@ -161,11 +158,11 @@ describe("raycastHttp", () => {
     expect(payload.code).toBe("INVALID_API_KEY");
   });
 
-  test("quickSave returns 400 for malformed JSON", async () => {
+  test("createCardV1 returns 400 for malformed JSON", async () => {
     const response = await runHandler(
-      quickSave,
+      createCardV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery: mock() },
-      new Request("https://example.com/api/raycast/quick-save", {
+      new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
           Authorization: "Bearer teakapi_abc_secret",
@@ -180,11 +177,11 @@ describe("raycastHttp", () => {
     expect(payload.code).toBe("BAD_REQUEST");
   });
 
-  test("quickSave returns 400 for empty content", async () => {
+  test("createCardV1 returns 400 for empty content", async () => {
     const response = await runHandler(
-      quickSave,
+      createCardV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery: mock() },
-      new Request("https://example.com/api/raycast/quick-save", {
+      new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
           Authorization: "Bearer teakapi_abc_secret",
@@ -199,36 +196,7 @@ describe("raycastHttp", () => {
     expect(payload.code).toBe("INVALID_INPUT");
   });
 
-  test("quickSave returns created payload", async () => {
-    const runMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
-        status: "created",
-        cardId: "card_1",
-      });
-
-    const response = await runHandler(
-      quickSave,
-      { runMutation, runQuery: mock() },
-      new Request("https://example.com/api/raycast/quick-save", {
-        method: "POST",
-        headers: {
-          Authorization: "Bearer teakapi_abc_secret",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ content: "https://example.com" }),
-      })
-    );
-
-    expect(response.status).toBe(200);
-    const payload = await response.json();
-    expect(payload).toEqual({
-      appUrl: "https://app.teakvault.com/?card=card_1",
-      cardId: "card_1",
-      status: "created",
-    });
-  });
-
-  test("quickSave maps ConvexError payload to stable code", async () => {
+  test("createCardV1 maps ConvexError payload to stable code", async () => {
     const runMutation =
       buildAuthorizedMutationMockWithIdempotencySkip().mockRejectedValueOnce(
         new ConvexError({
@@ -238,9 +206,9 @@ describe("raycastHttp", () => {
       );
 
     const response = await runHandler(
-      quickSave,
+      createCardV1,
       { runMutation, runQuery: mock() },
-      new Request("https://example.com/api/raycast/quick-save", {
+      new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
           Authorization: "Bearer teakapi_abc_secret",
@@ -258,102 +226,7 @@ describe("raycastHttp", () => {
     });
   });
 
-  test("searchCards returns mapped items", async () => {
-    const runMutation = buildAuthorizedMutationMock();
-    const runQuery = mock().mockResolvedValue([
-      {
-        _id: "card_1",
-        type: "text",
-        content: "Hello",
-        notes: undefined,
-        url: undefined,
-        tags: ["tag"],
-        aiTags: undefined,
-        aiSummary: undefined,
-        isFavorited: true,
-        createdAt: 1,
-        updatedAt: 2,
-        fileUrl: undefined,
-        thumbnailUrl: undefined,
-        screenshotUrl: undefined,
-        linkPreviewImageUrl: undefined,
-        metadataTitle: undefined,
-        metadataDescription: undefined,
-      },
-    ]);
-
-    const response = await runHandler(
-      searchCards,
-      { runMutation, runQuery },
-      new Request("https://example.com/api/raycast/search?q=hello&limit=50", {
-        method: "GET",
-        headers: {
-          Authorization: "Bearer teakapi_abc_secret",
-        },
-      })
-    );
-
-    expect(response.status).toBe(200);
-    const payload = await response.json();
-    expect(payload.total).toBe(1);
-    expect(payload.items[0].id).toBe("card_1");
-  });
-
-  test("searchCards clamps invalid limit values", async () => {
-    const runMutation = buildAuthorizedMutationMock();
-    const runQuery = mock().mockResolvedValue([]);
-
-    const response = await runHandler(
-      searchCards,
-      { runMutation, runQuery },
-      new Request("https://example.com/api/raycast/search?limit=999", {
-        method: "GET",
-        headers: {
-          Authorization: "Bearer teakapi_abc_secret",
-        },
-      })
-    );
-
-    expect(response.status).toBe(200);
-    expect(runQuery).toHaveBeenCalledTimes(1);
-    expect(runQuery.mock.calls[0][1].limit).toBe(100);
-  });
-
-  test("favoriteCards returns read-only list payload", async () => {
-    const runMutation = buildAuthorizedMutationMock();
-    const runQuery = mock().mockResolvedValue([]);
-
-    const response = await runHandler(
-      favoriteCards,
-      { runMutation, runQuery },
-      new Request("https://example.com/api/raycast/favorites", {
-        method: "GET",
-        headers: {
-          Authorization: "Bearer teakapi_abc_secret",
-        },
-      })
-    );
-
-    expect(response.status).toBe(200);
-    const payload = await response.json();
-    expect(payload).toEqual({ items: [], total: 0 });
-  });
-
-  test("favoriteCards returns 405 for non-GET methods", async () => {
-    const response = await runHandler(
-      favoriteCards,
-      { runMutation: mock(), runQuery: mock() },
-      new Request("https://example.com/api/raycast/favorites", {
-        method: "POST",
-      })
-    );
-
-    expect(response.status).toBe(405);
-    const payload = await response.json();
-    expect(payload.code).toBe("METHOD_NOT_ALLOWED");
-  });
-
-  test("createCardV1 uses quick-save contract", async () => {
+  test("createCardV1 returns created payload", async () => {
     const runMutation =
       buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
         status: "created",
@@ -450,6 +323,26 @@ describe("raycastHttp", () => {
     expect(await response.json()).toEqual({ items: [], total: 0 });
   });
 
+  test("searchCardsV1 clamps invalid limit values", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+    const runQuery = mock().mockResolvedValue([]);
+
+    const response = await runHandler(
+      searchCardsV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/search?limit=999", {
+        method: "GET",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+        },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(runQuery).toHaveBeenCalledTimes(1);
+    expect(runQuery.mock.calls[0][1].limit).toBe(100);
+  });
+
   test("favoriteCardsV1 returns items and total", async () => {
     const runMutation = buildAuthorizedMutationMock();
     const runQuery = mock().mockResolvedValue([]);
@@ -467,6 +360,20 @@ describe("raycastHttp", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ items: [], total: 0 });
+  });
+
+  test("favoriteCardsV1 returns 405 for non-GET methods", async () => {
+    const response = await runHandler(
+      favoriteCardsV1,
+      { runMutation: mock(), runQuery: mock() },
+      new Request("https://example.com/v1/cards/favorites", {
+        method: "POST",
+      })
+    );
+
+    expect(response.status).toBe(405);
+    const payload = await response.json();
+    expect(payload.code).toBe("METHOD_NOT_ALLOWED");
   });
 
   test("listCardsV1 returns paginated items with pageInfo", async () => {

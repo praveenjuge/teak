@@ -7,14 +7,11 @@ import {
   cardByIdV1,
   changesCardsV1,
   createCardV1,
-  favoriteCards,
   favoriteCardsV1,
   listCardsV1,
-  quickSave,
-  searchCards,
   searchCardsV1,
   tagsV1,
-} from "./raycastHttp";
+} from "./publicApiHttp";
 
 const http = httpRouter();
 
@@ -37,25 +34,6 @@ http.route({
   path: "/api/desktop/auth/poll",
   method: "POST",
   handler: pollDesktopAuthCode,
-});
-
-// Register Raycast API routes
-http.route({
-  path: "/api/raycast/quick-save",
-  method: "POST",
-  handler: quickSave,
-});
-
-http.route({
-  path: "/api/raycast/search",
-  method: "GET",
-  handler: searchCards,
-});
-
-http.route({
-  path: "/api/raycast/favorites",
-  method: "GET",
-  handler: favoriteCards,
 });
 
 // Register public API v1 routes (used by apps/api proxy).

@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { resolveTeakDevApiUrl } from "@teak/convex/dev-urls";
 import app from "./index";
 import { openApiSpec } from "./openapi";
+import { resolveTeakDevApiUrl } from "./shared/devUrl.js";
 
 const docsPath = path.resolve(
   import.meta.dir,

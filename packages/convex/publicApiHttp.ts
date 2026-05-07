@@ -1313,30 +1313,6 @@ const handleBulkCardsRequest = async (
   }
 };
 
-export const quickSave = httpAction(async (ctx, request) => {
-  if (request.method !== "POST") {
-    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
-  }
-
-  return handleCreateCardRequest(ctx, request);
-});
-
-export const searchCards = httpAction(async (ctx, request) => {
-  if (request.method !== "GET") {
-    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
-  }
-
-  return handleCardsQueryRequest(ctx, request, false);
-});
-
-export const favoriteCards = httpAction(async (ctx, request) => {
-  if (request.method !== "GET") {
-    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
-  }
-
-  return handleCardsQueryRequest(ctx, request, true);
-});
-
 export const createCardV1 = httpAction(async (ctx, request) => {
   if (request.method !== "POST") {
     return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
