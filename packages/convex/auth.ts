@@ -29,10 +29,24 @@ import { rateLimiter } from "./shared/rateLimits";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID!;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET!;
-const siteUrl = process.env.SITE_URL!;
+const siteUrl = process.env.SITE_URL;
+if (!siteUrl) {
+  throw new Error(
+    "SITE_URL environment variable is required. " +
+      "Run: bunx convex env set SITE_URL http://app.teak.localhost:1355"
+  );
+}
+let usesSecureCookies: boolean;
+try {
+  usesSecureCookies = new URL(siteUrl).protocol === "https:";
+} catch {
+  throw new Error(
+    `SITE_URL environment variable is not a valid URL (received: "${siteUrl}"). ` +
+      "Example: http://app.teak.localhost:1355"
+  );
+}
 const desktopDevOrigins = ["http://localhost:1420", "http://127.0.0.1:1420"];
 const appDevUrl = resolveTeakDevAppUrl(process.env);
-const usesSecureCookies = new URL(siteUrl).protocol === "https:";
 
 export const trustedOrigins = [
   siteUrl,

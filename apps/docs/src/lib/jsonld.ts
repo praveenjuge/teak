@@ -35,7 +35,7 @@ export function buildPageSchemas(opts: {
   title: string;
   description?: string;
   url: string;
-  type?: "article" | "webpage" | "product";
+  type?: "article" | "webpage";
   breadcrumbs?: { name: string; url: string }[];
   faqs?: { question: string; answer: string }[];
 }) {

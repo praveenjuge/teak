@@ -28,6 +28,7 @@ function TagCardsView({ tag }: { tag: string }) {
       latestSectionTitle={`Cards tagged "${tag}"`}
       loadCards={(input) => searchCards({ ...input, limit: 50, tag })}
       navigationTitle={`Tag: ${tag}`}
+      removeTagFilterFromList
       searchBarPlaceholder={`Search within "${tag}" or use type:, sort:oldest`}
     />
   );

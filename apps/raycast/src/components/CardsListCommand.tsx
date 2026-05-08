@@ -36,6 +36,7 @@ type CardsListCommandProps = {
   latestSectionTitle: string;
   loadCards: (input: CardSearchInput) => Promise<{ items: RaycastCard[] }>;
   navigationTitle: string;
+  removeTagFilterFromList?: boolean;
   removeUnfavoritedFromList?: boolean;
   searchBarPlaceholder: string;
 };
@@ -100,6 +101,7 @@ export function CardsListCommand({
   latestSectionTitle,
   loadCards,
   navigationTitle,
+  removeTagFilterFromList = false,
   removeUnfavoritedFromList = false,
   searchBarPlaceholder,
 }: CardsListCommandProps) {
@@ -352,7 +354,7 @@ export function CardsListCommand({
                         title="Oldest First"
                       />
                     </ActionPanel.Submenu>
-                    {tagOptions.length > 0 ? (
+                    {tagOptions.length > 0 && !removeTagFilterFromList ? (
                       <ActionPanel.Submenu
                         icon={Icon.Tag}
                         title="Filter by Tag"

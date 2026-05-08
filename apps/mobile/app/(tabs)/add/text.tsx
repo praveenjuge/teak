@@ -8,6 +8,7 @@ import {
 import {
   font,
   foregroundStyle,
+  lineLimit,
   listStyle,
   scrollDisabled,
 } from "@expo/ui/swift-ui/modifiers";
@@ -107,6 +108,7 @@ export default function AddTextScreen() {
           <TextField
             axis="vertical"
             defaultValue={content}
+            modifiers={[lineLimit(8)]}
             onValueChange={setContent}
             placeholder="Enter your bookmark, URL, or note"
             ref={textFieldRef}
