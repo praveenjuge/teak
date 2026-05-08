@@ -7,7 +7,6 @@ import { ConnectedCardModal } from "@teak/ui/card-modal";
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Button } from "@teak/ui/components/ui/button";
 import { CardsGridSkeleton } from "@teak/ui/feedback/CardsGridSkeleton";
-import { DragOverlay } from "@teak/ui/feedback/DragOverlay";
 import type { AddCardFormProps } from "@teak/ui/forms";
 import { AddCardEmptyState, AddCardForm } from "@teak/ui/forms";
 import { MasonryGrid } from "@teak/ui/grids";
@@ -25,15 +24,8 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-type DropzonePropGetter = (
-  props?: Record<string, unknown>
-) => Record<string, unknown>;
-
 interface CardsScreenProps {
   contentContainerClassName?: string;
-  getInputProps: DropzonePropGetter;
-  getRootProps: DropzonePropGetter;
-  isDragActive: boolean;
   onCloseCard: () => void;
   onOpenCard: (cardId: string) => void;
   onUpgrade?: AddCardFormProps["onUpgrade"];
@@ -52,9 +44,6 @@ export function CardsScreen({
   SettingsButton,
   UpgradeLinkComponent,
   upgradeUrl,
-  getRootProps,
-  getInputProps,
-  isDragActive,
   contentContainerClassName,
   toastIdPrefix,
 }: CardsScreenProps) {
@@ -183,15 +172,16 @@ export function CardsScreen({
     toast.error("Card not found");
   }, [onCloseCard]);
 
-  const AddCardFormWrapper = useCallback(() => {
-    return (
+  const AddCardFormWrapper = useCallback(
+    () => (
       <AddCardForm
         onUpgrade={onUpgrade}
         UpgradeLinkComponent={UpgradeLinkComponent}
         upgradeUrl={upgradeUrl}
       />
-    );
-  }, [UpgradeLinkComponent, onUpgrade, upgradeUrl]);
+    ),
+    [UpgradeLinkComponent, onUpgrade, upgradeUrl]
+  );
 
   const renderEmptyState = () => {
     if (cardsStatus === "LoadingFirstPage") {
@@ -302,14 +292,12 @@ export function CardsScreen({
   );
 
   return (
-    <div {...getRootProps()} className="relative">
-      <input {...getInputProps()} />
+    <div className="relative">
       {contentContainerClassName ? (
         <main className={contentContainerClassName}>{content}</main>
       ) : (
         content
       )}
-      <DragOverlay isDragActive={isDragActive} />
     </div>
   );
 }

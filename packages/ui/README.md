@@ -218,16 +218,16 @@ import { TopPattern, BottomPattern } from "@teak/ui/patterns";
 import {
   CardSkeleton,
   CardsGridSkeleton,
-  DragOverlay,
   EmptyState,
   ErrorBoundary,
+  GlobalFileDropOverlay,
   Loading,
   PageErrorState,
   PageLoadingState,
 } from "@teak/ui/feedback";
 
 // Or per-component paths:
-import { DragOverlay } from "@teak/ui/feedback/DragOverlay";
+import { GlobalFileDropOverlay } from "@teak/ui/feedback/GlobalFileDropOverlay";
 import { PageLoadingState } from "@teak/ui/feedback/PageLoadingState";
 ```
 
@@ -262,7 +262,8 @@ import {
   createInitialCardsSearchState,
   useFileUpload,
   configureFileUploadErrorCapture,
-  useGlobalDragDrop,
+  GlobalFileDropProvider,
+  useGlobalFileDrop,
   useInfiniteScroll,
   useNetworkStatus,
   useObjectState,
@@ -277,8 +278,9 @@ import {
 | `useCardModalFilterActions` | Filter actions scoped to the card modal |
 | `useCardQueryParamState` | Sync card query parameters with the URL |
 | `useCardsSearchController` | Full search state machine — terms, filters, pagination |
-| `useFileUpload` | File drag-and-drop / picker with upload progress |
-| `useGlobalDragDrop` | App-level drag-and-drop context for card reordering |
+| `useFileUpload` | File upload helper bound to the Convex mutations |
+| `GlobalFileDropProvider` | Authenticated-only provider that owns drop, queue, and upload toasts |
+| `useGlobalFileDrop` | Read provider state (queue size, `enqueueFiles`) from descendants |
 | `useInfiniteScroll` | Intersection-observer-based infinite scroll trigger |
 | `useNetworkStatus` | Online / offline network state |
 | `useObjectState` | `useState` variant for partial object updates |

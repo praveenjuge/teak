@@ -59,7 +59,6 @@ describe("desktop menu wiring", () => {
     const files = [
       "../App.tsx",
       "../hooks/useDesktopMenuEvents.ts",
-      "../hooks/useGlobalDragDrop.ts",
       "../pages/CardsPage.tsx",
       "../pages/SettingsPage.tsx",
     ];

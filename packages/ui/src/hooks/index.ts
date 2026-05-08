@@ -1,3 +1,23 @@
+export {
+  GlobalFileDropProvider,
+  useGlobalFileDrop,
+} from "./GlobalFileDropProvider";
+export type {
+  BatchSummary,
+  DropRejectionReason,
+  ExtractFilesResult,
+  GlobalDropQueueItem,
+} from "./globalFileDropHelpers";
+export {
+  capBatchForQueue,
+  createQueueItemId,
+  dataTransferHasFiles,
+  extractFilesFromDataTransfer,
+  formatPartialFailureMessage,
+  isBlockedDropTarget,
+  isDataTransferItemFolder,
+  summarizeBatchResults,
+} from "./globalFileDropHelpers";
 export { useCardActions } from "./useCardActions";
 export type { CopyCardContentOptions } from "./useCardClipboard";
 export {
@@ -38,8 +58,6 @@ export {
   configureFileUploadErrorCapture,
   useFileUpload,
 } from "./useFileUpload";
-export type { UseGlobalDragDropConfig } from "./useGlobalDragDrop";
-export { useGlobalDragDrop } from "./useGlobalDragDrop";
 export type { UseInfiniteScrollOptions } from "./useInfiniteScroll";
 export { useInfiniteScroll } from "./useInfiniteScroll";
 export { useNetworkStatus } from "./useNetworkStatus";

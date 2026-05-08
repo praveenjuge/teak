@@ -1,17 +1,12 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import {
-  CARD_ERROR_CODES,
-  MAX_FILE_SIZE,
-  MAX_FILES_PER_UPLOAD,
-  resolveTextCardInput,
-} from "@teak/convex/shared";
-import { trackCardCreated } from "@teak/convex/shared/metrics";
+import { CARD_ERROR_CODES, resolveTextCardInput } from "@teak/convex/shared";
 import {
   type FinalizeUploadedCardArgs,
   type UploadAndCreateCardArgs,
   useFileUploadCore,
 } from "@teak/convex/shared/hooks/useFileUpload";
+import { trackCardCreated } from "@teak/convex/shared/metrics";
 import { Button } from "@teak/ui/components/ui/button";
 import { Card, CardContent } from "@teak/ui/components/ui/card";
 import { Textarea } from "@teak/ui/components/ui/textarea";
@@ -19,6 +14,7 @@ import {
   MANUAL_CLOSE_TOAST_OPTIONS,
   TOAST_IDS,
 } from "@teak/ui/constants/toast";
+import { useGlobalFileDrop } from "@teak/ui/hooks";
 import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation, useQuery } from "convex/react";
 import { Mic, Square, Upload } from "lucide-react";
@@ -37,7 +33,8 @@ function inferCardTypeFromMime(mimeType: string | undefined): string {
 function addCardToSearchQueries(
   localStore: OptimisticLocalStore,
   newCard: Doc<"cards">
-) {  const allQueries = localStore.getAllQueries(api.cards.searchCards);
+) {
+  const allQueries = localStore.getAllQueries(api.cards.searchCards);
   for (const { args, value } of allQueries) {
     if (value !== undefined && !args.showTrashOnly) {
       const hasVisualFilters =
@@ -89,6 +86,8 @@ export function AddCardForm({
 
   const [content, setContent] = useState("");
   const [url, setUrl] = useState("");
+
+  const globalFileDrop = useGlobalFileDrop();
 
   const cardCreationStatus = useQuery(api.auth.getCardCreationStatus);
   const canCreateCard =
@@ -230,21 +229,19 @@ export function AddCardForm({
     return null;
   };
 
-  const isCardLimitError = (err: unknown): boolean => {
-    return getCardErrorCode(err) === CARD_ERROR_CODES.CARD_LIMIT_REACHED;
-  };
+  const isCardLimitError = (err: unknown): boolean =>
+    getCardErrorCode(err) === CARD_ERROR_CODES.CARD_LIMIT_REACHED;
 
-  const isRateLimitError = (err: unknown): boolean => {
-    return getCardErrorCode(err) === CARD_ERROR_CODES.RATE_LIMITED;
-  };
+  const isRateLimitError = (err: unknown): boolean =>
+    getCardErrorCode(err) === CARD_ERROR_CODES.RATE_LIMITED;
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
@@ -253,8 +250,9 @@ export function AddCardForm({
           track.stop();
         }
       }
-    };
-  }, []);
+    },
+    []
+  );
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -356,7 +354,11 @@ export function AddCardForm({
         resetDraft();
         setRecordingTime(0);
         onSuccess?.();
-        trackCardCreated({ cardType: "audio", source: "web", via: "recording" });
+        trackCardCreated({
+          cardType: "audio",
+          source: "web",
+          via: "recording",
+        });
         toast.success("Audio recording saved", { id: toastId });
       } else {
         if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
@@ -411,21 +413,16 @@ export function AddCardForm({
         return;
       }
 
-      if (files.length > MAX_FILES_PER_UPLOAD) {
-        toast.error(
-          `You can only upload up to ${MAX_FILES_PER_UPLOAD} files at a time`,
-          MANUAL_CLOSE_TOAST_OPTIONS
-        );
+      // When the authenticated shell has mounted a global drop provider,
+      // route the picker through the same queue so both paths share
+      // validation, batch toasts and result summaries.
+      if (globalFileDrop) {
+        globalFileDrop.enqueueFiles(files);
         return;
       }
 
-      const oversizedFiles = files.filter((file) => file.size > MAX_FILE_SIZE);
-      if (oversizedFiles.length > 0) {
-        const fileNames = oversizedFiles.map((f) => f.name).join(", ");
-        toast.error(`Some files exceed the 20MB limit: ${fileNames}`);
-        return;
-      }
-
+      // Fallback path for surfaces that don't mount the provider (e.g.
+      // tests). Delegates cap / size validation to the upload core.
       for (const file of files) {
         const toastId = toast.loading(`Uploading ${file.name}...`);
 

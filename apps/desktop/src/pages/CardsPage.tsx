@@ -4,7 +4,6 @@ import { CardsScreen } from "@teak/ui/screens";
 import { Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useState } from "react";
-import { useGlobalDragDrop } from "@/hooks/useGlobalDragDrop";
 import { buildWebUrl } from "@/lib/desktop-config";
 
 interface CardsPageProps {
@@ -19,8 +18,6 @@ export function CardsPage({ onNavigateToSettings }: CardsPageProps) {
     pushCardId: setCardId,
     replaceCardId: setCardId,
   });
-
-  const { getRootProps, getInputProps, isDragActive } = useGlobalDragDrop();
 
   const handleOpenExternal = useCallback((url: string) => {
     void window.teakDesktop.shell.openExternal(url);
@@ -68,9 +65,6 @@ export function CardsPage({ onNavigateToSettings }: CardsPageProps) {
   return (
     <CardsScreen
       contentContainerClassName="mx-auto max-w-7xl px-4 pb-10"
-      getInputProps={getInputProps}
-      getRootProps={getRootProps}
-      isDragActive={isDragActive}
       onCloseCard={closeCard}
       onOpenCard={openCard}
       onUpgrade={handleUpgrade}

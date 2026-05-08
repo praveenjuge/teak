@@ -1,4 +1,5 @@
 import { ConvexQueryCacheProvider } from "@teak/ui/convex-query-cache";
+import { GlobalFileDropProvider } from "@teak/ui/hooks/GlobalFileDropProvider";
 import type { ReactNode } from "react";
 import { getToken } from "@/lib/auth-server";
 import { ClientAuthBoundary } from "./ClientAuthBoundary";
@@ -16,7 +17,11 @@ export default async function AuthenticatedAppProvider({
     <ConvexClientProvider initialToken={initialToken}>
       <ConvexQueryCacheProvider>
         <SentryUserManager />
-        <ClientAuthBoundary>{children}</ClientAuthBoundary>
+        <ClientAuthBoundary>
+          <GlobalFileDropProvider upgradeUrl="/settings">
+            {children}
+          </GlobalFileDropProvider>
+        </ClientAuthBoundary>
       </ConvexQueryCacheProvider>
     </ConvexClientProvider>
   );

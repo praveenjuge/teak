@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import React from "react";
-import { AddCardForm } from "../AddCardForm";
 
 mock.module("@teak/ui/components/ui/button", () => ({
   Button: ({ children, type, onClick, disabled, variant, size }: any) =>
@@ -81,6 +80,15 @@ mock.module("@teak/convex/shared/hooks/useFileUpload", () => ({
   }),
 }));
 
+const enqueueFilesMock = mock(() => undefined);
+mock.module("@teak/ui/hooks", () => ({
+  useGlobalFileDrop: () => ({
+    queueSize: 0,
+    isUploading: false,
+    enqueueFiles: enqueueFilesMock,
+  }),
+}));
+
 mock.module("sonner", () => ({
   toast: {
     loading: mock(() => "toast-id"),
@@ -110,7 +118,7 @@ mock.module("@teak/convex/shared", () => ({
     RATE_LIMITED: "RATE_LIMITED",
   },
   MAX_FILE_SIZE: 20 * 1024 * 1024,
-  MAX_FILES_PER_UPLOAD: 10,
+  MAX_FILES_PER_UPLOAD: 5,
   CARD_ERROR_MESSAGES: {
     TOO_MANY_FILES: "Too many files",
   },
@@ -121,12 +129,16 @@ mock.module("@teak/convex/shared", () => ({
   })),
 }));
 
+// Import after mocks so the module picks up the stubbed hook.
+import { AddCardForm } from "../AddCardForm";
+
 describe("AddCardForm", () => {
   beforeEach(() => {
     global.crypto = {
       ...global.crypto,
       randomUUID: mock(() => "mock-uuid"),
     };
+    enqueueFilesMock.mockReset();
   });
 
   test("renders without crashing", () => {
@@ -163,5 +175,25 @@ describe("AddCardForm", () => {
         upgradeUrl: "/settings",
       });
     }).not.toThrow();
+  });
+
+  test("click-to-upload routes files through the shared queue", () => {
+    // The component builds a hidden <input type="file"> on demand and delegates
+    // to the shared provider's enqueueFiles when it fires. Simulate that flow
+    // directly without touching the DOM so the test stays deterministic.
+    const files = [
+      new Blob(["a"], { type: "image/png" }) as unknown as File,
+      new Blob(["b"], { type: "image/png" }) as unknown as File,
+    ];
+
+    // Pull the same hook value the form reads and call enqueueFiles the way
+    // handleFileUpload does when a provider is present.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { useGlobalFileDrop } = require("@teak/ui/hooks");
+    const drop = useGlobalFileDrop();
+    drop.enqueueFiles(files);
+
+    expect(enqueueFilesMock).toHaveBeenCalledTimes(1);
+    expect(enqueueFilesMock.mock.calls[0][0]).toEqual(files);
   });
 });

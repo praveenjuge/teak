@@ -1,10 +1,11 @@
 import { PageLoadingState } from "@teak/ui/feedback/PageLoadingState";
-import { useNetworkStatus } from "@teak/ui/hooks";
+import { GlobalFileDropProvider, useNetworkStatus } from "@teak/ui/hooks";
 import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useDesktopMenuEvents } from "@/hooks/useDesktopMenuEvents";
 import { logoutDesktopSession } from "@/lib/desktop-auth";
+import { buildWebUrl } from "@/lib/desktop-config";
 import { CardsPage } from "./pages/CardsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -30,6 +31,10 @@ function App() {
     }
   }, [isAuthenticated]);
 
+  const handleUpgrade = useCallback(() => {
+    void window.teakDesktop.shell.openExternal(buildWebUrl("/settings"));
+  }, []);
+
   useDesktopMenuEvents({
     onLogout: () => {
       void handleLogout();
@@ -52,11 +57,18 @@ function App() {
     return <LoginPage isOnline={isOnline} />;
   }
 
-  if (page === "settings") {
-    return <SettingsPage onNavigateBack={() => setPage("cards")} />;
-  }
+  const authenticatedContent =
+    page === "settings" ? (
+      <SettingsPage onNavigateBack={() => setPage("cards")} />
+    ) : (
+      <CardsPage onNavigateToSettings={() => setPage("settings")} />
+    );
 
-  return <CardsPage onNavigateToSettings={() => setPage("settings")} />;
+  return (
+    <GlobalFileDropProvider onUpgrade={handleUpgrade}>
+      {authenticatedContent}
+    </GlobalFileDropProvider>
+  );
 }
 
 export default App;

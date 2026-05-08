@@ -7,7 +7,6 @@ import { Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
-import { useGlobalDragDrop } from "@/hooks/useGlobalDragDrop";
 
 export function HomePageClient() {
   const router = useRouter();
@@ -48,8 +47,6 @@ export function HomePageClient() {
     },
   });
 
-  const { getRootProps, getInputProps, isDragActive } = useGlobalDragDrop();
-
   const settingsButton = (
     <Button asChild size="icon" variant="outline">
       <Link href="/settings">
@@ -64,9 +61,6 @@ export function HomePageClient() {
 
   return (
     <CardsScreen
-      getInputProps={getInputProps}
-      getRootProps={getRootProps}
-      isDragActive={isDragActive}
       onCloseCard={closeCard}
       onOpenCard={openCard}
       onUpgrade={handleUpgrade}

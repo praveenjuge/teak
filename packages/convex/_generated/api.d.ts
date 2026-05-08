@@ -55,6 +55,7 @@ import type * as raycast from "../raycast.js";
 import type * as shared_constants from "../shared/constants.js";
 import type * as shared_index from "../shared/index.js";
 import type * as shared_linkCategories from "../shared/linkCategories.js";
+import type * as shared_metrics from "../shared/metrics.js";
 import type * as shared_rateLimits from "../shared/rateLimits.js";
 import type * as shared_search_constants from "../shared/search/constants.js";
 import type * as shared_search_index from "../shared/search/index.js";
@@ -156,6 +157,7 @@ declare const fullApi: ApiFromModules<{
   "shared/constants": typeof shared_constants;
   "shared/index": typeof shared_index;
   "shared/linkCategories": typeof shared_linkCategories;
+  "shared/metrics": typeof shared_metrics;
   "shared/rateLimits": typeof shared_rateLimits;
   "shared/search/constants": typeof shared_search_constants;
   "shared/search/index": typeof shared_search_index;
