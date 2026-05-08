@@ -118,6 +118,19 @@ teak/
 - Update or add fixtures/test data so tests are deterministic.
 - Keep tests fast; avoid extra network calls unless the feature requires it.
 
+## Changelog Editorial Rules
+
+These rules govern everything that lands in `apps/docs/src/content/changelog/*.mdx`. The changelog is a public, user-facing product surface — not a release log for engineers.
+
+- **Public entries describe user impact only.** If a user would not notice the change, do not publish it.
+- **Do not mention** package names, frameworks, libraries, build tooling, bundlers, loaders, ESM/CJS, schemas, data migrations, internal endpoints, refactors, tests, CI, signing/notarization, dependency bumps, or any implementation mechanics. That includes (non-exhaustive): Electron, Tauri, Vite, Webpack, Forge, Next.js, Astro, Starlight, Expo, Wxt, Hono, Convex (as backend), Better Auth, Groq, Polar, `electron-updater`, `electron-builder`, oEmbed, `package.json`, `tsconfig`.
+- **Product-facing terms are fine** when users recognize them: desktop, mobile, web, browser extension, Raycast, API, MCP, sync, settings, import/export, updates, sign-in, macOS, Dock, notifications, keychain.
+- **If the change is only internal** (tooling, dependency work, refactor, tests, CI, cleanup, silent maintenance), do not add a public changelog entry. Update the code and move on.
+- **Format:** one frontmatter title plus 1–3 short bullets. No inline code (backticks), no fenced code blocks, no H2/H3 headers inside the entry.
+- **Each bullet is one user-observable outcome.** Keep bullets ~1–2 sentences each; trim aggressively.
+- **User action:** if the release requires the user to do something, state only the clear action they need to take, without the reason behind it.
+- **One entry per date.** Rewriting a historical entry is preferred over merging or deleting.
+
 ## Desktop Release Process
 
 The desktop app uses Electron with `electron-builder` and ships signed, notarized macOS builds via GitHub Releases.

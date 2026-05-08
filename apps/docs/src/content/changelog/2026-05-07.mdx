@@ -1,8 +1,7 @@
 ---
-title: "Desktop: fix repeating macOS keychain password prompt"
+title: "Desktop: fixed the repeating macOS keychain prompt"
 date: "2026-05-07"
 ---
 
-- Fixed an issue on the macOS desktop app where some users saw a "Teak Safe Storage" keychain password prompt on every launch. The desktop app never stored anything in the keychain; the prompt was triggered by an Electron ESM bug that touched the keychain on startup even when unused.
-- The fix routes the Electron module import through Node's CJS loader in the main process only, which avoids the eager evaluation path that triggered the keychain access.
-- If you already hit "Allow" (not "Always Allow") on 1.0.31, this release resolves the repeat prompts automatically on next launch. No manual action needed.
+- Fixed an issue where some users saw a "Teak Safe Storage" keychain password prompt every time the desktop app launched. Teak never stored anything in the keychain.
+- If you ran into the repeat prompt, it stops on next launch. No manual action needed.

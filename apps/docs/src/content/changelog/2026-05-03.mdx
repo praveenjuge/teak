@@ -1,9 +1,8 @@
 ---
-title: "Desktop app migrated from Tauri to Electron"
+title: "Desktop app for macOS relaunched"
 date: "2026-05-03"
 ---
 
-- The macOS desktop app has been rebuilt on Electron, replacing the previous Tauri v2 implementation. The app retains the same features — real-time Convex sync, browser-based login, native macOS menu, drag-and-drop uploads, and automatic updates — with no changes to your workflow.
-- Auto-updates now use GitHub Releases via `electron-updater` instead of the previous `teakvault.com/updates` endpoint. Existing Tauri users should download the latest release manually from [GitHub Releases](https://github.com/praveenjuge/teak/releases/latest) to switch to the new updater.
-- The interactive "Check for Updates…" menu item has been temporarily removed and will return in a future release. Silent update checks continue to run on every launch.
-- No local data migration is needed. Sign in once and your Teak data syncs normally from the backend.
+- The macOS desktop app has been rebuilt with all the features you already use: real-time sync, browser-based sign-in, native macOS menus, drag-and-drop uploads, and automatic updates. No workflow changes, no local data migration, just sign in once.
+- Auto-updates now come from a new release channel. If you are on an older desktop build, download the latest release manually from the Teak GitHub releases page to switch over.
+- The manual "Check for Updates…" menu item is temporarily gone and will return in a future release. Silent update checks still run on every launch.

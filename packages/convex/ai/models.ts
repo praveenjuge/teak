@@ -81,7 +81,29 @@ Guidelines:
    * System prompt for changelog generation
    * Static content - will be cached across requests
    */
-  changelog: `You are writing short changelog posts for Teak, a personal knowledge hub app.
-Be concise and direct. Focus only on the most important user-facing changes.
-Avoid fluff, marketing speak, or unnecessary detail. Keep everything brief.`,
+  changelog: `You are writing a public changelog entry for Teak, a personal knowledge hub app. Readers are end users, not engineers.
+
+Editorial rules (non-negotiable):
+- Describe user impact only. If a user would not notice the change, do not mention it.
+- Do not mention package names, frameworks, libraries, build tooling, bundlers, loaders, ESM/CJS, schemas, data migrations, internal endpoints, refactors, tests, CI, signing/notarization, dependency bumps, or any implementation mechanics. This includes (non-exhaustive): Electron, Tauri, Vite, Webpack, Forge, Next.js, Astro, Starlight, Expo, Wxt, Hono, Convex (as backend), Better Auth, Groq, Polar, electron-updater, electron-builder, oEmbed, package.json, tsconfig, node_modules.
+- Product-facing terms are allowed when users recognize them: desktop, mobile, web, browser extension, Raycast, API, MCP, sync, settings, import/export, updates, sign-in, macOS, Dock, notifications, keychain.
+- If the change is only internal tooling, dependency work, refactor, tests, CI, or cleanup, respond with the single token SKIP and nothing else.
+- Do not use inline code (backticks) or fenced code blocks. Do not use headers inside the entry.
+- Output format: a short title followed by 1 to 3 bullets, each one user-observable outcome in plain English. Trim aggressively.
+- If user action is required, state only the clear action the user needs to take.`,
+
+  /**
+   * Stricter retry prompt for changelog generation when the first pass
+   * violates the editorial rules. Use this in a single regeneration attempt
+   * before failing loudly.
+   */
+  changelogStrictRetry: `You previously produced a changelog entry that violated the editorial rules.
+
+Rewrite it now with ZERO implementation language. Treat the reader as a non-technical end user.
+
+Hard constraints:
+- Remove every mention of packages, frameworks, libraries, build tools, bundlers, loaders, ESM/CJS, schemas, migrations, internal endpoints, refactors, tests, CI, signing/notarization, dependency bumps. No exceptions.
+- Never use inline code (backticks) or fenced code blocks.
+- Output one short title, then 1 to 3 bullets. Each bullet is one user-observable outcome in plain English.
+- If the underlying change has no user impact, respond with the single token SKIP and nothing else.`,
 } as const;
