@@ -6,6 +6,7 @@ import {
   MAX_FILES_PER_UPLOAD,
   resolveTextCardInput,
 } from "@teak/convex/shared";
+import { trackCardCreated } from "@teak/convex/shared/metrics";
 import {
   type FinalizeUploadedCardArgs,
   type UploadAndCreateCardArgs,
@@ -25,11 +26,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FullScreenAddCardDialog } from "./FullScreenAddCardDialog";
 
+function inferCardTypeFromMime(mimeType: string | undefined): string {
+  if (!mimeType) return "document";
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("audio/")) return "audio";
+  return "document";
+}
+
 function addCardToSearchQueries(
   localStore: OptimisticLocalStore,
   newCard: Doc<"cards">
-) {
-  const allQueries = localStore.getAllQueries(api.cards.searchCards);
+) {  const allQueries = localStore.getAllQueries(api.cards.searchCards);
   for (const { args, value } of allQueries) {
     if (value !== undefined && !args.showTrashOnly) {
       const hasVisualFilters =
@@ -348,6 +356,7 @@ export function AddCardForm({
         resetDraft();
         setRecordingTime(0);
         onSuccess?.();
+        trackCardCreated({ cardType: "audio", source: "web", via: "recording" });
         toast.success("Audio recording saved", { id: toastId });
       } else {
         if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
@@ -425,6 +434,11 @@ export function AddCardForm({
         });
 
         if (result.success) {
+          trackCardCreated({
+            cardType: inferCardTypeFromMime(file.type),
+            source: "web",
+            via: "file_upload",
+          });
           toast.success(`${file.name} uploaded`, { id: toastId });
           onSuccess?.();
         } else {
@@ -479,6 +493,11 @@ export function AddCardForm({
       });
 
       onSuccess?.();
+      trackCardCreated({
+        cardType: resolved.type,
+        source: "web",
+        via: "text_form",
+      });
       toast.success("Card saved", { id: toastId });
       return true;
     } catch (error) {

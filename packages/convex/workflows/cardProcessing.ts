@@ -11,6 +11,7 @@
 import type { RetryBehavior } from "@convex-dev/workpool";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
+import { trackAiStage } from "../shared/metrics";
 import { workflow } from "./manager";
 
 // Helper to get properly typed internal references
@@ -33,6 +34,39 @@ const LINK_ENRICHMENT_STEP_RETRY: RetryBehavior = {
 };
 
 const PIPELINE_LOG_PREFIX = "[workflow/cardProcessing]";
+
+type StageOutcome = "ok" | "error" | "skipped";
+
+async function timeStage<T>(
+  stage:
+    | "classification"
+    | "categorization"
+    | "metadata"
+    | "renderables"
+    | "linkMetadata"
+    | "palette",
+  cardType: string | undefined,
+  fn: () => Promise<T>
+): Promise<T> {
+  const start = Date.now();
+  let outcome: StageOutcome = "ok";
+  let errorClass: string | undefined;
+  try {
+    return await fn();
+  } catch (error) {
+    outcome = "error";
+    errorClass = error instanceof Error ? error.name : "UnknownError";
+    throw error;
+  } finally {
+    trackAiStage({
+      stage,
+      durationMs: Date.now() - start,
+      outcome,
+      cardType,
+      errorClass,
+    });
+  }
+}
 
 /**
  * Main Card Processing Workflow
@@ -92,9 +126,11 @@ export const cardProcessingWorkflow: any = workflow.define({
               initialCard.type ?? ""
             ),
           }
-        : await step.runAction(
-            internalWorkflow["workflows/steps/classification"].classify,
-            { cardId }
+        : await timeStage("classification", initialCard?.type, () =>
+            step.runAction(
+              internalWorkflow["workflows/steps/classification"].classify,
+              { cardId }
+            )
           );
 
     // Check if this is an SVG image that needs thumbnail generation for palette extraction
@@ -138,11 +174,13 @@ export const cardProcessingWorkflow: any = workflow.define({
         linkMetadataCard?.metadataStatus === "pending";
 
       if (needsLinkMetadata) {
-        await step.runAction(
-          internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
-            .fetchMetadata,
-          { cardId },
-          { retry: LINK_METADATA_STEP_RETRY }
+        await timeStage("linkMetadata", classification.type, () =>
+          step.runAction(
+            internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
+              .fetchMetadata,
+            { cardId },
+            { retry: LINK_METADATA_STEP_RETRY }
+          )
         );
       }
     }
@@ -151,49 +189,56 @@ export const cardProcessingWorkflow: any = workflow.define({
     // Wait for link metadata extraction if needed, then categorize and enrich
     let categorization: { category: string; confidence: number } | undefined;
     if (classification.shouldCategorize) {
-      const classifyStepResult = await step.runAction(
-        internalWorkflow["workflows/steps/categorization/index"].classifyStep,
-        { cardId },
-        { retry: LINK_ENRICHMENT_STEP_RETRY }
+      categorization = await timeStage(
+        "categorization",
+        classification.type,
+        async () => {
+          const classifyStepResult = await step.runAction(
+            internalWorkflow["workflows/steps/categorization/index"]
+              .classifyStep,
+            { cardId },
+            { retry: LINK_ENRICHMENT_STEP_RETRY }
+          );
+
+          let structuredData: unknown = null;
+          if (
+            classifyStepResult.mode === "classified" &&
+            classifyStepResult.shouldFetchStructured
+          ) {
+            const structuredResult = await step.runAction(
+              internalWorkflow["workflows/steps/categorization/index"]
+                .fetchStructuredDataStep,
+              {
+                cardId,
+                sourceUrl: classifyStepResult.sourceUrl,
+                shouldFetch: true,
+              },
+              { retry: LINK_ENRICHMENT_STEP_RETRY }
+            );
+            structuredData = structuredResult.structuredData ?? null;
+          }
+
+          const categorizationResult = await step.runAction(
+            internalWorkflow["workflows/steps/categorization/index"]
+              .mergeAndSaveStep,
+            {
+              cardId,
+              card: classifyStepResult.card,
+              sourceUrl: classifyStepResult.sourceUrl,
+              mode: classifyStepResult.mode,
+              classification: classifyStepResult.classification,
+              existingMetadata: classifyStepResult.existingMetadata,
+              structuredData,
+            },
+            { retry: LINK_ENRICHMENT_STEP_RETRY }
+          );
+
+          return {
+            category: categorizationResult.category,
+            confidence: categorizationResult.confidence,
+          };
+        }
       );
-
-      let structuredData: unknown = null;
-      if (
-        classifyStepResult.mode === "classified" &&
-        classifyStepResult.shouldFetchStructured
-      ) {
-        const structuredResult = await step.runAction(
-          internalWorkflow["workflows/steps/categorization/index"]
-            .fetchStructuredDataStep,
-          {
-            cardId,
-            sourceUrl: classifyStepResult.sourceUrl,
-            shouldFetch: true,
-          },
-          { retry: LINK_ENRICHMENT_STEP_RETRY }
-        );
-        structuredData = structuredResult.structuredData ?? null;
-      }
-
-      const categorizationResult = await step.runAction(
-        internalWorkflow["workflows/steps/categorization/index"]
-          .mergeAndSaveStep,
-        {
-          cardId,
-          card: classifyStepResult.card,
-          sourceUrl: classifyStepResult.sourceUrl,
-          mode: classifyStepResult.mode,
-          classification: classifyStepResult.classification,
-          existingMetadata: classifyStepResult.existingMetadata,
-          structuredData,
-        },
-        { retry: LINK_ENRICHMENT_STEP_RETRY }
-      );
-
-      categorization = {
-        category: categorizationResult.category,
-        confidence: categorizationResult.confidence,
-      };
     }
 
     // Step 3 & 4: Metadata generation and renderables can run in parallel when needed.
@@ -206,51 +251,62 @@ export const cardProcessingWorkflow: any = workflow.define({
     if (classification.type === "video" || isSvgImage) {
       // For videos and SVGs: renderables first, then metadata (thumbnail needed for AI)
       renderablesResult = classification.shouldGenerateRenderables
-        ? await step.runAction(
-            internalWorkflow["workflows/steps/renderables"].generate,
-            { cardId, cardType: classification.type }
+        ? await timeStage("renderables", classification.type, () =>
+            step.runAction(
+              internalWorkflow["workflows/steps/renderables"].generate,
+              { cardId, cardType: classification.type }
+            )
           )
         : null;
 
       // For SVGs, now run palette extraction since the thumbnail is ready
       if (isSvgImage) {
-        await step
-          .runAction(
-            internalWorkflow["workflows/steps/palette"].extractPaletteFromImage,
-            { cardId }
-          )
-          .catch((error: unknown) => {
-            console.error(
-              `${PIPELINE_LOG_PREFIX} Palette extraction failed for SVG`,
-              {
-                cardId,
-                error,
-              }
-            );
-            return null;
-          });
+        await timeStage("palette", classification.type, () =>
+          step
+            .runAction(
+              internalWorkflow["workflows/steps/palette"]
+                .extractPaletteFromImage,
+              { cardId }
+            )
+            .catch((error: unknown) => {
+              console.error(
+                `${PIPELINE_LOG_PREFIX} Palette extraction failed for SVG`,
+                {
+                  cardId,
+                  error,
+                }
+              );
+              return null;
+            })
+        );
       }
 
       metadataResult = classification.shouldGenerateMetadata
-        ? await step.runAction(
-            internalWorkflow["workflows/steps/metadata"].generate,
-            { cardId, cardType: classification.type },
-            { retry: METADATA_STEP_RETRY }
+        ? await timeStage("metadata", classification.type, () =>
+            step.runAction(
+              internalWorkflow["workflows/steps/metadata"].generate,
+              { cardId, cardType: classification.type },
+              { retry: METADATA_STEP_RETRY }
+            )
           )
         : null;
     } else {
       const metadataPromise = classification.shouldGenerateMetadata
-        ? step.runAction(
-            internalWorkflow["workflows/steps/metadata"].generate,
-            { cardId, cardType: classification.type },
-            { retry: METADATA_STEP_RETRY }
+        ? timeStage("metadata", classification.type, () =>
+            step.runAction(
+              internalWorkflow["workflows/steps/metadata"].generate,
+              { cardId, cardType: classification.type },
+              { retry: METADATA_STEP_RETRY }
+            )
           )
         : Promise.resolve(null);
 
       const renderablesPromise = classification.shouldGenerateRenderables
-        ? step.runAction(
-            internalWorkflow["workflows/steps/renderables"].generate,
-            { cardId, cardType: classification.type }
+        ? timeStage("renderables", classification.type, () =>
+            step.runAction(
+              internalWorkflow["workflows/steps/renderables"].generate,
+              { cardId, cardType: classification.type }
+            )
           )
         : Promise.resolve(null);
 

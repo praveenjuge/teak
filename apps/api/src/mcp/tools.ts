@@ -7,6 +7,7 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { getHeaderValue } from "../shared/http.js";
+import { trackMcpToolInvocation } from "../shared/metrics.js";
 import { executeGatewayOperation } from "../shared/proxy.js";
 
 type ToolRequestExtra = RequestHandlerExtra<ServerRequest, ServerNotification>;
@@ -109,6 +110,44 @@ const errorResult = (status: number, payload: unknown): CallToolResult => {
 const getAuthorizationHeader = (extra: ToolRequestExtra): string | null =>
   getHeaderValue(extra.requestInfo?.headers, "authorization");
 
+type ToolHandler<TInput> = (
+  input: TInput,
+  extra: ToolRequestExtra
+) => Promise<CallToolResult>;
+
+const instrumentToolHandler =
+  <TInput>(
+    toolName: string,
+    handler: ToolHandler<TInput>
+  ): ToolHandler<TInput> =>
+  async (input, extra) => {
+    const start = Date.now();
+    let outcome: "ok" | "error" | "unauthorized" = "ok";
+    let status: number | undefined;
+    try {
+      const result = await handler(input, extra);
+      if (result.isError) {
+        const structured = result.structuredContent as
+          | { status?: unknown }
+          | undefined;
+        status =
+          typeof structured?.status === "number" ? structured.status : 500;
+        outcome = status === 401 ? "unauthorized" : "error";
+      }
+      return result;
+    } catch (error) {
+      outcome = "error";
+      throw error;
+    } finally {
+      trackMcpToolInvocation({
+        tool: toolName,
+        outcome,
+        durationMs: Date.now() - start,
+        status,
+      });
+    }
+  };
+
 const executeToolOperation = async (
   operation: Parameters<typeof executeGatewayOperation>[0],
   extra: ToolRequestExtra
@@ -157,7 +196,7 @@ const registerCreateCardTool = (server: McpServer): void => {
         content: nonEmptyString,
       }),
     },
-    async (input, extra) => {
+    instrumentToolHandler("teak_v1_create_card", async (input, extra) => {
       const result = await executeToolOperation(
         {
           method: "POST",
@@ -178,7 +217,7 @@ const registerCreateCardTool = (server: McpServer): void => {
           ? result.payload.status
           : "created";
       return successResult(result.payload, `Card ${status}`);
-    }
+    })
   );
 };
 
@@ -189,7 +228,7 @@ const registerSearchCardsTool = (server: McpServer): void => {
       description: "Search cards by query text.",
       inputSchema: queryInputSchema,
     },
-    async (input, extra) => {
+    instrumentToolHandler("teak_v1_search_cards", async (input, extra) => {
       const result = await executeToolOperation(
         {
           method: "GET",
@@ -209,7 +248,7 @@ const registerSearchCardsTool = (server: McpServer): void => {
       const total =
         typeof result.payload.total === "number" ? result.payload.total : 0;
       return successResult(result.payload, `Fetched ${total} cards`);
-    }
+    })
   );
 };
 
@@ -220,27 +259,30 @@ const registerListFavoritesTool = (server: McpServer): void => {
       description: "List favorited cards, optionally filtered by query text.",
       inputSchema: queryInputSchema,
     },
-    async (input, extra) => {
-      const result = await executeToolOperation(
-        {
-          method: "GET",
-          path: "/v1/cards/favorites",
-          query: {
-            q: input.q,
-            limit: input.limit,
+    instrumentToolHandler(
+      "teak_v1_list_favorite_cards",
+      async (input, extra) => {
+        const result = await executeToolOperation(
+          {
+            method: "GET",
+            path: "/v1/cards/favorites",
+            query: {
+              q: input.q,
+              limit: input.limit,
+            },
           },
-        },
-        extra
-      );
+          extra
+        );
 
-      if (!result.ok) {
-        return result.result;
+        if (!result.ok) {
+          return result.result;
+        }
+
+        const total =
+          typeof result.payload.total === "number" ? result.payload.total : 0;
+        return successResult(result.payload, `Fetched ${total} favorite cards`);
       }
-
-      const total =
-        typeof result.payload.total === "number" ? result.payload.total : 0;
-      return successResult(result.payload, `Fetched ${total} favorite cards`);
-    }
+    )
   );
 };
 
@@ -251,7 +293,7 @@ const registerUpdateCardTool = (server: McpServer): void => {
       description: "Update card fields for an existing card.",
       inputSchema: updateCardInputSchema,
     },
-    async (input, extra) => {
+    instrumentToolHandler("teak_v1_update_card", async (input, extra) => {
       const result = await executeToolOperation(
         {
           method: "PATCH",
@@ -271,7 +313,7 @@ const registerUpdateCardTool = (server: McpServer): void => {
       }
 
       return successResult(result.payload, "Card updated");
-    }
+    })
   );
 };
 
@@ -285,7 +327,7 @@ const registerSetFavoriteTool = (server: McpServer): void => {
         isFavorited: z.boolean(),
       }),
     },
-    async (input, extra) => {
+    instrumentToolHandler("teak_v1_set_card_favorite", async (input, extra) => {
       const result = await executeToolOperation(
         {
           method: "PATCH",
@@ -303,7 +345,7 @@ const registerSetFavoriteTool = (server: McpServer): void => {
 
       const stateText = input.isFavorited ? "favorited" : "unfavorited";
       return successResult(result.payload, `Card ${stateText}`);
-    }
+    })
   );
 };
 
@@ -317,7 +359,7 @@ const registerDeleteCardTool = (server: McpServer): void => {
         confirm: z.literal(true),
       }),
     },
-    async (input, extra) => {
+    instrumentToolHandler("teak_v1_delete_card", async (input, extra) => {
       const result = await executeToolOperation(
         {
           method: "DELETE",
@@ -336,7 +378,7 @@ const registerDeleteCardTool = (server: McpServer): void => {
       };
 
       return successResult(payload, `Deleted card ${input.cardId}`);
-    }
+    })
   );
 };
 

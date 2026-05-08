@@ -8,6 +8,7 @@
     "./dev-urls": "./devUrls.ts",
     "./shared": "./shared/index.ts",
     "./shared/constants": "./shared/constants.ts",
+    "./shared/metrics": "./shared/metrics.ts",
     "./shared/hooks/useCardActions": "./client/hooks/useCardActions.client.tsx",
     "./shared/hooks/useFileUpload": "./client/hooks/useFileUpload.client.tsx",
     "./shared/linkCategories": "./shared/linkCategories.ts",

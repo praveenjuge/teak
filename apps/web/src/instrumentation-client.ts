@@ -3,6 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { configureMetrics } from "@teak/convex/shared/metrics";
 import { configureFileUploadErrorCapture } from "@teak/ui/hooks";
 
 Sentry.init({
@@ -38,6 +39,20 @@ Sentry.init({
       },
     }),
   ],
+});
+
+// Route the shared @teak metrics helpers to Sentry's Application Metrics API.
+configureMetrics({
+  app: "web",
+  env: process.env.NODE_ENV ?? "development",
+  recorder: {
+    count: (name, value, attributes) =>
+      Sentry.metrics.count(name, value, { attributes }),
+    gauge: (name, value, attributes, unit) =>
+      Sentry.metrics.gauge(name, value, { attributes, unit }),
+    distribution: (name, value, attributes, unit) =>
+      Sentry.metrics.distribution(name, value, { attributes, unit }),
+  },
 });
 
 configureFileUploadErrorCapture((error, context) => {

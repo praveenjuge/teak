@@ -3,6 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { configureMetrics } from "@teak/convex/shared/metrics";
 
 Sentry.init({
   dsn: "https://9206eebecdbbbd9229ddc419b82165c7@o4509483678236672.ingest.us.sentry.io/4510434608480256",
@@ -21,4 +22,17 @@ Sentry.init({
     // send console.log, console.warn, and console.error calls as logs to Sentry
     Sentry.consoleLoggingIntegration(),
   ],
+});
+
+configureMetrics({
+  app: "web",
+  env: process.env.NODE_ENV ?? "development",
+  recorder: {
+    count: (name, value, attributes) =>
+      Sentry.metrics.count(name, value, { attributes }),
+    gauge: (name, value, attributes, unit) =>
+      Sentry.metrics.gauge(name, value, { attributes, unit }),
+    distribution: (name, value, attributes, unit) =>
+      Sentry.metrics.distribution(name, value, { attributes, unit }),
+  },
 });
