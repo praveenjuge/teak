@@ -131,6 +131,12 @@ These rules govern everything that lands in `apps/docs/src/content/changelog/*.m
 - **User action:** if the release requires the user to do something, state only the clear action they need to take, without the reason behind it.
 - **One entry per date.** Rewriting a historical entry is preferred over merging or deleting.
 
+## Mobile Release Process
+
+When asked to release the mobile app (cut a new App Store version, publish to iOS, submit to TestFlight/App Store, or similar), follow the step-by-step process in `apps/mobile/release.md`. That file is the source of truth for mobile releases: pulling metadata, updating `store.config.json` (version + release notes), pushing metadata, building the IPA locally via EAS, and submitting it.
+
+Do not invent a release flow. Read `apps/mobile/release.md` and run the commands listed there in order.
+
 ## Desktop Release Process
 
 The desktop app uses Electron with `electron-builder` and ships signed, notarized macOS builds via GitHub Releases.
