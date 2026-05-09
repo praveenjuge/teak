@@ -17,6 +17,7 @@ import React from "react";
 import { Alert, PlatformColor, Pressable } from "react-native";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { authClient } from "@/lib/auth-client";
+import { refreshAuthSessionCache } from "@/lib/auth-session-cache";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function SignInScreen() {
@@ -58,6 +59,7 @@ export default function SignInScreen() {
         return;
       }
 
+      await refreshAuthSessionCache();
       router.replace("/(tabs)/(home)");
     } catch (error) {
       const message = getAuthErrorMessage(

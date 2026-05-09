@@ -18,6 +18,7 @@ import AppleLogo from "@/components/AppleLogo";
 import GoogleLogo from "@/components/GoogleLogo";
 import Logo from "@/components/Logo";
 import { authClient } from "@/lib/auth-client";
+import { refreshAuthSessionCache } from "@/lib/auth-session-cache";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function OnboardingScreen() {
@@ -54,6 +55,7 @@ export default function OnboardingScreen() {
           )
         );
       } else {
+        await refreshAuthSessionCache();
         router.replace("/(tabs)/(home)");
       }
     } catch (error) {
@@ -109,6 +111,7 @@ export default function OnboardingScreen() {
           )
         );
       } else {
+        await refreshAuthSessionCache();
         router.replace("/(tabs)/(home)");
       }
     } catch (error: unknown) {

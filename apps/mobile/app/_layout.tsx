@@ -3,7 +3,6 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { useConvexAuth } from "convex/react";
 import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 import { Stack, usePathname } from "expo-router";
 import {
@@ -19,6 +18,7 @@ import {
   ThemePreferenceProvider,
   useThemePreference,
 } from "@/lib/theme-preference";
+import { useAuthBootstrap } from "@/lib/use-auth-bootstrap";
 import ConvexClientProvider from "../ConvexClientProvider";
 
 void preventAutoHideAsync();
@@ -92,7 +92,7 @@ function RootLayoutContent() {
 }
 
 function RootNavigator() {
-  const { isLoading, isAuthenticated } = useConvexAuth();
+  const { isLoading, isAuthenticated } = useAuthBootstrap();
 
   if (isLoading) {
     return (
