@@ -71,3 +71,16 @@ This runs `eas submit --platform ios`. Select the IPA that was just built in the
 | 5    | `bun run build:submit`   | Submit the built IPA to App Store Connect.     |
 
 All four scripts are defined in `apps/mobile/package.json`.
+
+## Agent notes
+
+When an automated agent runs this process, complete all five steps in one pass. Do not stop between `metadata:push`, `build:local`, and `build:submit` to ask for confirmation. The user already signaled intent to ship when they asked you to run the release, and pausing mid-flight leaves the App Store version metadata out of sync with the binary.
+
+Specifically:
+
+- Do not pause because `apple.release.automaticRelease` is `true`. That setting is deliberate — approved builds ship to users automatically, and that is the intended behavior.
+- Do not pause because a build takes a long time. Run it and wait for it to finish.
+- Do stop only if an actual step fails (non-zero exit from the release scripts, signing error, binary upload rejected, etc.). Report the failure and let the user decide next steps.
+
+If `eas metadata:push` reports a non-fatal API mismatch (for example `gamblingAndContests` on `ageRatingDeclarations`), treat it as a warning and keep going. The version, release notes, and review info still land, and the age rating is already set on the store listing.
+
