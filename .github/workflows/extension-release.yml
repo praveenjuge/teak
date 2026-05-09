@@ -108,6 +108,54 @@ jobs:
             exit 1
           fi
 
+      - name: Cancel any pending Chrome Web Store submission
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Exchange the refresh token for a short-lived access token.
+          access_token="$(curl -sS --fail \
+            -X POST \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=${CLIENT_ID}" \
+            -d "client_secret=${CLIENT_SECRET}" \
+            -d "refresh_token=${REFRESH_TOKEN}" \
+            -d "grant_type=refresh_token" \
+            https://oauth2.googleapis.com/token \
+            | jq -r '.access_token')"
+
+          if [ -z "$access_token" ] || [ "$access_token" = "null" ]; then
+            echo "Failed to obtain Chrome Web Store access token." >&2
+            exit 1
+          fi
+
+          # Attempt to cancel any in-review submission. Returns 200 with an
+          # empty body on success, and a 4xx/5xx when there is nothing to
+          # cancel (for example, the item is already published with no draft
+          # in review). Either outcome is fine — we just want a clean slate
+          # before uploading the next version.
+          response="$(mktemp)"
+          http_status="$(curl -sS \
+            -o "$response" \
+            -w '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer ${access_token}" \
+            -H "Content-Length: 0" \
+            "https://chromewebstore.googleapis.com/v2/publishers/me/items/${EXTENSION_ID}:cancelSubmission" || true)"
+
+          if [ "$http_status" = "200" ]; then
+            echo "Cancelled an existing pending Chrome Web Store submission."
+          else
+            echo "No pending submission to cancel (HTTP ${http_status}). Continuing."
+            head -c 1000 "$response" || true
+            echo
+          fi
+
       - name: Upload and publish to Chrome Web Store
         if: steps.check.outputs.should_run == 'true'
         env:
