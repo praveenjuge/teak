@@ -36,10 +36,14 @@
     "pre-commit": "bun run pre-commit"
   },
   "overrides": {
-    "convex": "1.37.0",
-    "convex-helpers": "0.1.115",
-    "react": "19.2.5",
-    "react-dom": "19.2.5",
+    "convex": "1.38.0",
+    "convex-helpers": "0.1.116",
+    "expo-constants": "55.0.16",
+    "expo-font": "55.0.7",
+    "expo-linking": "55.0.15",
+    "expo-web-browser": "55.0.15",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3"
   },
