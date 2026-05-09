@@ -158,6 +158,25 @@ To publish a new desktop release:
    - Publishes all artifacts (DMG, zip, blockmaps, `latest-mac.yml`) to a GitHub Release only after verification passes.
 5. Existing installs pick up the update via `electron-updater` on next launch (with notifications and prompts).
 
+## Extension Release Process
+
+The browser extension ships automatically to the Chrome Web Store (plus GitHub Releases) through `.github/workflows/extension-release.yml`. It uses the same tag flow as the desktop app.
+
+To publish a new extension release:
+
+1. Bump the `version` field in **every** `package.json` across the monorepo (same step as the desktop release — one tag ships both).
+2. Commit, push, and tag `v<version>`.
+3. The `Extension Release` workflow triggers on the `v*` tag and automatically:
+   - Verifies the tag version matches `apps/extension/package.json` (WXT reads the manifest version from there; `wxt.config.ts` intentionally does not hardcode it).
+   - Runs `bun run zip` in `apps/extension` to build the production Chrome zip with the production env vars.
+   - Uploads the zip to the Chrome Web Store and calls publish via the Chrome Web Store Publish API using `chrome-webstore-upload-cli`.
+   - Uploads the same zip to the GitHub Release for the tag as `teak-extension-<version>-chrome.zip`.
+4. Google queues the new version for review. Approved updates roll out to users automatically.
+
+Required GitHub secrets: `CHROME_EXTENSION_ID`, `CHROME_CLIENT_ID`, `CHROME_CLIENT_SECRET`, `CHROME_REFRESH_TOKEN`. See `apps/extension/release.md` for how to generate them.
+
+Only the Chrome Web Store is automated today. There is no Firefox / Edge publishing step.
+
 <!-- convex-ai-start -->
 
 This project uses [Convex](https://convex.dev) as its backend.

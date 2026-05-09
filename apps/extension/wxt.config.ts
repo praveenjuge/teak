@@ -8,7 +8,8 @@ export default defineConfig({
     name: "Teak",
     description:
       "Your personal knowledge hub. Save, organize, and rediscover web content effortlessly.",
-    version: "1.0.25",
+    // version intentionally omitted. WXT reads it from package.json so the
+    // monorepo version bump drives extension releases.
     author: {
       email: "hi@praveenjuge.com",
     },
