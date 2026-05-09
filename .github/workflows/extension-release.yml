@@ -88,7 +88,6 @@ jobs:
           fi
 
       - name: Upload and publish to Chrome Web Store
-        working-directory: apps/extension
         env:
           EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
           CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
