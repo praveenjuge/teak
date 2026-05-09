@@ -1,16 +1,19 @@
 import {
   Host,
-  List,
   Text,
   TextField,
   type TextFieldRef,
+  VStack,
 } from "@expo/ui/swift-ui";
 import {
+  contentShape,
   font,
   foregroundStyle,
+  frame,
   lineLimit,
-  listStyle,
-  scrollDisabled,
+  onTapGesture,
+  padding,
+  shapes,
 } from "@expo/ui/swift-ui/modifiers";
 import { router, Stack } from "expo-router";
 import { useCallback, useRef, useState } from "react";
@@ -71,6 +74,10 @@ export default function AddTextScreen() {
     }
   }, [content, createCard, isSavingCard]);
 
+  const focusField = useCallback(() => {
+    void textFieldRef.current?.focus();
+  }, []);
+
   return (
     <>
       <Stack.Screen
@@ -103,24 +110,49 @@ export default function AddTextScreen() {
           ),
         }}
       />
-      <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
-        <List modifiers={[listStyle("plain"), scrollDisabled()]}>
-          <TextField
-            axis="vertical"
-            defaultValue={content}
-            modifiers={[lineLimit(8)]}
-            onValueChange={setContent}
-            placeholder="Enter your bookmark, URL, or note"
-            ref={textFieldRef}
-          />
+      <Host style={{ flex: 1 }} useViewportSizeMeasurement>
+        <VStack
+          alignment="leading"
+          modifiers={[
+            padding({ horizontal: 20, vertical: 16 }),
+            frame({
+              alignment: "topLeading",
+              maxHeight: 10_000,
+              maxWidth: 10_000,
+            }),
+            contentShape(shapes.rectangle()),
+            onTapGesture(focusField),
+          ]}
+          spacing={12}
+        >
           {validationMessage ? (
             <Text
-              modifiers={[foregroundStyle("red"), font({ design: "rounded" })]}
+              modifiers={[
+                foregroundStyle("red"),
+                font({ design: "rounded", size: 14 }),
+              ]}
             >
               {validationMessage}
             </Text>
           ) : null}
-        </List>
+          <TextField
+            autoFocus
+            axis="vertical"
+            defaultValue={content}
+            modifiers={[
+              font({ size: 17 }),
+              lineLimit({ min: 15, max: 500 }),
+              frame({
+                alignment: "topLeading",
+                maxHeight: 10_000,
+                maxWidth: 10_000,
+              }),
+            ]}
+            onValueChange={setContent}
+            placeholder="Enter your bookmark, URL, or note"
+            ref={textFieldRef}
+          />
+        </VStack>
       </Host>
     </>
   );
