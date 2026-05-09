@@ -28,6 +28,7 @@ Set these once under **Settings → Secrets and variables → Actions**:
 | Secret                    | What it is                                                                                                                                    |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CHROME_EXTENSION_ID`     | The extension's ID from the Chrome Web Store Developer Dashboard (32-character lowercase string).                                             |
+| `CHROME_PUBLISHER_ID`     | The publisher's numeric ID. Open the Developer Dashboard, click into your item, and copy the long ID segment from the URL `…/devconsole/<PUBLISHER_ID>/…`. Needed for the v2 cancelSubmission API. |
 | `CHROME_CLIENT_ID`        | OAuth 2.0 client ID from a Google Cloud project with the Chrome Web Store API enabled (Desktop app client type).                             |
 | `CHROME_CLIENT_SECRET`    | OAuth 2.0 client secret for the same client.                                                                                                  |
 | `CHROME_REFRESH_TOKEN`    | OAuth 2.0 refresh token for the Chrome Web Store publisher account that owns the extension. Generate with `bunx chrome-webstore-upload-keys`. |

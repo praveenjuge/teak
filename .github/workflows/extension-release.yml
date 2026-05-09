@@ -93,12 +93,13 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         env:
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
           CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
           CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
           CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
         run: |
           missing=()
-          for name in CHROME_EXTENSION_ID CHROME_CLIENT_ID CHROME_CLIENT_SECRET CHROME_REFRESH_TOKEN; do
+          for name in CHROME_EXTENSION_ID CHROME_PUBLISHER_ID CHROME_CLIENT_ID CHROME_CLIENT_SECRET CHROME_REFRESH_TOKEN; do
             if [ -z "${!name}" ]; then
               missing+=("$name")
             fi
@@ -112,6 +113,7 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         env:
           EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
           CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
@@ -134,11 +136,11 @@ jobs:
             exit 1
           fi
 
-          # Attempt to cancel any in-review submission. Returns 200 with an
-          # empty body on success, and a 4xx/5xx when there is nothing to
-          # cancel (for example, the item is already published with no draft
-          # in review). Either outcome is fine — we just want a clean slate
-          # before uploading the next version.
+          # Attempt to cancel any in-review submission. The Chrome Web Store
+          # v2 API returns 200 with an empty body when a pending submission
+          # was successfully cancelled, and a 4xx/5xx otherwise (typically
+          # when there is nothing to cancel). Either outcome is fine — we
+          # just want a clean slate before uploading the next version.
           response="$(mktemp)"
           http_status="$(curl -sS \
             -o "$response" \
@@ -146,7 +148,7 @@ jobs:
             -X POST \
             -H "Authorization: Bearer ${access_token}" \
             -H "Content-Length: 0" \
-            "https://chromewebstore.googleapis.com/v2/publishers/me/items/${EXTENSION_ID}:cancelSubmission" || true)"
+            "https://chromewebstore.googleapis.com/v2/publishers/${PUBLISHER_ID}/items/${EXTENSION_ID}:cancelSubmission" || true)"
 
           if [ "$http_status" = "200" ]; then
             echo "Cancelled an existing pending Chrome Web Store submission."
