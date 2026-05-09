@@ -41,7 +41,7 @@
     "convex": "^1.37.0",
     "convex-helpers": "^0.1.116",
     "exifr": "^7.1.3",
-    "react": "19.2.5",
+    "react": "^19.2.5",
     "zod": "^4.4.2"
   },
   "devDependencies": {
