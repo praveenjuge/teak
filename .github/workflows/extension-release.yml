@@ -21,15 +21,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check if version already released
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          version="${TAG_NAME#v}"
+          expected_asset="teak-extension-${version}-chrome.zip"
+          if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx "$expected_asset"; then
+            echo "Release $TAG_NAME already contains $expected_asset — skipping extension release."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Bun
+        if: steps.check.outputs.should_run == 'true'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.5"
 
       - name: Install dependencies
+        if: steps.check.outputs.should_run == 'true'
         run: bun install --frozen-lockfile
 
       - name: Verify extension version matches tag
+        if: steps.check.outputs.should_run == 'true'
         working-directory: apps/extension
         env:
           TAG_NAME: ${{ github.ref_name }}
@@ -43,6 +61,7 @@ jobs:
           fi
 
       - name: Build extension (Chrome, production)
+        if: steps.check.outputs.should_run == 'true'
         working-directory: apps/extension
         env:
           VITE_WEB_URL: https://app.teakvault.com
@@ -52,6 +71,7 @@ jobs:
 
       - name: Locate built ZIP
         id: zip
+        if: steps.check.outputs.should_run == 'true'
         working-directory: apps/extension
         env:
           TAG_NAME: ${{ github.ref_name }}
@@ -70,6 +90,7 @@ jobs:
           echo "release_zip_name=${release_zip}" >> "$GITHUB_OUTPUT"
 
       - name: Verify Chrome Web Store credentials
+        if: steps.check.outputs.should_run == 'true'
         env:
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
           CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
@@ -88,6 +109,7 @@ jobs:
           fi
 
       - name: Upload and publish to Chrome Web Store
+        if: steps.check.outputs.should_run == 'true'
         env:
           EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
           CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
@@ -101,6 +123,7 @@ jobs:
             --extension-id "$EXTENSION_ID"
 
       - name: Publish GitHub release asset
+        if: steps.check.outputs.should_run == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ github.ref_name }}
