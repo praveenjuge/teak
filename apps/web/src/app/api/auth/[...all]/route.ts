@@ -1,3 +1,10 @@
 import { handler } from "@/lib/auth-server";
 
-export const { GET, POST } = handler;
+const { GET, POST: authPost } = handler;
+export { GET };
+
+export async function POST(req: Request, ctx: unknown) {
+  const body = await req.arrayBuffer();
+  const buffered = new Request(req, { body });
+  return authPost(buffered, ctx);
+}
