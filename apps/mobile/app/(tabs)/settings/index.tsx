@@ -198,7 +198,10 @@ export default function SettingsScreen() {
               selection={preference}
             >
               {appearanceOptions.map((option) => (
-                <Text key={option.value} modifiers={[tag(option.value)]}>
+                <Text
+                  key={option.value}
+                  modifiers={[font({ design: "rounded" }), tag(option.value)]}
+                >
                   {option.title}
                 </Text>
               ))}
@@ -211,7 +214,7 @@ export default function SettingsScreen() {
           >
             <LabeledContent
               label="Email"
-              modifiers={[font({ weight: "regular" })]}
+              modifiers={[font({ design: "rounded", weight: "regular" })]}
             >
               <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
                 {session?.user?.email ?? "Not logged in"}
@@ -220,7 +223,7 @@ export default function SettingsScreen() {
 
             <LabeledContent
               label="Usage"
-              modifiers={[font({ weight: "regular" })]}
+              modifiers={[font({ design: "rounded", weight: "regular" })]}
             >
               {usageLabel ? (
                 <Text modifiers={[font({ design: "rounded" })]}>
@@ -271,7 +274,7 @@ export default function SettingsScreen() {
           >
             <LabeledContent
               label="Teak"
-              modifiers={[font({ weight: "regular" })]}
+              modifiers={[font({ design: "rounded", weight: "regular" })]}
             >
               <Text modifiers={[font({ design: "rounded" })]}>
                 by @praveenjuge

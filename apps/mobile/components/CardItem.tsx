@@ -10,11 +10,14 @@ import {
   VStack,
 } from "@expo/ui/swift-ui";
 import {
+  contentShape,
   cornerRadius,
+  font,
   foregroundStyle,
   frame,
   lineLimit,
   onTapGesture,
+  shapes,
 } from "@expo/ui/swift-ui/modifiers";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import * as Clipboard from "expo-clipboard";
@@ -74,7 +77,14 @@ const Row = ({
       <Button label="Delete" onPress={onDelete} systemImage="trash" />
     </ContextMenu.Items>
     <ContextMenu.Trigger>
-      <HStack modifiers={onPress ? [onTapGesture(onPress)] : []} spacing={12}>
+      <HStack
+        modifiers={
+          onPress
+            ? [contentShape(shapes.rectangle()), onTapGesture(onPress)]
+            : []
+        }
+        spacing={12}
+      >
         {leading}
         {content}
         <Spacer />
@@ -388,7 +398,9 @@ const CardItem = memo(function CardItem({
             : card.metadataTitle || card.url;
 
         return renderRow(
-          <Text modifiers={[lineLimit(1)]}>{linkTitle}</Text>,
+          <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
+            {linkTitle}
+          </Text>,
           <Favicon hostname={linkMeta?.hostname} url={linkMeta?.favicon} />,
           undefined,
           [
@@ -416,7 +428,9 @@ const CardItem = memo(function CardItem({
         const documentUrl = card.fileUrl ?? card.url ?? null;
 
         return renderRow(
-          <Text modifiers={[lineLimit(1)]}>{title}</Text>,
+          <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
+            {title}
+          </Text>,
           leadingIcon("paperclip"),
           undefined,
           [
@@ -433,7 +447,7 @@ const CardItem = memo(function CardItem({
 
       case "audio": {
         return renderRow(
-          <Text modifiers={[lineLimit(1)]}>
+          <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
             {card.aiTranscript && card.aiTranscript.length > 10
               ? card.aiTranscript
               : "Audio"}
@@ -468,7 +482,9 @@ const CardItem = memo(function CardItem({
           card.fileUrl ?? card.thumbnailUrl ?? card.screenshotUrl ?? null;
 
         return renderRow(
-          <Text modifiers={[lineLimit(1)]}>{imageTitle}</Text>,
+          <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
+            {imageTitle}
+          </Text>,
           <PreviewBox>
             {mediaUrl ? (
               <RNHostView matchContents>
@@ -504,7 +520,9 @@ const CardItem = memo(function CardItem({
           card.fileUrl ?? card.thumbnailUrl ?? card.screenshotUrl ?? null;
 
         return renderRow(
-          <Text modifiers={[lineLimit(1)]}>{videoTitle}</Text>,
+          <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
+            {videoTitle}
+          </Text>,
           leadingIcon("play.circle"),
           undefined,
           [
@@ -563,7 +581,9 @@ const CardItem = memo(function CardItem({
         const textContent = card.content || "Quote";
 
         return renderRow(
-          <Text modifiers={[lineLimit(1)]}>{`"${textContent}"`}</Text>,
+          <Text
+            modifiers={[font({ design: "rounded" }), lineLimit(1)]}
+          >{`"${textContent}"`}</Text>,
           leadingIcon("text.quote"),
           undefined,
           [
@@ -587,7 +607,9 @@ const CardItem = memo(function CardItem({
         const textContent = card.content || "Note";
 
         return renderRow(
-          <Text modifiers={[lineLimit(1)]}>{textContent}</Text>,
+          <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
+            {textContent}
+          </Text>,
           leadingIcon("textformat"),
           undefined,
           [
@@ -609,7 +631,12 @@ const CardItem = memo(function CardItem({
 
       default:
         return renderRow(
-          <Text modifiers={[foregroundStyle(colors.secondaryLabel as any)]}>
+          <Text
+            modifiers={[
+              font({ design: "rounded" }),
+              foregroundStyle(colors.secondaryLabel as any),
+            ]}
+          >
             {card.content}
           </Text>,
           leadingIcon("questionmark"),

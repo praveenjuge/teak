@@ -1,0 +1,1 @@
+- use rounded attribute for texts

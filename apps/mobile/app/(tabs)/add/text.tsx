@@ -140,7 +140,7 @@ export default function AddTextScreen() {
             axis="vertical"
             defaultValue={content}
             modifiers={[
-              font({ size: 17 }),
+              font({ design: "rounded", size: 17 }),
               lineLimit({ min: 15, max: 500 }),
               frame({
                 alignment: "topLeading",

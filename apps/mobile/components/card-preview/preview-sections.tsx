@@ -42,6 +42,7 @@ export const FullHeightPlaceholder = ({
     <Text
       modifiers={[
         foregroundStyle({ type: "hierarchical", style: "secondary" }),
+        font({ design: "rounded" }),
       ]}
     >
       {label}
@@ -173,7 +174,9 @@ export const CenteredPanel = ({
   >
     <Spacer />
     <Image color="secondary" size={28} systemName={icon as any} />
-    <Text modifiers={[font({ weight: "semibold" })]}>{title}</Text>
+    <Text modifiers={[font({ design: "rounded", weight: "semibold" })]}>
+      {title}
+    </Text>
     {subtitle}
     <Spacer />
     {actionLabel && onAction ? (
@@ -212,7 +215,9 @@ export const AudioPreview = ({
       size={42}
       systemName={(isPlaying ? "pause.circle.fill" : "play.circle.fill") as any}
     />
-    <Text modifiers={[font({ weight: "semibold" })]}>{title}</Text>
+    <Text modifiers={[font({ design: "rounded", weight: "semibold" })]}>
+      {title}
+    </Text>
     <Button
       modifiers={[
         buttonStyle("bordered"),

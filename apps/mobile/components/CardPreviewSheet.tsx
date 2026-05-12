@@ -187,7 +187,7 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
       case "text":
         return (
           <List modifiers={[listStyle("plain")]}>
-            <Text>{textContent}</Text>
+            <Text modifiers={[font({ design: "rounded" })]}>{textContent}</Text>
           </List>
         );
       case "quote":
@@ -231,7 +231,11 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
             {audioUrl && isAudioSupported ? (
               <>
                 <HStack alignment="center">
-                  <Text modifiers={[font({ weight: "semibold" })]}>
+                  <Text
+                    modifiers={[
+                      font({ design: "rounded", weight: "semibold" }),
+                    ]}
+                  >
                     {card.metadataTitle || "Audio"}
                   </Text>
                   <Spacer />
@@ -241,6 +245,7 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
                         type: "hierarchical",
                         style: "secondary",
                       }),
+                      font({ design: "rounded" }),
                     ]}
                   >
                     {isAudioLoading
@@ -268,6 +273,7 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
                       type: "hierarchical",
                       style: "secondary",
                     }),
+                    font({ design: "rounded" }),
                   ]}
                 >
                   {audioUrl ? "Unsupported audio format" : "Audio unavailable"}
@@ -294,6 +300,7 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
                     type: "hierarchical",
                     style: "secondary",
                   }),
+                  font({ design: "rounded" }),
                   lineLimit(2),
                 ]}
               >
