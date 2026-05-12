@@ -1,1 +1,1 @@
-- use rounded attribute for texts
+- use `font({ design: "rounded" })` modifier on all Text elements
