@@ -1,7 +1,7 @@
 {
   "configVersion": 0,
   "apple": {
-    "version": "1.0.26",
+    "version": "1.0.27",
     "copyright": "Praveen Juge. All rights reserved.",
     "release": {
       "automaticRelease": true
@@ -18,7 +18,7 @@
           "creative",
           "save"
         ],
-        "releaseNotes": "NEW: Share content directly from other apps into Teak via the iOS Share Extension.\nNEW: Choose your preferred theme with light/dark mode support.\nIMPROVED: Adding a quick text or URL now opens a full editor you can start typing in right away.\nIMPROVED: Enhanced haptic feedback throughout the app for a more responsive experience.\nIMPROVED: Better loading states and error handling in cards grid.\nIMPROVED: Refined UI with updated card previews, authentication screens, and accessibility.\nFIXED: You stay signed in after relaunching the app.\nFIXED: Various bug fixes and performance improvements for a smoother experience.",
+        "releaseNotes": "IMPROVED: Refined typography with a rounded font throughout the app for a softer, more cohesive look.\nIMPROVED: Tapping anywhere on a card row now opens the preview, not just the text.\nIMPROVED: Redesigned audio recorder with a cleaner, minimal layout.",
         "marketingUrl": "https://teakvault.com",
         "promoText": "Capture, organize, and access your creative inspiration anywhere.",
         "supportUrl": "https://teakvault.com/docs",

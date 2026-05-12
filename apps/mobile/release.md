@@ -84,3 +84,18 @@ Specifically:
 
 If `eas metadata:push` reports a non-fatal API mismatch (for example `gamblingAndContests` on `ageRatingDeclarations`), treat it as a warning and keep going. The version, release notes, and review info still land, and the age rating is already set on the store listing.
 
+### Handling interactive prompts in `build:local` and `build:submit`
+
+The EAS CLI prompts for interactive input during the build and submit steps. These prompts require a real terminal with stdin attached. **Use `control_bash_process` (start action) to run these commands as background processes**, then tell the user to complete the interactive prompts in their terminal.
+
+The typical prompts during `bun run build:local`:
+
+1. "Do you want to log in to your Apple account?" → Answer **Y**
+2. Apple ID → Pre-filled as `hello@praveenjuge.com`, just confirm
+3. "Would you like to reuse the original profile?" → Answer **Y**
+4. Same flow repeats for the share extension target
+
+After the build completes, `bun run build:submit` will prompt to select the IPA file.
+
+**Do not attempt to pipe input or use `echo` to answer these prompts** — it does not work reliably with EAS CLI. Instead, tell the user to run steps 4 and 5 directly in their terminal after you complete steps 1–3 programmatically.
+
