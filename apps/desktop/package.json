@@ -17,31 +17,31 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.main.json && tsc --noEmit -p tsconfig.preload.json"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.2.4",
+    "@tailwindcss/vite": "^4.3.0",
     "@teak/convex": "workspace:*",
     "@teak/ui": "workspace:*",
-    "convex": "^1.37.0",
-    "convex-helpers": "^0.1.116",
+    "convex": "^1.39.0",
+    "convex-helpers": "^0.1.118",
     "electron-store": "11.0.2",
     "electron-updater": "6.8.3",
-    "lucide-react": "^1.14.0",
+    "lucide-react": "^1.16.0",
     "next-themes": "^0.4.6",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "sonner": "^2.0.7",
-    "tailwindcss": "^4.2.4"
+    "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
     "@electron-forge/cli": "7.11.1",
     "@electron-forge/plugin-vite": "7.11.1",
     "@electron-forge/shared-types": "7.11.1",
-    "@types/node": "^25.6.0",
+    "@types/node": "^25.8.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react-swc": "^4.3.0",
-    "electron": "42.0.0",
+    "@vitejs/plugin-react-swc": "^4.3.1",
+    "electron": "42.1.0",
     "electron-builder": "26.8.1",
     "typescript": "^6.0.3",
-    "vite": "^7.3.2"
+    "vite": "^7.3.3"
   }
 }

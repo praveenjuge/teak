@@ -133,12 +133,12 @@
     "test": "bun test src/__tests__ --coverage --dots"
   },
   "dependencies": {
-    "@raycast/api": "^1.104.15"
+    "@raycast/api": "^1.104.17"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
+    "@types/node": "^25.8.0",
     "@types/react": "19.2.14",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.1"
+    "typescript-eslint": "^8.59.3"
   }
 }
