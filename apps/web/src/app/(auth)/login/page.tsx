@@ -1,5 +1,6 @@
 "use client";
 
+import { AuthDivider, SocialAuthButtons } from "@teak/ui/auth";
 import { Button, buttonVariants } from "@teak/ui/components/ui/button";
 import {
   CardContent,
@@ -9,7 +10,6 @@ import {
 import { Input } from "@teak/ui/components/ui/input";
 import { Label } from "@teak/ui/components/ui/label";
 import { AUTH_STICKY_TOAST_OPTIONS } from "@teak/ui/constants/toast";
-import { AppleIcon, GoogleIcon } from "@teak/ui/icons";
 import { cn } from "@teak/ui/lib/utils";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -110,49 +110,15 @@ export default function SignIn() {
     <>
       <CardTitle className="text-center text-lg">Login to Teak</CardTitle>
       <CardContent>
-        <div className="grid gap-2">
-          <Button
-            className="w-full"
-            disabled={loading || googleLoading || appleLoading}
-            onClick={handleGoogleSignIn}
-            type="button"
-            variant="outline"
-          >
-            {googleLoading ? (
-              <Loader2 className="animate-spin" size={16} />
-            ) : (
-              <>
-                <GoogleIcon className="h-4 w-4" />
-                Continue with Google
-              </>
-            )}
-          </Button>
-          <Button
-            className="w-full"
-            disabled={loading || googleLoading || appleLoading}
-            onClick={handleAppleSignIn}
-            type="button"
-            variant="outline"
-          >
-            {appleLoading ? (
-              <Loader2 className="animate-spin" size={16} />
-            ) : (
-              <>
-                <AppleIcon className="h-4 w-4" />
-                Continue with Apple
-              </>
-            )}
-          </Button>
-        </div>
+        <SocialAuthButtons
+          appleLoading={appleLoading}
+          disabled={loading || googleLoading || appleLoading}
+          googleLoading={googleLoading}
+          onAppleSignIn={() => void handleAppleSignIn()}
+          onGoogleSignIn={() => void handleGoogleSignIn()}
+        />
 
-        <div className="relative my-4">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center">
-            <span className="bg-card px-2 text-muted-foreground">or</span>
-          </div>
-        </div>
+        <AuthDivider />
 
         <form
           className="grid gap-4"

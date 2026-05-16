@@ -1,6 +1,5 @@
 import { Button } from "@teak/ui/components/ui/button";
-import { useCardQueryParamState } from "@teak/ui/hooks";
-import { CardsScreen } from "@teak/ui/screens";
+import { CardsScreenAdapter } from "@teak/ui/screens";
 import { Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useState } from "react";
@@ -12,12 +11,6 @@ interface CardsPageProps {
 
 export function CardsPage({ onNavigateToSettings }: CardsPageProps) {
   const [cardId, setCardId] = useState<string | null>(null);
-
-  const { selectedCardId, openCard, closeCard } = useCardQueryParamState({
-    cardIdFromUrl: cardId,
-    pushCardId: setCardId,
-    replaceCardId: setCardId,
-  });
 
   const handleOpenExternal = useCallback((url: string) => {
     void window.teakDesktop.shell.openExternal(url);
@@ -63,13 +56,13 @@ export function CardsPage({ onNavigateToSettings }: CardsPageProps) {
   );
 
   return (
-    <CardsScreen
+    <CardsScreenAdapter
+      cardIdFromUrl={cardId}
       contentContainerClassName="mx-auto max-w-7xl px-4 pb-10"
-      onCloseCard={closeCard}
-      onOpenCard={openCard}
       onUpgrade={handleUpgrade}
+      pushCardId={setCardId}
+      replaceCardId={setCardId}
       SettingsButton={settingsButton}
-      selectedCardId={selectedCardId}
       UpgradeLinkComponent={UpgradeLinkComponent}
       upgradeUrl={buildWebUrl("/settings")}
     />

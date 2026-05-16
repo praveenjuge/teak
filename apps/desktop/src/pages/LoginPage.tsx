@@ -1,5 +1,4 @@
-import { Button } from "@teak/ui/components/ui/button";
-import { Spinner } from "@teak/ui/components/ui/spinner";
+import { BrowserAuthPanel } from "@teak/ui/auth";
 import Logo from "@teak/ui/logo";
 import { AuthScreenShell } from "@teak/ui/screens";
 import { useCallback, useState } from "react";
@@ -58,40 +57,13 @@ export function LoginPage({ isOnline }: LoginPageProps) {
   return (
     <AuthScreenShell logo={<Logo variant="primary" />}>
       <div className="px-6">
-        {!isOnline ? (
-          <p className="text-center text-sm text-muted-foreground">
-            You are offline. Please reconnect to sign in.
-          </p>
-        ) : isWaitingForAuth ? (
-          <div className="flex flex-col items-center gap-4">
-            <Spinner />
-            <p className="text-center text-sm text-muted-foreground">
-              Waiting for login in your browser...
-            </p>
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center gap-4">
-            <p className="text-center text-sm text-muted-foreground">
-              {error}
-            </p>
-            <Button
-              className="w-full"
-              onClick={() => void startAuth()}
-              type="button"
-            >
-              Try Again
-            </Button>
-          </div>
-        ) : (
-          <Button
-            className="w-full"
-            disabled={isLoading}
-            onClick={() => void startAuth()}
-            type="button"
-          >
-            Sign In
-          </Button>
-        )}
+        <BrowserAuthPanel
+          error={error}
+          isLoading={isLoading}
+          isOnline={isOnline}
+          isWaitingForAuth={isWaitingForAuth}
+          onStartAuth={() => void startAuth()}
+        />
       </div>
     </AuthScreenShell>
   );

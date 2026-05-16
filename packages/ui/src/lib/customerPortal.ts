@@ -4,7 +4,8 @@ interface PortalWindowLike {
 
 interface OpenCustomerPortalOptions {
   createCustomerPortal: () => Promise<string>;
-  openWindow: (
+  openPortal?: (url: string) => Promise<unknown> | unknown;
+  openWindow?: (
     url: string,
     target: string,
     features: string
@@ -13,10 +14,20 @@ interface OpenCustomerPortalOptions {
 
 export async function openCustomerPortal({
   createCustomerPortal,
+  openPortal,
   openWindow,
 }: OpenCustomerPortalOptions) {
   const portalUrl = await createCustomerPortal();
-  const portalWindow = openWindow(portalUrl, "_blank", "noopener,noreferrer");
+  if (openPortal) {
+    await openPortal(portalUrl);
+    return;
+  }
+
+  const portalWindow = openWindow?.(
+    portalUrl,
+    "_blank",
+    "noopener,noreferrer"
+  );
 
   if (!portalWindow) {
     throw new Error("Could not open portal");

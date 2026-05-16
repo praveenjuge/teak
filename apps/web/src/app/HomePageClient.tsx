@@ -1,8 +1,7 @@
 "use client";
 
 import { Button } from "@teak/ui/components/ui/button";
-import { useCardQueryParamState } from "@teak/ui/hooks";
-import { CardsScreen } from "@teak/ui/screens";
+import { CardsScreenAdapter } from "@teak/ui/screens";
 import { Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -37,16 +36,6 @@ export function HomePageClient() {
     [pathname, router, searchParams]
   );
 
-  const { selectedCardId, openCard, closeCard } = useCardQueryParamState({
-    cardIdFromUrl,
-    pushCardId: (cardId) => {
-      setCardUrlParam(cardId);
-    },
-    replaceCardId: (cardId) => {
-      setCardUrlParam(cardId, true);
-    },
-  });
-
   const settingsButton = (
     <Button asChild size="icon" variant="outline">
       <Link href="/settings">
@@ -60,12 +49,16 @@ export function HomePageClient() {
   }, [router]);
 
   return (
-    <CardsScreen
-      onCloseCard={closeCard}
-      onOpenCard={openCard}
+    <CardsScreenAdapter
+      cardIdFromUrl={cardIdFromUrl}
       onUpgrade={handleUpgrade}
+      pushCardId={(cardId) => {
+        setCardUrlParam(cardId);
+      }}
+      replaceCardId={(cardId) => {
+        setCardUrlParam(cardId, true);
+      }}
       SettingsButton={settingsButton}
-      selectedCardId={selectedCardId}
       toastIdPrefix="web-masonry"
       UpgradeLinkComponent={Link}
       upgradeUrl="/settings"

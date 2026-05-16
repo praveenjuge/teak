@@ -38,6 +38,22 @@ describe("openCustomerPortal", () => {
     ).rejects.toThrow("Could not open portal");
   });
 
+  test("can delegate platform-specific opening", async () => {
+    const createCustomerPortal = mock(async () => "https://portal.example.com");
+    const openPortal = mock(async () => undefined);
+    const openWindow = mock(() => ({ closed: false }));
+
+    await openCustomerPortal({
+      createCustomerPortal,
+      openPortal,
+      openWindow,
+    });
+
+    expect(createCustomerPortal).toHaveBeenCalledTimes(1);
+    expect(openPortal).toHaveBeenCalledWith("https://portal.example.com");
+    expect(openWindow).not.toHaveBeenCalled();
+  });
+
   test("does not use fetch internally", async () => {
     const fetchMock = mock();
     globalThis.fetch = fetchMock as typeof fetch;

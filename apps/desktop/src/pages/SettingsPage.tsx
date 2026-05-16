@@ -1,77 +1,25 @@
-import { api } from "@teak/convex";
-import { useQuery } from "@teak/ui/convex-query-hooks";
+import { useSettingsController } from "@teak/ui/hooks";
 import { SettingsShell } from "@teak/ui/screens";
 import { SettingsContent } from "@teak/ui/settings";
-import { useAction, useMutation } from "convex/react";
-import { useCallback, useState } from "react";
-import { toast } from "sonner";
 import { logoutNativeSession } from "@/lib/native-auth";
 import { buildWebUrl } from "@/lib/desktop-config";
-
-const convexApi = api as any;
 
 interface SettingsPageProps {
   onNavigateBack: () => void;
 }
 
 export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
-  const user = useQuery(api.auth.getCurrentUser);
-  const cardCount = user?.cardCount ?? 0;
-  const hasPremium = user?.hasPremium;
-  const [signOutLoading, setSignOutLoading] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const createCustomerPortal = useAction(api.billing.createCustomerPortal);
-
-  const keys = useQuery(convexApi.apiKeys.listUserApiKeys, {}) as
-    | { id: string }[]
-    | undefined;
-  const createKey = useMutation(convexApi.apiKeys.createUserApiKey);
-
-  const isLoading = user === undefined;
-
-  const handleCreateCustomerPortal = async () => {
-    const toastId = toast.loading("Opening customer portal...");
-    try {
-      const portalUrl = await createCustomerPortal({});
-      await window.teakDesktop.shell.openExternal(portalUrl);
-      toast.success("Customer portal opened", { id: toastId });
-    } catch (error) {
-      console.error("Failed to open customer portal", error);
-      toast.error("Could not open portal", { id: toastId });
-    }
-  };
-
-  const handleSignOut = useCallback(async () => {
-    setSignOutLoading(true);
-    try {
-      await logoutNativeSession();
-    } catch {
-      toast.error("Failed to sign out. Please try again.");
-    } finally {
-      setSignOutLoading(false);
-    }
-  }, []);
-
-  const handleCreateApiKey = async () => {
-    return (await createKey({ name: "API Keys" })) as { key: string };
-  };
-
-  const handleDeleteAccount = async () => {
-    setDeleteLoading(true);
-    setDeleteError(null);
-
-    try {
-      const deleteUrl = buildWebUrl("/settings");
-      await window.teakDesktop.shell.openExternal(deleteUrl);
-      setDeleteDialogOpen(false);
-    } catch {
-      setDeleteError("Failed to open account deletion page.");
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
+  const settings = useSettingsController({
+    onDeleteAccount: async () => {
+      try {
+        await window.teakDesktop.shell.openExternal(buildWebUrl("/settings"));
+      } catch {
+        throw new Error("Failed to open account deletion page.");
+      }
+    },
+    onOpenExternal: (url) => window.teakDesktop.shell.openExternal(url),
+    onSignOut: logoutNativeSession,
+  });
 
   const handleUpgradeClick = async () => {
     const upgradeUrl = buildWebUrl("/settings");
@@ -93,23 +41,23 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
       withMain={true}
     >
       <SettingsContent
-        cardCount={cardCount}
-        deleteDialogError={deleteError}
-        deleteDialogOpen={deleteDialogOpen}
-        deleteLoading={deleteLoading}
-        email={user?.email}
-        hasPremium={hasPremium}
-        isLoading={isLoading}
-        keys={keys}
-        onCreateApiKey={handleCreateApiKey}
-        onCreateCustomerPortal={handleCreateCustomerPortal}
-        onDeleteAccount={handleDeleteAccount}
-        onDeleteDialogOpenChange={setDeleteDialogOpen}
-        onSignOut={handleSignOut}
+        cardCount={settings.cardCount}
+        deleteDialogError={settings.deleteDialogError}
+        deleteDialogOpen={settings.deleteDialogOpen}
+        deleteLoading={settings.deleteLoading}
+        email={settings.email}
+        hasPremium={settings.hasPremium}
+        isLoading={settings.isLoading}
+        keys={settings.keys}
+        onCreateApiKey={settings.handleCreateApiKey}
+        onCreateCustomerPortal={settings.handleCreateCustomerPortal}
+        onDeleteAccount={settings.handleDeleteAccount}
+        onDeleteDialogOpenChange={settings.setDeleteDialogOpen}
+        onSignOut={settings.handleSignOut}
         onUpgrade={() => {
           void handleUpgradeClick();
         }}
-        signOutLoading={signOutLoading}
+        signOutLoading={settings.signOutLoading}
       />
     </SettingsShell>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { AuthDivider, SocialAuthButtons } from "@teak/ui/auth";
 import { Button, buttonVariants } from "@teak/ui/components/ui/button";
 import {
   CardContent,
@@ -13,9 +14,7 @@ import {
   AUTH_STICKY_TOAST_OPTIONS,
   MANUAL_CLOSE_TOAST_OPTIONS,
 } from "@teak/ui/constants/toast";
-import { AppleIcon, GoogleIcon } from "@teak/ui/icons";
 import { cn } from "@teak/ui/lib/utils";
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -105,50 +104,15 @@ export default function SignUp() {
     <>
       <CardTitle className="text-center text-lg">Get started on Teak</CardTitle>
       <CardContent>
-        <div className="grid gap-2">
-          <Button
-            className="w-full"
-            disabled={loading || googleLoading || appleLoading}
-            onClick={handleGoogleSignIn}
-            type="button"
-            variant="outline"
-          >
-            {googleLoading ? (
-              <Loader2 className="animate-spin" size={16} />
-            ) : (
-              <>
-                <GoogleIcon className="h-4 w-4" />
-                Continue with Google
-              </>
-            )}
-          </Button>
+        <SocialAuthButtons
+          appleLoading={appleLoading}
+          disabled={loading || googleLoading || appleLoading}
+          googleLoading={googleLoading}
+          onAppleSignIn={() => void handleAppleSignIn()}
+          onGoogleSignIn={() => void handleGoogleSignIn()}
+        />
 
-          <Button
-            className="w-full"
-            disabled={loading || googleLoading || appleLoading}
-            onClick={handleAppleSignIn}
-            type="button"
-            variant="outline"
-          >
-            {appleLoading ? (
-              <Loader2 className="animate-spin" size={16} />
-            ) : (
-              <>
-                <AppleIcon className="h-4 w-4" />
-                Continue with Apple
-              </>
-            )}
-          </Button>
-        </div>
-
-        <div className="relative my-4">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="bg-card px-2 text-muted-foreground">or</span>
-          </div>
-        </div>
+        <AuthDivider />
 
         <form
           className="grid gap-4"

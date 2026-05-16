@@ -1,6 +1,6 @@
 {
   "name": "@teak/ui",
-  "version": "1.0.40",
+  "version": "1.0.41",
   "private": true,
   "exports": {
     "./logo": "./src/logo.tsx",
@@ -14,6 +14,7 @@
     "./cards/previews": "./src/components/cards/previews/index.ts",
     "./card-modal": "./src/components/card-modal/index.ts",
     "./card-previews": "./src/components/card-previews/index.ts",
+    "./auth": "./src/components/auth/index.ts",
     "./modals": "./src/components/modals/index.ts",
     "./feedback/CardSkeleton": "./src/feedback/CardSkeleton.tsx",
     "./feedback/CardsGridSkeleton": "./src/feedback/CardSkeleton.tsx",
@@ -34,6 +35,7 @@
     "./hooks/GlobalFileDropProvider": "./src/hooks/GlobalFileDropProvider.tsx",
     "./settings": "./src/components/settings/index.ts",
     "./screens": "./src/screens/index.ts",
+    "./constants/billing": "./src/constants/billing.ts",
     "./constants/settings": "./src/constants/settings.ts",
     "./constants/toast": "./src/constants/toast.ts"
   },

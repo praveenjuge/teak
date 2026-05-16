@@ -4,16 +4,19 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("desktop search wiring", () => {
-  it("uses shared cards screen and shared query-param state", () => {
+  it("uses the shared cards screen adapter", () => {
     const source = readFileSync(
       resolve(import.meta.dir, "../pages/CardsPage.tsx"),
       "utf8"
     );
 
-    expect(source).toContain("CardsScreen");
-    expect(source).toContain("useCardQueryParamState");
+    expect(source).toContain("CardsScreenAdapter");
+    expect(source).toContain("cardIdFromUrl={cardId}");
+    expect(source).toContain("pushCardId={setCardId}");
+    expect(source).toContain("replaceCardId={setCardId}");
     expect(source).toContain("SettingsButton={settingsButton}");
     expect(source).toContain("onNavigateToSettings");
+    expect(source).not.toContain("useCardQueryParamState");
     // Drag/drop is owned by the authenticated shell, not the cards page.
     expect(source).not.toContain("useGlobalDragDrop");
     expect(source).not.toContain("isDragActive");

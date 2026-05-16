@@ -4,9 +4,9 @@ import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
 import { Dialog, DialogContent } from "@teak/ui/components/ui/dialog";
+import { getPolarPlanIds } from "@teak/ui/constants/billing";
 import { TOAST_IDS } from "@teak/ui/constants/toast";
-import { useQuery } from "@teak/ui/convex-query-hooks";
-import { openCustomerPortal } from "@teak/ui/lib/customerPortal";
+import { useSettingsController } from "@teak/ui/hooks";
 import { SettingsContent, SubscriptionSection } from "@teak/ui/settings";
 import { useAction, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
@@ -15,30 +15,15 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 
-const convexApi = api as any;
-
 export default function ProfileSettingsPage() {
-  const user = useQuery(api.auth.getCurrentUser);
-  const cardCount = user?.cardCount ?? 0;
-  const hasPremium = user?.hasPremium;
   const deleteAccount = useMutation(api.auth.deleteAccount);
-  const [signOutLoading, setSignOutLoading] = useState(false);
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const [checkoutInstance, setCheckoutInstance] =
     useState<PolarEmbedCheckout | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const createCheckoutLink = useAction(api.billing.createCheckoutLink);
-  const createCustomerPortal = useAction(api.billing.createCustomerPortal);
   const { theme } = useTheme();
   const router = useRouter();
-
-  const keys = useQuery(convexApi.apiKeys.listUserApiKeys, {}) as
-    | { id: string }[]
-    | undefined;
-  const createKey = useMutation(convexApi.apiKeys.createUserApiKey);
 
   useEffect(
     () => () => {
@@ -46,6 +31,47 @@ export default function ProfileSettingsPage() {
     },
     [checkoutInstance]
   );
+
+  const settings = useSettingsController({
+    onCaptureError: (error, context) => {
+      Sentry.captureException(error, {
+        tags: context,
+      });
+    },
+    onDeleteAccount: async () => {
+      await deleteAccount({});
+
+      let deleteError: string | null = null;
+      await authClient.deleteUser(undefined, {
+        onSuccess: async () => {
+          router.push("/login");
+        },
+        onError: (ctx) => {
+          deleteError = ctx.error?.message ?? "Failed to delete account.";
+        },
+      });
+
+      if (deleteError) {
+        throw new Error(deleteError);
+      }
+    },
+    onOpenExternal: (url) => {
+      const openedWindow = window.open(url, "_blank", "noopener,noreferrer");
+      if (!openedWindow) {
+        throw new Error("Could not open portal");
+      }
+    },
+    onSignOut: async () => {
+      await authClient.signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            router.refresh();
+            router.push("/login");
+          },
+        },
+      });
+    },
+  });
 
   const handleCheckout = async (planId: string) => {
     setLoadingPlanId(planId);
@@ -102,108 +128,37 @@ export default function ProfileSettingsPage() {
     }
   };
 
-  const isLoading = user === undefined;
-  const isProduction = process.env.NODE_ENV === "production";
-  const monthlyPlanId = isProduction
-    ? "d46c71a7-61dc-4dc8-b53d-9a73d0204c28"
-    : "a02153cd-c49d-49ae-8be6-464296a39a23";
-  const yearlyPlanId = isProduction
-    ? "6fb24b68-09e0-42c4-b090-f0e03cb7de56"
-    : "f3073c34-8b4d-40b7-8123-2f8cbacbc609";
-
-  const handleDeleteAccount = async () => {
-    setDeleteLoading(true);
-    setDeleteError(null);
-
-    try {
-      await deleteAccount({});
-
-      await authClient.deleteUser(undefined, {
-        onSuccess: async () => {
-          router.push("/login");
-        },
-        onError: (ctx) => {
-          setDeleteError(ctx.error?.message ?? "Failed to delete account.");
-          setDeleteLoading(false);
-        },
-      });
-    } catch {
-      setDeleteError("Something went wrong while deleting your account.");
-      setDeleteLoading(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    setSignOutLoading(true);
-    try {
-      await authClient.signOut({
-        fetchOptions: {
-          onSuccess: () => {
-            router.refresh();
-            router.push("/login");
-          },
-        },
-      });
-    } catch {
-      toast.error("Failed to sign out. Please try again.");
-    } finally {
-      setSignOutLoading(false);
-    }
-  };
-
-  const handleCreateApiKey = async () => {
-    const result = (await createKey({ name: "API Keys" })) as { key: string };
-    return result;
-  };
-
-  const handleCreateCustomerPortal = async () => {
-    const toastId = toast.loading("Opening customer portal...", {
-      id: TOAST_IDS.customerPortal,
-    });
-
-    try {
-      await openCustomerPortal({
-        createCustomerPortal: () => createCustomerPortal({}),
-        openWindow: (url, target, features) =>
-          window.open(url, target, features),
-      });
-      toast.success("Customer portal opened", { id: toastId });
-    } catch (error) {
-      console.error("Failed to open customer portal", error);
-      Sentry.captureException(error, {
-        tags: { source: "convex", action: "billing:createCustomerPortal" },
-      });
-      toast.error("Could not open portal", { id: toastId });
-    }
-  };
+  const planIds = getPolarPlanIds(
+    process.env.NODE_ENV === "production" ? "production" : "development"
+  );
 
   return (
     <SettingsContent
-      cardCount={cardCount}
-      deleteDialogError={deleteError}
-      deleteDialogOpen={deleteDialogOpen}
-      deleteLoading={deleteLoading}
-      email={user?.email}
-      hasPremium={hasPremium}
-      isLoading={isLoading}
-      keys={keys}
-      onCreateApiKey={handleCreateApiKey}
-      onCreateCustomerPortal={handleCreateCustomerPortal}
-      onDeleteAccount={handleDeleteAccount}
-      onDeleteDialogOpenChange={setDeleteDialogOpen}
-      onSignOut={handleSignOut}
+      cardCount={settings.cardCount}
+      deleteDialogError={settings.deleteDialogError}
+      deleteDialogOpen={settings.deleteDialogOpen}
+      deleteLoading={settings.deleteLoading}
+      email={settings.email}
+      hasPremium={settings.hasPremium}
+      isLoading={settings.isLoading}
+      keys={settings.keys}
+      onCreateApiKey={settings.handleCreateApiKey}
+      onCreateCustomerPortal={settings.handleCreateCustomerPortal}
+      onDeleteAccount={settings.handleDeleteAccount}
+      onDeleteDialogOpenChange={settings.setDeleteDialogOpen}
+      onSignOut={settings.handleSignOut}
       onUpgrade={() => {
         setSubscriptionOpen(true);
       }}
-      signOutLoading={signOutLoading}
+      signOutLoading={settings.signOutLoading}
       subscriptionDialog={
         <Dialog onOpenChange={setSubscriptionOpen} open={subscriptionOpen}>
           <DialogContent className="max-w-3xl">
             <SubscriptionSection
               loadingPlanId={loadingPlanId}
-              monthlyPlanId={monthlyPlanId}
+              monthlyPlanId={planIds.monthly}
               onCheckout={handleCheckout}
-              yearlyPlanId={yearlyPlanId}
+              yearlyPlanId={planIds.yearly}
             />
           </DialogContent>
         </Dialog>

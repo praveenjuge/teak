@@ -11,12 +11,14 @@ describe("desktop settings wiring", () => {
     );
 
     expect(source).toContain('buildWebUrl("/settings")');
-    expect(source).toContain("createCustomerPortal");
+    expect(source).toContain("useSettingsController");
+    expect(source).toContain("onOpenExternal");
 
     expect(source).not.toContain("subscriptionOpen");
     expect(source).not.toContain("loadingPlanId");
     expect(source).not.toContain("monthlyPlanId");
     expect(source).not.toContain("yearlyPlanId");
+    expect(source).not.toContain("createCustomerPortal");
     expect(source).not.toContain("SubscriptionSection");
     expect(source).not.toContain('window.addEventListener("keydown"');
   });
