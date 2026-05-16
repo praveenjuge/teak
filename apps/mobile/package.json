@@ -17,14 +17,12 @@
     "metadata:push": "eas metadata:push"
   },
   "dependencies": {
-    "@babel/runtime": "^7.29.2",
     "@better-auth/expo": "1.6.9",
     "@convex-dev/better-auth": "0.12.2",
     "@expo/metro-runtime": "~55.0.11",
     "@expo/ui": "~55.0.15",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@react-navigation/core": "^7.17.4",
     "@react-navigation/native": "^7.1.33",
     "@teak/convex": "workspace:*",
     "better-auth": "1.6.9",
@@ -33,10 +31,8 @@
     "expo": "~55.0.23",
     "expo-apple-authentication": "~55.0.13",
     "expo-audio": "~55.0.14",
-    "expo-auth-session": "~55.0.15",
     "expo-clipboard": "~55.0.13",
     "expo-constants": "~55.0.16",
-    "expo-crypto": "~55.0.14",
     "expo-dev-client": "~55.0.32",
     "expo-document-picker": "~55.0.13",
     "expo-file-system": "~55.0.19",
@@ -53,7 +49,6 @@
     "expo-symbols": "~55.0.8",
     "expo-video": "~55.0.16",
     "expo-web-browser": "~55.0.15",
-    "fbjs": "^3.0.5",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "react-native": "0.83.6",
@@ -61,9 +56,7 @@
     "react-native-screens": "~4.23.0",
     "react-native-svg": "15.15.3",
     "react-native-web": "^0.21.2",
-    "sf-symbols-typescript": "^2.2.0",
-    "styleq": "^0.2.1",
-    "use-latest-callback": "^0.3.3"
+    "sf-symbols-typescript": "^2.2.0"
   },
   "expo": {
     "install": {
