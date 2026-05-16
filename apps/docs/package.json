@@ -1,6 +1,6 @@
 {
   "name": "@teak/docs",
-  "version": "1.0.38",
+  "version": "1.0.39",
   "scripts": {
     "build": "astro build",
     "dev": "portless docs.teak astro dev",
