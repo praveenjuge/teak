@@ -25,10 +25,9 @@ function getSafeNextPath(rawNext: string | null): string | null {
 export default function middleware(request: NextRequest) {
   const sessionCookie = getSessionCookie(request);
   const isSignInRoute = signInRoutes.includes(request.nextUrl.pathname);
-  const isDesktopAuthRoute =
-    request.nextUrl.pathname.startsWith("/desktop/auth");
+  const isNativeAuthRoute = request.nextUrl.pathname.startsWith("/native/auth");
 
-  if (isDesktopAuthRoute) {
+  if (isNativeAuthRoute) {
     return NextResponse.next();
   }
 

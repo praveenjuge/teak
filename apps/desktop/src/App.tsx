@@ -4,7 +4,7 @@ import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useDesktopMenuEvents } from "@/hooks/useDesktopMenuEvents";
-import { logoutDesktopSession } from "@/lib/desktop-auth";
+import { logoutNativeSession } from "@/lib/native-auth";
 import { buildWebUrl } from "@/lib/desktop-config";
 import { CardsPage } from "./pages/CardsPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -19,7 +19,7 @@ function App() {
 
   const handleLogout = useCallback(async () => {
     try {
-      await logoutDesktopSession();
+      await logoutNativeSession();
     } catch {
       toast.error("Failed to logout");
     }

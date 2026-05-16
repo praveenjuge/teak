@@ -9,8 +9,8 @@ import {
 } from "./_generated/server";
 import { resolveTeakDevAppUrl } from "./devUrls";
 
-const DESKTOP_AUTH_CODE_TTL_MS = 5 * 60 * 1000;
-const DESKTOP_AUTH_ALLOWED_ORIGINS = new Set([
+const NATIVE_AUTH_CODE_TTL_MS = 5 * 60 * 1000;
+const NATIVE_AUTH_ALLOWED_ORIGINS = new Set([
   "http://localhost:1420",
   "http://127.0.0.1:1420",
   resolveTeakDevAppUrl(process.env),
@@ -18,16 +18,30 @@ const DESKTOP_AUTH_ALLOWED_ORIGINS = new Set([
   "tauri://localhost",
 ]);
 
+const NATIVE_AUTH_SURFACES = [
+  "desktop",
+  "safari-macos",
+  "safari-ios",
+  "safari-ipados",
+] as const;
+
 const PKCE_CHALLENGE_PATTERN = /^[A-Za-z0-9_-]{43,128}$/;
 const PKCE_VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
 const STATE_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
 const DEVICE_ID_PATTERN = /^[A-Za-z0-9-]{16,128}$/;
 
-const createDesktopAuthCodeResultValidator = v.object({
+export const nativeAuthSurfaceValidator = v.union(
+  v.literal("desktop"),
+  v.literal("safari-macos"),
+  v.literal("safari-ios"),
+  v.literal("safari-ipados")
+);
+
+const createNativeAuthCodeResultValidator = v.object({
   expiresAt: v.number(),
 });
 
-const exchangeDesktopAuthResultValidator = v.object({
+const exchangeNativeAuthResultValidator = v.object({
   sessionToken: v.string(),
   expiresAt: v.number(),
 });
@@ -35,7 +49,8 @@ const exchangeDesktopAuthResultValidator = v.object({
 const BASE64_URL_ALPHABET =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
-type DesktopAuthCodeRecord = Doc<"desktopAuthCodes">;
+type NativeAuthCodeRecord = Doc<"nativeAuthCodes">;
+type NativeAuthSurface = (typeof NATIVE_AUTH_SURFACES)[number];
 
 const toBase64Url = (bytes: Uint8Array): string => {
   let output = "";
@@ -83,7 +98,10 @@ const timingSafeEqual = (left: string, right: string): boolean => {
   return mismatch === 0;
 };
 
-const assertDesktopStateInputs = (
+const isNativeAuthSurface = (value: string): value is NativeAuthSurface =>
+  NATIVE_AUTH_SURFACES.includes(value as NativeAuthSurface);
+
+const assertNativeStateInputs = (
   codeVerifier: string,
   deviceId: string,
   state: string
@@ -98,7 +116,7 @@ const assertDesktopStateInputs = (
   if (!DEVICE_ID_PATTERN.test(deviceId)) {
     throw new ConvexError({
       code: "INVALID_DEVICE_ID",
-      message: "Invalid desktop device id",
+      message: "Invalid native device id",
     });
   }
 
@@ -125,7 +143,7 @@ const jsonResponse = (
   });
 
 const isAllowedOrigin = (origin: string): boolean => {
-  if (DESKTOP_AUTH_ALLOWED_ORIGINS.has(origin)) {
+  if (NATIVE_AUTH_ALLOWED_ORIGINS.has(origin)) {
     return true;
   }
 
@@ -147,7 +165,7 @@ const buildCorsHeaders = (origin: string | null): HeadersInit => {
 
 const resolveSessionForRecord = async (
   ctx: MutationCtx,
-  record: DesktopAuthCodeRecord,
+  record: NativeAuthCodeRecord,
   now: number
 ) => {
   const session = await ctx.runQuery(components.betterAuth.adapter.findOne, {
@@ -178,11 +196,11 @@ const pickLatestEligibleRecord = ({
   now,
   expectedChallenge,
 }: {
-  records: DesktopAuthCodeRecord[];
+  records: NativeAuthCodeRecord[];
   now: number;
   expectedChallenge: string;
-}): DesktopAuthCodeRecord | null => {
-  let selected: DesktopAuthCodeRecord | null = null;
+}): NativeAuthCodeRecord | null => {
+  let selected: NativeAuthCodeRecord | null = null;
 
   for (const record of records) {
     if (record.expiresAt <= now || record.consumedAt) {
@@ -201,7 +219,7 @@ const pickLatestEligibleRecord = ({
   return selected;
 };
 
-const parseStatePayload = (body: unknown) => {
+const parsePollPayload = (body: unknown) => {
   if (!body || typeof body !== "object") {
     return null;
   }
@@ -227,13 +245,14 @@ const parseStatePayload = (body: unknown) => {
   };
 };
 
-export const createDesktopAuthCode = mutation({
+export const createNativeAuthCode = mutation({
   args: {
     deviceId: v.string(),
     codeChallenge: v.string(),
     state: v.string(),
+    surface: nativeAuthSurfaceValidator,
   },
-  returns: createDesktopAuthCodeResultValidator,
+  returns: createNativeAuthCodeResultValidator,
   handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
     const sessionId =
@@ -245,10 +264,16 @@ export const createDesktopAuthCode = mutation({
       });
     }
 
+    if (!isNativeAuthSurface(args.surface)) {
+      throw new ConvexError({
+        code: "INVALID_SURFACE",
+        message: "Invalid native auth surface",
+      });
+    }
     if (!DEVICE_ID_PATTERN.test(args.deviceId)) {
       throw new ConvexError({
         code: "INVALID_DEVICE_ID",
-        message: "Invalid desktop device id",
+        message: "Invalid native device id",
       });
     }
     if (!PKCE_CHALLENGE_PATTERN.test(args.codeChallenge)) {
@@ -265,14 +290,15 @@ export const createDesktopAuthCode = mutation({
     }
 
     const now = Date.now();
-    const expiresAt = now + DESKTOP_AUTH_CODE_TTL_MS;
+    const expiresAt = now + NATIVE_AUTH_CODE_TTL_MS;
 
-    await ctx.db.insert("desktopAuthCodes", {
+    await ctx.db.insert("nativeAuthCodes", {
       sessionId,
       userId: user.subject,
       deviceId: args.deviceId,
       codeChallenge: args.codeChallenge,
       state: args.state,
+      surface: args.surface,
       expiresAt,
       consumedAt: undefined,
       createdAt: now,
@@ -282,21 +308,21 @@ export const createDesktopAuthCode = mutation({
   },
 });
 
-export const consumeDesktopAuthByState = internalMutation({
+export const consumeNativeAuthByState = internalMutation({
   args: {
     codeVerifier: v.string(),
     deviceId: v.string(),
     state: v.string(),
   },
-  returns: v.union(exchangeDesktopAuthResultValidator, v.null()),
+  returns: v.union(exchangeNativeAuthResultValidator, v.null()),
   handler: async (ctx, args) => {
-    assertDesktopStateInputs(args.codeVerifier, args.deviceId, args.state);
+    assertNativeStateInputs(args.codeVerifier, args.deviceId, args.state);
 
     const now = Date.now();
     const expectedChallenge = await hashVerifierToChallenge(args.codeVerifier);
 
     const candidateRecords = await ctx.db
-      .query("desktopAuthCodes")
+      .query("nativeAuthCodes")
       .withIndex("by_device_state_consumed", (q) =>
         q
           .eq("deviceId", args.deviceId)
@@ -323,12 +349,12 @@ export const consumeDesktopAuthByState = internalMutation({
   },
 });
 
-export const exchangeDesktopAuthOptions = httpAction(async (_ctx, request) => {
+export const exchangeNativeAuthOptions = httpAction(async (_ctx, request) => {
   const corsHeaders = buildCorsHeaders(request.headers.get("origin"));
   return new Response(null, { status: 204, headers: corsHeaders });
 });
 
-export const pollDesktopAuthCode = httpAction(async (ctx, request) => {
+export const pollNativeAuthCode = httpAction(async (ctx, request) => {
   const corsHeaders = buildCorsHeaders(request.headers.get("origin"));
 
   if (request.method !== "POST") {
@@ -356,13 +382,13 @@ export const pollDesktopAuthCode = httpAction(async (ctx, request) => {
     );
   }
 
-  const parsed = parseStatePayload(payload);
+  const parsed = parsePollPayload(payload);
   if (!parsed) {
     return jsonResponse(
       400,
       {
         code: "INVALID_PAYLOAD",
-        error: "Missing required desktop auth fields",
+        error: "Missing required native auth fields",
       },
       corsHeaders
     );
@@ -370,7 +396,7 @@ export const pollDesktopAuthCode = httpAction(async (ctx, request) => {
 
   try {
     const result = await ctx.runMutation(
-      (internal as any).authDesktop.consumeDesktopAuthByState,
+      (internal as any).authNative.consumeNativeAuthByState,
       parsed
     );
 
@@ -384,7 +410,7 @@ export const pollDesktopAuthCode = httpAction(async (ctx, request) => {
       const code = String((error.data as { code?: unknown })?.code ?? "ERROR");
       const message = String(
         (error.data as { message?: unknown })?.message ??
-          "Desktop auth polling failed"
+          "Native auth polling failed"
       );
       const status = code === "SESSION_INVALID" ? 401 : 400;
 
@@ -402,7 +428,7 @@ export const pollDesktopAuthCode = httpAction(async (ctx, request) => {
       500,
       {
         code: "INTERNAL_ERROR",
-        error: "Desktop auth polling failed",
+        error: "Native auth polling failed",
       },
       corsHeaders
     );

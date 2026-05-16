@@ -5,7 +5,7 @@ let store: ElectronStore | null = null;
 const ALLOWED_STORE_KEYS = new Set([
   "auth.sessionToken",
   "auth.deviceId",
-  "auth.pendingDesktopFlow",
+  "auth.pendingNativeFlow",
 ]);
 
 function isAllowedKey(key: string): boolean {

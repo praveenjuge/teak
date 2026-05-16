@@ -5,19 +5,19 @@ import { buildWebUrl, getDesktopConfig } from "@/lib/desktop-config";
 
 const SESSION_TOKEN_KEY = "auth.sessionToken";
 const DEVICE_ID_KEY = "auth.deviceId";
-const PENDING_AUTH_KEY = "auth.pendingDesktopFlow";
+const PENDING_AUTH_KEY = "auth.pendingNativeFlow";
 const DESKTOP_PENDING_MAX_AGE_MS = 10 * 60 * 1000;
 const DESKTOP_AUTH_POLL_INTERVAL_MS = 2000;
 const JWT_EXPIRY_SKEW_MS = 10_000;
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type DesktopAuthState = {
+type NativeAuthState = {
   isInitialized: boolean;
   sessionToken: string | null;
 };
 
-type PendingDesktopAuth = {
+type PendingNativeAuth = {
   state: string;
   codeVerifier: string;
   deviceId: string;
@@ -34,7 +34,7 @@ type ExchangeResponse = {
   expiresAt: number;
 };
 
-export type DesktopAuthPollingResult =
+export type NativeAuthPollingResult =
   | "authenticated"
   | "timeout"
   | "cancelled";
@@ -57,14 +57,14 @@ function writeStoreValue(key: string, value: unknown): Promise<void> {
 
 // ── External store for React ───────────────────────────────────────────────────
 
-let state: DesktopAuthState = {
+let state: NativeAuthState = {
   isInitialized: false,
   sessionToken: null,
 };
 
 let cachedJwt: CachedJwt | null = null;
 let initializationPromise: Promise<void> | null = null;
-let pollingPromise: Promise<DesktopAuthPollingResult> | null = null;
+let pollingPromise: Promise<NativeAuthPollingResult> | null = null;
 const listeners = new Set<() => void>();
 
 function notifyListeners() {
@@ -80,11 +80,11 @@ function subscribe(listener: () => void): () => void {
   };
 }
 
-function getSnapshot(): DesktopAuthState {
+function getSnapshot(): NativeAuthState {
   return state;
 }
 
-function setState(nextState: DesktopAuthState) {
+function setState(nextState: NativeAuthState) {
   state = nextState;
   notifyListeners();
 }
@@ -180,7 +180,7 @@ async function setSessionToken(sessionToken: string): Promise<void> {
   });
 }
 
-export async function clearDesktopSessionToken(): Promise<void> {
+export async function clearNativeSessionToken(): Promise<void> {
   await writeStoreValue(SESSION_TOKEN_KEY, null);
   cachedJwt = null;
   setState({
@@ -189,12 +189,12 @@ export async function clearDesktopSessionToken(): Promise<void> {
   });
 }
 
-export async function getDesktopSessionToken(): Promise<string | null> {
+export async function getNativeSessionToken(): Promise<string | null> {
   await ensureInitialized();
   return state.sessionToken;
 }
 
-export async function getDesktopDeviceId(): Promise<string> {
+export async function getNativeDeviceId(): Promise<string> {
   const storedDeviceId = await readStoreValue<string>(DEVICE_ID_KEY);
   if (storedDeviceId && DEVICE_ID_PATTERN.test(storedDeviceId)) {
     return storedDeviceId;
@@ -207,13 +207,13 @@ export async function getDesktopDeviceId(): Promise<string> {
 
 // ── Auth flow ──────────────────────────────────────────────────────────────────
 
-export async function startDesktopAuthRequest(): Promise<string> {
-  const deviceId = await getDesktopDeviceId();
+export async function startNativeAuthRequest(): Promise<string> {
+  const deviceId = await getNativeDeviceId();
   const stateToken = randomBase64Url(18);
   const codeVerifier = randomBase64Url(48);
   const codeChallenge = await createCodeChallenge(codeVerifier);
 
-  const pendingAuth: PendingDesktopAuth = {
+  const pendingAuth: PendingNativeAuth = {
     state: stateToken,
     codeVerifier,
     deviceId,
@@ -221,20 +221,21 @@ export async function startDesktopAuthRequest(): Promise<string> {
   };
   await writeStoreValue(PENDING_AUTH_KEY, pendingAuth);
 
-  const url = new URL(buildWebUrl("/desktop/auth/start"));
+  const url = new URL(buildWebUrl("/native/auth/start"));
   url.searchParams.set("device_id", deviceId);
   url.searchParams.set("code_challenge", codeChallenge);
   url.searchParams.set("state", stateToken);
-  url.searchParams.set("redirect_uri", buildWebUrl("/desktop/auth/complete"));
+  url.searchParams.set("surface", "desktop");
+  url.searchParams.set("redirect_uri", buildWebUrl("/native/auth/complete"));
   return url.toString();
 }
 
-async function pollDesktopCodeByState(params: {
+async function pollNativeCodeByState(params: {
   state: string;
   deviceId: string;
   codeVerifier: string;
 }): Promise<ExchangeResponse | null> {
-  const response = await fetch(`${convexSiteBaseUrl}/api/desktop/auth/poll`, {
+  const response = await fetch(`${convexSiteBaseUrl}/api/native/auth/poll`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -254,12 +255,12 @@ async function pollDesktopCodeByState(params: {
     if (response.status >= 500) {
       return null;
     }
-    throw new Error("Desktop login polling failed");
+    throw new Error("Native login polling failed");
   }
 
   const data = (await response.json()) as Partial<ExchangeResponse>;
   if (!(data.sessionToken && typeof data.sessionToken === "string")) {
-    throw new Error("Desktop login polling response is invalid");
+    throw new Error("Native login polling response is invalid");
   }
 
   return {
@@ -268,7 +269,7 @@ async function pollDesktopCodeByState(params: {
   };
 }
 
-export function startDesktopAuthPolling(): Promise<DesktopAuthPollingResult> {
+export function startNativeAuthPolling(): Promise<NativeAuthPollingResult> {
   if (pollingPromise) {
     return pollingPromise;
   }
@@ -278,7 +279,7 @@ export function startDesktopAuthPolling(): Promise<DesktopAuthPollingResult> {
 
     while (Date.now() - startedAt < DESKTOP_PENDING_MAX_AGE_MS) {
       const pending =
-        await readStoreValue<PendingDesktopAuth>(PENDING_AUTH_KEY);
+        await readStoreValue<PendingNativeAuth>(PENDING_AUTH_KEY);
       if (!pending) {
         return "cancelled";
       }
@@ -307,7 +308,7 @@ export function startDesktopAuthPolling(): Promise<DesktopAuthPollingResult> {
       }
 
       try {
-        const exchangeResult = await pollDesktopCodeByState({
+        const exchangeResult = await pollNativeCodeByState({
           state: pending.state,
           deviceId: pending.deviceId,
           codeVerifier: pending.codeVerifier,
@@ -357,7 +358,7 @@ async function fetchConvexJwt(
   });
 
   if (response.status === 401 || response.status === 403) {
-    await clearDesktopSessionToken();
+    await clearNativeSessionToken();
     return null;
   }
 
@@ -381,8 +382,8 @@ async function fetchConvexJwt(
 
 // ── Logout ─────────────────────────────────────────────────────────────────────
 
-export async function logoutDesktopSession(): Promise<void> {
-  const sessionToken = await getDesktopSessionToken();
+export async function logoutNativeSession(): Promise<void> {
+  const sessionToken = await getNativeSessionToken();
 
   if (sessionToken) {
     await fetch(`${convexSiteBaseUrl}/api/auth/sign-out`, {
@@ -393,13 +394,13 @@ export async function logoutDesktopSession(): Promise<void> {
     }).catch(() => undefined);
   }
 
-  await clearDesktopSessionToken();
+  await clearNativeSessionToken();
   await writeStoreValue(PENDING_AUTH_KEY, null);
 }
 
 // ── React hook for ConvexProviderWithAuth ──────────────────────────────────────
 
-export function useDesktopConvexAuth() {
+export function useNativeConvexAuth() {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   useEffect(() => {

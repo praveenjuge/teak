@@ -7,7 +7,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { convex } from "./lib/convex-client";
-import { useDesktopConvexAuth } from "./lib/desktop-auth";
+import { useNativeConvexAuth } from "./lib/native-auth";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
@@ -18,7 +18,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       disableTransitionOnChange
       enableSystem={true}
     >
-      <ConvexProviderWithAuth client={convex} useAuth={useDesktopConvexAuth}>
+      <ConvexProviderWithAuth client={convex} useAuth={useNativeConvexAuth}>
         <ConvexQueryCacheProvider>
           <ErrorBoundary>
             <App />

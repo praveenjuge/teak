@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server";
 import { authComponent, createAuth, trustedOrigins } from "./auth";
-import { exchangeDesktopAuthOptions, pollDesktopAuthCode } from "./authDesktop";
+import { exchangeNativeAuthOptions, pollNativeAuthCode } from "./authNative";
 import { polar } from "./billing";
 import {
   bulkCardsV1,
@@ -18,22 +18,22 @@ const http = httpRouter();
 // Register the webhook handler at /polar/events
 polar.registerRoutes(http as any);
 
-// Register authentication routes with CORS for cross-origin desktop auth requests.
+// Register authentication routes with CORS for cross-origin native auth requests.
 authComponent.registerRoutesLazy(http, createAuth, {
   cors: true,
   trustedOrigins,
 });
 
 http.route({
-  path: "/api/desktop/auth/poll",
+  path: "/api/native/auth/poll",
   method: "OPTIONS",
-  handler: exchangeDesktopAuthOptions,
+  handler: exchangeNativeAuthOptions,
 });
 
 http.route({
-  path: "/api/desktop/auth/poll",
+  path: "/api/native/auth/poll",
   method: "POST",
-  handler: pollDesktopAuthCode,
+  handler: pollNativeAuthCode,
 });
 
 // Register public API v1 routes (used by apps/api proxy).

@@ -65,8 +65,7 @@ interface GlobalFileDropProviderProps {
 /**
  * Single authenticated drag/drop + upload queue provider.
  *
- * Mount once per authenticated surface (web `AuthenticatedAppProvider`,
- * desktop auth shell). The provider:
+ * Mount once per authenticated app surface. The provider:
  *
  *  - Listens for document-level drag/drop events so the whole app accepts
  *    file drops (cards, settings, etc) without per-page wiring.

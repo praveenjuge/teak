@@ -204,15 +204,20 @@ export const apiIdempotencyAnalyticsValidator = v.object({
   errors: v.number(),
 });
 
-export const desktopAuthCodeValidator = v.object({
+export const nativeAuthSurfaceValidator = v.union(
+  v.literal("desktop"),
+  v.literal("safari-macos"),
+  v.literal("safari-ios"),
+  v.literal("safari-ipados")
+);
+
+export const nativeAuthCodeValidator = v.object({
   sessionId: v.string(),
   userId: v.string(),
   deviceId: v.string(),
-  // Backward compatibility for pre-polling-only records.
-  // New writes do not set this field.
-  codeHash: v.optional(v.string()),
   codeChallenge: v.string(),
   state: v.string(),
+  surface: nativeAuthSurfaceValidator,
   expiresAt: v.number(),
   consumedAt: v.optional(v.number()),
   createdAt: v.number(),
@@ -323,8 +328,9 @@ export default defineSchema({
     .index("by_expires_at", ["expiresAt"]),
   apiIdempotencyAnalytics: defineTable(apiIdempotencyAnalyticsValidator)
     .index("by_date_endpoint", ["date", "endpoint"]),
-  desktopAuthCodes: defineTable(desktopAuthCodeValidator)
+  nativeAuthCodes: defineTable(nativeAuthCodeValidator)
     .index("by_expires_at", ["expiresAt"])
     .index("by_device_state_consumed", ["deviceId", "state", "consumedAt"])
+    .index("by_surface", ["surface"])
     .index("by_user", ["userId"]),
 });

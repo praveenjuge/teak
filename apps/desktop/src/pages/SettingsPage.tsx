@@ -5,7 +5,7 @@ import { SettingsContent } from "@teak/ui/settings";
 import { useAction, useMutation } from "convex/react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { logoutDesktopSession } from "@/lib/desktop-auth";
+import { logoutNativeSession } from "@/lib/native-auth";
 import { buildWebUrl } from "@/lib/desktop-config";
 
 const convexApi = api as any;
@@ -46,7 +46,7 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
   const handleSignOut = useCallback(async () => {
     setSignOutLoading(true);
     try {
-      await logoutDesktopSession();
+      await logoutNativeSession();
     } catch {
       toast.error("Failed to sign out. Please try again.");
     } finally {

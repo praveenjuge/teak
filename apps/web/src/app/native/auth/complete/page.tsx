@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-export default function DesktopAuthCompletePage() {
+export default function NativeAuthCompletePage() {
   useEffect(() => {
     window.close();
   }, []);

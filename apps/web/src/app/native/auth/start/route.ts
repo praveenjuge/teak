@@ -9,9 +9,15 @@ export const dynamic = "force-dynamic";
 const DEVICE_ID_PATTERN = /^[A-Za-z0-9-]{16,128}$/;
 const PKCE_CHALLENGE_PATTERN = /^[A-Za-z0-9_-]{43,128}$/;
 const STATE_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
+const NATIVE_AUTH_SURFACES = new Set([
+  "desktop",
+  "safari-macos",
+  "safari-ios",
+  "safari-ipados",
+]);
 const ALLOWED_COMPLETION_REDIRECTS = new Set([
-  `${resolveTeakDevAppUrl(process.env)}/desktop/auth/complete`,
-  "https://app.teakvault.com/desktop/auth/complete",
+  `${resolveTeakDevAppUrl(process.env)}/native/auth/complete`,
+  "https://app.teakvault.com/native/auth/complete",
 ]);
 
 function buildLoginRedirect(requestUrl: URL): NextResponse {
@@ -23,7 +29,7 @@ function buildLoginRedirect(requestUrl: URL): NextResponse {
   return NextResponse.redirect(loginUrl);
 }
 
-function parseDesktopRedirectUri(raw: string | null): URL | null {
+function parseNativeRedirectUri(raw: string | null): URL | null {
   if (!raw) {
     return null;
   }
@@ -35,11 +41,7 @@ function parseDesktopRedirectUri(raw: string | null): URL | null {
     return null;
   }
 
-  if (parsed.search) {
-    return null;
-  }
-
-  if (parsed.hash) {
+  if (parsed.search || parsed.hash) {
     return null;
   }
 
@@ -56,7 +58,8 @@ export async function GET(request: Request): Promise<Response> {
   const codeChallenge =
     requestUrl.searchParams.get("code_challenge")?.trim() ?? "";
   const state = requestUrl.searchParams.get("state")?.trim() ?? "";
-  const redirectUri = parseDesktopRedirectUri(
+  const surface = requestUrl.searchParams.get("surface")?.trim() ?? "";
+  const redirectUri = parseNativeRedirectUri(
     requestUrl.searchParams.get("redirect_uri")
   );
 
@@ -65,13 +68,14 @@ export async function GET(request: Request): Promise<Response> {
       DEVICE_ID_PATTERN.test(deviceId) &&
       PKCE_CHALLENGE_PATTERN.test(codeChallenge) &&
       STATE_PATTERN.test(state) &&
+      NATIVE_AUTH_SURFACES.has(surface) &&
       redirectUri
     )
   ) {
     return NextResponse.json(
       {
-        code: "INVALID_DESKTOP_AUTH_REQUEST",
-        error: "Invalid desktop auth request",
+        code: "INVALID_NATIVE_AUTH_REQUEST",
+        error: "Invalid native auth request",
       },
       { status: 400 }
     );
@@ -83,10 +87,11 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    await fetchAuthMutation(api.authDesktop.createDesktopAuthCode, {
+    await fetchAuthMutation((api as any).authNative.createNativeAuthCode, {
       deviceId,
       codeChallenge,
       state,
+      surface,
     });
     redirectUri.searchParams.set("state", state);
     return new Response(null, {

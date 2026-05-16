@@ -79,7 +79,7 @@ describe("electron main process wiring", () => {
     expect(storeSource).toContain("ALLOWED_STORE_KEYS");
     expect(storeSource).toContain('"auth.sessionToken"');
     expect(storeSource).toContain('"auth.deviceId"');
-    expect(storeSource).toContain('"auth.pendingDesktopFlow"');
+    expect(storeSource).toContain('"auth.pendingNativeFlow"');
     expect(storeSource).toContain("isAllowedKey");
   });
 

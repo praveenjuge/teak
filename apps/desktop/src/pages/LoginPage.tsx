@@ -5,9 +5,9 @@ import { AuthScreenShell } from "@teak/ui/screens";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import {
-  startDesktopAuthPolling,
-  startDesktopAuthRequest,
-} from "@/lib/desktop-auth";
+  startNativeAuthPolling,
+  startNativeAuthRequest,
+} from "@/lib/native-auth";
 
 interface LoginPageProps {
   isOnline: boolean;
@@ -27,11 +27,11 @@ export function LoginPage({ isOnline }: LoginPageProps) {
     setError(null);
 
     try {
-      const url = await startDesktopAuthRequest();
+      const url = await startNativeAuthRequest();
       await window.teakDesktop.shell.openExternal(url);
       setIsWaitingForAuth(true);
 
-      startDesktopAuthPolling().then((result) => {
+      startNativeAuthPolling().then((result) => {
         if (result === "authenticated") {
           setIsWaitingForAuth(false);
         } else if (result === "timeout") {
