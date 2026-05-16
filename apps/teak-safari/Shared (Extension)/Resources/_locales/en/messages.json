@@ -1,0 +1,10 @@
+{
+    "extension_name": {
+        "message": "Teak for Safari",
+        "description": "The display name for the extension."
+    },
+    "extension_description": {
+        "message": "Save the current Safari page to Teak.",
+        "description": "Description of what the extension does."
+    }
+}

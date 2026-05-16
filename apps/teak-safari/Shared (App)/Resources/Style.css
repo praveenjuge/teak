@@ -1,0 +1,107 @@
+:root {
+    color-scheme: light dark;
+    --accent: #d92d20;
+    --border: rgba(120, 120, 128, 0.24);
+    --text: #171717;
+    --muted: #5f6368;
+    --surface: #ffffff;
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+}
+
+html,
+body {
+    min-height: 100%;
+}
+
+body {
+    margin: 0;
+    background: var(--surface);
+    color: var(--text);
+    font: -apple-system-body;
+}
+
+.shell {
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 20px;
+    text-align: center;
+}
+
+.intro,
+.account {
+    width: min(100%, 320px);
+}
+
+.app-icon {
+    display: block;
+    width: 64px;
+    height: 64px;
+}
+
+h1 {
+    margin: 0;
+    font: -apple-system-title3;
+    font-weight: 700;
+}
+
+.copy,
+.account-status {
+    margin: 0;
+    color: var(--muted);
+    font: -apple-system-subheadline;
+    line-height: 1.45;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+button {
+    min-height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 13px;
+    background: transparent;
+    color: var(--text);
+    font: -apple-system-body;
+    font-weight: 600;
+}
+
+button.primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: #ffffff;
+}
+
+body:not(.platform-mac, .platform-ios) :is(.platform-mac, .platform-ios),
+body.platform-ios .platform-mac,
+body.platform-mac .platform-ios,
+body:not(.state-on, .state-off) :is(.state-on, .state-off),
+body.state-on :is(.state-off, .state-unknown),
+body.state-off :is(.state-on, .state-unknown),
+body.signed-in #sign-in,
+body:not(.signed-in) #sign-out {
+    display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --border: rgba(235, 235, 245, 0.18);
+        --text: #f5f5f5;
+        --muted: #a1a1aa;
+        --surface: #111111;
+    }
+}

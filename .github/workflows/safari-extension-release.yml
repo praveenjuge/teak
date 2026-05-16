@@ -1,0 +1,263 @@
+name: Safari Extension Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to upload, matching every package.json"
+        required: true
+        type: string
+
+concurrency:
+  group: safari-extension-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  ASC_APP_ID: "6770003409"
+  APPLE_TEAM_ID: LW385M78LW
+  PROJECT_PATH: apps/teak-safari/teak-safari.xcodeproj
+  SCHEME_NAME: teak-safari (macOS)
+
+jobs:
+  build-and-upload:
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release version
+        id: version
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          DISPATCH_VERSION: ${{ inputs.version }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            version="$DISPATCH_VERSION"
+          else
+            version="${TAG_NAME#v}"
+          fi
+
+          if ! [[ "$version" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
+            echo "Invalid release version: $version" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "build_number=${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+
+      - name: Check if version already uploaded
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG_NAME: v${{ steps.version.outputs.version }}
+        run: |
+          expected_asset="teak-safari-${VERSION}-mac-app-store.pkg"
+          if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx "$expected_asset"; then
+            echo "Release $TAG_NAME already contains $expected_asset — skipping Safari upload."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify every package version matches release
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          failed=0
+          while IFS= read -r file; do
+            package_version="$(node -p "require('./${file}').version")"
+            if [ "$package_version" != "$VERSION" ]; then
+              echo "$file has version $package_version, expected $VERSION" >&2
+              failed=1
+            fi
+          done < <(git ls-files 'package.json' 'apps/*/package.json' 'packages/*/package.json')
+
+          if [ "$failed" -ne 0 ]; then
+            echo "Bump every package.json in the monorepo to $VERSION before releasing." >&2
+            exit 1
+          fi
+
+      - name: Verify Apple release credentials
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          missing=()
+          for name in APPLE_API_ISSUER APPLE_API_KEY_ID APPLE_API_KEY_P8 APPLE_CERTIFICATE_BASE64 APPLE_CERTIFICATE_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              missing+=("$name")
+            fi
+          done
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required Safari App Store secret(s): %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Prepare App Store Connect API key
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          key_dir="$RUNNER_TEMP/appstoreconnect/private_keys"
+          mkdir -p "$key_dir"
+          key_path="$key_dir/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY_P8" > "$key_path"
+          chmod 600 "$key_path"
+
+          echo "APPLE_API_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+          echo "API_PRIVATE_KEYS_DIR=$key_dir" >> "$GITHUB_ENV"
+
+      - name: Prepare Apple signing certificate
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          keychain_path="$RUNNER_TEMP/teak-safari-signing.keychain-db"
+          keychain_password="$(uuidgen)"
+          certificate_path="$RUNNER_TEMP/apple-signing-certificate.p12"
+
+          printf '%s' "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
+
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" \
+            -k "$keychain_path" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/productsign \
+            -T /usr/bin/security
+          security list-keychains -d user -s "$keychain_path" login.keychain-db
+          security default-keychain -s "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain_path"
+
+      - name: Create or reuse App Store version
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          SAFARI_VERSION: ${{ steps.version.outputs.version }}
+        run: node apps/teak-safari/scripts/ensure-app-store-version.mjs
+
+      - name: Archive Teak for Safari
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          VERSION: ${{ steps.version.outputs.version }}
+          BUILD_NUMBER: ${{ steps.version.outputs.build_number }}
+        run: |
+          archive_path="$RUNNER_TEMP/Teak for Safari.xcarchive"
+          echo "ARCHIVE_PATH=$archive_path" >> "$GITHUB_ENV"
+
+          xcodebuild archive \
+            -project "$PROJECT_PATH" \
+            -scheme "$SCHEME_NAME" \
+            -configuration Release \
+            -destination "generic/platform=macOS" \
+            -archivePath "$archive_path" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            CODE_SIGN_STYLE=Automatic \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$APPLE_API_KEY_PATH" \
+            -authenticationKeyID "$APPLE_API_KEY_ID" \
+            -authenticationKeyIssuerID "$APPLE_API_ISSUER"
+
+      - name: Export App Store package
+        id: export
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          export_path="$RUNNER_TEMP/safari-export"
+          export_options="$RUNNER_TEMP/SafariExportOptions.plist"
+          mkdir -p "$export_path"
+
+          /usr/libexec/PlistBuddy -c "Add :method string app-store-connect" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :destination string export" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :signingStyle string automatic" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :stripSwiftSymbols bool true" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :uploadSymbols bool true" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :manageAppVersionAndBuildNumber bool false" "$export_options"
+
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$export_path" \
+            -exportOptionsPlist "$export_options" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$APPLE_API_KEY_PATH" \
+            -authenticationKeyID "$APPLE_API_KEY_ID" \
+            -authenticationKeyIssuerID "$APPLE_API_ISSUER"
+
+          package_path="$(find "$export_path" -maxdepth 1 -name '*.pkg' -print -quit)"
+          if [ -z "$package_path" ] || [ ! -f "$package_path" ]; then
+            echo "Could not find exported Mac App Store package under $export_path" >&2
+            find "$export_path" -maxdepth 2 -type f -print >&2
+            exit 1
+          fi
+
+          release_pkg="$RUNNER_TEMP/teak-safari-${VERSION}-mac-app-store.pkg"
+          cp "$package_path" "$release_pkg"
+          echo "package_path=$release_pkg" >> "$GITHUB_OUTPUT"
+
+      - name: Validate App Store package
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+        run: |
+          xcrun altool --validate-app \
+            -f "${{ steps.export.outputs.package_path }}" \
+            -t macos \
+            --apiKey "$APPLE_API_KEY_ID" \
+            --apiIssuer "$APPLE_API_ISSUER"
+
+      - name: Upload to App Store Connect
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+        run: |
+          xcrun altool --upload-app \
+            -f "${{ steps.export.outputs.package_path }}" \
+            -t macos \
+            --apiKey "$APPLE_API_KEY_ID" \
+            --apiIssuer "$APPLE_API_ISSUER"
+
+      - name: Publish GitHub release asset
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: v${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "${{ steps.export.outputs.package_path }}" --clobber
+          elif git ls-remote --exit-code --tags origin "refs/tags/${TAG_NAME}" >/dev/null 2>&1; then
+            git fetch --tags origin "$TAG_NAME"
+            gh release create "$TAG_NAME" "${{ steps.export.outputs.package_path }}" --title "${{ steps.version.outputs.version }}" --verify-tag
+          else
+            echo "No $TAG_NAME tag exists, so the App Store package was uploaded but no GitHub Release asset was published."
+          fi
