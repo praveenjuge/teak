@@ -138,7 +138,7 @@ export function FullScreenAddCardDialog({
             <div className="w-full px-6 pt-20 pb-16">
               <div className="mx-auto w-full max-w-3xl">
                 <Textarea
-                  className="min-h-[60vh] resize-none rounded-none border-0 bg-transparent p-0 text-2xl leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="min-h-[60vh] resize-none rounded-none border-0 bg-transparent! p-0 text-2xl leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent!"
                   disabled={!canCreateCard}
                   id="fullscreen-content"
                   onChange={handleChange}

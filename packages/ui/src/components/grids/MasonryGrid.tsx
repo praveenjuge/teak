@@ -377,6 +377,7 @@ export function MasonryGrid({
         className={isSelectionMode ? "select-none" : ""}
         columns={columns}
         gutter={gutter}
+        fresh
         itemRender={renderItem}
         items={masonryItems}
       />

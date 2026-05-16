@@ -35,11 +35,12 @@ export const UPLOAD_QUEUE_LOADING_TOAST_OPTIONS: ExternalToast = {
 };
 
 /**
- * Success variant for a completed upload queue. Auto-dismisses but still
- * exposes a close affordance so users can clear it manually.
+ * Success variant for a completed upload queue. Auto-dismisses quietly after
+ * a short confirmation window; error/actionable upload toasts stay sticky.
  */
 export const UPLOAD_QUEUE_SUCCESS_TOAST_OPTIONS: ExternalToast = {
-  closeButton: true,
+  duration: 4000,
+  closeButton: false,
   dismissible: true,
 };
 

@@ -1,11 +1,6 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import { CARD_ERROR_CODES, resolveTextCardInput } from "@teak/convex/shared";
-import {
-  type FinalizeUploadedCardArgs,
-  type UploadAndCreateCardArgs,
-  useFileUploadCore,
-} from "@teak/convex/shared/hooks/useFileUpload";
+import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { trackCardCreated } from "@teak/convex/shared/metrics";
 import { Button } from "@teak/ui/components/ui/button";
 import { Card, CardContent } from "@teak/ui/components/ui/card";
@@ -14,21 +9,12 @@ import {
   MANUAL_CLOSE_TOAST_OPTIONS,
   TOAST_IDS,
 } from "@teak/ui/constants/toast";
-import { useGlobalFileDrop } from "@teak/ui/hooks";
 import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation, useQuery } from "convex/react";
-import { Mic, Square, Upload } from "lucide-react";
+import { Maximize2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FullScreenAddCardDialog } from "./FullScreenAddCardDialog";
-
-function inferCardTypeFromMime(mimeType: string | undefined): string {
-  if (!mimeType) return "document";
-  if (mimeType.startsWith("image/")) return "image";
-  if (mimeType.startsWith("video/")) return "video";
-  if (mimeType.startsWith("audio/")) return "audio";
-  return "document";
-}
 
 function addCardToSearchQueries(
   localStore: OptimisticLocalStore,
@@ -79,26 +65,17 @@ export function AddCardForm({
   upgradeUrl = "/settings",
 }: AddCardFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false);
-  const [isMac, setIsMac] = useState(false);
 
   const [content, setContent] = useState("");
-  const [url, setUrl] = useState("");
-
-  const globalFileDrop = useGlobalFileDrop();
 
   const cardCreationStatus = useQuery(api.auth.getCardCreationStatus);
   const canCreateCard =
     canCreateCardProp ?? cardCreationStatus?.canCreateCard ?? true;
-  const fullscreenShortcutLabel = isMac ? "Cmd+E" : "Ctrl+E";
   const basePlaceholderText = canCreateCard
-    ? "Write or add a link..."
+    ? "Write a note..."
     : "Upgrade to Pro to add more cards...";
-  const inlinePlaceholderText = canCreateCard
-    ? `Write or add a link... ${fullscreenShortcutLabel} to expand`
-    : basePlaceholderText;
+  const inlinePlaceholderText = basePlaceholderText;
   const fullScreenPlaceholderText = basePlaceholderText;
   const hasContent = Boolean(content.trim());
   const hasShownBlockedToastRef = useRef(false);
@@ -143,31 +120,17 @@ export function AddCardForm({
     hasShownBlockedToastRef.current = false;
   }, [cardCreationStatus?.canCreateCard, showUpgradeToast]);
 
-  useEffect(() => {
-    if (typeof navigator === "undefined") {
-      return;
-    }
-    setIsMac(navigator.platform.includes("Mac"));
-  }, []);
-
   const createCard = useMutation(api.cards.createCard).withOptimisticUpdate(
     (localStore, args) => {
       const now = Date.now();
       const contentTrimmed = args.content?.trim() || "";
-      const resolved = resolveTextCardInput({
-        content: args.content ?? "",
-        url: args.url,
-      });
-      const resolvedType = args.type ?? resolved.type;
-      const resolvedUrl = args.url ?? resolved.url;
 
       const optimisticCard: Doc<"cards"> = {
         _id: crypto.randomUUID() as Id<"cards">,
         _creationTime: now,
         userId: "",
         content: contentTrimmed,
-        type: resolvedType,
-        url: resolvedUrl,
+        type: "text",
         createdAt: now,
         updatedAt: now,
       };
@@ -175,26 +138,6 @@ export function AddCardForm({
       addCardToSearchQueries(localStore, optimisticCard);
     }
   );
-  const uploadAndCreateCardMutation = useMutation(
-    api.cards.uploadAndCreateCard
-  );
-  const finalizeUploadedCardMutation = useMutation(
-    api.cards.finalizeUploadedCard
-  );
-
-  const uploadAndCreateCard = (args: UploadAndCreateCardArgs) =>
-    uploadAndCreateCardMutation(args);
-
-  const finalizeUploadedCard = (args: FinalizeUploadedCardArgs) =>
-    finalizeUploadedCardMutation({
-      ...args,
-      fileId: args.fileId as Id<"_storage">,
-    });
-
-  const { uploadFile } = useFileUploadCore({
-    uploadAndCreateCard,
-    finalizeUploadedCard,
-  });
 
   const getCardErrorCode = (err: unknown): string | null => {
     if (!err || typeof err !== "object") {
@@ -236,234 +179,9 @@ export function AddCardForm({
     getCardErrorCode(err) === CARD_ERROR_CODES.RATE_LIMITED;
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-
-  useEffect(
-    () => () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      if (streamRef.current) {
-        for (const track of streamRef.current.getTracks()) {
-          track.stop();
-        }
-      }
-    },
-    []
-  );
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const startRecording = async () => {
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        toast.error(
-          "Microphone recording is not supported in this app context."
-        );
-        return;
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm;codecs=opus",
-      });
-      mediaRecorderRef.current = mediaRecorder;
-
-      const chunks: Blob[] = [];
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: "audio/webm;codecs=opus" });
-        for (const track of stream.getTracks()) {
-          track.stop();
-        }
-
-        await autoSaveAudio(blob);
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-      setRecordingTime(0);
-
-      timerRef.current = setInterval(() => {
-        setRecordingTime((prev) => prev + 1);
-      }, 1000);
-    } catch (err) {
-      console.error("Error starting recording:", err);
-      if (err instanceof DOMException && err.name === "NotAllowedError") {
-        toast.error(
-          "Microphone permission was denied. Please allow it and retry."
-        );
-        return;
-      }
-
-      if (err instanceof DOMException && err.name === "NotFoundError") {
-        toast.error(
-          "No microphone was detected. Please connect one and retry."
-        );
-        return;
-      }
-
-      toast.error(
-        "Failed to start recording. Please check your microphone setup."
-      );
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    }
-  };
-
-  const autoSaveAudio = async (blob: Blob) => {
-    const toastId = toast.loading("Saving audio recording...");
-
-    try {
-      setIsSubmitting(true);
-
-      const file = new File([blob], `recording_${Date.now()}.webm`, {
-        type: blob.type,
-      });
-
-      const result = await uploadFile(file, {
-        content: "",
-        additionalMetadata: {
-          recordingTimestamp: Date.now(),
-        },
-      });
-
-      if (result.success) {
-        resetDraft();
-        setRecordingTime(0);
-        onSuccess?.();
-        trackCardCreated({
-          cardType: "audio",
-          source: "web",
-          via: "recording",
-        });
-        toast.success("Audio recording saved", { id: toastId });
-      } else {
-        if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
-          showUpgradeToast(toastId);
-          return;
-        }
-
-        if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
-          toast.error("Too many cards created. Please wait a moment.", {
-            id: toastId,
-          });
-          return;
-        }
-
-        throw new Error(result.error || "Failed to save audio recording");
-      }
-    } catch (error) {
-      console.error("Failed to auto-save audio:", error);
-
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Failed to save audio recording";
-
-      if (isCardLimitError(error)) {
-        showUpgradeToast(toastId);
-      } else if (isRateLimitError(error)) {
-        toast.error("Too many cards created. Please wait a moment.", {
-          id: toastId,
-        });
-      } else {
-        toast.error(errorMessage, { id: toastId });
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleFileUpload = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "*/*";
-    input.multiple = true;
-    input.style.display = "none";
-
-    input.onchange = async (e) => {
-      const files = Array.from((e.target as HTMLInputElement).files || []);
-
-      document.body.removeChild(input);
-
-      if (files.length === 0) {
-        return;
-      }
-
-      // When the authenticated shell has mounted a global drop provider,
-      // route the picker through the same queue so both paths share
-      // validation, batch toasts and result summaries.
-      if (globalFileDrop) {
-        globalFileDrop.enqueueFiles(files);
-        return;
-      }
-
-      // Fallback path for surfaces that don't mount the provider (e.g.
-      // tests). Delegates cap / size validation to the upload core.
-      for (const file of files) {
-        const toastId = toast.loading(`Uploading ${file.name}...`);
-
-        const result = await uploadFile(file, {
-          content: "",
-        });
-
-        if (result.success) {
-          trackCardCreated({
-            cardType: inferCardTypeFromMime(file.type),
-            source: "web",
-            via: "file_upload",
-          });
-          toast.success(`${file.name} uploaded`, { id: toastId });
-          onSuccess?.();
-        } else {
-          if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
-            showUpgradeToast(toastId);
-            break;
-          }
-          if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
-            toast.error("Too many cards created. Please wait a moment.", {
-              id: toastId,
-            });
-            break;
-          }
-          const errorMessage = result.error || "Failed to upload file";
-          toast.error(`Failed to upload ${file.name}: ${errorMessage}`, {
-            id: toastId,
-          });
-        }
-      }
-    };
-
-    document.body.appendChild(input);
-    input.click();
-  };
 
   const resetDraft = () => {
     setContent("");
-    setUrl("");
   };
 
   const submitTextCard = async (): Promise<boolean> => {
@@ -472,39 +190,32 @@ export function AddCardForm({
     }
 
     const submittedContent = content;
-    const submittedUrl = url;
-    const resolved = resolveTextCardInput({
-      content: submittedContent,
-      url: submittedUrl || undefined,
-    });
     resetDraft();
 
-    const toastId = toast.loading("Saving card...");
+    const toastId = toast.loading("Saving note...");
     setIsSubmitting(true);
 
     try {
       await createCard({
-        content: resolved.content,
-        type: resolved.type === "link" ? resolved.type : undefined,
-        url: resolved.url,
+        content: submittedContent,
+        type: "text",
       });
 
       onSuccess?.();
       trackCardCreated({
-        cardType: resolved.type,
+        cardType: "text",
         source: "web",
         via: "text_form",
       });
-      toast.success("Card saved", { id: toastId });
+      toast.success("Note saved", { id: toastId });
       return true;
     } catch (error) {
       console.error("Failed to create card:", error);
 
       setContent(submittedContent);
-      setUrl(submittedUrl);
 
       const errorMessage =
-        error instanceof Error ? error.message : "Failed to create card";
+        error instanceof Error ? error.message : "Failed to save note";
 
       if (isCardLimitError(error)) {
         showUpgradeToast(toastId);
@@ -551,30 +262,6 @@ export function AddCardForm({
     return true;
   };
 
-  if (isRecording) {
-    return (
-      <Card className="min-h-36 w-full border-red-200 p-4 shadow-none">
-        <CardContent className="flex h-full flex-col items-center justify-center gap-4 p-0 text-center">
-          <p className="font-medium text-destructive">Recording...</p>
-
-          <Button
-            className="gap-0 space-x-0"
-            disabled={isSubmitting}
-            onClick={stopRecording}
-            type="button"
-            variant="destructive"
-          >
-            <Square />
-          </Button>
-
-          <p className="font-medium font-mono text-destructive">
-            {formatTime(recordingTime)}
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <>
       <FullScreenAddCardDialog
@@ -617,36 +304,29 @@ export function AddCardForm({
               value={content}
             />
 
-            <div className="flex justify-between gap-2 p-4">
-              <div className="flex gap-2">
-                <Button
-                  disabled={!canCreateCard}
-                  onClick={handleFileUpload}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  <Upload />
-                </Button>
-
-                <Button
-                  disabled={!canCreateCard}
-                  onClick={startRecording}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  <Mic />
-                </Button>
-              </div>
+            <div className="flex justify-end gap-2 p-3">
               {hasContent && (
-                <Button
-                  disabled={!canCreateCard || isSubmitting}
-                  size="sm"
-                  type="submit"
-                >
-                  Save
-                </Button>
+                <>
+                  <Button
+                    aria-label="Open full-screen note"
+                    className="w-8 px-0"
+                    disabled={!canCreateCard || isSubmitting}
+                    onClick={() => setIsFullScreenOpen(true)}
+                    size="sm"
+                    title="Open full-screen note"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Maximize2 className="size-4" />
+                  </Button>
+                  <Button
+                    disabled={!canCreateCard || isSubmitting}
+                    size="sm"
+                    type="submit"
+                  >
+                    Save
+                  </Button>
+                </>
               )}
             </div>
           </form>

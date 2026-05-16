@@ -8,7 +8,7 @@ import type { CardWithUrls } from "@teak/ui/cards";
 import { Button } from "@teak/ui/components/ui/button";
 import { CardsGridSkeleton } from "@teak/ui/feedback/CardsGridSkeleton";
 import type { AddCardFormProps } from "@teak/ui/forms";
-import { AddCardEmptyState, AddCardForm } from "@teak/ui/forms";
+import { AddCardActions, AddCardEmptyState, AddCardForm } from "@teak/ui/forms";
 import { MasonryGrid } from "@teak/ui/grids";
 import {
   useCardActions,
@@ -215,7 +215,16 @@ export function CardsScreen({
 
   const content = (
     <>
-      <CardsSearchHeader {...searchBarProps} SettingsButton={SettingsButton} />
+      <CardsSearchHeader
+        {...searchBarProps}
+        HeaderActions={
+          <AddCardActions
+            onUpgrade={onUpgrade}
+            upgradeUrl={upgradeUrl}
+          />
+        }
+        SettingsButton={SettingsButton}
+      />
 
       {displayCards.length > 0 ? (
         <MasonryGrid

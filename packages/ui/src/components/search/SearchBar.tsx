@@ -49,6 +49,7 @@ export interface SearchBarProps {
   onToggleFavorites: () => void;
   onToggleTrash: () => void;
   SettingsButton?: ReactNode;
+  HeaderActions?: ReactNode;
   searchQuery: string;
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
@@ -95,6 +96,7 @@ export function SearchBar({
   onToggleTrash,
   onClearAll,
   SettingsButton,
+  HeaderActions,
 }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -142,7 +144,10 @@ export function SearchBar({
           />
         </div>
 
-        {SettingsButton}
+        <div className="flex items-center gap-1">
+          {HeaderActions}
+          {SettingsButton}
+        </div>
       </div>
       {shouldShowFilters && (
         <div className="slide-in-from-top-2 fade-in-0 animate-in pb-5 duration-200">

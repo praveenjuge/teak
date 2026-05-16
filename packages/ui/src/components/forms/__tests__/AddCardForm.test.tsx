@@ -36,19 +36,6 @@ mock.module("@teak/ui/components/ui/card", () => ({
     React.createElement("div", { className: "card-content" }, children),
 }));
 
-mock.module("@teak/ui/components/ui/alert", () => ({
-  Alert: ({ children, variant }: any) =>
-    React.createElement(
-      "div",
-      { "data-variant": variant, "data-alert": "" },
-      children
-    ),
-  AlertDescription: ({ children }: any) =>
-    React.createElement("p", { "data-alert-description": "" }, children),
-  AlertTitle: ({ children }: any) =>
-    React.createElement("h3", { "data-alert-title": "" }, children),
-}));
-
 mock.module("@teak/ui/components/ui/dialog", () => ({
   Dialog: ({ children }: any) =>
     React.createElement("div", { "data-dialog": "" }, children),
@@ -130,6 +117,7 @@ mock.module("@teak/convex/shared", () => ({
 }));
 
 // Import after mocks so the module picks up the stubbed hook.
+import { AddCardActions } from "../AddCardActions";
 import { AddCardForm } from "../AddCardForm";
 
 describe("AddCardForm", () => {
@@ -177,17 +165,18 @@ describe("AddCardForm", () => {
     }).not.toThrow();
   });
 
-  test("click-to-upload routes files through the shared queue", () => {
-    // The component builds a hidden <input type="file"> on demand and delegates
-    // to the shared provider's enqueueFiles when it fires. Simulate that flow
-    // directly without touching the DOM so the test stays deterministic.
+  test("renders header capture actions", () => {
+    expect(() => {
+      React.createElement(AddCardActions, {});
+    }).not.toThrow();
+  });
+
+  test("header upload path keeps the shared queue available", () => {
     const files = [
       new Blob(["a"], { type: "image/png" }) as unknown as File,
       new Blob(["b"], { type: "image/png" }) as unknown as File,
     ];
 
-    // Pull the same hook value the form reads and call enqueueFiles the way
-    // handleFileUpload does when a provider is present.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useGlobalFileDrop } = require("@teak/ui/hooks");
     const drop = useGlobalFileDrop();
