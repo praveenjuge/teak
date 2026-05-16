@@ -10,8 +10,9 @@ const RAYCAST_INSTALL_BUTTON_URL = "https://www.raycast.com/praveenjuge/teak-ray
 interface PlatformCard {
   name: string;
   copy: string;
-  emojiAlt: string;
-  emojiSrc: string;
+  iconAlt: string;
+  iconSrc: string;
+  iconClass?: string;
   href: string;
   actionType: "button" | "badge";
   label?: string;
@@ -25,8 +26,8 @@ const platformCards: PlatformCard[] = [
   {
     name: "Web App",
     copy: "Manage every board, search instantly, and fly with keyboard shortcuts from any desktop browser.",
-    emojiAlt: "Website emoji",
-    emojiSrc: "/emojis/apps-web-website.webp",
+    iconAlt: "Safari browser icon",
+    iconSrc: "/platform-icons/safari.svg",
     href: WEB_APP_URL,
     actionType: "button",
     label: "Open Web App",
@@ -34,8 +35,9 @@ const platformCards: PlatformCard[] = [
   {
     name: "iOS App",
     copy: "Drop photos, voice notes, or links straight from the share sheet and they appear everywhere else instantly.",
-    emojiAlt: "Smartphone emoji",
-    emojiSrc: "/emojis/apps-ios-smartphone.webp",
+    iconAlt: "Apple icon",
+    iconClass: "dark:invert",
+    iconSrc: "/platform-icons/apple.svg",
     href: APP_STORE_URL,
     actionType: "badge",
     badgeSrc: "/badges/app-store.svg",
@@ -46,8 +48,8 @@ const platformCards: PlatformCard[] = [
   {
     name: "Chrome Extension",
     copy: "Save tabs, screenshots, or selected text in a click and Teak auto-grabs the metadata for you.",
-    emojiAlt: "Puzzle piece emoji",
-    emojiSrc: "/emojis/apps-chrome-puzzle-piece.webp",
+    iconAlt: "Google Chrome icon",
+    iconSrc: "/platform-icons/chrome.svg",
     href: CHROME_STORE_URL,
     actionType: "badge",
     badgeSrc: "/badges/chrome-web-store-badge.svg",
@@ -58,8 +60,9 @@ const platformCards: PlatformCard[] = [
   {
     name: "Desktop App (macOS)",
     copy: "Install the signed native desktop app for Apple Silicon and stay current with built-in auto updates.",
-    emojiAlt: "Desktop computer emoji",
-    emojiSrc: "/emojis/apps-desktop-computer-monitor.png",
+    iconAlt: "Apple macOS icon",
+    iconClass: "dark:invert",
+    iconSrc: "/platform-icons/apple.svg",
     href: DESKTOP_DOWNLOAD_URL,
     actionType: "button",
     label: "Download for macOS",
@@ -67,8 +70,8 @@ const platformCards: PlatformCard[] = [
   {
     name: "API",
     copy: "Build on Teak with documented API routes, auth details, and practical request/response examples.",
-    emojiAlt: "Command line terminal emoji",
-    emojiSrc: "/emojis/apps-api-terminal.png",
+    iconAlt: "OpenAPI Initiative icon",
+    iconSrc: "/platform-icons/openapi.svg",
     href: API_DOCS_URL,
     actionType: "button",
     label: "View API Docs",
@@ -76,8 +79,8 @@ const platformCards: PlatformCard[] = [
   {
     name: "Raycast Extension",
     copy: "Save your clipboard, search your cards, and jump to favorites directly from Raycast.",
-    emojiAlt: "Target face emoji",
-    emojiSrc: "/emojis/home-why-target-face.webp",
+    iconAlt: "Raycast icon",
+    iconSrc: "/platform-icons/raycast.svg",
     href: RAYCAST_STORE_URL,
     actionType: "badge",
     badgeSrc: RAYCAST_INSTALL_BUTTON_URL,
@@ -98,10 +101,10 @@ const platformCards: PlatformCard[] = [
       target="_blank"
     >
       <img
-        alt={card.emojiAlt}
-        class="size-14 object-contain"
+        alt={card.iconAlt}
+        class:list={["size-14 object-contain", card.iconClass]}
         height="56"
-        src={card.emojiSrc}
+        src={card.iconSrc}
         width="56"
       />
       <div class="font-semibold">{card.name}</div>
