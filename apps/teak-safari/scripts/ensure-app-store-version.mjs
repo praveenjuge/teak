@@ -176,10 +176,17 @@ try {
   }
 
   version = await findVersion();
-  if (!version) {
+  if (version) {
+    console.log(
+      `App Store Connect macOS version ${process.env.SAFARI_VERSION} exists after conflict (${version.id}).`
+    );
+  } else if (
+    error.message.includes("cannot create a new version of the App in the current state")
+  ) {
+    console.log(
+      `App Store Connect cannot create macOS version ${process.env.SAFARI_VERSION} in the current app state. Continuing with build upload.`
+    );
+  } else {
     throw error;
   }
-  console.log(
-    `App Store Connect macOS version ${process.env.SAFARI_VERSION} exists after conflict (${version.id}).`
-  );
 }
