@@ -17,6 +17,7 @@ teak/
 │   ├── mobile/     # Expo app
 │   ├── desktop/    # Electron desktop app
 │   ├── extension/  # Browser extension (Wxt)
+│   ├── safari-extension/ # Native macOS Safari extension app
 │   ├── raycast/    # Raycast extension
 │   └── docs/       # Documentation site (Astro + Starlight)
 ├── packages/

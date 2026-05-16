@@ -21,7 +21,7 @@ permissions:
 env:
   ASC_APP_ID: "6770003409"
   APPLE_TEAM_ID: LW385M78LW
-  PROJECT_PATH: apps/teak-safari/teak-safari.xcodeproj
+  PROJECT_PATH: apps/safari-extension/teak-safari.xcodeproj
   SCHEME_NAME: teak-safari (macOS)
 
 jobs:
@@ -155,7 +155,7 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           SAFARI_VERSION: ${{ steps.version.outputs.version }}
-        run: node apps/teak-safari/scripts/ensure-app-store-version.mjs
+        run: node apps/safari-extension/scripts/ensure-app-store-version.mjs
 
       - name: Archive Teak for Safari
         if: steps.check.outputs.should_run == 'true'

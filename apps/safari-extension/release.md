@@ -1,7 +1,12 @@
 # Teak for Safari Release Process
 
-The Safari extension is a macOS-only Mac App Store build. It shares the same
-version train as the desktop and Chrome extension releases.
+The Safari extension source lives in `apps/safari-extension/`. It is a
+macOS-only Mac App Store build and shares the same version train as the desktop
+and Chrome extension releases.
+
+The Xcode project and Apple identifiers intentionally still use `teak-safari`
+names because they are tied to App Store Connect, signing, App Groups, native
+messaging, and keychain access.
 
 ## Automated Release
 

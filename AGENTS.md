@@ -61,6 +61,7 @@ teak/
 │   ├── mobile/      # Expo RN mobile app
 │   ├── desktop/     # Electron desktop app (React)
 │   ├── extension/   # Chrome extension (Wxt)
+│   ├── safari-extension/ # Native macOS Safari extension app
 │   ├── raycast/     # Raycast extension
 │   └── docs/        # Documentation site (Astro + Starlight)
 ├── packages/
@@ -92,6 +93,7 @@ teak/
 - **Mobile (apps/mobile/)**: `app/(auth)/`, `app/(tabs)/(home)/|add/|settings/`, `_layout.tsx`; components (Expo UI, `CardItem`, `CardsGrid`, `CardPreviewSheet`, `ErrorBoundary`, `Logo`); `lib/hooks`, `lib/share`, `lib/auth-client.ts`, `lib/recording.ts`; `package.json`.
 - **Desktop (apps/desktop/)**: Electron app with React frontend; `src/main/` for Electron main process; `src/preload/` for context bridge; `src/` for React renderer components; `src/pages/`, `src/hooks/`, `src/components/`, `src/lib/`; `forge.config.ts`, `vite.main.config.ts`, `vite.preload.config.ts`, `vite.renderer.config.ts`, `electron-builder.config.ts`.
 - **Extension (apps/extension/)**: Wxt-based Chrome extension; `entrypoints/background.ts`, `entrypoints/content.ts`, `entrypoints/content/`, `entrypoints/popup/`; hooks (`useAutoSaveUrl`, `useContextMenuSave`, `useWebAppSession`); types (`contextMenu.ts`, `messages.ts`, `social.ts`); `utils/`, `lib/`, `scripts/`; `style.css`; assets in `public/`; `wxt.config.ts`; `package.json`; `tsconfig.json`.
+- **Safari Extension (apps/safari-extension/)**: Native macOS Safari Web Extension app for the Mac App Store. Keep Apple identifiers such as `com.praveenjuge.teak-safari`, the App Group, native messaging id, and keychain service stable unless intentionally creating a new App Store identity.
 - **Raycast (apps/raycast/)**: Raycast extension with commands (`quick-save`, `save-clipboard-url`, `save-current-browser-tab`, `search-cards`, `favorites`), AI tools (`search-cards`, `get-card`, `save-card`), API client helpers, and extension metadata/changelog.
 - **API (apps/api/)**: Hono-based API gateway with REST routes (`src/routes/rest.ts`) and MCP routes (`src/routes/mcp.ts`); uses `@hono/mcp` + `@modelcontextprotocol/sdk`; source in `src/index.ts` and runtime entrypoint `src/server.ts`.
 - **Backend (packages/convex/)**: directories `_generated/`, `workflows/`, `ai/`, `card/`, `client/`, `linkMetadata/`, `migrations/`, `packages/`, `shared/`, `storage/`, `types/`; key files `billing.ts`, `admin.ts`, `schema.ts`, `cards.ts`, `auth.config.ts`, `auth.ts`, `authDesktop.ts`, `http.ts`, `apiKeys.ts`, `publicApi.ts`, `raycast.ts`, `publicApiHttp.ts`, `idempotency.ts`, `crons.ts`, `convex.config.ts`, entrypoint `index.ts`; shared utils/constants/hooks under `shared/`.
@@ -176,6 +178,11 @@ To publish a new extension release:
 Required GitHub secrets: `CHROME_EXTENSION_ID`, `CHROME_CLIENT_ID`, `CHROME_CLIENT_SECRET`, `CHROME_REFRESH_TOKEN`. See `apps/extension/release.md` for how to generate them.
 
 Only the Chrome Web Store is automated today. There is no Firefox / Edge publishing step.
+
+## Safari Extension Release Process
+
+Follow `apps/safari-extension/release.md`. Keep Apple-facing identifiers stable
+unless intentionally creating a new App Store identity.
 
 <!-- convex-ai-start -->
 
