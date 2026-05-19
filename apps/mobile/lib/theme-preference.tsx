@@ -7,40 +7,27 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Appearance, type ColorSchemeName, useColorScheme } from "react-native";
+import { Appearance, useColorScheme } from "react-native";
 import {
   loadThemePreference,
   persistThemePreference,
   type ThemePreference,
 } from "@/lib/theme-preference-storage";
+import {
+  applyAppearancePreference,
+  type ResolvedThemeScheme,
+  resolveThemeScheme,
+} from "./theme-preference-native";
 
 interface ThemePreferenceContextValue {
   isLoaded: boolean;
   preference: ThemePreference;
-  resolvedScheme: Exclude<ColorSchemeName, null>;
+  resolvedScheme: ResolvedThemeScheme;
   setPreference: (preference: ThemePreference) => void;
 }
 
 const ThemePreferenceContext =
   createContext<ThemePreferenceContextValue | null>(null);
-
-const resolveScheme = (
-  preference: ThemePreference,
-  systemScheme: ColorSchemeName
-): Exclude<ColorSchemeName, null> => {
-  if (preference === "system") {
-    return systemScheme ?? "light";
-  }
-  return preference;
-};
-
-const applyAppearancePreference = (preference: ThemePreference) => {
-  if (preference === "system") {
-    Appearance.setColorScheme(null as any);
-    return;
-  }
-  Appearance.setColorScheme(preference);
-};
 
 export function ThemePreferenceProvider({
   children,
@@ -57,7 +44,7 @@ export function ThemePreferenceProvider({
       const stored = await loadThemePreference();
       if (isMounted && stored) {
         setPreferenceState(stored);
-        applyAppearancePreference(stored);
+        applyAppearancePreference(stored, Appearance);
       }
       if (isMounted) {
         setIsLoaded(true);
@@ -70,8 +57,12 @@ export function ThemePreferenceProvider({
   }, []);
 
   useEffect(() => {
-    applyAppearancePreference(preference);
-  }, [preference]);
+    if (!isLoaded) {
+      return;
+    }
+
+    applyAppearancePreference(preference, Appearance);
+  }, [isLoaded, preference]);
 
   const setPreference = useCallback((next: ThemePreference) => {
     setPreferenceState(next);
@@ -79,7 +70,7 @@ export function ThemePreferenceProvider({
   }, []);
 
   const resolvedScheme = useMemo(
-    () => resolveScheme(preference, systemScheme),
+    () => resolveThemeScheme(preference, systemScheme),
     [preference, systemScheme]
   );
 

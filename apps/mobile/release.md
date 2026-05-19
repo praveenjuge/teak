@@ -16,9 +16,17 @@ This refreshes `store.config.json` with the current state from App Store Connect
 
 Open `apps/mobile/store.config.json` and update only what is needed:
 
-- **`apple.version`** — bump to the next release version. It must match `apps/mobile/app.json` → `expo.version` (bump that too if it is behind).
+- **`apple.version`** — bump to the next release version. Prefer a patch bump from the root `package.json` version unless the user asks for a different version. It must match `apps/mobile/app.json` → `expo.version`.
 - **`apple.info.en-US.releaseNotes`** — rewrite only if there are user-visible changes since the last shipped version.
 - Other fields (`description`, `keywords`, `promoText`, `subtitle`, `review`, `categories`, `advisory`, URLs) — leave unchanged unless the user explicitly asked for a copy update.
+
+If the root `package.json` version changes for the release, keep every workspace package version in sync in the same edit:
+
+```bash
+rg '"version": "' package.json apps/*/package.json packages/*/package.json apps/mobile/app.json apps/mobile/store.config.json
+```
+
+All repo package versions, `apps/mobile/app.json` → `expo.version`, and `apps/mobile/store.config.json` → `apple.version` should report the same release version before metadata is pushed.
 
 ### Writing release notes from commits
 
@@ -52,7 +60,7 @@ bun run build:local
 
 This runs `eas build --platform ios --local` and produces a signed IPA in the working directory.
 
-## 5. Submit the IPA
+## 5. Upload the IPA to App Store Connect
 
 ```bash
 bun run build:submit
@@ -60,33 +68,69 @@ bun run build:submit
 
 This runs `eas submit --platform ios`. Select the IPA that was just built in the previous step when prompted. The submission uses `submit.production.ios.metadataPath` from `eas.json` (which points back to `store.config.json`) so the release notes and version ride along with the binary.
 
+When prompted for the binary, choose **Provide a path to a local app binary file** and paste the newest IPA from `apps/mobile/`:
+
+```bash
+ls -lh build-*.ipa | tail
+```
+
+## 6. Submit the uploaded build for App Review
+
+```bash
+bun run review:submit
+```
+
+This uses the App Store Connect API to find the iOS version in `store.config.json`, wait for a processed build for that version, attach the build to the version if needed, create a review submission, add the app version, and submit it for review.
+
+Required environment:
+
+- `APPLE_API_ISSUER`
+- `APPLE_API_KEY_ID`
+- `APPLE_API_KEY_PATH` or `APPLE_API_KEY_P8`
+
+For local releases, these can live in `apps/mobile/.env.local`, with the private key stored under `apps/mobile/.secrets/`. Both paths are ignored by git. The review submit script loads `.env.local` automatically.
+
+Optional environment:
+
+- `ASC_APP_ID` — defaults to `submit.production.ios.ascAppId` in `eas.json`.
+- `ASC_VERSION` — defaults to `apple.version` in `store.config.json`.
+- `ASC_BUILD_NUMBER` — use only when you need to submit a specific processed build number.
+- `ASC_BUILD_POLL_TIMEOUT_MS` — defaults to 15 minutes.
+- `ASC_BUILD_POLL_INTERVAL_MS` — defaults to 30 seconds.
+
 ## Quick reference
 
-| Step | Command                  | What it does                                   |
-| ---- | ------------------------ | ---------------------------------------------- |
-| 1    | `bun run metadata:pull`  | Pull current App Store metadata to local file. |
-| 2    | edit `store.config.json` | Bump version, update release notes if needed.  |
-| 3    | `bun run metadata:push`  | Sync local metadata to App Store Connect.      |
-| 4    | `bun run build:local`    | Build signed IPA locally via EAS.              |
-| 5    | `bun run build:submit`   | Submit the built IPA to App Store Connect.     |
+| Step | Command                  | What it does                                        |
+| ---- | ------------------------ | --------------------------------------------------- |
+| 1    | `bun run metadata:pull`  | Pull current App Store metadata to local file.      |
+| 2    | edit `store.config.json` | Bump version, update release notes if needed.       |
+| 3    | `bun run metadata:push`  | Sync local metadata to App Store Connect.           |
+| 4    | `bun run build:local`    | Build signed IPA locally via EAS.                   |
+| 5    | `bun run build:submit`   | Upload the built IPA to App Store Connect.          |
+| 6    | `bun run review:submit`  | Add the version/build to App Review and submit it.  |
 
-All four scripts are defined in `apps/mobile/package.json`.
+All release scripts are defined in `apps/mobile/package.json`.
 
 ## Agent notes
 
-When an automated agent runs this process, complete all five steps in one pass. Do not stop between `metadata:push`, `build:local`, and `build:submit` to ask for confirmation. The user already signaled intent to ship when they asked you to run the release, and pausing mid-flight leaves the App Store version metadata out of sync with the binary.
+When an automated agent runs this process, complete the metadata, build, and upload steps in one pass. Do not stop between `metadata:push`, `build:local`, and `build:submit` to ask for confirmation. The user already signaled intent to ship when they asked you to run the release, and pausing mid-flight leaves the App Store version metadata out of sync with the binary.
 
 Specifically:
 
 - Do not pause because `apple.release.automaticRelease` is `true`. That setting is deliberate — approved builds ship to users automatically, and that is the intended behavior.
 - Do not pause because a build takes a long time. Run it and wait for it to finish.
 - Do stop only if an actual step fails (non-zero exit from the release scripts, signing error, binary upload rejected, etc.). Report the failure and let the user decide next steps.
+- Run `bun run review:submit` only when the user explicitly asks to submit the uploaded build for App Review.
 
 If `eas metadata:push` reports a non-fatal API mismatch (for example `gamblingAndContests` on `ageRatingDeclarations`), treat it as a warning and keep going. The version, release notes, and review info still land, and the age rating is already set on the store listing.
 
-### Handling interactive prompts in `build:local` and `build:submit`
+### Handling interactive prompts in release commands
 
-The EAS CLI prompts for interactive input during the build and submit steps. These prompts require a real terminal with stdin attached. **Use `control_bash_process` (start action) to run these commands as background processes**, then tell the user to complete the interactive prompts in their terminal.
+The metadata, build, and submit scripts may prompt for interactive input. Run them in an attached terminal session so prompts can be answered directly.
+
+The typical prompt during `bun run metadata:pull`:
+
+1. Overwrite `store.config.json` → Answer **Y** after confirming there are no local metadata edits you still need.
 
 The typical prompts during `bun run build:local`:
 
@@ -95,7 +139,11 @@ The typical prompts during `bun run build:local`:
 3. "Would you like to reuse the original profile?" → Answer **Y**
 4. Same flow repeats for the share extension target
 
-After the build completes, `bun run build:submit` will prompt to select the IPA file.
+The typical prompts during `bun run build:submit`:
 
-**Do not attempt to pipe input or use `echo` to answer these prompts** — it does not work reliably with EAS CLI. Instead, tell the user to run steps 4 and 5 directly in their terminal after you complete steps 1–3 programmatically.
+1. "What would you like to submit?" → Choose **Provide a path to a local app binary file**
+2. IPA path → Paste the newest `apps/mobile/build-*.ipa`
 
+**Do not pipe input with `echo`** — it does not work reliably with EAS CLI.
+
+If `build:local` prints an `expo-doctor` warning for SDK patch-version drift but continues, capture the warning and keep watching the build. Treat it as a release blocker only if the command exits non-zero or EAS stops before producing an IPA.

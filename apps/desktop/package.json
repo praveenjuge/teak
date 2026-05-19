@@ -2,7 +2,7 @@
   "name": "@teak/desktop",
   "productName": "Teak",
   "private": true,
-  "version": "1.0.41",
+  "version": "1.0.42",
   "type": "module",
   "main": ".vite/build/main.js",
   "scripts": {

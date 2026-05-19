@@ -1,6 +1,6 @@
 {
   "name": "@teak/mobile",
-  "version": "1.0.41",
+  "version": "1.0.42",
   "main": "expo-router/entry",
   "scripts": {
     "build": "expo export --platform web",
@@ -14,7 +14,8 @@
     "build:local": "eas build --platform ios --local",
     "build:submit": "eas submit --platform ios",
     "metadata:pull": "eas metadata:pull",
-    "metadata:push": "eas metadata:push"
+    "metadata:push": "eas metadata:push",
+    "review:submit": "node scripts/submit-app-review.mjs"
   },
   "dependencies": {
     "@better-auth/expo": "1.6.11",
@@ -47,6 +48,7 @@
     "expo-splash-screen": "~55.0.21",
     "expo-status-bar": "~55.0.6",
     "expo-symbols": "~55.0.8",
+    "expo-system-ui": "~55.0.18",
     "expo-video": "~55.0.17",
     "expo-web-browser": "~55.0.16",
     "react": "19.2.6",

@@ -1,5 +1,10 @@
 import { describe, expect, mock, test } from "bun:test";
 import {
+  type AppearancePreferenceApi,
+  applyAppearancePreference,
+  resolveThemeScheme,
+} from "../../lib/theme-preference-native";
+import {
   isThemePreference,
   loadThemePreference,
   persistThemePreference,
@@ -99,5 +104,40 @@ describe("theme-preference-storage", () => {
     await expect(
       persistThemePreference("system", storage)
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("theme-preference-native", () => {
+  test("resolves system preference from the native color scheme", () => {
+    expect(resolveThemeScheme("system", "dark")).toBe("dark");
+    expect(resolveThemeScheme("system", "light")).toBe("light");
+    expect(resolveThemeScheme("system", "unspecified")).toBe("light");
+  });
+
+  test("explicit preferences override the native color scheme", () => {
+    expect(resolveThemeScheme("dark", "light")).toBe("dark");
+    expect(resolveThemeScheme("light", "dark")).toBe("light");
+  });
+
+  test("applies system mode as the native automatic preference", () => {
+    const setColorScheme = mock<AppearancePreferenceApi["setColorScheme"]>(
+      () => {}
+    );
+
+    applyAppearancePreference("system", { setColorScheme });
+
+    expect(setColorScheme).toHaveBeenCalledWith("unspecified");
+  });
+
+  test("applies explicit preferences as native appearance overrides", () => {
+    const setColorScheme = mock<AppearancePreferenceApi["setColorScheme"]>(
+      () => {}
+    );
+
+    applyAppearancePreference("light", { setColorScheme });
+    applyAppearancePreference("dark", { setColorScheme });
+
+    expect(setColorScheme).toHaveBeenNthCalledWith(1, "light");
+    expect(setColorScheme).toHaveBeenNthCalledWith(2, "dark");
   });
 });

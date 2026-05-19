@@ -1,7 +1,7 @@
 {
   "configVersion": 0,
   "apple": {
-    "version": "1.0.27",
+    "version": "1.0.42",
     "copyright": "Praveen Juge. All rights reserved.",
     "release": {
       "automaticRelease": true
@@ -18,7 +18,7 @@
           "creative",
           "save"
         ],
-        "releaseNotes": "IMPROVED: Refined typography with a rounded font throughout the app for a softer, more cohesive look.\nIMPROVED: Tapping anywhere on a card row now opens the preview, not just the text.\nIMPROVED: Redesigned audio recorder with a cleaner, minimal layout.",
+        "releaseNotes": "FIXED: Auto, light, and dark appearance choices now stay consistent across the mobile app after closing and reopening Teak.",
         "marketingUrl": "https://teakvault.com",
         "promoText": "Capture, organize, and access your creative inspiration anywhere.",
         "supportUrl": "https://teakvault.com/docs",
