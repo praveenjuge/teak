@@ -1,43 +1,134 @@
 # Teak for Safari Release Process
 
-The Safari extension source lives in `apps/safari-extension/`. It is a
-macOS-only Mac App Store build and shares the same version train as the desktop
-and Chrome extension releases.
+Use this when the user asks to release Teak for Safari.
 
-The Xcode project and Apple identifiers intentionally still use `teak-safari`
-names because they are tied to App Store Connect, signing, App Groups, native
-messaging, and keychain access.
+Teak for Safari is the macOS Safari extension app in `apps/safari-extension/`
+and ships through App Store Connect app `6770003409`. The release version comes
+from the root `package.json`.
 
-## Automated Release
+## Agent Rule
 
-1. Bump the `version` field in every tracked `package.json` across the
-   monorepo.
-2. Commit and push the version bump.
-3. Create and push a matching tag:
+When the user says to release a Safari version, treat that as approval to:
 
-   ```bash
-   git tag v<version>
-   git push origin v<version>
-   ```
+1. Bump every tracked `package.json` to the next patch version.
+2. Commit the release change.
+3. Push `main`.
+4. Create and push the matching `v<version>` tag.
+5. Wait for the Safari GitHub Action to finish.
+6. Update the App Store version with the correct user-facing release notes.
+7. Attach the newest processed build if needed.
+8. Add the version for review and submit it to App Review.
 
-The `Safari Extension Release` workflow runs on that tag. It verifies every
-tracked app/package version matches the tag, creates or reuses the matching
-macOS version in App Store Connect, archives `Teak for Safari`, exports a Mac
-App Store package, validates it, uploads it to App Store Connect, and attaches
-the uploaded package to the GitHub Release.
+Stop only for real blockers: failed checks, failed GitHub Action, Apple
+login/2FA, missing secrets, missing processed build, or App Store Connect
+validation errors.
 
-The workflow intentionally stops before submitting the version for App Review.
-After Apple finishes processing the uploaded build, choose the build in App
-Store Connect and submit it manually.
+## Release Steps
 
-## Required GitHub Secrets
+### 1. Bump versions
 
-These are already shared with the Apple release workflows:
+Patch-bump every tracked `package.json` in the monorepo:
 
-- `APPLE_API_ISSUER`
-- `APPLE_API_KEY_ID`
-- `APPLE_API_KEY_P8`
-- `APPLE_CERTIFICATE_BASE64`
-- `APPLE_CERTIFICATE_PASSWORD`
+```bash
+next="$(node -e "const v=require('./package.json').version.split('.').map(Number); v[2]+=1; console.log(v.join('.'))")"
+NEXT_VERSION="$next" node - <<'NODE'
+const fs = require('fs');
+const { execSync } = require('child_process');
+const next = process.env.NEXT_VERSION;
+for (const file of execSync("git ls-files 'package.json' 'apps/*/package.json' 'packages/*/package.json'", { encoding: 'utf8' }).trim().split('\\n')) {
+  const json = JSON.parse(fs.readFileSync(file, 'utf8'));
+  json.version = next;
+  fs.writeFileSync(file, `${JSON.stringify(json, null, 2)}\\n`);
+}
+NODE
+```
 
-The App Store Connect app id is stored in the workflow as `6770003409`.
+Then confirm:
+
+```bash
+rg '"version": "' package.json apps/*/package.json packages/*/package.json
+```
+
+All versions must match.
+
+### 2. Write App Store release notes
+
+Review user-visible changes since the last Safari release:
+
+```bash
+git log --oneline "$(git describe --tags --abbrev=0)"..HEAD -- apps/safari-extension packages/convex apps/web
+```
+
+Write short App Store release notes for the macOS version. Keep them marketing
+and user-facing only. Do not mention code, frameworks, build tooling, App Store
+automation, signing, tests, backend services, tokens, App Groups, native
+messaging, keychain storage, or permissions.
+
+If there are no user-visible Safari changes, use:
+
+```text
+IMPROVED: Small fixes and polish to keep saving pages from Safari smooth and reliable.
+```
+
+### 3. Validate
+
+Run:
+
+```bash
+bun run pre-commit
+xcodebuild -list -project apps/safari-extension/teak-safari.xcodeproj
+```
+
+### 4. Commit, push, and tag
+
+Use a conventional commit:
+
+```bash
+version="$(node -p "require('./package.json').version")"
+git add package.json apps/*/package.json packages/*/package.json
+git commit -m "chore: release v$version"
+git push origin main
+git tag "v$version"
+git push origin "v$version"
+```
+
+### 5. Wait for GitHub Actions
+
+Watch the Safari release workflow until it reaches a terminal state:
+
+```bash
+gh run list --workflow safari-extension-release.yml --limit 5
+gh run watch <run-id> --exit-status
+```
+
+The workflow uploads the Mac App Store package to App Store Connect and attaches
+`teak-safari-<version>-mac-app-store.pkg` to the GitHub Release.
+
+### 6. Submit in App Store Connect
+
+Open:
+
+```text
+https://appstoreconnect.apple.com/apps/6770003409/distribution/macos/version/inflight
+```
+
+Before submitting:
+
+- Set the version's release notes to the user-facing notes from step 2.
+- Confirm the newest processed build for this version is selected.
+- Confirm the screenshots are still present.
+- Keep release type as manual unless the user asks for automatic release.
+- Click **Add for Review**.
+- Resolve any validation errors.
+- Open **App Review** and submit the item.
+
+If App Store Connect says **Newer Build Available**, cancel the prompt, remove
+the older selected build, attach the newest processed build, save, and submit
+again.
+
+## Constants
+
+- App Store Connect app id: `6770003409`
+- macOS version page:
+  `https://appstoreconnect.apple.com/apps/6770003409/distribution/macos/version/inflight`
+- Privacy policy: `https://teakvault.com/docs/privacy-policy/`
