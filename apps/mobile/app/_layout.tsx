@@ -92,12 +92,20 @@ function RootLayoutContent() {
 }
 
 function RootNavigator() {
-  const { isLoading, isAuthenticated } = useAuthBootstrap();
+  const { isLoading, isAuthenticated, routeState } = useAuthBootstrap();
 
   if (isLoading) {
     return (
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="loading" />
+      </Stack>
+    );
+  }
+
+  if (routeState === "offline") {
+    return (
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="offline" />
       </Stack>
     );
   }

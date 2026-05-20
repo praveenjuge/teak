@@ -1,4 +1,8 @@
-export type AuthRouteState = "loading" | "authenticated" | "unauthenticated";
+export type AuthRouteState =
+  | "loading"
+  | "authenticated"
+  | "unauthenticated"
+  | "offline";
 
 export type AuthBootstrapInput = {
   hasStoredSessionCookie: boolean;
@@ -8,6 +12,7 @@ export type AuthBootstrapInput = {
   isRefreshingSession: boolean;
   isConvexLoading: boolean;
   isConvexAuthenticated: boolean;
+  isOnline: boolean;
 };
 
 export function hasStoredBetterAuthSessionCookie(cookie: string | null) {
@@ -24,6 +29,7 @@ export function getAuthRouteState({
   isRefreshingSession,
   isConvexLoading,
   isConvexAuthenticated,
+  isOnline,
 }: AuthBootstrapInput): AuthRouteState {
   if (
     hasStoredSessionCookie &&
@@ -31,6 +37,10 @@ export function getAuthRouteState({
     (isBetterAuthPending || isRefreshingSession || !hasAttemptedSessionRefresh)
   ) {
     return "loading";
+  }
+
+  if (!isOnline) {
+    return "offline";
   }
 
   if (isConvexLoading) {

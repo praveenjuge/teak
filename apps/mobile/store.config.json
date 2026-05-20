@@ -1,7 +1,7 @@
 {
   "configVersion": 0,
   "apple": {
-    "version": "1.0.42",
+    "version": "1.0.43",
     "copyright": "Praveen Juge. All rights reserved.",
     "release": {
       "automaticRelease": true
@@ -18,7 +18,7 @@
           "creative",
           "save"
         ],
-        "releaseNotes": "FIXED: Auto, light, and dark appearance choices now stay consistent across the mobile app after closing and reopening Teak.",
+        "releaseNotes": "FIXED: When your iPhone is offline, Teak now shows a clear connection screen with a retry action instead of sending you to sign in.",
         "marketingUrl": "https://teakvault.com",
         "promoText": "Capture, organize, and access your creative inspiration anywhere.",
         "supportUrl": "https://teakvault.com/docs",

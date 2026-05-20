@@ -30,6 +30,7 @@ describe("auth bootstrap", () => {
         isRefreshingSession: false,
         isConvexLoading: false,
         isConvexAuthenticated: false,
+        isOnline: true,
       })
     ).toBe("loading");
   });
@@ -44,6 +45,7 @@ describe("auth bootstrap", () => {
         isRefreshingSession: false,
         isConvexLoading: false,
         isConvexAuthenticated: false,
+        isOnline: true,
       })
     ).toBe("unauthenticated");
   });
@@ -58,6 +60,7 @@ describe("auth bootstrap", () => {
         isRefreshingSession: false,
         isConvexLoading: true,
         isConvexAuthenticated: false,
+        isOnline: true,
       })
     ).toBe("loading");
   });
@@ -72,6 +75,7 @@ describe("auth bootstrap", () => {
         isRefreshingSession: false,
         isConvexLoading: false,
         isConvexAuthenticated: true,
+        isOnline: true,
       })
     ).toBe("authenticated");
   });
@@ -86,7 +90,23 @@ describe("auth bootstrap", () => {
         isRefreshingSession: false,
         isConvexLoading: false,
         isConvexAuthenticated: false,
+        isOnline: true,
       })
     ).toBe("unauthenticated");
+  });
+
+  test("shows offline when the device has no internet", () => {
+    expect(
+      getAuthRouteState({
+        hasStoredSessionCookie: false,
+        hasBetterAuthSession: false,
+        isBetterAuthPending: false,
+        hasAttemptedSessionRefresh: true,
+        isRefreshingSession: false,
+        isConvexLoading: false,
+        isConvexAuthenticated: false,
+        isOnline: false,
+      })
+    ).toBe("offline");
   });
 });

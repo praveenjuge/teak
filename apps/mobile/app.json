@@ -2,7 +2,7 @@
   "expo": {
     "name": "Teak",
     "slug": "teak",
-    "version": "1.0.42",
+    "version": "1.0.43",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",

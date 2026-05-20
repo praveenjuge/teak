@@ -1,4 +1,5 @@
 import { useConvexAuth } from "convex/react";
+import { useNetworkState } from "expo-network";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Platform } from "react-native";
 import {
@@ -23,6 +24,7 @@ function getStoredAuthCookie() {
 export function useAuthBootstrap() {
   const { isLoading: isConvexLoading, isAuthenticated: isConvexAuthenticated } =
     useConvexAuth();
+  const networkState = useNetworkState();
   const { data: session, isPending: isBetterAuthPending } =
     authClient.useSession();
   const hasBetterAuthSession = Boolean(session?.session?.id);
@@ -34,6 +36,9 @@ export function useAuthBootstrap() {
   const hasStoredSessionCookie =
     Platform.OS !== "web" &&
     hasStoredBetterAuthSessionCookie(getStoredAuthCookie());
+  const isOnline =
+    networkState.isInternetReachable !== false &&
+    networkState.isConnected !== false;
 
   useEffect(() => {
     if (
@@ -74,6 +79,7 @@ export function useAuthBootstrap() {
     isRefreshingSession,
     isConvexLoading,
     isConvexAuthenticated,
+    isOnline,
   });
 
   useEffect(() => {
@@ -90,6 +96,7 @@ export function useAuthBootstrap() {
       isRefreshingSession,
       isConvexLoading,
       isConvexAuthenticated,
+      isOnline,
     };
     const key = JSON.stringify(diagnostics);
     if (diagnosticKeyRef.current === key) {
@@ -106,6 +113,7 @@ export function useAuthBootstrap() {
     isRefreshingSession,
     isConvexLoading,
     isConvexAuthenticated,
+    isOnline,
   ]);
 
   return useMemo(
