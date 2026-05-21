@@ -61,6 +61,9 @@ const resolveEnvironment = (): string =>
 const resolveRelease = (): string | undefined =>
   process.env.SENTRY_RELEASE ?? process.env.VERCEL_GIT_COMMIT_SHA;
 
+const resolveDsn = (): string | undefined =>
+  (process.env.SENTRY_DSN ?? process.env.SENTRY_API_DSN)?.trim();
+
 const buildTags = async (args: BusinessEventArgs) => ({
   event: args.event,
   surface: args.surface ?? "convex",
@@ -90,7 +93,7 @@ export const captureBusinessEvent = internalAction({
     surface: v.optional(v.string()),
   },
   handler: async (_ctx, args) => {
-    const rawDsn = process.env.SENTRY_BUSINESS_EVENTS_DSN?.trim();
+    const rawDsn = resolveDsn();
     if (!rawDsn) {
       return { sent: false, reason: "missing_dsn" as const };
     }

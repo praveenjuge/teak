@@ -1,16 +1,19 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 
-const originalDsn = process.env.SENTRY_BUSINESS_EVENTS_DSN;
+const originalDefaultDsn = process.env.SENTRY_DSN;
+const originalApiDsn = process.env.SENTRY_API_DSN;
 const originalFetch = globalThis.fetch;
 
 afterEach(() => {
-  process.env.SENTRY_BUSINESS_EVENTS_DSN = originalDsn;
+  process.env.SENTRY_DSN = originalDefaultDsn;
+  process.env.SENTRY_API_DSN = originalApiDsn;
   globalThis.fetch = originalFetch;
 });
 
 describe("sentry business events", () => {
   test("skips sending when business event dsn is missing", async () => {
-    process.env.SENTRY_BUSINESS_EVENTS_DSN = "";
+    process.env.SENTRY_DSN = "";
+    process.env.SENTRY_API_DSN = "";
     const { captureBusinessEvent } = await import("../sentry");
     const handler =
       (captureBusinessEvent as any).handler ?? captureBusinessEvent;
@@ -21,8 +24,7 @@ describe("sentry business events", () => {
   });
 
   test("sends sanitized business event envelopes", async () => {
-    process.env.SENTRY_BUSINESS_EVENTS_DSN =
-      "https://public@example.ingest.sentry.io/123";
+    process.env.SENTRY_DSN = "https://public@example.ingest.sentry.io/123";
 
     let capturedBody = "";
     globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
