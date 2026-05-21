@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { json } from "./http.js";
 
 const DEFAULT_PROXY_ERROR = "Failed to reach upstream API";
@@ -126,12 +127,24 @@ export const proxyToConvex = async (request: Request): Promise<Response> => {
       : await request.arrayBuffer();
 
   try {
-    const upstreamResponse = await fetch(upstreamUrl, {
-      method: request.method,
-      headers,
-      body,
-      signal: abortController.signal,
-    });
+    const upstreamResponse = await Sentry.startSpan(
+      {
+        name: `${request.method} Convex upstream`,
+        op: "http.client",
+        attributes: {
+          "http.request.method": request.method,
+          "server.address": new URL(upstreamUrl).host,
+          "url.path": new URL(upstreamUrl).pathname,
+        },
+      },
+      () =>
+        fetch(upstreamUrl, {
+          method: request.method,
+          headers,
+          body,
+          signal: abortController.signal,
+        })
+    );
 
     if (request.method === "HEAD" || upstreamResponse.status === 204) {
       return new Response(null, {
@@ -172,14 +185,26 @@ export const proxyToConvex = async (request: Request): Promise<Response> => {
       status: upstreamResponse.status,
       headers: buildClientResponseHeaders(upstreamResponse.headers),
     });
-  } catch {
+  } catch (error) {
     if (abortController.signal.aborted) {
+      Sentry.captureException(error, {
+        tags: {
+          code: "UPSTREAM_TIMEOUT",
+          surface: "api",
+        },
+      });
       return json(504, {
         code: "UPSTREAM_TIMEOUT",
         error: "Upstream request timed out",
       });
     }
 
+    Sentry.captureException(error, {
+      tags: {
+        code: "UPSTREAM_UNAVAILABLE",
+        surface: "api",
+      },
+    });
     return json(502, {
       code: "UPSTREAM_UNAVAILABLE",
       error: DEFAULT_PROXY_ERROR,

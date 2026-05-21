@@ -1,12 +1,14 @@
 import "dotenv/config";
 import { serve } from "@hono/node-server";
 import app from "./index.js";
+import { sentryMetricsRecorder } from "./sentry.js";
 import { resolveTeakDevApiUrl } from "./shared/devUrl.js";
 import { configureMetrics } from "./shared/metrics.js";
 
 configureMetrics({
   app: "api",
   env: process.env.NODE_ENV ?? "development",
+  recorder: sentryMetricsRecorder,
 });
 
 const DEFAULT_PORT = 8787;

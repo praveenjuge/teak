@@ -82,6 +82,7 @@ describe("card/defaultCards.ts", () => {
         }),
         insert: mock().mockResolvedValue("c1"),
       },
+      scheduler: { runAfter: mock() },
     } as any;
 
     const handler =
@@ -89,6 +90,7 @@ describe("card/defaultCards.ts", () => {
     const result = await handler(ctx, { userId: "u1" });
 
     expect(ctx.db.insert).toHaveBeenCalledTimes(3);
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
     expect(result).toEqual({ created: true, count: 3 });
   });
 

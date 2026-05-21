@@ -26,6 +26,7 @@ import {
   FREE_TIER_LIMIT,
 } from "./shared/constants";
 import { rateLimiter } from "./shared/rateLimits";
+import { scheduleBusinessEvent } from "./sentry";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID!;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET!;
@@ -85,10 +86,21 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
           internal.card.defaultCards.createDefaultCardsForUser,
           { userId: user._id }
         );
+        await scheduleUserCreatedBusinessEvent(ctx, user._id);
       },
     },
   },
 });
+
+export const scheduleUserCreatedBusinessEvent = (
+  ctx: Parameters<typeof scheduleBusinessEvent>[0],
+  userId: string
+) =>
+  scheduleBusinessEvent(ctx, {
+    event: "user.created",
+    userId,
+    surface: "auth",
+  });
 
 export const { getAuthUser } = authComponent.clientApi();
 export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();

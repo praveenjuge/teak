@@ -25,6 +25,7 @@
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/native": "^7.1.33",
+    "@sentry/react-native": "^8.11.1",
     "@teak/convex": "workspace:*",
     "better-auth": "1.6.11",
     "convex": "^1.39.0",
@@ -69,6 +70,7 @@
     }
   },
   "devDependencies": {
+    "@sentry/cli": "^3.4.2",
     "@types/react": "~19.2.14",
     "typescript": "~5.9.2"
   }

@@ -63,6 +63,7 @@ describe("card/createCard.ts", () => {
         }),
         insert: mock().mockResolvedValue("c1"),
       },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
     const handler = (createCard as any).handler ?? createCard;
@@ -80,6 +81,17 @@ describe("card/createCard.ts", () => {
       })
     );
     expect(workflow.start).toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(
+      0,
+      expect.anything(),
+      expect.objectContaining({
+        event: "card.created",
+        cardId: "c1",
+        cardType: "quote",
+        surface: "unknown",
+        userId: "u1",
+      })
+    );
   });
 
   test("sets metadataStatus pending for link cards", async () => {
@@ -95,6 +107,7 @@ describe("card/createCard.ts", () => {
         }),
         insert: mock().mockResolvedValue("c2"),
       },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
     const handler = (createCard as any).handler ?? createCard;
@@ -132,6 +145,7 @@ describe("card/createCard.ts", () => {
         }),
         insert: mock().mockResolvedValue("c3"),
       },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
     const handler = (createCard as any).handler ?? createCard;
@@ -166,6 +180,7 @@ describe("card/createCard.ts", () => {
         }),
         insert: mock().mockResolvedValue("c4"),
       },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
     const handler = (createCard as any).handler ?? createCard;

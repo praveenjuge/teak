@@ -721,22 +721,27 @@ export const executeBulkCardsForUser = internalMutation({
         switch (args.operation as BulkOperation) {
           case "create": {
             assertBulkCreatePayload(payload);
-            const cardId = await createCardForUserHandler(ctx, args.userId, {
-              content:
-                typeof payload.content === "string" ? payload.content : "",
-              url: typeof payload.url === "string" ? payload.url : undefined,
-              notes:
-                typeof payload.notes === "string" ? payload.notes : undefined,
-              tags: Array.isArray(payload.tags)
-                ? payload.tags.filter(
-                    (value): value is string => typeof value === "string"
-                  )
-                : undefined,
-              type:
-                typeof payload.url === "string" && payload.url.trim()
-                  ? "link"
+            const cardId = await createCardForUserHandler(
+              ctx,
+              args.userId,
+              {
+                content:
+                  typeof payload.content === "string" ? payload.content : "",
+                url: typeof payload.url === "string" ? payload.url : undefined,
+                notes:
+                  typeof payload.notes === "string" ? payload.notes : undefined,
+                tags: Array.isArray(payload.tags)
+                  ? payload.tags.filter(
+                      (value): value is string => typeof value === "string"
+                    )
                   : undefined,
-            });
+                type:
+                  typeof payload.url === "string" && payload.url.trim()
+                    ? "link"
+                    : undefined,
+              },
+              { source: "api" }
+            );
 
             results.push({
               index,

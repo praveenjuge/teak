@@ -12,6 +12,11 @@ import {
 } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
 import { cardTypeValidator, colorValidator } from "../schema";
+import {
+  type CardCreationSource,
+  trackCardCreated,
+} from "../shared/metrics";
+import { scheduleBusinessEvent } from "../sentry";
 import { workflow } from "../workflows/manager";
 import {
   buildInitialProcessingStatus,
@@ -61,7 +66,8 @@ type CreateCardArgs = {
 export const createCardForUserHandler = async (
   ctx: MutationCtx,
   userId: string,
-  args: CreateCardArgs
+  args: CreateCardArgs,
+  options: { source?: CardCreationSource } = {}
 ): Promise<Id<"cards">> => {
   // Check rate limit and card count limit
   await ensureCardCreationAllowed(ctx, userId);
@@ -185,6 +191,20 @@ export const createCardForUserHandler = async (
     (internal as any)["workflows/cardProcessing"].cardProcessingWorkflow,
     { cardId }
   );
+
+  const source = options.source ?? "unknown";
+  trackCardCreated({
+    cardType,
+    source,
+    via: "server_create",
+  });
+  await scheduleBusinessEvent(ctx, {
+    event: "card.created",
+    userId,
+    cardId,
+    cardType,
+    surface: source,
+  });
 
   return cardId;
 };

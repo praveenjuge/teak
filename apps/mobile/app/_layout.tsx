@@ -13,6 +13,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { colors } from "@/constants/colors";
+import { Sentry } from "@/lib/sentry";
 import { INCOMING_SHARE_SCREEN } from "@/lib/share/constants";
 import {
   ThemePreferenceProvider,
@@ -39,13 +40,15 @@ const customDarkTheme = {
   },
 };
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <ThemePreferenceProvider>
       <RootLayoutContent />
     </ThemePreferenceProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);
 
 function RootLayoutContent() {
   const { isLoaded, resolvedScheme } = useThemePreference();

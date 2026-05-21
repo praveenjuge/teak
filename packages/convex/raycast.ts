@@ -524,7 +524,9 @@ export const quickSaveForUser = internalMutation({
       url: normalizedUrl,
     };
 
-    const cardId = await createCardForUserHandler(ctx, args.userId, createArgs);
+    const cardId = await createCardForUserHandler(ctx, args.userId, createArgs, {
+      source: "raycast",
+    });
     const card = await getCardForUserHandler(ctx, args.userId, cardId);
 
     return {
