@@ -1,9 +1,12 @@
 export const DEFAULT_TEAK_DEV_APP_URL = "http://app.teak.localhost:1355";
-export const DEFAULT_TEAK_DEV_API_URL = "http://api.teak.localhost:1355";
+export const DEFAULT_TEAK_DEV_API_URL =
+  "https://reminiscent-kangaroo-59.convex.site";
 export const DEFAULT_TEAK_DEV_DOCS_URL = "http://docs.teak.localhost:1355";
 
 export type DevUrlEnv = {
   [key: string]: unknown;
+  CONVEX_SITE_URL?: unknown;
+  NEXT_PUBLIC_CONVEX_SITE_URL?: unknown;
   TEAK_DEV_API_URL?: unknown;
   TEAK_DEV_APP_URL?: unknown;
   TEAK_DEV_DOCS_URL?: unknown;
@@ -44,7 +47,9 @@ export const resolveTeakDevAppUrl = (env: DevUrlEnv = {}): string =>
 
 export const resolveTeakDevApiUrl = (env: DevUrlEnv = {}): string =>
   resolveDevUrl(
-    env.TEAK_DEV_API_URL,
+    env.TEAK_DEV_API_URL ??
+      env.NEXT_PUBLIC_CONVEX_SITE_URL ??
+      env.CONVEX_SITE_URL,
     DEFAULT_TEAK_DEV_API_URL,
     "TEAK_DEV_API_URL"
   );

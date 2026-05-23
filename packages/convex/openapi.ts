@@ -1,4 +1,4 @@
-import { resolveTeakDevApiUrl } from "./shared/devUrl.js";
+import { resolveTeakDevApiUrl } from "./devUrls";
 
 const apiKeySecurity = [{ bearerAuth: [] }];
 
@@ -213,15 +213,6 @@ const components = {
       required: ["items"],
       type: "object",
     },
-    HealthResponse: {
-      properties: {
-        service: { type: "string" },
-        status: { type: "string" },
-        version: { type: "string" },
-      },
-      required: ["service", "status", "version"],
-      type: "object",
-    },
     DiscoveryResponse: {
       properties: {
         auth: { type: "string" },
@@ -263,21 +254,6 @@ export const openApiSpec = {
   ],
   components,
   paths: {
-    "/healthz": {
-      get: {
-        responses: {
-          200: {
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/HealthResponse" },
-              },
-            },
-            description: "Service health",
-          },
-        },
-        summary: "Health check",
-      },
-    },
     "/v1": {
       get: {
         responses: {

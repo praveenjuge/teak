@@ -2,6 +2,8 @@ import { httpRouter } from "convex/server";
 import { authComponent, createAuth, trustedOrigins } from "./auth";
 import { exchangeNativeAuthOptions, pollNativeAuthCode } from "./authNative";
 import { polar } from "./billing";
+import { mcpV1 } from "./mcp";
+import { discoveryV1, notFound, openApiJson } from "./publicApiDiscovery";
 import {
   bulkCardsV1,
   cardByIdV1,
@@ -36,7 +38,30 @@ http.route({
   handler: pollNativeAuthCode,
 });
 
-// Register public API v1 routes (used by apps/api proxy).
+http.route({
+  path: "/v1",
+  method: "GET",
+  handler: discoveryV1,
+});
+
+http.route({
+  path: "/openapi.json",
+  method: "GET",
+  handler: openApiJson,
+});
+
+http.route({
+  path: "/mcp",
+  method: "POST",
+  handler: mcpV1,
+});
+
+http.route({
+  path: "/mcp/",
+  method: "POST",
+  handler: mcpV1,
+});
+
 http.route({
   path: "/v1/cards",
   method: "GET",
@@ -96,5 +121,13 @@ http.route({
   method: "DELETE",
   handler: cardByIdV1,
 });
+
+for (const method of ["GET", "POST", "PATCH", "DELETE"] as const) {
+  http.route({
+    pathPrefix: "/",
+    method,
+    handler: notFound,
+  });
+}
 
 export default http;

@@ -16,7 +16,9 @@ describe("raycast local constants", () => {
 
   test("uses the canonical portless API URL in development", async () => {
     const { getApiBaseUrl } = await loadLocalConstants();
-    expect(getApiBaseUrl()).toBe("http://api.teak.localhost:1355/v1");
+    expect(getApiBaseUrl()).toBe(
+      "https://reminiscent-kangaroo-59.convex.site/v1",
+    );
   });
 
   test("builds local card URLs from the portless app origin", async () => {

@@ -28,6 +28,11 @@ describe("dev URL config", () => {
         TEAK_DEV_API_URL: "http://api.custom.localhost:7777/v1",
       })
     ).toBe("http://api.custom.localhost:7777");
+    expect(
+      resolveTeakDevApiUrl({
+        NEXT_PUBLIC_CONVEX_SITE_URL: "https://example.convex.site/v1",
+      })
+    ).toBe("https://example.convex.site");
   });
 
   test("recognizes localhost and .localhost development hosts", () => {
