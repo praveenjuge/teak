@@ -30,7 +30,7 @@ export default function AddScreen() {
   const router = useRouter();
 
   return (
-    <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
+    <Host style={{ flex: 1 }} useViewportSizeMeasurement>
       <List>
         <Section
           modifiers={[font({ design: "rounded", weight: "medium" })]}

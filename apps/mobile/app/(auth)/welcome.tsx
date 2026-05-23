@@ -141,7 +141,7 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
+    <Host style={{ flex: 1 }} useViewportSizeMeasurement>
       <VStack
         modifiers={[
           padding({ leading: 28, trailing: 28, top: 32, bottom: 12 }),

@@ -3,6 +3,7 @@ import {
   Text,
   TextField,
   type TextFieldRef,
+  useNativeState,
   VStack,
 } from "@expo/ui/swift-ui";
 import {
@@ -32,6 +33,7 @@ export default function AddTextScreen() {
   const [validationMessage, setValidationMessage] = useState<string | null>(
     null
   );
+  const textFieldState = useNativeState("");
   const textFieldRef = useRef<TextFieldRef>(null);
   const createCard = useCreateCard();
   const canSave = content.trim().length > 0 && !isSavingCard;
@@ -59,6 +61,7 @@ export default function AddTextScreen() {
       });
 
       void triggerSuccessHaptic();
+      setContent("");
       textFieldRef.current?.setText("");
       router.back();
     } catch (error) {
@@ -138,7 +141,6 @@ export default function AddTextScreen() {
           <TextField
             autoFocus
             axis="vertical"
-            defaultValue={content}
             modifiers={[
               font({ design: "rounded", size: 17 }),
               lineLimit({ min: 15, max: 500 }),
@@ -148,9 +150,10 @@ export default function AddTextScreen() {
                 maxWidth: 10_000,
               }),
             ]}
-            onValueChange={setContent}
+            onTextChange={setContent}
             placeholder="Enter your bookmark, URL, or note"
             ref={textFieldRef}
+            text={textFieldState}
           />
         </VStack>
       </Host>

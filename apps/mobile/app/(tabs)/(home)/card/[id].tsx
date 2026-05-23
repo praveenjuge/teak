@@ -23,7 +23,7 @@ export default function CardPreviewRoute() {
             card?.metadataTitle || card?.fileMetadata?.fileName || "Preview",
         }}
       />
-      <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
+      <Host style={{ flex: 1 }} useViewportSizeMeasurement>
         {card === undefined ? (
           <HStack alignment="center" spacing={0}>
             <Spacer />

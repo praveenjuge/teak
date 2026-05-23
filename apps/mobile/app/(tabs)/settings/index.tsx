@@ -185,7 +185,7 @@ export default function SettingsScreen() {
           headerLargeTitle: true,
         }}
       />
-      <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
+      <Host style={{ flex: 1 }} useViewportSizeMeasurement>
         <Form>
           <Section
             modifiers={[font({ design: "rounded", weight: "medium" })]}

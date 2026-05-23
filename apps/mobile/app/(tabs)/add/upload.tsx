@@ -4,7 +4,7 @@ import { UploadFileActionsSection } from "@/components/add/upload-file-actions-s
 
 export default function AddUploadScreen() {
   return (
-    <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
+    <Host style={{ flex: 1 }} useViewportSizeMeasurement>
       <List>
         <UploadFileActionsSection onSuccess={() => router.back()} />
       </List>

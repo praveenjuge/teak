@@ -140,18 +140,18 @@ export default function SignUpScreen() {
           ),
         }}
       />
-      <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
+      <Host style={{ flex: 1 }} useViewportSizeMeasurement>
         <List modifiers={[listStyle("plain"), scrollDisabled()]}>
           <LabeledContent label="Email">
             <TextField
-              onValueChange={setEmailAddress}
+              onTextChange={setEmailAddress}
               placeholder="Enter your email"
             />
           </LabeledContent>
 
           <LabeledContent label="Password">
             <SecureField
-              onValueChange={setPassword}
+              onTextChange={setPassword}
               placeholder="Enter your password (min. 8 characters)"
             />
           </LabeledContent>

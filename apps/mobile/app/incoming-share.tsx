@@ -72,7 +72,7 @@ export default function IncomingShareScreen() {
     status === "partial" || status === "error" || status === "empty";
 
   return (
-    <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
+    <Host style={{ flex: 1 }} useViewportSizeMeasurement>
       <VStack alignment="center" spacing={20}>
         <Spacer />
         <ContentUnavailableView

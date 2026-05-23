@@ -1,6 +1,6 @@
 {
   "name": "teak",
-  "version": "1.0.43",
+  "version": "1.0.44",
   "private": true,
   "packageManager": "bun@1.3.5",
   "workspaces": [
@@ -38,12 +38,12 @@
   "overrides": {
     "convex": "1.39.1",
     "convex-helpers": "0.1.118",
-    "expo-constants": "55.0.16",
-    "expo-font": "55.0.7",
-    "expo-linking": "55.0.15",
-    "expo-web-browser": "55.0.16",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
+    "expo-constants": "56.0.14",
+    "expo-font": "56.0.5",
+    "expo-linking": "56.0.11",
+    "expo-web-browser": "56.0.5",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3"
   },

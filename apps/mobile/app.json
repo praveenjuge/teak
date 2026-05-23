@@ -2,7 +2,7 @@
   "expo": {
     "name": "Teak",
     "slug": "teak",
-    "version": "1.0.43",
+    "version": "1.0.44",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -10,6 +10,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.praveenjuge.teak",
+      "deploymentTarget": "16.4",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -17,7 +18,16 @@
     },
     "plugins": [
       "expo-router",
-      "@sentry/react-native/expo",
+      "@sentry/react-native",
+      "expo-status-bar",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "buildReactNativeFromSource": true
+          }
+        }
+      ],
       [
         "expo-audio",
         {

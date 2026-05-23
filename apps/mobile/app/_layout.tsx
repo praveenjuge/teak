@@ -1,10 +1,10 @@
+import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
+import { Stack, usePathname } from "expo-router";
 import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
-} from "@react-navigation/native";
-import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
-import { Stack, usePathname } from "expo-router";
+} from "expo-router/react-navigation";
 import {
   hide as hideSplashScreen,
   preventAutoHideAsync,

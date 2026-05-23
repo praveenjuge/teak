@@ -16,7 +16,7 @@ export default function OfflineScreen() {
   }, []);
 
   return (
-    <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
+    <Host style={{ flex: 1 }} useViewportSizeMeasurement>
       <VStack alignment="center" spacing={16}>
         <Spacer />
         <ContentUnavailableView

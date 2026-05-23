@@ -202,7 +202,7 @@ const CardsGrid = memo(function CardsGrid({
     searchQuery || timeFilter ? "magnifyingglass" : "plus.circle";
 
   return (
-    <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
+    <Host style={{ flex: 1 }} useViewportSizeMeasurement>
       <PaginatedCardsList
         description={description}
         emptyIcon={emptyIcon}

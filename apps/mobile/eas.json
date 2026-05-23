@@ -17,7 +17,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "SENTRY_UPLOAD_SOURCE_MAPS": "true",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "SKIP_SIMPLE_GIT_HOOKS": "1"
       }
     }

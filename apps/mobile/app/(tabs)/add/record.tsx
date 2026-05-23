@@ -136,7 +136,7 @@ export default function AddRecordScreen() {
   return (
     <>
       <Stack.Screen options={{ title: "Record Audio" }} />
-      <Host matchContents style={{ flex: 1 }} useViewportSizeMeasurement>
+      <Host style={{ flex: 1 }} useViewportSizeMeasurement>
         <VStack
           alignment="center"
           modifiers={[padding({ horizontal: 24, vertical: 40 })]}
