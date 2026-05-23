@@ -143,7 +143,8 @@ describe("raycast request handling", () => {
     }
 
     expect(capturedUrls).toEqual([
-      "https://reminiscent-kangaroo-59.convex.site/v1/cards/search?limit=1",
+      "http://api.teak.localhost:1355/v1/cards/search?limit=1",
+      "http://127.0.0.1:1355/v1/cards/search?limit=1",
     ]);
   });
 

@@ -1,5 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import type {
   CallToolResult,
@@ -7,25 +6,13 @@ import type {
   ServerRequest,
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { httpAction } from "./_generated/server";
-import {
-  authorizePublicApiRequest,
-  errorResponse,
-  handlePublicApiRequest,
-  type PublicApiCtx,
-  json,
-} from "./publicApiHttp";
-import { trackMcpToolInvocation } from "./shared/metrics";
+import { getHeaderValue } from "../shared/http.js";
+import { trackMcpToolInvocation } from "../shared/metrics.js";
+import { executeGatewayOperation } from "../shared/proxy.js";
 
 type ToolRequestExtra = RequestHandlerExtra<ServerRequest, ServerNotification>;
-type JsonObject = Record<string, unknown>;
 
-type GatewayOperation = {
-  method: "GET" | "POST" | "PATCH" | "DELETE";
-  path: string;
-  query?: Record<string, string | number | boolean | undefined>;
-  body?: unknown;
-};
+type JsonObject = Record<string, unknown>;
 
 const MCP_UNAUTHORIZED_MESSAGE = "Missing or invalid Authorization header";
 
@@ -120,22 +107,8 @@ const errorResult = (status: number, payload: unknown): CallToolResult => {
   };
 };
 
-const getAuthorizationHeader = (extra: ToolRequestExtra): string | null => {
-  const headers = extra.requestInfo?.headers;
-  if (!headers) {
-    return null;
-  }
-
-  for (const [key, value] of Object.entries(headers)) {
-    if (key.toLowerCase() !== "authorization") {
-      continue;
-    }
-
-    return Array.isArray(value) ? value.join(", ") : (value ?? null);
-  }
-
-  return null;
-};
+const getAuthorizationHeader = (extra: ToolRequestExtra): string | null =>
+  getHeaderValue(extra.requestInfo?.headers, "authorization");
 
 type ToolHandler<TInput> = (
   input: TInput,
@@ -176,9 +149,7 @@ const instrumentToolHandler =
   };
 
 const executeToolOperation = async (
-  ctx: PublicApiCtx,
-  baseUrl: string,
-  operation: GatewayOperation,
+  operation: Parameters<typeof executeGatewayOperation>[0],
   extra: ToolRequestExtra
 ): Promise<
   { ok: true; payload: JsonObject } | { ok: false; result: CallToolResult }
@@ -194,27 +165,13 @@ const executeToolOperation = async (
     };
   }
 
-  const url = new URL(operation.path, baseUrl);
-  for (const [key, value] of Object.entries(operation.query ?? {})) {
-    if (value !== undefined) {
-      url.searchParams.set(key, String(value));
-    }
-  }
-
-  const response = await handlePublicApiRequest(
-    ctx,
-    new Request(url.toString(), {
-      method: operation.method,
-      headers: {
-        Authorization: authorization,
-        ...(operation.body === undefined
-          ? {}
-          : { "Content-Type": "application/json" }),
-      },
-      body:
-        operation.body === undefined ? undefined : JSON.stringify(operation.body),
-    })
-  );
+  const response = await executeGatewayOperation({
+    ...operation,
+    headers: {
+      ...(operation.headers ?? {}),
+      Authorization: authorization,
+    },
+  });
 
   const payload = await parseResponsePayload(response);
   if (!response.ok) {
@@ -230,11 +187,7 @@ const executeToolOperation = async (
   };
 };
 
-const registerTeakV1Tools = (
-  server: McpServer,
-  ctx: PublicApiCtx,
-  baseUrl: string
-): void => {
+const registerCreateCardTool = (server: McpServer): void => {
   server.registerTool(
     "teak_v1_create_card",
     {
@@ -245,12 +198,12 @@ const registerTeakV1Tools = (
     },
     instrumentToolHandler("teak_v1_create_card", async (input, extra) => {
       const result = await executeToolOperation(
-        ctx,
-        baseUrl,
         {
           method: "POST",
           path: "/v1/cards",
-          body: { content: input.content },
+          body: {
+            content: input.content,
+          },
         },
         extra
       );
@@ -266,7 +219,9 @@ const registerTeakV1Tools = (
       return successResult(result.payload, `Card ${status}`);
     })
   );
+};
 
+const registerSearchCardsTool = (server: McpServer): void => {
   server.registerTool(
     "teak_v1_search_cards",
     {
@@ -275,12 +230,13 @@ const registerTeakV1Tools = (
     },
     instrumentToolHandler("teak_v1_search_cards", async (input, extra) => {
       const result = await executeToolOperation(
-        ctx,
-        baseUrl,
         {
           method: "GET",
           path: "/v1/cards/search",
-          query: { q: input.q, limit: input.limit },
+          query: {
+            q: input.q,
+            limit: input.limit,
+          },
         },
         extra
       );
@@ -294,7 +250,9 @@ const registerTeakV1Tools = (
       return successResult(result.payload, `Fetched ${total} cards`);
     })
   );
+};
 
+const registerListFavoritesTool = (server: McpServer): void => {
   server.registerTool(
     "teak_v1_list_favorite_cards",
     {
@@ -305,12 +263,13 @@ const registerTeakV1Tools = (
       "teak_v1_list_favorite_cards",
       async (input, extra) => {
         const result = await executeToolOperation(
-          ctx,
-          baseUrl,
           {
             method: "GET",
             path: "/v1/cards/favorites",
-            query: { q: input.q, limit: input.limit },
+            query: {
+              q: input.q,
+              limit: input.limit,
+            },
           },
           extra
         );
@@ -325,7 +284,9 @@ const registerTeakV1Tools = (
       }
     )
   );
+};
 
+const registerUpdateCardTool = (server: McpServer): void => {
   server.registerTool(
     "teak_v1_update_card",
     {
@@ -334,8 +295,6 @@ const registerTeakV1Tools = (
     },
     instrumentToolHandler("teak_v1_update_card", async (input, extra) => {
       const result = await executeToolOperation(
-        ctx,
-        baseUrl,
         {
           method: "PATCH",
           path: `/v1/cards/${encodeURIComponent(input.cardId)}`,
@@ -356,7 +315,9 @@ const registerTeakV1Tools = (
       return successResult(result.payload, "Card updated");
     })
   );
+};
 
+const registerSetFavoriteTool = (server: McpServer): void => {
   server.registerTool(
     "teak_v1_set_card_favorite",
     {
@@ -368,12 +329,12 @@ const registerTeakV1Tools = (
     },
     instrumentToolHandler("teak_v1_set_card_favorite", async (input, extra) => {
       const result = await executeToolOperation(
-        ctx,
-        baseUrl,
         {
           method: "PATCH",
           path: `/v1/cards/${encodeURIComponent(input.cardId)}/favorite`,
-          body: { isFavorited: input.isFavorited },
+          body: {
+            isFavorited: input.isFavorited,
+          },
         },
         extra
       );
@@ -386,7 +347,9 @@ const registerTeakV1Tools = (
       return successResult(result.payload, `Card ${stateText}`);
     })
   );
+};
 
+const registerDeleteCardTool = (server: McpServer): void => {
   server.registerTool(
     "teak_v1_delete_card",
     {
@@ -398,8 +361,6 @@ const registerTeakV1Tools = (
     },
     instrumentToolHandler("teak_v1_delete_card", async (input, extra) => {
       const result = await executeToolOperation(
-        ctx,
-        baseUrl,
         {
           method: "DELETE",
           path: `/v1/cards/${encodeURIComponent(input.cardId)}`,
@@ -411,52 +372,21 @@ const registerTeakV1Tools = (
         return result.result;
       }
 
-      const payload = { status: "deleted", cardId: input.cardId };
+      const payload = {
+        status: "deleted",
+        cardId: input.cardId,
+      };
+
       return successResult(payload, `Deleted card ${input.cardId}`);
     })
   );
 };
 
-const createMcpServer = (ctx: PublicApiCtx, requestUrl: string): McpServer => {
-  const server = new McpServer({
-    name: "teak-api",
-    version: "1.0.0",
-  });
-
-  registerTeakV1Tools(server, ctx, new URL(requestUrl).origin);
-  return server;
+export const registerTeakV1Tools = (server: McpServer): void => {
+  registerCreateCardTool(server);
+  registerSearchCardsTool(server);
+  registerListFavoritesTool(server);
+  registerUpdateCardTool(server);
+  registerSetFavoriteTool(server);
+  registerDeleteCardTool(server);
 };
-
-export const mcpV1 = httpAction(async (ctx, request) => {
-  if (request.method !== "POST") {
-    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
-  }
-
-  const auth = await authorizePublicApiRequest(ctx, request);
-  if ("error" in auth) {
-    return auth.error;
-  }
-
-  const server = createMcpServer(ctx, request.url);
-  const transport = new WebStandardStreamableHTTPServerTransport({
-    sessionIdGenerator: undefined,
-    enableJsonResponse: true,
-  });
-
-  try {
-    await server.connect(transport);
-    return await transport.handleRequest(request);
-  } catch {
-    return json(500, {
-      jsonrpc: "2.0",
-      error: {
-        code: -32603,
-        message: "Internal server error",
-      },
-      id: null,
-    });
-  } finally {
-    await transport.close().catch(() => {});
-    await server.close().catch(() => {});
-  }
-});

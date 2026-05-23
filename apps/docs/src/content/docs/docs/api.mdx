@@ -8,19 +8,15 @@ Teak provides a public API at `https://api.teakvault.com/v1`.
 ## Base URLs
 
 - Production: `https://api.teakvault.com/v1`
-- Local development: your Convex site URL plus `/v1`
+- Local development: `http://api.teak.localhost:1355/v1`
 - OpenAPI: `https://api.teakvault.com/openapi.json`
-
-Production requests to `api.teakvault.com` may receive a permanent `308`
-redirect to Teak's Convex site URL. API clients should follow redirects while
-preserving the request method and headers.
 
 ## MCP Endpoint
 
 Teak also exposes a remote MCP server:
 
 - Production: `https://api.teakvault.com/mcp`
-- Local development: your Convex site URL plus `/mcp`
+- Local development: `http://api.teak.localhost:1355/mcp`
 
 See the dedicated [MCP docs](./mcp) for tool contracts and JSON-RPC examples.
 
@@ -36,10 +32,25 @@ Generate API keys in Teak Settings: `https://app.teakvault.com/settings`.
 
 ## Headers
 
+- `X-Request-Id` is returned on every gateway response.
 - `Idempotency-Key` is supported on `POST /v1/cards` and `POST /v1/cards/bulk`.
 - Rate-limited responses may include `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`, and `Retry-After`.
 
 ## Endpoints
+
+### Service Health
+
+```http
+GET /healthz
+```
+
+```json
+{
+  "status": "ok",
+  "service": "teak-api",
+  "version": "v1"
+}
+```
 
 ### API Info
 

@@ -120,12 +120,15 @@ TEAK_DEV_APP_URL=http://app.teak.localhost:1355   # Optional local override
 VITE_WEB_URL=https://app.yourdomain.com           # Desktop only; defaults to https://app.teakvault.com
 ```
 
-### Public API and MCP
+### API Gateway (`apps/api/.env`)
 
-The public REST API and MCP server are served by Convex HTTP actions on your
-Convex `.site` domain. Set `NEXT_PUBLIC_CONVEX_SITE_URL` in `apps/web` to that
-same URL, and use `TEAK_DEV_API_URL` only when you need a local override for
-development clients.
+```bash
+CONVEX_HTTP_BASE_URL=https://deployment.convex.site   # Required: Convex .site URL
+CONVEX_UPSTREAM_TIMEOUT_MS=10000                      # Optional: upstream timeout in ms (default: 10000)
+TEAK_DEV_API_URL=http://api.teak.localhost:1355      # Optional local override
+```
+
+The `CONVEX_HTTP_BASE_URL` must point to your Convex `.site` domain (the same value as `NEXT_PUBLIC_CONVEX_SITE_URL` in `apps/web`). The API gateway forwards all authenticated `/v1` and `/mcp` requests to this URL.
 
 ## Where to get the values
 

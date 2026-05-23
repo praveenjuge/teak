@@ -13,6 +13,7 @@ Teak is a personal knowledge hub designed to help creative minds effortlessly co
 teak/
 ├── apps/
 │   ├── web/        # Next.js app
+│   ├── api/        # Hono API gateway + MCP
 │   ├── mobile/     # Expo app
 │   ├── desktop/    # Electron desktop app
 │   ├── extension/  # Browser extension (Wxt)
@@ -20,7 +21,7 @@ teak/
 │   ├── raycast/    # Raycast extension
 │   └── docs/       # Documentation site (Astro + Starlight)
 ├── packages/
-│   ├── convex/     # Convex backend + public API/MCP HTTP actions
+│   ├── convex/     # Convex backend
 │   └── ui/         # Shared UI package
 ├── turbo.json      # Turborepo pipeline config
 └── package.json

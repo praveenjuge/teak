@@ -36,11 +36,6 @@ type AuthorizedUser = {
   access: "full_access";
 };
 
-export type PublicApiCtx = {
-  runMutation: (...args: any[]) => Promise<any>;
-  runQuery: (...args: any[]) => Promise<any>;
-};
-
 type AuthResult = { validated: AuthorizedUser } | { error: Response };
 type CardsQueryOptions = {
   createdAfter?: number;
@@ -63,11 +58,7 @@ type CreateCardPayload = {
 
 type CardListInclude = "content" | "metadata" | "processing";
 
-export const json = (
-  status: number,
-  body: unknown,
-  headers?: HeadersInit
-): Response =>
+const json = (status: number, body: unknown, headers?: HeadersInit): Response =>
   new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -77,7 +68,7 @@ export const json = (
     },
   });
 
-export const errorResponse = (
+const errorResponse = (
   status: number,
   code: ErrorCode,
   error: string,
@@ -309,8 +300,8 @@ const isRateLimitContentionError = (error: unknown): boolean => {
   );
 };
 
-export const authorizePublicApiRequest = async (
-  ctx: PublicApiCtx,
+const withAuthorizedUser = async (
+  ctx: any,
   request: Request
 ): Promise<AuthResult> => {
   const token = parseBearerToken(request);
@@ -726,10 +717,10 @@ const buildCreateCardResponse = (
 };
 
 const handleCreateCardRequest = async (
-  ctx: PublicApiCtx,
+  ctx: any,
   request: Request
 ): Promise<Response> => {
-  const auth = await authorizePublicApiRequest(ctx, request);
+  const auth = await withAuthorizedUser(ctx, request);
   if ("error" in auth) {
     return auth.error;
   }
@@ -808,11 +799,11 @@ const handleCreateCardRequest = async (
 };
 
 const handleCardsQueryRequest = async (
-  ctx: PublicApiCtx,
+  ctx: any,
   request: Request,
   favoritesOnly: boolean
 ): Promise<Response> => {
-  const auth = await authorizePublicApiRequest(ctx, request);
+  const auth = await withAuthorizedUser(ctx, request);
   if ("error" in auth) {
     return auth.error;
   }
@@ -847,10 +838,10 @@ const handleCardsQueryRequest = async (
 };
 
 const handleCardsListRequest = async (
-  ctx: PublicApiCtx,
+  ctx: any,
   request: Request
 ): Promise<Response> => {
-  const auth = await authorizePublicApiRequest(ctx, request);
+  const auth = await withAuthorizedUser(ctx, request);
   if ("error" in auth) {
     return auth.error;
   }
@@ -1045,7 +1036,7 @@ const validateFavoritePayload = (
 };
 
 const handleCardsByIdV1Request = async (
-  ctx: PublicApiCtx,
+  ctx: any,
   request: Request
 ): Promise<Response> => {
   const route = parseCardRoute(request);
@@ -1053,7 +1044,7 @@ const handleCardsByIdV1Request = async (
     return errorResponse(404, "NOT_FOUND", "Card route not found");
   }
 
-  const auth = await authorizePublicApiRequest(ctx, request);
+  const auth = await withAuthorizedUser(ctx, request);
   if ("error" in auth) {
     return auth.error;
   }
@@ -1167,10 +1158,10 @@ const handleCardsByIdV1Request = async (
 };
 
 const handleTagsRequest = async (
-  ctx: PublicApiCtx,
+  ctx: any,
   request: Request
 ): Promise<Response> => {
-  const auth = await authorizePublicApiRequest(ctx, request);
+  const auth = await withAuthorizedUser(ctx, request);
   if ("error" in auth) {
     return auth.error;
   }
@@ -1189,10 +1180,10 @@ const handleTagsRequest = async (
 };
 
 const handleCardChangesRequest = async (
-  ctx: PublicApiCtx,
+  ctx: any,
   request: Request
 ): Promise<Response> => {
-  const auth = await authorizePublicApiRequest(ctx, request);
+  const auth = await withAuthorizedUser(ctx, request);
   if ("error" in auth) {
     return auth.error;
   }
@@ -1229,10 +1220,10 @@ const handleCardChangesRequest = async (
 };
 
 const handleBulkCardsRequest = async (
-  ctx: PublicApiCtx,
+  ctx: any,
   request: Request
 ): Promise<Response> => {
-  const auth = await authorizePublicApiRequest(ctx, request);
+  const auth = await withAuthorizedUser(ctx, request);
   if ("error" in auth) {
     return auth.error;
   }
@@ -1391,51 +1382,3 @@ export const tagsV1 = httpAction(async (ctx, request) => {
 
   return handleTagsRequest(ctx, request);
 });
-
-export const handlePublicApiRequest = (
-  ctx: PublicApiCtx,
-  request: Request
-): Promise<Response> => {
-  const { pathname } = new URL(request.url);
-
-  if (pathname === "/v1/cards") {
-    if (request.method === "GET") {
-      return handleCardsListRequest(ctx, request);
-    }
-    if (request.method === "POST") {
-      return handleCreateCardRequest(ctx, request);
-    }
-  }
-
-  if (pathname === "/v1/cards/bulk" && request.method === "POST") {
-    return handleBulkCardsRequest(ctx, request);
-  }
-
-  if (pathname === "/v1/cards/changes" && request.method === "GET") {
-    return handleCardChangesRequest(ctx, request);
-  }
-
-  if (pathname === "/v1/cards/search" && request.method === "GET") {
-    return handleCardsQueryRequest(ctx, request, false);
-  }
-
-  if (pathname === "/v1/cards/favorites" && request.method === "GET") {
-    return handleCardsQueryRequest(ctx, request, true);
-  }
-
-  if (pathname === "/v1/tags" && request.method === "GET") {
-    return handleTagsRequest(ctx, request);
-  }
-
-  if (pathname.startsWith("/v1/cards/")) {
-    if (
-      request.method === "GET" ||
-      request.method === "PATCH" ||
-      request.method === "DELETE"
-    ) {
-      return handleCardsByIdV1Request(ctx, request);
-    }
-  }
-
-  return Promise.resolve(errorResponse(404, "NOT_FOUND", "Route not found"));
-};
