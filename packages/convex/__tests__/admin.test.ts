@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { r2Mocks, r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
+
+mock.module("../storage/r2", r2MockModuleFactory);
 
 describe("admin.ts", () => {
   let getAccess: any;
@@ -275,9 +278,10 @@ describe("admin.ts", () => {
     });
 
     test("clears thumbnail and resets processing status", async () => {
+      r2Mocks.deleteObject.mockClear();
       const card = {
         _id: "c1",
-        thumbnailId: "t1",
+        thumbnailKey: "t1",
         processingStatus: { classify: { status: "completed" } },
       };
       const ctx = {
@@ -285,18 +289,17 @@ describe("admin.ts", () => {
           get: mock().mockResolvedValue(card),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock().mockResolvedValue(null) },
       } as any;
       const handler =
         (resetCardProcessingState as any).handler ?? resetCardProcessingState;
       const result = await handler(ctx, { cardId: "c1" });
 
-      expect(ctx.storage.delete).toHaveBeenCalledWith("t1");
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "t1");
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
         expect.objectContaining({
-          thumbnailId: undefined,
+          thumbnailKey: undefined,
           aiTags: undefined,
           aiSummary: undefined,
           aiTranscript: undefined,
@@ -306,6 +309,7 @@ describe("admin.ts", () => {
     });
 
     test("handles missing thumbnail", async () => {
+      r2Mocks.deleteObject.mockClear();
       const card = {
         _id: "c1",
         processingStatus: { classify: { status: "completed" } },
@@ -315,20 +319,21 @@ describe("admin.ts", () => {
           get: mock().mockResolvedValue(card),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock() },
       } as any;
       const handler =
         (resetCardProcessingState as any).handler ?? resetCardProcessingState;
       const result = await handler(ctx, { cardId: "c1" });
 
-      expect(ctx.storage.delete).not.toHaveBeenCalled();
+      expect(r2Mocks.deleteObject).not.toHaveBeenCalled();
       expect(result.clearedThumbnail).toBe(false);
     });
 
     test("handles storage delete error gracefully", async () => {
+      r2Mocks.deleteObject.mockReset();
+      r2Mocks.deleteObject.mockRejectedValueOnce(new Error("Storage error"));
       const card = {
         _id: "c1",
-        thumbnailId: "t1",
+        thumbnailKey: "t1",
         processingStatus: {},
       };
       const ctx = {
@@ -336,15 +341,14 @@ describe("admin.ts", () => {
           get: mock().mockResolvedValue(card),
           patch: mock().mockResolvedValue(null),
         },
-        storage: {
-          delete: mock().mockRejectedValue(new Error("Storage error")),
-        },
       } as any;
       const handler =
         (resetCardProcessingState as any).handler ?? resetCardProcessingState;
       const result = await handler(ctx, { cardId: "c1" });
 
       expect(result.clearedThumbnail).toBe(true);
+      // Reset to default for subsequent tests
+      r2Mocks.deleteObject.mockResolvedValue(null);
     });
   });
 

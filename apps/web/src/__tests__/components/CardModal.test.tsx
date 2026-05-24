@@ -448,10 +448,10 @@ describe("CardModal Component", () => {
   });
 
   describe("Download Capability", () => {
-    test("enables download for image cards with fileId", () => {
+    test("enables download for image cards with fileKey", () => {
       const card = createMockCard();
       card.type = "image";
-      card.fileId = "file-id" as any;
+      card.fileKey = "file-key" as any;
       expect(() => {
         React.createElement(CardModal, {
           cardId: "card-id",
@@ -462,10 +462,10 @@ describe("CardModal Component", () => {
       }).not.toThrow();
     });
 
-    test("enables download for video cards with fileId", () => {
+    test("enables download for video cards with fileKey", () => {
       const card = createMockCard();
       card.type = "video";
-      card.fileId = "file-id" as any;
+      card.fileKey = "file-key" as any;
       expect(() => {
         React.createElement(CardModal, {
           cardId: "card-id",
@@ -476,10 +476,10 @@ describe("CardModal Component", () => {
       }).not.toThrow();
     });
 
-    test("enables download for audio cards with fileId", () => {
+    test("enables download for audio cards with fileKey", () => {
       const card = createMockCard();
       card.type = "audio";
-      card.fileId = "file-id" as any;
+      card.fileKey = "file-key" as any;
       expect(() => {
         React.createElement(CardModal, {
           cardId: "card-id",
@@ -490,10 +490,10 @@ describe("CardModal Component", () => {
       }).not.toThrow();
     });
 
-    test("enables download for document cards with fileId", () => {
+    test("enables download for document cards with fileKey", () => {
       const card = createMockCard();
       card.type = "document";
-      card.fileId = "file-id" as any;
+      card.fileKey = "file-key" as any;
       expect(() => {
         React.createElement(CardModal, {
           cardId: "card-id",
@@ -504,7 +504,7 @@ describe("CardModal Component", () => {
       }).not.toThrow();
     });
 
-    test("disables download for cards without fileId", () => {
+    test("disables download for cards without fileKey", () => {
       const card = createMockCard();
       card.type = "image";
       expect(() => {
@@ -520,7 +520,7 @@ describe("CardModal Component", () => {
     test("disables download for text cards", () => {
       const card = createMockCard();
       card.type = "text";
-      card.fileId = "file-id" as any;
+      card.fileKey = "file-key" as any;
       expect(() => {
         React.createElement(CardModal, {
           cardId: "card-id",
@@ -534,7 +534,7 @@ describe("CardModal Component", () => {
     test("disables download for link cards", () => {
       const card = createMockCard();
       card.type = "link";
-      card.fileId = "file-id" as any;
+      card.fileKey = "file-key" as any;
       expect(() => {
         React.createElement(CardModal, {
           cardId: "card-id",

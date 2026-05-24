@@ -241,12 +241,12 @@ describe("crons.ts", () => {
 
   describe("cleanup specifics", () => {
     test("deletes file storage", () => {
-      // Calls ctx.storage.delete for fileId
+      // Calls deleteObject for fileKey
       expect(module.default).toBeDefined();
     });
 
     test("deletes thumbnail storage", () => {
-      // Calls ctx.storage.delete for thumbnailId
+      // Calls deleteObject for thumbnailKey
       expect(module.default).toBeDefined();
     });
 

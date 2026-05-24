@@ -75,7 +75,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "card123",
           type: "image",
-          fileId: "file123",
+          fileKey: "file123",
           fileMetadata: { mimeType: "image/png" },
           processingStatus: {},
         })),
@@ -102,7 +102,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "card456",
           type: "image",
-          fileId: "file456",
+          fileKey: "file456",
           fileMetadata: { mimeType: "image/jpeg" },
           processingStatus: {},
         })),
@@ -127,7 +127,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "card789",
           type: "image",
-          fileId: "file789",
+          fileKey: "file789",
           fileMetadata: { mimeType: "image/webp" },
           processingStatus: {},
         })),
@@ -156,7 +156,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "svg1",
           type: "image",
-          fileId: "svgFile1",
+          fileKey: "svgFile1",
           fileMetadata: { mimeType: "image/svg+xml" },
           processingStatus: {},
         })),
@@ -180,7 +180,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "svg2",
           type: "image",
-          fileId: "svgFile2",
+          fileKey: "svgFile2",
           fileMetadata: { fileName: "diagram.svg" },
           processingStatus: {},
         })),
@@ -203,7 +203,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "svg3",
           type: "image",
-          fileId: "svgFile3",
+          fileKey: "svgFile3",
           fileMetadata: { fileName: "diagram.SVG" },
           processingStatus: {},
         })),
@@ -217,7 +217,7 @@ describe("renderables step", () => {
       expect(runAction.calls[0]?.[1]).toEqual({ cardId: "svg3" });
     });
 
-    test("skips thumbnail generation when no fileId", async () => {
+    test("skips thumbnail generation when no fileKey", async () => {
       const runMutation = createMockFn<[any, any], null>(async () => null);
       const mockCtx = {
         runQuery: createMockFn<[any, any], any>(async () => ({
@@ -249,7 +249,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "vid1",
           type: "video",
-          fileId: "f1",
+          fileKey: "f1",
           processingStatus: {},
         })),
         runAction: createMockFn<[any, any], any>(async () => ({
@@ -273,7 +273,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "vid2",
           type: "video",
-          fileId: "f2",
+          fileKey: "f2",
           processingStatus: {},
         })),
         runAction: createMockFn<[any, any], any>(async () => ({
@@ -293,7 +293,7 @@ describe("renderables step", () => {
       expect(result.thumbnailGenerated).toBe(false);
     });
 
-    test("skips video thumbnail when no fileId", async () => {
+    test("skips video thumbnail when no fileKey", async () => {
       const runMutation = createMockFn<[any, any], null>(async () => null);
       const mockCtx = {
         runQuery: createMockFn<[any, any], any>(async () => ({
@@ -325,7 +325,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "pdf1",
           type: "document",
-          fileId: "f1",
+          fileKey: "f1",
           fileMetadata: { mimeType: "application/pdf" },
           processingStatus: {},
         })),
@@ -354,7 +354,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "doc1",
           type: "document",
-          fileId: "f1",
+          fileKey: "f1",
           fileMetadata: { mimeType: "application/msword" },
           processingStatus: {},
         })),
@@ -373,7 +373,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "pdf2",
           type: "document",
-          fileId: "f2",
+          fileKey: "f2",
           fileMetadata: { mimeType: "application/pdf" },
           processingStatus: {},
         })),
@@ -395,7 +395,7 @@ describe("renderables step", () => {
       expect(mutationArgs?.processingStatus.renderables.status).toBe("failed");
     });
 
-    test("skips PDF thumbnail when no fileId", async () => {
+    test("skips PDF thumbnail when no fileKey", async () => {
       const runMutation = createMockFn<[any, any], null>(async () => null);
       const mockCtx = {
         runQuery: createMockFn<[any, any], any>(async () => ({
@@ -428,7 +428,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "card_success",
           type: "image",
-          fileId: "f1",
+          fileKey: "f1",
           processingStatus: {},
         })),
         runAction: createMockFn<[any, any], any>(async () => ({
@@ -455,7 +455,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "card_skip",
           type: "image",
-          fileId: "f1",
+          fileKey: "f1",
           processingStatus: {},
         })),
         runAction: createMockFn<[any, any], any>(async () => ({
@@ -482,7 +482,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "card_fail",
           type: "image",
-          fileId: "f1",
+          fileKey: "f1",
           processingStatus: {},
         })),
         runAction: createMockFn<[any, any], any>(async () => ({
@@ -511,7 +511,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "card_preserve",
           type: "image",
-          fileId: "f1",
+          fileKey: "f1",
           processingStatus: {
             classify: { status: "completed", confidence: 0.9 },
             metadata: { status: "completed", confidence: 0.95 },
@@ -543,7 +543,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "card_conf",
           type: "image",
-          fileId: "f1",
+          fileKey: "f1",
           processingStatus: {},
         })),
         runAction: createMockFn<[any, any], any>(async () => ({
@@ -570,7 +570,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "card_no_status",
           type: "image",
-          fileId: "f1",
+          fileKey: "f1",
         })),
         runAction: createMockFn<[any, any], any>(async () => ({
           success: true,
@@ -693,7 +693,7 @@ describe("renderables step", () => {
         runQuery: createMockFn<[any, any], any>(async () => ({
           _id: "card_audio",
           type: "audio",
-          fileId: "audio1",
+          fileKey: "audio1",
           processingStatus: {},
         })),
         runAction: createMockFn<[any, any], any>(async () => ({

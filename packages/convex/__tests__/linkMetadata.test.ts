@@ -1,22 +1,26 @@
 // @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
-import {
+import { r2Mocks, r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
+
+mock.module("../storage/r2", r2MockModuleFactory);
+
+const {
   getCardForMetadataHandler,
   updateCardMetadataHandler,
   updateCardScreenshotHandler,
-} from "../linkMetadata";
+} = await import("../linkMetadata");
 
 // Helper to create a mock context
-const createMockCtx = () =>
-  ({
+const createMockCtx = () => {
+  r2Mocks.deleteObject.mockReset();
+  r2Mocks.deleteObject.mockResolvedValue(null);
+  return {
     db: {
       get: mock(),
       patch: mock(),
     },
-    storage: {
-      delete: mock(),
-    },
-  }) as any;
+  } as any;
+};
 
 describe("linkMetadata", () => {
   describe("getCardForMetadata", () => {
@@ -76,7 +80,7 @@ describe("linkMetadata", () => {
         type: "link",
         metadata: {
           linkPreview: {
-            screenshotStorageId: "old_id",
+            screenshotStorageKey: "old_id",
             screenshotUpdatedAt: 100,
           },
         },
@@ -84,7 +88,7 @@ describe("linkMetadata", () => {
       ctx.db.get.mockResolvedValue(card);
 
       const linkPreview = {
-        screenshotStorageId: "new_id",
+        screenshotStorageKey: "new_id",
         screenshotUpdatedAt: 200,
       };
       await updateCardMetadataHandler(ctx, {
@@ -93,7 +97,7 @@ describe("linkMetadata", () => {
         status: "completed",
       });
 
-      expect(ctx.storage.delete).toHaveBeenCalledWith("old_id");
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_id");
       expect(ctx.db.patch).toHaveBeenCalled();
     });
 
@@ -104,7 +108,7 @@ describe("linkMetadata", () => {
         type: "link",
         metadata: {
           linkPreview: {
-            screenshotStorageId: "old_id",
+            screenshotStorageKey: "old_id",
             screenshotUpdatedAt: 100,
           },
         },
@@ -118,14 +122,14 @@ describe("linkMetadata", () => {
         status: "completed",
       });
 
-      expect(ctx.storage.delete).not.toHaveBeenCalled();
+      expect(r2Mocks.deleteObject).not.toHaveBeenCalled();
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "card_123",
         expect.objectContaining({
           metadata: expect.objectContaining({
             linkPreview: expect.objectContaining({
-              screenshotStorageId: "old_id",
+              screenshotStorageKey: "old_id",
               screenshotUpdatedAt: 100,
             }),
           }),
@@ -139,20 +143,20 @@ describe("linkMetadata", () => {
         _id: "card_123",
         type: "link",
         metadata: {
-          linkPreview: { screenshotStorageId: "old_id" },
+          linkPreview: { screenshotStorageKey: "old_id" },
         },
       };
       ctx.db.get.mockResolvedValue(card);
-      ctx.storage.delete.mockRejectedValue(new Error("Storage error"));
+      r2Mocks.deleteObject.mockRejectedValue(new Error("Storage error"));
 
-      const linkPreview = { screenshotStorageId: "new_id" };
+      const linkPreview = { screenshotStorageKey: "new_id" };
       await updateCardMetadataHandler(ctx, {
         cardId: "card_123",
         linkPreview,
         status: "completed",
       });
 
-      expect(ctx.storage.delete).toHaveBeenCalled();
+      expect(r2Mocks.deleteObject).toHaveBeenCalled();
       // Should still patch
       expect(ctx.db.patch).toHaveBeenCalled();
     });
@@ -262,13 +266,13 @@ describe("linkMetadata", () => {
             media: [
               {
                 type: "image",
-                storageId: "old_image",
+                storageKey: "old_image",
                 updatedAt: 1,
               },
               {
                 type: "video",
-                storageId: "old_video",
-                posterStorageId: "old_poster",
+                storageKey: "old_video",
+                posterStorageKey: "old_poster",
                 updatedAt: 1,
               },
             ],
@@ -282,7 +286,7 @@ describe("linkMetadata", () => {
           media: [
             {
               type: "image",
-              storageId: "new_image",
+              storageKey: "new_image",
               updatedAt: 2,
             },
           ],
@@ -290,9 +294,9 @@ describe("linkMetadata", () => {
         status: "completed",
       });
 
-      expect(ctx.storage.delete).toHaveBeenCalledWith("old_image");
-      expect(ctx.storage.delete).toHaveBeenCalledWith("old_video");
-      expect(ctx.storage.delete).toHaveBeenCalledWith("old_poster");
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_image");
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_video");
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_poster");
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "card_123",
@@ -302,7 +306,7 @@ describe("linkMetadata", () => {
               media: [
                 {
                   type: "image",
-                  storageId: "new_image",
+                  storageKey: "new_image",
                   updatedAt: 2,
                 },
               ],
@@ -322,7 +326,7 @@ describe("linkMetadata", () => {
             media: [
               {
                 type: "image",
-                storageId: "existing_image",
+                storageKey: "existing_image",
                 updatedAt: 1,
               },
             ],
@@ -336,7 +340,7 @@ describe("linkMetadata", () => {
         status: "completed",
       });
 
-      expect(ctx.storage.delete).not.toHaveBeenCalledWith("existing_image");
+      expect(r2Mocks.deleteObject).not.toHaveBeenCalledWith(ctx, "existing_image");
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "card_123",
@@ -347,7 +351,7 @@ describe("linkMetadata", () => {
               media: [
                 {
                   type: "image",
-                  storageId: "existing_image",
+                  storageKey: "existing_image",
                   updatedAt: 1,
                 },
               ],
@@ -392,7 +396,7 @@ describe("linkMetadata", () => {
       ctx.db.get.mockResolvedValue(null);
       await updateCardScreenshotHandler(ctx, {
         cardId: "c1",
-        screenshotStorageId: "s1",
+        screenshotStorageKey: "s1",
         screenshotUpdatedAt: 1,
       });
       expect(ctx.db.patch).not.toHaveBeenCalled();
@@ -403,7 +407,7 @@ describe("linkMetadata", () => {
       ctx.db.get.mockResolvedValue({ type: "note" });
       await updateCardScreenshotHandler(ctx, {
         cardId: "c1",
-        screenshotStorageId: "s1",
+        screenshotStorageKey: "s1",
         screenshotUpdatedAt: 1,
       });
       expect(ctx.db.patch).not.toHaveBeenCalled();
@@ -415,24 +419,27 @@ describe("linkMetadata", () => {
         _id: "c1",
         type: "link",
         metadata: {
-          linkPreview: { screenshotStorageId: "old", screenshotUpdatedAt: 1 },
+          linkPreview: { screenshotStorageKey: "old", screenshotUpdatedAt: 1 },
         },
       };
       ctx.db.get.mockResolvedValue(card);
 
       await updateCardScreenshotHandler(ctx, {
         cardId: "c1",
-        screenshotStorageId: "new",
+        screenshotStorageKey: "new",
         screenshotUpdatedAt: 2,
       });
 
-      expect(ctx.storage.delete).toHaveBeenCalledWith("old");
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old");
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
         expect.objectContaining({
           metadata: {
-            linkPreview: { screenshotStorageId: "new", screenshotUpdatedAt: 2 },
+            linkPreview: {
+              screenshotStorageKey: "new",
+              screenshotUpdatedAt: 2,
+            },
           },
         })
       );
@@ -444,19 +451,19 @@ describe("linkMetadata", () => {
         _id: "c1",
         type: "link",
         metadata: {
-          linkPreview: { screenshotStorageId: "old" },
+          linkPreview: { screenshotStorageKey: "old" },
         },
       };
       ctx.db.get.mockResolvedValue(card);
-      ctx.storage.delete.mockRejectedValue(new Error("fail"));
+      r2Mocks.deleteObject.mockRejectedValue(new Error("fail"));
 
       await updateCardScreenshotHandler(ctx, {
         cardId: "c1",
-        screenshotStorageId: "new",
+        screenshotStorageKey: "new",
         screenshotUpdatedAt: 2,
       });
 
-      expect(ctx.storage.delete).toHaveBeenCalled();
+      expect(r2Mocks.deleteObject).toHaveBeenCalled();
       expect(ctx.db.patch).toHaveBeenCalled();
     });
 
@@ -470,17 +477,20 @@ describe("linkMetadata", () => {
 
       await updateCardScreenshotHandler(ctx, {
         cardId: "c1",
-        screenshotStorageId: "new",
+        screenshotStorageKey: "new",
         screenshotUpdatedAt: 2,
       });
 
-      expect(ctx.storage.delete).not.toHaveBeenCalled();
+      expect(r2Mocks.deleteObject).not.toHaveBeenCalled();
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
         expect.objectContaining({
           metadata: {
-            linkPreview: { screenshotStorageId: "new", screenshotUpdatedAt: 2 },
+            linkPreview: {
+              screenshotStorageKey: "new",
+              screenshotUpdatedAt: 2,
+            },
           },
         })
       );

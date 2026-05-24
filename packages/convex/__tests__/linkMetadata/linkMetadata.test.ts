@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { r2Mocks, r2MockModuleFactory } from "../helpers/r2Mock.test-utils";
+
+mock.module("../../storage/r2", r2MockModuleFactory);
 
 describe("linkMetadata.ts", () => {
   let getCardForMetadata: any;
@@ -9,6 +12,8 @@ describe("linkMetadata.ts", () => {
   let updateCardScreenshotHandler: any;
 
   beforeEach(async () => {
+    r2Mocks.deleteObject.mockReset();
+    r2Mocks.deleteObject.mockResolvedValue(null);
     const module = await import("../../linkMetadata");
     getCardForMetadata = module.getCardForMetadata;
     _updateCardMetadata = module.updateCardMetadata;
@@ -55,16 +60,15 @@ describe("linkMetadata.ts", () => {
         _id: "c1",
         type: "link",
         metadata: {
-          linkPreview: { imageStorageId: "old_image" },
+          linkPreview: { imageStorageKey: "old_image" },
         },
       };
-      const newLinkPreview = { imageStorageId: "new_image" };
+      const newLinkPreview = { imageStorageKey: "new_image" };
       const ctx = {
         db: {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock().mockResolvedValue(null) },
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -73,14 +77,14 @@ describe("linkMetadata.ts", () => {
         status: "completed",
       });
 
-      expect(ctx.storage.delete).toHaveBeenCalledWith("old_image");
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_image");
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
         expect.objectContaining({
           metadata: expect.objectContaining({
             linkPreview: expect.objectContaining({
-              imageStorageId: "new_image",
+              imageStorageKey: "new_image",
             }),
           }),
         })
@@ -93,7 +97,7 @@ describe("linkMetadata.ts", () => {
         type: "link",
         metadata: {
           linkPreview: {
-            imageStorageId: "old_image",
+            imageStorageKey: "old_image",
             imageUpdatedAt: 1000,
             imageWidth: 800,
             imageHeight: 600,
@@ -106,7 +110,6 @@ describe("linkMetadata.ts", () => {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock() },
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -115,14 +118,14 @@ describe("linkMetadata.ts", () => {
         status: "completed",
       });
 
-      expect(ctx.storage.delete).not.toHaveBeenCalled();
+      expect(r2Mocks.deleteObject).not.toHaveBeenCalled();
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
         expect.objectContaining({
           metadata: expect.objectContaining({
             linkPreview: expect.objectContaining({
-              imageStorageId: "old_image",
+              imageStorageKey: "old_image",
               imageUpdatedAt: 1000,
               imageWidth: 800,
               imageHeight: 600,
@@ -139,19 +142,18 @@ describe("linkMetadata.ts", () => {
         type: "link",
         metadata: {
           linkPreview: {
-            imageStorageId: "same_image",
+            imageStorageKey: "same_image",
             imageWidth: 800,
             imageHeight: 600,
           },
         },
       };
-      const newLinkPreview = { imageStorageId: "same_image" };
+      const newLinkPreview = { imageStorageKey: "same_image" };
       const ctx = {
         db: {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock() },
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -166,7 +168,7 @@ describe("linkMetadata.ts", () => {
         expect.objectContaining({
           metadata: expect.objectContaining({
             linkPreview: expect.objectContaining({
-              imageStorageId: "same_image",
+              imageStorageKey: "same_image",
               imageWidth: 800,
               imageHeight: 600,
             }),
@@ -180,16 +182,15 @@ describe("linkMetadata.ts", () => {
         _id: "c1",
         type: "link",
         metadata: {
-          linkPreview: { screenshotStorageId: "old_screenshot" },
+          linkPreview: { screenshotStorageKey: "old_screenshot" },
         },
       };
-      const newLinkPreview = { screenshotStorageId: "new_screenshot" };
+      const newLinkPreview = { screenshotStorageKey: "new_screenshot" };
       const ctx = {
         db: {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock().mockResolvedValue(null) },
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -198,14 +199,14 @@ describe("linkMetadata.ts", () => {
         status: "completed",
       });
 
-      expect(ctx.storage.delete).toHaveBeenCalledWith("old_screenshot");
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_screenshot");
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
         expect.objectContaining({
           metadata: expect.objectContaining({
             linkPreview: expect.objectContaining({
-              screenshotStorageId: "new_screenshot",
+              screenshotStorageKey: "new_screenshot",
             }),
           }),
         })
@@ -218,7 +219,7 @@ describe("linkMetadata.ts", () => {
         type: "link",
         metadata: {
           linkPreview: {
-            screenshotStorageId: "old_screenshot",
+            screenshotStorageKey: "old_screenshot",
             screenshotUpdatedAt: 1000,
             screenshotWidth: 1200,
             screenshotHeight: 800,
@@ -231,7 +232,6 @@ describe("linkMetadata.ts", () => {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock() },
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -240,14 +240,14 @@ describe("linkMetadata.ts", () => {
         status: "completed",
       });
 
-      expect(ctx.storage.delete).not.toHaveBeenCalled();
+      expect(r2Mocks.deleteObject).not.toHaveBeenCalled();
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
         expect.objectContaining({
           metadata: expect.objectContaining({
             linkPreview: expect.objectContaining({
-              screenshotStorageId: "old_screenshot",
+              screenshotStorageKey: "old_screenshot",
               screenshotUpdatedAt: 1000,
               screenshotWidth: 1200,
               screenshotHeight: 800,
@@ -263,19 +263,18 @@ describe("linkMetadata.ts", () => {
         type: "link",
         metadata: {
           linkPreview: {
-            screenshotStorageId: "same_screenshot",
+            screenshotStorageKey: "same_screenshot",
             screenshotWidth: 1200,
             screenshotHeight: 800,
           },
         },
       };
-      const newLinkPreview = { screenshotStorageId: "same_screenshot" };
+      const newLinkPreview = { screenshotStorageKey: "same_screenshot" };
       const ctx = {
         db: {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock() },
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -290,7 +289,7 @@ describe("linkMetadata.ts", () => {
         expect.objectContaining({
           metadata: expect.objectContaining({
             linkPreview: expect.objectContaining({
-              screenshotStorageId: "same_screenshot",
+              screenshotStorageKey: "same_screenshot",
               screenshotWidth: 1200,
               screenshotHeight: 800,
             }),
@@ -313,7 +312,6 @@ describe("linkMetadata.ts", () => {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock() },
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -347,7 +345,6 @@ describe("linkMetadata.ts", () => {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock() },
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -378,7 +375,6 @@ describe("linkMetadata.ts", () => {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock() },
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -402,17 +398,15 @@ describe("linkMetadata.ts", () => {
         _id: "c1",
         type: "link",
         metadata: {
-          linkPreview: { imageStorageId: "old_image" },
+          linkPreview: { imageStorageKey: "old_image" },
         },
       };
-      const newLinkPreview = { imageStorageId: "new_image" };
+      const newLinkPreview = { imageStorageKey: "new_image" };
+      r2Mocks.deleteObject.mockRejectedValueOnce(new Error("Storage error"));
       const ctx = {
         db: {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
-        storage: {
-          delete: mock().mockRejectedValue(new Error("Storage error")),
         },
       } as any;
 
@@ -430,17 +424,15 @@ describe("linkMetadata.ts", () => {
         _id: "c1",
         type: "link",
         metadata: {
-          linkPreview: { screenshotStorageId: "old_screenshot" },
+          linkPreview: { screenshotStorageKey: "old_screenshot" },
         },
       };
-      const newLinkPreview = { screenshotStorageId: "new_screenshot" };
+      const newLinkPreview = { screenshotStorageKey: "new_screenshot" };
+      r2Mocks.deleteObject.mockRejectedValueOnce(new Error("Storage error"));
       const ctx = {
         db: {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
-        storage: {
-          delete: mock().mockRejectedValue(new Error("Storage error")),
         },
       } as any;
 
@@ -460,7 +452,6 @@ describe("linkMetadata.ts", () => {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock() },
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -486,7 +477,7 @@ describe("linkMetadata.ts", () => {
       } as any;
       const result = await updateCardScreenshotHandler(ctx, {
         cardId: "c1",
-        screenshotStorageId: "s1",
+        screenshotStorageKey: "s1",
         screenshotUpdatedAt: 1000,
       });
       expect(result).toBeUndefined();
@@ -502,7 +493,7 @@ describe("linkMetadata.ts", () => {
       } as any;
       const result = await updateCardScreenshotHandler(ctx, {
         cardId: "c1",
-        screenshotStorageId: "s1",
+        screenshotStorageKey: "s1",
         screenshotUpdatedAt: 1000,
       });
       expect(result).toBeUndefined();
@@ -520,12 +511,11 @@ describe("linkMetadata.ts", () => {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock() },
       } as any;
 
       await updateCardScreenshotHandler(ctx, {
         cardId: "c1",
-        screenshotStorageId: "s1",
+        screenshotStorageKey: "s1",
         screenshotUpdatedAt: 1000,
         screenshotWidth: 1200,
         screenshotHeight: 800,
@@ -537,7 +527,7 @@ describe("linkMetadata.ts", () => {
         expect.objectContaining({
           metadata: expect.objectContaining({
             linkPreview: expect.objectContaining({
-              screenshotStorageId: "s1",
+              screenshotStorageKey: "s1",
               screenshotUpdatedAt: 1000,
               screenshotWidth: 1200,
               screenshotHeight: 800,
@@ -551,44 +541,41 @@ describe("linkMetadata.ts", () => {
       const existingCard = {
         _id: "c1",
         type: "link",
-        metadata: { linkPreview: { screenshotStorageId: "old_screenshot" } },
+        metadata: { linkPreview: { screenshotStorageKey: "old_screenshot" } },
       };
       const ctx = {
         db: {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock().mockResolvedValue(null) },
       } as any;
 
       await updateCardScreenshotHandler(ctx, {
         cardId: "c1",
-        screenshotStorageId: "new_screenshot",
+        screenshotStorageKey: "new_screenshot",
         screenshotUpdatedAt: 1000,
       });
 
-      expect(ctx.storage.delete).toHaveBeenCalledWith("old_screenshot");
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_screenshot");
     });
 
     test("handles screenshot delete error gracefully", async () => {
       const existingCard = {
         _id: "c1",
         type: "link",
-        metadata: { linkPreview: { screenshotStorageId: "old_screenshot" } },
+        metadata: { linkPreview: { screenshotStorageKey: "old_screenshot" } },
       };
+      r2Mocks.deleteObject.mockRejectedValueOnce(new Error("Storage error"));
       const ctx = {
         db: {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
-        storage: {
-          delete: mock().mockRejectedValue(new Error("Storage error")),
-        },
       } as any;
 
       await updateCardScreenshotHandler(ctx, {
         cardId: "c1",
-        screenshotStorageId: "new_screenshot",
+        screenshotStorageKey: "new_screenshot",
         screenshotUpdatedAt: 1000,
       });
 
@@ -601,7 +588,7 @@ describe("linkMetadata.ts", () => {
         type: "link",
         metadata: {
           linkPreview: {
-            screenshotStorageId: "existing_screenshot",
+            screenshotStorageKey: "existing_screenshot",
             screenshotUpdatedAt: 500,
             screenshotWidth: 1000,
             screenshotHeight: 750,
@@ -613,12 +600,11 @@ describe("linkMetadata.ts", () => {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock() },
       } as any;
 
       await updateCardScreenshotHandler(ctx, {
         cardId: "c1",
-        screenshotStorageId: "new_screenshot",
+        screenshotStorageKey: "new_screenshot",
         screenshotUpdatedAt: 1000,
       });
 
@@ -628,7 +614,7 @@ describe("linkMetadata.ts", () => {
         expect.objectContaining({
           metadata: expect.objectContaining({
             linkPreview: expect.objectContaining({
-              screenshotStorageId: "new_screenshot",
+              screenshotStorageKey: "new_screenshot",
               screenshotUpdatedAt: 1000,
             }),
           }),
@@ -643,12 +629,11 @@ describe("linkMetadata.ts", () => {
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
-        storage: { delete: mock() },
       } as any;
 
       await updateCardScreenshotHandler(ctx, {
         cardId: "c1",
-        screenshotStorageId: "s1",
+        screenshotStorageKey: "s1",
         screenshotUpdatedAt: 1000,
       });
 
@@ -658,7 +643,7 @@ describe("linkMetadata.ts", () => {
         expect.objectContaining({
           metadata: expect.objectContaining({
             linkPreview: expect.objectContaining({
-              screenshotStorageId: "s1",
+              screenshotStorageKey: "s1",
             }),
           }),
         })

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import { r2Mocks, r2MockModuleFactory } from "../../helpers/r2Mock.test-utils";
 
 const aiMocks = (global as any).__AI_MOCKS__ || {
   generateText: mock(),
@@ -10,6 +11,8 @@ const aiMocks = (global as any).__AI_MOCKS__ || {
 (global as any).__AI_MOCKS__ = aiMocks;
 
 mock.module("ai", () => aiMocks);
+
+mock.module("../../../../convex/storage/r2", r2MockModuleFactory);
 
 // Mock internal API
 import { internal } from "../../../../convex/_generated/api";
@@ -92,19 +95,17 @@ describe("metadata builds link content parts", () => {
 describe("metadata handler", () => {
   const mockRunQuery = mock();
   const mockRunMutation = mock();
-  const mockGetUrl = mock();
   const mockScheduler = { runAfter: mock() };
   const ctx = {
     runQuery: mockRunQuery,
     runMutation: mockRunMutation,
-    storage: { getUrl: mockGetUrl },
     scheduler: mockScheduler,
   } as any;
 
   beforeEach(() => {
     mockRunQuery.mockReset();
     mockRunMutation.mockReset();
-    mockGetUrl.mockReset();
+    r2Mocks.resolveObjectUrl.mockReset();
     mockScheduler.runAfter.mockReset();
     aiMocks.generateText.mockReset();
     aiMocks.generateObject.mockReset();
@@ -184,10 +185,10 @@ describe("metadata handler", () => {
     test("generates metadata for raster image", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
-        fileId: "f1",
+        fileKey: "f1",
         fileMetadata: { mimeType: "image/png" },
       });
-      mockGetUrl.mockResolvedValue("https://image.png");
+      r2Mocks.resolveObjectUrl.mockResolvedValue("https://image.png");
       aiMocks.generateText.mockResolvedValue({
         output: { tags: ["photo"], summary: "A photo" },
       });
@@ -199,17 +200,17 @@ describe("metadata handler", () => {
 
       expect(result.aiTags).toEqual(["photo"]);
       expect(result.confidence).toBe(0.9);
-      expect(mockGetUrl).toHaveBeenCalledWith("f1");
+      expect(r2Mocks.resolveObjectUrl).toHaveBeenCalledWith("f1");
     });
 
     test("uses thumbnail for SVG files", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
-        fileId: "f1",
-        thumbnailId: "t1",
+        fileKey: "f1",
+        thumbnailKey: "t1",
         fileMetadata: { mimeType: "image/svg+xml" },
       });
-      mockGetUrl.mockResolvedValue("https://thumbnail.png");
+      r2Mocks.resolveObjectUrl.mockResolvedValue("https://thumbnail.png");
       aiMocks.generateText.mockResolvedValue({
         output: { tags: ["svg"], summary: "SVG image" },
       });
@@ -220,17 +221,17 @@ describe("metadata handler", () => {
       });
 
       expect(result.aiTags).toEqual(["svg"]);
-      expect(mockGetUrl).toHaveBeenCalledWith("t1");
+      expect(r2Mocks.resolveObjectUrl).toHaveBeenCalledWith("t1");
     });
 
     test("detects SVG by file extension", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
-        fileId: "f1",
-        thumbnailId: "t1",
+        fileKey: "f1",
+        thumbnailKey: "t1",
         fileMetadata: { fileName: "diagram.svg" },
       });
-      mockGetUrl.mockResolvedValue("https://thumbnail.png");
+      r2Mocks.resolveObjectUrl.mockResolvedValue("https://thumbnail.png");
       aiMocks.generateText.mockResolvedValue({
         output: { tags: ["diagram"], summary: "A diagram" },
       });
@@ -240,29 +241,29 @@ describe("metadata handler", () => {
         cardType: "image",
       });
 
-      expect(mockGetUrl).toHaveBeenCalledWith("t1");
+      expect(r2Mocks.resolveObjectUrl).toHaveBeenCalledWith("t1");
     });
 
     test("handles uppercase SVG extension", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
-        fileId: "f1",
-        thumbnailId: "t1",
+        fileKey: "f1",
+        thumbnailKey: "t1",
         fileMetadata: { fileName: "diagram.SVG" },
       });
-      mockGetUrl.mockResolvedValue("https://thumbnail.png");
+      r2Mocks.resolveObjectUrl.mockResolvedValue("https://thumbnail.png");
 
       await generateHandler(ctx, { cardId: "c1", cardType: "image" });
 
-      expect(mockGetUrl).toHaveBeenCalledWith("t1");
+      expect(r2Mocks.resolveObjectUrl).toHaveBeenCalledWith("t1");
     });
 
     test("handles missing image file", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
-        fileId: "f1",
+        fileKey: "f1",
       });
-      mockGetUrl.mockResolvedValue(null);
+      r2Mocks.resolveObjectUrl.mockResolvedValue(null);
 
       await expect(
         generateHandler(ctx, { cardId: "c1", cardType: "image" })
@@ -274,9 +275,9 @@ describe("metadata handler", () => {
     test("generates metadata from video thumbnail", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
-        thumbnailId: "t1",
+        thumbnailKey: "t1",
       });
-      mockGetUrl.mockResolvedValue("https://video-thumb.jpg");
+      r2Mocks.resolveObjectUrl.mockResolvedValue("https://video-thumb.jpg");
       aiMocks.generateText.mockResolvedValue({
         output: { tags: ["video"], summary: "Video content" },
       });
@@ -288,16 +289,16 @@ describe("metadata handler", () => {
 
       expect(result.aiTags).toEqual(["video"]);
       expect(result.confidence).toBe(0.88);
-      expect(mockGetUrl).toHaveBeenCalledWith("t1");
+      expect(r2Mocks.resolveObjectUrl).toHaveBeenCalledWith("t1");
     });
 
     test("includes filename in video analysis", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
-        thumbnailId: "t1",
+        thumbnailKey: "t1",
         fileMetadata: { fileName: "movie.mp4" },
       });
-      mockGetUrl.mockResolvedValue("https://thumb.jpg");
+      r2Mocks.resolveObjectUrl.mockResolvedValue("https://thumb.jpg");
       aiMocks.generateText.mockResolvedValue({
         output: { tags: ["movie"], summary: "A movie" },
       });
@@ -325,10 +326,10 @@ describe("metadata handler", () => {
     test("generates metadata from audio transcript", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
-        fileId: "a1",
+        fileKey: "a1",
         fileMetadata: { mimeType: "audio/mp3" },
       });
-      mockGetUrl.mockResolvedValue("https://audio.mp3");
+      r2Mocks.resolveObjectUrl.mockResolvedValue("https://audio.mp3");
       mockFetch.mockResolvedValue({
         ok: true,
         headers: { get: () => "audio/mp3" },
@@ -354,10 +355,10 @@ describe("metadata handler", () => {
     test("handles missing audio file", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
-        fileId: "a1",
+        fileKey: "a1",
         fileMetadata: { mimeType: "audio/wav" },
       });
-      mockGetUrl.mockResolvedValue(null);
+      r2Mocks.resolveObjectUrl.mockResolvedValue(null);
 
       await expect(
         generateHandler(ctx, { cardId: "c1", cardType: "audio" })

@@ -1,6 +1,9 @@
 // @ts-nocheck
 
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
+
+mock.module("../storage/r2", r2MockModuleFactory);
 
 const buildBaseCard = (overrides: Record<string, unknown> = {}) => ({
   _creationTime: 1,
@@ -10,7 +13,7 @@ const buildBaseCard = (overrides: Record<string, unknown> = {}) => ({
   content: "Hello",
   createdAt: 1,
   deletedAt: undefined,
-  fileId: undefined,
+  fileKey: undefined,
   isDeleted: undefined,
   isFavorited: false,
   metadata: undefined,
@@ -20,7 +23,7 @@ const buildBaseCard = (overrides: Record<string, unknown> = {}) => ({
   notes: undefined,
   processingStatus: undefined,
   tags: [],
-  thumbnailId: undefined,
+  thumbnailKey: undefined,
   type: "text",
   updatedAt: 1,
   url: undefined,
@@ -88,9 +91,6 @@ describe("publicApi", () => {
     const ctx = {
       db: {
         query: mock().mockReturnValue(query),
-      },
-      storage: {
-        getUrl: mock(),
       },
     } as any;
     const handler =

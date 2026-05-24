@@ -49,6 +49,10 @@ mock.module("@onkernel/sdk", () => {
   };
 });
 
+import { r2Mocks, r2MockModuleFactory } from "../../../helpers/r2Mock.test-utils";
+
+mock.module("../../../../../convex/storage/r2", r2MockModuleFactory);
+
 import { internal } from "../../../../../convex/_generated/api";
 import { fetchMetadataHandler } from "../../../../../convex/workflows/steps/linkMetadata/fetchMetadata";
 
@@ -62,13 +66,9 @@ const VALID_PNG_BYTES = new Uint8Array([
 describe("fetchMetadata", () => {
   const mockRunQuery = mock();
   const mockRunMutation = mock();
-  const mockStorageStore = mock();
   const ctx = {
     runQuery: mockRunQuery,
     runMutation: mockRunMutation,
-    storage: {
-      store: mockStorageStore,
-    },
   } as any;
 
   const originalFetch = global.fetch;
@@ -94,7 +94,7 @@ describe("fetchMetadata", () => {
     mockBuildSuccessPreview.mockReset();
     mockBuildErrorPreview.mockReset();
     mockNormalizeInstagramExtractedMedia.mockReset();
-    mockStorageStore.mockReset();
+    r2Mocks.storeObject.mockReset();
 
     // Standard mock resolutions
     mockKernelCreateBrowser.mockResolvedValue({ session_id: "s1" });
@@ -102,7 +102,7 @@ describe("fetchMetadata", () => {
     mockBuildSuccessPreview.mockReturnValue({});
     mockBuildErrorPreview.mockImplementation((url, error) => ({ url, error }));
     mockNormalizeInstagramExtractedMedia.mockReturnValue(undefined);
-    mockStorageStore.mockImplementation(async () => "stored-asset");
+    r2Mocks.storeObject.mockImplementation(async () => "stored-asset");
 
     mockFetch.mockResolvedValue({
       ok: false,
@@ -219,7 +219,7 @@ describe("fetchMetadata", () => {
       },
     ]);
     let storageCounter = 0;
-    mockStorageStore.mockImplementation(
+    r2Mocks.storeObject.mockImplementation(
       async () => `stored-${++storageCounter}`
     );
     mockFetch.mockImplementation(async (input: string | URL | Request) => {
@@ -384,7 +384,7 @@ describe("fetchMetadata", () => {
     const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
 
     expect(result.status).toBe("success");
-    expect(mockStorageStore).toHaveBeenCalledTimes(1);
+    expect(r2Mocks.storeObject).toHaveBeenCalledTimes(1);
     expect(mockBuildSuccessPreview).toHaveBeenCalledWith(
       "https://www.instagram.com/reel/Cr9Lx2xJ0Ab/",
       expect.objectContaining({

@@ -14,6 +14,7 @@ process.env.APPLE_CLIENT_ID = "test-apple-client-id";
 process.env.APPLE_CLIENT_SECRET = "test-apple-client-secret";
 
 import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { r2Mocks, r2MockModuleFactory } from "../helpers/r2Mock.test-utils";
 
 const mockSendEmail = mock().mockResolvedValue({ id: "m1" });
 
@@ -30,6 +31,10 @@ mock.module("@convex-dev/better-auth/utils", () => ({
   isRunQueryCtx: () => true,
   isActionCtx: () => true,
 }));
+
+// Mock the R2 storage helpers used by auth.deleteAccountHandler so we can
+// assert deletions without standing up an actual R2 client.
+mock.module("../../storage/r2", r2MockModuleFactory);
 
 // We will dynamically import these
 let ensureCardCreationAllowed: any;
@@ -375,15 +380,19 @@ describe("auth", () => {
     });
 
     it("deletes cards and files", async () => {
+      r2Mocks.deleteObject.mockClear();
+
       const ctx = {
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+        auth: {
+          getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
+        },
         db: {
           query: () => ({
             withIndex: (_name: any, cb: any) => {
               if (cb) cb({ eq: () => {} });
               return {
                 collect: async () => [
-                  { _id: "c1", fileId: "f1", thumbnailId: "t1" },
+                  { _id: "c1", fileKey: "f1", thumbnailKey: "t1" },
                   { _id: "c2" },
                 ],
               };
@@ -391,14 +400,14 @@ describe("auth", () => {
           }),
           delete: mock(),
         },
-        storage: { delete: mock() },
       } as any;
 
       const result = await deleteAccountHandler(ctx);
 
       expect(result.deletedCards).toBe(2);
-      expect(ctx.storage.delete).toHaveBeenCalledWith("f1");
-      expect(ctx.storage.delete).toHaveBeenCalledWith("t1");
+      expect(result.deletedStorageObjectCount).toBe(2);
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "f1");
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "t1");
       expect(ctx.db.delete).toHaveBeenCalledTimes(2);
     });
   });

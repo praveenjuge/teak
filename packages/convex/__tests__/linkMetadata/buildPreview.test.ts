@@ -31,12 +31,12 @@ describe("link preview builders", () => {
     const preview = buildErrorPreview(
       "https://example.com",
       { type: "error", message: "nope" },
-      { screenshotStorageId: "file123", screenshotUpdatedAt: 123 }
+      { screenshotStorageKey: "file123", screenshotUpdatedAt: 123 }
     );
 
     expect(preview.status).toBe("error");
     expect(preview.finalUrl).toBe("https://example.com");
-    expect(preview.screenshotStorageId).toBe("file123");
+    expect(preview.screenshotStorageKey).toBe("file123");
     expect(preview.screenshotUpdatedAt).toBe(123);
   });
 });

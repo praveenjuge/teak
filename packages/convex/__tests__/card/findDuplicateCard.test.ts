@@ -1,10 +1,15 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { r2Mocks, r2MockModuleFactory } from "../helpers/r2Mock.test-utils";
+
+mock.module("../../storage/r2", r2MockModuleFactory);
 
 describe("card/findDuplicateCard.ts", () => {
   let findDuplicateCard: any;
 
   beforeEach(async () => {
+    r2Mocks.resolveObjectUrl.mockReset();
+    r2Mocks.resolveObjectUrl.mockResolvedValue(null);
     findDuplicateCard = (await import("../../card/findDuplicateCard"))
       .findDuplicateCard;
   });
@@ -30,7 +35,6 @@ describe("card/findDuplicateCard.ts", () => {
           }),
         }),
       },
-      storage: { getUrl: mock() },
     } as any;
 
     const handler = (findDuplicateCard as any).handler ?? findDuplicateCard;
@@ -45,15 +49,19 @@ describe("card/findDuplicateCard.ts", () => {
       userId: "u1",
       type: "link",
       url: "https://example.com",
-      fileId: "f1",
-      thumbnailId: "t1",
+      fileKey: "f1",
+      thumbnailKey: "t1",
       metadata: {
         linkPreview: {
-          screenshotStorageId: "s1",
-          imageStorageId: "i1",
+          screenshotStorageKey: "s1",
+          imageStorageKey: "i1",
         },
       },
     };
+
+    r2Mocks.resolveObjectUrl.mockImplementation(async (key) =>
+      key ? `file://${key}` : null
+    );
 
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
@@ -66,9 +74,6 @@ describe("card/findDuplicateCard.ts", () => {
           }),
         }),
       },
-      storage: {
-        getUrl: mock((id) => Promise.resolve(`file://${id}`)),
-      },
     } as any;
 
     const handler = (findDuplicateCard as any).handler ?? findDuplicateCard;
@@ -79,11 +84,12 @@ describe("card/findDuplicateCard.ts", () => {
       fileUrl: "file://f1",
       thumbnailUrl: "file://t1",
       screenshotUrl: "file://s1",
+      linkPreviewMedia: undefined,
       linkPreviewImageUrl: "file://i1",
     });
   });
 
-  test("handles card with minimal storage IDs", async () => {
+  test("handles card with minimal storage keys", async () => {
     const duplicateCard = {
       _id: "c1",
       _creationTime: 1,
@@ -103,7 +109,6 @@ describe("card/findDuplicateCard.ts", () => {
           }),
         }),
       },
-      storage: { getUrl: mock() },
     } as any;
 
     const handler = (findDuplicateCard as any).handler ?? findDuplicateCard;
@@ -114,20 +119,23 @@ describe("card/findDuplicateCard.ts", () => {
       fileUrl: undefined,
       thumbnailUrl: undefined,
       screenshotUrl: undefined,
+      linkPreviewMedia: undefined,
       linkPreviewImageUrl: undefined,
     });
-    expect(ctx.storage.getUrl).not.toHaveBeenCalled();
+    expect(r2Mocks.resolveObjectUrl).not.toHaveBeenCalled();
   });
 
-  test("handles card with only fileId", async () => {
+  test("handles card with only fileKey", async () => {
     const duplicateCard = {
       _id: "c1",
       _creationTime: 1,
       userId: "u1",
       type: "image",
       url: "https://example.com/image.jpg",
-      fileId: "f1",
+      fileKey: "f1",
     };
+
+    r2Mocks.resolveObjectUrl.mockResolvedValue("file://f1");
 
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
@@ -140,9 +148,6 @@ describe("card/findDuplicateCard.ts", () => {
           }),
         }),
       },
-      storage: {
-        getUrl: mock().mockResolvedValue("file://f1"),
-      },
     } as any;
 
     const handler = (findDuplicateCard as any).handler ?? findDuplicateCard;
@@ -153,6 +158,7 @@ describe("card/findDuplicateCard.ts", () => {
       fileUrl: "file://f1",
       thumbnailUrl: undefined,
       screenshotUrl: undefined,
+      linkPreviewMedia: undefined,
       linkPreviewImageUrl: undefined,
     });
   });
@@ -179,7 +185,6 @@ describe("card/findDuplicateCard.ts", () => {
       db: {
         query: mock().mockReturnValue(queryMock),
       },
-      storage: { getUrl: mock() },
     } as any;
 
     const handler = (findDuplicateCard as any).handler ?? findDuplicateCard;

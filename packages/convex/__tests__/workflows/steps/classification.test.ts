@@ -92,11 +92,11 @@ describe("classification step", () => {
       expect(mockRunMutation).toHaveBeenCalled();
     });
 
-    test("re-classifies quote when fileId present", async () => {
+    test("re-classifies quote when fileKey present", async () => {
       const card = {
         _id: "c1",
         type: "quote",
-        fileId: "f1",
+        fileKey: "f1",
       };
       mockRunQuery.mockResolvedValue(card);
 

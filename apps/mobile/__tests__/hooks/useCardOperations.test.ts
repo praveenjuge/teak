@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 // We can't properly test React hooks without a React renderer
 // These tests verify the module exports and function signatures
@@ -26,20 +26,6 @@ describe("useCardOperations", () => {
       } = require("../../../mobile/lib/hooks/useCardOperations");
       expect(usePermanentDeleteCard).toBeDefined();
     });
-
-    test("should export useGenerateUploadUrl", () => {
-      const {
-        useGenerateUploadUrl,
-      } = require("../../../mobile/lib/hooks/useCardOperations");
-      expect(useGenerateUploadUrl).toBeDefined();
-    });
-
-    test("should export useCreateCardWithFile", () => {
-      const {
-        useCreateCardWithFile,
-      } = require("../../../mobile/lib/hooks/useCardOperations");
-      expect(useCreateCardWithFile).toBeDefined();
-    });
   });
 
   describe("function signatures", () => {
@@ -62,66 +48,6 @@ describe("useCardOperations", () => {
         usePermanentDeleteCard,
       } = require("../../../mobile/lib/hooks/useCardOperations");
       expect(typeof usePermanentDeleteCard).toBe("function");
-    });
-
-    test("useGenerateUploadUrl should be a function", () => {
-      const {
-        useGenerateUploadUrl,
-      } = require("../../../mobile/lib/hooks/useCardOperations");
-      expect(typeof useGenerateUploadUrl).toBe("function");
-    });
-
-    test("useCreateCardWithFile should be a function", () => {
-      const {
-        useCreateCardWithFile,
-      } = require("../../../mobile/lib/hooks/useCardOperations");
-      expect(typeof useCreateCardWithFile).toBe("function");
-    });
-  });
-
-  // Helper function tests that don't require React context
-  describe("helper functions", () => {
-    test("should validate file size constraints", () => {
-      // Validate that file size limits are defined
-      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-      expect(MAX_FILE_SIZE).toBeGreaterThan(0);
-    });
-
-    test("should validate file type constraints", () => {
-      // Validate that allowed types are defined
-      const ALLOWED_TYPES = [
-        "image/*",
-        "video/*",
-        "audio/*",
-        "application/pdf",
-      ];
-      expect(ALLOWED_TYPES.length).toBeGreaterThan(0);
-    });
-
-    test("should handle upload timeout", () => {
-      // Validate that timeout is configured
-      const UPLOAD_TIMEOUT = 30_000; // 30 seconds
-      expect(UPLOAD_TIMEOUT).toBeGreaterThan(0);
-    });
-  });
-
-  describe("error handling scenarios", () => {
-    test("should handle network errors during upload", () => {
-      // Test error handling logic exists
-      const networkError = new Error("Network request failed");
-      expect(networkError.message).toContain("Network");
-    });
-
-    test("should handle timeout errors", () => {
-      // Test timeout handling logic
-      const timeoutError = new Error("Upload timeout");
-      expect(timeoutError.message).toContain("timeout");
-    });
-
-    test("should handle invalid file types", () => {
-      // Test file type validation
-      const invalidFile = { type: "application/x-executable" };
-      expect(invalidFile.type).toBeDefined();
     });
   });
 
@@ -147,27 +73,6 @@ describe("useCardOperations", () => {
       // Validate the expected shape
       const deleteArgs = { cardId: "test-id" };
       expect(deleteArgs.cardId).toBeDefined();
-    });
-
-    test("generateUploadUrl mutation expects file metadata", () => {
-      // Validate the expected shape
-      const uploadArgs = { filename: "test.jpg", contentType: "image/jpeg" };
-      expect(uploadArgs.filename).toBeDefined();
-      expect(uploadArgs.contentType).toBeDefined();
-    });
-  });
-
-  describe("integration points", () => {
-    test("should integrate with Convex client", () => {
-      // Validate Convex integration
-      const convexClient = { query: mock(), mutation: mock() };
-      expect(convexClient.mutation).toBeDefined();
-    });
-
-    test("should integrate with fetch for uploads", () => {
-      // Validate fetch integration
-      const fetchFn = typeof fetch === "undefined" ? mock() : fetch;
-      expect(fetchFn).toBeDefined();
     });
   });
 });
