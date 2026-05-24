@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "../_generated/server";
+import { deleteObject } from "../storage/r2";
 
 export const permanentDeleteCard = mutation({
   args: {
@@ -22,16 +23,10 @@ export const permanentDeleteCard = mutation({
       throw new Error("Not authorized to permanently delete this card");
     }
 
-    // Delete associated files if they exist
-    if (card.fileId) {
-      await ctx.storage.delete(card.fileId);
-    }
-    if (card.thumbnailId) {
-      await ctx.storage.delete(card.thumbnailId);
-    }
-
     // Permanently remove from database
     await ctx.db.delete("cards", args.id);
+    await deleteObject(ctx, card.fileKey, card.fileId);
+    await deleteObject(ctx, card.thumbnailKey, card.thumbnailId);
 
     return null;
   },

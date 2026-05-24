@@ -212,6 +212,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -230,7 +231,7 @@ describe("useFileUploadCore", () => {
         expect.any(Object)
       );
       expect(mockFinalizeUploadedCard).toHaveBeenCalledWith(
-        expect.objectContaining({ fileId: "store_1" })
+        expect.objectContaining({ fileKey: "store_1" })
       );
       expect(mockOnSuccess).toHaveBeenCalledWith("card_1");
       expect(result.success).toBe(true);
@@ -243,6 +244,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -264,6 +266,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -285,6 +288,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -319,6 +323,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({ ok: false, status: 500 });
 
@@ -332,6 +337,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -388,6 +394,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -413,6 +420,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -442,6 +450,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -469,6 +478,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -489,6 +499,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -513,6 +524,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -537,6 +549,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -557,6 +570,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -594,6 +608,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -621,6 +636,7 @@ describe("useFileUploadCore", () => {
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",
+        uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -644,7 +660,11 @@ describe("useFileUploadCore", () => {
       ] as any;
 
       mockUploadAndCreateCard
-        .mockResolvedValueOnce({ success: true, uploadUrl: "https://upload" })
+        .mockResolvedValueOnce({
+          success: true,
+          uploadKey: "store_1",
+          uploadUrl: "https://upload",
+        })
         .mockResolvedValueOnce({ success: false, error: "failed" });
       mockFetch.mockResolvedValue({
         ok: true,

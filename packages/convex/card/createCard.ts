@@ -5,11 +5,7 @@ import {
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import {
-  internalMutation,
-  type MutationCtx,
-  mutation,
-} from "../_generated/server";
+import { internalMutation, type MutationCtx, mutation } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
 import { cardTypeValidator, colorValidator } from "../schema";
 import {
@@ -30,8 +26,8 @@ const createCardArgs = {
   content: v.string(),
   type: v.optional(cardTypeValidator), // Make type optional for auto-detection
   url: v.optional(v.string()),
-  fileId: v.optional(v.id("_storage")),
-  thumbnailId: v.optional(v.id("_storage")),
+  fileKey: v.optional(v.string()),
+  thumbnailKey: v.optional(v.string()),
   tags: v.optional(v.array(v.string())),
   notes: v.optional(v.string()),
   metadata: v.optional(v.any()), // Allow any metadata from client, we'll process it
@@ -50,8 +46,8 @@ type CreateCardArgs = {
     | "palette"
     | "quote";
   url?: string;
-  fileId?: Id<"_storage">;
-  thumbnailId?: Id<"_storage">;
+  fileKey?: string;
+  thumbnailKey?: string;
   tags?: string[];
   notes?: string;
   metadata?: unknown;
@@ -107,18 +103,12 @@ export const createCardForUserHandler = async (
     }
   }
 
-  if (args.fileId) {
-    const systemFileMetadata = await ctx.db.system.get("_storage", args.fileId);
-    if (systemFileMetadata?.contentType) {
-      fileMetadata = {
-        fileName: extractedFileMetadata.fileName || `file_${now}`,
-        fileSize: systemFileMetadata.size,
-        mimeType: systemFileMetadata.contentType,
-        ...extractedFileMetadata,
-      };
-    }
+  if (args.fileKey) {
+    fileMetadata =
+      Object.keys(extractedFileMetadata).length > 0
+        ? extractedFileMetadata
+        : undefined;
   } else if (Object.keys(extractedFileMetadata).length > 0) {
-    // If we have file metadata but no fileId, still create fileMetadata object
     fileMetadata = extractedFileMetadata;
   }
 
@@ -162,8 +152,8 @@ export const createCardForUserHandler = async (
     content: finalContent,
     type: cardType,
     url: finalUrl,
-    fileId: args.fileId,
-    thumbnailId: args.thumbnailId,
+    fileKey: args.fileKey,
+    thumbnailKey: args.thumbnailKey,
     tags: args.tags,
     notes: args.notes,
     metadata:

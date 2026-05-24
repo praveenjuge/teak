@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
+import { deleteObject } from "./storage/r2";
 
 export * from "./linkMetadata/instagram";
 export {
@@ -40,42 +41,53 @@ export const updateCardMetadataHandler = async (
 
   const previousLinkPreview = existingCard.metadata?.linkPreview;
   const nextLinkPreview = linkPreview ? { ...linkPreview } : undefined;
-  const collectMediaStorageIds = (mediaItems: any[] | undefined) => {
+  const collectMediaStorageRefs = (mediaItems: any[] | undefined) => {
     const storageIds = new Set<string>();
 
     for (const item of mediaItems ?? []) {
-      if (item?.storageId) {
-        storageIds.add(item.storageId);
+      if (item?.storageKey || item?.storageId) {
+        storageIds.add(item.storageKey ?? item.storageId);
       }
-      if (item?.posterStorageId) {
-        storageIds.add(item.posterStorageId);
+      if (item?.posterStorageKey || item?.posterStorageId) {
+        storageIds.add(item.posterStorageKey ?? item.posterStorageId);
       }
     }
 
     return storageIds;
   };
 
-  if (previousLinkPreview?.imageStorageId) {
+  const previousImageRef =
+    previousLinkPreview?.imageStorageKey ?? previousLinkPreview?.imageStorageId;
+  const nextImageRef =
+    nextLinkPreview?.imageStorageKey ?? nextLinkPreview?.imageStorageId;
+
+  if (previousImageRef) {
     if (
-      nextLinkPreview?.imageStorageId &&
-      nextLinkPreview.imageStorageId !== previousLinkPreview.imageStorageId
+      nextImageRef &&
+      nextImageRef !== previousImageRef
     ) {
       try {
-        await ctx.storage.delete(previousLinkPreview.imageStorageId);
+        await deleteObject(
+          ctx,
+          previousLinkPreview.imageStorageKey,
+          previousLinkPreview.imageStorageId
+        );
       } catch (error) {
         console.error(
-          `[linkMetadata] Failed to delete previous OG image ${previousLinkPreview.imageStorageId} for card ${cardId}:`,
+          `[linkMetadata] Failed to delete previous OG image for card ${cardId}:`,
           error
         );
       }
     } else if (nextLinkPreview) {
-      if (!nextLinkPreview.imageStorageId) {
+      if (!(nextLinkPreview.imageStorageKey || nextLinkPreview.imageStorageId)) {
+        nextLinkPreview.imageStorageKey = previousLinkPreview.imageStorageKey;
         nextLinkPreview.imageStorageId = previousLinkPreview.imageStorageId;
         nextLinkPreview.imageUpdatedAt =
           nextLinkPreview.imageUpdatedAt ?? previousLinkPreview.imageUpdatedAt;
       }
       if (
-        nextLinkPreview.imageStorageId === previousLinkPreview.imageStorageId
+        (nextLinkPreview.imageStorageKey ?? nextLinkPreview.imageStorageId) ===
+        previousImageRef
       ) {
         nextLinkPreview.imageWidth =
           nextLinkPreview.imageWidth ?? previousLinkPreview.imageWidth;
@@ -85,21 +97,35 @@ export const updateCardMetadataHandler = async (
     }
   }
 
-  if (previousLinkPreview?.screenshotStorageId) {
+  const previousScreenshotRef =
+    previousLinkPreview?.screenshotStorageKey ??
+    previousLinkPreview?.screenshotStorageId;
+  const nextScreenshotRef =
+    nextLinkPreview?.screenshotStorageKey ?? nextLinkPreview?.screenshotStorageId;
+
+  if (previousScreenshotRef) {
     if (
-      nextLinkPreview?.screenshotStorageId &&
-      nextLinkPreview.screenshotStorageId !==
-        previousLinkPreview.screenshotStorageId
+      nextScreenshotRef &&
+      nextScreenshotRef !== previousScreenshotRef
     ) {
       try {
-        await ctx.storage.delete(previousLinkPreview.screenshotStorageId);
+        await deleteObject(
+          ctx,
+          previousLinkPreview.screenshotStorageKey,
+          previousLinkPreview.screenshotStorageId
+        );
       } catch (error) {
         console.error(
-          `[linkMetadata] Failed to delete previous screenshot ${previousLinkPreview.screenshotStorageId} for card ${cardId}:`,
+          `[linkMetadata] Failed to delete previous screenshot for card ${cardId}:`,
           error
         );
       }
-    } else if (nextLinkPreview && !nextLinkPreview.screenshotStorageId) {
+    } else if (
+      nextLinkPreview &&
+      !(nextLinkPreview.screenshotStorageKey || nextLinkPreview.screenshotStorageId)
+    ) {
+      nextLinkPreview.screenshotStorageKey =
+        previousLinkPreview.screenshotStorageKey;
       nextLinkPreview.screenshotStorageId =
         previousLinkPreview.screenshotStorageId;
       nextLinkPreview.screenshotUpdatedAt =
@@ -107,8 +133,8 @@ export const updateCardMetadataHandler = async (
         previousLinkPreview.screenshotUpdatedAt;
     }
     if (
-      nextLinkPreview?.screenshotStorageId ===
-      previousLinkPreview.screenshotStorageId
+      (nextLinkPreview?.screenshotStorageKey ??
+        nextLinkPreview?.screenshotStorageId) === previousScreenshotRef
     ) {
       nextLinkPreview.screenshotWidth =
         nextLinkPreview.screenshotWidth ?? previousLinkPreview.screenshotWidth;
@@ -120,22 +146,22 @@ export const updateCardMetadataHandler = async (
 
   if (previousLinkPreview?.media?.length) {
     if (nextLinkPreview?.media) {
-      const nextMediaStorageIds = collectMediaStorageIds(nextLinkPreview.media);
-      const previousMediaStorageIds = collectMediaStorageIds(
+      const nextMediaStorageIds = collectMediaStorageRefs(nextLinkPreview.media);
+      const previousMediaStorageIds = collectMediaStorageRefs(
         previousLinkPreview.media
       );
 
       await Promise.all(
-        Array.from(previousMediaStorageIds).map(async (storageId) => {
-          if (nextMediaStorageIds.has(storageId)) {
+        Array.from(previousMediaStorageIds).map(async (storageRef) => {
+          if (nextMediaStorageIds.has(storageRef)) {
             return;
           }
 
           try {
-            await ctx.storage.delete(storageId);
+            await deleteObject(ctx, storageRef);
           } catch (error) {
             console.error(
-              `[linkMetadata] Failed to delete previous media ${storageId} for card ${cardId}:`,
+              `[linkMetadata] Failed to delete previous media ${storageRef} for card ${cardId}:`,
               error
             );
           }
@@ -197,6 +223,7 @@ export const updateCardScreenshotHandler = async (
   ctx: any,
   {
     cardId,
+    screenshotStorageKey,
     screenshotStorageId,
     screenshotUpdatedAt,
     screenshotWidth,
@@ -212,14 +239,21 @@ export const updateCardScreenshotHandler = async (
   const existingLinkPreview = existingMetadata.linkPreview || {};
 
   if (
-    existingLinkPreview.screenshotStorageId &&
-    existingLinkPreview.screenshotStorageId !== screenshotStorageId
+    (existingLinkPreview.screenshotStorageKey ||
+      existingLinkPreview.screenshotStorageId) &&
+    (existingLinkPreview.screenshotStorageKey ??
+      existingLinkPreview.screenshotStorageId) !==
+      (screenshotStorageKey ?? screenshotStorageId)
   ) {
     try {
-      await ctx.storage.delete(existingLinkPreview.screenshotStorageId);
+      await deleteObject(
+        ctx,
+        existingLinkPreview.screenshotStorageKey,
+        existingLinkPreview.screenshotStorageId
+      );
     } catch (error) {
       console.error(
-        `[linkMetadata] Failed to delete previous screenshot ${existingLinkPreview.screenshotStorageId} for card ${cardId}:`,
+        `[linkMetadata] Failed to delete previous screenshot for card ${cardId}:`,
         error
       );
     }
@@ -227,7 +261,8 @@ export const updateCardScreenshotHandler = async (
 
   const updatedLinkPreview = {
     ...existingLinkPreview,
-    screenshotStorageId,
+    screenshotStorageKey,
+    ...(screenshotStorageId ? { screenshotStorageId } : {}),
     screenshotUpdatedAt,
     ...(typeof screenshotWidth === "number" ? { screenshotWidth } : {}),
     ...(typeof screenshotHeight === "number" ? { screenshotHeight } : {}),
@@ -247,7 +282,8 @@ export const updateCardScreenshotHandler = async (
 export const updateCardScreenshot = internalMutation({
   args: {
     cardId: v.id("cards"),
-    screenshotStorageId: v.id("_storage"),
+    screenshotStorageKey: v.string(),
+    screenshotStorageId: v.optional(v.id("_storage")),
     screenshotUpdatedAt: v.number(),
     screenshotWidth: v.optional(v.number()),
     screenshotHeight: v.optional(v.number()),

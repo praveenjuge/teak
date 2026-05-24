@@ -127,16 +127,10 @@ describe("card/createCard.ts", () => {
     );
   });
 
-  test("builds fileMetadata when fileId provided", async () => {
+  test("builds fileMetadata when fileKey provided", async () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        system: {
-          get: mock().mockResolvedValue({
-            size: 123,
-            contentType: "image/png",
-          }),
-        },
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
@@ -151,8 +145,12 @@ describe("card/createCard.ts", () => {
     const handler = (createCard as any).handler ?? createCard;
     await handler(ctx, {
       content: "Image",
-      fileId: "file_1",
-      metadata: { fileName: "photo.png" },
+      fileKey: "users/u/cards/c/file/key",
+      metadata: {
+        fileName: "photo.png",
+        fileSize: 123,
+        mimeType: "image/png",
+      },
     });
 
     expect(ctx.db.insert).toHaveBeenCalledWith(

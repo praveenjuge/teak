@@ -14,6 +14,7 @@ import { stageCompleted } from "../../card/processingStatus";
 import type { CardType } from "../../schema";
 import { extractVisualStylesFromTags } from "../../shared/constants";
 import type { Id } from "../../shared/types";
+import { resolveObjectUrl } from "../../storage/r2";
 import {
   generateImageMetadata,
   generateLinkMetadata,
@@ -149,11 +150,17 @@ export async function generateHandler(
         card.fileMetadata?.fileName?.endsWith(".svg") ||
         card.fileMetadata?.fileName?.endsWith(".SVG");
 
+      const imageKey = isSvgFile && card.thumbnailKey ? card.thumbnailKey : card.fileKey;
       const imageFileId =
         isSvgFile && card.thumbnailId ? card.thumbnailId : card.fileId;
 
-      if (imageFileId) {
-        const imageUrl = await ctx.storage.getUrl(imageFileId);
+      if (imageKey || imageFileId) {
+        const imageUrl = await resolveObjectUrl(ctx, {
+          key: imageKey,
+          legacyStorageId: imageFileId,
+          cardId,
+          field: "metadata.image",
+        });
         if (imageUrl) {
           const result = await generateImageMetadata(imageUrl);
           aiTags = result.aiTags;
@@ -166,8 +173,13 @@ export async function generateHandler(
       break;
     }
     case "video": {
-      if (card.thumbnailId) {
-        const thumbnailUrl = await ctx.storage.getUrl(card.thumbnailId);
+      if (card.thumbnailKey || card.thumbnailId) {
+        const thumbnailUrl = await resolveObjectUrl(ctx, {
+          key: card.thumbnailKey,
+          legacyStorageId: card.thumbnailId,
+          cardId,
+          field: "metadata.videoThumbnail",
+        });
         if (thumbnailUrl) {
           const title =
             card.fileMetadata?.fileName ||
@@ -182,8 +194,13 @@ export async function generateHandler(
       break;
     }
     case "audio": {
-      if (card.fileId) {
-        const audioUrl = await ctx.storage.getUrl(card.fileId);
+      if (card.fileKey || card.fileId) {
+        const audioUrl = await resolveObjectUrl(ctx, {
+          key: card.fileKey,
+          legacyStorageId: card.fileId,
+          cardId,
+          field: "metadata.audio",
+        });
         if (audioUrl) {
           const transcriptResult = await generateTranscript(
             audioUrl,

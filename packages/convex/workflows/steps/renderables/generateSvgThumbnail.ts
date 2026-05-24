@@ -4,6 +4,7 @@ import Kernel from "@onkernel/sdk";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
+import { buildR2ObjectKey, resolveObjectUrl, storeObject } from "../../../storage/r2";
 
 // Maximum thumbnail dimensions - matches image thumbnail settings
 const THUMBNAIL_MAX_WIDTH = 500;
@@ -80,7 +81,7 @@ export const generateSvgThumbnail = internalAction({
   returns: v.object({
     success: v.boolean(),
     generated: v.boolean(),
-    thumbnailId: v.optional(v.id("_storage")),
+    thumbnailKey: v.optional(v.string()),
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
@@ -105,7 +106,7 @@ export const generateSvgThumbnail = internalAction({
         card.fileMetadata?.fileName?.endsWith(".svg") ||
         card.fileMetadata?.fileName?.endsWith(".SVG");
 
-      if (card.type !== "image" || !card.fileId || !isSvg) {
+      if (card.type !== "image" || !(card.fileKey || card.fileId) || !isSvg) {
         console.log(
           `[renderables/svg] Skipping card ${args.cardId} - not an SVG image`
         );
@@ -116,22 +117,26 @@ export const generateSvgThumbnail = internalAction({
       }
 
       // Skip if thumbnail already exists
-      if (card.thumbnailId) {
+      if (card.thumbnailKey || card.thumbnailId) {
         console.log(
           `[renderables/svg] Skipping card ${args.cardId} - thumbnail already exists`
         );
         return {
           success: true,
           generated: false,
-          thumbnailId: card.thumbnailId,
+          thumbnailKey: card.thumbnailKey,
         };
       }
 
-      // Get the SVG URL from storage
-      const svgUrl = await ctx.storage.getUrl(card.fileId);
+      const svgUrl = await resolveObjectUrl(ctx, {
+        key: card.fileKey,
+        legacyStorageId: card.fileId,
+        cardId: args.cardId,
+        field: "renderables.svg.original",
+      });
       if (!svgUrl) {
         console.log(
-          `[renderables/svg] Could not get URL for fileId ${card.fileId}`
+          `[renderables/svg] Could not get URL for card ${args.cardId}`
         );
         return {
           success: false,
@@ -337,7 +342,14 @@ export const generateSvgThumbnail = internalAction({
         const thumbnailBlob = new Blob([imageArrayBuffer], {
           type: "image/png",
         });
-        const thumbnailId = await ctx.storage.store(thumbnailBlob);
+        const thumbnailKey = await storeObject(ctx, thumbnailBlob, {
+          key: buildR2ObjectKey({
+            userId: card.userId,
+            cardId: args.cardId,
+            role: "thumbnail",
+          }),
+          type: "image/png",
+        });
 
         // Use extracted dimensions or fall back to rendered dimensions
         const finalOriginalWidth =
@@ -350,7 +362,7 @@ export const generateSvgThumbnail = internalAction({
           internal.workflows.steps.renderables.mutations.updateCardThumbnail,
           {
             cardId: args.cardId,
-            thumbnailId,
+            thumbnailKey,
             ...(finalOriginalWidth !== undefined && {
               originalWidth: finalOriginalWidth,
             }),
@@ -367,7 +379,7 @@ export const generateSvgThumbnail = internalAction({
         return {
           success: true,
           generated: true,
-          thumbnailId,
+          thumbnailKey,
         };
       } finally {
         // Clean up the browser session

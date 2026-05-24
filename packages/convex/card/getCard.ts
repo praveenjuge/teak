@@ -3,6 +3,7 @@ import type { Id } from "../_generated/dataModel";
 import { internalQuery, query } from "../_generated/server";
 import type { LinkPreviewMediaItem } from "../linkMetadata";
 import { cardValidator } from "../schema";
+import { resolveObjectUrl } from "../storage/r2";
 import {
   applyQuoteDisplayFormatting,
   applyQuoteFormattingToList,
@@ -57,36 +58,100 @@ export const getCardForUserHandler = async (
   }
 
   const storageIds = new Set<string>();
-  if (card.fileId) {
-    storageIds.add(card.fileId);
+  const storageRefs = new Map<
+    string,
+    { key?: string; legacyStorageId?: string; field: string }
+  >();
+  if (card.fileKey || card.fileId) {
+    const id = card.fileKey ?? card.fileId!;
+    storageIds.add(id);
+    storageRefs.set(id, {
+      key: card.fileKey,
+      legacyStorageId: card.fileId,
+      field: "card.file",
+    });
   }
-  if (card.thumbnailId) {
-    storageIds.add(card.thumbnailId);
+  if (card.thumbnailKey || card.thumbnailId) {
+    const id = card.thumbnailKey ?? card.thumbnailId!;
+    storageIds.add(id);
+    storageRefs.set(id, {
+      key: card.thumbnailKey,
+      legacyStorageId: card.thumbnailId,
+      field: "card.thumbnail",
+    });
   }
-  if (card.metadata?.linkPreview?.screenshotStorageId) {
-    storageIds.add(card.metadata.linkPreview.screenshotStorageId);
+  if (
+    card.metadata?.linkPreview?.screenshotStorageKey ||
+    card.metadata?.linkPreview?.screenshotStorageId
+  ) {
+    const id =
+      card.metadata.linkPreview.screenshotStorageKey ??
+      card.metadata.linkPreview.screenshotStorageId!;
+    storageIds.add(id);
+    storageRefs.set(id, {
+      key: card.metadata.linkPreview.screenshotStorageKey,
+      legacyStorageId: card.metadata.linkPreview.screenshotStorageId,
+      field: "linkPreview.screenshot",
+    });
   }
-  if (card.metadata?.linkPreview?.imageStorageId) {
-    storageIds.add(card.metadata.linkPreview.imageStorageId);
+  if (
+    card.metadata?.linkPreview?.imageStorageKey ||
+    card.metadata?.linkPreview?.imageStorageId
+  ) {
+    const id =
+      card.metadata.linkPreview.imageStorageKey ??
+      card.metadata.linkPreview.imageStorageId!;
+    storageIds.add(id);
+    storageRefs.set(id, {
+      key: card.metadata.linkPreview.imageStorageKey,
+      legacyStorageId: card.metadata.linkPreview.imageStorageId,
+      field: "linkPreview.image",
+    });
   }
   for (const item of (card.metadata?.linkPreview?.media ??
     []) as LinkPreviewMediaItem[]) {
-    storageIds.add(item.storageId);
-    if (item.posterStorageId) {
-      storageIds.add(item.posterStorageId);
+    const id = item.storageKey ?? item.storageId;
+    if (!id) {
+      continue;
+    }
+    storageIds.add(id);
+    storageRefs.set(id, {
+      key: item.storageKey,
+      legacyStorageId: item.storageId,
+      field: `linkPreview.media.${item.type}`,
+    });
+    const posterId = item.posterStorageKey ?? item.posterStorageId;
+    if (posterId) {
+      storageIds.add(posterId);
+      storageRefs.set(posterId, {
+        key: item.posterStorageKey,
+        legacyStorageId: item.posterStorageId,
+        field: "linkPreview.media.poster",
+      });
     }
   }
 
   const resolvedUrls = await Promise.all(
     Array.from(storageIds).map(
-      async (id) => [id, await ctx.storage.getUrl(id)] as const
+      async (id) =>
+        [
+          id,
+          await resolveObjectUrl(ctx, {
+            ...(storageRefs.get(id) ?? { key: id, field: "unknown" }),
+            cardId,
+          }),
+        ] as const
     )
   );
   const urlMap = new Map(resolvedUrls);
 
   const linkPreviewMedia = (card.metadata?.linkPreview?.media ?? [])
     .map((item: LinkPreviewMediaItem) => {
-      const url = urlMap.get(item.storageId);
+      const storageKey = item.storageKey ?? item.storageId;
+      if (!storageKey) {
+        return null;
+      }
+      const url = urlMap.get(storageKey);
       if (!url) {
         return null;
       }
@@ -96,8 +161,9 @@ export const getCardForUserHandler = async (
         contentType: item.contentType,
         width: item.width,
         height: item.height,
-        posterUrl: item.posterStorageId
-          ? (urlMap.get(item.posterStorageId) ?? undefined)
+        posterUrl: (item.posterStorageKey ?? item.posterStorageId)
+          ? (urlMap.get(item.posterStorageKey ?? item.posterStorageId!) ??
+            undefined)
           : undefined,
         posterContentType: item.posterContentType,
         posterWidth: item.posterWidth,
@@ -111,8 +177,11 @@ export const getCardForUserHandler = async (
     );
 
   const linkPreviewOgImageUrl: string | undefined = card.metadata?.linkPreview
-    ?.imageStorageId
-    ? (urlMap.get(card.metadata.linkPreview.imageStorageId) ?? undefined)
+    ?.imageStorageKey || card.metadata?.linkPreview?.imageStorageId
+    ? (urlMap.get(
+        card.metadata.linkPreview.imageStorageKey ??
+          card.metadata.linkPreview.imageStorageId!
+      ) ?? undefined)
     : undefined;
 
   const linkPreviewImageUrl =
@@ -128,12 +197,19 @@ export const getCardForUserHandler = async (
 
   return applyQuoteDisplayFormatting({
     ...card,
-    fileUrl: card.fileId ? (urlMap.get(card.fileId) ?? undefined) : undefined,
-    thumbnailUrl: card.thumbnailId
-      ? (urlMap.get(card.thumbnailId) ?? undefined)
+    fileUrl: card.fileKey || card.fileId
+      ? (urlMap.get(card.fileKey ?? card.fileId!) ?? undefined)
       : undefined,
-    screenshotUrl: card.metadata?.linkPreview?.screenshotStorageId
-      ? (urlMap.get(card.metadata.linkPreview.screenshotStorageId) ?? undefined)
+    thumbnailUrl: card.thumbnailKey || card.thumbnailId
+      ? (urlMap.get(card.thumbnailKey ?? card.thumbnailId!) ?? undefined)
+      : undefined,
+    screenshotUrl:
+      card.metadata?.linkPreview?.screenshotStorageKey ||
+      card.metadata?.linkPreview?.screenshotStorageId
+        ? (urlMap.get(
+            card.metadata.linkPreview.screenshotStorageKey ??
+              card.metadata.linkPreview.screenshotStorageId!
+          ) ?? undefined)
       : undefined,
     linkPreviewMedia: linkPreviewMedia?.length ? linkPreviewMedia : undefined,
     linkPreviewImageUrl,

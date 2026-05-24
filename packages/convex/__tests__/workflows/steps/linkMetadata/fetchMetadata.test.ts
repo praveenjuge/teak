@@ -263,12 +263,12 @@ describe("fetchMetadata", () => {
         media: [
           expect.objectContaining({
             type: "image",
-            storageId: "stored-1",
+            storageKey: "stored-1",
           }),
           expect.objectContaining({
             type: "video",
-            storageId: "stored-2",
-            posterStorageId: "stored-3",
+            storageKey: "stored-2",
+            posterStorageKey: "stored-3",
           }),
         ],
       })

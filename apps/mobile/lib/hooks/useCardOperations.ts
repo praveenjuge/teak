@@ -20,7 +20,7 @@ export function useCreateCardWithFile(config: FileUploadConfig = {}) {
   return {
     async uploadFile(fileUri: string, fileName: string, mimeType: string) {
       try {
-        const uploadUrl = await generateUploadUrl({
+        const upload = await generateUploadUrl({
           fileName,
           fileType: mimeType,
         });
@@ -39,9 +39,10 @@ export function useCreateCardWithFile(config: FileUploadConfig = {}) {
           () => uploadController.abort(),
           60_000
         );
-        const uploadResponse = await fetch(uploadUrl, {
-          method: "POST",
+        const uploadResponse = await fetch(upload.url, {
+          method: "PUT",
           body: blob,
+          headers: { "Content-Type": mimeType || "application/octet-stream" },
           signal: uploadController.signal,
         });
         clearTimeout(uploadTimeoutId);
@@ -50,8 +51,7 @@ export function useCreateCardWithFile(config: FileUploadConfig = {}) {
           throw new Error("Failed to upload file");
         }
 
-        const { storageId } = await uploadResponse.json();
-        return storageId;
+        return upload.key;
       } catch (error) {
         config.onUploadError?.(error as Error);
         throw error;

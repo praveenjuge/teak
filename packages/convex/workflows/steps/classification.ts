@@ -133,7 +133,9 @@ const isProbablyPalette = (card: any): boolean => {
   if (colors.length >= 2) return true;
 
   // Single colour counts as palette when the card is otherwise plain text (no url/file) or an explicit hint exists.
-  if (colors.length === 1 && !card.url && !card.fileId) return true;
+  if (colors.length === 1 && !card.url && !(card.fileKey || card.fileId)) {
+    return true;
+  }
   if (colors.length === 1 && hint) return true;
 
   return false;
@@ -285,7 +287,7 @@ const deterministicClassify = (
   if (extensionResult) return extensionResult;
 
   // 2b) If a file exists but metadata/extension gave no match, treat as document
-  if (card.fileId) {
+  if (card.fileKey || card.fileId) {
     return { type: "document", confidence: MEDIUM_CONFIDENCE };
   }
 
@@ -363,7 +365,7 @@ export const classify = internalAction({
     }
 
     // If previously classified as quote and no conflicting signals, keep it sticky
-    if (card.type === "quote" && !card.url && !card.fileId) {
+    if (card.type === "quote" && !card.url && !(card.fileKey || card.fileId)) {
       const confidence = card.processingStatus?.classify?.confidence ?? 0.95;
       const stickyResult: ClassificationWorkflowResult = {
         type: "quote",
@@ -379,7 +381,9 @@ export const classify = internalAction({
 
     const quoteNormalization = normalizeQuoteContent(card.content ?? "");
     const heuristicQuote =
-      quoteNormalization.removedQuotes && !card.url && !card.fileId;
+      quoteNormalization.removedQuotes &&
+      !card.url &&
+      !(card.fileKey || card.fileId);
 
     if (heuristicQuote) {
       await ctx.runMutation(
@@ -413,7 +417,7 @@ export const classify = internalAction({
       typeof card.content === "string" ? card.content.trim() : "";
     const urlOnlyCard =
       !!card.url &&
-      !card.fileId &&
+      !(card.fileKey || card.fileId) &&
       (trimmedContent.length === 0 || trimmedContent === card.url);
 
     const normalizedType =

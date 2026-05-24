@@ -53,6 +53,7 @@ export interface LinkPreviewMetadata {
   fetchedAt: number;
   finalUrl?: string;
   imageHeight?: number;
+  imageStorageKey?: string;
   imageStorageId?: Id<"_storage">;
   imageUpdatedAt?: number;
   imageUrl?: string;
@@ -62,6 +63,7 @@ export interface LinkPreviewMetadata {
   publisher?: string;
   raw?: ScrapeSelectorResult[];
   screenshotHeight?: number;
+  screenshotStorageKey?: string;
   screenshotStorageId?: Id<"_storage">;
   screenshotUpdatedAt?: number;
   screenshotWidth?: number;
@@ -77,10 +79,12 @@ export interface LinkPreviewMediaItem {
   height?: number;
   posterContentType?: string;
   posterHeight?: number;
+  posterStorageKey?: string;
   posterStorageId?: Id<"_storage">;
   posterUpdatedAt?: number;
   posterWidth?: number;
-  storageId: Id<"_storage">;
+  storageKey?: string;
+  storageId?: Id<"_storage">;
   type: "image" | "video";
   updatedAt: number;
   width?: number;

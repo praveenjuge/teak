@@ -1,5 +1,4 @@
 import { v } from "convex/values";
-import type { Id } from "../../../_generated/dataModel";
 import { internalMutation } from "../../../_generated/server";
 
 /**
@@ -35,7 +34,7 @@ export const updateCardFileMetadata = internalMutation({
 export const updateCardThumbnail = internalMutation({
   args: {
     cardId: v.id("cards"),
-    thumbnailId: v.id("_storage"),
+    thumbnailKey: v.string(),
     // Original image dimensions to store for aspect ratio calculations
     // even when thumbnail generation is skipped (small files)
     originalWidth: v.optional(v.number()),
@@ -49,11 +48,11 @@ export const updateCardThumbnail = internalMutation({
     }
 
     const updates: {
-      thumbnailId: Id<"_storage">;
+      thumbnailKey: string;
       updatedAt: number;
       fileMetadata?: { width?: number; height?: number };
     } = {
-      thumbnailId: args.thumbnailId,
+      thumbnailKey: args.thumbnailKey,
       updatedAt: Date.now(),
     };
 

@@ -4,6 +4,7 @@ import { PhotonImage } from "@cf-wasm/photon";
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
+import { resolveObjectUrl } from "../../storage/r2";
 
 const MAX_COLORS = 5;
 const SAMPLE_TARGET = 4000;
@@ -62,7 +63,7 @@ export const extractPaletteFromImage = internalAction({
       cardId,
     });
 
-    if (!card || card.type !== "image" || !card.fileId) {
+    if (!card || card.type !== "image" || !(card.fileKey || card.fileId)) {
       return undefined;
     }
 
@@ -79,14 +80,20 @@ export const extractPaletteFromImage = internalAction({
       card.fileMetadata?.fileName?.endsWith(".SVG");
 
     // Determine which file ID to use: thumbnail for SVGs, original file for raster images
+    const fileKeyForPalette = isSvg ? card.thumbnailKey : card.fileKey;
     const fileIdForPalette = isSvg ? card.thumbnailId : card.fileId;
 
     // For SVGs without a thumbnail yet, skip (will run after thumbnail generation)
-    if (isSvg && !fileIdForPalette) {
+    if (isSvg && !(fileKeyForPalette || fileIdForPalette)) {
       return undefined;
     }
 
-    const fileUrl = await ctx.storage.getUrl(fileIdForPalette);
+    const fileUrl = await resolveObjectUrl(ctx, {
+      key: fileKeyForPalette,
+      legacyStorageId: fileIdForPalette,
+      cardId,
+      field: "palette.image",
+    });
     if (!fileUrl) {
       return undefined;
     }

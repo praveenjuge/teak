@@ -4,6 +4,7 @@ import Kernel from "@onkernel/sdk";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
+import { buildR2ObjectKey, resolveObjectUrl, storeObject } from "../../../storage/r2";
 
 // Maximum thumbnail dimensions - matches image thumbnail settings
 const THUMBNAIL_MAX_WIDTH = 400;
@@ -21,7 +22,7 @@ export const generateVideoThumbnail = internalAction({
   returns: v.object({
     success: v.boolean(),
     generated: v.boolean(),
-    thumbnailId: v.optional(v.id("_storage")),
+    thumbnailKey: v.optional(v.string()),
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
@@ -41,7 +42,7 @@ export const generateVideoThumbnail = internalAction({
       }
 
       // Only generate thumbnails for video cards with files
-      if (card.type !== "video" || !card.fileId) {
+      if (card.type !== "video" || !(card.fileKey || card.fileId)) {
         console.log(
           `[renderables/video] Skipping card ${args.cardId} - not a video or no fileId`
         );
@@ -52,22 +53,26 @@ export const generateVideoThumbnail = internalAction({
       }
 
       // Skip if thumbnail already exists
-      if (card.thumbnailId) {
+      if (card.thumbnailKey || card.thumbnailId) {
         console.log(
           `[renderables/video] Skipping card ${args.cardId} - thumbnail already exists`
         );
         return {
           success: true,
           generated: false,
-          thumbnailId: card.thumbnailId,
+          thumbnailKey: card.thumbnailKey,
         };
       }
 
-      // Get the video URL from storage
-      const videoUrl = await ctx.storage.getUrl(card.fileId);
+      const videoUrl = await resolveObjectUrl(ctx, {
+        key: card.fileKey,
+        legacyStorageId: card.fileId,
+        cardId: args.cardId,
+        field: "renderables.video.original",
+      });
       if (!videoUrl) {
         console.log(
-          `[renderables/video] Could not get URL for fileId ${card.fileId}`
+          `[renderables/video] Could not get URL for card ${args.cardId}`
         );
         return {
           success: false,
@@ -250,7 +255,14 @@ export const generateVideoThumbnail = internalAction({
         const thumbnailBlob = new Blob([imageArrayBuffer], {
           type: result.mimeType || "image/webp",
         });
-        const thumbnailId = await ctx.storage.store(thumbnailBlob);
+        const thumbnailKey = await storeObject(ctx, thumbnailBlob, {
+          key: buildR2ObjectKey({
+            userId: card.userId,
+            cardId: args.cardId,
+            role: "thumbnail",
+          }),
+          type: result.mimeType || "image/webp",
+        });
 
         // Extract original video dimensions from the result
         // These are the videoWidth and videoHeight from the HTMLVideoElement
@@ -262,7 +274,7 @@ export const generateVideoThumbnail = internalAction({
           internal.workflows.steps.renderables.mutations.updateCardThumbnail,
           {
             cardId: args.cardId,
-            thumbnailId,
+            thumbnailKey,
             ...(originalWidth !== undefined && { originalWidth }),
             ...(originalHeight !== undefined && { originalHeight }),
           }
@@ -275,7 +287,7 @@ export const generateVideoThumbnail = internalAction({
         return {
           success: true,
           generated: true,
-          thumbnailId,
+          thumbnailKey,
         };
       } finally {
         // Clean up the browser session

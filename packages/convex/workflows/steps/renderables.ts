@@ -74,7 +74,7 @@ export async function generateHandler(
     card.fileMetadata?.fileName?.endsWith(".svg") ||
     card.fileMetadata?.fileName?.endsWith(".SVG");
 
-  if (cardType === "image" && card.fileId && !isSvgFile) {
+  if (cardType === "image" && (card.fileKey || card.fileId) && !isSvgFile) {
     const result = await ctx.runAction(
       (internal as any).workflows.steps.renderables.generateThumbnail
         .generateThumbnail,
@@ -84,7 +84,7 @@ export async function generateHandler(
   }
 
   // Generate thumbnail for SVG images (rasterize to PNG using Playwright)
-  if (cardType === "image" && card.fileId && isSvgFile) {
+  if (cardType === "image" && (card.fileKey || card.fileId) && isSvgFile) {
     const result = await ctx.runAction(
       (internal as any).workflows.steps.renderables.generateSvgThumbnail
         .generateSvgThumbnail,
@@ -94,7 +94,7 @@ export async function generateHandler(
   }
 
   // Generate thumbnail for video cards using MediaBunny
-  if (cardType === "video" && card.fileId) {
+  if (cardType === "video" && (card.fileKey || card.fileId)) {
     const result = await ctx.runAction(
       (internal as any).workflows.steps.renderables.generateVideoThumbnail
         .generateVideoThumbnail,
@@ -106,7 +106,7 @@ export async function generateHandler(
   // Generate thumbnail for PDF documents
   if (
     cardType === "document" &&
-    card.fileId &&
+    (card.fileKey || card.fileId) &&
     card.fileMetadata?.mimeType === "application/pdf"
   ) {
     const result = await ctx.runAction(

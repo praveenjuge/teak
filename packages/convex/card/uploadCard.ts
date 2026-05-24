@@ -3,6 +3,7 @@ import { internal } from "../_generated/api";
 import { mutation } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
 import { type CardType, cardTypeValidator } from "../schema";
+import { buildR2ObjectKey, buildR2UserPrefix, r2 } from "../storage/r2";
 import {
   buildInitialProcessingStatus,
   stageCompleted,
@@ -52,6 +53,7 @@ export const uploadAndCreateCard = mutation({
   returns: v.object({
     success: v.boolean(),
     cardId: v.optional(v.id("cards")),
+    uploadKey: v.optional(v.string()),
     uploadUrl: v.optional(v.string()),
     error: v.optional(v.string()),
     errorCode: v.optional(v.string()),
@@ -66,12 +68,18 @@ export const uploadAndCreateCard = mutation({
       // Check rate limit and card count limit
       await ensureCardCreationAllowed(ctx, user.subject);
 
-      // Generate upload URL
-      const uploadUrl = await ctx.storage.generateUploadUrl();
+      const upload = await r2.generateUploadUrl(
+        buildR2ObjectKey({
+          userId: user.subject,
+          role: "file",
+          fileName: _args.fileName,
+        })
+      );
 
       return {
         success: true,
-        uploadUrl,
+        uploadKey: upload.key,
+        uploadUrl: upload.url,
         cardId: undefined, // Will be set after successful upload
       };
     } catch (error) {
@@ -105,8 +113,10 @@ export const uploadAndCreateCard = mutation({
 // Mutation to finalize card creation after successful upload
 export const finalizeUploadedCard = mutation({
   args: {
-    fileId: v.id("_storage"),
+    fileKey: v.string(),
     fileName: v.string(),
+    fileSize: v.optional(v.number()),
+    fileType: v.optional(v.string()),
     cardType: cardTypeValidator,
     content: v.optional(v.string()),
     additionalMetadata: v.optional(v.any()),
@@ -129,15 +139,16 @@ export const finalizeUploadedCard = mutation({
       // Check rate limit and card count limit
       await ensureCardCreationAllowed(ctx, user.subject);
 
-      // Get file metadata from storage
-      const fileMetadata = await ctx.db.system.get("_storage", args.fileId);
-      if (!fileMetadata) {
-        return { success: false, error: "File not found in storage" };
-      }
-
       validateFileCardType(args.cardType);
 
-      if (!mimeMatchesCardType(fileMetadata.contentType, args.cardType)) {
+      if (!args.fileKey.startsWith(`${buildR2UserPrefix(user.subject)}/`)) {
+        throw new ConvexError({
+          code: "INVALID_STORAGE_KEY",
+          message: "Uploaded file key does not belong to the current user",
+        });
+      }
+
+      if (!mimeMatchesCardType(args.fileType, args.cardType)) {
         throw new ConvexError({
           code: "TYPE_MISMATCH",
           message: `Uploaded file does not match expected ${args.cardType} type`,
@@ -152,8 +163,8 @@ export const finalizeUploadedCard = mutation({
       // Build comprehensive file metadata (including any file-related fields from additionalMetadata)
       const fileMetadataObj = {
         fileName: args.fileName,
-        fileSize: fileMetadata.size,
-        mimeType: fileMetadata.contentType,
+        fileSize: args.fileSize,
+        mimeType: args.fileType,
         // Include file-related fields from additionalMetadata
         ...(additionalMeta.recordingTimestamp && {
           recordingTimestamp: additionalMeta.recordingTimestamp,
@@ -185,7 +196,7 @@ export const finalizeUploadedCard = mutation({
         userId: user.subject,
         content: args.content || "",
         type: cardType,
-        fileId: args.fileId,
+        fileKey: args.fileKey,
         fileMetadata: fileMetadataObj,
         metadata,
         processingStatus: buildInitialProcessingStatus({
@@ -196,6 +207,12 @@ export const finalizeUploadedCard = mutation({
         createdAt: now,
         updatedAt: now,
       });
+
+      await ctx.scheduler.runAfter(
+        0,
+        (internal as any).storage.r2.syncUploadedObjectMetadata,
+        { key: args.fileKey }
+      );
 
       await ctx.scheduler.runAfter(
         0,

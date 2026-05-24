@@ -1,6 +1,7 @@
 import type { Doc } from "../_generated/dataModel";
 import type { LinkPreviewMediaItem } from "../linkMetadata";
 import type { CreatedAtRange } from "../shared";
+import { resolveObjectUrl } from "../storage/r2";
 
 export type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
@@ -37,6 +38,10 @@ export const attachFileUrls = async (
   cards: Doc<"cards">[]
 ): Promise<CardWithUrls[]> => {
   const storageIds = new Set<string>();
+  const storageRefs = new Map<
+    string,
+    { key?: string; legacyStorageId?: string; field: string }
+  >();
   type CardStorageIds = {
     fileId?: string;
     thumbnailId?: string;
@@ -58,28 +63,66 @@ export const attachFileUrls = async (
 
   for (const card of cards) {
     const ids: CardStorageIds = {};
-    if (card.fileId) {
-      storageIds.add(card.fileId);
-      ids.fileId = card.fileId;
+    if (card.fileKey || card.fileId) {
+      const id = card.fileKey ?? card.fileId!;
+      storageIds.add(id);
+      storageRefs.set(id, {
+        key: card.fileKey,
+        legacyStorageId: card.fileId,
+        field: "card.file",
+      });
+      ids.fileId = id;
     }
-    if (card.thumbnailId) {
-      storageIds.add(card.thumbnailId);
-      ids.thumbnailId = card.thumbnailId;
+    if (card.thumbnailKey || card.thumbnailId) {
+      const id = card.thumbnailKey ?? card.thumbnailId!;
+      storageIds.add(id);
+      storageRefs.set(id, {
+        key: card.thumbnailKey,
+        legacyStorageId: card.thumbnailId,
+        field: "card.thumbnail",
+      });
+      ids.thumbnailId = id;
     }
-    if (card.metadata?.linkPreview?.imageStorageId) {
-      storageIds.add(card.metadata.linkPreview.imageStorageId);
-      ids.linkPreviewImageId = card.metadata.linkPreview.imageStorageId;
+    if (
+      card.metadata?.linkPreview?.imageStorageKey ||
+      card.metadata?.linkPreview?.imageStorageId
+    ) {
+      const id =
+        card.metadata.linkPreview.imageStorageKey ??
+        card.metadata.linkPreview.imageStorageId!;
+      storageIds.add(id);
+      storageRefs.set(id, {
+        key: card.metadata.linkPreview.imageStorageKey,
+        legacyStorageId: card.metadata.linkPreview.imageStorageId,
+        field: "linkPreview.image",
+      });
+      ids.linkPreviewImageId = id;
     }
     const hydratedMedia = (card.metadata?.linkPreview?.media ?? [])?.map(
       (item: LinkPreviewMediaItem) => {
-        storageIds.add(item.storageId);
-        if (item.posterStorageId) {
-          storageIds.add(item.posterStorageId);
+        const id = item.storageKey ?? item.storageId;
+        if (!id) {
+          return null;
+        }
+        storageIds.add(id);
+        storageRefs.set(id, {
+          key: item.storageKey,
+          legacyStorageId: item.storageId,
+          field: `linkPreview.media.${item.type}`,
+        });
+        const posterId = item.posterStorageKey ?? item.posterStorageId;
+        if (posterId) {
+          storageIds.add(posterId);
+          storageRefs.set(posterId, {
+            key: item.posterStorageKey,
+            legacyStorageId: item.posterStorageId,
+            field: "linkPreview.media.poster",
+          });
         }
         return {
           type: item.type,
-          storageId: item.storageId,
-          posterId: item.posterStorageId,
+          storageId: id,
+          posterId,
           contentType: item.contentType,
           width: item.width,
           height: item.height,
@@ -88,20 +131,33 @@ export const attachFileUrls = async (
           posterHeight: item.posterHeight,
         };
       }
-    );
+    ).filter((item): item is NonNullable<typeof item> => Boolean(item));
     if (hydratedMedia?.length) {
       ids.linkPreviewMedia = hydratedMedia;
     }
-    if (card.metadata?.linkPreview?.screenshotStorageId) {
-      storageIds.add(card.metadata.linkPreview.screenshotStorageId);
-      ids.screenshotId = card.metadata.linkPreview.screenshotStorageId;
+    if (
+      card.metadata?.linkPreview?.screenshotStorageKey ||
+      card.metadata?.linkPreview?.screenshotStorageId
+    ) {
+      const id =
+        card.metadata.linkPreview.screenshotStorageKey ??
+        card.metadata.linkPreview.screenshotStorageId!;
+      storageIds.add(id);
+      storageRefs.set(id, {
+        key: card.metadata.linkPreview.screenshotStorageKey,
+        legacyStorageId: card.metadata.linkPreview.screenshotStorageId,
+        field: "linkPreview.screenshot",
+      });
+      ids.screenshotId = id;
     }
     cardToIds.set(card._id, ids);
   }
 
   const urlPromises = Array.from(storageIds).map(async (id) => ({
     id,
-    url: await ctx.storage.getUrl(id as any),
+    url: await resolveObjectUrl(ctx, {
+      ...(storageRefs.get(id) ?? { key: id, field: "unknown" }),
+    }),
   }));
   const urlResults = await Promise.all(urlPromises);
   const urlMap = new Map(urlResults.map((result) => [result.id, result.url]));

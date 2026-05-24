@@ -29,7 +29,7 @@ import {
   isXStatusUrl,
   type XStatusMedia,
 } from "../../../linkMetadata/x";
-import type { Id } from "../../../shared/types";
+import { buildR2ObjectKey, storeObject } from "../../../storage/r2";
 
 // Top-level regex patterns for performance
 const IMAGE_EXTENSION_REGEX = /\.(png|jpe?g|webp|gif|avif|svg)(?:[?#]|$)/;
@@ -63,7 +63,7 @@ const throwRetryable = (info: LinkMetadataRetryableError): never => {
 };
 
 type StoredLinkImage = {
-  imageStorageId: Id<"_storage">;
+  imageStorageKey: string;
   imageUpdatedAt: number;
   imageWidth: number;
   imageHeight: number;
@@ -72,7 +72,7 @@ type StoredLinkImage = {
 type StoredRemoteAsset = {
   bytes: Uint8Array;
   contentType: string;
-  storageId: Id<"_storage">;
+  storageKey: string;
   updatedAt: number;
 };
 
@@ -178,10 +178,12 @@ const storeRemoteAsset = async (
   {
     allowedContentTypePrefixes,
     fallbackContentType,
+    key,
     maxBytes,
   }: {
     allowedContentTypePrefixes: readonly string[];
     fallbackContentType?: string;
+    key: string;
     maxBytes: number;
   }
 ): Promise<StoredRemoteAsset | null> => {
@@ -231,14 +233,15 @@ const storeRemoteAsset = async (
     }
 
     const bytes = new Uint8Array(arrayBuffer);
-    const storageId = await ctx.storage.store(
-      new Blob([arrayBuffer], { type: contentType })
-    );
+    const storageKey = await storeObject(ctx, new Blob([arrayBuffer]), {
+      key,
+      type: contentType,
+    });
 
     return {
       bytes,
       contentType,
-      storageId,
+      storageKey,
       updatedAt: Date.now(),
     };
   } catch (error) {
@@ -249,11 +252,13 @@ const storeRemoteAsset = async (
 
 const storeLinkPreviewImage = async (
   ctx: any,
-  imageUrl: string
+  imageUrl: string,
+  keyBase: { cardId: string; userId: string }
 ): Promise<StoredLinkImage | null> => {
   const storedAsset = await storeRemoteAsset(ctx, imageUrl, {
     allowedContentTypePrefixes: ["image/"],
     fallbackContentType: resolveImageContentType(null, imageUrl) ?? undefined,
+    key: buildR2ObjectKey({ ...keyBase, role: "link-preview-image" }),
     maxBytes: MAX_REMOTE_IMAGE_BYTES,
   });
 
@@ -267,7 +272,7 @@ const storeLinkPreviewImage = async (
   }
 
   return {
-    imageStorageId: storedAsset.storageId,
+    imageStorageKey: storedAsset.storageKey,
     imageUpdatedAt: storedAsset.updatedAt,
     imageWidth: dimensions.width,
     imageHeight: dimensions.height,
@@ -276,12 +281,14 @@ const storeLinkPreviewImage = async (
 
 const storeLinkPreviewMediaItem = async (
   ctx: any,
-  media: PersistableLinkMedia
+  media: PersistableLinkMedia,
+  keyBase: { cardId: string; userId: string }
 ): Promise<LinkPreviewMediaItem | null> => {
   const storedMedia = await storeRemoteAsset(ctx, media.url, {
     allowedContentTypePrefixes:
       media.type === "image" ? ["image/"] : ["video/"],
     fallbackContentType: media.contentType,
+    key: buildR2ObjectKey({ ...keyBase, role: `link-media-${media.type}` }),
     maxBytes:
       media.type === "image" ? MAX_REMOTE_IMAGE_BYTES : MAX_REMOTE_VIDEO_BYTES,
   });
@@ -290,7 +297,7 @@ const storeLinkPreviewMediaItem = async (
     return null;
   }
 
-  let posterStorageId: Id<"_storage"> | undefined;
+  let posterStorageKey: string | undefined;
   let posterUpdatedAt: number | undefined;
   let posterContentType: string | undefined;
   let posterWidth = media.posterWidth;
@@ -300,12 +307,13 @@ const storeLinkPreviewMediaItem = async (
     const storedPoster = await storeRemoteAsset(ctx, media.posterUrl, {
       allowedContentTypePrefixes: ["image/"],
       fallbackContentType: media.posterContentType,
+      key: buildR2ObjectKey({ ...keyBase, role: "link-media-poster" }),
       maxBytes: MAX_REMOTE_IMAGE_BYTES,
     });
 
     if (storedPoster) {
       const posterDimensions = readImageDimensions(storedPoster.bytes);
-      posterStorageId = storedPoster.storageId;
+      posterStorageKey = storedPoster.storageKey;
       posterUpdatedAt = storedPoster.updatedAt;
       posterContentType = storedPoster.contentType;
       posterWidth = posterDimensions?.width ?? posterWidth;
@@ -315,14 +323,14 @@ const storeLinkPreviewMediaItem = async (
 
   return {
     type: media.type,
-    storageId: storedMedia.storageId,
+    storageKey: storedMedia.storageKey,
     updatedAt: storedMedia.updatedAt,
     contentType: storedMedia.contentType,
     width: media.width,
     height: media.height,
-    ...(posterStorageId
+    ...(posterStorageKey
       ? {
-          posterStorageId,
+          posterStorageKey,
           posterUpdatedAt,
           posterContentType,
           posterWidth,
@@ -334,14 +342,15 @@ const storeLinkPreviewMediaItem = async (
 
 const storeLinkPreviewMedia = async (
   ctx: any,
-  media: PersistableLinkMedia[] | undefined
+  media: PersistableLinkMedia[] | undefined,
+  keyBase: { cardId: string; userId: string }
 ): Promise<LinkPreviewMediaItem[] | undefined> => {
   if (!media?.length) {
     return undefined;
   }
 
   const storedMedia = await Promise.all(
-    media.map((item) => storeLinkPreviewMediaItem(ctx, item))
+    media.map((item) => storeLinkPreviewMediaItem(ctx, item, keyBase))
   );
   const persistedMedia = storedMedia.filter(
     (item): item is LinkPreviewMediaItem => Boolean(item)
@@ -667,6 +676,7 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
   }
 
   const normalizedUrl = normalizeUrl(card.url);
+  const keyBase = { cardId, userId: card.userId };
 
   try {
     if (isXStatusUrl(normalizedUrl)) {
@@ -675,7 +685,8 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
       if (xStatusMetadata) {
         const storedMedia = await storeLinkPreviewMedia(
           ctx,
-          xStatusMetadata.media
+          xStatusMetadata.media,
+          keyBase
         );
         const linkPreview = buildSuccessPreview(normalizedUrl, {
           ...xStatusMetadata,
@@ -755,7 +766,7 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
           )
         : undefined;
     const storedInstagramMedia = extractedInstagramMedia?.length
-      ? await storeLinkPreviewMedia(ctx, extractedInstagramMedia)
+      ? await storeLinkPreviewMedia(ctx, extractedInstagramMedia, keyBase)
       : undefined;
     const attachedPreviewImageUrl =
       extractedInstagramMedia?.find((item) => item.type === "image")?.url ??
@@ -764,7 +775,7 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
       storedInstagramMedia?.some(
         (item) =>
           item.type === "image" ||
-          (item.type === "video" && Boolean(item.posterStorageId))
+          (item.type === "video" && Boolean(item.posterStorageKey))
       )
     );
     const primaryImageCandidate = payload.result?.primaryImage?.url;
@@ -783,7 +794,7 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
         resolvedImageUrl !== attachedPreviewImageUrl ||
         !hasStoredAttachedPreview);
     const storedImage = shouldStorePreviewImage
-      ? await storeLinkPreviewImage(ctx, resolvedImageUrl!)
+      ? await storeLinkPreviewImage(ctx, resolvedImageUrl!, keyBase)
       : null;
     const linkPreview = buildSuccessPreview(normalizedUrl, {
       ...parsedWithPrimary,

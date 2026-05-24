@@ -12,6 +12,7 @@ import { v } from "convex/values";
 import { orientation } from "exifr";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
+import { buildR2ObjectKey, resolveObjectUrl, storeObject } from "../../../storage/r2";
 
 // Maximum thumbnail dimensions
 const THUMBNAIL_MAX_WIDTH = 500;
@@ -117,7 +118,7 @@ export const generateThumbnail = internalAction({
   returns: v.object({
     success: v.boolean(),
     generated: v.boolean(),
-    thumbnailId: v.optional(v.id("_storage")),
+    thumbnailKey: v.optional(v.string()),
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
@@ -136,7 +137,7 @@ export const generateThumbnail = internalAction({
       }
 
       // Only generate thumbnails for image cards
-      if (card.type !== "image" || !card.fileId) {
+      if (card.type !== "image" || !(card.fileKey || card.fileId)) {
         return {
           success: true,
           generated: false,
@@ -144,16 +145,20 @@ export const generateThumbnail = internalAction({
       }
 
       // Skip if thumbnail already exists
-      if (card.thumbnailId) {
+      if (card.thumbnailKey || card.thumbnailId) {
         return {
           success: true,
           generated: false,
-          thumbnailId: card.thumbnailId,
+          thumbnailKey: card.thumbnailKey,
         };
       }
 
-      // Get the original image URL from storage
-      const originalImageUrl = await ctx.storage.getUrl(card.fileId);
+      const originalImageUrl = await resolveObjectUrl(ctx, {
+        key: card.fileKey,
+        legacyStorageId: card.fileId,
+        cardId: args.cardId,
+        field: "renderables.image.original",
+      });
       if (!originalImageUrl) {
         return {
           success: false,
@@ -255,15 +260,21 @@ export const generateThumbnail = internalAction({
         type: useJpeg ? "image/jpeg" : "image/webp",
       });
 
-      // Store the thumbnail in Convex storage
-      const thumbnailId = await ctx.storage.store(thumbnailBlob);
+      const thumbnailKey = await storeObject(ctx, thumbnailBlob, {
+        key: buildR2ObjectKey({
+          userId: card.userId,
+          cardId: args.cardId,
+          role: "thumbnail",
+        }),
+        type: useJpeg ? "image/jpeg" : "image/webp",
+      });
 
       // Update the card with the thumbnail and original dimensions via internal mutation
       await ctx.runMutation(
         internal.workflows.steps.renderables.mutations.updateCardThumbnail,
         {
           cardId: args.cardId,
-          thumbnailId,
+          thumbnailKey,
           originalWidth,
           originalHeight,
         }
@@ -272,7 +283,7 @@ export const generateThumbnail = internalAction({
       return {
         success: true,
         generated: true,
-        thumbnailId,
+        thumbnailKey,
       };
     } catch (error) {
       console.error(

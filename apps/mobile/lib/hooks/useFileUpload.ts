@@ -1,5 +1,4 @@
 import { api } from "@teak/convex";
-import type { Id } from "@teak/convex/_generated/dataModel";
 import {
   type FinalizeUploadedCardArgs,
   type UnifiedFileUploadConfig,
@@ -20,10 +19,7 @@ export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
     uploadAndCreateCardMutation(args);
 
   const finalizeUploadedCard = (args: FinalizeUploadedCardArgs) =>
-    finalizeUploadedCardMutation({
-      ...args,
-      fileId: args.fileId as Id<"_storage">,
-    });
+    finalizeUploadedCardMutation(args);
 
   return useFileUploadCore(
     { uploadAndCreateCard, finalizeUploadedCard },

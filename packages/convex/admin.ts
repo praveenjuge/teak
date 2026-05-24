@@ -15,6 +15,7 @@ import type {
   ProcessingStatus,
 } from "./card/processingStatus";
 import { stagePending } from "./card/processingStatus";
+import { deleteObject, resolveObjectUrl } from "./storage/r2";
 
 type StageSummary = {
   pending: number;
@@ -107,15 +108,39 @@ const attachCardUrls = async (
     cards.map(async (card) => {
       const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] =
         await Promise.all([
-          card.fileId ? ctx.storage.getUrl(card.fileId) : Promise.resolve(null),
-          card.thumbnailId
-            ? ctx.storage.getUrl(card.thumbnailId)
+          card.fileKey || card.fileId
+            ? resolveObjectUrl(ctx, {
+                key: card.fileKey,
+                legacyStorageId: card.fileId,
+                cardId: card._id,
+                field: "admin.file",
+              })
             : Promise.resolve(null),
+          card.thumbnailKey || card.thumbnailId
+            ? resolveObjectUrl(ctx, {
+                key: card.thumbnailKey,
+                legacyStorageId: card.thumbnailId,
+                cardId: card._id,
+                field: "admin.thumbnail",
+              })
+            : Promise.resolve(null),
+          card.metadata?.linkPreview?.screenshotStorageKey ||
           card.metadata?.linkPreview?.screenshotStorageId
-            ? ctx.storage.getUrl(card.metadata.linkPreview.screenshotStorageId)
+            ? resolveObjectUrl(ctx, {
+                key: card.metadata.linkPreview.screenshotStorageKey,
+                legacyStorageId: card.metadata.linkPreview.screenshotStorageId,
+                cardId: card._id,
+                field: "admin.screenshot",
+              })
             : Promise.resolve(null),
+          card.metadata?.linkPreview?.imageStorageKey ||
           card.metadata?.linkPreview?.imageStorageId
-            ? ctx.storage.getUrl(card.metadata.linkPreview.imageStorageId)
+            ? resolveObjectUrl(ctx, {
+                key: card.metadata.linkPreview.imageStorageKey,
+                legacyStorageId: card.metadata.linkPreview.imageStorageId,
+                cardId: card._id,
+                field: "admin.linkPreviewImage",
+              })
             : Promise.resolve(null),
         ]);
 
@@ -478,12 +503,13 @@ export const resetCardProcessingState = internalMutation({
     }
 
     let clearedThumbnail = false;
-    if (card.thumbnailId) {
+    if (card.thumbnailKey || card.thumbnailId) {
       try {
-        await ctx.storage.delete(card.thumbnailId);
+        await deleteObject(ctx, card.thumbnailKey, card.thumbnailId);
       } catch (error) {
         console.error("[admin] Failed to delete thumbnail during refresh", {
           cardId,
+          thumbnailKey: card.thumbnailKey,
           thumbnailId: card.thumbnailId,
           error,
         });
@@ -498,6 +524,7 @@ export const resetCardProcessingState = internalMutation({
     };
 
     await ctx.db.patch("cards", cardId, {
+      thumbnailKey: undefined,
       thumbnailId: undefined,
       aiTags: undefined,
       aiSummary: undefined,

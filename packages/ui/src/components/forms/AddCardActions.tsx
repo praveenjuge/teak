@@ -1,5 +1,4 @@
 import { api } from "@teak/convex";
-import type { Id } from "@teak/convex/_generated/dataModel";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import {
   type FinalizeUploadedCardArgs,
@@ -72,10 +71,7 @@ export function AddCardActions({
     uploadAndCreateCardMutation(args);
 
   const finalizeUploadedCard = (args: FinalizeUploadedCardArgs) =>
-    finalizeUploadedCardMutation({
-      ...args,
-      fileId: args.fileId as Id<"_storage">,
-    });
+    finalizeUploadedCardMutation(args);
 
   const { uploadFile } = useFileUploadCore({
     uploadAndCreateCard,

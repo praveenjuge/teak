@@ -7,7 +7,7 @@ import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import { normalizeUrl } from "../../../linkMetadata";
 import { isXStatusUrl } from "../../../linkMetadata/x";
-import type { Id } from "../../../shared/types";
+import { buildR2ObjectKey, storeObject } from "../../../storage/r2";
 
 const internalFunctions = internal as Record<string, any>;
 const linkMetadataInternal = internalFunctions.linkMetadata as Record<
@@ -62,9 +62,9 @@ export const buildGenericScreenshotCode = (
 
 const captureScreenshotWithKernel = async (
   ctx: any,
-  { url }: { url: string }
+  { cardId, url, userId }: { cardId: string; url: string; userId: string }
 ): Promise<{
-  screenshotId?: Id<"_storage">;
+  screenshotKey?: string;
   screenshotUpdatedAt?: number;
   screenshotWidth?: number;
   screenshotHeight?: number;
@@ -153,9 +153,16 @@ const captureScreenshotWithKernel = async (
       type: "image/jpeg",
     });
 
-    const screenshotId = await ctx.storage.store(screenshotBlob);
+    const screenshotKey = await storeObject(ctx, screenshotBlob, {
+      key: buildR2ObjectKey({
+        userId,
+        cardId,
+        role: "screenshot",
+      }),
+      type: "image/jpeg",
+    });
     return {
-      screenshotId,
+      screenshotKey,
       screenshotUpdatedAt: Date.now(),
       screenshotWidth,
       screenshotHeight,
@@ -211,19 +218,24 @@ export const captureScreenshot = internalAction({
       return;
     }
 
-    if (linkPreview.screenshotStorageId && retryCount === 0) {
+    if (
+      (linkPreview.screenshotStorageKey || linkPreview.screenshotStorageId) &&
+      retryCount === 0
+    ) {
       return;
     }
 
     const normalizedUrl = normalizeUrl(card.url);
     const screenshotResult = await captureScreenshotWithKernel(ctx, {
+      cardId,
       url: normalizedUrl,
+      userId: card.userId,
     });
 
-    if (screenshotResult?.screenshotId) {
+    if (screenshotResult?.screenshotKey) {
       await ctx.runMutation(linkMetadataInternal.updateCardScreenshot, {
         cardId,
-        screenshotStorageId: screenshotResult.screenshotId,
+        screenshotStorageKey: screenshotResult.screenshotKey,
         screenshotUpdatedAt: screenshotResult.screenshotUpdatedAt ?? Date.now(),
         screenshotWidth: screenshotResult.screenshotWidth,
         screenshotHeight: screenshotResult.screenshotHeight,

@@ -84,6 +84,8 @@ export const fileMetadataValidator = v.optional(
   })
 );
 
+export const r2KeyValidator = v.string();
+
 export const metadataValidator = v.optional(
   v.object({
     source: v.optional(v.string()),
@@ -102,11 +104,13 @@ export const metadataValidator = v.optional(
           v.array(
             v.object({
               type: v.union(v.literal("image"), v.literal("video")),
-              storageId: v.id("_storage"),
+              storageKey: v.optional(r2KeyValidator),
+              storageId: v.optional(v.id("_storage")),
               updatedAt: v.number(),
               contentType: v.optional(v.string()),
               width: v.optional(v.number()),
               height: v.optional(v.number()),
+              posterStorageKey: v.optional(r2KeyValidator),
               posterStorageId: v.optional(v.id("_storage")),
               posterUpdatedAt: v.optional(v.number()),
               posterContentType: v.optional(v.string()),
@@ -116,6 +120,7 @@ export const metadataValidator = v.optional(
           )
         ),
         imageUrl: v.optional(v.string()),
+        imageStorageKey: v.optional(r2KeyValidator),
         imageStorageId: v.optional(v.id("_storage")),
         imageUpdatedAt: v.optional(v.number()),
         imageWidth: v.optional(v.number()),
@@ -125,6 +130,7 @@ export const metadataValidator = v.optional(
         author: v.optional(v.string()),
         publisher: v.optional(v.string()),
         publishedAt: v.optional(v.string()),
+        screenshotStorageKey: v.optional(r2KeyValidator),
         screenshotStorageId: v.optional(v.id("_storage")),
         screenshotUpdatedAt: v.optional(v.number()),
         screenshotWidth: v.optional(v.number()),
@@ -228,6 +234,8 @@ export const cardValidator = v.object({
   content: v.string(),
   type: cardTypeValidator,
   url: v.optional(v.string()),
+  fileKey: v.optional(r2KeyValidator),
+  thumbnailKey: v.optional(r2KeyValidator),
   fileId: v.optional(v.id("_storage")),
   thumbnailId: v.optional(v.id("_storage")),
   tags: v.optional(v.array(v.string())),
@@ -320,6 +328,12 @@ export default defineSchema({
       searchField: "colorHues",
       filterFields: ["userId", "isDeleted", "type", "isFavorited"],
     }),
+  storageFallbackReads: defineTable({
+    cardId: v.optional(v.id("cards")),
+    field: v.string(),
+    legacyStorageId: v.string(),
+    createdAt: v.number(),
+  }).index("by_created", ["createdAt"]),
   apiKeys: defineTable(apiKeyValidator)
     .index("by_user_revoked", ["userId", "revokedAt"])
     .index("by_prefix_revoked", ["keyPrefix", "revokedAt"]),

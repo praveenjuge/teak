@@ -1,12 +1,24 @@
 // @ts-nocheck
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 describe("card/generateUploadUrl.ts", () => {
   let generateUploadUrl: any;
+  let r2Module: any;
+  let originalGenerateUploadUrl: any;
 
   beforeEach(async () => {
+    r2Module = await import("../../storage/r2");
+    originalGenerateUploadUrl = r2Module.r2.generateUploadUrl;
+    r2Module.r2.generateUploadUrl = mock().mockResolvedValue({
+      key: "users/2u4/cards/pending/file/upload-key",
+      url: "https://upload",
+    });
     generateUploadUrl = (await import("../../card/generateUploadUrl"))
       .generateUploadUrl;
+  });
+
+  afterEach(() => {
+    r2Module.r2.generateUploadUrl = originalGenerateUploadUrl;
   });
 
   test("throws when unauthenticated", async () => {
@@ -22,9 +34,6 @@ describe("card/generateUploadUrl.ts", () => {
   test("returns upload url", async () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-      storage: {
-        generateUploadUrl: mock().mockResolvedValue("https://upload"),
-      },
     } as any;
 
     const handler = (generateUploadUrl as any).handler ?? generateUploadUrl;
@@ -32,6 +41,9 @@ describe("card/generateUploadUrl.ts", () => {
       fileName: "file.png",
       fileType: "image/png",
     });
-    expect(result).toBe("https://upload");
+    expect(result).toEqual({
+      key: "users/2u4/cards/pending/file/upload-key",
+      url: "https://upload",
+    });
   });
 });

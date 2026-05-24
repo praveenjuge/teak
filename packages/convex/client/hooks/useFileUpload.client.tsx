@@ -121,6 +121,7 @@ export interface UploadAndCreateCardResult {
   error?: string;
   errorCode?: CardErrorCode | (string & {});
   success: boolean;
+  uploadKey?: string;
   uploadUrl?: string;
 }
 
@@ -128,8 +129,10 @@ export interface FinalizeUploadedCardArgs {
   additionalMetadata?: any;
   cardType: CardType;
   content?: string;
-  fileId: string;
+  fileKey: string;
   fileName: string;
+  fileSize?: number;
+  fileType?: string;
 }
 
 export interface FinalizeUploadedCardResult {
@@ -210,7 +213,7 @@ export function useFileUploadCore(
           additionalMetadata: mergedAdditionalMetadata,
         });
 
-        if (!(uploadResult.success && uploadResult.uploadUrl)) {
+        if (!(uploadResult.success && uploadResult.uploadKey && uploadResult.uploadUrl)) {
           const errorInfo: FileUploadError = {
             message: uploadResult.error || "Failed to prepare upload",
             code: uploadResult.errorCode as CardErrorCode | undefined,
@@ -220,12 +223,12 @@ export function useFileUploadCore(
           throw codedError;
         }
 
-        // Step 2: Upload file to Convex storage
+        // Step 2: Upload file to R2
         config.onProgress?.(25);
         setProgress(25);
 
         const uploadResponse = await fetch(uploadResult.uploadUrl, {
-          method: "POST",
+          method: "PUT",
           headers: { "Content-Type": file.type || "application/octet-stream" },
           body: file,
         });
@@ -234,15 +237,15 @@ export function useFileUploadCore(
           throw new Error(`Upload failed with status ${uploadResponse.status}`);
         }
 
-        const { storageId } = await uploadResponse.json();
-
         config.onProgress?.(75);
         setProgress(75);
 
         // Step 3: Finalize card creation
         const finalizeResult = await finalizeUploadedCard({
-          fileId: storageId,
+          fileKey: uploadResult.uploadKey,
           fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
           cardType,
           content: options.content,
           additionalMetadata: mergedAdditionalMetadata,

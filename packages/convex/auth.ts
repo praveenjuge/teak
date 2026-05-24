@@ -27,6 +27,7 @@ import {
 } from "./shared/constants";
 import { rateLimiter } from "./shared/rateLimits";
 import { scheduleBusinessEvent } from "./sentry";
+import { deleteObject } from "./storage/r2";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID!;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET!;
@@ -394,12 +395,12 @@ export const deleteAccountHandler = async (ctx: any) => {
     .collect();
 
   for (const card of cards) {
-    if (card.fileId) {
-      await ctx.storage.delete(card.fileId);
+    if (card.fileKey || card.fileId) {
+      await deleteObject(ctx, card.fileKey, card.fileId);
       deletedStorageObjectCount += 1;
     }
-    if (card.thumbnailId) {
-      await ctx.storage.delete(card.thumbnailId);
+    if (card.thumbnailKey || card.thumbnailId) {
+      await deleteObject(ctx, card.thumbnailKey, card.thumbnailId);
       deletedStorageObjectCount += 1;
     }
 

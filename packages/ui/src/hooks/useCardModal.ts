@@ -389,9 +389,10 @@ export function useCardModal(
   }, [card?.url, config.onOpenLink]);
 
   const fileUrl = card?.fileUrl;
+  const hasFileObject = Boolean(card?.fileKey || card?.fileId);
 
   const downloadFile = useCallback(async () => {
-    if (!(card?.fileId && card?.fileMetadata?.fileName && fileUrl)) {
+    if (!(hasFileObject && card?.fileMetadata?.fileName && fileUrl)) {
       return;
     }
 
@@ -420,7 +421,7 @@ export function useCardModal(
     } finally {
       setIsDownloading(false);
     }
-  }, [card?.fileId, card?.fileMetadata?.fileName, fileUrl, notifyError]);
+  }, [hasFileObject, card?.fileMetadata?.fileName, fileUrl, notifyError]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, onClose?: () => void) => {
