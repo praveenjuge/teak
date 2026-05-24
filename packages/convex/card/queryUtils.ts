@@ -34,27 +34,23 @@ export const ensureValidRange = (range?: CreatedAtRange) => {
 };
 
 export const attachFileUrls = async (
-  ctx: any,
+  _ctx: any,
   cards: Doc<"cards">[]
 ): Promise<CardWithUrls[]> => {
-  const storageIds = new Set<string>();
-  const storageRefs = new Map<
-    string,
-    { key?: string; legacyStorageId?: string; field: string }
-  >();
+  const storageKeys = new Set<string>();
   type CardStorageIds = {
-    fileId?: string;
-    thumbnailId?: string;
-    screenshotId?: string;
-    linkPreviewImageId?: string;
+    fileKey?: string;
+    thumbnailKey?: string;
+    screenshotKey?: string;
+    linkPreviewImageKey?: string;
     linkPreviewMedia?: Array<{
       contentType?: string;
       height?: number;
       posterContentType?: string;
       posterHeight?: number;
-      posterId?: string;
+      posterKey?: string;
       posterWidth?: number;
-      storageId: string;
+      storageKey: string;
       type: "image" | "video";
       width?: number;
     }>;
@@ -63,66 +59,31 @@ export const attachFileUrls = async (
 
   for (const card of cards) {
     const ids: CardStorageIds = {};
-    if (card.fileKey || card.fileId) {
-      const id = card.fileKey ?? card.fileId!;
-      storageIds.add(id);
-      storageRefs.set(id, {
-        key: card.fileKey,
-        legacyStorageId: card.fileId,
-        field: "card.file",
-      });
-      ids.fileId = id;
+    if (card.fileKey) {
+      storageKeys.add(card.fileKey);
+      ids.fileKey = card.fileKey;
     }
-    if (card.thumbnailKey || card.thumbnailId) {
-      const id = card.thumbnailKey ?? card.thumbnailId!;
-      storageIds.add(id);
-      storageRefs.set(id, {
-        key: card.thumbnailKey,
-        legacyStorageId: card.thumbnailId,
-        field: "card.thumbnail",
-      });
-      ids.thumbnailId = id;
+    if (card.thumbnailKey) {
+      storageKeys.add(card.thumbnailKey);
+      ids.thumbnailKey = card.thumbnailKey;
     }
-    if (
-      card.metadata?.linkPreview?.imageStorageKey ||
-      card.metadata?.linkPreview?.imageStorageId
-    ) {
-      const id =
-        card.metadata.linkPreview.imageStorageKey ??
-        card.metadata.linkPreview.imageStorageId!;
-      storageIds.add(id);
-      storageRefs.set(id, {
-        key: card.metadata.linkPreview.imageStorageKey,
-        legacyStorageId: card.metadata.linkPreview.imageStorageId,
-        field: "linkPreview.image",
-      });
-      ids.linkPreviewImageId = id;
+    if (card.metadata?.linkPreview?.imageStorageKey) {
+      storageKeys.add(card.metadata.linkPreview.imageStorageKey);
+      ids.linkPreviewImageKey = card.metadata.linkPreview.imageStorageKey;
     }
     const hydratedMedia = (card.metadata?.linkPreview?.media ?? [])?.map(
       (item: LinkPreviewMediaItem) => {
-        const id = item.storageKey ?? item.storageId;
-        if (!id) {
+        if (!item.storageKey) {
           return null;
         }
-        storageIds.add(id);
-        storageRefs.set(id, {
-          key: item.storageKey,
-          legacyStorageId: item.storageId,
-          field: `linkPreview.media.${item.type}`,
-        });
-        const posterId = item.posterStorageKey ?? item.posterStorageId;
-        if (posterId) {
-          storageIds.add(posterId);
-          storageRefs.set(posterId, {
-            key: item.posterStorageKey,
-            legacyStorageId: item.posterStorageId,
-            field: "linkPreview.media.poster",
-          });
+        storageKeys.add(item.storageKey);
+        if (item.posterStorageKey) {
+          storageKeys.add(item.posterStorageKey);
         }
         return {
           type: item.type,
-          storageId: id,
-          posterId,
+          storageKey: item.storageKey,
+          posterKey: item.posterStorageKey,
           contentType: item.contentType,
           width: item.width,
           height: item.height,
@@ -135,39 +96,26 @@ export const attachFileUrls = async (
     if (hydratedMedia?.length) {
       ids.linkPreviewMedia = hydratedMedia;
     }
-    if (
-      card.metadata?.linkPreview?.screenshotStorageKey ||
-      card.metadata?.linkPreview?.screenshotStorageId
-    ) {
-      const id =
-        card.metadata.linkPreview.screenshotStorageKey ??
-        card.metadata.linkPreview.screenshotStorageId!;
-      storageIds.add(id);
-      storageRefs.set(id, {
-        key: card.metadata.linkPreview.screenshotStorageKey,
-        legacyStorageId: card.metadata.linkPreview.screenshotStorageId,
-        field: "linkPreview.screenshot",
-      });
-      ids.screenshotId = id;
+    if (card.metadata?.linkPreview?.screenshotStorageKey) {
+      storageKeys.add(card.metadata.linkPreview.screenshotStorageKey);
+      ids.screenshotKey = card.metadata.linkPreview.screenshotStorageKey;
     }
     cardToIds.set(card._id, ids);
   }
 
-  const urlPromises = Array.from(storageIds).map(async (id) => ({
-    id,
-    url: await resolveObjectUrl(ctx, {
-      ...(storageRefs.get(id) ?? { key: id, field: "unknown" }),
-    }),
+  const urlPromises = Array.from(storageKeys).map(async (key) => ({
+    key,
+    url: await resolveObjectUrl(key),
   }));
   const urlResults = await Promise.all(urlPromises);
-  const urlMap = new Map(urlResults.map((result) => [result.id, result.url]));
+  const urlMap = new Map(urlResults.map((result) => [result.key, result.url]));
 
   return cards.map((card) => {
     const ids = cardToIds.get(card._id) || ({} as CardStorageIds);
     const linkPreviewMedia =
       ids.linkPreviewMedia
         ?.map((item) => {
-          const url = urlMap.get(item.storageId);
+          const url = urlMap.get(item.storageKey);
           if (!url) {
             return null;
           }
@@ -178,8 +126,8 @@ export const attachFileUrls = async (
             contentType: item.contentType,
             width: item.width,
             height: item.height,
-            posterUrl: item.posterId
-              ? (urlMap.get(item.posterId) ?? undefined)
+            posterUrl: item.posterKey
+              ? (urlMap.get(item.posterKey) ?? undefined)
               : undefined,
             posterContentType: item.posterContentType,
             posterWidth: item.posterWidth,
@@ -194,16 +142,16 @@ export const attachFileUrls = async (
 
     return {
       ...card,
-      fileUrl: ids.fileId ? (urlMap.get(ids.fileId) ?? undefined) : undefined,
-      thumbnailUrl: ids.thumbnailId
-        ? (urlMap.get(ids.thumbnailId) ?? undefined)
+      fileUrl: ids.fileKey ? (urlMap.get(ids.fileKey) ?? undefined) : undefined,
+      thumbnailUrl: ids.thumbnailKey
+        ? (urlMap.get(ids.thumbnailKey) ?? undefined)
         : undefined,
-      screenshotUrl: ids.screenshotId
-        ? (urlMap.get(ids.screenshotId) ?? undefined)
+      screenshotUrl: ids.screenshotKey
+        ? (urlMap.get(ids.screenshotKey) ?? undefined)
         : undefined,
       linkPreviewMedia: linkPreviewMedia?.length ? linkPreviewMedia : undefined,
-      linkPreviewImageUrl: ids.linkPreviewImageId
-        ? (urlMap.get(ids.linkPreviewImageId) ?? undefined)
+      linkPreviewImageUrl: ids.linkPreviewImageKey
+        ? (urlMap.get(ids.linkPreviewImageKey) ?? undefined)
         : fallbackLinkPreviewImageUrl,
     };
   });

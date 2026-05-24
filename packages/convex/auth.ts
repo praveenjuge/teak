@@ -395,12 +395,12 @@ export const deleteAccountHandler = async (ctx: any) => {
     .collect();
 
   for (const card of cards) {
-    if (card.fileKey || card.fileId) {
-      await deleteObject(ctx, card.fileKey, card.fileId);
+    if (card.fileKey) {
+      await deleteObject(ctx, card.fileKey);
       deletedStorageObjectCount += 1;
     }
-    if (card.thumbnailKey || card.thumbnailId) {
-      await deleteObject(ctx, card.thumbnailKey, card.thumbnailId);
+    if (card.thumbnailKey) {
+      await deleteObject(ctx, card.thumbnailKey);
       deletedStorageObjectCount += 1;
     }
 

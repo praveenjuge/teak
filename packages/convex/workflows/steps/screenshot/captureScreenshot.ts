@@ -218,10 +218,7 @@ export const captureScreenshot = internalAction({
       return;
     }
 
-    if (
-      (linkPreview.screenshotStorageKey || linkPreview.screenshotStorageId) &&
-      retryCount === 0
-    ) {
+    if (linkPreview.screenshotStorageKey && retryCount === 0) {
       return;
     }
 

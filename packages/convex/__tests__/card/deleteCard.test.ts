@@ -1,6 +1,12 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
+const deleteObjectMock = mock(() => Promise.resolve());
+
+mock.module("../../storage/r2", () => ({
+  deleteObject: deleteObjectMock,
+}));
+
 describe("card/deleteCard.ts", () => {
   let permanentDeleteCard: any;
 
@@ -27,18 +33,17 @@ describe("card/deleteCard.ts", () => {
           _id: "c1",
           userId: "u1",
           type: "image",
-          fileId: "f1",
-          thumbnailId: "t1",
+          fileKey: "f1",
+          thumbnailKey: "t1",
         }),
         delete: mock().mockResolvedValue(null),
       },
-      storage: { delete: mock().mockResolvedValue(null) },
     } as any;
 
     const handler = (permanentDeleteCard as any).handler ?? permanentDeleteCard;
     await handler(ctx, { id: "c1" });
-    expect(ctx.storage.delete).toHaveBeenCalledWith("f1");
-    expect(ctx.storage.delete).toHaveBeenCalledWith("t1");
+    expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "f1");
+    expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "t1");
     expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
   });
 });

@@ -25,8 +25,8 @@ export const permanentDeleteCard = mutation({
 
     // Permanently remove from database
     await ctx.db.delete("cards", args.id);
-    await deleteObject(ctx, card.fileKey, card.fileId);
-    await deleteObject(ctx, card.thumbnailKey, card.thumbnailId);
+    await deleteObject(ctx, card.fileKey);
+    await deleteObject(ctx, card.thumbnailKey);
 
     return null;
   },

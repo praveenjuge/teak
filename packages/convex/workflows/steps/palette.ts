@@ -63,7 +63,7 @@ export const extractPaletteFromImage = internalAction({
       cardId,
     });
 
-    if (!card || card.type !== "image" || !(card.fileKey || card.fileId)) {
+    if (!card || card.type !== "image" || !card.fileKey) {
       return undefined;
     }
 
@@ -79,21 +79,15 @@ export const extractPaletteFromImage = internalAction({
       card.fileMetadata?.fileName?.endsWith(".svg") ||
       card.fileMetadata?.fileName?.endsWith(".SVG");
 
-    // Determine which file ID to use: thumbnail for SVGs, original file for raster images
+    // Determine which R2 key to use: thumbnail for SVGs, original file for raster images
     const fileKeyForPalette = isSvg ? card.thumbnailKey : card.fileKey;
-    const fileIdForPalette = isSvg ? card.thumbnailId : card.fileId;
 
     // For SVGs without a thumbnail yet, skip (will run after thumbnail generation)
-    if (isSvg && !(fileKeyForPalette || fileIdForPalette)) {
+    if (isSvg && !fileKeyForPalette) {
       return undefined;
     }
 
-    const fileUrl = await resolveObjectUrl(ctx, {
-      key: fileKeyForPalette,
-      legacyStorageId: fileIdForPalette,
-      cardId,
-      field: "palette.image",
-    });
+    const fileUrl = await resolveObjectUrl(fileKeyForPalette);
     if (!fileUrl) {
       return undefined;
     }

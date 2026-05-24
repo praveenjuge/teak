@@ -1,8 +1,7 @@
 import { R2 } from "@convex-dev/r2";
 import { v } from "convex/values";
-import { components, internal } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { components } from "../_generated/api";
+import type { ActionCtx, MutationCtx } from "../_generated/server";
 import { internalMutation, mutation, query } from "../_generated/server";
 
 const SIGNED_URL_EXPIRES_IN_SECONDS = 15 * 60;
@@ -56,86 +55,23 @@ const r2ComponentConfig = () => {
   };
 };
 
-export const resolveObjectUrl = async (
-  ctx: QueryCtx | any,
-  {
-    key,
-    legacyStorageId,
-    cardId,
-    field,
-  }: {
-    key?: string;
-    legacyStorageId?: Id<"_storage"> | string;
-    cardId?: Id<"cards">;
-    field: string;
-  }
-) => {
+export const resolveObjectUrl = async (key?: string) =>
+  key ? getR2Url(key) : null;
+
+export const deleteObject = async (ctx: MutationCtx, key?: string) => {
   if (key) {
-    try {
-      return await getR2Url(key);
-    } catch (error) {
-      if (!legacyStorageId) {
-        throw error;
-      }
-      console.warn("[storage/r2] Falling back to Convex storage URL", {
-        cardId,
-        field,
-        key,
-        error,
-      });
-    }
-  }
-
-  if (!legacyStorageId) {
-    return null;
-  }
-
-  console.info("[storage/r2] Legacy Convex storage read", {
-    cardId,
-    field,
-    legacyStorageId,
-  });
-  if (typeof ctx.scheduler?.runAfter === "function") {
-    await ctx.scheduler.runAfter(0, internal.storage.r2.recordFallbackRead, {
-      cardId,
-      field,
-      legacyStorageId,
-    });
-  }
-  return ctx.storage.getUrl(legacyStorageId as Id<"_storage">);
-};
-
-export const deleteObject = async (
-  ctx: MutationCtx,
-  key?: string,
-  legacyStorageId?: Id<"_storage"> | string
-) => {
-  if (key?.startsWith("users/")) {
     await r2.deleteObject(ctx, key);
-    return;
-  }
-  const legacyId = legacyStorageId ?? key;
-  if (legacyId) {
-    await ctx.storage.delete(legacyId as Id<"_storage">);
   }
 };
 
 export const storeObject = async (
-  ctx: any,
+  ctx: ActionCtx,
   blob: Blob,
   opts: {
     key: string;
     type?: string;
   }
-) => {
-  if (typeof ctx.runAction === "function") {
-    return r2.store(ctx, blob, opts);
-  }
-  if (ctx.storage?.store) {
-    return ctx.storage.store(blob);
-  }
-  return r2.store(ctx, blob, opts);
-};
+) => r2.store(ctx, blob, opts);
 
 export const generateUploadUrl = mutation({
   args: {
@@ -177,8 +113,7 @@ export const syncUploadedObjectMetadata = internalMutation({
 
 export const getFileUrl = query({
   args: {
-    key: v.optional(v.string()),
-    legacyStorageId: v.optional(v.id("_storage")),
+    key: v.string(),
     cardId: v.id("cards"),
   },
   returns: v.union(v.string(), v.null()),
@@ -198,51 +133,19 @@ export const getFileUrl = query({
 
     const linkPreview = card.metadata?.linkPreview;
     const matchesKey =
-      (args.key &&
-        (card.fileKey === args.key ||
-          card.thumbnailKey === args.key ||
-          linkPreview?.screenshotStorageKey === args.key ||
-          linkPreview?.imageStorageKey === args.key ||
-          linkPreview?.media?.some(
-            (item) =>
-              item.storageKey === args.key || item.posterStorageKey === args.key
-          ))) ||
-      (args.legacyStorageId &&
-        (card.fileId === args.legacyStorageId ||
-          card.thumbnailId === args.legacyStorageId ||
-          linkPreview?.screenshotStorageId === args.legacyStorageId ||
-          linkPreview?.imageStorageId === args.legacyStorageId ||
-          linkPreview?.media?.some(
-            (item) =>
-              item.storageId === args.legacyStorageId ||
-              item.posterStorageId === args.legacyStorageId
-          )));
+      card.fileKey === args.key ||
+      card.thumbnailKey === args.key ||
+      linkPreview?.screenshotStorageKey === args.key ||
+      linkPreview?.imageStorageKey === args.key ||
+      linkPreview?.media?.some(
+        (item) =>
+          item.storageKey === args.key || item.posterStorageKey === args.key
+      );
 
     if (!matchesKey) {
       throw new Error("File does not belong to the specified card");
     }
 
-    return resolveObjectUrl(ctx, {
-      key: args.key,
-      legacyStorageId: args.legacyStorageId,
-      cardId: args.cardId,
-      field: "card.getFileUrl",
-    });
-  },
-});
-
-export const recordFallbackRead = internalMutation({
-  args: {
-    cardId: v.optional(v.id("cards")),
-    field: v.string(),
-    legacyStorageId: v.string(),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    await ctx.db.insert("storageFallbackReads", {
-      ...args,
-      createdAt: Date.now(),
-    });
-    return null;
+    return resolveObjectUrl(args.key);
   },
 });

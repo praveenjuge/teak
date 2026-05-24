@@ -61,26 +61,24 @@ export const cleanupDeletedCard = internalMutation({
       return { deleted: false };
     }
 
-    if (card.fileKey || card.fileId) {
+    if (card.fileKey) {
       try {
-        await deleteObject(ctx, card.fileKey, card.fileId);
+        await deleteObject(ctx, card.fileKey);
       } catch (error) {
         console.error(`${WORKFLOW_LOG_PREFIX} Failed to delete file`, {
           cardId,
           fileKey: card.fileKey,
-          fileId: card.fileId,
           error,
         });
       }
     }
-    if (card.thumbnailKey || card.thumbnailId) {
+    if (card.thumbnailKey) {
       try {
-        await deleteObject(ctx, card.thumbnailKey, card.thumbnailId);
+        await deleteObject(ctx, card.thumbnailKey);
       } catch (error) {
         console.error(`${WORKFLOW_LOG_PREFIX} Failed to delete thumbnail`, {
           cardId,
           thumbnailKey: card.thumbnailKey,
-          thumbnailId: card.thumbnailId,
           error,
         });
       }

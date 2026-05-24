@@ -42,9 +42,9 @@ export const generateVideoThumbnail = internalAction({
       }
 
       // Only generate thumbnails for video cards with files
-      if (card.type !== "video" || !(card.fileKey || card.fileId)) {
+      if (card.type !== "video" || !card.fileKey) {
         console.log(
-          `[renderables/video] Skipping card ${args.cardId} - not a video or no fileId`
+          `[renderables/video] Skipping card ${args.cardId} - not a video or no fileKey`
         );
         return {
           success: true,
@@ -53,7 +53,7 @@ export const generateVideoThumbnail = internalAction({
       }
 
       // Skip if thumbnail already exists
-      if (card.thumbnailKey || card.thumbnailId) {
+      if (card.thumbnailKey) {
         console.log(
           `[renderables/video] Skipping card ${args.cardId} - thumbnail already exists`
         );
@@ -64,12 +64,7 @@ export const generateVideoThumbnail = internalAction({
         };
       }
 
-      const videoUrl = await resolveObjectUrl(ctx, {
-        key: card.fileKey,
-        legacyStorageId: card.fileId,
-        cardId: args.cardId,
-        field: "renderables.video.original",
-      });
+      const videoUrl = await resolveObjectUrl(card.fileKey);
       if (!videoUrl) {
         console.log(
           `[renderables/video] Could not get URL for card ${args.cardId}`

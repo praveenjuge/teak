@@ -241,7 +241,7 @@ export const buildErrorPreview = (
   },
   extras?: Pick<
     LinkPreviewMetadata,
-    "screenshotStorageKey" | "screenshotStorageId" | "screenshotUpdatedAt"
+    "screenshotStorageKey" | "screenshotUpdatedAt"
   >
 ): LinkPreviewMetadata => ({
   source: "kernel_playwright",
@@ -249,10 +249,9 @@ export const buildErrorPreview = (
   fetchedAt: Date.now(),
   url,
   finalUrl: url,
-  ...(extras?.screenshotStorageKey || extras?.screenshotStorageId
+  ...(extras?.screenshotStorageKey
     ? {
         screenshotStorageKey: extras.screenshotStorageKey,
-        screenshotStorageId: extras.screenshotStorageId,
         screenshotUpdatedAt: extras.screenshotUpdatedAt,
       }
     : {}),

@@ -1,6 +1,15 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
+const resolveObjectUrlMock = mock((key?: string) =>
+  Promise.resolve(key ? `file://${key}` : null)
+);
+
+mock.module("../../storage/r2", () => ({
+  deleteObject: mock(() => Promise.resolve()),
+  resolveObjectUrl: resolveObjectUrlMock,
+}));
+
 const buildQuery = (cards: any[] = []) => {
   return {
     withIndex: mock().mockImplementation(() => buildQuery(cards)),
@@ -46,20 +55,14 @@ describe("card/getCards.ts", () => {
           userId: "u1",
           content: '"Hello"',
           type: "quote",
-          fileId: "f1",
-          thumbnailId: "t1",
-          metadata: { linkPreview: { screenshotStorageId: "s1" } },
+          fileKey: "f1",
+          thumbnailKey: "t1",
+          metadata: { linkPreview: { screenshotStorageKey: "s1" } },
         },
       ];
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(buildQuery(cards)) },
-        storage: {
-          getUrl: mock()
-            .mockResolvedValueOnce("file://f1")
-            .mockResolvedValueOnce("file://t1")
-            .mockResolvedValueOnce("file://s1"),
-        },
       } as any;
 
       const handler = (getCards as any).handler ?? getCards;
@@ -134,13 +137,12 @@ describe("card/getCards.ts", () => {
           userId: "u1",
           content: "Hello",
           type: "link",
-          metadata: { linkPreview: { imageStorageId: "img1" } },
+          metadata: { linkPreview: { imageStorageKey: "img1" } },
         },
       ];
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(buildQuery(cards)) },
-        storage: { getUrl: mock().mockResolvedValue("file://img1") },
       } as any;
 
       const handler = (getCards as any).handler ?? getCards;
@@ -161,13 +163,13 @@ describe("card/getCards.ts", () => {
               media: [
                 {
                   type: "image",
-                  storageId: "img1",
+                  storageKey: "img1",
                   updatedAt: 1,
                 },
                 {
                   type: "video",
-                  storageId: "vid1",
-                  posterStorageId: "poster1",
+                  storageKey: "vid1",
+                  posterStorageKey: "poster1",
                   updatedAt: 1,
                 },
               ],
@@ -178,9 +180,6 @@ describe("card/getCards.ts", () => {
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(buildQuery(cards)) },
-        storage: {
-          getUrl: mock((id: string) => Promise.resolve(`file://${id}`)),
-        },
       } as any;
 
       const handler = (getCards as any).handler ?? getCards;

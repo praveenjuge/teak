@@ -101,46 +101,24 @@ type CardWithUrls = Doc<"cards"> & {
 };
 
 const attachCardUrls = async (
-  ctx: QueryCtx,
+  _ctx: QueryCtx,
   cards: Doc<"cards">[]
 ): Promise<CardWithUrls[]> =>
   Promise.all(
     cards.map(async (card) => {
       const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] =
         await Promise.all([
-          card.fileKey || card.fileId
-            ? resolveObjectUrl(ctx, {
-                key: card.fileKey,
-                legacyStorageId: card.fileId,
-                cardId: card._id,
-                field: "admin.file",
-              })
+          card.fileKey
+            ? resolveObjectUrl(card.fileKey)
             : Promise.resolve(null),
-          card.thumbnailKey || card.thumbnailId
-            ? resolveObjectUrl(ctx, {
-                key: card.thumbnailKey,
-                legacyStorageId: card.thumbnailId,
-                cardId: card._id,
-                field: "admin.thumbnail",
-              })
+          card.thumbnailKey
+            ? resolveObjectUrl(card.thumbnailKey)
             : Promise.resolve(null),
-          card.metadata?.linkPreview?.screenshotStorageKey ||
-          card.metadata?.linkPreview?.screenshotStorageId
-            ? resolveObjectUrl(ctx, {
-                key: card.metadata.linkPreview.screenshotStorageKey,
-                legacyStorageId: card.metadata.linkPreview.screenshotStorageId,
-                cardId: card._id,
-                field: "admin.screenshot",
-              })
+          card.metadata?.linkPreview?.screenshotStorageKey
+            ? resolveObjectUrl(card.metadata.linkPreview.screenshotStorageKey)
             : Promise.resolve(null),
-          card.metadata?.linkPreview?.imageStorageKey ||
-          card.metadata?.linkPreview?.imageStorageId
-            ? resolveObjectUrl(ctx, {
-                key: card.metadata.linkPreview.imageStorageKey,
-                legacyStorageId: card.metadata.linkPreview.imageStorageId,
-                cardId: card._id,
-                field: "admin.linkPreviewImage",
-              })
+          card.metadata?.linkPreview?.imageStorageKey
+            ? resolveObjectUrl(card.metadata.linkPreview.imageStorageKey)
             : Promise.resolve(null),
         ]);
 
@@ -503,14 +481,13 @@ export const resetCardProcessingState = internalMutation({
     }
 
     let clearedThumbnail = false;
-    if (card.thumbnailKey || card.thumbnailId) {
+    if (card.thumbnailKey) {
       try {
-        await deleteObject(ctx, card.thumbnailKey, card.thumbnailId);
+        await deleteObject(ctx, card.thumbnailKey);
       } catch (error) {
         console.error("[admin] Failed to delete thumbnail during refresh", {
           cardId,
           thumbnailKey: card.thumbnailKey,
-          thumbnailId: card.thumbnailId,
           error,
         });
       }
@@ -525,7 +502,6 @@ export const resetCardProcessingState = internalMutation({
 
     await ctx.db.patch("cards", cardId, {
       thumbnailKey: undefined,
-      thumbnailId: undefined,
       aiTags: undefined,
       aiSummary: undefined,
       aiTranscript: undefined,

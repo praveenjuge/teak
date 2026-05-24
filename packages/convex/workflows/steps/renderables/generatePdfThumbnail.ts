@@ -40,9 +40,9 @@ export const generatePdfThumbnail = internalAction({
       }
 
       // Only generate thumbnails for PDF documents
-      if (card.type !== "document" || !(card.fileKey || card.fileId)) {
+      if (card.type !== "document" || !card.fileKey) {
         console.log(
-          `[renderables/pdf] Skipping card ${args.cardId} - not a document or no fileId`
+          `[renderables/pdf] Skipping card ${args.cardId} - not a document or no fileKey`
         );
         return {
           success: true,
@@ -63,7 +63,7 @@ export const generatePdfThumbnail = internalAction({
       }
 
       // Skip if thumbnail already exists
-      if (card.thumbnailKey || card.thumbnailId) {
+      if (card.thumbnailKey) {
         console.log(
           `[renderables/pdf] Skipping card ${args.cardId} - thumbnail already exists`
         );
@@ -74,12 +74,7 @@ export const generatePdfThumbnail = internalAction({
         };
       }
 
-      const pdfUrl = await resolveObjectUrl(ctx, {
-        key: card.fileKey,
-        legacyStorageId: card.fileId,
-        cardId: args.cardId,
-        field: "renderables.pdf.original",
-      });
+      const pdfUrl = await resolveObjectUrl(card.fileKey);
       if (!pdfUrl) {
         console.log(
           `[renderables/pdf] Could not get URL for card ${args.cardId}`

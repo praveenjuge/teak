@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import type { Id } from "../../../convex/_generated/dataModel";
 import {
   buildDebugRaw,
   buildErrorPreview,
@@ -255,7 +254,7 @@ describe("parsing", () => {
 
     test("includes screenshot extras if provided", () => {
       const extras = {
-        screenshotStorageId: "id123" as Id<"_storage">,
+        screenshotStorageKey: "key123",
         screenshotUpdatedAt: 12_345,
       };
       const res = buildErrorPreview(
@@ -263,7 +262,7 @@ describe("parsing", () => {
         { type: "timeout" },
         extras
       );
-      expect(res.screenshotStorageId).toBe("id123");
+      expect(res.screenshotStorageKey).toBe("key123");
       expect(res.screenshotUpdatedAt).toBe(12_345);
     });
   });

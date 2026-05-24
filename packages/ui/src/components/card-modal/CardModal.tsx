@@ -84,7 +84,7 @@ export function CardModal({
   };
 
   const canDownload = Boolean(
-    (card?.fileKey || card?.fileId) &&
+    card?.fileKey &&
       ["document", "audio", "video", "image"].includes(card.type)
   );
 

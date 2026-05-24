@@ -106,7 +106,7 @@ export const generateSvgThumbnail = internalAction({
         card.fileMetadata?.fileName?.endsWith(".svg") ||
         card.fileMetadata?.fileName?.endsWith(".SVG");
 
-      if (card.type !== "image" || !(card.fileKey || card.fileId) || !isSvg) {
+      if (card.type !== "image" || !card.fileKey || !isSvg) {
         console.log(
           `[renderables/svg] Skipping card ${args.cardId} - not an SVG image`
         );
@@ -117,7 +117,7 @@ export const generateSvgThumbnail = internalAction({
       }
 
       // Skip if thumbnail already exists
-      if (card.thumbnailKey || card.thumbnailId) {
+      if (card.thumbnailKey) {
         console.log(
           `[renderables/svg] Skipping card ${args.cardId} - thumbnail already exists`
         );
@@ -128,12 +128,7 @@ export const generateSvgThumbnail = internalAction({
         };
       }
 
-      const svgUrl = await resolveObjectUrl(ctx, {
-        key: card.fileKey,
-        legacyStorageId: card.fileId,
-        cardId: args.cardId,
-        field: "renderables.svg.original",
-      });
+      const svgUrl = await resolveObjectUrl(card.fileKey);
       if (!svgUrl) {
         console.log(
           `[renderables/svg] Could not get URL for card ${args.cardId}`

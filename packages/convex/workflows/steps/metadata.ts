@@ -150,17 +150,11 @@ export async function generateHandler(
         card.fileMetadata?.fileName?.endsWith(".svg") ||
         card.fileMetadata?.fileName?.endsWith(".SVG");
 
-      const imageKey = isSvgFile && card.thumbnailKey ? card.thumbnailKey : card.fileKey;
-      const imageFileId =
-        isSvgFile && card.thumbnailId ? card.thumbnailId : card.fileId;
+      const imageKey =
+        isSvgFile && card.thumbnailKey ? card.thumbnailKey : card.fileKey;
 
-      if (imageKey || imageFileId) {
-        const imageUrl = await resolveObjectUrl(ctx, {
-          key: imageKey,
-          legacyStorageId: imageFileId,
-          cardId,
-          field: "metadata.image",
-        });
+      if (imageKey) {
+        const imageUrl = await resolveObjectUrl(imageKey);
         if (imageUrl) {
           const result = await generateImageMetadata(imageUrl);
           aiTags = result.aiTags;
@@ -173,13 +167,8 @@ export async function generateHandler(
       break;
     }
     case "video": {
-      if (card.thumbnailKey || card.thumbnailId) {
-        const thumbnailUrl = await resolveObjectUrl(ctx, {
-          key: card.thumbnailKey,
-          legacyStorageId: card.thumbnailId,
-          cardId,
-          field: "metadata.videoThumbnail",
-        });
+      if (card.thumbnailKey) {
+        const thumbnailUrl = await resolveObjectUrl(card.thumbnailKey);
         if (thumbnailUrl) {
           const title =
             card.fileMetadata?.fileName ||
@@ -194,13 +183,8 @@ export async function generateHandler(
       break;
     }
     case "audio": {
-      if (card.fileKey || card.fileId) {
-        const audioUrl = await resolveObjectUrl(ctx, {
-          key: card.fileKey,
-          legacyStorageId: card.fileId,
-          cardId,
-          field: "metadata.audio",
-        });
+      if (card.fileKey) {
+        const audioUrl = await resolveObjectUrl(card.fileKey);
         if (audioUrl) {
           const transcriptResult = await generateTranscript(
             audioUrl,

@@ -389,7 +389,7 @@ export function useCardModal(
   }, [card?.url, config.onOpenLink]);
 
   const fileUrl = card?.fileUrl;
-  const hasFileObject = Boolean(card?.fileKey || card?.fileId);
+  const hasFileObject = Boolean(card?.fileKey);
 
   const downloadFile = useCallback(async () => {
     if (!(hasFileObject && card?.fileMetadata?.fileName && fileUrl)) {

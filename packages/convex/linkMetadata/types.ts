@@ -1,5 +1,3 @@
-import type { Id } from "../shared/types";
-
 export interface ScrapeAttribute {
   name: string;
   value: string;
@@ -54,7 +52,6 @@ export interface LinkPreviewMetadata {
   finalUrl?: string;
   imageHeight?: number;
   imageStorageKey?: string;
-  imageStorageId?: Id<"_storage">;
   imageUpdatedAt?: number;
   imageUrl?: string;
   imageWidth?: number;
@@ -64,7 +61,6 @@ export interface LinkPreviewMetadata {
   raw?: ScrapeSelectorResult[];
   screenshotHeight?: number;
   screenshotStorageKey?: string;
-  screenshotStorageId?: Id<"_storage">;
   screenshotUpdatedAt?: number;
   screenshotWidth?: number;
   siteName?: string;
@@ -80,11 +76,9 @@ export interface LinkPreviewMediaItem {
   posterContentType?: string;
   posterHeight?: number;
   posterStorageKey?: string;
-  posterStorageId?: Id<"_storage">;
   posterUpdatedAt?: number;
   posterWidth?: number;
   storageKey?: string;
-  storageId?: Id<"_storage">;
   type: "image" | "video";
   updatedAt: number;
   width?: number;

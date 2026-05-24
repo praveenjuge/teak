@@ -67,7 +67,6 @@ import type * as shared_utils_colorUtils from "../shared/utils/colorUtils.js";
 import type * as shared_utils_linkCategoryResolver from "../shared/utils/linkCategoryResolver.js";
 import type * as shared_utils_linkDetection from "../shared/utils/linkDetection.js";
 import type * as shared_utils_timeSearch from "../shared/utils/timeSearch.js";
-import type * as storage_cleanupLegacyStorage from "../storage/cleanupLegacyStorage.js";
 import type * as storage_r2 from "../storage/r2.js";
 import type * as workflows_aiBackfill from "../workflows/aiBackfill.js";
 import type * as workflows_aiMetadata_actions from "../workflows/aiMetadata/actions.js";
@@ -172,7 +171,6 @@ declare const fullApi: ApiFromModules<{
   "shared/utils/linkCategoryResolver": typeof shared_utils_linkCategoryResolver;
   "shared/utils/linkDetection": typeof shared_utils_linkDetection;
   "shared/utils/timeSearch": typeof shared_utils_timeSearch;
-  "storage/cleanupLegacyStorage": typeof storage_cleanupLegacyStorage;
   "storage/r2": typeof storage_r2;
   "workflows/aiBackfill": typeof workflows_aiBackfill;
   "workflows/aiMetadata/actions": typeof workflows_aiMetadata_actions;

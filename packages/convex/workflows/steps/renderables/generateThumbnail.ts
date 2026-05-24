@@ -137,7 +137,7 @@ export const generateThumbnail = internalAction({
       }
 
       // Only generate thumbnails for image cards
-      if (card.type !== "image" || !(card.fileKey || card.fileId)) {
+      if (card.type !== "image" || !card.fileKey) {
         return {
           success: true,
           generated: false,
@@ -145,7 +145,7 @@ export const generateThumbnail = internalAction({
       }
 
       // Skip if thumbnail already exists
-      if (card.thumbnailKey || card.thumbnailId) {
+      if (card.thumbnailKey) {
         return {
           success: true,
           generated: false,
@@ -153,12 +153,7 @@ export const generateThumbnail = internalAction({
         };
       }
 
-      const originalImageUrl = await resolveObjectUrl(ctx, {
-        key: card.fileKey,
-        legacyStorageId: card.fileId,
-        cardId: args.cardId,
-        field: "renderables.image.original",
-      });
+      const originalImageUrl = await resolveObjectUrl(card.fileKey);
       if (!originalImageUrl) {
         return {
           success: false,

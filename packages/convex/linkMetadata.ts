@@ -42,36 +42,27 @@ export const updateCardMetadataHandler = async (
   const previousLinkPreview = existingCard.metadata?.linkPreview;
   const nextLinkPreview = linkPreview ? { ...linkPreview } : undefined;
   const collectMediaStorageRefs = (mediaItems: any[] | undefined) => {
-    const storageIds = new Set<string>();
+    const storageKeys = new Set<string>();
 
     for (const item of mediaItems ?? []) {
-      if (item?.storageKey || item?.storageId) {
-        storageIds.add(item.storageKey ?? item.storageId);
+      if (item?.storageKey) {
+        storageKeys.add(item.storageKey);
       }
-      if (item?.posterStorageKey || item?.posterStorageId) {
-        storageIds.add(item.posterStorageKey ?? item.posterStorageId);
+      if (item?.posterStorageKey) {
+        storageKeys.add(item.posterStorageKey);
       }
     }
 
-    return storageIds;
+    return storageKeys;
   };
 
-  const previousImageRef =
-    previousLinkPreview?.imageStorageKey ?? previousLinkPreview?.imageStorageId;
-  const nextImageRef =
-    nextLinkPreview?.imageStorageKey ?? nextLinkPreview?.imageStorageId;
+  const previousImageRef = previousLinkPreview?.imageStorageKey;
+  const nextImageRef = nextLinkPreview?.imageStorageKey;
 
   if (previousImageRef) {
-    if (
-      nextImageRef &&
-      nextImageRef !== previousImageRef
-    ) {
+    if (nextImageRef && nextImageRef !== previousImageRef) {
       try {
-        await deleteObject(
-          ctx,
-          previousLinkPreview.imageStorageKey,
-          previousLinkPreview.imageStorageId
-        );
+        await deleteObject(ctx, previousImageRef);
       } catch (error) {
         console.error(
           `[linkMetadata] Failed to delete previous OG image for card ${cardId}:`,
@@ -79,16 +70,12 @@ export const updateCardMetadataHandler = async (
         );
       }
     } else if (nextLinkPreview) {
-      if (!(nextLinkPreview.imageStorageKey || nextLinkPreview.imageStorageId)) {
+      if (!nextLinkPreview.imageStorageKey) {
         nextLinkPreview.imageStorageKey = previousLinkPreview.imageStorageKey;
-        nextLinkPreview.imageStorageId = previousLinkPreview.imageStorageId;
         nextLinkPreview.imageUpdatedAt =
           nextLinkPreview.imageUpdatedAt ?? previousLinkPreview.imageUpdatedAt;
       }
-      if (
-        (nextLinkPreview.imageStorageKey ?? nextLinkPreview.imageStorageId) ===
-        previousImageRef
-      ) {
+      if (nextLinkPreview.imageStorageKey === previousImageRef) {
         nextLinkPreview.imageWidth =
           nextLinkPreview.imageWidth ?? previousLinkPreview.imageWidth;
         nextLinkPreview.imageHeight =
@@ -97,23 +84,13 @@ export const updateCardMetadataHandler = async (
     }
   }
 
-  const previousScreenshotRef =
-    previousLinkPreview?.screenshotStorageKey ??
-    previousLinkPreview?.screenshotStorageId;
-  const nextScreenshotRef =
-    nextLinkPreview?.screenshotStorageKey ?? nextLinkPreview?.screenshotStorageId;
+  const previousScreenshotRef = previousLinkPreview?.screenshotStorageKey;
+  const nextScreenshotRef = nextLinkPreview?.screenshotStorageKey;
 
   if (previousScreenshotRef) {
-    if (
-      nextScreenshotRef &&
-      nextScreenshotRef !== previousScreenshotRef
-    ) {
+    if (nextScreenshotRef && nextScreenshotRef !== previousScreenshotRef) {
       try {
-        await deleteObject(
-          ctx,
-          previousLinkPreview.screenshotStorageKey,
-          previousLinkPreview.screenshotStorageId
-        );
+        await deleteObject(ctx, previousScreenshotRef);
       } catch (error) {
         console.error(
           `[linkMetadata] Failed to delete previous screenshot for card ${cardId}:`,
@@ -122,20 +99,15 @@ export const updateCardMetadataHandler = async (
       }
     } else if (
       nextLinkPreview &&
-      !(nextLinkPreview.screenshotStorageKey || nextLinkPreview.screenshotStorageId)
+      !nextLinkPreview.screenshotStorageKey
     ) {
       nextLinkPreview.screenshotStorageKey =
         previousLinkPreview.screenshotStorageKey;
-      nextLinkPreview.screenshotStorageId =
-        previousLinkPreview.screenshotStorageId;
       nextLinkPreview.screenshotUpdatedAt =
         nextLinkPreview.screenshotUpdatedAt ??
         previousLinkPreview.screenshotUpdatedAt;
     }
-    if (
-      (nextLinkPreview?.screenshotStorageKey ??
-        nextLinkPreview?.screenshotStorageId) === previousScreenshotRef
-    ) {
+    if (nextLinkPreview?.screenshotStorageKey === previousScreenshotRef) {
       nextLinkPreview.screenshotWidth =
         nextLinkPreview.screenshotWidth ?? previousLinkPreview.screenshotWidth;
       nextLinkPreview.screenshotHeight =
@@ -224,7 +196,6 @@ export const updateCardScreenshotHandler = async (
   {
     cardId,
     screenshotStorageKey,
-    screenshotStorageId,
     screenshotUpdatedAt,
     screenshotWidth,
     screenshotHeight,
@@ -239,18 +210,11 @@ export const updateCardScreenshotHandler = async (
   const existingLinkPreview = existingMetadata.linkPreview || {};
 
   if (
-    (existingLinkPreview.screenshotStorageKey ||
-      existingLinkPreview.screenshotStorageId) &&
-    (existingLinkPreview.screenshotStorageKey ??
-      existingLinkPreview.screenshotStorageId) !==
-      (screenshotStorageKey ?? screenshotStorageId)
+    existingLinkPreview.screenshotStorageKey &&
+    existingLinkPreview.screenshotStorageKey !== screenshotStorageKey
   ) {
     try {
-      await deleteObject(
-        ctx,
-        existingLinkPreview.screenshotStorageKey,
-        existingLinkPreview.screenshotStorageId
-      );
+      await deleteObject(ctx, existingLinkPreview.screenshotStorageKey);
     } catch (error) {
       console.error(
         `[linkMetadata] Failed to delete previous screenshot for card ${cardId}:`,
@@ -262,7 +226,6 @@ export const updateCardScreenshotHandler = async (
   const updatedLinkPreview = {
     ...existingLinkPreview,
     screenshotStorageKey,
-    ...(screenshotStorageId ? { screenshotStorageId } : {}),
     screenshotUpdatedAt,
     ...(typeof screenshotWidth === "number" ? { screenshotWidth } : {}),
     ...(typeof screenshotHeight === "number" ? { screenshotHeight } : {}),
@@ -283,7 +246,6 @@ export const updateCardScreenshot = internalMutation({
   args: {
     cardId: v.id("cards"),
     screenshotStorageKey: v.string(),
-    screenshotStorageId: v.optional(v.id("_storage")),
     screenshotUpdatedAt: v.number(),
     screenshotWidth: v.optional(v.number()),
     screenshotHeight: v.optional(v.number()),
