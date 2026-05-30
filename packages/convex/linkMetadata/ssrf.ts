@@ -1,3 +1,5 @@
+"use node";
+
 /**
  * Canonical server-side outbound URL policy (SSRF guard).
  *
@@ -13,9 +15,10 @@
  *     reserved ranges are blocked for both IPv4 and IPv6)
  *   - automatic redirects are disabled; each redirect hop is re-validated
  *
- * NOTE: this module imports `node:dns`, so it can only be imported from Convex
- * actions that declare `"use node"`. Do NOT re-export it from the
- * `linkMetadata` barrel, which is also loaded by non-node functions.
+ * NOTE: this module imports `node:dns`/`node:net`, so it declares `"use node"`
+ * and runs in Convex's Node.js runtime. It must only be imported from other
+ * `"use node"` actions, and must NOT be re-exported from the `linkMetadata`
+ * barrel, which is also loaded by default-runtime (V8 isolate) functions.
  */
 
 import { lookup } from "node:dns/promises";
