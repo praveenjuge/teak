@@ -193,6 +193,136 @@ describe("apiKeys", () => {
     expect(validateCtx.runQuery).toHaveBeenCalled();
   });
 
+  test("validate skips lastUsedAt write when recently used", async () => {
+    const createCollectMock = mock().mockResolvedValue([]);
+    const createDb = {
+      query: mock(() => ({
+        withIndex: mock(() => ({
+          collect: createCollectMock,
+          order: mock(() => ({ collect: createCollectMock })),
+        })),
+      })),
+      patch: mock().mockResolvedValue(null),
+      insert: mock().mockResolvedValue("k_recent"),
+    };
+
+    const createCtx = {
+      auth: {
+        getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
+      },
+      db: createDb,
+    };
+
+    const created = await runHandler(createUserApiKey, createCtx, {
+      name: "API Keys",
+    });
+
+    const insertedPayload = createDb.insert.mock.calls[0][1];
+
+    const validateCollectMock = mock().mockResolvedValue([
+      {
+        _id: "k_recent",
+        userId: "user_1",
+        keyPrefix: insertedPayload.keyPrefix,
+        keyHash: insertedPayload.keyHash,
+        access: "full_access",
+        // Used moments ago, so validation must not write again.
+        lastUsedAt: Date.now(),
+        revokedAt: undefined,
+      },
+    ]);
+
+    const validateCtx = {
+      runQuery: mock().mockResolvedValue({ _id: "user_1" }),
+      db: {
+        query: mock(() => ({
+          withIndex: mock(() => ({
+            collect: validateCollectMock,
+          })),
+        })),
+        patch: mock().mockResolvedValue(null),
+      },
+    };
+
+    const result = await runHandler(validateUserApiKey, validateCtx, {
+      token: created.key,
+    });
+
+    expect(result).toEqual({
+      keyId: "k_recent",
+      userId: "user_1",
+      access: "full_access",
+    });
+    expect(validateCtx.db.patch).not.toHaveBeenCalled();
+  });
+
+  test("validate refreshes lastUsedAt when stale", async () => {
+    const createCollectMock = mock().mockResolvedValue([]);
+    const createDb = {
+      query: mock(() => ({
+        withIndex: mock(() => ({
+          collect: createCollectMock,
+          order: mock(() => ({ collect: createCollectMock })),
+        })),
+      })),
+      patch: mock().mockResolvedValue(null),
+      insert: mock().mockResolvedValue("k_stale"),
+    };
+
+    const createCtx = {
+      auth: {
+        getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
+      },
+      db: createDb,
+    };
+
+    const created = await runHandler(createUserApiKey, createCtx, {
+      name: "API Keys",
+    });
+
+    const insertedPayload = createDb.insert.mock.calls[0][1];
+
+    const validateCollectMock = mock().mockResolvedValue([
+      {
+        _id: "k_stale",
+        userId: "user_1",
+        keyPrefix: insertedPayload.keyPrefix,
+        keyHash: insertedPayload.keyHash,
+        access: "full_access",
+        // Used long ago (1 hour), so validation should refresh it.
+        lastUsedAt: Date.now() - 60 * 60 * 1000,
+        revokedAt: undefined,
+      },
+    ]);
+
+    const validateCtx = {
+      runQuery: mock().mockResolvedValue({ _id: "user_1" }),
+      db: {
+        query: mock(() => ({
+          withIndex: mock(() => ({
+            collect: validateCollectMock,
+          })),
+        })),
+        patch: mock().mockResolvedValue(null),
+      },
+    };
+
+    const result = await runHandler(validateUserApiKey, validateCtx, {
+      token: created.key,
+    });
+
+    expect(result).toEqual({
+      keyId: "k_stale",
+      userId: "user_1",
+      access: "full_access",
+    });
+    expect(validateCtx.db.patch).toHaveBeenCalledWith(
+      "apiKeys",
+      "k_stale",
+      expect.objectContaining({ lastUsedAt: expect.any(Number) })
+    );
+  });
+
   test("validate rejects invalid key", async () => {
     const ctx = {
       db: {

@@ -12,6 +12,10 @@ const API_KEY_TOKEN_PREFIX = "teakapi";
 const API_KEY_ACCESS = "full_access" as const;
 const KEY_PREFIX_BYTES = 6;
 const KEY_SECRET_BYTES = 24;
+// Only refresh `lastUsedAt` when the recorded value is older than this window.
+// Throttling the write keeps validation effectively read-only on the hot path
+// so concurrent requests sharing one key don't contend on a single document.
+const LAST_USED_THROTTLE_MS = 5 * 60 * 1000;
 
 const apiKeyAccessValidator = v.literal(API_KEY_ACCESS);
 
@@ -110,12 +114,11 @@ const revokeActiveKeysForUser = async (
   return activeKeys.length;
 };
 
-const getAuthUserById = async (ctx: MutationCtx, userId: string) => {
-  return ctx.runQuery(components.betterAuth.adapter.findOne, {
+const getAuthUserById = async (ctx: MutationCtx, userId: string) =>
+  ctx.runQuery(components.betterAuth.adapter.findOne, {
     model: "user",
     where: [{ field: "_id", operator: "eq", value: userId }],
   });
-};
 
 export const createUserApiKey = mutation({
   args: {
@@ -129,11 +132,7 @@ export const createUserApiKey = mutation({
     }
 
     const now = Date.now();
-    await revokeActiveKeysForUser(
-      ctx,
-      user.subject,
-      now
-    );
+    await revokeActiveKeysForUser(ctx, user.subject, now);
 
     const { key, keyPrefix } = buildApiKey();
     const keyHash = await hashApiKey(key);
@@ -271,10 +270,19 @@ export const validateUserApiKey = internalMutation({
         continue;
       }
 
-      await ctx.db.patch("apiKeys", candidate._id, {
-        lastUsedAt: now,
-        updatedAt: now,
-      });
+      // Best-effort, throttled usage tracking. Skipping the write on the hot
+      // path keeps validation effectively read-only so concurrent requests
+      // sharing one key don't contend on a single document every request.
+      const lastUsedAt = candidate.lastUsedAt;
+      if (
+        lastUsedAt === undefined ||
+        now - lastUsedAt >= LAST_USED_THROTTLE_MS
+      ) {
+        await ctx.db.patch("apiKeys", candidate._id, {
+          lastUsedAt: now,
+          updatedAt: now,
+        });
+      }
 
       return {
         keyId: candidate._id,
