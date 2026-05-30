@@ -10,8 +10,8 @@ mock.module("../../storage/r2", () => ({
   resolveObjectUrl: resolveObjectUrlMock,
 }));
 
-const buildQuery = (cards: any[] = []) => {
-  return {
+const buildQuery = (cards: any[] = []) =>
+  ({
     withIndex: mock().mockImplementation(() => buildQuery(cards)),
     withSearchIndex: mock().mockImplementation(() => buildQuery(cards)),
     filter: mock().mockImplementation(() => buildQuery(cards)),
@@ -22,8 +22,7 @@ const buildQuery = (cards: any[] = []) => {
       isDone: true,
       continueCursor: null,
     }),
-  } as any;
-};
+  }) as any;
 
 describe("card/getCards.ts", () => {
   let getCards: any;
@@ -127,6 +126,47 @@ describe("card/getCards.ts", () => {
       await handler(ctx, {});
       expect(orderMock).toHaveBeenCalledWith("desc");
       expect(takeMock).toHaveBeenCalledWith(50);
+    });
+
+    test("clamps an oversized limit to the max card limit", async () => {
+      const cards: any[] = [];
+      const takeMock = mock().mockResolvedValue(cards);
+      const orderMock = mock().mockReturnValue({ take: takeMock });
+
+      const query = {
+        withIndex: mock().mockReturnValue({ order: orderMock }),
+      } as any;
+
+      const ctx = {
+        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+        db: { query: mock().mockReturnValue(query) },
+        storage: { getUrl: mock() },
+      } as any;
+
+      const handler = (getCards as any).handler ?? getCards;
+      await handler(ctx, { limit: 100_000 });
+      // SEARCH_MAX_CARD_LIMIT
+      expect(takeMock).toHaveBeenCalledWith(200);
+    });
+
+    test("clamps a non-positive limit up to 1", async () => {
+      const cards: any[] = [];
+      const takeMock = mock().mockResolvedValue(cards);
+      const orderMock = mock().mockReturnValue({ take: takeMock });
+
+      const query = {
+        withIndex: mock().mockReturnValue({ order: orderMock }),
+      } as any;
+
+      const ctx = {
+        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+        db: { query: mock().mockReturnValue(query) },
+        storage: { getUrl: mock() },
+      } as any;
+
+      const handler = (getCards as any).handler ?? getCards;
+      await handler(ctx, { limit: -10 });
+      expect(takeMock).toHaveBeenCalledWith(1);
     });
 
     test("attaches linkPreviewImageUrl from metadata", async () => {
@@ -739,6 +779,65 @@ describe("card/getCards.ts", () => {
         paginationOpts: { numItems: 10, cursor: null },
       });
       expect(result.page).toHaveLength(1);
+    });
+
+    test("clamps an oversized numItems before paginating", async () => {
+      const paginateMock = mock().mockResolvedValue({
+        page: [],
+        isDone: true,
+        continueCursor: null,
+      });
+      const query = {
+        withIndex: mock().mockReturnThis(),
+        withSearchIndex: mock().mockReturnThis(),
+        filter: mock().mockReturnThis(),
+        order: mock().mockReturnThis(),
+        take: mock().mockResolvedValue([]),
+        paginate: paginateMock,
+      } as any;
+
+      const ctx = {
+        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+        db: { query: mock().mockReturnValue(query) },
+        storage: { getUrl: mock() },
+      } as any;
+
+      const handler =
+        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
+      await handler(ctx, {
+        paginationOpts: { numItems: 100_000, cursor: null },
+      });
+
+      expect(paginateMock).toHaveBeenCalledWith(
+        // SEARCH_MAX_PAGE_SIZE
+        expect.objectContaining({ numItems: 100 })
+      );
+    });
+
+    test("treats a deep/garbage cursor as a clamped offset", async () => {
+      const cards = Array.from({ length: 5 }, (_, i) => ({
+        _id: `c${i}`,
+        _creationTime: i,
+        userId: "u1",
+        content: "Test",
+        createdAt: 1000 - i,
+      }));
+      const query = buildQuery(cards);
+
+      const ctx = {
+        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+        db: { query: mock().mockReturnValue(query) },
+        storage: { getUrl: mock() },
+      } as any;
+
+      const handler =
+        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
+      // A cursor far beyond SEARCH_MAX_OFFSET must not throw or over-read.
+      const result = await handler(ctx, {
+        paginationOpts: { numItems: 10, cursor: "999999999" },
+        searchQuery: "test",
+      });
+      expect(Array.isArray(result.page)).toBe(true);
     });
 
     test("uses by_created index when createdAtRange provided without searchQuery", async () => {

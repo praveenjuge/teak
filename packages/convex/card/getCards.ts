@@ -4,6 +4,11 @@ import type { Doc } from "../_generated/dataModel";
 import { query } from "../_generated/server";
 import { cardTypeValidator, cardValidator } from "../schema";
 import {
+  clampPageSize,
+  clampSearchLimit,
+  clampSearchOffset,
+} from "../shared/search/constants";
+import {
   attachFileUrls,
   ensureValidRange,
   isCreatedAtInRange,
@@ -129,7 +134,7 @@ export const getCards = query({
         );
     }
 
-    const cards = await query.order("desc").take(args.limit || 50);
+    const cards = await query.order("desc").take(clampSearchLimit(args.limit));
 
     const cardsWithUrls = await attachFileUrls(ctx, cards);
     return applyQuoteFormattingToList(cardsWithUrls);
@@ -165,8 +170,8 @@ export const searchCards = query({
       hueFilters,
       hexFilters,
       createdAtRange,
-      limit = 50,
     } = args;
+    const limit = clampSearchLimit(args.limit);
     ensureValidRange(createdAtRange);
     const visualFilters = normalizeVisualFilterArgs({
       styleFilters,
@@ -461,7 +466,7 @@ export const searchCardsPaginated = query({
     }
 
     const {
-      paginationOpts,
+      paginationOpts: rawPaginationOpts,
       searchQuery,
       types,
       favoritesOnly,
@@ -471,6 +476,13 @@ export const searchCardsPaginated = query({
       hexFilters,
       createdAtRange,
     } = args;
+    // Clamp the caller-provided page size so a single request cannot force an
+    // arbitrarily large index read / in-memory sort. The cursor is validated
+    // separately where it is parsed into an offset.
+    const paginationOpts = {
+      ...rawPaginationOpts,
+      numItems: clampPageSize(rawPaginationOpts.numItems),
+    };
     ensureValidRange(createdAtRange);
     const visualFilters = normalizeVisualFilterArgs({
       styleFilters,
@@ -530,9 +542,10 @@ export const searchCardsPaginated = query({
 
       const rawCursor = paginationOpts.cursor ?? "0";
       const parsedCursor = Number(rawCursor);
-      const offset =
-        Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0;
-      const pageSize = paginationOpts.numItems;
+      const offset = clampSearchOffset(
+        Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0
+      );
+      const pageSize = clampPageSize(paginationOpts.numItems);
       const desiredLimit = offset + pageSize + 1;
 
       // Helper to apply optional filters to search queries
@@ -570,18 +583,15 @@ export const searchCardsPaginated = query({
       // 6. aiTranscript - only for audio type
       // 7. tags - small value set, less selective
       // 8. aiTags - small value set, less selective
-      const buildSearchQuery = (
-        indexName: SearchIndexName,
-        fieldName: SearchFieldName
-      ) => {
-        return (limit: number) =>
+      const buildSearchQuery =
+        (indexName: SearchIndexName, fieldName: SearchFieldName) =>
+        (limit: number) =>
           ctx.db
             .query("cards")
             .withSearchIndex(indexName, (q) =>
               applySearchFilters(q).search(fieldName, searchQuery)
             )
             .take(limit);
-      };
 
       const buildPrimaryBatch = (limit: number) => [
         buildSearchQuery("search_content", "content")(limit),
@@ -674,9 +684,10 @@ export const searchCardsPaginated = query({
     if (visualFilters.hasVisualFilters) {
       const rawCursor = paginationOpts.cursor ?? "0";
       const parsedCursor = Number(rawCursor);
-      const offset =
-        Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0;
-      const pageSize = paginationOpts.numItems;
+      const offset = clampSearchOffset(
+        Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0
+      );
+      const pageSize = clampPageSize(paginationOpts.numItems);
       const desiredLimit = offset + pageSize + 1;
 
       const visualResults = await runVisualFacetQueries(ctx, {

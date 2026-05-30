@@ -6,6 +6,7 @@ import {
   normalizeVisualStyleFilters,
   type VisualStyle,
 } from "../shared/constants";
+import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "../shared/search/constants";
 import { normalizeHexFilters } from "../shared/utils/colorUtils";
 
 export type VisualFilterState = {
@@ -34,12 +35,31 @@ export const normalizeVisualFilterArgs = (args: {
     throw new Error("Invalid hexFilters");
   }
 
+  // Cap each dimension so an authenticated caller cannot fan out an unbounded
+  // number of concurrent facet queries via Promise.all in runVisualFacetQueries.
+  // Style/hue are already bounded by their enums; hex values are caller-supplied.
+  const cappedStyleFilters = styleFilters.slice(
+    0,
+    SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION
+  );
+  const cappedHueFilters = hueFilters.slice(
+    0,
+    SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION
+  );
+  const cappedHexFilters = hexFilters.slice(
+    0,
+    SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION
+  );
+
   return {
-    styleFilters: styleFilters.length > 0 ? styleFilters : undefined,
-    hueFilters: hueFilters.length > 0 ? hueFilters : undefined,
-    hexFilters: hexFilters.length > 0 ? hexFilters : undefined,
+    styleFilters:
+      cappedStyleFilters.length > 0 ? cappedStyleFilters : undefined,
+    hueFilters: cappedHueFilters.length > 0 ? cappedHueFilters : undefined,
+    hexFilters: cappedHexFilters.length > 0 ? cappedHexFilters : undefined,
     hasVisualFilters:
-      styleFilters.length > 0 || hueFilters.length > 0 || hexFilters.length > 0,
+      cappedStyleFilters.length > 0 ||
+      cappedHueFilters.length > 0 ||
+      cappedHexFilters.length > 0,
   };
 };
 
@@ -112,13 +132,14 @@ export const applyCardLevelFilters = (
     return doesCardMatchVisualFilters(card, options.visualFilters);
   });
 
-const buildVisualSearchFilter = (options: {
-  userId: string;
-  showTrashOnly?: boolean;
-  types?: string[];
-  favoritesOnly?: boolean;
-}) => {
-  return (q: any) => {
+const buildVisualSearchFilter =
+  (options: {
+    userId: string;
+    showTrashOnly?: boolean;
+    types?: string[];
+    favoritesOnly?: boolean;
+  }) =>
+  (q: any) => {
     let search = q
       .eq("userId", options.userId)
       .eq("isDeleted", options.showTrashOnly ? true : undefined);
@@ -133,7 +154,6 @@ const buildVisualSearchFilter = (options: {
 
     return search;
   };
-};
 
 export const runVisualFacetQueries = async (
   ctx: any,
