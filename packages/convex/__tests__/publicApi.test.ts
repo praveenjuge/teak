@@ -120,6 +120,59 @@ describe("publicApi", () => {
     expect(secondResult.items.map((card: any) => card._id)).toEqual(["card_3"]);
   });
 
+  test("listCardsPageForUser reports hasMore when a page fills exactly to the limit", async () => {
+    const pagesByCursor: Record<string, any> = {
+      start: {
+        continueCursor: "cursor-1",
+        isDone: false,
+        page: [
+          buildBaseCard({ _id: "card_1", createdAt: 1, updatedAt: 1 }),
+          buildBaseCard({ _id: "card_2", createdAt: 2, updatedAt: 2 }),
+        ],
+      },
+      "cursor-1": {
+        continueCursor: null,
+        isDone: true,
+        page: [buildBaseCard({ _id: "card_3", createdAt: 3, updatedAt: 3 })],
+      },
+    };
+    const paginate = mock(({ cursor }: { cursor: string | null }) =>
+      Promise.resolve(pagesByCursor[cursor ?? "start"])
+    );
+    const baseQuery = {
+      order: mock().mockReturnValue({ paginate }),
+    };
+    const query = {
+      withIndex: mock().mockReturnValue(baseQuery),
+    };
+    const ctx = {
+      db: {
+        query: mock().mockReturnValue(query),
+      },
+    } as any;
+    const handler =
+      (listCardsPageForUser as any).handler ?? listCardsPageForUser;
+
+    const firstPage = await handler(ctx, { limit: 2, userId: "user_1" });
+
+    expect(firstPage.items.map((card: any) => card._id)).toEqual([
+      "card_1",
+      "card_2",
+    ]);
+    expect(firstPage.pageInfo.hasMore).toBe(true);
+    expect(firstPage.pageInfo.nextCursor).not.toBeNull();
+
+    const secondResult = await handler(ctx, {
+      cursor: firstPage.pageInfo.nextCursor,
+      limit: 2,
+      userId: "user_1",
+    });
+
+    expect(secondResult.items.map((card: any) => card._id)).toEqual(["card_3"]);
+    expect(secondResult.pageInfo.hasMore).toBe(false);
+    expect(secondResult.pageInfo.nextCursor).toBeNull();
+  });
+
   test("executeBulkCardsForUser rejects create items without content or url", async () => {
     const handler =
       (executeBulkCardsForUser as any).handler ?? executeBulkCardsForUser;

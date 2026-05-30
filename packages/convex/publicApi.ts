@@ -402,7 +402,11 @@ const listCardsWithBaseQuery = async (
   let hasMore = false;
   let nextCursor: string | null = null;
 
-  while (matches.length < limit) {
+  // Keep scanning until we either locate the (limit + 1)th matching card
+  // (which sets `hasMore`) or run out of pages. Stopping as soon as `limit`
+  // matches are collected would miss remaining results whenever a page fills
+  // exactly to `limit` at its boundary while more matching cards remain.
+  while (!hasMore) {
     const pageCursor = cursor;
     const page = await baseQuery
       .order(sort === "oldest" ? "asc" : "desc")
@@ -436,11 +440,7 @@ const listCardsWithBaseQuery = async (
       filteredIndex += 1;
     }
 
-    if (hasMore) {
-      break;
-    }
-
-    if (page.isDone || !page.continueCursor) {
+    if (hasMore || page.isDone || !page.continueCursor) {
       break;
     }
 
