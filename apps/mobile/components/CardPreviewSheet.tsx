@@ -20,6 +20,7 @@ import {
   tint,
 } from "@expo/ui/swift-ui/modifiers";
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useEvent } from "expo";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import { useCallback, useEffect } from "react";
@@ -100,10 +101,15 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
   }, [audioSource, isAudioPlaying, player]);
 
   const handleOpenLink = useCallback(async (url: string) => {
+    const safeUrl = sanitizeExternalUrl(url);
+    if (!safeUrl) {
+      console.warn("Refusing to open unsafe URL");
+      return;
+    }
     try {
-      const supported = await Linking.canOpenURL(url);
+      const supported = await Linking.canOpenURL(safeUrl);
       if (supported) {
-        await Linking.openURL(url);
+        await Linking.openURL(safeUrl);
       }
     } catch (error) {
       console.error(

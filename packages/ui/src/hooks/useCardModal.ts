@@ -1,5 +1,6 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
+import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
@@ -378,12 +379,15 @@ export function useCardModal(
   );
 
   const openLink = useCallback(() => {
-    if (card?.url) {
+    const safeUrl = sanitizeExternalUrl(card?.url);
+    if (safeUrl) {
       if (config.onOpenLink) {
-        config.onOpenLink(card.url);
+        config.onOpenLink(safeUrl);
       } else if (typeof window !== "undefined") {
-        window.open(card.url, "_blank", "noopener,noreferrer");
+        window.open(safeUrl, "_blank", "noopener,noreferrer");
       }
+    } else if (card?.url) {
+      toast.error("This link can't be opened because it uses an unsafe address");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card?.url, config.onOpenLink]);

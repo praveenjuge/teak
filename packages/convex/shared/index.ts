@@ -6,6 +6,7 @@ export * from "./types";
 export * from "./utils/colorUtils";
 export * from "./utils/linkCategoryResolver";
 export * from "./utils/linkDetection";
+export * from "./utils/safeUrl";
 export * from "./utils/timeSearch";
 
 // Note: React hooks (useCardActions, useFileUpload) are NOT exported here

@@ -13,6 +13,7 @@
     "./shared/hooks/useFileUpload": "./client/hooks/useFileUpload.client.tsx",
     "./shared/linkCategories": "./shared/linkCategories.ts",
     "./shared/utils/colorUtils": "./shared/utils/colorUtils.ts",
+    "./shared/utils/safeUrl": "./shared/utils/safeUrl.ts",
     "./_generated/api": "./_generated/api.js",
     "./_generated/dataModel": "./_generated/dataModel.js"
   },

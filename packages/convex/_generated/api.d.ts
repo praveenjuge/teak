@@ -66,6 +66,7 @@ import type * as shared_types from "../shared/types.js";
 import type * as shared_utils_colorUtils from "../shared/utils/colorUtils.js";
 import type * as shared_utils_linkCategoryResolver from "../shared/utils/linkCategoryResolver.js";
 import type * as shared_utils_linkDetection from "../shared/utils/linkDetection.js";
+import type * as shared_utils_safeUrl from "../shared/utils/safeUrl.js";
 import type * as shared_utils_timeSearch from "../shared/utils/timeSearch.js";
 import type * as storage_r2 from "../storage/r2.js";
 import type * as workflows_aiBackfill from "../workflows/aiBackfill.js";
@@ -172,6 +173,7 @@ declare const fullApi: ApiFromModules<{
   "shared/utils/colorUtils": typeof shared_utils_colorUtils;
   "shared/utils/linkCategoryResolver": typeof shared_utils_linkCategoryResolver;
   "shared/utils/linkDetection": typeof shared_utils_linkDetection;
+  "shared/utils/safeUrl": typeof shared_utils_safeUrl;
   "shared/utils/timeSearch": typeof shared_utils_timeSearch;
   "storage/r2": typeof storage_r2;
   "workflows/aiBackfill": typeof workflows_aiBackfill;

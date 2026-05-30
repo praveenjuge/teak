@@ -13,6 +13,7 @@ import {
   withStageStatus,
 } from "./processingStatus";
 import { normalizeQuoteContent } from "./quoteFormatting";
+import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 
 const updateCardFieldValidator = v.union(
   v.literal("content"),
@@ -75,6 +76,10 @@ export const updateCard = mutation({
 
     if (card.userId !== user.subject) {
       throw new Error("Not authorized to update this card");
+    }
+
+    if (updates.url !== undefined) {
+      updates.url = assertSafeExternalUrl(updates.url);
     }
 
     const now = Date.now();
@@ -172,7 +177,9 @@ export const updateCardFieldForUserHandler = async (
 
     case "url":
       updateData.url =
-        typeof value === "string" ? value.trim() || undefined : value;
+        typeof value === "string"
+          ? assertSafeExternalUrl(value)
+          : value;
       if (updateData.url !== card.url) {
         const baseStatus = processingStatus
           ? withStageStatus(processingStatus, "classify", stagePending())

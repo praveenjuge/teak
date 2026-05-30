@@ -127,6 +127,34 @@ describe("card/createCard.ts", () => {
     );
   });
 
+  test("rejects unsafe url schemes", async () => {
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        system: { get: mock().mockResolvedValue(null) },
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
+          }),
+        }),
+        insert: mock().mockResolvedValue("c_unsafe"),
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any;
+
+    const handler = (createCard as any).handler ?? createCard;
+    await expect(
+      handler(ctx, {
+        content: "click me",
+        type: "link",
+        url: "javascript:alert(1)",
+      })
+    ).rejects.toThrow("http or https");
+
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+  });
+
   test("builds fileMetadata when fileKey provided", async () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },

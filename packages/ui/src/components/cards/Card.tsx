@@ -1,3 +1,4 @@
+import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { CardContent, Card as UICard } from "@teak/ui/components/ui/card";
 import { Checkbox } from "@teak/ui/components/ui/checkbox";
 import {
@@ -109,8 +110,9 @@ export const Card = memo(function Card({
   };
 
   const openLink = () => {
-    if (card.url) {
-      window.open(card.url, "_blank", "noopener,noreferrer");
+    const safeUrl = sanitizeExternalUrl(card.url);
+    if (safeUrl) {
+      window.open(safeUrl, "_blank", "noopener,noreferrer");
     }
   };
 

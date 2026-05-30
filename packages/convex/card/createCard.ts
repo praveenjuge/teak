@@ -21,6 +21,7 @@ import {
 } from "./processingStatus";
 import { normalizeQuoteContent } from "./quoteFormatting";
 import { extractUrlFromContent } from "./validationUtils";
+import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 
 const createCardArgs = {
   content: v.string(),
@@ -73,7 +74,7 @@ export const createCardForUserHandler = async (
   const providedType = args.type;
   let cardType = providedType ?? "text";
   let finalContent = args.content;
-  let finalUrl = args.url;
+  let finalUrl = assertSafeExternalUrl(args.url);
   const originalMetadata = args.metadata || {};
   let fileMetadata: any;
   const classificationRequired = !providedType;

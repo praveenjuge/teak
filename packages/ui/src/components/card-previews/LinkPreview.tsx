@@ -1,4 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -92,12 +93,14 @@ export function LinkPreview({
       return linkFavicon;
     }
     if (!card.url) {
-      return undefined;
+      return;
     }
     return `https://www.google.com/s2/favicons?domain=${card.url}`;
   }, [card.url, linkFavicon]);
 
   const categoryMetadata = card.metadata?.linkCategory;
+
+  const safeUrl = useMemo(() => sanitizeExternalUrl(card.url), [card.url]);
 
   const linkContent = (
     <>
@@ -166,14 +169,18 @@ export function LinkPreview({
   if (LinkComponent) {
     return (
       <div className="flex flex-col gap-6">
-        <LinkComponent
-          className="block"
-          href={card.url || "#"}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          {linkContent}
-        </LinkComponent>
+        {safeUrl ? (
+          <LinkComponent
+            className="block"
+            href={safeUrl}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {linkContent}
+          </LinkComponent>
+        ) : (
+          <div className="block">{linkContent}</div>
+        )}
         {linkMedia.length ? (
           <div className="flex flex-col gap-4">
             {linkMedia.map((media, index) =>
@@ -207,14 +214,18 @@ export function LinkPreview({
 
   return (
     <div className="flex flex-col gap-6">
-      <a
-        className="block"
-        href={card.url || "#"}
-        rel="noopener noreferrer"
-        target="_blank"
-      >
-        {linkContent}
-      </a>
+      {safeUrl ? (
+        <a
+          className="block"
+          href={safeUrl}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {linkContent}
+        </a>
+      ) : (
+        <div className="block">{linkContent}</div>
+      )}
       {linkMedia.length ? (
         <div className="flex flex-col gap-4">
           {linkMedia.map((media, index) =>

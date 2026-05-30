@@ -196,6 +196,25 @@ describe("publicApiHttp", () => {
     expect(payload.code).toBe("INVALID_INPUT");
   });
 
+  test("createCardV1 returns 400 for unsafe url scheme", async () => {
+    const response = await runHandler(
+      createCardV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: "javascript:alert(1)" }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    const payload = await response.json();
+    expect(payload.code).toBe("INVALID_INPUT");
+  });
+
   test("createCardV1 maps ConvexError payload to stable code", async () => {
     const runMutation =
       buildAuthorizedMutationMockWithIdempotencySkip().mockRejectedValueOnce(
@@ -563,6 +582,30 @@ describe("publicApiHttp", () => {
     expect(payload.id).toBe("card_1");
     expect(payload.notes).toBeNull();
     expect(payload.tags).toEqual([]);
+  });
+
+  test("cardByIdV1 rejects unsafe url scheme on patch", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" });
+
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/card_1", {
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: "javascript:alert(1)" }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    const payload = await response.json();
+    expect(payload.code).toBe("INVALID_INPUT");
   });
 
   test("cardByIdV1 rejects invalid favorite payload", async () => {

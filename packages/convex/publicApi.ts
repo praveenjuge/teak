@@ -13,6 +13,7 @@ import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import { updateCardFieldForUserHandler } from "./card/updateCard";
 import { cardTypeValidator } from "./schema";
+import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -678,6 +679,13 @@ const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
     throw new ConvexError({
       code: "INVALID_INPUT",
       message: "Each create item must include `content` or `url`",
+    });
+  }
+
+  if (url && !isSafeExternalUrl(url)) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Each create item `url` must use the http or https scheme",
     });
   }
 };

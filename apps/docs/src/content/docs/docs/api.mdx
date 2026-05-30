@@ -81,11 +81,11 @@ Supported query parameters:
 
 The `include` parameter is a comma-separated list of field groups to add to each item. Omitting it returns the base fields only.
 
-| `include` value | Extra fields added |
-|---|---|
-| `content` | `content`, `notes`, `aiSummary` |
-| `metadata` | `fileUrl`, `linkPreviewImageUrl`, `screenshotUrl`, `thumbnailUrl` |
-| `processing` | `processingStatus`, `metadataStatus`, `aiTranscript` |
+| `include` value | Extra fields added                                                |
+| --------------- | ----------------------------------------------------------------- |
+| `content`       | `content`, `notes`, `aiSummary`                                   |
+| `metadata`      | `fileUrl`, `linkPreviewImageUrl`, `screenshotUrl`, `thumbnailUrl` |
+| `processing`    | `processingStatus`, `metadataStatus`, `aiTranscript`              |
 
 Response:
 
@@ -122,7 +122,7 @@ Idempotency-Key: save-link-123
 Supported request body fields:
 
 - `content` — text or URL to save (required if `url` is not set)
-- `url` — URL to save (required if `content` is not set)
+- `url` — URL to save (required if `content` is not set). Must be an `http` or `https` URL.
 - `notes` — optional freeform notes attached to the card (string or null)
 - `tags` — optional array of tag strings
 - `source` — optional string identifying the client or integration (e.g. `"raycast_quick_save"`)
@@ -238,7 +238,7 @@ Content-Type: application/json
 Allowed fields:
 
 - `content`
-- `url`
+- `url` — must be an `http` or `https` URL
 - `notes`
 - `tags`
 
@@ -299,9 +299,9 @@ Errors preserve the stable `{ code, error }` shape. Some responses may also incl
 
 When using `Idempotency-Key` on `POST /v1/cards` or `POST /v1/cards/bulk`, two `409 Conflict` scenarios may occur:
 
-| Situation | `code` | `error` |
-|---|---|---|
-| A request with the same key is still in flight | `CONFLICT` | `Idempotency-Key is already being processed` |
+| Situation                                              | `code`     | `error`                                                     |
+| ------------------------------------------------------ | ---------- | ----------------------------------------------------------- |
+| A request with the same key is still in flight         | `CONFLICT` | `Idempotency-Key is already being processed`                |
 | The key was already used with a different request body | `CONFLICT` | `Idempotency-Key was already used with a different request` |
 
 If the key was previously used with an identical request body, the original response is replayed without re-processing the operation.

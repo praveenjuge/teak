@@ -2,6 +2,7 @@ import { ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
+import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -580,6 +581,10 @@ const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
     return null;
   }
 
+  if (url !== undefined && !isSafeExternalUrl(url)) {
+    return null;
+  }
+
   if (
     source.notes !== undefined &&
     !(typeof source.notes === "string" || source.notes === null)
@@ -990,7 +995,11 @@ const validatePatchPayload = (
     if (typeof source.url !== "string" || !source.url.trim()) {
       return null;
     }
-    next.url = source.url.trim();
+    const trimmedUrl = source.url.trim();
+    if (!isSafeExternalUrl(trimmedUrl)) {
+      return null;
+    }
+    next.url = trimmedUrl;
   }
 
   if ("notes" in source) {
