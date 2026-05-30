@@ -36,6 +36,24 @@ mock.module("../../../../../convex/linkMetadata", () => ({
   SCRAPE_ELEMENTS: [],
 }));
 
+// Keep SSRF validation out of this unit test: delegate safeFetch to the mocked
+// global fetch and treat every URL as safe. The real outbound URL policy is
+// exercised in linkMetadata/ssrf.test.ts.
+mock.module("../../../../../convex/linkMetadata/ssrf", () => ({
+  SsrfError: class SsrfError extends Error {
+    reason: string;
+    constructor(reason: string, message?: string) {
+      super(message ?? reason);
+      this.name = "SsrfError";
+      this.reason = reason;
+    }
+  },
+  isBlockedIp: () => false,
+  assertUrlStructureSafe: (url: string) => new URL(url),
+  assertUrlIsSafe: async (url: string) => new URL(url),
+  safeFetch: (url: string, init?: RequestInit) => globalThis.fetch(url, init),
+}));
+
 mock.module("@onkernel/sdk", () => {
   return {
     default: class MockKernel {

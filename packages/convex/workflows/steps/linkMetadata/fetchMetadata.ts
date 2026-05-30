@@ -25,6 +25,11 @@ import {
 } from "../../../linkMetadata";
 import type { InstagramPostMedia } from "../../../linkMetadata/instagram";
 import {
+  assertUrlIsSafe,
+  SsrfError,
+  safeFetch,
+} from "../../../linkMetadata/ssrf";
+import {
   fetchXStatusMetadata,
   isXStatusUrl,
   type XStatusMedia,
@@ -188,7 +193,7 @@ const storeRemoteAsset = async (
   }
 ): Promise<StoredRemoteAsset | null> => {
   try {
-    const response = await fetch(assetUrl);
+    const response = await safeFetch(assetUrl);
     if (!response.ok) {
       console.warn(
         `[linkMetadata] Remote asset fetch failed (${response.status}) for ${assetUrl}`
@@ -468,8 +473,7 @@ const scrapeWithFetch = async (
   selectors: { selector: string }[]
 ): Promise<ScrapeResponse> => {
   try {
-    const response = await fetch(url, {
-      redirect: "follow",
+    const response = await safeFetch(url, {
       headers: {
         "user-agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -677,6 +681,31 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
 
   const normalizedUrl = normalizeUrl(card.url);
   const keyBase = { cardId, userId: card.userId };
+
+  // SSRF guard: validate the destination before any server-side fetch or
+  // headless-browser navigation. A blocked URL is a permanent failure, not a
+  // retryable transient error.
+  try {
+    await assertUrlIsSafe(normalizedUrl);
+  } catch (error) {
+    if (error instanceof SsrfError) {
+      await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
+        cardId,
+        linkPreview: buildErrorPreview(normalizedUrl, {
+          type: "blocked_url",
+          message: "URL points to a disallowed destination",
+        }),
+        status: "failed",
+      });
+      return {
+        status: "failed" as const,
+        normalizedUrl,
+        errorType: "blocked_url",
+        errorMessage: "URL points to a disallowed destination",
+      };
+    }
+    throw error;
+  }
 
   try {
     if (isXStatusUrl(normalizedUrl)) {

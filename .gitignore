@@ -59,3 +59,6 @@ next-env.d.ts
 apps/mobile/build-*.ipa
 .secrets/
 .env*.local
+
+# security review handoff notes
+todo/

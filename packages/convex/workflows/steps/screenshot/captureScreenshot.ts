@@ -6,6 +6,7 @@ import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import { normalizeUrl } from "../../../linkMetadata";
+import { assertUrlIsSafe, SsrfError } from "../../../linkMetadata/ssrf";
 import { isXStatusUrl } from "../../../linkMetadata/x";
 import { buildR2ObjectKey, storeObject } from "../../../storage/r2";
 
@@ -223,6 +224,20 @@ export const captureScreenshot = internalAction({
     }
 
     const normalizedUrl = normalizeUrl(card.url);
+
+    // SSRF guard: never send a non-public URL to the headless browser.
+    try {
+      await assertUrlIsSafe(normalizedUrl);
+    } catch (error) {
+      if (error instanceof SsrfError) {
+        console.warn(
+          `[screenshot] Skipping screenshot for card ${cardId}: ${error.reason}`
+        );
+        return;
+      }
+      throw error;
+    }
+
     const screenshotResult = await captureScreenshotWithKernel(ctx, {
       cardId,
       url: normalizedUrl,

@@ -10,6 +10,7 @@ import {
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
+import { safeFetch } from "../../../linkMetadata/ssrf";
 import type { Id } from "../../../shared/types";
 import { enrichProvider } from "./providers";
 import {
@@ -203,13 +204,12 @@ const fetchStructuredData = async (
   url: string
 ): Promise<StructuredDataResult | null> => {
   try {
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       headers: {
         "User-Agent": "TeakBot/1.0 (+https://teak)",
         Accept:
           "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
-      redirect: "follow",
     });
 
     if (!response.ok) {

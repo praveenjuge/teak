@@ -17,6 +17,24 @@ const aiMocks = (global as any).__AI_MOCKS__ || {
 
 mock.module("ai", () => aiMocks);
 
+// Keep SSRF validation out of this unit test: delegate safeFetch to the mocked
+// global fetch and treat every URL as safe. The real outbound URL policy is
+// exercised in linkMetadata/ssrf.test.ts.
+mock.module("../../../../../convex/linkMetadata/ssrf", () => ({
+  SsrfError: class SsrfError extends Error {
+    reason: string;
+    constructor(reason: string, message?: string) {
+      super(message ?? reason);
+      this.name = "SsrfError";
+      this.reason = reason;
+    }
+  },
+  isBlockedIp: () => false,
+  assertUrlStructureSafe: (url: string) => new URL(url),
+  assertUrlIsSafe: async (url: string) => new URL(url),
+  safeFetch: (url: string, init?: RequestInit) => global.fetch(url, init),
+}));
+
 // Setup fetch mock that can be restored
 const originalFetch = global.fetch;
 const mockFetch = mock();
