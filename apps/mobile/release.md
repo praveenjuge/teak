@@ -2,7 +2,7 @@
 
 The mobile app ships to the App Store through EAS Build and EAS Submit. Metadata, version, and release notes live in `apps/mobile/store.config.json` and are synced to App Store Connect via `eas metadata`.
 
-Follow these steps in order from `apps/mobile/`.
+Follow these steps in order from `apps/mobile/`. A full release runs all six steps — pull, edit, push metadata, build, upload, and submit for App Review. When the user asks to "start the release process" (or to release/ship the mobile app), run all six to completion unless they explicitly say to stop earlier.
 
 ## 1. Pull the current App Store metadata
 
@@ -113,14 +113,14 @@ All release scripts are defined in `apps/mobile/package.json`.
 
 ## Agent notes
 
-When an automated agent runs this process, complete the metadata, build, and upload steps in one pass. Do not stop between `metadata:push`, `build:local`, and `build:submit` to ask for confirmation. The user already signaled intent to ship when they asked you to run the release, and pausing mid-flight leaves the App Store version metadata out of sync with the binary.
+When an automated agent runs this process, complete all six steps in one pass — metadata, build, upload, **and** review submission. "Start the release process" (or any equivalent request to release/ship the mobile app) means run steps 1 through 6 to completion, ending with `bun run review:submit`. Do not stop between `metadata:push`, `build:local`, `build:submit`, and `review:submit` to ask for confirmation. The user already signaled intent to ship when they asked you to run the release, and pausing mid-flight leaves the App Store version metadata out of sync with the binary.
 
 Specifically:
 
 - Do not pause because `apple.release.automaticRelease` is `true`. That setting is deliberate — approved builds ship to users automatically, and that is the intended behavior.
 - Do not pause because a build takes a long time. Run it and wait for it to finish.
 - Do stop only if an actual step fails (non-zero exit from the release scripts, signing error, binary upload rejected, etc.). Report the failure and let the user decide next steps.
-- Run `bun run review:submit` only when the user explicitly asks to submit the uploaded build for App Review.
+- Run `bun run review:submit` as the final step of every release pass. `review:submit` waits for Apple to finish processing the uploaded build (polling up to 15 minutes), attaches it to the version, and submits it for App Review. The only reason to skip it is if the user explicitly says to stop before review submission (for example, "build and upload only" or "don't submit for review").
 
 If `eas metadata:push` reports a non-fatal API mismatch (for example `gamblingAndContests` on `ageRatingDeclarations`), treat it as a warning and keep going. The version, release notes, and review info still land, and the age rating is already set on the store listing.
 
