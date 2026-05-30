@@ -1,6 +1,7 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import { buildPublicAppUrl } from "@/lib/public-app-url";
+import { getSafeNextPath } from "@/lib/safe-next-path";
 
 const signInRoutes = [
   "/login",
@@ -8,19 +9,6 @@ const signInRoutes = [
   "/reset-password",
   "/forgot-password",
 ];
-
-function getSafeNextPath(rawNext: string | null): string | null {
-  if (!(rawNext?.startsWith("/") && !rawNext.startsWith("//"))) {
-    return null;
-  }
-
-  const targetPath = rawNext.split("?")[0] ?? rawNext;
-  if (signInRoutes.includes(targetPath)) {
-    return null;
-  }
-
-  return rawNext;
-}
 
 export default function middleware(request: NextRequest) {
   const sessionCookie = getSessionCookie(request);

@@ -20,6 +20,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
+import { getSafeNextPath } from "@/lib/safe-next-path";
 
 export default function SignUp() {
   const searchParams = useSearchParams();
@@ -29,13 +30,10 @@ export default function SignUp() {
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
-  const nextPath = useMemo(() => {
-    const rawValue = searchParams.get("next");
-    if (!(rawValue?.startsWith("/") && !rawValue.startsWith("//"))) {
-      return "/";
-    }
-    return rawValue;
-  }, [searchParams]);
+  const nextPath = useMemo(
+    () => getSafeNextPath(searchParams.get("next")) ?? "/",
+    [searchParams]
+  );
 
   useEffect(() => {
     const shouldShow = sessionStorage.getItem("teak-verify-alert");

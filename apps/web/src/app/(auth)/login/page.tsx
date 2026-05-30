@@ -17,13 +17,7 @@ import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
-
-const authRoutes = new Set([
-  "/login",
-  "/register",
-  "/reset-password",
-  "/forgot-password",
-]);
+import { getSafeNextPath } from "@/lib/safe-next-path";
 
 export default function SignIn() {
   const searchParams = useSearchParams();
@@ -32,17 +26,10 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
-  const nextPath = useMemo(() => {
-    const rawValue = searchParams.get("next");
-    if (!(rawValue?.startsWith("/") && !rawValue.startsWith("//"))) {
-      return "/";
-    }
-    const targetPath = rawValue.split("?")[0] ?? rawValue;
-    if (authRoutes.has(targetPath)) {
-      return "/";
-    }
-    return rawValue;
-  }, [searchParams]);
+  const nextPath = useMemo(
+    () => getSafeNextPath(searchParams.get("next")) ?? "/",
+    [searchParams]
+  );
 
   const showSignInError = (message: string) => {
     const normalizedMessage = message.toLowerCase();
