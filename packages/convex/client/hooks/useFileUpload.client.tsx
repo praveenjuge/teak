@@ -29,7 +29,7 @@ async function getImageDimensions(
     typeof Image === "undefined" ||
     !file.type?.startsWith("image/")
   ) {
-    return undefined;
+    return;
   }
 
   const objectUrl = URL.createObjectURL(file);
@@ -70,8 +70,10 @@ async function buildAdditionalMetadata(
   return metadata;
 }
 
-function inferCardType(mimeType: string | undefined): CardType | undefined {
-  if (!mimeType) return undefined;
+export function inferCardType(
+  mimeType: string | undefined
+): CardType | undefined {
+  if (!mimeType) return;
   if (mimeType.startsWith("image/")) return "image";
   if (mimeType.startsWith("video/")) return "video";
   if (mimeType.startsWith("audio/")) return "audio";
@@ -83,7 +85,7 @@ function inferCardType(mimeType: string | undefined): CardType | undefined {
   ) {
     return "document";
   }
-  return undefined;
+  return;
 }
 
 export function setFileUploadSentryCaptureFunction(fn: SentryCaptureFunction) {
@@ -149,12 +151,30 @@ export interface FileUploadDependencies {
   uploadAndCreateCard: (
     args: UploadAndCreateCardArgs
   ) => Promise<UploadAndCreateCardResult>;
+  uploadBinaryFromUri?: (args: {
+    contentType: string;
+    fileUri: string;
+    uploadUrl: string;
+  }) => Promise<{ ok: boolean; status: number }>;
+}
+
+export interface UploadFileFromUriArgs {
+  additionalMetadata?: any;
+  content?: string;
+  name: string;
+  size: number;
+  type: string;
+  uri: string;
 }
 
 type CodedError = Error & { code?: CardErrorCode };
 
 export function useFileUploadCore(
-  { uploadAndCreateCard, finalizeUploadedCard }: FileUploadDependencies,
+  {
+    uploadAndCreateCard,
+    finalizeUploadedCard,
+    uploadBinaryFromUri,
+  }: FileUploadDependencies,
   config: UnifiedFileUploadConfig = {}
 ) {
   const [isUploading, setIsUploading] = useState(false);
@@ -213,7 +233,13 @@ export function useFileUploadCore(
           additionalMetadata: mergedAdditionalMetadata,
         });
 
-        if (!(uploadResult.success && uploadResult.uploadKey && uploadResult.uploadUrl)) {
+        if (
+          !(
+            uploadResult.success &&
+            uploadResult.uploadKey &&
+            uploadResult.uploadUrl
+          )
+        ) {
           const errorInfo: FileUploadError = {
             message: uploadResult.error || "Failed to prepare upload",
             code: uploadResult.errorCode as CardErrorCode | undefined,
@@ -309,6 +335,158 @@ export function useFileUploadCore(
     [uploadAndCreateCard, finalizeUploadedCard, config]
   );
 
+  const uploadFileFromUri = useCallback(
+    async ({
+      uri,
+      name,
+      type,
+      size,
+      content,
+      additionalMetadata,
+    }: UploadFileFromUriArgs): Promise<UploadFileResult> => {
+      setIsUploading(true);
+      setProgress(0);
+      setError(null);
+
+      try {
+        if (!uploadBinaryFromUri) {
+          const errorInfo: FileUploadError = {
+            message: "URI uploads are not supported on this platform",
+            code: CARD_ERROR_CODES.UNSUPPORTED_TYPE,
+          };
+          const codedError = new Error(errorInfo.message) as CodedError;
+          codedError.code = errorInfo.code;
+          throw codedError;
+        }
+
+        if (size > MAX_FILE_SIZE) {
+          const errorInfo: FileUploadError = {
+            message: CARD_ERROR_MESSAGES.FILE_TOO_LARGE,
+            code: CARD_ERROR_CODES.FILE_TOO_LARGE,
+          };
+          const codedError = new Error(errorInfo.message) as CodedError;
+          codedError.code = errorInfo.code;
+          throw codedError;
+        }
+
+        const cardType = inferCardType(type);
+        if (!cardType) {
+          const errorInfo: FileUploadError = {
+            message: "Unsupported file type",
+            code: CARD_ERROR_CODES.UNSUPPORTED_TYPE,
+          };
+          const codedError = new Error(errorInfo.message) as CodedError;
+          codedError.code = errorInfo.code;
+          throw codedError;
+        }
+
+        const uploadResult = await uploadAndCreateCard({
+          fileName: name,
+          fileType: type,
+          fileSize: size,
+          cardType,
+          content,
+          additionalMetadata,
+        });
+
+        if (
+          !(
+            uploadResult.success &&
+            uploadResult.uploadKey &&
+            uploadResult.uploadUrl
+          )
+        ) {
+          const errorInfo: FileUploadError = {
+            message: uploadResult.error || "Failed to prepare upload",
+            code: uploadResult.errorCode as CardErrorCode | undefined,
+          };
+          const codedError = new Error(errorInfo.message) as CodedError;
+          codedError.code = errorInfo.code;
+          throw codedError;
+        }
+
+        config.onProgress?.(25);
+        setProgress(25);
+
+        const uploadResponse = await uploadBinaryFromUri({
+          fileUri: uri,
+          uploadUrl: uploadResult.uploadUrl,
+          contentType: type || "application/octet-stream",
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Upload failed with status ${uploadResponse.status}`);
+        }
+
+        config.onProgress?.(75);
+        setProgress(75);
+
+        const finalizeResult = await finalizeUploadedCard({
+          fileKey: uploadResult.uploadKey,
+          fileName: name,
+          fileSize: size,
+          fileType: type,
+          cardType,
+          content,
+          additionalMetadata,
+        });
+
+        if (!(finalizeResult.success && finalizeResult.cardId)) {
+          const errorInfo: FileUploadError = {
+            message: finalizeResult.error || "Failed to create card",
+            code: finalizeResult.errorCode as CardErrorCode | undefined,
+          };
+          const codedError = new Error(errorInfo.message) as CodedError;
+          codedError.code = errorInfo.code;
+          throw codedError;
+        }
+
+        config.onProgress?.(100);
+        setProgress(100);
+        config.onSuccess?.(finalizeResult.cardId);
+
+        return { success: true, cardId: finalizeResult.cardId };
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Upload failed";
+        const fileError: FileUploadError = {
+          message: errorMessage,
+          code: undefined,
+        };
+
+        if (
+          error instanceof Error &&
+          "code" in error &&
+          typeof (error as CodedError).code !== "undefined"
+        ) {
+          fileError.code = (error as CodedError).code;
+        }
+
+        captureException(error, {
+          tags: { source: "convex", operation: "fileUpload" },
+          extra: {
+            fileName: name,
+            fileType: type,
+            fileSize: size,
+            errorCode: fileError.code,
+          },
+        });
+
+        setError(fileError);
+        config.onError?.(fileError);
+        return {
+          success: false,
+          error: fileError.message,
+          errorCode: fileError.code,
+        };
+      } finally {
+        setIsUploading(false);
+        setTimeout(() => setProgress(0), 1000);
+      }
+    },
+    [uploadAndCreateCard, finalizeUploadedCard, uploadBinaryFromUri, config]
+  );
+
   const uploadMultipleFiles = useCallback(
     async (
       files: File[],
@@ -359,6 +537,7 @@ export function useFileUploadCore(
 
   return {
     uploadFile,
+    uploadFileFromUri,
     uploadMultipleFiles,
     state,
     // Convenience getters

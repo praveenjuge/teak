@@ -88,7 +88,7 @@ describe("defaults", () => {
         name: "a.png",
         type: "image/png",
       } as any);
-    } catch (_e) {
+    } catch {
       // expected error return, or the hook catches it and returns success:false
     }
   });
@@ -97,6 +97,7 @@ describe("defaults", () => {
 describe("useFileUploadCore", () => {
   const mockUploadAndCreateCard = mock();
   const mockFinalizeUploadedCard = mock();
+  const mockUploadBinaryFromUri = mock();
   const mockOnSuccess = mock();
   const mockOnError = mock();
   const mockOnProgress = mock();
@@ -115,6 +116,7 @@ describe("useFileUploadCore", () => {
   beforeEach(() => {
     mockUploadAndCreateCard.mockReset();
     mockFinalizeUploadedCard.mockReset();
+    mockUploadBinaryFromUri.mockReset();
     mockOnSuccess.mockReset();
     mockOnError.mockReset();
     mockOnProgress.mockReset();
@@ -133,6 +135,10 @@ describe("useFileUploadCore", () => {
 
     test("creates hook with uploadMultipleFiles method", () => {
       expect(typeof hook.uploadMultipleFiles).toBe("function");
+    });
+
+    test("creates hook with uploadFileFromUri method", () => {
+      expect(typeof hook.uploadFileFromUri).toBe("function");
     });
 
     test("creates hook with state object", () => {
@@ -302,6 +308,65 @@ describe("useFileUploadCore", () => {
       await hook.uploadFile(file);
 
       expect(mockOnProgress).toHaveBeenCalledWith(100);
+    });
+  });
+
+  describe("uploadFileFromUri", () => {
+    test("streams URI upload through injected binary uploader", async () => {
+      const uriHook = useFileUploadCore(
+        {
+          ...dependencies,
+          uploadBinaryFromUri: mockUploadBinaryFromUri,
+        },
+        config
+      );
+
+      mockUploadAndCreateCard.mockResolvedValue({
+        success: true,
+        uploadUrl: "https://upload",
+        uploadKey: "store_1",
+      });
+      mockUploadBinaryFromUri.mockResolvedValue({ ok: true, status: 200 });
+      mockFinalizeUploadedCard.mockResolvedValue({
+        success: true,
+        cardId: "card_1",
+      });
+
+      const result = await uriHook.uploadFileFromUri({
+        uri: "file:///tmp/photo.jpg",
+        name: "photo.jpg",
+        type: "image/jpeg",
+        size: 100,
+        content: "photo.jpg",
+        additionalMetadata: { width: 10, height: 20 },
+      });
+
+      expect(mockUploadBinaryFromUri).toHaveBeenCalledWith({
+        fileUri: "file:///tmp/photo.jpg",
+        uploadUrl: "https://upload",
+        contentType: "image/jpeg",
+      });
+      expect(mockFinalizeUploadedCard).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fileKey: "store_1",
+          fileName: "photo.jpg",
+          additionalMetadata: { width: 10, height: 20 },
+        })
+      );
+      expect(result.success).toBe(true);
+    });
+
+    test("fails URI upload when binary uploader is missing", async () => {
+      const result = await hook.uploadFileFromUri({
+        uri: "file:///tmp/photo.jpg",
+        name: "photo.jpg",
+        type: "image/jpeg",
+        size: 100,
+      });
+
+      expect(result.success).toBe(false);
+      expect((result as any).errorCode).toBe(CARD_ERROR_CODES.UNSUPPORTED_TYPE);
+      expect(mockUploadAndCreateCard).not.toHaveBeenCalled();
     });
   });
 

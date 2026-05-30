@@ -3,20 +3,24 @@ import { describe, expect, mock, test } from "bun:test";
 
 // We can't properly test React hooks without a React renderer
 // These tests verify the module exports and function signatures
+mock.module("expo-file-system/legacy", () => ({
+  FileSystemUploadType: { BINARY_CONTENT: 0 },
+  uploadAsync: mock(),
+}));
 
 describe("useFileUpload (Mobile)", () => {
   describe("module exports", () => {
-    test("should export useFileUpload", () => {
-      const {
-        useFileUpload,
-      } = require("../../../mobile/lib/hooks/useFileUpload");
+    test("should export useFileUpload", async () => {
+      const { useFileUpload } = await import(
+        "../../../mobile/lib/hooks/useFileUpload"
+      );
       expect(useFileUpload).toBeDefined();
     });
 
-    test("should be a function", () => {
-      const {
-        useFileUpload,
-      } = require("../../../mobile/lib/hooks/useFileUpload");
+    test("should be a function", async () => {
+      const { useFileUpload } = await import(
+        "../../../mobile/lib/hooks/useFileUpload"
+      );
       expect(typeof useFileUpload).toBe("function");
     });
   });
@@ -32,6 +36,11 @@ describe("useFileUpload (Mobile)", () => {
       // Validate that uploadMultipleFiles is expected
       const uploadMultipleFiles = "uploadMultipleFiles";
       expect(typeof uploadMultipleFiles).toBe("string");
+    });
+
+    test("should return uploadFileFromUri function", () => {
+      const uploadFileFromUri = "uploadFileFromUri";
+      expect(typeof uploadFileFromUri).toBe("string");
     });
 
     test("should return state object", () => {

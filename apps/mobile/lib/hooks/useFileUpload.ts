@@ -6,6 +6,7 @@ import {
   useFileUploadCore,
 } from "@teak/convex/shared/hooks/useFileUpload";
 import { useMutation } from "convex/react";
+import * as FileSystem from "expo-file-system/legacy";
 
 export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
   const uploadAndCreateCardMutation = useMutation(
@@ -22,7 +23,22 @@ export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
     finalizeUploadedCardMutation(args);
 
   return useFileUploadCore(
-    { uploadAndCreateCard, finalizeUploadedCard },
+    {
+      uploadAndCreateCard,
+      finalizeUploadedCard,
+      uploadBinaryFromUri: async ({ fileUri, uploadUrl, contentType }) => {
+        const result = await FileSystem.uploadAsync(uploadUrl, fileUri, {
+          headers: { "Content-Type": contentType },
+          httpMethod: "PUT",
+          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        });
+
+        return {
+          ok: result.status >= 200 && result.status < 300,
+          status: result.status,
+        };
+      },
+    },
     config
   );
 }

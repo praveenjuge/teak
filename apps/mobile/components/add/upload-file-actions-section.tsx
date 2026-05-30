@@ -68,6 +68,7 @@ export function UploadFileActionsSection({
         fileName:
           asset.fileName ||
           `upload_${Date.now()}.${asset.type === "video" ? "mp4" : "jpg"}`,
+        fileSize: asset.fileSize ?? null,
         fileUri: asset.uri,
         mimeType: asset.type === "video" ? "video/mp4" : "image/jpeg",
       });
@@ -119,6 +120,7 @@ export function UploadFileActionsSection({
         fileName:
           asset.fileName ||
           `capture_${Date.now()}.${asset.type === "video" ? "mp4" : "jpg"}`,
+        fileSize: asset.fileSize ?? null,
         fileUri: asset.uri,
         mimeType: asset.type === "video" ? "video/mp4" : "image/jpeg",
       });
@@ -150,6 +152,7 @@ export function UploadFileActionsSection({
       await uploadFromUri({
         content: asset.name,
         fileName: asset.name,
+        fileSize: asset.size ?? null,
         fileUri: asset.uri,
         mimeType: asset.mimeType || "application/octet-stream",
       });

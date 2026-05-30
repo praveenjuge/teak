@@ -108,6 +108,7 @@ export async function importIncomingShareItems(
       .uploadFileFromUri({
         content: item.content,
         fileName: item.fileName,
+        fileSize: item.fileSize,
         fileUri: item.fileUri,
         mimeType: item.mimeType,
       })

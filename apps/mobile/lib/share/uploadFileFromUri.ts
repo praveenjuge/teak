@@ -1,24 +1,22 @@
+import { CARD_ERROR_CODES } from "@teak/convex/shared/constants";
+import {
+  inferCardType,
+  type UploadFileFromUriArgs,
+} from "@teak/convex/shared/hooks/useFileUpload";
 import type { UploadFileResult } from "@teak/convex/shared/types";
-
-const DEFAULT_UPLOAD_FETCH_TIMEOUT_MS = 30_000;
+import * as FileSystem from "expo-file-system/legacy";
 
 export interface UploadFileFromUriParams {
   additionalMetadata?: Record<string, unknown>;
   content: string;
   fileName: string;
+  fileSize?: number | null;
   fileUri: string;
   mimeType: string;
 }
 
 export interface UploadFileFromUriDependencies {
-  fetchTimeoutMs?: number;
-  uploadFile: (
-    file: File,
-    options?: {
-      additionalMetadata?: Record<string, unknown>;
-      content?: string;
-    }
-  ) => Promise<UploadFileResult>;
+  uploadFromUri: (args: UploadFileFromUriArgs) => Promise<UploadFileResult>;
 }
 
 function normalizeErrorMessage(error: unknown): string {
@@ -28,35 +26,47 @@ function normalizeErrorMessage(error: unknown): string {
   return "File upload failed.";
 }
 
+async function resolveFileSize(
+  fileUri: string,
+  providedSize: number | null | undefined
+): Promise<number> {
+  if (typeof providedSize === "number" && providedSize > 0) {
+    return providedSize;
+  }
+
+  const fileInfo = await FileSystem.getInfoAsync(fileUri);
+  const resolvedSize =
+    fileInfo.exists && "size" in fileInfo && typeof fileInfo.size === "number"
+      ? fileInfo.size
+      : 0;
+
+  if (resolvedSize <= 0) {
+    throw new Error("Unable to read shared file size.");
+  }
+
+  return resolvedSize;
+}
+
 export async function uploadFileFromUri(
   params: UploadFileFromUriParams,
   dependencies: UploadFileFromUriDependencies
 ): Promise<UploadFileResult> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      dependencies.fetchTimeoutMs ?? DEFAULT_UPLOAD_FETCH_TIMEOUT_MS
-    );
-
-    const response = await fetch(params.fileUri, {
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
+    if (!inferCardType(params.mimeType)) {
       return {
         success: false,
-        error: `Failed to read shared file (${response.status}).`,
+        error: "Unsupported file type",
+        errorCode: CARD_ERROR_CODES.UNSUPPORTED_TYPE,
       };
     }
 
-    const blob = await response.blob();
-    const file = new File([blob], params.fileName, {
-      type: params.mimeType,
-    });
+    const fileSize = await resolveFileSize(params.fileUri, params.fileSize);
 
-    return dependencies.uploadFile(file, {
+    return dependencies.uploadFromUri({
+      uri: params.fileUri,
+      name: params.fileName,
+      type: params.mimeType,
+      size: fileSize,
       content: params.content,
       additionalMetadata: params.additionalMetadata,
     });

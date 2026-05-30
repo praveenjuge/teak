@@ -44,6 +44,12 @@ describe("importIncomingShareItems", () => {
     expect(result.successfulItems).toBe(2);
     expect(result.failedItems).toBe(0);
     expect(result.createdCardIds).toEqual(["card_text", "card_file"]);
+    expect(uploadFileFromUri).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileSize: null,
+        fileUri: "file:///tmp/shared-file.jpg",
+      })
+    );
   });
 
   test("returns partial result when one item fails", async () => {

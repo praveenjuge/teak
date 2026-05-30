@@ -7,6 +7,7 @@ export interface UploadFromUriParams {
   additionalMetadata?: Record<string, unknown>;
   content: string;
   fileName: string;
+  fileSize?: number | null;
   fileUri: string;
   mimeType: string;
 }
@@ -54,7 +55,7 @@ export function useUploadFromUri({
   onSuccess,
   onError,
 }: UseUploadFromUriOptions = {}) {
-  const { uploadFile, state } = useFileUpload({
+  const { uploadFileFromUri, state } = useFileUpload({
     onSuccess: () => onSuccess?.(),
   });
 
@@ -64,6 +65,7 @@ export function useUploadFromUri({
       fileName,
       mimeType,
       content,
+      fileSize,
       additionalMetadata,
     }: UploadFromUriParams): Promise<ShareUploadResult> => {
       try {
@@ -73,9 +75,10 @@ export function useUploadFromUri({
             fileName,
             mimeType,
             content,
+            fileSize,
             additionalMetadata,
           },
-          { uploadFile }
+          { uploadFromUri: uploadFileFromUri }
         );
 
         if (!result.success) {
@@ -100,7 +103,7 @@ export function useUploadFromUri({
         };
       }
     },
-    [onError, uploadFile]
+    [onError, uploadFileFromUri]
   );
 
   return {

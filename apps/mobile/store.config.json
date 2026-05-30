@@ -1,7 +1,7 @@
 {
   "configVersion": 0,
   "apple": {
-    "version": "1.0.44",
+    "version": "1.0.45",
     "copyright": "Praveen Juge. All rights reserved.",
     "release": {
       "automaticRelease": true
@@ -25,7 +25,16 @@
         "title": "Teak: Save Inspirations",
         "subtitle": "Your Design Inspiration Vault",
         "privacyPolicyUrl": "https://teakvault.com/docs/privacy-policy",
-        "privacyChoicesUrl": "https://teakvault.com/docs/privacy-policy"
+        "privacyChoicesUrl": "https://teakvault.com/docs/privacy-policy",
+        "screenshots": {
+          "APP_IPHONE_65": [
+            "store/apple/screenshot/en-US/APP_IPHONE_65/Teak App Store - 10@3x.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_65/Teak App Store - 6@3x.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_65/Teak App Store - 7@3x.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_65/Teak App Store - 8@3x.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_65/Teak App Store - 9@3x.png"
+          ]
+        }
       }
     },
     "categories": ["PRODUCTIVITY", "LIFESTYLE"],
@@ -47,7 +56,16 @@
       "unrestrictedWebAccess": false,
       "violenceCartoonOrFantasy": "NONE",
       "violenceRealistic": "NONE",
-      "violenceRealisticProlongedGraphicOrSadistic": "NONE"
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "advertising": false,
+      "ageAssurance": false,
+      "ageRatingOverrideV2": "NONE",
+      "developerAgeRatingInfoUrl": null,
+      "gunsOrOtherWeapons": "NONE",
+      "healthOrWellnessTopics": false,
+      "messagingAndChat": false,
+      "parentalControls": false,
+      "userGeneratedContent": false
     },
     "review": {
       "firstName": "Praveen",
