@@ -44,6 +44,7 @@ import type * as linkMetadata from "../linkMetadata.js";
 import type * as linkMetadata_instagram from "../linkMetadata/instagram.js";
 import type * as linkMetadata_parsing from "../linkMetadata/parsing.js";
 import type * as linkMetadata_selectors from "../linkMetadata/selectors.js";
+import type * as linkMetadata_ssrf from "../linkMetadata/ssrf.js";
 import type * as linkMetadata_types from "../linkMetadata/types.js";
 import type * as linkMetadata_url from "../linkMetadata/url.js";
 import type * as linkMetadata_x from "../linkMetadata/x.js";
@@ -94,6 +95,7 @@ import type * as workflows_steps_categorization_providers_index from "../workflo
 import type * as workflows_steps_classification from "../workflows/steps/classification.js";
 import type * as workflows_steps_classificationMutations from "../workflows/steps/classificationMutations.js";
 import type * as workflows_steps_linkMetadata_fetchMetadata from "../workflows/steps/linkMetadata/fetchMetadata.js";
+import type * as workflows_steps_linkMetadata_retryable from "../workflows/steps/linkMetadata/retryable.js";
 import type * as workflows_steps_metadata from "../workflows/steps/metadata.js";
 import type * as workflows_steps_palette from "../workflows/steps/palette.js";
 import type * as workflows_steps_renderables from "../workflows/steps/renderables.js";
@@ -103,6 +105,7 @@ import type * as workflows_steps_renderables_generateThumbnail from "../workflow
 import type * as workflows_steps_renderables_generateVideoThumbnail from "../workflows/steps/renderables/generateVideoThumbnail.js";
 import type * as workflows_steps_renderables_mutations from "../workflows/steps/renderables/mutations.js";
 import type * as workflows_steps_screenshot_captureScreenshot from "../workflows/steps/screenshot/captureScreenshot.js";
+import type * as workflows_steps_screenshot_retryable from "../workflows/steps/screenshot/retryable.js";
 
 import type {
   ApiFromModules,
@@ -147,6 +150,7 @@ declare const fullApi: ApiFromModules<{
   "linkMetadata/instagram": typeof linkMetadata_instagram;
   "linkMetadata/parsing": typeof linkMetadata_parsing;
   "linkMetadata/selectors": typeof linkMetadata_selectors;
+  "linkMetadata/ssrf": typeof linkMetadata_ssrf;
   "linkMetadata/types": typeof linkMetadata_types;
   "linkMetadata/url": typeof linkMetadata_url;
   "linkMetadata/x": typeof linkMetadata_x;
@@ -197,6 +201,7 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/classification": typeof workflows_steps_classification;
   "workflows/steps/classificationMutations": typeof workflows_steps_classificationMutations;
   "workflows/steps/linkMetadata/fetchMetadata": typeof workflows_steps_linkMetadata_fetchMetadata;
+  "workflows/steps/linkMetadata/retryable": typeof workflows_steps_linkMetadata_retryable;
   "workflows/steps/metadata": typeof workflows_steps_metadata;
   "workflows/steps/palette": typeof workflows_steps_palette;
   "workflows/steps/renderables": typeof workflows_steps_renderables;
@@ -206,6 +211,7 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/renderables/generateVideoThumbnail": typeof workflows_steps_renderables_generateVideoThumbnail;
   "workflows/steps/renderables/mutations": typeof workflows_steps_renderables_mutations;
   "workflows/steps/screenshot/captureScreenshot": typeof workflows_steps_screenshot_captureScreenshot;
+  "workflows/steps/screenshot/retryable": typeof workflows_steps_screenshot_retryable;
 }>;
 
 /**

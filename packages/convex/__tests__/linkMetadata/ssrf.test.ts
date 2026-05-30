@@ -2,10 +2,26 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
   assertUrlIsSafe,
   assertUrlStructureSafe,
+  type DnsResolver,
+  detectIpVersion,
   isBlockedIp,
   SsrfError,
   safeFetch,
 } from "../../../convex/linkMetadata/ssrf";
+
+// Deterministic, offline DNS resolvers for injection.
+const resolveTo =
+  (...addresses: string[]): DnsResolver =>
+  async () =>
+    addresses;
+const resolveFails: DnsResolver = async () => {
+  throw new Error("dns failure");
+};
+const resolveEmpty: DnsResolver = async () => [];
+// Default resolver for tests that should never trigger DNS (literal IP hosts).
+const resolveUnused: DnsResolver = async () => {
+  throw new Error("DNS resolver should not have been called");
+};
 
 describe("isBlockedIp", () => {
   test("blocks IPv4 loopback", () => {
@@ -61,6 +77,26 @@ describe("isBlockedIp", () => {
   test("treats non-IP literals as unsafe", () => {
     expect(isBlockedIp("not-an-ip")).toBe(true);
     expect(isBlockedIp("999.999.999.999")).toBe(true);
+  });
+});
+
+describe("detectIpVersion", () => {
+  test("detects IPv4 literals", () => {
+    expect(detectIpVersion("8.8.8.8")).toBe(4);
+    expect(detectIpVersion("127.0.0.1")).toBe(4);
+  });
+
+  test("detects IPv6 literals", () => {
+    expect(detectIpVersion("::1")).toBe(6);
+    expect(detectIpVersion("2606:4700:4700::1111")).toBe(6);
+    expect(detectIpVersion("::ffff:127.0.0.1")).toBe(6);
+  });
+
+  test("returns 0 for hostnames and malformed literals", () => {
+    expect(detectIpVersion("example.com")).toBe(0);
+    expect(detectIpVersion("localhost")).toBe(0);
+    expect(detectIpVersion("999.999.999.999")).toBe(0);
+    expect(detectIpVersion("")).toBe(0);
   });
 });
 
@@ -125,21 +161,49 @@ describe("assertUrlStructureSafe", () => {
 
 describe("assertUrlIsSafe", () => {
   test("resolves literal public IPs without DNS", async () => {
-    const url = await assertUrlIsSafe("https://8.8.8.8/path");
+    const url = await assertUrlIsSafe("https://8.8.8.8/path", resolveUnused);
     expect(url.hostname).toBe("8.8.8.8");
   });
 
   test("rejects literal private IPs", async () => {
-    await expect(assertUrlIsSafe("http://10.0.0.1")).rejects.toBeInstanceOf(
-      SsrfError
-    );
+    await expect(
+      assertUrlIsSafe("http://10.0.0.1", resolveUnused)
+    ).rejects.toBeInstanceOf(SsrfError);
   });
 
-  test("rejects hostnames that resolve to loopback", async () => {
-    // localhost resolves via the hosts file (offline + deterministic).
-    await expect(assertUrlIsSafe("http://localhost")).rejects.toBeInstanceOf(
-      SsrfError
+  test("allows hostnames that resolve to a public address", async () => {
+    const url = await assertUrlIsSafe(
+      "https://example.com",
+      resolveTo("93.184.216.34")
     );
+    expect(url.hostname).toBe("example.com");
+  });
+
+  test("rejects hostnames that resolve to loopback or private space", async () => {
+    await expect(
+      assertUrlIsSafe("http://internal.example.com", resolveTo("127.0.0.1"))
+    ).rejects.toBeInstanceOf(SsrfError);
+    await expect(
+      assertUrlIsSafe("http://internal.example.com", resolveTo("10.0.0.5"))
+    ).rejects.toBeInstanceOf(SsrfError);
+  });
+
+  test("rejects when any resolved address is private (DNS rebinding)", async () => {
+    await expect(
+      assertUrlIsSafe(
+        "http://rebind.example.com",
+        resolveTo("93.184.216.34", "169.254.169.254")
+      )
+    ).rejects.toBeInstanceOf(SsrfError);
+  });
+
+  test("treats DNS failure and empty resolution as blocked", async () => {
+    await expect(
+      assertUrlIsSafe("http://nope.example.com", resolveFails)
+    ).rejects.toBeInstanceOf(SsrfError);
+    await expect(
+      assertUrlIsSafe("http://nope.example.com", resolveEmpty)
+    ).rejects.toBeInstanceOf(SsrfError);
   });
 });
 
@@ -157,9 +221,9 @@ describe("safeFetch", () => {
       return new Response("nope");
     }) as typeof fetch;
 
-    await expect(safeFetch("http://127.0.0.1")).rejects.toBeInstanceOf(
-      SsrfError
-    );
+    await expect(
+      safeFetch("http://127.0.0.1", resolveUnused)
+    ).rejects.toBeInstanceOf(SsrfError);
     expect(called).toBe(false);
   });
 
@@ -172,9 +236,9 @@ describe("safeFetch", () => {
       return Response.redirect("http://169.254.169.254/latest/meta-data", 302);
     }) as typeof fetch;
 
-    await expect(safeFetch("https://8.8.8.8/start")).rejects.toBeInstanceOf(
-      SsrfError
-    );
+    await expect(
+      safeFetch("https://8.8.8.8/start", resolveUnused)
+    ).rejects.toBeInstanceOf(SsrfError);
     // The internal redirect target must never be requested.
     expect(requested).toEqual(["https://8.8.8.8/start"]);
   });
@@ -183,7 +247,7 @@ describe("safeFetch", () => {
     globalThis.fetch = (async () =>
       new Response("ok", { status: 200 })) as typeof fetch;
 
-    const response = await safeFetch("https://8.8.8.8/data");
+    const response = await safeFetch("https://8.8.8.8/data", resolveUnused);
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("ok");
   });

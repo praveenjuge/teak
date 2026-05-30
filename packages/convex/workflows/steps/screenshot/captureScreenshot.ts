@@ -1,27 +1,44 @@
 "use node";
 
+import { lookup } from "node:dns/promises";
 import { PhotonImage } from "@cf-wasm/photon";
 import Kernel from "@onkernel/sdk";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import { normalizeUrl } from "../../../linkMetadata";
-import { assertUrlIsSafe, SsrfError } from "../../../linkMetadata/ssrf";
+import {
+  assertUrlIsSafe,
+  type DnsResolver,
+  SsrfError,
+} from "../../../linkMetadata/ssrf";
 import { isXStatusUrl } from "../../../linkMetadata/x";
 import { buildR2ObjectKey, storeObject } from "../../../storage/r2";
+import {
+  SCREENSHOT_RETRYABLE_PREFIX,
+  type ScreenshotRetryableError,
+} from "./retryable";
+
+// Node runtime DNS resolver injected into the SSRF guard (keeps the guard free
+// of Node built-ins so it bundles for any Convex runtime).
+const resolveDns: DnsResolver = async (hostname) => {
+  const records = await lookup(hostname, { all: true, verbatim: true });
+  return records.map((record) => record.address);
+};
 
 const internalFunctions = internal as Record<string, any>;
 const linkMetadataInternal = internalFunctions.linkMetadata as Record<
   string,
   any
 >;
-export type ScreenshotRetryableError = {
-  type: "rate_limit" | "http_error";
-  message?: string;
-  details?: unknown;
-};
 
-export const SCREENSHOT_RETRYABLE_PREFIX = "workflow:screenshot:retryable:";
+// Re-exported for backwards compatibility; the source of truth lives in
+// ./retryable so default-runtime workflow files can import it without dragging
+// this "use node" module into the isolate bundle.
+export {
+  SCREENSHOT_RETRYABLE_PREFIX,
+  type ScreenshotRetryableError,
+} from "./retryable";
 
 const throwRetryable = (info: ScreenshotRetryableError): never => {
   throw new Error(`${SCREENSHOT_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
@@ -227,7 +244,7 @@ export const captureScreenshot = internalAction({
 
     // SSRF guard: never send a non-public URL to the headless browser.
     try {
-      await assertUrlIsSafe(normalizedUrl);
+      await assertUrlIsSafe(normalizedUrl, resolveDns);
     } catch (error) {
       if (error instanceof SsrfError) {
         console.warn(

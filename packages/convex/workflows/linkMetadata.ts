@@ -7,7 +7,7 @@ import { workflow } from "./manager";
 import {
   LINK_METADATA_RETRYABLE_PREFIX,
   type LinkMetadataRetryableError,
-} from "./steps/linkMetadata/fetchMetadata";
+} from "./steps/linkMetadata/retryable";
 
 const internalWorkflow = internal as Record<string, any>;
 const linkMetadataInternal = internalWorkflow.linkMetadata as Record<

@@ -5,7 +5,7 @@ import { workflow } from "./manager";
 import {
   SCREENSHOT_RETRYABLE_PREFIX,
   type ScreenshotRetryableError,
-} from "./steps/screenshot/captureScreenshot";
+} from "./steps/screenshot/retryable";
 
 const internalWorkflow = internal as Record<string, any>;
 

@@ -1,5 +1,3 @@
-"use node";
-
 /**
  * Canonical server-side outbound URL policy (SSRF guard).
  *
@@ -15,14 +13,19 @@
  *     reserved ranges are blocked for both IPv4 and IPv6)
  *   - automatic redirects are disabled; each redirect hop is re-validated
  *
- * NOTE: this module imports `node:dns`/`node:net`, so it declares `"use node"`
- * and runs in Convex's Node.js runtime. It must only be imported from other
- * `"use node"` actions, and must NOT be re-exported from the `linkMetadata`
- * barrel, which is also loaded by default-runtime (V8 isolate) functions.
+ * This module is intentionally free of Node.js built-ins so it can be bundled
+ * for any Convex runtime (the V8 isolate as well as Node). DNS resolution is
+ * the only host capability it needs, and that is injected by the caller via a
+ * {@link DnsResolver}. The `"use node"` action files that call into this module
+ * supply `dnsLookup` (a thin wrapper over `node:dns/promises`).
  */
 
-import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
+/**
+ * Resolves a hostname to one or more IP address strings. Implementations must
+ * return every address the host resolves to (A and AAAA records). Throwing or
+ * returning an empty array is treated as a resolution failure.
+ */
+export type DnsResolver = (hostname: string) => Promise<string[]>;
 
 export class SsrfError extends Error {
   readonly reason: string;
@@ -189,11 +192,28 @@ const inRange = (value: Bytes, range: Cidr): boolean => {
 const ipv4FromMapped = (value: Bytes): Bytes => value.slice(12, 16);
 
 /**
+ * Detects the IP version of a literal without relying on `node:net`. Returns 4
+ * or 6 for a well-formed literal, or 0 when the string is not an IP literal.
+ * The strict byte parsers below are the source of truth for validity; this only
+ * needs to pick which parser applies.
+ */
+export const detectIpVersion = (host: string): 0 | 4 | 6 => {
+  if (!host) {
+    return 0;
+  }
+  // IPv6 literals always contain a colon; IPv4 literals never do.
+  if (host.includes(":")) {
+    return parseIpv6ToBytes(host) === null ? 0 : 6;
+  }
+  return parseIpv4ToBytes(host) === null ? 0 : 4;
+};
+
+/**
  * Returns true when the given IP literal points at a non-public destination
  * that server-side fetches must never reach.
  */
 export const isBlockedIp = (ip: string): boolean => {
-  const version = isIP(ip);
+  const version = detectIpVersion(ip);
   if (version === 4) {
     const value = parseIpv4ToBytes(ip);
     if (value === null) {
@@ -261,7 +281,7 @@ export const assertUrlStructureSafe = (rawUrl: string): URL => {
 
   // If the host is already an IP literal, validate it immediately so we never
   // even issue a DNS lookup for an obviously private destination.
-  if (isIP(hostname) !== 0 && isBlockedIp(hostname)) {
+  if (detectIpVersion(hostname) !== 0 && isBlockedIp(hostname)) {
     throw new SsrfError(
       "blocked_address",
       `Blocked non-public address: ${hostname}`
@@ -273,20 +293,24 @@ export const assertUrlStructureSafe = (rawUrl: string): URL => {
 
 /**
  * Validates structure AND resolves DNS, ensuring every resolved address is a
- * public destination. Throws {@link SsrfError} otherwise.
+ * public destination. Throws {@link SsrfError} otherwise. The caller supplies a
+ * {@link DnsResolver} so this module stays free of Node.js built-ins.
  */
-export const assertUrlIsSafe = async (rawUrl: string): Promise<URL> => {
+export const assertUrlIsSafe = async (
+  rawUrl: string,
+  resolveDns: DnsResolver
+): Promise<URL> => {
   const parsed = assertUrlStructureSafe(rawUrl);
   const hostname = parsed.hostname.replace(/^\[|\]$/g, "");
 
   // Literal IPs were already validated in assertUrlStructureSafe.
-  if (isIP(hostname) !== 0) {
+  if (detectIpVersion(hostname) !== 0) {
     return parsed;
   }
 
-  let addresses: { address: string }[];
+  let addresses: string[];
   try {
-    addresses = await lookup(hostname, { all: true, verbatim: true });
+    addresses = await resolveDns(hostname);
   } catch {
     throw new SsrfError(
       "dns_resolution_failed",
@@ -301,7 +325,7 @@ export const assertUrlIsSafe = async (rawUrl: string): Promise<URL> => {
     );
   }
 
-  for (const { address } of addresses) {
+  for (const address of addresses) {
     if (isBlockedIp(address)) {
       throw new SsrfError(
         "blocked_address",
@@ -317,16 +341,17 @@ export const assertUrlIsSafe = async (rawUrl: string): Promise<URL> => {
  * SSRF-hardened replacement for `fetch`. Validates the target URL (and every
  * redirect hop) against the outbound policy before issuing each request.
  * Redirects are followed manually so that intermediate hops cannot bounce the
- * request to an internal address.
+ * request to an internal address. The caller supplies a {@link DnsResolver}.
  */
 export const safeFetch = async (
   rawUrl: string,
+  resolveDns: DnsResolver,
   init: RequestInit = {}
 ): Promise<Response> => {
   let currentUrl = rawUrl;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    await assertUrlIsSafe(currentUrl);
+    await assertUrlIsSafe(currentUrl, resolveDns);
 
     const response = await fetch(currentUrl, {
       ...init,

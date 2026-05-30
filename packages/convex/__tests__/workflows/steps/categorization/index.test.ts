@@ -30,9 +30,11 @@ mock.module("../../../../../convex/linkMetadata/ssrf", () => ({
     }
   },
   isBlockedIp: () => false,
+  detectIpVersion: () => 0,
   assertUrlStructureSafe: (url: string) => new URL(url),
   assertUrlIsSafe: async (url: string) => new URL(url),
-  safeFetch: (url: string, init?: RequestInit) => global.fetch(url, init),
+  safeFetch: (url: string, _resolveDns: unknown, init?: RequestInit) =>
+    global.fetch(url, init),
 }));
 
 // Setup fetch mock that can be restored

@@ -1,5 +1,6 @@
 "use node";
 
+import { lookup } from "node:dns/promises";
 import { PhotonImage } from "@cf-wasm/photon";
 import Kernel from "@onkernel/sdk";
 import { v } from "convex/values";
@@ -26,6 +27,7 @@ import {
 import type { InstagramPostMedia } from "../../../linkMetadata/instagram";
 import {
   assertUrlIsSafe,
+  type DnsResolver,
   SsrfError,
   safeFetch,
 } from "../../../linkMetadata/ssrf";
@@ -35,6 +37,18 @@ import {
   type XStatusMedia,
 } from "../../../linkMetadata/x";
 import { buildR2ObjectKey, storeObject } from "../../../storage/r2";
+import {
+  LINK_METADATA_RETRYABLE_PREFIX,
+  type LinkMetadataRetryableError,
+} from "./retryable";
+
+// Resolves hostnames via the Node runtime DNS. Injected into the SSRF guard so
+// that the guard itself stays free of Node built-ins (and bundles for any
+// Convex runtime).
+const resolveDns: DnsResolver = async (hostname) => {
+  const records = await lookup(hostname, { all: true, verbatim: true });
+  return records.map((record) => record.address);
+};
 
 // Top-level regex patterns for performance
 const IMAGE_EXTENSION_REGEX = /\.(png|jpe?g|webp|gif|avif|svg)(?:[?#]|$)/;
@@ -47,15 +61,13 @@ const MAX_REMOTE_VIDEO_BYTES = 50 * 1024 * 1024;
 
 type PersistableLinkMedia = XStatusMedia | InstagramPostMedia;
 
-export type LinkMetadataRetryableError = {
-  type: string;
-  message?: string;
-  normalizedUrl?: string;
-  details?: unknown;
-};
-
-export const LINK_METADATA_RETRYABLE_PREFIX =
-  "workflow:linkMetadata:retryable:";
+// Re-exported for backwards compatibility; the source of truth lives in
+// ./retryable so default-runtime workflow files can import it without dragging
+// this "use node" module into the isolate bundle.
+export {
+  LINK_METADATA_RETRYABLE_PREFIX,
+  type LinkMetadataRetryableError,
+} from "./retryable";
 
 const internalFunctions = internal as Record<string, any>;
 const linkMetadataInternal = internalFunctions.linkMetadata as Record<
@@ -193,7 +205,7 @@ const storeRemoteAsset = async (
   }
 ): Promise<StoredRemoteAsset | null> => {
   try {
-    const response = await safeFetch(assetUrl);
+    const response = await safeFetch(assetUrl, resolveDns);
     if (!response.ok) {
       console.warn(
         `[linkMetadata] Remote asset fetch failed (${response.status}) for ${assetUrl}`
@@ -473,7 +485,7 @@ const scrapeWithFetch = async (
   selectors: { selector: string }[]
 ): Promise<ScrapeResponse> => {
   try {
-    const response = await safeFetch(url, {
+    const response = await safeFetch(url, resolveDns, {
       headers: {
         "user-agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -686,7 +698,7 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
   // headless-browser navigation. A blocked URL is a permanent failure, not a
   // retryable transient error.
   try {
-    await assertUrlIsSafe(normalizedUrl);
+    await assertUrlIsSafe(normalizedUrl, resolveDns);
   } catch (error) {
     if (error instanceof SsrfError) {
       await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {

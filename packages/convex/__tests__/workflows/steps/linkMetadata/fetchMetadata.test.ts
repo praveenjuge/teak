@@ -49,9 +49,11 @@ mock.module("../../../../../convex/linkMetadata/ssrf", () => ({
     }
   },
   isBlockedIp: () => false,
+  detectIpVersion: () => 0,
   assertUrlStructureSafe: (url: string) => new URL(url),
   assertUrlIsSafe: async (url: string) => new URL(url),
-  safeFetch: (url: string, init?: RequestInit) => globalThis.fetch(url, init),
+  safeFetch: (url: string, _resolveDns: unknown, init?: RequestInit) =>
+    globalThis.fetch(url, init),
 }));
 
 mock.module("@onkernel/sdk", () => {

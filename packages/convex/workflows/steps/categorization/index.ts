@@ -1,5 +1,6 @@
 "use node";
 
+import { lookup } from "node:dns/promises";
 import {
   LINK_CATEGORY_DEFAULT_CONFIDENCE,
   type LinkCategory,
@@ -10,7 +11,7 @@ import {
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
-import { safeFetch } from "../../../linkMetadata/ssrf";
+import { type DnsResolver, safeFetch } from "../../../linkMetadata/ssrf";
 import type { Id } from "../../../shared/types";
 import { enrichProvider } from "./providers";
 import {
@@ -19,6 +20,13 @@ import {
   type RawSelectorEntry,
   type RawSelectorMap,
 } from "./providers/common";
+
+// Node runtime DNS resolver injected into the SSRF guard (keeps the guard free
+// of Node built-ins so it bundles for any Convex runtime).
+const resolveDns: DnsResolver = async (hostname) => {
+  const records = await lookup(hostname, { all: true, verbatim: true });
+  return records.map((record) => record.address);
+};
 
 const MAX_FETCH_BODY_SIZE = 250_000;
 const STRUCTURED_DATA_MAX_ITEMS = 8;
@@ -204,7 +212,7 @@ const fetchStructuredData = async (
   url: string
 ): Promise<StructuredDataResult | null> => {
   try {
-    const response = await safeFetch(url, {
+    const response = await safeFetch(url, resolveDns, {
       headers: {
         "User-Agent": "TeakBot/1.0 (+https://teak)",
         Accept:
