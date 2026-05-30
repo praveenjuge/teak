@@ -1,5 +1,8 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import {
+  getSafeUrlHostname,
+  sanitizeExternalUrl,
+} from "@teak/convex/shared/utils/safeUrl";
 import { ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -88,15 +91,21 @@ export function LinkPreview({
 
   const screenshotUrl = showScreenshot ? card.screenshotUrl : undefined;
 
+  // Only expose the hostname (never the full path/query) to the third-party
+  // favicon service, so private saved URLs don't leak IDs or tokens to Google.
+  const googleFaviconUrl = useMemo(() => {
+    const hostname = getSafeUrlHostname(card.url);
+    return hostname
+      ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}`
+      : undefined;
+  }, [card.url]);
+
   const faviconUrl = useMemo(() => {
     if (linkFavicon) {
       return linkFavicon;
     }
-    if (!card.url) {
-      return;
-    }
-    return `https://www.google.com/s2/favicons?domain=${card.url}`;
-  }, [card.url, linkFavicon]);
+    return googleFaviconUrl;
+  }, [googleFaviconUrl, linkFavicon]);
 
   const categoryMetadata = card.metadata?.linkCategory;
 
@@ -130,11 +139,7 @@ export function LinkPreview({
             {faviconUrl && (
               <div className="mt-0.5 size-4 shrink-0">
                 <FaviconImage
-                  fallbackUrl={
-                    card.url
-                      ? `https://www.google.com/s2/favicons?domain=${card.url}`
-                      : undefined
-                  }
+                  fallbackUrl={googleFaviconUrl}
                   faviconUrl={faviconUrl}
                 />
               </div>

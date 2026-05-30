@@ -55,6 +55,25 @@ export function sanitizeExternalUrl(value: unknown): string | undefined {
   return isSafeExternalUrl(trimmed) ? trimmed : undefined;
 }
 
+/**
+ * Returns the hostname for a safe `http:`/`https:` URL, otherwise `undefined`.
+ *
+ * Use when only the domain should be exposed to a third party (for example a
+ * favicon service) so the full path/query of a private saved URL — which can
+ * contain document IDs or tokens — never leaves the app.
+ */
+export function getSafeUrlHostname(value: unknown): string | undefined {
+  const safe = sanitizeExternalUrl(value);
+  if (!safe) {
+    return;
+  }
+  try {
+    return new URL(safe).hostname;
+  } catch {
+    return;
+  }
+}
+
 export class UnsafeUrlError extends Error {
   constructor(message = "URL must use the http or https scheme") {
     super(message);

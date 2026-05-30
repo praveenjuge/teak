@@ -342,12 +342,14 @@ const CardItem = memo(function CardItem({
       const hostname = parsed.hostname.replace(WWW_PREFIX_REGEX, "");
 
       return {
-        favicon: `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`,
+        favicon: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=64`,
         hostname,
       };
     } catch {
+      // URL didn't parse: never send the raw value to the third-party favicon
+      // service, since it can contain a full path/query with IDs or tokens.
       return {
-        favicon: `https://www.google.com/s2/favicons?domain=${card.url}&sz=64`,
+        favicon: undefined,
         hostname: card.url,
       };
     }

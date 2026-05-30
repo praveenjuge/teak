@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   assertSafeExternalUrl,
+  getSafeUrlHostname,
   isSafeExternalUrl,
   sanitizeExternalUrl,
   UnsafeUrlError,
@@ -80,5 +81,30 @@ describe("assertSafeExternalUrl", () => {
       UnsafeUrlError
     );
     expect(() => assertSafeExternalUrl("example.com")).toThrow(UnsafeUrlError);
+  });
+});
+
+describe("getSafeUrlHostname", () => {
+  it("returns only the hostname for safe URLs, never the path or query", () => {
+    expect(
+      getSafeUrlHostname("https://example.com/secret/path?token=abc#frag")
+    ).toBe("example.com");
+    expect(getSafeUrlHostname("  http://sub.example.com:8080/x  ")).toBe(
+      "sub.example.com"
+    );
+  });
+
+  it("returns undefined for unsafe schemes and non-http(s) values", () => {
+    expect(getSafeUrlHostname("javascript:alert(1)")).toBeUndefined();
+    expect(getSafeUrlHostname("file:///etc/passwd")).toBeUndefined();
+    expect(getSafeUrlHostname("mailto:test@example.com")).toBeUndefined();
+  });
+
+  it("returns undefined for relative, empty, and non-string values", () => {
+    expect(getSafeUrlHostname("example.com")).toBeUndefined();
+    expect(getSafeUrlHostname("/path/only")).toBeUndefined();
+    expect(getSafeUrlHostname("")).toBeUndefined();
+    expect(getSafeUrlHostname(null)).toBeUndefined();
+    expect(getSafeUrlHostname(undefined)).toBeUndefined();
   });
 });
