@@ -2,6 +2,7 @@ import { ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
+import { isWellFormedApiKey } from "./shared/apiKeyFormat";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const DEFAULT_LIMIT = 50;
@@ -301,6 +302,54 @@ const isRateLimitContentionError = (error: unknown): boolean => {
   );
 };
 
+const RATE_LIMITED_ERROR = (retryAt?: number): Response =>
+  errorResponse(
+    429,
+    "RATE_LIMITED",
+    "Too many requests",
+    { retryAt },
+    buildRateLimitHeaders(retryAt)
+  );
+
+const RATE_LIMIT_CONTENTION_ERROR = (): Response => {
+  const retryAt = Date.now() + 1000;
+  return errorResponse(
+    429,
+    "RATE_LIMITED",
+    "Too many requests",
+    { retryAt },
+    buildRateLimitHeaders(retryAt)
+  );
+};
+
+const AUTH_INTERNAL_ERROR = (): Response =>
+  errorResponse(500, "INTERNAL_ERROR", "Failed to authorize request");
+
+// Throttle well-formed-but-invalid API keys via a single shared bucket so an
+// attacker rotating random bearer tokens cannot mint a fresh limit per token.
+// Returns a 429 Response when the shared bucket is exhausted, otherwise null.
+const enforceInvalidAuthLimit = async (ctx: any): Promise<Response | null> => {
+  let limit: { ok?: boolean; retryAt?: number } | null = null;
+  try {
+    limit = await ctx.runMutation(
+      (internal as any).raycast.consumeInvalidApiAuthLimit,
+      {}
+    );
+  } catch (error) {
+    if (isRateLimitContentionError(error)) {
+      return RATE_LIMIT_CONTENTION_ERROR();
+    }
+    // Never fail open on the invalid-auth path: surface a generic auth error.
+    return AUTH_INTERNAL_ERROR();
+  }
+
+  if (!limit?.ok) {
+    return RATE_LIMITED_ERROR(limit?.retryAt);
+  }
+
+  return null;
+};
+
 const withAuthorizedUser = async (
   ctx: any,
   request: Request
@@ -316,52 +365,26 @@ const withAuthorizedUser = async (
     };
   }
 
-  let rateLimit: { ok?: boolean; retryAt?: number } | null = null;
-  try {
-    rateLimit = await ctx.runMutation(
-      (internal as any).raycast.checkApiRateLimit,
-      {
-        token,
-      }
-    );
-  } catch (error) {
-    if (isRateLimitContentionError(error)) {
-      return {
-        error: errorResponse(
-          429,
-          "RATE_LIMITED",
-          "Too many requests",
-          {
-            retryAt: Date.now() + 1000,
-          },
-          buildRateLimitHeaders(Date.now() + 1000)
-        ),
-      };
+  // Reject obviously malformed keys before touching the database. This kills
+  // the cheapest abuse vector (spraying random tokens) without any write.
+  if (!isWellFormedApiKey(token)) {
+    const limited = await enforceInvalidAuthLimit(ctx);
+    if (limited) {
+      return { error: limited };
     }
-
     return {
       error: errorResponse(
-        500,
-        "INTERNAL_ERROR",
-        "Failed to authorize request"
+        401,
+        "INVALID_API_KEY",
+        "Invalid or revoked API key"
       ),
     };
   }
 
-  if (!rateLimit?.ok) {
-    return {
-      error: errorResponse(
-        429,
-        "RATE_LIMITED",
-        "Too many requests",
-        {
-          retryAt: rateLimit?.retryAt,
-        },
-        buildRateLimitHeaders(rateLimit?.retryAt)
-      ),
-    };
-  }
-
+  // Validate first. validateUserApiKey is effectively read-only on the hot
+  // path (it only writes a throttled lastUsedAt), so doing it before rate
+  // limiting lets us key the limiter on a stable identity instead of the
+  // attacker-controlled raw token.
   let validated: AuthorizedUser | null = null;
   try {
     validated = await ctx.runMutation(
@@ -371,16 +394,14 @@ const withAuthorizedUser = async (
       }
     );
   } catch {
-    return {
-      error: errorResponse(
-        500,
-        "INTERNAL_ERROR",
-        "Failed to authorize request"
-      ),
-    };
+    return { error: AUTH_INTERNAL_ERROR() };
   }
 
   if (!validated) {
+    const limited = await enforceInvalidAuthLimit(ctx);
+    if (limited) {
+      return { error: limited };
+    }
     return {
       error: errorResponse(
         401,
@@ -388,6 +409,27 @@ const withAuthorizedUser = async (
         "Invalid or revoked API key"
       ),
     };
+  }
+
+  // Rate limit successful auth per validated key id, so the limit follows the
+  // real key rather than whatever token string the caller sent.
+  let rateLimit: { ok?: boolean; retryAt?: number } | null = null;
+  try {
+    rateLimit = await ctx.runMutation(
+      (internal as any).raycast.checkApiRateLimit,
+      {
+        rateLimitKey: `key:${validated.keyId}`,
+      }
+    );
+  } catch (error) {
+    if (isRateLimitContentionError(error)) {
+      return { error: RATE_LIMIT_CONTENTION_ERROR() };
+    }
+    return { error: AUTH_INTERNAL_ERROR() };
+  }
+
+  if (!rateLimit?.ok) {
+    return { error: RATE_LIMITED_ERROR(rateLimit?.retryAt) };
   }
 
   return { validated };

@@ -6,9 +6,12 @@ import {
   mutation,
   query,
 } from "./_generated/server";
+import {
+  API_KEY_TOKEN_PREFIX,
+  isWellFormedApiKey,
+} from "./shared/apiKeyFormat";
 
 const API_KEY_NAME_DEFAULT = "API Keys";
-const API_KEY_TOKEN_PREFIX = "teakapi";
 const API_KEY_ACCESS = "full_access" as const;
 const KEY_PREFIX_BYTES = 6;
 const KEY_SECRET_BYTES = 24;
@@ -228,15 +231,11 @@ export const validateUserApiKey = internalMutation({
   returns: validatedApiKeyValidator,
   handler: async (ctx, args) => {
     const token = args.token.trim();
-    if (!token.startsWith(`${API_KEY_TOKEN_PREFIX}_`)) {
+    if (!isWellFormedApiKey(token)) {
       return null;
     }
 
     const parts = token.split("_");
-    if (parts.length !== 3) {
-      return null;
-    }
-
     const keyPrefix = parts[1];
     if (!keyPrefix) {
       return null;

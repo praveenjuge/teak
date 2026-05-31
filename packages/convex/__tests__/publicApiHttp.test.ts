@@ -20,12 +20,14 @@ const runHandler = async (fn: any, ctx: any, request: Request) => {
 
 const buildAuthorizedMutationMock = () =>
   mock()
-    .mockResolvedValueOnce({ ok: true, retryAt: undefined })
+    // validateUserApiKey now runs first (effectively read-only on hot path)...
     .mockResolvedValueOnce({
       keyId: "key_1",
       userId: "user_1",
       access: "full_access",
-    });
+    })
+    // ...then the per-key rate limit check.
+    .mockResolvedValueOnce({ ok: true, retryAt: undefined });
 
 const buildAuthorizedMutationMockWithIdempotencySkip = () =>
   buildAuthorizedMutationMock().mockResolvedValueOnce(undefined);
@@ -61,10 +63,18 @@ describe("publicApiHttp", () => {
   });
 
   test("createCardV1 returns 429 when rate limited", async () => {
-    const runMutation = mock().mockResolvedValueOnce({
-      ok: false,
-      retryAt: Date.now() + 30_000,
-    });
+    const runMutation = mock()
+      // validate succeeds first...
+      .mockResolvedValueOnce({
+        keyId: "key_1",
+        userId: "user_1",
+        access: "full_access",
+      })
+      // ...then the per-key rate limit rejects.
+      .mockResolvedValueOnce({
+        ok: false,
+        retryAt: Date.now() + 30_000,
+      });
 
     const response = await runHandler(
       createCardV1,
@@ -86,11 +96,19 @@ describe("publicApiHttp", () => {
   });
 
   test("createCardV1 maps rate limit contention errors to 429", async () => {
-    const runMutation = mock().mockRejectedValueOnce(
-      new Error(
-        'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry.'
-      )
-    );
+    const runMutation = mock()
+      // validate succeeds first...
+      .mockResolvedValueOnce({
+        keyId: "key_1",
+        userId: "user_1",
+        access: "full_access",
+      })
+      // ...then the per-key rate limit hits document contention.
+      .mockRejectedValueOnce(
+        new Error(
+          'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry.'
+        )
+      );
 
     const response = await runHandler(
       createCardV1,
@@ -135,10 +153,62 @@ describe("publicApiHttp", () => {
     });
   });
 
+  test("createCardV1 returns 401 without consuming a rate limit for malformed keys", async () => {
+    // Malformed tokens must skip key validation entirely and only touch the
+    // shared invalid-auth bucket, so exactly one mutation should run.
+    const runMutation = mock().mockResolvedValueOnce({ ok: true });
+
+    const response = await runHandler(
+      createCardV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          // Missing the secret segment -> structurally invalid.
+          Authorization: "Bearer teakapi_abc",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "hello" }),
+      })
+    );
+
+    expect(response.status).toBe(401);
+    const payload = await response.json();
+    expect(payload.code).toBe("INVALID_API_KEY");
+    // Only the invalid-auth bucket consume runs; validation is never reached.
+    expect(runMutation).toHaveBeenCalledTimes(1);
+  });
+
+  test("createCardV1 returns 429 when the shared invalid-auth bucket is exhausted", async () => {
+    const runMutation = mock().mockResolvedValueOnce({
+      ok: false,
+      retryAt: Date.now() + 30_000,
+    });
+
+    const response = await runHandler(
+      createCardV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer teakapi_zzz",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "hello" }),
+      })
+    );
+
+    expect(response.status).toBe(429);
+    const payload = await response.json();
+    expect(payload.code).toBe("RATE_LIMITED");
+  });
+
   test("createCardV1 returns 401 for invalid API key", async () => {
     const runMutation = mock()
-      .mockResolvedValueOnce({ ok: true, retryAt: undefined })
-      .mockResolvedValueOnce(null);
+      // validate rejects the (well-formed) key...
+      .mockResolvedValueOnce(null)
+      // ...and the shared invalid-auth bucket still has capacity.
+      .mockResolvedValueOnce({ ok: true });
 
     const response = await runHandler(
       createCardV1,
@@ -275,12 +345,15 @@ describe("publicApiHttp", () => {
 
   test("createCardV1 rejects requests whose idempotency key is already in progress", async () => {
     const runMutation = mock()
-      .mockResolvedValueOnce({ ok: true, retryAt: undefined })
+      // validate first...
       .mockResolvedValueOnce({
         access: "full_access",
         keyId: "key_1",
         userId: "user_1",
       })
+      // ...then per-key rate limit...
+      .mockResolvedValueOnce({ ok: true, retryAt: undefined })
+      // ...then the idempotency reservation reports in-progress.
       .mockResolvedValueOnce({
         record: {
           _id: "idem_1",
@@ -319,7 +392,7 @@ describe("publicApiHttp", () => {
       code: "CONFLICT",
       error: "Idempotency-Key is already being processed",
     });
-    // rateLimit + validate + beginIdempotencyRequest + trackIdempotencyOutcome
+    // validate + rateLimit + beginIdempotencyRequest + trackIdempotencyOutcome
     expect(runMutation).toHaveBeenCalledTimes(4);
   });
 

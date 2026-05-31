@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import {
   checkApiRateLimit,
+  consumeInvalidApiAuthLimit,
   favoriteCardsForUser,
   patchCardForUser,
   resolveCardIdForUserRequest,
@@ -167,8 +168,63 @@ describe("raycast", () => {
     );
 
     const result = await runHandler(checkApiRateLimit, {} as any, {
-      token: "teakapi_test",
+      rateLimitKey: "key:key_1",
     });
+
+    expect(result.ok).toBe(false);
+    expect(typeof result.retryAt).toBe("number");
+  });
+
+  test("checkApiRateLimit rejects an empty rate limit key without calling the limiter", async () => {
+    const limitMock = mock();
+    const rateLimitsModule = await import("../shared/rateLimits");
+    rateLimitsModule.rateLimiter.limit = limitMock;
+
+    const result = await runHandler(checkApiRateLimit, {} as any, {
+      rateLimitKey: "   ",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(limitMock).not.toHaveBeenCalled();
+  });
+
+  test("checkApiRateLimit keys the limiter on the provided identity", async () => {
+    const limitMock = mock().mockResolvedValue({ ok: true });
+    const rateLimitsModule = await import("../shared/rateLimits");
+    rateLimitsModule.rateLimiter.limit = limitMock;
+
+    const result = await runHandler(checkApiRateLimit, {} as any, {
+      rateLimitKey: "key:key_42",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(limitMock).toHaveBeenCalledTimes(1);
+    expect(limitMock.mock.calls[0][1]).toBe("raycastApiRequests");
+    expect(limitMock.mock.calls[0][2].key).toBe("key:key_42");
+  });
+
+  test("consumeInvalidApiAuthLimit uses a single shared bucket key", async () => {
+    const limitMock = mock().mockResolvedValue({ ok: true });
+    const rateLimitsModule = await import("../shared/rateLimits");
+    rateLimitsModule.rateLimiter.limit = limitMock;
+
+    const result = await runHandler(consumeInvalidApiAuthLimit, {} as any, {});
+
+    expect(result.ok).toBe(true);
+    expect(limitMock).toHaveBeenCalledTimes(1);
+    expect(limitMock.mock.calls[0][1]).toBe("invalidApiAuth");
+    expect(limitMock.mock.calls[0][2].key).toBe("public-api-invalid-auth");
+  });
+
+  test("consumeInvalidApiAuthLimit maps contention errors to a retryable result", async () => {
+    const rateLimitsModule = await import("../shared/rateLimits");
+    rateLimitsModule.rateLimiter.limit = mock().mockRejectedValue(
+      new Error(
+        'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry.'
+      )
+    );
+
+    const result = await runHandler(consumeInvalidApiAuthLimit, {} as any, {});
 
     expect(result.ok).toBe(false);
     expect(typeof result.retryAt).toBe("number");
