@@ -7,6 +7,7 @@ import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
+const MAX_BULK_ITEMS = 100;
 const APP_PROD_URL = "https://app.teakvault.com";
 const APP_DEV_URL = resolveTeakDevAppUrl(process.env);
 const CARD_TYPES = new Set([
@@ -1308,6 +1309,22 @@ const handleBulkCardsRequest = async (
       400,
       "INVALID_INPUT",
       "Body must include a valid `operation` and `items`"
+    );
+  }
+
+  if (items.length === 0) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "`items` must include at least one item"
+    );
+  }
+
+  if (items.length > MAX_BULK_ITEMS) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      `\`items\` must not exceed ${MAX_BULK_ITEMS} entries per request`
     );
   }
 

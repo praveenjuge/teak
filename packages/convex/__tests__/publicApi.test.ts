@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { ConvexError } from "convex/values";
 import { r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
@@ -171,6 +172,37 @@ describe("publicApi", () => {
     expect(secondResult.items.map((card: any) => card._id)).toEqual(["card_3"]);
     expect(secondResult.pageInfo.hasMore).toBe(false);
     expect(secondResult.pageInfo.nextCursor).toBeNull();
+  });
+
+  test("executeBulkCardsForUser rejects batches over the item limit", async () => {
+    const handler =
+      (executeBulkCardsForUser as any).handler ?? executeBulkCardsForUser;
+    const normalizeId = mock();
+
+    let thrown: unknown;
+    try {
+      await handler(
+        {
+          db: { normalizeId },
+          scheduler: { runAfter: mock() },
+        },
+        {
+          items: Array.from({ length: 101 }, (_, index) => ({
+            cardId: `card_${index}`,
+            isFavorited: true,
+          })),
+          operation: "favorite",
+          userId: "user_1",
+        }
+      );
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ConvexError);
+    expect((thrown as any).data?.code).toBe("INVALID_INPUT");
+    // Guard runs before any per-item work, so no card lookups happen.
+    expect(normalizeId).not.toHaveBeenCalled();
   });
 
   test("executeBulkCardsForUser rejects create items without content or url", async () => {

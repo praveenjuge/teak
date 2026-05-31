@@ -164,6 +164,10 @@ Supported operations:
 - `favorite`
 - `delete`
 
+A single request accepts at most 100 items. Requests with an empty `items`
+array, or more than 100 items, are rejected with `400 INVALID_INPUT`. Split
+larger batches across multiple requests.
+
 Response:
 
 ```json

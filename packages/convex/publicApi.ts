@@ -19,6 +19,7 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 const SEARCH_MULTIPLIER = 4;
 const MAX_QUERY_SCAN = 400;
+const MAX_BULK_ITEMS = 100;
 
 const apiCardSortValidator = v.union(v.literal("newest"), v.literal("oldest"));
 type ApiCardSort = "newest" | "oldest";
@@ -712,6 +713,13 @@ export const executeBulkCardsForUser = internalMutation({
   },
   returns: bulkResultValidator,
   handler: async (ctx, args) => {
+    if (args.items.length > MAX_BULK_ITEMS) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: `\`items\` must not exceed ${MAX_BULK_ITEMS} entries per request`,
+      });
+    }
+
     const results: Record<string, unknown>[] = [];
     let succeeded = 0;
 

@@ -541,6 +541,62 @@ describe("publicApiHttp", () => {
     });
   });
 
+  test("bulkCardsV1 rejects requests over the item limit before fanning out", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+
+    const response = await runHandler(
+      bulkCardsV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards/bulk", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          operation: "favorite",
+          items: Array.from({ length: 101 }, (_, index) => ({
+            cardId: `card_${index}`,
+            isFavorited: true,
+          })),
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    const payload = await response.json();
+    expect(payload.code).toBe("INVALID_INPUT");
+    expect(payload.error).toContain("100");
+    // Only the two authorization mutations (validate key + rate limit) run;
+    // neither idempotency reservation nor the bulk fan-out mutation fire.
+    expect(runMutation).toHaveBeenCalledTimes(2);
+  });
+
+  test("bulkCardsV1 rejects an empty items array", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+
+    const response = await runHandler(
+      bulkCardsV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards/bulk", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          operation: "favorite",
+          items: [],
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    const payload = await response.json();
+    expect(payload.code).toBe("INVALID_INPUT");
+    expect(runMutation).toHaveBeenCalledTimes(2);
+  });
+
   test("changesCardsV1 returns items and deleted ids", async () => {
     const runMutation = buildAuthorizedMutationMock();
     const runQuery = mock().mockResolvedValueOnce({
