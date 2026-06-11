@@ -339,7 +339,9 @@ describe("useContextMenuSave Hook", () => {
       let checkCount = 0;
       const interval = setInterval(() => {
         checkCount++;
-        if (checkCount >= 3) clearInterval(interval);
+        if (checkCount >= 3) {
+          clearInterval(interval);
+        }
       }, 1000);
 
       setTimeout(() => {

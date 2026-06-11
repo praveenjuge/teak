@@ -12,11 +12,32 @@ import { v } from "convex/values";
 import { orientation } from "exifr";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
-import { buildR2ObjectKey, resolveObjectUrl, storeObject } from "../../../storage/r2";
+import {
+  buildR2ObjectKey,
+  resolveObjectUrl,
+  storeObject,
+} from "../../../storage/r2";
 
 // Maximum thumbnail dimensions
 const THUMBNAIL_MAX_WIDTH = 500;
 const THUMBNAIL_MAX_HEIGHT = 500;
+
+/**
+ * Copy bytes into a standard ArrayBuffer when needed so they can be passed to
+ * Blob without the TS generic Uint8Array<ArrayBufferLike> incompatibility.
+ */
+function toStandardArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  if (!(bytes.buffer instanceof ArrayBuffer)) {
+    return bytes.slice().buffer;
+  }
+  if (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength) {
+    return bytes.buffer;
+  }
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength
+  );
+}
 
 /**
  * Determine output quality and format based on file size
@@ -240,16 +261,7 @@ export const generateThumbnail = internalAction({
         : outputImage.get_bytes_webp();
 
       // Ensure we provide a standard ArrayBuffer to Blob (avoids TS generic Uint8Array<ArrayBufferLike> incompatibility)
-      const outputArrayBuffer =
-        outputBytes.buffer instanceof ArrayBuffer
-          ? outputBytes.byteOffset === 0 &&
-            outputBytes.byteLength === outputBytes.buffer.byteLength
-            ? outputBytes.buffer
-            : outputBytes.buffer.slice(
-                outputBytes.byteOffset,
-                outputBytes.byteOffset + outputBytes.byteLength
-              )
-          : outputBytes.slice().buffer;
+      const outputArrayBuffer = toStandardArrayBuffer(outputBytes);
 
       const thumbnailBlob = new Blob([outputArrayBuffer], {
         type: useJpeg ? "image/jpeg" : "image/webp",

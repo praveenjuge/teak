@@ -16,9 +16,15 @@ export const enrichGithub = (
   const updatedRaw = getRawText(rawMap, "relative-time");
 
   const facts: LinkCategoryDetail[] = [];
-  if (stars) facts.push({ label: "Stars", value: stars });
-  if (forks) facts.push({ label: "Forks", value: forks });
-  if (watchers) facts.push({ label: "Watchers", value: watchers });
+  if (stars) {
+    facts.push({ label: "Stars", value: stars });
+  }
+  if (forks) {
+    facts.push({ label: "Forks", value: forks });
+  }
+  if (watchers) {
+    facts.push({ label: "Watchers", value: watchers });
+  }
   if (language) {
     facts.push({ label: "Language", value: language });
   }

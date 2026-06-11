@@ -1,19 +1,19 @@
 import type { CardType } from "../schema";
 
-export type ProcessingStageStatus = {
-  status: "pending" | "in_progress" | "completed" | "failed";
-  startedAt?: number;
+export interface ProcessingStageStatus {
   completedAt?: number;
   confidence?: number;
   error?: string;
-};
+  startedAt?: number;
+  status: "pending" | "in_progress" | "completed" | "failed";
+}
 
-export type ProcessingStatus = {
-  classify?: ProcessingStageStatus;
+export interface ProcessingStatus {
   categorize?: ProcessingStageStatus;
+  classify?: ProcessingStageStatus;
   metadata?: ProcessingStageStatus;
   renderables?: ProcessingStageStatus;
-};
+}
 
 export type ProcessingStageKey = keyof ProcessingStatus;
 

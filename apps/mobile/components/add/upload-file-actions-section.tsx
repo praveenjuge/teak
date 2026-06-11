@@ -7,9 +7,9 @@ import { useCallback } from "react";
 import { Alert, PlatformColor } from "react-native";
 import { useUploadFromUri } from "@/lib/hooks/use-upload-from-uri";
 
-type UploadFileActionsSectionProps = {
+interface UploadFileActionsSectionProps {
   onSuccess?: () => void;
-};
+}
 
 export function UploadFileActionsSection({
   onSuccess,

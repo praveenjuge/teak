@@ -119,7 +119,7 @@ describe("x link metadata", () => {
 
   describe("fetchXStatusMetadata", () => {
     test("maps oEmbed data into link preview metadata", async () => {
-      mockFetch.mockImplementation(async (input: MockFetchInput) => {
+      mockFetch.mockImplementation((input: MockFetchInput) => {
         if (
           isRequestUrl(input, {
             hostname: "publish.x.com",
@@ -163,7 +163,7 @@ describe("x link metadata", () => {
     });
 
     test("falls back to publish.twitter.com when publish.x.com is empty", async () => {
-      mockFetch.mockImplementation(async (input: MockFetchInput) => {
+      mockFetch.mockImplementation((input: MockFetchInput) => {
         if (
           isRequestUrl(input, {
             hostname: "publish.x.com",
@@ -213,7 +213,7 @@ describe("x link metadata", () => {
     });
 
     test("extracts attached media from X syndication payload", async () => {
-      mockFetch.mockImplementation(async (input: MockFetchInput) => {
+      mockFetch.mockImplementation((input: MockFetchInput) => {
         if (
           isRequestUrl(input, {
             hostname: "publish.x.com",

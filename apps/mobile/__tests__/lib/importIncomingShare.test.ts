@@ -53,7 +53,7 @@ describe("importIncomingShareItems", () => {
   });
 
   test("returns partial result when one item fails", async () => {
-    const createCard = mock(async () => {
+    const createCard = mock(() => {
       throw new Error("create failed");
     });
     const uploadFileFromUri = mock(async () => ({
@@ -157,9 +157,9 @@ describe("importIncomingShareItems", () => {
 
   test("captures thrown upload dependency errors as upload failures", async () => {
     const createCard = mock(async () => "card");
-    const uploadFileFromUri = mock(async () => {
-      throw new Error("network timeout");
-    });
+    const uploadFileFromUri = mock(() =>
+      Promise.reject(new Error("network timeout"))
+    );
 
     const result = await importIncomingShareItems(
       [createFileItem("item-1")],

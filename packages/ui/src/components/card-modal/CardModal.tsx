@@ -84,8 +84,7 @@ export function CardModal({
   };
 
   const canDownload = Boolean(
-    card?.fileKey &&
-      ["document", "audio", "video", "image"].includes(card.type)
+    card?.fileKey && ["document", "audio", "video", "image"].includes(card.type)
   );
 
   const handleCardTypeClick = () => {
@@ -95,7 +94,9 @@ export function CardModal({
   };
 
   const renderPreview = () => {
-    if (!card) return null;
+    if (!card) {
+      return null;
+    }
 
     switch (card.type) {
       case "text":

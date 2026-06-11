@@ -6,10 +6,10 @@ import { enrichGithub } from "./github";
 import { enrichGoodreads } from "./goodreads";
 import { enrichImdb } from "./imdb";
 
-type ProviderHandler = {
+interface ProviderHandler {
   categories: LinkCategory[];
   enrich: (rawMap: RawSelectorMap) => ProviderEnrichmentResult | null;
-};
+}
 
 const handlers: Record<string, ProviderHandler> = {
   github: {

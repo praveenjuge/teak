@@ -62,20 +62,18 @@ describe("apps/api proxy", () => {
     let capturedUrl = "";
     let capturedAuthorization = "";
 
-    globalThis.fetch = mock(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        capturedUrl = String(input);
-        capturedAuthorization =
-          new Headers(init?.headers).get("authorization") ?? "";
+    globalThis.fetch = mock((input: RequestInfo | URL, init?: RequestInit) => {
+      capturedUrl = String(input);
+      capturedAuthorization =
+        new Headers(init?.headers).get("authorization") ?? "";
 
-        return new Response(JSON.stringify({ items: [], total: 0 }), {
-          headers: {
-            "Content-Type": "application/json",
-          },
-          status: 200,
-        });
-      }
-    ) as unknown as typeof fetch;
+      return new Response(JSON.stringify({ items: [], total: 0 }), {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        status: 200,
+      });
+    }) as unknown as typeof fetch;
 
     const response = await app.request("/v1/cards/search?q=design&limit=10", {
       headers: {

@@ -23,10 +23,14 @@ const rgbToHex = (r: number, g: number, b: number): string => {
 };
 
 const computePalette = (pixels: Uint8Array, maxColors: number): string[] => {
-  if (!pixels.length) return [];
+  if (!pixels.length) {
+    return [];
+  }
 
   const pixelCount = Math.floor(pixels.length / 4);
-  if (!pixelCount) return [];
+  if (!pixelCount) {
+    return [];
+  }
 
   const stride = Math.max(1, Math.floor(pixelCount / SAMPLE_TARGET));
   const colorCounts = new Map<string, number>();
@@ -34,7 +38,9 @@ const computePalette = (pixels: Uint8Array, maxColors: number): string[] => {
   for (let i = 0; i < pixelCount; i += stride) {
     const offset = i * 4;
     const alpha = pixels[offset + 3];
-    if (alpha < 16) continue;
+    if (alpha < 16) {
+      continue;
+    }
 
     const r = quantizeChannel(pixels[offset]);
     const g = quantizeChannel(pixels[offset + 1]);
@@ -63,7 +69,7 @@ export const extractPaletteFromImage = internalAction({
       cardId,
     });
 
-    if (!card || card.type !== "image" || !card.fileKey) {
+    if (card?.type !== "image" || !card.fileKey) {
       return undefined;
     }
 

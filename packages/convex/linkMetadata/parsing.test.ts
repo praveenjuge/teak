@@ -10,16 +10,16 @@ import {
 } from "./parsing";
 
 // Mock types for testing
-type MockScrapeResultItem = {
-  text?: string;
-  html?: string;
+interface MockScrapeResultItem {
   attributes?: Array<{ name: string; value: string }>;
-};
+  html?: string;
+  text?: string;
+}
 
-type MockSelectorResult = {
-  selector: string;
+interface MockSelectorResult {
   results: MockScrapeResultItem[];
-};
+  selector: string;
+}
 
 const createMockItem = (
   text?: string,

@@ -29,10 +29,10 @@ const TRAILING_ATTRIBUTION_PREFIX = new Set(["—", "-", "–", "―", "~"]);
 const TRAILING_PAREN_PREFIX = new Set(["(", "[", "{"]);
 const TRAILING_PUNCT_ONLY = /^[\s.,!?;:…·、。！？；：•]+$/u;
 
-export type QuoteNormalizationResult = {
-  text: string;
+export interface QuoteNormalizationResult {
   removedQuotes: boolean;
-};
+  text: string;
+}
 
 const getClosingChar = (char: string): string | undefined => {
   if (OPENING_QUOTE_TO_CLOSING.has(char)) {

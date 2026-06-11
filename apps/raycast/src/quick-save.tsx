@@ -18,27 +18,29 @@ import {
 } from "./lib/api";
 import { getPreferences } from "./lib/preferences";
 
-type FormValues = {
+interface FormValues {
   content: string;
-};
+}
 
 const addSuccessActions = (
   toast: Toast,
   result: Awaited<ReturnType<typeof quickSaveCard>>,
 ) => {
-  if (result.appUrl) {
+  const appUrl = result.appUrl;
+  if (appUrl) {
     toast.primaryAction = {
       onAction: () => {
-        void open(result.appUrl!);
+        void open(appUrl);
       },
       title: "Open Card",
     };
   }
 
-  if (result.card?.url) {
+  const sourceUrl = result.card?.url;
+  if (sourceUrl) {
     toast.secondaryAction = {
       onAction: () => {
-        void open(result.card!.url!);
+        void open(sourceUrl);
       },
       title: "Open Source URL",
     };

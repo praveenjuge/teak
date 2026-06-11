@@ -66,6 +66,8 @@ export function ApiKeysSection({
     }
   };
 
+  const generateButtonLabel = activeKey ? "Regenerate" : "Generate";
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -85,11 +87,7 @@ export function ApiKeysSection({
                 type="button"
                 variant="link"
               >
-                {isCreating
-                  ? "Generating..."
-                  : activeKey
-                    ? "Regenerate"
-                    : "Generate"}
+                {isCreating ? "Generating..." : generateButtonLabel}
               </Button>
             </>
           )}

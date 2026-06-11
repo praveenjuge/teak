@@ -53,6 +53,7 @@ import type * as publicApi from "../publicApi.js";
 import type * as publicApiHttp from "../publicApiHttp.js";
 import type * as raycast from "../raycast.js";
 import type * as sentry from "../sentry.js";
+import type * as shared_apiKeyFormat from "../shared/apiKeyFormat.js";
 import type * as shared_constants from "../shared/constants.js";
 import type * as shared_index from "../shared/index.js";
 import type * as shared_linkCategories from "../shared/linkCategories.js";
@@ -160,6 +161,7 @@ declare const fullApi: ApiFromModules<{
   publicApiHttp: typeof publicApiHttp;
   raycast: typeof raycast;
   sentry: typeof sentry;
+  "shared/apiKeyFormat": typeof shared_apiKeyFormat;
   "shared/constants": typeof shared_constants;
   "shared/index": typeof shared_index;
   "shared/linkCategories": typeof shared_linkCategories;

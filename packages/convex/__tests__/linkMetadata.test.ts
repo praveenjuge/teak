@@ -340,7 +340,10 @@ describe("linkMetadata", () => {
         status: "completed",
       });
 
-      expect(r2Mocks.deleteObject).not.toHaveBeenCalledWith(ctx, "existing_image");
+      expect(r2Mocks.deleteObject).not.toHaveBeenCalledWith(
+        ctx,
+        "existing_image"
+      );
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "card_123",

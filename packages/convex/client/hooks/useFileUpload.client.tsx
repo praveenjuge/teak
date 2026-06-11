@@ -16,11 +16,13 @@ type SentryCaptureFunction = (
   error: unknown,
   context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }
 ) => void;
-let captureException: SentryCaptureFunction = () => {};
+let captureException: SentryCaptureFunction = () => {
+  // noop until a platform-specific capture function is injected
+};
 
 // Best-effort image dimension extraction (browser-only).
 // Returns undefined when dimensions cannot be determined or we're in a non-DOM environment.
-async function getImageDimensions(
+function getImageDimensions(
   file: File
 ): Promise<{ width: number; height: number } | undefined> {
   if (
@@ -29,7 +31,7 @@ async function getImageDimensions(
     typeof Image === "undefined" ||
     !file.type?.startsWith("image/")
   ) {
-    return;
+    return Promise.resolve(undefined);
   }
 
   const objectUrl = URL.createObjectURL(file);
@@ -73,10 +75,18 @@ async function buildAdditionalMetadata(
 export function inferCardType(
   mimeType: string | undefined
 ): CardType | undefined {
-  if (!mimeType) return;
-  if (mimeType.startsWith("image/")) return "image";
-  if (mimeType.startsWith("video/")) return "video";
-  if (mimeType.startsWith("audio/")) return "audio";
+  if (!mimeType) {
+    return;
+  }
+  if (mimeType.startsWith("image/")) {
+    return "image";
+  }
+  if (mimeType.startsWith("video/")) {
+    return "video";
+  }
+  if (mimeType.startsWith("audio/")) {
+    return "audio";
+  }
   if (
     mimeType === "application/pdf" ||
     mimeType.startsWith("application/msword") ||

@@ -14,8 +14,12 @@ import {
 
 const createStorageMock = () => {
   const getItem = mock<ThemePreferenceStorage["getItem"]>(async () => null);
-  const setItem = mock<ThemePreferenceStorage["setItem"]>(async () => {});
-  const removeItem = mock<ThemePreferenceStorage["removeItem"]>(async () => {});
+  const setItem = mock<ThemePreferenceStorage["setItem"]>(() =>
+    Promise.resolve()
+  );
+  const removeItem = mock<ThemePreferenceStorage["removeItem"]>(() =>
+    Promise.resolve()
+  );
 
   return {
     getItem,
@@ -121,7 +125,9 @@ describe("theme-preference-native", () => {
 
   test("applies system mode as the native automatic preference", () => {
     const setColorScheme = mock<AppearancePreferenceApi["setColorScheme"]>(
-      () => {}
+      () => {
+        // noop
+      }
     );
 
     applyAppearancePreference("system", { setColorScheme });
@@ -131,7 +137,9 @@ describe("theme-preference-native", () => {
 
   test("applies explicit preferences as native appearance overrides", () => {
     const setColorScheme = mock<AppearancePreferenceApi["setColorScheme"]>(
-      () => {}
+      () => {
+        // noop
+      }
     );
 
     applyAppearancePreference("light", { setColorScheme });

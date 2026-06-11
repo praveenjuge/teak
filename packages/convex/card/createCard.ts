@@ -5,13 +5,14 @@ import {
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { internalMutation, type MutationCtx, mutation } from "../_generated/server";
+import {
+  internalMutation,
+  type MutationCtx,
+  mutation,
+} from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
 import { cardTypeValidator, colorValidator } from "../schema";
-import {
-  type CardCreationSource,
-  trackCardCreated,
-} from "../shared/metrics";
+import { type CardCreationSource, trackCardCreated } from "../shared/metrics";
 import { scheduleBusinessEvent } from "../sentry";
 import { workflow } from "../workflows/manager";
 import {
@@ -35,8 +36,19 @@ const createCardArgs = {
   colors: v.optional(v.array(colorValidator)), // For palette cards
 } as const;
 
-type CreateCardArgs = {
+interface CreateCardArgs {
+  colors?: {
+    hex: string;
+    name?: string;
+    rgb?: { r: number; g: number; b: number };
+    hsl?: { h: number; s: number; l: number };
+  }[];
   content: string;
+  fileKey?: string;
+  metadata?: unknown;
+  notes?: string;
+  tags?: string[];
+  thumbnailKey?: string;
   type?:
     | "text"
     | "link"
@@ -47,18 +59,7 @@ type CreateCardArgs = {
     | "palette"
     | "quote";
   url?: string;
-  fileKey?: string;
-  thumbnailKey?: string;
-  tags?: string[];
-  notes?: string;
-  metadata?: unknown;
-  colors?: {
-    hex: string;
-    name?: string;
-    rgb?: { r: number; g: number; b: number };
-    hsl?: { h: number; s: number; l: number };
-  }[];
-};
+}
 
 export const createCardForUserHandler = async (
   ctx: MutationCtx,
@@ -219,7 +220,7 @@ export const createCardForUser = internalMutation({
     ...createCardArgs,
   },
   returns: v.id("cards"),
-  handler: async (ctx, args) => {
+  handler: (ctx, args) => {
     const { userId, ...createArgs } = args;
     return createCardForUserHandler(ctx, userId, createArgs);
   },

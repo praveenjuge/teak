@@ -24,7 +24,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -64,7 +64,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -102,7 +102,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -141,7 +141,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -179,7 +179,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -217,7 +217,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -255,7 +255,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -293,7 +293,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -331,7 +331,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -369,7 +369,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -408,7 +408,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -447,7 +447,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -486,7 +486,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -547,7 +547,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -585,7 +585,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -623,7 +623,7 @@ describe("classification updateClassification", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },

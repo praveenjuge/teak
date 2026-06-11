@@ -349,9 +349,11 @@ export const consumeNativeAuthByState = internalMutation({
   },
 });
 
-export const exchangeNativeAuthOptions = httpAction(async (_ctx, request) => {
+export const exchangeNativeAuthOptions = httpAction((_ctx, request) => {
   const corsHeaders = buildCorsHeaders(request.headers.get("origin"));
-  return new Response(null, { status: 204, headers: corsHeaders });
+  return Promise.resolve(
+    new Response(null, { status: 204, headers: corsHeaders })
+  );
 });
 
 export const pollNativeAuthCode = httpAction(async (ctx, request) => {

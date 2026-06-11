@@ -27,10 +27,10 @@ const idempotencyReferenceArgs = {
   keyHash: v.string(),
 } as const;
 
-type IdempotencyReference = {
-  userId: string;
+interface IdempotencyReference {
   keyHash: string;
-};
+  userId: string;
+}
 
 const ttlArg = {
   ttlMs: v.optional(v.number()),
@@ -39,10 +39,7 @@ const ttlArg = {
 const getTtlMs = (ttlMs?: number): number =>
   typeof ttlMs === "number" && ttlMs > 0 ? ttlMs : 24 * 60 * 60 * 1000;
 
-const getRecordForUser = async (
-  ctx: MutationCtx,
-  args: IdempotencyReference
-) => {
+const getRecordForUser = (ctx: MutationCtx, args: IdempotencyReference) => {
   return ctx.db
     .query("apiIdempotencyKeys")
     .withIndex("by_user_key_hash", (query) =>
@@ -123,9 +120,13 @@ export const beginIdempotencyRequestForUser = internalMutation({
 
     if (existing) {
       await ctx.db.patch(existing._id, pendingRecord);
+      const record = await ctx.db.get(existing._id);
+      if (!record) {
+        throw new Error("Idempotency record missing after patch");
+      }
       return {
         status: "started" as const,
-        record: (await ctx.db.get(existing._id))!,
+        record,
       };
     }
 
@@ -134,9 +135,14 @@ export const beginIdempotencyRequestForUser = internalMutation({
       createdAt: now,
     });
 
+    const record = await ctx.db.get(recordId);
+    if (!record) {
+      throw new Error("Idempotency record missing after insert");
+    }
+
     return {
       status: "started" as const,
-      record: (await ctx.db.get(recordId))!,
+      record,
     };
   },
 });
@@ -165,7 +171,11 @@ export const completeIdempotencyRequestForUser = internalMutation({
       updatedAt: now,
     });
 
-    return (await ctx.db.get(existing._id))!;
+    const updated = await ctx.db.get(existing._id);
+    if (!updated) {
+      throw new Error("Idempotency record missing after completion");
+    }
+    return updated;
   },
 });
 

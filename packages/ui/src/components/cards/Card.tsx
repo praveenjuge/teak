@@ -144,7 +144,7 @@ export const Card = memo(function Card({
     typeof card.screenshotUrl === "string" ? card.screenshotUrl : undefined;
   const [useFallbackImage, setUseFallbackImage] = useState(false);
 
-  const primaryImageSize =
+  const attachedImageSize =
     primaryAttachedMedia?.type === "image" &&
     typeof primaryAttachedMedia.width === "number" &&
     typeof primaryAttachedMedia.height === "number"
@@ -152,17 +152,23 @@ export const Card = memo(function Card({
           width: primaryAttachedMedia.width,
           height: primaryAttachedMedia.height,
         }
-      : primaryAttachedMedia?.type === "video" &&
-          typeof primaryAttachedMedia.posterWidth === "number" &&
-          typeof primaryAttachedMedia.posterHeight === "number"
-        ? {
-            width: primaryAttachedMedia.posterWidth,
-            height: primaryAttachedMedia.posterHeight,
-          }
-        : typeof linkPreview?.imageWidth === "number" &&
-            typeof linkPreview?.imageHeight === "number"
-          ? { width: linkPreview.imageWidth, height: linkPreview.imageHeight }
-          : undefined;
+      : undefined;
+  const attachedPosterSize =
+    primaryAttachedMedia?.type === "video" &&
+    typeof primaryAttachedMedia.posterWidth === "number" &&
+    typeof primaryAttachedMedia.posterHeight === "number"
+      ? {
+          width: primaryAttachedMedia.posterWidth,
+          height: primaryAttachedMedia.posterHeight,
+        }
+      : undefined;
+  const linkPreviewImageSize =
+    typeof linkPreview?.imageWidth === "number" &&
+    typeof linkPreview?.imageHeight === "number"
+      ? { width: linkPreview.imageWidth, height: linkPreview.imageHeight }
+      : undefined;
+  const primaryImageSize =
+    attachedImageSize ?? attachedPosterSize ?? linkPreviewImageSize;
   const fallbackImageSize =
     typeof linkPreview?.screenshotWidth === "number" &&
     typeof linkPreview?.screenshotHeight === "number"
@@ -176,20 +182,18 @@ export const Card = memo(function Card({
   const canFallbackImage = !!resolvedScreenshotUrl;
   const shouldUseFallback = useFallbackImage || !hasPrimaryImage;
 
+  const fallbackDisplayUrl = hasFallbackImage
+    ? resolvedScreenshotUrl
+    : undefined;
+  const primaryDisplayUrl = hasPrimaryImage ? linkCardImage : undefined;
+  const fallbackDisplaySize = hasFallbackImage ? fallbackImageSize : undefined;
+  const primaryDisplaySize = hasPrimaryImage ? primaryImageSize : undefined;
   const displayLinkImage = shouldUseFallback
-    ? hasFallbackImage
-      ? resolvedScreenshotUrl
-      : undefined
-    : hasPrimaryImage
-      ? linkCardImage
-      : undefined;
+    ? fallbackDisplayUrl
+    : primaryDisplayUrl;
   const displayLinkImageSize = shouldUseFallback
-    ? hasFallbackImage
-      ? fallbackImageSize
-      : undefined
-    : hasPrimaryImage
-      ? primaryImageSize
-      : undefined;
+    ? fallbackDisplaySize
+    : primaryDisplaySize;
 
   const legacyPrimaryImage = linkCardImage;
   const legacyFallbackImage = resolvedScreenshotUrl;
@@ -356,6 +360,11 @@ export const Card = memo(function Card({
     );
   };
 
+  const copyLinkOrImageLabel =
+    card.type === "link" ? "Copy Link" : "Copy Image";
+  const copyMenuLabel =
+    card.type === "text" ? "Copy Text" : copyLinkOrImageLabel;
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild disabled={isOptimistic}>
@@ -405,11 +414,7 @@ export const Card = memo(function Card({
               card.fileMetadata?.mimeType !== "image/svg+xml")) && (
             <ContextMenuItem onClick={handleCopyImage}>
               <Copy />
-              {card.type === "text"
-                ? "Copy Text"
-                : card.type === "link"
-                  ? "Copy Link"
-                  : "Copy Image"}
+              {copyMenuLabel}
             </ContextMenuItem>
           )}
 

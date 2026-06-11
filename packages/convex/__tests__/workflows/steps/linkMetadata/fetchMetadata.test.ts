@@ -14,6 +14,16 @@ mock.module("ai", () => ({
   experimental_transcribe: mock(),
 }));
 
+const toUrlString = (input: string | URL | Request) => {
+  if (input instanceof Request) {
+    return input.url;
+  }
+  if (input instanceof URL) {
+    return input.toString();
+  }
+  return input;
+};
+
 const mockCreateSecret = mock();
 const mockKernelExecute = mock();
 const mockKernelCreateBrowser = mock();
@@ -69,7 +79,10 @@ mock.module("@onkernel/sdk", () => {
   };
 });
 
-import { r2Mocks, r2MockModuleFactory } from "../../../helpers/r2Mock.test-utils";
+import {
+  r2Mocks,
+  r2MockModuleFactory,
+} from "../../../helpers/r2Mock.test-utils";
 
 mock.module("../../../../../convex/storage/r2", r2MockModuleFactory);
 
@@ -167,7 +180,7 @@ describe("fetchMetadata", () => {
     expect(mockRunMutation).toHaveBeenCalled();
   });
 
-  test("throws retryable if awaiting classification", async () => {
+  test("throws retryable if awaiting classification", () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "link",
@@ -242,27 +255,19 @@ describe("fetchMetadata", () => {
     r2Mocks.storeObject.mockImplementation(
       async () => `stored-${++storageCounter}`
     );
-    mockFetch.mockImplementation(async (input: string | URL | Request) => {
-      const url =
-        input instanceof Request
-          ? input.url
-          : input instanceof URL
-            ? input.toString()
-            : input;
+    mockFetch.mockImplementation((input: string | URL | Request) => {
+      const url = toUrlString(input);
 
       if (typeof url === "string") {
         const hostname = new URL(url).hostname;
         if (hostname === "cdninstagram.com") {
+          const contentType = url.endsWith(".mp4") ? "video/mp4" : "image/jpeg";
           return {
             ok: true,
             status: 200,
             headers: {
               get: (header: string) =>
-                header === "content-type"
-                  ? url.endsWith(".mp4")
-                    ? "video/mp4"
-                    : "image/jpeg"
-                  : null,
+                header === "content-type" ? contentType : null,
             },
             arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
           };
@@ -370,13 +375,8 @@ describe("fetchMetadata", () => {
         posterContentType: "image/png",
       },
     ]);
-    mockFetch.mockImplementation(async (input: string | URL | Request) => {
-      const url =
-        input instanceof Request
-          ? input.url
-          : input instanceof URL
-            ? input.toString()
-            : input;
+    mockFetch.mockImplementation((input: string | URL | Request) => {
+      const url = toUrlString(input);
 
       if (url === "https://cdninstagram.com/media/reel.mp4") {
         return {
@@ -445,7 +445,7 @@ describe("fetchMetadata", () => {
     );
   });
 
-  test("handles scrape failure (retryable)", async () => {
+  test("handles scrape failure (retryable)", () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "link",
@@ -462,7 +462,7 @@ describe("fetchMetadata", () => {
     );
   });
 
-  test("handles rate limit failure (retryable)", async () => {
+  test("handles rate limit failure (retryable)", () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "link",
@@ -521,7 +521,7 @@ describe("fetchMetadata", () => {
     // Should have logged warning but succeeded
   });
 
-  test("throws retryable if non-link card is still being classified", async () => {
+  test("throws retryable if non-link card is still being classified", () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "text", // not a link
@@ -534,7 +534,7 @@ describe("fetchMetadata", () => {
     );
   });
 
-  test("handles AbortError (timeout)", async () => {
+  test("handles AbortError (timeout)", () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "link",
@@ -556,7 +556,7 @@ describe("fetchMetadata", () => {
     );
   });
 
-  test("handles TypeError (network)", async () => {
+  test("handles TypeError (network)", () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "link",
@@ -602,7 +602,7 @@ describe("fetchMetadata", () => {
     );
   });
 
-  test("handles kernel creation failure", async () => {
+  test("handles kernel creation failure", () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "link",

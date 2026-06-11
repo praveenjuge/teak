@@ -58,15 +58,11 @@ describe("auth.ts", () => {
 
     await module.scheduleUserCreatedBusinessEvent(ctx, "user_123");
 
-    expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(
-      0,
-      expect.anything(),
-      {
-        event: "user.created",
-        userId: "user_123",
-        surface: "auth",
-      }
-    );
+    expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(0, expect.anything(), {
+      event: "user.created",
+      userId: "user_123",
+      surface: "auth",
+    });
   });
 
   test("exports resend", async () => {

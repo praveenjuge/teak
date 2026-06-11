@@ -8,20 +8,20 @@ const X_OEMBED_ENDPOINTS = [
 ] as const;
 const X_STATUS_PATH_REGEX = /\/status\/(\d+)(?:[/?#]|$)/i;
 
-type XOEmbedResponse = {
+interface XOEmbedResponse {
   author_name?: string;
   author_url?: string;
   html?: string;
   url?: string;
-};
+}
 
-type XSyndicationMediaVariant = {
+interface XSyndicationMediaVariant {
   bitrate?: number;
   content_type?: string;
   url?: string;
-};
+}
 
-type XSyndicationMediaDetail = {
+interface XSyndicationMediaDetail {
   expanded_url?: string;
   media_url_https?: string;
   original_info?: {
@@ -32,22 +32,22 @@ type XSyndicationMediaDetail = {
   video_info?: {
     variants?: XSyndicationMediaVariant[];
   };
-};
+}
 
-type XSyndicationUser = {
+interface XSyndicationUser {
   name?: string;
   screen_name?: string;
-};
+}
 
-type XSyndicationResponse = {
+interface XSyndicationResponse {
   created_at?: string;
   id_str?: string;
   mediaDetails?: XSyndicationMediaDetail[];
   text?: string;
   user?: XSyndicationUser;
-};
+}
 
-export type XStatusMedia = {
+export interface XStatusMedia {
   contentType?: string;
   height?: number;
   posterContentType?: string;
@@ -57,9 +57,9 @@ export type XStatusMedia = {
   type: "image" | "video";
   url: string;
   width?: number;
-};
+}
 
-export type XStatusMetadata = {
+export interface XStatusMetadata {
   author: string | undefined;
   canonicalUrl: string | undefined;
   description: string | undefined;
@@ -72,7 +72,7 @@ export type XStatusMetadata = {
   raw: ScrapeSelectorResult[] | undefined;
   siteName: string | undefined;
   title: string | undefined;
-};
+}
 
 export const isXHostname = (hostname: string): boolean =>
   X_HOSTNAMES.some(
@@ -191,11 +191,13 @@ const buildDescription = ({
   authorHandle?: string;
   publishedAt?: string;
 }): string | undefined => {
-  const authorLabel = authorHandle
-    ? authorName && authorName !== authorHandle
-      ? `${authorName} (@${authorHandle})`
-      : `@${authorHandle}`
-    : authorName;
+  let authorLabel = authorName;
+  if (authorHandle) {
+    authorLabel =
+      authorName && authorName !== authorHandle
+        ? `${authorName} (@${authorHandle})`
+        : `@${authorHandle}`;
+  }
 
   if (!(authorLabel || publishedAt)) {
     return undefined;

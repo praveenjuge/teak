@@ -25,7 +25,9 @@ function captureSaveResult(
 
 // Check if a URL is restricted (can't inject scripts)
 function isRestrictedUrl(url?: string): boolean {
-  if (!url) return true;
+  if (!url) {
+    return true;
+  }
 
   const restrictedPrefixes = [
     "chrome://",

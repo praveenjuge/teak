@@ -143,7 +143,7 @@ export default defineContentScript({
   },
 });
 
-type PlatformBinding = {
+interface PlatformBinding {
   bindHoverScope?: (postElement: HTMLElement) => void;
   extractPost: (postElement: HTMLElement) => ExtractedPost | null;
   findPosts: (root: ParentNode) => HTMLElement[];
@@ -153,7 +153,7 @@ type PlatformBinding = {
     button: HTMLButtonElement
   ) => boolean;
   platform: Platform;
-};
+}
 
 const PLATFORM_BINDINGS: PlatformBinding[] = [
   {

@@ -1,14 +1,14 @@
-type BetterAuthError = {
-  message?: string | null;
+interface BetterAuthError {
   cause?: string | null;
-  statusText?: string | null;
   error?:
     | string
     | {
         message?: string | null;
       }
     | null;
-};
+  message?: string | null;
+  statusText?: string | null;
+}
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;

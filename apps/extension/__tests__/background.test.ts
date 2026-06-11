@@ -234,7 +234,9 @@ describe("Background Service Worker", () => {
         callback();
       });
 
-      const createCallback = () => {};
+      const createCallback = () => {
+        // noop
+      };
 
       mockAddListener(createCallback);
 
@@ -246,7 +248,9 @@ describe("Background Service Worker", () => {
         callback();
       });
 
-      const createCallback = () => {};
+      const createCallback = () => {
+        // noop
+      };
 
       mockAddListener(createCallback);
 
@@ -255,7 +259,7 @@ describe("Background Service Worker", () => {
   });
 
   describe("Context Menu Click Handler - Save Page", () => {
-    test("should handle save-page action with valid URL", async () => {
+    test("should handle save-page action with valid URL", () => {
       const mockTab = { id: 1, url: "https://example.com/page" };
       const _mockInfo = { menuItemId: "save-page" };
 
@@ -265,7 +269,7 @@ describe("Background Service Worker", () => {
       expect(content).toBe("https://example.com/page");
     });
 
-    test("should handle save-page action when tab URL is missing", async () => {
+    test("should handle save-page action when tab URL is missing", () => {
       const mockTab = { id: 1, url: undefined };
       const _mockInfo = { menuItemId: "save-page" };
 
@@ -309,7 +313,7 @@ describe("Background Service Worker", () => {
   });
 
   describe("Context Menu Click Handler - Save Text", () => {
-    test("should handle save-text action with selected text", async () => {
+    test("should handle save-text action with selected text", () => {
       const _mockTab = { id: 1, url: "https://example.com" };
       const mockInfo = { menuItemId: "save-text" };
 
@@ -436,9 +440,13 @@ describe("Background Service Worker", () => {
 
   describe("Context Menu Listener Setup", () => {
     test("should add listener for context menu clicks", () => {
-      const mockAddListener = mock(() => {});
+      const mockAddListener = mock(() => {
+        // noop
+      });
 
-      const handler = (_info: unknown, _tab?: unknown) => {};
+      const handler = (_info: unknown, _tab?: unknown) => {
+        // noop
+      };
 
       mockAddListener(handler);
 

@@ -155,19 +155,19 @@ export interface AuthenticatedQueryParams {
 /**
  * Result of a successful file upload.
  */
-export type UploadFileSuccessResult = {
-  success: true;
+export interface UploadFileSuccessResult {
   cardId: string;
-};
+  success: true;
+}
 
 /**
  * Result of a failed file upload.
  */
-export type UploadFileErrorResult = {
-  success: false;
+export interface UploadFileErrorResult {
   error: string;
   errorCode?: CardErrorCode | (string & {});
-};
+  success: false;
+}
 
 /**
  * Union type for file upload results.

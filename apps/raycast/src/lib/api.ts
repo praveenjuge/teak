@@ -31,7 +31,7 @@ export {
 export type { RaycastCard } from "./apiParsers";
 export type { TagSummary, TagsResponse } from "./apiParsers";
 
-export type CardSearchInput = {
+export interface CardSearchInput {
   createdAfter?: number;
   createdBefore?: number;
   favorited?: boolean;
@@ -40,22 +40,22 @@ export type CardSearchInput = {
   sort?: RaycastSort;
   tag?: string;
   type?: RaycastCardType;
-};
+}
 
-export type CreateCardInput = {
+export interface CreateCardInput {
   content?: string;
   notes?: string | null;
   source?: string;
   tags?: string[];
   url?: string;
-};
+}
 
-export type UpdateCardInput = {
+export interface UpdateCardInput {
   content?: string;
   notes?: string | null;
   tags?: string[];
   url?: string;
-};
+}
 
 const getErrorCodeFromResponse = (
   payloadCode: string | undefined,
@@ -110,7 +110,7 @@ const withLoopbackFallback = (url: string): string => {
   return parsedUrl.toString();
 };
 
-const parseJson = async (response: Response): Promise<unknown> => {
+const parseJson = (response: Response): Promise<unknown> => {
   return response.json().catch(() => null);
 };
 
@@ -179,7 +179,7 @@ export const request = async <T>(
   );
 };
 
-export const createCard = async (
+export const createCard = (
   input: CreateCardInput,
 ): Promise<QuickSaveResponse> => {
   return request<QuickSaveResponse>("/cards", parseQuickSaveResponse, {
@@ -188,7 +188,7 @@ export const createCard = async (
   });
 };
 
-export const quickSaveCard = async (
+export const quickSaveCard = (
   input: string | CreateCardInput,
 ): Promise<QuickSaveResponse> => {
   return createCard(
@@ -200,7 +200,7 @@ export const quickSaveCard = async (
   );
 };
 
-export const searchCards = async (
+export const searchCards = (
   input: CardSearchInput = {},
 ): Promise<CardsResponse> => {
   return request<CardsResponse>(
@@ -215,7 +215,7 @@ export const searchCards = async (
   );
 };
 
-export const getFavoriteCards = async (
+export const getFavoriteCards = (
   input: CardSearchInput = {},
 ): Promise<CardsResponse> => {
   return request<CardsResponse>(
@@ -230,7 +230,7 @@ export const getFavoriteCards = async (
   );
 };
 
-export const getCardById = async (cardId: string): Promise<RaycastCard> => {
+export const getCardById = (cardId: string): Promise<RaycastCard> => {
   const normalizedCardId = cardId.trim();
   if (!normalizedCardId) {
     throw new RaycastApiError("INVALID_INPUT");
@@ -245,7 +245,7 @@ export const getCardById = async (cardId: string): Promise<RaycastCard> => {
   );
 };
 
-export const updateCard = async (
+export const updateCard = (
   cardId: string,
   input: UpdateCardInput,
 ): Promise<RaycastCard> => {
@@ -264,7 +264,7 @@ export const updateCard = async (
   );
 };
 
-export const setCardFavorite = async (
+export const setCardFavorite = (
   cardId: string,
   isFavorited: boolean,
 ): Promise<RaycastCard> => {
@@ -298,7 +298,7 @@ export const softDeleteCard = async (cardId: string): Promise<void> => {
   );
 };
 
-export const listTags = async (): Promise<TagsResponse> => {
+export const listTags = (): Promise<TagsResponse> => {
   return request<TagsResponse>("/tags", parseTagsResponse, {
     method: "GET",
   });

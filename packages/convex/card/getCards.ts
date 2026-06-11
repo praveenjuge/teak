@@ -111,13 +111,14 @@ export const getCards = query({
       );
 
     if (args.type) {
+      const cardType = args.type;
       // Use compound index by_user_type_deleted to avoid post-index .filter()
       query = ctx.db
         .query("cards")
         .withIndex("by_user_type_deleted", (q) =>
           q
             .eq("userId", user.subject)
-            .eq("type", args.type!)
+            .eq("type", cardType)
             .eq("isDeleted", undefined)
         );
     }
@@ -650,17 +651,31 @@ export const searchCardsPaginated = query({
         const batchResults = await Promise.all(getBatch());
         for (const results of batchResults) {
           for (const card of results) {
-            if (seenIds.has(card._id)) continue;
+            if (seenIds.has(card._id)) {
+              continue;
+            }
             seenIds.add(card._id);
-            if (!isCreatedAtInRange(card.createdAt, createdAtRange)) continue;
-            if (hasMultiTypeFilter && !typesSet.has(card.type)) continue;
-            if (!doesCardMatchVisualFilters(card, visualFilters)) continue;
+            if (!isCreatedAtInRange(card.createdAt, createdAtRange)) {
+              continue;
+            }
+            if (hasMultiTypeFilter && !typesSet.has(card.type)) {
+              continue;
+            }
+            if (!doesCardMatchVisualFilters(card, visualFilters)) {
+              continue;
+            }
             uniqueResults.push(card);
-            if (uniqueResults.length >= desiredLimit) break;
+            if (uniqueResults.length >= desiredLimit) {
+              break;
+            }
           }
-          if (uniqueResults.length >= desiredLimit) break;
+          if (uniqueResults.length >= desiredLimit) {
+            break;
+          }
         }
-        if (uniqueResults.length >= desiredLimit) break;
+        if (uniqueResults.length >= desiredLimit) {
+          break;
+        }
       }
 
       // Multi-type filtering happens during dedupe; single-type/favorites are filtered at index level.

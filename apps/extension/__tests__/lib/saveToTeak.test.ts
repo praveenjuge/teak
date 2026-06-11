@@ -147,9 +147,10 @@ describe("saveToTeak", () => {
       {
         createClient: () => ({
           query: async () => null,
-          mutation: async () => {
-            throw new Error("CARD_LIMIT_REACHED: free tier limit exceeded");
-          },
+          mutation: () =>
+            Promise.reject(
+              new Error("CARD_LIMIT_REACHED: free tier limit exceeded")
+            ),
         }),
         fetchImpl: mock(
           async () =>

@@ -137,7 +137,7 @@ async function findVersion() {
   return response.data?.[0];
 }
 
-async function createVersion() {
+function createVersion() {
   return request("POST", "/v1/appStoreVersions", {
     data: {
       type: "appStoreVersions",
@@ -181,7 +181,9 @@ try {
       `App Store Connect macOS version ${process.env.SAFARI_VERSION} exists after conflict (${version.id}).`
     );
   } else if (
-    error.message.includes("cannot create a new version of the App in the current state")
+    error.message.includes(
+      "cannot create a new version of the App in the current state"
+    )
   ) {
     console.log(
       `App Store Connect cannot create macOS version ${process.env.SAFARI_VERSION} in the current app state. Continuing with build upload.`

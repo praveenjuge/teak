@@ -9,12 +9,12 @@ import {
 import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "../shared/search/constants";
 import { normalizeHexFilters } from "../shared/utils/colorUtils";
 
-export type VisualFilterState = {
-  styleFilters?: VisualStyle[];
-  hueFilters?: ColorHueBucket[];
-  hexFilters?: string[];
+export interface VisualFilterState {
   hasVisualFilters: boolean;
-};
+  hexFilters?: string[];
+  hueFilters?: ColorHueBucket[];
+  styleFilters?: VisualStyle[];
+}
 
 const isCreatedAtInRange = (
   createdAt: number,

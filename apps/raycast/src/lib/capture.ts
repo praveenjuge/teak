@@ -52,19 +52,21 @@ export const saveCardWithFeedback = async (
   try {
     const result = await createCard(input);
 
-    if (result.appUrl) {
+    const appUrl = result.appUrl;
+    if (appUrl) {
       toast.primaryAction = {
         onAction: () => {
-          void open(result.appUrl!);
+          void open(appUrl);
         },
         title: "Open Card",
       };
     }
 
-    if (result.card?.url) {
+    const sourceUrl = result.card?.url;
+    if (sourceUrl) {
       toast.secondaryAction = {
         onAction: () => {
-          void open(result.card!.url!);
+          void open(sourceUrl);
         },
         title: "Open Source URL",
       };

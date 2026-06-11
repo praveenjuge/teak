@@ -5,7 +5,9 @@ type SentryCaptureFunction = (
   error: unknown,
   context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }
 ) => void;
-let captureException: SentryCaptureFunction = () => {};
+let captureException: SentryCaptureFunction = () => {
+  // noop until a platform-specific capture function is injected
+};
 
 export function setSentryCaptureFunction(fn: SentryCaptureFunction) {
   captureException = fn;
@@ -18,7 +20,7 @@ export interface CardActionsConfig {
   onRestoreSuccess?: (message?: string) => void;
 }
 
-export type UpdateCardFieldArgs = {
+export interface UpdateCardFieldArgs {
   cardId: Id<"cards">;
   field:
     | "content"
@@ -30,13 +32,13 @@ export type UpdateCardFieldArgs = {
     | "removeAiTag"
     | "delete"
     | "restore";
-  value?: any;
   tagToRemove?: string;
-};
+  value?: any;
+}
 
-export type PermanentDeleteCardArgs = {
+export interface PermanentDeleteCardArgs {
   id: Id<"cards">;
-};
+}
 
 export interface CardActionsDependencies {
   permanentDeleteCard: (args: PermanentDeleteCardArgs) => Promise<unknown>;

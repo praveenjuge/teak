@@ -7,10 +7,10 @@
  * Convex V8 isolate bundle.
  */
 
-export type ScreenshotRetryableError = {
-  type: "rate_limit" | "http_error";
-  message?: string;
+export interface ScreenshotRetryableError {
   details?: unknown;
-};
+  message?: string;
+  type: "rate_limit" | "http_error";
+}
 
 export const SCREENSHOT_RETRYABLE_PREFIX = "workflow:screenshot:retryable:";

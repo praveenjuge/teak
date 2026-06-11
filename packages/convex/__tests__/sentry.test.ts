@@ -27,9 +27,9 @@ describe("sentry business events", () => {
     process.env.SENTRY_DSN = "https://public@example.ingest.sentry.io/123";
 
     let capturedBody = "";
-    globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    globalThis.fetch = mock((_input: RequestInfo | URL, init?: RequestInit) => {
       capturedBody = String(init?.body ?? "");
-      return new Response("", { status: 200 });
+      return Promise.resolve(new Response("", { status: 200 }));
     }) as unknown as typeof fetch;
 
     const { captureBusinessEvent } = await import("../sentry");
@@ -60,7 +60,7 @@ describe("sentry business events", () => {
       "Content-Type": "application/x-sentry-envelope",
     });
     expect(capturedBody).toContain("teak.card.created");
-    expect(capturedBody).toContain("\"surface\":\"api\"");
+    expect(capturedBody).toContain('"surface":"api"');
     expect(capturedBody).not.toContain("user_123");
     expect(capturedBody).not.toContain("card_123");
   });

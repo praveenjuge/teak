@@ -22,11 +22,19 @@ const validateFileCardType = (cardType: CardType) => {
 };
 
 const mimeMatchesCardType = (mime: string | undefined, cardType: CardType) => {
-  if (!mime) return true; // fall back to trusting the client when mime is missing
+  if (!mime) {
+    return true; // fall back to trusting the client when mime is missing
+  }
 
-  if (cardType === "image") return mime.startsWith("image/");
-  if (cardType === "video") return mime.startsWith("video/");
-  if (cardType === "audio") return mime.startsWith("audio/");
+  if (cardType === "image") {
+    return mime.startsWith("image/");
+  }
+  if (cardType === "video") {
+    return mime.startsWith("video/");
+  }
+  if (cardType === "audio") {
+    return mime.startsWith("audio/");
+  }
 
   if (cardType === "document") {
     return (

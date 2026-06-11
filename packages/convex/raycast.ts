@@ -76,7 +76,7 @@ const cardReferenceArgs = {
   cardId: v.id("cards"),
 } as const;
 
-type SearchOptions = {
+interface SearchOptions {
   createdAfter?: number;
   createdBefore?: number;
   favoritesOnly?: boolean;
@@ -85,7 +85,7 @@ type SearchOptions = {
   sort?: RaycastSort;
   tag?: string;
   type?: Doc<"cards">["type"];
-};
+}
 
 const SEARCH_INDEXES = [
   { field: "content", index: "search_content" },
@@ -407,12 +407,13 @@ const getCardsForUser = async (
       normalizedOptions.createdAfter === undefined &&
       normalizedOptions.createdBefore === undefined
     ) {
+      const cardType = normalizedOptions.type;
       baseQuery = ctx.db
         .query("cards")
         .withIndex("by_user_type_deleted", (query) =>
           query
             .eq("userId", userId)
-            .eq("type", normalizedOptions.type!)
+            .eq("type", cardType)
             .eq("isDeleted", undefined)
         );
     } else if (
@@ -467,7 +468,7 @@ const getCardsForUser = async (
   return applyQuoteFormattingToList(cardsWithUrls);
 };
 
-const applyPatchField = async (
+const applyPatchField = (
   ctx: MutationCtx,
   args: {
     userId: string;
@@ -508,8 +509,10 @@ export const quickSaveForUser = internalMutation({
       });
     }
 
+    // The guard above ensures at least one of these is set; the trailing
+    // fallback only exists so TypeScript sees a definite string.
     const createArgs: Parameters<typeof createCardForUserHandler>[2] = {
-      content: normalizedContent ?? normalizedUrl!,
+      content: normalizedContent ?? normalizedUrl ?? "",
       metadata: normalizedSource ? { source: normalizedSource } : undefined,
       notes: normalizedNotes,
       tags: normalizedTags,
@@ -517,9 +520,14 @@ export const quickSaveForUser = internalMutation({
       url: normalizedUrl,
     };
 
-    const cardId = await createCardForUserHandler(ctx, args.userId, createArgs, {
-      source: "raycast",
-    });
+    const cardId = await createCardForUserHandler(
+      ctx,
+      args.userId,
+      createArgs,
+      {
+        source: "raycast",
+      }
+    );
     const card = await getCardForUserHandler(ctx, args.userId, cardId);
 
     return {
@@ -533,7 +541,7 @@ export const quickSaveForUser = internalMutation({
 export const searchCardsForUser = internalQuery({
   args: searchArgs,
   returns: v.array(cardReturnValidator),
-  handler: async (ctx, args) => {
+  handler: (ctx, args) => {
     return getCardsForUser(ctx, args.userId, {
       createdAfter: args.createdAfter,
       createdBefore: args.createdBefore,
@@ -550,7 +558,7 @@ export const searchCardsForUser = internalQuery({
 export const favoriteCardsForUser = internalQuery({
   args: searchArgs,
   returns: v.array(cardReturnValidator),
-  handler: async (ctx, args) => {
+  handler: (ctx, args) => {
     return getCardsForUser(ctx, args.userId, {
       createdAfter: args.createdAfter,
       createdBefore: args.createdBefore,
@@ -569,7 +577,7 @@ export const resolveCardIdForUserRequest = internalQuery({
     cardId: v.string(),
   },
   returns: v.union(v.id("cards"), v.null()),
-  handler: async (ctx, args) => {
+  handler: (ctx, args) => {
     return ctx.db.normalizeId("cards", args.cardId);
   },
 });
@@ -577,7 +585,7 @@ export const resolveCardIdForUserRequest = internalQuery({
 export const getCardForUser = internalQuery({
   args: cardReferenceArgs,
   returns: v.union(v.null(), cardReturnValidator),
-  handler: async (ctx, args) => {
+  handler: (ctx, args) => {
     return getCardForUserHandler(ctx, args.userId, args.cardId);
   },
 });

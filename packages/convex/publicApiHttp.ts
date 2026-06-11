@@ -33,14 +33,14 @@ type ErrorCode =
   | "RATE_LIMITED"
   | "UNAUTHORIZED";
 
-type AuthorizedUser = {
+interface AuthorizedUser {
+  access: "full_access";
   keyId: string;
   userId: string;
-  access: "full_access";
-};
+}
 
 type AuthResult = { validated: AuthorizedUser } | { error: Response };
-type CardsQueryOptions = {
+interface CardsQueryOptions {
   createdAfter?: number;
   createdBefore?: number;
   cursor?: string;
@@ -50,14 +50,14 @@ type CardsQueryOptions = {
   sort?: "newest" | "oldest";
   tag?: string;
   type?: string;
-};
-type CreateCardPayload = {
+}
+interface CreateCardPayload {
   content?: string;
   notes?: string | null;
   source?: string;
   tags?: string[];
   url?: string;
-};
+}
 
 type CardListInclude = "content" | "metadata" | "processing";
 
@@ -152,14 +152,18 @@ const buildIdempotentResponse = (record: {
   responseStatus: number;
 }): Response => json(record.responseStatus, record.responseBody);
 
-type IdempotencyState = {
+interface IdempotencyState {
   keyHash: string;
+  replayed?: Response;
   requestHash: string;
   reserved: boolean;
-  replayed?: Response;
-};
+}
 
-const trackIdempotency = async (ctx: any, endpoint: string, outcome: string) => {
+const trackIdempotency = async (
+  ctx: any,
+  endpoint: string,
+  outcome: string
+) => {
   await ctx.runMutation(
     (internal as any).idempotencyAnalytics.trackIdempotencyOutcome,
     { endpoint, outcome }
@@ -979,16 +983,13 @@ const parseCardRoute = (
   return null;
 };
 
-const resolveCardId = async (
-  ctx: any,
-  cardId: string
-): Promise<string | null> => {
+const resolveCardId = (ctx: any, cardId: string): Promise<string | null> => {
   return ctx.runQuery((internal as any).raycast.resolveCardIdForUserRequest, {
     cardId,
   });
 };
 
-const ensureCardExistsForUser = async (
+const ensureCardExistsForUser = (
   ctx: any,
   userId: string,
   cardId: string
@@ -1381,39 +1382,47 @@ const handleBulkCardsRequest = async (
   }
 };
 
-export const createCardV1 = httpAction(async (ctx, request) => {
+export const createCardV1 = httpAction((ctx, request) => {
   if (request.method !== "POST") {
-    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
+    return Promise.resolve(
+      errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
+    );
   }
 
   return handleCreateCardRequest(ctx, request);
 });
 
-export const listCardsV1 = httpAction(async (ctx, request) => {
+export const listCardsV1 = httpAction((ctx, request) => {
   if (request.method !== "GET") {
-    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
+    return Promise.resolve(
+      errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
+    );
   }
 
   return handleCardsListRequest(ctx, request);
 });
 
-export const searchCardsV1 = httpAction(async (ctx, request) => {
+export const searchCardsV1 = httpAction((ctx, request) => {
   if (request.method !== "GET") {
-    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
+    return Promise.resolve(
+      errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
+    );
   }
 
   return handleCardsQueryRequest(ctx, request, false);
 });
 
-export const favoriteCardsV1 = httpAction(async (ctx, request) => {
+export const favoriteCardsV1 = httpAction((ctx, request) => {
   if (request.method !== "GET") {
-    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
+    return Promise.resolve(
+      errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
+    );
   }
 
   return handleCardsQueryRequest(ctx, request, true);
 });
 
-export const cardByIdV1 = httpAction(async (ctx, request) => {
+export const cardByIdV1 = httpAction((ctx, request) => {
   if (
     !(
       request.method === "DELETE" ||
@@ -1421,31 +1430,39 @@ export const cardByIdV1 = httpAction(async (ctx, request) => {
       request.method === "PATCH"
     )
   ) {
-    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
+    return Promise.resolve(
+      errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
+    );
   }
 
   return handleCardsByIdV1Request(ctx, request);
 });
 
-export const bulkCardsV1 = httpAction(async (ctx, request) => {
+export const bulkCardsV1 = httpAction((ctx, request) => {
   if (request.method !== "POST") {
-    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
+    return Promise.resolve(
+      errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
+    );
   }
 
   return handleBulkCardsRequest(ctx, request);
 });
 
-export const changesCardsV1 = httpAction(async (ctx, request) => {
+export const changesCardsV1 = httpAction((ctx, request) => {
   if (request.method !== "GET") {
-    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
+    return Promise.resolve(
+      errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
+    );
   }
 
   return handleCardChangesRequest(ctx, request);
 });
 
-export const tagsV1 = httpAction(async (ctx, request) => {
+export const tagsV1 = httpAction((ctx, request) => {
   if (request.method !== "GET") {
-    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
+    return Promise.resolve(
+      errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
+    );
   }
 
   return handleTagsRequest(ctx, request);

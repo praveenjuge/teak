@@ -70,7 +70,7 @@ describe("aiMetadata generators", () => {
     );
   });
 
-  test("handles errors in all generators", async () => {
+  test("handles errors in all generators", () => {
     mockGenerateText.mockRejectedValue(new Error("AI error"));
     expect(generateTextMetadata("c")).rejects.toThrow("AI error");
     expect(generateImageMetadata("url")).rejects.toThrow("AI error");

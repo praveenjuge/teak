@@ -48,9 +48,9 @@
     "@types/react-dom": "19.2.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.15",
+    "@biomejs/biome": "2.4.16",
     "simple-git-hooks": "^2.13.1",
     "turbo": "^2.9.14",
-    "ultracite": "7.7.0"
+    "ultracite": "7.8.3"
   }
 }

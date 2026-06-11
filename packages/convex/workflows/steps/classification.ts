@@ -26,21 +26,21 @@ const MEDIUM_CONFIDENCE = 0.9;
 const PALETTE_CONFIDENCE = 0.88;
 const DEFAULT_CONFIDENCE = 0.7;
 
-type ClassificationWorkflowResult = {
-  type: CardType;
+interface ClassificationWorkflowResult {
   confidence: number;
   needsLinkMetadata: boolean;
   shouldCategorize: boolean;
   shouldGenerateMetadata: boolean;
   shouldGenerateRenderables: boolean;
-};
+  type: CardType;
+}
 
-type DbColor = {
+interface DbColor {
   hex: string;
+  hsl?: { h: number; s: number; l: number };
   name?: string;
   rgb?: { r: number; g: number; b: number };
-  hsl?: { h: number; s: number; l: number };
-};
+}
 
 const toDbColor = (color: Color): DbColor => ({
   hex: color.hex.toUpperCase(),
@@ -63,7 +63,9 @@ const colorsMatch = (
 
   return next.every((color, index) => {
     const candidate = existing[index];
-    if (!candidate) return false;
+    if (!candidate) {
+      return false;
+    }
 
     const hexMatch = candidate.hex?.toUpperCase() === color.hex.toUpperCase();
     const nameMatch = (candidate.name ?? "") === (color.name ?? "");
@@ -130,19 +132,25 @@ const isProbablyPalette = (card: any): boolean => {
   const hint = hasPaletteHint(card);
 
   // Palette if multiple colors present.
-  if (colors.length >= 2) return true;
+  if (colors.length >= 2) {
+    return true;
+  }
 
   // Single colour counts as palette when the card is otherwise plain text (no url/file) or an explicit hint exists.
   if (colors.length === 1 && !card.url && !card.fileKey) {
     return true;
   }
-  if (colors.length === 1 && hint) return true;
+  if (colors.length === 1 && hint) {
+    return true;
+  }
 
   return false;
 };
 
 const extensionFromUrl = (url?: string): string | undefined => {
-  if (!url) return undefined;
+  if (!url) {
+    return undefined;
+  }
   try {
     const pathname = new URL(url).pathname;
     const match = /\.([a-zA-Z0-9]+)(?:$|[?#])/u.exec(pathname);
@@ -155,7 +163,9 @@ const extensionFromUrl = (url?: string): string | undefined => {
 const classifyByMime = (
   mimeType?: string
 ): { type: CardType; confidence: number } | null => {
-  if (!mimeType) return null;
+  if (!mimeType) {
+    return null;
+  }
   const mime = mimeType.toLowerCase();
 
   if (mime.startsWith("image/")) {
@@ -195,7 +205,9 @@ const classifyByMime = (
 const classifyByExtension = (
   extension?: string
 ): { type: CardType; confidence: number } | null => {
-  if (!extension) return null;
+  if (!extension) {
+    return null;
+  }
   const ext = extension.toLowerCase();
 
   const imageExt = [
@@ -239,14 +251,18 @@ const classifyByExtension = (
     "numbers",
   ];
 
-  if (imageExt.includes(ext))
+  if (imageExt.includes(ext)) {
     return { type: "image", confidence: MEDIUM_CONFIDENCE };
-  if (videoExt.includes(ext))
+  }
+  if (videoExt.includes(ext)) {
     return { type: "video", confidence: MEDIUM_CONFIDENCE };
-  if (audioExt.includes(ext))
+  }
+  if (audioExt.includes(ext)) {
     return { type: "audio", confidence: MEDIUM_CONFIDENCE };
-  if (documentExt.includes(ext))
+  }
+  if (documentExt.includes(ext)) {
     return { type: "document", confidence: MEDIUM_CONFIDENCE };
+  }
 
   return null;
 };
@@ -254,10 +270,14 @@ const classifyByExtension = (
 const classifyByFileMetadata = (
   metadata: any
 ): { type: CardType; confidence: number } | null => {
-  if (!metadata) return null;
+  if (!metadata) {
+    return null;
+  }
 
   const mimeClassification = classifyByMime(metadata.mimeType);
-  if (mimeClassification) return mimeClassification;
+  if (mimeClassification) {
+    return mimeClassification;
+  }
 
   if (typeof metadata.duration === "number" && metadata.duration > 0) {
     // Prefer video when dimensions exist, otherwise audio.
@@ -280,11 +300,15 @@ const deterministicClassify = (
 ): { type: CardType; confidence: number } => {
   // 1) File metadata (strongest signal)
   const fileMetaResult = classifyByFileMetadata(card.fileMetadata);
-  if (fileMetaResult) return fileMetaResult;
+  if (fileMetaResult) {
+    return fileMetaResult;
+  }
 
   // 2) URL extension cues
   const extensionResult = classifyByExtension(extensionFromUrl(card.url));
-  if (extensionResult) return extensionResult;
+  if (extensionResult) {
+    return extensionResult;
+  }
 
   // 2b) If a file exists but metadata/extension gave no match, treat as document
   if (card.fileKey) {
@@ -381,9 +405,7 @@ export const classify = internalAction({
 
     const quoteNormalization = normalizeQuoteContent(card.content ?? "");
     const heuristicQuote =
-      quoteNormalization.removedQuotes &&
-      !card.url &&
-      !card.fileKey;
+      quoteNormalization.removedQuotes && !card.url && !card.fileKey;
 
     if (heuristicQuote) {
       await ctx.runMutation(

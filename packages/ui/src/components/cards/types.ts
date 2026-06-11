@@ -1,16 +1,16 @@
-export type LinkPreviewMetadata = {
+export interface LinkPreviewMetadata {
+  description?: string;
+  faviconUrl?: string;
+  imageHeight?: number;
+  imageUrl?: string;
+  imageWidth?: number;
+  screenshotHeight?: number;
+  screenshotWidth?: number;
   status?: string;
   title?: string;
-  description?: string;
-  imageUrl?: string;
-  faviconUrl?: string;
-  imageWidth?: number;
-  imageHeight?: number;
-  screenshotWidth?: number;
-  screenshotHeight?: number;
-};
+}
 
-export type LinkPreviewMedia = {
+export interface LinkPreviewMedia {
   contentType?: string;
   height?: number;
   posterContentType?: string;
@@ -20,24 +20,12 @@ export type LinkPreviewMedia = {
   type: "image" | "video";
   url: string;
   width?: number;
-};
+}
 
-export type CardWithUrls = {
+export interface CardWithUrls {
   _id: string;
-  type?: string;
-  content?: string;
-  url?: string;
-  isDeleted?: boolean;
-  isFavorited?: boolean;
   colors?: Array<{ hex: string }>;
-  metadata?: {
-    linkPreview?: LinkPreviewMetadata & Record<string, unknown>;
-    linkCategory?: {
-      facts?: Array<{ label: string; value: string }>;
-    };
-  };
-  metadataTitle?: string;
-  metadataDescription?: string;
+  content?: string;
   fileMetadata?: {
     fileName?: string;
     height?: number;
@@ -45,11 +33,23 @@ export type CardWithUrls = {
     mimeType?: string;
   };
   fileUrl?: string;
-  thumbnailUrl?: string;
-  screenshotUrl?: string;
-  linkPreviewMedia?: LinkPreviewMedia[];
+  isDeleted?: boolean;
+  isFavorited?: boolean;
   linkPreviewImageUrl?: string;
-};
+  linkPreviewMedia?: LinkPreviewMedia[];
+  metadata?: {
+    linkPreview?: LinkPreviewMetadata & Record<string, unknown>;
+    linkCategory?: {
+      facts?: Array<{ label: string; value: string }>;
+    };
+  };
+  metadataDescription?: string;
+  metadataTitle?: string;
+  screenshotUrl?: string;
+  thumbnailUrl?: string;
+  type?: string;
+  url?: string;
+}
 
 export interface CardProps {
   card: CardWithUrls & Record<string, unknown>;

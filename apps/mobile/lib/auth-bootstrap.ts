@@ -4,16 +4,16 @@ export type AuthRouteState =
   | "unauthenticated"
   | "offline";
 
-export type AuthBootstrapInput = {
-  hasStoredSessionCookie: boolean;
-  hasBetterAuthSession: boolean;
-  isBetterAuthPending: boolean;
+export interface AuthBootstrapInput {
   hasAttemptedSessionRefresh: boolean;
-  isRefreshingSession: boolean;
-  isConvexLoading: boolean;
+  hasBetterAuthSession: boolean;
+  hasStoredSessionCookie: boolean;
+  isBetterAuthPending: boolean;
   isConvexAuthenticated: boolean;
+  isConvexLoading: boolean;
   isOnline: boolean;
-};
+  isRefreshingSession: boolean;
+}
 
 export function hasStoredBetterAuthSessionCookie(cookie: string | null) {
   return Boolean(

@@ -3,7 +3,7 @@ import { triggerCustomerPortal } from "../CustomerPortalButton";
 
 describe("triggerCustomerPortal", () => {
   test("calls the callback exactly once", async () => {
-    const onCreatePortal = mock(async () => {});
+    const onCreatePortal = mock(() => Promise.resolve());
 
     await triggerCustomerPortal(onCreatePortal);
 
@@ -11,7 +11,7 @@ describe("triggerCustomerPortal", () => {
   });
 
   test("does not require a URL return value", async () => {
-    const onCreatePortal = mock(async () => {});
+    const onCreatePortal = mock(() => Promise.resolve());
 
     const result = await triggerCustomerPortal(onCreatePortal);
 
@@ -19,9 +19,9 @@ describe("triggerCustomerPortal", () => {
   });
 
   test("propagates callback failures", async () => {
-    const onCreatePortal = mock(async () => {
-      throw new Error("portal failed");
-    });
+    const onCreatePortal = mock(() =>
+      Promise.reject(new Error("portal failed"))
+    );
 
     await expect(triggerCustomerPortal(onCreatePortal)).rejects.toThrow(
       "portal failed"

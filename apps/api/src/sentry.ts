@@ -18,7 +18,7 @@ export const sentryMetricsRecorder: MetricsRecorder = {
     Sentry.metrics.distribution(name, value, { attributes, unit }),
 };
 
-export const sentryRequestMiddleware = async (
+export const sentryRequestMiddleware = (
   c: Context,
   next: Next
 ): Promise<void> => {

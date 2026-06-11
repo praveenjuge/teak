@@ -83,6 +83,7 @@ export function NotesEditModal({
   };
 
   const hasChanges = localNotes !== notes;
+  const saveLabel = notes ? "Update" : "Add";
 
   return (
     <Dialog
@@ -130,7 +131,7 @@ export function NotesEditModal({
               void handleSave();
             }}
           >
-            {isSaving ? <Spinner /> : notes ? "Update" : "Add"}
+            {isSaving ? <Spinner /> : saveLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

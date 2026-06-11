@@ -62,7 +62,7 @@ describe("linkMetadataWorkflow", () => {
     expect(mockStep.runMutation).toHaveBeenCalled();
   });
 
-  test("workflow handler non-retryable error", async () => {
+  test("workflow handler non-retryable error", () => {
     const mockStep = {
       runAction: mock().mockRejectedValue(new Error("Fatal")),
     };

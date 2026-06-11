@@ -20,7 +20,9 @@ describe("Content Script", () => {
     test("should export default content script definition", () => {
       const contentScript = {
         matches: ["<all_urls>"],
-        main() {},
+        main() {
+          // noop
+        },
       };
 
       expect(contentScript.matches).toBeDefined();
@@ -150,7 +152,9 @@ describe("Content Script", () => {
         // Simulate adding a listener
       });
 
-      const messageListener = () => {};
+      const messageListener = () => {
+        // noop
+      };
 
       mockOnMessage(messageListener);
 
@@ -360,7 +364,9 @@ describe("Content Script", () => {
     });
 
     test("should log errors for debugging", () => {
-      const mockConsole = mock((_msg: string) => {});
+      const mockConsole = mock((_msg: string) => {
+        // noop
+      });
       const error = new Error("Test error");
 
       mockConsole(error.message);

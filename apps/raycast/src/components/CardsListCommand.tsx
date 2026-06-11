@@ -28,7 +28,7 @@ import { EditCardForm } from "./EditCardForm";
 import { MissingApiKeyDetail } from "./MissingApiKeyDetail";
 import { SetApiKeyAction } from "./SetApiKeyAction";
 
-type CardsListCommandProps = {
+interface CardsListCommandProps {
   emptyDescription: string;
   emptyIcon: Icon;
   emptyTitle: string;
@@ -39,7 +39,7 @@ type CardsListCommandProps = {
   removeTagFilterFromList?: boolean;
   removeUnfavoritedFromList?: boolean;
   searchBarPlaceholder: string;
-};
+}
 
 const TYPE_OPTIONS: Array<{ title: string; value?: RaycastCardType }> = [
   { title: "All Types" },

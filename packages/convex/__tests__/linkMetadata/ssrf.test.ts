@@ -14,12 +14,12 @@ const resolveTo =
   (...addresses: string[]): DnsResolver =>
   async () =>
     addresses;
-const resolveFails: DnsResolver = async () => {
+const resolveFails: DnsResolver = () => {
   throw new Error("dns failure");
 };
 const resolveEmpty: DnsResolver = async () => [];
 // Default resolver for tests that should never trigger DNS (literal IP hosts).
-const resolveUnused: DnsResolver = async () => {
+const resolveUnused: DnsResolver = () => {
   throw new Error("DNS resolver should not have been called");
 };
 
@@ -216,9 +216,9 @@ describe("safeFetch", () => {
 
   test("blocks the request before fetch when the target is private", async () => {
     let called = false;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = (() => {
       called = true;
-      return new Response("nope");
+      return Promise.resolve(new Response("nope"));
     }) as typeof fetch;
 
     await expect(
@@ -229,11 +229,13 @@ describe("safeFetch", () => {
 
   test("re-validates redirect hops and blocks internal redirects", async () => {
     const requested: string[] = [];
-    globalThis.fetch = (async (input: RequestInfo | URL) => {
+    globalThis.fetch = ((input: RequestInfo | URL) => {
       const target = typeof input === "string" ? input : input.toString();
       requested.push(target);
       // First public hop redirects to a private address.
-      return Response.redirect("http://169.254.169.254/latest/meta-data", 302);
+      return Promise.resolve(
+        Response.redirect("http://169.254.169.254/latest/meta-data", 302)
+      );
     }) as typeof fetch;
 
     await expect(

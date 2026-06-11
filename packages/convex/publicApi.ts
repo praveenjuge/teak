@@ -61,7 +61,7 @@ const bulkResultValidator = v.object({
   }),
 });
 
-type SearchOptions = {
+interface SearchOptions {
   createdAfter?: number;
   createdBefore?: number;
   favorited?: boolean;
@@ -70,7 +70,7 @@ type SearchOptions = {
   sort?: ApiCardSort;
   tag?: string;
   type?: Doc<"cards">["type"];
-};
+}
 
 type ApiCursor =
   | { mode: "index"; cursor: string | null; pageOffset: number }
@@ -369,12 +369,13 @@ const buildBaseQuery = (
   }
 
   if (options.type) {
+    const cardType = options.type;
     return ctx.db
       .query("cards")
       .withIndex("by_user_type_deleted", (query) =>
         query
           .eq("userId", userId)
-          .eq("type", options.type!)
+          .eq("type", cardType)
           .eq("isDeleted", undefined)
       );
   }
@@ -641,10 +642,31 @@ const performBulkUpdate = async (
   const requestedFields: Array<"content" | "url" | "notes" | "tags"> = [];
   let shouldSchedulePipeline = false;
 
-  if (args.content !== undefined) requestedFields.push("content");
-  if (args.url !== undefined) requestedFields.push("url");
-  if (args.notes !== undefined) requestedFields.push("notes");
-  if (args.tags !== undefined) requestedFields.push("tags");
+  if (args.content !== undefined) {
+    requestedFields.push("content");
+  }
+  if (args.url !== undefined) {
+    requestedFields.push("url");
+  }
+  if (args.notes !== undefined) {
+    requestedFields.push("notes");
+  }
+  if (args.tags !== undefined) {
+    requestedFields.push("tags");
+  }
+
+  const valueForField = (field: "content" | "url" | "notes" | "tags") => {
+    if (field === "content") {
+      return args.content;
+    }
+    if (field === "url") {
+      return args.url;
+    }
+    if (field === "notes") {
+      return args.notes;
+    }
+    return args.tags;
+  };
 
   for (const field of requestedFields) {
     const result = await updateCardFieldForUserHandler(
@@ -653,14 +675,7 @@ const performBulkUpdate = async (
         userId: args.userId,
         cardId: args.cardId,
         field,
-        value:
-          field === "content"
-            ? args.content
-            : field === "url"
-              ? args.url
-              : field === "notes"
-                ? args.notes
-                : args.tags,
+        value: valueForField(field),
       },
       { deferPipelineSchedule: true }
     );
@@ -859,13 +874,15 @@ export const executeBulkCardsForUser = internalMutation({
 
         succeeded += 1;
       } catch (error) {
-        const message =
+        let message = "Bulk operation failed";
+        if (
           error instanceof ConvexError &&
           typeof error.data?.message === "string"
-            ? error.data.message
-            : error instanceof Error
-              ? error.message
-              : "Bulk operation failed";
+        ) {
+          message = error.data.message;
+        } else if (error instanceof Error) {
+          message = error.message;
+        }
 
         results.push({
           index,

@@ -1,14 +1,14 @@
 import type { CardType } from "../../schema";
 import type { Id } from "../../shared/types";
 
-export type AiMetadataWorkflowArgs = {
+export interface AiMetadataWorkflowArgs {
   cardId: Id<"cards">;
   cardType?: CardType;
-};
+}
 
-export type AiMetadataResult = {
-  aiTags: string[];
+export interface AiMetadataResult {
   aiSummary: string;
+  aiTags: string[];
   aiTranscript?: string;
   confidence: number;
-};
+}

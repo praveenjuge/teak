@@ -2,12 +2,12 @@ import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 
 const PROD_WEB_URL = "https://app.teakvault.com";
 
-type DesktopConfigEnv = {
+interface DesktopConfigEnv {
   DEV: boolean;
   VITE_PUBLIC_CONVEX_SITE_URL?: string;
   VITE_PUBLIC_CONVEX_URL?: string;
   VITE_WEB_URL?: string;
-};
+}
 
 function normalizeBaseUrl(label: string, rawUrl: string): string {
   let parsedUrl: URL;

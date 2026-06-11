@@ -236,7 +236,7 @@ async function findAppStoreVersion() {
   return appStoreVersion;
 }
 
-async function fetchAppStoreVersion(versionId) {
+function fetchAppStoreVersion(versionId) {
   const query = params({
     include: "build",
     "fields[appStoreVersions]": "versionString,appVersionState,build",
@@ -300,7 +300,7 @@ async function attachBuild(versionId, buildId) {
   );
 }
 
-async function createReviewSubmission() {
+function createReviewSubmission() {
   return request("POST", "/v1/reviewSubmissions", {
     data: {
       type: "reviewSubmissions",
@@ -319,7 +319,7 @@ async function createReviewSubmission() {
   });
 }
 
-async function addVersionToReviewSubmission(reviewSubmissionId, versionId) {
+function addVersionToReviewSubmission(reviewSubmissionId, versionId) {
   return request("POST", "/v1/reviewSubmissionItems", {
     data: {
       type: "reviewSubmissionItems",
@@ -341,7 +341,7 @@ async function addVersionToReviewSubmission(reviewSubmissionId, versionId) {
   });
 }
 
-async function submitReviewSubmission(reviewSubmissionId) {
+function submitReviewSubmission(reviewSubmissionId) {
   return request("PATCH", `/v1/reviewSubmissions/${reviewSubmissionId}`, {
     data: {
       type: "reviewSubmissions",

@@ -15,21 +15,21 @@ export interface LinkCategoryResolution {
   rule?: string;
 }
 
-type DomainRule = {
+interface DomainRule {
+  category: LinkCategory;
+  confidence?: number;
+  description?: string;
   domain: string;
-  category: LinkCategory;
-  provider?: string;
   pathIncludes?: RegExp[];
-  confidence?: number;
-  description?: string;
-};
+  provider?: string;
+}
 
-type PathRule = {
-  test: RegExp;
+interface PathRule {
   category: LinkCategory;
   confidence?: number;
   description?: string;
-};
+  test: RegExp;
+}
 
 const DEFAULT_DOMAIN_CONFIDENCE = 0.98;
 const DEFAULT_PATH_CONFIDENCE = 0.8;
@@ -131,12 +131,16 @@ const HEURISTIC_KEYWORDS: Array<{ keyword: RegExp; category: LinkCategory }> = [
 
 const stripSubdomains = (hostname: string): string => {
   const parts = hostname.toLowerCase().split(".");
-  if (parts.length <= 2) return hostname.toLowerCase();
+  if (parts.length <= 2) {
+    return hostname.toLowerCase();
+  }
   return parts.slice(parts.length - 2).join(".");
 };
 
 const hostnameMatches = (hostname: string, candidate: string) => {
-  if (hostname === candidate) return true;
+  if (hostname === candidate) {
+    return true;
+  }
   return hostname.endsWith(`.${candidate}`);
 };
 
@@ -144,7 +148,9 @@ const isAllowedCategory = (value: string): value is LinkCategory =>
   (LINK_CATEGORIES as readonly string[]).includes(value);
 
 const pickDomainRule = (parsed: URL | null): DomainRule | null => {
-  if (!parsed?.hostname) return null;
+  if (!parsed?.hostname) {
+    return null;
+  }
   const hostname = parsed.hostname.toLowerCase();
   const apex = stripSubdomains(hostname);
 
@@ -174,7 +180,9 @@ const pickDomainRule = (parsed: URL | null): DomainRule | null => {
 };
 
 const pickPathRule = (pathname: string | undefined): PathRule | null => {
-  if (!pathname) return null;
+  if (!pathname) {
+    return null;
+  }
   for (const rule of PATH_CATEGORY_RULES) {
     if (rule.test.test(pathname)) {
       return rule;
@@ -186,7 +194,9 @@ const pickPathRule = (pathname: string | undefined): PathRule | null => {
 const pickProviderMapping = (
   hostname: string | undefined
 ): { provider: string; category: LinkCategory } | null => {
-  if (!hostname) return null;
+  if (!hostname) {
+    return null;
+  }
   const hostText = hostname.toLowerCase();
   for (const [provider, category] of Object.entries(PROVIDER_CATEGORY_HINTS)) {
     if (hostText.includes(provider)) {

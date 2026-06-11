@@ -49,7 +49,10 @@ Guidelines:
 - Tags should be 5-6 specific, relevant single words only (no spaces, no hyphens)
 - Summary should be 1-2 sentences that capture the essence
 - Focus on the main topics, themes, and key information
-- Use clear, searchable language`,
+- Use clear, searchable language
+
+Respond with a single JSON object using exactly this shape and no other keys:
+{"tags": ["word", "word"], "summary": "..."}`,
 
   /**
    * System prompt for image analysis
@@ -61,7 +64,10 @@ Guidelines:
 - Tags should be 5-6 single words describing objects, scenes, concepts, emotions (no spaces, no hyphens)
 - Summary should be 1-2 sentences describing what the image shows
 - Focus on the main visual elements and context
-- Use clear, searchable language`,
+- Use clear, searchable language
+
+Respond with a single JSON object using exactly this shape and no other keys:
+{"tags": ["word", "word"], "summary": "..."}`,
 
   /**
    * System prompt for web content analysis
@@ -75,7 +81,10 @@ Guidelines:
 - Summary should be 1-2 sentences capturing the essence and value of the content
 - Focus on what makes this link useful and searchable
 - Use clear, specific language that helps with discovery
-- Consider the source, author, and context when available`,
+- Consider the source, author, and context when available
+
+Respond with a single JSON object using exactly this shape and no other keys:
+{"tags": ["word", "word"], "summary": "..."}`,
 
   /**
    * System prompt for changelog generation

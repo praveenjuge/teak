@@ -231,7 +231,15 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
             )}
           </List>
         );
-      case "audio":
+      case "audio": {
+        const audioPlaybackStatus = isAudioPlaying ? "Playing" : "Paused";
+        const audioStatusLabel = isAudioLoading
+          ? "Loading..."
+          : audioPlaybackStatus;
+        const audioToggleAction = isAudioPlaying ? "Pause" : "Play";
+        const audioToggleLabel = isAudioLoading
+          ? "Loading..."
+          : audioToggleAction;
         return (
           <List modifiers={[listStyle("plain"), scrollDisabled()]}>
             {audioUrl && isAudioSupported ? (
@@ -254,22 +262,12 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
                       font({ design: "rounded" }),
                     ]}
                   >
-                    {isAudioLoading
-                      ? "Loading..."
-                      : isAudioPlaying
-                        ? "Playing"
-                        : "Paused"}
+                    {audioStatusLabel}
                   </Text>
                 </HStack>
-                {renderActionButton(
-                  isAudioLoading
-                    ? "Loading..."
-                    : isAudioPlaying
-                      ? "Pause"
-                      : "Play",
-                  handleToggleAudio,
-                  { disabled: isAudioLoading }
-                )}
+                {renderActionButton(audioToggleLabel, handleToggleAudio, {
+                  disabled: isAudioLoading,
+                })}
               </>
             ) : (
               <>
@@ -293,6 +291,7 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
             )}
           </List>
         );
+      }
       case "link":
         return (
           <List modifiers={[listStyle("plain"), scrollDisabled()]}>

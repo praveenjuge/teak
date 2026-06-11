@@ -16,15 +16,12 @@ export function LinkImageDisplay({
   fallbackImageUrl,
   fallbackImageSize,
 }: LinkImageDisplayProps) {
-  const hasPrimaryImage = !!(primaryImageUrl && primaryImageSize);
-  const hasFallbackImage = !!(fallbackImageUrl && fallbackImageSize);
-
-  if (hasPrimaryImage) {
+  if (primaryImageUrl && primaryImageSize) {
     return (
       <div
         className="w-full overflow-hidden"
         style={{
-          aspectRatio: primaryImageSize!.width / primaryImageSize!.height,
+          aspectRatio: primaryImageSize.width / primaryImageSize.height,
         }}
       >
         <Image
@@ -39,12 +36,12 @@ export function LinkImageDisplay({
     );
   }
 
-  if (hasFallbackImage) {
+  if (fallbackImageUrl && fallbackImageSize) {
     return (
       <div
         className="w-full overflow-hidden"
         style={{
-          aspectRatio: fallbackImageSize!.width / fallbackImageSize!.height,
+          aspectRatio: fallbackImageSize.width / fallbackImageSize.height,
         }}
       >
         <Image

@@ -12,7 +12,9 @@ describe("createCardModalFilterActions", () => {
       addFilter: (filter) => {
         events.push(`filter:${filter}`);
       },
-      addKeywordTag: (_keyword) => {},
+      addKeywordTag: (_keyword) => {
+        // noop
+      },
     });
 
     actions.handleCardTypeClick("image");
@@ -27,7 +29,9 @@ describe("createCardModalFilterActions", () => {
       onCloseModal: () => {
         events.push("close");
       },
-      addFilter: (_filter) => {},
+      addFilter: (_filter) => {
+        // noop
+      },
       addKeywordTag: (keyword) => {
         events.push(`tag:${keyword}`);
       },
@@ -39,9 +43,15 @@ describe("createCardModalFilterActions", () => {
   });
 
   test("passes through callback values", () => {
-    const onCloseModal = mock(() => {});
-    const addFilter = mock((_filter: string) => {});
-    const addKeywordTag = mock((_keyword: string) => {});
+    const onCloseModal = mock(() => {
+      // noop
+    });
+    const addFilter = mock((_filter: string) => {
+      // noop
+    });
+    const addKeywordTag = mock((_keyword: string) => {
+      // noop
+    });
 
     const actions = createCardModalFilterActions({
       onCloseModal,

@@ -6,7 +6,9 @@ mock.module(
   "../../../../../convex/workflows/steps/categorization/providers",
   () => ({
     enrichProvider: (provider: any) => {
-      if (!provider) return { raw: { test: "data" } };
+      if (!provider) {
+        return { raw: { test: "data" } };
+      }
       return null;
     },
   })

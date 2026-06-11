@@ -189,6 +189,13 @@ export const CenteredPanel = ({
   </VStack>
 );
 
+function getAudioToggleLabel(isLoading: boolean, isPlaying: boolean) {
+  if (isLoading) {
+    return "Loading...";
+  }
+  return isPlaying ? "Pause" : "Play";
+}
+
 export const AudioPreview = ({
   title,
   height,
@@ -235,11 +242,7 @@ export const AudioPreview = ({
           ]}
         >
           {hasSource
-            ? isLoading
-              ? "Loading..."
-              : isPlaying
-                ? "Pause"
-                : "Play"
+            ? getAudioToggleLabel(isLoading, isPlaying)
             : "Audio unavailable"}
         </Text>
         <Spacer />

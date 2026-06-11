@@ -9,7 +9,7 @@ export function getStaticPaths() {
 }
 
 const { slug } = Astro.params;
-const author = getAuthor(slug!);
+const author = slug ? getAuthor(slug) : undefined;
 
 if (!author) {
   return Astro.redirect("/404");

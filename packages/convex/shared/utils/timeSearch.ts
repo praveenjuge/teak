@@ -1,17 +1,20 @@
-export type CreatedAtRange = { start: number; end: number };
+export interface CreatedAtRange {
+  end: number;
+  start: number;
+}
 
-export type TimeFilter = {
+export interface TimeFilter {
+  kind: "relative" | "weekday" | "date" | "month" | "year" | "range";
   label: string;
   range: CreatedAtRange;
-  kind: "relative" | "weekday" | "date" | "month" | "year" | "range";
-};
+}
 
-type DateRange = {
-  start: Date;
+interface DateRange {
   end: Date;
-  label: string;
   kind: TimeFilter["kind"];
-};
+  label: string;
+  start: Date;
+}
 
 const MONTHS: Record<string, number> = {
   january: 0,

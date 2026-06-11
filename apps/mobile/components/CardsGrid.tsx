@@ -193,11 +193,12 @@ const CardsGrid = memo(function CardsGrid({
   }, [convex, queryArgs]);
 
   const emptyTitle = searchQuery ? "No cards found" : "No cards yet";
+  const searchDescription = searchQuery
+    ? `No cards match "${searchQuery}"${selectedType ? ` in ${selectedType} cards` : ""}`
+    : "Start by adding your first card";
   const description = timeFilter
     ? `No cards from ${timeFilter.label}`
-    : searchQuery
-      ? `No cards match "${searchQuery}"${selectedType ? ` in ${selectedType} cards` : ""}`
-      : "Start by adding your first card";
+    : searchDescription;
   const emptyIcon =
     searchQuery || timeFilter ? "magnifyingglass" : "plus.circle";
 

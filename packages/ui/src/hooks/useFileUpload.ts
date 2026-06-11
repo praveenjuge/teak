@@ -13,7 +13,9 @@ export type FileUploadErrorCaptureFunction = (
   context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }
 ) => void;
 
-const noopCapture: FileUploadErrorCaptureFunction = () => {};
+const noopCapture: FileUploadErrorCaptureFunction = () => {
+  // noop
+};
 
 export function configureFileUploadErrorCapture(
   capture?: FileUploadErrorCaptureFunction

@@ -8,7 +8,7 @@ import {
   resolveCardIdForUserRequest,
 } from "../raycast";
 
-const runHandler = async (fn: any, ctx: any, args: any) => {
+const runHandler = (fn: any, ctx: any, args: any) => {
   const handler = (fn as any).handler ?? fn;
   return handler(ctx, args);
 };
@@ -78,7 +78,7 @@ describe("raycast", () => {
           type: "text",
           content: "old",
         }),
-        patch: async (_table: string, _id: string, payload: unknown) => {
+        patch: (_table: string, _id: string, payload: unknown) => {
           patchCalls.push(payload as Record<string, unknown>);
           return null;
         },
@@ -119,7 +119,7 @@ describe("raycast", () => {
           createdAt: 1,
           updatedAt: 1,
         }),
-        patch: async (_table: string, _id: string, payload: unknown) => {
+        patch: (_table: string, _id: string, payload: unknown) => {
           patchCalls.push(payload as Record<string, unknown>);
           return null;
         },

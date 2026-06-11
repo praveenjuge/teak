@@ -30,10 +30,18 @@ interface AddCardActionsProps {
 }
 
 function inferCardTypeFromMime(mimeType: string | undefined): string {
-  if (!mimeType) return "document";
-  if (mimeType.startsWith("image/")) return "image";
-  if (mimeType.startsWith("video/")) return "video";
-  if (mimeType.startsWith("audio/")) return "audio";
+  if (!mimeType) {
+    return "document";
+  }
+  if (mimeType.startsWith("image/")) {
+    return "image";
+  }
+  if (mimeType.startsWith("video/")) {
+    return "video";
+  }
+  if (mimeType.startsWith("audio/")) {
+    return "audio";
+  }
   return "document";
 }
 
@@ -326,6 +334,10 @@ export function AddCardActions({
     input.click();
   };
 
+  const recordingStatusDescription = isRecording
+    ? "Speak naturally. Teak will save this as an audio card."
+    : "Starting microphone...";
+
   return (
     <>
       <div className="flex items-center gap-1">
@@ -358,11 +370,7 @@ export function AddCardActions({
         <DialogContent className="max-w-sm text-center" showCloseButton={false}>
           <DialogTitle>Recording audio</DialogTitle>
           <DialogDescription>
-            {isSubmitting
-              ? "Saving recording..."
-              : isRecording
-                ? "Speak naturally. Teak will save this as an audio card."
-                : "Starting microphone..."}
+            {isSubmitting ? "Saving recording..." : recordingStatusDescription}
           </DialogDescription>
           <div className="flex flex-col items-center gap-4 py-3">
             <div className="font-mono text-2xl text-primary tabular-nums">

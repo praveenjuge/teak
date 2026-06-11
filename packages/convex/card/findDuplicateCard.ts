@@ -46,7 +46,7 @@ export const findDuplicateCardForUser = internalQuery({
     url: v.string(),
   },
   returns: v.union(cardReturnValidator, v.null()),
-  handler: async (ctx, args) => {
+  handler: (ctx, args) => {
     return findDuplicateCardForUserHandler(ctx, args.userId, args.url);
   },
 });

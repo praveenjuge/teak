@@ -58,12 +58,12 @@ function UpgradePrompt() {
   );
 }
 
-type SessionUser = {
-  id: string;
+interface SessionUser {
   email: string;
-  name?: string;
+  id: string;
   image?: string;
-};
+  name?: string;
+}
 
 function App() {
   const {
@@ -74,7 +74,9 @@ function App() {
   } = useWebAppSession();
 
   useEffect(() => {
-    if (!session) return;
+    if (!session) {
+      return;
+    }
   }, [session]);
 
   if (isPending) {
@@ -187,10 +189,18 @@ function DuplicateState({
       (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    if (diffInDays === 0) return "today";
-    if (diffInDays === 1) return "yesterday";
-    if (diffInDays < 7) return `${diffInDays} days ago`;
-    if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
+    if (diffInDays === 0) {
+      return "today";
+    }
+    if (diffInDays === 1) {
+      return "yesterday";
+    }
+    if (diffInDays < 7) {
+      return `${diffInDays} days ago`;
+    }
+    if (diffInDays < 30) {
+      return `${Math.floor(diffInDays / 7)} weeks ago`;
+    }
     return date.toLocaleDateString();
   };
 

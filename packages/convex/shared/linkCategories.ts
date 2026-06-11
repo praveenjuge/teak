@@ -85,9 +85,13 @@ const buildCategoryLookup = (): Record<string, LinkCategory> => {
   const map: Record<string, LinkCategory> = {};
 
   const register = (variant: string | undefined, category: LinkCategory) => {
-    if (!variant) return;
+    if (!variant) {
+      return;
+    }
     const key = normalizeVariant(variant);
-    if (!key) return;
+    if (!key) {
+      return;
+    }
     map[key] = category;
   };
 

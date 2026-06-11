@@ -8,10 +8,10 @@
 
 export const DEFAULT_TEAK_DEV_API_URL = "http://api.teak.localhost:1355";
 
-export type DevUrlEnv = {
-  [key: string]: unknown;
+export interface DevUrlEnv {
   TEAK_DEV_API_URL?: unknown;
-};
+  [key: string]: unknown;
+}
 
 const normalizeBaseUrl = (label: string, rawUrl: string): string => {
   let parsedUrl: URL;

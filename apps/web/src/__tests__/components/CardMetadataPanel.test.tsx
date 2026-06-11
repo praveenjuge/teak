@@ -32,7 +32,9 @@ describe("CardMetadataPanel", () => {
   beforeEach(() => {
     toastSuccess.mockReset();
     toastError.mockReset();
-    console.error = mock(() => {});
+    console.error = mock(() => {
+      // noop: silence expected error logs during tests
+    });
   });
 
   afterEach(() => {
@@ -44,7 +46,7 @@ describe("CardMetadataPanel", () => {
   });
 
   test("copies palette hex values to the clipboard", async () => {
-    const writeText = mock(async (_text: string) => {});
+    const writeText = mock((_text: string) => Promise.resolve());
     setClipboard(writeText);
 
     await copyColorHexToClipboard("#112233");
@@ -55,9 +57,9 @@ describe("CardMetadataPanel", () => {
   });
 
   test("shows an error toast when palette copy fails", async () => {
-    const writeText = mock(async (_text: string) => {
-      throw new Error("clipboard failed");
-    });
+    const writeText = mock((_text: string) =>
+      Promise.reject(new Error("clipboard failed"))
+    );
     setClipboard(writeText);
 
     await copyColorHexToClipboard("#112233");

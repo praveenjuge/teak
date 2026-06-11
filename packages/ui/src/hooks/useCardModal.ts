@@ -329,7 +329,9 @@ export function useCardModal(
 
   const handleDelete = useCallback(
     async (onClose?: () => void) => {
-      if (!cardId) return;
+      if (!cardId) {
+        return;
+      }
       try {
         await updateCardField({
           cardId: cardId as Id<"cards">,
@@ -347,7 +349,9 @@ export function useCardModal(
 
   const handleRestore = useCallback(
     async (onClose?: () => void) => {
-      if (!cardId) return;
+      if (!cardId) {
+        return;
+      }
       try {
         await updateCardField({
           cardId: cardId as Id<"cards">,
@@ -365,7 +369,9 @@ export function useCardModal(
 
   const handlePermanentDelete = useCallback(
     async (onClose?: () => void) => {
-      if (!cardId) return;
+      if (!cardId) {
+        return;
+      }
       try {
         await permanentDeleteCard({ id: cardId as Id<"cards"> });
         toast.success("Card permanently deleted");
@@ -387,7 +393,9 @@ export function useCardModal(
         window.open(safeUrl, "_blank", "noopener,noreferrer");
       }
     } else if (card?.url) {
-      toast.error("This link can't be opened because it uses an unsafe address");
+      toast.error(
+        "This link can't be opened because it uses an unsafe address"
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card?.url, config.onOpenLink]);

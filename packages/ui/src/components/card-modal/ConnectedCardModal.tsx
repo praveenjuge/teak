@@ -108,7 +108,9 @@ export function ConnectedCardModal({
       NotesEditModal={
         <NotesEditModal
           notes={getCurrentValue("notes") || ""}
-          onCancel={() => {}}
+          onCancel={() => {
+            // noop
+          }}
           onOpenChange={setShowNotesEditModal}
           onSave={saveNotes}
           open={showNotesEditModal}

@@ -27,7 +27,9 @@ export const isCreatedAtInRange = (
 ): boolean => !range || (createdAt >= range.start && createdAt < range.end);
 
 export const ensureValidRange = (range?: CreatedAtRange) => {
-  if (!range) return;
+  if (!range) {
+    return;
+  }
   if (range.start >= range.end) {
     throw new Error("Invalid createdAtRange");
   }
@@ -38,10 +40,8 @@ export const attachFileUrls = async (
   cards: Doc<"cards">[]
 ): Promise<CardWithUrls[]> => {
   const storageKeys = new Set<string>();
-  type CardStorageIds = {
+  interface CardStorageIds {
     fileKey?: string;
-    thumbnailKey?: string;
-    screenshotKey?: string;
     linkPreviewImageKey?: string;
     linkPreviewMedia?: Array<{
       contentType?: string;
@@ -54,7 +54,9 @@ export const attachFileUrls = async (
       type: "image" | "video";
       width?: number;
     }>;
-  };
+    screenshotKey?: string;
+    thumbnailKey?: string;
+  }
   const cardToIds = new Map<string, CardStorageIds>();
 
   for (const card of cards) {
@@ -71,8 +73,8 @@ export const attachFileUrls = async (
       storageKeys.add(card.metadata.linkPreview.imageStorageKey);
       ids.linkPreviewImageKey = card.metadata.linkPreview.imageStorageKey;
     }
-    const hydratedMedia = (card.metadata?.linkPreview?.media ?? [])?.map(
-      (item: LinkPreviewMediaItem) => {
+    const hydratedMedia = (card.metadata?.linkPreview?.media ?? [])
+      ?.map((item: LinkPreviewMediaItem) => {
         if (!item.storageKey) {
           return null;
         }
@@ -91,8 +93,8 @@ export const attachFileUrls = async (
           posterWidth: item.posterWidth,
           posterHeight: item.posterHeight,
         };
-      }
-    ).filter((item): item is NonNullable<typeof item> => Boolean(item));
+      })
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
     if (hydratedMedia?.length) {
       ids.linkPreviewMedia = hydratedMedia;
     }

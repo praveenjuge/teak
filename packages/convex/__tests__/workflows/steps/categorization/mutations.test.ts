@@ -31,7 +31,7 @@ describe("categorization updateCategorization", () => {
       const mockCtx = {
         db: {
           get: async (_table: string, _id: string) => cardState,
-          patch: async (_table: string, _id: string, updates: any) => {
+          patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
         },
@@ -64,7 +64,7 @@ describe("categorization updateCategorization", () => {
     }
   });
 
-  it("throws if card not found", async () => {
+  it("throws if card not found", () => {
     const mutation =
       (updateCategorization as any).handler ||
       (updateCategorization as any)._handler ||

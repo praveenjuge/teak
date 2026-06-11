@@ -227,12 +227,12 @@ export const captureScreenshot = internalAction({
       cardId,
     });
 
-    if (!card || card.type !== "link" || !card.url) {
+    if (card?.type !== "link" || !card.url) {
       return;
     }
 
     const linkPreview = card.metadata?.linkPreview;
-    if (!linkPreview || linkPreview.status !== "success") {
+    if (linkPreview?.status !== "success") {
       return;
     }
 

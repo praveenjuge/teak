@@ -256,11 +256,21 @@ function hslToRgb(
 
   const hue2rgb = (p: number, q: number, t: number): number => {
     let tNorm = t;
-    if (tNorm < 0) tNorm += 1;
-    if (tNorm > 1) tNorm -= 1;
-    if (tNorm < 1 / 6) return p + (q - p) * 6 * tNorm;
-    if (tNorm < 1 / 2) return q;
-    if (tNorm < 2 / 3) return p + (q - p) * (2 / 3 - tNorm) * 6;
+    if (tNorm < 0) {
+      tNorm += 1;
+    }
+    if (tNorm > 1) {
+      tNorm -= 1;
+    }
+    if (tNorm < 1 / 6) {
+      return p + (q - p) * 6 * tNorm;
+    }
+    if (tNorm < 1 / 2) {
+      return q;
+    }
+    if (tNorm < 2 / 3) {
+      return p + (q - p) * (2 / 3 - tNorm) * 6;
+    }
     return p;
   };
 
@@ -302,15 +312,33 @@ function classifyHueBucket(h: number, s: number, l: number): ColorHueBucket {
     return "brown";
   }
 
-  if (h < 15 || h >= 345) return "red";
-  if (h < 45) return "orange";
-  if (h < 70) return "yellow";
-  if (h < 150) return "green";
-  if (h < 180) return "teal";
-  if (h < 205) return "cyan";
-  if (h < 250) return "blue";
-  if (h < 290) return "purple";
-  if (h < 345) return "pink";
+  if (h < 15 || h >= 345) {
+    return "red";
+  }
+  if (h < 45) {
+    return "orange";
+  }
+  if (h < 70) {
+    return "yellow";
+  }
+  if (h < 150) {
+    return "green";
+  }
+  if (h < 180) {
+    return "teal";
+  }
+  if (h < 205) {
+    return "cyan";
+  }
+  if (h < 250) {
+    return "blue";
+  }
+  if (h < 290) {
+    return "purple";
+  }
+  if (h < 345) {
+    return "pink";
+  }
   return "red";
 }
 
@@ -601,7 +629,9 @@ export function parseColorsFromText(text: string): Color[] {
 
   for (const part of parts) {
     const trimmedPart = part.trim();
-    if (!trimmedPart) continue;
+    if (!trimmedPart) {
+      continue;
+    }
 
     const color = parseColorString(trimmedPart);
     if (color) {
@@ -640,7 +670,9 @@ export function parseColorsFromText(text: string): Color[] {
 
 function formatPaletteName(slug: string): string | undefined {
   const cleaned = slug.replace(/[_-]+/g, " ").trim();
-  if (!cleaned) return undefined;
+  if (!cleaned) {
+    return undefined;
+  }
   return cleaned.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
@@ -656,7 +688,9 @@ export function extractPaletteColors(text: string, maxColors = 12): Color[] {
   const result = new Map<string, Color>();
 
   const addColor = (color: Color | null, inferredName?: string) => {
-    if (!color || result.size >= limit) return;
+    if (!color || result.size >= limit) {
+      return;
+    }
     const normalizedHex = color.hex.toUpperCase();
     const existing = result.get(normalizedHex);
     const name = inferredName?.trim() || color.name;
@@ -732,7 +766,9 @@ export function getColorName(hex: string): string | undefined {
 
 // Calculate contrast ratio between two colors (for accessibility)
 export function getContrastRatio(color1: Color, color2: Color): number {
-  if (!(color1.rgb && color2.rgb)) return 0;
+  if (!(color1.rgb && color2.rgb)) {
+    return 0;
+  }
 
   const getLuminance = (rgb: { r: number; g: number; b: number }): number => {
     const [red, green, blue] = [rgb.r, rgb.g, rgb.b].map((c) => {

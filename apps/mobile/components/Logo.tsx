@@ -8,21 +8,20 @@ interface LogoProps {
   width?: number;
 }
 
+const VARIANT_FILL_COLORS: Record<NonNullable<LogoProps["variant"]>, string> = {
+  current: "currentColor",
+  default: "rgba(0,0,0,0.4)",
+  primary: colors.primary,
+  white: "white",
+};
+
 export default function Logo({
   variant = "default",
   width = 250,
   height = 24,
   color,
 }: LogoProps) {
-  const fillColor =
-    color ||
-    (variant === "primary"
-      ? colors.primary
-      : variant === "white"
-        ? "white"
-        : variant === "current"
-          ? "currentColor"
-          : "rgba(0,0,0,0.4)");
+  const fillColor = color || VARIANT_FILL_COLORS[variant];
 
   return (
     <Svg fill={fillColor} height={height} viewBox="0 0 290 92" width={width}>

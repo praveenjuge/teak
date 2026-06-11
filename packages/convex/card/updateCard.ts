@@ -27,8 +27,7 @@ const updateCardFieldValidator = v.union(
   v.literal("restore")
 );
 
-type UpdateCardFieldForUserArgs = {
-  userId: string;
+interface UpdateCardFieldForUserArgs {
   cardId: Id<"cards">;
   field:
     | "content"
@@ -40,17 +39,18 @@ type UpdateCardFieldForUserArgs = {
     | "removeAiTag"
     | "delete"
     | "restore";
-  value?: unknown;
   tagToRemove?: string;
-};
+  userId: string;
+  value?: unknown;
+}
 
-type UpdateCardFieldForUserOptions = {
+interface UpdateCardFieldForUserOptions {
   deferPipelineSchedule?: boolean;
-};
+}
 
-type UpdateCardFieldForUserResult = {
+interface UpdateCardFieldForUserResult {
   shouldSchedulePipeline: boolean;
-};
+}
 
 export const updateCard = mutation({
   args: {
@@ -177,9 +177,7 @@ export const updateCardFieldForUserHandler = async (
 
     case "url":
       updateData.url =
-        typeof value === "string"
-          ? assertSafeExternalUrl(value)
-          : value;
+        typeof value === "string" ? assertSafeExternalUrl(value) : value;
       if (updateData.url !== card.url) {
         const baseStatus = processingStatus
           ? withStageStatus(processingStatus, "classify", stagePending())

@@ -27,17 +27,17 @@ const createColor = (
 });
 
 // Type for default card definitions - all properties are optional
-type DefaultCardDef = {
-  type: CardType;
-  content: string;
-  url?: string;
-  tags?: string[];
-  notes?: string;
-  colors?: ReturnType<typeof createColor>[];
-  aiTags?: string[];
+interface DefaultCardDef {
   aiSummary?: string;
+  aiTags?: string[];
+  colors?: ReturnType<typeof createColor>[];
+  content: string;
   isFavorited?: boolean;
-};
+  notes?: string;
+  tags?: string[];
+  type: CardType;
+  url?: string;
+}
 
 // Content strings for default onboarding cards - used for identification/filtering
 export const ONBOARDING_CARD_CONTENTS = [

@@ -328,8 +328,10 @@ export default defineSchema({
   apiIdempotencyKeys: defineTable(apiIdempotencyKeyValidator)
     .index("by_user_key_hash", ["userId", "keyHash"])
     .index("by_expires_at", ["expiresAt"]),
-  apiIdempotencyAnalytics: defineTable(apiIdempotencyAnalyticsValidator)
-    .index("by_date_endpoint", ["date", "endpoint"]),
+  apiIdempotencyAnalytics: defineTable(apiIdempotencyAnalyticsValidator).index(
+    "by_date_endpoint",
+    ["date", "endpoint"]
+  ),
   nativeAuthCodes: defineTable(nativeAuthCodeValidator)
     .index("by_expires_at", ["expiresAt"])
     .index("by_device_state_consumed", ["deviceId", "state", "consumedAt"])

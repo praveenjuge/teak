@@ -29,8 +29,20 @@ import { rateLimiter } from "./shared/rateLimits";
 import { scheduleBusinessEvent } from "./sentry";
 import { deleteObject } from "./storage/r2";
 
-const googleClientId = process.env.GOOGLE_CLIENT_ID!;
-const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET!;
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+if (!googleClientId) {
+  throw new Error(
+    "GOOGLE_CLIENT_ID environment variable is required. " +
+      "Run: bunx convex env set GOOGLE_CLIENT_ID <client-id>"
+  );
+}
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+if (!googleClientSecret) {
+  throw new Error(
+    "GOOGLE_CLIENT_SECRET environment variable is required. " +
+      "Run: bunx convex env set GOOGLE_CLIENT_SECRET <client-secret>"
+  );
+}
 const siteUrl = process.env.SITE_URL;
 if (!siteUrl) {
   throw new Error(
@@ -223,7 +235,9 @@ export const getCurrentUserHandler = async (ctx: any) => {
     }
     throw error;
   }
-  if (!user) return null;
+  if (!user) {
+    return null;
+  }
 
   const userId = (user as any).id ?? (user as any)._id ?? (user as any).subject;
 
@@ -272,7 +286,9 @@ export const getCardCreationStatusHandler = async (ctx: any) => {
     }
     throw error;
   }
-  if (!user) return null;
+  if (!user) {
+    return null;
+  }
 
   const userId = (user as any).id ?? (user as any)._id ?? (user as any).subject;
 
@@ -318,13 +334,13 @@ export const getCardCreationStatus = query({
  * Checks both rate limits (30 cards/minute) and card count limits (free tier).
  * Throws a ConvexError with appropriate code when limits are exceeded.
  */
-type CardCreationDeps = {
-  rateLimiter: Pick<typeof rateLimiter, "limit">;
+interface CardCreationDeps {
   getSubscription: (
     ctx: MutationCtx,
     args: { userId: string }
   ) => Promise<{ status?: string } | null | undefined>;
-};
+  rateLimiter: Pick<typeof rateLimiter, "limit">;
+}
 
 const defaultCardCreationDeps: CardCreationDeps = {
   rateLimiter,

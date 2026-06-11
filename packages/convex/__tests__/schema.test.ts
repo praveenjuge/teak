@@ -10,7 +10,10 @@ describe("schema.ts", () => {
   });
 
   test("defines only the canonical native auth table", () => {
-    const source = readFileSync(resolve(import.meta.dir, "../schema.ts"), "utf8");
+    const source = readFileSync(
+      resolve(import.meta.dir, "../schema.ts"),
+      "utf8"
+    );
 
     expect(source).toContain("nativeAuthCodeValidator");
     expect(source).toContain("nativeAuthCodes: defineTable");

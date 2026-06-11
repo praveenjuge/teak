@@ -13,7 +13,7 @@ import {
   tagsV1,
 } from "../publicApiHttp";
 
-const runHandler = async (fn: any, ctx: any, request: Request) => {
+const runHandler = (fn: any, ctx: any, request: Request) => {
   const handler = (fn as any).handler ?? fn;
   return handler(ctx, request);
 };

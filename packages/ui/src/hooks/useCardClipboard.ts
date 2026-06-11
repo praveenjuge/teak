@@ -7,7 +7,7 @@ export interface CopyCardContentOptions {
 
 const DEFAULT_IMAGE_TOAST_ID = "copy-image";
 
-async function convertToPng(
+function convertToPng(
   blob: Blob,
   fallbackWidth = 500,
   fallbackHeight = 500
@@ -63,6 +63,16 @@ function getSvgDimensions(svgText: string): { width: number; height: number } {
   return { width: 500, height: 500 };
 }
 
+function getErrorName(error: unknown): string {
+  if (error instanceof DOMException) {
+    return error.name;
+  }
+  if (typeof error === "object" && error !== null && "name" in error) {
+    return String(error.name);
+  }
+  return "";
+}
+
 export async function copyCardContentToClipboard(
   content: string,
   isImage: boolean,
@@ -86,14 +96,7 @@ export async function copyCardContentToClipboard(
         toast.success("Image copied to clipboard", { id: imageToastId });
         return;
       } catch (originalError) {
-        const errorName =
-          originalError instanceof DOMException
-            ? originalError.name
-            : typeof originalError === "object" &&
-                originalError !== null &&
-                "name" in originalError
-              ? String(originalError.name)
-              : "";
+        const errorName = getErrorName(originalError);
 
         if (errorName === "NotAllowedError") {
           if (blob.type === "image/svg+xml") {

@@ -9,7 +9,7 @@ import {
   applyQuoteFormattingToList,
 } from "./quoteFormatting";
 
-type HydratedLinkPreviewMedia = {
+interface HydratedLinkPreviewMedia {
   contentType?: string;
   height?: number;
   posterContentType?: string;
@@ -19,7 +19,7 @@ type HydratedLinkPreviewMedia = {
   type: "image" | "video";
   url: string;
   width?: number;
-};
+}
 
 // Return validator for single card - includes _id and _creationTime from Convex
 const cardReturnValidator = v.object({
@@ -134,9 +134,7 @@ export const getCardForUserHandler = async (
 
   return applyQuoteDisplayFormatting({
     ...card,
-    fileUrl: card.fileKey
-      ? (urlMap.get(card.fileKey) ?? undefined)
-      : undefined,
+    fileUrl: card.fileKey ? (urlMap.get(card.fileKey) ?? undefined) : undefined,
     thumbnailUrl: card.thumbnailKey
       ? (urlMap.get(card.thumbnailKey) ?? undefined)
       : undefined,

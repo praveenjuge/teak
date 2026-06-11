@@ -1,14 +1,14 @@
 import React from "react";
 import { PageErrorState } from "./PageErrorState";
 
-type ErrorBoundaryProps = {
+interface ErrorBoundaryProps {
   children: React.ReactNode;
-};
+}
 
-type ErrorBoundaryState = {
-  hasError: boolean;
+interface ErrorBoundaryState {
   error: Error | null;
-};
+  hasError: boolean;
+}
 
 export class ErrorBoundary extends React.Component<
   ErrorBoundaryProps,

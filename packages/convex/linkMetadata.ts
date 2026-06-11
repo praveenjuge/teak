@@ -97,10 +97,7 @@ export const updateCardMetadataHandler = async (
           error
         );
       }
-    } else if (
-      nextLinkPreview &&
-      !nextLinkPreview.screenshotStorageKey
-    ) {
+    } else if (nextLinkPreview && !nextLinkPreview.screenshotStorageKey) {
       nextLinkPreview.screenshotStorageKey =
         previousLinkPreview.screenshotStorageKey;
       nextLinkPreview.screenshotUpdatedAt =
@@ -118,7 +115,9 @@ export const updateCardMetadataHandler = async (
 
   if (previousLinkPreview?.media?.length) {
     if (nextLinkPreview?.media) {
-      const nextMediaStorageIds = collectMediaStorageRefs(nextLinkPreview.media);
+      const nextMediaStorageIds = collectMediaStorageRefs(
+        nextLinkPreview.media
+      );
       const previousMediaStorageIds = collectMediaStorageRefs(
         previousLinkPreview.media
       );
@@ -202,7 +201,7 @@ export const updateCardScreenshotHandler = async (
   }: any
 ) => {
   const card = await ctx.db.get("cards", cardId);
-  if (!card || card.type !== "link") {
+  if (card?.type !== "link") {
     return;
   }
 

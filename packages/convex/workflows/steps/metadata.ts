@@ -22,22 +22,22 @@ import {
 } from "../aiMetadata/generators";
 import { generateTranscript } from "../aiMetadata/transcript";
 
-type LinkPreviewMetadata = {
+interface LinkPreviewMetadata {
+  author?: string;
+  description?: string;
+  publishedAt?: string;
+  publisher?: string;
   status?: string;
   title?: string;
-  description?: string;
-  author?: string;
-  publisher?: string;
-  publishedAt?: string;
-};
+}
 
-type LinkCardMetadataInput = {
+interface LinkCardMetadataInput {
   content?: string;
-  url?: string;
   metadata?: {
     linkPreview?: LinkPreviewMetadata;
   };
-};
+  url?: string;
+}
 
 export const buildLinkContentParts = (
   card: LinkCardMetadataInput
@@ -286,11 +286,7 @@ export async function generateHandler(
     aiSummary: aiSummary || undefined,
     aiTranscript,
     visualStyles:
-      cardType === "image"
-        ? visualStyles?.length
-          ? visualStyles
-          : undefined
-        : undefined,
+      cardType === "image" && visualStyles?.length ? visualStyles : undefined,
     processingStatus: updatedProcessing,
   });
 

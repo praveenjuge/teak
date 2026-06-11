@@ -28,17 +28,15 @@ const teakDesktopApi = {
 
   // ── App ────────────────────────────────────────────────────────────────────
   app: {
-    getVersion: (): Promise<string> =>
-      ipcRenderer.invoke("app:get-version"),
+    getVersion: (): Promise<string> => ipcRenderer.invoke("app:get-version"),
   },
 
   // ── Menu Events (main → renderer) ─────────────────────────────────────────
-  onMenuEvent: (
-    channel: string,
-    callback: () => void
-  ): (() => void) => {
+  onMenuEvent: (channel: string, callback: () => void): (() => void) => {
     if (!allowedMenuChannels.has(channel)) {
-      return () => {};
+      return () => {
+        // noop: channel is not in the allowlist, nothing to unsubscribe
+      };
     }
 
     const handler = () => callback();

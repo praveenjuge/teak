@@ -6,15 +6,17 @@ export interface ProviderEnrichmentResult {
   raw?: Record<string, unknown>;
 }
 
-export type RawSelectorEntry = {
-  text?: string;
+export interface RawSelectorEntry {
   attributes?: Array<{ name?: string; value?: string }>;
-};
+  text?: string;
+}
 
 export type RawSelectorMap = Map<string, RawSelectorEntry>;
 
 export const normalizeWhitespace = (value?: string): string | undefined => {
-  if (!value) return undefined;
+  if (!value) {
+    return undefined;
+  }
   const trimmed = value.replace(/\s+/g, " ").trim();
   return trimmed.length > 0 ? trimmed : undefined;
 };
@@ -37,7 +39,9 @@ export const getRawAttribute = (
   }
   const needle = attribute.toLowerCase();
   for (const attr of entry.attributes) {
-    if (!attr?.name) continue;
+    if (!attr?.name) {
+      continue;
+    }
     if (attr.name.toLowerCase() === needle) {
       return normalizeWhitespace(attr.value);
     }
@@ -46,9 +50,13 @@ export const getRawAttribute = (
 };
 
 const extractNumericToken = (value?: string): string | undefined => {
-  if (!value) return undefined;
+  if (!value) {
+    return undefined;
+  }
   const trimmed = normalizeWhitespace(value);
-  if (!trimmed) return undefined;
+  if (!trimmed) {
+    return undefined;
+  }
   const token = trimmed
     .split(" ")
     .find((segment) => /\d/.test(segment.replace(/[,.]/g, "")));
@@ -57,13 +65,16 @@ const extractNumericToken = (value?: string): string | undefined => {
 
 const parseCountToNumber = (value?: string): number | undefined => {
   const token = extractNumericToken(value);
-  if (!token) return undefined;
+  if (!token) {
+    return undefined;
+  }
   const lower = token.toLowerCase();
-  const multiplier = lower.endsWith("k")
-    ? 1000
-    : lower.endsWith("m")
-      ? 1_000_000
-      : 1;
+  let multiplier = 1;
+  if (lower.endsWith("k")) {
+    multiplier = 1000;
+  } else if (lower.endsWith("m")) {
+    multiplier = 1_000_000;
+  }
   const numericPart = multiplier === 1 ? lower : lower.slice(0, -1);
   const parsed = Number.parseFloat(numericPart.replace(/,/g, ""));
   if (Number.isNaN(parsed)) {
@@ -81,7 +92,9 @@ export const formatCountString = (value?: string): string | undefined => {
 };
 
 export const formatRating = (value?: string): string | undefined => {
-  if (!value) return undefined;
+  if (!value) {
+    return undefined;
+  }
   const numeric = Number.parseFloat(value);
   if (Number.isNaN(numeric)) {
     return normalizeWhitespace(value);
@@ -90,7 +103,9 @@ export const formatRating = (value?: string): string | undefined => {
 };
 
 export const formatDate = (value: string | undefined): string | undefined => {
-  if (!value) return undefined;
+  if (!value) {
+    return undefined;
+  }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return undefined;

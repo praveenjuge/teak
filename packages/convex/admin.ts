@@ -17,20 +17,20 @@ import type {
 import { stagePending } from "./card/processingStatus";
 import { deleteObject, resolveObjectUrl } from "./storage/r2";
 
-type StageSummary = {
-  pending: number;
-  inProgress: number;
+interface StageSummary {
   failed: number;
-};
+  inProgress: number;
+  pending: number;
+}
 
-type MissingCardSummary = {
+interface MissingCardSummary {
   cardId: Id<"cards">;
-  type: string;
   createdAt: number;
   metadataStatus?: "pending" | "completed" | "failed";
   processingStatus?: ProcessingStatus;
   reasons: string[];
-};
+  type: string;
+}
 
 const STAGE_KEYS: ProcessingStageKey[] = [
   "classify",
@@ -108,9 +108,7 @@ const attachCardUrls = async (
     cards.map(async (card) => {
       const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] =
         await Promise.all([
-          card.fileKey
-            ? resolveObjectUrl(card.fileKey)
-            : Promise.resolve(null),
+          card.fileKey ? resolveObjectUrl(card.fileKey) : Promise.resolve(null),
           card.thumbnailKey
             ? resolveObjectUrl(card.thumbnailKey)
             : Promise.resolve(null),
@@ -454,18 +452,20 @@ export const listAllUsers = query({
   },
 });
 
-type BackfillSummary = {
-  requestedAt: number;
+interface BackfillSummary {
   enqueuedCount: number;
+  failedCardIds: Id<"cards">[];
   pendingSampleCount: number;
-  failedCardIds: Id<"cards">[];
-};
+  requestedAt: number;
+}
 
-type PendingSample = { cardId: Id<"cards"> };
-type AiBackfillWorkflowResult = {
+interface PendingSample {
+  cardId: Id<"cards">;
+}
+interface AiBackfillWorkflowResult {
   enqueuedCount: number;
   failedCardIds: Id<"cards">[];
-};
+}
 
 export const resetCardProcessingState = internalMutation({
   args: {

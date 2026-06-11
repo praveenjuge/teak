@@ -1,7 +1,7 @@
-export type ErrorResponseBody = {
+export interface ErrorResponseBody {
   code: string;
   error: string;
-};
+}
 
 export type HeaderMap = Record<string, string | string[] | undefined>;
 

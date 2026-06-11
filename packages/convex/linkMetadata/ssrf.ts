@@ -43,7 +43,10 @@ const ALLOWED_PORTS = new Set(["", "80", "443"]);
 const MAX_REDIRECTS = 5;
 
 type Bytes = number[];
-type Cidr = { base: Bytes; bits: number };
+interface Cidr {
+  base: Bytes;
+  bits: number;
+}
 
 const parseIpv4ToBytes = (ip: string): Bytes | null => {
   const parts = ip.split(".");

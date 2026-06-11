@@ -82,12 +82,10 @@ afterEach(() => {
 describe("raycast request handling", () => {
   test("enforces auth/content-type headers while preserving custom headers", async () => {
     let capturedHeaders: Headers | null = null;
-    const fetchMock = mock(
-      async (_input: RequestInfo | URL, init?: RequestInit) => {
-        capturedHeaders = new Headers(init?.headers);
-        return createCardsResponse();
-      },
-    );
+    const fetchMock = mock((_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedHeaders = new Headers(init?.headers);
+      return createCardsResponse();
+    });
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await request("/cards/search?limit=1", parseCardsResponse, {
@@ -223,17 +221,15 @@ describe("raycast request handling", () => {
     let capturedMethod: string | null = null;
     let capturedBody: unknown = null;
 
-    globalThis.fetch = mock(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        capturedUrl = String(input);
-        capturedMethod = init?.method ?? null;
-        capturedBody = init?.body ? JSON.parse(String(init.body)) : null;
-        return createCardsResponse(200, {
-          ...sampleCard,
-          isFavorited: false,
-        });
-      },
-    ) as unknown as typeof fetch;
+    globalThis.fetch = mock((input: RequestInfo | URL, init?: RequestInit) => {
+      capturedUrl = String(input);
+      capturedMethod = init?.method ?? null;
+      capturedBody = init?.body ? JSON.parse(String(init.body)) : null;
+      return createCardsResponse(200, {
+        ...sampleCard,
+        isFavorited: false,
+      });
+    }) as unknown as typeof fetch;
 
     const updated = await setCardFavorite("card_123", false);
 
@@ -247,13 +243,11 @@ describe("raycast request handling", () => {
     let capturedUrl: string | null = null;
     let capturedMethod: string | null = null;
 
-    globalThis.fetch = mock(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        capturedUrl = String(input);
-        capturedMethod = init?.method ?? null;
-        return createEmptyResponse(204);
-      },
-    ) as unknown as typeof fetch;
+    globalThis.fetch = mock((input: RequestInfo | URL, init?: RequestInit) => {
+      capturedUrl = String(input);
+      capturedMethod = init?.method ?? null;
+      return createEmptyResponse(204);
+    }) as unknown as typeof fetch;
 
     await softDeleteCard("card_123");
 
@@ -264,17 +258,15 @@ describe("raycast request handling", () => {
   test("createCard posts structured bookmark payloads", async () => {
     let capturedBody: unknown = null;
 
-    globalThis.fetch = mock(
-      async (_input: RequestInfo | URL, init?: RequestInit) => {
-        capturedBody = init?.body ? JSON.parse(String(init.body)) : null;
-        return createCardsResponse(200, {
-          appUrl: sampleCard.appUrl,
-          card: sampleCard,
-          cardId: sampleCard.id,
-          status: "created",
-        });
-      },
-    ) as unknown as typeof fetch;
+    globalThis.fetch = mock((_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedBody = init?.body ? JSON.parse(String(init.body)) : null;
+      return createCardsResponse(200, {
+        appUrl: sampleCard.appUrl,
+        card: sampleCard,
+        cardId: sampleCard.id,
+        status: "created",
+      });
+    }) as unknown as typeof fetch;
 
     const result = await createCard({
       content: "Teak",
@@ -295,12 +287,10 @@ describe("raycast request handling", () => {
   test("getCardById sends a GET request to the card endpoint", async () => {
     let capturedMethod: string | null = null;
 
-    globalThis.fetch = mock(
-      async (_input: RequestInfo | URL, init?: RequestInit) => {
-        capturedMethod = init?.method ?? null;
-        return createCardsResponse(200, sampleCard);
-      },
-    ) as unknown as typeof fetch;
+    globalThis.fetch = mock((_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedMethod = init?.method ?? null;
+      return createCardsResponse(200, sampleCard);
+    }) as unknown as typeof fetch;
 
     const result = await getCardById("card_123");
 
@@ -312,16 +302,14 @@ describe("raycast request handling", () => {
     let capturedBody: unknown = null;
     let capturedMethod: string | null = null;
 
-    globalThis.fetch = mock(
-      async (_input: RequestInfo | URL, init?: RequestInit) => {
-        capturedMethod = init?.method ?? null;
-        capturedBody = init?.body ? JSON.parse(String(init.body)) : null;
-        return createCardsResponse(200, {
-          ...sampleCard,
-          notes: "Updated note",
-        });
-      },
-    ) as unknown as typeof fetch;
+    globalThis.fetch = mock((_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedMethod = init?.method ?? null;
+      capturedBody = init?.body ? JSON.parse(String(init.body)) : null;
+      return createCardsResponse(200, {
+        ...sampleCard,
+        notes: "Updated note",
+      });
+    }) as unknown as typeof fetch;
 
     const result = await updateCard("card_123", {
       notes: "Updated note",

@@ -14,7 +14,7 @@ export const SORT_OPTIONS = ["newest", "oldest"] as const;
 export type RaycastCardType = (typeof CARD_TYPES)[number];
 export type RaycastSort = (typeof SORT_OPTIONS)[number];
 
-export type ParsedSearchFilters = {
+export interface ParsedSearchFilters {
   favorited?: boolean;
   hasExplicitFilters: boolean;
   query: string;
@@ -22,7 +22,7 @@ export type ParsedSearchFilters = {
   sort: RaycastSort;
   tag?: string;
   type?: RaycastCardType;
-};
+}
 
 const CARD_TYPE_SET = new Set<string>(CARD_TYPES);
 

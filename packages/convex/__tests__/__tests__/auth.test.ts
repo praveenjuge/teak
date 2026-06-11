@@ -102,7 +102,15 @@ describe("auth", () => {
         db: {
           query: () => ({
             withIndex: (_name: any, cb: any) => {
-              if (cb) cb({ eq: () => ({ eq: () => {} }) });
+              if (cb) {
+                cb({
+                  eq: () => ({
+                    eq: () => {
+                      // noop
+                    },
+                  }),
+                });
+              }
               return {
                 take: async (limit: number) =>
                   Array.from({ length: Math.min(limit, FREE_TIER_LIMIT - 1) }),
@@ -117,7 +125,7 @@ describe("auth", () => {
 
       await ensureCardCreationAllowed(ctx, "u1", {
         rateLimiter: okRateLimiter,
-        getSubscription: async () => {
+        getSubscription: () => {
           throw new Error("Polar fail");
         },
       });
@@ -129,7 +137,15 @@ describe("auth", () => {
         db: {
           query: () => ({
             withIndex: (_name: any, cb: any) => {
-              if (cb) cb({ eq: () => ({ eq: () => {} }) });
+              if (cb) {
+                cb({
+                  eq: () => ({
+                    eq: () => {
+                      // noop
+                    },
+                  }),
+                });
+              }
               return {
                 take: async (limit: number) =>
                   Array.from({ length: Math.min(limit, FREE_TIER_LIMIT) }),
@@ -161,7 +177,15 @@ describe("auth", () => {
         db: {
           query: () => ({
             withIndex: (_name: any, cb: any) => {
-              if (cb) cb({ eq: () => ({ eq: () => {} }) });
+              if (cb) {
+                cb({
+                  eq: () => ({
+                    eq: () => {
+                      // noop
+                    },
+                  }),
+                });
+              }
               return {
                 take: async (limit: number) =>
                   Array.from({ length: Math.min(limit, FREE_TIER_LIMIT - 1) }),
@@ -188,7 +212,15 @@ describe("auth", () => {
             queryCalled = true;
             return {
               withIndex: (_name: any, cb: any) => {
-                if (cb) cb({ eq: () => ({ eq: () => {} }) });
+                if (cb) {
+                  cb({
+                    eq: () => ({
+                      eq: () => {
+                        // noop
+                      },
+                    }),
+                  });
+                }
                 return {
                   collect: async () => [],
                   take: async () => [],
@@ -257,7 +289,7 @@ describe("auth", () => {
       expect(result).toBeNull();
     });
 
-    it("re-throws other errors", async () => {
+    it("re-throws other errors", () => {
       mockGetAuthUser.mockRejectedValue(new Error("Other error"));
       const ctx = {} as any;
       expect(getCurrentUserHandler(ctx)).rejects.toThrow("Other error");
@@ -272,7 +304,15 @@ describe("auth", () => {
         db: {
           query: () => ({
             withIndex: (_name: any, cb: any) => {
-              if (cb) cb({ eq: () => ({ eq: () => {} }) });
+              if (cb) {
+                cb({
+                  eq: () => ({
+                    eq: () => {
+                      // noop
+                    },
+                  }),
+                });
+              }
               return {
                 collect: async () => [],
                 take: async () => [],
@@ -296,7 +336,15 @@ describe("auth", () => {
         db: {
           query: () => ({
             withIndex: (_name: any, cb: any) => {
-              if (cb) cb({ eq: () => ({ eq: () => {} }) });
+              if (cb) {
+                cb({
+                  eq: () => ({
+                    eq: () => {
+                      // noop
+                    },
+                  }),
+                });
+              }
               return {
                 collect: async () => [],
                 take: async () => [],
@@ -324,7 +372,15 @@ describe("auth", () => {
         db: {
           query: () => ({
             withIndex: (_name: any, cb: any) => {
-              if (cb) cb({ eq: () => ({ eq: () => {} }) });
+              if (cb) {
+                cb({
+                  eq: () => ({
+                    eq: () => {
+                      // noop
+                    },
+                  }),
+                });
+              }
               return {
                 collect: async () => Array.from({ length: 100 }),
                 take: async (limit: number) =>
@@ -351,7 +407,15 @@ describe("auth", () => {
         db: {
           query: () => ({
             withIndex: (_name: any, cb: any) => {
-              if (cb) cb({ eq: () => ({ eq: () => {} }) });
+              if (cb) {
+                cb({
+                  eq: () => ({
+                    eq: () => {
+                      // noop
+                    },
+                  }),
+                });
+              }
               return {
                 take: async (limit: number) =>
                   Array.from({ length: Math.min(limit, FREE_TIER_LIMIT) }),
@@ -370,7 +434,7 @@ describe("auth", () => {
   });
 
   describe("deleteAccount", () => {
-    it("throws if not authenticated", async () => {
+    it("throws if not authenticated", () => {
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue(null) },
       } as any;
@@ -389,7 +453,13 @@ describe("auth", () => {
         db: {
           query: () => ({
             withIndex: (_name: any, cb: any) => {
-              if (cb) cb({ eq: () => {} });
+              if (cb) {
+                cb({
+                  eq: () => {
+                    // noop
+                  },
+                });
+              }
               return {
                 collect: async () => [
                   { _id: "c1", fileKey: "f1", thumbnailKey: "t1" },
@@ -413,7 +483,7 @@ describe("auth", () => {
   });
 
   describe("createAuth", () => {
-    it("returns betterAuth instance and covers callbacks", async () => {
+    it("returns betterAuth instance and covers callbacks", () => {
       const originalSiteUrl = process.env.SITE_URL;
       const originalGoogleClientId = process.env.GOOGLE_CLIENT_ID;
       const originalGoogleClientSecret = process.env.GOOGLE_CLIENT_SECRET;

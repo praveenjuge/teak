@@ -1,6 +1,14 @@
 import { searchCards } from "../lib/api";
 
 type Input = {
+  /** Only include cards created after this timestamp (milliseconds since epoch). */
+  createdAfter?: number;
+  /** Only include cards created before this timestamp (milliseconds since epoch). */
+  createdBefore?: number;
+  /** When true, only include favorited cards. */
+  favorited?: boolean;
+  /** Maximum number of cards to return. Defaults to 10, max 50. */
+  limit?: number;
   /** Optional card type filter. */
   type?:
     | "audio"
@@ -11,14 +19,6 @@ type Input = {
     | "quote"
     | "text"
     | "video";
-  /** When true, only include favorited cards. */
-  favorited?: boolean;
-  /** Only include cards created after this timestamp (milliseconds since epoch). */
-  createdAfter?: number;
-  /** Only include cards created before this timestamp (milliseconds since epoch). */
-  createdBefore?: number;
-  /** Maximum number of cards to return. Defaults to 10, max 50. */
-  limit?: number;
 };
 
 /**

@@ -1,13 +1,13 @@
-export type LinkExtractionResult = {
-  url?: string;
+export interface LinkExtractionResult {
   cleanedContent: string;
-};
+  url?: string;
+}
 
-export type TextCardResolution = {
+export interface TextCardResolution {
+  content: string;
   type: "text" | "link";
   url?: string;
-  content: string;
-};
+}
 
 const URL_ONLY_PATTERN = /^https?:\/\/[^\s]+$/;
 const URL_INLINE_PATTERN = /(https?:\/\/[^\s]+)/;

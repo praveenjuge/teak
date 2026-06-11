@@ -37,9 +37,9 @@ describe("renderables step", () => {
     impl: (...args: TArgs) => TResult | Promise<TResult>
   ) => {
     const calls: TArgs[] = [];
-    const fn = (async (...args: TArgs) => {
+    const fn = ((...args: TArgs) => {
       calls.push(args);
-      return impl(...args);
+      return Promise.resolve(impl(...args));
     }) as ((...args: TArgs) => Promise<TResult>) & { calls: TArgs[] };
     fn.calls = calls;
     return fn;

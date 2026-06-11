@@ -6,7 +6,7 @@ export const INSTAGRAM_MEDIA_MIN_DIM = 200;
 export const INSTAGRAM_PRIMARY_IMAGE_WAIT_MS = 3000;
 const INSTAGRAM_POST_PATH_REGEX = /^\/(p|reel)\/([A-Za-z0-9_-]+)(?:[/?#]|$)/i;
 
-export type InstagramPostMedia = {
+export interface InstagramPostMedia {
   contentType?: string;
   height?: number;
   posterContentType?: string;
@@ -16,7 +16,7 @@ export type InstagramPostMedia = {
   type: "image" | "video";
   url: string;
   width?: number;
-};
+}
 
 export const isInstagramHostname = (hostname: string): boolean =>
   hostname === INSTAGRAM_HOSTNAME ||

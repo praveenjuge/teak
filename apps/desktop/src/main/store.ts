@@ -27,10 +27,7 @@ export function readStoreValue<T>(key: string): T | null {
   return value ?? null;
 }
 
-export async function writeStoreValue(
-  key: string,
-  value: unknown
-): Promise<void> {
+export function writeStoreValue(key: string, value: unknown): void {
   if (!store || !isAllowedKey(key)) {
     return;
   }

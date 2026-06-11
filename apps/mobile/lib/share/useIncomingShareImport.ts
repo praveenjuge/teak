@@ -47,7 +47,9 @@ export function useIncomingShareImport(): UseIncomingShareImportResult {
   const isProcessingRef = useRef(false);
   const isMountedRef = useRef(true);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const clearSharedPayloadsRef = useRef<() => void>(() => {});
+  const clearSharedPayloadsRef = useRef<() => void>(() => {
+    // noop until the real clear handler is assigned
+  });
   const createCardRef = useRef(createCard);
   const normalizedItemsRef = useRef<NormalizedShareItem[]>([]);
   const uploadFromUriRef = useRef(uploadFromUri);

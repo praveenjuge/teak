@@ -108,7 +108,9 @@ describe("authNative.ts", () => {
         surface: "desktop",
       },
     ]) {
-      await expect(getHandler(createNativeAuthCode)(ctx, args)).rejects.toThrow();
+      await expect(
+        getHandler(createNativeAuthCode)(ctx, args)
+      ).rejects.toThrow();
     }
   });
 

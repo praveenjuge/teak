@@ -37,7 +37,9 @@ function FaviconImage({
 
   useEffect(() => {
     const img = imgRef.current;
-    if (!img) return;
+    if (!img) {
+      return;
+    }
 
     const handleError = () => {
       if (fallbackUrl && !usedFallback) {
@@ -52,7 +54,9 @@ function FaviconImage({
     return () => img.removeEventListener("error", handleError);
   }, [fallbackUrl, usedFallback]);
 
-  if (hasError) return null;
+  if (hasError) {
+    return null;
+  }
 
   return (
     // biome-ignore lint/correctness/useImageSize: <>

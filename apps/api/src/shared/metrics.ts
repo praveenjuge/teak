@@ -29,27 +29,27 @@ export type TeakApp =
   | "convex"
   | "docs";
 
-export type MetricsRecorder = {
+export interface MetricsRecorder {
   count: (name: string, value: number, attributes: MetricAttributes) => void;
-  gauge: (
-    name: string,
-    value: number,
-    attributes: MetricAttributes,
-    unit?: MetricUnit
-  ) => void;
   distribution: (
     name: string,
     value: number,
     attributes: MetricAttributes,
     unit?: MetricUnit
   ) => void;
-};
+  gauge: (
+    name: string,
+    value: number,
+    attributes: MetricAttributes,
+    unit?: MetricUnit
+  ) => void;
+}
 
-export type MetricsConfig = {
+export interface MetricsConfig {
   app?: TeakApp;
   env?: string;
   recorder?: MetricsRecorder;
-};
+}
 
 const consoleRecorder: MetricsRecorder = {
   count(name, value, attributes) {
@@ -67,11 +67,11 @@ const consoleRecorder: MetricsRecorder = {
   },
 };
 
-type InternalConfig = {
+interface InternalConfig {
   app: TeakApp;
   env: string;
   recorder: MetricsRecorder;
-};
+}
 
 const defaultConfig: InternalConfig = {
   app: "api",

@@ -33,7 +33,9 @@ describe("copyCardContentToClipboard", () => {
     toastLoading.mockReset();
     toastSuccess.mockReset();
     toastError.mockReset();
-    console.error = mock(() => {});
+    console.error = mock(() => {
+      // ignore: silence expected error logs
+    });
   });
 
   afterEach(() => {
@@ -45,7 +47,7 @@ describe("copyCardContentToClipboard", () => {
   });
 
   test("copies text content successfully", async () => {
-    const writeText = mock(async (_text: string) => {});
+    const writeText = mock((_text: string) => Promise.resolve());
     setClipboard(writeText);
 
     await copyCardContentToClipboard("hello", false);
@@ -56,10 +58,11 @@ describe("copyCardContentToClipboard", () => {
   });
 
   test("falls back to writeText retry and reports link copy", async () => {
-    const writeText = mock(async (_text: string) => {
+    const writeText = mock((_text: string) => {
       if (writeText.mock.calls.length === 1) {
-        throw new Error("first attempt failed");
+        return Promise.reject(new Error("first attempt failed"));
       }
+      return Promise.resolve();
     });
     setClipboard(writeText);
 
@@ -72,9 +75,9 @@ describe("copyCardContentToClipboard", () => {
   });
 
   test("shows error when fallback copy also fails", async () => {
-    const writeText = mock(async (_text: string) => {
-      throw new Error("always fails");
-    });
+    const writeText = mock((_text: string) =>
+      Promise.reject(new Error("always fails"))
+    );
     setClipboard(writeText);
 
     await copyCardContentToClipboard("content", false);

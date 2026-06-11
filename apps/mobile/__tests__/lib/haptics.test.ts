@@ -24,10 +24,10 @@ function createHapticsMock() {
         Error: "error",
         Success: "success",
       },
-      impactAsync: async (style: string) => {
+      impactAsync: (style: string) => {
         calls.push(`impact:${style}`);
       },
-      notificationAsync: async (type: string) => {
+      notificationAsync: (type: string) => {
         calls.push(`notification:${type}`);
       },
     },
@@ -84,7 +84,7 @@ describe("haptics", () => {
         Error: "error",
         Success: "success",
       },
-      impactAsync: async () => {
+      impactAsync: () => {
         throw new Error("native haptics unavailable");
       },
       notificationAsync: async () => {

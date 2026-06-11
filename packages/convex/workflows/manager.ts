@@ -23,7 +23,9 @@ const internalAny: any = internal as any;
  */
 export const workflow = new WorkflowManager(components.workflow);
 
-type CardIdentifier = { cardId: Id<"cards"> };
+interface CardIdentifier {
+  cardId: Id<"cards">;
+}
 
 export const initializeCardProcessingStateHandler = async (
   ctx: any,

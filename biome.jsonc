@@ -21,36 +21,107 @@
           }
         }
       }
+    },
+    {
+      // Non-null assertions are idiomatic in tests, where failing loudly on
+      // an unexpected null is the desired behavior.
+      "includes": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.e2e.ts",
+        "**/*.test-utils.ts",
+        "**/__tests__/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
+    },
+    {
+      // Intentional bitwise math: hashing, SSRF IP-range checks, color
+      // conversion, and audio waveform rendering.
+      "includes": [
+        "packages/convex/authNative.ts",
+        "packages/convex/linkMetadata/ssrf.ts",
+        "packages/convex/shared/utils/colorUtils.ts",
+        "packages/convex/apiKeys.ts",
+        "packages/convex/storage/r2.ts",
+        "packages/convex/__tests__/helpers/r2Mock.test-utils.ts",
+        "packages/ui/src/components/cards/previews/AudioWavePreview.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noBitwiseOperators": "off"
+          }
+        }
+      }
+    },
+    {
+      // next/image is unavailable here: shared UI package (consumed outside
+      // Next.js), browser extension, and OG-image generation via ImageResponse.
+      "includes": [
+        "packages/ui/**",
+        "apps/extension/**",
+        "apps/web/src/app/opengraph-image.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "performance": {
+            "noImgElement": "off"
+          }
+        }
+      }
+    },
+    {
+      // Raycast's AI tool schema extractor (`ray build`) only reads the tool's
+      // `Input` when declared as a type alias; interfaces break extraction with
+      // "No item type".
+      "includes": ["apps/raycast/src/tools/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useConsistentTypeDefinitions": "off"
+          }
+        }
+      }
     }
   ],
   "linter": {
     "rules": {
       "style": {
-        "useFilenamingConvention": "off",
-        "noNestedTernary": "off",
-        "noNonNullAssertion": "off",
-        "useBlockStatements": "off",
-        "useConsistentTypeDefinitions": "off"
+        // Would require renaming ~286 files; not worth the churn/blame noise.
+        "useFilenamingConvention": "off"
       },
       "complexity": {
+        // ~44 functions over the threshold; refactors tracked separately.
         "noExcessiveCognitiveComplexity": "off",
+        // `void promise` is our intentional fire-and-forget marker.
         "noVoid": "off"
       },
       "performance": {
+        // Namespace imports are the documented idiom for Expo modules and
+        // Radix primitives.
         "noNamespaceImport": "off",
+        // Workspace packages re-export through index barrels by design.
         "noBarrelFile": "off",
-        "noImgElement": "off",
+        // ~296 sites, mostly in tests/cold paths; micro-opt not worth it yet.
         "useTopLevelRegex": "off"
       },
       "correctness": {
+        // False-positives on workspace aliases and virtual modules (wxt,
+        // astro, raycast).
         "noUnresolvedImports": "off",
+        // Bundler-resolved monorepo (Next/Expo/WXT); extensions would break
+        // resolution.
         "useImportExtensions": "off"
       },
       "suspicious": {
-        "noExplicitAny": "off",
-        "noBitwiseOperators": "off",
-        "noEmptyBlockStatements": "off",
-        "useAwait": "off"
+        // ~1,250 occurrences; burn down gradually before enabling.
+        "noExplicitAny": "off"
       }
     }
   }

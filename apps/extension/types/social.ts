@@ -16,12 +16,12 @@ export interface ExtractedPost {
   postKey: string;
 }
 
-type InlineSaveHostRule = {
+interface InlineSaveHostRule {
   allowSubdomains: boolean;
   buttonVariant: InlineSaveButtonVariant;
   hosts: readonly string[];
   permalinkPolicy: InlineSavePermalinkPolicy;
-};
+}
 
 export const INLINE_SAVE_PLATFORM_RULES: Record<Platform, InlineSaveHostRule> =
   {

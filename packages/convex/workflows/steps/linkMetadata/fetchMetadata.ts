@@ -79,19 +79,19 @@ const throwRetryable = (info: LinkMetadataRetryableError): never => {
   throw new Error(`${LINK_METADATA_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
 };
 
-type StoredLinkImage = {
+interface StoredLinkImage {
+  imageHeight: number;
   imageStorageKey: string;
   imageUpdatedAt: number;
   imageWidth: number;
-  imageHeight: number;
-};
+}
 
-type StoredRemoteAsset = {
+interface StoredRemoteAsset {
   bytes: Uint8Array;
   contentType: string;
   storageKey: string;
   updatedAt: number;
-};
+}
 
 const readImageDimensions = (
   bytes: Uint8Array
@@ -834,9 +834,10 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
       (!attachedPreviewImageUrl ||
         resolvedImageUrl !== attachedPreviewImageUrl ||
         !hasStoredAttachedPreview);
-    const storedImage = shouldStorePreviewImage
-      ? await storeLinkPreviewImage(ctx, resolvedImageUrl!, keyBase)
-      : null;
+    const storedImage =
+      shouldStorePreviewImage && resolvedImageUrl
+        ? await storeLinkPreviewImage(ctx, resolvedImageUrl, keyBase)
+        : null;
     const linkPreview = buildSuccessPreview(normalizedUrl, {
       ...parsedWithPrimary,
       ...(storedInstagramMedia?.length ? { media: storedInstagramMedia } : {}),

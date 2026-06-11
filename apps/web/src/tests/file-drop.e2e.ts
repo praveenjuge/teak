@@ -18,7 +18,7 @@ async function dispatchFileDrop(
   mimeType: string
 ) {
   await page.evaluate(
-    async ({ base64, name, type }) => {
+    ({ base64, name, type }) => {
       const byteCharacters = atob(base64);
       const bytes = new Uint8Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i += 1) {

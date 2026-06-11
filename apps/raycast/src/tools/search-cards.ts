@@ -1,8 +1,16 @@
 import { searchCards } from "../lib/api";
 
 type Input = {
+  /** When true, limit results to favorited cards. */
+  favorited?: boolean;
+  /** Maximum number of cards to return. Defaults to 10. */
+  limit?: number;
   /** Optional free-text query to search across Teak cards. */
   query?: string;
+  /** Sort results by newest or oldest creation date. */
+  sort?: "newest" | "oldest";
+  /** Optional exact tag filter. */
+  tag?: string;
   /** Optional card type filter. */
   type?:
     | "audio"
@@ -13,14 +21,6 @@ type Input = {
     | "quote"
     | "text"
     | "video";
-  /** Optional exact tag filter. */
-  tag?: string;
-  /** When true, limit results to favorited cards. */
-  favorited?: boolean;
-  /** Sort results by newest or oldest creation date. */
-  sort?: "newest" | "oldest";
-  /** Maximum number of cards to return. Defaults to 10. */
-  limit?: number;
 };
 
 export default async function tool(input: Input = {}) {

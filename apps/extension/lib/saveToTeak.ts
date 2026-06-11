@@ -14,28 +14,28 @@ const WEB_APP_BASE_URL = import.meta.env.DEV
 
 type SaveSource = "context-menu" | "inline-post" | "popup-auto-save";
 
-type SaveToTeakInput = {
+interface SaveToTeakInput {
   content: string;
   enforceAllowedHosts?: boolean;
   source: SaveSource;
-};
+}
 
-type ConvexClientLike = {
+interface ConvexClientLike {
   mutation: ConvexHttpClient["mutation"];
   query: ConvexHttpClient["query"];
-};
+}
 
-type SaveToTeakDependencies = {
+interface SaveToTeakDependencies {
   createClient?: (token: string) => ConvexClientLike;
   fetchImpl?: typeof fetch;
   getSessionToken?: () => Promise<string | null>;
   now?: () => number;
-};
+}
 
-type CachedToken = {
+interface CachedToken {
   expiresAt: number;
   token: string;
-};
+}
 
 let cachedConvexToken: CachedToken | null = null;
 

@@ -40,10 +40,10 @@ const KEYWORDS_SELECTORS = [
   "meta[property='article:tag']",
 ];
 
-type StatResult = {
-  raw?: string;
+interface StatResult {
   formatted?: string;
-};
+  raw?: string;
+}
 
 type DribbbleStatKey = "likes" | "views" | "comments";
 
@@ -108,14 +108,18 @@ const extractStat = (
 ): StatResult => {
   if (seed) {
     const seeded = normalizeStatValue(seed);
-    if (seeded) return seeded;
+    if (seeded) {
+      return seeded;
+    }
   }
   for (const selector of selectors) {
     const value = selector.startsWith("meta[")
       ? getRawAttribute(rawMap, selector, "content")
       : getRawText(rawMap, selector);
     const normalized = normalizeStatValue(value);
-    if (normalized) return normalized;
+    if (normalized) {
+      return normalized;
+    }
   }
   return {};
 };
@@ -127,14 +131,18 @@ const getFirstAttribute = (
 ): string | undefined => {
   for (const selector of selectors) {
     const value = getRawAttribute(rawMap, selector, attribute);
-    if (value) return value;
+    if (value) {
+      return value;
+    }
   }
   return undefined;
 };
 
 const sanitizeDesignerName = (value?: string): string | undefined => {
   let normalized = normalizeWhitespace(value);
-  if (!normalized) return undefined;
+  if (!normalized) {
+    return undefined;
+  }
 
   normalized = normalized.replace(/^@/, "").trim();
   normalized = normalized.replace(/\s+on\s+dribbble$/i, "").trim();
@@ -181,7 +189,9 @@ const extractDesigner = (
 
   for (const candidate of candidates) {
     const display = sanitizeDesignerName(candidate);
-    if (display) return { display, raw: candidate };
+    if (display) {
+      return { display, raw: candidate };
+    }
   }
   return {};
 };

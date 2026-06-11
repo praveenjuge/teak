@@ -75,7 +75,7 @@ describe("apps/api sentry helpers", () => {
     const error = new Error("boom");
 
     await expect(
-      sentryRequestMiddleware(c as any, async () => {
+      sentryRequestMiddleware(c as any, () => {
         throw error;
       })
     ).rejects.toThrow("boom");

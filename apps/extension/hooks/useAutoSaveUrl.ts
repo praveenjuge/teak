@@ -10,17 +10,17 @@ export type AutoSaveState =
   | "invalid-url"
   | "duplicate";
 
-export type DuplicateCard = {
-  _id: string;
+export interface DuplicateCard {
   _creationTime: number;
+  _id: string;
   content: string;
+  createdAt: number;
+  linkPreviewImageUrl?: string;
+  metadataDescription?: string;
+  metadataTitle?: string;
   type: string;
   url?: string;
-  createdAt: number;
-  metadataTitle?: string;
-  metadataDescription?: string;
-  linkPreviewImageUrl?: string;
-};
+}
 
 export interface UseAutoSaveUrlResult {
   currentUrl?: string;
@@ -41,7 +41,9 @@ const INVALID_URL_PATTERNS = [
 ];
 
 const isValidUrl = (url: string): boolean => {
-  if (!url) return false;
+  if (!url) {
+    return false;
+  }
 
   // Check against invalid patterns
   for (const pattern of INVALID_URL_PATTERNS) {

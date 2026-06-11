@@ -83,7 +83,9 @@ export interface CategoryClassificationResult {
 const normalizeUrlForComparison = (
   value: string | undefined
 ): string | null => {
-  if (!value) return null;
+  if (!value) {
+    return null;
+  }
   try {
     const url = new URL(value);
     url.hash = "";
@@ -144,7 +146,9 @@ export const classifyLinkCategory = (
 };
 
 const toArray = <T>(value: T | T[] | undefined): T[] => {
-  if (!value) return [];
+  if (!value) {
+    return [];
+  }
   return Array.isArray(value) ? value : [value];
 };
 
@@ -182,7 +186,9 @@ const parseStructuredData = (html: string): StructuredDataResult => {
     match = scriptRegex.exec(html)
   ) {
     const jsonText = match[1]?.trim();
-    if (!jsonText) continue;
+    if (!jsonText) {
+      continue;
+    }
     try {
       const parsed = JSON.parse(jsonText);
       const values = Array.isArray(parsed) ? parsed : [parsed];
@@ -274,7 +280,9 @@ const findByType = (
 };
 
 const stringArray = (value: any): string[] => {
-  if (!value) return [];
+  if (!value) {
+    return [];
+  }
   if (Array.isArray(value)) {
     return value
       .map((entry) => (typeof entry === "string" ? entry : entry?.name))
@@ -290,22 +298,40 @@ const stringArray = (value: any): string[] => {
 };
 
 const valueToText = (value: any): string | undefined => {
-  if (typeof value === "string") return value;
-  if (!value) return undefined;
-  if (typeof value === "number") return value.toString();
-  if (typeof value === "object" && value.name) return value.name;
+  if (typeof value === "string") {
+    return value;
+  }
+  if (!value) {
+    return undefined;
+  }
+  if (typeof value === "number") {
+    return value.toString();
+  }
+  if (typeof value === "object" && value.name) {
+    return value.name;
+  }
   return undefined;
 };
 
 const normalizeImage = (value: any): string | undefined => {
-  if (!value) return undefined;
-  if (typeof value === "string") return value;
+  if (!value) {
+    return undefined;
+  }
+  if (typeof value === "string") {
+    return value;
+  }
   if (Array.isArray(value) && value.length > 0) {
     const first = value[0];
-    if (typeof first === "string") return first;
-    if (first?.url) return first.url;
+    if (typeof first === "string") {
+      return first;
+    }
+    if (first?.url) {
+      return first.url;
+    }
   }
-  if (value?.url) return value.url;
+  if (value?.url) {
+    return value.url;
+  }
   return undefined;
 };
 
@@ -314,12 +340,20 @@ const hostnameMatchesDomain = (hostname: string, domain: string): boolean => {
 };
 
 const detectProvider = (url?: string, hint?: string): string | undefined => {
-  if (hint) return hint;
-  if (!url) return undefined;
+  if (hint) {
+    return hint;
+  }
+  if (!url) {
+    return undefined;
+  }
   try {
     const hostname = new URL(url).hostname.toLowerCase();
-    if (hostnameMatchesDomain(hostname, "github.com")) return "github";
-    if (hostnameMatchesDomain(hostname, "goodreads.com")) return "goodreads";
+    if (hostnameMatchesDomain(hostname, "github.com")) {
+      return "github";
+    }
+    if (hostnameMatchesDomain(hostname, "goodreads.com")) {
+      return "goodreads";
+    }
     if (
       hostnameMatchesDomain(hostname, "amazon.com") ||
       hostnameMatchesDomain(hostname, "amazon.co.uk") ||
@@ -331,21 +365,39 @@ const detectProvider = (url?: string, hint?: string): string | undefined => {
       hostnameMatchesDomain(hostname, "amazon.com.au") ||
       hostnameMatchesDomain(hostname, "amazon.co.jp") ||
       hostnameMatchesDomain(hostname, "amazon.in")
-    )
+    ) {
       return "amazon";
-    if (hostnameMatchesDomain(hostname, "imdb.com")) return "imdb";
-    if (hostnameMatchesDomain(hostname, "netflix.com")) return "netflix";
-    if (hostnameMatchesDomain(hostname, "behance.net")) return "behance";
-    if (hostnameMatchesDomain(hostname, "dribbble.com")) return "dribbble";
-    if (hostnameMatchesDomain(hostname, "spotify.com")) return "spotify";
-    if (hostnameMatchesDomain(hostname, "apple.com")) return "apple";
+    }
+    if (hostnameMatchesDomain(hostname, "imdb.com")) {
+      return "imdb";
+    }
+    if (hostnameMatchesDomain(hostname, "netflix.com")) {
+      return "netflix";
+    }
+    if (hostnameMatchesDomain(hostname, "behance.net")) {
+      return "behance";
+    }
+    if (hostnameMatchesDomain(hostname, "dribbble.com")) {
+      return "dribbble";
+    }
+    if (hostnameMatchesDomain(hostname, "spotify.com")) {
+      return "spotify";
+    }
+    if (hostnameMatchesDomain(hostname, "apple.com")) {
+      return "apple";
+    }
     if (
       hostnameMatchesDomain(hostname, "youtube.com") ||
       hostnameMatchesDomain(hostname, "youtu.be")
-    )
+    ) {
       return "youtube";
-    if (hostnameMatchesDomain(hostname, "medium.com")) return "medium";
-    if (hostnameMatchesDomain(hostname, "substack.com")) return "substack";
+    }
+    if (hostnameMatchesDomain(hostname, "medium.com")) {
+      return "medium";
+    }
+    if (hostnameMatchesDomain(hostname, "substack.com")) {
+      return "substack";
+    }
     return hostname;
   } catch {
     return undefined;
@@ -360,7 +412,9 @@ const buildRawSelectorMap = (
     return map;
   }
   for (const entry of raw) {
-    if (!entry?.selector) continue;
+    if (!entry?.selector) {
+      continue;
+    }
     const first = entry.results?.[0];
     if (first) {
       map.set(entry.selector, first);
@@ -387,14 +441,24 @@ const mergeFacts = (
 };
 
 function formatDuration(value: string | undefined): string | undefined {
-  if (!value) return undefined;
+  if (!value) {
+    return undefined;
+  }
   const match = ISO_DURATION_REGEX.exec(value);
-  if (!match) return undefined;
+  if (!match) {
+    return undefined;
+  }
   const [, hours, minutes, seconds] = match;
   const parts: string[] = [];
-  if (hours) parts.push(`${hours}h`);
-  if (minutes) parts.push(`${minutes}m`);
-  if (seconds) parts.push(`${seconds}s`);
+  if (hours) {
+    parts.push(`${hours}h`);
+  }
+  if (minutes) {
+    parts.push(`${minutes}m`);
+  }
+  if (seconds) {
+    parts.push(`${seconds}s`);
+  }
   return parts.join(" ") || undefined;
 }
 
@@ -424,7 +488,9 @@ const enrichWithStructuredData = (
   switch (category) {
     case "book": {
       const book = findByType(entities, ["Book"]);
-      if (!book) break;
+      if (!book) {
+        break;
+      }
       applyImage(book);
       addFact("Authors", stringArray(book.author).join(", "));
       addFact("Rating", book.aggregateRating?.ratingValue?.toString());
@@ -445,7 +511,9 @@ const enrichWithStructuredData = (
         "VideoObject",
         "CreativeWork",
       ]);
-      if (!movie) break;
+      if (!movie) {
+        break;
+      }
       applyImage(movie);
       addFact("Rating", movie.aggregateRating?.ratingValue?.toString());
       addFact(
@@ -465,7 +533,9 @@ const enrichWithStructuredData = (
         "TVEpisode",
         "VideoObject",
       ]);
-      if (!show) break;
+      if (!show) {
+        break;
+      }
       applyImage(show);
       addFact(
         "Seasons",
@@ -486,7 +556,9 @@ const enrichWithStructuredData = (
         "Article",
         "BlogPosting",
       ]);
-      if (!article) break;
+      if (!article) {
+        break;
+      }
       applyImage(article);
       addFact("Published", formatDate(article.datePublished));
       const updated = formatDate(article.dateModified);
@@ -502,7 +574,9 @@ const enrichWithStructuredData = (
         "PodcastSeries",
         "AudioObject",
       ]);
-      if (!podcast) break;
+      if (!podcast) {
+        break;
+      }
       applyImage(podcast);
       addFact("Duration", formatDuration(podcast.duration));
       addFact(
@@ -518,7 +592,9 @@ const enrichWithStructuredData = (
         "MusicAlbum",
         "MusicPlaylist",
       ]);
-      if (!music) break;
+      if (!music) {
+        break;
+      }
       applyImage(music);
       addFact(
         "Artist",
@@ -532,7 +608,9 @@ const enrichWithStructuredData = (
     }
     case "product": {
       const product = findByType(entities, ["Product", "Offer"]);
-      if (!product) break;
+      if (!product) {
+        break;
+      }
       applyImage(product);
       if (product.offers?.price) {
         const currency = product.offers.priceCurrency || "";
@@ -544,7 +622,9 @@ const enrichWithStructuredData = (
     }
     case "recipe": {
       const recipe = findByType(entities, ["Recipe"]);
-      if (!recipe) break;
+      if (!recipe) {
+        break;
+      }
       applyImage(recipe);
       addFact("Servings", valueToText(recipe.recipeYield));
       const prep = formatDuration(recipe.prepTime);
@@ -570,7 +650,9 @@ const enrichWithStructuredData = (
         "Course",
         "EducationalOccupationalProgram",
       ]);
-      if (!course) break;
+      if (!course) {
+        break;
+      }
       applyImage(course);
       addFact(
         "Provider",
@@ -585,7 +667,9 @@ const enrichWithStructuredData = (
         "ResearchArticle",
         "Report",
       ]);
-      if (!paper) break;
+      if (!paper) {
+        break;
+      }
       applyImage(paper);
       addFact("Authors", stringArray(paper.author).join(", "));
       addFact("Published", formatDate(paper.datePublished));
@@ -598,7 +682,9 @@ const enrichWithStructuredData = (
         "MusicEvent",
         "BusinessEvent",
       ]);
-      if (!event) break;
+      if (!event) {
+        break;
+      }
       applyImage(event);
       const start = formatDate(event.startDate);
       const end = formatDate(event.endDate);
@@ -617,7 +703,9 @@ const enrichWithStructuredData = (
         "SoftwareApplication",
         "SoftwareSourceCode",
       ]);
-      if (!software) break;
+      if (!software) {
+        break;
+      }
       applyImage(software);
       addFact("Platform", valueToText(software.operatingSystem));
       addFact("Category", valueToText(software.applicationCategory));
@@ -630,7 +718,9 @@ const enrichWithStructuredData = (
         "CollectionPage",
         "Portfolio",
       ]);
-      if (!creative) break;
+      if (!creative) {
+        break;
+      }
       applyImage(creative);
       addFact(
         "Creator",
@@ -715,12 +805,9 @@ export const enrichLinkCategory = async (
   const shouldFetchStructured =
     providedStructured === undefined && !!sourceUrl && !hasStructuredData;
 
-  const structured =
-    providedStructured === undefined
-      ? shouldFetchStructured
-        ? await fetchStructuredData(sourceUrl)
-        : null
-      : providedStructured;
+  const structured = shouldFetchStructured
+    ? await fetchStructuredData(sourceUrl)
+    : (providedStructured ?? null);
 
   if (structured?.entities?.length) {
     const enriched = enrichWithStructuredData(

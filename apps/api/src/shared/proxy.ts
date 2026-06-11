@@ -7,13 +7,13 @@ const INTERNAL_BASE_URL = "https://api.teakvault.com";
 
 type QueryValue = string | number | boolean | undefined;
 
-export type GatewayOperation = {
+export interface GatewayOperation {
+  body?: unknown;
+  headers?: HeadersInit;
   method: "GET" | "POST" | "PATCH" | "DELETE";
   path: string;
   query?: Record<string, QueryValue>;
-  headers?: HeadersInit;
-  body?: unknown;
-};
+}
 
 const normalizeUrl = (value: string): string =>
   value.endsWith("/") ? value.slice(0, -1) : value;
@@ -214,7 +214,7 @@ export const proxyToConvex = async (request: Request): Promise<Response> => {
   }
 };
 
-export const executeGatewayOperation = async (
+export const executeGatewayOperation = (
   operation: GatewayOperation
 ): Promise<Response> => {
   const headers = new Headers(operation.headers);

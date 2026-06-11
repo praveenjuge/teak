@@ -461,7 +461,9 @@ describe("useAutoSaveUrl Hook", () => {
         return 1;
       });
 
-      mockSetTimeout(() => {}, 300);
+      mockSetTimeout(() => {
+        // noop
+      }, 300);
 
       expect(mockSetTimeout).toHaveBeenCalledWith(expect.any(Function), 300);
     });

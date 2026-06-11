@@ -129,7 +129,7 @@ export function useCardActions(config: CardActionsConfig = {}) {
             const typedCards = cards as Doc<"cards">[];
             if (queryArgs.showTrashOnly) {
               const updatedCards = typedCards.map((card: Doc<"cards">) =>
-                card._id === cardId ? markDeleted(card)! : card
+                card._id === cardId ? (markDeleted(card) ?? card) : card
               );
               localStore.setQuery(
                 api.cards.searchCards,
@@ -255,7 +255,7 @@ export function useCardActions(config: CardActionsConfig = {}) {
 
   return {
     ...cardActions,
-    handleBulkDeleteCards: async (cardIds: Id<"cards">[]) => {
+    handleBulkDeleteCards: (cardIds: Id<"cards">[]) => {
       return cardActions.handleBulkDeleteCards(cardIds);
     },
   };

@@ -51,6 +51,26 @@ export function SettingsContent({
   signOutLoading,
   subscriptionDialog,
 }: SettingsContentProps) {
+  const planRowContent = hasPremium ? (
+    <>
+      <Badge>Pro</Badge>
+      <CustomerPortalButton
+        className="inline-flex items-center gap-1 font-medium text-primary text-sm hover:underline"
+        onCreatePortal={onCreateCustomerPortal}
+      >
+        Manage
+        <ExternalLink className="size-4" />
+      </CustomerPortalButton>
+    </>
+  ) : (
+    <>
+      <Badge variant="outline">Free Plan</Badge>
+      <Button onClick={onUpgrade} size="sm" variant="link">
+        Upgrade
+      </Button>
+    </>
+  );
+
   return (
     <>
       <h1 className="font-semibold text-xl tracking-tight">Settings</h1>
@@ -72,24 +92,8 @@ export function SettingsContent({
           <Button disabled size="sm" variant="ghost">
             <Spinner />
           </Button>
-        ) : hasPremium ? (
-          <>
-            <Badge>Pro</Badge>
-            <CustomerPortalButton
-              className="inline-flex items-center gap-1 font-medium text-primary text-sm hover:underline"
-              onCreatePortal={onCreateCustomerPortal}
-            >
-              Manage
-              <ExternalLink className="size-4" />
-            </CustomerPortalButton>
-          </>
         ) : (
-          <>
-            <Badge variant="outline">Free Plan</Badge>
-            <Button onClick={onUpgrade} size="sm" variant="link">
-              Upgrade
-            </Button>
-          </>
+          planRowContent
         )}
       </SettingRow>
 

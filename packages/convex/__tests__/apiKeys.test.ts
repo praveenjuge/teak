@@ -11,7 +11,7 @@ import {
 
 process.env.BETTER_AUTH_SECRET = "unit-test-pepper";
 
-const runHandler = async (fn: any, ctx: any, args: any) => {
+const runHandler = (fn: any, ctx: any, args: any) => {
   const handler = (fn as any).handler ?? fn;
   return handler(ctx, args);
 };

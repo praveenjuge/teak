@@ -14,19 +14,19 @@ const BUSINESS_EVENT_MESSAGES = {
 
 type BusinessEvent = keyof typeof BUSINESS_EVENT_MESSAGES;
 
-type BusinessEventArgs = {
-  event: BusinessEvent;
-  userId?: string;
+interface BusinessEventArgs {
   cardId?: string;
   cardType?: string;
+  event: BusinessEvent;
   surface?: string;
-};
+  userId?: string;
+}
 
-type SchedulerCtx = {
+interface SchedulerCtx {
   scheduler: {
     runAfter: (...args: any[]) => unknown;
   };
-};
+}
 
 const parseDsn = (rawDsn: string) => {
   const url = new URL(rawDsn);

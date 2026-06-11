@@ -1,11 +1,11 @@
 import type { Platform } from "../../types/social";
 
-type InlineSaveButtonPosition = {
+interface InlineSaveButtonPosition {
   bottom: string;
   left: string;
   right: string;
   top: string;
-};
+}
 
 const INLINE_SAVE_BUTTON_POSITIONS: Record<Platform, InlineSaveButtonPosition> =
   {

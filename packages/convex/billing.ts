@@ -8,7 +8,9 @@ import { resolveTeakDevAppUrl } from "./devUrls";
 // User query to use in the Polar component
 export const getUserInfoHandler = async (ctx: any) => {
   const user = await ctx.auth.getUserIdentity();
-  if (!user) throw new ConvexError("User not found");
+  if (!user) {
+    throw new ConvexError("User not found");
+  }
   return user;
 };
 
@@ -21,7 +23,9 @@ export const polarUserInfoProvider = async (
   ctx: any
 ): Promise<{ userId: string; email: string; name?: string }> => {
   const user = await ctx.runQuery(api.billing.getUserInfo);
-  if (!user?.email) throw new ConvexError("User not found");
+  if (!user?.email) {
+    throw new ConvexError("User not found");
+  }
 
   return {
     userId: user.subject,
@@ -96,8 +100,9 @@ export const createCustomerPortalHandler = async (ctx: any) => {
   const subscription = await polar.getCurrentSubscription(ctx, {
     userId: user.subject,
   });
-  if (!subscription?.customerId)
+  if (!subscription?.customerId) {
     throw new ConvexError("No active subscription found");
+  }
 
   const polarSdk = new PolarBilling({
     accessToken: process.env.POLAR_ACCESS_TOKEN ?? "",

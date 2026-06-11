@@ -19,7 +19,7 @@ describe("workflow manager", () => {
       mockDbPatch.mockReset();
     });
 
-    test("throws if card not found", async () => {
+    test("throws if card not found", () => {
       mockDbGet.mockResolvedValue(null);
       expect(
         initializeCardProcessingStateHandler(ctx, { cardId: "c1" })

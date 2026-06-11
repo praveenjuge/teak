@@ -132,25 +132,28 @@ function createMainWindow(): BrowserWindowInstance {
   }
 
   // Prevent arbitrary navigation
-  mainWindow.webContents.on("will-navigate", (event: Electron.Event, url: string) => {
-    // Allow same-origin navigation for the renderer SPA
-    const rendererOrigin = mainWindow?.webContents.getURL();
-    if (rendererOrigin) {
-      try {
-        const currentOrigin = new URL(rendererOrigin).origin;
-        const targetOrigin = new URL(url).origin;
-        if (currentOrigin === targetOrigin) {
-          return;
+  mainWindow.webContents.on(
+    "will-navigate",
+    (event: Electron.Event, url: string) => {
+      // Allow same-origin navigation for the renderer SPA
+      const rendererOrigin = mainWindow?.webContents.getURL();
+      if (rendererOrigin) {
+        try {
+          const currentOrigin = new URL(rendererOrigin).origin;
+          const targetOrigin = new URL(url).origin;
+          if (currentOrigin === targetOrigin) {
+            return;
+          }
+        } catch {
+          // fall through to prevent
         }
-      } catch {
-        // fall through to prevent
+      }
+      event.preventDefault();
+      if (isValidExternalUrl(url)) {
+        shell.openExternal(url);
       }
     }
-    event.preventDefault();
-    if (isValidExternalUrl(url)) {
-      shell.openExternal(url);
-    }
-  });
+  );
 
   // Prevent new window creation except for approved external URLs
   mainWindow.webContents.setWindowOpenHandler(({ url }: { url: string }) => {
@@ -189,7 +192,7 @@ function createMainWindow(): BrowserWindowInstance {
 function setupIpcHandlers(): void {
   ipcMain.handle(
     "store:read",
-    async (_event: Electron.IpcMainInvokeEvent, key: string) => {
+    (_event: Electron.IpcMainInvokeEvent, key: string) => {
       if (typeof key !== "string" || !key.trim()) {
         return null;
       }

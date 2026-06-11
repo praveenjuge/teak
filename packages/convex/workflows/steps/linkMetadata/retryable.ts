@@ -7,12 +7,12 @@
  * Convex V8 isolate bundle.
  */
 
-export type LinkMetadataRetryableError = {
-  type: string;
+export interface LinkMetadataRetryableError {
+  details?: unknown;
   message?: string;
   normalizedUrl?: string;
-  details?: unknown;
-};
+  type: string;
+}
 
 export const LINK_METADATA_RETRYABLE_PREFIX =
   "workflow:linkMetadata:retryable:";

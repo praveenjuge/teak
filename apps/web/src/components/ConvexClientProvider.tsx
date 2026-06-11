@@ -5,7 +5,12 @@ import { ConvexReactClient } from "convex/react";
 import type { ReactNode } from "react";
 import { authClient } from "@/lib/auth-client";
 
-const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!, {
+const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+if (!convexUrl) {
+  throw new Error("Missing NEXT_PUBLIC_CONVEX_URL environment variable");
+}
+
+const convex = new ConvexReactClient(convexUrl, {
   expectAuth: true,
 });
 

@@ -1,23 +1,23 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import app from "./index";
 
-type JsonRpcSuccess = {
-  jsonrpc: "2.0";
+interface JsonRpcSuccess {
   id: number;
+  jsonrpc: "2.0";
   result: {
     tools?: Array<{ name: string }>;
     structuredContent?: Record<string, unknown>;
     content?: Array<{ type: string; text: string }>;
     isError?: boolean;
   };
-};
+}
 
 const originalFetch = globalThis.fetch;
 const originalEnv = process.env.CONVEX_HTTP_BASE_URL;
 const CONVEX_BASE_URL = "https://example.convex.site";
 const MCP_AUTH_CHECK_URL = `${CONVEX_BASE_URL}/v1/cards/search?limit=1`;
 
-const mcpRequest = async (
+const mcpRequest = (
   body: Record<string, unknown>,
   options?: {
     path?: "/mcp" | "/mcp/";
@@ -421,7 +421,7 @@ describe("apps/api MCP endpoint", () => {
     const authorization = "Bearer teakapi_rate_limit";
     process.env.CONVEX_HTTP_BASE_URL = CONVEX_BASE_URL;
 
-    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+    globalThis.fetch = mock((input: RequestInfo | URL) => {
       if (String(input) === MCP_AUTH_CHECK_URL) {
         return new Response(JSON.stringify({ items: [], total: 0 }), {
           status: 200,

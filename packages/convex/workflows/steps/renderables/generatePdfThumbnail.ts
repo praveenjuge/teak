@@ -4,7 +4,11 @@ import Kernel from "@onkernel/sdk";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
-import { buildR2ObjectKey, resolveObjectUrl, storeObject } from "../../../storage/r2";
+import {
+  buildR2ObjectKey,
+  resolveObjectUrl,
+  storeObject,
+} from "../../../storage/r2";
 
 // Maximum thumbnail width - height will scale proportionally to maintain document aspect ratio
 const THUMBNAIL_MAX_WIDTH = 400;

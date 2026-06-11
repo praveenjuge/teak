@@ -84,7 +84,7 @@ export interface LinkPreviewMediaItem {
   width?: number;
 }
 
-export type SelectorSource = {
-  selector: string;
+export interface SelectorSource {
   attribute: "content" | "href" | "text";
-};
+  selector: string;
+}

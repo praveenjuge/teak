@@ -12,6 +12,13 @@ interface LoginPageProps {
   isOnline: boolean;
 }
 
+function getStartAuthErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return typeof err === "string" ? err : "Unable to start login";
+}
+
 export function LoginPage({ isOnline }: LoginPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isWaitingForAuth, setIsWaitingForAuth] = useState(false);
@@ -40,12 +47,7 @@ export function LoginPage({ isOnline }: LoginPageProps) {
         }
       });
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : typeof err === "string"
-            ? err
-            : "Unable to start login";
+      const message = getStartAuthErrorMessage(err);
       toast.error(message);
       setError(message);
       setIsWaitingForAuth(false);

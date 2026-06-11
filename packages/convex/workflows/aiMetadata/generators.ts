@@ -8,6 +8,22 @@ import {
 import { aiMetadataSchema } from "./schemas";
 
 /**
+ * Force Groq into JSON object mode instead of strict json_schema mode.
+ *
+ * With `structuredOutputs: true` (the provider default) the JSON schema is
+ * enforced server-side. The gpt-oss models occasionally emit the schema
+ * definition itself (`$schema`, `properties`, `additionalProperties`, ...)
+ * which fails that strict validation with an HTTP 400 (`json_validate_failed`).
+ *
+ * Disabling it switches the request to `response_format: { type: "json_object" }`.
+ * The model still returns JSON, but validation happens client-side against the
+ * Zod schema, which strips unknown keys instead of throwing.
+ */
+const GROQ_JSON_OBJECT_OPTIONS = {
+  groq: { structuredOutputs: false },
+} as const;
+
+/**
  * Generate AI metadata for text content
  * Uses prompt caching-enabled model (openai/gpt-oss-20b)
  */
@@ -27,6 +43,12 @@ export const generateTextMetadata = async (content: string, title?: string) => {
       output: Output.object({
         schema: aiMetadataSchema,
       }),
+      // Use Groq JSON object mode instead of strict json_schema. gpt-oss
+      // models intermittently echo the schema definition back, which the
+      // strict server-side validator rejects with a 400. In json_object mode
+      // the SDK validates client-side against the Zod schema (unknown keys are
+      // stripped), so leaked schema fields no longer fail the request.
+      providerOptions: GROQ_JSON_OBJECT_OPTIONS,
     });
 
     return {
@@ -74,6 +96,7 @@ export const generateImageMetadata = async (
       output: Output.object({
         schema: aiMetadataSchema,
       }),
+      providerOptions: GROQ_JSON_OBJECT_OPTIONS,
     });
 
     return {
@@ -107,6 +130,7 @@ Generate tags and summary that will help the user rediscover and understand the 
       output: Output.object({
         schema: aiMetadataSchema,
       }),
+      providerOptions: GROQ_JSON_OBJECT_OPTIONS,
     });
 
     return {

@@ -12,32 +12,29 @@ const JWT_EXPIRY_SKEW_MS = 10_000;
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type NativeAuthState = {
+interface NativeAuthState {
   isInitialized: boolean;
   sessionToken: string | null;
-};
+}
 
-type PendingNativeAuth = {
-  state: string;
+interface PendingNativeAuth {
   codeVerifier: string;
-  deviceId: string;
   createdAt: number;
-};
+  deviceId: string;
+  state: string;
+}
 
-type CachedJwt = {
+interface CachedJwt {
+  expiresAt: number;
   token: string;
-  expiresAt: number;
-};
+}
 
-type ExchangeResponse = {
+interface ExchangeResponse {
+  expiresAt: number;
   sessionToken: string;
-  expiresAt: number;
-};
+}
 
-export type NativeAuthPollingResult =
-  | "authenticated"
-  | "timeout"
-  | "cancelled";
+export type NativeAuthPollingResult = "authenticated" | "timeout" | "cancelled";
 
 // ── Validation patterns ────────────────────────────────────────────────────────
 
@@ -278,8 +275,7 @@ export function startNativeAuthPolling(): Promise<NativeAuthPollingResult> {
     const startedAt = Date.now();
 
     while (Date.now() - startedAt < DESKTOP_PENDING_MAX_AGE_MS) {
-      const pending =
-        await readStoreValue<PendingNativeAuth>(PENDING_AUTH_KEY);
+      const pending = await readStoreValue<PendingNativeAuth>(PENDING_AUTH_KEY);
       if (!pending) {
         return "cancelled";
       }

@@ -60,6 +60,8 @@ export default function ForgotPassword() {
     });
   };
 
+  const submitLabel = sent ? "Resend link" : "Send reset link";
+
   return (
     <>
       <CardHeader className="text-center">
@@ -86,10 +88,8 @@ export default function ForgotPassword() {
           <Button className="w-full" disabled={loading} type="submit">
             {loading ? (
               <Loader2 className="animate-spin" size={16} />
-            ) : sent ? (
-              "Resend link"
             ) : (
-              "Send reset link"
+              submitLabel
             )}
           </Button>
         </form>

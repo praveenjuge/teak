@@ -115,9 +115,7 @@ type AnalyticsCounterField =
   | "inProgress"
   | "errors";
 
-function outcomeToField(
-  outcome: IdempotencyOutcome
-): AnalyticsCounterField {
+function outcomeToField(outcome: IdempotencyOutcome): AnalyticsCounterField {
   switch (outcome) {
     case "skipped":
       return "skipped";
