@@ -96,6 +96,33 @@ const howItWorksSteps = [
   },
 ];
 
+const testimonials = [
+  {
+    quote:
+      "Finally deleted my mess of 400 browser bookmarks. Everything I actually need lives in Teak now.",
+  },
+  {
+    quote:
+      "I save a Dribbble shot on my phone and it's waiting on my laptop when I sit down. That's the whole pitch and it just works.",
+  },
+  {
+    quote:
+      "The search is unreasonably good. I typed 'that orange gradient' and it actually found it.",
+  },
+  {
+    quote:
+      "Replaced three different apps with this. Notes, screenshots, links, all in one place that organizes itself.",
+  },
+  {
+    quote:
+      "I stopped losing references mid-project. Whatever I save shows up tagged and ready without me lifting a finger.",
+  },
+  {
+    quote:
+      "It's the first tool that actually fits how I work instead of forcing me into folders. I just dump things and trust I'll find them.",
+  },
+];
+
 const faqs = [
   {
     question: "What can I save?",
@@ -351,6 +378,38 @@ const jsonLd = buildPageSchemas({
             emojiSrc={step.emojiSrc}
             title={step.title}
           />
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials Section -->
+  <section class="border-border border-t bg-background py-16">
+    <div class="container mx-auto max-w-4xl px-4">
+      <div class="mb-16 text-center">
+        <h2 class="mb-4 text-balance font-bold text-3xl">
+          Designers are quietly switching
+        </h2>
+        <p class="mx-auto max-w-xl text-balance text-lg text-muted-foreground">
+          Straight from people who save with Teak every day.
+        </p>
+      </div>
+
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {testimonials.map((testimonial) => (
+          <figure class="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5">
+            <blockquote class="text-balance text-card-foreground text-sm leading-relaxed">
+              {testimonial.quote}
+            </blockquote>
+            <svg
+              class="size-4 text-muted-foreground/60"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+            </svg>
+          </figure>
         ))}
       </div>
     </div>
