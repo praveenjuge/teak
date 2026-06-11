@@ -20,7 +20,7 @@ Save inspiration in one click and find it in two seconds — no more lost bookma
 |----------|---|---|
 | 🌐 **Web** | Full dashboard with real-time sync | [Open app →](https://app.teakvault.com) |
 | 🖥️ **Desktop** | Native macOS app with auto-updates | [Download →](https://github.com/praveenjuge/teak/releases/latest) |
-| 📱 **iOS** | Save from anywhere via the share sheet | [App Store →](https://apps.apple.com/app/teak/id6738178801) |
+| 📱 **iOS** | Save from anywhere via the share sheet | [App Store →](https://apps.apple.com/app/teak/id6756574989) |
 | 🧩 **Browser** | One-click saves while you browse | [Chrome Web Store →](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) |
 | ⚡ **Raycast** | Save and search from your keyboard | [Install →](https://www.raycast.com/praveenjuge/teak-raycast) |
 | 🔌 **API & MCP** | Programmatic and AI client access | [API docs →](https://teakvault.com/docs/api) |
