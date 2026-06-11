@@ -66,7 +66,6 @@ export const trustedOrigins = [
   siteUrl,
   "https://*.teakvault.com",
   "https://app.teakvault.com",
-  "tauri://localhost",
   "teak://",
   "teak://*",
   "chrome-extension://negnmfifahnnagnbnfppmlgfajngdpob",

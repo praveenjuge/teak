@@ -15,7 +15,6 @@ const NATIVE_AUTH_ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:1420",
   resolveTeakDevAppUrl(process.env),
   "https://app.teakvault.com",
-  "tauri://localhost",
 ]);
 
 const NATIVE_AUTH_SURFACES = [

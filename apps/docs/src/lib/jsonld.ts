@@ -10,7 +10,7 @@ export const organizationSchema = {
   name: SITE_NAME,
   url: SITE_URL,
   logo: { "@type": "ImageObject", url: ORGANIZATION_LOGO },
-  sameAs: ["https://github.com/teakvault"],
+  sameAs: ["https://github.com/praveenjuge/teak", "https://x.com/praveenjuge"],
   contactPoint: {
     "@type": "ContactPoint",
     email: "hi@praveenjuge.com",
