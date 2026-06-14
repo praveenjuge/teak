@@ -38,6 +38,7 @@
   "overrides": {
     "convex": "1.39.1",
     "convex-helpers": "0.1.118",
+    "esbuild": "0.28.1",
     "expo-constants": "56.0.14",
     "expo-font": "56.0.5",
     "expo-linking": "56.0.11",

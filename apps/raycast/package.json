@@ -133,7 +133,10 @@
     "test": "bun test src/__tests__ --coverage --dots"
   },
   "dependencies": {
-    "@raycast/api": "^1.104.17"
+    "@raycast/api": "^1.104.19"
+  },
+  "overrides": {
+    "esbuild": "0.28.1"
   },
   "devDependencies": {
     "@types/node": "^25.8.0",
