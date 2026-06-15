@@ -216,9 +216,48 @@ describe("publicApiHttp", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(runMutation.mock.calls[0][1]).toEqual({ token });
+    expect(runMutation.mock.calls[0][1]).toEqual({
+      endpoint: "/v1/cards",
+      method: "POST",
+      token,
+    });
     expect(runMutation.mock.calls[1][1]).toEqual({
       rateLimitKey: "key:component:component_key",
+    });
+  });
+
+  test("cardByIdV1 passes normalized favorite endpoint context to API key validation", async () => {
+    const runMutation = mock()
+      .mockResolvedValueOnce({
+        keyId: "key_1",
+        userId: "user_1",
+        access: "full_access",
+        source: "legacy",
+        rateLimitKey: "legacy:key_1",
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        retryAt: Date.now() + 30_000,
+      });
+
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards/card_123/favorite", {
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ isFavorited: true }),
+      })
+    );
+
+    expect(response.status).toBe(429);
+    expect(runMutation.mock.calls[0][1]).toEqual({
+      endpoint: "/v1/cards/:cardId/favorite",
+      method: "PATCH",
+      token: "teakapi_abc_secret",
     });
   });
 
