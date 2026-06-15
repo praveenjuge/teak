@@ -64,6 +64,15 @@ describe("raycast api helpers", () => {
     expect(getRecoveryHint(error)).toContain("Check network connectivity");
   });
 
+  test("maps API config errors to local setup guidance", () => {
+    const error = new RaycastApiError("CONFIG_ERROR", 500);
+
+    expect(getUserFacingErrorMessage(error)).toContain(
+      "missing required configuration",
+    );
+    expect(getRecoveryHint(error)).toContain("CONVEX_HTTP_BASE_URL");
+  });
+
   test("maps missing local api gateway errors to dev guidance", () => {
     const error = new RaycastApiError("DEV_API_UNAVAILABLE", 404);
 

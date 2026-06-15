@@ -216,6 +216,32 @@ describe("raycast request handling", () => {
     }
   });
 
+  test("maps API configuration failures to CONFIG_ERROR", async () => {
+    globalThis.fetch = mock(
+      async () =>
+        new Response(
+          JSON.stringify({
+            code: "CONFIG_ERROR",
+            error: "Missing or invalid CONVEX_HTTP_BASE_URL",
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+            status: 500,
+          },
+        ),
+    ) as unknown as typeof fetch;
+
+    try {
+      await searchCards({ limit: 1 });
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(RaycastApiError);
+      expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
+        "CONFIG_ERROR",
+      );
+    }
+  });
+
   test("maps missing Portless dev API registration to DEV_API_UNAVAILABLE", async () => {
     mockRaycastApi(true);
     const { searchCards: searchCardsInDev } = await import(
