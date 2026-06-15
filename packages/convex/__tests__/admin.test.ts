@@ -6,6 +6,7 @@ mock.module("../storage/r2", r2MockModuleFactory);
 
 describe("admin.ts", () => {
   let getAccess: any;
+  let getLegacyApiKeyUsageAnalytics: any;
   let getOverview: any;
   let resetCardProcessingState: any;
   let refreshCardProcessing: any;
@@ -13,6 +14,7 @@ describe("admin.ts", () => {
   beforeEach(async () => {
     const module = await import("../admin");
     getAccess = module.getAccess;
+    getLegacyApiKeyUsageAnalytics = module.getLegacyApiKeyUsageAnalytics;
     getOverview = module.getOverview;
     resetCardProcessingState = module.resetCardProcessingState;
     refreshCardProcessing = module.refreshCardProcessing;
@@ -56,6 +58,144 @@ describe("admin.ts", () => {
       const handler = (getAccess as any).handler ?? getAccess;
       const result = await handler(ctx, {});
       expect(result).toEqual({ allowed: false });
+    });
+  });
+
+  describe("getLegacyApiKeyUsageAnalytics", () => {
+    test("throws when unauthorized", async () => {
+      const ctx = {
+        auth: { getUserIdentity: mock().mockResolvedValue(null) },
+        runQuery: mock().mockResolvedValue({ page: [] }),
+      } as any;
+      const handler =
+        (getLegacyApiKeyUsageAnalytics as any).handler ??
+        getLegacyApiKeyUsageAnalytics;
+
+      await expect(handler(ctx, {})).rejects.toThrow("Unauthorized");
+    });
+
+    test("returns default legacy key usage analytics for admin", async () => {
+      const now = Date.UTC(2026, 0, 31, 12, 0, 0);
+      const originalDateNow = Date.now;
+      Date.now = () => now;
+      try {
+        const totalsRows = [
+          {
+            _id: "totals_1",
+            date: "2026-01-31",
+            firstUsedAt: now - 10_000,
+            lastUsedAt: now,
+            observedUseCount: 3,
+            uniqueKeyCount: 2,
+            uniqueUserCount: 1,
+            updatedAt: now,
+          },
+        ];
+        const keyRows = [
+          {
+            _id: "usage_older",
+            date: "2026-01-31",
+            legacyKeyId: "legacy_older",
+            userId: "user_1",
+            keyPrefix: "older",
+            observedUseCount: 1,
+            firstUsedAt: now - 20_000,
+            lastUsedAt: now - 20_000,
+            updatedAt: now - 20_000,
+          },
+          {
+            _id: "usage_newer",
+            date: "2026-01-31",
+            legacyKeyId: "legacy_newer",
+            userId: "user_1",
+            keyPrefix: "newer",
+            observedUseCount: 2,
+            firstUsedAt: now - 10_000,
+            lastUsedAt: now,
+            lastEndpoint: "/v1/cards/search",
+            lastMethod: "GET",
+            updatedAt: now,
+          },
+        ];
+        const ctx = {
+          auth: {
+            getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
+          },
+          runQuery: mock().mockResolvedValue({ page: [{ _id: "user_1" }] }),
+          db: {
+            query: mock((table: string) => ({
+              withIndex: mock(() => ({
+                order: mock(() => ({
+                  take: mock().mockResolvedValue(
+                    table === "legacyApiKeyUsageTotalsDaily"
+                      ? totalsRows
+                      : keyRows
+                  ),
+                })),
+              })),
+            })),
+          },
+        } as any;
+        const handler =
+          (getLegacyApiKeyUsageAnalytics as any).handler ??
+          getLegacyApiKeyUsageAnalytics;
+
+        const result = await handler(ctx, {});
+
+        expect(result.days).toBe(30);
+        expect(result.windowStartDate).toBe("2026-01-02");
+        expect(result.totals).toEqual([
+          expect.objectContaining({
+            date: "2026-01-31",
+            observedUseCount: 3,
+            uniqueKeyCount: 2,
+            uniqueUserCount: 1,
+          }),
+        ]);
+        expect(result.recentLegacyKeys.map((row: any) => row.legacyKeyId)).toEqual(
+          ["legacy_newer", "legacy_older"]
+        );
+      } finally {
+        Date.now = originalDateNow;
+      }
+    });
+
+    test("supports a custom bounded analytics window", async () => {
+      const now = Date.UTC(2026, 0, 31, 12, 0, 0);
+      const originalDateNow = Date.now;
+      Date.now = () => now;
+      try {
+        const takeCalls: number[] = [];
+        const ctx = {
+          auth: {
+            getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
+          },
+          runQuery: mock().mockResolvedValue({ page: [{ _id: "user_1" }] }),
+          db: {
+            query: mock((table: string) => ({
+              withIndex: mock(() => ({
+                order: mock(() => ({
+                  take: mock((limit: number) => {
+                    takeCalls.push(limit);
+                    return Promise.resolve([]);
+                  }),
+                })),
+              })),
+            })),
+          },
+        } as any;
+        const handler =
+          (getLegacyApiKeyUsageAnalytics as any).handler ??
+          getLegacyApiKeyUsageAnalytics;
+
+        const result = await handler(ctx, { days: 7 });
+
+        expect(result.days).toBe(7);
+        expect(result.windowStartDate).toBe("2026-01-25");
+        expect(takeCalls).toEqual([7, 200]);
+      } finally {
+        Date.now = originalDateNow;
+      }
     });
   });
 

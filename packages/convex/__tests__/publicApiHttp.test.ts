@@ -216,10 +216,122 @@ describe("publicApiHttp", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(runMutation.mock.calls[0][1]).toEqual({ token });
+    expect(runMutation.mock.calls[0][1]).toEqual({
+      endpoint: "/v1/cards",
+      method: "POST",
+      token,
+    });
     expect(runMutation.mock.calls[1][1]).toEqual({
       rateLimitKey: "key:component:component_key",
     });
+  });
+
+  test("cardByIdV1 passes normalized favorite endpoint context to API key validation", async () => {
+    const runMutation = mock()
+      .mockResolvedValueOnce({
+        keyId: "key_1",
+        userId: "user_1",
+        access: "full_access",
+        source: "legacy",
+        rateLimitKey: "legacy:key_1",
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        retryAt: Date.now() + 30_000,
+      });
+
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards/card_123/favorite", {
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer teakapi_abc_secret",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ isFavorited: true }),
+      })
+    );
+
+    expect(response.status).toBe(429);
+    expect(runMutation.mock.calls[0][1]).toEqual({
+      endpoint: "/v1/cards/:cardId/favorite",
+      method: "PATCH",
+      token: "teakapi_abc_secret",
+    });
+  });
+
+  test("static card routes keep their exact endpoint labels", async () => {
+    const cases = [
+      {
+        handler: searchCardsV1,
+        method: "GET",
+        path: "/v1/cards/search",
+        query: mock().mockResolvedValue([]),
+      },
+      {
+        handler: favoriteCardsV1,
+        method: "GET",
+        path: "/v1/cards/favorites",
+        query: mock().mockResolvedValue([]),
+      },
+      {
+        body: {
+          items: [{ cardId: "card_1", isFavorited: true }],
+          operation: "favorite",
+        },
+        handler: bulkCardsV1,
+        method: "POST",
+        mutation: buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce(
+          {
+            operation: "favorite",
+            results: [{ cardId: "card_1", index: 0, status: "success" }],
+            summary: { failed: 0, succeeded: 1, total: 1 },
+          }
+        ),
+        path: "/v1/cards/bulk",
+        query: mock(),
+      },
+      {
+        handler: changesCardsV1,
+        method: "GET",
+        path: "/v1/cards/changes",
+        queryString: "?since=1&limit=10",
+        query: mock().mockResolvedValue({
+          deletedIds: [],
+          items: [],
+          pageInfo: { hasMore: false, nextCursor: null },
+        }),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const runMutation = testCase.mutation ?? buildAuthorizedMutationMock();
+      const response = await runHandler(
+        testCase.handler,
+        { runMutation, runQuery: testCase.query },
+        new Request(
+          `https://example.com${testCase.path}${
+            testCase.queryString ?? "?limit=10"
+          }`,
+          {
+            body: testCase.body ? JSON.stringify(testCase.body) : undefined,
+            headers: {
+              Authorization: "Bearer teakapi_abc_secret",
+              ...(testCase.body ? { "Content-Type": "application/json" } : {}),
+            },
+            method: testCase.method,
+          }
+        )
+      );
+
+      expect(response.status).toBe(200);
+      expect(runMutation.mock.calls[0][1]).toEqual({
+        endpoint: testCase.path,
+        method: testCase.method,
+        token: "teakapi_abc_secret",
+      });
+    }
   });
 
   test("createCardV1 returns 429 when the shared invalid-auth bucket is exhausted", async () => {

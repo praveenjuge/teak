@@ -88,10 +88,21 @@ const componentKeyActionValidator = v.object({
   keyId: v.string(),
 });
 
+const validateApiKeyArgsValidator = v.object({
+  token: v.string(),
+  method: v.optional(v.string()),
+  endpoint: v.optional(v.string()),
+});
+
 const revokeKeyArgsValidator = v.object({
   keyId: v.string(),
   source: apiKeySourceValidator,
 });
+
+interface LegacyUsageContext {
+  endpoint?: string;
+  method?: string;
+}
 
 const toHex = (bytes: Uint8Array): string =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -149,6 +160,14 @@ const getComponentKeysForOwner = async (
 
 const normalizeApiKeyName = (name: string) =>
   name === API_KEY_NAME_LEGACY_DEFAULT ? API_KEY_NAME_DEFAULT : name;
+
+const getUtcDate = (timestamp: number) =>
+  new Date(timestamp).toISOString().slice(0, 10);
+
+const normalizeUsageDimension = (value?: string) => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed.slice(0, 120) : undefined;
+};
 
 const mapComponentKey = (key: KeyMetadata) => ({
   id: key.keyId,
@@ -219,7 +238,8 @@ const validateComponentApiKey = async (
 
 const validateLegacyApiKey = async (
   ctx: MutationCtx,
-  token: string
+  token: string,
+  usage?: LegacyUsageContext
 ) => {
   const parts = token.split("_");
   const keyPrefix = parts[1];
@@ -256,13 +276,27 @@ const validateLegacyApiKey = async (
     }
 
     const lastUsedAt = candidate.lastUsedAt;
-    if (
+    const currentDate = getUtcDate(now);
+    const lastUsedDate =
+      lastUsedAt === undefined ? null : getUtcDate(lastUsedAt);
+    const shouldTrackUsage =
       lastUsedAt === undefined ||
-      now - lastUsedAt >= LAST_USED_THROTTLE_MS
-    ) {
+      now - lastUsedAt >= LAST_USED_THROTTLE_MS ||
+      lastUsedDate !== currentDate;
+
+    if (shouldTrackUsage) {
       await ctx.db.patch(candidate._id, {
         lastUsedAt: now,
         updatedAt: now,
+      });
+      await trackLegacyApiKeyUsage(ctx, {
+        date: currentDate,
+        endpoint: normalizeUsageDimension(usage?.endpoint),
+        keyPrefix: candidate.keyPrefix,
+        legacyKeyId: candidate._id,
+        method: normalizeUsageDimension(usage?.method),
+        now,
+        userId: candidate.userId,
       });
     }
 
@@ -276,6 +310,106 @@ const validateLegacyApiKey = async (
   }
 
   return null;
+};
+
+const trackLegacyApiKeyUsage = async (
+  ctx: MutationCtx,
+  args: {
+    date: string;
+    endpoint?: string;
+    keyPrefix: string;
+    legacyKeyId: Id<"apiKeys">;
+    method?: string;
+    now: number;
+    userId: string;
+  }
+) => {
+  const existingDaily = await ctx.db
+    .query("legacyApiKeyUsageDaily")
+    .withIndex("by_legacy_key_and_date", (q) =>
+      q.eq("legacyKeyId", args.legacyKeyId).eq("date", args.date)
+    )
+    .first();
+
+  if (existingDaily) {
+    await ctx.db.patch(existingDaily._id, {
+      observedUseCount: existingDaily.observedUseCount + 1,
+      lastUsedAt: args.now,
+      ...(args.method ? { lastMethod: args.method } : {}),
+      ...(args.endpoint ? { lastEndpoint: args.endpoint } : {}),
+      updatedAt: args.now,
+    });
+    await updateLegacyApiKeyUsageTotals(ctx, args, {
+      uniqueKeyIncrement: 0,
+      uniqueUserIncrement: 0,
+    });
+    return;
+  }
+
+  const existingUserDaily = await ctx.db
+    .query("legacyApiKeyUsageDaily")
+    .withIndex("by_user_and_date", (q) =>
+      q.eq("userId", args.userId).eq("date", args.date)
+    )
+    .take(1);
+
+  await ctx.db.insert("legacyApiKeyUsageDaily", {
+    date: args.date,
+    legacyKeyId: args.legacyKeyId,
+    userId: args.userId,
+    keyPrefix: args.keyPrefix,
+    observedUseCount: 1,
+    firstUsedAt: args.now,
+    lastUsedAt: args.now,
+    ...(args.method ? { lastMethod: args.method } : {}),
+    ...(args.endpoint ? { lastEndpoint: args.endpoint } : {}),
+    updatedAt: args.now,
+  });
+
+  await updateLegacyApiKeyUsageTotals(ctx, args, {
+    uniqueKeyIncrement: 1,
+    uniqueUserIncrement: existingUserDaily.length === 0 ? 1 : 0,
+  });
+};
+
+const updateLegacyApiKeyUsageTotals = async (
+  ctx: MutationCtx,
+  args: {
+    date: string;
+    now: number;
+  },
+  increments: {
+    uniqueKeyIncrement: number;
+    uniqueUserIncrement: number;
+  }
+) => {
+  const existingTotals = await ctx.db
+    .query("legacyApiKeyUsageTotalsDaily")
+    .withIndex("by_date", (q) => q.eq("date", args.date))
+    .first();
+
+  if (existingTotals) {
+    await ctx.db.patch(existingTotals._id, {
+      observedUseCount: existingTotals.observedUseCount + 1,
+      uniqueKeyCount:
+        existingTotals.uniqueKeyCount + increments.uniqueKeyIncrement,
+      uniqueUserCount:
+        existingTotals.uniqueUserCount + increments.uniqueUserIncrement,
+      lastUsedAt: args.now,
+      updatedAt: args.now,
+    });
+    return;
+  }
+
+  await ctx.db.insert("legacyApiKeyUsageTotalsDaily", {
+    date: args.date,
+    observedUseCount: 1,
+    uniqueKeyCount: increments.uniqueKeyIncrement,
+    uniqueUserCount: increments.uniqueUserIncrement,
+    firstUsedAt: args.now,
+    lastUsedAt: args.now,
+    updatedAt: args.now,
+  });
 };
 
 export const createUserApiKey = mutation({
@@ -416,9 +550,7 @@ export const rotateUserApiKey = mutation({
 });
 
 export const validateUserApiKey = internalMutation({
-  args: {
-    token: v.string(),
-  },
+  args: validateApiKeyArgsValidator,
   returns: validatedApiKeyValidator,
   handler: async (ctx, args) => {
     const token = args.token.trim();
@@ -432,7 +564,10 @@ export const validateUserApiKey = internalMutation({
     }
 
     if (isLegacyApiKey(token)) {
-      return validateLegacyApiKey(ctx, token);
+      return validateLegacyApiKey(ctx, token, {
+        endpoint: args.endpoint,
+        method: args.method,
+      });
     }
 
     return null;

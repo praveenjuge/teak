@@ -206,6 +206,29 @@ export const apiIdempotencyAnalyticsValidator = v.object({
   errors: v.number(),
 });
 
+export const legacyApiKeyUsageDailyValidator = v.object({
+  date: v.string(),
+  legacyKeyId: v.id("apiKeys"),
+  userId: v.string(),
+  keyPrefix: v.string(),
+  observedUseCount: v.number(),
+  firstUsedAt: v.number(),
+  lastUsedAt: v.number(),
+  lastMethod: v.optional(v.string()),
+  lastEndpoint: v.optional(v.string()),
+  updatedAt: v.number(),
+});
+
+export const legacyApiKeyUsageTotalsDailyValidator = v.object({
+  date: v.string(),
+  observedUseCount: v.number(),
+  uniqueKeyCount: v.number(),
+  uniqueUserCount: v.number(),
+  firstUsedAt: v.number(),
+  lastUsedAt: v.number(),
+  updatedAt: v.number(),
+});
+
 export const nativeAuthSurfaceValidator = v.union(
   v.literal("desktop"),
   v.literal("safari-macos"),
@@ -332,6 +355,13 @@ export default defineSchema({
     "by_date_endpoint",
     ["date", "endpoint"]
   ),
+  legacyApiKeyUsageDaily: defineTable(legacyApiKeyUsageDailyValidator)
+    .index("by_legacy_key_and_date", ["legacyKeyId", "date"])
+    .index("by_user_and_date", ["userId", "date"])
+    .index("by_date", ["date"]),
+  legacyApiKeyUsageTotalsDaily: defineTable(
+    legacyApiKeyUsageTotalsDailyValidator
+  ).index("by_date", ["date"]),
   nativeAuthCodes: defineTable(nativeAuthCodeValidator)
     .index("by_expires_at", ["expiresAt"])
     .index("by_device_state_consumed", ["deviceId", "state", "consumedAt"])
