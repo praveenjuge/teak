@@ -63,7 +63,12 @@ export default function TagsCommand() {
         }
       } catch (requestError) {
         if (isMounted) {
-          setError(getUserFacingErrorMessage(requestError));
+          const message = getUserFacingErrorMessage(requestError);
+          console.error("[Teak Raycast] Tags list failed", {
+            error: requestError,
+            message,
+          });
+          setError(message);
           setTags([]);
         }
       } finally {
