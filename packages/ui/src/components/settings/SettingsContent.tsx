@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
+import type { ApiKeyListItem } from "./ApiKeysDialog";
 import { ApiKeysSection } from "./ApiKeysSection";
 import { CustomerPortalButton } from "./CustomerPortalButton";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
@@ -20,11 +21,16 @@ interface SettingsContentProps {
   email?: string | null;
   hasPremium?: boolean;
   isLoading: boolean;
-  keys: { id: string }[] | undefined;
+  keys: ApiKeyListItem[] | undefined;
   onCreateApiKey: () => Promise<{ key: string }>;
   onCreateCustomerPortal: () => Promise<void>;
   onDeleteAccount: () => Promise<void>;
   onDeleteDialogOpenChange: (open: boolean) => void;
+  onRevokeApiKey: (
+    keyId: string,
+    source: ApiKeyListItem["source"]
+  ) => Promise<void>;
+  onRotateApiKey: (keyId: string) => Promise<{ key: string }>;
   onSignOut: () => Promise<void> | void;
   onThemeChange?: (value: string) => void;
   onUpgrade: () => void;
@@ -45,6 +51,8 @@ export function SettingsContent({
   onCreateCustomerPortal,
   onDeleteAccount,
   onDeleteDialogOpenChange,
+  onRevokeApiKey,
+  onRotateApiKey,
   onSignOut,
   onThemeChange,
   onUpgrade,
@@ -101,6 +109,8 @@ export function SettingsContent({
         isLoading={keys === undefined}
         keys={keys}
         onCreateKey={onCreateApiKey}
+        onRevokeKey={onRevokeApiKey}
+        onRotateKey={onRotateApiKey}
       />
 
       <SettingRow title="Theme">

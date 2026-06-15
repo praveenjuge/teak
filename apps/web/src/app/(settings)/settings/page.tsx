@@ -146,6 +146,8 @@ export default function ProfileSettingsPage() {
       onCreateCustomerPortal={settings.handleCreateCustomerPortal}
       onDeleteAccount={settings.handleDeleteAccount}
       onDeleteDialogOpenChange={settings.setDeleteDialogOpen}
+      onRevokeApiKey={settings.handleRevokeApiKey}
+      onRotateApiKey={settings.handleRotateApiKey}
       onSignOut={settings.handleSignOut}
       onUpgrade={() => {
         setSubscriptionOpen(true);

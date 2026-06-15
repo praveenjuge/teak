@@ -216,6 +216,63 @@ describe("raycast request handling", () => {
     }
   });
 
+  test("maps API configuration failures to CONFIG_ERROR", async () => {
+    globalThis.fetch = mock(
+      async () =>
+        new Response(
+          JSON.stringify({
+            code: "CONFIG_ERROR",
+            error: "Missing or invalid CONVEX_HTTP_BASE_URL",
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+            status: 500,
+          },
+        ),
+    ) as unknown as typeof fetch;
+
+    try {
+      await searchCards({ limit: 1 });
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(RaycastApiError);
+      expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
+        "CONFIG_ERROR",
+      );
+    }
+  });
+
+  test("maps missing Portless dev API registration to DEV_API_UNAVAILABLE", async () => {
+    mockRaycastApi(true);
+    const { searchCards: searchCardsInDev } = await import(
+      `../lib/api?missing-dev-api=${crypto.randomUUID()}`
+    );
+
+    globalThis.fetch = mock(
+      async () =>
+        new Response(
+          "<!doctype html><html><body>No app registered for api.teak.localhost</body></html>",
+          {
+            headers: {
+              "Content-Type": "text/html",
+              "X-Portless": "1",
+            },
+            status: 404,
+          },
+        ),
+    ) as unknown as typeof fetch;
+
+    try {
+      await searchCardsInDev({ limit: 1 });
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(RaycastApiError);
+      expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
+        "DEV_API_UNAVAILABLE",
+      );
+    }
+  });
+
   test("setCardFavorite patches favorite state on the favorite endpoint", async () => {
     let capturedUrl: string | null = null;
     let capturedMethod: string | null = null;

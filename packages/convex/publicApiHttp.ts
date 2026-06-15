@@ -36,6 +36,8 @@ type ErrorCode =
 interface AuthorizedUser {
   access: "full_access";
   keyId: string;
+  rateLimitKey: string;
+  source: "component" | "legacy";
   userId: string;
 }
 
@@ -423,7 +425,7 @@ const withAuthorizedUser = async (
     rateLimit = await ctx.runMutation(
       (internal as any).raycast.checkApiRateLimit,
       {
-        rateLimitKey: `key:${validated.keyId}`,
+        rateLimitKey: `key:${validated.rateLimitKey}`,
       }
     );
   } catch (error) {

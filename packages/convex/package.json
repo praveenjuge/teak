@@ -38,6 +38,7 @@
     "@convex-dev/workpool": "^0.4.6",
     "@onkernel/sdk": "^0.52.0",
     "@polar-sh/sdk": "^0.47.1",
+    "@vllnt/convex-api-keys": "0.2.0",
     "ai": "^6.0.184",
     "better-auth": "1.6.11",
     "convex": "^1.39.0",

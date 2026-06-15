@@ -63,7 +63,8 @@ export default function TagsCommand() {
         }
       } catch (requestError) {
         if (isMounted) {
-          setError(getUserFacingErrorMessage(requestError));
+          const message = getUserFacingErrorMessage(requestError);
+          setError(message);
           setTags([]);
         }
       } finally {
