@@ -64,6 +64,13 @@ describe("raycast api helpers", () => {
     expect(getRecoveryHint(error)).toContain("Check network connectivity");
   });
 
+  test("maps missing local api gateway errors to dev guidance", () => {
+    const error = new RaycastApiError("DEV_API_UNAVAILABLE", 404);
+
+    expect(getUserFacingErrorMessage(error)).toContain("API gateway");
+    expect(getRecoveryHint(error)).toContain("bun run dev:api");
+  });
+
   test("maps not found errors without implying a card was deleted", () => {
     const error = new RaycastApiError("NOT_FOUND", 404);
 

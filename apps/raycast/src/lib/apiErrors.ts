@@ -3,6 +3,7 @@ export const MAX_LIMIT = 100;
 
 const KNOWN_ERROR_CODES = [
   "BAD_REQUEST",
+  "DEV_API_UNAVAILABLE",
   "INTERNAL_ERROR",
   "INVALID_API_KEY",
   "INVALID_INPUT",
@@ -36,6 +37,8 @@ const getErrorMessage = (code: RaycastApiErrorCode): string => {
       return "Too many requests right now. Please wait a moment and try again.";
     case "NETWORK_ERROR":
       return "Unable to reach Teak. Check your internet connection and try again.";
+    case "DEV_API_UNAVAILABLE":
+      return "Local Teak API gateway is not running.";
     case "NOT_FOUND":
       return "Teak could not find the requested resource.";
     case "INVALID_INPUT":
@@ -150,6 +153,8 @@ export const getRecoveryHint = (error: unknown): string | null => {
       return "Wait a few seconds, then retry.";
     case "NETWORK_ERROR":
       return "Check network connectivity, then retry.";
+    case "DEV_API_UNAVAILABLE":
+      return "Run bun run dev:api from the Teak repo, or set TEAK_DEV_API_URL to a running API URL.";
     case "NOT_FOUND":
       return "Check your API key, API URL, and network connection, then retry.";
     default:
