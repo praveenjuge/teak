@@ -64,10 +64,6 @@ export default function TagsCommand() {
       } catch (requestError) {
         if (isMounted) {
           const message = getUserFacingErrorMessage(requestError);
-          console.error("[Teak Raycast] Tags list failed", {
-            error: requestError,
-            message,
-          });
           setError(message);
           setTags([]);
         }

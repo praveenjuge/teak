@@ -215,6 +215,27 @@ describe("apiKeys", () => {
     });
   });
 
+  test("rotate rejects exhausted component keys on the server", async () => {
+    const ctx = {
+      auth: buildAuth(),
+      runMutation: mock(),
+      runQuery: mock().mockResolvedValue([
+        {
+          ...componentKey,
+          status: "exhausted",
+        },
+      ]),
+    };
+
+    await expect(
+      runHandler(rotateUserApiKey, ctx, {
+        keyId: "component_key",
+      })
+    ).rejects.toThrow("API key cannot be regenerated");
+
+    expect(ctx.runMutation).not.toHaveBeenCalled();
+  });
+
   test("validate accepts component keys and maps them to Teak authorization", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const ctx = {

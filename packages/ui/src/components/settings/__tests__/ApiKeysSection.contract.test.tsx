@@ -153,4 +153,26 @@ describe("ApiKeysDialog", () => {
     expect(markup).toContain("Default API key");
     expect(markup).not.toContain(">API Keys</span>");
   });
+
+  test("renders terminal key statuses as destructive badges", () => {
+    const markup = renderToStaticMarkup(
+      <ApiKeysDialog
+        isLoading={false}
+        keys={[
+          {
+            ...keys[0],
+            id: "exhausted_key",
+            name: "Exhausted Key",
+            status: "exhausted" as const,
+          },
+        ]}
+        onOpenChange={mock()}
+        open={true}
+        {...handlers}
+      />
+    );
+
+    expect(markup).toContain('data-variant="destructive"');
+    expect(markup).toContain(">Exhausted</span>");
+  });
 });

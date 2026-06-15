@@ -137,12 +137,6 @@ export function CardsListCommand({
         setItems(response.items);
       } catch (requestError) {
         const message = getUserFacingErrorMessage(requestError);
-        console.error("[Teak Raycast] Cards list failed", {
-          error: requestError,
-          input,
-          message,
-          navigationTitle,
-        });
         setError(message);
         setItems([]);
       } finally {

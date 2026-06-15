@@ -179,6 +179,9 @@ const getComponentKeyForOwner = async (
   return key;
 };
 
+const isRotatableComponentKeyStatus = (status: KeyMetadata["status"]) =>
+  status === "active" || status === "disabled";
+
 const validateComponentApiKey = async (
   ctx: MutationCtx,
   token: string
@@ -381,6 +384,10 @@ export const rotateUserApiKey = mutation({
   handler: async (ctx, args) => {
     const ownerId = await getAuthenticatedOwnerId(ctx);
     const existing = await getComponentKeyForOwner(ctx, ownerId, args.keyId);
+    if (!isRotatableComponentKeyStatus(existing.status)) {
+      throw new Error("API key cannot be regenerated");
+    }
+
     const name = normalizeApiKeyName(existing.name);
     const created = await componentApiKeys.create(ctx, {
       env: COMPONENT_ENV,

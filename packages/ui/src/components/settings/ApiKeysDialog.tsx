@@ -55,12 +55,12 @@ const formatDate = (value?: number) => {
 
 const getStatusVariant = (
   status: ApiKeyListItem["status"]
-): "default" | "outline" | "secondary" =>
+): "default" | "outline" | "secondary" | "destructive" =>
   status === "active"
     ? "outline"
     : status === "disabled"
       ? "secondary"
-      : "outline";
+      : "destructive";
 
 const formatStatus = (status: ApiKeyListItem["status"]) =>
   status
