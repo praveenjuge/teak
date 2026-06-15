@@ -1,52 +1,80 @@
+import { ApiKeys, type KeyMetadata } from "@vllnt/convex-api-keys";
 import { v } from "convex/values";
 import { components } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import {
   internalMutation,
   type MutationCtx,
   mutation,
+  type QueryCtx,
   query,
 } from "./_generated/server";
 import {
   API_KEY_TOKEN_PREFIX,
-  isWellFormedApiKey,
+  getApiKeyFormat,
+  isLegacyApiKey,
 } from "./shared/apiKeyFormat";
 
-const API_KEY_NAME_DEFAULT = "API Keys";
+const API_KEY_NAME_DEFAULT = "Default API key";
+const API_KEY_NAME_LEGACY_DEFAULT = "API Keys";
 const API_KEY_ACCESS = "full_access" as const;
-const KEY_PREFIX_BYTES = 6;
-const KEY_SECRET_BYTES = 24;
-// Only refresh `lastUsedAt` when the recorded value is older than this window.
-// Throttling the write keeps validation effectively read-only on the hot path
-// so concurrent requests sharing one key don't contend on a single document.
+const COMPONENT_ENV = "live";
+const COMPONENT_SCOPES = [API_KEY_ACCESS];
+const LIST_LIMIT = 100;
+// Only refresh legacy `lastUsedAt` when the recorded value is older than this
+// window, preserving the low-contention behavior existing production keys had.
 const LAST_USED_THROTTLE_MS = 5 * 60 * 1000;
 
+const componentApiKeys = new ApiKeys(components.apiKeys, {
+  defaultType: "secret",
+  prefix: API_KEY_TOKEN_PREFIX,
+});
+
 const apiKeyAccessValidator = v.literal(API_KEY_ACCESS);
+const apiKeySourceValidator = v.union(
+  v.literal("component"),
+  v.literal("legacy")
+);
+const apiKeyStatusValidator = v.union(
+  v.literal("active"),
+  v.literal("disabled"),
+  v.literal("rotating"),
+  v.literal("expired"),
+  v.literal("exhausted")
+);
 
 const listedApiKeyValidator = v.object({
-  id: v.id("apiKeys"),
+  id: v.string(),
   name: v.string(),
   keyPrefix: v.string(),
   maskedKey: v.string(),
   access: apiKeyAccessValidator,
+  source: apiKeySourceValidator,
+  status: apiKeyStatusValidator,
+  requiresUpdate: v.boolean(),
   createdAt: v.number(),
   updatedAt: v.number(),
   lastUsedAt: v.optional(v.number()),
 });
 
 const createdApiKeyValidator = v.object({
-  id: v.id("apiKeys"),
+  id: v.string(),
   name: v.string(),
   keyPrefix: v.string(),
   key: v.string(),
   access: apiKeyAccessValidator,
+  source: v.literal("component"),
+  status: v.literal("active"),
   createdAt: v.number(),
 });
 
 const validatedApiKeyValidator = v.union(
   v.object({
-    keyId: v.id("apiKeys"),
+    keyId: v.string(),
     userId: v.string(),
     access: apiKeyAccessValidator,
+    source: apiKeySourceValidator,
+    rateLimitKey: v.string(),
   }),
   v.null()
 );
@@ -56,21 +84,17 @@ const revokeAllApiKeysResultValidator = v.object({
   revokedAt: v.number(),
 });
 
+const componentKeyActionValidator = v.object({
+  keyId: v.string(),
+});
+
+const revokeKeyArgsValidator = v.object({
+  keyId: v.string(),
+  source: apiKeySourceValidator,
+});
+
 const toHex = (bytes: Uint8Array): string =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-
-const createRandomHex = (size: number): string => {
-  const bytes = new Uint8Array(size);
-  crypto.getRandomValues(bytes);
-  return toHex(bytes);
-};
-
-const buildApiKey = (): { key: string; keyPrefix: string } => {
-  const keyPrefix = createRandomHex(KEY_PREFIX_BYTES);
-  const secret = createRandomHex(KEY_SECRET_BYTES);
-  const key = `${API_KEY_TOKEN_PREFIX}_${keyPrefix}_${secret}`;
-  return { key, keyPrefix };
-};
 
 const hashApiKey = async (key: string): Promise<string> => {
   const pepper = process.env.BETTER_AUTH_SECRET ?? "";
@@ -95,33 +119,161 @@ const timingSafeEqual = (left: string, right: string): boolean => {
   return mismatch === 0;
 };
 
-const revokeActiveKeysForUser = async (
-  ctx: MutationCtx,
-  userId: string,
-  now: number
-): Promise<number> => {
-  const activeKeys = await ctx.db
-    .query("apiKeys")
-    .withIndex("by_user_revoked", (q) =>
-      q.eq("userId", userId).eq("revokedAt", undefined)
-    )
-    .collect();
-
-  for (const key of activeKeys) {
-    await ctx.db.patch("apiKeys", key._id, {
-      revokedAt: now,
-      updatedAt: now,
-    });
-  }
-
-  return activeKeys.length;
-};
-
 const getAuthUserById = async (ctx: MutationCtx, userId: string) =>
   ctx.runQuery(components.betterAuth.adapter.findOne, {
     model: "user",
     where: [{ field: "_id", operator: "eq", value: userId }],
   });
+
+const getAuthenticatedOwnerId = async (
+  ctx: QueryCtx | MutationCtx
+): Promise<string> => {
+  const user = await ctx.auth.getUserIdentity();
+  if (!user) {
+    throw new Error("User must be authenticated");
+  }
+  return user.subject;
+};
+
+const getComponentKeysForOwner = async (
+  ctx: QueryCtx,
+  ownerId: string
+): Promise<KeyMetadata[]> => {
+  const keys = await componentApiKeys.list(ctx, {
+    ownerId,
+    limit: LIST_LIMIT,
+  });
+
+  return keys.filter((key) => key.status !== "revoked");
+};
+
+const normalizeApiKeyName = (name: string) =>
+  name === API_KEY_NAME_LEGACY_DEFAULT ? API_KEY_NAME_DEFAULT : name;
+
+const mapComponentKey = (key: KeyMetadata) => ({
+  id: key.keyId,
+  name: normalizeApiKeyName(key.name),
+  keyPrefix: key.lookupPrefix,
+  maskedKey: `${API_KEY_TOKEN_PREFIX}_${key.type === "publishable" ? "pub" : "secret"}_${key.env}_${key.lookupPrefix}_••••••••`,
+  access: API_KEY_ACCESS,
+  source: "component" as const,
+  status:
+    key.status === "revoked" ? ("expired" as const) : key.status,
+  requiresUpdate: false,
+  createdAt: key.createdAt,
+  updatedAt: key.createdAt,
+  lastUsedAt: key.lastUsedAt,
+});
+
+const getComponentKeyForOwner = async (
+  ctx: QueryCtx,
+  ownerId: string,
+  keyId: string
+): Promise<KeyMetadata> => {
+  const key = (await getComponentKeysForOwner(ctx, ownerId)).find(
+    (candidate) => candidate.keyId === keyId
+  );
+  if (!key) {
+    throw new Error("API key not found");
+  }
+  return key;
+};
+
+const validateComponentApiKey = async (
+  ctx: MutationCtx,
+  token: string
+) => {
+  const result = await componentApiKeys.validate(ctx, { key: token });
+  if (!result.valid) {
+    return null;
+  }
+
+  if (
+    result.type !== "secret" ||
+    result.env !== COMPONENT_ENV ||
+    !result.scopes.includes(API_KEY_ACCESS)
+  ) {
+    return null;
+  }
+
+  const authUser = await getAuthUserById(ctx, result.ownerId);
+  if (!authUser) {
+    await componentApiKeys.revoke(ctx, {
+      keyId: result.keyId,
+      ownerId: result.ownerId,
+    });
+    return null;
+  }
+
+  return {
+    keyId: result.keyId,
+    userId: result.ownerId,
+    access: API_KEY_ACCESS,
+    source: "component" as const,
+    rateLimitKey: `component:${result.keyId}`,
+  };
+};
+
+const validateLegacyApiKey = async (
+  ctx: MutationCtx,
+  token: string
+) => {
+  const parts = token.split("_");
+  const keyPrefix = parts[1];
+  if (!keyPrefix) {
+    return null;
+  }
+
+  const candidates = await ctx.db
+    .query("apiKeys")
+    .withIndex("by_prefix_revoked", (q) =>
+      q.eq("keyPrefix", keyPrefix).eq("revokedAt", undefined)
+    )
+    .take(LIST_LIMIT);
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  const tokenHash = await hashApiKey(token);
+
+  for (const candidate of candidates) {
+    if (!timingSafeEqual(candidate.keyHash, tokenHash)) {
+      continue;
+    }
+
+    const now = Date.now();
+    const authUser = await getAuthUserById(ctx, candidate.userId);
+    if (!authUser) {
+      await ctx.db.patch(candidate._id, {
+        revokedAt: now,
+        updatedAt: now,
+      });
+      continue;
+    }
+
+    const lastUsedAt = candidate.lastUsedAt;
+    if (
+      lastUsedAt === undefined ||
+      now - lastUsedAt >= LAST_USED_THROTTLE_MS
+    ) {
+      await ctx.db.patch(candidate._id, {
+        lastUsedAt: now,
+        updatedAt: now,
+      });
+    }
+
+    return {
+      keyId: candidate._id,
+      userId: candidate.userId,
+      access: candidate.access,
+      source: "legacy" as const,
+      rateLimitKey: `legacy:${candidate._id}`,
+    };
+  }
+
+  return null;
+};
 
 export const createUserApiKey = mutation({
   args: {
@@ -129,37 +281,26 @@ export const createUserApiKey = mutation({
   },
   returns: createdApiKeyValidator,
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
-
-    const now = Date.now();
-    await revokeActiveKeysForUser(ctx, user.subject, now);
-
-    const { key, keyPrefix } = buildApiKey();
-    const keyHash = await hashApiKey(key);
-    const name = args.name?.trim() || API_KEY_NAME_DEFAULT;
-
-    const keyId = await ctx.db.insert("apiKeys", {
-      userId: user.subject,
+    const ownerId = await getAuthenticatedOwnerId(ctx);
+    const name = normalizeApiKeyName(args.name?.trim() || API_KEY_NAME_DEFAULT);
+    const created = await componentApiKeys.create(ctx, {
+      env: COMPONENT_ENV,
       name,
-      keyPrefix,
-      keyHash,
-      access: API_KEY_ACCESS,
-      createdAt: now,
-      updatedAt: now,
-      lastUsedAt: undefined,
-      revokedAt: undefined,
+      ownerId,
+      scopes: COMPONENT_SCOPES,
+      type: "secret",
     });
 
+    const [, , , lookupPrefix] = created.key.split("_");
     return {
-      id: keyId,
+      id: created.keyId,
       name,
-      keyPrefix,
-      key,
+      keyPrefix: lookupPrefix ?? "",
+      key: created.key,
       access: API_KEY_ACCESS,
-      createdAt: now,
+      source: "component" as const,
+      status: "active" as const,
+      createdAt: Date.now(),
     };
   },
 });
@@ -168,59 +309,102 @@ export const listUserApiKeys = query({
   args: {},
   returns: v.array(listedApiKeyValidator),
   handler: async (ctx) => {
-    const user = await ctx.auth.getUserIdentity();
-    if (!user) {
+    let ownerId: string;
+    try {
+      ownerId = await getAuthenticatedOwnerId(ctx);
+    } catch {
       return [];
     }
 
-    const keys = await ctx.db
-      .query("apiKeys")
-      .withIndex("by_user_revoked", (q) =>
-        q.eq("userId", user.subject).eq("revokedAt", undefined)
-      )
-      .order("desc")
-      .collect();
+    const [componentKeys, legacyKeys] = await Promise.all([
+      getComponentKeysForOwner(ctx, ownerId),
+      ctx.db
+        .query("apiKeys")
+        .withIndex("by_user_revoked", (q) =>
+          q.eq("userId", ownerId).eq("revokedAt", undefined)
+        )
+        .order("desc")
+        .take(LIST_LIMIT),
+    ]);
 
-    return keys.map((key) => ({
-      id: key._id,
-      name: key.name,
-      keyPrefix: key.keyPrefix,
-      maskedKey: `${key.keyPrefix}••••••••`,
-      access: key.access,
-      createdAt: key.createdAt,
-      updatedAt: key.updatedAt,
-      lastUsedAt: key.lastUsedAt,
-    }));
+    return [
+      ...componentKeys.map(mapComponentKey),
+      ...legacyKeys.map((key) => ({
+        id: key._id,
+        name: normalizeApiKeyName(key.name),
+        keyPrefix: key.keyPrefix,
+        maskedKey: `${key.keyPrefix}••••••••`,
+        access: key.access,
+        source: "legacy" as const,
+        status: "active" as const,
+        requiresUpdate: true,
+        createdAt: key.createdAt,
+        updatedAt: key.updatedAt,
+        lastUsedAt: key.lastUsedAt,
+      })),
+    ].sort((left, right) => right.createdAt - left.createdAt);
   },
 });
 
 export const revokeUserApiKey = mutation({
-  args: {
-    keyId: v.optional(v.id("apiKeys")),
-  },
+  args: revokeKeyArgsValidator,
   returns: v.null(),
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
+    const ownerId = await getAuthenticatedOwnerId(ctx);
 
-    const now = Date.now();
-
-    if (args.keyId) {
-      const key = await ctx.db.get("apiKeys", args.keyId);
-      if (!key || key.userId !== user.subject) {
-        throw new Error("API key not found");
-      }
-      await ctx.db.patch("apiKeys", args.keyId, {
-        revokedAt: now,
-        updatedAt: now,
+    if (args.source === "component") {
+      await componentApiKeys.revoke(ctx, {
+        keyId: args.keyId,
+        ownerId,
       });
       return null;
     }
 
-    await revokeActiveKeysForUser(ctx, user.subject, now);
+    const legacyKeyId = args.keyId as Id<"apiKeys">;
+    const key = await ctx.db.get(legacyKeyId);
+    if (!key || key.userId !== ownerId) {
+      throw new Error("API key not found");
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(legacyKeyId, {
+      revokedAt: now,
+      updatedAt: now,
+    });
     return null;
+  },
+});
+
+export const rotateUserApiKey = mutation({
+  args: componentKeyActionValidator,
+  returns: createdApiKeyValidator,
+  handler: async (ctx, args) => {
+    const ownerId = await getAuthenticatedOwnerId(ctx);
+    const existing = await getComponentKeyForOwner(ctx, ownerId, args.keyId);
+    const name = normalizeApiKeyName(existing.name);
+    const created = await componentApiKeys.create(ctx, {
+      env: COMPONENT_ENV,
+      name,
+      ownerId,
+      scopes: COMPONENT_SCOPES,
+      type: "secret",
+    });
+    await componentApiKeys.revoke(ctx, {
+      keyId: args.keyId,
+      ownerId,
+    });
+
+    const [, , , lookupPrefix] = created.key.split("_");
+    return {
+      id: created.keyId,
+      name,
+      keyPrefix: lookupPrefix ?? "",
+      key: created.key,
+      access: API_KEY_ACCESS,
+      source: "component" as const,
+      status: "active" as const,
+      createdAt: Date.now(),
+    };
   },
 });
 
@@ -231,71 +415,25 @@ export const validateUserApiKey = internalMutation({
   returns: validatedApiKeyValidator,
   handler: async (ctx, args) => {
     const token = args.token.trim();
-    if (!isWellFormedApiKey(token)) {
+    const format = getApiKeyFormat(token);
+    if (format === "malformed") {
       return null;
     }
 
-    const parts = token.split("_");
-    const keyPrefix = parts[1];
-    if (!keyPrefix) {
-      return null;
+    if (format === "component") {
+      return validateComponentApiKey(ctx, token);
     }
 
-    const candidates = await ctx.db
-      .query("apiKeys")
-      .withIndex("by_prefix_revoked", (q) =>
-        q.eq("keyPrefix", keyPrefix).eq("revokedAt", undefined)
-      )
-      .collect();
-
-    if (candidates.length === 0) {
-      return null;
-    }
-
-    const tokenHash = await hashApiKey(token);
-
-    for (const candidate of candidates) {
-      if (!timingSafeEqual(candidate.keyHash, tokenHash)) {
-        continue;
-      }
-
-      const now = Date.now();
-      const authUser = await getAuthUserById(ctx, candidate.userId);
-      if (!authUser) {
-        await ctx.db.patch("apiKeys", candidate._id, {
-          revokedAt: now,
-          updatedAt: now,
-        });
-        continue;
-      }
-
-      // Best-effort, throttled usage tracking. Skipping the write on the hot
-      // path keeps validation effectively read-only so concurrent requests
-      // sharing one key don't contend on a single document every request.
-      const lastUsedAt = candidate.lastUsedAt;
-      if (
-        lastUsedAt === undefined ||
-        now - lastUsedAt >= LAST_USED_THROTTLE_MS
-      ) {
-        await ctx.db.patch("apiKeys", candidate._id, {
-          lastUsedAt: now,
-          updatedAt: now,
-        });
-      }
-
-      return {
-        keyId: candidate._id,
-        userId: candidate.userId,
-        access: candidate.access,
-      };
+    if (isLegacyApiKey(token)) {
+      return validateLegacyApiKey(ctx, token);
     }
 
     return null;
   },
 });
 
-// One-time cutover helper for rotating token prefix.
-// Run once during rollout to force regeneration under the new prefix format.
+// Historical one-time helper retained for old tests/manual cleanup. New
+// component-managed keys are intentionally unaffected by this legacy mutation.
 export const revokeAllActiveApiKeysForPrefixCutover = internalMutation({
   args: {},
   returns: revokeAllApiKeysResultValidator,
@@ -307,7 +445,7 @@ export const revokeAllActiveApiKeysForPrefixCutover = internalMutation({
       .collect();
 
     for (const key of activeKeys) {
-      await ctx.db.patch("apiKeys", key._id, {
+      await ctx.db.patch(key._id, {
         revokedAt: now,
         updatedAt: now,
       });

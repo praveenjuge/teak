@@ -25,6 +25,8 @@ const buildAuthorizedMutationMock = () =>
       keyId: "key_1",
       userId: "user_1",
       access: "full_access",
+      source: "legacy",
+      rateLimitKey: "legacy:key_1",
     })
     // ...then the per-key rate limit check.
     .mockResolvedValueOnce({ ok: true, retryAt: undefined });
@@ -69,6 +71,8 @@ describe("publicApiHttp", () => {
         keyId: "key_1",
         userId: "user_1",
         access: "full_access",
+        source: "legacy",
+        rateLimitKey: "legacy:key_1",
       })
       // ...then the per-key rate limit rejects.
       .mockResolvedValueOnce({
@@ -102,6 +106,8 @@ describe("publicApiHttp", () => {
         keyId: "key_1",
         userId: "user_1",
         access: "full_access",
+        source: "legacy",
+        rateLimitKey: "legacy:key_1",
       })
       // ...then the per-key rate limit hits document contention.
       .mockRejectedValueOnce(
@@ -177,6 +183,43 @@ describe("publicApiHttp", () => {
     expect(payload.code).toBe("INVALID_API_KEY");
     // Only the invalid-auth bucket consume runs; validation is never reached.
     expect(runMutation).toHaveBeenCalledTimes(1);
+  });
+
+  test("createCardV1 accepts component-format API keys before validation", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation = mock()
+      .mockResolvedValueOnce({
+        access: "full_access",
+        keyId: "component_key",
+        rateLimitKey: "component:component_key",
+        source: "component",
+        userId: "user_1",
+      })
+      .mockResolvedValueOnce({ ok: true, retryAt: undefined })
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({
+        cardId: "card_1",
+        status: "created",
+    });
+
+    const response = await runHandler(
+      createCardV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "hello" }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(runMutation.mock.calls[0][1]).toEqual({ token });
+    expect(runMutation.mock.calls[1][1]).toEqual({
+      rateLimitKey: "key:component:component_key",
+    });
   });
 
   test("createCardV1 returns 429 when the shared invalid-auth bucket is exhausted", async () => {
@@ -350,6 +393,8 @@ describe("publicApiHttp", () => {
         access: "full_access",
         keyId: "key_1",
         userId: "user_1",
+        source: "legacy",
+        rateLimitKey: "legacy:key_1",
       })
       // ...then per-key rate limit...
       .mockResolvedValueOnce({ ok: true, retryAt: undefined })

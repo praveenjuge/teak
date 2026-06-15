@@ -8,7 +8,7 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
 type ExtensionPreferences = {
-  /** API Key - Generate in Teak Settings > API Keys, then paste it here. */
+  /** API Key - Generate in Teak Settings > Manage API Keys, then paste it here. */
   "apiKey": string
 }
 

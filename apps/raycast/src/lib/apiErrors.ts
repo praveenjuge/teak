@@ -31,7 +31,7 @@ const getErrorMessage = (code: RaycastApiErrorCode): string => {
       return "Set your Teak API key in extension preferences to continue.";
     case "INVALID_API_KEY":
     case "UNAUTHORIZED":
-      return "Your Teak API key is invalid or revoked. Generate a new key in Teak Settings > API Keys.";
+      return "Your Teak API key is invalid or revoked. Generate a new key in Teak Settings > Manage API Keys.";
     case "RATE_LIMITED":
       return "Too many requests right now. Please wait a moment and try again.";
     case "NETWORK_ERROR":

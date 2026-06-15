@@ -19,7 +19,7 @@
       "title": "API Key",
       "type": "password",
       "required": true,
-      "description": "Generate in Teak Settings > API Keys, then paste it here."
+      "description": "Generate in Teak Settings > Manage API Keys, then paste it here."
     }
   ],
   "commands": [

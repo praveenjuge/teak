@@ -6,6 +6,7 @@ import {
   listUserApiKeys,
   revokeAllActiveApiKeysForPrefixCutover,
   revokeUserApiKey,
+  rotateUserApiKey,
   validateUserApiKey,
 } from "../apiKeys";
 
@@ -16,403 +17,304 @@ const runHandler = (fn: any, ctx: any, args: any) => {
   return handler(ctx, args);
 };
 
+const toHex = (bytes: Uint8Array): string =>
+  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+
+const hashLegacyApiKey = async (key: string): Promise<string> => {
+  const payload = `${key}:${process.env.BETTER_AUTH_SECRET ?? ""}`;
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(payload)
+  );
+  return toHex(new Uint8Array(digest));
+};
+
+const componentKey = {
+  createdAt: 300,
+  env: "live",
+  keyId: "component_key",
+  lastUsedAt: 350,
+  lookupPrefix: "a1b2c3d4",
+  metadata: undefined,
+  name: "SDK Key",
+  remaining: undefined,
+  scopes: ["full_access"],
+  status: "active",
+  tags: [],
+  type: "secret",
+};
+
+const buildLegacyQuery = (rows: any[]) => ({
+  withIndex: mock(() => ({
+    collect: mock().mockResolvedValue(rows),
+    order: mock(() => ({
+      take: mock().mockResolvedValue(rows),
+    })),
+    take: mock().mockResolvedValue(rows),
+  })),
+  filter: mock(() => ({
+    collect: mock().mockResolvedValue(rows),
+  })),
+});
+
+const buildAuth = (subject = "user_1") => ({
+  getUserIdentity: mock().mockResolvedValue({ subject }),
+});
+
 describe("apiKeys", () => {
-  test("create stores only hashed key and revokes active key", async () => {
-    const collectMock = mock()
-      .mockResolvedValueOnce([
-        {
-          _id: "old_key",
-          userId: "user_1",
-          revokedAt: undefined,
-        },
-      ])
-      .mockResolvedValueOnce([]);
-
-    const db = {
-      query: mock(() => ({
-        withIndex: mock(() => ({
-          collect: collectMock,
-          order: mock(() => ({ collect: collectMock })),
-        })),
-      })),
-      patch: mock().mockResolvedValue(null),
-      insert: mock().mockResolvedValue("new_key"),
-      get: mock(),
-    };
-
+  test("create stores new keys in the component", async () => {
+    const key = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const ctx = {
-      auth: {
-        getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
-      },
-      db,
+      auth: buildAuth(),
+      runMutation: mock().mockResolvedValue({
+        key,
+        keyId: "component_key",
+      }),
     };
 
     const result = await runHandler(createUserApiKey, ctx, {
-      name: "API Keys",
+      name: "SDK Key",
     });
 
-    expect(result.id).toBe("new_key");
-    expect(result.key).toStartWith("teakapi_");
-    expect(db.patch).toHaveBeenCalledWith(
-      "apiKeys",
-      "old_key",
-      expect.objectContaining({ revokedAt: expect.any(Number) })
+    expect(result).toEqual({
+      access: "full_access",
+      createdAt: expect.any(Number),
+      id: "component_key",
+      key,
+      keyPrefix: "a1b2c3d4",
+      name: "SDK Key",
+      source: "component",
+      status: "active",
+    });
+    expect(ctx.runMutation).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        env: "live",
+        name: "SDK Key",
+        ownerId: "user_1",
+        scopes: ["full_access"],
+        type: "secret",
+      })
     );
-
-    const insertCall = db.insert.mock.calls[0];
-    expect(insertCall[0]).toBe("apiKeys");
-    expect(insertCall[1].keyHash).toBeString();
-    expect(insertCall[1].keyHash).not.toContain(result.key);
-    expect(insertCall[1]).not.toHaveProperty("key");
   });
 
-  test("list returns masked key metadata", async () => {
-    const collectMock = mock().mockResolvedValue([
-      {
-        _id: "k1",
-        userId: "user_1",
-        name: "API Keys",
-        keyPrefix: "abc123",
-        access: "full_access",
-        createdAt: 100,
-        updatedAt: 200,
-        lastUsedAt: 150,
-        revokedAt: undefined,
-      },
-    ]);
-
+  test("list returns component keys and legacy keys marked for update", async () => {
+    const legacyKey = {
+      _id: "legacy_key",
+      access: "full_access",
+      createdAt: 100,
+      keyPrefix: "abc123",
+      lastUsedAt: 150,
+      name: "Old Key",
+      revokedAt: undefined,
+      updatedAt: 200,
+      userId: "user_1",
+    };
     const ctx = {
-      auth: {
-        getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
-      },
+      auth: buildAuth(),
       db: {
-        query: mock(() => ({
-          withIndex: mock(() => ({
-            collect: collectMock,
-            order: mock(() => ({ collect: collectMock })),
-          })),
-        })),
+        query: mock(() => buildLegacyQuery([legacyKey])),
       },
+      runQuery: mock().mockResolvedValue([componentKey]),
     };
 
     const result = await runHandler(listUserApiKeys, ctx, {});
-    expect(result).toHaveLength(1);
-    expect(result[0].maskedKey).toContain("••••••••");
-    expect(result[0].access).toBe("full_access");
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: "component_key",
+        maskedKey: `teakapi_secret_live_a1b2c3d4_••••••••`,
+        requiresUpdate: false,
+        source: "component",
+      }),
+      expect.objectContaining({
+        id: "legacy_key",
+        maskedKey: "abc123••••••••",
+        requiresUpdate: true,
+        source: "legacy",
+      }),
+    ]);
   });
 
-  test("revoke marks selected key as revoked", async () => {
+  test("revoke marks legacy keys as revoked", async () => {
     const ctx = {
-      auth: {
-        getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
-      },
+      auth: buildAuth(),
       db: {
         get: mock().mockResolvedValue({
-          _id: "k1",
+          _id: "legacy_key",
           userId: "user_1",
-          revokedAt: undefined,
         }),
         patch: mock().mockResolvedValue(null),
       },
     };
 
-    await runHandler(revokeUserApiKey, ctx, { keyId: "k1" });
+    await runHandler(revokeUserApiKey, ctx, {
+      keyId: "legacy_key",
+      source: "legacy",
+    });
 
     expect(ctx.db.patch).toHaveBeenCalledWith(
-      "apiKeys",
-      "k1",
+      "legacy_key",
       expect.objectContaining({ revokedAt: expect.any(Number) })
     );
   });
 
-  test("validate accepts valid key and updates lastUsedAt", async () => {
-    const createCollectMock = mock().mockResolvedValue([]);
-    const createDb = {
-      query: mock(() => ({
-        withIndex: mock(() => ({
-          collect: createCollectMock,
-          order: mock(() => ({ collect: createCollectMock })),
-        })),
-      })),
-      patch: mock().mockResolvedValue(null),
-      insert: mock().mockResolvedValue("k_new"),
+  test("revoke component keys through the component", async () => {
+    const ctx = {
+      auth: buildAuth(),
+      runMutation: mock().mockResolvedValue(null),
     };
 
-    const createCtx = {
-      auth: {
-        getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
-      },
-      db: createDb,
-    };
-
-    const created = await runHandler(createUserApiKey, createCtx, {
-      name: "API Keys",
+    await runHandler(revokeUserApiKey, ctx, {
+      keyId: "component_key",
+      source: "component",
     });
 
-    const insertedPayload = createDb.insert.mock.calls[0][1];
-
-    const validateCollectMock = mock().mockResolvedValue([
-      {
-        _id: "k_new",
-        userId: "user_1",
-        keyPrefix: insertedPayload.keyPrefix,
-        keyHash: insertedPayload.keyHash,
-        access: "full_access",
-        revokedAt: undefined,
-      },
+    expect(ctx.runMutation).toHaveBeenCalledTimes(1);
+    expect(ctx.runMutation.mock.calls.map((call) => call[1])).toEqual([
+      { keyId: "component_key", ownerId: "user_1" },
     ]);
+  });
 
-    const validateCtx = {
-      runQuery: mock().mockResolvedValue({
-        _id: "user_1",
+  test("rotate creates a replacement key and immediately revokes the old component key", async () => {
+    const newKey = `teakapi_secret_live_e5f6a7b8_${"a".repeat(64)}`;
+    const ctx = {
+      auth: buildAuth(),
+      runMutation: mock()
+        .mockResolvedValueOnce({
+          key: newKey,
+          keyId: "new_component_key",
+        })
+        .mockResolvedValueOnce(null),
+      runQuery: mock().mockResolvedValue([componentKey]),
+    };
+
+    const result = await runHandler(rotateUserApiKey, ctx, {
+      keyId: "component_key",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: "new_component_key",
+        key: newKey,
+        keyPrefix: "e5f6a7b8",
+        source: "component",
+      })
+    );
+    expect(ctx.runMutation.mock.calls[0][1]).toEqual(
+      expect.objectContaining({
+        env: "live",
+        name: "SDK Key",
+        ownerId: "user_1",
+        scopes: ["full_access"],
+      })
+    );
+    expect(ctx.runMutation.mock.calls[1][1]).toEqual({
+      keyId: "component_key",
+      ownerId: "user_1",
+    });
+  });
+
+  test("validate accepts component keys and maps them to Teak authorization", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const ctx = {
+      runMutation: mock().mockResolvedValue({
+        env: "live",
+        keyId: "component_key",
+        ownerId: "user_1",
+        scopes: ["full_access"],
+        tags: [],
+        type: "secret",
+        valid: true,
       }),
-      db: {
-        query: mock(() => ({
-          withIndex: mock(() => ({
-            collect: validateCollectMock,
-          })),
-        })),
-        patch: mock().mockResolvedValue(null),
-      },
-    };
-
-    const result = await runHandler(validateUserApiKey, validateCtx, {
-      token: created.key,
-    });
-
-    expect(result).toEqual({
-      keyId: "k_new",
-      userId: "user_1",
-      access: "full_access",
-    });
-    expect(validateCtx.db.patch).toHaveBeenCalledWith(
-      "apiKeys",
-      "k_new",
-      expect.objectContaining({ lastUsedAt: expect.any(Number) })
-    );
-    expect(validateCtx.runQuery).toHaveBeenCalled();
-  });
-
-  test("validate skips lastUsedAt write when recently used", async () => {
-    const createCollectMock = mock().mockResolvedValue([]);
-    const createDb = {
-      query: mock(() => ({
-        withIndex: mock(() => ({
-          collect: createCollectMock,
-          order: mock(() => ({ collect: createCollectMock })),
-        })),
-      })),
-      patch: mock().mockResolvedValue(null),
-      insert: mock().mockResolvedValue("k_recent"),
-    };
-
-    const createCtx = {
-      auth: {
-        getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
-      },
-      db: createDb,
-    };
-
-    const created = await runHandler(createUserApiKey, createCtx, {
-      name: "API Keys",
-    });
-
-    const insertedPayload = createDb.insert.mock.calls[0][1];
-
-    const validateCollectMock = mock().mockResolvedValue([
-      {
-        _id: "k_recent",
-        userId: "user_1",
-        keyPrefix: insertedPayload.keyPrefix,
-        keyHash: insertedPayload.keyHash,
-        access: "full_access",
-        // Used moments ago, so validation must not write again.
-        lastUsedAt: Date.now(),
-        revokedAt: undefined,
-      },
-    ]);
-
-    const validateCtx = {
       runQuery: mock().mockResolvedValue({ _id: "user_1" }),
-      db: {
-        query: mock(() => ({
-          withIndex: mock(() => ({
-            collect: validateCollectMock,
-          })),
-        })),
-        patch: mock().mockResolvedValue(null),
-      },
     };
 
-    const result = await runHandler(validateUserApiKey, validateCtx, {
-      token: created.key,
-    });
+    const result = await runHandler(validateUserApiKey, ctx, { token });
 
     expect(result).toEqual({
-      keyId: "k_recent",
-      userId: "user_1",
       access: "full_access",
+      keyId: "component_key",
+      rateLimitKey: "component:component_key",
+      source: "component",
+      userId: "user_1",
     });
-    expect(validateCtx.db.patch).not.toHaveBeenCalled();
   });
 
-  test("validate refreshes lastUsedAt when stale", async () => {
-    const createCollectMock = mock().mockResolvedValue([]);
-    const createDb = {
-      query: mock(() => ({
-        withIndex: mock(() => ({
-          collect: createCollectMock,
-          order: mock(() => ({ collect: createCollectMock })),
-        })),
-      })),
-      patch: mock().mockResolvedValue(null),
-      insert: mock().mockResolvedValue("k_stale"),
-    };
-
-    const createCtx = {
-      auth: {
-        getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
-      },
-      db: createDb,
-    };
-
-    const created = await runHandler(createUserApiKey, createCtx, {
-      name: "API Keys",
-    });
-
-    const insertedPayload = createDb.insert.mock.calls[0][1];
-
-    const validateCollectMock = mock().mockResolvedValue([
-      {
-        _id: "k_stale",
-        userId: "user_1",
-        keyPrefix: insertedPayload.keyPrefix,
-        keyHash: insertedPayload.keyHash,
-        access: "full_access",
-        // Used long ago (1 hour), so validation should refresh it.
-        lastUsedAt: Date.now() - 60 * 60 * 1000,
-        revokedAt: undefined,
-      },
-    ]);
-
-    const validateCtx = {
-      runQuery: mock().mockResolvedValue({ _id: "user_1" }),
-      db: {
-        query: mock(() => ({
-          withIndex: mock(() => ({
-            collect: validateCollectMock,
-          })),
-        })),
-        patch: mock().mockResolvedValue(null),
-      },
-    };
-
-    const result = await runHandler(validateUserApiKey, validateCtx, {
-      token: created.key,
-    });
-
-    expect(result).toEqual({
-      keyId: "k_stale",
-      userId: "user_1",
+  test("validate preserves legacy key compatibility", async () => {
+    const token = "teakapi_abc123_secretvalue";
+    const insertedPayload = {
       access: "full_access",
-    });
-    expect(validateCtx.db.patch).toHaveBeenCalledWith(
-      "apiKeys",
-      "k_stale",
-      expect.objectContaining({ lastUsedAt: expect.any(Number) })
-    );
-  });
-
-  test("validate rejects invalid key", async () => {
+      createdAt: 100,
+      keyHash: await hashLegacyApiKey(token),
+      keyPrefix: "abc123",
+      lastUsedAt: undefined,
+      name: "Old Key",
+      revokedAt: undefined,
+      updatedAt: 100,
+      userId: "user_1",
+    };
     const ctx = {
       db: {
-        query: mock(() => ({
-          withIndex: mock(() => ({ collect: mock().mockResolvedValue([]) })),
-        })),
-        patch: mock(),
+        patch: mock().mockResolvedValue(null),
+        query: mock(() =>
+          buildLegacyQuery([
+            {
+              _id: "legacy_key",
+              ...insertedPayload,
+            },
+          ])
+        ),
       },
+      runQuery: mock().mockResolvedValue({ _id: "user_1" }),
     };
 
     const result = await runHandler(validateUserApiKey, ctx, {
-      token: "teakapi_badprefix_secret",
+      token,
     });
 
-    expect(result).toBeNull();
-    expect(ctx.db.patch).not.toHaveBeenCalled();
-  });
-
-  test("validate revokes matched key when auth user no longer exists", async () => {
-    const createCollectMock = mock().mockResolvedValue([]);
-    const createDb = {
-      query: mock(() => ({
-        withIndex: mock(() => ({
-          collect: createCollectMock,
-          order: mock(() => ({ collect: createCollectMock })),
-        })),
-      })),
-      patch: mock().mockResolvedValue(null),
-      insert: mock().mockResolvedValue("k_deleted"),
-    };
-
-    const createCtx = {
-      auth: {
-        getUserIdentity: mock().mockResolvedValue({ subject: "deleted_user" }),
-      },
-      db: createDb,
-    };
-
-    const created = await runHandler(createUserApiKey, createCtx, {
-      name: "API Keys",
-    });
-    const insertedPayload = createDb.insert.mock.calls[0][1];
-    const matchedCandidate = {
-      _id: "k_deleted",
-      userId: "deleted_user",
-      keyPrefix: insertedPayload.keyPrefix,
-      keyHash: insertedPayload.keyHash,
+    expect(result).toEqual({
       access: "full_access",
-      revokedAt: undefined,
-    };
-    const validateCollectMock = mock().mockResolvedValue([matchedCandidate]);
-
-    const validateCtx = {
-      runQuery: mock().mockResolvedValue(null),
-      db: {
-        query: mock(() => ({
-          withIndex: mock(() => ({
-            collect: validateCollectMock,
-          })),
-        })),
-        patch: mock().mockResolvedValue(null),
-      },
-    };
-
-    const result = await runHandler(validateUserApiKey, validateCtx, {
-      token: created.key,
+      keyId: "legacy_key",
+      rateLimitKey: "legacy:legacy_key",
+      source: "legacy",
+      userId: "user_1",
     });
-
-    expect(result).toBeNull();
-    expect(validateCtx.db.patch).toHaveBeenCalledWith(
-      "apiKeys",
-      "k_deleted",
-      expect.objectContaining({ revokedAt: expect.any(Number) })
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "legacy_key",
+      expect.objectContaining({ lastUsedAt: expect.any(Number) })
     );
   });
 
-  test("cutover revoke-all revokes every active key", async () => {
+  test("validate rejects malformed keys without touching storage or components", async () => {
+    const ctx = {
+      db: {
+        query: mock(),
+      },
+      runMutation: mock(),
+      runQuery: mock(),
+    };
+
+    const result = await runHandler(validateUserApiKey, ctx, {
+      token: "teakapi_bad",
+    });
+
+    expect(result).toBeNull();
+    expect(ctx.db.query).not.toHaveBeenCalled();
+    expect(ctx.runMutation).not.toHaveBeenCalled();
+    expect(ctx.runQuery).not.toHaveBeenCalled();
+  });
+
+  test("cutover helper only revokes legacy active keys", async () => {
     const activeKeys = [
-      { _id: "k1", revokedAt: undefined },
-      { _id: "k2", revokedAt: undefined },
+      { _id: "legacy_1", revokedAt: undefined },
+      { _id: "legacy_2", revokedAt: undefined },
     ];
 
     const ctx = {
       db: {
-        query: mock(() => ({
-          filter: mock(() => ({
-            collect: mock().mockResolvedValue(activeKeys),
-          })),
-        })),
         patch: mock().mockResolvedValue(null),
+        query: mock(() => buildLegacyQuery(activeKeys)),
       },
     };
 
@@ -423,17 +325,6 @@ describe("apiKeys", () => {
     );
 
     expect(result.revokedCount).toBe(2);
-    expect(result.revokedAt).toEqual(expect.any(Number));
     expect(ctx.db.patch).toHaveBeenCalledTimes(2);
-    expect(ctx.db.patch).toHaveBeenCalledWith(
-      "apiKeys",
-      "k1",
-      expect.objectContaining({ revokedAt: expect.any(Number) })
-    );
-    expect(ctx.db.patch).toHaveBeenCalledWith(
-      "apiKeys",
-      "k2",
-      expect.objectContaining({ revokedAt: expect.any(Number) })
-    );
   });
 });

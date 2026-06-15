@@ -53,6 +53,8 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
         onCreateCustomerPortal={settings.handleCreateCustomerPortal}
         onDeleteAccount={settings.handleDeleteAccount}
         onDeleteDialogOpenChange={settings.setDeleteDialogOpen}
+        onRevokeApiKey={settings.handleRevokeApiKey}
+        onRotateApiKey={settings.handleRotateApiKey}
         onSignOut={settings.handleSignOut}
         onUpgrade={() => {
           void handleUpgradeClick();

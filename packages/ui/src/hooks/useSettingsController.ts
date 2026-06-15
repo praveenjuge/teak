@@ -31,12 +31,34 @@ export function useSettingsController({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const createCustomerPortal = useAction(api.billing.createCustomerPortal);
   const keys = useQuery(api.apiKeys.listUserApiKeys, {}) as
-    | { id: string }[]
+    | {
+        id: string;
+        name: string;
+        maskedKey: string;
+        source: "component" | "legacy";
+        status: "active" | "disabled" | "rotating" | "expired" | "exhausted";
+        requiresUpdate: boolean;
+        createdAt: number;
+        lastUsedAt?: number;
+      }[]
     | undefined;
   const createKey = useMutation(api.apiKeys.createUserApiKey);
+  const revokeKey = useMutation(api.apiKeys.revokeUserApiKey);
+  const rotateKey = useMutation(api.apiKeys.rotateUserApiKey);
 
   const handleCreateApiKey = async () => {
-    return (await createKey({ name: "API Keys" })) as { key: string };
+    return (await createKey({ name: "Default API key" })) as { key: string };
+  };
+
+  const handleRevokeApiKey = async (
+    keyId: string,
+    source: "component" | "legacy"
+  ) => {
+    await revokeKey({ keyId, source });
+  };
+
+  const handleRotateApiKey = async (keyId: string) => {
+    return (await rotateKey({ keyId })) as { key: string };
   };
 
   const handleCreateCustomerPortal = async () => {
@@ -98,6 +120,8 @@ export function useSettingsController({
     handleCreateApiKey,
     handleCreateCustomerPortal,
     handleDeleteAccount,
+    handleRevokeApiKey,
+    handleRotateApiKey,
     handleSignOut,
     hasPremium: user?.hasPremium,
     isLoading: user === undefined,
