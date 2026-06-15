@@ -37,7 +37,7 @@ const getErrorMessage = (code: RaycastApiErrorCode): string => {
     case "NETWORK_ERROR":
       return "Unable to reach Teak. Check your internet connection and try again.";
     case "NOT_FOUND":
-      return "This card no longer exists in Teak.";
+      return "Teak could not find the requested resource.";
     case "INVALID_INPUT":
     case "BAD_REQUEST":
       return "The request could not be processed. Please check your input and try again.";
@@ -151,7 +151,7 @@ export const getRecoveryHint = (error: unknown): string | null => {
     case "NETWORK_ERROR":
       return "Check network connectivity, then retry.";
     case "NOT_FOUND":
-      return "Refresh the card list and try again.";
+      return "Check your API key, API URL, and network connection, then retry.";
     default:
       return null;
   }

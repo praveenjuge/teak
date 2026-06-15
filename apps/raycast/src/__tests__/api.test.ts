@@ -64,6 +64,16 @@ describe("raycast api helpers", () => {
     expect(getRecoveryHint(error)).toContain("Check network connectivity");
   });
 
+  test("maps not found errors without implying a card was deleted", () => {
+    const error = new RaycastApiError("NOT_FOUND", 404);
+
+    expect(getUserFacingErrorMessage(error)).toContain("requested resource");
+    expect(getUserFacingErrorMessage(error)).not.toContain(
+      "card no longer exists",
+    );
+    expect(getRecoveryHint(error)).toContain("API URL");
+  });
+
   test("handles unknown error values", () => {
     expect(getUserFacingErrorMessage(null)).toContain(
       "temporarily unavailable",
