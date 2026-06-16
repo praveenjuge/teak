@@ -8,9 +8,9 @@
  *   - getExportDownloadUrl action   short-lived signed download URL
  *
  * Internal surface (used by the workflow / cleanup cron):
- *   - getJob, getExportCardsPage, getActiveCardIdsPage
- *   - markRunning, recordSnapshotPage, completeExport, failExport
- *   - cancelIfRequested, findExpiredReadyJobs, expireJob, deleteJobItems
+ *   - getJob, getExportCardsPage, recordSnapshotPage
+ *   - markRunning, completeExport, failExport, isCancelRequested
+ *   - findExpiredReadyJobs, expireJob, deleteJobItemsPage
  */
 
 import { v } from "convex/values";
@@ -454,6 +454,20 @@ export const completeExport = internalMutation({
   handler: async (ctx, args) => {
     const job = (await ctx.db.get(args.jobId)) as unknown as ExportJobDoc | null;
     if (!job) {
+      return null;
+    }
+    // If the job was canceled while the archive was being built/uploaded, do not
+    // resurrect it as "ready". Discard the just-written artifact instead so it
+    // doesn't linger in R2, and leave the canceled state (and quota) untouched.
+    if (
+      job.status === EXPORT_STATUS.CANCELED ||
+      job.cancelRequested === true
+    ) {
+      await ctx.scheduler.runAfter(
+        0,
+        internalAny["export/runExport"].deleteArtifact,
+        { artifactKey: args.artifactKey }
+      );
       return null;
     }
     const now = Date.now();

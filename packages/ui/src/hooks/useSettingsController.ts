@@ -93,6 +93,11 @@ export function useSettingsController({
     if (!result.started && result.reason === "quota_exceeded") {
       throw new Error("Weekly export limit reached.");
     }
+    if (!result.started && result.reason === "already_active") {
+      // An export is already pending/running; surface as a failure so the
+      // dialog does not show a misleading "export started" success toast.
+      throw new Error("An export is already in progress.");
+    }
   };
 
   const handleCancelExport = async (jobId: string) => {

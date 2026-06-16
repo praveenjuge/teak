@@ -79,11 +79,21 @@ function toNodeBuffer(bytes: Uint8Array): Buffer {
 }
 
 /**
+ * Maximum number of original files read from R2 at once. Bounds peak memory and
+ * avoids overwhelming R2 with thousands of simultaneous GetObject requests for
+ * large libraries.
+ */
+const MAX_CONCURRENT_READS = 25;
+
+/**
  * Build the export ZIP archive in memory and return its bytes plus counts.
  *
- * The function first resolves all file bytes (with retry/omit), then serializes
- * cards (omitted files produce cards without a `file` entry), then writes the
- * manifest, cards.json, and each included file into the archive.
+ * Files are read from the injected reader with bounded concurrency and appended
+ * to the archive as soon as their bytes resolve, so raw file buffers are not all
+ * held in memory at once. Each card is serialized to reflect whether its file
+ * was actually included (missing files are omitted after one retry; the card
+ * still appears in cards.json without a `file` entry). The manifest and
+ * cards.json are appended once all per-card outcomes are known.
  */
 export async function buildExportArchive(args: {
   inputs: ArchiveCardInput[];
@@ -92,43 +102,6 @@ export async function buildExportArchive(args: {
   expiresAtMs: number;
 }): Promise<BuildArchiveResult> {
   const { inputs, readFile, createdAtMs, expiresAtMs } = args;
-
-  // Resolve file bytes up front so manifest counts and cards.json reflect the
-  // exact set of files actually included.
-  const resolved = await Promise.all(
-    inputs.map(async (input) => {
-      if (!input.fileKey) {
-        return { input, bytes: null as Uint8Array | null };
-      }
-      const bytes = await readWithRetry(readFile, input.fileKey);
-      return { input, bytes };
-    })
-  );
-
-  const omittedCardIds: string[] = [];
-  let filesIncluded = 0;
-  let filesOmitted = 0;
-
-  const serializedCards = resolved.map(({ input, bytes }) => {
-    const hasFileIntent = Boolean(input.fileKey);
-    const included = Boolean(bytes);
-    if (hasFileIntent && !included) {
-      filesOmitted += 1;
-      omittedCardIds.push(input.card._id);
-    }
-    if (included) {
-      filesIncluded += 1;
-    }
-    return serializeCard(input.card, { includeFile: included });
-  });
-
-  const manifest = buildManifest({
-    createdAtMs,
-    expiresAtMs,
-    cardCount: serializedCards.length,
-    filesIncluded,
-    filesOmitted,
-  });
 
   const archive = new ZipArchive({ zlib: { level: 9 } });
   const output = new PassThrough();
@@ -151,23 +124,58 @@ export async function buildExportArchive(args: {
 
   archive.pipe(output);
 
+  const omittedCardIds: string[] = [];
+  let filesIncluded = 0;
+  let filesOmitted = 0;
+  // Preserve input order for deterministic cards.json output.
+  const serializedCards: ReturnType<typeof serializeCard>[] = new Array(
+    inputs.length
+  );
+
+  let nextIndex = 0;
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= inputs.length) {
+        return;
+      }
+      const input = inputs[index];
+      let included = false;
+      if (input.fileKey) {
+        const bytes = await readWithRetry(readFile, input.fileKey);
+        if (bytes) {
+          included = true;
+          filesIncluded += 1;
+          archive.append(toNodeBuffer(bytes), {
+            name: buildFilePath(input.card._id, input.card.fileMetadata?.fileName),
+          });
+        } else {
+          filesOmitted += 1;
+          omittedCardIds.push(input.card._id);
+        }
+      }
+      serializedCards[index] = serializeCard(input.card, { includeFile: included });
+    }
+  };
+
+  const workerCount = Math.min(MAX_CONCURRENT_READS, Math.max(inputs.length, 1));
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+  const manifest = buildManifest({
+    createdAtMs,
+    expiresAtMs,
+    cardCount: serializedCards.length,
+    filesIncluded,
+    filesOmitted,
+  });
+
   archive.append(JSON.stringify(manifest, null, 2), {
     name: MANIFEST_ENTRY_NAME,
   });
   archive.append(JSON.stringify({ cards: serializedCards }, null, 2), {
     name: CARDS_ENTRY_NAME,
   });
-
-  for (const { input, bytes } of resolved) {
-    if (!bytes) {
-      continue;
-    }
-    const entryName = buildFilePath(
-      input.card._id,
-      input.card.fileMetadata?.fileName
-    );
-    archive.append(toNodeBuffer(bytes), { name: entryName });
-  }
 
   await archive.finalize();
   await finished;
