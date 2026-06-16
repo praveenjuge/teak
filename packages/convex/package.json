@@ -26,6 +26,8 @@
   },
   "dependencies": {
     "@ai-sdk/groq": "^3.0.39",
+    "@aws-sdk/client-s3": "3.1069.0",
+    "@aws-sdk/s3-request-presigner": "3.1069.0",
     "@better-auth/expo": "1.6.11",
     "@cf-wasm/photon": "^0.3.5",
     "@convex-dev/better-auth": "0.12.2",
@@ -40,6 +42,7 @@
     "@polar-sh/sdk": "^0.47.1",
     "@vllnt/convex-api-keys": "0.2.0",
     "ai": "^6.0.184",
+    "archiver": "8.0.0",
     "better-auth": "1.6.11",
     "convex": "^1.39.0",
     "convex-helpers": "^0.1.118",
@@ -48,7 +51,9 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@types/archiver": "^8.0.0",
     "@types/react": "^19.2.14",
+    "fflate": "^0.8.3",
     "typescript": "^6.0.3"
   }
 }

@@ -9,6 +9,8 @@ import type { ApiKeyListItem } from "./ApiKeysDialog";
 import { ApiKeysSection } from "./ApiKeysSection";
 import { CustomerPortalButton } from "./CustomerPortalButton";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
+import type { ExportState } from "./ExportDataDialog";
+import { ExportDataSection } from "./ExportDataSection";
 import { SettingRow } from "./SettingRow";
 import { SettingsFooter } from "./SettingsFooter";
 import { ThemeToggle } from "./ThemeToggle";
@@ -19,19 +21,24 @@ interface SettingsContentProps {
   deleteDialogOpen: boolean;
   deleteLoading: boolean;
   email?: string | null;
+  exportState?: ExportState | null;
+  exportLoading?: boolean;
   hasPremium?: boolean;
   isLoading: boolean;
   keys: ApiKeyListItem[] | undefined;
+  onCancelExport?: (jobId: string) => Promise<void>;
   onCreateApiKey: () => Promise<{ key: string }>;
   onCreateCustomerPortal: () => Promise<void>;
   onDeleteAccount: () => Promise<void>;
   onDeleteDialogOpenChange: (open: boolean) => void;
+  onDownloadExport?: (jobId: string) => Promise<void>;
   onRevokeApiKey: (
     keyId: string,
     source: ApiKeyListItem["source"]
   ) => Promise<void>;
   onRotateApiKey: (keyId: string) => Promise<{ key: string }>;
   onSignOut: () => Promise<void> | void;
+  onStartExport?: () => Promise<void>;
   onThemeChange?: (value: string) => void;
   onUpgrade: () => void;
   signOutLoading: boolean;
@@ -44,16 +51,21 @@ export function SettingsContent({
   deleteDialogOpen,
   deleteLoading,
   email,
+  exportState,
+  exportLoading,
   hasPremium,
   isLoading,
   keys,
+  onCancelExport,
   onCreateApiKey,
   onCreateCustomerPortal,
   onDeleteAccount,
   onDeleteDialogOpenChange,
+  onDownloadExport,
   onRevokeApiKey,
   onRotateApiKey,
   onSignOut,
+  onStartExport,
   onThemeChange,
   onUpgrade,
   signOutLoading,
@@ -112,6 +124,16 @@ export function SettingsContent({
         onRevokeKey={onRevokeApiKey}
         onRotateKey={onRotateApiKey}
       />
+
+      {onStartExport && onCancelExport && onDownloadExport ? (
+        <ExportDataSection
+          exportState={exportState}
+          isLoading={exportLoading ?? exportState === undefined}
+          onCancelExport={onCancelExport}
+          onDownloadExport={onDownloadExport}
+          onStartExport={onStartExport}
+        />
+      ) : null}
 
       <SettingRow title="Theme">
         <ThemeToggle onThemeChange={onThemeChange} />

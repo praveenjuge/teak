@@ -61,6 +61,18 @@ export default function ProfileSettingsPage() {
         throw new Error("Could not open portal");
       }
     },
+    onDownloadFile: (url) => {
+      // Use an anchor click rather than window.open: the artifact is served
+      // with Content-Disposition: attachment, and an anchor click is not
+      // blocked by the popup blocker after an awaited action call.
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.rel = "noopener";
+      anchor.target = "_blank";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    },
     onSignOut: async () => {
       await authClient.signOut({
         fetchOptions: {
@@ -139,16 +151,20 @@ export default function ProfileSettingsPage() {
       deleteDialogOpen={settings.deleteDialogOpen}
       deleteLoading={settings.deleteLoading}
       email={settings.email}
+      exportState={settings.exportState}
       hasPremium={settings.hasPremium}
       isLoading={settings.isLoading}
       keys={settings.keys}
+      onCancelExport={settings.handleCancelExport}
       onCreateApiKey={settings.handleCreateApiKey}
       onCreateCustomerPortal={settings.handleCreateCustomerPortal}
       onDeleteAccount={settings.handleDeleteAccount}
       onDeleteDialogOpenChange={settings.setDeleteDialogOpen}
+      onDownloadExport={settings.handleDownloadExport}
       onRevokeApiKey={settings.handleRevokeApiKey}
       onRotateApiKey={settings.handleRotateApiKey}
       onSignOut={settings.handleSignOut}
+      onStartExport={settings.handleStartExport}
       onUpgrade={() => {
         setSubscriptionOpen(true);
       }}

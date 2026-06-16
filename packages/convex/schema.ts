@@ -248,6 +248,62 @@ export const nativeAuthCodeValidator = v.object({
   createdAt: v.number(),
 });
 
+export const exportStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("running"),
+  v.literal("ready"),
+  v.literal("failed"),
+  v.literal("canceled"),
+  v.literal("expired")
+);
+
+export const exportFailureClassValidator = v.union(
+  v.literal("cap_exceeded"),
+  v.literal("archive_failed"),
+  v.literal("storage_failed"),
+  v.literal("canceled"),
+  v.literal("unknown")
+);
+
+// Canonical export job record. No backfill: rows are created on demand.
+export const exportJobValidator = v.object({
+  userId: v.string(),
+  status: exportStatusValidator,
+  // Workflow handle for the durable background generation (when running).
+  workflowId: v.optional(v.string()),
+  // Cooperative cancellation flag checked by the workflow.
+  cancelRequested: v.optional(v.boolean()),
+  // R2 object key + size of the completed ZIP artifact.
+  artifactKey: v.optional(r2KeyValidator),
+  artifactBytes: v.optional(v.number()),
+  // Operational counts (no card contents or filenames).
+  cardCount: v.optional(v.number()),
+  filesIncluded: v.optional(v.number()),
+  filesOmitted: v.optional(v.number()),
+  // Failure classification only (no PII).
+  failureClass: v.optional(exportFailureClassValidator),
+  // Lifecycle timestamps.
+  createdAt: v.number(),
+  updatedAt: v.number(),
+  startedAt: v.optional(v.number()),
+  completedAt: v.optional(v.number()),
+  // Timestamp counted against the weekly quota (set only on success).
+  quotaCountedAt: v.optional(v.number()),
+  // When the completed artifact expires and is eligible for cleanup.
+  expiresAt: v.optional(v.number()),
+});
+
+// Per-card snapshot of the start-time card set. Stored as individual rows so a
+// large library does not hit Convex array/document size limits.
+export const exportJobItemValidator = v.object({
+  jobId: v.id("exportJobs"),
+  userId: v.string(),
+  cardId: v.id("cards"),
+  // The original file key captured at start time (if any).
+  fileKey: v.optional(r2KeyValidator),
+  createdAt: v.number(),
+});
+
 export const cardValidator = v.object({
   userId: v.string(),
   content: v.string(),
@@ -366,5 +422,14 @@ export default defineSchema({
     .index("by_expires_at", ["expiresAt"])
     .index("by_device_state_consumed", ["deviceId", "state", "consumedAt"])
     .index("by_surface", ["surface"])
+    .index("by_user", ["userId"]),
+  exportJobs: defineTable(exportJobValidator)
+    // Latest job per user + active-job lookups.
+    .index("by_user_created", ["userId", "createdAt"])
+    .index("by_user_status", ["userId", "status"])
+    // Cleanup scans of ready artifacts by expiry.
+    .index("by_status_expires", ["status", "expiresAt"]),
+  exportJobItems: defineTable(exportJobItemValidator)
+    .index("by_job", ["jobId"])
     .index("by_user", ["userId"]),
 });
