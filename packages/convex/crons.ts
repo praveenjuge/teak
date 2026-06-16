@@ -21,4 +21,13 @@ crons.interval(
   {}
 );
 
+// Delete expired export artifacts, remove leftover snapshot items, and mark
+// jobs expired. Runs daily at 3:00 AM UTC (off-peak, after card cleanup).
+crons.daily(
+  "cleanup-expired-exports",
+  { hourUTC: 3, minuteUTC: 0 },
+  (internal as any).workflows.exportCleanup.startExportCleanupWorkflow,
+  {}
+);
+
 export default crons;

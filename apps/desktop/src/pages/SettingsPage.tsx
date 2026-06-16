@@ -46,16 +46,20 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
         deleteDialogOpen={settings.deleteDialogOpen}
         deleteLoading={settings.deleteLoading}
         email={settings.email}
+        exportState={settings.exportState}
         hasPremium={settings.hasPremium}
         isLoading={settings.isLoading}
         keys={settings.keys}
+        onCancelExport={settings.handleCancelExport}
         onCreateApiKey={settings.handleCreateApiKey}
         onCreateCustomerPortal={settings.handleCreateCustomerPortal}
         onDeleteAccount={settings.handleDeleteAccount}
         onDeleteDialogOpenChange={settings.setDeleteDialogOpen}
+        onDownloadExport={settings.handleDownloadExport}
         onRevokeApiKey={settings.handleRevokeApiKey}
         onRotateApiKey={settings.handleRotateApiKey}
         onSignOut={settings.handleSignOut}
+        onStartExport={settings.handleStartExport}
         onUpgrade={() => {
           void handleUpgradeClick();
         }}

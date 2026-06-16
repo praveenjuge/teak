@@ -14,6 +14,12 @@ interface UseSettingsControllerOptions {
     context: { action: string; source: string }
   ) => void;
   onDeleteAccount: () => Promise<void>;
+  /**
+   * Trigger a file download for the given URL. Optional; defaults to
+   * `onOpenExternal`. Web should pass a handler that does not rely on
+   * `window.open` (which the popup blocker rejects after an await).
+   */
+  onDownloadFile?: (url: string) => Promise<unknown> | unknown;
   onOpenExternal: (url: string) => Promise<unknown> | unknown;
   onSignOut: () => Promise<void> | void;
 }
@@ -21,6 +27,7 @@ interface UseSettingsControllerOptions {
 export function useSettingsController({
   onCaptureError,
   onDeleteAccount,
+  onDownloadFile,
   onOpenExternal,
   onSignOut,
 }: UseSettingsControllerOptions) {
@@ -45,6 +52,68 @@ export function useSettingsController({
   const createKey = useMutation(api.apiKeys.createUserApiKey);
   const revokeKey = useMutation(api.apiKeys.revokeUserApiKey);
   const rotateKey = useMutation(api.apiKeys.rotateUserApiKey);
+
+  const exportState = useQuery(api.dataExport.getLatestExport, {}) as
+    | {
+        job: {
+          id: string;
+          status:
+            | "pending"
+            | "running"
+            | "ready"
+            | "failed"
+            | "canceled"
+            | "expired";
+          cardCount?: number;
+          filesIncluded?: number;
+          filesOmitted?: number;
+          artifactBytes?: number;
+          failureClass?: string;
+          createdAt: number;
+          updatedAt: number;
+          completedAt?: number;
+          expiresAt?: number;
+          downloadAvailable: boolean;
+        } | null;
+        canStartNew: boolean;
+        quotaResetMs: number;
+      }
+    | null
+    | undefined;
+  const startExportMutation = useMutation(api.dataExport.startExport);
+  const cancelExportMutation = useMutation(api.dataExport.cancelExport);
+  const getExportDownloadUrl = useAction(api.dataExport.getExportDownloadUrl);
+
+  const handleStartExport = async () => {
+    const result = (await startExportMutation({})) as {
+      started: boolean;
+      reason?: "quota_exceeded" | "already_active";
+      quotaResetMs?: number;
+    };
+    if (!result.started && result.reason === "quota_exceeded") {
+      throw new Error("Weekly export limit reached.");
+    }
+    if (!result.started && result.reason === "already_active") {
+      // An export is already pending/running; surface as a failure so the
+      // dialog does not show a misleading "export started" success toast.
+      throw new Error("An export is already in progress.");
+    }
+  };
+
+  const handleCancelExport = async (jobId: string) => {
+    await cancelExportMutation({ jobId: jobId as never });
+  };
+
+  const handleDownloadExport = async (jobId: string) => {
+    const result = (await getExportDownloadUrl({ jobId: jobId as never })) as {
+      url: string;
+      expiresInSeconds: number;
+    } | null;
+    if (!result?.url) {
+      throw new Error("Download is not available.");
+    }
+    await (onDownloadFile ?? onOpenExternal)(result.url);
+  };
 
   const handleCreateApiKey = async () => {
     return (await createKey({ name: "Default API key" })) as { key: string };
@@ -117,12 +186,16 @@ export function useSettingsController({
     deleteDialogOpen,
     deleteLoading,
     email: user?.email,
+    exportState,
+    handleCancelExport,
     handleCreateApiKey,
     handleCreateCustomerPortal,
     handleDeleteAccount,
+    handleDownloadExport,
     handleRevokeApiKey,
     handleRotateApiKey,
     handleSignOut,
+    handleStartExport,
     hasPremium: user?.hasPremium,
     isLoading: user === undefined,
     keys,
