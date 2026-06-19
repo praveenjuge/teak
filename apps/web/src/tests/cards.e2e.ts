@@ -4,8 +4,6 @@ import { AuthHelper, generateTestContent, UiHelper } from "./test-helpers";
 // Get test credentials from environment
 const email = process.env.E2E_BETTER_AUTH_USER_EMAIL;
 const password = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
-
-// biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
 test.skip(
   !(email && password),
   "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run card CRUD tests."

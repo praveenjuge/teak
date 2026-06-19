@@ -5,7 +5,6 @@ const TEST_EMAIL = process.env.E2E_BETTER_AUTH_USER_EMAIL;
 const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
 
 test.describe("Settings Navigation and Management", () => {
-  // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
   test.skip(
     !(TEST_EMAIL && TEST_PASSWORD),
     "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run settings tests."
@@ -233,7 +232,6 @@ test.describe("Settings Navigation and Management", () => {
           }
         }
       } else {
-        // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
         test.skip(true, "User is already on Pro plan");
       }
     });
@@ -262,7 +260,6 @@ test.describe("Settings Navigation and Management", () => {
           await closeButton.first().click();
         }
       } else {
-        // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
         test.skip(true, "User is already on Pro plan");
       }
     });

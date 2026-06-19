@@ -45,14 +45,21 @@
     "expo-web-browser": "56.0.5",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "@types/react": "19.2.14",
+    "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.16",
+    "@biomejs/biome": "2.5.0",
+    "lru-cache": "5.1.1",
     "portless": "0.14.0",
     "simple-git-hooks": "^2.13.1",
-    "turbo": "^2.9.14",
+    "turbo": "^2.9.18",
     "ultracite": "7.8.3"
-  }
+  },
+  "trustedDependencies": [
+    "@sentry/cli",
+    "@swc/core",
+    "@teak/extension",
+    "spawn-sync"
+  ]
 }

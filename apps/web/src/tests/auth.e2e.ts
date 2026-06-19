@@ -8,7 +8,6 @@ const SKIP_AUTH_TESTS = process.env.SKIP_AUTH_TESTS === "true";
 
 test.describe("Authentication Flows", () => {
   // Skip all auth tests if flag is set
-  // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
   test.skip(
     SKIP_AUTH_TESTS,
     "Authentication tests skipped via SKIP_AUTH_TESTS"
@@ -164,7 +163,6 @@ test.describe("Authentication Flows", () => {
   });
 
   test.describe("Email Authentication", () => {
-    // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
     test.skip(
       !(
         process.env.E2E_BETTER_AUTH_USER_EMAIL &&
@@ -227,7 +225,6 @@ test.describe("Authentication Flows", () => {
   });
 
   test.describe("Sign Out Flow", () => {
-    // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
     test.skip(
       !(
         process.env.E2E_BETTER_AUTH_USER_EMAIL &&

@@ -5,7 +5,6 @@ const TEST_EMAIL = process.env.E2E_BETTER_AUTH_USER_EMAIL;
 const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
 
 test.describe("Tag Management", () => {
-  // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
   test.skip(
     !(TEST_EMAIL && TEST_PASSWORD),
     "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run tag tests."
@@ -55,7 +54,6 @@ test.describe("Tag Management", () => {
       } else {
         // Tag input might not be visible in this implementation
         // Check if tags are displayed at least
-        // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
         test.skip(true, "Tag input not found - implementation may vary");
       }
     });
@@ -84,7 +82,6 @@ test.describe("Tag Management", () => {
           await expect(page.getByText(tag)).toBeVisible();
         }
       } else {
-        // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
         test.skip(true, "Tag input not found");
       }
     });
@@ -142,7 +139,6 @@ test.describe("Tag Management", () => {
           await expect(page.getByText(testTag)).not.toBeVisible();
         }
       } else {
-        // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
         test.skip(true, "Tag functionality not accessible");
       }
     });
@@ -192,7 +188,6 @@ test.describe("Tag Management", () => {
         // Should have one less tag
         expect(tagsAfter).toBeLessThan(tagsBefore);
       } else {
-        // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
         test.skip(true, "No AI tags found to remove");
       }
     });
@@ -221,7 +216,6 @@ test.describe("Tag Management", () => {
         // Tag should be in search filters
         await expect(page.getByRole("button", { name: /#/i })).toBeVisible();
       } else {
-        // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
         test.skip(true, "No tags found on card");
       }
     });
@@ -229,7 +223,6 @@ test.describe("Tag Management", () => {
 });
 
 test.describe("Favorites Functionality", () => {
-  // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
   test.skip(
     !(TEST_EMAIL && TEST_PASSWORD),
     "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run favorites tests."
@@ -277,7 +270,6 @@ test.describe("Favorites Functionality", () => {
 
       expect(isFavoritedBefore).not.toBe(isFavoritedAfter);
     } else {
-      // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
       test.skip(true, "Favorite button not found");
     }
   });
@@ -306,7 +298,6 @@ test.describe("Favorites Functionality", () => {
       // Should see the favorited card
       await expect(page.locator("[data-card-id]").first()).toBeVisible();
     } else {
-      // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
       test.skip(true, "Favorite button not found");
     }
   });
@@ -340,7 +331,6 @@ test.describe("Favorites Functionality", () => {
       // Our card should not appear in favorites
       await page.waitForTimeout(500);
     } else {
-      // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
       test.skip(true, "Favorite button not found");
     }
   });
@@ -382,7 +372,6 @@ test.describe("Favorites Functionality", () => {
 
       // Card should now be favorited
     } else {
-      // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
       test.skip(true, "Favorite button not found in modal");
     }
   });
@@ -407,14 +396,12 @@ test.describe("Favorites Functionality", () => {
       const heartIcon = favoriteButton.first().locator("svg");
       await expect(heartIcon).toBeVisible();
     } else {
-      // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
       test.skip(true, "Favorite button not found");
     }
   });
 });
 
 test.describe("Combined Tag and Favorites Workflows", () => {
-  // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
   test.skip(
     !(TEST_EMAIL && TEST_PASSWORD),
     "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run combined tests."
@@ -446,7 +433,6 @@ test.describe("Combined Tag and Favorites Workflows", () => {
       // Should see the card
       await expect(page.locator("[data-card-id]").first()).toBeVisible();
     } else {
-      // biome-ignore lint/suspicious/noSkippedTests: Conditional test skip
       test.skip(true, "Favorite functionality not accessible");
     }
   });

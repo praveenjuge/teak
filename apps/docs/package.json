@@ -4,7 +4,7 @@
   "scripts": {
     "build": "astro build",
     "dev": "PORTLESS_PORT=1355 portless docs.teak astro dev",
-    "lint": "astro check && biome check astro.config.ts src/**/*.ts src/**/*.tsx src/**/*.css *.json",
+    "lint": "astro check && biome check astro.config.ts src/**/*.ts src/**/*.css *.json",
     "preview": "astro preview",
     "start": "astro preview",
     "typecheck": "astro check"
@@ -16,8 +16,9 @@
     "astro": "^6.3.3"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.3.0",
-    "tailwindcss": "^4.3.0",
-    "typescript": "^6.0.3"
+    "@tailwindcss/vite": "^4.3.1",
+    "tailwindcss": "^4.3.1",
+    "typescript": "^6.0.3",
+    "vite": "^7.3.5"
   }
 }
