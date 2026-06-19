@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  assertImportCardCount,
   isSafeArchivePath,
   mimeMatchesType,
   validateImportCard,
@@ -58,5 +59,14 @@ describe("Teak archive card validation", () => {
       isFavorited: true,
       tags: ["Saved"],
     });
+  });
+
+  test("reports card limits in terms of the selected import mode", () => {
+    expect(() => assertImportCardCount(10_001, "bookmarks")).toThrow(
+      "Bookmark file exceeds 10,000 bookmarks"
+    );
+    expect(() => assertImportCardCount(10_001, "archive")).toThrow(
+      "Archive exceeds 10,000 cards"
+    );
   });
 });

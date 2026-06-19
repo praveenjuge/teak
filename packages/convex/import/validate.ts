@@ -1,5 +1,9 @@
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
-import { MAX_IMPORT_CARDS, MAX_IMPORT_FILE_BYTES } from "./constants";
+import {
+  MAX_IMPORT_CARDS,
+  MAX_IMPORT_FILE_BYTES,
+  type ImportMode,
+} from "./constants";
 
 export const IMPORT_CARD_TYPES = [
   "text",
@@ -206,8 +210,12 @@ export function validateImportCard(raw: unknown): ImportCardInput {
   };
 }
 
-export function assertImportCardCount(count: number): void {
+export function assertImportCardCount(count: number, mode: ImportMode): void {
   if (count > MAX_IMPORT_CARDS) {
-    throw new Error("Archive exceeds 10,000 cards");
+    throw new Error(
+      mode === "bookmarks"
+        ? "Bookmark file exceeds 10,000 bookmarks"
+        : "Archive exceeds 10,000 cards"
+    );
   }
 }

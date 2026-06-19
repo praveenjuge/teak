@@ -90,7 +90,7 @@ export function ImportProgressSummary({
   );
 }
 
-async function putParts(
+export async function putParts(
   file: File,
   plan: UploadPlan,
   onProgress: (percent: number) => void,
@@ -103,8 +103,23 @@ async function putParts(
   let uploadedBytes = completeBytes;
   onProgress(Math.round((uploadedBytes / file.size) * 100));
   let nextIndex = 0;
+  let failed = false;
+  let failure: unknown;
+  const stopWorkers = (error: unknown) => {
+    if (failed) {
+      return;
+    }
+    failed = true;
+    failure = error;
+    for (const controller of controllers) {
+      controller.abort();
+    }
+  };
   const worker = async () => {
     for (;;) {
+      if (failed) {
+        return;
+      }
       const part = plan.parts[nextIndex];
       nextIndex += 1;
       if (!part) {
@@ -132,6 +147,9 @@ async function putParts(
         onProgress(
           Math.min(100, Math.round((uploadedBytes / file.size) * 100))
         );
+      } catch (error) {
+        stopWorkers(error);
+        return;
       } finally {
         controllers.delete(controller);
       }
@@ -143,6 +161,9 @@ async function putParts(
       worker
     )
   );
+  if (failed) {
+    throw failure;
+  }
 }
 
 function errorMessage(error: unknown) {

@@ -19,6 +19,7 @@ import {
   MAX_IMPORT_EXPANDED_BYTES,
   MAX_IMPORT_FILE_BYTES,
   MAX_IMPORT_JSON_BYTES,
+  type ImportMode,
 } from "./constants";
 import { createImportS3Client, getImportR2Config } from "./r2Client";
 import {
@@ -280,7 +281,7 @@ export const indexImportSource = internalAction({
           throw new Error("Bookmark source could not be read");
         }
         const parsed = parseBookmarksHtml(Buffer.from(bytes).toString("utf8"));
-        assertImportCardCount(parsed.length);
+        assertImportCardCount(parsed.length, job.mode as ImportMode);
         const seen = new Set<string>();
         const items = parsed.map((item, sourceIndex) =>
           item.card
@@ -302,28 +303,31 @@ export const indexImportSource = internalAction({
           job.sourceKey,
           job.fileSize
         );
-        const index = await readZipIndex(zip);
-        const manifest = index.manifest as any;
-        const version = manifest?.version ?? manifest?.exportVersion;
-        if (version !== 1) {
-          throw new Error("Unsupported Teak archive version");
+        try {
+          const index = await readZipIndex(zip);
+          const manifest = index.manifest as any;
+          const version = manifest?.version ?? manifest?.exportVersion;
+          if (version !== 1) {
+            throw new Error("Unsupported Teak archive version");
+          }
+          const rawCards = Array.isArray(manifest?.cards)
+            ? manifest.cards
+            : index.cards;
+          if (!Array.isArray(rawCards)) {
+            throw new Error("Archive is missing cards");
+          }
+          assertImportCardCount(rawCards.length, job.mode as ImportMode);
+          const seen = new Set<string>();
+          await storeItems(
+            ctx,
+            jobId,
+            rawCards.map((card, sourceIndex) =>
+              normalizeIndexItem(card, sourceIndex, index.entries, seen)
+            )
+          );
+        } finally {
+          zip.close();
         }
-        const rawCards = Array.isArray(manifest?.cards)
-          ? manifest.cards
-          : index.cards;
-        if (!Array.isArray(rawCards)) {
-          throw new Error("Archive is missing cards");
-        }
-        assertImportCardCount(rawCards.length);
-        const seen = new Set<string>();
-        await storeItems(
-          ctx,
-          jobId,
-          rawCards.map((card, sourceIndex) =>
-            normalizeIndexItem(card, sourceIndex, index.entries, seen)
-          )
-        );
-        zip.close();
       }
       return { ok: true };
     } catch (error) {

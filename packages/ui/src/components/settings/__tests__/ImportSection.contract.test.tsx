@@ -31,7 +31,9 @@ mock.module("../../ui/spinner", () => ({
 }));
 mock.module("sonner", () => ({ toast: { success: mock() } }));
 
-const { ImportDialog, ImportProgressSummary } = await import("../ImportDialog");
+const { ImportDialog, ImportProgressSummary, putParts } = await import(
+  "../ImportDialog"
+);
 const { ImportSection } = await import("../ImportSection");
 
 describe("ImportSection", () => {
@@ -116,5 +118,46 @@ describe("ImportDialog", () => {
       />
     );
     expect(markup).toContain("64%");
+  });
+
+  test("aborts and drains sibling uploads after the first failure", async () => {
+    const originalFetch = globalThis.fetch;
+    const uploadFetch = mock(
+      (_url: string | URL | Request, init?: RequestInit) => {
+        if (String(_url).endsWith("/1")) {
+          return Promise.resolve(new Response(null, { status: 500 }));
+        }
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        });
+      }
+    );
+    globalThis.fetch = uploadFetch as typeof fetch;
+    const controllers = new Set<AbortController>();
+
+    try {
+      await expect(
+        putParts(
+          new File([new Uint8Array([1, 2, 3])], "bookmarks.html"),
+          {
+            jobId: "job",
+            partSize: 1,
+            parts: [1, 2, 3].map((partNumber) => ({
+              partNumber,
+              url: `https://uploads.example/${partNumber}`,
+            })),
+            uploadedParts: [],
+          },
+          mock(),
+          controllers
+        )
+      ).rejects.toThrow("Upload part 1 failed (500)");
+      expect(uploadFetch).toHaveBeenCalledTimes(3);
+      expect(controllers.size).toBe(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

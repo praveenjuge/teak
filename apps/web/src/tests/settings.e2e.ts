@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
@@ -434,7 +435,7 @@ test("imports bookmarks through the backend and removes its development user", a
   page,
 }) => {
   test.setTimeout(120_000);
-  const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const unique = randomUUID();
   const email = `settings-import-${unique}@example.com`;
   const password = `Teak-e2e-${unique}!`;
   await page.goto("/register");
