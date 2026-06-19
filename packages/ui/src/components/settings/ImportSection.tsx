@@ -11,7 +11,7 @@ export function ImportSection() {
   const [active, setActive] = useState(false);
   return (
     <>
-      <SettingRow title="Import">
+      <SettingRow title="Import Data">
         {active ? <Badge variant="secondary">Importing</Badge> : null}
         <Button onClick={() => setOpen(true)} size="sm" variant="link">
           Import
