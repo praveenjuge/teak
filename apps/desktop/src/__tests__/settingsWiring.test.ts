@@ -13,6 +13,9 @@ describe("desktop settings wiring", () => {
     expect(source).toContain('buildWebUrl("/settings")');
     expect(source).toContain("useSettingsController");
     expect(source).toContain("onOpenExternal");
+    expect(source).toContain("<SettingsContent");
+    expect(source).not.toContain("node:fs");
+    expect(source).not.toContain("ImportDialog");
 
     expect(source).not.toContain("subscriptionOpen");
     expect(source).not.toContain("loadingPlanId");

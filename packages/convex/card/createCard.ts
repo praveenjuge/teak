@@ -12,8 +12,9 @@ import {
 } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
 import { cardTypeValidator, colorValidator } from "../schema";
-import { type CardCreationSource, trackCardCreated } from "../shared/metrics";
 import { scheduleBusinessEvent } from "../sentry";
+import { type CardCreationSource, trackCardCreated } from "../shared/metrics";
+import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { workflow } from "../workflows/manager";
 import {
   buildInitialProcessingStatus,
@@ -22,7 +23,6 @@ import {
 } from "./processingStatus";
 import { normalizeQuoteContent } from "./quoteFormatting";
 import { extractUrlFromContent } from "./validationUtils";
-import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 
 const createCardArgs = {
   content: v.string(),
@@ -61,11 +61,19 @@ interface CreateCardArgs {
   url?: string;
 }
 
+interface ImportedVisibleFields {
+  createdAt?: number;
+  isFavorited?: boolean;
+}
+
 export const createCardForUserHandler = async (
   ctx: MutationCtx,
   userId: string,
   args: CreateCardArgs,
-  options: { source?: CardCreationSource } = {}
+  options: {
+    importedVisibleFields?: ImportedVisibleFields;
+    source?: CardCreationSource;
+  } = {}
 ): Promise<Id<"cards">> => {
   // Check rate limit and card count limit
   await ensureCardCreationAllowed(ctx, userId);
@@ -169,8 +177,9 @@ export const createCardForUserHandler = async (
       cardType,
       classificationStatus,
     }),
-    createdAt: now,
+    createdAt: options.importedVisibleFields?.createdAt ?? now,
     updatedAt: now,
+    isFavorited: options.importedVisibleFields?.isFavorited,
     // Set pending status for link cards that need metadata extraction
     ...(cardType === "link" && { metadataStatus: "pending" as const }),
   };

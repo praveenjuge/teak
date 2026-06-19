@@ -1,6 +1,7 @@
 import Logo from "@teak/ui/logo";
 import { AuthScreenShell } from "@teak/ui/screens";
 import Link from "next/link";
+import { AuthRouteGuard } from "@/components/AuthRouteGuard";
 
 export default function RootLayout({
   children,
@@ -15,7 +16,7 @@ export default function RootLayout({
         </Link>
       }
     >
-      {children}
+      <AuthRouteGuard>{children}</AuthRouteGuard>
     </AuthScreenShell>
   );
 }

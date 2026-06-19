@@ -5,6 +5,8 @@ export * from "./DeleteAccountDialog";
 export * from "./ErrorAlert";
 export * from "./ExportDataDialog";
 export * from "./ExportDataSection";
+export * from "./ImportDialog";
+export * from "./ImportSection";
 export * from "./PlanOption";
 export * from "./SettingRow";
 export * from "./SettingsContent";

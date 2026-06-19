@@ -265,6 +265,28 @@ export const exportFailureClassValidator = v.union(
   v.literal("unknown")
 );
 
+export const importStatusValidator = v.union(
+  v.literal("uploading"),
+  v.literal("queued"),
+  v.literal("parsing"),
+  v.literal("importing"),
+  v.literal("completed"),
+  v.literal("failed"),
+  v.literal("canceled")
+);
+
+export const importModeValidator = v.union(
+  v.literal("bookmarks"),
+  v.literal("archive")
+);
+
+export const importItemStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("created"),
+  v.literal("skipped"),
+  v.literal("failed")
+);
+
 // Canonical export job record. No backfill: rows are created on demand.
 export const exportJobValidator = v.object({
   userId: v.string(),
@@ -302,6 +324,61 @@ export const exportJobItemValidator = v.object({
   // The original file key captured at start time (if any).
   fileKey: v.optional(r2KeyValidator),
   createdAt: v.number(),
+});
+
+// Import state is created on demand. No existing document needs a backfill.
+export const importJobValidator = v.object({
+  userId: v.string(),
+  mode: importModeValidator,
+  status: importStatusValidator,
+  phase: v.string(),
+  fileName: v.string(),
+  fileSize: v.number(),
+  fileLastModified: v.number(),
+  sourceKey: r2KeyValidator,
+  uploadId: v.optional(v.string()),
+  uploadExpiresAt: v.optional(v.number()),
+  workflowId: v.optional(v.string()),
+  cancelRequested: v.optional(v.boolean()),
+  parsedCount: v.number(),
+  processedCount: v.number(),
+  createdCount: v.number(),
+  skippedCount: v.number(),
+  failedCount: v.number(),
+  reportKey: v.optional(r2KeyValidator),
+  failureClass: v.optional(v.string()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+  startedAt: v.optional(v.number()),
+  completedAt: v.optional(v.number()),
+});
+
+export const importJobItemValidator = v.object({
+  jobId: v.id("importJobs"),
+  userId: v.string(),
+  sourceIndex: v.number(),
+  status: importItemStatusValidator,
+  type: cardTypeValidator,
+  content: v.string(),
+  url: v.optional(v.string()),
+  tags: v.optional(v.array(v.string())),
+  notes: v.optional(v.string()),
+  isFavorited: v.optional(v.boolean()),
+  colors: v.optional(v.array(colorValidator)),
+  importedCreatedAt: v.optional(v.number()),
+  filePath: v.optional(v.string()),
+  fileName: v.optional(v.string()),
+  fileSize: v.optional(v.number()),
+  mimeType: v.optional(v.string()),
+  duration: v.optional(v.number()),
+  width: v.optional(v.number()),
+  height: v.optional(v.number()),
+  extractedFileKey: v.optional(r2KeyValidator),
+  cardId: v.optional(v.id("cards")),
+  failureCode: v.optional(v.string()),
+  failureReason: v.optional(v.string()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
 });
 
 export const cardValidator = v.object({
@@ -431,5 +508,13 @@ export default defineSchema({
     .index("by_status_expires", ["status", "expiresAt"]),
   exportJobItems: defineTable(exportJobItemValidator)
     .index("by_job", ["jobId"])
+    .index("by_user", ["userId"]),
+  importJobs: defineTable(importJobValidator)
+    .index("by_user_created", ["userId", "createdAt"])
+    .index("by_user_status", ["userId", "status"])
+    .index("by_status_upload_expires", ["status", "uploadExpiresAt"]),
+  importJobItems: defineTable(importJobItemValidator)
+    .index("by_job_source", ["jobId", "sourceIndex"])
+    .index("by_job_status_source", ["jobId", "status", "sourceIndex"])
     .index("by_user", ["userId"]),
 });

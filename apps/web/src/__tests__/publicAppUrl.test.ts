@@ -16,6 +16,17 @@ describe("public app URL resolution", () => {
     );
   });
 
+  test("preserves HTTPS when Portless terminates TLS", () => {
+    const requestUrl = new URL("https://app.teak.localhost:1355/settings");
+
+    expect(resolvePublicAppOrigin(requestUrl)).toBe(
+      "https://app.teak.localhost:1355"
+    );
+    expect(buildPublicAppUrl("/login", requestUrl).toString()).toBe(
+      "https://app.teak.localhost:1355/login"
+    );
+  });
+
   test("preserves non-local origins", () => {
     const requestUrl = new URL("https://preview.teakvault.com/login");
 

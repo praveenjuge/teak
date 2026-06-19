@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import { AuthHelper, UiHelper } from "./test-helpers";
 
@@ -426,4 +428,65 @@ test.describe("Settings Navigation and Management", () => {
       }
     });
   });
+});
+
+test("imports bookmarks through the backend and removes its development user", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const email = `settings-import-${unique}@example.com`;
+  const password = `Teak-e2e-${unique}!`;
+  await page.goto("/register");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(password);
+  const [signupResponse] = await Promise.all([
+    page.waitForResponse((response) =>
+      response.url().includes("/api/auth/sign-up/email")
+    ),
+    page.getByRole("button", { name: "Create an account" }).click(),
+  ]);
+  expect(signupResponse.ok()).toBe(true);
+  await page.goto("/");
+  await expect(
+    page.getByRole("searchbox", { name: "Search for anything..." })
+  ).toBeVisible();
+
+  try {
+    await page.goto("/settings");
+    await page.getByRole("button", { name: "Import", exact: true }).click();
+    const title = `Imported bookmark ${unique}`;
+    const fixture = readFileSync(
+      resolve(process.cwd(), "src/tests/fixtures/bookmarks.html"),
+      "utf8"
+    )
+      .replace("__IMPORT_ID__", unique)
+      .replace("__IMPORT_TITLE__", title);
+    await page.locator('input[accept*=".html"]').setInputFiles({
+      buffer: Buffer.from(fixture),
+      mimeType: "text/html",
+      name: "bookmarks.html",
+    });
+
+    await expect(page.getByText("Import complete")).toBeVisible({
+      timeout: 60_000,
+    });
+    await page.goto("/");
+    await expect(page.getByText(title, { exact: true })).toBeVisible({
+      timeout: 30_000,
+    });
+  } finally {
+    await page.goto("/settings").catch(() => undefined);
+    const openDelete = page
+      .getByRole("button", { name: "Delete account", exact: true })
+      .first();
+    if (await openDelete.isVisible().catch(() => false)) {
+      await openDelete.click();
+      await page.getByPlaceholder("delete account").fill("delete account");
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: "Delete account", exact: true })
+        .click();
+    }
+  }
 });
