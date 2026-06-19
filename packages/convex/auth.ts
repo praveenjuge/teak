@@ -20,13 +20,13 @@ import {
 import authConfig from "./auth.config";
 import { polar } from "./billing";
 import { isLocalDevelopmentUrl, resolveTeakDevAppUrl } from "./devUrls";
+import { scheduleBusinessEvent } from "./sentry";
 import {
   CARD_ERROR_CODES,
   CARD_ERROR_MESSAGES,
   FREE_TIER_LIMIT,
 } from "./shared/constants";
 import { rateLimiter } from "./shared/rateLimits";
-import { scheduleBusinessEvent } from "./sentry";
 import { deleteObject } from "./storage/r2";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -183,7 +183,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     emailAndPassword: {
       enabled: true,
       // Disable email verification requirement in development for E2E testing
-      requireEmailVerification: process.env.NODE_ENV !== "development",
+      requireEmailVerification: !isLocalDevelopmentUrl(siteUrl),
       sendResetPassword: async ({ user, url }) => {
         await resend.sendEmail(requireActionCtx(ctx), {
           from: "Teak <hello@teakvault.com>",
@@ -194,7 +194,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       },
     },
     emailVerification: {
-      sendOnSignUp: process.env.NODE_ENV === "production",
+      sendOnSignUp: !isLocalDevelopmentUrl(siteUrl),
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }) => {
         await resend.sendEmail(requireActionCtx(ctx), {
@@ -361,6 +361,7 @@ export async function ensureCardCreationAllowed(
     throw new ConvexError({
       code: CARD_ERROR_CODES.RATE_LIMITED,
       message: CARD_ERROR_MESSAGES.RATE_LIMITED,
+      retryAt: Date.now() + rateLimitResult.retryAfter,
     });
   }
 
@@ -420,6 +421,38 @@ export const deleteAccountHandler = async (ctx: any) => {
     }
 
     await ctx.db.delete("cards", card._id);
+  }
+
+  // Import source archives and reports are private R2 objects outside card
+  // storage. Schedule their deletion before removing the ownership records.
+  if (ctx.scheduler) {
+    const jobs = await ctx.db
+      .query("importJobs")
+      .withIndex("by_user_created", (q: any) => q.eq("userId", userId))
+      .collect();
+    if (jobs.length) {
+      await ctx.scheduler.runAfter(
+        0,
+        (internal as any)["import/runImport"].deleteAccountImportObjects,
+        {
+          objects: jobs.map((job: any) => ({
+            sourceKey: job.sourceKey,
+            reportKey: job.reportKey,
+            uploadId: job.uploadId,
+          })),
+        }
+      );
+    }
+    const items = await ctx.db
+      .query("importJobItems")
+      .withIndex("by_user", (q: any) => q.eq("userId", userId))
+      .collect();
+    for (const item of items) {
+      await ctx.db.delete("importJobItems", item._id);
+    }
+    for (const job of jobs) {
+      await ctx.db.delete("importJobs", job._id);
+    }
   }
 
   return { deletedCards: cards.length, deletedStorageObjectCount };

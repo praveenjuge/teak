@@ -5,7 +5,9 @@ import {
 
 export const resolvePublicAppOrigin = (requestUrl: URL): string => {
   if (isLocalDevelopmentHostname(requestUrl.hostname)) {
-    return resolveTeakDevAppUrl(process.env);
+    const publicDevUrl = new URL(resolveTeakDevAppUrl(process.env));
+    publicDevUrl.protocol = requestUrl.protocol;
+    return publicDevUrl.origin;
   }
 
   return requestUrl.origin;

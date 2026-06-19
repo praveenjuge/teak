@@ -1,7 +1,6 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import { buildPublicAppUrl } from "@/lib/public-app-url";
-import { getSafeNextPath } from "@/lib/safe-next-path";
 
 const signInRoutes = [
   "/login",
@@ -19,22 +18,15 @@ export default function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (isSignInRoute && !sessionCookie) {
+  // Auth routes must remain reachable when a stale session cookie is present.
+  // The auth route guard validates the session before redirecting signed-in
+  // users; cookie presence alone cannot distinguish an expired session.
+  if (isSignInRoute) {
     return NextResponse.next();
   }
 
   if (!(isSignInRoute || sessionCookie)) {
     return NextResponse.redirect(buildPublicAppUrl("/login", request.nextUrl));
-  }
-
-  if (isSignInRoute && sessionCookie) {
-    const nextPath = getSafeNextPath(request.nextUrl.searchParams.get("next"));
-    if (nextPath) {
-      return NextResponse.redirect(
-        buildPublicAppUrl(nextPath, request.nextUrl)
-      );
-    }
-    return NextResponse.redirect(buildPublicAppUrl("/", request.nextUrl));
   }
 
   return NextResponse.next();

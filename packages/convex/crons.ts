@@ -12,6 +12,13 @@ crons.daily(
   {}
 );
 
+crons.interval(
+  "cleanup-abandoned-import-uploads",
+  { hours: 1 },
+  (internal as any)["import/runImport"].cleanupExpiredUploads,
+  {}
+);
+
 // Generate AI metadata for cards that don't have it yet
 // Runs every 6 hours to catch any cards that failed generation
 crons.interval(

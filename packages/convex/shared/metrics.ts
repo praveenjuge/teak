@@ -267,6 +267,7 @@ export type CardCreationSource =
   | "mcp"
   | "share_intent"
   | "drag_drop"
+  | "import"
   | "paste"
   | "unknown";
 

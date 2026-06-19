@@ -11,6 +11,7 @@ import { CustomerPortalButton } from "./CustomerPortalButton";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import type { ExportState } from "./ExportDataDialog";
 import { ExportDataSection } from "./ExportDataSection";
+import { ImportSection } from "./ImportSection";
 import { SettingRow } from "./SettingRow";
 import { SettingsFooter } from "./SettingsFooter";
 import { ThemeToggle } from "./ThemeToggle";
@@ -21,8 +22,8 @@ interface SettingsContentProps {
   deleteDialogOpen: boolean;
   deleteLoading: boolean;
   email?: string | null;
-  exportState?: ExportState | null;
   exportLoading?: boolean;
+  exportState?: ExportState | null;
   hasPremium?: boolean;
   isLoading: boolean;
   keys: ApiKeyListItem[] | undefined;
@@ -134,6 +135,8 @@ export function SettingsContent({
           onStartExport={onStartExport}
         />
       ) : null}
+
+      <ImportSection />
 
       <SettingRow title="Theme">
         <ThemeToggle onThemeChange={onThemeChange} />
