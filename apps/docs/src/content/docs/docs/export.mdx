@@ -1,0 +1,94 @@
+---
+title: Export Your Data
+description: Download a portable archive of your Teak cards and original files
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Teak can prepare a portable ZIP archive of your active cards and the original files attached to them. Exports are available from Settings on the web app and desktop app.
+
+<Aside type="note" title="Exports are read-only">
+  Starting an export does not change, delete, or move anything in your Teak library.
+</Aside>
+
+## Start an Export
+
+<Steps>
+
+1. Open Teak on web, or open the desktop app and choose **Teak -> Settings...** from the macOS menu bar.
+
+2. In Settings, find **Export Data** and choose **Manage**.
+
+3. Choose **Start export**.
+
+4. Keep working while Teak prepares the archive in the background.
+
+5. When the export is ready, choose **Download archive**.
+
+</Steps>
+
+You can cancel an export while it is still preparing. Canceled and failed exports do not count toward your weekly export limit.
+
+## What the Archive Includes
+
+Each export is a ZIP file with this layout:
+
+```text
+manifest.json
+cards.json
+files/
+```
+
+| File or folder | What it contains |
+|---|---|
+| `manifest.json` | Export version, schema version, creation time, expiry time, and counts for cards and files. |
+| `cards.json` | Your active cards in a portable JSON format. |
+| `files/` | Original uploaded files that were available when the archive was created. |
+
+Each card entry can include:
+
+- Card ID, type, content, URL, notes, tags, and favorite status
+- Created and updated timestamps
+- Visible palette colors
+- A file reference when the original file was included
+
+## What Is Not Included
+
+Exports are intentionally focused on your portable library content. They do not include:
+
+- Cards currently in trash
+- AI tags, summaries, transcripts, or generated enrichment fields
+- Generated thumbnails, screenshots, favicons, or preview media
+- Account, billing, API key, session, or source metadata
+- Internal processing state
+
+If an original file cannot be read after retrying, Teak still includes the card in `cards.json` and omits only that file. The export dialog shows how many files were unavailable.
+
+## Limits and Availability
+
+| Limit | Details |
+|---|---|
+| Frequency | One successful export every 7 days. |
+| Active jobs | One export can prepare at a time. |
+| Download window | Ready archives stay available for 7 days. |
+| Library size | Exports support up to 10,000 active cards or an estimated 5 GB archive. |
+
+If your latest export is still available, download it from **Settings -> Export Data -> Manage**. After it expires, you can start a new export when your weekly quota allows it.
+
+## Troubleshooting
+
+### I see "Available in..."
+
+You recently completed a successful export. Wait for the shown time, then start another export.
+
+### My export failed
+
+Open **Export Data** again and try another export. Failed exports do not count toward the weekly limit.
+
+### Some files are unavailable
+
+The archive still includes those cards in `cards.json`, but their original files were not available when the export was built.
+
+### The archive is too large
+
+If your library is over the export limit, delete unneeded cards or permanently remove old trash items, then try again.

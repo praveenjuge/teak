@@ -3,7 +3,7 @@
   "version": "1.0.45",
   "scripts": {
     "build": "astro build",
-    "dev": "portless docs.teak astro dev",
+    "dev": "PORTLESS_PORT=1355 portless docs.teak astro dev",
     "lint": "astro check && biome check astro.config.ts src/**/*.ts src/**/*.tsx src/**/*.css *.json",
     "preview": "astro preview",
     "start": "astro preview",
