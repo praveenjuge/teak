@@ -2,7 +2,7 @@
 
 import { api } from "@teak/convex";
 import { useAction, useQuery } from "convex/react";
-import { Archive, Bookmark, Copy, Download } from "lucide-react";
+import { Archive, Bookmark, Copy, Download, Droplet } from "lucide-react";
 import { type ChangeEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
@@ -192,6 +192,7 @@ export function ImportDialog({
     | undefined;
   const bookmarkInput = useRef<HTMLInputElement>(null);
   const archiveInput = useRef<HTMLInputElement>(null);
+  const raindropInput = useRef<HTMLInputElement>(null);
   const controllers = useRef(new Set<AbortController>());
   const [uploadPercent, setUploadPercent] = useState<number>();
   const [transporting, setTransporting] = useState(false);
@@ -200,7 +201,7 @@ export function ImportDialog({
 
   const selectFile = async (
     event: ChangeEvent<HTMLInputElement>,
-    mode: "bookmarks" | "archive"
+    mode: "bookmarks" | "archive" | "raindrop"
   ) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -317,6 +318,22 @@ export function ImportDialog({
               </span>
             </span>
           </button>
+          <button
+            className="flex w-full items-center gap-3 p-3 text-left hover:bg-muted/50 disabled:opacity-50"
+            disabled={choosingDisabled}
+            onClick={() => raindropInput.current?.click()}
+            type="button"
+          >
+            <Droplet className="size-4" />
+            <span>
+              <span className="block font-medium text-sm">
+                Import from Raindrop
+              </span>
+              <span className="block text-muted-foreground text-xs">
+                Raindrop CSV exports, up to 20 MiB
+              </span>
+            </span>
+          </button>
         </div>
         <input
           accept=".html,.htm,text/html"
@@ -330,6 +347,13 @@ export function ImportDialog({
           className="hidden"
           onChange={(event) => void selectFile(event, "archive")}
           ref={archiveInput}
+          type="file"
+        />
+        <input
+          accept=".csv,text/csv"
+          className="hidden"
+          onChange={(event) => void selectFile(event, "raindrop")}
+          ref={raindropInput}
           type="file"
         />
         {job?.status === "uploading" && !transporting ? (

@@ -19,6 +19,7 @@ import {
   IMPORT_UPLOAD_TTL_MS,
   MAX_ARCHIVE_BYTES,
   MAX_BOOKMARK_BYTES,
+  MAX_RAINDROP_BYTES,
 } from "./import/constants";
 import { createImportS3Client, getImportR2Config } from "./import/r2Client";
 import { importModeValidator } from "./schema";
@@ -46,7 +47,7 @@ async function requireUserId(ctx: {
 }
 
 function validateSource(
-  mode: "bookmarks" | "archive",
+  mode: "bookmarks" | "archive" | "raindrop",
   fileName: string,
   fileSize: number
 ) {
@@ -71,22 +72,46 @@ function validateSource(
       message: "Choose a bookmarks HTML file",
     });
   }
+  if (mode === "raindrop" && !extension.endsWith(".csv")) {
+    throw new ConvexError({
+      code: "INVALID_FILE",
+      message: "Choose a Raindrop CSV file",
+    });
+  }
   if (mode === "archive" && !extension.endsWith(".zip")) {
     throw new ConvexError({
       code: "INVALID_FILE",
       message: "Choose a Teak ZIP archive",
     });
   }
-  const limit = mode === "bookmarks" ? MAX_BOOKMARK_BYTES : MAX_ARCHIVE_BYTES;
+  let limit = MAX_ARCHIVE_BYTES;
+  if (mode === "bookmarks") {
+    limit = MAX_BOOKMARK_BYTES;
+  } else if (mode === "raindrop") {
+    limit = MAX_RAINDROP_BYTES;
+  }
   if (fileSize > limit) {
+    let message = "Teak archives are limited to 5 GiB";
+    if (mode === "bookmarks") {
+      message = "Bookmark files are limited to 20 MiB";
+    } else if (mode === "raindrop") {
+      message = "Raindrop CSV files are limited to 20 MiB";
+    }
     throw new ConvexError({
       code: "FILE_TOO_LARGE",
-      message:
-        mode === "bookmarks"
-          ? "Bookmark files are limited to 20 MiB"
-          : "Teak archives are limited to 5 GiB",
+      message,
     });
   }
+}
+
+function contentTypeForMode(mode: "bookmarks" | "archive" | "raindrop") {
+  if (mode === "bookmarks") {
+    return "text/html";
+  }
+  if (mode === "raindrop") {
+    return "text/csv";
+  }
+  return "application/zip";
 }
 
 function totalParts(fileSize: number) {
@@ -186,8 +211,7 @@ export const createImportUpload = action({
         new CreateMultipartUploadCommand({
           Bucket: config.bucket,
           Key: sourceKey,
-          ContentType:
-            args.mode === "bookmarks" ? "text/html" : "application/zip",
+          ContentType: contentTypeForMode(args.mode),
         })
       );
       if (!created.UploadId) {

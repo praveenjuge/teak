@@ -277,7 +277,8 @@ export const importStatusValidator = v.union(
 
 export const importModeValidator = v.union(
   v.literal("bookmarks"),
-  v.literal("archive")
+  v.literal("archive"),
+  v.literal("raindrop")
 );
 
 export const importItemStatusValidator = v.union(
