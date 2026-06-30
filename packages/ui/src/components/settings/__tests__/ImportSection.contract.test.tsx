@@ -39,19 +39,21 @@ const { ImportSection } = await import("../ImportSection");
 describe("ImportSection", () => {
   test("keeps settings compact with one Import row and no open dialog", () => {
     const markup = renderToStaticMarkup(<ImportSection />);
-    expect(markup.match(/>Import</g)).toHaveLength(2);
+    expect(markup.match(/>Import</g)).toHaveLength(1);
     expect(markup).not.toContain("Import Bookmarks");
     expect(markup).not.toContain("Import Teak Archive");
+    expect(markup).not.toContain("Import from Raindrop");
   });
 });
 
 describe("ImportDialog", () => {
-  test("renders both backend import modes", () => {
+  test("renders all backend import modes", () => {
     const markup = renderToStaticMarkup(
       <ImportDialog onOpenChange={mock()} open={true} />
     );
     expect(markup).toContain("Import Bookmarks");
     expect(markup).toContain("Import Teak Archive");
+    expect(markup).toContain("Import from Raindrop");
     expect(markup).toContain("Teak handles the import in the background");
   });
 

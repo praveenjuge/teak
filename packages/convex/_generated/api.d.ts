@@ -48,6 +48,7 @@ import type * as idempotencyAnalytics from "../idempotencyAnalytics.js";
 import type * as import_bookmarks from "../import/bookmarks.js";
 import type * as import_constants from "../import/constants.js";
 import type * as import_r2Client from "../import/r2Client.js";
+import type * as import_raindrop from "../import/raindrop.js";
 import type * as import_runImport from "../import/runImport.js";
 import type * as import_validate from "../import/validate.js";
 import type * as importUpload from "../importUpload.js";
@@ -171,6 +172,7 @@ declare const fullApi: ApiFromModules<{
   "import/bookmarks": typeof import_bookmarks;
   "import/constants": typeof import_constants;
   "import/r2Client": typeof import_r2Client;
+  "import/raindrop": typeof import_raindrop;
   "import/runImport": typeof import_runImport;
   "import/validate": typeof import_validate;
   importUpload: typeof importUpload;

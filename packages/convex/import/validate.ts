@@ -1,8 +1,8 @@
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
 import {
+  type ImportMode,
   MAX_IMPORT_CARDS,
   MAX_IMPORT_FILE_BYTES,
-  type ImportMode,
 } from "./constants";
 
 export const IMPORT_CARD_TYPES = [
@@ -211,11 +211,14 @@ export function validateImportCard(raw: unknown): ImportCardInput {
 }
 
 export function assertImportCardCount(count: number, mode: ImportMode): void {
-  if (count > MAX_IMPORT_CARDS) {
-    throw new Error(
-      mode === "bookmarks"
-        ? "Bookmark file exceeds 10,000 bookmarks"
-        : "Archive exceeds 10,000 cards"
-    );
+  if (count <= MAX_IMPORT_CARDS) {
+    return;
   }
+  if (mode === "bookmarks") {
+    throw new Error("Bookmark file exceeds 10,000 bookmarks");
+  }
+  if (mode === "raindrop") {
+    throw new Error("Raindrop CSV exceeds 10,000 bookmarks");
+  }
+  throw new Error("Archive exceeds 10,000 cards");
 }

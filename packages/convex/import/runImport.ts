@@ -12,16 +12,18 @@ import yauzl from "yauzl";
 import { internal } from "../_generated/api";
 import { internalAction } from "../_generated/server";
 import { buildR2UserPrefix } from "../storage/r2";
-import { parseBookmarksHtml } from "./bookmarks";
+import { type ParsedBookmarkItem, parseBookmarksHtml } from "./bookmarks";
 import {
   IMPORT_INDEX_BATCH,
+  type ImportMode,
   MAX_BOOKMARK_BYTES,
   MAX_IMPORT_EXPANDED_BYTES,
   MAX_IMPORT_FILE_BYTES,
   MAX_IMPORT_JSON_BYTES,
-  type ImportMode,
+  MAX_RAINDROP_BYTES,
 } from "./constants";
 import { createImportS3Client, getImportR2Config } from "./r2Client";
+import { parseRaindropCsv } from "./raindrop";
 import {
   assertImportCardCount,
   isSafeArchivePath,
@@ -258,6 +260,29 @@ async function storeItems(ctx: any, jobId: string, items: any[]) {
   }
 }
 
+async function indexParsedBookmarks(
+  ctx: any,
+  jobId: string,
+  parsed: ParsedBookmarkItem[],
+  mode: ImportMode
+) {
+  assertImportCardCount(parsed.length, mode);
+  const seen = new Set<string>();
+  const items = parsed.map((item, sourceIndex) =>
+    item.card
+      ? normalizeIndexItem(item.card, sourceIndex, new Map(), seen)
+      : {
+          sourceIndex,
+          status: "failed" as const,
+          type: "text" as const,
+          content: item.label,
+          failureCode: "INVALID_BOOKMARK",
+          failureReason: item.error,
+        }
+  );
+  await storeItems(ctx, jobId, items);
+}
+
 export const indexImportSource = internalAction({
   args: { jobId: v.id("importJobs") },
   returns: v.object({ ok: v.boolean(), failureClass: v.optional(v.string()) }),
@@ -269,33 +294,32 @@ export const indexImportSource = internalAction({
     const config = getImportR2Config();
     const client = createImportS3Client(config);
     try {
-      if (job.mode === "bookmarks") {
-        if (job.fileSize > MAX_BOOKMARK_BYTES) {
-          throw new Error("Bookmark file exceeds 20 MiB");
+      if (job.mode === "bookmarks" || job.mode === "raindrop") {
+        const isRaindrop = job.mode === "raindrop";
+        const maxBytes = isRaindrop ? MAX_RAINDROP_BYTES : MAX_BOOKMARK_BYTES;
+        if (job.fileSize > maxBytes) {
+          throw new Error(
+            isRaindrop
+              ? "Raindrop CSV exceeds 20 MiB"
+              : "Bookmark file exceeds 20 MiB"
+          );
         }
         const response = await client.send(
           new GetObjectCommand({ Bucket: config.bucket, Key: job.sourceKey })
         );
         const bytes = await response.Body?.transformToByteArray();
         if (!bytes || bytes.byteLength !== job.fileSize) {
-          throw new Error("Bookmark source could not be read");
+          throw new Error(
+            isRaindrop
+              ? "Raindrop source could not be read"
+              : "Bookmark source could not be read"
+          );
         }
-        const parsed = parseBookmarksHtml(Buffer.from(bytes).toString("utf8"));
-        assertImportCardCount(parsed.length, job.mode as ImportMode);
-        const seen = new Set<string>();
-        const items = parsed.map((item, sourceIndex) =>
-          item.card
-            ? normalizeIndexItem(item.card, sourceIndex, new Map(), seen)
-            : {
-                sourceIndex,
-                status: "failed" as const,
-                type: "text" as const,
-                content: item.label,
-                failureCode: "INVALID_BOOKMARK",
-                failureReason: item.error,
-              }
-        );
-        await storeItems(ctx, jobId, items);
+        const text = Buffer.from(bytes).toString("utf8");
+        const parsed = isRaindrop
+          ? parseRaindropCsv(text)
+          : parseBookmarksHtml(text);
+        await indexParsedBookmarks(ctx, jobId, parsed, job.mode as ImportMode);
       } else {
         const zip = await openZip(
           client,
