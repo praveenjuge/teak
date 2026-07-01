@@ -2,6 +2,12 @@ import { describe, expect, mock, test } from "bun:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+const convexReact = await import("convex/react");
+mock.module("convex/react", () => ({
+  ...convexReact,
+  useQuery: () => undefined,
+}));
+
 mock.module("../../ui/badge", () => ({
   Badge: ({ children, variant }: any) =>
     React.createElement("span", { "data-variant": variant }, children),
@@ -11,23 +17,16 @@ mock.module("../../ui/button", () => ({
   Button: ({ children, disabled, onClick, size, variant }: any) =>
     React.createElement(
       "button",
-      { disabled, onClick, "data-size": size, "data-variant": variant },
+      {
+        disabled,
+        onClick,
+        type: "button",
+        "data-size": size,
+        "data-variant": variant,
+      },
       children
     ),
   buttonVariants: () => "",
-}));
-
-mock.module("../../ui/dialog", () => ({
-  Dialog: ({ children, open }: any) =>
-    open ? React.createElement("div", { "data-dialog": "" }, children) : null,
-  DialogContent: ({ children }: any) =>
-    React.createElement("div", { "data-dialog-content": "" }, children),
-  DialogDescription: ({ children }: any) =>
-    React.createElement("p", { "data-dialog-description": "" }, children),
-  DialogHeader: ({ children }: any) =>
-    React.createElement("div", { "data-dialog-header": "" }, children),
-  DialogTitle: ({ children }: any) =>
-    React.createElement("h2", { "data-dialog-title": "" }, children),
 }));
 
 mock.module("../../ui/spinner", () => ({
@@ -35,15 +34,10 @@ mock.module("../../ui/spinner", () => ({
 }));
 
 mock.module("sonner", () => ({
-  toast: {
-    error: mock(),
-    loading: mock(() => "toast-id"),
-    success: mock(),
-  },
+  toast: { error: mock(), loading: mock(() => "toast-id"), success: mock() },
 }));
 
-const { ExportDataDialog } = await import("../ExportDataDialog");
-const { ExportDataSection } = await import("../ExportDataSection");
+const { ExportPanel } = await import("../ExportPanel");
 
 const noopHandlers = {
   onCancelExport: mock(() => Promise.resolve()),
@@ -87,66 +81,28 @@ const idleState = {
   quotaResetMs: 0,
 };
 
-describe("ExportDataSection", () => {
-  test("keeps the settings page compact", () => {
-    const markup = renderToStaticMarkup(
-      <ExportDataSection
-        exportState={idleState}
-        isLoading={false}
-        {...noopHandlers}
-      />
-    );
-    expect(markup).toContain("Export Data");
-    expect(markup).toContain(">Manage</button>");
-    expect(markup).not.toContain("Export Your Data");
-  });
-
-  test("shows a Preparing badge while an export is active", () => {
-    const markup = renderToStaticMarkup(
-      <ExportDataSection
-        exportState={activeState}
-        isLoading={false}
-        {...noopHandlers}
-      />
-    );
-    expect(markup).toContain("Preparing");
-  });
-
-  test("shows a Ready badge when an artifact is downloadable", () => {
-    const markup = renderToStaticMarkup(
-      <ExportDataSection
-        exportState={readyState}
-        isLoading={false}
-        {...noopHandlers}
-      />
-    );
-    expect(markup).toContain("Ready");
-  });
-});
-
-describe("ExportDataDialog", () => {
+describe("ExportPanel", () => {
   test("renders the start state with a Start export button", () => {
     const markup = renderToStaticMarkup(
-      <ExportDataDialog
+      <ExportPanel
         exportState={idleState}
         isLoading={false}
-        onOpenChange={mock()}
-        open={true}
         {...noopHandlers}
       />
     );
-    expect(markup).toContain("Export Your Data");
     expect(markup).toContain("Start export");
     expect(markup).not.toContain("Download archive");
   });
 
-  test("renders a quota-blocked state when a new export is not allowed", () => {
+  test("renders a quota-blocked countdown when a new export is not allowed", () => {
     const markup = renderToStaticMarkup(
-      <ExportDataDialog
-        exportState={{ job: null, canStartNew: false, quotaResetMs: 2 * 24 * 60 * 60 * 1000 }}
+      <ExportPanel
+        exportState={{
+          job: null,
+          canStartNew: false,
+          quotaResetMs: 2 * 24 * 60 * 60 * 1000,
+        }}
         isLoading={false}
-        onOpenChange={mock()}
-        open={true}
         {...noopHandlers}
       />
     );
@@ -156,11 +112,9 @@ describe("ExportDataDialog", () => {
 
   test("renders the active state with a Cancel button and spinner", () => {
     const markup = renderToStaticMarkup(
-      <ExportDataDialog
+      <ExportPanel
         exportState={activeState}
         isLoading={false}
-        onOpenChange={mock()}
-        open={true}
         {...noopHandlers}
       />
     );
@@ -169,13 +123,35 @@ describe("ExportDataDialog", () => {
     expect(markup).toContain("data-spinner");
   });
 
+  test("shows a live snapshot count while snapshotting", () => {
+    const markup = renderToStaticMarkup(
+      <ExportPanel
+        exportState={{
+          job: {
+            id: "job_snap",
+            status: "running" as const,
+            stage: "snapshotting" as const,
+            processedCount: 240,
+            createdAt: 100,
+            updatedAt: 150,
+            downloadAvailable: false,
+          },
+          canStartNew: false,
+          quotaResetMs: 0,
+        }}
+        isLoading={false}
+        {...noopHandlers}
+      />
+    );
+    expect(markup).toContain("Snapshotting");
+    expect(markup).toContain("240 cards");
+  });
+
   test("renders the ready state with download, counts, and expiry", () => {
     const markup = renderToStaticMarkup(
-      <ExportDataDialog
+      <ExportPanel
         exportState={readyState}
         isLoading={false}
-        onOpenChange={mock()}
-        open={true}
         {...noopHandlers}
       />
     );
@@ -200,11 +176,9 @@ describe("ExportDataDialog", () => {
       quotaResetMs: 0,
     };
     const markup = renderToStaticMarkup(
-      <ExportDataDialog
+      <ExportPanel
         exportState={failedState}
         isLoading={false}
-        onOpenChange={mock()}
-        open={true}
         {...noopHandlers}
       />
     );
@@ -214,13 +188,7 @@ describe("ExportDataDialog", () => {
 
   test("shows a spinner while loading", () => {
     const markup = renderToStaticMarkup(
-      <ExportDataDialog
-        exportState={undefined}
-        isLoading={true}
-        onOpenChange={mock()}
-        open={true}
-        {...noopHandlers}
-      />
+      <ExportPanel exportState={undefined} isLoading={true} {...noopHandlers} />
     );
     expect(markup).toContain("data-spinner");
     expect(markup).not.toContain("Start export");

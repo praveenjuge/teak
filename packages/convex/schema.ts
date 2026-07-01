@@ -303,6 +303,11 @@ export const exportJobValidator = v.object({
   cardCount: v.optional(v.number()),
   filesIncluded: v.optional(v.number()),
   filesOmitted: v.optional(v.number()),
+  // Coarse in-flight progress. `processedCount` is the running number of cards
+  // snapshotted during phase 1; `stage` distinguishes the numeric snapshot
+  // phase from the indeterminate archive-build phase.
+  processedCount: v.optional(v.number()),
+  stage: v.optional(v.union(v.literal("snapshotting"), v.literal("archiving"))),
   // Failure classification only (no PII).
   failureClass: v.optional(exportFailureClassValidator),
   // Lifecycle timestamps.

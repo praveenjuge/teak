@@ -68,6 +68,8 @@ export function useSettingsController({
           filesIncluded?: number;
           filesOmitted?: number;
           artifactBytes?: number;
+          processedCount?: number;
+          stage?: "snapshotting" | "archiving";
           failureClass?: string;
           createdAt: number;
           updatedAt: number;

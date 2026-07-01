@@ -3,64 +3,72 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const convexReact = await import("convex/react");
+let importQueryResult: unknown = null;
 mock.module("convex/react", () => ({
   ...convexReact,
   useAction: () => mock(),
-  useQuery: () => null,
-}));
-mock.module("../../ui/badge", () => ({
-  Badge: ({ children }: any) => React.createElement("span", null, children),
+  useQuery: () => importQueryResult,
 }));
 mock.module("../../ui/button", () => ({
   Button: ({ children, ...props }: any) =>
     React.createElement("button", { type: "button", ...props }, children),
 }));
-mock.module("../../ui/dialog", () => ({
-  Dialog: ({ children, open }: any) =>
-    open ? React.createElement("div", null, children) : null,
-  DialogContent: ({ children }: any) =>
-    React.createElement("div", null, children),
-  DialogDescription: ({ children }: any) =>
-    React.createElement("p", null, children),
-  DialogHeader: ({ children }: any) =>
-    React.createElement("div", null, children),
-  DialogTitle: ({ children }: any) => React.createElement("h2", null, children),
-}));
 mock.module("../../ui/spinner", () => ({
   Spinner: () => React.createElement("span", { "data-spinner": "" }),
 }));
-mock.module("sonner", () => ({ toast: { success: mock() } }));
+mock.module("sonner", () => ({
+  toast: { error: mock(), loading: mock(() => "id"), success: mock() },
+}));
 
-const { ImportDialog, ImportProgressSummary } = await import("../ImportDialog");
+const { ImportPanel, ImportProgressSummary } = await import("../ImportPanel");
 const { putParts } = await import("../importUpload");
-const { ImportSection } = await import("../ImportSection");
 
-describe("ImportSection", () => {
-  test("keeps settings compact with one Import row and no open dialog", () => {
-    const markup = renderToStaticMarkup(<ImportSection />);
-    expect(markup.match(/>Import</g)).toHaveLength(1);
-    expect(markup).not.toContain("Import Bookmarks");
-    expect(markup).not.toContain("Import Teak Archive");
-    expect(markup).not.toContain("Import from Raindrop");
-  });
-});
-
-describe("ImportDialog", () => {
+describe("ImportPanel", () => {
   test("renders all backend import modes", () => {
-    const markup = renderToStaticMarkup(
-      <ImportDialog onOpenChange={mock()} open={true} />
-    );
+    const markup = renderToStaticMarkup(<ImportPanel />);
     expect(markup).toContain("Import Bookmarks");
     expect(markup).toContain("Import Teak Archive");
     expect(markup).toContain("Import from Raindrop");
-    expect(markup).toContain("Teak handles the import in the background");
   });
 
-  test("renders active progress counts", () => {
+  test("shows an empty last-import state when there are no imports", () => {
+    const markup = renderToStaticMarkup(<ImportPanel />);
+    expect(markup).toContain("No imports yet.");
+  });
+
+  test("offers a resume prompt when a persisted upload was interrupted", () => {
+    importQueryResult = {
+      id: "job",
+      mode: "bookmarks",
+      status: "uploading",
+      createdCount: 0,
+      failedCount: 0,
+      reportAvailable: false,
+      parsedCount: 0,
+      phase: "Uploading",
+      processedCount: 0,
+      skippedCount: 0,
+      updatedAt: 0,
+    };
+    try {
+      const markup = renderToStaticMarkup(<ImportPanel />);
+      expect(markup).toContain("Upload interrupted");
+      expect(markup).toContain("Resume upload");
+      // The interrupted upload can also be discarded.
+      expect(markup).toContain("Cancel import");
+      // The resting last-import row and mode picker stay hidden while resuming.
+      expect(markup).not.toContain("No imports yet.");
+    } finally {
+      importQueryResult = null;
+    }
+  });
+
+  test("renders active phase, progress, and non-zero counts", () => {
     const markup = renderToStaticMarkup(
       <ImportProgressSummary
         job={{
           id: "job",
+          mode: "bookmarks",
           status: "importing",
           createdCount: 2,
           failedCount: 1,
@@ -69,14 +77,14 @@ describe("ImportDialog", () => {
           phase: "Importing cards",
           processedCount: 4,
           skippedCount: 1,
+          updatedAt: 0,
         }}
       />
     );
     expect(markup).toContain("Importing cards");
-    expect(markup).toContain("Parsed 8");
-    expect(markup).toContain("Created 2");
-    expect(markup).toContain("Skipped 1");
-    expect(markup).toContain("Failed 1");
+    expect(markup).toContain("2 created");
+    expect(markup).toContain("1 skipped");
+    expect(markup).toContain("1 failed");
   });
 
   test("renders a concise completion summary", () => {
@@ -84,6 +92,7 @@ describe("ImportDialog", () => {
       <ImportProgressSummary
         job={{
           id: "job",
+          mode: "archive",
           status: "completed",
           createdCount: 5,
           failedCount: 2,
@@ -92,20 +101,22 @@ describe("ImportDialog", () => {
           phase: "Import complete",
           processedCount: 10,
           skippedCount: 3,
+          updatedAt: 0,
         }}
       />
     );
     expect(markup).toContain("Import complete");
-    expect(markup).toContain("Created 5");
-    expect(markup).toContain("Skipped 3");
-    expect(markup).toContain("Failed 2");
+    expect(markup).toContain("5 created");
+    expect(markup).toContain("3 skipped");
+    expect(markup).toContain("2 failed");
   });
 
-  test("shows multipart upload progress", () => {
+  test("shows multipart upload progress and hides counts", () => {
     const markup = renderToStaticMarkup(
       <ImportProgressSummary
         job={{
           id: "job",
+          mode: "bookmarks",
           status: "uploading",
           createdCount: 0,
           failedCount: 0,
@@ -114,11 +125,13 @@ describe("ImportDialog", () => {
           phase: "Uploading",
           processedCount: 0,
           skippedCount: 0,
+          updatedAt: 0,
         }}
         uploadPercent={64}
       />
     );
     expect(markup).toContain("64%");
+    expect(markup).not.toContain("0 created");
   });
 
   test("aborts and drains sibling uploads after the first failure", async () => {

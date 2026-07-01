@@ -51,9 +51,12 @@ export const exportWorkflow = workflow.define({
     ),
   }),
   handler: async (step, { jobId, userId }) => {
-    const running = await step.runMutation(internalWorkflow.dataExport.markRunning, {
-      jobId,
-    });
+    const running = await step.runMutation(
+      internalWorkflow.dataExport.markRunning,
+      {
+        jobId,
+      }
+    );
     if (running.canceled) {
       await step.runMutation(internalWorkflow.dataExport.failExport, {
         jobId,
@@ -90,6 +93,14 @@ export const exportWorkflow = workflow.define({
         return { status: "failed" as const };
       }
 
+      // Report the running snapshot count so the UI can show real progress
+      // during phase 1.
+      await step.runMutation(internalWorkflow.dataExport.recordExportProgress, {
+        jobId,
+        processedCount: totalCount,
+        stage: "snapshotting",
+      });
+
       if (page.isDone) {
         break;
       }
@@ -110,6 +121,10 @@ export const exportWorkflow = workflow.define({
     }
 
     // Phase 2: build + store the archive (Node action).
+    await step.runMutation(internalWorkflow.dataExport.recordExportProgress, {
+      jobId,
+      stage: "archiving",
+    });
     const archive = await step.runAction(
       internalWorkflow["export/runExport"].runExportArchive,
       { jobId, userId }
