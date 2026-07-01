@@ -195,14 +195,14 @@ export function ImportProgressSummary({
   );
 }
 
-function errorMessage(error: unknown) {
+function errorMessage(error: unknown, fallback = "Import could not start") {
   if (error && typeof error === "object" && "data" in error) {
     const data = (error as { data?: { message?: unknown } }).data;
     if (typeof data?.message === "string") {
       return data.message;
     }
   }
-  return error instanceof Error ? error.message : "Import could not start";
+  return error instanceof Error ? error.message : fallback;
 }
 
 export function ImportPanel({ onActiveChange }: ImportPanelProps) {
@@ -327,35 +327,48 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       controller.abort();
     }
     controllers.clear();
-    if (job) {
-      await cancelImport({ jobId: job.id as never });
+    try {
+      if (job) {
+        await cancelImport({ jobId: job.id as never });
+      }
+    } catch (error) {
+      toast.error(errorMessage(error, "Import could not be canceled."));
+    } finally {
+      setTransporting(false);
+      onActiveChange?.(false);
     }
-    setTransporting(false);
-    onActiveChange?.(false);
   };
 
   const copyReport = async () => {
     if (!job) {
       return;
     }
-    const url = await getReportUrl({ jobId: job.id as never });
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error("Import report could not be loaded");
+    try {
+      const url = await getReportUrl({ jobId: job.id as never });
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("Import report could not be loaded");
+      }
+      await navigator.clipboard.writeText(await response.text());
+      toast.success("Import report copied.");
+    } catch (error) {
+      toast.error(errorMessage(error, "Import report could not be copied."));
     }
-    await navigator.clipboard.writeText(await response.text());
-    toast.success("Import report copied.");
   };
 
   const downloadReport = async () => {
     if (!job) {
       return;
     }
-    const url = await getReportUrl({ jobId: job.id as never });
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "teak-import-report.txt";
-    anchor.click();
+    try {
+      const url = await getReportUrl({ jobId: job.id as never });
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "teak-import-report.txt";
+      anchor.click();
+    } catch (error) {
+      toast.error(errorMessage(error, "Import report could not be downloaded."));
+    }
   };
 
   const showIdle = !(active || pending || isResuming);

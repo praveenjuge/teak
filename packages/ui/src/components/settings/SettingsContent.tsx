@@ -26,19 +26,19 @@ interface SettingsContentProps {
   hasPremium?: boolean;
   isLoading: boolean;
   keys: ApiKeyListItem[] | undefined;
-  onCancelExport?: (jobId: string) => Promise<void>;
+  onCancelExport: (jobId: string) => Promise<void>;
   onCreateApiKey: () => Promise<{ key: string }>;
   onCreateCustomerPortal: () => Promise<void>;
   onDeleteAccount: () => Promise<void>;
   onDeleteDialogOpenChange: (open: boolean) => void;
-  onDownloadExport?: (jobId: string) => Promise<void>;
+  onDownloadExport: (jobId: string) => Promise<void>;
   onRevokeApiKey: (
     keyId: string,
     source: ApiKeyListItem["source"]
   ) => Promise<void>;
   onRotateApiKey: (keyId: string) => Promise<{ key: string }>;
   onSignOut: () => Promise<void> | void;
-  onStartExport?: () => Promise<void>;
+  onStartExport: () => Promise<void>;
   onThemeChange?: (value: string) => void;
   onUpgrade: () => void;
   signOutLoading: boolean;
@@ -125,15 +125,15 @@ export function SettingsContent({
         onRotateKey={onRotateApiKey}
       />
 
-      {onStartExport && onCancelExport && onDownloadExport ? (
-        <ImportExportSection
-          exportLoading={exportLoading ?? exportState === undefined}
-          exportState={exportState}
-          onCancelExport={onCancelExport}
-          onDownloadExport={onDownloadExport}
-          onStartExport={onStartExport}
-        />
-      ) : null}
+      {/* Import is always available; the Export tab uses these handlers, which
+          both web and desktop supply, so the section is not gated on them. */}
+      <ImportExportSection
+        exportLoading={exportLoading ?? exportState === undefined}
+        exportState={exportState}
+        onCancelExport={onCancelExport}
+        onDownloadExport={onDownloadExport}
+        onStartExport={onStartExport}
+      />
 
       <SettingRow title="Theme">
         <ThemeToggle onThemeChange={onThemeChange} />
