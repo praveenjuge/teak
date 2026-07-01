@@ -234,8 +234,16 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   } | null>(null);
 
   const job = latest ?? null;
-  const active = transporting || isActive(job?.status);
-  const isResuming = job?.status === "uploading";
+  // A persisted "uploading" status only advances while this client is PUTting
+  // parts, so an uploading job with no local transfer running means the upload
+  // was interrupted (e.g. a page reload) and can be resumed. Server-driven
+  // phases stay active regardless of this client.
+  const serverProcessing =
+    job?.status === "queued" ||
+    job?.status === "parsing" ||
+    job?.status === "importing";
+  const active = transporting || serverProcessing;
+  const isResuming = job?.status === "uploading" && !transporting;
 
   const failureSamples = useQuery(
     api.dataImport.getImportFailureSamples,
@@ -350,7 +358,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
     anchor.click();
   };
 
-  const showIdle = !(active || pending);
+  const showIdle = !(active || pending || isResuming);
   const showModes = showIdle && !isResuming;
   // Only surface the "last import" summary when at rest — not while a new
   // import is starting up.
@@ -479,7 +487,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
         />
       ) : null}
 
-      {active ? (
+      {active || isResuming ? (
         <Button onClick={() => void cancel()} size="sm" variant="outline">
           Cancel import
         </Button>

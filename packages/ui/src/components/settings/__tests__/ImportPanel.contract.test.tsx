@@ -3,10 +3,11 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const convexReact = await import("convex/react");
+let importQueryResult: unknown = null;
 mock.module("convex/react", () => ({
   ...convexReact,
   useAction: () => mock(),
-  useQuery: () => null,
+  useQuery: () => importQueryResult,
 }));
 mock.module("../../ui/button", () => ({
   Button: ({ children, ...props }: any) =>
@@ -33,6 +34,33 @@ describe("ImportPanel", () => {
   test("shows an empty last-import state when there are no imports", () => {
     const markup = renderToStaticMarkup(<ImportPanel />);
     expect(markup).toContain("No imports yet.");
+  });
+
+  test("offers a resume prompt when a persisted upload was interrupted", () => {
+    importQueryResult = {
+      id: "job",
+      mode: "bookmarks",
+      status: "uploading",
+      createdCount: 0,
+      failedCount: 0,
+      reportAvailable: false,
+      parsedCount: 0,
+      phase: "Uploading",
+      processedCount: 0,
+      skippedCount: 0,
+      updatedAt: 0,
+    };
+    try {
+      const markup = renderToStaticMarkup(<ImportPanel />);
+      expect(markup).toContain("Upload interrupted");
+      expect(markup).toContain("Resume upload");
+      // The interrupted upload can also be discarded.
+      expect(markup).toContain("Cancel import");
+      // The resting last-import row and mode picker stay hidden while resuming.
+      expect(markup).not.toContain("No imports yet.");
+    } finally {
+      importQueryResult = null;
+    }
   });
 
   test("renders active phase, progress, and non-zero counts", () => {
