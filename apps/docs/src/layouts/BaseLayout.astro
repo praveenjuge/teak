@@ -53,7 +53,9 @@ function buildJsonLd(schema: object | object[]) {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <Font cssVariable="--font-sn-pro" preload />
-    <link rel="icon" type="image/png" href="/icon.png" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     {keywords && <meta name="keywords" content={keywords} />}
