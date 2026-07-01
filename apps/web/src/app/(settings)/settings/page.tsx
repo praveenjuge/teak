@@ -11,7 +11,7 @@ import { SettingsContent, SubscriptionSection } from "@teak/ui/settings";
 import { useAction, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 
@@ -19,17 +19,16 @@ export default function ProfileSettingsPage() {
   const deleteAccount = useMutation(api.auth.deleteAccount);
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
-  const [checkoutInstance, setCheckoutInstance] =
-    useState<PolarEmbedCheckout | null>(null);
+  const checkoutInstanceRef = useRef<PolarEmbedCheckout | null>(null);
   const createCheckoutLink = useAction(api.billing.createCheckoutLink);
   const { theme } = useTheme();
   const router = useRouter();
 
   useEffect(
     () => () => {
-      checkoutInstance?.close();
+      checkoutInstanceRef.current?.close();
     },
-    [checkoutInstance]
+    []
   );
 
   const settings = useSettingsController({
@@ -42,6 +41,9 @@ export default function ProfileSettingsPage() {
       await deleteAccount({});
 
       let deleteError: string | null = null;
+      // The awaited call's onError callback assigns `deleteError`; the guard
+      // below reads that side effect, so this await cannot be deferred past it.
+      // react-doctor-disable-next-line react-doctor/async-defer-await
       await authClient.deleteUser(undefined, {
         onSuccess: async () => {
           router.push("/login");
@@ -109,7 +111,7 @@ export default function ProfileSettingsPage() {
       });
       toast.success("Checkout opened", { id: toastId });
 
-      setCheckoutInstance(checkout);
+      checkoutInstanceRef.current = checkout;
       setSubscriptionOpen(false);
 
       checkout.addEventListener(
@@ -124,7 +126,7 @@ export default function ProfileSettingsPage() {
       );
 
       checkout.addEventListener("close", () => {
-        setCheckoutInstance(null);
+        checkoutInstanceRef.current = null;
         toast("Checkout closed", { id: toastId });
       });
     } catch (error) {
@@ -135,9 +137,8 @@ export default function ProfileSettingsPage() {
       toast.error("Failed to start checkout. Please try again.", {
         id: toastId,
       });
-    } finally {
-      setLoadingPlanId(null);
     }
+    setLoadingPlanId(null);
   };
 
   const planIds = getPolarPlanIds(

@@ -6,18 +6,59 @@ import {
   DialogTitle,
 } from "@teak/ui/components/ui/dialog";
 import { Loading } from "@teak/ui/feedback/Loading";
-import {
-  AudioPreview,
-  DocumentPreview,
-  ImagePreview,
-  LinkPreview,
-  PalettePreview,
-  QuotePreview,
-  TextPreview,
-  VideoPreview,
-} from "../card-previews";
+import { AudioPreview } from "../card-previews/AudioPreview";
+import { DocumentPreview } from "../card-previews/DocumentPreview";
+import { ImagePreview } from "../card-previews/ImagePreview";
+import { LinkPreview } from "../card-previews/LinkPreview";
+import { PalettePreview } from "../card-previews/PalettePreview";
+import { QuotePreview } from "../card-previews/QuotePreview";
+import { TextPreview } from "../card-previews/TextPreview";
+import { VideoPreview } from "../card-previews/VideoPreview";
 import { CardMetadataPanel } from "./CardMetadataPanel";
 import type { CardModalCard, GetCurrentValue } from "./types";
+
+function CardPreview({
+  card,
+  getCurrentValue,
+  updateContent,
+}: {
+  card: CardModalCard;
+  getCurrentValue: GetCurrentValue;
+  updateContent: (value: string) => void;
+}) {
+  switch (card.type) {
+    case "text":
+      return (
+        <TextPreview
+          card={card}
+          getCurrentValue={getCurrentValue}
+          onContentChange={updateContent}
+        />
+      );
+    case "quote":
+      return (
+        <QuotePreview
+          card={card}
+          getCurrentValue={getCurrentValue}
+          onContentChange={updateContent}
+        />
+      );
+    case "link":
+      return <LinkPreview card={card} showScreenshot />;
+    case "image":
+      return <ImagePreview card={card} />;
+    case "video":
+      return <VideoPreview card={card} />;
+    case "audio":
+      return <AudioPreview card={card} />;
+    case "document":
+      return <DocumentPreview card={card} />;
+    case "palette":
+      return <PalettePreview card={card} />;
+    default:
+      return <div>{card.content}</div>;
+  }
+}
 
 interface CardModalProps {
   card?: CardModalCard | null;
@@ -93,45 +134,6 @@ export function CardModal({
     }
   };
 
-  const renderPreview = () => {
-    if (!card) {
-      return null;
-    }
-
-    switch (card.type) {
-      case "text":
-        return (
-          <TextPreview
-            card={card}
-            getCurrentValue={getCurrentValue}
-            onContentChange={updateContent}
-          />
-        );
-      case "quote":
-        return (
-          <QuotePreview
-            card={card}
-            getCurrentValue={getCurrentValue}
-            onContentChange={updateContent}
-          />
-        );
-      case "link":
-        return <LinkPreview card={card} showScreenshot />;
-      case "image":
-        return <ImagePreview card={card} />;
-      case "video":
-        return <VideoPreview card={card} />;
-      case "audio":
-        return <AudioPreview card={card} />;
-      case "document":
-        return <DocumentPreview card={card} />;
-      case "palette":
-        return <PalettePreview card={card} />;
-      default:
-        return <div>{card.content}</div>;
-    }
-  };
-
   return (
     <>
       <Dialog
@@ -155,7 +157,11 @@ export function CardModal({
               <div className="flex flex-1 flex-col gap-0 overflow-hidden md:flex-row">
                 <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden md:flex-2 md:border-r">
                   <div className="flex-1 overflow-y-auto p-4">
-                    {renderPreview()}
+                    <CardPreview
+                      card={card}
+                      getCurrentValue={getCurrentValue}
+                      updateContent={updateContent}
+                    />
                   </div>
                   <div className="pointer-events-none absolute right-4 bottom-4 flex flex-col items-end gap-1">
                     {hasUnsavedChanges && (

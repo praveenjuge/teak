@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import { triggerCustomerPortal } from "../CustomerPortalButton";
+import { triggerCustomerPortal } from "../../../lib/customerPortal";
 
 describe("triggerCustomerPortal", () => {
   test("calls the callback exactly once", async () => {

@@ -19,23 +19,23 @@ export type ExportJobStatus =
   | "expired";
 
 export interface ExportJobSummary {
-  id: string;
-  status: ExportJobStatus;
+  artifactBytes?: number;
   cardCount?: number;
+  completedAt?: number;
+  createdAt: number;
+  downloadAvailable: boolean;
+  expiresAt?: number;
+  failureClass?: string;
   filesIncluded?: number;
   filesOmitted?: number;
-  artifactBytes?: number;
-  failureClass?: string;
-  createdAt: number;
+  id: string;
+  status: ExportJobStatus;
   updatedAt: number;
-  completedAt?: number;
-  expiresAt?: number;
-  downloadAvailable: boolean;
 }
 
 export interface ExportState {
-  job: ExportJobSummary | null;
   canStartNew: boolean;
+  job: ExportJobSummary | null;
   quotaResetMs: number;
 }
 
@@ -72,14 +72,16 @@ function formatRelativeDays(ms: number): string {
   return `${days} days`;
 }
 
+const expiryDateFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
 function formatExpiry(expiresAt?: number): string {
   if (!expiresAt) {
     return "";
   }
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(expiresAt));
+  return expiryDateFormatter.format(new Date(expiresAt));
 }
 
 export function ExportDataDialog({
@@ -189,7 +191,7 @@ export function ExportDataDialog({
             </div>
           )}
 
-          {!isLoading && !isActive && canDownload && job && (
+          {!(isLoading || isActive) && canDownload && job && (
             <div className="space-y-2 rounded-md border p-4">
               <div className="font-medium text-sm">Your export is ready</div>
               <div className="text-muted-foreground text-xs">
@@ -208,7 +210,7 @@ export function ExportDataDialog({
             </div>
           )}
 
-          {!isLoading && !isActive && !canDownload && (
+          {!(isLoading || isActive || canDownload) && (
             <div className="space-y-2 rounded-md border p-4">
               {job?.status === "failed" && (
                 <div className="text-muted-foreground text-sm">

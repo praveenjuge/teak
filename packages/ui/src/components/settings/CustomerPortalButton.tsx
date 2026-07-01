@@ -1,4 +1,5 @@
 import { type ReactNode, useState } from "react";
+import { triggerCustomerPortal } from "../../lib/customerPortal";
 import { cn } from "../../lib/utils";
 import { buttonVariants } from "../ui/button";
 import { Spinner } from "../ui/spinner";
@@ -7,12 +8,6 @@ interface CustomerPortalButtonProps {
   children: ReactNode;
   className?: string;
   onCreatePortal: () => Promise<void>;
-}
-
-export async function triggerCustomerPortal(
-  onCreatePortal: () => Promise<void>
-) {
-  await onCreatePortal();
 }
 
 export function CustomerPortalButton({

@@ -9,8 +9,8 @@ import { GlobalFileDropOverlay } from "@teak/ui/feedback/GlobalFileDropOverlay";
 import {
   createContext,
   type ReactNode,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -209,6 +209,9 @@ export function GlobalFileDropProvider({
       while (queueRef.current.length > 0) {
         const snapshot = queueRef.current;
         const files = snapshot.map((item) => item.file);
+        // The queue is drained one snapshot at a time; each pass must finish
+        // before the next so files appended mid-upload are handled in order.
+        // react-doctor-disable-next-line react-doctor/async-await-in-loop
         const results = await uploadMultipleFiles(files);
         batchAggregateRef.current = batchAggregateRef.current.concat(results);
 
@@ -403,5 +406,5 @@ export function GlobalFileDropProvider({
  * surfaces) can gracefully fall back to their own upload path.
  */
 export function useGlobalFileDrop(): GlobalFileDropContextValue | null {
-  return useContext(GlobalFileDropContext);
+  return use(GlobalFileDropContext);
 }

@@ -14,7 +14,7 @@ import { AUTH_STICKY_TOAST_OPTIONS } from "@teak/ui/constants/toast";
 import { cn } from "@teak/ui/lib/utils";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 
@@ -23,13 +23,10 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const redirectTo = useMemo(() => {
-    if (typeof window === "undefined") {
-      return "/reset-password";
-    }
-
-    return `${window.location.origin}/reset-password`;
-  }, []);
+  const redirectTo =
+    typeof window === "undefined"
+      ? "/reset-password"
+      : `${window.location.origin}/reset-password`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

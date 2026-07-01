@@ -14,43 +14,50 @@ import { cn } from "@teak/ui/lib/utils";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { Suspense, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { getSafeNextPath } from "@/lib/safe-next-path";
 
+type PendingProvider = "email" | "google" | "apple" | null;
+
+function showSignInError(message: string) {
+  const normalizedMessage = message.toLowerCase();
+  const isVerificationError =
+    normalizedMessage.includes("verification") ||
+    normalizedMessage.includes("verify") ||
+    normalizedMessage.includes("unverified");
+
+  if (isVerificationError) {
+    toast.error(
+      "Please check your email (including the spam folder) and click the verification link before signing in.",
+      AUTH_STICKY_TOAST_OPTIONS
+    );
+    return;
+  }
+
+  toast.error(message);
+}
+
 export default function SignIn() {
+  return (
+    <Suspense>
+      <SignInForm />
+    </Suspense>
+  );
+}
+
+function SignInForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [appleLoading, setAppleLoading] = useState(false);
-  const nextPath = useMemo(
-    () => getSafeNextPath(searchParams.get("next")) ?? "/",
-    [searchParams]
-  );
+  const [pending, setPending] = useState<PendingProvider>(null);
 
-  const showSignInError = (message: string) => {
-    const normalizedMessage = message.toLowerCase();
-    const isVerificationError =
-      normalizedMessage.includes("verification") ||
-      normalizedMessage.includes("verify") ||
-      normalizedMessage.includes("unverified");
-
-    if (isVerificationError) {
-      toast.error(
-        "Please check your email (including the spam folder) and click the verification link before signing in.",
-        AUTH_STICKY_TOAST_OPTIONS
-      );
-      return;
-    }
-
-    toast.error(message);
-  };
+  const nextPath = getSafeNextPath(searchParams.get("next")) ?? "/";
+  const isBusy = pending !== null;
 
   const handleGoogleSignIn = async () => {
-    setGoogleLoading(true);
+    setPending("google");
     try {
       const response = await authClient.signIn.social({
         provider: "google",
@@ -66,13 +73,12 @@ export default function SignIn() {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to sign in with Google";
       showSignInError(errorMessage);
-    } finally {
-      setGoogleLoading(false);
     }
+    setPending(null);
   };
 
   const handleAppleSignIn = async () => {
-    setAppleLoading(true);
+    setPending("apple");
     try {
       const response = await authClient.signIn.social({
         provider: "apple",
@@ -88,8 +94,33 @@ export default function SignIn() {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to sign in with Apple";
       showSignInError(errorMessage);
-    } finally {
-      setAppleLoading(false);
+    }
+    setPending(null);
+  };
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPending("email");
+    try {
+      const response = await authClient.signIn.email({
+        email,
+        password,
+      });
+
+      if (response.error) {
+        showSignInError(response.error.message ?? "Invalid email or password");
+        setPending(null);
+        return;
+      }
+
+      window.location.replace(
+        new URL(nextPath, window.location.origin).toString()
+      );
+    } catch (err) {
+      setPending(null);
+      showSignInError(
+        err instanceof Error ? err.message : "Invalid email or password"
+      );
     }
   };
 
@@ -98,45 +129,16 @@ export default function SignIn() {
       <CardTitle className="text-center text-lg">Login to Teak</CardTitle>
       <CardContent>
         <SocialAuthButtons
-          appleLoading={appleLoading}
-          disabled={loading || googleLoading || appleLoading}
-          googleLoading={googleLoading}
+          appleLoading={pending === "apple"}
+          disabled={isBusy}
+          googleLoading={pending === "google"}
           onAppleSignIn={() => void handleAppleSignIn()}
           onGoogleSignIn={() => void handleGoogleSignIn()}
         />
 
         <AuthDivider />
 
-        <form
-          className="grid gap-4"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setLoading(true);
-            try {
-              const response = await authClient.signIn.email({
-                email,
-                password,
-              });
-
-              if (response.error) {
-                showSignInError(
-                  response.error.message ?? "Invalid email or password"
-                );
-                setLoading(false);
-                return;
-              }
-
-              window.location.replace(
-                new URL(nextPath, window.location.origin).toString()
-              );
-            } catch (err) {
-              setLoading(false);
-              showSignInError(
-                err instanceof Error ? err.message : "Invalid email or password"
-              );
-            }
-          }}
-        >
+        <form className="grid gap-4" onSubmit={handleEmailSignIn}>
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -181,12 +183,8 @@ export default function SignIn() {
             />
           </div>
 
-          <Button
-            className="w-full"
-            disabled={loading || googleLoading || appleLoading}
-            type="submit"
-          >
-            {loading ? (
+          <Button className="w-full" disabled={isBusy} type="submit">
+            {pending === "email" ? (
               <Loader2 className="animate-spin" size={16} />
             ) : (
               <p> Login </p>

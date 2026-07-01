@@ -1,11 +1,16 @@
 import { useSettingsController } from "@teak/ui/hooks";
 import { SettingsShell } from "@teak/ui/screens";
 import { SettingsContent } from "@teak/ui/settings";
-import { logoutNativeSession } from "@/lib/native-auth";
 import { buildWebUrl } from "@/lib/desktop-config";
+import { logoutNativeSession } from "@/lib/native-auth";
 
 interface SettingsPageProps {
   onNavigateBack: () => void;
+}
+
+async function handleUpgradeClick() {
+  const upgradeUrl = buildWebUrl("/settings");
+  await window.teakDesktop.shell.openExternal(upgradeUrl);
 }
 
 export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
@@ -21,22 +26,9 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
     onSignOut: logoutNativeSession,
   });
 
-  const handleUpgradeClick = async () => {
-    const upgradeUrl = buildWebUrl("/settings");
-    await window.teakDesktop.shell.openExternal(upgradeUrl);
-  };
-
   return (
     <SettingsShell
-      backControl={
-        <button
-          className="inline-block font-medium text-primary hover:underline"
-          onClick={onNavigateBack}
-          type="button"
-        >
-          &larr; Back
-        </button>
-      }
+      onBack={onNavigateBack}
       sectionClassName="relative px-4"
       withMain={true}
     >

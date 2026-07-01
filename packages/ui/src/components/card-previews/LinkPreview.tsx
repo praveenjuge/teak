@@ -33,7 +33,7 @@ function FaviconImage({
 }) {
   const imgRef = useRef<HTMLImageElement>(null);
   const [hasError, setHasError] = useState(false);
-  const [usedFallback, setUsedFallback] = useState(false);
+  const usedFallbackRef = useRef(false);
 
   useEffect(() => {
     const img = imgRef.current;
@@ -42,8 +42,8 @@ function FaviconImage({
     }
 
     const handleError = () => {
-      if (fallbackUrl && !usedFallback) {
-        setUsedFallback(true);
+      if (fallbackUrl && !usedFallbackRef.current) {
+        usedFallbackRef.current = true;
         img.src = fallbackUrl;
       } else {
         setHasError(true);
@@ -52,7 +52,7 @@ function FaviconImage({
 
     img.addEventListener("error", handleError);
     return () => img.removeEventListener("error", handleError);
-  }, [fallbackUrl, usedFallback]);
+  }, [fallbackUrl]);
 
   if (hasError) {
     return null;
@@ -195,6 +195,7 @@ export function LinkPreview({
             {linkMedia.map((media, index) =>
               media.type === "video" ? (
                 <video
+                  aria-label={`Attached video ${index + 1}`}
                   className="w-full rounded-xl border bg-black"
                   controls
                   key={`${media.type}-${media.url}-${index}`}
@@ -203,6 +204,7 @@ export function LinkPreview({
                   preload="metadata"
                 >
                   <source src={media.url} type={media.contentType} />
+                  <track kind="captions" />
                 </video>
               ) : (
                 <img
@@ -240,6 +242,7 @@ export function LinkPreview({
           {linkMedia.map((media, index) =>
             media.type === "video" ? (
               <video
+                aria-label={`Attached video ${index + 1}`}
                 className="w-full rounded-xl border bg-black"
                 controls
                 key={`${media.type}-${media.url}-${index}`}
@@ -248,6 +251,7 @@ export function LinkPreview({
                 preload="metadata"
               >
                 <source src={media.url} type={media.contentType} />
+                <track kind="captions" />
               </video>
             ) : (
               <img

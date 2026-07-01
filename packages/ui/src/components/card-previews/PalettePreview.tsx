@@ -13,18 +13,18 @@ interface PalettePreviewProps {
   card: CardWithUrls;
 }
 
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success(`Copied ${text}`);
+  } catch (err) {
+    console.error("Failed to copy:", err);
+    toast.error("Failed to copy");
+  }
+}
+
 export function PalettePreview({ card }: PalettePreviewProps) {
   const colors = card.colors || [];
-
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success(`Copied ${text}`);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-      toast.error("Failed to copy");
-    }
-  };
 
   if (colors.length === 0) {
     return (

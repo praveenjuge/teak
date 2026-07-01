@@ -108,7 +108,7 @@ export function buildCardsSearchQueryArgs(
   };
 }
 
-export function getHasActiveSearch(state: CardsSearchState): boolean {
+function getHasActiveSearch(state: CardsSearchState): boolean {
   return Boolean(
     buildCardsSearchTerms(state) ||
       state.filterTags.length > 0 ||
@@ -121,7 +121,7 @@ export function getHasActiveSearch(state: CardsSearchState): boolean {
   );
 }
 
-export function getHasNoFilters(state: CardsSearchState): boolean {
+function getHasNoFilters(state: CardsSearchState): boolean {
   return (
     state.keywordTags.length === 0 &&
     state.filterTags.length === 0 &&

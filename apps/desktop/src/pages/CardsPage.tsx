@@ -30,16 +30,13 @@ export function CardsPage({ onNavigateToSettings }: CardsPageProps) {
       children: ReactNode;
       className?: string;
     }) => (
-      <a
+      <button
         className={className}
-        href={href}
-        onClick={(event) => {
-          event.preventDefault();
-          handleOpenExternal(href);
-        }}
+        onClick={() => handleOpenExternal(href)}
+        type="button"
       >
         {children}
-      </a>
+      </button>
     ),
     [handleOpenExternal]
   );

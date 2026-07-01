@@ -31,9 +31,8 @@ mock.module("../../ui/spinner", () => ({
 }));
 mock.module("sonner", () => ({ toast: { success: mock() } }));
 
-const { ImportDialog, ImportProgressSummary, putParts } = await import(
-  "../ImportDialog"
-);
+const { ImportDialog, ImportProgressSummary } = await import("../ImportDialog");
+const { putParts } = await import("../importUpload");
 const { ImportSection } = await import("../ImportSection");
 
 describe("ImportSection", () => {

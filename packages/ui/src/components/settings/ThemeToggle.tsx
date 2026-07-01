@@ -11,7 +11,11 @@ export function ThemeToggle({ onThemeChange }: ThemeToggleProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
+  // next-themes resolves the active theme only after mount; this one-time
+  // guard avoids an SSR/client hydration mismatch on the active button.
+  // react-doctor-disable-next-line react-doctor/rendering-hydration-no-flicker
   useEffect(() => {
+    // react-doctor-disable-next-line react-doctor/no-initialize-state
     setMounted(true);
   }, []);
 
