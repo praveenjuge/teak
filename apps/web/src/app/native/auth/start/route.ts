@@ -60,6 +60,9 @@ export async function GET(request: Request): Promise<Response> {
   const state = requestUrl.searchParams.get("state")?.trim() ?? "";
   const surface = requestUrl.searchParams.get("surface")?.trim() ?? "";
   const redirectUri = parseNativeRedirectUri(
+    // `redirect_uri` is validated server-side against a strict allowlist
+    // (ALLOWED_COMPLETION_REDIRECTS); non-matching values are rejected with 400.
+    // react-doctor-disable-next-line react-doctor/url-prefilled-privileged-action
     requestUrl.searchParams.get("redirect_uri")
   );
 

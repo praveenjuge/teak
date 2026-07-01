@@ -5,7 +5,14 @@ import { CardsScreenAdapter } from "@teak/ui/screens";
 import { Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+
+const settingsButton = (
+  <Button asChild size="icon" variant="outline">
+    <Link href="/settings">
+      <Settings />
+    </Link>
+  </Button>
+);
 
 export function HomePageClient() {
   const router = useRouter();
@@ -13,40 +20,29 @@ export function HomePageClient() {
   const searchParams = useSearchParams();
   const cardIdFromUrl = searchParams.get("card");
 
-  const setCardUrlParam = useCallback(
-    (cardId: string | null, replace = false) => {
-      const params = new URLSearchParams(searchParams.toString());
+  const setCardUrlParam = (cardId: string | null, replace = false) => {
+    const params = new URLSearchParams(searchParams.toString());
 
-      if (cardId) {
-        params.set("card", cardId);
-      } else {
-        params.delete("card");
-      }
+    if (cardId) {
+      params.set("card", cardId);
+    } else {
+      params.delete("card");
+    }
 
-      const nextQuery = params.toString();
-      const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+    const nextQuery = params.toString();
+    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
 
-      if (replace) {
-        router.replace(nextUrl);
-        return;
-      }
+    if (replace) {
+      router.replace(nextUrl);
+      return;
+    }
 
-      router.push(nextUrl);
-    },
-    [pathname, router, searchParams]
-  );
+    router.push(nextUrl);
+  };
 
-  const settingsButton = (
-    <Button asChild size="icon" variant="outline">
-      <Link href="/settings">
-        <Settings />
-      </Link>
-    </Button>
-  );
-
-  const handleUpgrade = useCallback(() => {
+  const handleUpgrade = () => {
     router.push("/settings");
-  }, [router]);
+  };
 
   return (
     <CardsScreenAdapter

@@ -15,7 +15,7 @@ import {
   Trash,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { copyColorHexToClipboard } from "../../lib/clipboard";
 import { cn } from "../../lib/utils";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
 import type { CardModalCard, GetCurrentValue } from "./types";
@@ -43,16 +43,6 @@ const metadataBadgeClassName = cn(
   badgeVariants({ variant: "outline" }),
   "cursor-pointer gap-2 rounded-full px-3 py-1 text-sm [&_svg]:size-3.5!"
 );
-
-export async function copyColorHexToClipboard(hex: string) {
-  try {
-    await navigator.clipboard.writeText(hex);
-    toast.success(`Copied ${hex}`);
-  } catch (error) {
-    console.error("Failed to copy color", error);
-    toast.error("Failed to copy");
-  }
-}
 
 export function CardMetadataPanel({
   card,

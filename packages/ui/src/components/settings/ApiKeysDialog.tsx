@@ -14,14 +14,14 @@ import { Input } from "../ui/input";
 import { Spinner } from "../ui/spinner";
 
 export interface ApiKeyListItem {
+  createdAt: number;
   id: string;
-  name: string;
+  lastUsedAt?: number;
   maskedKey: string;
+  name: string;
+  requiresUpdate: boolean;
   source: "component" | "legacy";
   status: "active" | "disabled" | "rotating" | "expired" | "exhausted";
-  requiresUpdate: boolean;
-  createdAt: number;
-  lastUsedAt?: number;
 }
 
 export interface CreatedApiKey {
@@ -42,15 +42,17 @@ interface ApiKeysDialogProps {
   open: boolean;
 }
 
+const apiKeyDateFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
 const formatDate = (value?: number) => {
   if (!value) {
     return "Never";
   }
 
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+  return apiKeyDateFormatter.format(new Date(value));
 };
 
 const getStatusVariant = (

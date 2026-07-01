@@ -14,8 +14,7 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Spinner } from "../ui/spinner";
-
-const UPLOAD_CONCURRENCY = 3;
+import { putParts, type UploadPlan } from "./importUpload";
 
 interface ImportJob {
   createdCount: number;
@@ -34,13 +33,6 @@ interface ImportJob {
     | "completed"
     | "failed"
     | "canceled";
-}
-
-interface UploadPlan {
-  jobId: string;
-  partSize: number;
-  parts: Array<{ partNumber: number; url: string }>;
-  uploadedParts: number[];
 }
 
 interface ImportDialogProps {
@@ -90,82 +82,6 @@ export function ImportProgressSummary({
   );
 }
 
-export async function putParts(
-  file: File,
-  plan: UploadPlan,
-  onProgress: (percent: number) => void,
-  controllers: Set<AbortController>
-) {
-  const completeBytes = plan.uploadedParts.reduce((total, partNumber) => {
-    const start = (partNumber - 1) * plan.partSize;
-    return total + Math.min(plan.partSize, file.size - start);
-  }, 0);
-  let uploadedBytes = completeBytes;
-  onProgress(Math.round((uploadedBytes / file.size) * 100));
-  let nextIndex = 0;
-  let failed = false;
-  let failure: unknown;
-  const stopWorkers = (error: unknown) => {
-    if (failed) {
-      return;
-    }
-    failed = true;
-    failure = error;
-    for (const controller of controllers) {
-      controller.abort();
-    }
-  };
-  const worker = async () => {
-    for (;;) {
-      if (failed) {
-        return;
-      }
-      const part = plan.parts[nextIndex];
-      nextIndex += 1;
-      if (!part) {
-        return;
-      }
-      const start = (part.partNumber - 1) * plan.partSize;
-      const chunk = file.slice(
-        start,
-        Math.min(start + plan.partSize, file.size)
-      );
-      const controller = new AbortController();
-      controllers.add(controller);
-      try {
-        const response = await fetch(part.url, {
-          method: "PUT",
-          body: chunk,
-          signal: controller.signal,
-        });
-        if (!response.ok) {
-          throw new Error(
-            `Upload part ${part.partNumber} failed (${response.status})`
-          );
-        }
-        uploadedBytes += chunk.size;
-        onProgress(
-          Math.min(100, Math.round((uploadedBytes / file.size) * 100))
-        );
-      } catch (error) {
-        stopWorkers(error);
-        return;
-      } finally {
-        controllers.delete(controller);
-      }
-    }
-  };
-  await Promise.all(
-    Array.from(
-      { length: Math.min(UPLOAD_CONCURRENCY, plan.parts.length) },
-      worker
-    )
-  );
-  if (failed) {
-    throw failure;
-  }
-}
-
 function errorMessage(error: unknown) {
   if (error && typeof error === "object" && "data" in error) {
     const data = (error as { data?: { message?: unknown } }).data;
@@ -193,7 +109,11 @@ export function ImportDialog({
   const bookmarkInput = useRef<HTMLInputElement>(null);
   const archiveInput = useRef<HTMLInputElement>(null);
   const raindropInput = useRef<HTMLInputElement>(null);
-  const controllers = useRef(new Set<AbortController>());
+  const controllersRef = useRef<Set<AbortController> | null>(null);
+  if (!controllersRef.current) {
+    controllersRef.current = new Set<AbortController>();
+  }
+  const controllers = controllersRef.current;
   const [uploadPercent, setUploadPercent] = useState<number>();
   const [transporting, setTransporting] = useState(false);
   const job = latest ?? null;
@@ -227,7 +147,7 @@ export function ImportDialog({
           fileLastModified: file.lastModified,
         })) as UploadPlan;
       }
-      await putParts(file, plan, setUploadPercent, controllers.current);
+      await putParts(file, plan, setUploadPercent, controllers);
       await completeUpload({ jobId: plan.jobId as never });
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
@@ -240,10 +160,10 @@ export function ImportDialog({
   };
 
   const cancel = async () => {
-    for (const controller of controllers.current) {
+    for (const controller of controllers) {
       controller.abort();
     }
-    controllers.current.clear();
+    controllers.clear();
     if (job) {
       await cancelImport({ jobId: job.id as never });
     }
@@ -337,6 +257,7 @@ export function ImportDialog({
         </div>
         <input
           accept=".html,.htm,text/html"
+          aria-label="Choose a bookmarks HTML file to import"
           className="hidden"
           onChange={(event) => void selectFile(event, "bookmarks")}
           ref={bookmarkInput}
@@ -344,6 +265,7 @@ export function ImportDialog({
         />
         <input
           accept=".zip,application/zip"
+          aria-label="Choose a Teak ZIP archive to import"
           className="hidden"
           onChange={(event) => void selectFile(event, "archive")}
           ref={archiveInput}
@@ -351,6 +273,7 @@ export function ImportDialog({
         />
         <input
           accept=".csv,text/csv"
+          aria-label="Choose a Raindrop CSV file to import"
           className="hidden"
           onChange={(event) => void selectFile(event, "raindrop")}
           ref={raindropInput}

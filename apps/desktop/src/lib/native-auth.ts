@@ -186,12 +186,12 @@ export async function clearNativeSessionToken(): Promise<void> {
   });
 }
 
-export async function getNativeSessionToken(): Promise<string | null> {
+async function getNativeSessionToken(): Promise<string | null> {
   await ensureInitialized();
   return state.sessionToken;
 }
 
-export async function getNativeDeviceId(): Promise<string> {
+async function getNativeDeviceId(): Promise<string> {
   const storedDeviceId = await readStoreValue<string>(DEVICE_ID_KEY);
   if (storedDeviceId && DEVICE_ID_PATTERN.test(storedDeviceId)) {
     return storedDeviceId;

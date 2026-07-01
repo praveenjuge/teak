@@ -246,7 +246,7 @@ export function AddCardActions({
   }, [autoSaveAudio, canCreateCard, clearRecordingResources, showUpgradeToast]);
 
   const stopRecording = useCallback(() => {
-    if (!mediaRecorderRef.current || !isRecording) {
+    if (!(mediaRecorderRef.current && isRecording)) {
       return;
     }
 
@@ -299,6 +299,9 @@ export function AddCardActions({
 
       for (const file of files) {
         const toastId = toast.loading(`Uploading ${file.name}...`);
+        // Uploads run sequentially so we can stop early when the card limit is
+        // hit and surface per-file progress in order.
+        // react-doctor-disable-next-line react-doctor/async-await-in-loop
         const result = await uploadFile(file, { content: "" });
 
         if (result.success) {

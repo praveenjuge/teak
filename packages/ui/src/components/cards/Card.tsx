@@ -30,7 +30,6 @@ import type { CardProps, LinkPreviewMetadata } from "./types";
 import { isOptimisticCard } from "./types";
 
 export type { CardProps, CardWithUrls, LinkPreviewMetadata } from "./types";
-export { isOptimisticCard } from "./types";
 
 export const Card = memo(function Card({
   card,

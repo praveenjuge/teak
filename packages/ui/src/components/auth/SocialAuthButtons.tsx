@@ -1,5 +1,6 @@
 import { Loader2 } from "lucide-react";
-import { AppleIcon, GoogleIcon } from "../../icons";
+import { AppleIcon } from "../../icons/AppleIcon";
+import { GoogleIcon } from "../../icons/GoogleIcon";
 import { Button } from "../ui/button";
 
 interface SocialAuthButtonsProps {

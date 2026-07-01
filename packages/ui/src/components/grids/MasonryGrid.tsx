@@ -247,6 +247,9 @@ export function MasonryGrid({
             const failedIds: string[] = [];
             let deletedCount = 0;
             for (const cardId of requestedIds) {
+              // Deleted sequentially to avoid tripping server rate limits on
+              // this no-batch-endpoint fallback path.
+              // react-doctor-disable-next-line react-doctor/async-await-in-loop
               const didDelete = await onDeleteCard(cardId);
               if (didDelete) {
                 deletedCount += 1;
@@ -376,8 +379,8 @@ export function MasonryGrid({
       <Masonry
         className={isSelectionMode ? "select-none" : ""}
         columns={columns}
-        gutter={gutter}
         fresh
+        gutter={gutter}
         itemRender={renderItem}
         items={masonryItems}
       />

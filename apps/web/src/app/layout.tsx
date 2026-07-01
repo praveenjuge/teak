@@ -3,13 +3,13 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@teak/ui/components/ui/sonner";
 import type { PropsWithChildren } from "react";
+import { JsonLd } from "@/components/JsonLd";
+import { ThemeProvider } from "@/components/theme-provider";
 import {
-  JsonLd,
   organizationSchema,
   softwareApplicationSchema,
   websiteSchema,
-} from "@/components/JsonLd";
-import { ThemeProvider } from "@/components/theme-provider";
+} from "@/lib/jsonld";
 
 export const dynamic = "force-static";
 

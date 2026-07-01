@@ -9,6 +9,26 @@ import { Label } from "@teak/ui/components/ui/label";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 
+function formatDate(timestamp: number) {
+  return new Date(timestamp).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+async function handleCopy(text: string, successMessage: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success(successMessage);
+  } catch (error) {
+    console.error("Failed to copy text:", error);
+    toast.error("Failed to copy");
+  }
+}
+
 interface CardData {
   content?: string;
   createdAt: number;
@@ -82,25 +102,6 @@ export function MoreInformationModal({
   onOpenChange,
   card,
 }: MoreInformationModalProps) {
-  const formatDate = (timestamp: number) =>
-    new Date(timestamp).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-  const handleCopy = async (text: string, successMessage: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success(successMessage);
-    } catch (error) {
-      console.error("Failed to copy text:", error);
-      toast.error("Failed to copy");
-    }
-  };
-
   if (!card) {
     return null;
   }

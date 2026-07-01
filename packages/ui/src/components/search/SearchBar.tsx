@@ -33,6 +33,7 @@ import { useRef, useState } from "react";
 
 export interface SearchBarProps {
   filterTags: CardType[];
+  HeaderActions?: ReactNode;
   hexFilters: string[];
   hueFilters: ColorHueBucket[];
   keywordTags: string[];
@@ -49,7 +50,6 @@ export interface SearchBarProps {
   onToggleFavorites: () => void;
   onToggleTrash: () => void;
   SettingsButton?: ReactNode;
-  HeaderActions?: ReactNode;
   searchQuery: string;
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
@@ -72,6 +72,10 @@ const getFilterIcon = (filter: CardType) => {
   const iconName = getCardTypeIcon(filter) as keyof typeof iconComponentMap;
   return iconComponentMap[iconName] || FileText;
 };
+
+function preventBlur(e: React.MouseEvent) {
+  e.preventDefault();
+}
 
 export function SearchBar({
   searchQuery,
@@ -116,10 +120,6 @@ export function SearchBar({
   const availableFilters = cardTypes.filter(
     (type) => !filterTags.includes(type)
   );
-
-  const preventBlur = (e: React.MouseEvent) => {
-    e.preventDefault();
-  };
 
   return (
     <>

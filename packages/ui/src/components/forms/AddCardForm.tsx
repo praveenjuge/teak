@@ -34,6 +34,9 @@ function addCardToSearchQueries(
       const matchesType =
         !args.types ||
         args.types.length === 0 ||
+        // The searched array (`args.types`) differs on every iteration and the
+        // lookup key is constant, so a precomputed Set offers no benefit here.
+        // react-doctor-disable-next-line react-doctor/js-set-map-lookups
         args.types.includes(newCard.type);
       const matchesFavorites = !args.favoritesOnly || newCard.isFavorited;
 
@@ -42,6 +45,47 @@ function addCardToSearchQueries(
       }
     }
   }
+}
+
+function getCardErrorCode(err: unknown): string | null {
+  if (!err || typeof err !== "object") {
+    return null;
+  }
+
+  const maybeError = err as {
+    code?: string;
+    message?: string;
+    data?: { code?: string };
+  };
+
+  if (
+    maybeError.code &&
+    Object.values(CARD_ERROR_CODES).includes(
+      maybeError.code as (typeof CARD_ERROR_CODES)[keyof typeof CARD_ERROR_CODES]
+    )
+  ) {
+    return maybeError.code;
+  }
+
+  if (
+    maybeError.data?.code &&
+    Object.values(CARD_ERROR_CODES).includes(
+      maybeError.data
+        .code as (typeof CARD_ERROR_CODES)[keyof typeof CARD_ERROR_CODES]
+    )
+  ) {
+    return maybeError.data.code;
+  }
+
+  return null;
+}
+
+function isCardLimitError(err: unknown): boolean {
+  return getCardErrorCode(err) === CARD_ERROR_CODES.CARD_LIMIT_REACHED;
+}
+
+function isRateLimitError(err: unknown): boolean {
+  return getCardErrorCode(err) === CARD_ERROR_CODES.RATE_LIMITED;
 }
 
 export interface AddCardFormProps {
@@ -138,45 +182,6 @@ export function AddCardForm({
       addCardToSearchQueries(localStore, optimisticCard);
     }
   );
-
-  const getCardErrorCode = (err: unknown): string | null => {
-    if (!err || typeof err !== "object") {
-      return null;
-    }
-
-    const maybeError = err as {
-      code?: string;
-      message?: string;
-      data?: { code?: string };
-    };
-
-    if (
-      maybeError.code &&
-      Object.values(CARD_ERROR_CODES).includes(
-        maybeError.code as (typeof CARD_ERROR_CODES)[keyof typeof CARD_ERROR_CODES]
-      )
-    ) {
-      return maybeError.code;
-    }
-
-    if (
-      maybeError.data?.code &&
-      Object.values(CARD_ERROR_CODES).includes(
-        maybeError.data
-          .code as (typeof CARD_ERROR_CODES)[keyof typeof CARD_ERROR_CODES]
-      )
-    ) {
-      return maybeError.data.code;
-    }
-
-    return null;
-  };
-
-  const isCardLimitError = (err: unknown): boolean =>
-    getCardErrorCode(err) === CARD_ERROR_CODES.CARD_LIMIT_REACHED;
-
-  const isRateLimitError = (err: unknown): boolean =>
-    getCardErrorCode(err) === CARD_ERROR_CODES.RATE_LIMITED;
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 

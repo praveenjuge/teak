@@ -1,0 +1,11 @@
+{
+  "ignore": {
+    "files": [".vite/**", "out/**", "build/**", "scripts/**"],
+    "overrides": [
+      {
+        "files": ["src/lib/native-auth.ts"],
+        "rules": ["react-doctor/async-await-in-loop"]
+      }
+    ]
+  }
+}

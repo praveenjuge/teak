@@ -3,19 +3,36 @@ import { TopPattern } from "@teak/ui/patterns";
 import type { ReactNode } from "react";
 
 interface SettingsShellProps {
-  backControl: ReactNode;
+  backControl?: ReactNode;
+  backLabel?: string;
   children: ReactNode;
   contentClassName?: string;
+  onBack?: () => void;
   sectionClassName?: string;
   withMain?: boolean;
 }
 
 function SettingsShellContent({
   backControl,
+  onBack,
+  backLabel = "Back",
   children,
   contentClassName,
   sectionClassName,
 }: Omit<SettingsShellProps, "withMain">) {
+  let backElement: ReactNode = backControl;
+  if (!backElement && onBack) {
+    backElement = (
+      <button
+        className="inline-block font-medium text-primary hover:underline"
+        onClick={onBack}
+        type="button"
+      >
+        &larr; {backLabel}
+      </button>
+    );
+  }
+
   return (
     <section
       className={cn(
@@ -23,7 +40,7 @@ function SettingsShellContent({
         sectionClassName
       )}
     >
-      {backControl}
+      {backElement}
       <div
         className={cn(
           "space-y-5 rounded-lg border bg-background p-7",

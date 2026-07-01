@@ -11,7 +11,7 @@ mock.module("sonner", () => ({
 }));
 
 const { copyColorHexToClipboard } = await import(
-  "../../../../../packages/ui/src/components/card-modal/CardMetadataPanel"
+  "../../../../../packages/ui/src/lib/clipboard"
 );
 
 const originalNavigator = globalThis.navigator;

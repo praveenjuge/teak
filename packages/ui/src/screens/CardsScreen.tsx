@@ -218,10 +218,7 @@ export function CardsScreen({
       <CardsSearchHeader
         {...searchBarProps}
         HeaderActions={
-          <AddCardActions
-            onUpgrade={onUpgrade}
-            upgradeUrl={upgradeUrl}
-          />
+          <AddCardActions onUpgrade={onUpgrade} upgradeUrl={upgradeUrl} />
         }
         SettingsButton={SettingsButton}
       />

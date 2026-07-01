@@ -11,19 +11,12 @@ if (!convexSiteUrl) {
   throw new Error("Missing NEXT_PUBLIC_CONVEX_SITE_URL environment variable");
 }
 
-export const {
-  handler,
-  preloadAuthQuery,
-  isAuthenticated,
-  getToken,
-  fetchAuthQuery,
-  fetchAuthMutation,
-  fetchAuthAction,
-} = convexBetterAuthNextJs({
-  convexUrl,
-  convexSiteUrl,
-  jwtCache: {
-    enabled: true,
-    isAuthError,
-  },
-});
+export const { handler, isAuthenticated, getToken, fetchAuthMutation } =
+  convexBetterAuthNextJs({
+    convexUrl,
+    convexSiteUrl,
+    jwtCache: {
+      enabled: true,
+      isAuthError,
+    },
+  });

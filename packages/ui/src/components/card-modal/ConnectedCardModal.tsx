@@ -2,11 +2,9 @@ import { api } from "@teak/convex";
 import { useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 import { useCardModal } from "../../hooks/useCardModal";
-import {
-  MoreInformationModal,
-  NotesEditModal,
-  TagManagementModal,
-} from "../modals";
+import { MoreInformationModal } from "../modals/MoreInformationModal";
+import { NotesEditModal } from "../modals/NotesEditModal";
+import { TagManagementModal } from "../modals/TagManagementModal";
 import { CardModal } from "./CardModal";
 import type { CardModalCard } from "./types";
 

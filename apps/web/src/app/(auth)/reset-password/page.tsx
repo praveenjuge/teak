@@ -18,7 +18,7 @@ import { cn } from "@teak/ui/lib/utils";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 
@@ -31,6 +31,14 @@ const errorMessages: Record<string, string> = {
 };
 
 export default function ResetPassword() {
+  return (
+    <Suspense>
+      <ResetPasswordForm />
+    </Suspense>
+  );
+}
+
+function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const errorCode = searchParams.get("error");
@@ -40,30 +48,26 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const validationMessage = useMemo(() => {
-    if (password && password.length < MIN_PASSWORD_LENGTH) {
-      return `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
-    }
-    if (password && passwordConfirmation && password !== passwordConfirmation) {
-      return "Passwords must match.";
-    }
-    return null;
-  }, [password, passwordConfirmation]);
+  let validationMessage: string | null = null;
+  if (password && password.length < MIN_PASSWORD_LENGTH) {
+    validationMessage = `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+  } else if (
+    password &&
+    passwordConfirmation &&
+    password !== passwordConfirmation
+  ) {
+    validationMessage = "Passwords must match.";
+  }
 
-  const linkErrorMessage = useMemo(() => {
-    if (errorCode) {
-      return (
-        errorMessages[errorCode] ??
-        "We couldn't verify your reset link. Request a new one."
-      );
-    }
-
-    if (!token) {
-      return "We need a valid reset link to finish updating your password.";
-    }
-
-    return null;
-  }, [errorCode, token]);
+  let linkErrorMessage: string | null = null;
+  if (errorCode) {
+    linkErrorMessage =
+      errorMessages[errorCode] ??
+      "We couldn't verify your reset link. Request a new one.";
+  } else if (!token) {
+    linkErrorMessage =
+      "We need a valid reset link to finish updating your password.";
+  }
 
   useEffect(() => {
     if (!linkErrorMessage) {

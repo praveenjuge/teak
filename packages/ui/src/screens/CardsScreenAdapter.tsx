@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { AddCardFormProps } from "../components/forms";
-import { useCardQueryParamState } from "../hooks";
+import { useCardQueryParamState } from "../hooks/useCardQueryParamState";
 import { CardsScreen } from "./CardsScreen";
 
 interface CardsScreenAdapterProps {

@@ -80,6 +80,7 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
       <div className="flex h-full w-full flex-col">
         <iframe
           className="h-full w-full rounded-lg"
+          sandbox="allow-same-origin allow-popups allow-downloads"
           src={fileUrl}
           title={fileName}
         />
