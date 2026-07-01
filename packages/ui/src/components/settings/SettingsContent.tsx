@@ -9,9 +9,8 @@ import type { ApiKeyListItem } from "./ApiKeysDialog";
 import { ApiKeysSection } from "./ApiKeysSection";
 import { CustomerPortalButton } from "./CustomerPortalButton";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
-import type { ExportState } from "./ExportDataDialog";
-import { ExportDataSection } from "./ExportDataSection";
-import { ImportSection } from "./ImportSection";
+import type { ExportState } from "./ExportPanel";
+import { ImportExportSection } from "./ImportExportSection";
 import { SettingRow } from "./SettingRow";
 import { SettingsFooter } from "./SettingsFooter";
 import { ThemeToggle } from "./ThemeToggle";
@@ -127,16 +126,14 @@ export function SettingsContent({
       />
 
       {onStartExport && onCancelExport && onDownloadExport ? (
-        <ExportDataSection
+        <ImportExportSection
+          exportLoading={exportLoading ?? exportState === undefined}
           exportState={exportState}
-          isLoading={exportLoading ?? exportState === undefined}
           onCancelExport={onCancelExport}
           onDownloadExport={onDownloadExport}
           onStartExport={onStartExport}
         />
       ) : null}
-
-      <ImportSection />
 
       <SettingRow title="Theme">
         <ThemeToggle onThemeChange={onThemeChange} />

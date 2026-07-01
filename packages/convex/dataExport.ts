@@ -20,8 +20,8 @@ import {
   action,
   internalMutation,
   internalQuery,
-  mutation,
   type MutationCtx,
+  mutation,
   type QueryCtx,
   query,
 } from "./_generated/server";
@@ -62,6 +62,9 @@ const exportSummaryValidator = v.object({
   filesIncluded: v.optional(v.number()),
   filesOmitted: v.optional(v.number()),
   artifactBytes: v.optional(v.number()),
+  // Coarse in-flight progress (only meaningful while pending/running).
+  processedCount: v.optional(v.number()),
+  stage: v.optional(v.union(v.literal("snapshotting"), v.literal("archiving"))),
   failureClass: v.optional(v.string()),
   createdAt: v.number(),
   updatedAt: v.number(),
@@ -100,6 +103,8 @@ type ExportJobDoc = {
   filesOmitted?: number;
   artifactBytes?: number;
   artifactKey?: string;
+  processedCount?: number;
+  stage?: "snapshotting" | "archiving";
   failureClass?: string;
   createdAt: number;
   updatedAt: number;
@@ -124,6 +129,8 @@ function summarizeJob(job: ExportJobDoc, nowMs: number) {
     filesIncluded: job.filesIncluded,
     filesOmitted: job.filesOmitted,
     artifactBytes: job.artifactBytes,
+    processedCount: job.processedCount,
+    stage: job.stage,
     failureClass: job.failureClass,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
@@ -157,7 +164,10 @@ function findLastSuccessfulAt(jobs: ExportJobDoc[]): number | undefined {
   let latest: number | undefined;
   for (const job of jobs) {
     if (typeof job.quotaCountedAt === "number") {
-      latest = latest === undefined ? job.quotaCountedAt : Math.max(latest, job.quotaCountedAt);
+      latest =
+        latest === undefined
+          ? job.quotaCountedAt
+          : Math.max(latest, job.quotaCountedAt);
     }
   }
   return latest;
@@ -276,8 +286,14 @@ export const cancelExport = mutation({
 
 export const getExportDownloadUrl = action({
   args: { jobId: v.id("exportJobs") },
-  returns: v.union(v.null(), v.object({ url: v.string(), expiresInSeconds: v.number() })),
-  handler: async (ctx, { jobId }): Promise<{ url: string; expiresInSeconds: number } | null> => {
+  returns: v.union(
+    v.null(),
+    v.object({ url: v.string(), expiresInSeconds: v.number() })
+  ),
+  handler: async (
+    ctx,
+    { jobId }
+  ): Promise<{ url: string; expiresInSeconds: number } | null> => {
     const user = await ctx.auth.getUserIdentity();
     if (!user) {
       throw new Error("User must be authenticated");
@@ -333,6 +349,38 @@ export const markRunning = internalMutation({
       ...(workflowId ? { workflowId } : {}),
     });
     return { canceled: false };
+  },
+});
+
+/**
+ * Record coarse in-flight progress for the running job. During phase 1 the
+ * workflow reports the running snapshot count (`processedCount`) with
+ * `stage: "snapshotting"`; when phase 2 begins it flips `stage` to
+ * "archiving" (no further numeric updates during archive build).
+ */
+export const recordExportProgress = internalMutation({
+  args: {
+    jobId: v.id("exportJobs"),
+    processedCount: v.optional(v.number()),
+    stage: v.optional(
+      v.union(v.literal("snapshotting"), v.literal("archiving"))
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, { jobId, processedCount, stage }) => {
+    const job = await ctx.db.get(jobId);
+    if (!job) {
+      return null;
+    }
+    const patch: Record<string, unknown> = { updatedAt: Date.now() };
+    if (processedCount !== undefined) {
+      patch.processedCount = processedCount;
+    }
+    if (stage !== undefined) {
+      patch.stage = stage;
+    }
+    await ctx.db.patch(jobId, patch);
+    return null;
   },
 });
 
@@ -414,7 +462,7 @@ export const getExportCardsPage = internalQuery({
     const cards: any[] = [];
     for (const item of page.page) {
       const card = await ctx.db.get(item.cardId);
-      if (!card || !isActiveCard(card)) {
+      if (!(card && isActiveCard(card))) {
         continue;
       }
       cards.push({
@@ -452,17 +500,16 @@ export const completeExport = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const job = (await ctx.db.get(args.jobId)) as unknown as ExportJobDoc | null;
+    const job = (await ctx.db.get(
+      args.jobId
+    )) as unknown as ExportJobDoc | null;
     if (!job) {
       return null;
     }
     // If the job was canceled while the archive was being built/uploaded, do not
     // resurrect it as "ready". Discard the just-written artifact instead so it
     // doesn't linger in R2, and leave the canceled state (and quota) untouched.
-    if (
-      job.status === EXPORT_STATUS.CANCELED ||
-      job.cancelRequested === true
-    ) {
+    if (job.status === EXPORT_STATUS.CANCELED || job.cancelRequested === true) {
       await ctx.scheduler.runAfter(
         0,
         internalAny["export/runExport"].deleteArtifact,
