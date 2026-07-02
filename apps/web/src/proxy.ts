@@ -9,7 +9,29 @@ const signInRoutes = [
   "/forgot-password",
 ];
 
+// Browser MCP/OAuth clients (e.g. claude.ai) preflight the OAuth token endpoint
+// cross-origin. The Better Auth catch-all route does not reliably answer these
+// OPTIONS preflights, so respond to them here before the request reaches it.
+const MCP_OAUTH_CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Max-Age": "86400",
+};
+
 export default function middleware(request: NextRequest) {
+  // MCP OAuth endpoints: answer CORS preflight here; pass everything else
+  // (authorize redirects, token POSTs) straight through to the auth handler.
+  if (request.nextUrl.pathname.startsWith("/api/auth/mcp/")) {
+    if (request.method === "OPTIONS") {
+      return new NextResponse(null, {
+        status: 204,
+        headers: MCP_OAUTH_CORS_HEADERS,
+      });
+    }
+    return NextResponse.next();
+  }
+
   const sessionCookie = getSessionCookie(request);
   const isSignInRoute = signInRoutes.includes(request.nextUrl.pathname);
   const isNativeAuthRoute = request.nextUrl.pathname.startsWith("/native/auth");
@@ -33,6 +55,12 @@ export default function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Run middleware on all routes except static assets and api routes
-  matcher: ["/((?!.*\\..*|_next|api/auth).*)", "/", "/trpc(.*)"],
+  // Run middleware on all routes except static assets and api routes. The MCP
+  // OAuth subpaths are re-included so we can answer their CORS preflight.
+  matcher: [
+    "/((?!.*\\..*|_next|api/auth).*)",
+    "/",
+    "/trpc(.*)",
+    "/api/auth/mcp/:path*",
+  ],
 };

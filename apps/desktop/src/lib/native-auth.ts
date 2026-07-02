@@ -423,6 +423,10 @@ async function fetchConvexJwt(
  * makes it unusable from this machine.
  */
 export async function logoutNativeSession(): Promise<void> {
+  // Invalidate any in-flight OAuth attempt so a callback still exchanging a
+  // code cannot write a fresh session back after the user signs out (see the
+  // attempt guard in completeDesktopOAuth).
+  liveOAuthAttempt = null;
   await clearNativeSessionToken();
   await writeStoreValue(PENDING_AUTH_KEY, null);
 }
