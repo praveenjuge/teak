@@ -5,27 +5,25 @@ import {
   getRecoveryHint,
   getUserFacingErrorMessage,
 } from "./api";
-import { hasStoredTeakSession } from "./oauth";
+import { getStoredTeakAccessToken } from "./oauth";
 import { getPreferences } from "./preferences";
 
 const URL_INLINE_PATTERN = /(https?:\/\/[^\s]+)/i;
 
-// True when the extension already holds usable credentials (a configured API
-// key or a stored OAuth session) WITHOUT launching sign-in. No-view commands
-// gate on this so they never kick off the browser OAuth overlay as a side
-// effect — the user signs in explicitly from a view command first.
-export const hasUsableCredentials = async (): Promise<boolean> => {
+// Shared guard for no-view save commands. Confirms usable credentials WITHOUT
+// launching sign-in: an API key, or an existing OAuth session (silently
+// refreshing an expired access token when possible). Refreshing here also means
+// the subsequent request path finds a valid token and never opens the browser
+// overlay. When there is no usable session (missing or stale/revoked), it shows
+// a sign-in prompt and returns false so the command stops instead of triggering
+// interactive reauthorization from a background command.
+export const ensureCredentialsForNoViewCommand = async (): Promise<boolean> => {
   if (getPreferences().apiKey?.trim()) {
     return true;
   }
-  return hasStoredTeakSession();
-};
 
-// Shared guard for no-view save commands. Shows a sign-in prompt and returns
-// false when there are no usable credentials, so the command stops instead of
-// triggering an interactive browser sign-in from the request path.
-export const ensureCredentialsForNoViewCommand = async (): Promise<boolean> => {
-  if (await hasUsableCredentials()) {
+  const token = await getStoredTeakAccessToken();
+  if (token) {
     return true;
   }
 

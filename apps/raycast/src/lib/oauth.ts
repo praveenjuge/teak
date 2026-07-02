@@ -72,3 +72,57 @@ export async function hasStoredTeakSession(): Promise<boolean> {
   // when a refresh token exists, since the request path refreshes on demand.
   return !tokenSet.isExpired() || Boolean(tokenSet.refreshToken);
 }
+
+// Resolve a usable access token WITHOUT ever launching the interactive sign-in
+// overlay. When the stored access token is expired, attempt a silent refresh
+// with the stored refresh token. Returns null when there is no stored token or
+// the refresh fails (stale/revoked) — callers then prompt the user to sign in
+// explicitly rather than popping the browser overlay from a background command.
+export async function getStoredTeakAccessToken(): Promise<string | null> {
+  const tokenSet = await client.getTokens();
+  if (!tokenSet?.accessToken) {
+    return null;
+  }
+  if (!tokenSet.isExpired()) {
+    return tokenSet.accessToken;
+  }
+  if (!tokenSet.refreshToken) {
+    return null;
+  }
+
+  try {
+    const body = new URLSearchParams({
+      client_id: teakOAuth.clientId,
+      grant_type: "refresh_token",
+      refresh_token: tokenSet.refreshToken,
+    });
+    const response = await fetch(tokenUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    });
+    if (!response.ok) {
+      return null;
+    }
+    const parsed = (await response.json()) as {
+      access_token?: unknown;
+      refresh_token?: unknown;
+      expires_in?: unknown;
+    };
+    if (typeof parsed.access_token !== "string" || !parsed.access_token) {
+      return null;
+    }
+    await client.setTokens({
+      accessToken: parsed.access_token,
+      expiresIn:
+        typeof parsed.expires_in === "number" ? parsed.expires_in : undefined,
+      refreshToken:
+        typeof parsed.refresh_token === "string"
+          ? parsed.refresh_token
+          : tokenSet.refreshToken,
+    });
+    return parsed.access_token;
+  } catch {
+    return null;
+  }
+}
