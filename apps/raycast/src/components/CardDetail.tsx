@@ -27,6 +27,7 @@ import {
 import { formatDateTime } from "../lib/dateFormat";
 import { EditCardForm } from "./EditCardForm";
 import { SetApiKeyAction } from "./SetApiKeyAction";
+import { SignOutAction } from "./SignOutAction";
 
 const FAVORITE_MUTATION_DEBOUNCE_MS = 300;
 const MAX_METADATA_URL_LENGTH = 64;
@@ -358,6 +359,7 @@ export function CardDetail({
             url={getTeakUrl(cardState)}
           />
           <SetApiKeyAction />
+          <SignOutAction />
         </ActionPanel>
       }
       markdown={markdown}

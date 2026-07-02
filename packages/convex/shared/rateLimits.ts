@@ -28,4 +28,12 @@ export const rateLimiter = new RateLimiter(components.ratelimiter, {
     period: MINUTE,
     capacity: 60,
   },
+  // Desktop OAuth -> session exchange. Keyed per client IP so a single host
+  // cannot spam single-use token redemption attempts.
+  desktopOauthExchange: {
+    kind: "token bucket",
+    rate: 10,
+    period: MINUTE,
+    capacity: 10,
+  },
 });

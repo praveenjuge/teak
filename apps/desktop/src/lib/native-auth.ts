@@ -4,11 +4,14 @@ import { buildWebUrl, getDesktopConfig } from "@/lib/desktop-config";
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const SESSION_TOKEN_KEY = "auth.sessionToken";
-const DEVICE_ID_KEY = "auth.deviceId";
 const PENDING_AUTH_KEY = "auth.pendingNativeFlow";
 const DESKTOP_PENDING_MAX_AGE_MS = 10 * 60 * 1000;
-const DESKTOP_AUTH_POLL_INTERVAL_MS = 2000;
 const JWT_EXPIRY_SKEW_MS = 10_000;
+
+// Desktop OAuth client (matches the trusted client registered server-side).
+const DESKTOP_OAUTH_CLIENT_ID = "teak-desktop";
+const DESKTOP_OAUTH_SCOPE = "openid profile email offline_access";
+const OAUTH_REDIRECT_HOST = "127.0.0.1";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -17,10 +20,10 @@ interface NativeAuthState {
   sessionToken: string | null;
 }
 
-interface PendingNativeAuth {
+interface PendingDesktopOAuth {
   codeVerifier: string;
   createdAt: number;
-  deviceId: string;
+  port: number;
   state: string;
 }
 
@@ -34,13 +37,12 @@ interface ExchangeResponse {
   sessionToken: string;
 }
 
-export type NativeAuthPollingResult = "authenticated" | "timeout" | "cancelled";
+export type DesktopOAuthResult = "authenticated" | "timeout" | "cancelled";
 
 // ── Validation patterns ────────────────────────────────────────────────────────
 
 const PKCE_CODE_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
 const CALLBACK_STATE_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
-const DEVICE_ID_PATTERN = /^[A-Za-z0-9-]{16,128}$/;
 
 // ── Store helpers (thin wrappers over the preload bridge) ──────────────────────
 
@@ -61,7 +63,6 @@ let state: NativeAuthState = {
 
 let cachedJwt: CachedJwt | null = null;
 let initializationPromise: Promise<void> | null = null;
-let pollingPromise: Promise<NativeAuthPollingResult> | null = null;
 const listeners = new Set<() => void>();
 
 function notifyListeners() {
@@ -109,10 +110,15 @@ function randomBase64Url(size: number): string {
   return toBase64Url(bytes);
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
+function timingSafeEqual(left: string, right: string): boolean {
+  const maxLength = Math.max(left.length, right.length);
+  let mismatch = left.length === right.length ? 0 : 1;
+  for (let index = 0; index < maxLength; index += 1) {
+    const leftCode = left.charCodeAt(index) || 0;
+    const rightCode = right.charCodeAt(index) || 0;
+    mismatch |= leftCode ^ rightCode;
+  }
+  return mismatch === 0;
 }
 
 async function createCodeChallenge(codeVerifier: string): Promise<string> {
@@ -191,73 +197,96 @@ async function getNativeSessionToken(): Promise<string | null> {
   return state.sessionToken;
 }
 
-async function getNativeDeviceId(): Promise<string> {
-  const storedDeviceId = await readStoreValue<string>(DEVICE_ID_KEY);
-  if (storedDeviceId && DEVICE_ID_PATTERN.test(storedDeviceId)) {
-    return storedDeviceId;
-  }
+// ── Auth flow (browser OAuth) ────────────────────────────────────────────────
 
-  const nextDeviceId = crypto.randomUUID();
-  await writeStoreValue(DEVICE_ID_KEY, nextDeviceId);
-  return nextDeviceId;
-}
-
-// ── Auth flow ──────────────────────────────────────────────────────────────────
-
-export async function startNativeAuthRequest(): Promise<string> {
-  const deviceId = await getNativeDeviceId();
+/**
+ * Begin the desktop OAuth flow. Starts the loopback callback listener, persists
+ * a pending PKCE record, and returns the authorize URL to open in the browser.
+ * The URL targets the web origin so the browser's session cookie authenticates
+ * the request; unauthenticated users hit the login page and resume afterward.
+ */
+export async function startDesktopOAuthRequest(): Promise<string> {
   const stateToken = randomBase64Url(18);
   const codeVerifier = randomBase64Url(48);
   const codeChallenge = await createCodeChallenge(codeVerifier);
 
-  const pendingAuth: PendingNativeAuth = {
-    state: stateToken,
+  const { port } = await window.teakDesktop.oauth.listen();
+
+  const pendingAuth: PendingDesktopOAuth = {
     codeVerifier,
-    deviceId,
     createdAt: Date.now(),
+    port,
+    state: stateToken,
   };
   await writeStoreValue(PENDING_AUTH_KEY, pendingAuth);
 
-  const url = new URL(buildWebUrl("/native/auth/start"));
-  url.searchParams.set("device_id", deviceId);
+  const url = new URL(buildWebUrl("/api/auth/mcp/authorize"));
+  url.searchParams.set("client_id", DESKTOP_OAUTH_CLIENT_ID);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set(
+    "redirect_uri",
+    `http://${OAUTH_REDIRECT_HOST}:${port}/oauth/callback`
+  );
   url.searchParams.set("code_challenge", codeChallenge);
+  url.searchParams.set("code_challenge_method", "S256");
   url.searchParams.set("state", stateToken);
-  url.searchParams.set("surface", "desktop");
-  url.searchParams.set("redirect_uri", buildWebUrl("/native/auth/complete"));
+  url.searchParams.set("scope", DESKTOP_OAUTH_SCOPE);
   return url.toString();
 }
 
-async function pollNativeCodeByState(params: {
-  state: string;
-  deviceId: string;
+interface TokenExchangeResponse {
+  access_token?: unknown;
+}
+
+async function exchangeCodeForAccessToken(params: {
+  code: string;
   codeVerifier: string;
-}): Promise<ExchangeResponse | null> {
-  const response = await fetch(`${convexSiteBaseUrl}/api/native/auth/poll`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      state: params.state,
-      deviceId: params.deviceId,
-      codeVerifier: params.codeVerifier,
-    }),
+  port: number;
+}): Promise<string> {
+  const body = new URLSearchParams({
+    client_id: DESKTOP_OAUTH_CLIENT_ID,
+    code: params.code,
+    code_verifier: params.codeVerifier,
+    grant_type: "authorization_code",
+    redirect_uri: `http://${OAUTH_REDIRECT_HOST}:${params.port}/oauth/callback`,
   });
 
-  if (response.status === 204) {
-    return null;
-  }
+  const response = await fetch(`${convexSiteBaseUrl}/api/auth/mcp/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
 
   if (!response.ok) {
-    if (response.status >= 500) {
-      return null;
+    throw new Error("Failed to exchange authorization code");
+  }
+
+  const data = (await response.json()) as TokenExchangeResponse;
+  if (typeof data.access_token !== "string" || !data.access_token) {
+    throw new Error("Authorization code exchange returned no access token");
+  }
+  return data.access_token;
+}
+
+async function exchangeAccessTokenForSession(
+  accessToken: string
+): Promise<ExchangeResponse> {
+  const response = await fetch(
+    `${convexSiteBaseUrl}/api/native/auth/oauth-exchange`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accessToken }),
     }
-    throw new Error("Native login polling failed");
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to establish a desktop session");
   }
 
   const data = (await response.json()) as Partial<ExchangeResponse>;
-  if (!(data.sessionToken && typeof data.sessionToken === "string")) {
-    throw new Error("Native login polling response is invalid");
+  if (typeof data.sessionToken !== "string" || !data.sessionToken) {
+    throw new Error("Desktop session exchange response is invalid");
   }
 
   return {
@@ -266,70 +295,55 @@ async function pollNativeCodeByState(params: {
   };
 }
 
-export function startNativeAuthPolling(): Promise<NativeAuthPollingResult> {
-  if (pollingPromise) {
-    return pollingPromise;
+/**
+ * Complete the desktop OAuth flow from the loopback callback. Verifies the
+ * state (timing-safe), exchanges the code for an access token, then trades that
+ * for a dedicated desktop session token which is persisted for Convex auth.
+ */
+export async function completeDesktopOAuth(
+  code: string,
+  state: string
+): Promise<DesktopOAuthResult> {
+  const pending = await readStoreValue<PendingDesktopOAuth>(PENDING_AUTH_KEY);
+  if (!pending) {
+    return "cancelled";
   }
 
-  pollingPromise = (async () => {
-    const startedAt = Date.now();
+  // Consume the pending record up front so a code can only be redeemed once.
+  await writeStoreValue(PENDING_AUTH_KEY, null);
 
-    while (Date.now() - startedAt < DESKTOP_PENDING_MAX_AGE_MS) {
-      const pending = await readStoreValue<PendingNativeAuth>(PENDING_AUTH_KEY);
-      if (!pending) {
-        return "cancelled";
-      }
-
-      if (getSnapshot().sessionToken) {
-        await writeStoreValue(PENDING_AUTH_KEY, null);
-        return "authenticated";
-      }
-
-      const isExpired =
-        Date.now() - pending.createdAt > DESKTOP_PENDING_MAX_AGE_MS;
-      if (isExpired) {
-        await writeStoreValue(PENDING_AUTH_KEY, null);
-        return "timeout";
-      }
-
-      if (
-        !(
-          PKCE_CODE_PATTERN.test(pending.codeVerifier) &&
-          DEVICE_ID_PATTERN.test(pending.deviceId) &&
-          CALLBACK_STATE_PATTERN.test(pending.state)
-        )
-      ) {
-        await writeStoreValue(PENDING_AUTH_KEY, null);
-        return "cancelled";
-      }
-
-      try {
-        const exchangeResult = await pollNativeCodeByState({
-          state: pending.state,
-          deviceId: pending.deviceId,
-          codeVerifier: pending.codeVerifier,
-        });
-
-        if (exchangeResult) {
-          await writeStoreValue(PENDING_AUTH_KEY, null);
-          await setSessionToken(exchangeResult.sessionToken);
-          return "authenticated";
-        }
-      } catch {
-        await writeStoreValue(PENDING_AUTH_KEY, null);
-        return "cancelled";
-      }
-
-      await sleep(DESKTOP_AUTH_POLL_INTERVAL_MS);
-    }
-
-    await writeStoreValue(PENDING_AUTH_KEY, null);
+  if (Date.now() - pending.createdAt > DESKTOP_PENDING_MAX_AGE_MS) {
     return "timeout";
-  })().finally(() => {
-    pollingPromise = null;
-  });
+  }
 
-  return pollingPromise;
+  if (
+    !(
+      CALLBACK_STATE_PATTERN.test(pending.state) &&
+      PKCE_CODE_PATTERN.test(pending.codeVerifier) &&
+      timingSafeEqual(pending.state, state)
+    )
+  ) {
+    return "cancelled";
+  }
+
+  try {
+    const accessToken = await exchangeCodeForAccessToken({
+      code,
+      codeVerifier: pending.codeVerifier,
+      port: pending.port,
+    });
+    const session = await exchangeAccessTokenForSession(accessToken);
+    await setSessionToken(session.sessionToken);
+    return "authenticated";
+  } catch {
+    return "cancelled";
+  }
+}
+
+/** Abort an in-flight desktop OAuth attempt and tear down the loopback listener. */
+export async function cancelDesktopOAuth(): Promise<void> {
+  await writeStoreValue(PENDING_AUTH_KEY, null);
+  await window.teakDesktop.oauth.cancel();
 }
 
 // ── JWT fetching ───────────────────────────────────────────────────────────────

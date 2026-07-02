@@ -383,6 +383,65 @@ describe("publicApiHttp", () => {
     expect(payload.code).toBe("INVALID_API_KEY");
   });
 
+  test("searchCardsV1 authorizes a valid OAuth access token", async () => {
+    // 32-char alphabetic token -> OAuth-shaped, not API-key-shaped.
+    const token = "a".repeat(32);
+    const runMutation = mock()
+      .mockResolvedValueOnce({
+        access: "full_access",
+        keyId: "oauth_token_1",
+        rateLimitKey: "oauth:teak-desktop:user_1",
+        source: "oauth",
+        userId: "user_1",
+      })
+      .mockResolvedValueOnce({ ok: true, retryAt: undefined });
+    const runQuery = mock().mockResolvedValue([]);
+
+    const response = await runHandler(
+      searchCardsV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/search?limit=10", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    // OAuth validator receives only the token (no endpoint/method context).
+    expect(runMutation.mock.calls[0][1]).toEqual({ token });
+    // Rate limit is keyed on the stable OAuth identity, not the raw token.
+    expect(runMutation.mock.calls[1][1]).toEqual({
+      rateLimitKey: "key:oauth:teak-desktop:user_1",
+    });
+  });
+
+  test("createCardV1 returns 401 UNAUTHORIZED for an invalid OAuth token", async () => {
+    const token = "b".repeat(32);
+    const runMutation = mock()
+      // OAuth validation fails...
+      .mockResolvedValueOnce(null)
+      // ...and the shared invalid-auth bucket still has capacity.
+      .mockResolvedValueOnce({ ok: true });
+
+    const response = await runHandler(
+      createCardV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "hello" }),
+      })
+    );
+
+    expect(response.status).toBe(401);
+    const payload = await response.json();
+    expect(payload.code).toBe("UNAUTHORIZED");
+    expect(payload.error).toBe("Invalid or expired access token");
+  });
+
   test("createCardV1 returns 400 for malformed JSON", async () => {
     const response = await runHandler(
       createCardV1,

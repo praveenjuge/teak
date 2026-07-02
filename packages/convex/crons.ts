@@ -3,6 +3,18 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
+// Ensure the first-party OAuth clients (Raycast, desktop) exist as
+// `oauthApplication` rows. The mcp plugin resolves clients from the DB, so the
+// browser-login flow returns `invalid_client` if these are missing. Runs
+// frequently so a fresh deploy self-heals; also runnable via
+// `bunx convex run oauthClients:ensureOAuthClients`.
+crons.interval(
+  "ensure-oauth-clients",
+  { hours: 1 },
+  (internal as any).oauthClients.ensureOAuthClients,
+  {}
+);
+
 // Clean up cards that have been soft-deleted for more than 30 days
 // Runs daily at 2:00 AM UTC (off-peak hours)
 crons.daily(

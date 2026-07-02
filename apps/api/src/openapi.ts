@@ -243,7 +243,9 @@ const components = {
   },
   securitySchemes: {
     bearerAuth: {
-      bearerFormat: "API key",
+      bearerFormat: "OAuth access token or teakapi_ API key",
+      description:
+        "Bearer token. Accepts either an OAuth 2.0 access token (obtained via browser sign-in; expires after 1 hour and is refreshable) or a teakapi_ API key.",
       scheme: "bearer",
       type: "http",
     },

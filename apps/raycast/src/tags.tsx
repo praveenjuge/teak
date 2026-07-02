@@ -10,13 +10,14 @@ import { useEffect, useMemo, useState } from "react";
 import { CardsListCommand } from "./components/CardsListCommand";
 import { MissingApiKeyDetail } from "./components/MissingApiKeyDetail";
 import { SetApiKeyAction } from "./components/SetApiKeyAction";
+import { SignOutAction } from "./components/SignOutAction";
 import {
   getUserFacingErrorMessage,
   listTags,
   searchCards,
   type TagSummary,
 } from "./lib/api";
-import { getPreferences } from "./lib/preferences";
+import { useTeakAuth } from "./lib/useTeakAuth";
 
 function TagCardsView({ tag }: { tag: string }) {
   return (
@@ -35,8 +36,11 @@ function TagCardsView({ tag }: { tag: string }) {
 }
 
 export default function TagsCommand() {
-  const { apiKey } = getPreferences();
-  const hasApiKey = Boolean(apiKey?.trim());
+  const {
+    isAuthenticated,
+    isLoading: isCheckingAuth,
+    refresh: refreshAuth,
+  } = useTeakAuth();
 
   const [tags, setTags] = useState<TagSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,7 +50,11 @@ export default function TagsCommand() {
   const { push } = useNavigation();
 
   useEffect(() => {
-    if (!hasApiKey) {
+    if (isCheckingAuth) {
+      return;
+    }
+
+    if (!isAuthenticated) {
       setTags([]);
       setIsLoading(false);
       return;
@@ -79,7 +87,7 @@ export default function TagsCommand() {
     return () => {
       isMounted = false;
     };
-  }, [hasApiKey]);
+  }, [isCheckingAuth, isAuthenticated]);
 
   const filteredTags = useMemo(() => {
     const normalized = searchText.trim().toLowerCase();
@@ -89,8 +97,12 @@ export default function TagsCommand() {
     return tags.filter((tag) => tag.name.toLowerCase().includes(normalized));
   }, [searchText, tags]);
 
-  if (!hasApiKey) {
-    return <MissingApiKeyDetail />;
+  if (isCheckingAuth) {
+    return <List isLoading navigationTitle="Teak Tags" />;
+  }
+
+  if (!isAuthenticated) {
+    return <MissingApiKeyDetail onSignedIn={refreshAuth} />;
   }
 
   return (
@@ -144,6 +156,7 @@ export default function TagsCommand() {
                 title="Copy Tag Name"
               />
               <SetApiKeyAction />
+              <SignOutAction onSignedOut={refreshAuth} />
             </ActionPanel>
           }
           icon={Icon.Tag}

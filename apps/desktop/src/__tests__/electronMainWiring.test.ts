@@ -51,6 +51,22 @@ describe("electron main process wiring", () => {
     expect(channelsSource).toContain('"app:get-version"');
     expect(channelsSource).toContain('"desktop://menu/settings"');
     expect(channelsSource).toContain('"desktop://menu/logout"');
+    expect(channelsSource).toContain('"oauth:listen"');
+    expect(channelsSource).toContain('"oauth:cancel"');
+    expect(channelsSource).toContain("OAUTH_CALLBACK_CHANNEL");
+  });
+
+  it("runs a loopback OAuth callback listener in the main process", () => {
+    const source = readFileSync(
+      resolve(import.meta.dir, "../main/index.ts"),
+      "utf8"
+    );
+
+    expect(source).toContain("OAUTH_CALLBACK_PORTS");
+    expect(source).toContain("/oauth/callback");
+    expect(source).toContain('ipcMain.handle("oauth:listen"');
+    expect(source).toContain('ipcMain.handle("oauth:cancel"');
+    expect(source).toContain("OAUTH_CALLBACK_CHANNEL");
   });
 
   it("sets up auto-updater with native dialogs via electron-updater", () => {

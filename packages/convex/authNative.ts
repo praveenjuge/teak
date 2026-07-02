@@ -127,7 +127,7 @@ const assertNativeStateInputs = (
   }
 };
 
-const jsonResponse = (
+export const jsonResponse = (
   status: number,
   body: unknown,
   headers: HeadersInit = {}
@@ -149,7 +149,7 @@ const isAllowedOrigin = (origin: string): boolean => {
   return /^https:\/\/([a-z0-9-]+\.)*teakvault\.com$/i.test(origin);
 };
 
-const buildCorsHeaders = (origin: string | null): HeadersInit => {
+export const buildCorsHeaders = (origin: string | null): HeadersInit => {
   const resolvedOrigin =
     origin && isAllowedOrigin(origin) ? origin : "https://app.teakvault.com";
 

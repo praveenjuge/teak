@@ -14,7 +14,8 @@ export const V1_ENDPOINTS = [
   "GET /v1/tags",
 ] as const;
 
-export const API_AUTH_HINT = "Authorization: Bearer <api_key>";
+export const API_AUTH_HINT =
+  "Authorization: Bearer <token> (OAuth access token or teakapi_ API key)";
 export const MCP_TRANSPORT = "streamable-http";
 
 export const getMcpEndpointFromRequestUrl = (requestUrl: string): string => {

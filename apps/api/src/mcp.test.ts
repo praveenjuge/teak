@@ -462,4 +462,59 @@ describe("apps/api MCP endpoint", () => {
       error: "Too many requests",
     });
   });
+
+  test("401 responses advertise the OAuth protected-resource metadata", async () => {
+    const response = await initializeMcp();
+
+    expect(response.status).toBe(401);
+    const wwwAuth = response.headers.get("WWW-Authenticate");
+    expect(wwwAuth).toContain("resource_metadata=");
+    expect(wwwAuth).toContain("/.well-known/oauth-protected-resource");
+    expect(response.headers.get("Access-Control-Expose-Headers")).toContain(
+      "WWW-Authenticate"
+    );
+  });
+
+  test("serves OAuth protected-resource metadata with CORS", async () => {
+    const response = await app.request(
+      "/.well-known/oauth-protected-resource",
+      { method: "GET" }
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+
+    const body = (await response.json()) as {
+      resource: string;
+      authorization_servers: string[];
+      bearer_methods_supported: string[];
+      resource_name: string;
+    };
+    expect(body.resource).toContain("/mcp");
+    expect(Array.isArray(body.authorization_servers)).toBe(true);
+    expect(body.authorization_servers).toHaveLength(1);
+    expect(body.bearer_methods_supported).toEqual(["header"]);
+    expect(body.resource_name).toBe("Teak");
+  });
+
+  test("serves the /mcp suffix variant of protected-resource metadata", async () => {
+    const response = await app.request(
+      "/.well-known/oauth-protected-resource/mcp",
+      { method: "GET" }
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { resource: string };
+    expect(body.resource).toContain("/mcp");
+  });
+
+  test("lets unauthenticated OPTIONS /mcp preflight through", async () => {
+    const response = await app.request("/mcp", { method: "OPTIONS" });
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
+      "POST"
+    );
+  });
 });

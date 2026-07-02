@@ -22,7 +22,10 @@ See the dedicated [MCP docs](./mcp) for tool contracts and JSON-RPC examples.
 
 ## Authentication
 
-All API requests require your Teak API key in the `Authorization` header:
+All API requests use a bearer token in the `Authorization` header. Two token types are accepted:
+
+- **OAuth access token** — obtained by signing in with your browser (used by browser-login clients such as Raycast and MCP). Access tokens expire after 1 hour and are refreshed automatically by the client.
+- **Teak API key** — a long-lived `teakapi_` key you generate in Settings.
 
 ```bash
 Authorization: Bearer teakapi_secret_live_a1b2c3d4_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

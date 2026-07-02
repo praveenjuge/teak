@@ -18,8 +18,8 @@
       "name": "apiKey",
       "title": "API Key",
       "type": "password",
-      "required": true,
-      "description": "Generate in Teak Settings > Manage API Keys, then paste it here."
+      "required": false,
+      "description": "Optional — only if you prefer an API key over browser sign-in. Generate in Teak Settings > Manage API Keys."
     }
   ],
   "commands": [
@@ -133,7 +133,8 @@
     "test": "bun test src/__tests__ --coverage --dots"
   },
   "dependencies": {
-    "@raycast/api": "^1.104.19"
+    "@raycast/api": "^1.104.19",
+    "@raycast/utils": "^2.2.7"
   },
   "overrides": {
     "esbuild": "0.28.1"

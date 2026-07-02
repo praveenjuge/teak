@@ -11,12 +11,13 @@ import {
 import { useEffect, useState } from "react";
 import { MissingApiKeyDetail } from "./components/MissingApiKeyDetail";
 import { SetApiKeyAction } from "./components/SetApiKeyAction";
+import { SignOutAction } from "./components/SignOutAction";
 import {
   getRecoveryHint,
   getUserFacingErrorMessage,
   quickSaveCard,
 } from "./lib/api";
-import { getPreferences } from "./lib/preferences";
+import { useTeakAuth } from "./lib/useTeakAuth";
 
 interface FormValues {
   content: string;
@@ -51,8 +52,11 @@ export default function QuickSaveCommand() {
   const [content, setContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  const { apiKey } = getPreferences();
-  const hasApiKey = Boolean(apiKey?.trim());
+  const {
+    isAuthenticated,
+    isLoading: isCheckingAuth,
+    refresh: refreshAuth,
+  } = useTeakAuth();
 
   useEffect(() => {
     let isMounted = true;
@@ -114,8 +118,12 @@ export default function QuickSaveCommand() {
     }
   };
 
-  if (!hasApiKey) {
-    return <MissingApiKeyDetail />;
+  if (isCheckingAuth) {
+    return <Form isLoading navigationTitle="Quick Save to Teak" />;
+  }
+
+  if (!isAuthenticated) {
+    return <MissingApiKeyDetail onSignedIn={refreshAuth} />;
   }
 
   return (
@@ -128,6 +136,7 @@ export default function QuickSaveCommand() {
             title={isSaving ? "Saving..." : "Save to Teak"}
           />
           <SetApiKeyAction />
+          <SignOutAction onSignedOut={refreshAuth} />
         </ActionPanel>
       }
       navigationTitle="Quick Save to Teak"

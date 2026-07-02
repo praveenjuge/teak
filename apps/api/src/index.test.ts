@@ -34,7 +34,7 @@ describe("apps/api proxy", () => {
     expect(payload.mcp).toEqual({
       endpoint: "http://localhost/mcp",
       transport: "streamable-http",
-      auth: "Authorization: Bearer <api_key>",
+      auth: "Authorization: Bearer <token> (OAuth access token or teakapi_ API key)",
     });
   });
 

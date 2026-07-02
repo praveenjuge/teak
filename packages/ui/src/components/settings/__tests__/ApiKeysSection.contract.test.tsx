@@ -54,6 +54,7 @@ mock.module("sonner", () => ({
 
 const { ApiKeysDialog } = await import("../ApiKeysDialog");
 const { ApiKeysSection } = await import("../ApiKeysSection");
+const { shouldShowApiKeysSection } = await import("../apiKeysGating");
 
 const keys = [
   {
@@ -105,6 +106,20 @@ describe("ApiKeysSection", () => {
     expect(markup).toContain("3 keys");
     expect(markup).not.toContain("Update required");
     expect(markup).not.toContain("Generate Key");
+  });
+});
+
+describe("shouldShowApiKeysSection gating", () => {
+  test("hides the section while keys are still loading", () => {
+    expect(shouldShowApiKeysSection(undefined)).toBe(false);
+  });
+
+  test("hides the section for keyless users", () => {
+    expect(shouldShowApiKeysSection([])).toBe(false);
+  });
+
+  test("shows the section once the user has at least one key", () => {
+    expect(shouldShowApiKeysSection(keys)).toBe(true);
   });
 });
 

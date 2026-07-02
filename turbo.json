@@ -5,6 +5,7 @@
   "remoteCache": {
     "enabled": true
   },
+  "ui": "tui",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -20,7 +21,8 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "interactive": true
     },
     "//#check": {},
     "//#fix": {

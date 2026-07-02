@@ -11,7 +11,7 @@
     "build": "turbo run build",
     "build:raycast": "turbo run build --filter=./apps/raycast",
     "build:extension": "turbo run build --filter=@teak/extension",
-    "dev": "turbo watch dev --filter=@teak/web --filter=@teak/convex",
+    "dev": "turbo watch dev --filter=@teak/web --filter=@teak/convex --filter=@teak/api --filter=@teak/desktop --filter=./apps/raycast",
     "dev:all": "turbo watch dev",
     "dev:convex": "turbo watch dev --filter=@teak/convex",
     "dev:docs": "turbo watch dev --filter=@teak/docs",

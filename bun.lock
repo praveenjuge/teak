@@ -161,6 +161,7 @@
       "version": "1.0.45",
       "dependencies": {
         "@raycast/api": "^1.104.19",
+        "@raycast/utils": "^2.2.7",
       },
       "devDependencies": {
         "@types/node": "^25.9.3",
@@ -1284,6 +1285,8 @@
     "@radix-ui/rect": ["@radix-ui/rect@1.1.1", "", {}, "sha512-HPwpGIzkl28mWyZqG52jiqDJ12waP11Pa1lGoiyUkIEuMLBP0oeK/C89esbXrxsky5we7dfd8U58nm0SgAWpVw=="],
 
     "@raycast/api": ["@raycast/api@1.104.19", "", { "dependencies": { "@oclif/core": "^4.8.4", "@oclif/plugin-autocomplete": "^3.2.40", "@oclif/plugin-help": "^6.2.37", "@oclif/plugin-not-found": "^3.2.74", "@types/node": "22.19.17", "@types/react": "19.0.10", "esbuild": "^0.27.3", "react": "19.0.0" }, "peerDependencies": { "react-devtools": "6.1.1" }, "optionalPeers": ["react-devtools"], "bin": { "ray": "bin/run.js" } }, "sha512-SAVg56BAzxZGy/OPQ0jekUG3pJaoX5pCqleALvFo9JRE7P2tvKoglWnYRcIJArRhLlvV8FtFNMDafd+NNwXXCw=="],
+
+    "@raycast/utils": ["@raycast/utils@2.2.7", "", { "dependencies": { "dequal": "^2.0.3" }, "peerDependencies": { "@raycast/api": ">=1.99.4", "react": ">=19.0.0" }, "optionalPeers": ["react"] }, "sha512-1jV9tKLluP0Av/ICcl/yvVzCj7mY6F3wnKsh8SJpy/Fsqq/LCFXcI6TgMabIJ45AaDVhEV+JH9jS1lJSwBgiMw=="],
 
     "@rc-component/async-validator": ["@rc-component/async-validator@5.1.0", "", { "dependencies": { "@babel/runtime": "^7.24.4" } }, "sha512-n4HcR5siNUXRX23nDizbZBQPO0ZM/5oTtmKZ6/eqL0L2bo747cklFdZGRN2f+c9qWGICwDzrhW0H7tE9PptdcA=="],
 
