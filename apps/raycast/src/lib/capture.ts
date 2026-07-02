@@ -5,8 +5,38 @@ import {
   getRecoveryHint,
   getUserFacingErrorMessage,
 } from "./api";
+import { hasStoredTeakSession } from "./oauth";
+import { getPreferences } from "./preferences";
 
 const URL_INLINE_PATTERN = /(https?:\/\/[^\s]+)/i;
+
+// True when the extension already holds usable credentials (a configured API
+// key or a stored OAuth session) WITHOUT launching sign-in. No-view commands
+// gate on this so they never kick off the browser OAuth overlay as a side
+// effect — the user signs in explicitly from a view command first.
+export const hasUsableCredentials = async (): Promise<boolean> => {
+  if (getPreferences().apiKey?.trim()) {
+    return true;
+  }
+  return hasStoredTeakSession();
+};
+
+// Shared guard for no-view save commands. Shows a sign-in prompt and returns
+// false when there are no usable credentials, so the command stops instead of
+// triggering an interactive browser sign-in from the request path.
+export const ensureCredentialsForNoViewCommand = async (): Promise<boolean> => {
+  if (await hasUsableCredentials()) {
+    return true;
+  }
+
+  await showToast({
+    message:
+      "Open the Search or Quick Save command to sign in with your browser, then run this command again.",
+    style: Toast.Style.Failure,
+    title: "Sign in to Teak",
+  });
+  return false;
+};
 
 export const extractFirstHttpUrl = (value: string): string | null => {
   const trimmed = value.trim();

@@ -1,5 +1,8 @@
 import { BrowserExtension, environment, showToast, Toast } from "@raycast/api";
-import { saveCardWithFeedback } from "./lib/capture";
+import {
+  ensureCredentialsForNoViewCommand,
+  saveCardWithFeedback,
+} from "./lib/capture";
 
 const isHttpUrl = (value: string): boolean => {
   try {
@@ -11,6 +14,10 @@ const isHttpUrl = (value: string): boolean => {
 };
 
 export default async function SaveCurrentBrowserTabCommand() {
+  if (!(await ensureCredentialsForNoViewCommand())) {
+    return;
+  }
+
   if (!environment.canAccess(BrowserExtension)) {
     await showToast({
       message: "Install or enable the Raycast Browser Extension, then retry.",

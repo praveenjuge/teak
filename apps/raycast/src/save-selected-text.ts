@@ -1,7 +1,15 @@
 import { getSelectedText, showToast, Toast } from "@raycast/api";
-import { extractFirstHttpUrl, saveCardWithFeedback } from "./lib/capture";
+import {
+  ensureCredentialsForNoViewCommand,
+  extractFirstHttpUrl,
+  saveCardWithFeedback,
+} from "./lib/capture";
 
 export default async function SaveSelectedTextCommand() {
+  if (!(await ensureCredentialsForNoViewCommand())) {
+    return;
+  }
+
   let selectedText = "";
   try {
     selectedText = (await getSelectedText()).trim();

@@ -1,7 +1,15 @@
 import { Clipboard, showToast, Toast } from "@raycast/api";
-import { extractFirstHttpUrl, saveCardWithFeedback } from "./lib/capture";
+import {
+  ensureCredentialsForNoViewCommand,
+  extractFirstHttpUrl,
+  saveCardWithFeedback,
+} from "./lib/capture";
 
 export default async function SaveClipboardCommand() {
+  if (!(await ensureCredentialsForNoViewCommand())) {
+    return;
+  }
+
   const clipboardText = (await Clipboard.readText())?.trim() ?? "";
 
   if (!clipboardText) {

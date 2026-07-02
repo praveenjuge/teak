@@ -1,9 +1,17 @@
 import { type LaunchProps, showToast, Toast } from "@raycast/api";
-import { extractFirstHttpUrl, saveCardWithFeedback } from "./lib/capture";
+import {
+  ensureCredentialsForNoViewCommand,
+  extractFirstHttpUrl,
+  saveCardWithFeedback,
+} from "./lib/capture";
 
 export default async function SaveTextCommand(
   props: LaunchProps<{ arguments: Arguments.SaveText }>,
 ) {
+  if (!(await ensureCredentialsForNoViewCommand())) {
+    return;
+  }
+
   const fallbackText = props.fallbackText?.trim();
   const argumentContent = props.arguments?.content?.trim();
   const content = argumentContent || fallbackText || "";
