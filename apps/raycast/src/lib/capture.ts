@@ -78,7 +78,8 @@ export const saveCardWithFeedback = async (
   });
 
   try {
-    const result = await createCard(input);
+    // No-view command: never open the sign-in overlay from the request path.
+    const result = await createCard(input, { interactive: false });
 
     const appUrl = result.appUrl;
     if (appUrl) {

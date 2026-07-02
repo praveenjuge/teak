@@ -18,7 +18,11 @@ import {
   type TagsResponse,
 } from "./apiParsers";
 import { getApiBaseUrl } from "./constants";
-import { authorizeTeak, reauthorizeTeak } from "./oauth";
+import {
+  authorizeTeak,
+  getStoredTeakAccessToken,
+  reauthorizeTeak,
+} from "./oauth";
 import { getPreferences } from "./preferences";
 import type { RaycastCardType, RaycastSort } from "./searchFilters";
 
@@ -168,13 +172,31 @@ interface ResolvedBearer {
   token: string;
 }
 
+// When `interactive` is false (background / no-view commands), auth is resolved
+// only from an API key or an existing/refreshable OAuth session — the browser
+// sign-in overlay is never opened.
+export interface RequestAuthOptions {
+  interactive?: boolean;
+}
+
 // Grandfathered API keys take precedence over browser sign-in. When no key is
-// configured, fall back to OAuth (OAuthService transparently refreshes or opens
-// the browser sign-in overlay as needed).
-const resolveBearerToken = async (): Promise<ResolvedBearer> => {
+// configured, fall back to OAuth. Interactive callers may open the browser
+// sign-in overlay; non-interactive callers resolve from a stored/refreshable
+// session only and fail (rather than prompting) when none is available.
+const resolveBearerToken = async (
+  options?: RequestAuthOptions,
+): Promise<ResolvedBearer> => {
   const apiKey = getPreferences().apiKey?.trim();
   if (apiKey) {
     return { source: "apiKey", token: apiKey };
+  }
+
+  if (options?.interactive === false) {
+    const storedToken = await getStoredTeakAccessToken();
+    if (!storedToken) {
+      throw new RaycastApiError("INVALID_API_KEY", 401);
+    }
+    return { source: "oauth", token: storedToken };
   }
 
   const accessToken = await authorizeTeak();
@@ -242,17 +264,24 @@ export const request = async <T>(
   path: string,
   parseResponse: (payload: unknown) => T,
   init?: RequestInit,
+  options?: RequestAuthOptions,
 ): Promise<T> => {
-  const bearer = await resolveBearerToken();
+  const bearer = await resolveBearerToken(options);
   let { requestUrl, response } = await executeHttpRequest(
     path,
     bearer.token,
     init,
   );
 
-  // An OAuth access token can be revoked or rotated server-side. Drop the
-  // cached tokens, re-authorize once, and retry before surfacing an error.
-  if (response.status === 401 && bearer.source === "oauth") {
+  // An OAuth access token can be revoked or rotated server-side. Interactive
+  // callers drop the cached tokens, re-authorize once, and retry. Non-interactive
+  // callers (no-view commands) must not open the sign-in overlay, so they
+  // surface the error instead of re-authorizing.
+  if (
+    response.status === 401 &&
+    bearer.source === "oauth" &&
+    options?.interactive !== false
+  ) {
     const refreshedToken = await reauthorizeTeak();
     ({ requestUrl, response } = await executeHttpRequest(
       path,
@@ -290,11 +319,17 @@ export const request = async <T>(
 
 export const createCard = (
   input: CreateCardInput,
+  options?: RequestAuthOptions,
 ): Promise<QuickSaveResponse> => {
-  return request<QuickSaveResponse>("/cards", parseQuickSaveResponse, {
-    body: JSON.stringify(input),
-    method: "POST",
-  });
+  return request<QuickSaveResponse>(
+    "/cards",
+    parseQuickSaveResponse,
+    {
+      body: JSON.stringify(input),
+      method: "POST",
+    },
+    options,
+  );
 };
 
 export const quickSaveCard = (
