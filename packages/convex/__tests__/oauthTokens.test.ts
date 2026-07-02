@@ -9,18 +9,24 @@ const runHandler = (fn: any, ctx: any, args: any) =>
   (fn.handler ?? fn)(ctx, args);
 
 describe("isWellFormedOAuthToken", () => {
-  test("accepts 32-char alphabetic tokens", () => {
+  test("accepts 32-char alphanumeric tokens", () => {
     expect(isWellFormedOAuthToken("a".repeat(32))).toBe(true);
     expect(isWellFormedOAuthToken("AbCdEfGhIjKlMnOpQrStUvWxYzAbCdEf")).toBe(
       true
     );
+    // Better Auth's random-string alphabet can include digits, so a 32-char
+    // alphanumeric token must be accepted (not treated as malformed).
+    expect(isWellFormedOAuthToken("a1".repeat(16))).toBe(true);
+    expect(isWellFormedOAuthToken("0123456789abcdefABCDEF0123456789")).toBe(
+      true
+    );
   });
 
-  test("rejects wrong length, digits, and API keys", () => {
+  test("rejects wrong length, non-alphanumerics, and API keys", () => {
     expect(isWellFormedOAuthToken("a".repeat(31))).toBe(false);
     expect(isWellFormedOAuthToken("a".repeat(33))).toBe(false);
-    // Contains digits -> not the opaque alphabetic shape.
-    expect(isWellFormedOAuthToken("a1".repeat(16))).toBe(false);
+    // Hyphen is outside the opaque alphanumeric shape.
+    expect(isWellFormedOAuthToken(`a-${"b".repeat(30)}`)).toBe(false);
     expect(
       isWellFormedOAuthToken(`teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`)
     ).toBe(false);

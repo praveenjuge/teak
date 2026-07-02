@@ -114,8 +114,8 @@ describe("shouldShowApiKeysSection gating", () => {
     expect(shouldShowApiKeysSection(undefined)).toBe(false);
   });
 
-  test("hides the section for keyless users", () => {
-    expect(shouldShowApiKeysSection([])).toBe(false);
+  test("shows the section for keyless users so they can create a first key", () => {
+    expect(shouldShowApiKeysSection([])).toBe(true);
   });
 
   test("shows the section once the user has at least one key", () => {

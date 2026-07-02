@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { authorizeTeak } from "./oauth";
+import { hasStoredTeakSession } from "./oauth";
 import { getPreferences } from "./preferences";
 
 export interface TeakAuthState {
@@ -10,11 +10,12 @@ export interface TeakAuthState {
 
 /**
  * Resolve whether the extension has usable credentials. A grandfathered API key
- * (from preferences) is used as-is; otherwise `authorize()` is invoked directly,
- * which resolves instantly when a valid OAuth token is stored or presents the
- * Raycast OAuth overlay right away (no intermediate confirmation screen).
- * Callers render a loading state while `isLoading` is true and re-check via
- * `refresh()` after sign-in.
+ * (from preferences) is used as-is; otherwise we check for an already-stored
+ * OAuth session WITHOUT starting sign-in. Opening a command therefore never
+ * launches the browser OAuth overlay on its own — the visible "Sign in with
+ * Browser" action is the explicit entry point, and callers re-check via
+ * `refresh()` after it completes. Callers render a loading state while
+ * `isLoading` is true.
  */
 export function useTeakAuth(): TeakAuthState {
   const [isLoading, setIsLoading] = useState(true);
@@ -42,11 +43,9 @@ export function useTeakAuth(): TeakAuthState {
 
       let authorized = false;
       try {
-        // Presents the Raycast OAuth overlay directly when no valid token
-        // exists; returns silently when one does. Guarded so a double-invoked
-        // effect can't start two authorizations with mismatched state.
-        const token = await authorizeTeak();
-        authorized = Boolean(token);
+        // Read-only: reports an existing stored session without prompting, so
+        // navigation never triggers the OAuth overlay as a side effect.
+        authorized = await hasStoredTeakSession();
       } catch {
         authorized = false;
       }

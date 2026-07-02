@@ -30,6 +30,22 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Max-Age": "86400",
 };
 
+// Merge permissive CORS headers onto any response. Applied to EVERY `/mcp`
+// response (401 auth challenges, proxied auth errors, transport responses, and
+// the 500 fallback) so cross-origin browser MCP clients can read the body and
+// the `WWW-Authenticate` discovery header — not just the OPTIONS preflight.
+const withCors = (response: Response): Response => {
+  const headers = new Headers(response.headers);
+  for (const [key, value] of Object.entries(CORS_HEADERS)) {
+    headers.set(key, value);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+};
+
 const normalizeBaseUrl = (raw: string): string => raw.replace(/\/+$/, "");
 
 const isLocalApiHost = (hostname: string): boolean =>
@@ -90,22 +106,19 @@ const corsPreflight = (): Response =>
   new Response(null, { status: 204, headers: CORS_HEADERS });
 
 // Attach an RFC 9728 auth challenge so MCP clients know where to discover the
-// authorization server. Applied to every 401 emitted by the bearer guard.
+// authorization server. Applied to every 401 emitted by the bearer guard, with
+// permissive CORS so browser clients can read the challenge cross-origin.
 const withAuthChallenge = (
   response: Response,
   requestUrl: string
 ): Response => {
   const headers = new Headers(response.headers);
+  for (const [key, value] of Object.entries(CORS_HEADERS)) {
+    headers.set(key, value);
+  }
   headers.set(
     "WWW-Authenticate",
     `Bearer resource_metadata="${getProtectedResourceUrl(requestUrl)}"`
-  );
-  const exposed = headers.get("Access-Control-Expose-Headers");
-  headers.set(
-    "Access-Control-Expose-Headers",
-    exposed?.toLowerCase().includes("www-authenticate")
-      ? exposed
-      : [exposed, "WWW-Authenticate"].filter(Boolean).join(", ")
   );
   return new Response(response.body, {
     status: response.status,
@@ -183,7 +196,7 @@ const requireMcpBearer: MiddlewareHandler = async (c, next) => {
     if (authError) {
       return authError.status === 401
         ? withAuthChallenge(authError, c.req.url)
-        : authError;
+        : withCors(authError);
     }
 
     validatedTokenCache.set(token, now + TOKEN_VALIDATION_TTL_MS);
@@ -191,6 +204,21 @@ const requireMcpBearer: MiddlewareHandler = async (c, next) => {
   }
 
   await next();
+};
+
+// Wrap the MCP transport so its responses (and any thrown 500) carry CORS
+// headers for browser clients.
+const handleMcpRequestWithCors = async (c: Context): Promise<Response> => {
+  try {
+    return withCors(await handleMcpRequest(c));
+  } catch {
+    return withCors(
+      json(500, {
+        code: "INTERNAL_ERROR",
+        error: "Failed to handle MCP request",
+      })
+    );
+  }
 };
 
 export const registerMcpRoutes = (app: Hono): void => {
@@ -205,6 +233,6 @@ export const registerMcpRoutes = (app: Hono): void => {
   app.use("/mcp", requireMcpBearer);
   app.use("/mcp/", requireMcpBearer);
 
-  app.all("/mcp", handleMcpRequest);
-  app.all("/mcp/", handleMcpRequest);
+  app.all("/mcp", handleMcpRequestWithCors);
+  app.all("/mcp/", handleMcpRequestWithCors);
 };

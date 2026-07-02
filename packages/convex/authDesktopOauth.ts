@@ -6,7 +6,11 @@ import {
   type MutationCtx,
 } from "./_generated/server";
 import { buildCorsHeaders, jsonResponse } from "./authNative";
-import { isWellFormedOAuthToken } from "./oauthTokens";
+import {
+  isWellFormedOAuthToken,
+  OAUTH_ACCESS_TOKEN_FIELD,
+  OAUTH_ACCESS_TOKEN_MODEL,
+} from "./oauthTokens";
 import { rateLimiter } from "./shared/rateLimits";
 
 // Desktop-only OAuth client. Pinning on this id ensures Raycast / MCP access
@@ -120,8 +124,10 @@ const findDesktopOAuthToken = (
   accessToken: string
 ): Promise<OAuthAccessTokenRecord | null> =>
   ctx.runQuery(components.betterAuth.adapter.findOne, {
-    model: "oauthAccessToken",
-    where: [{ field: "accessToken", operator: "eq", value: accessToken }],
+    model: OAUTH_ACCESS_TOKEN_MODEL,
+    where: [
+      { field: OAUTH_ACCESS_TOKEN_FIELD, operator: "eq", value: accessToken },
+    ],
   }) as Promise<OAuthAccessTokenRecord | null>;
 
 /**
@@ -159,8 +165,14 @@ export const consumeOAuthTokenForSession = internalMutation({
     // refresh token) before minting the session.
     await ctx.runMutation(components.betterAuth.adapter.deleteOne, {
       input: {
-        model: "oauthAccessToken",
-        where: [{ field: "accessToken", operator: "eq", value: accessToken }],
+        model: OAUTH_ACCESS_TOKEN_MODEL,
+        where: [
+          {
+            field: OAUTH_ACCESS_TOKEN_FIELD,
+            operator: "eq",
+            value: accessToken,
+          },
+        ],
       },
     });
 

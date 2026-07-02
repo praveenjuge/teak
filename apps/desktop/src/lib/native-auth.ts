@@ -192,12 +192,16 @@ export async function clearNativeSessionToken(): Promise<void> {
   });
 }
 
-async function getNativeSessionToken(): Promise<string | null> {
-  await ensureInitialized();
-  return state.sessionToken;
-}
-
 // ── Auth flow (browser OAuth) ────────────────────────────────────────────────
+
+// Monotonic id for the in-flight desktop OAuth attempt. `startDesktopOAuthRequest`
+// claims a new id; `cancelDesktopOAuth` clears it (synchronously). When
+// `completeDesktopOAuth` finishes its async token/session exchange it only
+// persists a session if the attempt it captured at the start is still the live
+// one — so a loopback callback that lands after the login timeout fired (which
+// cancels the attempt) cannot sign the app in behind a "timed out" UI.
+let oauthAttemptCounter = 0;
+let liveOAuthAttempt: number | null = null;
 
 /**
  * Begin the desktop OAuth flow. Starts the loopback callback listener, persists
@@ -206,6 +210,9 @@ async function getNativeSessionToken(): Promise<string | null> {
  * the request; unauthenticated users hit the login page and resume afterward.
  */
 export async function startDesktopOAuthRequest(): Promise<string> {
+  oauthAttemptCounter += 1;
+  liveOAuthAttempt = oauthAttemptCounter;
+
   const stateToken = randomBase64Url(18);
   const codeVerifier = randomBase64Url(48);
   const codeChallenge = await createCodeChallenge(codeVerifier);
@@ -304,6 +311,10 @@ export async function completeDesktopOAuth(
   code: string,
   state: string
 ): Promise<DesktopOAuthResult> {
+  // Capture the attempt this callback belongs to. If it is cleared/superseded
+  // (cancel or timeout) before we finish exchanging, we discard the result.
+  const attempt = liveOAuthAttempt;
+
   const pending = await readStoreValue<PendingDesktopOAuth>(PENDING_AUTH_KEY);
   if (!pending) {
     return "cancelled";
@@ -333,6 +344,13 @@ export async function completeDesktopOAuth(
       port: pending.port,
     });
     const session = await exchangeAccessTokenForSession(accessToken);
+    // The login flow was cancelled or timed out while we were exchanging.
+    // Discard the freshly minted session instead of signing in behind a
+    // "timed out" UI; the single-use access token is already consumed.
+    if (attempt === null || attempt !== liveOAuthAttempt) {
+      return "timeout";
+    }
+    liveOAuthAttempt = null;
     await setSessionToken(session.sessionToken);
     return "authenticated";
   } catch {
@@ -342,6 +360,9 @@ export async function completeDesktopOAuth(
 
 /** Abort an in-flight desktop OAuth attempt and tear down the loopback listener. */
 export async function cancelDesktopOAuth(): Promise<void> {
+  // Invalidate synchronously so an in-flight completeDesktopOAuth cannot persist
+  // a session after this point.
+  liveOAuthAttempt = null;
   await writeStoreValue(PENDING_AUTH_KEY, null);
   await window.teakDesktop.oauth.cancel();
 }
@@ -392,18 +413,16 @@ async function fetchConvexJwt(
 
 // ── Logout ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Sign out of the desktop app only. This is deliberately local: it clears the
+ * dedicated desktop session token, the cached Convex JWT, and any pending OAuth
+ * state, but does NOT call the global Better Auth `/sign-out` endpoint. Hitting
+ * that endpoint would tear down the shared Better Auth session and could sign
+ * the user out of Teak in their browser too. The desktop session is a separate,
+ * short-lived server session that expires on its own; dropping the token here
+ * makes it unusable from this machine.
+ */
 export async function logoutNativeSession(): Promise<void> {
-  const sessionToken = await getNativeSessionToken();
-
-  if (sessionToken) {
-    await fetch(`${convexSiteBaseUrl}/api/auth/sign-out`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${sessionToken}`,
-      },
-    }).catch(() => undefined);
-  }
-
   await clearNativeSessionToken();
   await writeStoreValue(PENDING_AUTH_KEY, null);
 }

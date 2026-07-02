@@ -57,3 +57,18 @@ export async function reauthorizeTeak(): Promise<string> {
   inFlightAuthorize = null;
   return authorizeTeak();
 }
+
+// Non-interactive check for an existing stored session. Unlike authorizeTeak(),
+// this NEVER opens the browser sign-in overlay — it only reports whether we
+// already hold a usable (or refreshable) token. Used to gate views so merely
+// opening a command does not trigger sign-in as a side effect; the visible
+// "Sign in with Browser" action remains the explicit entry point.
+export async function hasStoredTeakSession(): Promise<boolean> {
+  const tokenSet = await client.getTokens();
+  if (!tokenSet?.accessToken) {
+    return false;
+  }
+  // A non-expired access token is usable as-is; an expired one is still fine
+  // when a refresh token exists, since the request path refreshes on demand.
+  return !tokenSet.isExpired() || Boolean(tokenSet.refreshToken);
+}

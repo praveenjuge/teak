@@ -1,29 +1,7 @@
-import {
-  getSelectedText,
-  openExtensionPreferences,
-  showToast,
-  Toast,
-} from "@raycast/api";
+import { getSelectedText, showToast, Toast } from "@raycast/api";
 import { extractFirstHttpUrl, saveCardWithFeedback } from "./lib/capture";
-import { getPreferences } from "./lib/preferences";
 
 export default async function SaveSelectedTextCommand() {
-  const { apiKey } = getPreferences();
-  if (!apiKey?.trim()) {
-    await showToast({
-      message: "Set your Teak API key in extension preferences to continue.",
-      primaryAction: {
-        onAction: () => {
-          void openExtensionPreferences();
-        },
-        title: "Open Preferences",
-      },
-      style: Toast.Style.Failure,
-      title: "Missing API key",
-    });
-    return;
-  }
-
   let selectedText = "";
   try {
     selectedText = (await getSelectedText()).trim();

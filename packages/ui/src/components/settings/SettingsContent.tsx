@@ -118,8 +118,9 @@ export function SettingsContent({
         )}
       </SettingRow>
 
-      {/* Hide the API Keys section for keyless users (new users are steered to
-          browser sign-in). Grandfathered users with >=1 key keep full access. */}
+      {/* Show the API Keys section once keys have loaded, even for keyless
+          users, so they can create their first key. API keys remain a
+          supported alternative to browser sign-in. */}
       {shouldShowApiKeysSection(keys) ? (
         <ApiKeysSection
           isLoading={keys === undefined}

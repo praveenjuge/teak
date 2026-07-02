@@ -517,4 +517,33 @@ describe("apps/api MCP endpoint", () => {
       "POST"
     );
   });
+
+  test("attaches CORS headers to non-OPTIONS /mcp responses", async () => {
+    // Missing-auth 401 challenge is readable cross-origin.
+    const unauth = await initializeMcp();
+    expect(unauth.status).toBe(401);
+    expect(unauth.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(unauth.headers.get("Access-Control-Expose-Headers")).toContain(
+      "WWW-Authenticate"
+    );
+
+    // A proxied auth error (invalid key) also carries CORS headers.
+    process.env.CONVEX_HTTP_BASE_URL = CONVEX_BASE_URL;
+    globalThis.fetch = mock(
+      async () =>
+        new Response(
+          JSON.stringify({
+            code: "INVALID_API_KEY",
+            error: "Invalid or revoked API key",
+          }),
+          { status: 401, headers: { "Content-Type": "application/json" } }
+        )
+    ) as unknown as typeof fetch;
+
+    const invalid = await initializeMcp({
+      authorization: "Bearer teakapi_cors",
+    });
+    expect(invalid.status).toBe(401);
+    expect(invalid.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  });
 });
