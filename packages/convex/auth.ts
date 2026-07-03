@@ -8,6 +8,7 @@ import { convex } from "@convex-dev/better-auth/plugins";
 import { requireActionCtx } from "@convex-dev/better-auth/utils";
 import { Resend } from "@convex-dev/resend";
 import { type BetterAuthOptions, betterAuth } from "better-auth/minimal";
+import { mcp } from "better-auth/plugins";
 import { ConvexError } from "convex/values";
 import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
@@ -136,6 +137,10 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         "/sign-up/email": { window: 60, max: 5 },
         "/request-password-reset": { window: 300, max: 5 },
         "/reset-password": { window: 300, max: 5 },
+        // Dynamic client registration is unauthenticated; throttle spam into
+        // the oauthApplication table. Token exchange is hit on every refresh.
+        "/mcp/token": { window: 60, max: 30 },
+        "/mcp/register": { window: 60, max: 5 },
       },
     },
     session: {
@@ -216,6 +221,61 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         authConfig,
         jwksRotateOnTokenGenerationError: true,
         jwks: process.env.JWKS,
+      }),
+      // OAuth 2.1 authorization server for browser-login clients (Raycast,
+      // desktop, MCP). Access/refresh tokens are opaque strings stored in the
+      // component's oauthAccessToken table; PKCE S256 is enforced.
+      //
+      // NOTE: in better-auth 1.6.11 the mcp plugin resolves clients from the
+      // `oauthApplication` table, not from `trustedClients` below. The clients
+      // are actually registered by `oauthClients.ensureOAuthClients` (seeded via
+      // cron). `trustedClients` is retained to document the clients and for
+      // forward-compatibility.
+      mcp({
+        loginPage: "/login",
+        oidcConfig: {
+          loginPage: "/login",
+          accessTokenExpiresIn: 3600, // 1h
+          // 30d refresh so Raycast / desktop are not re-prompted weekly.
+          refreshTokenExpiresIn: 60 * 60 * 24 * 30,
+          codeExpiresIn: 600, // 10m
+          allowPlainCodeChallengeMethod: false, // force S256
+          trustedClients: [
+            {
+              clientId: "teak-raycast",
+              clientSecret: "",
+              type: "public",
+              name: "Raycast",
+              disabled: false,
+              skipConsent: true,
+              metadata: null,
+              // Exact-string matched. Captured from the live Raycast Web
+              // redirect method (`packageName=Extension`). Kept in sync with
+              // oauthClients.ts (which actually seeds these into the DB).
+              redirectUrls: [
+                "https://raycast.com/redirect?packageName=Extension",
+                "https://raycast.com/redirect/extension",
+                "https://raycast.com/redirect",
+                "raycast://oauth?package_name=teak",
+              ],
+            },
+            {
+              clientId: "teak-desktop",
+              clientSecret: "",
+              type: "public",
+              name: "Teak Desktop",
+              disabled: false,
+              skipConsent: true,
+              metadata: null,
+              // Exact-match loopback URIs; the desktop app tries 14203 first
+              // then falls back to 24203.
+              redirectUrls: [
+                "http://127.0.0.1:14203/oauth/callback",
+                "http://127.0.0.1:24203/oauth/callback",
+              ],
+            },
+          ],
+        },
       }),
     ],
   } satisfies BetterAuthOptions);

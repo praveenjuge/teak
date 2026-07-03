@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { createServer, type Server } from "node:http";
 import { join } from "node:path";
 import type {
   BrowserWindow as BrowserWindowInstance,
@@ -6,6 +7,7 @@ import type {
   OnHeadersReceivedListenerDetails,
 } from "electron";
 import electronUpdater from "electron-updater";
+import { OAUTH_CALLBACK_CHANNEL } from "./channels";
 import { createStore, readStoreValue, writeStoreValue } from "./store";
 
 // Route the `electron` import through Node's CJS loader.
@@ -43,10 +45,37 @@ const MAIN_WINDOW_MIN_HEIGHT = 600;
 
 const ALLOWED_URL_PROTOCOLS = new Set(["https:", "http:"]);
 
+// Loopback OAuth callback (RFC 8252). The desktop client tries 14203 first and
+// falls back to 24203; both are registered as exact-match redirect URIs on the
+// `teak-desktop` trusted client server-side.
+const OAUTH_CALLBACK_PORTS = [14203, 24203];
+const OAUTH_CALLBACK_PATH = "/oauth/callback";
+const OAUTH_RETURN_HTML = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Teak</title>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; background: #faf9f7; color: #1c1a17; display: flex; min-height: 100vh; align-items: center; justify-content: center; margin: 0; }
+      main { text-align: center; padding: 2rem; }
+      h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
+      p { color: #6b665f; margin: 0; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>You're signed in</h1>
+      <p>Return to the Teak app to continue. You can close this tab.</p>
+    </main>
+  </body>
+</html>`;
+
 // ── State ──────────────────────────────────────────────────────────────────────
 
 let mainWindow: BrowserWindowInstance | null = null;
 let manualUpdateCheck = false;
+let oauthCallbackServer: Server | null = null;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -181,10 +210,90 @@ function createMainWindow(): BrowserWindowInstance {
   }
 
   mainWindow.on("closed", () => {
+    stopOAuthCallbackServer();
     mainWindow = null;
   });
 
   return mainWindow;
+}
+
+// ── OAuth callback (loopback) ────────────────────────────────────────────────
+
+function stopOAuthCallbackServer(): void {
+  if (oauthCallbackServer) {
+    oauthCallbackServer.close();
+    oauthCallbackServer = null;
+  }
+}
+
+function bindOAuthPort(port: number): Promise<Server> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    const onError = (error: Error) => {
+      server.close();
+      reject(error);
+    };
+    server.once("error", onError);
+    server.listen(port, "127.0.0.1", () => {
+      server.removeListener("error", onError);
+      resolve(server);
+    });
+  });
+}
+
+/**
+ * Start a short-lived loopback HTTP server for the OAuth redirect. Serves a
+ * static "return to Teak" page, forwards `{ code, state }` to the renderer via
+ * the OAuth callback channel, then shuts down. Tries the two fixed ports in
+ * order so the redirect URI matches one of the registered exact values.
+ */
+async function startOAuthCallbackServer(): Promise<{ port: number }> {
+  stopOAuthCallbackServer();
+
+  let server: Server | null = null;
+  let boundPort = 0;
+  for (const port of OAUTH_CALLBACK_PORTS) {
+    try {
+      server = await bindOAuthPort(port);
+      boundPort = port;
+      break;
+    } catch {
+      server = null;
+    }
+  }
+
+  if (!server) {
+    throw new Error(
+      "Unable to start the login listener. Ports 14203 and 24203 are both in use."
+    );
+  }
+
+  oauthCallbackServer = server;
+  server.on("request", (req, res) => {
+    const requestUrl = new URL(req.url ?? "/", `http://127.0.0.1:${boundPort}`);
+    if (requestUrl.pathname !== OAUTH_CALLBACK_PATH) {
+      res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end("Not found");
+      return;
+    }
+
+    const code = requestUrl.searchParams.get("code");
+    const state = requestUrl.searchParams.get("state");
+
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(OAUTH_RETURN_HTML);
+
+    if (code && state && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(OAUTH_CALLBACK_CHANNEL, { code, state });
+      mainWindow.show();
+      mainWindow.focus();
+    }
+
+    // Single-shot: tear the listener down once the redirect is handled.
+    stopOAuthCallbackServer();
+  });
+
+  return { port: boundPort };
 }
 
 // ── IPC Handlers ───────────────────────────────────────────────────────────────
@@ -225,6 +334,12 @@ function setupIpcHandlers(): void {
   );
 
   ipcMain.handle("app:get-version", () => app.getVersion());
+
+  ipcMain.handle("oauth:listen", () => startOAuthCallbackServer());
+
+  ipcMain.handle("oauth:cancel", () => {
+    stopOAuthCallbackServer();
+  });
 }
 
 // ── Menu ───────────────────────────────────────────────────────────────────────

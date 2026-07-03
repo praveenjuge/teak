@@ -7,6 +7,7 @@ import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import type { ApiKeyListItem } from "./ApiKeysDialog";
 import { ApiKeysSection } from "./ApiKeysSection";
+import { shouldShowApiKeysSection } from "./apiKeysGating";
 import { CustomerPortalButton } from "./CustomerPortalButton";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import type { ExportState } from "./ExportPanel";
@@ -117,13 +118,18 @@ export function SettingsContent({
         )}
       </SettingRow>
 
-      <ApiKeysSection
-        isLoading={keys === undefined}
-        keys={keys}
-        onCreateKey={onCreateApiKey}
-        onRevokeKey={onRevokeApiKey}
-        onRotateKey={onRotateApiKey}
-      />
+      {/* Show the API Keys section once keys have loaded, even for keyless
+          users, so they can create their first key. API keys remain a
+          supported alternative to browser sign-in. */}
+      {shouldShowApiKeysSection(keys) ? (
+        <ApiKeysSection
+          isLoading={keys === undefined}
+          keys={keys}
+          onCreateKey={onCreateApiKey}
+          onRevokeKey={onRevokeApiKey}
+          onRotateKey={onRotateApiKey}
+        />
+      ) : null}
 
       {/* Import is always available; the Export tab uses these handlers, which
           both web and desktop supply, so the section is not gated on them. */}

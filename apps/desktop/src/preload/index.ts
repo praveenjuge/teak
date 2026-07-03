@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import { MENU_CHANNELS } from "../main/channels";
+import { MENU_CHANNELS, OAUTH_CALLBACK_CHANNEL } from "../main/channels";
 
 console.log("[preload] loading teakDesktop bridge");
 
@@ -29,6 +29,28 @@ const teakDesktopApi = {
   // ── App ────────────────────────────────────────────────────────────────────
   app: {
     getVersion: (): Promise<string> => ipcRenderer.invoke("app:get-version"),
+  },
+
+  // ── OAuth (browser login) ──────────────────────────────────────────────────
+  oauth: {
+    // Start the loopback callback server; resolves with the bound port.
+    listen: (): Promise<{ port: number }> =>
+      ipcRenderer.invoke("oauth:listen"),
+    // Tear down the loopback server (e.g. on timeout or cancel).
+    cancel: (): Promise<void> => ipcRenderer.invoke("oauth:cancel"),
+    // Subscribe to the redirect callback. Returns an unsubscribe function.
+    onCallback: (
+      callback: (payload: { code: string; state: string }) => void
+    ): (() => void) => {
+      const handler = (
+        _event: Electron.IpcRendererEvent,
+        payload: { code: string; state: string }
+      ) => callback(payload);
+      ipcRenderer.on(OAUTH_CALLBACK_CHANNEL, handler);
+      return () => {
+        ipcRenderer.removeListener(OAUTH_CALLBACK_CHANNEL, handler);
+      };
+    },
   },
 
   // ── Menu Events (main → renderer) ─────────────────────────────────────────

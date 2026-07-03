@@ -16,6 +16,13 @@ interface TeakDesktopApi {
   app: {
     getVersion: () => Promise<string>;
   };
+  oauth: {
+    listen: () => Promise<{ port: number }>;
+    cancel: () => Promise<void>;
+    onCallback: (
+      callback: (payload: { code: string; state: string }) => void
+    ) => () => void;
+  };
   onMenuEvent: (channel: string, callback: () => void) => () => void;
 }
 

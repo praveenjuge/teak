@@ -1,5 +1,9 @@
 import { httpRouter } from "convex/server";
 import { authComponent, createAuth, trustedOrigins } from "./auth";
+import {
+  oauthSessionExchange,
+  oauthSessionExchangeOptions,
+} from "./authDesktopOauth";
 import { exchangeNativeAuthOptions, pollNativeAuthCode } from "./authNative";
 import { polar } from "./billing";
 import {
@@ -34,6 +38,19 @@ http.route({
   path: "/api/native/auth/poll",
   method: "POST",
   handler: pollNativeAuthCode,
+});
+
+// Desktop OAuth -> dedicated session exchange (single-use access token).
+http.route({
+  path: "/api/native/auth/oauth-exchange",
+  method: "OPTIONS",
+  handler: oauthSessionExchangeOptions,
+});
+
+http.route({
+  path: "/api/native/auth/oauth-exchange",
+  method: "POST",
+  handler: oauthSessionExchange,
 });
 
 // Register public API v1 routes (used by apps/api proxy).

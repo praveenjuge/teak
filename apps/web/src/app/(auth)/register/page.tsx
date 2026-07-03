@@ -20,7 +20,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
-import { getSafeNextPath } from "@/lib/safe-next-path";
+import { resolveAuthRedirect } from "@/lib/auth-redirect";
 
 const MIN_PASSWORD_LENGTH = 8;
 type PendingProvider = "email" | "google" | "apple" | null;
@@ -40,7 +40,7 @@ function SignUpForm() {
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [pending, setPending] = useState<PendingProvider>(null);
 
-  const nextPath = getSafeNextPath(searchParams.get("next")) ?? "/";
+  const { nextPath, isOAuthAuthorize } = resolveAuthRedirect(searchParams);
   const isBusy = pending !== null;
 
   useEffect(() => {
@@ -157,6 +157,12 @@ function SignUpForm() {
   return (
     <>
       <CardTitle className="text-center text-lg">Get started on Teak</CardTitle>
+      {isOAuthAuthorize && (
+        <p className="mt-2 rounded-md bg-muted px-3 py-2 text-center text-muted-foreground text-sm">
+          An app is requesting access to your Teak account. Create an account to
+          continue.
+        </p>
+      )}
       <CardContent>
         <SocialAuthButtons
           appleLoading={pending === "apple"}

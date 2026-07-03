@@ -2,6 +2,7 @@ import { ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
+import { isWellFormedOAuthToken } from "./oauthTokens";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
@@ -37,7 +38,7 @@ interface AuthorizedUser {
   access: "full_access";
   keyId: string;
   rateLimitKey: string;
-  source: "component" | "legacy";
+  source: "component" | "legacy" | "oauth";
   userId: string;
 }
 
@@ -393,9 +394,14 @@ const withAuthorizedUser = async (
     };
   }
 
-  // Reject obviously malformed keys before touching the database. This kills
-  // the cheapest abuse vector (spraying random tokens) without any write.
-  if (!isWellFormedApiKey(token)) {
+  // Two bearer credential shapes are accepted: `teakapi_` API keys and opaque
+  // 32-char OAuth access tokens. Discriminate on shape before any DB read so
+  // the cheapest abuse vector (spraying random tokens) is rejected without a
+  // write, and so failures can return the right error code per credential type.
+  const isApiKey = isWellFormedApiKey(token);
+  const isOAuthToken = !isApiKey && isWellFormedOAuthToken(token);
+
+  if (!(isApiKey || isOAuthToken)) {
     const limited = await enforceInvalidAuthLimit(ctx);
     if (limited) {
       return { error: limited };
@@ -409,20 +415,22 @@ const withAuthorizedUser = async (
     };
   }
 
-  // Validate first. validateUserApiKey is effectively read-only on the hot
-  // path (it only writes a throttled lastUsedAt), so doing it before rate
-  // limiting lets us key the limiter on a stable identity instead of the
+  // Validate first. Both validators are effectively read-only on the hot path
+  // (the API-key one only writes a throttled lastUsedAt), so doing it before
+  // rate limiting lets us key the limiter on a stable identity instead of the
   // attacker-controlled raw token.
   let validated: AuthorizedUser | null = null;
   try {
-    validated = await ctx.runMutation(
-      (internal as any).apiKeys.validateUserApiKey,
-      {
-        endpoint: normalizeApiEndpoint(request.url),
-        method: request.method.toUpperCase(),
-        token,
-      }
-    );
+    validated = isApiKey
+      ? await ctx.runMutation((internal as any).apiKeys.validateUserApiKey, {
+          endpoint: normalizeApiEndpoint(request.url),
+          method: request.method.toUpperCase(),
+          token,
+        })
+      : await ctx.runMutation(
+          (internal as any).oauthTokens.validateOAuthAccessToken,
+          { token }
+        );
   } catch {
     return { error: AUTH_INTERNAL_ERROR() };
   }
@@ -433,16 +441,18 @@ const withAuthorizedUser = async (
       return { error: limited };
     }
     return {
-      error: errorResponse(
-        401,
-        "INVALID_API_KEY",
-        "Invalid or revoked API key"
-      ),
+      error: isOAuthToken
+        ? errorResponse(
+            401,
+            "UNAUTHORIZED",
+            "Invalid or expired access token"
+          )
+        : errorResponse(401, "INVALID_API_KEY", "Invalid or revoked API key"),
     };
   }
 
-  // Rate limit successful auth per validated key id, so the limit follows the
-  // real key rather than whatever token string the caller sent.
+  // Rate limit successful auth per validated identity, so the limit follows the
+  // real key / OAuth app+user rather than whatever token string the caller sent.
   let rateLimit: { ok?: boolean; retryAt?: number } | null = null;
   try {
     rateLimit = await ctx.runMutation(

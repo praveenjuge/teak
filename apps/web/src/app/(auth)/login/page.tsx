@@ -17,7 +17,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
-import { getSafeNextPath } from "@/lib/safe-next-path";
+import { resolveAuthRedirect } from "@/lib/auth-redirect";
 
 type PendingProvider = "email" | "google" | "apple" | null;
 
@@ -53,7 +53,7 @@ function SignInForm() {
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState<PendingProvider>(null);
 
-  const nextPath = getSafeNextPath(searchParams.get("next")) ?? "/";
+  const { nextPath, isOAuthAuthorize } = resolveAuthRedirect(searchParams);
   const isBusy = pending !== null;
 
   const handleGoogleSignIn = async () => {
@@ -127,6 +127,11 @@ function SignInForm() {
   return (
     <>
       <CardTitle className="text-center text-lg">Login to Teak</CardTitle>
+      {isOAuthAuthorize && (
+        <p className="mt-2 rounded-md bg-muted px-3 py-2 text-center text-muted-foreground text-sm">
+          An app is requesting access to your Teak account. Sign in to continue.
+        </p>
+      )}
       <CardContent>
         <SocialAuthButtons
           appleLoading={pending === "apple"}

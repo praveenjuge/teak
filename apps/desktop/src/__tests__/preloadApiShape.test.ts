@@ -23,6 +23,13 @@ describe("preload API shape", () => {
     expect(source).toContain("app:");
     expect(source).toContain('"app:get-version"');
 
+    // OAuth API
+    expect(source).toContain("oauth:");
+    expect(source).toContain('"oauth:listen"');
+    expect(source).toContain('"oauth:cancel"');
+    expect(source).toContain("onCallback:");
+    expect(source).toContain("OAUTH_CALLBACK_CHANNEL");
+
     // Menu events
     expect(source).toContain("onMenuEvent:");
 

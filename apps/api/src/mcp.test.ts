@@ -462,4 +462,88 @@ describe("apps/api MCP endpoint", () => {
       error: "Too many requests",
     });
   });
+
+  test("401 responses advertise the OAuth protected-resource metadata", async () => {
+    const response = await initializeMcp();
+
+    expect(response.status).toBe(401);
+    const wwwAuth = response.headers.get("WWW-Authenticate");
+    expect(wwwAuth).toContain("resource_metadata=");
+    expect(wwwAuth).toContain("/.well-known/oauth-protected-resource");
+    expect(response.headers.get("Access-Control-Expose-Headers")).toContain(
+      "WWW-Authenticate"
+    );
+  });
+
+  test("serves OAuth protected-resource metadata with CORS", async () => {
+    const response = await app.request(
+      "/.well-known/oauth-protected-resource",
+      { method: "GET" }
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+
+    const body = (await response.json()) as {
+      resource: string;
+      authorization_servers: string[];
+      bearer_methods_supported: string[];
+      resource_name: string;
+    };
+    expect(body.resource).toContain("/mcp");
+    expect(Array.isArray(body.authorization_servers)).toBe(true);
+    expect(body.authorization_servers).toHaveLength(1);
+    expect(body.bearer_methods_supported).toEqual(["header"]);
+    expect(body.resource_name).toBe("Teak");
+  });
+
+  test("serves the /mcp suffix variant of protected-resource metadata", async () => {
+    const response = await app.request(
+      "/.well-known/oauth-protected-resource/mcp",
+      { method: "GET" }
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { resource: string };
+    expect(body.resource).toContain("/mcp");
+  });
+
+  test("lets unauthenticated OPTIONS /mcp preflight through", async () => {
+    const response = await app.request("/mcp", { method: "OPTIONS" });
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
+      "POST"
+    );
+  });
+
+  test("attaches CORS headers to non-OPTIONS /mcp responses", async () => {
+    // Missing-auth 401 challenge is readable cross-origin.
+    const unauth = await initializeMcp();
+    expect(unauth.status).toBe(401);
+    expect(unauth.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(unauth.headers.get("Access-Control-Expose-Headers")).toContain(
+      "WWW-Authenticate"
+    );
+
+    // A proxied auth error (invalid key) also carries CORS headers.
+    process.env.CONVEX_HTTP_BASE_URL = CONVEX_BASE_URL;
+    globalThis.fetch = mock(
+      async () =>
+        new Response(
+          JSON.stringify({
+            code: "INVALID_API_KEY",
+            error: "Invalid or revoked API key",
+          }),
+          { status: 401, headers: { "Content-Type": "application/json" } }
+        )
+    ) as unknown as typeof fetch;
+
+    const invalid = await initializeMcp({
+      authorization: "Bearer teakapi_cors",
+    });
+    expect(invalid.status).toBe(401);
+    expect(invalid.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  });
 });

@@ -18,6 +18,11 @@ import {
   type TagsResponse,
 } from "./apiParsers";
 import { getApiBaseUrl } from "./constants";
+import {
+  authorizeTeak,
+  getStoredTeakAccessToken,
+  reauthorizeTeak,
+} from "./oauth";
 import { getPreferences } from "./preferences";
 import type { RaycastCardType, RaycastSort } from "./searchFilters";
 
@@ -162,19 +167,47 @@ const logApiRequestFailure = (
   });
 };
 
-export const request = async <T>(
-  path: string,
-  parseResponse: (payload: unknown) => T,
-  init?: RequestInit,
-): Promise<T> => {
-  const { apiKey } = getPreferences();
-  const normalizedApiKey = apiKey?.trim();
+interface ResolvedBearer {
+  source: "apiKey" | "oauth";
+  token: string;
+}
 
-  if (!normalizedApiKey) {
-    throw new RaycastApiError("MISSING_API_KEY");
+// When `interactive` is false (background / no-view commands), auth is resolved
+// only from an API key or an existing/refreshable OAuth session — the browser
+// sign-in overlay is never opened.
+export interface RequestAuthOptions {
+  interactive?: boolean;
+}
+
+// Grandfathered API keys take precedence over browser sign-in. When no key is
+// configured, fall back to OAuth. Interactive callers may open the browser
+// sign-in overlay; non-interactive callers resolve from a stored/refreshable
+// session only and fail (rather than prompting) when none is available.
+const resolveBearerToken = async (
+  options?: RequestAuthOptions,
+): Promise<ResolvedBearer> => {
+  const apiKey = getPreferences().apiKey?.trim();
+  if (apiKey) {
+    return { source: "apiKey", token: apiKey };
   }
 
-  let response: Response;
+  if (options?.interactive === false) {
+    const storedToken = await getStoredTeakAccessToken();
+    if (!storedToken) {
+      throw new RaycastApiError("INVALID_API_KEY", 401);
+    }
+    return { source: "oauth", token: storedToken };
+  }
+
+  const accessToken = await authorizeTeak();
+  return { source: "oauth", token: accessToken };
+};
+
+const executeHttpRequest = async (
+  path: string,
+  bearerToken: string,
+  init?: RequestInit,
+): Promise<{ requestUrl: string; response: Response }> => {
   const baseUrl = getApiBaseUrl();
   const timeoutMs = getRequestTimeoutMs();
   const abortController = new AbortController();
@@ -186,16 +219,19 @@ export const request = async <T>(
   const fallbackUrl = withLoopbackFallback(requestUrl);
   const requestInit: RequestInit = {
     ...init,
-    headers: buildHeaders(normalizedApiKey, init?.headers),
+    headers: buildHeaders(bearerToken, init?.headers),
     signal: abortController.signal,
   };
 
   try {
-    response = await fetch(requestUrl, requestInit);
+    return { requestUrl, response: await fetch(requestUrl, requestInit) };
   } catch (requestError) {
     if (fallbackUrl !== requestUrl) {
       try {
-        response = await fetch(fallbackUrl, requestInit);
+        return {
+          requestUrl,
+          response: await fetch(fallbackUrl, requestInit),
+        };
       } catch (fallbackError) {
         logApiRequestFailure(
           {
@@ -208,19 +244,50 @@ export const request = async <T>(
         );
         throw new RaycastApiError("NETWORK_ERROR");
       }
-    } else {
-      logApiRequestFailure(
-        {
-          method: requestInit.method ?? "GET",
-          path,
-          url: requestUrl,
-        },
-        requestError,
-      );
-      throw new RaycastApiError("NETWORK_ERROR");
     }
+
+    logApiRequestFailure(
+      {
+        method: requestInit.method ?? "GET",
+        path,
+        url: requestUrl,
+      },
+      requestError,
+    );
+    throw new RaycastApiError("NETWORK_ERROR");
   } finally {
     clearTimeout(timeoutHandle);
+  }
+};
+
+export const request = async <T>(
+  path: string,
+  parseResponse: (payload: unknown) => T,
+  init?: RequestInit,
+  options?: RequestAuthOptions,
+): Promise<T> => {
+  const bearer = await resolveBearerToken(options);
+  let { requestUrl, response } = await executeHttpRequest(
+    path,
+    bearer.token,
+    init,
+  );
+
+  // An OAuth access token can be revoked or rotated server-side. Interactive
+  // callers drop the cached tokens, re-authorize once, and retry. Non-interactive
+  // callers (no-view commands) must not open the sign-in overlay, so they
+  // surface the error instead of re-authorizing.
+  if (
+    response.status === 401 &&
+    bearer.source === "oauth" &&
+    options?.interactive !== false
+  ) {
+    const refreshedToken = await reauthorizeTeak();
+    ({ requestUrl, response } = await executeHttpRequest(
+      path,
+      refreshedToken,
+      init,
+    ));
   }
 
   if (response.ok) {
@@ -237,7 +304,7 @@ export const request = async <T>(
   logApiRequestFailure({
     code,
     contentType: response.headers.get("content-type"),
-    method: requestInit.method ?? "GET",
+    method: init?.method ?? "GET",
     path,
     payload,
     payloadCode,
@@ -252,11 +319,17 @@ export const request = async <T>(
 
 export const createCard = (
   input: CreateCardInput,
+  options?: RequestAuthOptions,
 ): Promise<QuickSaveResponse> => {
-  return request<QuickSaveResponse>("/cards", parseQuickSaveResponse, {
-    body: JSON.stringify(input),
-    method: "POST",
-  });
+  return request<QuickSaveResponse>(
+    "/cards",
+    parseQuickSaveResponse,
+    {
+      body: JSON.stringify(input),
+      method: "POST",
+    },
+    options,
+  );
 };
 
 export const quickSaveCard = (
@@ -273,6 +346,7 @@ export const quickSaveCard = (
 
 export const searchCards = (
   input: CardSearchInput = {},
+  options?: RequestAuthOptions,
 ): Promise<CardsResponse> => {
   return request<CardsResponse>(
     `/cards/search?${buildCardsSearchParams({
@@ -283,6 +357,7 @@ export const searchCards = (
     {
       method: "GET",
     },
+    options,
   );
 };
 
@@ -301,7 +376,10 @@ export const getFavoriteCards = (
   );
 };
 
-export const getCardById = (cardId: string): Promise<RaycastCard> => {
+export const getCardById = (
+  cardId: string,
+  options?: RequestAuthOptions,
+): Promise<RaycastCard> => {
   const normalizedCardId = cardId.trim();
   if (!normalizedCardId) {
     throw new RaycastApiError("INVALID_INPUT");
@@ -313,6 +391,7 @@ export const getCardById = (cardId: string): Promise<RaycastCard> => {
     {
       method: "GET",
     },
+    options,
   );
 };
 
@@ -338,6 +417,7 @@ export const updateCard = (
 export const setCardFavorite = (
   cardId: string,
   isFavorited: boolean,
+  options?: RequestAuthOptions,
 ): Promise<RaycastCard> => {
   const normalizedCardId = cardId.trim();
   if (!normalizedCardId) {
@@ -351,6 +431,7 @@ export const setCardFavorite = (
       body: JSON.stringify({ isFavorited }),
       method: "PATCH",
     },
+    options,
   );
 };
 
@@ -369,8 +450,15 @@ export const softDeleteCard = async (cardId: string): Promise<void> => {
   );
 };
 
-export const listTags = (): Promise<TagsResponse> => {
-  return request<TagsResponse>("/tags", parseTagsResponse, {
-    method: "GET",
-  });
+export const listTags = (
+  options?: RequestAuthOptions,
+): Promise<TagsResponse> => {
+  return request<TagsResponse>(
+    "/tags",
+    parseTagsResponse,
+    {
+      method: "GET",
+    },
+    options,
+  );
 };

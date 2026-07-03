@@ -2,13 +2,29 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import { parseCardsResponse } from "../lib/apiParsers";
 
 const getPreferenceValuesMock = mock(() => ({ apiKey: "valid-test-key" }));
+const authorizeMock = mock(() => Promise.resolve("oauth-access-token"));
+const removeTokensMock = mock(() => Promise.resolve());
+const getTokensMock = mock(() => Promise.resolve(undefined));
 
 const mockRaycastApi = (isDevelopment: boolean) => {
   mock.module("@raycast/api", () => ({
     environment: { isDevelopment },
     getPreferenceValues: getPreferenceValuesMock,
+    OAuth: {
+      PKCEClient: class {},
+      RedirectMethod: { App: "app", AppURI: "appURI", Web: "web" },
+    },
   }));
 };
+
+// OAuthService is instantiated at module load of ../lib/oauth; provide a stub
+// whose authorize() / client.removeTokens() we can assert against.
+mock.module("@raycast/utils", () => ({
+  OAuthService: class {
+    authorize = authorizeMock;
+    client = { getTokens: getTokensMock, removeTokens: removeTokensMock };
+  },
+}));
 
 mockRaycastApi(false);
 
@@ -76,6 +92,12 @@ afterEach(() => {
   getPreferenceValuesMock.mockImplementation(() => ({
     apiKey: "valid-test-key",
   }));
+  authorizeMock.mockReset();
+  authorizeMock.mockImplementation(() => Promise.resolve("oauth-access-token"));
+  removeTokensMock.mockReset();
+  removeTokensMock.mockImplementation(() => Promise.resolve());
+  getTokensMock.mockReset();
+  getTokensMock.mockImplementation(() => Promise.resolve(undefined));
   mockRaycastApi(false);
 });
 
@@ -141,8 +163,8 @@ describe("raycast request handling", () => {
     }
 
     expect(capturedUrls).toEqual([
-      "http://api.teak.localhost:1355/v1/cards/search?limit=1",
-      "http://127.0.0.1:1355/v1/cards/search?limit=1",
+      "https://api.teak.localhost:1355/v1/cards/search?limit=1",
+      "https://127.0.0.1:1355/v1/cards/search?limit=1",
     ]);
   });
 
@@ -381,21 +403,43 @@ describe("raycast request handling", () => {
     expect(result.notes).toBe("Updated note");
   });
 
-  test("fails fast when API key is missing", async () => {
-    const fetchMock = mock(async () => createCardsResponse());
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
+  test("falls back to browser OAuth when no API key is set", async () => {
     getPreferenceValuesMock.mockImplementation(() => ({ apiKey: "   " }));
 
-    try {
-      await searchCards({ limit: 1 });
-      expect.unreachable();
-    } catch (error) {
-      expect(error).toBeInstanceOf(RaycastApiError);
-      expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "MISSING_API_KEY",
-      );
-    }
+    let capturedHeaders: Headers | null = null;
+    const fetchMock = mock((_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedHeaders = new Headers(init?.headers);
+      return createCardsResponse();
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    await searchCards({ limit: 1 });
+
+    expect(authorizeMock).toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalled();
+    expect(capturedHeaders?.get("authorization")).toBe(
+      "Bearer oauth-access-token",
+    );
+  });
+
+  test("refreshes the OAuth token once after a 401", async () => {
+    getPreferenceValuesMock.mockImplementation(() => ({ apiKey: "" }));
+    authorizeMock.mockReset();
+    authorizeMock
+      .mockImplementationOnce(() => Promise.resolve("stale-token"))
+      .mockImplementationOnce(() => Promise.resolve("fresh-token"));
+
+    const seenTokens: string[] = [];
+    let call = 0;
+    globalThis.fetch = mock((_input: RequestInfo | URL, init?: RequestInit) => {
+      seenTokens.push(new Headers(init?.headers).get("authorization") ?? "");
+      call += 1;
+      return call === 1 ? createCardsResponse(401) : createCardsResponse();
+    }) as unknown as typeof fetch;
+
+    await searchCards({ limit: 1 });
+
+    expect(removeTokensMock).toHaveBeenCalledTimes(1);
+    expect(seenTokens).toEqual(["Bearer stale-token", "Bearer fresh-token"]);
   });
 });

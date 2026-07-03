@@ -12,13 +12,31 @@ Teak provides a remote MCP server at `https://api.teakvault.com/mcp`.
 
 ## Authentication
 
-All MCP requests require your Teak API key in the `Authorization` header:
+Teak's MCP server supports two authentication methods.
+
+### Browser sign-in (recommended)
+
+Spec-compliant MCP clients authenticate with a browser-based OAuth flow. On first connect, the client discovers Teak's authorization server, opens your browser to sign in, and stores the resulting access token automatically. Access tokens are short-lived (1 hour) and refresh automatically.
+
+For example, with Claude:
+
+```bash
+claude mcp add --transport http teak https://api.teakvault.com/mcp
+```
+
+Then start the MCP connection (for example, run `/mcp` in Claude) and complete the browser sign-in when prompted.
+
+### API key
+
+You can also authenticate with a Teak API key in the `Authorization` header:
 
 ```bash
 Authorization: Bearer teakapi_secret_live_a1b2c3d4_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 Generate and manage API keys in Teak Settings: `https://app.teakvault.com/settings`.
+
+Unauthenticated requests receive `401` with a `WWW-Authenticate` header pointing to the OAuth protected-resource metadata at `/.well-known/oauth-protected-resource`, which clients use to begin the browser sign-in flow.
 
 ## Transport
 
