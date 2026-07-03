@@ -1,6 +1,6 @@
 import { ApiKeys, type KeyMetadata } from "@vllnt/convex-api-keys";
 import { v } from "convex/values";
-import { components } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import {
   internalMutation,
@@ -596,6 +596,76 @@ export const revokeAllActiveApiKeysForPrefixCutover = internalMutation({
     return {
       revokedCount: activeKeys.length,
       revokedAt: now,
+    };
+  },
+});
+
+// TEMPORARY one-time purge of all legacy API key data: the homegrown
+// `apiKeys` table plus its `legacyApiKeyUsageDaily` /
+// `legacyApiKeyUsageTotalsDaily` analytics tables. Deleted in the follow-up
+// commit once the local and prod deployments have been cleared. Deletes in
+// bounded batches to stay within Convex transaction limits and reschedules
+// itself until every table is drained. Idempotent: re-running after
+// completion is a no-op that returns all zeros.
+const LEGACY_PURGE_BATCH_SIZE = 200;
+
+export const purgeLegacyApiKeyData = internalMutation({
+  args: {},
+  returns: v.object({
+    apiKeys: v.number(),
+    legacyApiKeyUsageDaily: v.number(),
+    legacyApiKeyUsageTotalsDaily: v.number(),
+    rescheduled: v.boolean(),
+  }),
+  handler: async (
+    ctx
+  ): Promise<{
+    apiKeys: number;
+    legacyApiKeyUsageDaily: number;
+    legacyApiKeyUsageTotalsDaily: number;
+    rescheduled: boolean;
+  }> => {
+    const apiKeyRows = await ctx.db
+      .query("apiKeys")
+      .take(LEGACY_PURGE_BATCH_SIZE);
+    for (const row of apiKeyRows) {
+      await ctx.db.delete(row._id);
+    }
+
+    const usageDailyRows = await ctx.db
+      .query("legacyApiKeyUsageDaily")
+      .take(LEGACY_PURGE_BATCH_SIZE);
+    for (const row of usageDailyRows) {
+      await ctx.db.delete(row._id);
+    }
+
+    const usageTotalsRows = await ctx.db
+      .query("legacyApiKeyUsageTotalsDaily")
+      .take(LEGACY_PURGE_BATCH_SIZE);
+    for (const row of usageTotalsRows) {
+      await ctx.db.delete(row._id);
+    }
+
+    // If any table returned a full batch there may be more rows; reschedule to
+    // continue in a fresh transaction rather than exceeding the write limit.
+    const rescheduled =
+      apiKeyRows.length === LEGACY_PURGE_BATCH_SIZE ||
+      usageDailyRows.length === LEGACY_PURGE_BATCH_SIZE ||
+      usageTotalsRows.length === LEGACY_PURGE_BATCH_SIZE;
+
+    if (rescheduled) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.apiKeys.purgeLegacyApiKeyData,
+        {}
+      );
+    }
+
+    return {
+      apiKeys: apiKeyRows.length,
+      legacyApiKeyUsageDaily: usageDailyRows.length,
+      legacyApiKeyUsageTotalsDaily: usageTotalsRows.length,
+      rescheduled,
     };
   },
 });
