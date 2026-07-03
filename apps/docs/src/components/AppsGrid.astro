@@ -5,6 +5,7 @@ const CHROME_STORE_URL = "https://chromewebstore.google.com/detail/teak/negnmfif
 const SAFARI_APP_STORE_URL = "https://apps.apple.com/us/app/teak-for-safari/id6770003409?mt=12";
 const DESKTOP_DOWNLOAD_URL = "https://github.com/praveenjuge/teak/releases/latest";
 const API_DOCS_URL = "/docs/api";
+const MCP_DOCS_URL = "/docs/mcp";
 const RAYCAST_STORE_URL = "https://www.raycast.com/praveenjuge/teak-raycast";
 const RAYCAST_INSTALL_BUTTON_URL = "https://www.raycast.com/praveenjuge/teak-raycast/install_button@2x.png?v=1.1";
 
@@ -100,6 +101,16 @@ const platformCards: PlatformCard[] = [
     href: API_DOCS_URL,
     actionType: "button",
     label: "View API Docs",
+  },
+  {
+    name: "MCP",
+    copy: "Connect AI assistants to your Teak vault over the remote MCP server to search, save, and manage cards.",
+    iconAlt: "Model Context Protocol icon",
+    iconClass: "dark:invert",
+    iconSrc: "/platform-icons/mcp.svg",
+    href: MCP_DOCS_URL,
+    actionType: "button",
+    label: "View MCP Docs",
   },
 ];
 ---

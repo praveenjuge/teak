@@ -5,21 +5,48 @@ The browser extension ships automatically to the Chrome Web Store and to GitHub 
 ## How to cut a release
 
 1. Bump the `version` field in **every** `package.json` across the monorepo (root + all workspaces under `apps/*` and `packages/*`). The extension reads its manifest version from `apps/extension/package.json` — `wxt.config.ts` no longer hardcodes it.
-2. Commit and push to `main`.
-3. Create and push a version tag:
+2. Sync `bun.lock` in the **same commit** as the version bumps. CI installs with `bun install --frozen-lockfile`, which fails fast (`lockfile had changes, but lockfile is frozen`) whenever the lockfile is even slightly out of sync — from the version bump itself, or from a dependency an earlier PR added/removed without resyncing the lock. Run both commands and stage `bun.lock` alongside every `package.json`:
+   ```bash
+   bun install                    # updates bun.lock (workspace version pins, prunes removed deps)
+   bun install --frozen-lockfile  # must exit 0 with "no changes" — this is the exact CI check
+   ```
+3. Commit and push to `main`.
+4. Create and push a version tag:
    ```bash
    git tag v<version>
    git push origin v<version>
    ```
-4. The `Extension Release` workflow triggers on the `v*` tag and automatically:
+5. The `Extension Release` workflow triggers on the `v*` tag and automatically:
    - Verifies the tag version matches `apps/extension/package.json`.
    - Builds the production Chrome zip via `bun run zip` (WXT) with production env vars.
    - Uploads the zip to the Chrome Web Store via the Chrome Web Store Publish API.
    - Publishes the item (submits it for review under the default audience).
    - Uploads the zip to the GitHub Release for tag `v<version>` as `teak-extension-<version>-chrome.zip`.
-5. The Chrome Web Store queues the new version for review. Once Google approves it (usually within a few hours to a few days), users receive the update automatically.
+6. The Chrome Web Store queues the new version for review. Once Google approves it (usually within a few hours to a few days), users receive the update automatically.
 
-The same `v<version>` tag also triggers `desktop-release.yml`, so one tag push releases desktop + extension together.
+The same `v<version>` tag also triggers `desktop-release.yml` and `safari-extension-release.yml`, so one tag push releases desktop, extension, and Safari together.
+
+## If a release fails partway
+
+The most common failure is the install step dying with `lockfile had changes, but lockfile is frozen`. That is always a `bun.lock` sync issue — fix it per step 2 above, then re-point the tag as below. (Note: the Safari workflow builds with Xcode and does not run `bun install`, so a lockfile problem only breaks the extension and desktop jobs.)
+
+The extension and desktop workflows fire on the `v*` tag and have no manual re-run path, so recovery means fixing `main` and moving the tag. The Safari workflow also fires on the tag but additionally supports `workflow_dispatch` with a `version` input — so a failed Safari build can be re-triggered manually from the Actions tab without moving the tag.
+
+Each workflow guards on its primary asset to decide whether to skip the run entirely:
+
+- **Extension**: skips if `teak-extension-<version>-chrome.zip` is already attached. A skipped run never re-submits to the Chrome Web Store.
+- **Desktop**: skips if `Teak-<version>-arm64.dmg` is already attached. If the workflow does run (because the DMG is missing), it uploads all assets with `--clobber`, so partial leftovers from a prior failed run are safely overwritten.
+- **Safari**: skips if `teak-safari-<version>-mac-app-store.pkg` is already attached.
+
+Moving the tag therefore re-runs only the jobs whose primary asset is missing.
+
+1. Fix the problem on `main` (usually a lockfile resync) and push it.
+2. Move the tag to the fixed commit and force-push it:
+   ```bash
+   git tag -f v<version> <fixed-commit-sha>
+   git push origin v<version> --force
+   ```
+3. Watch the reruns with `gh run list --limit 6`: jobs whose assets already exist skip, and the previously failed jobs rebuild from the fixed commit.
 
 ## Required GitHub secrets
 
