@@ -77,6 +77,38 @@ describe("apps/api proxy", () => {
     );
   });
 
+  test("sets CORS headers on actual (non-preflight) v1 responses", async () => {
+    const response = await app.request("/v1", {
+      headers: { Origin: "https://app.example" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  });
+
+  test("sets CORS headers on proxied card responses", async () => {
+    process.env.CONVEX_HTTP_BASE_URL = "https://example.convex.site";
+
+    globalThis.fetch = mock(
+      () =>
+        new Response(JSON.stringify({ items: [], total: 0 }), {
+          headers: { "Content-Type": "application/json" },
+          status: 200,
+        })
+    ) as unknown as typeof fetch;
+
+    const response = await app.request("/v1/cards/search?limit=10", {
+      headers: { Origin: "https://app.example" },
+      method: "GET",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("Access-Control-Expose-Headers")).toContain(
+      "RateLimit-Remaining"
+    );
+  });
+
   test("fails fast when CONVEX_HTTP_BASE_URL is missing", async () => {
     process.env.CONVEX_HTTP_BASE_URL = "";
 
