@@ -77,10 +77,10 @@ const validateApiKeyArgsValidator = v.object({
 const revokeKeyArgsValidator = v.object({
   keyId: v.string(),
   // `source` is unused now that component keys are the only path. It stays as an
-  // optional, ignored argument so API clients deployed before this change
-  // (which still send it during the rollout window) are not rejected for an
-  // unknown argument. Safe to remove once those clients have rolled over.
-  source: v.optional(v.union(v.literal("component"), v.literal("legacy"))),
+  // optional, ignored string so API clients deployed before this change (which
+  // still send it during the rollout window) are not rejected for an unknown
+  // argument. Safe to remove once those clients have rolled over.
+  source: v.optional(v.string()),
 });
 
 const getAuthUserById = async (ctx: MutationCtx, userId: string) =>
