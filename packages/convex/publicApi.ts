@@ -316,7 +316,7 @@ const searchCardsByTag = async (
   return sortCards(unique, normalizeSort(options.sort));
 };
 
-const buildBaseQuery = (
+const createBaseQuery = (
   ctx: QueryCtx,
   userId: string,
   options: SearchOptions
@@ -396,7 +396,6 @@ const listCardsWithBaseQuery = async (
   const sort = normalizeSort(options.sort);
   const limit = normalizeLimit(options.limit);
   const pageSize = limit;
-  const baseQuery = buildBaseQuery(ctx, userId, options);
   const matches: Doc<"cards">[] = [];
   let cursor = decodedCursor.mode === "index" ? decodedCursor.cursor : null;
   let pageOffset =
@@ -410,7 +409,8 @@ const listCardsWithBaseQuery = async (
   // exactly to `limit` at its boundary while more matching cards remain.
   while (!hasMore) {
     const pageCursor = cursor;
-    const page = await baseQuery
+    // Convex query builders are single-use, so every cursor scan needs a fresh one.
+    const page = await createBaseQuery(ctx, userId, options)
       .order(sort === "oldest" ? "asc" : "desc")
       .paginate({
         cursor: pageCursor,

@@ -7,7 +7,7 @@ export const PRO_FEATURES = [
   "Automatic Audio Transcription",
   "Browser Extensions",
   "iOS Mobile App",
-  "Android Mobile App",
+  "API & MCP Access"
 ];
 
 export const THEME_OPTIONS = [

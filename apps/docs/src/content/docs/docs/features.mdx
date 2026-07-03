@@ -8,27 +8,35 @@ description: Core features of Teak visual bookmarking platform
 Eight card types cover common design workflows. Each type is optimized for its content with automatic processing and rich previews.
 
 ### 📝 Design Notes
+
 Capture project decisions, meeting notes, and feedback. Full Markdown support with syntax highlighting for code snippets.
 
 ### 🔗 Design Resources
+
 Save links with automatic metadata extraction and full-page screenshots. Teak captures the title, description, favicon, and a visual preview.
 
 ### 📷 Visual References
+
 Store screenshots, mockups, and mood board images. Automatic color palette extraction helps you find images by dominant colors.
 
 ### 🎬 Animation References
+
 Save video files with an inline player and auto-generated thumbnails. Perfect for motion design references and tutorial clips.
 
 ### 🎙️ Voice Notes
+
 Record audio directly or upload files. Automatic transcription makes voice notes fully searchable.
 
 ### 📁 Design Files
+
 Upload PDFs, Sketch files, Figma exports, and other assets. Thumbnail previews help you browse without opening each file.
 
 ### 🎨 Color Palettes
+
 Extract and save color palettes from any image. Each color includes hex values for easy copying.
 
 ### 💬 Quote Cards
+
 Save highlighted quotes with source context. Perfect for design principles, testimonials, and notable passages.
 
 ---
@@ -39,14 +47,14 @@ Save highlighted quotes with source context. Perfect for design principles, test
 
 Type any word or phrase to search across card titles, descriptions, tags, transcriptions, and extracted text. Teak also recognizes special search tokens automatically:
 
-| Token type | Examples | What it does |
-|---|---|---|
-| **Color name** | `red`, `blue`, `teal`, `purple`, `pink` | Filters cards by dominant palette color |
-| **Visual style** | `minimal`, `dark`, `cinematic`, `pastel`, `vibrant`, `moody`, `retro`, `vintage`, `abstract`, `illustrative`, `monochrome`, `photographic`, `surreal` | Filters cards by visual aesthetic |
-| **Hex color** | `#FF5733`, `#3B82F6` | Filters cards by exact color match |
-| **Date shorthand** | `today`, `this week`, `january`, `last year` | Filters cards by creation date |
-| **Quick view** | `favorites` (or `fav`), `trash` (or `bin`, `deleted`) | Switches to your favorites or trash view |
-| **Keyword** | anything else | Full-text match on card content |
+| Token type         | Examples                                                                                                                                              | What it does                             |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| **Color name**     | `red`, `blue`, `teal`, `purple`, `pink`                                                                                                               | Filters cards by dominant palette color  |
+| **Visual style**   | `minimal`, `dark`, `cinematic`, `pastel`, `vibrant`, `moody`, `retro`, `vintage`, `abstract`, `illustrative`, `monochrome`, `photographic`, `surreal` | Filters cards by visual aesthetic        |
+| **Hex color**      | `#FF5733`, `#3B82F6`                                                                                                                                  | Filters cards by exact color match       |
+| **Date shorthand** | `today`, `this week`, `january`, `last year`                                                                                                          | Filters cards by creation date           |
+| **Quick view**     | `favorites` (or `fav`), `trash` (or `bin`, `deleted`)                                                                                                 | Switches to your favorites or trash view |
+| **Keyword**        | anything else                                                                                                                                         | Full-text match on card content          |
 
 Mix multiple tokens in one search — Teak applies all recognized filters simultaneously.
 
@@ -60,9 +68,11 @@ Examples:
 ```
 
 ### Smart Tagging
+
 AI automatically analyzes your content and applies relevant tags. You can also add custom tags manually.
 
 ### Filtering
+
 Filter by card type, favorites, visual style, color, or date. Active filters appear as removable pills in the search bar. Combine multiple filters to narrow down large collections quickly.
 
 ### Trash
@@ -74,11 +84,16 @@ Deleted cards are moved to trash instead of being removed immediately. From the 
 
 Access trash by typing `trash` (or `bin`, `deleted`) in the search bar and pressing Enter.
 
+### Data Import
+
+Bring in links from a browser bookmarks export, a Raindrop.io CSV export, or a previous Teak archive, all from Settings on web and desktop. See [Import Your Data](/docs/import) for supported formats, duplicate handling, and limits.
+
 ### Data Export
 
 Export a portable ZIP of your active cards and original files from Settings on web and desktop. See [Export Your Data](/docs/export) for archive contents, limits, and download availability.
 
 ### Masonry Grid
+
 Browse your inspiration in a Pinterest-style grid that adapts to different content sizes and aspect ratios.
 
 ---
@@ -87,14 +102,14 @@ Browse your inspiration in a Pinterest-style grid that adapts to different conte
 
 Teak's AI pipeline processes each card automatically:
 
-| Feature | Description |
-|---------|-------------|
-| **Auto-tagging** | Extracts relevant keywords and concepts |
-| **Summaries** | Generates brief descriptions for quick scanning |
-| **Categorization** | Groups links by type (design, development, article, tool) |
-| **Color extraction** | Identifies dominant colors in images |
-| **Transcription** | Converts audio to searchable text |
-| **Thumbnail generation** | Creates previews for videos and documents |
+| Feature                  | Description                                               |
+| ------------------------ | --------------------------------------------------------- |
+| **Auto-tagging**         | Extracts relevant keywords and concepts                   |
+| **Summaries**            | Generates brief descriptions for quick scanning           |
+| **Categorization**       | Groups links by type (design, development, article, tool) |
+| **Color extraction**     | Identifies dominant colors in images                      |
+| **Transcription**        | Converts audio to searchable text                         |
+| **Thumbnail generation** | Creates previews for videos and documents                 |
 
 ---
 
@@ -103,24 +118,32 @@ Teak's AI pipeline processes each card automatically:
 Your inspiration syncs in real-time across all platforms:
 
 ### 🌐 Web App
+
 Full-featured dashboard with drag-and-drop uploads, bulk selection, full-screen card previews, and URL-synced card modal state for direct deep links.
 
 ### 🖥️ Desktop App
+
 Signed and notarized native macOS app (Apple Silicon, macOS 13+) with auto-updates and a native menu bar. Download from [GitHub Releases](https://github.com/praveenjuge/teak/releases/latest) — no App Store required. See the [Desktop App guide](/docs/desktop) for install and troubleshooting details.
 
 ### 📱 Mobile App
+
 Native iOS app with share sheet integration, camera capture, one-tap voice recording, and offline viewing. Share directly from any app to save instantly.
 
 ### 🧩 Browser Extensions
+
 Save the current page from the Safari toolbar with [Teak for Safari](https://apps.apple.com/us/app/teak-for-safari/id6770003409?mt=12). On Chrome and Chromium-based browsers, you can also right-click to save pages or selected text and use inline save buttons on supported social sites. See the [Browser Extension guide](/docs/extension) for setup and full details.
+
+### ⚡ Raycast, API & MCP
+
+Save and search without leaving your keyboard using the [Raycast extension](/docs/raycast), or connect your own tools with the [public API](/docs/api) and [MCP server](/docs/mcp). Sign in with your browser or generate a long-lived key from the dedicated API Keys window in Settings, where you can view status, copy, revoke, disable, and regenerate keys.
 
 ---
 
 ## Who It's For
 
-| Audience | Use |
-|---|---|
-| **Designers** | Build a personal library of UI patterns, interactions, and visual references |
-| **Developers** | Save documentation, code examples, and technical references |
-| **Creative Teams** | Share inspiration collections; keep everyone aligned on visual direction |
+| Audience             | Use                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------- |
+| **Designers**        | Build a personal library of UI patterns, interactions, and visual references          |
+| **Developers**       | Save documentation, code examples, and technical references                           |
+| **Creative Teams**   | Share inspiration collections; keep everyone aligned on visual direction              |
 | **Content Creators** | Organize research, quotes, and visual assets for articles, videos, and social content |

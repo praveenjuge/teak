@@ -1,0 +1,79 @@
+---
+title: Import Your Data
+description: Bring bookmarks, Raindrop exports, or a Teak archive into your library
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Teak can import links and cards from a browser bookmarks export, a Raindrop.io CSV export, or a Teak data archive. Imports are available from Settings on the web app and desktop app.
+
+<Aside type="note" title="Imports only add, never remove">
+  Importing does not delete or modify any of your existing cards. Links that match a card you already have are skipped, not duplicated.
+</Aside>
+
+## Start an Import
+
+<Steps>
+
+1. Open Teak on web, or open the desktop app and choose **Teak -> Settings...** from the macOS menu bar.
+
+2. In Settings, find **Import/Export Data** and choose **Manage**.
+
+3. Choose **Import Bookmarks**, **Import from Raindrop**, or **Import Teak Archive**.
+
+4. Choose your file. Teak shows the file name and size for confirmation.
+
+5. Choose **Start import** to begin. Progress updates live as Teak parses the file and creates cards.
+
+</Steps>
+
+You can cancel an import while it is uploading or in progress. If your browser closes or reloads mid-upload, reopen the dialog and choose **Resume upload** to continue from where it left off.
+
+## Import Modes
+
+| Mode | Source file | What comes in |
+|---|---|---|
+| **Import Bookmarks** | An HTML bookmarks export from any browser (`.html`, up to 20 MiB) | Each bookmark becomes a link card. Folder names become tags, and the original save date is preserved when present. |
+| **Import from Raindrop** | A Raindrop.io CSV export (`.csv`, up to 20 MiB) | Each row becomes a link card with its title, notes, tags, folder (as a tag), favorite status, and saved date. |
+| **Import Teak Archive** | A ZIP archive previously downloaded from [Export Your Data](/docs/export) (`.zip`, up to 5 GiB) | Cards are recreated with their original type, content, tags, notes, favorite status, palette colors, and attached files. |
+
+## Duplicate Handling
+
+Before creating a card, Teak checks whether a non-deleted card with the same URL already exists in your library. Matching items are skipped and counted separately from created and failed items — they do not create a duplicate card.
+
+Bookmark and Raindrop files can also contain duplicate links within the same file; only the first occurrence of a URL is imported, and later occurrences are skipped.
+
+## Limits
+
+| Limit | Details |
+|---|---|
+| File size | 20 MiB for bookmarks HTML and Raindrop CSV; 5 GiB for a Teak archive. |
+| Cards per import | Up to 10,000 items in a single file. |
+| File attachments | Each file inside a Teak archive must be 20 MiB or smaller to be attached to its card. |
+| Concurrent imports | One import can run at a time. |
+
+## After an Import Finishes
+
+Teak shows how many items were created, skipped, and failed. If any items failed, you can copy or download a text report listing each one and the reason it could not be imported.
+
+## Troubleshooting
+
+### My import failed immediately
+
+Confirm the file matches the mode you chose (an HTML bookmarks file for **Import Bookmarks**, a Raindrop CSV for **Import from Raindrop**, or a Teak-exported ZIP for **Import Teak Archive**). A file in the wrong format, or a Teak archive from an incompatible version, will fail before any cards are created.
+
+### Some items were skipped
+
+Skipped items already exist in your library with the same URL. This is expected and does not indicate an error.
+
+### Some items failed
+
+Open the error report from the import dialog to see the reason for each failed item, such as an unsafe or malformed URL, a file that exceeds the size limit, or a file missing from the archive.
+
+### My upload was interrupted
+
+Reopen **Import/Export Data** in Settings and choose **Resume upload** with the same file to continue from where the upload stopped.
+
+### Still stuck?
+
+Reach out via [Support](/docs/support).

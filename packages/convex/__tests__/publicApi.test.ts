@@ -32,6 +32,41 @@ const buildBaseCard = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const buildSingleUsePaginationContext = (
+  pagesByCursor: Record<string, unknown>
+) => {
+  const requestedCursors: Array<string | null> = [];
+  const query = mock(() => {
+    let chained = false;
+    const baseQuery = {
+      order: mock(() => {
+        if (chained) {
+          throw new Error(
+            "A query can only be chained once and can't be chained after iteration begins."
+          );
+        }
+        chained = true;
+        return {
+          paginate: mock(({ cursor }: { cursor: string | null }) => {
+            requestedCursors.push(cursor);
+            return Promise.resolve(pagesByCursor[cursor ?? "start"]);
+          }),
+        };
+      }),
+    };
+
+    return {
+      withIndex: mock().mockReturnValue(baseQuery),
+    };
+  });
+
+  return {
+    ctx: { db: { query } } as any,
+    query,
+    requestedCursors,
+  };
+};
+
 describe("publicApi", () => {
   let executeBulkCardsForUser: any;
   let listCardsPageForUser: any;
@@ -42,27 +77,9 @@ describe("publicApi", () => {
     listCardsPageForUser = module.listCardsPageForUser;
   });
 
-  test("listCardsPageForUser keeps remaining matches on the same page", async () => {
-    const secondPage = {
-      continueCursor: "cursor-2",
-      isDone: false,
-      page: [
-        buildBaseCard({
-          _id: "card_2",
-          createdAt: 2,
-          isFavorited: true,
-          updatedAt: 2,
-        }),
-        buildBaseCard({
-          _id: "card_3",
-          createdAt: 3,
-          isFavorited: true,
-          updatedAt: 3,
-        }),
-      ],
-    };
-    const paginate = mock()
-      .mockResolvedValueOnce({
+  test("listCardsPageForUser uses fresh queries and resumes within a page", async () => {
+    const { ctx, query, requestedCursors } = buildSingleUsePaginationContext({
+      start: {
         continueCursor: "cursor-1",
         isDone: false,
         page: [
@@ -74,26 +91,31 @@ describe("publicApi", () => {
             updatedAt: 1,
           }),
         ],
-      })
-      .mockResolvedValueOnce(secondPage)
-      .mockResolvedValueOnce({
-        ...secondPage,
+      },
+      "cursor-1": {
+        continueCursor: "cursor-2",
+        isDone: false,
+        page: [
+          buildBaseCard({
+            _id: "card_2",
+            createdAt: 2,
+            isFavorited: true,
+            updatedAt: 2,
+          }),
+          buildBaseCard({
+            _id: "card_3",
+            createdAt: 3,
+            isFavorited: true,
+            updatedAt: 3,
+          }),
+        ],
+      },
+      "cursor-2": {
         continueCursor: null,
         isDone: true,
-      });
-    const baseQuery = {
-      order: mock().mockReturnValue({
-        paginate,
-      }),
-    };
-    const query = {
-      withIndex: mock().mockReturnValue(baseQuery),
-    };
-    const ctx = {
-      db: {
-        query: mock().mockReturnValue(query),
+        page: [],
       },
-    } as any;
+    });
     const handler =
       (listCardsPageForUser as any).handler ?? listCardsPageForUser;
 
@@ -109,6 +131,8 @@ describe("publicApi", () => {
       "card_2",
     ]);
     expect(firstPage.pageInfo.hasMore).toBe(true);
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(requestedCursors).toEqual([null, "cursor-1"]);
 
     const secondResult = await handler(ctx, {
       createdAfter: 0,
@@ -119,6 +143,15 @@ describe("publicApi", () => {
     });
 
     expect(secondResult.items.map((card: any) => card._id)).toEqual(["card_3"]);
+    expect(secondResult.pageInfo.hasMore).toBe(false);
+    expect(secondResult.pageInfo.nextCursor).toBeNull();
+    expect(query).toHaveBeenCalledTimes(4);
+    expect(requestedCursors).toEqual([
+      null,
+      "cursor-1",
+      "cursor-1",
+      "cursor-2",
+    ]);
   });
 
   test("listCardsPageForUser reports hasMore when a page fills exactly to the limit", async () => {
