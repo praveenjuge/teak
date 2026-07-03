@@ -24,14 +24,18 @@ type Input = {
 };
 
 export default async function tool(input: Input = {}) {
-  const result = await searchCards({
-    favorited: input.favorited,
-    limit: input.limit ?? 10,
-    query: input.query,
-    sort: input.sort,
-    tag: input.tag,
-    type: input.type,
-  });
+  const result = await searchCards(
+    {
+      favorited: input.favorited,
+      limit: input.limit ?? 10,
+      query: input.query,
+      sort: input.sort,
+      tag: input.tag,
+      type: input.type,
+    },
+    // AI tools run headless — never open the browser sign-in overlay.
+    { interactive: false },
+  );
 
   return result.items.map((card) => ({
     aiSummary: card.aiSummary,

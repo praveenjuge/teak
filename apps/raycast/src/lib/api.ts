@@ -346,6 +346,7 @@ export const quickSaveCard = (
 
 export const searchCards = (
   input: CardSearchInput = {},
+  options?: RequestAuthOptions,
 ): Promise<CardsResponse> => {
   return request<CardsResponse>(
     `/cards/search?${buildCardsSearchParams({
@@ -356,6 +357,7 @@ export const searchCards = (
     {
       method: "GET",
     },
+    options,
   );
 };
 
@@ -374,7 +376,10 @@ export const getFavoriteCards = (
   );
 };
 
-export const getCardById = (cardId: string): Promise<RaycastCard> => {
+export const getCardById = (
+  cardId: string,
+  options?: RequestAuthOptions,
+): Promise<RaycastCard> => {
   const normalizedCardId = cardId.trim();
   if (!normalizedCardId) {
     throw new RaycastApiError("INVALID_INPUT");
@@ -386,6 +391,7 @@ export const getCardById = (cardId: string): Promise<RaycastCard> => {
     {
       method: "GET",
     },
+    options,
   );
 };
 
@@ -411,6 +417,7 @@ export const updateCard = (
 export const setCardFavorite = (
   cardId: string,
   isFavorited: boolean,
+  options?: RequestAuthOptions,
 ): Promise<RaycastCard> => {
   const normalizedCardId = cardId.trim();
   if (!normalizedCardId) {
@@ -424,6 +431,7 @@ export const setCardFavorite = (
       body: JSON.stringify({ isFavorited }),
       method: "PATCH",
     },
+    options,
   );
 };
 
@@ -442,8 +450,15 @@ export const softDeleteCard = async (cardId: string): Promise<void> => {
   );
 };
 
-export const listTags = (): Promise<TagsResponse> => {
-  return request<TagsResponse>("/tags", parseTagsResponse, {
-    method: "GET",
-  });
+export const listTags = (
+  options?: RequestAuthOptions,
+): Promise<TagsResponse> => {
+  return request<TagsResponse>(
+    "/tags",
+    parseTagsResponse,
+    {
+      method: "GET",
+    },
+    options,
+  );
 };

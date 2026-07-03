@@ -28,14 +28,18 @@ type Input = {
 export default async function tool(input: Input = {}) {
   const limit = Math.max(1, Math.min(input.limit ?? 10, 50));
 
-  const result = await searchCards({
-    createdAfter: input.createdAfter,
-    createdBefore: input.createdBefore,
-    favorited: input.favorited,
-    limit,
-    sort: "newest",
-    type: input.type,
-  });
+  const result = await searchCards(
+    {
+      createdAfter: input.createdAfter,
+      createdBefore: input.createdBefore,
+      favorited: input.favorited,
+      limit,
+      sort: "newest",
+      type: input.type,
+    },
+    // AI tools run headless — never open the browser sign-in overlay.
+    { interactive: false },
+  );
 
   return result.items.map((card) => ({
     aiSummary: card.aiSummary,
