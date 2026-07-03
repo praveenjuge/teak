@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
 import {
+  getOAuthUserInfo,
   isWellFormedOAuthToken,
   validateOAuthAccessToken,
 } from "../oauthTokens";
@@ -112,5 +113,57 @@ describe("validateOAuthAccessToken", () => {
     );
     expect(result).toBeNull();
     expect(runQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("getOAuthUserInfo", () => {
+  const token = "b".repeat(32);
+
+  test("returns standard userinfo claims for a live token", async () => {
+    const runQuery = mock()
+      .mockResolvedValueOnce({
+        _id: "oauthAccessToken_1",
+        accessTokenExpiresAt: Date.now() + 60_000,
+        clientId: "teak-raycast",
+        userId: "user_1",
+      })
+      .mockResolvedValueOnce({
+        _id: "user_1",
+        email: "hello@example.com",
+        emailVerified: true,
+        name: "Ada Lovelace",
+      });
+
+    const result = await runHandler(getOAuthUserInfo, { runQuery }, { token });
+
+    expect(result).toEqual({
+      sub: "user_1",
+      email: "hello@example.com",
+      email_verified: true,
+      name: "Ada Lovelace",
+    });
+  });
+
+  test("returns null for expired or malformed tokens", async () => {
+    const expiredQuery = mock().mockResolvedValueOnce({
+      _id: "oauthAccessToken_1",
+      accessTokenExpiresAt: Date.now() - 1,
+      clientId: "teak-raycast",
+      userId: "user_1",
+    });
+
+    expect(
+      await runHandler(getOAuthUserInfo, { runQuery: expiredQuery }, { token })
+    ).toBeNull();
+
+    const malformedQuery = mock();
+    expect(
+      await runHandler(
+        getOAuthUserInfo,
+        { runQuery: malformedQuery },
+        { token: "short" }
+      )
+    ).toBeNull();
+    expect(malformedQuery).not.toHaveBeenCalled();
   });
 });

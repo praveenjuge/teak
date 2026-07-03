@@ -1,6 +1,11 @@
 import { v } from "convex/values";
 import { components } from "./_generated/api";
-import { internalMutation, type MutationCtx } from "./_generated/server";
+import {
+  internalMutation,
+  type MutationCtx,
+  type QueryCtx,
+  query,
+} from "./_generated/server";
 
 // Better Auth's `mcp`/oidc authorization server mints opaque access and refresh
 // tokens with `generateRandomString(32, ...)`. Today the mcp plugin uses the
@@ -38,6 +43,16 @@ const validatedOAuthTokenValidator = v.union(
   v.null()
 );
 
+const oauthUserInfoValidator = v.union(
+  v.object({
+    email: v.optional(v.string()),
+    email_verified: v.optional(v.boolean()),
+    name: v.optional(v.string()),
+    sub: v.string(),
+  }),
+  v.null()
+);
+
 // The Convex adapter stores dates as numbers, so the raw component document
 // exposes `accessTokenExpiresAt` as a number. Type the fields we read defensively.
 interface OAuthAccessTokenRecord {
@@ -47,8 +62,15 @@ interface OAuthAccessTokenRecord {
   userId?: string | null;
 }
 
+interface AuthUserRecord {
+  _id: string;
+  email?: string | null;
+  emailVerified?: boolean | null;
+  name?: string | null;
+}
+
 const findOAuthAccessToken = (
-  ctx: MutationCtx,
+  ctx: MutationCtx | QueryCtx,
   accessToken: string
 ): Promise<OAuthAccessTokenRecord | null> =>
   ctx.runQuery(components.betterAuth.adapter.findOne, {
@@ -58,14 +80,20 @@ const findOAuthAccessToken = (
     ],
   }) as Promise<OAuthAccessTokenRecord | null>;
 
+const findAuthUser = (
+  ctx: MutationCtx | QueryCtx,
+  userId: string
+): Promise<AuthUserRecord | null> =>
+  ctx.runQuery(components.betterAuth.adapter.findOne, {
+    model: "user",
+    where: [{ field: "_id", operator: "eq", value: userId }],
+  }) as Promise<AuthUserRecord | null>;
+
 const userExists = async (
   ctx: MutationCtx,
   userId: string
 ): Promise<boolean> => {
-  const user = await ctx.runQuery(components.betterAuth.adapter.findOne, {
-    model: "user",
-    where: [{ field: "_id", operator: "eq", value: userId }],
-  });
+  const user = await findAuthUser(ctx, userId);
   return Boolean(user);
 };
 
@@ -116,6 +144,46 @@ export const validateOAuthAccessToken = internalMutation({
       rateLimitKey: `oauth:${clientId}:${userId}`,
       source: "oauth" as const,
       userId,
+    };
+  },
+});
+
+export const getOAuthUserInfo = query({
+  args: { token: v.string() },
+  returns: oauthUserInfoValidator,
+  handler: async (ctx, args) => {
+    const token = args.token.trim();
+    if (!isWellFormedOAuthToken(token)) {
+      return null;
+    }
+
+    const record = await findOAuthAccessToken(ctx, token);
+    if (!record) {
+      return null;
+    }
+
+    const expiresAt = record.accessTokenExpiresAt;
+    if (typeof expiresAt !== "number" || expiresAt <= Date.now()) {
+      return null;
+    }
+
+    const userId = record.userId;
+    if (typeof userId !== "string" || !userId) {
+      return null;
+    }
+
+    const user = await findAuthUser(ctx, userId);
+    if (!user) {
+      return null;
+    }
+
+    return {
+      sub: userId,
+      ...(typeof user.email === "string" ? { email: user.email } : {}),
+      ...(typeof user.emailVerified === "boolean"
+        ? { email_verified: user.emailVerified }
+        : {}),
+      ...(typeof user.name === "string" ? { name: user.name } : {}),
     };
   },
 });

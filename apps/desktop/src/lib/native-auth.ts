@@ -10,7 +10,7 @@ const JWT_EXPIRY_SKEW_MS = 10_000;
 
 // Desktop OAuth client (matches the trusted client registered server-side).
 const DESKTOP_OAUTH_CLIENT_ID = "teak-desktop";
-const DESKTOP_OAUTH_SCOPE = "openid profile email offline_access";
+const DESKTOP_OAUTH_SCOPE = "profile email offline_access";
 const OAUTH_REDIRECT_HOST = "127.0.0.1";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -116,7 +116,7 @@ function timingSafeEqual(left: string, right: string): boolean {
   for (let index = 0; index < maxLength; index += 1) {
     const leftCode = left.charCodeAt(index) || 0;
     const rightCode = right.charCodeAt(index) || 0;
-    mismatch |= leftCode ^ rightCode;
+    mismatch += leftCode === rightCode ? 0 : 1;
   }
   return mismatch === 0;
 }

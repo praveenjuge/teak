@@ -488,12 +488,18 @@ describe("apps/api MCP endpoint", () => {
       resource: string;
       authorization_servers: string[];
       bearer_methods_supported: string[];
+      scopes_supported: string[];
       resource_name: string;
     };
     expect(body.resource).toContain("/mcp");
     expect(Array.isArray(body.authorization_servers)).toBe(true);
     expect(body.authorization_servers).toHaveLength(1);
     expect(body.bearer_methods_supported).toEqual(["header"]);
+    expect(body.scopes_supported).toEqual([
+      "profile",
+      "email",
+      "offline_access",
+    ]);
     expect(body.resource_name).toBe("Teak");
   });
 
