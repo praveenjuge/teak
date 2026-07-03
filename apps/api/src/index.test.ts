@@ -46,6 +46,69 @@ describe("apps/api proxy", () => {
     expect(payload.mcp.endpoint).toBe("https://api.teakvault.com/mcp");
   });
 
+  test("answers REST CORS preflight before proxying to Convex", async () => {
+    const response = await app.request("/v1/cards", {
+      method: "OPTIONS",
+      headers: {
+        Origin: "https://app.example",
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "authorization,content-type",
+      },
+    });
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
+      "POST"
+    );
+    expect(response.headers.get("Access-Control-Allow-Headers")).toContain(
+      "Authorization"
+    );
+  });
+
+  test("answers REST CORS preflight for nested card routes", async () => {
+    const response = await app.request("/v1/cards/card_1/favorite", {
+      method: "OPTIONS",
+    });
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
+      "PATCH"
+    );
+  });
+
+  test("sets CORS headers on actual (non-preflight) v1 responses", async () => {
+    const response = await app.request("/v1", {
+      headers: { Origin: "https://app.example" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  });
+
+  test("sets CORS headers on proxied card responses", async () => {
+    process.env.CONVEX_HTTP_BASE_URL = "https://example.convex.site";
+
+    globalThis.fetch = mock(
+      () =>
+        new Response(JSON.stringify({ items: [], total: 0 }), {
+          headers: { "Content-Type": "application/json" },
+          status: 200,
+        })
+    ) as unknown as typeof fetch;
+
+    const response = await app.request("/v1/cards/search?limit=10", {
+      headers: { Origin: "https://app.example" },
+      method: "GET",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("Access-Control-Expose-Headers")).toContain(
+      "RateLimit-Remaining"
+    );
+  });
+
   test("fails fast when CONVEX_HTTP_BASE_URL is missing", async () => {
     process.env.CONVEX_HTTP_BASE_URL = "";
 

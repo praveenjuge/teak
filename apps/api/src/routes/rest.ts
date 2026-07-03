@@ -1,4 +1,5 @@
 import type { Hono } from "hono";
+import { cors } from "hono/cors";
 import { openApiSpec } from "../openapi.js";
 import { proxyToConvex } from "../shared/proxy.js";
 import {
@@ -9,7 +10,36 @@ import {
   V1_ENDPOINTS,
 } from "../shared/v1.js";
 
+// Public REST clients can call the gateway from any origin (browser extensions,
+// third-party web apps). Applying the CORS middleware ahead of the route
+// handlers answers preflight `OPTIONS` requests AND attaches
+// `Access-Control-Allow-Origin`/expose headers to the actual proxied responses,
+// so cross-origin browsers can read the payload instead of only clearing the
+// preflight.
+const restCors = cors({
+  origin: "*",
+  allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowHeaders: [
+    "Content-Type",
+    "Authorization",
+    "Idempotency-Key",
+    "X-Request-Id",
+  ],
+  exposeHeaders: [
+    "X-Request-Id",
+    "Idempotency-Key",
+    "RateLimit-Limit",
+    "RateLimit-Remaining",
+    "RateLimit-Reset",
+    "Retry-After",
+  ],
+  maxAge: 86_400,
+});
+
 export const registerRestRoutes = (app: Hono): void => {
+  app.use("/v1", restCors);
+  app.use("/v1/*", restCors);
+
   app.get("/healthz", (c) =>
     c.json({
       status: "ok",

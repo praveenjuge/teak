@@ -19,7 +19,7 @@ const PROD_PUBLIC_API_URL = "https://api.teakvault.com";
 const PROD_AUTH_ISSUER_URL = "https://app.teakvault.com";
 const DEFAULT_DEV_APP_URL = "http://app.teak.localhost:1355";
 
-const OAUTH_SCOPES_SUPPORTED = ["openid", "profile", "email", "offline_access"];
+const OAUTH_SCOPES_SUPPORTED = ["profile", "email", "offline_access"];
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",

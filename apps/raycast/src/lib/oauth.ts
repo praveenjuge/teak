@@ -26,7 +26,7 @@ const client = new OAuth.PKCEClient({
 export const teakOAuth = new OAuthService({
   client,
   clientId: "teak-raycast",
-  scope: "openid profile email offline_access",
+  scope: "profile email offline_access",
   authorizeUrl,
   tokenUrl,
   refreshTokenUrl: tokenUrl,
