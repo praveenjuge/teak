@@ -53,7 +53,7 @@ describe("raycast OAuth token base URL", () => {
     // A Vercel-pulled .env.local may point this at a stale deployment; the
     // token URL must not follow it.
     process.env.NEXT_PUBLIC_CONVEX_SITE_URL =
-      "https://uncommon-ladybug-882.convex.site";
+      "https://reminiscent-kangaroo-59.convex.site";
 
     const { getOAuthTokenBaseUrl } = await loadLocalConstants();
     expect(getOAuthTokenBaseUrl()).toBe(

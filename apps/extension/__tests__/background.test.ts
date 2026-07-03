@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
+import { MESSAGE_TYPES } from "../types/messages";
 
 describe("Background Service Worker", () => {
   describe("URL Validation", () => {
@@ -524,6 +525,74 @@ describe("Background Service Worker", () => {
       await mockSet({ contextMenuSave: { status: "saving" } });
 
       expect(mockSet).toHaveBeenCalled();
+    });
+  });
+
+  describe("Native Auth Message Types", () => {
+    test("exposes the native auth handshake and poll message types", () => {
+      expect(MESSAGE_TYPES.NATIVE_AUTH_COMPLETED).toBe(
+        "TEAK_NATIVE_AUTH_COMPLETED"
+      );
+      expect(MESSAGE_TYPES.POLL_NATIVE_AUTH).toBe("TEAK_POLL_NATIVE_AUTH");
+    });
+  });
+
+  describe("Native Auth Completion Sender Guard", () => {
+    // Mirrors isNativeAuthCompleteSender in background.ts: only the completion
+    // page on an allowed origin may trigger a poll.
+    const COMPLETE_PATHNAME = "/native/auth/complete";
+    const isAllowedSender = (rawUrl?: string, allowDev = false): boolean => {
+      if (!rawUrl) {
+        return false;
+      }
+      let url: URL;
+      try {
+        url = new URL(rawUrl);
+      } catch {
+        return false;
+      }
+      if (url.pathname !== COMPLETE_PATHNAME) {
+        return false;
+      }
+      if (url.origin === "https://app.teakvault.com") {
+        return true;
+      }
+      const host = url.hostname;
+      const isLocal =
+        host === "localhost" ||
+        host === "127.0.0.1" ||
+        host.endsWith(".localhost");
+      return allowDev && isLocal;
+    };
+
+    test("accepts the production completion page", () => {
+      expect(
+        isAllowedSender(
+          "https://app.teakvault.com/native/auth/complete?state=abc"
+        )
+      ).toBe(true);
+    });
+
+    test("rejects a trusted origin on the wrong path", () => {
+      expect(isAllowedSender("https://app.teakvault.com/dashboard")).toBe(false);
+    });
+
+    test("rejects an untrusted origin", () => {
+      expect(
+        isAllowedSender("https://evil.example.com/native/auth/complete")
+      ).toBe(false);
+    });
+
+    test("rejects a malformed url and an undefined sender", () => {
+      expect(isAllowedSender("not a url")).toBe(false);
+      expect(isAllowedSender(undefined)).toBe(false);
+    });
+
+    test("accepts a localhost dev host only in dev builds", () => {
+      const devUrl =
+        "http://app.teak.localhost:1355/native/auth/complete?state=abc";
+      expect(isAllowedSender(devUrl, true)).toBe(true);
+      expect(isAllowedSender(devUrl, false)).toBe(false);
     });
   });
 });

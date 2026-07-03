@@ -8,6 +8,8 @@ import {
   mutation,
 } from "./_generated/server";
 import { resolveTeakDevAppUrl } from "./devUrls";
+import { mintDedicatedSession } from "./shared/dedicatedSessions";
+import { rateLimiter } from "./shared/rateLimits";
 
 const NATIVE_AUTH_CODE_TTL_MS = 5 * 60 * 1000;
 const NATIVE_AUTH_ALLOWED_ORIGINS = new Set([
@@ -22,6 +24,7 @@ const NATIVE_AUTH_SURFACES = [
   "safari-macos",
   "safari-ios",
   "safari-ipados",
+  "browser-extension",
 ] as const;
 
 const PKCE_CHALLENGE_PATTERN = /^[A-Za-z0-9_-]{43,128}$/;
@@ -33,7 +36,8 @@ export const nativeAuthSurfaceValidator = v.union(
   v.literal("desktop"),
   v.literal("safari-macos"),
   v.literal("safari-ios"),
-  v.literal("safari-ipados")
+  v.literal("safari-ipados"),
+  v.literal("browser-extension")
 );
 
 const createNativeAuthCodeResultValidator = v.object({
@@ -45,11 +49,28 @@ const exchangeNativeAuthResultValidator = v.object({
   expiresAt: v.number(),
 });
 
+const rateLimitResultValidator = v.object({
+  ok: v.boolean(),
+  retryAt: v.optional(v.number()),
+});
+
+type RateLimitResult = { ok: boolean; retryAt?: number };
+
 const BASE64_URL_ALPHABET =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 type NativeAuthCodeRecord = Doc<"nativeAuthCodes">;
 type NativeAuthSurface = (typeof NATIVE_AUTH_SURFACES)[number];
+
+// Human-readable per-surface labels stored on the dedicated session's
+// `userAgent` so sessions are distinguishable in the dashboard.
+const SURFACE_USER_AGENTS: Record<NativeAuthSurface, string> = {
+  desktop: "Teak Desktop",
+  "safari-macos": "Teak Safari (macOS)",
+  "safari-ios": "Teak Safari (iOS)",
+  "safari-ipados": "Teak Safari (iPadOS)",
+  "browser-extension": "Teak Browser Extension",
+};
 
 const toBase64Url = (bytes: Uint8Array): string => {
   let output = "";
@@ -162,11 +183,43 @@ export const buildCorsHeaders = (origin: string | null): HeadersInit => {
   };
 };
 
-const resolveSessionForRecord = async (
+// Defined here (rather than in authDesktopOauth) so both the desktop OAuth
+// exchange and the native poll endpoint can share it without a circular import
+// (authDesktopOauth already imports from this module).
+export const getClientIp = (request: Request): string => {
+  // Prefer CF-Connecting-IP: it is set by the Cloudflare edge in front of the
+  // deployment and cannot be spoofed by the client. X-Forwarded-For is only
+  // partially trustworthy — its left-most entry is attacker-controlled — so a
+  // client could otherwise cycle rate-limit buckets by forging it. Fall back to
+  // it (then X-Real-IP) only when the edge header is absent.
+  const cfConnectingIp = request.headers.get("cf-connecting-ip")?.trim();
+  if (cfConnectingIp) {
+    return cfConnectingIp;
+  }
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  const first = forwardedFor?.split(",")[0]?.trim();
+  if (first) {
+    return first;
+  }
+  return request.headers.get("x-real-ip")?.trim() || "unknown-ip";
+};
+
+export const isRateLimitContentionError = (error: unknown): boolean =>
+  error instanceof Error &&
+  error.message.includes('"rateLimits" table') &&
+  error.message.includes(
+    "changed while this mutation was being run and on every subsequent retry"
+  );
+
+// Preserves the SESSION_INVALID / 401 contract shipped Safari clients handle:
+// if the web session that authorized this device is gone, reject the poll.
+// Note: the token we ultimately return is a fresh dedicated session, not this
+// paired one — this only validates that the authorizing session was real.
+const assertPairedSessionValid = async (
   ctx: MutationCtx,
   record: NativeAuthCodeRecord,
   now: number
-) => {
+): Promise<void> => {
   const session = await ctx.runQuery(components.betterAuth.adapter.findOne, {
     model: "session",
     where: [{ field: "_id", value: record.sessionId }],
@@ -183,11 +236,6 @@ const resolveSessionForRecord = async (
       message: "Session is no longer valid",
     });
   }
-
-  return {
-    sessionToken: session.token,
-    expiresAt: session.expiresAt,
-  };
 };
 
 const pickLatestEligibleRecord = ({
@@ -344,7 +392,41 @@ export const consumeNativeAuthByState = internalMutation({
       consumedAt: now,
     });
 
-    return resolveSessionForRecord(ctx, record, now);
+    // Reject if the authorizing web session is gone (preserves the Safari
+    // SESSION_INVALID contract), then mint a fresh dedicated session so the
+    // device holds its own long-lived, independently revocable credential.
+    await assertPairedSessionValid(ctx, record, now);
+
+    return mintDedicatedSession(ctx, {
+      userId: record.userId,
+      userAgent: SURFACE_USER_AGENTS[record.surface],
+    });
+  },
+});
+
+export const consumeNativeAuthPollLimit = internalMutation({
+  args: { key: v.string() },
+  returns: rateLimitResultValidator,
+  handler: async (ctx, args) => {
+    const key = args.key.trim() || "unknown-ip";
+    try {
+      const result = await rateLimiter.limit(ctx, "nativeAuthPoll", {
+        key,
+        throws: false,
+      });
+      return {
+        ok: result.ok,
+        retryAt:
+          typeof result.retryAfter === "number"
+            ? Date.now() + result.retryAfter
+            : undefined,
+      };
+    } catch (error) {
+      if (isRateLimitContentionError(error)) {
+        return { ok: false, retryAt: Date.now() + 1000 };
+      }
+      throw error;
+    }
   },
 });
 
@@ -390,6 +472,22 @@ export const pollNativeAuthCode = httpAction(async (ctx, request) => {
       {
         code: "INVALID_PAYLOAD",
         error: "Missing required native auth fields",
+      },
+      corsHeaders
+    );
+  }
+
+  const limit: RateLimitResult = await ctx.runMutation(
+    (internal as any).authNative.consumeNativeAuthPollLimit,
+    { key: getClientIp(request) }
+  );
+  if (!limit.ok) {
+    return jsonResponse(
+      429,
+      {
+        code: "RATE_LIMITED",
+        error: "Too many requests",
+        retryAt: limit.retryAt,
       },
       corsHeaders
     );

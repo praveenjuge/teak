@@ -71,6 +71,7 @@ import type * as raycast from "../raycast.js";
 import type * as sentry from "../sentry.js";
 import type * as shared_apiKeyFormat from "../shared/apiKeyFormat.js";
 import type * as shared_constants from "../shared/constants.js";
+import type * as shared_dedicatedSessions from "../shared/dedicatedSessions.js";
 import type * as shared_index from "../shared/index.js";
 import type * as shared_linkCategories from "../shared/linkCategories.js";
 import type * as shared_metrics from "../shared/metrics.js";
@@ -198,6 +199,7 @@ declare const fullApi: ApiFromModules<{
   sentry: typeof sentry;
   "shared/apiKeyFormat": typeof shared_apiKeyFormat;
   "shared/constants": typeof shared_constants;
+  "shared/dedicatedSessions": typeof shared_dedicatedSessions;
   "shared/index": typeof shared_index;
   "shared/linkCategories": typeof shared_linkCategories;
   "shared/metrics": typeof shared_metrics;
