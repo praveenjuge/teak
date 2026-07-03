@@ -36,7 +36,7 @@ export const softwareApplicationSchema = {
   name: SITE_NAME,
   url: APP_URL,
   applicationCategory: "DesignApplication",
-  operatingSystem: "Web, iOS, Android, Chrome",
+  operatingSystem: "Web, iOS, Android, macOS",
   description:
     "A personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations.",
   offers: [
@@ -63,7 +63,7 @@ export const softwareApplicationSchema = {
     "Cross-platform sync",
     "Instant search",
     "Voice notes with transcription",
-    "Chrome extension",
+    "Chrome and Safari browser extensions",
   ],
   screenshot: `${SITE_URL}/hero-image.png`,
   author: { "@id": `${SITE_URL}/#organization` },

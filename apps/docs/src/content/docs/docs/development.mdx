@@ -35,6 +35,8 @@ import { Steps, FileTree } from "@astrojs/starlight/components";
    bun run dev
    ```
 
+   The web app and documentation open in your default browser once both are ready.
+
 </Steps>
 
 ## Access Points
@@ -46,6 +48,7 @@ import { Steps, FileTree } from "@astrojs/starlight/components";
 - Convex Dashboard: opens after `bunx convex dev`
 - Mobile: Expo Go or simulator
 - Extension: Chrome dev mode
+- Safari Extension: Xcode
 - Docs: http://docs.teak.localhost:1355
 
 ## Project Layout
@@ -59,6 +62,7 @@ import { Steps, FileTree } from "@astrojs/starlight/components";
     - mobile/ Expo React Native
     - desktop/ Electron desktop app (React)
     - extension/ Chrome extension (Wxt)
+    - safari-extension/ Native macOS Safari extension app
     - raycast/ Raycast extension
     - docs/ Documentation site (Astro + Starlight)
   - packages/
@@ -79,7 +83,7 @@ import { Steps, FileTree } from "@astrojs/starlight/components";
 | Backend | Convex (real-time DB + serverless) |
 | Web | Next.js, React, TypeScript, TailwindCSS |
 | Mobile | Expo React Native |
-| Extension | Wxt framework |
+| Extensions | Wxt (Chrome), native Safari Web Extension (macOS) |
 | Auth | Better Auth |
 | UI | shadcn/ui + Radix |
 | AI | Groq API |
@@ -99,6 +103,7 @@ bun run dev:api          # API gateway (Hono)
 bun run dev:mobile       # Expo mobile
 bun run dev:desktop      # Electron desktop
 bun run dev:extension    # Chrome extension
+open apps/safari-extension/teak-safari.xcodeproj # Safari extension
 bun run dev:raycast      # Raycast extension
 bun run dev:docs         # Docs site
 

@@ -4,6 +4,7 @@
   "scripts": {
     "build": "astro build",
     "dev": "PORTLESS_PORT=1355 portless docs.teak astro dev",
+    "dev:open": "wait-on https-get://docs.teak.localhost:1355 && open-cli https://docs.teak.localhost:1355",
     "lint": "astro check && biome check astro.config.ts src/**/*.ts src/**/*.css *.json",
     "preview": "astro preview",
     "start": "astro preview",
@@ -17,8 +18,10 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.2",
+    "open-cli": "9.0.0",
     "tailwindcss": "^4.3.2",
     "typescript": "^6.0.3",
-    "vite": "^8.1.1"
+    "vite": "^8.1.1",
+    "wait-on": "9.0.10"
   }
 }

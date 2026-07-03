@@ -24,6 +24,10 @@
       "persistent": true,
       "interactive": true
     },
+    "dev:open": {
+      "cache": false,
+      "inputs": ["package.json"]
+    },
     "//#check": {},
     "//#fix": {
       "cache": false

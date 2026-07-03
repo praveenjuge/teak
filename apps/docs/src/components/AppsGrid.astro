@@ -2,6 +2,7 @@
 const WEB_APP_URL = "https://app.teakvault.com";
 const APP_STORE_URL = "https://apps.apple.com/us/app/teak-save-inspirations/id6756574989";
 const CHROME_STORE_URL = "https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob";
+const SAFARI_APP_STORE_URL = "https://apps.apple.com/us/app/teak-for-safari/id6770003409?mt=12";
 const DESKTOP_DOWNLOAD_URL = "https://github.com/praveenjuge/teak/releases/latest";
 const API_DOCS_URL = "/docs/api";
 const RAYCAST_STORE_URL = "https://www.raycast.com/praveenjuge/teak-raycast";
@@ -58,6 +59,18 @@ const platformCards: PlatformCard[] = [
     badgeHeight: 45,
   },
   {
+    name: "Safari Extension",
+    copy: "Save the page you are viewing to Teak directly from Safari on your Mac.",
+    iconAlt: "Safari browser icon",
+    iconSrc: "/platform-icons/safari.svg",
+    href: SAFARI_APP_STORE_URL,
+    actionType: "badge",
+    badgeSrc: "/badges/app-store.svg",
+    badgeAlt: "Download Teak for Safari on the Mac App Store",
+    badgeWidth: 140,
+    badgeHeight: 47,
+  },
+  {
     name: "Desktop App (macOS)",
     copy: "Install the signed native desktop app for Apple Silicon and stay current with built-in auto updates.",
     iconAlt: "Apple macOS icon",
@@ -66,15 +79,6 @@ const platformCards: PlatformCard[] = [
     href: DESKTOP_DOWNLOAD_URL,
     actionType: "button",
     label: "Download for macOS",
-  },
-  {
-    name: "API",
-    copy: "Build on Teak with documented API routes, auth details, and practical request/response examples.",
-    iconAlt: "OpenAPI Initiative icon",
-    iconSrc: "/platform-icons/openapi.svg",
-    href: API_DOCS_URL,
-    actionType: "button",
-    label: "View API Docs",
   },
   {
     name: "Raycast Extension",
@@ -87,6 +91,15 @@ const platformCards: PlatformCard[] = [
     badgeAlt: "Install teak-raycast Raycast Extension",
     badgeWidth: 256,
     badgeHeight: 64,
+  },
+  {
+    name: "API",
+    copy: "Build on Teak with documented API routes, auth details, and practical request/response examples.",
+    iconAlt: "OpenAPI Initiative icon",
+    iconSrc: "/platform-icons/openapi.svg",
+    href: API_DOCS_URL,
+    actionType: "button",
+    label: "View API Docs",
   },
 ];
 ---

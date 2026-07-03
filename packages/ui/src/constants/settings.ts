@@ -5,7 +5,7 @@ export const PRO_FEATURES = [
   "Unlimited Storage",
   "Automatic Summary and Tags",
   "Automatic Audio Transcription",
-  "Chrome Extension",
+  "Browser Extensions",
   "iOS Mobile App",
   "Android Mobile App",
 ];
