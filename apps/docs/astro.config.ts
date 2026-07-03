@@ -98,6 +98,7 @@ export default defineConfig({
             { label: "Support", slug: "docs/support" },
           ],
         },
+        { label: "Import Your Data", slug: "docs/import" },
         { label: "Export Your Data", slug: "docs/export" },
       ],
       head: [
