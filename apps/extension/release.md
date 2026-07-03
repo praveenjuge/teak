@@ -30,7 +30,15 @@ The same `v<version>` tag also triggers `desktop-release.yml` and `safari-extens
 
 The most common failure is the install step dying with `lockfile had changes, but lockfile is frozen`. That is always a `bun.lock` sync issue — fix it per step 2 above, then re-point the tag as below. (Note: the Safari workflow builds with Xcode and does not run `bun install`, so a lockfile problem only breaks the extension and desktop jobs.)
 
-The extension and desktop workflows fire on the `v*` tag and have no manual re-run path, so recovery means fixing `main` and moving the tag. The Safari workflow also fires on the tag but additionally supports `workflow_dispatch` with a `version` input — so a failed Safari build can be re-triggered manually from the Actions tab without moving the tag. Each workflow guards on the GitHub Release: before doing any work it checks whether its own asset is already attached (`teak-extension-<version>-chrome.zip`, the desktop DMG/zip, or `teak-safari-<version>-mac-app-store.pkg`) and skips if so. Moving the tag therefore re-runs only the jobs that have not published yet — an already-shipped Chrome or Safari build is never re-uploaded or double-submitted.
+The extension and desktop workflows fire on the `v*` tag and have no manual re-run path, so recovery means fixing `main` and moving the tag. The Safari workflow also fires on the tag but additionally supports `workflow_dispatch` with a `version` input — so a failed Safari build can be re-triggered manually from the Actions tab without moving the tag.
+
+Each workflow guards on its primary asset to decide whether to skip the run entirely:
+
+- **Extension**: skips if `teak-extension-<version>-chrome.zip` is already attached. A skipped run never re-submits to the Chrome Web Store.
+- **Desktop**: skips if `Teak-<version>-arm64.dmg` is already attached. If the workflow does run (because the DMG is missing), it uploads all assets with `--clobber`, so partial leftovers from a prior failed run are safely overwritten.
+- **Safari**: skips if `teak-safari-<version>-mac-app-store.pkg` is already attached.
+
+Moving the tag therefore re-runs only the jobs whose primary asset is missing.
 
 1. Fix the problem on `main` (usually a lockfile resync) and push it.
 2. Move the tag to the fixed commit and force-push it:
