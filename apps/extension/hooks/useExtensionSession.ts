@@ -4,6 +4,7 @@ import {
   getConvexSiteUrl,
   getSessionToken,
   hasPendingFlow as readHasPendingFlow,
+  PENDING_AUTH_KEY,
   SESSION_TOKEN_KEY,
 } from "../lib/nativeAuth";
 
@@ -102,14 +103,20 @@ export function useExtensionSession(): UseExtensionSessionResult {
     fetchSession();
   }, [fetchSession]);
 
-  // Flip live when the background stores/clears the token — e.g. when the
-  // completion-page handshake poll succeeds while the popup is open.
+  // Flip live when the background stores/clears the token or the pending flow
+  // changes — e.g. when the completion-page handshake poll succeeds while the
+  // popup is open, or when a terminal poll error clears the pending record
+  // (which must drop the "Finishing sign-in…" spinner even though the token
+  // key never changed).
   useEffect(() => {
     const handleChange = (
       changes: Record<string, chrome.storage.StorageChange>,
       areaName: string
     ) => {
-      if (areaName === "local" && changes[SESSION_TOKEN_KEY]) {
+      if (
+        areaName === "local" &&
+        (changes[SESSION_TOKEN_KEY] || changes[PENDING_AUTH_KEY])
+      ) {
         void fetchSession();
       }
     };

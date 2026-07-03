@@ -9,7 +9,7 @@ import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 // chrome.storage.local keys.
 export const SESSION_TOKEN_KEY = "teakSessionToken";
 const DEVICE_ID_KEY = "teakNativeDeviceId";
-const PENDING_AUTH_KEY = "teakPendingNativeAuth";
+export const PENDING_AUTH_KEY = "teakPendingNativeAuth";
 
 // Pending sign-in attempts expire alongside the server's auth-code TTL (5 min).
 const PENDING_TTL_MS = 5 * 60 * 1000;

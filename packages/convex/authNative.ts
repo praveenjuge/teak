@@ -187,16 +187,21 @@ export const buildCorsHeaders = (origin: string | null): HeadersInit => {
 // exchange and the native poll endpoint can share it without a circular import
 // (authDesktopOauth already imports from this module).
 export const getClientIp = (request: Request): string => {
+  // Prefer CF-Connecting-IP: it is set by the Cloudflare edge in front of the
+  // deployment and cannot be spoofed by the client. X-Forwarded-For is only
+  // partially trustworthy — its left-most entry is attacker-controlled — so a
+  // client could otherwise cycle rate-limit buckets by forging it. Fall back to
+  // it (then X-Real-IP) only when the edge header is absent.
+  const cfConnectingIp = request.headers.get("cf-connecting-ip")?.trim();
+  if (cfConnectingIp) {
+    return cfConnectingIp;
+  }
   const forwardedFor = request.headers.get("x-forwarded-for");
   const first = forwardedFor?.split(",")[0]?.trim();
   if (first) {
     return first;
   }
-  return (
-    request.headers.get("cf-connecting-ip")?.trim() ||
-    request.headers.get("x-real-ip")?.trim() ||
-    "unknown-ip"
-  );
+  return request.headers.get("x-real-ip")?.trim() || "unknown-ip";
 };
 
 export const isRateLimitContentionError = (error: unknown): boolean =>

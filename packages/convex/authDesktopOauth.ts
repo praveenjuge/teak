@@ -16,17 +16,13 @@ import {
   OAUTH_ACCESS_TOKEN_FIELD,
   OAUTH_ACCESS_TOKEN_MODEL,
 } from "./oauthTokens";
+import { mintDedicatedSession } from "./shared/dedicatedSessions";
 import { rateLimiter } from "./shared/rateLimits";
 
 // Desktop-only OAuth client. Pinning on this id ensures Raycast / MCP access
 // tokens (minted for other clients) can never be upgraded into a full desktop
 // session.
 const DESKTOP_CLIENT_ID = "teak-desktop";
-// 30 days, matching `session.expiresIn` in auth.ts.
-const SESSION_TTL_MS = 60 * 60 * 24 * 30 * 1000;
-const SESSION_TOKEN_LENGTH = 32;
-const SESSION_TOKEN_ALPHABET =
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const DESKTOP_USER_AGENT = "Teak Desktop";
 
 const exchangeResultValidator = v.union(
@@ -51,19 +47,6 @@ type OAuthAccessTokenRecord = {
   accessTokenExpiresAt?: number | null;
   clientId?: string | null;
   userId?: string | null;
-};
-
-// 32 random alphanumeric chars, matching Better Auth's own session-token shape
-// so the value works unchanged against the existing Convex JWT exchange.
-const generateSessionToken = (): string => {
-  const bytes = new Uint8Array(SESSION_TOKEN_LENGTH);
-  crypto.getRandomValues(bytes);
-  let token = "";
-  for (let index = 0; index < SESSION_TOKEN_LENGTH; index += 1) {
-    token +=
-      SESSION_TOKEN_ALPHABET[bytes[index] % SESSION_TOKEN_ALPHABET.length];
-  }
-  return token;
 };
 
 const parseExchangePayload = (
@@ -162,25 +145,12 @@ export const consumeOAuthTokenForSession = internalMutation({
       },
     });
 
-    const now = Date.now();
-    const expiresAt = now + SESSION_TTL_MS;
-    const sessionToken = generateSessionToken();
-
-    await ctx.runMutation(components.betterAuth.adapter.create, {
-      input: {
-        model: "session",
-        data: {
-          createdAt: now,
-          expiresAt,
-          token: sessionToken,
-          updatedAt: now,
-          userAgent: DESKTOP_USER_AGENT,
-          userId,
-        },
-      },
+    // Delegate to the shared helper so desktop and the native surfaces mint
+    // dedicated sessions through a single code path.
+    return mintDedicatedSession(ctx, {
+      userId,
+      userAgent: DESKTOP_USER_AGENT,
     });
-
-    return { expiresAt, sessionToken };
   },
 });
 
