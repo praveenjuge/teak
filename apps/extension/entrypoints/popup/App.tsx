@@ -11,7 +11,9 @@ import { useEffect, useState } from "react";
 import type { DuplicateCard } from "../../hooks/useAutoSaveUrl";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
 import { useContextMenuSave } from "../../hooks/useContextMenuSave";
-import { useWebAppSession } from "../../hooks/useWebAppSession";
+import { useExtensionSession } from "../../hooks/useExtensionSession";
+import { beginSignIn } from "../../lib/nativeAuth";
+import { MESSAGE_TYPES } from "../../types/messages";
 import { getAuthErrorMessage } from "../../utils/getAuthErrorMessage";
 
 // Error code constant for card limit - should match convex/shared/constants.ts
@@ -71,13 +73,22 @@ function App() {
     isPending,
     error: sessionError,
     refetch,
-  } = useWebAppSession();
+    hasPendingFlow,
+  } = useExtensionSession();
 
+  // If the popup opened while a sign-in is mid-flight, ask the background to
+  // poll once. This is the fallback for when the completion-page handshake was
+  // missed; a successful poll stores the token and the storage listener in
+  // useExtensionSession flips the UI to signed-in.
   useEffect(() => {
-    if (!session) {
+    if (!hasPendingFlow) {
       return;
     }
-  }, [session]);
+    chrome.runtime.sendMessage({ type: MESSAGE_TYPES.POLL_NATIVE_AUTH }, () => {
+      // Swallow "receiving end does not exist" style errors.
+      void chrome.runtime.lastError;
+    });
+  }, [hasPendingFlow]);
 
   if (isPending) {
     return (
@@ -100,7 +111,7 @@ function App() {
   }
 
   if (!session) {
-    return <AuthPanel onLoginSuccess={() => refetch()} />;
+    return <AuthPanel isFinishingSignIn={hasPendingFlow} />;
   }
 
   return <AuthenticatedPopup user={session.user} />;
@@ -129,22 +140,12 @@ function SessionErrorState({
   );
 }
 
-function AuthPanel({
-  onLoginSuccess: _onLoginSuccess,
-}: {
-  onLoginSuccess: () => void;
-}) {
-  const baseUrl = import.meta.env.DEV
-    ? resolveTeakDevAppUrl(import.meta.env)
-    : "https://app.teakvault.com";
-
-  const handleLogin = () => {
-    chrome.tabs.create({ url: `${baseUrl}/login` });
-    window.close();
-  };
-
-  const handleRegister = () => {
-    chrome.tabs.create({ url: `${baseUrl}/register` });
+function AuthPanel({ isFinishingSignIn }: { isFinishingSignIn: boolean }) {
+  const handleSignIn = async () => {
+    // The start route bounces unauthenticated users to /login?next=… (and
+    // login<->register preserve next), so one button covers sign in and sign up.
+    const url = await beginSignIn();
+    await chrome.tabs.create({ url });
     window.close();
   };
 
@@ -159,19 +160,20 @@ function AuthPanel({
       <div className="w-full space-y-3">
         <button
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 font-semibold text-sm text-white hover:bg-red-700"
-          onClick={handleLogin}
+          onClick={() => {
+            void handleSignIn();
+          }}
           type="button"
         >
-          Login
+          Sign in
         </button>
 
-        <button
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 font-semibold text-gray-700 text-sm hover:bg-gray-50"
-          onClick={handleRegister}
-          type="button"
-        >
-          Create Account
-        </button>
+        {isFinishingSignIn && (
+          <p className="flex items-center justify-center gap-2 text-gray-500 text-xs">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Finishing sign-in…
+          </p>
+        )}
       </div>
     </div>
   );

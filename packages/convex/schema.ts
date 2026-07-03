@@ -196,7 +196,8 @@ export const nativeAuthSurfaceValidator = v.union(
   v.literal("desktop"),
   v.literal("safari-macos"),
   v.literal("safari-ios"),
-  v.literal("safari-ipados")
+  v.literal("safari-ipados"),
+  v.literal("browser-extension")
 );
 
 export const nativeAuthCodeValidator = v.object({

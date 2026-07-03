@@ -5,7 +5,12 @@ import {
   internalMutation,
   type MutationCtx,
 } from "./_generated/server";
-import { buildCorsHeaders, jsonResponse } from "./authNative";
+import {
+  buildCorsHeaders,
+  getClientIp,
+  isRateLimitContentionError,
+  jsonResponse,
+} from "./authNative";
 import {
   isWellFormedOAuthToken,
   OAUTH_ACCESS_TOKEN_FIELD,
@@ -55,29 +60,10 @@ const generateSessionToken = (): string => {
   crypto.getRandomValues(bytes);
   let token = "";
   for (let index = 0; index < SESSION_TOKEN_LENGTH; index += 1) {
-    token += SESSION_TOKEN_ALPHABET[bytes[index] % SESSION_TOKEN_ALPHABET.length];
+    token +=
+      SESSION_TOKEN_ALPHABET[bytes[index] % SESSION_TOKEN_ALPHABET.length];
   }
   return token;
-};
-
-const isRateLimitContentionError = (error: unknown): boolean =>
-  error instanceof Error &&
-  error.message.includes('"rateLimits" table') &&
-  error.message.includes(
-    "changed while this mutation was being run and on every subsequent retry"
-  );
-
-const getClientIp = (request: Request): string => {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  const first = forwardedFor?.split(",")[0]?.trim();
-  if (first) {
-    return first;
-  }
-  return (
-    request.headers.get("cf-connecting-ip")?.trim() ||
-    request.headers.get("x-real-ip")?.trim() ||
-    "unknown-ip"
-  );
 };
 
 const parseExchangePayload = (

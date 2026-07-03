@@ -20,7 +20,6 @@ export default defineConfig({
       "tabs",
       "contextMenus",
       "scripting",
-      "cookies",
     ],
     host_permissions: ["<all_urls>"],
     action: {

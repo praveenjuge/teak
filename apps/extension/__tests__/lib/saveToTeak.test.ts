@@ -5,6 +5,8 @@ import { resetSaveToTeakTokenCache, saveToTeak } from "../../lib/saveToTeak";
 describe("saveToTeak", () => {
   beforeEach(() => {
     resetSaveToTeakTokenCache();
+    // The token exchange URL is built from the Convex site URL.
+    process.env.VITE_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
   });
 
   test("returns unauthenticated when no web session token exists", async () => {
@@ -20,6 +22,45 @@ describe("saveToTeak", () => {
     );
 
     expect(result.status).toBe("unauthenticated");
+  });
+
+  test("clears the local session and returns unauthenticated on a 401 token exchange", async () => {
+    const remove = mock(async () => {
+      // no-op storage stub
+    });
+    (globalThis as any).chrome = {
+      storage: {
+        local: {
+          get: async () => ({}),
+          set: async () => {
+            // no-op
+          },
+          remove,
+        },
+      },
+    };
+
+    try {
+      const result = await saveToTeak(
+        {
+          content: "https://x.com/teak/status/123",
+          enforceAllowedHosts: true,
+          source: "inline-post",
+        },
+        {
+          getSessionToken: async () => "stale_token",
+          fetchImpl: mock(
+            async () => new Response("", { status: 401 })
+          ) as unknown as typeof fetch,
+        }
+      );
+
+      expect(result.status).toBe("unauthenticated");
+      // clearLocalSession removed the stored token + pending flow.
+      expect(remove).toHaveBeenCalled();
+    } finally {
+      (globalThis as any).chrome = undefined;
+    }
   });
 
   test("fails fast on unsupported host for inline saves", async () => {

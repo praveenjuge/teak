@@ -14,6 +14,7 @@ const NATIVE_AUTH_SURFACES = new Set([
   "safari-macos",
   "safari-ios",
   "safari-ipados",
+  "browser-extension",
 ]);
 const ALLOWED_COMPLETION_REDIRECTS = new Set([
   `${resolveTeakDevAppUrl(process.env)}/native/auth/complete`,
@@ -97,6 +98,10 @@ export async function GET(request: Request): Promise<Response> {
       surface,
     });
     redirectUri.searchParams.set("state", state);
+    // The redirect_uri allowlist rejects caller-supplied query params, so the
+    // completion page only learns the surface if the server appends it here
+    // (same as `state`). Used to tailor the "you're signed in" copy.
+    redirectUri.searchParams.set("surface", surface);
     return new Response(null, {
       status: 302,
       headers: {

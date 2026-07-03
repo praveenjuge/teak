@@ -1,16 +1,15 @@
-import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 import { ConvexHttpClient } from "convex/browser";
 import type { TeakSaveResponse } from "../types/messages";
 import { isSupportedInlineSaveHost } from "../types/social";
-import { getSessionTokenFromCookies } from "../utils/getSessionFromCookies";
 import { api } from "./convex-api";
+import {
+  clearLocalSession,
+  getConvexSiteUrl,
+  getSessionToken,
+} from "./nativeAuth";
 
 const CARD_LIMIT_REACHED_CODE = "CARD_LIMIT_REACHED";
 const JWT_EXPIRY_SKEW_MS = 10_000;
-
-const WEB_APP_BASE_URL = import.meta.env.DEV
-  ? resolveTeakDevAppUrl(import.meta.env)
-  : "https://app.teakvault.com";
 
 type SaveSource = "context-menu" | "inline-post" | "popup-auto-save";
 
@@ -76,7 +75,7 @@ const getErrorCode = (message: string): string | undefined => {
   if (message.includes(CARD_LIMIT_REACHED_CODE)) {
     return CARD_LIMIT_REACHED_CODE;
   }
-  return undefined;
+  return;
 };
 
 const parseContentAsUrl = (content: string): URL | null => {
@@ -109,16 +108,15 @@ const getConvexAuthToken = async (
     return cachedConvexToken.token;
   }
 
-  const getSessionToken =
-    dependencies.getSessionToken ?? getSessionTokenFromCookies;
-  const sessionToken = await getSessionToken();
+  const resolveSessionToken = dependencies.getSessionToken ?? getSessionToken;
+  const sessionToken = await resolveSessionToken();
   if (!sessionToken) {
     return null;
   }
 
   const fetchImpl = dependencies.fetchImpl ?? fetch;
   const response = await fetchImpl(
-    `${WEB_APP_BASE_URL}/api/auth/convex/token`,
+    `${getConvexSiteUrl()}/api/auth/convex/token`,
     {
       method: "GET",
       headers: {
@@ -128,6 +126,10 @@ const getConvexAuthToken = async (
   );
 
   if (response.status === 401 || response.status === 403) {
+    // The stored session is dead: drop the cached JWT and local session so the
+    // next attempt reports signed-out instead of retrying a doomed token.
+    cachedConvexToken = null;
+    await clearLocalSession();
     return null;
   }
 

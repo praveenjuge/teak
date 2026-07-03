@@ -36,4 +36,12 @@ export const rateLimiter = new RateLimiter(components.ratelimiter, {
     period: MINUTE,
     capacity: 10,
   },
+  // Native auth device-poll endpoint. Keyed per client IP so a single host
+  // cannot spam single-use code redemption attempts while a device polls.
+  nativeAuthPoll: {
+    kind: "token bucket",
+    rate: 20,
+    period: MINUTE,
+    capacity: 20,
+  },
 });

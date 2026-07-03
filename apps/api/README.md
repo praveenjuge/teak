@@ -8,7 +8,7 @@ Hono gateway for Teak public REST API and MCP server:
 ## Environment
 
 - `CONVEX_HTTP_BASE_URL` (required)
-  - Example: `https://uncommon-ladybug-882.convex.site`
+  - Example: `https://-.convex.site`
   - Loaded automatically from `apps/api/.env` during `bun run dev`
 
 ## Local Development
@@ -16,7 +16,7 @@ Hono gateway for Teak public REST API and MCP server:
 ```bash
 cd apps/api
 bun install
-echo "CONVEX_HTTP_BASE_URL=https://uncommon-ladybug-882.convex.site" > .env
+echo "CONVEX_HTTP_BASE_URL=https://-.convex.site" > .env
 bun run dev
 ```
 

@@ -1,8 +1,16 @@
+import { isLocalDevelopmentHostname } from "@teak/convex/dev-urls";
+import {
+  beginSignIn,
+  getSessionToken,
+  pollPendingNativeAuth,
+  readPendingNativeAuth,
+} from "../lib/nativeAuth";
 import { saveToTeak } from "../lib/saveToTeak";
 import type { ContextMenuAction } from "../types/contextMenu";
 import {
   type AuthStateResponse,
   MESSAGE_TYPES,
+  type NativeAuthCompletedRequest,
   type SaveContentRequest,
   type SavePostRequest,
   type TeakRuntimeRequest,
@@ -13,7 +21,50 @@ import {
   isInlineSavePermalinkAllowed,
   isSupportedInlineSaveHost,
 } from "../types/social";
-import { hasValidSession } from "../utils/getSessionFromCookies";
+
+const NATIVE_AUTH_COMPLETE_PATHNAME = "/native/auth/complete";
+
+// Serialize native-auth polls so the completion-page handshake and the
+// popup-open poll can't both consume the single-use auth code concurrently.
+let inflightPoll: Promise<unknown> | null = null;
+
+function pollNativeAuthOnce(): Promise<unknown> {
+  inflightPoll ??= pollPendingNativeAuth().finally(() => {
+    inflightPoll = null;
+  });
+  return inflightPoll;
+}
+
+// Best-effort: begin a browser sign-in and open the web login/handoff tab.
+async function openSignInTab(): Promise<void> {
+  try {
+    const url = await beginSignIn();
+    await chrome.tabs.create({ url });
+  } catch {
+    // Ignore: sign-in can be retried from the popup.
+  }
+}
+
+// A NATIVE_AUTH_COMPLETED message is only trusted from the completion page on
+// an allowed origin (prod host, or a localhost dev host in dev builds).
+const isNativeAuthCompleteSender = (rawUrl: string | undefined): boolean => {
+  if (!rawUrl) {
+    return false;
+  }
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return false;
+  }
+  if (url.pathname !== NATIVE_AUTH_COMPLETE_PATHNAME) {
+    return false;
+  }
+  if (url.origin === "https://app.teakvault.com") {
+    return true;
+  }
+  return import.meta.env.DEV && isLocalDevelopmentHostname(url.hostname);
+};
 
 function captureSaveResult(
   result: TeakSaveResponse,
@@ -139,7 +190,9 @@ const isRuntimeRequest = (message: unknown): message is TeakRuntimeRequest => {
   return (
     candidate.type === MESSAGE_TYPES.GET_AUTH_STATE ||
     candidate.type === MESSAGE_TYPES.SAVE_CONTENT ||
-    candidate.type === MESSAGE_TYPES.SAVE_POST
+    candidate.type === MESSAGE_TYPES.SAVE_POST ||
+    candidate.type === MESSAGE_TYPES.NATIVE_AUTH_COMPLETED ||
+    candidate.type === MESSAGE_TYPES.POLL_NATIVE_AUTH
   );
 };
 
@@ -211,6 +264,14 @@ export default defineBackground(() => {
         action === "save-text" ? "text" : "url"
       );
 
+      if (saveResult.status === "unauthenticated") {
+        // Clear the "saving" state and send the user to the sign-in tab rather
+        // than surfacing an auth error in the popup.
+        await chrome.storage.local.remove("contextMenuSave");
+        await openSignInTab();
+        return;
+      }
+
       if (saveResult.status === "saved" || saveResult.status === "duplicate") {
         await chrome.storage.local.set({
           contextMenuSave: {
@@ -246,16 +307,38 @@ export default defineBackground(() => {
     sendResponse: (response?: AuthStateResponse | TeakSaveResponse) => void
   ): boolean | undefined {
     if (!isRuntimeRequest(message)) {
-      return undefined;
+      return;
     }
 
     void (async () => {
       try {
         if (message.type === MESSAGE_TYPES.GET_AUTH_STATE) {
           const response: AuthStateResponse = {
-            authenticated: await hasValidSession(),
+            authenticated: Boolean(await getSessionToken()),
           };
           sendResponse(response);
+          return;
+        }
+
+        if (message.type === MESSAGE_TYPES.NATIVE_AUTH_COMPLETED) {
+          const completed = message as NativeAuthCompletedRequest;
+          const pending = await readPendingNativeAuth();
+          // Only poll for a message from the real completion page whose state
+          // matches the flow this device started.
+          if (
+            pending &&
+            isNativeAuthCompleteSender(sender.url ?? sender.tab?.url) &&
+            completed.payload.state === pending.state
+          ) {
+            await pollNativeAuthOnce();
+          }
+          sendResponse({ authenticated: Boolean(await getSessionToken()) });
+          return;
+        }
+
+        if (message.type === MESSAGE_TYPES.POLL_NATIVE_AUTH) {
+          await pollNativeAuthOnce();
+          sendResponse({ authenticated: Boolean(await getSessionToken()) });
           return;
         }
 
@@ -273,6 +356,9 @@ export default defineBackground(() => {
             saveRequest.payload.source,
             isUrl ? "url" : "text"
           );
+          if (result.status === "unauthenticated") {
+            await openSignInTab();
+          }
           sendResponse(result);
           return;
         }
@@ -336,6 +422,9 @@ export default defineBackground(() => {
             source: "inline-post",
           });
           void captureSaveResult(result, "inline-post", "url");
+          if (result.status === "unauthenticated") {
+            await openSignInTab();
+          }
           sendResponse(result);
           return;
         }
