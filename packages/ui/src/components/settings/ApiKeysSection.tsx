@@ -13,10 +13,7 @@ interface ApiKeysSectionProps {
   isLoading: boolean;
   keys: ApiKeyListItem[] | undefined;
   onCreateKey: () => Promise<CreatedApiKey | null>;
-  onRevokeKey: (
-    keyId: string,
-    source: ApiKeyListItem["source"]
-  ) => Promise<void>;
+  onRevokeKey: (keyId: string) => Promise<void>;
   onRotateKey: (keyId: string) => Promise<CreatedApiKey | null>;
 }
 

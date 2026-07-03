@@ -63,18 +63,6 @@ const keys = [
     lastUsedAt: 350,
     maskedKey: "teakapi_secret_live_a1b2c3d4_••••••••",
     name: "SDK Key",
-    requiresUpdate: false,
-    source: "component" as const,
-    status: "active" as const,
-  },
-  {
-    createdAt: 100,
-    id: "legacy_key",
-    lastUsedAt: 150,
-    maskedKey: "abc123••••••••",
-    name: "Old Key",
-    requiresUpdate: true,
-    source: "legacy" as const,
     status: "active" as const,
   },
   {
@@ -82,8 +70,6 @@ const keys = [
     id: "disabled_key",
     maskedKey: "teakapi_secret_live_e5f6a7b8_••••••••",
     name: "Disabled Key",
-    requiresUpdate: false,
-    source: "component" as const,
     status: "disabled" as const,
   },
 ];
@@ -103,7 +89,7 @@ describe("ApiKeysSection", () => {
     expect(markup).toContain("API Keys");
     expect(markup).toContain(">Manage</button>");
     expect(markup).not.toContain("Manage API Keys");
-    expect(markup).toContain("3 keys");
+    expect(markup).toContain("2 keys");
     expect(markup).not.toContain("Update required");
     expect(markup).not.toContain("Generate Key");
   });
@@ -124,7 +110,7 @@ describe("shouldShowApiKeysSection gating", () => {
 });
 
 describe("ApiKeysDialog", () => {
-  test("renders component, disabled, and legacy key states", () => {
+  test("renders component and disabled key states", () => {
     const markup = renderToStaticMarkup(
       <ApiKeysDialog
         isLoading={false}
@@ -142,10 +128,8 @@ describe("ApiKeysDialog", () => {
     expect(markup).not.toContain(">Disable<");
     expect(markup).toContain("Disabled Key");
     expect(markup).not.toContain(">Enable<");
-    expect(markup).toContain("Old Key");
-    expect(markup).toContain("Update required");
+    expect(markup).not.toContain("Update required");
     expect(markup).not.toContain(">Active</span>");
-    expect(markup).toContain(">Update required</span>");
     expect(markup).not.toContain(">active<");
   });
 

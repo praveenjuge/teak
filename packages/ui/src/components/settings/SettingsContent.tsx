@@ -33,10 +33,7 @@ interface SettingsContentProps {
   onDeleteAccount: () => Promise<void>;
   onDeleteDialogOpenChange: (open: boolean) => void;
   onDownloadExport: (jobId: string) => Promise<void>;
-  onRevokeApiKey: (
-    keyId: string,
-    source: ApiKeyListItem["source"]
-  ) => Promise<void>;
+  onRevokeApiKey: (keyId: string) => Promise<void>;
   onRotateApiKey: (keyId: string) => Promise<{ key: string }>;
   onSignOut: () => Promise<void> | void;
   onStartExport: () => Promise<void>;

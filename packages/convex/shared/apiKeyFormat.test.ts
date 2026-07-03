@@ -6,11 +6,11 @@ import {
 } from "./apiKeyFormat";
 
 describe("apiKeyFormat", () => {
-  test("accepts a canonical teakapi_<prefix>_<secret> token", () => {
+  test("treats the retired teakapi_<prefix>_<secret> token as malformed", () => {
     const token = `${API_KEY_TOKEN_PREFIX}_abc123_secretvalue`;
 
-    expect(isWellFormedApiKey(token)).toBe(true);
-    expect(getApiKeyFormat(token)).toBe("legacy");
+    expect(isWellFormedApiKey(token)).toBe(false);
+    expect(getApiKeyFormat(token)).toBe("malformed");
   });
 
   test("accepts a component-managed teakapi secret token", () => {
@@ -21,7 +21,9 @@ describe("apiKeyFormat", () => {
   });
 
   test("trims surrounding whitespace before checking", () => {
-    expect(isWellFormedApiKey("  teakapi_abc123_secretvalue  ")).toBe(true);
+    const token = `  ${API_KEY_TOKEN_PREFIX}_secret_live_a1b2c3d4_${"f".repeat(64)}  `;
+    expect(isWellFormedApiKey(token)).toBe(true);
+    expect(getApiKeyFormat(token.trim())).toBe("component");
   });
 
   test("rejects tokens without the teakapi prefix", () => {

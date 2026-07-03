@@ -19,8 +19,6 @@ export interface ApiKeyListItem {
   lastUsedAt?: number;
   maskedKey: string;
   name: string;
-  requiresUpdate: boolean;
-  source: "component" | "legacy";
   status: "active" | "disabled" | "rotating" | "expired" | "exhausted";
 }
 
@@ -34,10 +32,7 @@ interface ApiKeysDialogProps {
   keys: ApiKeyListItem[] | undefined;
   onCreateKey: () => Promise<CreatedApiKey | null>;
   onOpenChange: (open: boolean) => void;
-  onRevokeKey: (
-    keyId: string,
-    source: ApiKeyListItem["source"]
-  ) => Promise<void>;
+  onRevokeKey: (keyId: string) => Promise<void>;
   onRotateKey: (keyId: string) => Promise<CreatedApiKey | null>;
   open: boolean;
 }
@@ -203,13 +198,12 @@ export function ApiKeysDialog({
             {keys?.map((key) => {
               const isBusy = actionKey === key.id;
               const canRotate =
-                key.source === "component" &&
-                (key.status === "active" || key.status === "disabled");
+                key.status === "active" || key.status === "disabled";
 
               return (
                 <div
                   className="flex flex-col gap-2 p-2.5 sm:flex-row sm:items-center sm:justify-between"
-                  key={`${key.source}-${key.id}`}
+                  key={key.id}
                 >
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -221,7 +215,6 @@ export function ApiKeysDialog({
                           {formatStatus(key.status)}
                         </Badge>
                       )}
-                      {key.requiresUpdate && <Badge>Update required</Badge>}
                     </div>
                     <div className="break-all font-mono text-muted-foreground text-xs">
                       {key.maskedKey}
@@ -255,7 +248,7 @@ export function ApiKeysDialog({
                       onClick={() =>
                         runKeyAction(
                           key.id,
-                          () => onRevokeKey(key.id, key.source),
+                          () => onRevokeKey(key.id),
                           "API key revoked."
                         )
                       }

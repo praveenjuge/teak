@@ -8,8 +8,8 @@ const authorize = () =>
     .mockResolvedValueOnce({
       access: "full_access",
       keyId: "key_1",
-      rateLimitKey: "legacy:key_1",
-      source: "legacy",
+      rateLimitKey: "component:key_1",
+      source: "component",
       userId: "user_1",
     })
     .mockResolvedValueOnce({ ok: true, retryAt: undefined });
@@ -42,7 +42,10 @@ const requestPage = async (
   const response = await handler(
     { runMutation: authorize(), runQuery },
     new Request(url, {
-      headers: { Authorization: "Bearer teakapi_abc_secret" },
+      headers: {
+        Authorization:
+          "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      },
     })
   );
 

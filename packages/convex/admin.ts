@@ -42,8 +42,6 @@ const STAGE_KEYS: ProcessingStageKey[] = [
 const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_MISSING_CARDS = 50;
-const LEGACY_USAGE_DEFAULT_DAYS = 30;
-const LEGACY_USAGE_MAX_DAYS = 365;
 // Maximum cards to process in admin overview to prevent memory issues
 // For larger datasets, consider denormalizing counters or using pagination
 const ADMIN_OVERVIEW_LIMIT = 10_000;
@@ -94,16 +92,6 @@ const clampPagination = (paginationOpts: {
   ...paginationOpts,
   numItems: Math.min(paginationOpts.numItems, ADMIN_LIST_LIMIT),
 });
-
-const toUtcDate = (timestamp: number) =>
-  new Date(timestamp).toISOString().slice(0, 10);
-
-const normalizeAnalyticsDays = (days?: number) => {
-  if (!(typeof days === "number" && Number.isFinite(days))) {
-    return LEGACY_USAGE_DEFAULT_DAYS;
-  }
-  return Math.max(1, Math.min(LEGACY_USAGE_MAX_DAYS, Math.floor(days)));
-};
 
 type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
@@ -169,61 +157,6 @@ export const getAccess = query({
 
     return {
       allowed,
-    };
-  },
-});
-
-export const getLegacyApiKeyUsageAnalytics = query({
-  args: {
-    days: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    await ensureAdmin(ctx);
-
-    const days = normalizeAnalyticsDays(args.days);
-    const windowStartDate = toUtcDate(
-      Date.now() - (days - 1) * 24 * 60 * 60 * 1000
-    );
-
-    const [totals, legacyKeys] = await Promise.all([
-      ctx.db
-        .query("legacyApiKeyUsageTotalsDaily")
-        .withIndex("by_date", (q) => q.gte("date", windowStartDate))
-        .order("desc")
-        .take(days),
-      ctx.db
-        .query("legacyApiKeyUsageDaily")
-        .withIndex("by_date", (q) => q.gte("date", windowStartDate))
-        .order("desc")
-        .take(ADMIN_LIST_LIMIT),
-    ]);
-
-    return {
-      days,
-      windowStartDate,
-      totals: totals.map((row) => ({
-        date: row.date,
-        observedUseCount: row.observedUseCount,
-        uniqueKeyCount: row.uniqueKeyCount,
-        uniqueUserCount: row.uniqueUserCount,
-        firstUsedAt: row.firstUsedAt,
-        lastUsedAt: row.lastUsedAt,
-        updatedAt: row.updatedAt,
-      })),
-      recentLegacyKeys: legacyKeys
-        .sort((left, right) => right.lastUsedAt - left.lastUsedAt)
-        .map((row) => ({
-          date: row.date,
-          legacyKeyId: row.legacyKeyId,
-          userId: row.userId,
-          keyPrefix: row.keyPrefix,
-          observedUseCount: row.observedUseCount,
-          firstUsedAt: row.firstUsedAt,
-          lastUsedAt: row.lastUsedAt,
-          lastMethod: row.lastMethod,
-          lastEndpoint: row.lastEndpoint,
-          updatedAt: row.updatedAt,
-        })),
     };
   },
 });

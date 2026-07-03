@@ -42,9 +42,7 @@ export function useSettingsController({
         id: string;
         name: string;
         maskedKey: string;
-        source: "component" | "legacy";
         status: "active" | "disabled" | "rotating" | "expired" | "exhausted";
-        requiresUpdate: boolean;
         createdAt: number;
         lastUsedAt?: number;
       }[]
@@ -121,11 +119,8 @@ export function useSettingsController({
     return (await createKey({ name: "Default API key" })) as { key: string };
   };
 
-  const handleRevokeApiKey = async (
-    keyId: string,
-    source: "component" | "legacy"
-  ) => {
-    await revokeKey({ keyId, source });
+  const handleRevokeApiKey = async (keyId: string) => {
+    await revokeKey({ keyId });
   };
 
   const handleRotateApiKey = async (keyId: string) => {

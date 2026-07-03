@@ -39,7 +39,7 @@ interface AuthorizedUser {
   access: "full_access";
   keyId: string;
   rateLimitKey: string;
-  source: "component" | "legacy" | "oauth";
+  source: "component" | "oauth";
   userId: string;
 }
 
@@ -114,27 +114,6 @@ const parseBearerToken = (request: Request): string | null => {
   }
 
   return token.trim();
-};
-
-const STATIC_CARD_ENDPOINTS = new Set([
-  "/v1/cards/bulk",
-  "/v1/cards/changes",
-  "/v1/cards/favorites",
-  "/v1/cards/search",
-]);
-
-const normalizeApiEndpoint = (requestUrl: string): string => {
-  const pathname = new URL(requestUrl).pathname;
-  if (STATIC_CARD_ENDPOINTS.has(pathname)) {
-    return pathname;
-  }
-  if (/^\/v1\/cards\/[^/]+\/favorite$/.test(pathname)) {
-    return "/v1/cards/:cardId/favorite";
-  }
-  if (/^\/v1\/cards\/[^/]+$/.test(pathname)) {
-    return "/v1/cards/:cardId";
-  }
-  return pathname;
 };
 
 const parseLimit = (raw: string | null): number => {
@@ -424,8 +403,6 @@ const withAuthorizedUser = async (
   try {
     validated = isApiKey
       ? await ctx.runMutation((internal as any).apiKeys.validateUserApiKey, {
-          endpoint: normalizeApiEndpoint(request.url),
-          method: request.method.toUpperCase(),
           token,
         })
       : await ctx.runMutation(
