@@ -687,6 +687,7 @@ describe("publicApiHttp", () => {
   test("listCardsV1 returns paginated items with pageInfo", async () => {
     const runMutation = buildAuthorizedMutationMock();
     const runQuery = mock().mockResolvedValueOnce({
+      itemCursors: ["after-card-1"],
       items: [
         {
           _id: "card_1",
@@ -702,10 +703,8 @@ describe("publicApiHttp", () => {
           metadataDescription: "Desc",
         },
       ],
-      pageInfo: {
-        hasMore: false,
-        nextCursor: null,
-      },
+      nextCursor: null,
+      scannedRows: 1,
     });
 
     const response = await runHandler(

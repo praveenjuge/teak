@@ -35,6 +35,13 @@ const paginatedCardsResultValidator = v.object({
   total: v.optional(v.number()),
 });
 
+const scannedCardsResultValidator = v.object({
+  itemCursors: v.array(v.string()),
+  items: v.array(cardReturnValidator),
+  nextCursor: v.union(v.string(), v.null()),
+  scannedRows: v.number(),
+});
+
 const changesResultValidator = v.object({
   items: v.array(cardReturnValidator),
   deletedIds: v.array(v.id("cards")),
@@ -387,70 +394,63 @@ const createBaseQuery = (
     );
 };
 
-const listCardsWithBaseQuery = async (
+const scanCardsWithBaseQuery = async (
   ctx: QueryCtx,
   userId: string,
   options: SearchOptions,
-  decodedCursor: ApiCursor
+  decodedCursor: ApiCursor,
+  scanLimit: number
 ) => {
   const sort = normalizeSort(options.sort);
-  const limit = normalizeLimit(options.limit);
-  const pageSize = limit;
-  const matches: Doc<"cards">[] = [];
-  let cursor = decodedCursor.mode === "index" ? decodedCursor.cursor : null;
-  let pageOffset =
+  const pageCursor =
+    decodedCursor.mode === "index" ? decodedCursor.cursor : null;
+  const pageOffset =
     decodedCursor.mode === "index" ? decodedCursor.pageOffset : 0;
-  let hasMore = false;
-  let nextCursor: string | null = null;
+  const page = await createBaseQuery(ctx, userId, options)
+    .order(sort === "oldest" ? "asc" : "desc")
+    .paginate({
+      cursor: pageCursor,
+      maximumRowsRead: scanLimit,
+      numItems: scanLimit,
+    });
+  const matches: Doc<"cards">[] = [];
+  const itemCursors: string[] = [];
+  let filteredIndex = 0;
 
-  // Keep scanning until we either locate the (limit + 1)th matching card
-  // (which sets `hasMore`) or run out of pages. Stopping as soon as `limit`
-  // matches are collected would miss remaining results whenever a page fills
-  // exactly to `limit` at its boundary while more matching cards remain.
-  while (!hasMore) {
-    const pageCursor = cursor;
-    // Convex query builders are single-use, so every cursor scan needs a fresh one.
-    const page = await createBaseQuery(ctx, userId, options)
-      .order(sort === "oldest" ? "asc" : "desc")
-      .paginate({
-        cursor: pageCursor,
-        numItems: pageSize,
-      });
-    let filteredIndex = 0;
+  for (const card of page.page as Doc<"cards">[]) {
+    if (!matchesStructuredFilters(card, options)) {
+      continue;
+    }
 
-    for (const card of page.page as Doc<"cards">[]) {
-      if (!matchesStructuredFilters(card, options)) {
-        continue;
-      }
-
-      if (filteredIndex < pageOffset) {
-        filteredIndex += 1;
-        continue;
-      }
-
-      if (matches.length === limit) {
-        hasMore = true;
-        nextCursor = encodeCursor({
-          mode: "index",
-          cursor: pageCursor,
-          pageOffset: filteredIndex,
-        });
-        break;
-      }
-
-      matches.push(card);
+    if (filteredIndex < pageOffset) {
       filteredIndex += 1;
+      continue;
     }
 
-    if (hasMore || page.isDone || !page.continueCursor) {
-      break;
-    }
-
-    cursor = page.continueCursor;
-    pageOffset = 0;
+    filteredIndex += 1;
+    matches.push(card);
+    itemCursors.push(
+      encodeCursor({
+        mode: "index",
+        cursor: pageCursor,
+        pageOffset: filteredIndex,
+      })
+    );
   }
 
-  return { pageItems: matches, hasMore, nextCursor };
+  return {
+    itemCursors,
+    matches,
+    nextCursor:
+      page.isDone || !page.continueCursor
+        ? null
+        : encodeCursor({
+            mode: "index",
+            cursor: page.continueCursor,
+            pageOffset: 0,
+          }),
+    scannedRows: page.page.length,
+  };
 };
 
 const normalizeCardsQueryOptions = (args: {
@@ -488,7 +488,7 @@ const normalizeCardsQueryOptions = (args: {
   return normalized;
 };
 
-export const listCardsPageForUser = internalQuery({
+export const searchCardsPageForUser = internalQuery({
   args: {
     userId: v.string(),
     cursor: v.optional(v.string()),
@@ -523,7 +523,7 @@ export const listCardsPageForUser = internalQuery({
       nextCursor = hasMore
         ? encodeCursor({ mode: "offset", offset: offset + limit })
         : null;
-    } else if (options.tag) {
+    } else {
       const offset = decodedCursor.mode === "offset" ? decodedCursor.offset : 0;
       const sorted = await searchCardsByTag(ctx, args.userId, options, offset);
       pageItems = sorted.slice(offset, offset + limit);
@@ -531,16 +531,6 @@ export const listCardsPageForUser = internalQuery({
       nextCursor = hasMore
         ? encodeCursor({ mode: "offset", offset: offset + limit })
         : null;
-    } else {
-      const page = await listCardsWithBaseQuery(
-        ctx,
-        args.userId,
-        options,
-        decodedCursor
-      );
-      pageItems = page.pageItems;
-      hasMore = page.hasMore;
-      nextCursor = page.nextCursor;
     }
 
     const cardsWithUrls = await attachFileUrls(ctx, pageItems);
@@ -550,6 +540,39 @@ export const listCardsPageForUser = internalQuery({
         nextCursor,
         hasMore,
       },
+    };
+  },
+});
+
+export const scanCardsPageForUser = internalQuery({
+  args: {
+    userId: v.string(),
+    cursor: v.optional(v.string()),
+    type: v.optional(cardTypeValidator),
+    favorited: v.optional(v.boolean()),
+    createdAfter: v.optional(v.number()),
+    createdBefore: v.optional(v.number()),
+    sort: v.optional(apiCardSortValidator),
+    scanLimit: v.number(),
+  },
+  returns: scannedCardsResultValidator,
+  handler: async (ctx, args) => {
+    const options = normalizeCardsQueryOptions(args);
+    const scanLimit = normalizeLimit(args.scanLimit);
+    const page = await scanCardsWithBaseQuery(
+      ctx,
+      args.userId,
+      options,
+      decodeCursor(args.cursor),
+      scanLimit
+    );
+    const cardsWithUrls = await attachFileUrls(ctx, page.matches);
+
+    return {
+      itemCursors: page.itemCursors,
+      items: applyQuoteFormattingToList(cardsWithUrls),
+      nextCursor: page.nextCursor,
+      scannedRows: page.scannedRows,
     };
   },
 });

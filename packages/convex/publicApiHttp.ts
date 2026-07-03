@@ -8,6 +8,7 @@ import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
+const MAX_QUERY_SCAN = 400;
 const MAX_BULK_ITEMS = 100;
 const APP_PROD_URL = "https://app.teakvault.com";
 const APP_DEV_URL = resolveTeakDevAppUrl(process.env);
@@ -950,21 +951,100 @@ const handleCardsListRequest = async (
   }
 
   try {
-    const cardsPage = await ctx.runQuery(
-      (internal as any).publicApi.listCardsPageForUser,
-      {
-        createdAfter: options.createdAfter,
-        createdBefore: options.createdBefore,
-        cursor: options.cursor,
-        favorited: options.favoritesOnly ? true : undefined,
-        limit: options.limit,
-        searchQuery: options.searchQuery,
-        sort: options.sort,
-        tag: options.tag,
-        type: options.type,
-        userId: auth.validated.userId,
+    const queryArgs = {
+      createdAfter: options.createdAfter,
+      createdBefore: options.createdBefore,
+      cursor: options.cursor,
+      favorited: options.favoritesOnly ? true : undefined,
+      sort: options.sort,
+      type: options.type,
+      userId: auth.validated.userId,
+    };
+    let cardsPage: {
+      items: any[];
+      pageInfo: { hasMore: boolean; nextCursor: string | null };
+    };
+
+    if (options.searchQuery || options.tag) {
+      cardsPage = await ctx.runQuery(
+        (internal as any).publicApi.searchCardsPageForUser,
+        {
+          ...queryArgs,
+          limit: options.limit,
+          searchQuery: options.searchQuery,
+          tag: options.tag,
+        }
+      );
+    } else {
+      const items: any[] = [];
+      let cursor = options.cursor;
+      let nextCursor: string | null = null;
+      let scannedRows = 0;
+      let hasMore = false;
+
+      while (scannedRows < MAX_QUERY_SCAN) {
+        const scanLimit = Math.min(MAX_LIMIT, MAX_QUERY_SCAN - scannedRows);
+        const scanPage = await ctx.runQuery(
+          (internal as any).publicApi.scanCardsPageForUser,
+          {
+            ...queryArgs,
+            cursor,
+            scanLimit,
+          }
+        );
+        const rowsRead = Math.max(
+          0,
+          Math.min(scanLimit, Number(scanPage.scannedRows) || 0)
+        );
+        scannedRows += rowsRead;
+
+        for (const [index, card] of scanPage.items.entries()) {
+          if (items.length === options.limit) {
+            hasMore = true;
+            break;
+          }
+
+          items.push(card);
+          nextCursor = scanPage.itemCursors[index] ?? null;
+        }
+
+        if (hasMore) {
+          break;
+        }
+
+        cursor = scanPage.nextCursor ?? undefined;
+        if (!cursor) {
+          nextCursor = null;
+          break;
+        }
+
+        if (items.length === options.limit) {
+          // Every matching card in this physical page was consumed, so the
+          // public cursor can advance past its remaining non-matching rows.
+          nextCursor = cursor;
+        }
+
+        if (rowsRead === 0) {
+          // A non-advancing split should never spin the HTTP action forever.
+          hasMore = true;
+          nextCursor = cursor;
+          break;
+        }
       }
-    );
+
+      if (!hasMore && scannedRows >= MAX_QUERY_SCAN && cursor) {
+        hasMore = true;
+        nextCursor = cursor;
+      }
+
+      cardsPage = {
+        items,
+        pageInfo: {
+          hasMore,
+          nextCursor: hasMore ? nextCursor : null,
+        },
+      };
+    }
 
     return json(200, {
       items: cardsPage.items.map((card: any) =>

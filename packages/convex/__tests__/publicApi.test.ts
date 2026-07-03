@@ -32,27 +32,35 @@ const buildBaseCard = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const buildSingleUsePaginationContext = (
-  pagesByCursor: Record<string, unknown>
-) => {
+const buildSinglePaginateContext = (page: unknown) => {
   const requestedCursors: Array<string | null> = [];
+  let invocationPaginateCalls = 0;
   const query = mock(() => {
-    let chained = false;
     const baseQuery = {
-      order: mock(() => {
-        if (chained) {
-          throw new Error(
-            "A query can only be chained once and can't be chained after iteration begins."
-          );
-        }
-        chained = true;
-        return {
-          paginate: mock(({ cursor }: { cursor: string | null }) => {
+      order: mock(() => ({
+        paginate: mock(
+          ({
+            cursor,
+            maximumRowsRead,
+            numItems,
+          }: {
+            cursor: string | null;
+            maximumRowsRead: number;
+            numItems: number;
+          }) => {
+            invocationPaginateCalls += 1;
+            if (invocationPaginateCalls > 1) {
+              throw new Error(
+                "This query or mutation function ran multiple paginated queries."
+              );
+            }
             requestedCursors.push(cursor);
-            return Promise.resolve(pagesByCursor[cursor ?? "start"]);
-          }),
-        };
-      }),
+            expect(maximumRowsRead).toBe(100);
+            expect(numItems).toBe(100);
+            return Promise.resolve(page);
+          }
+        ),
+      })),
     };
 
     return {
@@ -61,7 +69,11 @@ const buildSingleUsePaginationContext = (
   });
 
   return {
+    beginInvocation: () => {
+      invocationPaginateCalls = 0;
+    },
     ctx: { db: { query } } as any,
+    getInvocationPaginateCalls: () => invocationPaginateCalls,
     query,
     requestedCursors,
   };
@@ -69,142 +81,125 @@ const buildSingleUsePaginationContext = (
 
 describe("publicApi", () => {
   let executeBulkCardsForUser: any;
-  let listCardsPageForUser: any;
+  let scanCardsPageForUser: any;
 
   beforeEach(async () => {
     const module = await import("../publicApi");
     executeBulkCardsForUser = module.executeBulkCardsForUser;
-    listCardsPageForUser = module.listCardsPageForUser;
+    scanCardsPageForUser = module.scanCardsPageForUser;
   });
 
-  test("listCardsPageForUser uses fresh queries and resumes within a page", async () => {
-    const { ctx, query, requestedCursors } = buildSingleUsePaginationContext({
-      start: {
-        continueCursor: "cursor-1",
-        isDone: false,
-        page: [
-          buildBaseCard({ _id: "card_skip", createdAt: 0, updatedAt: 0 }),
-          buildBaseCard({
-            _id: "card_1",
-            createdAt: 1,
-            isFavorited: true,
-            updatedAt: 1,
-          }),
-        ],
-      },
-      "cursor-1": {
-        continueCursor: "cursor-2",
-        isDone: false,
-        page: [
-          buildBaseCard({
-            _id: "card_2",
-            createdAt: 2,
-            isFavorited: true,
-            updatedAt: 2,
-          }),
-          buildBaseCard({
-            _id: "card_3",
-            createdAt: 3,
-            isFavorited: true,
-            updatedAt: 3,
-          }),
-        ],
-      },
-      "cursor-2": {
-        continueCursor: null,
-        isDone: true,
-        page: [],
-      },
+  test("scanCardsPageForUser performs one paginate and resumes within that page", async () => {
+    const pagination = buildSinglePaginateContext({
+      continueCursor: "cursor-1",
+      isDone: false,
+      page: [
+        buildBaseCard({ _id: "card_skip", createdAt: 0, updatedAt: 0 }),
+        buildBaseCard({
+          _id: "card_1",
+          createdAt: 1,
+          isFavorited: true,
+          updatedAt: 1,
+        }),
+        buildBaseCard({
+          _id: "card_2",
+          createdAt: 2,
+          isFavorited: true,
+          updatedAt: 2,
+        }),
+      ],
     });
     const handler =
-      (listCardsPageForUser as any).handler ?? listCardsPageForUser;
+      (scanCardsPageForUser as any).handler ?? scanCardsPageForUser;
 
-    const firstPage = await handler(ctx, {
+    pagination.beginInvocation();
+    const firstScan = await handler(pagination.ctx, {
       createdAfter: 0,
       favorited: true,
-      limit: 2,
+      scanLimit: 100,
       userId: "user_1",
     });
 
-    expect(firstPage.items.map((card: any) => card._id)).toEqual([
+    expect(firstScan.items.map((card: any) => card._id)).toEqual([
       "card_1",
       "card_2",
     ]);
-    expect(firstPage.pageInfo.hasMore).toBe(true);
-    expect(query).toHaveBeenCalledTimes(2);
-    expect(requestedCursors).toEqual([null, "cursor-1"]);
+    expect(firstScan.itemCursors).toHaveLength(2);
+    expect(firstScan.nextCursor).not.toBeNull();
+    expect(firstScan.scannedRows).toBe(3);
+    expect(pagination.getInvocationPaginateCalls()).toBe(1);
 
-    const secondResult = await handler(ctx, {
+    pagination.beginInvocation();
+    const resumedScan = await handler(pagination.ctx, {
       createdAfter: 0,
-      cursor: firstPage.pageInfo.nextCursor,
+      cursor: firstScan.itemCursors[0],
       favorited: true,
-      limit: 2,
+      scanLimit: 100,
       userId: "user_1",
     });
 
-    expect(secondResult.items.map((card: any) => card._id)).toEqual(["card_3"]);
-    expect(secondResult.pageInfo.hasMore).toBe(false);
-    expect(secondResult.pageInfo.nextCursor).toBeNull();
-    expect(query).toHaveBeenCalledTimes(4);
-    expect(requestedCursors).toEqual([
-      null,
-      "cursor-1",
-      "cursor-1",
-      "cursor-2",
-    ]);
+    expect(resumedScan.items.map((card: any) => card._id)).toEqual(["card_2"]);
+    expect(pagination.getInvocationPaginateCalls()).toBe(1);
+    expect(pagination.query).toHaveBeenCalledTimes(2);
+    expect(pagination.requestedCursors).toEqual([null, null]);
   });
 
-  test("listCardsPageForUser reports hasMore when a page fills exactly to the limit", async () => {
+  test("scanCardsPageForUser advances to the next physical page", async () => {
+    const requestedCursors: Array<string | null> = [];
+    let invocationPaginateCalls = 0;
     const pagesByCursor: Record<string, any> = {
       start: {
         continueCursor: "cursor-1",
         isDone: false,
-        page: [
-          buildBaseCard({ _id: "card_1", createdAt: 1, updatedAt: 1 }),
-          buildBaseCard({ _id: "card_2", createdAt: 2, updatedAt: 2 }),
-        ],
+        page: [buildBaseCard({ _id: "card_1" })],
       },
       "cursor-1": {
-        continueCursor: null,
+        continueCursor: "",
         isDone: true,
-        page: [buildBaseCard({ _id: "card_3", createdAt: 3, updatedAt: 3 })],
+        page: [buildBaseCard({ _id: "card_2" })],
       },
-    };
-    const paginate = mock(({ cursor }: { cursor: string | null }) =>
-      Promise.resolve(pagesByCursor[cursor ?? "start"])
-    );
-    const baseQuery = {
-      order: mock().mockReturnValue({ paginate }),
-    };
-    const query = {
-      withIndex: mock().mockReturnValue(baseQuery),
     };
     const ctx = {
       db: {
-        query: mock().mockReturnValue(query),
+        query: mock(() => ({
+          withIndex: mock().mockReturnValue({
+            order: mock().mockReturnValue({
+              paginate: mock(({ cursor }: { cursor: string | null }) => {
+                invocationPaginateCalls += 1;
+                if (invocationPaginateCalls > 1) {
+                  throw new Error(
+                    "This query or mutation function ran multiple paginated queries."
+                  );
+                }
+                requestedCursors.push(cursor);
+                return Promise.resolve(pagesByCursor[cursor ?? "start"]);
+              }),
+            }),
+          }),
+        })),
       },
     } as any;
     const handler =
-      (listCardsPageForUser as any).handler ?? listCardsPageForUser;
+      (scanCardsPageForUser as any).handler ?? scanCardsPageForUser;
 
-    const firstPage = await handler(ctx, { limit: 2, userId: "user_1" });
+    invocationPaginateCalls = 0;
+    const firstScan = await handler(ctx, {
+      scanLimit: 100,
+      userId: "user_1",
+    });
+    expect(invocationPaginateCalls).toBe(1);
 
-    expect(firstPage.items.map((card: any) => card._id)).toEqual([
-      "card_1",
-      "card_2",
-    ]);
-    expect(firstPage.pageInfo.hasMore).toBe(true);
-    expect(firstPage.pageInfo.nextCursor).not.toBeNull();
-
-    const secondResult = await handler(ctx, {
-      cursor: firstPage.pageInfo.nextCursor,
-      limit: 2,
+    invocationPaginateCalls = 0;
+    const secondScan = await handler(ctx, {
+      cursor: firstScan.nextCursor,
+      scanLimit: 100,
       userId: "user_1",
     });
 
-    expect(secondResult.items.map((card: any) => card._id)).toEqual(["card_3"]);
-    expect(secondResult.pageInfo.hasMore).toBe(false);
-    expect(secondResult.pageInfo.nextCursor).toBeNull();
+    expect(secondScan.items.map((card: any) => card._id)).toEqual(["card_2"]);
+    expect(secondScan.nextCursor).toBeNull();
+    expect(invocationPaginateCalls).toBe(1);
+    expect(requestedCursors).toEqual([null, "cursor-1"]);
   });
 
   test("executeBulkCardsForUser rejects batches over the item limit", async () => {
