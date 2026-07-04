@@ -3,6 +3,7 @@
 import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
+import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { Dialog, DialogContent } from "@teak/ui/components/ui/dialog";
 import { getPolarPlanIds } from "@teak/ui/constants/billing";
 import { TOAST_IDS } from "@teak/ui/constants/toast";
@@ -58,10 +59,11 @@ export default function ProfileSettingsPage() {
       }
     },
     onOpenExternal: (url) => {
-      const openedWindow = window.open(url, "_blank", "noopener,noreferrer");
-      if (!openedWindow) {
-        throw new Error("Could not open portal");
+      const safeUrl = sanitizeExternalUrl(url);
+      if (!safeUrl) {
+        throw new Error("Invalid portal URL");
       }
+      window.location.assign(safeUrl);
     },
     onDownloadFile: (url) => {
       // Use an anchor click rather than window.open: the artifact is served

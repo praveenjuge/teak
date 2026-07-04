@@ -23,11 +23,7 @@ export async function openCustomerPortal({
     return;
   }
 
-  const portalWindow = openWindow?.(portalUrl, "_blank", "noopener,noreferrer");
-
-  if (!portalWindow) {
-    throw new Error("Could not open portal");
-  }
+  openWindow?.(portalUrl, "_blank", "noopener,noreferrer");
 }
 
 export type { OpenCustomerPortalOptions, PortalWindowLike };

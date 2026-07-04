@@ -26,16 +26,20 @@ describe("openCustomerPortal", () => {
     );
   });
 
-  test("throws when popup is blocked", async () => {
+  test("does not treat a null noopener return as a portal failure", async () => {
     const createCustomerPortal = mock(async () => "https://portal.example.com");
     const openWindow = mock(() => null);
 
-    await expect(
-      openCustomerPortal({
-        createCustomerPortal,
-        openWindow,
-      })
-    ).rejects.toThrow("Could not open portal");
+    await openCustomerPortal({
+      createCustomerPortal,
+      openWindow,
+    });
+
+    expect(openWindow).toHaveBeenCalledWith(
+      "https://portal.example.com",
+      "_blank",
+      "noopener,noreferrer"
+    );
   });
 
   test("can delegate platform-specific opening", async () => {

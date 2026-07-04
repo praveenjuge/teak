@@ -5,9 +5,15 @@
 import * as Sentry from "@sentry/nextjs";
 import { configureMetrics } from "@teak/convex/shared/metrics";
 import { configureFileUploadErrorCapture } from "@teak/ui/hooks";
+import {
+  filterClientSentryEvent,
+  resolveSentryEnvironment,
+} from "./lib/sentry-config";
 
 Sentry.init({
   dsn: "https://9206eebecdbbbd9229ddc419b82165c7@o4509483678236672.ingest.us.sentry.io/4510434608480256",
+  environment: resolveSentryEnvironment(),
+  beforeSend: filterClientSentryEvent,
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 1,
