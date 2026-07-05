@@ -15,6 +15,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   tag-version:
@@ -57,13 +58,28 @@ jobs:
           NODE
 
       - name: Create version tag
+        id: tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ steps.version.outputs.tag }}
         run: |
           if git rev-parse "$TAG_NAME" >/dev/null 2>&1 || gh release view "$TAG_NAME" >/dev/null 2>&1; then
             echo "$TAG_NAME already exists."
+            echo "created=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git tag "$TAG_NAME"
           git push origin "$TAG_NAME"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch release workflows
+        if: steps.tag.outputs.created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh workflow run cli-release.yml --ref "$TAG_NAME"
+          gh workflow run desktop-release.yml --ref "$TAG_NAME"
+          gh workflow run extension-release.yml --ref "$TAG_NAME"
+          gh workflow run safari-extension-release.yml --ref "$TAG_NAME" -f "version=${VERSION}"
