@@ -14,6 +14,11 @@ import {
   tagsV1,
 } from "../publicApiHttp";
 
+process.env.R2_ACCESS_KEY_ID = "test-r2-access-key";
+process.env.R2_BUCKET = "test-r2-bucket";
+process.env.R2_ENDPOINT = "https://test-account.r2.cloudflarestorage.com";
+process.env.R2_SECRET_ACCESS_KEY = "test-r2-secret";
+
 const runHandler = (fn: any, ctx: any, request: Request) => {
   const handler = (fn as any).handler ?? fn;
   return handler(ctx, request);
@@ -304,10 +309,15 @@ describe("publicApiHttp", () => {
         cardId: "card_file",
         status: "created",
       });
+    const runAction = mock().mockResolvedValueOnce(null);
+    const runQuery = mock().mockResolvedValueOnce({
+      contentType: "image/png",
+      size: 123,
+    });
 
     const response = await runHandler(
       createCardV1,
-      { runMutation, runQuery: mock() },
+      { runAction, runMutation, runQuery },
       new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
@@ -330,15 +340,93 @@ describe("publicApiHttp", () => {
       cardId: "card_file",
       status: "created",
     });
+    expect(runAction.mock.calls[0][1]).toMatchObject({
+      bucket: "test-r2-bucket",
+      key: "users/user_1/file/image.png",
+    });
+    expect(runQuery.mock.calls[0][1]).toMatchObject({
+      bucket: "test-r2-bucket",
+      key: "users/user_1/file/image.png",
+    });
     expect(runMutation.mock.calls[3][1]).toMatchObject({
       cardType: "image",
       fileKey: "users/user_1/file/image.png",
       fileName: "image.png",
       fileSize: 123,
       mimeType: "image/png",
+      storedFileSize: 123,
+      storedMimeType: "image/png",
       tags: ["reference"],
       userId: "user_1",
     });
+  });
+
+  test("createCardV1 rejects fileKey uploads when the object is missing", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runAction = mock().mockRejectedValueOnce(new Error("not found"));
+
+    const response = await runHandler(
+      createCardV1,
+      { runAction, runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cardType: "image",
+          fileKey: "users/user_1/file/missing.png",
+          fileName: "missing.png",
+          fileSize: 123,
+          mimeType: "image/png",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "INVALID_INPUT",
+      error: "Uploaded file was not found",
+    });
+    expect(runMutation).toHaveBeenCalledTimes(3);
+  });
+
+  test("createCardV1 rejects fileKey uploads when stored metadata differs", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runAction = mock().mockResolvedValueOnce(null);
+    const runQuery = mock().mockResolvedValueOnce({
+      contentType: "image/png",
+      size: 456,
+    });
+
+    const response = await runHandler(
+      createCardV1,
+      { runAction, runMutation, runQuery },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cardType: "image",
+          fileKey: "users/user_1/file/image.png",
+          fileName: "image.png",
+          fileSize: 123,
+          mimeType: "image/png",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "INVALID_INPUT",
+      error: "Uploaded file size does not match the stored object",
+    });
+    expect(runMutation).toHaveBeenCalledTimes(3);
   });
 
   test("cardByIdV1 validates the API key for the favorite route", async () => {

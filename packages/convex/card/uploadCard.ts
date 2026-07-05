@@ -131,6 +131,8 @@ export const createUploadedCardForUser = async (
     fileName: string;
     fileSize?: number;
     fileType?: string;
+    storedFileSize?: number;
+    storedFileType?: string;
     notes?: string | null;
     tags?: string[];
     userId: string;
@@ -148,7 +150,28 @@ export const createUploadedCardForUser = async (
     });
   }
 
-  if (!mimeMatchesCardType(args.fileType, args.cardType)) {
+  const fileType = args.fileType?.trim().toLowerCase();
+  const storedFileType = args.storedFileType?.trim().toLowerCase();
+
+  if (storedFileType && fileType && fileType !== storedFileType) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Uploaded file type does not match the stored object",
+    });
+  }
+
+  if (
+    args.storedFileSize !== undefined &&
+    args.fileSize !== undefined &&
+    args.fileSize !== args.storedFileSize
+  ) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Uploaded file size does not match the stored object",
+    });
+  }
+
+  if (!mimeMatchesCardType(storedFileType ?? fileType, args.cardType)) {
     throw new ConvexError({
       code: "TYPE_MISMATCH",
       message: `Uploaded file does not match expected ${args.cardType} type`,
@@ -159,8 +182,8 @@ export const createUploadedCardForUser = async (
   const additionalMeta = args.additionalMetadata || {};
   const fileMetadataObj = {
     fileName: args.fileName,
-    fileSize: args.fileSize,
-    mimeType: args.fileType,
+    fileSize: args.storedFileSize ?? args.fileSize,
+    mimeType: storedFileType ?? fileType,
     ...(additionalMeta.recordingTimestamp && {
       recordingTimestamp: additionalMeta.recordingTimestamp,
     }),

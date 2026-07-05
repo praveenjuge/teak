@@ -1,10 +1,11 @@
 import { ConvexError } from "convex/values";
-import { internal } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
 import { isWellFormedOAuthToken } from "./oauthTokens";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
+import { r2ComponentConfig } from "./storage/r2";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -852,6 +853,69 @@ const buildCreateCardResponse = (
   };
 };
 
+const verifyUploadedFile = async (
+  ctx: any,
+  payload: CreateCardPayload
+): Promise<{ storedFileSize: number; storedMimeType?: string }> => {
+  if (!payload.fileKey) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "fileKey is required",
+    });
+  }
+
+  const config = r2ComponentConfig();
+  try {
+    await ctx.runAction(components.r2.lib.syncMetadata, {
+      key: payload.fileKey,
+      ...config,
+    });
+  } catch {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Uploaded file was not found",
+    });
+  }
+
+  const metadata = await ctx.runQuery(components.r2.lib.getMetadata, {
+    key: payload.fileKey,
+    ...config,
+  });
+
+  if (!metadata || typeof metadata.size !== "number") {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Uploaded file metadata is unavailable",
+    });
+  }
+
+  const storedMimeType =
+    typeof metadata.contentType === "string"
+      ? metadata.contentType.trim().toLowerCase()
+      : undefined;
+  const requestedMimeType = payload.mimeType?.trim().toLowerCase();
+
+  if (payload.fileSize !== undefined && payload.fileSize !== metadata.size) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Uploaded file size does not match the stored object",
+    });
+  }
+
+  if (
+    requestedMimeType &&
+    storedMimeType &&
+    requestedMimeType !== storedMimeType
+  ) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Uploaded file type does not match the stored object",
+    });
+  }
+
+  return { storedFileSize: metadata.size, storedMimeType };
+};
+
 const handleCreateCardRequest = async (
   ctx: any,
   request: Request
@@ -896,7 +960,10 @@ const handleCreateCardRequest = async (
     }
     idempotencyState = idempotency;
 
-    const result = createPayload.fileKey
+    const uploadMetadata = createPayload.fileKey
+      ? await verifyUploadedFile(ctx, createPayload)
+      : null;
+    const result = uploadMetadata
       ? await ctx.runMutation(
           (internal as any).publicApiUploads.finalizeUploadedCardForUser,
           {
@@ -908,6 +975,8 @@ const handleCreateCardRequest = async (
             mimeType: createPayload.mimeType,
             notes:
               createPayload.notes === null ? undefined : createPayload.notes,
+            storedFileSize: uploadMetadata.storedFileSize,
+            storedMimeType: uploadMetadata.storedMimeType,
             tags: createPayload.tags,
             userId: auth.validated.userId,
           }

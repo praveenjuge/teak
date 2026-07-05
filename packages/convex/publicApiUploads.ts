@@ -87,6 +87,8 @@ export const finalizeUploadedCardForUser = internalMutation({
     fileSize: v.optional(v.number()),
     mimeType: v.optional(v.string()),
     notes: v.optional(v.union(v.string(), v.null())),
+    storedFileSize: v.number(),
+    storedMimeType: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
     userId: v.string(),
   },
@@ -103,6 +105,8 @@ export const finalizeUploadedCardForUser = internalMutation({
       fileSize: args.fileSize,
       fileType: args.mimeType,
       notes: args.notes,
+      storedFileSize: args.storedFileSize,
+      storedFileType: args.storedMimeType,
       tags: args.tags,
       userId: args.userId,
     });

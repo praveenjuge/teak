@@ -41,7 +41,7 @@ export const buildR2ObjectKey = ({
 export const getR2Url = async (key: string) =>
   r2.getUrl(key, { expiresIn: SIGNED_URL_EXPIRES_IN_SECONDS });
 
-const r2ComponentConfig = () => {
+export const r2ComponentConfig = () => {
   const { R2_BUCKET, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } =
     process.env;
   if (!(R2_BUCKET && R2_ENDPOINT && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY)) {
