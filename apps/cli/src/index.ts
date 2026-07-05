@@ -6,7 +6,7 @@ import {
   isCardType,
   parseTags,
   TeakApiError,
-} from "@teak/sdk";
+} from "@teak/convex/sdk";
 import { Command, InvalidArgumentError } from "commander";
 import { addCard, readStdin } from "./files";
 import { formatCardLine, formatDetail } from "./format";

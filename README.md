@@ -33,7 +33,6 @@ Save inspiration in one click and find it in two seconds — no more lost bookma
 teak/
 ├── apps/
 │   ├── web/        # Next.js app
-│   ├── api/        # Hono API gateway + MCP
 │   ├── mobile/     # Expo app
 │   ├── desktop/    # Electron desktop app
 │   ├── extension/  # Browser extension (Wxt)
@@ -44,8 +43,7 @@ teak/
 ├── .agents/
 │   └── skills/     # Agent Skills published through skills.sh-compatible repos
 ├── packages/
-│   ├── convex/     # Convex backend
-│   ├── sdk/        # Shared API client
+│   ├── convex/     # Convex backend, public API, MCP, and SDK
 │   └── ui/         # Shared UI package
 ├── turbo.json      # Turborepo pipeline config
 └── package.json

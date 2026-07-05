@@ -1,13 +1,8 @@
-export const CARD_TYPES = [
-  "text",
-  "link",
-  "image",
-  "video",
-  "audio",
-  "document",
-  "palette",
-  "quote",
-] as const;
+import { cardTypes, type CardType } from "../shared/constants";
+
+export type { CardType } from "../shared/constants";
+
+export const CARD_TYPES = cardTypes;
 export const CARD_SORTS = ["newest", "oldest"] as const;
 export const ERROR_CODES = [
   "AUTH_REQUIRED",
@@ -27,7 +22,6 @@ export const ERROR_CODES = [
   "UNAUTHORIZED",
 ] as const;
 
-export type CardType = (typeof CARD_TYPES)[number];
 export type CardSort = (typeof CARD_SORTS)[number];
 export type TeakApiErrorCode = (typeof ERROR_CODES)[number];
 export type FetchLike = typeof fetch;

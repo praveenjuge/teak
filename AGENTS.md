@@ -15,7 +15,6 @@ bun run dev:all
 # Individual services
 bun run dev:web        # Next.js web + Convex
 bun run dev:convex     # Convex backend only
-bun run dev:api        # Hono API gateway
 bun run dev:mobile     # Expo mobile app
 bun run dev:desktop    # Electron desktop app
 bun run dev:extension  # Browser extension + Convex
@@ -57,7 +56,6 @@ bun add --dev <package-name> --filter @teak/convex
 teak/
 ├── apps/
 │   ├── web/         # Next.js frontend (app router, shadcn/ui)
-│   ├── api/         # Public API gateway (Hono + MCP)
 │   ├── mobile/      # Expo RN mobile app
 │   ├── desktop/     # Electron desktop app (React)
 │   ├── extension/   # Chrome extension (Wxt)
@@ -68,8 +66,7 @@ teak/
 ├── .agents/
 │   └── skills/      # Agent Skills exposed through skills.sh-compatible repos
 ├── packages/
-│   ├── convex/      # Convex backend (functions, workflows, schema, shared utils)
-│   ├── sdk/         # Shared public API client for CLI and integrations
+│   ├── convex/      # Convex backend, public API, MCP, SDK, functions, workflows, schema, shared utils
 │   └── ui/          # Shared UI package (components, hooks, screens, feedback)
 ├── turbo.json       # Turborepo pipeline config
 └── package.json     # Root package + workspaces
@@ -99,8 +96,7 @@ teak/
 - **Extension (apps/extension/)**: Wxt-based Chrome extension; `entrypoints/background.ts`, `entrypoints/content.ts`, `entrypoints/content/`, `entrypoints/popup/`; hooks (`useAutoSaveUrl`, `useContextMenuSave`, `useWebAppSession`); types (`contextMenu.ts`, `messages.ts`, `social.ts`); `utils/`, `lib/`, `scripts/`; `style.css`; assets in `public/`; `wxt.config.ts`; `package.json`; `tsconfig.json`.
 - **Safari Extension (apps/safari-extension/)**: Native macOS Safari Web Extension app for the Mac App Store. Keep Apple identifiers such as `com.praveenjuge.teak-safari`, the App Group, native messaging id, and keychain service stable unless intentionally creating a new App Store identity.
 - **Raycast (apps/raycast/)**: Raycast extension with commands (`quick-save`, `save-clipboard-url`, `save-current-browser-tab`, `search-cards`, `favorites`), AI tools (`search-cards`, `get-card`, `save-card`), API client helpers, and extension metadata/changelog.
-- **API (apps/api/)**: Hono-based API gateway with REST routes (`src/routes/rest.ts`) and MCP routes (`src/routes/mcp.ts`); uses `@hono/mcp` + `@modelcontextprotocol/sdk`; source in `src/index.ts` and runtime entrypoint `src/server.ts`.
-- **Backend (packages/convex/)**: directories `_generated/`, `workflows/`, `ai/`, `card/`, `client/`, `linkMetadata/`, `migrations/`, `packages/`, `shared/`, `storage/`, `types/`; key files `billing.ts`, `admin.ts`, `schema.ts`, `cards.ts`, `auth.config.ts`, `auth.ts`, `authDesktop.ts`, `http.ts`, `apiKeys.ts`, `publicApi.ts`, `raycast.ts`, `publicApiHttp.ts`, `idempotency.ts`, `crons.ts`, `convex.config.ts`, entrypoint `index.ts`; shared utils/constants/hooks under `shared/`.
+- **Backend/API/MCP/SDK (packages/convex/)**: directories `_generated/`, `workflows/`, `ai/`, `card/`, `client/`, `mcp/`, `linkMetadata/`, `migrations/`, `packages/`, `shared/`, `storage/`, `types/`; key files `billing.ts`, `admin.ts`, `schema.ts`, `cards.ts`, `auth.config.ts`, `auth.ts`, `authDesktop.ts`, `http.ts`, `apiKeys.ts`, `publicApi.ts`, `publicApiHttp.ts`, `publicApiMeta.ts`, `publicApiOpenApi.ts`, `raycast.ts`, `idempotency.ts`, `crons.ts`, `convex.config.ts`, `vercel.json`, entrypoint `index.ts`; shared utils/constants/hooks under `shared/`; SDK exports live at `@teak/convex/sdk`.
 - **UI (packages/ui/)**: shared UI component library consumed by web, desktop, and extension; `src/components/` (cards, card-modal, card-previews, forms, grids, modals, patterns, search, selection, settings, ui); `src/feedback/` (skeletons, loading, error states, global file drop overlay, empty state); `src/screens/`, `src/hooks/`, `src/icons/`, `src/constants/`; `convexQueryCache.ts`, `convexQueryHooks.ts`, `logo.tsx`, `styles.css`.
 - **Docs (apps/docs/)**: Astro + Starlight static site; `src/content/docs/docs/` for documentation MDX; `src/content/changelog/` for release notes; `src/components/` for Astro components; `src/layouts/` for page layouts; `src/assets/` for fonts and logos; `src/styles/starlight.css`; `src/lib/`; `astro.config.ts`; `package.json`.
 - **Repo**: Turborepo monorepo with workspaces in `apps/*` and `packages/*`; TypeScript paths point to `@teak/convex` aliases; turbo runs tasks with `--filter` for individual apps.
@@ -108,10 +104,10 @@ teak/
 
 ## Docs Synchronization Rules
 
-- Any API contract change in `apps/api` or `packages/convex/http.ts` must update `apps/docs/src/content/docs/docs/api.mdx` in the same PR.
-- Any MCP endpoint change in `apps/api/src/routes/mcp.ts` must update `apps/docs/src/content/docs/docs/mcp.mdx` in the same PR.
+- Any API contract change in `packages/convex/http.ts`, `packages/convex/publicApiHttp.ts`, `packages/convex/publicApiMeta.ts`, or `packages/convex/publicApiOpenApi.ts` must update `apps/docs/src/content/docs/docs/api.mdx` in the same PR.
+- Any MCP endpoint change in `packages/convex/mcp/` must update `apps/docs/src/content/docs/docs/mcp.mdx` in the same PR.
 - Any Raycast command/auth change in `apps/raycast` must update `apps/docs/src/content/docs/docs/raycast.mdx` in the same PR.
-- Any CLI command/auth/publish change in `apps/cli` or `packages/sdk` must update `apps/docs/src/content/docs/docs/cli.mdx` when user-facing behavior changes.
+- Any CLI command/auth/publish change in `apps/cli` or `packages/convex/client/sdk.ts` must update `apps/docs/src/content/docs/docs/cli.mdx` when user-facing behavior changes.
 - Any public Agent Skill change in `.agents/skills` must update `apps/docs/src/content/docs/docs/skills.mdx` and `apps/docs/src/pages/apps.astro` when install or capability details change.
 
 ## Git Commit Rules

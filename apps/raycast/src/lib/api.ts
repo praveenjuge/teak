@@ -1,4 +1,3 @@
-import { environment } from "@raycast/api";
 import {
   buildCardsSearchParams,
   DEFAULT_LIMIT,
@@ -80,30 +79,6 @@ const getErrorCodeFromResponse = (
   }
 
   return toErrorCode(payloadCode, "REQUEST_FAILED");
-};
-
-const isMissingDevApiGatewayResponse = (
-  response: Response,
-  payload: unknown,
-  requestUrl: string,
-): boolean => {
-  if (!environment.isDevelopment || response.status !== 404 || payload) {
-    return false;
-  }
-
-  let parsedUrl: URL;
-
-  try {
-    parsedUrl = new URL(requestUrl);
-  } catch {
-    return false;
-  }
-
-  return (
-    parsedUrl.hostname === "api.teak.localhost" &&
-    response.headers.get("x-portless") === "1" &&
-    !response.headers.get("content-type")?.includes("application/json")
-  );
 };
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
@@ -297,9 +272,7 @@ export const request = async <T>(
 
   const payload = await parseJson(response);
   const payloadCode = getPayloadCode(payload);
-  const code = isMissingDevApiGatewayResponse(response, payload, requestUrl)
-    ? "DEV_API_UNAVAILABLE"
-    : getErrorCodeFromResponse(payloadCode, response.status);
+  const code = getErrorCodeFromResponse(payloadCode, response.status);
 
   logApiRequestFailure({
     code,

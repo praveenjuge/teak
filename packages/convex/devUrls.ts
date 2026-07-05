@@ -1,5 +1,7 @@
 export const DEFAULT_TEAK_DEV_APP_URL = "http://app.teak.localhost:1355";
-export const DEFAULT_TEAK_DEV_API_URL = "http://api.teak.localhost:1355";
+export const DEFAULT_TEAK_DEV_CONVEX_SITE_URL =
+  "https://reminiscent-kangaroo-59.convex.site";
+export const DEFAULT_TEAK_DEV_API_URL = DEFAULT_TEAK_DEV_CONVEX_SITE_URL;
 export const DEFAULT_TEAK_DEV_DOCS_URL = "http://docs.teak.localhost:1355";
 
 export interface DevUrlEnv {

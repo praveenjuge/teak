@@ -41,7 +41,7 @@ const getErrorMessage = (code: RaycastApiErrorCode): string => {
     case "CONFIG_ERROR":
       return "Teak API is missing required configuration.";
     case "DEV_API_UNAVAILABLE":
-      return "Local Teak API gateway is not running.";
+      return "Local Teak API is not running.";
     case "NOT_FOUND":
       return "Teak could not find the requested resource.";
     case "INVALID_INPUT":
@@ -157,9 +157,9 @@ export const getRecoveryHint = (error: unknown): string | null => {
     case "NETWORK_ERROR":
       return "Check network connectivity, then retry.";
     case "CONFIG_ERROR":
-      return "For local development, set CONVEX_HTTP_BASE_URL in apps/api/.env and restart bun run dev:api.";
+      return "For local development, run bun run dev:convex or set TEAK_DEV_API_URL to your Convex .site URL.";
     case "DEV_API_UNAVAILABLE":
-      return "Run bun run dev:api from the Teak repo, or set TEAK_DEV_API_URL to a running API URL.";
+      return "Run bun run dev:convex from the Teak repo, or set TEAK_DEV_API_URL to a running Convex .site URL.";
     case "NOT_FOUND":
       return "Check your API key, API URL, and network connection, then retry.";
     default:
