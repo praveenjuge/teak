@@ -71,6 +71,7 @@ export default defineConfig({
             { label: "Mobile App (iOS)", slug: "docs/mobile" },
             { label: "Browser Extension", slug: "docs/extension" },
             { label: "Raycast Extension", slug: "docs/raycast" },
+            { label: "Command Line", slug: "docs/cli" },
           ],
         },
         {

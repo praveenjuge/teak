@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { pathToFileURL } from "node:url";
+import { readFileSync, realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   CARD_TYPES,
   type CardSort,
@@ -383,7 +383,7 @@ export const run = (argv = process.argv) => {
 
 if (
   process.argv[1] &&
-  import.meta.url === pathToFileURL(process.argv[1]).href
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
 ) {
   await run();
 }

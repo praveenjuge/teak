@@ -317,6 +317,14 @@ const asUpload = (value: unknown): CreateUploadResponse => {
   return value as unknown as CreateUploadResponse;
 };
 
+const withoutTrailingSlashes = (value: string) => {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) {
+    end -= 1;
+  }
+  return value.slice(0, end);
+};
+
 export const createTeakClient = (options: {
   baseUrl?: string;
   fetch?: FetchLike;
@@ -324,9 +332,8 @@ export const createTeakClient = (options: {
   tokenProvider: TokenProvider;
   userAgent?: string;
 }) => {
-  const baseUrl = (options.baseUrl || "https://api.teakvault.com").replace(
-    /\/+$/,
-    ""
+  const baseUrl = withoutTrailingSlashes(
+    options.baseUrl || "https://api.teakvault.com"
   );
   const fetchImpl = options.fetch ?? fetch;
   const timeoutMs = options.timeoutMs ?? 10_000;
@@ -334,9 +341,10 @@ export const createTeakClient = (options: {
     path: string,
     init: RequestInit,
     parser: (payload: unknown) => T,
-    retry = true
+    retry = true,
+    accessToken?: string
   ): Promise<T> => {
-    const token = await options.tokenProvider.getAccessToken();
+    const token = accessToken ?? (await options.tokenProvider.getAccessToken());
     if (!token) {
       throw new TeakApiError("AUTH_REQUIRED");
     }
@@ -371,7 +379,7 @@ export const createTeakClient = (options: {
     ) {
       const next = await options.tokenProvider.onUnauthorized();
       if (next) {
-        return request(path, init, parser, false);
+        return request(path, init, parser, false, next);
       }
     }
     const payload = await parseJson(response);

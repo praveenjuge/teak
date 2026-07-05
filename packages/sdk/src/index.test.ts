@@ -41,7 +41,7 @@ describe("@teak/sdk", () => {
       }) as typeof fetch,
     });
     await expect(client.tags.list()).resolves.toEqual({ items: [] });
-    expect(calls).toEqual(["Bearer old", "Bearer old"]);
+    expect(calls).toEqual(["Bearer old", "Bearer new"]);
   });
 
   test("maps request timeouts", async () => {

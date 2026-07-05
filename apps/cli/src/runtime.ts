@@ -127,15 +127,21 @@ export const clearCredentials = () => {
   }
 };
 
+const withoutTrailingSlashes = (value: string) => {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) {
+    end -= 1;
+  }
+  return value.slice(0, end);
+};
+
 const authBaseUrl = (options: ClientOptions) =>
-  (options.authUrl || process.env.TEAK_AUTH_URL || DEFAULT_AUTH_URL).replace(
-    /\/+$/,
-    ""
+  withoutTrailingSlashes(
+    options.authUrl || process.env.TEAK_AUTH_URL || DEFAULT_AUTH_URL
   );
 const apiBaseUrl = (options: ClientOptions) =>
-  (options.apiUrl || process.env.TEAK_API_URL || DEFAULT_API_URL).replace(
-    /\/+$/,
-    ""
+  withoutTrailingSlashes(
+    options.apiUrl || process.env.TEAK_API_URL || DEFAULT_API_URL
   );
 const tokenEndpoint = (options: ClientOptions) =>
   `${authBaseUrl(options)}/api/auth/mcp/token`;
