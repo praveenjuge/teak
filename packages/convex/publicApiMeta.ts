@@ -1,6 +1,7 @@
 import { httpAction } from "./_generated/server";
 import {
   isLocalDevelopmentHostname,
+  resolveTeakDevApiUrl,
   resolveTeakDevAppUrl,
 } from "./devUrls";
 
@@ -44,14 +45,6 @@ const normalizeBaseUrl = (raw: string): string => raw.replace(/\/+$/, "");
 const isLocalApiHost = (hostname: string): boolean =>
   isLocalDevelopmentHostname(hostname);
 
-const isConvexSiteHost = (hostname: string): boolean =>
-  hostname.endsWith(".convex.site");
-
-export const getMcpEndpointFromRequestUrl = (requestUrl: string): string => {
-  const incoming = new URL(requestUrl);
-  return `${incoming.origin}/mcp`;
-};
-
 const getPublicApiUrl = (requestUrl: string): string => {
   const fromEnv = process.env.PUBLIC_API_URL?.trim();
   if (fromEnv) {
@@ -59,10 +52,14 @@ const getPublicApiUrl = (requestUrl: string): string => {
   }
 
   const { hostname, origin } = new URL(requestUrl);
-  return isLocalApiHost(hostname) || isConvexSiteHost(hostname)
+  const devApiOrigin = resolveTeakDevApiUrl(process.env);
+  return isLocalApiHost(hostname) || origin === devApiOrigin
     ? origin
     : PROD_PUBLIC_API_URL;
 };
+
+export const getMcpEndpointFromRequestUrl = (requestUrl: string): string =>
+  `${getPublicApiUrl(requestUrl)}/mcp`;
 
 const getAuthIssuerUrl = (requestUrl: string): string => {
   const fromEnv =
@@ -130,23 +127,27 @@ export const healthzV1 = httpAction(async () =>
   )
 );
 
-export const discoveryV1 = httpAction(async (_ctx, request) => {
+export const discoveryV1 = httpAction((_ctx, request) => {
   if (request.method === "OPTIONS") {
-    return v1CorsPreflightResponse();
+    return Promise.resolve(v1CorsPreflightResponse());
   }
 
-  return withPublicApiGatewayHeaders(
-    json(200, {
-      version: API_VERSION,
-      endpoints: V1_ENDPOINTS,
-      auth: API_AUTH_HINT,
-      mcp: {
-        endpoint: getMcpEndpointFromRequestUrl(request.url),
-        transport: MCP_TRANSPORT,
+  return Promise.resolve(
+    withPublicApiGatewayHeaders(
+      json(200, {
+        version: API_VERSION,
+        endpoints: V1_ENDPOINTS,
         auth: API_AUTH_HINT,
-      },
-    })
+        mcp: {
+          endpoint: getMcpEndpointFromRequestUrl(request.url),
+          transport: MCP_TRANSPORT,
+          auth: API_AUTH_HINT,
+        },
+      })
+    )
   );
 });
 
-export const v1CorsPreflight = httpAction(async () => v1CorsPreflightResponse());
+export const v1CorsPreflight = httpAction(async () =>
+  v1CorsPreflightResponse()
+);

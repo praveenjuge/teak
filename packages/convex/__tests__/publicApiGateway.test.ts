@@ -51,6 +51,18 @@ describe("Convex public API metadata", () => {
     });
   });
 
+  test("keeps the public MCP URL behind the production Convex proxy", async () => {
+    const response = await runHandler(
+      discoveryV1,
+      {},
+      new Request("https://uncommon-ladybug-882.convex.site/v1")
+    );
+
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(payload.mcp.endpoint).toBe("https://api.teakvault.com/mcp");
+  });
+
   test("answers REST CORS preflight", async () => {
     const response = await runHandler(
       v1CorsPreflight,

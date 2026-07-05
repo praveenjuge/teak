@@ -45,6 +45,9 @@ Unauthenticated requests receive `401` with a `WWW-Authenticate` header pointing
 - Also supported: `/mcp/`
 - Server mode: stateless JSON response mode
 
+OAuth protected-resource discovery advertises the canonical production endpoint
+shown above, so MCP clients validate and connect to the same public resource.
+
 ## Available Tools
 
 - `teak_v1_create_card`

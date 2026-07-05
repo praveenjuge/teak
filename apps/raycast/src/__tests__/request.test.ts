@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { parseCardsResponse } from "../lib/apiParsers";
+import { createRaycastApiMock } from "./raycastApiMock";
 
 const getPreferenceValuesMock = mock(() => ({ apiKey: "valid-test-key" }));
 const authorizeMock = mock(() => Promise.resolve("oauth-access-token"));
@@ -7,14 +8,11 @@ const removeTokensMock = mock(() => Promise.resolve());
 const getTokensMock = mock(() => Promise.resolve(undefined));
 
 const mockRaycastApi = (isDevelopment: boolean) => {
-  mock.module("@raycast/api", () => ({
-    environment: { isDevelopment },
-    getPreferenceValues: getPreferenceValuesMock,
-    OAuth: {
-      PKCEClient: class {},
-      RedirectMethod: { App: "app", AppURI: "appURI", Web: "web" },
-    },
-  }));
+  mock.module("@raycast/api", () =>
+    createRaycastApiMock(isDevelopment, {
+      getPreferenceValues: getPreferenceValuesMock,
+    }),
+  );
 };
 
 // OAuthService is instantiated at module load of ../lib/oauth; provide a stub
@@ -75,12 +73,11 @@ const createCardsResponse = (
   });
 };
 
-const createEmptyResponse = (status: number): Response => {
-  return new Response(null, {
+const createEmptyResponse = (status: number): Response =>
+  new Response(null, {
     status,
     headers: { "Content-Type": "application/json" },
   });
-};
 
 const originalFetch = globalThis.fetch;
 const originalRequestTimeout = process.env.TEAK_API_REQUEST_TIMEOUT_MS;
@@ -170,13 +167,14 @@ describe("raycast request handling", () => {
   test("maps timed out requests to NETWORK_ERROR", async () => {
     process.env.TEAK_API_REQUEST_TIMEOUT_MS = "5";
 
-    globalThis.fetch = mock((_input: RequestInfo | URL, init?: RequestInit) => {
-      return new Promise((_, reject) => {
-        init?.signal?.addEventListener("abort", () => {
-          reject(new Error("Request aborted"));
-        });
-      });
-    }) as unknown as typeof fetch;
+    globalThis.fetch = mock(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise((_, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new Error("Request aborted"));
+          });
+        }),
+    ) as unknown as typeof fetch;
 
     try {
       await searchCards({ limit: 1 });

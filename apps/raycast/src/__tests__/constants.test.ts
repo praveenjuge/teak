@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
+import { createRaycastApiMock } from "./raycastApiMock";
 
-mock.module("@raycast/api", () => ({
-  environment: { isDevelopment: true },
-}));
+mock.module("@raycast/api", () => createRaycastApiMock(true));
 
 const loadLocalConstants = () =>
   import(`../lib/constants?local=${crypto.randomUUID()}`);
@@ -45,9 +44,7 @@ describe("raycast OAuth token base URL", () => {
     restoreEnv("TEAK_DEV_CONVEX_SITE_URL", originalTokenEnv);
     restoreEnv("NEXT_PUBLIC_CONVEX_SITE_URL", originalSiteEnv);
     // Restore the file-level development mock for any following tests.
-    mock.module("@raycast/api", () => ({
-      environment: { isDevelopment: true },
-    }));
+    mock.module("@raycast/api", () => createRaycastApiMock(true));
   });
 
   test("ignores NEXT_PUBLIC_CONVEX_SITE_URL and uses the default deployment", async () => {
@@ -82,9 +79,7 @@ describe("raycast OAuth token base URL", () => {
   });
 
   test("uses the production app origin outside development", async () => {
-    mock.module("@raycast/api", () => ({
-      environment: { isDevelopment: false },
-    }));
+    mock.module("@raycast/api", () => createRaycastApiMock(false));
 
     const { getOAuthTokenBaseUrl } = await loadLocalConstants();
     expect(getOAuthTokenBaseUrl()).toBe("https://app.teakvault.com");

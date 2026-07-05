@@ -22,7 +22,7 @@
   "types": "./index.ts",
   "scripts": {
     "dev": "convex dev",
-    "test": "bun test __tests__ --coverage --dots",
+    "test": "GOOGLE_CLIENT_ID=test GOOGLE_CLIENT_SECRET=test SITE_URL=http://app.teak.localhost:1355 bun test __tests__ --coverage --dots",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

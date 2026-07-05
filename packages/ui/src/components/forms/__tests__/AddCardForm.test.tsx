@@ -96,6 +96,17 @@ mock.module("@teak/convex", () => ({
       getCurrentUser: {},
       getCardCreationStatus: {},
     },
+    dataImport: {
+      getImportFailureSamples: {},
+      getLatestImport: {},
+    },
+    importUpload: {
+      cancelImport: {},
+      completeImportUpload: {},
+      createImportUpload: {},
+      getImportReportUrl: {},
+      resumeImportUpload: {},
+    },
   },
 }));
 

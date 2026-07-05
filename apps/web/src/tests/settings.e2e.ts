@@ -50,7 +50,7 @@ test.describe("Settings Navigation and Management", () => {
 
       // Should be on home page
       await expect(page).toHaveURL("/");
-      await expect(page.getByPlaceholder(/Write or add a link/i)).toBeVisible();
+      await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
     });
   });
 
@@ -296,8 +296,8 @@ test.describe("Settings Navigation and Management", () => {
 
       // Should have delete account link/button
       const deleteLink = page
-        .getByRole("button", { name: /delete account/i })
-        .or(page.getByRole("link", { name: /delete account/i }));
+        .getByRole("button", { name: /delete your account/i })
+        .or(page.getByRole("link", { name: /delete your account/i }));
 
       await expect(deleteLink.first()).toBeVisible();
     });
@@ -307,7 +307,9 @@ test.describe("Settings Navigation and Management", () => {
       await uiHelper.goToSettings();
 
       // Click delete account
-      const deleteLink = page.getByRole("button", { name: /delete account/i });
+      const deleteLink = page.getByRole("button", {
+        name: /delete your account/i,
+      });
       await deleteLink.first().click();
 
       // Should show confirmation dialog
@@ -318,10 +320,7 @@ test.describe("Settings Navigation and Management", () => {
       await expect(page.getByLabel(/delete account/i)).toBeVisible();
 
       // Cancel for cleanup
-      const cancelButton = page.getByRole("button", { name: /cancel/i });
-      if ((await cancelButton.count()) > 0) {
-        await cancelButton.first().click();
-      }
+      await page.locator('[data-slot="dialog-close"]').click();
     });
 
     test("should require confirmation for account deletion", async ({
@@ -331,13 +330,15 @@ test.describe("Settings Navigation and Management", () => {
       await uiHelper.goToSettings();
 
       // Click delete account
-      const deleteLink = page.getByRole("button", { name: /delete account/i });
+      const deleteLink = page.getByRole("button", {
+        name: /delete your account/i,
+      });
       await deleteLink.first().click();
 
       // Try to delete without confirmation
       const deleteButton = page
-        .getByRole("button", { name: /delete account/i })
-        .or(page.locator("[data-delete-account-confirm]"));
+        .getByRole("dialog")
+        .getByRole("button", { name: /^delete account$/i });
 
       // Should be disabled without proper confirmation
       const isDisabled = await deleteButton
@@ -350,10 +351,7 @@ test.describe("Settings Navigation and Management", () => {
       }
 
       // Cancel for cleanup
-      const cancelButton = page.getByRole("button", { name: /cancel/i });
-      if ((await cancelButton.count()) > 0) {
-        await cancelButton.first().click();
-      }
+      await page.locator('[data-slot="dialog-close"]').click();
     });
   });
 
