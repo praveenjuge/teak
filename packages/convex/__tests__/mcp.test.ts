@@ -48,19 +48,22 @@ const mcpRequest = (
   });
 
 const initializeMcp = (ctx: any) =>
-  handleMcpV1Request(ctx, mcpRequest({
-    jsonrpc: "2.0",
-    id: 1,
-    method: "initialize",
-    params: {
-      protocolVersion: "2025-06-18",
-      capabilities: {},
-      clientInfo: {
-        name: "teak-convex-tests",
-        version: "1.0.0",
+  handleMcpV1Request(
+    ctx,
+    mcpRequest({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-06-18",
+        capabilities: {},
+        clientInfo: {
+          name: "teak-convex-tests",
+          version: "1.0.0",
+        },
       },
-    },
-  }));
+    })
+  );
 
 describe("Convex MCP endpoint", () => {
   test("returns 401 with OAuth protected-resource challenge for missing auth", async () => {
@@ -91,7 +94,9 @@ describe("Convex MCP endpoint", () => {
     process.env.SITE_URL = "https://app.teakvault.com";
 
     const response = await handleOauthProtectedResourceV1Request(
-      new Request("https://api.teakvault.com/.well-known/oauth-protected-resource")
+      new Request(
+        "https://api.teakvault.com/.well-known/oauth-protected-resource"
+      )
     );
 
     expect(response.status).toBe(200);
@@ -115,6 +120,19 @@ describe("Convex MCP endpoint", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       resource: "https://reminiscent-kangaroo-59.convex.site/mcp",
+    });
+  });
+
+  test("uses the public API origin for production Convex metadata", async () => {
+    const response = await handleOauthProtectedResourceV1Request(
+      new Request(
+        "https://uncommon-ladybug-882.convex.site/.well-known/oauth-protected-resource"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      resource: "https://api.teakvault.com/mcp",
     });
   });
 
@@ -233,7 +251,7 @@ describe("Convex MCP endpoint", () => {
       body?: unknown;
       query?: Record<string, unknown>;
     }> = [];
-    const executor = mock(async (operation: Parameters<PublicApiToolExecutor>[0]) => {
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
       captured.push({
         path: operation.path,
         method: operation.method,
@@ -243,12 +261,14 @@ describe("Convex MCP endpoint", () => {
       });
 
       if (operation.method === "DELETE") {
-        return new Response(null, { status: 204 });
+        return Promise.resolve(new Response(null, { status: 204 }));
       }
-      return new Response(JSON.stringify({ status: "created", cardId: "card_1" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return Promise.resolve(
+        new Response(JSON.stringify({ status: "created", cardId: "card_1" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      );
     }) as PublicApiToolExecutor;
     for (const toolCall of [
       {
@@ -306,13 +326,13 @@ describe("Convex MCP endpoint", () => {
       "teak_v1_delete_card",
       { cardId: "card_1" },
       mcpRequest({ jsonrpc: "2.0", id: 3, method: "tools/call" }),
-      mock(async () => new Response(null, { status: 204 })) as PublicApiToolExecutor
+      mock(
+        async () => new Response(null, { status: 204 })
+      ) as PublicApiToolExecutor
     );
 
     expect(result.isError).toBe(true);
-    expect(result.content?.[0]?.text.toLowerCase()).toContain(
-      "confirm"
-    );
+    expect(result.content?.[0]?.text.toLowerCase()).toContain("confirm");
   });
 
   test("maps v1 errors to MCP isError payloads", async () => {

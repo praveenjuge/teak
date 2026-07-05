@@ -1,15 +1,22 @@
 // @ts-nocheck
 import { expect, mock, test } from "bun:test";
 
+const providers = await import(
+  "../../../../../convex/workflows/steps/categorization/providers"
+);
+const originalEnrichProvider = providers.enrichProvider;
+
 // Mock providers to return content even if provider is missing (to test dead code)
 mock.module(
   "../../../../../convex/workflows/steps/categorization/providers",
   () => ({
-    enrichProvider: (provider: any) => {
+    ...providers,
+    enrichProvider: (...args: Parameters<typeof providers.enrichProvider>) => {
+      const [provider] = args;
       if (!provider) {
         return { raw: { test: "data" } };
       }
-      return null;
+      return originalEnrichProvider(...args);
     },
   })
 );

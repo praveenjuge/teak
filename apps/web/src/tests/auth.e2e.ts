@@ -42,21 +42,21 @@ test.describe("Authentication Flows", () => {
 
       // Check for footer links
       await expect(
-        page.getByRole("link", { name: /forgot your password/i })
+        page.getByRole("link", { name: /^forgot\?$/i })
       ).toBeVisible();
       await expect(
-        page.getByRole("link", { name: /register with email/i })
+        page.getByRole("link", { name: /new user\? register/i })
       ).toBeVisible();
     });
 
     test("should navigate to register page", async ({ page }) => {
-      await page.getByRole("link", { name: /register with email/i }).click();
+      await page.getByRole("link", { name: /new user\? register/i }).click();
       await expect(page).toHaveURL(/\/register/);
-      await expect(page.getByText("Register", { exact: true })).toBeVisible();
+      await expect(page.getByText("Get started on Teak")).toBeVisible();
     });
 
     test("should navigate to forgot password page", async ({ page }) => {
-      await page.getByRole("link", { name: /forgot your password/i }).click();
+      await page.getByRole("link", { name: /^forgot\?$/i }).click();
       await expect(page).toHaveURL(/\/forgot-password/);
     });
 
@@ -90,7 +90,7 @@ test.describe("Authentication Flows", () => {
 
       // Check that we're on the register page
       await expect(page).toHaveURL(/\/register/);
-      await expect(page.getByText("Register", { exact: true })).toBeVisible();
+      await expect(page.getByText("Get started on Teak")).toBeVisible();
 
       // Check for social signup buttons
       await expect(
@@ -187,7 +187,7 @@ test.describe("Authentication Flows", () => {
       await expect(page).toHaveURL("/");
 
       // Check that we're logged in by looking for authenticated content
-      await expect(page.getByPlaceholder(/Write or add a link/i)).toBeVisible();
+      await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
     });
 
     test("should show error for invalid credentials", async ({ page }) => {

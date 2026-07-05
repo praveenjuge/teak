@@ -70,7 +70,7 @@ export class AuthHelper {
 
       // Wait for the main page element to be visible
       await this.page
-        .getByPlaceholder(/Write or add a link/i)
+        .getByPlaceholder(/Write a note/i)
         .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
       return;
     } catch {
@@ -104,7 +104,7 @@ export class AuthHelper {
 
     // Wait for the main page element to be visible
     await this.page
-      .getByPlaceholder(/Write or add a link/i)
+      .getByPlaceholder(/Write a note/i)
       .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
   }
 
@@ -148,7 +148,7 @@ export class AuthHelper {
 
       // Wait for the main page element to be visible
       await this.page
-        .getByPlaceholder(/Write or add a link/i)
+        .getByPlaceholder(/Write a note/i)
         .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
     } catch (error) {
       // Provide more context for debugging
@@ -227,7 +227,7 @@ export class UiHelper {
    * Get the main composer textarea
    */
   getComposer(): Locator {
-    return this.page.getByPlaceholder(/Write or add a link/i);
+    return this.page.getByPlaceholder(/Write a note/i);
   }
 
   /**
@@ -372,7 +372,7 @@ export class UiHelper {
     await this.page.goto("/");
     // Wait for page to be ready by checking for a key element
     await this.page
-      .getByPlaceholder(/Write or add a link/i)
+      .getByPlaceholder(/Write a note/i)
       .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
   }
 
