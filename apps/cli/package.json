@@ -29,10 +29,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@teak/convex": "workspace:*",
     "commander": "^15.0.0"
   },
   "devDependencies": {
+    "@teak/convex": "workspace:*",
     "@types/node": "^25.9.3",
     "typescript": "^6.0.3"
   },
