@@ -1,4 +1,4 @@
-import type { Card } from "@teak/sdk";
+import type { Card } from "@teak/convex/sdk";
 
 const relativeAge = (ms: number) => {
   const minutes = Math.max(1, Math.floor(ms / 60_000));

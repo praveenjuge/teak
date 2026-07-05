@@ -15,7 +15,7 @@ import {
   TeakApiError,
   type TeakClient,
   type TokenProvider,
-} from "@teak/sdk";
+} from "@teak/convex/sdk";
 import { InvalidArgumentError } from "commander";
 
 const readPackageVersion = () => {

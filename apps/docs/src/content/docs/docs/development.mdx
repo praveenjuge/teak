@@ -43,8 +43,8 @@ import { Steps, FileTree } from "@astrojs/starlight/components";
 
 - Web App: http://app.teak.localhost:1355
 - Admin: http://app.teak.localhost:1355/admin
-- API Gateway: http://api.teak.localhost:1355
-- MCP Endpoint: http://api.teak.localhost:1355/mcp
+- Public API: https://reminiscent-kangaroo-59.convex.site/v1
+- MCP Endpoint: https://reminiscent-kangaroo-59.convex.site/mcp
 - Convex Dashboard: opens after `bunx convex dev`
 - Mobile: Expo Go or simulator
 - Extension: Chrome dev mode
@@ -58,7 +58,6 @@ import { Steps, FileTree } from "@astrojs/starlight/components";
 - teak/
   - apps/
     - web/ Next.js frontend (app router, shadcn/ui)
-    - api/ Hono API gateway (public API proxy)
     - mobile/ Expo React Native
     - desktop/ Electron desktop app (React)
     - extension/ Chrome extension (Wxt)
@@ -99,7 +98,6 @@ bun run dev:all          # All services
 
 bun run dev:convex       # Convex backend only
 bun run dev:web          # Next.js web
-bun run dev:api          # API gateway (Hono)
 bun run dev:mobile       # Expo mobile
 bun run dev:desktop      # Electron desktop
 bun run dev:extension    # Chrome extension
@@ -150,20 +148,20 @@ bun run clean            # Clear Turborepo caches
 
 `BETTER_AUTH_SECRET` signs sessions (set once per environment). `SITE_URL` must match your Next.js origin. `CONVEX_SITE_URL` is the `.site` domain assigned by Convex—copy it from the dashboard.
 
-### API Gateway
+### Public API and MCP
 
-Set `CONVEX_HTTP_BASE_URL` for `apps/api` before running `bun run dev:api`.
+The public REST API, MCP endpoint, discovery routes, OpenAPI spec, and SDK live in `packages/convex`. Start Convex to serve the HTTP routes from the deployment's `.convex.site` URL.
 
 Example:
 
 ```bash
-echo "CONVEX_HTTP_BASE_URL=https://<your-deployment>.convex.site" > apps/api/.env
+bun run dev:convex
 ```
 
-The same service exposes the REST API at `/v1` and MCP endpoint at `/mcp`.
+The same Convex HTTP surface exposes the REST API at `/v1`, MCP at `/mcp`, `GET /healthz`, `GET /openapi.json`, and OAuth protected-resource metadata.
 
 ### Environment Variables
 
 See **[Self-Hosting → Environment settings](./self-hosting#environment-settings)** for every env var required across web, mobile, extension, and the Convex backend.
 
-Optional local overrides: `TEAK_DEV_APP_URL` (default: `http://app.teak.localhost:1355`), `TEAK_DEV_API_URL` (default: `http://api.teak.localhost:1355`), `TEAK_DEV_DOCS_URL` (default: `http://docs.teak.localhost:1355`).
+Optional local overrides: `TEAK_DEV_APP_URL` (default: `http://app.teak.localhost:1355`), `TEAK_DEV_API_URL` (default: `https://reminiscent-kangaroo-59.convex.site`), `TEAK_DEV_DOCS_URL` (default: `http://docs.teak.localhost:1355`).

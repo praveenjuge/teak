@@ -140,7 +140,7 @@ describe("raycast request handling", () => {
     }
   });
 
-  test("retries development requests against a valid loopback URL", async () => {
+  test("uses the Convex site URL for development requests", async () => {
     mockRaycastApi(true);
     const { searchCards: searchCardsInDev } = await import(
       `../lib/api?dev-fallback=${crypto.randomUUID()}`
@@ -163,8 +163,7 @@ describe("raycast request handling", () => {
     }
 
     expect(capturedUrls).toEqual([
-      "https://api.teak.localhost:1355/v1/cards/search?limit=1",
-      "https://127.0.0.1:1355/v1/cards/search?limit=1",
+      "https://reminiscent-kangaroo-59.convex.site/v1/cards/search?limit=1",
     ]);
   });
 
@@ -244,7 +243,7 @@ describe("raycast request handling", () => {
         new Response(
           JSON.stringify({
             code: "CONFIG_ERROR",
-            error: "Missing or invalid CONVEX_HTTP_BASE_URL",
+            error: "Missing or invalid Convex API configuration",
           }),
           {
             headers: { "Content-Type": "application/json" },
@@ -260,37 +259,6 @@ describe("raycast request handling", () => {
       expect(error).toBeInstanceOf(RaycastApiError);
       expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
         "CONFIG_ERROR",
-      );
-    }
-  });
-
-  test("maps missing Portless dev API registration to DEV_API_UNAVAILABLE", async () => {
-    mockRaycastApi(true);
-    const { searchCards: searchCardsInDev } = await import(
-      `../lib/api?missing-dev-api=${crypto.randomUUID()}`
-    );
-
-    globalThis.fetch = mock(
-      async () =>
-        new Response(
-          "<!doctype html><html><body>No app registered for api.teak.localhost</body></html>",
-          {
-            headers: {
-              "Content-Type": "text/html",
-              "X-Portless": "1",
-            },
-            status: 404,
-          },
-        ),
-    ) as unknown as typeof fetch;
-
-    try {
-      await searchCardsInDev({ limit: 1 });
-      expect.unreachable();
-    } catch (error) {
-      expect(error).toBeInstanceOf(RaycastApiError);
-      expect((error as InstanceType<typeof RaycastApiError>).code).toBe(
-        "DEV_API_UNAVAILABLE",
       );
     }
   });

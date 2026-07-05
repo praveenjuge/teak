@@ -4,9 +4,9 @@ import {
   createTeakClient,
   parseTags,
   type TeakApiError,
-} from ".";
+} from "../client/sdk";
 
-describe("@teak/sdk", () => {
+describe("@teak/convex/sdk", () => {
   test("normalizes search params", () => {
     expect(
       buildCardsSearchParams({
@@ -30,7 +30,7 @@ describe("@teak/sdk", () => {
         getAccessToken: () => "old",
         onUnauthorized: () => "new",
       },
-      fetch: ((_url, init) => {
+      fetch: (async (_url, init) => {
         calls.push(new Headers(init?.headers).get("authorization") || "");
         return calls.length === 1
           ? new Response(

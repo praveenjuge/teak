@@ -1,4 +1,6 @@
-import { resolveTeakDevApiUrl } from "./shared/devUrl.js";
+import { httpAction } from "./_generated/server";
+import { resolveTeakDevApiUrl } from "./devUrls";
+import { withPublicApiGatewayHeaders } from "./publicApiMeta";
 
 const CARD_TYPES = [
   "text",
@@ -659,3 +661,15 @@ export const openApiSpec = {
     },
   },
 } as const;
+
+export const openApiV1 = httpAction(async () =>
+  withPublicApiGatewayHeaders(
+    new Response(JSON.stringify(openApiSpec), {
+      status: 200,
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Type": "application/json; charset=utf-8",
+      },
+    })
+  )
+);

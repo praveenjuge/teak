@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
-import { type CardType, parseTags } from "@teak/sdk";
+import { type CardType, parseTags } from "@teak/convex/sdk";
 import { InvalidArgumentError } from "commander";
 import { type ClientOptions, client } from "./runtime";
 

@@ -1,12 +1,6 @@
 import { environment } from "@raycast/api";
 
 const DEFAULT_TEAK_DEV_APP_URL = "http://app.teak.localhost:1355";
-// HTTPS so the token-authenticated card API calls reach portless directly.
-// Over http, portless 302-upgrades to https and undici drops the Authorization
-// header across the scheme change (cross-origin redirect), so the gateway 401s.
-// undici trusts the portless cert (verified: the redirected https request
-// returns a real 401 rather than a TLS error), so hitting https up front is safe.
-const DEFAULT_TEAK_DEV_API_URL = "https://api.teak.localhost:1355";
 // Dev Convex deployment that `convex dev` targets and where the OAuth server
 // (Better Auth `mcp` plugin) and its seeded clients live. The token exchange
 // must reach THIS deployment — see getOAuthTokenBaseUrl. Overridable via
@@ -16,6 +10,7 @@ const DEFAULT_TEAK_DEV_API_URL = "https://api.teak.localhost:1355";
 // `.env.local`, which can point at a different/stale deployment.
 const DEFAULT_TEAK_DEV_CONVEX_SITE_URL =
   "https://reminiscent-kangaroo-59.convex.site";
+const DEFAULT_TEAK_DEV_API_URL = DEFAULT_TEAK_DEV_CONVEX_SITE_URL;
 
 const normalizeBaseUrl = (label: string, rawUrl: string): string => {
   let parsedUrl: URL;

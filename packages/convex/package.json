@@ -1,10 +1,11 @@
 {
   "name": "@teak/convex",
-  "version": "1.0.52",
+  "version": "1.0.53",
   "type": "module",
   "exports": {
     ".": "./index.ts",
     "./*": "./*.ts",
+    "./sdk": "./client/sdk.ts",
     "./dev-urls": "./devUrls.ts",
     "./shared": "./shared/index.ts",
     "./shared/constants": "./shared/constants.ts",

@@ -1291,4 +1291,59 @@ describe("publicApiHttp", () => {
 
     expect(response.status).toBe(204);
   });
+
+  test("cardByIdV1 hides soft-deleted cards from direct reads", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({
+        _id: "card_1",
+        isDeleted: true,
+        userId: "user_1",
+      });
+
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/card_1", {
+        method: "GET",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      })
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  test("cardByIdV1 rejects updates to soft-deleted cards", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({
+        _id: "card_1",
+        isDeleted: true,
+        userId: "user_1",
+      });
+
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/card_1", {
+        method: "PATCH",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ notes: "should not update" }),
+      })
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
+    expect(runMutation).toHaveBeenCalledTimes(2);
+  });
 });
