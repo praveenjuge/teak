@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatCardLine, mimeFor, typeForMime } from ".";
+import { formatCardLine, mimeFor, parseSort, typeForMime } from ".";
 import { resolveAddInput } from "./files";
 
 describe("teak cli formatting", () => {
@@ -30,5 +30,10 @@ describe("teak cli formatting", () => {
         raw: "",
       }
     );
+  });
+
+  test("rejects invalid sort values", () => {
+    expect(parseSort("oldest")).toBe("oldest");
+    expect(() => parseSort("newestt")).toThrow("sort must be newest or oldest");
   });
 });

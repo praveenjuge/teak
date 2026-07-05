@@ -53,24 +53,37 @@ const parseType = (value: string) => {
   return value;
 };
 
-const queryOptions = (options: Record<string, unknown>) => ({
-  createdAfter:
-    typeof options.createdAfter === "string"
-      ? Number(options.createdAfter)
-      : undefined,
-  createdBefore:
-    typeof options.createdBefore === "string"
-      ? Number(options.createdBefore)
-      : undefined,
-  cursor: typeof options.cursor === "string" ? options.cursor : undefined,
-  favorited: options.favorited === true,
-  include: typeof options.include === "string" ? options.include : undefined,
-  limit: typeof options.limit === "number" ? options.limit : undefined,
-  query: typeof options.query === "string" ? options.query : undefined,
-  sort: options.sort === "oldest" ? ("oldest" as CardSort) : undefined,
-  tag: typeof options.tag === "string" ? options.tag : undefined,
-  type: typeof options.type === "string" ? options.type : undefined,
-});
+export const parseSort = (value: string): CardSort => {
+  if (!(value === "newest" || value === "oldest")) {
+    throw new InvalidArgumentError("sort must be newest or oldest");
+  }
+  return value;
+};
+
+const queryOptions = (options: Record<string, unknown>) => {
+  const sort: CardSort | undefined =
+    options.sort === "newest" || options.sort === "oldest"
+      ? options.sort
+      : undefined;
+  return {
+    createdAfter:
+      typeof options.createdAfter === "string"
+        ? Number(options.createdAfter)
+        : undefined,
+    createdBefore:
+      typeof options.createdBefore === "string"
+        ? Number(options.createdBefore)
+        : undefined,
+    cursor: typeof options.cursor === "string" ? options.cursor : undefined,
+    favorited: options.favorited === true,
+    include: typeof options.include === "string" ? options.include : undefined,
+    limit: typeof options.limit === "number" ? options.limit : undefined,
+    query: typeof options.query === "string" ? options.query : undefined,
+    sort,
+    tag: typeof options.tag === "string" ? options.tag : undefined,
+    type: typeof options.type === "string" ? options.type : undefined,
+  };
+};
 
 const withListOptions = (command: Command) =>
   command
@@ -80,7 +93,7 @@ const withListOptions = (command: Command) =>
     .option("--favorited")
     .option("--limit <n>", "result limit", parseLimit)
     .option("--cursor <cursor>")
-    .option("--sort <sort>", "newest or oldest")
+    .option("--sort <sort>", "newest or oldest", parseSort)
     .option("--created-after <ms>")
     .option("--created-before <ms>")
     .option("--include <groups>")
