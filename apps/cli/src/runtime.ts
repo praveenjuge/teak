@@ -34,6 +34,7 @@ export const EXIT = { api: 1, auth: 3, notFound: 4, rateLimited: 5, usage: 2 };
 
 const DEFAULT_API_URL = "https://api.teakvault.com";
 const DEFAULT_AUTH_URL = "https://app.teakvault.com";
+export const CLI_OAUTH_SCOPE = "profile email offline_access";
 const SERVICE = "com.teakvault.cli";
 const ACCOUNT = "default";
 
@@ -282,6 +283,25 @@ const openBrowser = (url: string) => {
   spawn(command, args, { detached: true, stdio: "ignore" }).unref();
 };
 
+export const createAuthorizeUrl = (
+  options: ClientOptions,
+  params: {
+    codeChallenge: string;
+    redirectUri: string;
+    state: string;
+  }
+) => {
+  const authUrl = new URL(authorizeEndpoint(options));
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("client_id", "teak-cli");
+  authUrl.searchParams.set("redirect_uri", params.redirectUri);
+  authUrl.searchParams.set("code_challenge", params.codeChallenge);
+  authUrl.searchParams.set("code_challenge_method", "S256");
+  authUrl.searchParams.set("scope", CLI_OAUTH_SCOPE);
+  authUrl.searchParams.set("state", params.state);
+  return authUrl;
+};
+
 export const login = async (options: ClientOptions & { browser?: boolean }) => {
   const verifier = b64url(randomBytes(32));
   const state = b64url(randomBytes(24));
@@ -327,13 +347,11 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
             }
           });
           server.listen(port, "127.0.0.1", () => {
-            const authUrl = new URL(authorizeEndpoint(options));
-            authUrl.searchParams.set("response_type", "code");
-            authUrl.searchParams.set("client_id", "teak-cli");
-            authUrl.searchParams.set("redirect_uri", redirectUri);
-            authUrl.searchParams.set("code_challenge", sha256(verifier));
-            authUrl.searchParams.set("code_challenge_method", "S256");
-            authUrl.searchParams.set("state", state);
+            const authUrl = createAuthorizeUrl(options, {
+              codeChallenge: sha256(verifier),
+              redirectUri,
+              state,
+            });
             process.stdout.write(`${authUrl.toString()}\n`);
             if (options.browser !== false) {
               openBrowser(authUrl.toString());

@@ -1,6 +1,6 @@
 {
   "name": "@teak/sdk",
-  "version": "1.0.51",
+  "version": "1.0.52",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

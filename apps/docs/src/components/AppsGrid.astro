@@ -11,6 +11,7 @@ const DESKTOP_DOWNLOAD_URL =
 const API_DOCS_URL = "/docs/api";
 const MCP_DOCS_URL = "/docs/mcp";
 const CLI_DOCS_URL = "/docs/cli";
+const SKILLS_DOCS_URL = "/docs/skills";
 const RAYCAST_STORE_URL = "https://www.raycast.com/praveenjuge/teak-raycast";
 const RAYCAST_INSTALL_BUTTON_URL =
   "https://www.raycast.com/praveenjuge/teak-raycast/install_button@2x.png?v=1.1";
@@ -126,6 +127,16 @@ const platformCards: PlatformCard[] = [
     href: CLI_DOCS_URL,
     actionType: "button",
     label: "View CLI Docs",
+  },
+  {
+    name: "Agent Skill",
+    copy: "Install the Teak skill from skills.sh so agents know how to use Teak through CLI, API, MCP, and SDK workflows.",
+    iconAlt: "Model Context Protocol icon",
+    iconClass: "dark:invert",
+    iconSrc: "/platform-icons/mcp.svg",
+    href: SKILLS_DOCS_URL,
+    actionType: "button",
+    label: "Install Skill",
   },
 ];
 ---

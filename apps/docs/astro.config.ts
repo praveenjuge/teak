@@ -72,6 +72,7 @@ export default defineConfig({
             { label: "Browser Extension", slug: "docs/extension" },
             { label: "Raycast Extension", slug: "docs/raycast" },
             { label: "Command Line", slug: "docs/cli" },
+            { label: "Agent Skill", slug: "docs/skills" },
           ],
         },
         {

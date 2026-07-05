@@ -310,12 +310,13 @@ describe("publicApiHttp", () => {
         cardId: "card_file",
         status: "created",
       });
-    const runAction = mock().mockResolvedValueOnce(null);
-    const runQuery = mock().mockResolvedValueOnce({
-      contentType: "image/png",
-      size: 123,
-    });
-
+    const runAction = mock()
+      .mockResolvedValueOnce({
+        contentType: "image/png",
+        size: 123,
+      })
+      .mockResolvedValueOnce(null);
+    const runQuery = mock();
     const response = await runHandler(
       createCardV1,
       { runAction, runMutation, runQuery },
@@ -342,13 +343,13 @@ describe("publicApiHttp", () => {
       status: "created",
     });
     expect(runAction.mock.calls[0][1]).toMatchObject({
+      key: "users/user_1/file/image.png",
+    });
+    expect(runAction.mock.calls[1][1]).toMatchObject({
       bucket: "test-r2-bucket",
       key: "users/user_1/file/image.png",
     });
-    expect(runQuery.mock.calls[0][1]).toMatchObject({
-      bucket: "test-r2-bucket",
-      key: "users/user_1/file/image.png",
-    });
+    expect(runQuery).not.toHaveBeenCalled();
     expect(runMutation.mock.calls[3][1]).toMatchObject({
       cardType: "image",
       fileKey: "users/user_1/file/image.png",
@@ -360,6 +361,41 @@ describe("publicApiHttp", () => {
       tags: ["reference"],
       userId: "user_1",
     });
+  });
+
+  test("createCardV1 rejects fileKey uploads when direct metadata omits size", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runAction = mock().mockResolvedValueOnce({
+      contentType: "image/png",
+    });
+
+    const response = await runHandler(
+      createCardV1,
+      { runAction, runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cardType: "image",
+          fileKey: "users/user_1/file/image.png",
+          fileName: "image.png",
+          fileSize: 123,
+          mimeType: "image/png",
+          tags: ["reference"],
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "INVALID_INPUT",
+      error: "Uploaded file metadata is unavailable",
+    });
+    expect(runMutation).toHaveBeenCalledTimes(3);
   });
 
   test("createCardV1 rejects fileKey uploads when the object is missing", async () => {
@@ -397,15 +433,14 @@ describe("publicApiHttp", () => {
   test("createCardV1 rejects fileKey uploads when stored metadata differs", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
-    const runAction = mock().mockResolvedValueOnce(null);
-    const runQuery = mock().mockResolvedValueOnce({
+    const runAction = mock().mockResolvedValueOnce({
       contentType: "image/png",
       size: 456,
     });
 
     const response = await runHandler(
       createCardV1,
-      { runAction, runMutation, runQuery },
+      { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
@@ -433,15 +468,14 @@ describe("publicApiHttp", () => {
   test("createCardV1 rejects fileKey uploads when stored object is too large", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
-    const runAction = mock().mockResolvedValueOnce(null);
-    const runQuery = mock().mockResolvedValueOnce({
+    const runAction = mock().mockResolvedValueOnce({
       contentType: "image/png",
       size: MAX_FILE_SIZE + 1,
     });
 
     const response = await runHandler(
       createCardV1,
-      { runAction, runMutation, runQuery },
+      { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
