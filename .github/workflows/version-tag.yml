@@ -1,0 +1,69 @@
+name: Version Tag
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "package.json"
+      - "apps/*/package.json"
+      - "packages/*/package.json"
+
+concurrency:
+  group: version-tag-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  tag-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read root version
+        id: version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify every package.json is lockstep
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const expected = process.env.VERSION;
+          const paths = ['package.json'];
+          for (const dir of ['apps', 'packages']) {
+            for (const name of fs.readdirSync(dir)) {
+              const file = `${dir}/${name}/package.json`;
+              if (fs.existsSync(file)) paths.push(file);
+            }
+          }
+          const mismatches = paths.filter((file) => JSON.parse(fs.readFileSync(file, 'utf8')).version !== expected);
+          if (mismatches.length) {
+            console.error(`Version mismatch; expected ${expected}:`);
+            console.error(mismatches.join('\n'));
+            process.exit(1);
+          }
+          NODE
+
+      - name: Create version tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.version.outputs.tag }}
+        run: |
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1 || gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            echo "$TAG_NAME already exists."
+            exit 0
+          fi
+          git tag "$TAG_NAME"
+          git push origin "$TAG_NAME"

@@ -1,27 +1,33 @@
 ---
 const WEB_APP_URL = "https://app.teakvault.com";
-const APP_STORE_URL = "https://apps.apple.com/us/app/teak-save-inspirations/id6756574989";
-const CHROME_STORE_URL = "https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob";
-const SAFARI_APP_STORE_URL = "https://apps.apple.com/us/app/teak-for-safari/id6770003409?mt=12";
-const DESKTOP_DOWNLOAD_URL = "https://github.com/praveenjuge/teak/releases/latest";
+const APP_STORE_URL =
+  "https://apps.apple.com/us/app/teak-save-inspirations/id6756574989";
+const CHROME_STORE_URL =
+  "https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob";
+const SAFARI_APP_STORE_URL =
+  "https://apps.apple.com/us/app/teak-for-safari/id6770003409?mt=12";
+const DESKTOP_DOWNLOAD_URL =
+  "https://github.com/praveenjuge/teak/releases/latest";
 const API_DOCS_URL = "/docs/api";
 const MCP_DOCS_URL = "/docs/mcp";
+const CLI_DOCS_URL = "/docs/cli";
 const RAYCAST_STORE_URL = "https://www.raycast.com/praveenjuge/teak-raycast";
-const RAYCAST_INSTALL_BUTTON_URL = "https://www.raycast.com/praveenjuge/teak-raycast/install_button@2x.png?v=1.1";
+const RAYCAST_INSTALL_BUTTON_URL =
+  "https://www.raycast.com/praveenjuge/teak-raycast/install_button@2x.png?v=1.1";
 
 interface PlatformCard {
-  name: string;
-  copy: string;
-  iconAlt: string;
-  iconSrc: string;
-  iconClass?: string;
-  href: string;
   actionType: "button" | "badge";
-  label?: string;
-  badgeSrc?: string;
   badgeAlt?: string;
-  badgeWidth?: number;
   badgeHeight?: number;
+  badgeSrc?: string;
+  badgeWidth?: number;
+  copy: string;
+  href: string;
+  iconAlt: string;
+  iconClass?: string;
+  iconSrc: string;
+  label?: string;
+  name: string;
 }
 
 const platformCards: PlatformCard[] = [
@@ -111,6 +117,15 @@ const platformCards: PlatformCard[] = [
     href: MCP_DOCS_URL,
     actionType: "button",
     label: "View MCP Docs",
+  },
+  {
+    name: "Command Line",
+    copy: "Save, search, favorite, and manage cards from any terminal with the npm Teak CLI.",
+    iconAlt: "Terminal icon",
+    iconSrc: "/emojis/apps-api-terminal.png",
+    href: CLI_DOCS_URL,
+    actionType: "button",
+    label: "View CLI Docs",
   },
 ];
 ---

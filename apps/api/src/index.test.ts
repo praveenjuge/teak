@@ -31,6 +31,7 @@ describe("apps/api proxy", () => {
     const payload = await response.json();
     expect(payload.version).toBe("v1");
     expect(payload.endpoints).toContain("POST /v1/cards");
+    expect(payload.endpoints).toContain("POST /v1/uploads");
     expect(payload.mcp).toEqual({
       endpoint: "http://localhost/mcp",
       transport: "streamable-http",
@@ -150,6 +151,49 @@ describe("apps/api proxy", () => {
       "https://example.convex.site/v1/cards/search?q=design&limit=10"
     );
     expect(capturedAuthorization).toBe("Bearer teakapi_test");
+  });
+
+  test("proxies upload creation requests to Convex", async () => {
+    process.env.CONVEX_HTTP_BASE_URL = "https://example.convex.site";
+
+    let capturedUrl = "";
+    let capturedBody = "";
+    globalThis.fetch = mock(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        capturedUrl = String(input);
+        capturedBody = init?.body
+          ? await new Response(init.body as BodyInit).text()
+          : "";
+        return new Response(
+          JSON.stringify({
+            expiresIn: 600,
+            fileKey: "users/user_1/file/image.png",
+            maxFileSize: 20_971_520,
+            method: "PUT",
+            uploadUrl: "https://upload.example",
+          }),
+          { headers: { "Content-Type": "application/json" }, status: 200 }
+        );
+      }
+    ) as unknown as typeof fetch;
+
+    const response = await app.request("/v1/uploads", {
+      body: JSON.stringify({
+        fileName: "image.png",
+        fileSize: 123,
+        mimeType: "image/png",
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    expect(capturedUrl).toBe("https://example.convex.site/v1/uploads");
+    expect(JSON.parse(capturedBody)).toEqual({
+      fileName: "image.png",
+      fileSize: 123,
+      mimeType: "image/png",
+    });
   });
 
   test("passes through upstream status and payload", async () => {
@@ -305,6 +349,7 @@ describe("apps/api proxy", () => {
     expect(response.status).toBe(200);
     const payload = await response.json();
     expect(payload.endpoints).toContain("GET /v1/cards");
+    expect(payload.endpoints).toContain("POST /v1/uploads");
     expect(payload.endpoints).toContain("POST /v1/cards/bulk");
     expect(payload.endpoints).toContain("GET /v1/cards/changes");
     expect(payload.endpoints).toContain("GET /v1/tags");

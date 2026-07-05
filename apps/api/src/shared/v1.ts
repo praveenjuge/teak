@@ -3,6 +3,7 @@ export const API_VERSION = "v1";
 export const V1_ENDPOINTS = [
   "GET /v1/cards",
   "POST /v1/cards",
+  "POST /v1/uploads",
   "POST /v1/cards/bulk",
   "GET /v1/cards/changes",
   "GET /v1/cards/search",

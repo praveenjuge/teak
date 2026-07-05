@@ -1,6 +1,6 @@
 {
   "name": "@teak/api",
-  "version": "1.0.47",
+  "version": "1.0.48",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,6 +17,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@sentry/node": "^10.53.1",
     "@teak/convex": "workspace:*",
+    "@teak/sdk": "workspace:*",
     "dotenv": "^17.4.2",
     "hono": "^4.12.19",
     "zod": "^4.4.3"

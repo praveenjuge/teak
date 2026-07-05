@@ -1,0 +1,41 @@
+---
+title: Command Line
+description: Install and use the Teak CLI from your terminal
+---
+
+The Teak CLI lets you save, search, favorite, update, and delete cards without leaving your terminal.
+
+## Install
+
+```bash
+npm i -g teak-cli
+```
+
+Then sign in with your browser:
+
+```bash
+teak login
+```
+
+For scripts and CI, pass an API key instead:
+
+```bash
+TEAK_API_KEY=teakapi_... teak ls --json
+```
+
+## Common Commands
+
+```bash
+teak add "A note from the terminal"
+teak add https://example.com --tags research,web
+teak add ./screenshot.png --tags inspiration
+teak ls
+teak search "blue buttons"
+teak cards get <card-id>
+teak cards update <card-id> --tags design,reference
+teak fav <card-id>
+teak rm <card-id>
+teak tags
+```
+
+Use `--json` on any command when you need machine-readable output.

@@ -42,6 +42,14 @@ export const FIRST_PARTY_OAUTH_CLIENTS: OAuthClientSeed[] = [
       "http://127.0.0.1:24203/oauth/callback",
     ],
   },
+  {
+    clientId: "teak-cli",
+    name: "Teak CLI",
+    redirectUrls: [
+      "http://127.0.0.1:14210/oauth/callback",
+      "http://127.0.0.1:24210/oauth/callback",
+    ],
+  },
 ];
 
 const findOAuthApplication = (ctx: MutationCtx, clientId: string) =>

@@ -11,6 +11,7 @@ import {
   cardByIdV1,
   changesCardsV1,
   createCardV1,
+  createUploadV1,
   favoriteCardsV1,
   listCardsV1,
   searchCardsV1,
@@ -64,6 +65,12 @@ http.route({
   path: "/v1/cards",
   method: "POST",
   handler: createCardV1,
+});
+
+http.route({
+  path: "/v1/uploads",
+  method: "POST",
+  handler: createUploadV1,
 });
 
 http.route({

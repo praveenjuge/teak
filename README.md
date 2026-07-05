@@ -2,7 +2,7 @@
 
 ### Your personal knowledge hub for collecting, remembering, and rediscovering ideas.
 
-Save inspiration in one click and find it in two seconds — no more lost bookmarks or messy folders. Teak runs everywhere you work: web, desktop, mobile, browser, and Raycast, with real-time sync across all of them.
+Save inspiration in one click and find it in two seconds — no more lost bookmarks or messy folders. Teak runs everywhere you work: web, desktop, mobile, browser, Raycast, and the command line, with real-time sync across all of them.
 
 [![Website](https://img.shields.io/badge/Website-teakvault.com-2563eb?style=for-the-badge)](https://teakvault.com)
 [![Docs](https://img.shields.io/badge/Docs-Read-22c55e?style=for-the-badge)](https://teakvault.com/docs/)
@@ -23,6 +23,7 @@ Save inspiration in one click and find it in two seconds — no more lost bookma
 | 📱 **iOS** | Save from anywhere via the share sheet | [App Store →](https://apps.apple.com/us/app/teak-save-inspirations/id6756574989) |
 | 🧩 **Browser** | One-click saves while you browse | [Chrome →](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) · [Safari →](https://apps.apple.com/us/app/teak-for-safari/id6770003409?mt=12) |
 | ⚡ **Raycast** | Save and search from your keyboard | [Install →](https://www.raycast.com/praveenjuge/teak-raycast) |
+| 🧰 **CLI** | Save, search, and manage cards from your terminal | `npm i -g teak-cli` |
 | 🔌 **API & MCP** | Programmatic and AI client access | [API docs →](https://teakvault.com/docs/api) |
 
 ## Monorepo
@@ -37,9 +38,11 @@ teak/
 │   ├── extension/  # Browser extension (Wxt)
 │   ├── safari-extension/ # Native macOS Safari extension app
 │   ├── raycast/    # Raycast extension
+│   ├── cli/        # npm command line client
 │   └── docs/       # Documentation site (Astro + Starlight)
 ├── packages/
 │   ├── convex/     # Convex backend
+│   ├── sdk/        # Shared API client
 │   └── ui/         # Shared UI package
 ├── turbo.json      # Turborepo pipeline config
 └── package.json

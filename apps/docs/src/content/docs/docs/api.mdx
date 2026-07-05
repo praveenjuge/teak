@@ -126,6 +126,9 @@ Supported request body fields:
 
 - `content` — text or URL to save (required if `url` is not set)
 - `url` — URL to save (required if `content` is not set). Must be an `http` or `https` URL.
+- `fileKey` — key returned by `POST /v1/uploads` for file cards
+- `cardType` — required with `fileKey`; must be `image`, `video`, `audio`, or `document`
+- `fileName`, `mimeType`, `fileSize` — file metadata for uploaded cards
 - `notes` — optional freeform notes attached to the card (string or null)
 - `tags` — optional array of tag strings
 - `source` — optional string identifying the client or integration (e.g. `"raycast_quick_save"`)
@@ -142,6 +145,57 @@ Supported request body fields:
   "status": "created",
   "cardId": "card_1",
   "appUrl": "https://app.teakvault.com/?card=card_1"
+}
+```
+
+### Upload File
+
+File cards use a direct upload flow so large bytes do not pass through the API gateway.
+
+```http
+POST /v1/uploads
+Content-Type: application/json
+```
+
+```json
+{
+  "fileName": "image.png",
+  "mimeType": "image/png",
+  "fileSize": 12345
+}
+```
+
+The response includes a presigned `uploadUrl` and `fileKey`. Upload the bytes with `PUT`, then create the card with `POST /v1/cards`.
+
+```json
+{
+  "method": "PUT",
+  "uploadUrl": "https://...",
+  "fileKey": "users/user_1/file/...",
+  "maxFileSize": 20971520,
+  "expiresIn": 600
+}
+```
+
+```http
+PUT <uploadUrl>
+Content-Type: image/png
+```
+
+```http
+POST /v1/cards
+Content-Type: application/json
+Idempotency-Key: upload-image-123
+```
+
+```json
+{
+  "fileKey": "users/user_1/file/...",
+  "cardType": "image",
+  "fileName": "image.png",
+  "mimeType": "image/png",
+  "fileSize": 12345,
+  "tags": ["reference"]
 }
 ```
 

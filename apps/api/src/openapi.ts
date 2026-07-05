@@ -1,3 +1,4 @@
+import { CARD_SORTS, CARD_TYPES } from "@teak/sdk";
 import { resolveTeakDevApiUrl } from "./shared/devUrl.js";
 
 const apiKeySecurity = [{ bearerAuth: [] }];
@@ -95,7 +96,12 @@ const components = {
     },
     CreateCardRequest: {
       properties: {
+        cardType: { enum: CARD_TYPES, type: "string" },
         content: { type: "string" },
+        fileKey: { type: "string" },
+        fileName: { type: "string" },
+        fileSize: { type: "number" },
+        mimeType: { type: "string" },
         notes: { nullable: true, type: "string" },
         source: { type: "string" },
         tags: { items: { type: "string" }, type: "array" },
@@ -111,6 +117,26 @@ const components = {
         status: { enum: ["created"], type: "string" },
       },
       required: ["appUrl", "cardId", "status"],
+      type: "object",
+    },
+    CreateUploadRequest: {
+      properties: {
+        fileName: { type: "string" },
+        fileSize: { type: "number" },
+        mimeType: { type: "string" },
+      },
+      required: ["fileName", "fileSize", "mimeType"],
+      type: "object",
+    },
+    CreateUploadResponse: {
+      properties: {
+        expiresIn: { type: "number" },
+        fileKey: { type: "string" },
+        maxFileSize: { type: "number" },
+        method: { enum: ["PUT"], type: "string" },
+        uploadUrl: { format: "uri", type: "string" },
+      },
+      required: ["expiresIn", "fileKey", "maxFileSize", "method", "uploadUrl"],
       type: "object",
     },
     BulkCardsRequest: {
@@ -304,9 +330,13 @@ export const openApiSpec = {
           {
             in: "query",
             name: "sort",
-            schema: { enum: ["newest", "oldest"], type: "string" },
+            schema: { enum: CARD_SORTS, type: "string" },
           },
-          { in: "query", name: "type", schema: { type: "string" } },
+          {
+            in: "query",
+            name: "type",
+            schema: { enum: CARD_TYPES, type: "string" },
+          },
           { in: "query", name: "tag", schema: { type: "string" } },
           { in: "query", name: "favorited", schema: { type: "boolean" } },
           { in: "query", name: "createdAfter", schema: { type: "number" } },
@@ -360,6 +390,29 @@ export const openApiSpec = {
         },
         security: apiKeySecurity,
         summary: "Create a card",
+      },
+    },
+    "/v1/uploads": {
+      post: {
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CreateUploadRequest" },
+            },
+          },
+        },
+        responses: {
+          200: {
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/CreateUploadResponse" },
+              },
+            },
+            description: "Prepared direct file upload",
+          },
+        },
+        security: apiKeySecurity,
+        summary: "Create a presigned upload",
       },
     },
     "/v1/cards/bulk": {
@@ -416,12 +469,16 @@ export const openApiSpec = {
         parameters: [
           { in: "query", name: "q", schema: { type: "string" } },
           { in: "query", name: "limit", schema: { type: "integer" } },
-          { in: "query", name: "type", schema: { type: "string" } },
+          {
+            in: "query",
+            name: "type",
+            schema: { enum: CARD_TYPES, type: "string" },
+          },
           { in: "query", name: "tag", schema: { type: "string" } },
           {
             in: "query",
             name: "sort",
-            schema: { enum: ["newest", "oldest"], type: "string" },
+            schema: { enum: CARD_SORTS, type: "string" },
           },
           { in: "query", name: "favorited", schema: { type: "boolean" } },
           { in: "query", name: "createdAfter", schema: { type: "number" } },
@@ -446,12 +503,16 @@ export const openApiSpec = {
         parameters: [
           { in: "query", name: "q", schema: { type: "string" } },
           { in: "query", name: "limit", schema: { type: "integer" } },
-          { in: "query", name: "type", schema: { type: "string" } },
+          {
+            in: "query",
+            name: "type",
+            schema: { enum: CARD_TYPES, type: "string" },
+          },
           { in: "query", name: "tag", schema: { type: "string" } },
           {
             in: "query",
             name: "sort",
-            schema: { enum: ["newest", "oldest"], type: "string" },
+            schema: { enum: CARD_SORTS, type: "string" },
           },
           { in: "query", name: "favorited", schema: { type: "boolean" } },
           { in: "query", name: "createdAfter", schema: { type: "number" } },

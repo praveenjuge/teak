@@ -7,11 +7,18 @@ import {
   cardByIdV1,
   changesCardsV1,
   createCardV1,
+  createUploadV1,
   favoriteCardsV1,
   listCardsV1,
   searchCardsV1,
   tagsV1,
 } from "../publicApiHttp";
+import { MAX_FILE_SIZE } from "../shared/constants";
+
+process.env.R2_ACCESS_KEY_ID = "test-r2-access-key";
+process.env.R2_BUCKET = "test-r2-bucket";
+process.env.R2_ENDPOINT = "https://test-account.r2.cloudflarestorage.com";
+process.env.R2_SECRET_ACCESS_KEY = "test-r2-secret";
 
 const runHandler = (fn: any, ctx: any, request: Request) => {
   const handler = (fn as any).handler ?? fn;
@@ -86,7 +93,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ content: "hello" }),
@@ -122,7 +130,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ content: "hello" }),
@@ -145,7 +154,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ content: "hello" }),
@@ -226,7 +236,7 @@ describe("publicApiHttp", () => {
       .mockResolvedValueOnce({
         cardId: "card_1",
         status: "created",
-    });
+      });
 
     const response = await runHandler(
       createCardV1,
@@ -250,6 +260,211 @@ describe("publicApiHttp", () => {
     });
   });
 
+  test("createUploadV1 prepares a presigned upload for an authorized user", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+      expiresIn: 600,
+      fileKey: "users/user_1/file/image.png",
+      maxFileSize: 20_971_520,
+      method: "PUT",
+      uploadUrl: "https://upload.example",
+    });
+
+    const response = await runHandler(
+      createUploadV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/uploads", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileName: "image.png",
+          fileSize: 123,
+          mimeType: "image/png",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      expiresIn: 600,
+      fileKey: "users/user_1/file/image.png",
+      maxFileSize: 20_971_520,
+      method: "PUT",
+      uploadUrl: "https://upload.example",
+    });
+    expect(runMutation.mock.calls[2][1]).toEqual({
+      fileName: "image.png",
+      fileSize: 123,
+      mimeType: "image/png",
+      userId: "user_1",
+    });
+  });
+
+  test("createCardV1 finalizes fileKey uploads through the upload mutation", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation =
+      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
+        cardId: "card_file",
+        status: "created",
+      });
+    const runAction = mock().mockResolvedValueOnce(null);
+    const runQuery = mock().mockResolvedValueOnce({
+      contentType: "image/png",
+      size: 123,
+    });
+
+    const response = await runHandler(
+      createCardV1,
+      { runAction, runMutation, runQuery },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cardType: "image",
+          fileKey: "users/user_1/file/image.png",
+          fileName: "image.png",
+          fileSize: 123,
+          mimeType: "image/png",
+          tags: ["reference"],
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      cardId: "card_file",
+      status: "created",
+    });
+    expect(runAction.mock.calls[0][1]).toMatchObject({
+      bucket: "test-r2-bucket",
+      key: "users/user_1/file/image.png",
+    });
+    expect(runQuery.mock.calls[0][1]).toMatchObject({
+      bucket: "test-r2-bucket",
+      key: "users/user_1/file/image.png",
+    });
+    expect(runMutation.mock.calls[3][1]).toMatchObject({
+      cardType: "image",
+      fileKey: "users/user_1/file/image.png",
+      fileName: "image.png",
+      fileSize: 123,
+      mimeType: "image/png",
+      storedFileSize: 123,
+      storedMimeType: "image/png",
+      tags: ["reference"],
+      userId: "user_1",
+    });
+  });
+
+  test("createCardV1 rejects fileKey uploads when the object is missing", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runAction = mock().mockRejectedValueOnce(new Error("not found"));
+
+    const response = await runHandler(
+      createCardV1,
+      { runAction, runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cardType: "image",
+          fileKey: "users/user_1/file/missing.png",
+          fileName: "missing.png",
+          fileSize: 123,
+          mimeType: "image/png",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "INVALID_INPUT",
+      error: "Uploaded file was not found",
+    });
+    expect(runMutation).toHaveBeenCalledTimes(3);
+  });
+
+  test("createCardV1 rejects fileKey uploads when stored metadata differs", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runAction = mock().mockResolvedValueOnce(null);
+    const runQuery = mock().mockResolvedValueOnce({
+      contentType: "image/png",
+      size: 456,
+    });
+
+    const response = await runHandler(
+      createCardV1,
+      { runAction, runMutation, runQuery },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cardType: "image",
+          fileKey: "users/user_1/file/image.png",
+          fileName: "image.png",
+          fileSize: 123,
+          mimeType: "image/png",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "INVALID_INPUT",
+      error: "Uploaded file size does not match the stored object",
+    });
+    expect(runMutation).toHaveBeenCalledTimes(3);
+  });
+
+  test("createCardV1 rejects fileKey uploads when stored object is too large", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runAction = mock().mockResolvedValueOnce(null);
+    const runQuery = mock().mockResolvedValueOnce({
+      contentType: "image/png",
+      size: MAX_FILE_SIZE + 1,
+    });
+
+    const response = await runHandler(
+      createCardV1,
+      { runAction, runMutation, runQuery },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cardType: "image",
+          fileKey: "users/user_1/file/large.png",
+          fileName: "large.png",
+          mimeType: "image/png",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "INVALID_INPUT",
+      error: `Uploaded file must not exceed ${MAX_FILE_SIZE} bytes`,
+    });
+    expect(runMutation).toHaveBeenCalledTimes(3);
+  });
+
   test("cardByIdV1 validates the API key for the favorite route", async () => {
     const runMutation = mock()
       .mockResolvedValueOnce({
@@ -270,7 +485,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards/card_123/favorite", {
         method: "PATCH",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ isFavorited: true }),
@@ -305,13 +521,14 @@ describe("publicApiHttp", () => {
         },
         handler: bulkCardsV1,
         method: "POST",
-        mutation: buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce(
-          {
-            operation: "favorite",
-            results: [{ cardId: "card_1", index: 0, status: "success" }],
-            summary: { failed: 0, succeeded: 1, total: 1 },
-          }
-        ),
+        mutation:
+          buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce(
+            {
+              operation: "favorite",
+              results: [{ cardId: "card_1", index: 0, status: "success" }],
+              summary: { failed: 0, succeeded: 1, total: 1 },
+            }
+          ),
         path: "/v1/cards/bulk",
         query: mock(),
       },
@@ -340,7 +557,8 @@ describe("publicApiHttp", () => {
           {
             body: testCase.body ? JSON.stringify(testCase.body) : undefined,
             headers: {
-              Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+              Authorization:
+                "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
               ...(testCase.body ? { "Content-Type": "application/json" } : {}),
             },
             method: testCase.method,
@@ -393,7 +611,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ content: "hello" }),
@@ -471,7 +690,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: "{invalid",
@@ -490,7 +710,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ content: "    " }),
@@ -509,7 +730,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ url: "javascript:alert(1)" }),
@@ -536,7 +758,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ content: "hello" }),
@@ -564,7 +787,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ content: "new card" }),
@@ -617,7 +841,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
           "Idempotency-Key": "save-card-1",
         },
@@ -644,7 +869,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards/search?limit=10", {
         method: "GET",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
         },
       })
     );
@@ -663,7 +889,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards/search?limit=999", {
         method: "GET",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
         },
       })
     );
@@ -683,7 +910,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards/favorites?limit=10", {
         method: "GET",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
         },
       })
     );
@@ -735,7 +963,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards?limit=10&include=content", {
         method: "GET",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
         },
       })
     );
@@ -760,7 +989,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards/bulk", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -787,7 +1017,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards/bulk", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -818,7 +1049,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards/bulk", {
         method: "POST",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -848,7 +1080,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards/changes?since=1&limit=10", {
         method: "GET",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
         },
       })
     );
@@ -873,7 +1106,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/tags", {
         method: "GET",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
         },
       })
     );
@@ -894,7 +1128,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards/not-an-id", {
         method: "PATCH",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ notes: null }),
@@ -936,7 +1171,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards/card_1", {
         method: "PATCH",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ notes: null, tags: [] }),
@@ -962,7 +1198,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards/card_1", {
         method: "PATCH",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ url: "javascript:alert(1)" }),
@@ -986,7 +1223,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards/card_1/favorite", {
         method: "PATCH",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ isFavorited: "yes" }),
@@ -1011,7 +1249,8 @@ describe("publicApiHttp", () => {
       new Request("https://example.com/v1/cards/card_1", {
         method: "DELETE",
         headers: {
-          Authorization: "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
         },
       })
     );
