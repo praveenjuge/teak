@@ -67,6 +67,7 @@ import type * as oauthClients from "../oauthClients.js";
 import type * as oauthTokens from "../oauthTokens.js";
 import type * as publicApi from "../publicApi.js";
 import type * as publicApiHttp from "../publicApiHttp.js";
+import type * as publicApiUploadMetadata from "../publicApiUploadMetadata.js";
 import type * as publicApiUploads from "../publicApiUploads.js";
 import type * as raycast from "../raycast.js";
 import type * as sentry from "../sentry.js";
@@ -196,6 +197,7 @@ declare const fullApi: ApiFromModules<{
   oauthTokens: typeof oauthTokens;
   publicApi: typeof publicApi;
   publicApiHttp: typeof publicApiHttp;
+  publicApiUploadMetadata: typeof publicApiUploadMetadata;
   publicApiUploads: typeof publicApiUploads;
   raycast: typeof raycast;
   sentry: typeof sentry;

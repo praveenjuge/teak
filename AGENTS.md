@@ -63,9 +63,13 @@ teak/
 │   ├── extension/   # Chrome extension (Wxt)
 │   ├── safari-extension/ # Native macOS Safari extension app
 │   ├── raycast/     # Raycast extension
+│   ├── cli/         # npm command line client
 │   └── docs/        # Documentation site (Astro + Starlight)
+├── .agents/
+│   └── skills/      # Agent Skills exposed through skills.sh-compatible repos
 ├── packages/
 │   ├── convex/      # Convex backend (functions, workflows, schema, shared utils)
+│   ├── sdk/         # Shared public API client for CLI and integrations
 │   └── ui/          # Shared UI package (components, hooks, screens, feedback)
 ├── turbo.json       # Turborepo pipeline config
 └── package.json     # Root package + workspaces
@@ -107,6 +111,8 @@ teak/
 - Any API contract change in `apps/api` or `packages/convex/http.ts` must update `apps/docs/src/content/docs/docs/api.mdx` in the same PR.
 - Any MCP endpoint change in `apps/api/src/routes/mcp.ts` must update `apps/docs/src/content/docs/docs/mcp.mdx` in the same PR.
 - Any Raycast command/auth change in `apps/raycast` must update `apps/docs/src/content/docs/docs/raycast.mdx` in the same PR.
+- Any CLI command/auth/publish change in `apps/cli` or `packages/sdk` must update `apps/docs/src/content/docs/docs/cli.mdx` when user-facing behavior changes.
+- Any public Agent Skill change in `.agents/skills` must update `apps/docs/src/content/docs/docs/skills.mdx` and `apps/docs/src/pages/apps.astro` when install or capability details change.
 
 ## Git Commit Rules
 

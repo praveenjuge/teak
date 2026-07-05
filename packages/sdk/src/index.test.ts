@@ -60,4 +60,29 @@ describe("@teak/sdk", () => {
       code: "TIMEOUT",
     } satisfies Partial<TeakApiError>);
   });
+
+  test("sends direct upload content length when known", async () => {
+    const seenHeaders: Record<string, string | null> = {};
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((_url, init) => {
+        const headers = new Headers(init?.headers);
+        seenHeaders.contentLength = headers.get("content-length");
+        seenHeaders.contentType = headers.get("content-type");
+        return Promise.resolve(new Response(null, { status: 200 }));
+      }) as typeof fetch,
+    });
+
+    await client.uploads.putFile(
+      "https://upload.example",
+      new Uint8Array([1, 2, 3]),
+      "image/png"
+    );
+
+    expect(seenHeaders).toEqual({
+      contentLength: "3",
+      contentType: "image/png",
+    });
+  });
 });

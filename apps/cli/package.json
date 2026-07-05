@@ -1,13 +1,24 @@
 {
   "name": "teak-cli",
-  "version": "1.0.51",
-  "description": "Command line client for Teak.",
+  "version": "1.0.52",
+  "description": "Command-line client for Teak, the personal knowledge hub for saving and rediscovering ideas.",
   "type": "module",
   "bin": {
     "teak": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "teak",
+    "cli",
+    "knowledge-base",
+    "bookmark-manager",
+    "notes",
+    "mcp",
+    "api-client",
+    "productivity"
   ],
   "engines": {
     "node": ">=20"
@@ -33,5 +44,10 @@
     "url": "git+https://github.com/praveenjuge/teak.git",
     "directory": "apps/cli"
   },
+  "homepage": "https://teakvault.com/docs/cli",
+  "bugs": {
+    "url": "https://github.com/praveenjuge/teak/issues"
+  },
+  "author": "Praveen Juge <hello@praveenjuge.com>",
   "license": "MIT"
 }

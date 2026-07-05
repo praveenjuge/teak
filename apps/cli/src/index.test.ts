@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { formatCardLine, mimeFor, parseSort, typeForMime } from ".";
 import { resolveAddInput } from "./files";
-import { VERSION } from "./runtime";
+import { CLI_OAUTH_SCOPE, VERSION, createAuthorizeUrl } from "./runtime";
 
 describe("teak cli formatting", () => {
   test("formats stable one-line cards", () => {
@@ -41,5 +41,20 @@ describe("teak cli formatting", () => {
   test("uses package version for CLI output", async () => {
     const manifest = await Bun.file("package.json").json();
     expect(VERSION).toBe(manifest.version);
+  });
+
+  test("requests refresh-capable OAuth scope during login", () => {
+    const url = createAuthorizeUrl(
+      { authUrl: "https://app.teakvault.com" },
+      {
+        codeChallenge: "challenge",
+        redirectUri: "http://127.0.0.1:14210/oauth/callback",
+        state: "state",
+      }
+    );
+
+    expect(url.searchParams.get("client_id")).toBe("teak-cli");
+    expect(url.searchParams.get("scope")).toBe(CLI_OAUTH_SCOPE);
+    expect(url.searchParams.get("scope")).toContain("offline_access");
   });
 });

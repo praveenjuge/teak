@@ -194,6 +194,22 @@ export const normalizeLimit = (limit?: number): number => {
   return Math.max(1, Math.min(Math.trunc(limit ?? 50), 100));
 };
 
+const byteLengthForBody = (bytes: BodyInit): number | null => {
+  if (bytes instanceof ArrayBuffer) {
+    return bytes.byteLength;
+  }
+  if (ArrayBuffer.isView(bytes)) {
+    return bytes.byteLength;
+  }
+  if (typeof Blob !== "undefined" && bytes instanceof Blob) {
+    return bytes.size;
+  }
+  if (typeof bytes === "string") {
+    return new TextEncoder().encode(bytes).byteLength;
+  }
+  return null;
+};
+
 export const buildCardsSearchParams = (input: {
   createdAfter?: number;
   createdBefore?: number;
@@ -469,9 +485,14 @@ export const createTeakClient = (options: {
           asUpload
         ),
       putFile: async (uploadUrl: string, bytes: BodyInit, mimeType: string) => {
+        const headers = new Headers({ "Content-Type": mimeType });
+        const byteLength = byteLengthForBody(bytes);
+        if (byteLength !== null) {
+          headers.set("Content-Length", String(byteLength));
+        }
         const response = await fetchImpl(uploadUrl, {
           body: bytes,
-          headers: { "Content-Type": mimeType },
+          headers,
           method: "PUT",
         });
         if (!response.ok) {

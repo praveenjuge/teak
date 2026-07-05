@@ -24,6 +24,7 @@ Save inspiration in one click and find it in two seconds — no more lost bookma
 | 🧩 **Browser** | One-click saves while you browse | [Chrome →](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) · [Safari →](https://apps.apple.com/us/app/teak-for-safari/id6770003409?mt=12) |
 | ⚡ **Raycast** | Save and search from your keyboard | [Install →](https://www.raycast.com/praveenjuge/teak-raycast) |
 | 🧰 **CLI** | Save, search, and manage cards from your terminal | `npm i -g teak-cli` |
+| 🤖 **Agent Skill** | Teach AI agents how to use Teak through CLI, API, MCP, and SDK workflows | `npx skills add praveenjuge/teak --skill teak` |
 | 🔌 **API & MCP** | Programmatic and AI client access | [API docs →](https://teakvault.com/docs/api) |
 
 ## Monorepo
@@ -40,6 +41,8 @@ teak/
 │   ├── raycast/    # Raycast extension
 │   ├── cli/        # npm command line client
 │   └── docs/       # Documentation site (Astro + Starlight)
+├── .agents/
+│   └── skills/     # Agent Skills published through skills.sh-compatible repos
 ├── packages/
 │   ├── convex/     # Convex backend
 │   ├── sdk/        # Shared API client

@@ -1,0 +1,39 @@
+---
+title: Agent Skill
+description: Install the Teak Agent Skill for Codex, Claude Code, Cursor, and other skills-compatible agents
+---
+
+The Teak Agent Skill gives AI agents a reliable playbook for using Teak through the CLI, API, MCP server, and TypeScript SDK.
+
+## Install
+
+```bash
+npx skills add praveenjuge/teak --skill teak
+```
+
+The skill installs from Teak's public GitHub repository and works with skills-compatible agents such as Codex, Claude Code, Cursor, GitHub Copilot, Windsurf, and others.
+
+## What It Teaches Agents
+
+- When to use the Teak CLI, public API, MCP server, or SDK.
+- How to authenticate with browser sign-in or a Teak API key.
+- How to save text, links, files, tags, and notes.
+- How to search, inspect, update, favorite, delete, and sync cards.
+- How to use production-safe smoke-test markers and clean up test cards.
+- How to avoid leaking API keys, OAuth tokens, or private saved content.
+
+## Use
+
+After installing, ask your agent to use the Teak skill:
+
+```text
+Use the Teak skill to save this research link with the tags ai and reference.
+```
+
+Agents that support implicit skill activation can also choose it automatically when a task mentions Teak cards, the Teak CLI, Teak MCP, or the Teak API.
+
+## Related Docs
+
+- [Command Line](/docs/cli/)
+- [API](/docs/api/)
+- [MCP](/docs/mcp/)

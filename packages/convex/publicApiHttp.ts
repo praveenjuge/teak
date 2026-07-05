@@ -866,7 +866,12 @@ const verifyUploadedFile = async (
   }
 
   const config = r2ComponentConfig();
+  let headMetadata: { contentType?: string; size?: number };
   try {
+    headMetadata = await ctx.runAction(
+      (internal as any).publicApiUploadMetadata.headUploadedObject,
+      { key: payload.fileKey }
+    );
     await ctx.runAction(components.r2.lib.syncMetadata, {
       key: payload.fileKey,
       ...config,
@@ -878,19 +883,14 @@ const verifyUploadedFile = async (
     });
   }
 
-  const metadata = await ctx.runQuery(components.r2.lib.getMetadata, {
-    key: payload.fileKey,
-    ...config,
-  });
-
-  if (!metadata || typeof metadata.size !== "number") {
+  if (typeof headMetadata.size !== "number") {
     throw new ConvexError({
       code: "INVALID_INPUT",
       message: "Uploaded file metadata is unavailable",
     });
   }
 
-  if (metadata.size > MAX_FILE_SIZE) {
+  if (headMetadata.size > MAX_FILE_SIZE) {
     throw new ConvexError({
       code: "INVALID_INPUT",
       message: `Uploaded file must not exceed ${MAX_FILE_SIZE} bytes`,
@@ -898,12 +898,12 @@ const verifyUploadedFile = async (
   }
 
   const storedMimeType =
-    typeof metadata.contentType === "string"
-      ? metadata.contentType.trim().toLowerCase()
+    typeof headMetadata.contentType === "string"
+      ? headMetadata.contentType.trim().toLowerCase()
       : undefined;
   const requestedMimeType = payload.mimeType?.trim().toLowerCase();
 
-  if (payload.fileSize !== undefined && payload.fileSize !== metadata.size) {
+  if (payload.fileSize !== undefined && payload.fileSize !== headMetadata.size) {
     throw new ConvexError({
       code: "INVALID_INPUT",
       message: "Uploaded file size does not match the stored object",
@@ -921,7 +921,7 @@ const verifyUploadedFile = async (
     });
   }
 
-  return { storedFileSize: metadata.size, storedMimeType };
+  return { storedFileSize: headMetadata.size, storedMimeType };
 };
 
 const handleCreateCardRequest = async (
