@@ -132,7 +132,7 @@ AUTH_ISSUER_URL=https://app.yourdomain.com       # Optional: OAuth issuer overri
 TEAK_DEV_API_URL=https://deployment.convex.site  # Optional local override
 ```
 
-Convex serves the authenticated `/v1` REST API, `/mcp` MCP endpoint, `/healthz`, `/openapi.json`, and OAuth protected-resource metadata from the deployment's `.convex.site` domain. Teak production keeps `https://api.teakvault.com` compatible through an edge rewrite to that Convex HTTP surface.
+Convex serves the authenticated `/v1` REST API, `/mcp` MCP endpoint, `/healthz`, `/openapi.json`, and OAuth protected-resource metadata from the deployment's `.convex.site` domain. Teak production keeps `https://api.teakvault.com` compatible through the edge rewrite in `packages/convex/vercel.json`.
 
 ## Where to get the values
 
