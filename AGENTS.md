@@ -179,6 +179,16 @@ Required GitHub secrets: `CHROME_EXTENSION_ID`, `CHROME_CLIENT_ID`, `CHROME_CLIE
 
 Only the Chrome Web Store is automated today. There is no Firefox / Edge publishing step.
 
+## CLI Release Process
+
+The npm package is `teak-cli` and the installed binary is `teak`.
+
+1. Bump the `version` field in every `package.json` across the monorepo.
+2. Merge the version change to `main`.
+3. The `Version Tag` workflow creates `v<version>` when all package versions match.
+4. The `CLI Release` workflow publishes `apps/cli` to npm as `teak-cli` on the same tag.
+5. The desktop, browser extension, and Safari release workflows also run from that tag.
+
 ## Safari Extension Release Process
 
 Follow `apps/safari-extension/release.md`. Keep Apple-facing identifiers stable

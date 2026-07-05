@@ -1,6 +1,6 @@
 {
   "name": "teak",
-  "version": "1.0.47",
+  "version": "1.0.48",
   "private": true,
   "packageManager": "bun@1.3.5",
   "workspaces": [
@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "build": "turbo run build",
+    "build:cli": "turbo run build --filter=teak-cli",
     "build:raycast": "turbo run build --filter=./apps/raycast",
     "build:extension": "turbo run build --filter=@teak/extension",
     "dev": "turbo watch dev --filter=@teak/web --filter=@teak/convex --filter=@teak/api --filter=@teak/desktop --filter=./apps/raycast --filter=@teak/docs --filter=@teak/extension",
@@ -16,6 +17,7 @@
     "dev:convex": "turbo watch dev --filter=@teak/convex",
     "dev:docs": "turbo watch dev --filter=@teak/docs",
     "dev:api": "turbo watch dev --filter=@teak/api",
+    "dev:cli": "turbo watch dev --filter=teak-cli",
     "dev:raycast": "turbo watch dev --filter=./apps/raycast",
     "publish:raycast": "cd apps/raycast && bun run publish",
     "dev:extension": "turbo watch dev --filter=@teak/extension --filter=@teak/convex",

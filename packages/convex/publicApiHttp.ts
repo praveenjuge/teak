@@ -56,11 +56,21 @@ interface CardsQueryOptions {
   type?: string;
 }
 interface CreateCardPayload {
+  cardType?: string;
   content?: string;
+  fileKey?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
   notes?: string | null;
   source?: string;
   tags?: string[];
   url?: string;
+}
+interface CreateUploadPayload {
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
 }
 
 type CardListInclude = "content" | "metadata" | "processing";
@@ -81,13 +91,11 @@ const errorResponse = (
   error: string,
   extras?: Record<string, unknown>,
   headers?: HeadersInit
-): Response => {
-  return json(status, { code, error, ...(extras ?? {}) }, headers);
-};
+): Response => json(status, { code, error, ...(extras ?? {}) }, headers);
 
 const buildRateLimitHeaders = (retryAt?: number): HeadersInit | undefined => {
   if (!(typeof retryAt === "number" && Number.isFinite(retryAt))) {
-    return undefined;
+    return;
   }
 
   const retryAfterSeconds = Math.max(
@@ -420,11 +428,7 @@ const withAuthorizedUser = async (
     }
     return {
       error: isOAuthToken
-        ? errorResponse(
-            401,
-            "UNAUTHORIZED",
-            "Invalid or expired access token"
-          )
+        ? errorResponse(401, "UNAUTHORIZED", "Invalid or expired access token")
         : errorResponse(401, "INVALID_API_KEY", "Invalid or revoked API key"),
     };
   }
@@ -559,7 +563,7 @@ const mapConvexErrorToResponse = (
 
 const parseOptionalString = (value: unknown): string | undefined => {
   if (typeof value !== "string") {
-    return undefined;
+    return;
   }
 
   const trimmed = value.trim();
@@ -580,7 +584,7 @@ const parseStringArray = (value: unknown): string[] | undefined => {
   if (
     !(Array.isArray(value) && value.every((entry) => typeof entry === "string"))
   ) {
-    return undefined;
+    return;
   }
 
   const normalized = Array.from(
@@ -622,7 +626,18 @@ const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
   }
 
   const source = payload as Record<string, unknown>;
-  const allowedKeys = new Set(["content", "notes", "source", "tags", "url"]);
+  const allowedKeys = new Set([
+    "cardType",
+    "content",
+    "fileKey",
+    "fileName",
+    "fileSize",
+    "mimeType",
+    "notes",
+    "source",
+    "tags",
+    "url",
+  ]);
 
   for (const key of Object.keys(source)) {
     if (!allowedKeys.has(key)) {
@@ -632,16 +647,30 @@ const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
 
   const content = parseOptionalString(source.content);
   const url = parseOptionalString(source.url);
+  const fileKey = parseOptionalString(source.fileKey);
+  const fileName = parseOptionalString(source.fileName);
+  const mimeType = parseOptionalString(source.mimeType);
+  const cardType = parseOptionalString(source.cardType);
   const notes = parseOptionalNullableString(source.notes);
   const sourceValue = parseOptionalString(source.source);
   const tags =
     source.tags === undefined ? undefined : parseStringArray(source.tags);
+  const fileSize =
+    source.fileSize === undefined || typeof source.fileSize === "number"
+      ? source.fileSize
+      : Number.NaN;
 
   if (source.tags !== undefined && tags === undefined) {
     return null;
   }
 
   if (url !== undefined && !isSafeExternalUrl(url)) {
+    return null;
+  }
+  if (cardType !== undefined && !CARD_TYPES.has(cardType)) {
+    return null;
+  }
+  if (fileSize !== undefined && !Number.isFinite(fileSize)) {
     return null;
   }
 
@@ -652,7 +681,24 @@ const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
     return null;
   }
 
-  if (!(content || url)) {
+  if (fileKey) {
+    if (!(cardType && fileName && mimeType) || url) {
+      return null;
+    }
+    return {
+      cardType,
+      content,
+      fileKey,
+      fileName,
+      fileSize,
+      mimeType,
+      notes,
+      source: sourceValue,
+      tags,
+    };
+  }
+
+  if (!(content || url) || cardType || fileName || mimeType) {
     return null;
   }
 
@@ -665,9 +711,34 @@ const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
   };
 };
 
+const validateUploadPayload = (
+  payload: unknown
+): CreateUploadPayload | null => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const source = payload as Record<string, unknown>;
+  const allowedKeys = new Set(["fileName", "fileSize", "mimeType"]);
+
+  for (const key of Object.keys(source)) {
+    if (!allowedKeys.has(key)) {
+      return null;
+    }
+  }
+
+  const fileName = parseOptionalString(source.fileName);
+  const mimeType = parseOptionalString(source.mimeType);
+  const fileSize = source.fileSize;
+  if (!(fileName && mimeType && typeof fileSize === "number")) {
+    return null;
+  }
+  return { fileName, fileSize, mimeType };
+};
+
 const parseBooleanQuery = (value: string | null): boolean | undefined => {
   if (!value) {
-    return undefined;
+    return;
   }
 
   if (value === "true") {
@@ -678,12 +749,12 @@ const parseBooleanQuery = (value: string | null): boolean | undefined => {
     return false;
   }
 
-  return undefined;
+  return;
 };
 
 const parseTimestampQuery = (value: string | null): number | undefined => {
   if (!value) {
-    return undefined;
+    return;
   }
 
   const parsed = Number.parseInt(value, 10);
@@ -825,17 +896,30 @@ const handleCreateCardRequest = async (
     }
     idempotencyState = idempotency;
 
-    const result = await ctx.runMutation(
-      (internal as any).raycast.quickSaveForUser,
-      {
-        content: createPayload.content,
-        notes: createPayload.notes === null ? undefined : createPayload.notes,
-        source: createPayload.source,
-        tags: createPayload.tags,
-        url: createPayload.url,
-        userId: auth.validated.userId,
-      }
-    );
+    const result = createPayload.fileKey
+      ? await ctx.runMutation(
+          (internal as any).publicApiUploads.finalizeUploadedCardForUser,
+          {
+            cardType: createPayload.cardType,
+            content: createPayload.content,
+            fileKey: createPayload.fileKey,
+            fileName: createPayload.fileName,
+            fileSize: createPayload.fileSize,
+            mimeType: createPayload.mimeType,
+            notes:
+              createPayload.notes === null ? undefined : createPayload.notes,
+            tags: createPayload.tags,
+            userId: auth.validated.userId,
+          }
+        )
+      : await ctx.runMutation((internal as any).raycast.quickSaveForUser, {
+          content: createPayload.content,
+          notes: createPayload.notes === null ? undefined : createPayload.notes,
+          source: createPayload.source,
+          tags: createPayload.tags,
+          url: createPayload.url,
+          userId: auth.validated.userId,
+        });
     operationCommitted = true;
     const responseBody = buildCreateCardResponse(result, request.url);
     await completeIdempotencyResponse(ctx, {
@@ -860,6 +944,45 @@ const handleCreateCardRequest = async (
       }
     }
     return mapConvexErrorToResponse(error, "Failed to save card");
+  }
+};
+
+const handleCreateUploadRequest = async (
+  ctx: any,
+  request: Request
+): Promise<Response> => {
+  const auth = await withAuthorizedUser(ctx, request);
+  if ("error" in auth) {
+    return auth.error;
+  }
+
+  let payload: unknown;
+  try {
+    payload = await parseJsonBody(request);
+  } catch {
+    return errorResponse(400, "BAD_REQUEST", "Invalid JSON body");
+  }
+
+  const uploadPayload = validateUploadPayload(payload);
+  if (!uploadPayload) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Body must include only valid fields: fileName, mimeType, fileSize"
+    );
+  }
+
+  try {
+    const result = await ctx.runMutation(
+      (internal as any).publicApiUploads.generateUploadUrlForUser,
+      {
+        ...uploadPayload,
+        userId: auth.validated.userId,
+      }
+    );
+    return json(200, result);
+  } catch (error) {
+    return mapConvexErrorToResponse(error, "Failed to prepare upload");
   }
 };
 
@@ -1075,22 +1198,20 @@ const parseCardRoute = (
   return null;
 };
 
-const resolveCardId = (ctx: any, cardId: string): Promise<string | null> => {
-  return ctx.runQuery((internal as any).raycast.resolveCardIdForUserRequest, {
+const resolveCardId = (ctx: any, cardId: string): Promise<string | null> =>
+  ctx.runQuery((internal as any).raycast.resolveCardIdForUserRequest, {
     cardId,
   });
-};
 
 const ensureCardExistsForUser = (
   ctx: any,
   userId: string,
   cardId: string
-): Promise<any | null> => {
-  return ctx.runQuery((internal as any).raycast.getCardForUser, {
+): Promise<any | null> =>
+  ctx.runQuery((internal as any).raycast.getCardForUser, {
     cardId,
     userId,
   });
-};
 
 const validatePatchPayload = (
   payload: unknown
@@ -1482,6 +1603,16 @@ export const createCardV1 = httpAction((ctx, request) => {
   }
 
   return handleCreateCardRequest(ctx, request);
+});
+
+export const createUploadV1 = httpAction((ctx, request) => {
+  if (request.method !== "POST") {
+    return Promise.resolve(
+      errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
+    );
+  }
+
+  return handleCreateUploadRequest(ctx, request);
 });
 
 export const listCardsV1 = httpAction((ctx, request) => {

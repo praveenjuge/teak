@@ -30,6 +30,7 @@ describe("openapi", () => {
     const requiredPaths = [
       "/openapi.json",
       "/v1/cards",
+      "/v1/uploads",
       "/v1/cards/bulk",
       "/v1/cards/changes",
       "/v1/tags",
@@ -42,6 +43,7 @@ describe("openapi", () => {
     }
 
     expect(openApiSpec.paths).toHaveProperty("/v1/cards");
+    expect(openApiSpec.paths).toHaveProperty("/v1/uploads");
     expect(openApiSpec.paths).toHaveProperty("/v1/cards/bulk");
     expect(openApiSpec.paths).toHaveProperty("/v1/cards/changes");
     expect(openApiSpec.paths).toHaveProperty("/v1/tags");

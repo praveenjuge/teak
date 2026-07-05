@@ -1,0 +1,93 @@
+name: CLI Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+concurrency:
+  group: cli-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$(node -p "require('./apps/cli/package.json').version")"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Check if package version already exists
+        id: check
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if npm view "teak-cli@${VERSION}" version >/dev/null 2>&1; then
+            echo "teak-cli@${VERSION} is already published."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Bun
+        if: steps.check.outputs.should_publish == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.5"
+
+      - name: Setup Node
+        if: steps.check.outputs.should_publish == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install latest npm
+        if: steps.check.outputs.should_publish == 'true'
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        if: steps.check.outputs.should_publish == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Verify CLI version matches release version
+        if: steps.check.outputs.should_publish == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cli_version="$(node -p "require('./apps/cli/package.json').version")"
+          if [ "$cli_version" != "$VERSION" ]; then
+            echo "Release version ($VERSION) does not match apps/cli/package.json version ($cli_version)." >&2
+            exit 1
+          fi
+
+      - name: Test and build CLI
+        if: steps.check.outputs.should_publish == 'true'
+        run: |
+          bun run test --filter=teak-cli
+          bun run typecheck --filter=teak-cli
+          bun run build:cli
+          node apps/cli/dist/index.js --version
+
+      - name: Publish to npm
+        if: steps.check.outputs.should_publish == 'true'
+        working-directory: apps/cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public

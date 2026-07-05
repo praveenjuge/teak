@@ -1,0 +1,38 @@
+{
+  "name": "teak-cli",
+  "version": "1.0.48",
+  "description": "Command line client for Teak.",
+  "type": "module",
+  "bin": {
+    "teak": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target=node --format=esm --banner '#!/usr/bin/env node' && chmod +x dist/index.js",
+    "test": "bun test src --coverage --dots",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@teak/sdk": "workspace:*",
+    "commander": "^15.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "typescript": "^6.0.3"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/praveenjuge/teak.git",
+    "directory": "apps/cli"
+  },
+  "license": "MIT"
+}

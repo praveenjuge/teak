@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
-import { mutation } from "../_generated/server";
+import { type MutationCtx, mutation } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
 import { type CardType, cardTypeValidator } from "../schema";
 import { buildR2ObjectKey, buildR2UserPrefix, r2 } from "../storage/r2";
@@ -11,7 +11,7 @@ import {
 
 const FILE_CARD_TYPES: CardType[] = ["image", "video", "audio", "document"];
 
-const validateFileCardType = (cardType: CardType) => {
+export const validateFileCardType = (cardType: CardType) => {
   if (!FILE_CARD_TYPES.includes(cardType)) {
     throw new ConvexError({
       code: "TYPE_MISMATCH",
@@ -21,7 +21,10 @@ const validateFileCardType = (cardType: CardType) => {
   }
 };
 
-const mimeMatchesCardType = (mime: string | undefined, cardType: CardType) => {
+export const mimeMatchesCardType = (
+  mime: string | undefined,
+  cardType: CardType
+) => {
   if (!mime) {
     return true; // fall back to trusting the client when mime is missing
   }
@@ -118,6 +121,103 @@ export const uploadAndCreateCard = mutation({
   },
 });
 
+export const createUploadedCardForUser = async (
+  ctx: MutationCtx,
+  args: {
+    additionalMetadata?: any;
+    cardType: CardType;
+    content?: string;
+    fileKey: string;
+    fileName: string;
+    fileSize?: number;
+    fileType?: string;
+    notes?: string | null;
+    tags?: string[];
+    userId: string;
+  }
+) => {
+  const now = Date.now();
+
+  await ensureCardCreationAllowed(ctx, args.userId);
+  validateFileCardType(args.cardType);
+
+  if (!args.fileKey.startsWith(`${buildR2UserPrefix(args.userId)}/`)) {
+    throw new ConvexError({
+      code: "INVALID_STORAGE_KEY",
+      message: "Uploaded file key does not belong to the current user",
+    });
+  }
+
+  if (!mimeMatchesCardType(args.fileType, args.cardType)) {
+    throw new ConvexError({
+      code: "TYPE_MISMATCH",
+      message: `Uploaded file does not match expected ${args.cardType} type`,
+    });
+  }
+
+  const cardType = args.cardType;
+  const additionalMeta = args.additionalMetadata || {};
+  const fileMetadataObj = {
+    fileName: args.fileName,
+    fileSize: args.fileSize,
+    mimeType: args.fileType,
+    ...(additionalMeta.recordingTimestamp && {
+      recordingTimestamp: additionalMeta.recordingTimestamp,
+    }),
+    ...(additionalMeta.duration && { duration: additionalMeta.duration }),
+    ...(additionalMeta.width && { width: additionalMeta.width }),
+    ...(additionalMeta.height && { height: additionalMeta.height }),
+  };
+
+  const {
+    recordingTimestamp: _recordingTimestamp,
+    duration: _duration,
+    width: _width,
+    height: _height,
+    fileName: _fileName,
+    fileSize: _fileSize,
+    mimeType: _mimeType,
+    ...nonFileMetadata
+  } = additionalMeta;
+
+  const hasNonFileMetadata = Object.values(nonFileMetadata).some(
+    (v) => v !== undefined
+  );
+  const metadata = hasNonFileMetadata ? nonFileMetadata : undefined;
+
+  const cardId = await ctx.db.insert("cards", {
+    userId: args.userId,
+    content: args.content || "",
+    type: cardType,
+    fileKey: args.fileKey,
+    fileMetadata: fileMetadataObj,
+    notes: args.notes ?? undefined,
+    tags: args.tags,
+    metadata,
+    processingStatus: buildInitialProcessingStatus({
+      now,
+      cardType,
+      classificationStatus: stageCompleted(now, 1),
+    }),
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await ctx.scheduler.runAfter(
+    0,
+    (internal as any).storage.r2.syncUploadedObjectMetadata,
+    { key: args.fileKey }
+  );
+
+  await ctx.scheduler.runAfter(
+    0,
+    (internal as any)["workflows/manager"].startCardProcessingWorkflow,
+    { cardId }
+  );
+
+  return cardId;
+};
+
 // Mutation to finalize card creation after successful upload
 export const finalizeUploadedCard = mutation({
   args: {
@@ -142,91 +242,18 @@ export const finalizeUploadedCard = mutation({
     }
 
     try {
-      const now = Date.now();
-
-      // Check rate limit and card count limit
-      await ensureCardCreationAllowed(ctx, user.subject);
-
-      validateFileCardType(args.cardType);
-
-      if (!args.fileKey.startsWith(`${buildR2UserPrefix(user.subject)}/`)) {
-        throw new ConvexError({
-          code: "INVALID_STORAGE_KEY",
-          message: "Uploaded file key does not belong to the current user",
-        });
-      }
-
-      if (!mimeMatchesCardType(args.fileType, args.cardType)) {
-        throw new ConvexError({
-          code: "TYPE_MISMATCH",
-          message: `Uploaded file does not match expected ${args.cardType} type`,
-        });
-      }
-
-      const cardType = args.cardType;
-
-      // Separate file-related metadata from other metadata
-      const additionalMeta = args.additionalMetadata || {};
-
-      // Build comprehensive file metadata (including any file-related fields from additionalMetadata)
-      const fileMetadataObj = {
+      const cardId = await createUploadedCardForUser(ctx, {
+        additionalMetadata: args.additionalMetadata,
+        cardType: args.cardType,
+        content: args.content,
+        fileKey: args.fileKey,
         fileName: args.fileName,
         fileSize: args.fileSize,
-        mimeType: args.fileType,
-        // Include file-related fields from additionalMetadata
-        ...(additionalMeta.recordingTimestamp && {
-          recordingTimestamp: additionalMeta.recordingTimestamp,
-        }),
-        ...(additionalMeta.duration && { duration: additionalMeta.duration }),
-        ...(additionalMeta.width && { width: additionalMeta.width }),
-        ...(additionalMeta.height && { height: additionalMeta.height }),
-      };
-
-      // Build non-file metadata (only keep fields that aren't file-related)
-      const {
-        recordingTimestamp: _recordingTimestamp,
-        duration: _duration,
-        width: _width,
-        height: _height,
-        fileName: _fileName,
-        fileSize: _fileSize,
-        mimeType: _mimeType,
-        ...nonFileMetadata
-      } = additionalMeta;
-
-      const hasNonFileMetadata = Object.values(nonFileMetadata).some(
-        (v) => v !== undefined
-      );
-      const metadata = hasNonFileMetadata ? nonFileMetadata : undefined;
-
-      // Create the card
-      const cardId = await ctx.db.insert("cards", {
+        fileType: args.fileType,
+        notes: undefined,
+        tags: undefined,
         userId: user.subject,
-        content: args.content || "",
-        type: cardType,
-        fileKey: args.fileKey,
-        fileMetadata: fileMetadataObj,
-        metadata,
-        processingStatus: buildInitialProcessingStatus({
-          now,
-          cardType,
-          classificationStatus: stageCompleted(now, 1),
-        }),
-        createdAt: now,
-        updatedAt: now,
       });
-
-      await ctx.scheduler.runAfter(
-        0,
-        (internal as any).storage.r2.syncUploadedObjectMetadata,
-        { key: args.fileKey }
-      );
-
-      await ctx.scheduler.runAfter(
-        0,
-        (internal as any)["workflows/manager"].startCardProcessingWorkflow,
-        { cardId }
-      );
 
       return { success: true, cardId };
     } catch (error) {
