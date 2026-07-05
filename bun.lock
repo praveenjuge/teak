@@ -40,7 +40,6 @@
         "teak": "./dist/index.js",
       },
       "dependencies": {
-        "@teak/sdk": "workspace:*",
         "commander": "^15.0.0",
       },
       "devDependencies": {
