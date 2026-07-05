@@ -1,6 +1,6 @@
 {
   "name": "@teak/convex",
-  "version": "1.0.49",
+  "version": "1.0.50",
   "type": "module",
   "exports": {
     ".": "./index.ts",

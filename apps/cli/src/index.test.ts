@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { formatCardLine, mimeFor, parseSort, typeForMime } from ".";
 import { resolveAddInput } from "./files";
+import { VERSION } from "./runtime";
 
 describe("teak cli formatting", () => {
   test("formats stable one-line cards", () => {
@@ -35,5 +36,10 @@ describe("teak cli formatting", () => {
   test("rejects invalid sort values", () => {
     expect(parseSort("oldest")).toBe("oldest");
     expect(() => parseSort("newestt")).toThrow("sort must be newest or oldest");
+  });
+
+  test("uses package version for CLI output", async () => {
+    const manifest = await Bun.file("package.json").json();
+    expect(VERSION).toBe(manifest.version);
   });
 });

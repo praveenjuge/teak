@@ -18,7 +18,18 @@ import {
 } from "@teak/sdk";
 import { InvalidArgumentError } from "commander";
 
-export const VERSION = "1.0.48";
+const readPackageVersion = () => {
+  try {
+    const manifest = JSON.parse(
+      readFileSync(new URL("../package.json", import.meta.url), "utf8")
+    ) as { version?: unknown };
+    return typeof manifest.version === "string" ? manifest.version : "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+};
+
+export const VERSION = readPackageVersion();
 export const EXIT = { api: 1, auth: 3, notFound: 4, rateLimited: 5, usage: 2 };
 
 const DEFAULT_API_URL = "https://api.teakvault.com";
