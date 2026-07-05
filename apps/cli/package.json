@@ -1,6 +1,6 @@
 {
   "name": "teak-cli",
-  "version": "1.0.50",
+  "version": "1.0.51",
   "description": "Command line client for Teak.",
   "type": "module",
   "bin": {

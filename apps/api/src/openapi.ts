@@ -1,6 +1,16 @@
-import { CARD_SORTS, CARD_TYPES } from "@teak/sdk";
 import { resolveTeakDevApiUrl } from "./shared/devUrl.js";
 
+const CARD_TYPES = [
+  "text",
+  "link",
+  "image",
+  "video",
+  "audio",
+  "document",
+  "palette",
+  "quote",
+] as const;
+const CARD_SORTS = ["newest", "oldest"] as const;
 const apiKeySecurity = [{ bearerAuth: [] }];
 
 const cardProperties = {
