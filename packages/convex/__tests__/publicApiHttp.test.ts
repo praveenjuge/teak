@@ -13,6 +13,7 @@ import {
   searchCardsV1,
   tagsV1,
 } from "../publicApiHttp";
+import { MAX_FILE_SIZE } from "../shared/constants";
 
 process.env.R2_ACCESS_KEY_ID = "test-r2-access-key";
 process.env.R2_BUCKET = "test-r2-bucket";
@@ -425,6 +426,41 @@ describe("publicApiHttp", () => {
     expect(await response.json()).toMatchObject({
       code: "INVALID_INPUT",
       error: "Uploaded file size does not match the stored object",
+    });
+    expect(runMutation).toHaveBeenCalledTimes(3);
+  });
+
+  test("createCardV1 rejects fileKey uploads when stored object is too large", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runAction = mock().mockResolvedValueOnce(null);
+    const runQuery = mock().mockResolvedValueOnce({
+      contentType: "image/png",
+      size: MAX_FILE_SIZE + 1,
+    });
+
+    const response = await runHandler(
+      createCardV1,
+      { runAction, runMutation, runQuery },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cardType: "image",
+          fileKey: "users/user_1/file/large.png",
+          fileName: "large.png",
+          mimeType: "image/png",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "INVALID_INPUT",
+      error: `Uploaded file must not exceed ${MAX_FILE_SIZE} bytes`,
     });
     expect(runMutation).toHaveBeenCalledTimes(3);
   });

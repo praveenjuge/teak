@@ -4,6 +4,7 @@ import { httpAction } from "./_generated/server";
 import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
 import { isWellFormedOAuthToken } from "./oauthTokens";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
+import { MAX_FILE_SIZE } from "./shared/constants";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 import { r2ComponentConfig } from "./storage/r2";
 
@@ -886,6 +887,13 @@ const verifyUploadedFile = async (
     throw new ConvexError({
       code: "INVALID_INPUT",
       message: "Uploaded file metadata is unavailable",
+    });
+  }
+
+  if (metadata.size > MAX_FILE_SIZE) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: `Uploaded file must not exceed ${MAX_FILE_SIZE} bytes`,
     });
   }
 
