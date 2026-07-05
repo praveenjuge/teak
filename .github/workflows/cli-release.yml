@@ -88,6 +88,4 @@ jobs:
       - name: Publish to npm
         if: steps.check.outputs.should_publish == 'true'
         working-directory: apps/cli
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
