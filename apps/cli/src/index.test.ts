@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { formatCardLine, mimeFor, typeForMime } from ".";
+import { resolveAddInput } from "./files";
 
 describe("teak cli formatting", () => {
   test("formats stable one-line cards", () => {
@@ -20,5 +21,14 @@ describe("teak cli formatting", () => {
     expect(mimeFor("/tmp/a.unknown")).toBe("application/octet-stream");
     expect(typeForMime("video/mp4")).toBe("video");
     expect(typeForMime("application/pdf")).toBe("document");
+  });
+
+  test("explicit file input wins before stdin is read", async () => {
+    await expect(resolveAddInput(undefined, "/tmp/image.png")).resolves.toEqual(
+      {
+        candidate: "/tmp/image.png",
+        raw: "",
+      }
+    );
   });
 });

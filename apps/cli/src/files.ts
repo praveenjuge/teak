@@ -60,6 +60,14 @@ export const typeForMime = (mimeType: string): CardType => {
   return "document";
 };
 
+export const resolveAddInput = async (
+  input: string | undefined,
+  explicitFile: string | undefined
+) => {
+  const raw = input || (explicitFile ? "" : await readStdin());
+  return { candidate: explicitFile || raw, raw };
+};
+
 export const addCard = async (
   input: string | undefined,
   options: ClientOptions & {
@@ -71,8 +79,7 @@ export const addCard = async (
 ) => {
   const api = client(options);
   const tags = parseTags(options.tags);
-  const raw = input || (await readStdin());
-  const candidate = options.file || raw;
+  const { candidate, raw } = await resolveAddInput(input, options.file);
   if (candidate && existsSync(candidate) && statSync(candidate).isFile()) {
     const stats = statSync(candidate);
     if (stats.size > MAX_FILE_SIZE) {
