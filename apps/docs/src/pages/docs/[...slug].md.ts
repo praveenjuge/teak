@@ -3,7 +3,7 @@ import { getCollection } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 
 const toRouteSlug = (id: string) =>
-  id.replace(/^docs\//, "").replace(/\/index$/, "index");
+  id === "docs" ? "index" : id.replace(/^docs\//, "").replace(/\/index$/, "");
 
 export const getStaticPaths: GetStaticPaths = async () => {
   const docs = await getCollection(

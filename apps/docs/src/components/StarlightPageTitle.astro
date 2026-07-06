@@ -1,8 +1,10 @@
 ---
 const PAGE_TITLE_ID = "_top";
-const title = Astro.locals.starlightRoute.entry.data.title;
+const route = Astro.locals.starlightRoute;
+const title = route.entry.data.title;
 const pathname = Astro.url.pathname.replace(/\/$/, "");
-const markdownPath = `${pathname}.md`;
+const markdownPath =
+  route.entry.id === "docs" ? "/docs/index.md" : `${pathname}.md`;
 const markdownUrl = new URL(markdownPath, "https://teakvault.com").toString();
 const prompt = `Read ${markdownUrl} and help me integrate Teak.`;
 const claudeUrl = `https://claude.ai/new?q=${encodeURIComponent(prompt)}`;

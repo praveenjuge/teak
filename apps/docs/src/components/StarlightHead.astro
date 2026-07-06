@@ -5,7 +5,8 @@ import { buildPageSchemas, SITE_URL } from "../lib/jsonld";
 
 const route = Astro.locals.starlightRoute;
 const pageUrl = new URL(Astro.url.pathname, SITE_URL).toString().replace(/\/$/, "");
-const markdownUrl = `${pageUrl}.md`;
+const markdownUrl =
+  route.entry.id === "docs" ? `${SITE_URL}/docs/index.md` : `${pageUrl}.md`;
 const isAiAgentsPage = route.entry.id === "docs/ai-agents";
 const schemas = buildPageSchemas({
   title: route.entry.data.title,
