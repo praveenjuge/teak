@@ -2,6 +2,8 @@ import { defineConfig, devices } from "@playwright/test";
 import { env } from "./src/helpers/env";
 
 const journey = "src/journey/**/*.e2e.ts";
+const deleteAccount = "journey/99-delete-account.e2e.ts";
+const postDelete = "journey/100-post-delete.e2e.ts";
 
 export default defineConfig({
   testDir: "./src",
@@ -25,10 +27,24 @@ export default defineConfig({
     {
       name: "journey",
       dependencies: ["journey-setup"],
-      testIgnore: "journey/01-signup.setup.ts",
+      testIgnore: ["journey/01-signup.setup.ts", deleteAccount, postDelete],
       testMatch: journey,
       workers: 1,
       use: { ...devices["Desktop Chrome"], storageState: ".state/user.json" },
+    },
+    {
+      name: "journey-delete",
+      dependencies: ["journey"],
+      testMatch: deleteAccount,
+      workers: 1,
+      use: { ...devices["Desktop Chrome"], storageState: ".state/user.json" },
+    },
+    {
+      name: "journey-post-delete",
+      dependencies: ["journey-delete"],
+      testMatch: postDelete,
+      workers: 1,
+      use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "docs",

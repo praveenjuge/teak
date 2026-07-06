@@ -11,12 +11,14 @@ export const clientFor = (apiKey: string) =>
     userAgent: "teak-prod-e2e",
   });
 
+const appPath = (path: string) => new URL(path, env.appUrl).toString();
+
 export const signIn = async (
   page: Page,
   email: string,
   password = requirePassword()
 ) => {
-  await page.goto("/login");
+  await page.goto(appPath("/login"));
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: /login|sign in/i }).click();
@@ -27,7 +29,7 @@ export const passwordFor = (account: AccountState) =>
   account.passwordReset ? `${requirePassword()}Reset1!` : requirePassword();
 
 export const signUp = async (page: Page, email = uniqueEmail()) => {
-  await page.goto("/register");
+  await page.goto(appPath("/register"));
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(requirePassword());
   await page
@@ -42,7 +44,7 @@ export const signUp = async (page: Page, email = uniqueEmail()) => {
 };
 
 export const generateApiKey = async (page: Page) => {
-  await page.goto("/settings");
+  await page.goto(appPath("/settings"));
   await page.getByText("API Keys").waitFor();
   await page.getByRole("button", { name: "Manage" }).click();
   await expect(
@@ -67,7 +69,7 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
     return;
   }
   await signIn(page, account.email, passwordFor(account));
-  await page.goto("/settings");
+  await page.goto(appPath("/settings"));
   await page.getByRole("button", { name: /delete your account/i }).click();
   await expect(
     page.getByRole("dialog", { name: "Delete Account" })
@@ -89,7 +91,7 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
 
 export const revokeVisibleKey = async (page: Page, rawKey: string) => {
   const suffix = rawKey.slice(-4);
-  await page.goto("/settings");
+  await page.goto(appPath("/settings"));
   await page.getByRole("button", { name: "Manage" }).click();
   const row = page.locator("div").filter({ hasText: suffix }).last();
   await row.getByRole("button", { name: "Revoke" }).click();
