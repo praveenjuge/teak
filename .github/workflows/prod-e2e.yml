@@ -1,0 +1,146 @@
+name: Production E2E
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+    inputs:
+      sweep:
+        description: Run orphan account sweep after tests
+        default: true
+        required: false
+        type: boolean
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: prod-e2e
+  cancel-in-progress: false
+
+env:
+  PROD_APP_URL: https://app.teakvault.com
+  PROD_SITE_URL: https://teakvault.com
+  PROD_API_URL: https://teakvault.com/api
+  PROD_MCP_URL: https://teakvault.com/mcp
+  PROD_E2E_PASSWORD: ${{ secrets.PROD_E2E_PASSWORD }}
+  MAILPIT_URL: ${{ secrets.MAILPIT_URL }}
+  E2E_EMAIL_DOMAIN: ${{ secrets.E2E_EMAIL_DOMAIN }}
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v3
+      - run: bun install --frozen-lockfile
+      - run: bun run --cwd packages/tests preflight
+      - run: curl -fsS "$PROD_APP_URL/login" >/dev/null
+      - run: bash scripts/smoke-urls.sh
+
+  journey:
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v3
+      - run: bun install --frozen-lockfile
+      - run: bun run build:cli
+      - run: npm install --prefix "$RUNNER_TEMP/teak-npm" teak-cli@latest
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run --cwd packages/tests e2e:prod:journey
+      - if: always()
+        run: bun run --cwd packages/tests teardown
+      - if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: prod-e2e-journey-artifacts
+          path: |
+            packages/tests/playwright-report
+            packages/tests/test-results
+          retention-days: 7
+
+  docs:
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v3
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run --cwd packages/tests e2e:prod:docs
+
+  matrix:
+    needs: journey
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v3
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium firefox webkit
+      - run: bun run --cwd packages/tests e2e:prod:matrix
+      - if: always()
+        run: bun run --cwd packages/tests teardown
+
+  extension:
+    needs: journey
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VITE_PUBLIC_CONVEX_URL: ${{ vars.VITE_PUBLIC_CONVEX_URL }}
+      VITE_PUBLIC_CONVEX_SITE_URL: ${{ vars.VITE_PUBLIC_CONVEX_SITE_URL }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v3
+      - run: bun install --frozen-lockfile
+      - run: bun run --cwd apps/extension build
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run --cwd packages/tests e2e:prod:extension
+      - if: always()
+        run: bun run --cwd packages/tests teardown
+
+  sweep:
+    needs: [matrix, extension]
+    if: always() && (github.event_name == 'schedule' || inputs.sweep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v3
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run --cwd packages/tests sweep
+
+  notify:
+    needs: [gate, journey, docs, matrix, extension, sweep]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const failed = Object.entries({
+              gate: '${{ needs.gate.result }}',
+              journey: '${{ needs.journey.result }}',
+              docs: '${{ needs.docs.result }}',
+              matrix: '${{ needs.matrix.result }}',
+              extension: '${{ needs.extension.result }}',
+              sweep: '${{ needs.sweep.result }}',
+            }).filter(([, result]) => !['success', 'skipped'].includes(result));
+            const { owner, repo } = context.repo;
+            const label = 'prod-e2e-failure';
+            try { await github.rest.issues.createLabel({ owner, repo, name: label, color: 'd73a4a' }); } catch {}
+            const issues = await github.rest.issues.listForRepo({ owner, repo, labels: label, state: 'open' });
+            if (failed.length) {
+              const body = `Production E2E failed: ${failed.map(([name, result]) => `${name}=${result}`).join(', ')}\n\n${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+              if (issues.data[0]) await github.rest.issues.createComment({ owner, repo, issue_number: issues.data[0].number, body });
+              else await github.rest.issues.create({ owner, repo, title: 'Production E2E failure', labels: [label], body });
+              core.setFailed(body);
+            } else if (issues.data[0]) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: issues.data[0].number, body: `Production E2E recovered.\n\n${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}` });
+              await github.rest.issues.update({ owner, repo, issue_number: issues.data[0].number, state: 'closed' });
+            }

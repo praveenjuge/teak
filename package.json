@@ -27,7 +27,7 @@
     "pre-commit": "turbo run typecheck lint build --affected",
     "prepare": "simple-git-hooks || exit 0",
     "start": "turbo run start",
-    "test": "turbo run test",
+    "test": "turbo run test --filter=!@teak/tests",
     "typecheck": "turbo run typecheck",
     "check": "ultracite check",
     "fix": "ultracite fix",
