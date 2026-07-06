@@ -8,7 +8,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const settingsButton = (
   <Button asChild size="icon" variant="outline">
-    <Link href="/settings">
+    <Link aria-label="Settings" href="/settings">
       <Settings />
     </Link>
   </Button>

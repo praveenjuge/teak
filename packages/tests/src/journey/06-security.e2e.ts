@@ -12,7 +12,8 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", a
   if (!state.primary?.apiKey) {
     throw new Error("Missing primary API key");
   }
-  const secondPage = await browser.newPage();
+  const secondContext = await browser.newContext();
+  const secondPage = await secondContext.newPage();
   const second = await createAccount(secondPage, "tenant-b");
   try {
     const targetCard = state.createdCardIds[0];
@@ -47,6 +48,6 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", a
     ).toBe(true);
   } finally {
     await deleteAccountViaUi(secondPage, second);
-    await secondPage.close();
+    await secondContext.close();
   }
 });
