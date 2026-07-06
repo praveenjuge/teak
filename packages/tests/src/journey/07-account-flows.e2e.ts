@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { requirePassword } from "../helpers/env";
 import { waitForEmail } from "../helpers/mailpit";
-import { appPath, signIn } from "../helpers/prod";
+import { appPath, newAnonymousContext, signIn } from "../helpers/prod";
 import { readState, updateState } from "../helpers/run-state";
 
 test("password reset and Polar checkout entry", async ({ browser }) => {
@@ -10,7 +10,7 @@ test("password reset and Polar checkout entry", async ({ browser }) => {
     throw new Error("Missing primary account");
   }
   const nextPassword = `${requirePassword()}Reset1!`;
-  const context = await browser.newContext();
+  const context = await newAnonymousContext(browser);
   const page = await context.newPage();
   try {
     await page.goto(appPath("/forgot-password"));

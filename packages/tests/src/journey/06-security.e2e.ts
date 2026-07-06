@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { apiFetch } from "../helpers/api";
-import { clientFor, createAccount, deleteAccountViaUi } from "../helpers/prod";
+import {
+  clientFor,
+  createAccount,
+  deleteAccountViaUi,
+  newAnonymousContext,
+} from "../helpers/prod";
 import { readState } from "../helpers/run-state";
 
 test("cross-tenant, revoked-key, hostile input, headers, and cookie security", async ({
@@ -12,7 +17,7 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", a
   if (!state.primary?.apiKey) {
     throw new Error("Missing primary API key");
   }
-  const secondContext = await browser.newContext();
+  const secondContext = await newAnonymousContext(browser);
   const secondPage = await secondContext.newPage();
   const second = await createAccount(secondPage, "tenant-b");
   try {

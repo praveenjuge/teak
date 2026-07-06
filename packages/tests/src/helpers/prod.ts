@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { type Browser, expect, type Page } from "@playwright/test";
 import { createTeakClient } from "@teak/convex/sdk";
 import { env, requirePassword, uniqueEmail } from "./env";
 import { waitForEmail } from "./mailpit";
@@ -12,6 +12,9 @@ export const clientFor = (apiKey: string) =>
   });
 
 export const appPath = (path: string) => new URL(path, env.appUrl).toString();
+
+export const newAnonymousContext = (browser: Browser) =>
+  browser.newContext({ storageState: { cookies: [], origins: [] } });
 
 const settingsRow = (page: Page, label: string) =>
   page
