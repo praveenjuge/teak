@@ -13,6 +13,11 @@ export const clientFor = (apiKey: string) =>
 
 const appPath = (path: string) => new URL(path, env.appUrl).toString();
 
+const settingsRow = (page: Page, label: string) =>
+  page
+    .getByText(label, { exact: true })
+    .locator("xpath=ancestor::div[.//button][1]");
+
 export const signIn = async (
   page: Page,
   email: string,
@@ -46,7 +51,9 @@ export const signUp = async (page: Page, email = uniqueEmail()) => {
 export const generateApiKey = async (page: Page) => {
   await page.goto(appPath("/settings"));
   await page.getByText("API Keys").waitFor();
-  await page.getByRole("button", { name: "Manage" }).click();
+  await settingsRow(page, "API Keys")
+    .getByRole("button", { name: "Manage" })
+    .click();
   await expect(
     page.getByRole("dialog", { name: "Manage API Keys" })
   ).toBeVisible();
@@ -92,7 +99,9 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
 export const revokeVisibleKey = async (page: Page, rawKey: string) => {
   const suffix = rawKey.slice(-4);
   await page.goto(appPath("/settings"));
-  await page.getByRole("button", { name: "Manage" }).click();
+  await settingsRow(page, "API Keys")
+    .getByRole("button", { name: "Manage" })
+    .click();
   const row = page.locator("div").filter({ hasText: suffix }).last();
   await row.getByRole("button", { name: "Revoke" }).click();
   await expect(row.getByText(/revoked/i)).toBeVisible();
