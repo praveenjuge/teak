@@ -28,6 +28,13 @@ const config: Configuration = {
     category: "public.app-category.productivity",
     minimumSystemVersion: "13.0",
     hardenedRuntime: true,
+    // macOS shows this string in the microphone permission prompt. Without
+    // NSMicrophoneUsageDescription, the OS terminates the app when it tries
+    // to record audio, so audio recording silently fails.
+    extendInfo: {
+      NSMicrophoneUsageDescription:
+        "Teak needs microphone access to record audio notes.",
+    },
     identity: "Juge Praveen (LW385M78LW)",
     entitlements: "build/entitlements.mac.plist",
     entitlementsInherit: "build/entitlements.mac.inherit.plist",

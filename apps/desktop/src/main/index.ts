@@ -45,6 +45,19 @@ const MAIN_WINDOW_MIN_HEIGHT = 600;
 
 const ALLOWED_URL_PROTOCOLS = new Set(["https:", "http:"]);
 
+// Cloudflare R2 host suffix. File uploads PUT directly to a signed R2 URL and
+// signed downloads GET from one, so the renderer talks cross-origin to this
+// host. We recognise it to inject CORS headers on its responses (see below).
+const R2_HOST_SUFFIX = ".r2.cloudflarestorage.com";
+
+function isR2RequestUrl(url: string): boolean {
+  try {
+    return new URL(url).hostname.endsWith(R2_HOST_SUFFIX);
+  } catch {
+    return false;
+  }
+}
+
 // Loopback OAuth callback (RFC 8252). The desktop client tries 14203 first and
 // falls back to 24203; both are registered as exact-match redirect URIs on the
 // `teak-desktop` trusted client server-side.
@@ -129,36 +142,81 @@ function createMainWindow(): BrowserWindowInstance {
     },
   });
 
-  // CSP for the renderer — only in production; Vite dev server needs inline scripts for HMR
-  if (!isDevServer) {
-    mainWindow.webContents.session.webRequest.onHeadersReceived(
-      (
-        details: OnHeadersReceivedListenerDetails,
-        callback: (response: {
-          responseHeaders?: Record<string, string | string[]>;
-        }) => void
-      ) => {
+  // Microphone access for audio recording. Electron denies every renderer
+  // permission request by default, so `navigator.mediaDevices.getUserMedia`
+  // rejects with NotAllowedError until we opt in here. We only grant `media`
+  // (the microphone); every other permission stays denied.
+  const { session } = mainWindow.webContents;
+  session.setPermissionRequestHandler((_wc, permission, callback) => {
+    callback(permission === "media");
+  });
+  session.setPermissionCheckHandler((_wc, permission) => permission === "media");
+
+  // A single onHeadersReceived listener (Electron keeps only the most recent
+  // one) that does two jobs:
+  //
+  //  1. R2 CORS. Cloudflare R2 only returns CORS headers for origins listed in
+  //     the bucket's CORS policy, and the packaged app's `file://`/`null`
+  //     origin can't be whitelisted there. The renderer's cross-origin upload
+  //     PUT (and signed GET) would fail the browser CORS check — including the
+  //     OPTIONS preflight the PUT triggers because it sends a Content-Type
+  //     header. We add the CORS headers to R2 responses ourselves and force a
+  //     200 on the preflight so uploads/downloads succeed in every build.
+  //     This is the fix for both file uploads and saving audio recordings.
+  //
+  //  2. CSP for the renderer, applied only in production (the Vite dev server
+  //     needs inline scripts for HMR).
+  mainWindow.webContents.session.webRequest.onHeadersReceived(
+    (
+      details: OnHeadersReceivedListenerDetails,
+      callback: (response: {
+        responseHeaders?: Record<string, string | string[]>;
+        statusLine?: string;
+      }) => void
+    ) => {
+      const responseHeaders = { ...details.responseHeaders };
+
+      if (isR2RequestUrl(details.url)) {
+        // `*` is safe here: R2 rejects any request without a valid short-lived
+        // signature regardless of CORS, and our uploads carry no credentials.
+        responseHeaders["Access-Control-Allow-Origin"] = ["*"];
+        responseHeaders["Access-Control-Allow-Methods"] = [
+          "GET, PUT, POST, DELETE, HEAD, OPTIONS",
+        ];
+        responseHeaders["Access-Control-Allow-Headers"] = ["*"];
+        responseHeaders["Access-Control-Expose-Headers"] = ["ETag"];
+        const isPreflight = (details.method ?? "").toUpperCase() === "OPTIONS";
         callback({
-          responseHeaders: {
-            ...details.responseHeaders,
-            "Content-Security-Policy": [
-              [
-                "default-src 'self'",
-                "connect-src 'self' https://*.convex.cloud https://*.convex.site wss://*.convex.cloud wss://*.convex.site https://app.teakvault.com https://teakvault.com",
-                "img-src 'self' data: blob: https:",
-                "media-src 'self' data: blob: https:",
-                "style-src 'self' 'unsafe-inline'",
-                "font-src 'self' data:",
-                "script-src 'self'",
-                "object-src 'none'",
-                "base-uri 'none'",
-              ].join("; "),
-            ],
-          },
+          responseHeaders,
+          statusLine: isPreflight ? "HTTP/1.1 200 OK" : details.statusLine,
         });
+        return;
       }
-    );
-  }
+
+      if (!isDevServer) {
+        responseHeaders["Content-Security-Policy"] = [
+          [
+            "default-src 'self'",
+            // `https://*.r2.cloudflarestorage.com` is required for the direct
+            // file-upload PUT and signed-download GET against R2.
+            "connect-src 'self' https://*.convex.cloud https://*.convex.site wss://*.convex.cloud wss://*.convex.site https://app.teakvault.com https://teakvault.com https://*.r2.cloudflarestorage.com",
+            "img-src 'self' data: blob: https:",
+            "media-src 'self' data: blob: https:",
+            // `frame-src` covers the PDF preview iframe, which points at a
+            // signed cross-origin R2 URL.
+            "frame-src 'self' blob: https://*.r2.cloudflarestorage.com",
+            "style-src 'self' 'unsafe-inline'",
+            "font-src 'self' data:",
+            "script-src 'self'",
+            "object-src 'none'",
+            "base-uri 'none'",
+          ].join("; "),
+        ];
+      }
+
+      callback({ responseHeaders });
+    }
+  );
 
   // Prevent arbitrary navigation
   mainWindow.webContents.on(

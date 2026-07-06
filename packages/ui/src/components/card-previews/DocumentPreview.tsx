@@ -76,11 +76,16 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
   const fileUrl = card.fileUrl;
 
   if (isPdf(fileName, mimeType) && fileUrl) {
+    // Intentionally NOT sandboxed. The browser's built-in PDF viewer refuses to
+    // render inside a sandboxed iframe (even with the most permissive flags),
+    // and combining `sandbox="allow-same-origin"` with a cross-origin file URL
+    // (our signed R2 links) trips a "Blocked a frame with origin ... from
+    // accessing a frame ..." SecurityError. Dropping the sandbox lets the PDF
+    // load directly from its cross-origin URL without the frame-access error.
     return (
       <div className="flex h-full w-full flex-col">
         <iframe
           className="h-full w-full rounded-lg"
-          sandbox="allow-same-origin allow-popups allow-downloads"
           src={fileUrl}
           title={fileName}
         />

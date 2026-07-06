@@ -6,6 +6,7 @@ Save inspiration in one click and find it in two seconds — no more lost bookma
 
 [![Website](https://img.shields.io/badge/Website-teakvault.com-2563eb?style=for-the-badge)](https://teakvault.com)
 [![Docs](https://img.shields.io/badge/Docs-Read-22c55e?style=for-the-badge)](https://teakvault.com/docs/)
+[![Agent Skill](https://img.shields.io/badge/Skills.sh-Teak-111827?style=for-the-badge)](https://skills.sh/praveenjuge/teak)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
 ![Teak](https://teakvault.com/hero-image.png)
@@ -24,7 +25,7 @@ Save inspiration in one click and find it in two seconds — no more lost bookma
 | 🧩 **Browser** | One-click saves while you browse | [Chrome →](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) · [Safari →](https://apps.apple.com/us/app/teak-for-safari/id6770003409?mt=12) |
 | ⚡ **Raycast** | Save and search from your keyboard | [Install →](https://www.raycast.com/praveenjuge/teak-raycast) |
 | 🧰 **CLI** | Save, search, and manage cards from your terminal | `npm i -g teak-cli` |
-| 🤖 **Agent Skill** | Teach AI agents how to use Teak through CLI, API, MCP, and SDK workflows | `npx skills add praveenjuge/teak --skill teak` |
+| 🤖 **Agent Skill** | Teach AI agents how to use Teak through CLI, API, MCP, and SDK workflows | [Skills.sh](https://skills.sh/praveenjuge/teak) · `npx skills add praveenjuge/teak --skill teak` |
 | 🔌 **API & MCP** | Programmatic and AI client access | [API docs →](https://teakvault.com/docs/api) |
 
 ## Monorepo
