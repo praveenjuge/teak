@@ -27,7 +27,18 @@ export const signIn = async (
   password = requirePassword()
 ) => {
   await page.goto(appPath("/login"));
-  await page.getByLabel("Email").fill(email);
+  const emailInput = page.getByLabel("Email");
+  const canSignIn = await emailInput
+    .waitFor({ state: "visible", timeout: 5000 })
+    .then(
+      () => true,
+      () => false
+    );
+  if (!canSignIn) {
+    await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
+    return;
+  }
+  await emailInput.fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: /login|sign in/i }).click();
   await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
@@ -100,12 +111,20 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
 };
 
 export const revokeVisibleKey = async (page: Page, rawKey: string) => {
-  const suffix = rawKey.slice(-4);
+  const visiblePrefix = rawKey.split("_").slice(0, 4).join("_");
   await page.goto(appPath("/settings"));
   await settingsRow(page, "API Keys")
     .getByRole("button", { name: "Manage" })
     .click();
-  const row = page.locator("div").filter({ hasText: suffix }).last();
+  const dialog = page.getByRole("dialog", { name: "Manage API Keys" });
+  const row = dialog
+    .locator("div")
+    .filter({
+      has: page.getByRole("button", { name: "Revoke" }),
+      hasText: visiblePrefix,
+    })
+    .last();
+  await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Revoke" }).click();
   await expect(row.getByText(/revoked/i)).toBeVisible();
 };
