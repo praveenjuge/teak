@@ -34,6 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v3
+      - run: bun install --frozen-lockfile
       - run: bun run --cwd packages/tests preflight
       - run: curl -fsS "$PROD_APP_URL/login" >/dev/null
       - run: bash scripts/smoke-urls.sh
