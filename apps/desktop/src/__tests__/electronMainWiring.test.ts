@@ -24,6 +24,64 @@ describe("electron main process wiring", () => {
     expect(source).toContain("ALLOWED_URL_PROTOCOLS");
   });
 
+  it("allows R2 uploads and downloads through the CSP", () => {
+    // File uploads PUT directly to R2 and the PDF preview embeds a signed R2
+    // URL. Both are blocked in packaged builds unless the R2 host is allowed
+    // in connect-src (uploads) and frame-src (PDF iframe).
+    const source = readFileSync(
+      resolve(import.meta.dir, "../main/index.ts"),
+      "utf8"
+    );
+
+    const connectSrc = source
+      .split("\n")
+      .find((line) => line.includes("connect-src"));
+    expect(connectSrc).toBeDefined();
+    expect(connectSrc).toContain("https://*.r2.cloudflarestorage.com");
+
+    const frameSrc = source
+      .split("\n")
+      .find((line) => line.includes('"frame-src'));
+    expect(frameSrc).toBeDefined();
+    expect(frameSrc).toContain("https://*.r2.cloudflarestorage.com");
+  });
+
+  it("injects CORS headers on R2 responses so uploads and downloads work", () => {
+    // R2 does not return CORS headers for the desktop origin (dev localhost or
+    // the packaged file:// null origin), which blocks the upload PUT used for
+    // both files and audio recordings. The main process adds the headers and
+    // answers the preflight so the renderer's cross-origin request succeeds.
+    const source = readFileSync(
+      resolve(import.meta.dir, "../main/index.ts"),
+      "utf8"
+    );
+
+    expect(source).toContain("isR2RequestUrl");
+    expect(source).toContain(".r2.cloudflarestorage.com");
+    expect(source).toContain("Access-Control-Allow-Origin");
+    expect(source).toContain("Access-Control-Allow-Methods");
+    expect(source).toContain("Access-Control-Allow-Headers");
+    // Preflight (OPTIONS) must be forced to a 2xx for the browser to proceed.
+    expect(source).toContain('"OPTIONS"');
+    expect(source).toContain("HTTP/1.1 200 OK");
+  });
+
+  it("grants only microphone access for audio recording", () => {
+    // Electron denies renderer permission requests by default, so getUserMedia
+    // rejects until we register permission handlers. Because Electron's `media`
+    // permission also covers the camera, the handlers must delegate to the
+    // audio-only predicates instead of blanket-approving every `media` request.
+    const source = readFileSync(
+      resolve(import.meta.dir, "../main/index.ts"),
+      "utf8"
+    );
+
+    expect(source).toContain("setPermissionRequestHandler");
+    expect(source).toContain("setPermissionCheckHandler");
+    expect(source).toContain("isMicrophoneOnlyRequest");
+    expect(source).toContain("isMicrophoneCheck");
+  });
+
   it("configures the main window with correct dimensions", () => {
     const source = readFileSync(
       resolve(import.meta.dir, "../main/index.ts"),
@@ -97,6 +155,24 @@ describe("electron main process wiring", () => {
     expect(storeSource).toContain('"auth.deviceId"');
     expect(storeSource).toContain('"auth.pendingNativeFlow"');
     expect(storeSource).toContain("isAllowedKey");
+  });
+
+  it("declares the macOS microphone usage description for packaged builds", () => {
+    // macOS terminates the app when it accesses the microphone without an
+    // NSMicrophoneUsageDescription, so audio recording fails in the signed
+    // build even with the permission handler and entitlement in place.
+    const config = readFileSync(
+      resolve(import.meta.dir, "../../electron-builder.config.ts"),
+      "utf8"
+    );
+
+    expect(config).toContain("NSMicrophoneUsageDescription");
+
+    const entitlements = readFileSync(
+      resolve(import.meta.dir, "../../build/entitlements.mac.plist"),
+      "utf8"
+    );
+    expect(entitlements).toContain("com.apple.security.device.audio-input");
   });
 
   it("prevents navigation and new-window creation", () => {
