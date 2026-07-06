@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v3
+      - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run --cwd packages/tests preflight
       - run: curl -fsS "$PROD_APP_URL/login" >/dev/null
@@ -45,7 +45,7 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v3
+      - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run build:cli
       - run: npm install --prefix "$RUNNER_TEMP/teak-npm" teak-cli@latest
@@ -68,7 +68,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v3
+      - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium
       - run: bun run --cwd packages/tests e2e:prod:docs
@@ -79,7 +79,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v3
+      - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium firefox webkit
       - run: bun run --cwd packages/tests e2e:prod:matrix
@@ -95,7 +95,7 @@ jobs:
       VITE_PUBLIC_CONVEX_SITE_URL: ${{ vars.VITE_PUBLIC_CONVEX_SITE_URL }}
     steps:
       - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v3
+      - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run --cwd apps/extension build
       - run: bunx playwright install --with-deps chromium
@@ -110,7 +110,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v3
+      - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium
       - run: bun run --cwd packages/tests sweep
