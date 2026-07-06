@@ -298,6 +298,7 @@ export const openApiSpec = {
     description: "Public API for creating, querying, and syncing Teak cards.",
   },
   servers: [
+    { url: "https://teakvault.com/api" },
     { url: "https://api.teakvault.com" },
     { url: resolveTeakDevApiUrl(process.env) },
   ],

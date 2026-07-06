@@ -1,0 +1,70 @@
+---
+title: Teak for AI Agents
+description: Connect AI agents to Teak with MCP, ChatGPT connectors, REST, CLI, and llms.txt
+---
+
+Teak gives AI agents a private memory layer for saved links, notes, files, tags, and design references. Agents can use the hosted MCP server at `https://teakvault.com/mcp`, the REST API at `https://teakvault.com/api/v1`, or the command-line app, with browser OAuth or `teakapi_` API keys for authentication.
+
+## What can agents do with Teak?
+
+Agents can save new cards, search existing cards, fetch a card by ID, list tags, sync changes, run bulk updates, favorite or delete cards, and create upload URLs for file cards. The MCP server and REST API share the same card operations, so behavior is consistent across tools.
+
+## How do I connect Claude?
+
+```bash
+claude mcp add --transport http teak https://teakvault.com/mcp
+```
+
+Start the MCP connection in Claude and complete browser sign-in when prompted. API keys also work for clients that let you set an `Authorization: Bearer <token>` header.
+
+## How do I connect ChatGPT or Deep Research?
+
+Use `https://teakvault.com/mcp` as the remote MCP server URL. Teak exposes the plain `search` and `fetch` tools expected by ChatGPT connectors:
+
+- `search` finds matching cards and returns IDs, titles, and Teak app URLs.
+- `fetch` opens a specific card and returns readable text plus metadata.
+
+## How do I use the REST API?
+
+Use the production base URL:
+
+```text
+https://teakvault.com/api/v1
+```
+
+Start with discovery and the OpenAPI document:
+
+```text
+https://teakvault.com/api
+https://teakvault.com/api/openapi.json
+```
+
+Existing `https://api.teakvault.com` URLs still work, but new integrations should use the apex paths above.
+
+## What should coding agents read first?
+
+- `https://teakvault.com/llms.txt` for the compact documentation map
+- `https://teakvault.com/llms-full.txt` for the full docs context
+- `https://teakvault.com/docs/api.md` for the REST API contract
+- `https://teakvault.com/docs/mcp.md` for MCP setup and tools
+- `https://teakvault.com/.well-known/mcp.json` for remote MCP discovery metadata
+
+## Can agents use the command line?
+
+Yes. Install the Teak CLI and sign in:
+
+```bash
+npx teak-cli@latest login
+```
+
+Then use commands such as:
+
+```bash
+teak cards search design
+teak cards create "https://teakvault.com"
+teak tags
+```
+
+## Is there an Agent Skill?
+
+Yes. Teak ships a public Agent Skill for assistants that support skills-based workflows. Use it when an agent needs to save, search, retrieve, update, favorite, delete, or sync Teak cards through the CLI, API, SDK, or MCP server.

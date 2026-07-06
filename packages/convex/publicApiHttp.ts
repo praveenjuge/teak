@@ -1702,7 +1702,7 @@ const toPublicApiRequest = (operation: PublicApiOperation): Request => {
   const normalizedPath = operation.path.startsWith("/")
     ? operation.path
     : `/${operation.path}`;
-  const url = new URL(normalizedPath, operation.origin ?? "https://api.teakvault.com");
+  const url = new URL(normalizedPath, operation.origin ?? "https://teakvault.com");
 
   for (const [key, value] of Object.entries(operation.query ?? {})) {
     if (value !== undefined) {

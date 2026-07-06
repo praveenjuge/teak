@@ -1,0 +1,18 @@
+{
+  "name": "Teak",
+  "description": "Remote MCP server for saving, searching, syncing, and managing Teak cards.",
+  "endpoint": "https://teakvault.com/mcp",
+  "transport": "streamable-http",
+  "auth": {
+    "type": "bearer",
+    "authorizationServer": "https://app.teakvault.com",
+    "protectedResource": "https://teakvault.com/.well-known/oauth-protected-resource/mcp",
+    "methods": ["OAuth browser sign-in", "teakapi_ API keys"]
+  },
+  "links": {
+    "docs": "https://teakvault.com/docs/mcp",
+    "api": "https://teakvault.com/docs/api",
+    "openapi": "https://teakvault.com/api/openapi.json",
+    "llms": "https://teakvault.com/llms.txt"
+  }
+}

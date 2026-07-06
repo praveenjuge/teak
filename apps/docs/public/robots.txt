@@ -1,4 +1,23 @@
 User-agent: *
 Allow: /
 
+# AI agents and crawlers are welcome. Start at /llms.txt for docs context.
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
 Sitemap: https://teakvault.com/sitemap-index.xml

@@ -3,12 +3,18 @@ title: MCP
 description: Remote MCP server for Teak card operations
 ---
 
-Teak provides a remote MCP server at `https://api.teakvault.com/mcp`.
+Teak provides a remote MCP server at `https://teakvault.com/mcp`.
+
+> The MCP server moved from `api.teakvault.com/mcp` to `teakvault.com/mcp`.
+> Existing `api.teakvault.com` MCP connections keep working, but new clients
+> should use the apex URL.
 
 ## Base URLs
 
-- Production: `https://api.teakvault.com/mcp`
-- Local development: `https://reminiscent-kangaroo-59.convex.site/mcp`
+- Production: `https://teakvault.com/mcp`
+- Local development: `http://docs.teak.localhost:1355/mcp`
+- Legacy production: `https://api.teakvault.com/mcp`
+- Discovery manifest: `https://teakvault.com/.well-known/mcp.json`
 
 ## Authentication
 
@@ -21,7 +27,7 @@ Spec-compliant MCP clients authenticate with a browser-based OAuth flow. On firs
 For example, with Claude:
 
 ```bash
-claude mcp add --transport http teak https://api.teakvault.com/mcp
+claude mcp add --transport http teak https://teakvault.com/mcp
 ```
 
 Then start the MCP connection (for example, run `/mcp` in Claude) and complete the browser sign-in when prompted.
@@ -36,7 +42,7 @@ Authorization: Bearer teakapi_secret_live_a1b2c3d4_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 Generate and manage API keys in Teak Settings: `https://app.teakvault.com/settings`.
 
-Unauthenticated requests receive `401` with a `WWW-Authenticate` header pointing to the OAuth protected-resource metadata at `/.well-known/oauth-protected-resource`, which clients use to begin the browser sign-in flow.
+Unauthenticated requests receive `401` with a `WWW-Authenticate` header pointing to the OAuth protected-resource metadata at `https://teakvault.com/.well-known/oauth-protected-resource/mcp`, which clients use to begin the browser sign-in flow.
 
 ## Transport
 
@@ -53,6 +59,12 @@ shown above, so MCP clients validate and connect to the same public resource.
 - `teak_v1_create_card`
   - Input: `{ content: string }`
   - Output: `{ status: "created", cardId: string, appUrl: string }`
+- `teak_v1_list_cards`
+  - Input: `{ limit?: number, cursor?: string, type?: string, favorited?: boolean, tag?: string, sort?: "newest" | "oldest", createdAfter?: number, createdBefore?: number }`
+  - Output: `{ items: Card[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`
+- `teak_v1_get_card`
+  - Input: `{ cardId: string }`
+  - Output: full card object
 - `teak_v1_search_cards`
   - Input: `{ q?: string, limit?: number }`
   - Output: `{ items: Card[], total: number }`
@@ -68,6 +80,25 @@ shown above, so MCP clients validate and connect to the same public resource.
 - `teak_v1_delete_card`
   - Input: `{ cardId: string, confirm: true }`
   - Output: `{ status: "deleted", cardId: string }`
+- `teak_v1_list_tags`
+  - Input: `{}`
+  - Output: `{ items: { name: string, count: number }[] }`
+- `teak_v1_get_card_changes`
+  - Input: `{ since: number, cursor?: string, limit?: number }`
+  - Output: `{ items: Card[], deletedIds: string[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`
+- `teak_v1_bulk_cards`
+  - Input: `{ operation: "create" | "update" | "favorite" | "delete", items: object[], confirm?: true }`
+  - Output: bulk operation results; delete batches require `confirm: true`
+- `teak_v1_create_upload`
+  - Input: `{ fileName: string, mimeType: string, fileSize: number }`
+  - Output: `{ uploadUrl: string, fileKey: string, method: "PUT", maxFileSize: number, expiresIn: number }`
+
+## ChatGPT Connectors
+
+Teak also exposes the plain `search` and `fetch` tools expected by ChatGPT connectors and Deep Research:
+
+- `search` accepts `{ query: string }` and returns `{ results: [{ id, title, url }] }`.
+- `fetch` accepts `{ id: string }` and returns `{ id, title, text, url, metadata }`.
 
 ## Error Format
 

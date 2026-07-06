@@ -88,7 +88,7 @@ For destructive operations, confirm intent before deleting cards unless the user
 Base URL:
 
 ```text
-https://api.teakvault.com
+https://teakvault.com/api
 ```
 
 Common endpoints:
@@ -117,7 +117,7 @@ Authorization: Bearer <OAuth access token or teakapi_ API key>
 Use idempotency keys for retryable create requests from automation:
 
 ```bash
-curl https://api.teakvault.com/v1/cards \
+curl https://teakvault.com/api/v1/cards \
   -H "Authorization: Bearer $TEAK_API_KEY" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: unique-workflow-step-id" \
@@ -131,14 +131,14 @@ For uploads, first create an upload, PUT the bytes to the returned `uploadUrl`, 
 MCP endpoint:
 
 ```text
-https://api.teakvault.com/mcp
+https://teakvault.com/mcp
 ```
 
 OAuth metadata:
 
 ```text
 https://app.teakvault.com/.well-known/oauth-authorization-server
-https://api.teakvault.com/.well-known/oauth-protected-resource
+https://teakvault.com/.well-known/oauth-protected-resource/mcp
 ```
 
 Use MCP for agents that can connect to streamable HTTP MCP servers. The server supports OAuth bearer tokens and Teak API keys. Confirm the tool list in the client before assuming a tool name; typical operations map to creating, searching, listing, updating, favoriting, and deleting cards.
@@ -151,7 +151,7 @@ Install the SDK package from the Teak workspace or published package when availa
 import { createTeakClient, staticTokenProvider } from "@teak/sdk";
 
 const teak = createTeakClient({
-  baseUrl: "https://api.teakvault.com",
+  baseUrl: "https://teakvault.com/api",
   tokenProvider: staticTokenProvider(process.env.TEAK_API_KEY!),
 });
 

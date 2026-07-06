@@ -35,4 +35,4 @@ Prefer an API key? Open the extension preferences and paste a key from Teak Sett
 - **Sign-in issues**: Use **Sign Out** from any command's action panel, then run a command again to re-authorize.
 - **Invalid key errors** (API key users): regenerate the key in Teak Settings > Manage API Keys, then update extension preferences.
 - **Rate limited errors**: wait briefly and retry.
-- **Network errors**: verify connectivity to `app.teakvault.com` and `api.teakvault.com`.
+- **Network errors**: verify connectivity to `app.teakvault.com` and `teakvault.com/api`.

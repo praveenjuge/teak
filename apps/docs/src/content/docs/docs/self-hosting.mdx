@@ -127,12 +127,13 @@ VITE_WEB_URL=https://app.yourdomain.com           # Desktop only; defaults to ht
 ### Public API and MCP
 
 ```bash
-PUBLIC_API_URL=https://api.yourdomain.com        # Optional: public API origin used in MCP discovery
+PUBLIC_API_URL=https://api.yourdomain.com        # Optional: public API origin used in discovery
+PUBLIC_MCP_URL=https://api.yourdomain.com/mcp    # Optional: defaults to PUBLIC_API_URL + /mcp
 AUTH_ISSUER_URL=https://app.yourdomain.com       # Optional: OAuth issuer override for MCP discovery
 TEAK_DEV_API_URL=https://deployment.convex.site  # Optional local override
 ```
 
-Convex serves the authenticated `/v1` REST API, `/mcp` MCP endpoint, `/healthz`, `/openapi.json`, and OAuth protected-resource metadata from the deployment's `.convex.site` domain. Teak production keeps `https://api.teakvault.com` compatible through the edge rewrite in `packages/convex/vercel.json`.
+Convex serves the authenticated `/v1` REST API, `/mcp` MCP endpoint, `/healthz`, `/openapi.json`, and OAuth protected-resource metadata from the deployment's `.convex.site` domain. Teak production exposes those routes through apex rewrites at `https://teakvault.com/api` and `https://teakvault.com/mcp`, while the retained `https://api.teakvault.com` rewrite keeps older integrations working.
 
 ## Where to get the values
 
