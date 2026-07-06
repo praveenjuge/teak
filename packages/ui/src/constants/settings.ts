@@ -11,9 +11,9 @@ export const PRO_FEATURES = [
 ];
 
 export const THEME_OPTIONS = [
-  { value: "system", icon: Monitor },
-  { value: "light", icon: Sun },
-  { value: "dark", icon: Moon },
+  { value: "system", label: "system", icon: Monitor },
+  { value: "light", label: "light", icon: Sun },
+  { value: "dark", label: "dark", icon: Moon },
 ] as const;
 
 export type ThemeValue = (typeof THEME_OPTIONS)[number]["value"];

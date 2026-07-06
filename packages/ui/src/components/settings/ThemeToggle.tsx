@@ -26,8 +26,10 @@ export function ThemeToggle({ onThemeChange }: ThemeToggleProps) {
 
   return (
     <div className="flex items-center gap-px">
-      {THEME_OPTIONS.map(({ value, icon: Icon }) => (
+      {THEME_OPTIONS.map(({ label, value, icon: Icon }) => (
         <Button
+          aria-label={`Use ${label} theme`}
+          aria-pressed={mounted && theme === value}
           key={value}
           onClick={handleThemeChange(value)}
           size="sm"

@@ -49,7 +49,8 @@ export const loadOpenApi = async () => {
       if (!schema) {
         return;
       }
-      const ok = ajv.compile(schema)(payload);
+      const rootSchema = { ...schema, components: spec.components };
+      const ok = ajv.compile(rootSchema)(payload);
       if (!ok) {
         throw new Error(`OpenAPI mismatch ${method} ${path} ${status}`);
       }

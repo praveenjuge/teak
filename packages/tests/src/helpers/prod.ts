@@ -11,7 +11,7 @@ export const clientFor = (apiKey: string) =>
     userAgent: "teak-prod-e2e",
   });
 
-const appPath = (path: string) => new URL(path, env.appUrl).toString();
+export const appPath = (path: string) => new URL(path, env.appUrl).toString();
 
 const settingsRow = (page: Page, label: string) =>
   page

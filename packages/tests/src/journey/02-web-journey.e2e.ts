@@ -17,7 +17,10 @@ test("web journey covers cards, search, settings, upload, and revoked key", asyn
     return dialog.dismiss();
   });
   await page.goto("/");
-  await expect(page.getByText(/Let's add your first card/i)).toBeVisible();
+  await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
+  await expect(
+    page.getByText(/Welcome to Teak|Let's add your first card/i)
+  ).toBeVisible();
   await page
     .getByPlaceholder(/Write a note/i)
     .fill(`${marker} <script>alert("xss")</script>`);
