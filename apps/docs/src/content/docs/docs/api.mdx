@@ -261,7 +261,7 @@ GET /v1/cards/changes?since=1710000000000&limit=50
 
 ### Legacy Search Endpoints
 
-These remain stable for existing consumers but new integrations should use `GET /v1/cards` instead.
+These are not deprecated and will keep working for existing consumers, but Teak does not add new features to them. New integrations should use `GET /v1/cards` instead, which supports the same filters plus cursor pagination and the `include` parameter.
 
 ```http
 GET /v1/cards/search?q=design&limit=50

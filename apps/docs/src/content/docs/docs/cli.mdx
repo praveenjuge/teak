@@ -44,9 +44,9 @@ Removes stored credentials from your machine.
 ## Commands
 
 ```bash
-teak add "A note from the terminal"
-teak add https://example.com --tags research,web
-teak add ./screenshot.png --tags inspiration
+teak add "A note from the terminal" --tags research
+teak add --url https://example.com --tags research,web
+teak add --file ./screenshot.png --notes "Inspiration" --tags inspiration
 teak ls
 teak search "blue buttons"
 teak cards get <card-id>
@@ -55,6 +55,11 @@ teak fav <card-id>
 teak rm <card-id>
 teak tags
 ```
+
+`teak add` also accepts a bare URL or file path as the positional argument (for
+example `teak add https://example.com`) — the CLI detects whether it's text,
+a URL, or a file. Use `--url` / `--file` when you want to be explicit or when
+scripting.
 
 ### Getting help
 

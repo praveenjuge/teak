@@ -3,9 +3,15 @@ title: Browser Extensions
 description: Save anything from the web to Teak with the browser extensions
 ---
 
-import { Tabs, TabItem, Steps } from "@astrojs/starlight/components";
+import { Aside, Tabs, TabItem, Steps } from "@astrojs/starlight/components";
 
 Teak for Safari saves the page you are viewing in one click. The Chrome extension adds richer capture options for images, links, selected text, and supported social media posts.
+
+<Aside type="note" title="Safari vs. Chrome feature set">
+  Teak for Safari is intentionally focused on one-click page saving from the
+  toolbar. The context menu, inline social-media save buttons, and other capture
+  options on this page are Chrome/Chromium-only.
+</Aside>
 
 ## Install
 
@@ -70,7 +76,7 @@ The Chrome extension works in Chrome and any Chromium-based browser (Edge, Brave
 
 ## Safari Extension
 
-Teak for Safari is intentionally focused: clicking the Safari toolbar extension signs you in when needed and saves the current page URL to Teak when you are signed in. It does not add inline save buttons to pages.
+Clicking the Safari toolbar extension signs you in when needed and saves the current page URL to Teak when you are signed in.
 
 ## Auto-Save on Open
 
@@ -78,15 +84,13 @@ When you open either extension popup, Teak automatically saves the current page.
 
 ## Chrome and Chromium Features
 
-The context menu and inline save buttons below are available in Chrome and Chromium-based browsers. Teak for Safari stays focused on saving the current page from the Safari toolbar.
-
 ### Context Menu
 
 Right-click anywhere on a page to access quick-save actions:
 
-| Menu item | What it saves |
-|---|---|
-| **Save Page to Teak** | The current URL |
+| Menu item             | What it saves                           |
+| --------------------- | --------------------------------------- |
+| **Save Page to Teak** | The current URL                         |
 | **Save Text to Teak** | The selected text (creates a text card) |
 
 Context menu saves are available on all standard web pages.
@@ -95,15 +99,15 @@ Context menu saves are available on all standard web pages.
 
 On supported sites, Teak injects a save button directly into each post or story. You can save individual items without leaving the feed.
 
-| Platform | Supported content |
-|---|---|
-| [instagram.com](https://www.instagram.com) | Posts and Reels |
-| [pinterest.com](https://www.pinterest.com) | Pins |
-| [x.com](https://x.com) | Posts (tweets) — saved with tweet text, author, and attached images or videos |
-| [news.ycombinator.com](https://news.ycombinator.com) | Story links (saves the outbound article URL) |
-| [sidebar.io](https://sidebar.io) | Story links |
-| [webdesignernews.com](https://www.webdesignernews.com) | Story links |
-| [heydesigner.com](https://heydesigner.com) | Story links |
+| Platform                                               | Supported content                                                             |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| [instagram.com](https://www.instagram.com)             | Posts and Reels                                                               |
+| [pinterest.com](https://www.pinterest.com)             | Pins                                                                          |
+| [x.com](https://x.com)                                 | Posts (tweets) — saved with tweet text, author, and attached images or videos |
+| [news.ycombinator.com](https://news.ycombinator.com)   | Story links (saves the outbound article URL)                                  |
+| [sidebar.io](https://sidebar.io)                       | Story links                                                                   |
+| [webdesignernews.com](https://www.webdesignernews.com) | Story links                                                                   |
+| [heydesigner.com](https://heydesigner.com)             | Story links                                                                   |
 
 Inline save buttons appear automatically once you are signed in to the extension. Each saved post is deduplicated — saving the same post twice will not create a duplicate card.
 

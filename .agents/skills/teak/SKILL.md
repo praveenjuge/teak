@@ -145,10 +145,10 @@ Use MCP for agents that can connect to streamable HTTP MCP servers. The server s
 
 ## TypeScript SDK
 
-Install the SDK package from the Teak workspace or published package when available, then create a client:
+The SDK lives at `@teak/convex/sdk` inside the Teak monorepo (`packages/convex/client/sdk.ts`). Import it from there and create a client:
 
 ```ts
-import { createTeakClient, staticTokenProvider } from "@teak/sdk";
+import { createTeakClient, staticTokenProvider } from "@teak/convex/sdk";
 
 const teak = createTeakClient({
   baseUrl: "https://teakvault.com/api",

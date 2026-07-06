@@ -6,8 +6,7 @@ description: Remote MCP server for Teak card operations
 Teak provides a remote MCP server at `https://teakvault.com/mcp`.
 
 > The MCP server moved from `api.teakvault.com/mcp` to `teakvault.com/mcp`.
-> Existing `api.teakvault.com` MCP connections keep working, but new clients
-> should use the apex URL.
+> Existing connections keep working — see the [API migration notice](./api#base-urls) for details.
 
 ## Base URLs
 
@@ -56,15 +55,29 @@ shown above, so MCP clients validate and connect to the same public resource.
 
 ## Available Tools
 
-- `teak_v1_create_card`
-  - Input: `{ content: string }`
-  - Output: `{ status: "created", cardId: string, appUrl: string }`
+### Core card tools
+
 - `teak_v1_list_cards`
   - Input: `{ limit?: number, cursor?: string, type?: string, favorited?: boolean, tag?: string, sort?: "newest" | "oldest", createdAfter?: number, createdBefore?: number }`
   - Output: `{ items: Card[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`
 - `teak_v1_get_card`
   - Input: `{ cardId: string }`
   - Output: full card object
+- `teak_v1_create_card`
+  - Input: `{ content: string }`
+  - Output: `{ status: "created", cardId: string, appUrl: string }`
+- `teak_v1_list_tags`
+  - Input: `{}`
+  - Output: `{ items: { name: string, count: number }[] }`
+- `teak_v1_get_card_changes`
+  - Input: `{ since: number, cursor?: string, limit?: number }`
+  - Output: `{ items: Card[], deletedIds: string[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`
+- `teak_v1_bulk_cards`
+  - Input: `{ operation: "create" | "update" | "favorite" | "delete", items: object[], confirm?: true }`
+  - Output: bulk operation results; delete batches require `confirm: true`
+- `teak_v1_create_upload`
+  - Input: `{ fileName: string, mimeType: string, fileSize: number }`
+  - Output: `{ uploadUrl: string, fileKey: string, method: "PUT", maxFileSize: number, expiresIn: number }`
 - `teak_v1_search_cards`
   - Input: `{ q?: string, limit?: number }`
   - Output: `{ items: Card[], total: number }`
@@ -80,20 +93,8 @@ shown above, so MCP clients validate and connect to the same public resource.
 - `teak_v1_delete_card`
   - Input: `{ cardId: string, confirm: true }`
   - Output: `{ status: "deleted", cardId: string }`
-- `teak_v1_list_tags`
-  - Input: `{}`
-  - Output: `{ items: { name: string, count: number }[] }`
-- `teak_v1_get_card_changes`
-  - Input: `{ since: number, cursor?: string, limit?: number }`
-  - Output: `{ items: Card[], deletedIds: string[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`
-- `teak_v1_bulk_cards`
-  - Input: `{ operation: "create" | "update" | "favorite" | "delete", items: object[], confirm?: true }`
-  - Output: bulk operation results; delete batches require `confirm: true`
-- `teak_v1_create_upload`
-  - Input: `{ fileName: string, mimeType: string, fileSize: number }`
-  - Output: `{ uploadUrl: string, fileKey: string, method: "PUT", maxFileSize: number, expiresIn: number }`
 
-## ChatGPT Connectors
+### ChatGPT connector tools
 
 Teak also exposes the plain `search` and `fetch` tools expected by ChatGPT connectors and Deep Research:
 

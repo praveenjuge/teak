@@ -7,7 +7,7 @@ Teak gives AI agents a private memory layer for saved links, notes, files, tags,
 
 ## What can agents do with Teak?
 
-Agents can save new cards, search existing cards, fetch a card by ID, list tags, sync changes, run bulk updates, favorite or delete cards, and create upload URLs for file cards. The MCP server and REST API share the same card operations, so behavior is consistent across tools.
+Agents can save new cards, search existing cards, get a card by ID, list tags, sync changes, run bulk updates, favorite or delete cards, and create upload URLs for file cards. The MCP server and REST API share the same card operations, so behavior is consistent across tools. This mirrors the tool set in the [Raycast extension](/docs/raycast#ai-tools) and the [MCP server](/docs/mcp#available-tools).
 
 ## How do I connect Claude?
 
@@ -26,20 +26,7 @@ Use `https://teakvault.com/mcp` as the remote MCP server URL. Teak exposes the p
 
 ## How do I use the REST API?
 
-Use the production base URL:
-
-```text
-https://teakvault.com/api/v1
-```
-
-Start with discovery and the OpenAPI document:
-
-```text
-https://teakvault.com/api
-https://teakvault.com/api/openapi.json
-```
-
-Existing `https://api.teakvault.com` URLs still work, but new integrations should use the apex paths above.
+Use the production base URL `https://teakvault.com/api/v1`. See the [API docs](/docs/api) for the full base URL list, authentication, endpoints, and error format — that page is the source of truth for the REST contract.
 
 ## What should coding agents read first?
 

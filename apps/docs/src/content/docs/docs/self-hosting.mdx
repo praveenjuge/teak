@@ -20,13 +20,13 @@ import { Steps } from "@astrojs/starlight/components";
    bun install
    ```
 
-2. Start Convex dev and set up Better Auth defaults:
+2. Start a Convex dev deployment:
 
    ```bash
    bunx convex dev
    ```
 
-   This creates a dev deployment and prints the `CONVEX_SITE_URL` and `CONVEX_URL`.
+   This creates a dev deployment and prints the `CONVEX_SITE_URL` and `CONVEX_URL`. It does not configure Better Auth — that's the next step.
 
 3. Configure essential secrets.
 
@@ -121,7 +121,14 @@ Mobile, Extension, and Desktop share the same base variables (use `EXPO_PUBLIC_`
 VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 TEAK_DEV_APP_URL=http://app.teak.localhost:1355   # Optional local override
-VITE_WEB_URL=https://app.yourdomain.com           # Desktop only; defaults to https://app.teakvault.com
+```
+
+#### Desktop-only
+
+The desktop app additionally reads `VITE_WEB_URL` to know where to send sign-in and account links. Mobile and the extension do not use this variable.
+
+```bash
+VITE_WEB_URL=https://app.yourdomain.com   # Defaults to https://app.teakvault.com
 ```
 
 ### Public API and MCP
