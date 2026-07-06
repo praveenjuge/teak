@@ -2,6 +2,13 @@
 set -euo pipefail
 
 json_rpc='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"teak-smoke","version":"1.0.0"}}}'
+curl_common=(
+  --connect-timeout 10
+  --max-time 30
+  --retry 3
+  --retry-all-errors
+  --retry-delay 2
+)
 
 tmp_body="$(mktemp)"
 tmp_headers="$(mktemp)"
@@ -11,7 +18,7 @@ check_status() {
   local expected="$1"
   local url="$2"
   local status
-  status="$(curl -fsS -o "$tmp_body" -w '%{http_code}' "$url")"
+  status="$(curl "${curl_common[@]}" -fsS -o "$tmp_body" -w '%{http_code}' "$url")"
   if [[ "$status" != "$expected" ]]; then
     echo "Expected $expected for $url, got $status" >&2
     cat "$tmp_body" >&2
@@ -46,7 +53,7 @@ check_mcp_unauthorized() {
   local expected_metadata="$2"
   local status
   status="$(
-    curl -sS -o "$tmp_body" -D "$tmp_headers" -w '%{http_code}' \
+    curl "${curl_common[@]}" -sS -o "$tmp_body" -D "$tmp_headers" -w '%{http_code}' \
       -X POST "$url" \
       -H 'Accept: application/json, text/event-stream' \
       -H 'Content-Type: application/json' \
