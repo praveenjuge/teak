@@ -25,10 +25,11 @@ test("web journey covers cards, search, settings, upload, and revoked key", asyn
     .getByPlaceholder(/Write a note/i)
     .fill(`${marker} <script>alert("xss")</script>`);
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByRole("main").getByText(marker)).toBeVisible();
+  const savedCard = page.locator("main p").filter({ hasText: marker }).first();
+  await expect(savedCard).toBeVisible();
   await page.getByPlaceholder("Search for anything...").fill(marker);
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("main").getByText(marker)).toBeVisible();
+  await expect(savedCard).toBeVisible();
   await page.getByRole("button", { name: "Clear All" }).click();
 
   const api = clientFor(state.primary.apiKey);
