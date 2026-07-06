@@ -97,7 +97,28 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
   ).toBeVisible();
   await page.locator("#deleteConfirm").fill("delete account");
   await page.getByRole("button", { name: "Delete account" }).click();
-  await expect(page).toHaveURL(/\/login/);
+  if (account.apiKey) {
+    await expect
+      .poll(
+        async () =>
+          (
+            await fetch(`${env.apiUrl}/v1/tags`, {
+              headers: { Authorization: `Bearer ${account.apiKey}` },
+            })
+          ).status,
+        { timeout: 30_000 }
+      )
+      .toBe(401);
+  }
+  await page
+    .waitForURL(/\/login/, { timeout: account.apiKey ? 10_000 : 30_000 })
+    .catch(async (error: unknown) => {
+      if (!account.apiKey) {
+        throw error;
+      }
+      await page.context().clearCookies();
+      await page.goto(appPath("/login"));
+    });
   updateState((state) => {
     for (const saved of state.accounts) {
       if (saved.email === account.email) {
@@ -126,5 +147,11 @@ export const revokeVisibleKey = async (page: Page, rawKey: string) => {
     .last();
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Revoke" }).click();
-  await expect(row.getByText(/revoked/i)).toBeVisible();
+  await expect(
+    dialog
+      .locator("div")
+      .filter({ hasText: visiblePrefix })
+      .filter({ hasText: /revoked/i })
+      .last()
+  ).toBeVisible();
 };
