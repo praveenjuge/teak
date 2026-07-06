@@ -8,6 +8,7 @@ import type {
 } from "electron";
 import electronUpdater from "electron-updater";
 import { OAUTH_CALLBACK_CHANNEL } from "./channels";
+import { isMicrophoneCheck, isMicrophoneOnlyRequest } from "./mediaPermissions";
 import { createStore, readStoreValue, writeStoreValue } from "./store";
 
 // Route the `electron` import through Node's CJS loader.
@@ -142,15 +143,25 @@ function createMainWindow(): BrowserWindowInstance {
     },
   });
 
-  // Microphone access for audio recording. Electron denies every renderer
+  // Microphone-only access for audio recording. Electron denies every renderer
   // permission request by default, so `navigator.mediaDevices.getUserMedia`
-  // rejects with NotAllowedError until we opt in here. We only grant `media`
-  // (the microphone); every other permission stays denied.
+  // rejects with NotAllowedError until we opt in here. Teak only records audio
+  // notes (`getUserMedia({ audio: true })`), and Electron's `media` permission
+  // also covers the camera, so we approve audio-only requests and deny video
+  // (and every other permission) to avoid silently granting camera access.
   const { session } = mainWindow.webContents;
-  session.setPermissionRequestHandler((_wc, permission, callback) => {
-    callback(permission === "media");
+  session.setPermissionRequestHandler((_wc, permission, callback, details) => {
+    if (permission !== "media") {
+      callback(false);
+      return;
+    }
+    const mediaTypes = "mediaTypes" in details ? details.mediaTypes : undefined;
+    callback(isMicrophoneOnlyRequest(mediaTypes));
   });
-  session.setPermissionCheckHandler((_wc, permission) => permission === "media");
+  session.setPermissionCheckHandler(
+    (_wc, permission, _origin, details) =>
+      permission === "media" && isMicrophoneCheck(details.mediaType)
+  );
 
   // A single onHeadersReceived listener (Electron keeps only the most recent
   // one) that does two jobs:

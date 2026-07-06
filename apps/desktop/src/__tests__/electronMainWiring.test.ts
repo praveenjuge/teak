@@ -67,9 +67,10 @@ describe("electron main process wiring", () => {
   });
 
   it("grants only microphone access for audio recording", () => {
-    // Electron denies renderer permission requests by default, so
-    // getUserMedia rejects until we register a permission handler that grants
-    // the `media` permission (and nothing else).
+    // Electron denies renderer permission requests by default, so getUserMedia
+    // rejects until we register permission handlers. Because Electron's `media`
+    // permission also covers the camera, the handlers must delegate to the
+    // audio-only predicates instead of blanket-approving every `media` request.
     const source = readFileSync(
       resolve(import.meta.dir, "../main/index.ts"),
       "utf8"
@@ -77,7 +78,8 @@ describe("electron main process wiring", () => {
 
     expect(source).toContain("setPermissionRequestHandler");
     expect(source).toContain("setPermissionCheckHandler");
-    expect(source).toContain('permission === "media"');
+    expect(source).toContain("isMicrophoneOnlyRequest");
+    expect(source).toContain("isMicrophoneCheck");
   });
 
   it("configures the main window with correct dimensions", () => {
