@@ -110,7 +110,8 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
   });
 };
 
-export const revokeVisibleKey = async (page: Page, _rawKey: string) => {
+export const revokeVisibleKey = async (page: Page, rawKey: string) => {
+  const visiblePrefix = rawKey.split("_").slice(0, 4).join("_");
   await page.goto(appPath("/settings"));
   await settingsRow(page, "API Keys")
     .getByRole("button", { name: "Manage" })
@@ -120,7 +121,7 @@ export const revokeVisibleKey = async (page: Page, _rawKey: string) => {
     .locator("div")
     .filter({
       has: page.getByRole("button", { name: "Revoke" }),
-      hasText: "Last used: Never",
+      hasText: visiblePrefix,
     })
     .last();
   await expect(row).toBeVisible();
