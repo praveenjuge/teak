@@ -23,8 +23,19 @@ check_contains() {
   local url="$1"
   local expected="$2"
   check_status 200 "$url"
-  if ! grep -q "$expected" "$tmp_body"; then
+  if ! grep -Fq "$expected" "$tmp_body"; then
     echo "Expected $url body to contain $expected" >&2
+    cat "$tmp_body" >&2
+    exit 1
+  fi
+}
+
+check_matches() {
+  local url="$1"
+  local expected="$2"
+  check_status 200 "$url"
+  if ! grep -Eq "$expected" "$tmp_body"; then
+    echo "Expected $url body to match $expected" >&2
     cat "$tmp_body" >&2
     exit 1
   fi
@@ -35,7 +46,7 @@ check_mcp_unauthorized() {
   local expected_metadata="$2"
   local status
   status="$(
-    curl -fsS -o "$tmp_body" -D "$tmp_headers" -w '%{http_code}' \
+    curl -sS -o "$tmp_body" -D "$tmp_headers" -w '%{http_code}' \
       -X POST "$url" \
       -H 'Accept: application/json, text/event-stream' \
       -H 'Content-Type: application/json' \
@@ -69,7 +80,9 @@ check_contains \
   "https://teakvault.com/.well-known/oauth-protected-resource/mcp" \
   '"resource":"https://teakvault.com/mcp"'
 check_status 200 "https://teakvault.com/llms.txt"
-check_contains "https://teakvault.com/.well-known/mcp.json" '"endpoint":"https://teakvault.com/mcp"'
+check_matches \
+  "https://teakvault.com/.well-known/mcp.json" \
+  '"endpoint"[[:space:]]*:[[:space:]]*"https://teakvault\.com/mcp"'
 
 check_status 200 "https://api.teakvault.com/healthz"
 check_contains "https://api.teakvault.com/v1" '"endpoint":"https://teakvault.com/mcp"'
