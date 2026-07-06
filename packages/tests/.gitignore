@@ -1,0 +1,4 @@
+.state/
+.turbo/
+playwright-report/
+test-results/
