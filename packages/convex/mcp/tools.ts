@@ -37,6 +37,73 @@ const queryInputSchema = z.object({
 });
 
 const nonEmptyString = z.string().trim().min(1);
+const cardSortSchema = z.enum(["newest", "oldest"]);
+const cardTypeSchema = z.enum([
+  "text",
+  "link",
+  "image",
+  "video",
+  "audio",
+  "document",
+  "palette",
+  "quote",
+]);
+
+const listCardsInputSchema = z.object({
+  limit: z.number().int().positive().max(100).optional(),
+  cursor: nonEmptyString.optional(),
+  type: cardTypeSchema.optional(),
+  favorited: z.boolean().optional(),
+  tag: nonEmptyString.optional(),
+  sort: cardSortSchema.optional(),
+  createdAfter: z.number().optional(),
+  createdBefore: z.number().optional(),
+});
+
+const getCardChangesInputSchema = z.object({
+  since: z.number(),
+  cursor: nonEmptyString.optional(),
+  limit: z.number().int().positive().max(100).optional(),
+});
+
+const createUploadInputSchema = z.object({
+  fileName: nonEmptyString,
+  mimeType: nonEmptyString,
+  fileSize: z.number().positive(),
+});
+
+const bulkCardsInputSchema = z.object({
+  operation: z.enum(["create", "update", "favorite", "delete"]),
+  items: z.array(z.record(z.string(), z.unknown())).min(1).max(100),
+  confirm: z.literal(true).optional(),
+}).superRefine((value, ctx) => {
+  if (value.operation === "delete" && value.confirm !== true) {
+    ctx.addIssue({
+      code: "custom",
+      message: "confirm must be true for delete batches",
+      path: ["confirm"],
+    });
+  }
+});
+
+const chatgptSearchInputSchema = z.object({
+  query: nonEmptyString,
+});
+
+const chatgptFetchInputSchema = z.object({
+  id: nonEmptyString,
+});
+
+const createCardInputSchema = z.object({ content: nonEmptyString });
+const cardIdInputSchema = z.object({ cardId: nonEmptyString });
+const deleteCardInputSchema = z.object({
+  cardId: nonEmptyString,
+  confirm: z.literal(true),
+});
+const favoriteInputSchema = z.object({
+  cardId: nonEmptyString,
+  isFavorited: z.boolean(),
+});
 
 const updateCardInputSchema = z
   .object({
@@ -73,13 +140,111 @@ const inputSchema = (properties: JsonObject, required: string[] = []) => ({
   additionalProperties: false,
 });
 
+const queryParams = (
+  query: Record<string, QueryValue>
+): Record<string, QueryValue> =>
+  Object.fromEntries(
+    Object.entries(query).filter((entry): entry is [string, QueryValue] => {
+      const value = entry[1];
+      return value !== undefined;
+    })
+  );
+
 export const TEAK_V1_TOOLS = [
+  {
+    name: "teak_v1_list_cards",
+    description: "List cards with cursor pagination and optional filters.",
+    inputSchema: inputSchema({
+      limit: { type: "integer", minimum: 1, maximum: 100 },
+      cursor: { type: "string", minLength: 1 },
+      type: { enum: cardTypeSchema.options },
+      favorited: { type: "boolean" },
+      tag: { type: "string", minLength: 1 },
+      sort: { enum: cardSortSchema.options },
+      createdAfter: { type: "number" },
+      createdBefore: { type: "number" },
+    }),
+  },
+  {
+    name: "teak_v1_get_card",
+    description: "Get a card by ID.",
+    inputSchema: inputSchema(
+      { cardId: { type: "string", minLength: 1 } },
+      ["cardId"]
+    ),
+  },
   {
     name: "teak_v1_create_card",
     description: "Create a new card from text or a URL.",
     inputSchema: inputSchema(
       { content: { type: "string", minLength: 1 } },
       ["content"]
+    ),
+  },
+  {
+    name: "teak_v1_list_tags",
+    description: "List tags used by saved cards.",
+    inputSchema: inputSchema({}),
+  },
+  {
+    name: "teak_v1_get_card_changes",
+    description: "List card changes since a timestamp with cursor pagination.",
+    inputSchema: inputSchema(
+      {
+        since: { type: "number" },
+        cursor: { type: "string", minLength: 1 },
+        limit: { type: "integer", minimum: 1, maximum: 100 },
+      },
+      ["since"]
+    ),
+  },
+  {
+    name: "teak_v1_bulk_cards",
+    description:
+      "Run a bulk card operation for up to 100 items. Delete batches require confirm: true.",
+    inputSchema: inputSchema(
+      {
+        operation: { enum: ["create", "update", "favorite", "delete"] },
+        items: {
+          type: "array",
+          minItems: 1,
+          maxItems: 100,
+          items: { type: "object", additionalProperties: true },
+        },
+        confirm: { const: true },
+      },
+      ["operation", "items"]
+    ),
+  },
+  {
+    name: "teak_v1_create_upload",
+    description:
+      "Create a direct upload URL. PUT bytes to uploadUrl, then create a card with the returned fileKey.",
+    inputSchema: inputSchema(
+      {
+        fileName: { type: "string", minLength: 1 },
+        mimeType: { type: "string", minLength: 1 },
+        fileSize: { type: "number", minimum: 1 },
+      },
+      ["fileName", "mimeType", "fileSize"]
+    ),
+  },
+  {
+    name: "search",
+    description:
+      "Search Teak cards for ChatGPT connectors and Deep Research.",
+    inputSchema: inputSchema(
+      { query: { type: "string", minLength: 1 } },
+      ["query"]
+    ),
+  },
+  {
+    name: "fetch",
+    description:
+      "Fetch a Teak card by ID for ChatGPT connectors and Deep Research.",
+    inputSchema: inputSchema(
+      { id: { type: "string", minLength: 1 } },
+      ["id"]
     ),
   },
   {
@@ -201,6 +366,25 @@ const validationError = (message: string): McpToolResult =>
 const getAuthorizationHeader = (request: Request): string | null =>
   request.headers.get("authorization");
 
+const titleFromCard = (card: JsonObject): string => {
+  const metadataTitle =
+    typeof card.metadataTitle === "string" ? card.metadataTitle.trim() : "";
+  const content = typeof card.content === "string" ? card.content.trim() : "";
+  const url = typeof card.url === "string" ? card.url.trim() : "";
+  return metadataTitle || content || url || String(card.id ?? "Untitled card");
+};
+
+const textFromCard = (card: JsonObject): string =>
+  [
+    titleFromCard(card),
+    typeof card.content === "string" ? card.content : undefined,
+    typeof card.notes === "string" ? card.notes : undefined,
+    typeof card.aiSummary === "string" ? card.aiSummary : undefined,
+    typeof card.url === "string" ? card.url : undefined,
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join("\n\n");
+
 type ToolHandler<TInput> = (
   input: TInput,
   request: Request
@@ -276,198 +460,182 @@ const executeToolOperation = async (
   };
 };
 
-const toolHandlers = (executor: PublicApiToolExecutor) => ({
-  teak_v1_create_card: instrumentToolHandler(
-    "teak_v1_create_card",
-    async (input: unknown, request) => {
-      const parsed = z.object({ content: nonEmptyString }).safeParse(input);
-      if (!parsed.success) {
-        return validationError(parsed.error.issues[0]?.message ?? "Invalid input");
-      }
+type ToolConfig = {
+  schema: z.ZodTypeAny;
+  operation: (input: any) => PublicApiToolOperation;
+  summary: (payload: JsonObject, input: any) => string;
+  transform?: (payload: JsonObject, input: any) => JsonObject;
+};
 
-      const result = await executeToolOperation(
-        {
-          method: "POST",
-          path: "/v1/cards",
-          body: {
-            content: parsed.data.content,
-          },
-        },
-        request,
-        executor
-      );
+const count = (payload: JsonObject, field = "items"): number =>
+  Array.isArray(payload[field]) ? payload[field].length : 0;
 
-      if (!result.ok) {
-        return result.result;
-      }
-
-      const status =
-        typeof result.payload.status === "string"
-          ? result.payload.status
-          : "created";
-      return successResult(result.payload, `Card ${status}`);
-    }
-  ),
-  teak_v1_search_cards: instrumentToolHandler(
-    "teak_v1_search_cards",
-    async (input: unknown, request) => {
-      const parsed = queryInputSchema.safeParse(input);
-      if (!parsed.success) {
-        return validationError(parsed.error.issues[0]?.message ?? "Invalid input");
-      }
-
-      const result = await executeToolOperation(
-        {
-          method: "GET",
-          path: "/v1/cards/search",
-          query: {
-            q: parsed.data.q,
-            limit: parsed.data.limit,
-          },
-        },
-        request,
-        executor
-      );
-
-      if (!result.ok) {
-        return result.result;
-      }
-
-      const total =
-        typeof result.payload.total === "number" ? result.payload.total : 0;
-      return successResult(result.payload, `Fetched ${total} cards`);
-    }
-  ),
-  teak_v1_list_favorite_cards: instrumentToolHandler(
-    "teak_v1_list_favorite_cards",
-    async (input: unknown, request) => {
-      const parsed = queryInputSchema.safeParse(input);
-      if (!parsed.success) {
-        return validationError(parsed.error.issues[0]?.message ?? "Invalid input");
-      }
-
-      const result = await executeToolOperation(
-        {
-          method: "GET",
-          path: "/v1/cards/favorites",
-          query: {
-            q: parsed.data.q,
-            limit: parsed.data.limit,
-          },
-        },
-        request,
-        executor
-      );
-
-      if (!result.ok) {
-        return result.result;
-      }
-
-      const total =
-        typeof result.payload.total === "number" ? result.payload.total : 0;
-      return successResult(result.payload, `Fetched ${total} favorite cards`);
-    }
-  ),
-  teak_v1_update_card: instrumentToolHandler(
-    "teak_v1_update_card",
-    async (input: unknown, request) => {
-      const parsed = updateCardInputSchema.safeParse(input);
-      if (!parsed.success) {
-        return validationError(parsed.error.issues[0]?.message ?? "Invalid input");
-      }
-
-      const result = await executeToolOperation(
-        {
-          method: "PATCH",
-          path: `/v1/cards/${encodeURIComponent(parsed.data.cardId)}`,
-          body: {
-            ...(parsed.data.content === undefined
-              ? {}
-              : { content: parsed.data.content }),
-            ...(parsed.data.url === undefined ? {} : { url: parsed.data.url }),
-            ...(parsed.data.notes === undefined
-              ? {}
-              : { notes: parsed.data.notes }),
-            ...(parsed.data.tags === undefined
-              ? {}
-              : { tags: parsed.data.tags }),
-          },
-        },
-        request,
-        executor
-      );
-
-      return result.ok
-        ? successResult(result.payload, "Card updated")
-        : result.result;
-    }
-  ),
-  teak_v1_set_card_favorite: instrumentToolHandler(
-    "teak_v1_set_card_favorite",
-    async (input: unknown, request) => {
-      const parsed = z
-        .object({ cardId: nonEmptyString, isFavorited: z.boolean() })
-        .safeParse(input);
-      if (!parsed.success) {
-        return validationError(parsed.error.issues[0]?.message ?? "Invalid input");
-      }
-
-      const result = await executeToolOperation(
-        {
-          method: "PATCH",
-          path: `/v1/cards/${encodeURIComponent(parsed.data.cardId)}/favorite`,
-          body: {
-            isFavorited: parsed.data.isFavorited,
-          },
-        },
-        request,
-        executor
-      );
-
-      if (!result.ok) {
-        return result.result;
-      }
-
-      const stateText = parsed.data.isFavorited ? "favorited" : "unfavorited";
-      return successResult(result.payload, `Card ${stateText}`);
-    }
-  ),
-  teak_v1_delete_card: instrumentToolHandler(
-    "teak_v1_delete_card",
-    async (input: unknown, request) => {
-      if (!(toObjectPayload(input).confirm === true)) {
-        return validationError("confirm must be true");
-      }
-
-      const parsed = z
-        .object({ cardId: nonEmptyString, confirm: z.literal(true) })
-        .safeParse(input);
-      if (!parsed.success) {
-        return validationError(parsed.error.issues[0]?.message ?? "Invalid input");
-      }
-
-      const result = await executeToolOperation(
-        {
-          method: "DELETE",
-          path: `/v1/cards/${encodeURIComponent(parsed.data.cardId)}`,
-        },
-        request,
-        executor
-      );
-
-      if (!result.ok) {
-        return result.result;
-      }
-
-      const payload = {
-        status: "deleted",
-        cardId: parsed.data.cardId,
-      };
-
-      return successResult(payload, `Deleted card ${parsed.data.cardId}`);
-    }
-  ),
+const cardPath = (id: string): string => `/v1/cards/${encodeURIComponent(id)}`;
+const queryTool = (path: string): ToolConfig => ({
+  schema: queryInputSchema,
+  operation: (input) => ({
+    method: "GET",
+    path,
+    query: queryParams({ q: input.q, limit: input.limit }),
+  }),
+  summary: (payload) => `Fetched ${Number(payload.total) || 0} cards`,
 });
+
+const toolConfigs: Record<string, ToolConfig> = {
+  teak_v1_list_cards: {
+    schema: listCardsInputSchema,
+    operation: (input) => ({
+      method: "GET",
+      path: "/v1/cards",
+      query: queryParams(input),
+    }),
+    summary: (payload) => `Fetched ${count(payload)} cards`,
+  },
+  teak_v1_get_card: {
+    schema: cardIdInputSchema,
+    operation: (input) => ({ method: "GET", path: cardPath(input.cardId) }),
+    summary: (_payload, input) => `Fetched card ${input.cardId}`,
+  },
+  teak_v1_create_card: {
+    schema: createCardInputSchema,
+    operation: (input) => ({
+      method: "POST",
+      path: "/v1/cards",
+      body: { content: input.content },
+    }),
+    summary: (payload) =>
+      `Card ${typeof payload.status === "string" ? payload.status : "created"}`,
+  },
+  teak_v1_search_cards: queryTool("/v1/cards/search"),
+  teak_v1_list_favorite_cards: {
+    ...queryTool("/v1/cards/favorites"),
+    summary: (payload) => `Fetched ${Number(payload.total) || 0} favorite cards`,
+  },
+  teak_v1_update_card: {
+    schema: updateCardInputSchema,
+    operation: ({ cardId, ...body }) => ({
+      method: "PATCH",
+      path: cardPath(cardId),
+      body: Object.fromEntries(
+        Object.entries(body).filter(([, value]) => value !== undefined)
+      ),
+    }),
+    summary: () => "Card updated",
+  },
+  teak_v1_set_card_favorite: {
+    schema: favoriteInputSchema,
+    operation: (input) => ({
+      method: "PATCH",
+      path: `${cardPath(input.cardId)}/favorite`,
+      body: { isFavorited: input.isFavorited },
+    }),
+    summary: (_payload, input) =>
+      `Card ${input.isFavorited ? "favorited" : "unfavorited"}`,
+  },
+  teak_v1_delete_card: {
+    schema: deleteCardInputSchema,
+    operation: (input) => ({ method: "DELETE", path: cardPath(input.cardId) }),
+    transform: (_payload, input) => ({
+      status: "deleted",
+      cardId: input.cardId,
+    }),
+    summary: (_payload, input) => `Deleted card ${input.cardId}`,
+  },
+  teak_v1_list_tags: {
+    schema: z.object({}),
+    operation: () => ({ method: "GET", path: "/v1/tags" }),
+    summary: (payload) => `Fetched ${count(payload)} tags`,
+  },
+  teak_v1_get_card_changes: {
+    schema: getCardChangesInputSchema,
+    operation: (input) => ({
+      method: "GET",
+      path: "/v1/cards/changes",
+      query: queryParams(input),
+    }),
+    summary: (payload) =>
+      `Fetched ${count(payload)} changed cards and ${count(payload, "deletedIds")} deleted IDs`,
+  },
+  teak_v1_bulk_cards: {
+    schema: bulkCardsInputSchema,
+    operation: (input) => ({
+      method: "POST",
+      path: "/v1/cards/bulk",
+      body: { operation: input.operation, items: input.items },
+    }),
+    summary: (_payload, input) => `Bulk ${input.operation} complete`,
+  },
+  teak_v1_create_upload: {
+    schema: createUploadInputSchema,
+    operation: (input) => ({ method: "POST", path: "/v1/uploads", body: input }),
+    summary: () =>
+      "Upload URL created. PUT bytes to uploadUrl, then create a card with fileKey.",
+  },
+  search: {
+    schema: chatgptSearchInputSchema,
+    operation: (input) => ({
+      method: "GET",
+      path: "/v1/cards/search",
+      query: { q: input.query, limit: 10 },
+    }),
+    transform: (payload) => ({
+      results: (Array.isArray(payload.items) ? payload.items : []).map(
+        (card: JsonObject) => ({
+          id: String(card.id ?? ""),
+          title: titleFromCard(card),
+          url:
+            typeof card.appUrl === "string"
+              ? card.appUrl
+              : "https://app.teakvault.com",
+        })
+      ),
+    }),
+    summary: (payload) => `Found ${count(payload, "results")} cards`,
+  },
+  fetch: {
+    schema: chatgptFetchInputSchema,
+    operation: (input) => ({ method: "GET", path: cardPath(input.id) }),
+    transform: (payload, input) => ({
+      id: String(payload.id ?? input.id),
+      title: titleFromCard(payload),
+      text: textFromCard(payload),
+      url:
+        typeof payload.appUrl === "string"
+          ? payload.appUrl
+          : "https://app.teakvault.com",
+      metadata: payload,
+    }),
+    summary: (payload) => `Fetched card ${payload.id}`,
+  },
+};
+
+const buildToolHandler = (
+  name: string,
+  executor: PublicApiToolExecutor
+) =>
+  instrumentToolHandler(name, async (input: unknown, request) => {
+    const config = toolConfigs[name];
+    const parsed = config.schema.safeParse(input);
+    if (!parsed.success) {
+      return validationError(parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const result = await executeToolOperation(
+      config.operation(parsed.data),
+      request,
+      executor
+    );
+    if (!result.ok) return result.result;
+    const payload = config.transform?.(result.payload, parsed.data) ?? result.payload;
+    return successResult(payload, config.summary(payload, parsed.data));
+  });
+
+const toolHandlers = (executor: PublicApiToolExecutor) =>
+  Object.fromEntries(
+    Object.keys(toolConfigs).map((name) => [
+      name,
+      buildToolHandler(name, executor),
+    ])
+  ) as Record<string, ToolHandler<unknown>>;
 
 export const callTeakV1Tool = async (
   name: string,

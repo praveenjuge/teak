@@ -36,7 +36,8 @@ export const PUBLIC_API_CORS_HEADERS: Record<string, string> = {
   "Access-Control-Max-Age": "86400",
 };
 
-const PROD_PUBLIC_API_URL = "https://api.teakvault.com";
+const PROD_PUBLIC_API_URL = "https://teakvault.com/api";
+const PROD_PUBLIC_MCP_URL = "https://teakvault.com/mcp";
 const PROD_AUTH_ISSUER_URL = "https://app.teakvault.com";
 const OAUTH_SCOPES_SUPPORTED = ["profile", "email", "offline_access"];
 
@@ -45,7 +46,7 @@ const normalizeBaseUrl = (raw: string): string => raw.replace(/\/+$/, "");
 const isLocalApiHost = (hostname: string): boolean =>
   isLocalDevelopmentHostname(hostname);
 
-const getPublicApiUrl = (requestUrl: string): string => {
+export const getPublicApiUrl = (requestUrl: string): string => {
   const fromEnv = process.env.PUBLIC_API_URL?.trim();
   if (fromEnv) {
     return normalizeBaseUrl(fromEnv);
@@ -59,7 +60,25 @@ const getPublicApiUrl = (requestUrl: string): string => {
 };
 
 export const getMcpEndpointFromRequestUrl = (requestUrl: string): string =>
-  `${getPublicApiUrl(requestUrl)}/mcp`;
+  getPublicMcpUrl(requestUrl);
+
+export const getPublicMcpUrl = (requestUrl: string): string => {
+  const fromEnv = process.env.PUBLIC_MCP_URL?.trim();
+  if (fromEnv) {
+    return normalizeBaseUrl(fromEnv);
+  }
+
+  const apiUrlFromEnv = process.env.PUBLIC_API_URL?.trim();
+  if (apiUrlFromEnv) {
+    return `${normalizeBaseUrl(apiUrlFromEnv)}/mcp`;
+  }
+
+  const { hostname, origin } = new URL(requestUrl);
+  const devApiOrigin = resolveTeakDevApiUrl(process.env);
+  return isLocalApiHost(hostname) || origin === devApiOrigin
+    ? `${origin}/mcp`
+    : PROD_PUBLIC_MCP_URL;
+};
 
 const getAuthIssuerUrl = (requestUrl: string): string => {
   const fromEnv =
@@ -74,11 +93,13 @@ const getAuthIssuerUrl = (requestUrl: string): string => {
     : PROD_AUTH_ISSUER_URL;
 };
 
-export const getProtectedResourceUrl = (requestUrl: string): string =>
-  `${getPublicApiUrl(requestUrl)}/.well-known/oauth-protected-resource`;
+export const getProtectedResourceUrl = (requestUrl: string): string => {
+  const mcpUrl = new URL(getPublicMcpUrl(requestUrl));
+  return `${mcpUrl.origin}/.well-known/oauth-protected-resource${mcpUrl.pathname}`;
+};
 
 export const buildProtectedResourceMetadata = (requestUrl: string) => ({
-  resource: `${getPublicApiUrl(requestUrl)}/mcp`,
+  resource: getPublicMcpUrl(requestUrl),
   authorization_servers: [getAuthIssuerUrl(requestUrl)],
   bearer_methods_supported: ["header"],
   scopes_supported: OAUTH_SCOPES_SUPPORTED,

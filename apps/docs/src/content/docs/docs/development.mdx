@@ -43,8 +43,8 @@ import { Steps, FileTree } from "@astrojs/starlight/components";
 
 - Web App: http://app.teak.localhost:1355
 - Admin: http://app.teak.localhost:1355/admin
-- Public API: https://reminiscent-kangaroo-59.convex.site/v1
-- MCP Endpoint: https://reminiscent-kangaroo-59.convex.site/mcp
+- Public API: http://docs.teak.localhost:1355/api/v1
+- MCP Endpoint: http://docs.teak.localhost:1355/mcp
 - Convex Dashboard: opens after `bunx convex dev`
 - Mobile: Expo Go or simulator
 - Extension: Chrome dev mode
@@ -150,7 +150,7 @@ bun run clean            # Clear Turborepo caches
 
 ### Public API and MCP
 
-The public REST API, MCP endpoint, discovery routes, OpenAPI spec, and SDK live in `packages/convex`. Start Convex to serve the HTTP routes from the deployment's `.convex.site` URL.
+The public REST API, MCP endpoint, discovery routes, OpenAPI spec, and SDK live in `packages/convex`. Start Convex to serve the HTTP routes, then use the docs dev proxy for local API and MCP URLs.
 
 Example:
 
@@ -158,10 +158,22 @@ Example:
 bun run dev:convex
 ```
 
-The same Convex HTTP surface exposes the REST API at `/v1`, MCP at `/mcp`, `GET /healthz`, `GET /openapi.json`, and OAuth protected-resource metadata.
+The docs dev server proxies `/api`, `/mcp`, and OAuth protected-resource metadata to the Convex dev deployment. That gives local docs, examples, and smoke tests the same path shape as production: `/api/v1` and `/mcp`.
+
+### MCP Registry
+
+The repo includes `server.json` for the MCP registry under the `com.teakvault/mcp` namespace. Publishing is manual because the namespace requires DNS verification for `teakvault.com`:
+
+```bash
+npm install -g mcp-publisher
+mcp-publisher login dns
+mcp-publisher publish
+```
+
+Follow the CLI prompt to add the DNS TXT record, then publish once verification passes.
 
 ### Environment Variables
 
 See **[Self-Hosting → Environment settings](./self-hosting#environment-settings)** for every env var required across web, mobile, extension, and the Convex backend.
 
-Optional local overrides: `TEAK_DEV_APP_URL` (default: `http://app.teak.localhost:1355`), `TEAK_DEV_API_URL` (default: `https://reminiscent-kangaroo-59.convex.site`), `TEAK_DEV_DOCS_URL` (default: `http://docs.teak.localhost:1355`).
+Optional local overrides: `TEAK_DEV_APP_URL` (default: `http://app.teak.localhost:1355`), `TEAK_DEV_API_URL` (only needed when your Convex dev site differs from the repo default), `TEAK_DEV_DOCS_URL` (default: `http://docs.teak.localhost:1355`).

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.teakvault/mcp",
+  "title": "Teak",
+  "description": "Remote MCP server for saving, searching, syncing, and managing Teak cards.",
+  "version": "1.0.54",
+  "websiteUrl": "https://teakvault.com",
+  "documentationUrl": "https://teakvault.com/docs/mcp",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://teakvault.com/mcp"
+    }
+  ]
+}

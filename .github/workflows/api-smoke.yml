@@ -1,0 +1,17 @@
+# Passes after the docs deployment has published the apex API/MCP rewrites.
+name: API and MCP Smoke
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Smoke API and MCP URLs
+        run: bash scripts/smoke-urls.sh

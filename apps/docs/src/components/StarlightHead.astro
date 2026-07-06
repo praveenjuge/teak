@@ -1,7 +1,49 @@
 ---
 import { Font } from "astro:assets";
 import Default from "@astrojs/starlight/components/Head.astro";
+import { buildPageSchemas, SITE_URL } from "../lib/jsonld";
+
+const route = Astro.locals.starlightRoute;
+const pageUrl = new URL(Astro.url.pathname, SITE_URL).toString().replace(/\/$/, "");
+const markdownUrl = `${pageUrl}.md`;
+const isAiAgentsPage = route.entry.id === "docs/ai-agents";
+const schemas = buildPageSchemas({
+  title: route.entry.data.title,
+  description: route.entry.data.description,
+  url: pageUrl,
+  faqs: isAiAgentsPage
+    ? [
+        {
+          question: "How do AI agents use Teak?",
+          answer:
+            "AI agents can connect to Teak through the hosted MCP server, the REST API, the OpenAPI document, the command-line app, or the Teak Agent Skill.",
+        },
+        {
+          question: "What is the Teak MCP endpoint?",
+          answer:
+            "The production MCP endpoint is https://teakvault.com/mcp and supports browser OAuth sign-in plus teakapi_ API keys.",
+        },
+        {
+          question: "Does Teak work as a ChatGPT connector?",
+          answer:
+            "Yes. Teak exposes ChatGPT-compatible search and fetch MCP tools so ChatGPT connectors and Deep Research can find and open saved cards.",
+        },
+      ]
+    : undefined,
+});
+
+function buildJsonLd(schema: object[]) {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@graph": schema.map((item) => {
+      const { "@context": _, ...rest } = item as Record<string, unknown>;
+      return rest;
+    }),
+  });
+}
 ---
 
 <Default {...Astro.props}><slot /></Default>
 <Font cssVariable="--font-sn-pro" preload />
+<link rel="alternate" type="text/markdown" href={markdownUrl} />
+<script is:inline type="application/ld+json" set:html={buildJsonLd(schemas)} />

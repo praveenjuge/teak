@@ -45,7 +45,7 @@ describe("Convex public API metadata", () => {
     expect(payload.endpoints).toContain("POST /v1/cards");
     expect(payload.endpoints).toContain("POST /v1/uploads");
     expect(payload.mcp).toEqual({
-      endpoint: "https://api.teakvault.com/mcp",
+      endpoint: "https://teakvault.com/mcp",
       transport: "streamable-http",
       auth: "Authorization: Bearer <token> (OAuth access token or teakapi_ API key)",
     });
@@ -60,7 +60,7 @@ describe("Convex public API metadata", () => {
 
     expect(response.status).toBe(200);
     const payload = await response.json();
-    expect(payload.mcp.endpoint).toBe("https://api.teakvault.com/mcp");
+    expect(payload.mcp.endpoint).toBe("https://teakvault.com/mcp");
   });
 
   test("answers REST CORS preflight", async () => {
@@ -95,6 +95,7 @@ describe("Convex public API metadata", () => {
 
   test("uses the Convex dev site URL in the OpenAPI spec", () => {
     expect(openApiSpec.servers).toEqual([
+      { url: "https://teakvault.com/api" },
       { url: "https://api.teakvault.com" },
       { url: "https://reminiscent-kangaroo-59.convex.site" },
     ]);

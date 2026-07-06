@@ -2,6 +2,11 @@ import sitemap from "@astrojs/sitemap";
 import starlight from "@astrojs/starlight";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, fontProviders } from "astro/config";
+import starlightLlmsTxt from "starlight-llms-txt";
+
+const devConvexSite =
+  process.env.TEAK_DEV_API_URL?.trim() ||
+  "https://reminiscent-kangaroo-59.convex.site";
 
 export default defineConfig({
   site: "https://teakvault.com",
@@ -42,6 +47,7 @@ export default defineConfig({
       },
       components: {
         Head: "./src/components/StarlightHead.astro",
+        PageTitle: "./src/components/StarlightPageTitle.astro",
       },
       logo: {
         dark: "./src/assets/logo-dark.svg",
@@ -61,6 +67,16 @@ export default defineConfig({
         },
       ],
       customCss: ["./src/styles/starlight.css"],
+      plugins: [
+        starlightLlmsTxt({
+          projectName: "Teak",
+          description:
+            "Teak is a personal knowledge hub for saving, finding, and syncing cards. Use the REST API at https://teakvault.com/api/v1, the MCP server at https://teakvault.com/mcp, and bearer auth with OAuth access tokens or teakapi_ API keys.",
+          details:
+            "Integration essentials: API discovery is available at https://teakvault.com/api, OpenAPI is at https://teakvault.com/api/openapi.json, MCP OAuth protected-resource metadata is at https://teakvault.com/.well-known/oauth-protected-resource/mcp, and legacy https://api.teakvault.com URLs continue to work.",
+          promote: ["docs/ai-agents", "docs/api", "docs/mcp", "docs/cli"],
+        }),
+      ],
       sidebar: [
         { label: "Welcome to Teak", slug: "docs" },
         { label: "Features", slug: "docs/features" },
@@ -84,6 +100,7 @@ export default defineConfig({
               slug: "docs/mcp",
               badge: { text: "New", variant: "success" },
             },
+            { label: "Teak for AI Agents", slug: "docs/ai-agents" },
             { label: "Development Guide", slug: "docs/development" },
             {
               label: "Self-Hosting",
@@ -129,6 +146,24 @@ export default defineConfig({
   ],
   vite: {
     plugins: [tailwindcss() as any],
+    server: {
+      proxy: {
+        "/api": {
+          target: devConvexSite,
+          changeOrigin: true,
+          rewrite: (path) =>
+            path === "/api" ? "/v1" : path.replace(/^\/api/, ""),
+        },
+        "/mcp": {
+          target: devConvexSite,
+          changeOrigin: true,
+        },
+        "/.well-known/oauth-protected-resource": {
+          target: devConvexSite,
+          changeOrigin: true,
+        },
+      },
+    },
   },
   security: {
     csp: true,

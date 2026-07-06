@@ -1,5 +1,31 @@
 {
   "buildCommand": "bun run build",
+  "rewrites": [
+    {
+      "source": "/api",
+      "destination": "https://uncommon-ladybug-882.convex.site/v1"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://uncommon-ladybug-882.convex.site/:path*"
+    },
+    {
+      "source": "/mcp",
+      "destination": "https://uncommon-ladybug-882.convex.site/mcp"
+    },
+    {
+      "source": "/mcp/:path*",
+      "destination": "https://uncommon-ladybug-882.convex.site/mcp/:path*"
+    },
+    {
+      "source": "/.well-known/oauth-protected-resource",
+      "destination": "https://uncommon-ladybug-882.convex.site/.well-known/oauth-protected-resource"
+    },
+    {
+      "source": "/.well-known/oauth-protected-resource/mcp",
+      "destination": "https://uncommon-ladybug-882.convex.site/.well-known/oauth-protected-resource/mcp"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

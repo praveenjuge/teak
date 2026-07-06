@@ -23,11 +23,29 @@ interface JsonRpcSuccess {
 const TEST_AUTHORIZATION = `Bearer teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
 
 const originalPublicApiUrl = process.env.PUBLIC_API_URL;
+const originalPublicMcpUrl = process.env.PUBLIC_MCP_URL;
 const originalAuthIssuerUrl = process.env.AUTH_ISSUER_URL;
 const originalSiteUrl = process.env.SITE_URL;
+const EXPECTED_TOOL_NAMES = [
+  "fetch",
+  "search",
+  "teak_v1_bulk_cards",
+  "teak_v1_create_card",
+  "teak_v1_create_upload",
+  "teak_v1_delete_card",
+  "teak_v1_get_card",
+  "teak_v1_get_card_changes",
+  "teak_v1_list_cards",
+  "teak_v1_list_favorite_cards",
+  "teak_v1_list_tags",
+  "teak_v1_search_cards",
+  "teak_v1_set_card_favorite",
+  "teak_v1_update_card",
+];
 
 afterEach(() => {
   process.env.PUBLIC_API_URL = originalPublicApiUrl;
+  process.env.PUBLIC_MCP_URL = originalPublicMcpUrl;
   process.env.AUTH_ISSUER_URL = originalAuthIssuerUrl;
   process.env.SITE_URL = originalSiteUrl;
 });
@@ -85,7 +103,7 @@ describe("Convex MCP endpoint", () => {
       error: "Missing or invalid Authorization header",
     });
     expect(response.headers.get("WWW-Authenticate")).toContain(
-      "/.well-known/oauth-protected-resource"
+      'resource_metadata="https://teakvault.com/.well-known/oauth-protected-resource/mcp"'
     );
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
   });
@@ -102,7 +120,7 @@ describe("Convex MCP endpoint", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
     expect(await response.json()).toEqual({
-      resource: "https://api.teakvault.com/mcp",
+      resource: "https://teakvault.com/mcp",
       authorization_servers: ["https://app.teakvault.com"],
       bearer_methods_supported: ["header"],
       scopes_supported: ["profile", "email", "offline_access"],
@@ -132,8 +150,39 @@ describe("Convex MCP endpoint", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
-      resource: "https://api.teakvault.com/mcp",
+      resource: "https://teakvault.com/mcp",
     });
+  });
+
+  test("derives self-hosted MCP metadata from PUBLIC_API_URL", async () => {
+    process.env.PUBLIC_API_URL = "https://api.selfhost.example";
+    process.env.PUBLIC_MCP_URL = "";
+
+    const response = await handleOauthProtectedResourceV1Request(
+      new Request(
+        "https://api.selfhost.example/.well-known/oauth-protected-resource"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      resource: "https://api.selfhost.example/mcp",
+    });
+
+    const challenge = await handleMcpV1Request(
+      { runMutation: mock(), runQuery: mock() },
+      new Request("https://api.selfhost.example/mcp", {
+        method: "POST",
+        headers: {
+          Accept: "application/json, text/event-stream",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize" }),
+      })
+    );
+    expect(challenge.headers.get("WWW-Authenticate")).toContain(
+      'resource_metadata="https://api.selfhost.example/.well-known/oauth-protected-resource/mcp"'
+    );
   });
 
   test("lets unauthenticated OPTIONS /mcp preflight through", async () => {
@@ -161,15 +210,10 @@ describe("Convex MCP endpoint", () => {
     );
   });
 
-  test("initializes and lists the six teak_v1 tools", async () => {
-    expect(TEAK_V1_TOOLS.map((tool) => tool.name).sort()).toEqual([
-      "teak_v1_create_card",
-      "teak_v1_delete_card",
-      "teak_v1_list_favorite_cards",
-      "teak_v1_search_cards",
-      "teak_v1_set_card_favorite",
-      "teak_v1_update_card",
-    ]);
+  test("initializes and lists the Teak and ChatGPT-compatible tools", async () => {
+    expect(TEAK_V1_TOOLS.map((tool) => tool.name).sort()).toEqual(
+      EXPECTED_TOOL_NAMES
+    );
 
     const runMutation = mock().mockResolvedValue({
       keyId: "key_1",
@@ -192,14 +236,7 @@ describe("Convex MCP endpoint", () => {
     );
     const payload = (await listResponse.json()) as JsonRpcSuccess;
     const names = (payload.result.tools ?? []).map((tool) => tool.name).sort();
-    expect(names).toEqual([
-      "teak_v1_create_card",
-      "teak_v1_delete_card",
-      "teak_v1_list_favorite_cards",
-      "teak_v1_search_cards",
-      "teak_v1_set_card_favorite",
-      "teak_v1_update_card",
-    ]);
+    expect(names).toEqual(EXPECTED_TOOL_NAMES);
   });
 
   test("caches successful MCP bearer validation briefly", async () => {
@@ -264,61 +301,101 @@ describe("Convex MCP endpoint", () => {
         return Promise.resolve(new Response(null, { status: 204 }));
       }
       return Promise.resolve(
-        new Response(JSON.stringify({ status: "created", cardId: "card_1" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
+        new Response(
+          JSON.stringify({
+            id: "card_1",
+            appUrl: "https://app.teakvault.com/?card=card_1",
+            cardId: "card_1",
+            content: "Design note",
+            deletedIds: ["card_2"],
+            fileKey: "users/user_1/file/image.png",
+            items: [{ id: "card_1", metadataTitle: "Design note" }],
+            metadataTitle: "Design note",
+            pageInfo: { hasMore: false, nextCursor: null },
+            status: "created",
+            total: 1,
+            uploadUrl: "https://upload.example",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
       );
     }) as PublicApiToolExecutor;
-    for (const toolCall of [
-      {
-        id: 10,
-        name: "teak_v1_create_card",
-        arguments: { content: "https://example.com" },
-      },
-      {
-        id: 11,
-        name: "teak_v1_search_cards",
-        arguments: { q: "design", limit: 10 },
-      },
-      {
-        id: 12,
-        name: "teak_v1_delete_card",
-        arguments: { cardId: "card_1", confirm: true },
-      },
-    ] as const) {
+    const toolCalls = [
+      ["teak_v1_list_cards", { limit: 25, cursor: "cursor_1", tag: "design" }],
+      ["teak_v1_create_card", { content: "https://example.com" }],
+      ["teak_v1_search_cards", { q: "design", limit: 10 }],
+      ["teak_v1_delete_card", { cardId: "card_1", confirm: true }],
+      ["teak_v1_get_card", { cardId: "card_1" }],
+      ["teak_v1_list_tags", {}],
+      ["teak_v1_get_card_changes", { since: 1_710_000_000_000, limit: 10 }],
+      [
+        "teak_v1_bulk_cards",
+        { operation: "favorite", items: [{ cardId: "card_1", isFavorited: true }] },
+      ],
+      [
+        "teak_v1_create_upload",
+        { fileName: "image.png", mimeType: "image/png", fileSize: 123 },
+      ],
+      ["search", { query: "design" }],
+      ["fetch", { id: "card_1" }],
+    ] as const;
+    for (const [index, toolCall] of toolCalls.entries()) {
       const result = await callTeakV1Tool(
-        toolCall.name,
-        toolCall.arguments,
-        mcpRequest({ jsonrpc: "2.0", id: toolCall.id, method: "tools/call" }),
+        toolCall[0],
+        toolCall[1],
+        mcpRequest({ jsonrpc: "2.0", id: index + 9, method: "tools/call" }),
         executor
       );
       expect(result.isError).toBeUndefined();
     }
 
-    expect(captured).toEqual([
-      {
-        path: "/v1/cards",
-        method: "POST",
-        authorization: TEST_AUTHORIZATION,
-        body: { content: "https://example.com" },
-        query: undefined,
-      },
-      {
-        path: "/v1/cards/search",
-        method: "GET",
-        authorization: TEST_AUTHORIZATION,
-        body: undefined,
-        query: { q: "design", limit: 10 },
-      },
-      {
-        path: "/v1/cards/card_1",
-        method: "DELETE",
-        authorization: TEST_AUTHORIZATION,
-        body: undefined,
-        query: undefined,
-      },
+    expect(captured.map(({ method, path }) => `${method} ${path}`)).toEqual([
+      "GET /v1/cards",
+      "POST /v1/cards",
+      "GET /v1/cards/search",
+      "DELETE /v1/cards/card_1",
+      "GET /v1/cards/card_1",
+      "GET /v1/tags",
+      "GET /v1/cards/changes",
+      "POST /v1/cards/bulk",
+      "POST /v1/uploads",
+      "GET /v1/cards/search",
+      "GET /v1/cards/card_1",
     ]);
+    expect(captured.every((call) => call.authorization === TEST_AUTHORIZATION)).toBe(true);
+    expect(captured[0]?.query).toEqual({
+      cursor: "cursor_1",
+      tag: "design",
+      limit: 25,
+    });
+    expect(captured[1]?.body).toEqual({ content: "https://example.com" });
+    expect(captured[7]?.body).toEqual({
+      operation: "favorite",
+      items: [{ cardId: "card_1", isFavorited: true }],
+    });
+    expect(captured[8]?.body).toEqual({
+      fileName: "image.png",
+      mimeType: "image/png",
+      fileSize: 123,
+    });
+    expect(captured[9]?.query).toEqual({ q: "design", limit: 10 });
+  });
+
+  test("requires confirm=true for bulk delete tool", async () => {
+    const result = await callTeakV1Tool(
+      "teak_v1_bulk_cards",
+      { operation: "delete", items: [{ cardId: "card_1" }] },
+      mcpRequest({ jsonrpc: "2.0", id: 30, method: "tools/call" }),
+      mock(
+        async () => new Response(JSON.stringify({}), { status: 200 })
+      ) as PublicApiToolExecutor
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content?.[0]?.text.toLowerCase()).toContain("confirm");
   });
 
   test("requires confirm=true for delete tool", async () => {
@@ -332,7 +409,7 @@ describe("Convex MCP endpoint", () => {
     );
 
     expect(result.isError).toBe(true);
-    expect(result.content?.[0]?.text.toLowerCase()).toContain("confirm");
+    expect(result.content?.[0]?.text.toLowerCase()).toContain("expected true");
   });
 
   test("maps v1 errors to MCP isError payloads", async () => {

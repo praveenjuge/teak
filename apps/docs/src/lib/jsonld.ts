@@ -27,6 +27,34 @@ export const websiteSchema = {
   publisher: { "@id": `${SITE_URL}/#organization` },
 } as const;
 
+export const softwareApplicationSchema = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "@id": `${SITE_URL}/#software`,
+  name: SITE_NAME,
+  applicationCategory: "ProductivityApplication",
+  operatingSystem: "macOS, iOS, Web, Chrome, Raycast",
+  url: SITE_URL,
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+  publisher: { "@id": `${SITE_URL}/#organization` },
+} as const;
+
+export const webApiSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebAPI",
+  "@id": `${SITE_URL}/api/#webapi`,
+  name: "Teak API",
+  description:
+    "REST API and MCP server for saving, searching, syncing, and managing Teak cards.",
+  documentation: `${SITE_URL}/docs/api`,
+  endpointUrl: `${SITE_URL}/api/v1`,
+  provider: { "@id": `${SITE_URL}/#organization` },
+} as const;
+
 /**
  * Auto-generate common JSON-LD schemas from page metadata.
  * Replaces the old per-page manual schema builder calls.
@@ -40,6 +68,18 @@ export function buildPageSchemas(opts: {
   faqs?: { question: string; answer: string }[];
 }) {
   const schemas: object[] = [organizationSchema, websiteSchema];
+
+  if (opts.url === SITE_URL || opts.url.startsWith(`${SITE_URL}/docs`)) {
+    schemas.push(softwareApplicationSchema);
+  }
+
+  if (
+    opts.url.startsWith(`${SITE_URL}/docs/api`) ||
+    opts.url.startsWith(`${SITE_URL}/docs/mcp`) ||
+    opts.url.startsWith(`${SITE_URL}/docs/ai-agents`)
+  ) {
+    schemas.push(webApiSchema);
+  }
 
   // Article or WebPage
   if (opts.type === "article") {

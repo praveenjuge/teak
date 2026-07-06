@@ -1,0 +1,86 @@
+---
+const PAGE_TITLE_ID = "_top";
+const title = Astro.locals.starlightRoute.entry.data.title;
+const pathname = Astro.url.pathname.replace(/\/$/, "");
+const markdownPath = `${pathname}.md`;
+const markdownUrl = new URL(markdownPath, "https://teakvault.com").toString();
+const prompt = `Read ${markdownUrl} and help me integrate Teak.`;
+const claudeUrl = `https://claude.ai/new?q=${encodeURIComponent(prompt)}`;
+const chatgptUrl = `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`;
+---
+
+<div class="teak-page-title">
+  <h1 id={PAGE_TITLE_ID}>{title}</h1>
+  <div class="teak-doc-actions" data-markdown-path={markdownPath}>
+    <button type="button" data-copy-markdown>Copy Markdown</button>
+    <a href={claudeUrl} target="_blank" rel="noreferrer">Open in Claude</a>
+    <a href={chatgptUrl} target="_blank" rel="noreferrer">Open in ChatGPT</a>
+  </div>
+</div>
+
+<script>
+  for (const actions of document.querySelectorAll<HTMLElement>(".teak-doc-actions")) {
+    const button = actions.querySelector<HTMLButtonElement>("[data-copy-markdown]");
+    const path = actions.dataset.markdownPath;
+    if (!(button && path)) continue;
+
+    const originalLabel = button.textContent ?? "Copy Markdown";
+    button.addEventListener("click", async () => {
+      try {
+        const response = await fetch(path);
+        if (!response.ok) throw new Error("Markdown fetch failed");
+        await navigator.clipboard.writeText(await response.text());
+        button.textContent = "Copied";
+        setTimeout(() => {
+          button.textContent = originalLabel;
+        }, 1800);
+      } catch {
+        button.textContent = "Copy failed";
+        setTimeout(() => {
+          button.textContent = originalLabel;
+        }, 1800);
+      }
+    });
+  }
+</script>
+
+<style>
+  @layer starlight.core {
+    .teak-page-title {
+      margin-top: 1rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: var(--sl-text-h1);
+      line-height: var(--sl-line-height-headings);
+      font-weight: 600;
+      color: var(--sl-color-white);
+    }
+
+    .teak-doc-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.85rem;
+    }
+
+    .teak-doc-actions :is(a, button) {
+      border: 1px solid var(--sl-color-gray-5);
+      border-radius: 0.375rem;
+      background: var(--sl-color-black);
+      color: var(--sl-color-gray-2);
+      cursor: pointer;
+      font: inherit;
+      font-size: var(--sl-text-sm);
+      line-height: 1;
+      padding: 0.5rem 0.65rem;
+      text-decoration: none;
+    }
+
+    .teak-doc-actions :is(a, button):hover {
+      border-color: var(--sl-color-accent);
+      color: var(--sl-color-white);
+    }
+  }
+</style>

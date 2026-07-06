@@ -343,7 +343,7 @@ export const createTeakClient = (options: {
   userAgent?: string;
 }) => {
   const baseUrl = withoutTrailingSlashes(
-    options.baseUrl || "https://api.teakvault.com"
+    options.baseUrl || "https://teakvault.com/api"
   );
   const fetchImpl = options.fetch ?? fetch;
   const timeoutMs = options.timeoutMs ?? 10_000;

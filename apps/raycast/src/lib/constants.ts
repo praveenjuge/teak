@@ -45,7 +45,7 @@ const DEV_API_URL = `${resolveDevUrl(
   DEFAULT_TEAK_DEV_API_URL,
   "TEAK_DEV_API_URL",
 )}/v1`;
-const PROD_API_URL = "https://api.teakvault.com/v1";
+const PROD_API_URL = "https://teakvault.com/api/v1";
 
 const normalizeUrl = (url: string): string =>
   url.endsWith("/") ? url.slice(0, -1) : url;

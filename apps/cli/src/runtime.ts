@@ -32,7 +32,7 @@ const readPackageVersion = () => {
 export const VERSION = readPackageVersion();
 export const EXIT = { api: 1, auth: 3, notFound: 4, rateLimited: 5, usage: 2 };
 
-const DEFAULT_API_URL = "https://api.teakvault.com";
+const DEFAULT_API_URL = "https://teakvault.com/api";
 const DEFAULT_AUTH_URL = "https://app.teakvault.com";
 export const CLI_OAUTH_SCOPE = "profile email offline_access";
 const SERVICE = "com.teakvault.cli";

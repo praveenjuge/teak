@@ -3,24 +3,29 @@ title: API
 description: Public Teak API for creating, querying, and syncing cards
 ---
 
-Teak provides a public API at `https://api.teakvault.com/v1`.
+Teak provides a public API at `https://teakvault.com/api/v1`.
+
+> The API moved from `api.teakvault.com` to `teakvault.com/api`. Existing
+> `api.teakvault.com` URLs and API keys keep working, but new integrations
+> should use the simpler `teakvault.com/api` address.
 
 ## Base URLs
 
-- Production: `https://api.teakvault.com/v1`
-- Local development: `https://reminiscent-kangaroo-59.convex.site/v1`
-- OpenAPI: `https://api.teakvault.com/openapi.json`
+- Production: `https://teakvault.com/api/v1`
+- Local development: `http://docs.teak.localhost:1355/api/v1`
+- OpenAPI: `https://teakvault.com/api/openapi.json`
+- Legacy production: `https://api.teakvault.com/v1`
 
 ## MCP Endpoint
 
 Teak also exposes a remote MCP server:
 
-- Production: `https://api.teakvault.com/mcp`
-- Local development: `https://reminiscent-kangaroo-59.convex.site/mcp`
+- Production: `https://teakvault.com/mcp`
+- Local development: `http://docs.teak.localhost:1355/mcp`
+- Legacy production: `https://api.teakvault.com/mcp`
 
 See the dedicated [MCP docs](./mcp) for tool contracts and JSON-RPC examples.
-API discovery always returns the canonical production MCP URL, including when
-the API is served through its managed backend proxy.
+API discovery always returns the canonical production MCP URL.
 
 ## Authentication
 
