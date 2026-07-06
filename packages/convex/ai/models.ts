@@ -94,7 +94,7 @@ Respond with a single JSON object using exactly this shape and no other keys:
 
 Editorial rules (non-negotiable):
 - Describe user impact only. If a user would not notice the change, do not mention it.
-- Do not mention package names, frameworks, libraries, build tooling, bundlers, loaders, ESM/CJS, schemas, data migrations, internal endpoints, refactors, tests, CI, signing/notarization, dependency bumps, or any implementation mechanics. This includes (non-exhaustive): Electron, Tauri, Vite, Webpack, Forge, Next.js, Astro, Starlight, Expo, Wxt, Hono, Convex (as backend), Better Auth, Groq, Polar, electron-updater, electron-builder, oEmbed, package.json, tsconfig, node_modules.
+- Do not mention package names, frameworks, libraries, build tooling, bundlers, loaders, ESM/CJS, schemas, data migrations, internal endpoints, refactors, tests, CI, signing/notarization, dependency bumps, or any implementation mechanics. This includes (non-exhaustive): Electron, Vite, Webpack, Forge, Next.js, Astro, Starlight, Expo, Wxt, Hono, Convex (as backend), Better Auth, Groq, Polar, electron-updater, electron-builder, oEmbed, package.json, tsconfig, node_modules.
 - Product-facing terms are allowed when users recognize them: desktop, mobile, web, browser extension, Raycast, API, MCP, sync, settings, import/export, updates, sign-in, macOS, Dock, notifications, keychain.
 - If the change is only internal tooling, dependency work, refactor, tests, CI, or cleanup, respond with the single token SKIP and nothing else.
 - Do not use inline code (backticks) or fenced code blocks. Do not use headers inside the entry.

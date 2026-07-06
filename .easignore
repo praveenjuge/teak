@@ -56,4 +56,3 @@ apps/mobile/build-*.ipa
 # Monorepo native/build artifacts not required for mobile EAS cloud builds.
 apps/mobile/ios
 apps/mobile/android
-apps/desktop/src-tauri/target
