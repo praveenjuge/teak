@@ -45,10 +45,10 @@ import { Steps } from "@astrojs/starlight/components";
 
    Copy the Convex URLs from your dashboard into each app's `.env.local`. Each app uses a framework-specific prefix for the same two vars:
 
-   | App | Prefix |
-   |-----|--------|
-   | `apps/web` | `NEXT_PUBLIC_` |
-   | `apps/mobile` | `EXPO_PUBLIC_` |
+   | App                              | Prefix         |
+   | -------------------------------- | -------------- |
+   | `apps/web`                       | `NEXT_PUBLIC_` |
+   | `apps/mobile`                    | `EXPO_PUBLIC_` |
    | `apps/extension`, `apps/desktop` | `VITE_PUBLIC_` |
 
    See [Detailed Environment Reference](#detailed-environment-reference) for the full variable list.
@@ -127,13 +127,13 @@ VITE_WEB_URL=https://app.yourdomain.com           # Desktop only; defaults to ht
 ### Public API and MCP
 
 ```bash
-PUBLIC_API_URL=https://api.yourdomain.com        # Optional: public API origin used in discovery
-PUBLIC_MCP_URL=https://api.yourdomain.com/mcp    # Optional: defaults to PUBLIC_API_URL + /mcp
-AUTH_ISSUER_URL=https://app.yourdomain.com       # Optional: OAuth issuer override for MCP discovery
-TEAK_DEV_API_URL=https://deployment.convex.site  # Optional local override
+PUBLIC_API_URL=https://yourdomain.com/api       # Optional: public API origin used in discovery
+PUBLIC_MCP_URL=https://yourdomain.com/mcp       # Optional: defaults to PUBLIC_API_URL + /mcp
+AUTH_ISSUER_URL=https://app.yourdomain.com      # Optional: OAuth issuer override for MCP discovery
+TEAK_DEV_API_URL=https://deployment.convex.site # Optional local override
 ```
 
-Convex serves the authenticated `/v1` REST API, `/mcp` MCP endpoint, `/healthz`, `/openapi.json`, and OAuth protected-resource metadata from the deployment's `.convex.site` domain. Teak production exposes those routes through apex rewrites at `https://teakvault.com/api` and `https://teakvault.com/mcp`, while the retained `https://api.teakvault.com` rewrite keeps older integrations working.
+Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. In production, Teak exposes these through apex path rewrites (e.g. `https://teakvault.com/api` and `https://teakvault.com/mcp`). For self-hosted setups, configure your reverse proxy or DNS to route `/api` and `/mcp` to the Convex deployment's `.convex.site` domain.
 
 ## Where to get the values
 

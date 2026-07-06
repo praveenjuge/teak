@@ -11,19 +11,37 @@ The Teak CLI lets you save, search, favorite, update, and delete cards without l
 npm i -g teak-cli
 ```
 
-Then sign in with your browser:
+After installing, the `teak` command is available globally.
+
+## Authentication
+
+### Browser sign-in (recommended)
 
 ```bash
 teak login
 ```
 
-For scripts and CI, pass an API key instead:
+Opens your browser to authorize the CLI with your Teak account. Credentials are stored locally so you stay signed in across sessions.
+
+### API key (for scripts and CI)
+
+Set the `TEAK_API_KEY` environment variable to skip interactive sign-in:
 
 ```bash
 TEAK_API_KEY=teakapi_... teak ls --json
 ```
 
-## Common Commands
+Generate and manage API keys in Teak Settings → **Manage API Keys**.
+
+### Sign out
+
+```bash
+teak logout
+```
+
+Removes stored credentials from your machine.
+
+## Commands
 
 ```bash
 teak add "A note from the terminal"
@@ -38,4 +56,42 @@ teak rm <card-id>
 teak tags
 ```
 
-Use `--json` on any command when you need machine-readable output.
+### Getting help
+
+Run any command with `--help` to see available options:
+
+```bash
+teak --help
+teak add --help
+teak search --help
+```
+
+## Output Format
+
+By default, commands print human-readable output. Add `--json` to any command for machine-readable JSON, useful for piping into `jq` or other tools:
+
+```bash
+teak search "buttons" --json | jq '.[].url'
+```
+
+## Troubleshooting
+
+### `teak: command not found`
+
+- Confirm the package installed globally: `npm ls -g teak-cli`
+- Make sure your npm global bin directory is in your `PATH`.
+
+### Login opens the browser but never completes
+
+- Check your internet connection.
+- Try again — the local callback server occasionally fails to start if the port is in use.
+- As a fallback, use `TEAK_API_KEY` with a key from Settings.
+
+### Commands return "Unauthorized"
+
+- Run `teak login` to refresh your session.
+- If using `TEAK_API_KEY`, confirm the key is still active in Teak Settings.
+
+### Still stuck?
+
+Reach out via [Support](/docs/support).

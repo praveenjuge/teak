@@ -261,25 +261,14 @@ GET /v1/cards/changes?since=1710000000000&limit=50
 
 ### Legacy Search Endpoints
 
-These remain stable for existing consumers:
+These remain stable for existing consumers but new integrations should use `GET /v1/cards` instead.
 
 ```http
 GET /v1/cards/search?q=design&limit=50
 GET /v1/cards/favorites?q=design&limit=50
 ```
 
-Supported filters on both legacy endpoints:
-
-- `q`
-- `limit`
-- `type`
-- `tag`
-- `sort`
-- `favorited`
-- `createdAfter`
-- `createdBefore`
-
-Legacy response shape remains:
+They accept the same query parameters as the canonical listing (`q`, `limit`, `type`, `tag`, `sort`, `favorited`, `createdAfter`, `createdBefore`) and return a flat response:
 
 ```json
 {
