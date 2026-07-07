@@ -136,9 +136,7 @@ export const Card = memo(function Card({
   const linkCardImage =
     primaryAttachedMedia?.type === "image"
       ? primaryAttachedMedia.url
-      : (primaryAttachedMedia?.posterUrl ??
-        card.linkPreviewImageUrl ??
-        linkPreview?.imageUrl);
+      : (primaryAttachedMedia?.posterUrl ?? card.linkPreviewImageUrl);
   const resolvedScreenshotUrl =
     typeof card.screenshotUrl === "string" ? card.screenshotUrl : undefined;
   const [useFallbackImage, setUseFallbackImage] = useState(false);

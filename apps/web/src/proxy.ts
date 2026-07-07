@@ -1,6 +1,7 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import { buildPublicAppUrl } from "@/lib/public-app-url";
+import { CSP_NONCE_HEADER, securityHeaders } from "@/lib/security-headers";
 
 const signInRoutes = [
   "/login",
@@ -19,6 +20,33 @@ const MCP_OAUTH_CORS_HEADERS = {
   "Access-Control-Max-Age": "86400",
 };
 
+const createNonce = () => btoa(crypto.randomUUID());
+
+const withSecurityHeaders = (request: NextRequest, response?: NextResponse) => {
+  const nonce = createNonce();
+  const requestHeaders = new Headers(request.headers);
+  const headers = securityHeaders(nonce);
+
+  requestHeaders.set(CSP_NONCE_HEADER, nonce);
+  for (const { key, value } of headers) {
+    requestHeaders.set(key, value);
+  }
+
+  const nextResponse =
+    response ??
+    NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+
+  for (const { key, value } of headers) {
+    nextResponse.headers.set(key, value);
+  }
+
+  return nextResponse;
+};
+
 export default function middleware(request: NextRequest) {
   // MCP OAuth endpoints: answer CORS preflight here; pass everything else
   // (authorize redirects, token POSTs) straight through to the auth handler.
@@ -29,7 +57,7 @@ export default function middleware(request: NextRequest) {
         headers: MCP_OAUTH_CORS_HEADERS,
       });
     }
-    return NextResponse.next();
+    return withSecurityHeaders(request);
   }
 
   const sessionCookie = getSessionCookie(request);
@@ -37,21 +65,24 @@ export default function middleware(request: NextRequest) {
   const isNativeAuthRoute = request.nextUrl.pathname.startsWith("/native/auth");
 
   if (isNativeAuthRoute) {
-    return NextResponse.next();
+    return withSecurityHeaders(request);
   }
 
   // Auth routes must remain reachable when a stale session cookie is present.
   // The auth route guard validates the session before redirecting signed-in
   // users; cookie presence alone cannot distinguish an expired session.
   if (isSignInRoute) {
-    return NextResponse.next();
+    return withSecurityHeaders(request);
   }
 
   if (!(isSignInRoute || sessionCookie)) {
-    return NextResponse.redirect(buildPublicAppUrl("/login", request.nextUrl));
+    return withSecurityHeaders(
+      request,
+      NextResponse.redirect(buildPublicAppUrl("/login", request.nextUrl))
+    );
   }
 
-  return NextResponse.next();
+  return withSecurityHeaders(request);
 }
 
 export const config = {

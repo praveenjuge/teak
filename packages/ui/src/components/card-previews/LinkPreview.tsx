@@ -89,9 +89,8 @@ export function LinkPreview({
   const linkTitle =
     linkPreview?.title || card.metadataTitle || card.url || "Link";
   const linkDescription = linkPreview?.description || card.metadataDescription;
-  const linkImage = card.linkPreviewImageUrl ?? linkPreview?.imageUrl;
+  const linkImage = card.linkPreviewImageUrl;
   const linkMedia = card.linkPreviewMedia ?? [];
-  const linkFavicon = linkPreview?.faviconUrl;
 
   const screenshotUrl = showScreenshot ? card.screenshotUrl : undefined;
 
@@ -104,12 +103,7 @@ export function LinkPreview({
       : undefined;
   }, [card.url]);
 
-  const faviconUrl = useMemo(() => {
-    if (linkFavicon) {
-      return linkFavicon;
-    }
-    return googleFaviconUrl;
-  }, [googleFaviconUrl, linkFavicon]);
+  const faviconUrl = googleFaviconUrl;
 
   const categoryMetadata = card.metadata?.linkCategory;
 
