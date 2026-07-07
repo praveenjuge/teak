@@ -83,6 +83,14 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium firefox webkit
       - run: bun run --cwd packages/tests e2e:prod:matrix
+      - if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: prod-e2e-matrix-artifacts
+          path: |
+            packages/tests/playwright-report
+            packages/tests/test-results
+          retention-days: 7
       - if: always()
         run: bun run --cwd packages/tests teardown
 
