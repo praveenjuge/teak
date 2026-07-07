@@ -50,6 +50,14 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   }
   const api = clientFor(state.primary.apiKey);
   const marker = `prod-surface-${Date.now()}`;
+  const cardCount = async () => {
+    const response = await apiFetch(
+      "/v1/cards?limit=100",
+      state.primary!.apiKey!
+    );
+    const payload = (await response.json()) as { items?: unknown[] };
+    return payload.items?.length ?? 0;
+  };
 
   await saveTextCard(page, `${marker} original`);
   await page.getByRole("main").getByText(`${marker} original`).click();
@@ -129,6 +137,7 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   await expect(page.getByText(/Maximum file size is 20MB/i)).toBeVisible();
 
   await page.goto("/");
+  const countBeforePaste = await cardCount();
   await page.evaluate((base64) => {
     const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
     const file = new File([bytes], "pasted-prod-e2e.png", {
@@ -144,9 +153,9 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
       })
     );
   }, png.toString("base64"));
-  await expect(page.getByText("File uploaded")).toBeVisible({
-    timeout: 90_000,
-  });
+  await expect
+    .poll(cardCount, { timeout: 90_000 })
+    .toBeGreaterThan(countBeforePaste);
 
   const bulkA = await api.cards.create({
     content: `${marker} bulk-a`,
