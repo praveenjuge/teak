@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CardErrorCode, CardType } from "../../shared/constants";
 import {
   CARD_ERROR_CODES,
@@ -164,6 +164,7 @@ export interface FileUploadDependencies {
   uploadBinaryFromUri?: (args: {
     contentType: string;
     fileUri: string;
+    signal: AbortSignal;
     uploadUrl: string;
   }) => Promise<{ ok: boolean; status: number }>;
 }
@@ -178,6 +179,88 @@ export interface UploadFileFromUriArgs {
 }
 
 type CodedError = Error & { code?: CardErrorCode };
+type UploadResponse = Pick<Response, "ok" | "status">;
+
+const UPLOAD_RETRY_DELAYS_MS = [300, 900] as const;
+
+const isRetriableUploadStatus = (status: number) =>
+  status === 408 || status === 429 || status >= 500;
+
+const createAbortError = () => {
+  const error = new Error("Upload cancelled");
+  error.name = "AbortError";
+  return error;
+};
+
+const isAbortError = (error: unknown) =>
+  typeof error === "object" &&
+  error !== null &&
+  "name" in error &&
+  error.name === "AbortError";
+
+const throwIfAborted = (signal: AbortSignal) => {
+  if (signal.aborted) {
+    throw createAbortError();
+  }
+};
+
+const sleep = (delayMs: number, signal: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(createAbortError());
+      return;
+    }
+
+    const timeout = setTimeout(resolve, delayMs);
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timeout);
+        reject(createAbortError());
+      },
+      { once: true }
+    );
+  });
+
+async function uploadWithTransientRetry(
+  upload: () => Promise<UploadResponse>,
+  signal: AbortSignal
+): Promise<UploadResponse> {
+  let lastError: unknown;
+
+  for (
+    let attempt = 0;
+    attempt <= UPLOAD_RETRY_DELAYS_MS.length;
+    attempt += 1
+  ) {
+    throwIfAborted(signal);
+
+    try {
+      const response = await upload();
+      throwIfAborted(signal);
+      if (
+        response.ok ||
+        !isRetriableUploadStatus(response.status) ||
+        attempt === UPLOAD_RETRY_DELAYS_MS.length
+      ) {
+        return response;
+      }
+      lastError = new Error(`Upload failed with status ${response.status}`);
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+      lastError = error;
+      if (attempt === UPLOAD_RETRY_DELAYS_MS.length) {
+        throw error;
+      }
+    }
+
+    await sleep(UPLOAD_RETRY_DELAYS_MS[attempt], signal);
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Upload failed");
+}
 
 export function useFileUploadCore(
   {
@@ -190,6 +273,51 @@ export function useFileUploadCore(
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<FileUploadError | null>(null);
+  const activeUploadAbortRef = useRef<AbortController | null>(null);
+  const resetProgressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+
+  useEffect(
+    () => () => {
+      activeUploadAbortRef.current?.abort();
+      if (resetProgressTimeoutRef.current) {
+        clearTimeout(resetProgressTimeoutRef.current);
+      }
+    },
+    []
+  );
+
+  const beginUpload = useCallback(() => {
+    activeUploadAbortRef.current?.abort();
+    if (resetProgressTimeoutRef.current) {
+      clearTimeout(resetProgressTimeoutRef.current);
+      resetProgressTimeoutRef.current = null;
+    }
+
+    const abortController = new AbortController();
+    activeUploadAbortRef.current = abortController;
+    return abortController;
+  }, []);
+
+  const finishUpload = useCallback((abortController: AbortController) => {
+    if (activeUploadAbortRef.current !== abortController) {
+      return;
+    }
+
+    activeUploadAbortRef.current = null;
+    setIsUploading(false);
+
+    if (abortController.signal.aborted) {
+      setProgress(0);
+      return;
+    }
+
+    resetProgressTimeoutRef.current = setTimeout(() => {
+      setProgress(0);
+      resetProgressTimeoutRef.current = null;
+    }, 1000);
+  }, []);
 
   const uploadFile = useCallback(
     async (
@@ -199,6 +327,8 @@ export function useFileUploadCore(
         additionalMetadata?: any;
       } = {}
     ): Promise<UploadFileResult> => {
+      const abortController = beginUpload();
+      const { signal } = abortController;
       setIsUploading(true);
       setProgress(0);
       setError(null);
@@ -258,27 +388,36 @@ export function useFileUploadCore(
           codedError.code = errorInfo.code;
           throw codedError;
         }
+        const { uploadKey, uploadUrl } = uploadResult;
 
         // Step 2: Upload file to R2
         config.onProgress?.(25);
         setProgress(25);
 
-        const uploadResponse = await fetch(uploadResult.uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": file.type || "application/octet-stream" },
-          body: file,
-        });
+        const uploadResponse = await uploadWithTransientRetry(
+          () =>
+            fetch(uploadUrl, {
+              method: "PUT",
+              headers: {
+                "Content-Type": file.type || "application/octet-stream",
+              },
+              body: file,
+              signal,
+            }),
+          signal
+        );
 
         if (!uploadResponse.ok) {
           throw new Error(`Upload failed with status ${uploadResponse.status}`);
         }
 
+        throwIfAborted(signal);
         config.onProgress?.(75);
         setProgress(75);
 
         // Step 3: Finalize card creation
         const finalizeResult = await finalizeUploadedCard({
-          fileKey: uploadResult.uploadKey,
+          fileKey: uploadKey,
           fileName: file.name,
           fileSize: file.size,
           fileType: file.type,
@@ -287,6 +426,7 @@ export function useFileUploadCore(
           additionalMetadata: mergedAdditionalMetadata,
         });
 
+        throwIfAborted(signal);
         if (!(finalizeResult.success && finalizeResult.cardId)) {
           const errorInfo: FileUploadError = {
             message: finalizeResult.error || "Failed to create card",
@@ -303,6 +443,10 @@ export function useFileUploadCore(
 
         return { success: true, cardId: finalizeResult.cardId };
       } catch (error) {
+        if (isAbortError(error)) {
+          return { success: false, error: "Upload cancelled" };
+        }
+
         const errorMessage =
           error instanceof Error ? error.message : "Upload failed";
         const fileError: FileUploadError = {
@@ -337,12 +481,16 @@ export function useFileUploadCore(
           errorCode: fileError.code,
         };
       } finally {
-        setIsUploading(false);
-        // Reset progress after a short delay
-        setTimeout(() => setProgress(0), 1000);
+        finishUpload(abortController);
       }
     },
-    [uploadAndCreateCard, finalizeUploadedCard, config]
+    [
+      uploadAndCreateCard,
+      finalizeUploadedCard,
+      config,
+      beginUpload,
+      finishUpload,
+    ]
   );
 
   const uploadFileFromUri = useCallback(
@@ -354,6 +502,8 @@ export function useFileUploadCore(
       content,
       additionalMetadata,
     }: UploadFileFromUriArgs): Promise<UploadFileResult> => {
+      const abortController = beginUpload();
+      const { signal } = abortController;
       setIsUploading(true);
       setProgress(0);
       setError(null);
@@ -414,25 +564,32 @@ export function useFileUploadCore(
           codedError.code = errorInfo.code;
           throw codedError;
         }
+        const { uploadKey, uploadUrl } = uploadResult;
 
         config.onProgress?.(25);
         setProgress(25);
 
-        const uploadResponse = await uploadBinaryFromUri({
-          fileUri: uri,
-          uploadUrl: uploadResult.uploadUrl,
-          contentType: type || "application/octet-stream",
-        });
+        const uploadResponse = await uploadWithTransientRetry(
+          () =>
+            uploadBinaryFromUri({
+              fileUri: uri,
+              uploadUrl,
+              contentType: type || "application/octet-stream",
+              signal,
+            }),
+          signal
+        );
 
         if (!uploadResponse.ok) {
           throw new Error(`Upload failed with status ${uploadResponse.status}`);
         }
 
+        throwIfAborted(signal);
         config.onProgress?.(75);
         setProgress(75);
 
         const finalizeResult = await finalizeUploadedCard({
-          fileKey: uploadResult.uploadKey,
+          fileKey: uploadKey,
           fileName: name,
           fileSize: size,
           fileType: type,
@@ -441,6 +598,7 @@ export function useFileUploadCore(
           additionalMetadata,
         });
 
+        throwIfAborted(signal);
         if (!(finalizeResult.success && finalizeResult.cardId)) {
           const errorInfo: FileUploadError = {
             message: finalizeResult.error || "Failed to create card",
@@ -457,6 +615,10 @@ export function useFileUploadCore(
 
         return { success: true, cardId: finalizeResult.cardId };
       } catch (error) {
+        if (isAbortError(error)) {
+          return { success: false, error: "Upload cancelled" };
+        }
+
         const errorMessage =
           error instanceof Error ? error.message : "Upload failed";
         const fileError: FileUploadError = {
@@ -490,11 +652,17 @@ export function useFileUploadCore(
           errorCode: fileError.code,
         };
       } finally {
-        setIsUploading(false);
-        setTimeout(() => setProgress(0), 1000);
+        finishUpload(abortController);
       }
     },
-    [uploadAndCreateCard, finalizeUploadedCard, uploadBinaryFromUri, config]
+    [
+      uploadAndCreateCard,
+      finalizeUploadedCard,
+      uploadBinaryFromUri,
+      config,
+      beginUpload,
+      finishUpload,
+    ]
   );
 
   const uploadMultipleFiles = useCallback(

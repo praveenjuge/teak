@@ -11,9 +11,17 @@ import {
 
 // Mock React
 const mockSetState = mock();
+const mockUseEffectCleanups: Array<() => void> = [];
 mock.module("react", () => ({
   useState: (init: any) => [init, mockSetState],
   useCallback: (fn: any) => fn,
+  useEffect: (fn: any) => {
+    const cleanup = fn();
+    if (typeof cleanup === "function") {
+      mockUseEffectCleanups.push(cleanup);
+    }
+  },
+  useRef: (init: any) => ({ current: init }),
 }));
 
 // Mock fetch
@@ -123,6 +131,7 @@ describe("useFileUploadCore", () => {
     mockSetState.mockReset();
     mockFetch.mockReset();
     mockSentryCapture.mockReset();
+    mockUseEffectCleanups.length = 0;
     setFileUploadSentryCaptureFunction(mockSentryCapture);
   });
 
@@ -345,6 +354,7 @@ describe("useFileUploadCore", () => {
         fileUri: "file:///tmp/photo.jpg",
         uploadUrl: "https://upload",
         contentType: "image/jpeg",
+        signal: expect.any(Object),
       });
       expect(mockFinalizeUploadedCard).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -395,6 +405,257 @@ describe("useFileUploadCore", () => {
       const result = await hook.uploadFile(file);
       expect(result.success).toBe(false);
       expect((result as any).error).toContain("Upload failed with status 500");
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    test("retries transient storage failures before finalizing the card", async () => {
+      const file = { size: 100, name: "test.png", type: "image/png" } as any;
+      mockUploadAndCreateCard.mockResolvedValue({
+        success: true,
+        uploadUrl: "https://upload",
+        uploadKey: "store_1",
+      });
+      mockFetch
+        .mockResolvedValueOnce({ ok: false, status: 503 })
+        .mockResolvedValueOnce({ ok: true, status: 200 });
+      mockFinalizeUploadedCard.mockResolvedValue({
+        success: true,
+        cardId: "card_1",
+      });
+
+      const result = await hook.uploadFile(file);
+
+      expect(result.success).toBe(true);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFinalizeUploadedCard).toHaveBeenCalledWith(
+        expect.objectContaining({ fileKey: "store_1" })
+      );
+      expect(mockSentryCapture).not.toHaveBeenCalled();
+    });
+
+    test("cancels sleeping retries after unmount", async () => {
+      const file = { size: 100, name: "test.png", type: "image/png" } as any;
+      const localHook = useFileUploadCore(dependencies, config);
+
+      mockUploadAndCreateCard.mockResolvedValue({
+        success: true,
+        uploadUrl: "https://upload",
+        uploadKey: "store_1",
+      });
+      mockFetch.mockResolvedValue({ ok: false, status: 503 });
+
+      const resultPromise = localHook.uploadFile(file);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      mockUseEffectCleanups.at(-1)?.();
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect((result as any).error).toBe("Upload cancelled");
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFinalizeUploadedCard).not.toHaveBeenCalled();
+      expect(mockOnSuccess).not.toHaveBeenCalled();
+      expect(mockOnError).not.toHaveBeenCalled();
+      expect(mockSentryCapture).not.toHaveBeenCalled();
+      expect(mockSetState).toHaveBeenCalledWith(false);
+      expect(mockSetState).toHaveBeenCalledWith(0);
+    });
+
+    test("treats non-Error AbortError fetch rejections as cancellations", async () => {
+      const file = { size: 100, name: "test.png", type: "image/png" } as any;
+      mockUploadAndCreateCard.mockResolvedValue({
+        success: true,
+        uploadUrl: "https://upload",
+        uploadKey: "store_1",
+      });
+      mockFetch
+        .mockResolvedValueOnce({ ok: false, status: 503 })
+        .mockResolvedValueOnce({ ok: false, status: 503 })
+        .mockRejectedValueOnce({ name: "AbortError" });
+
+      const result = await hook.uploadFile(file);
+
+      expect(result.success).toBe(false);
+      expect((result as any).error).toBe("Upload cancelled");
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      expect(mockFinalizeUploadedCard).not.toHaveBeenCalled();
+      expect(mockOnError).not.toHaveBeenCalled();
+      expect(mockSentryCapture).not.toHaveBeenCalled();
+    });
+
+    test("does not finish browser uploads after finalize is aborted", async () => {
+      const file = { size: 100, name: "test.png", type: "image/png" } as any;
+      const localHook = useFileUploadCore(dependencies, config);
+      let resolveFinalize: (result: {
+        cardId: string;
+        success: boolean;
+      }) => void;
+
+      mockUploadAndCreateCard.mockResolvedValue({
+        success: true,
+        uploadUrl: "https://upload",
+        uploadKey: "store_1",
+      });
+      mockFetch.mockResolvedValue({ ok: true, status: 200 });
+      mockFinalizeUploadedCard.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveFinalize = resolve;
+          })
+      );
+
+      const resultPromise = localHook.uploadFile(file);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(mockFinalizeUploadedCard).toHaveBeenCalled();
+
+      mockUseEffectCleanups.at(-1)?.();
+      resolveFinalize!({ success: true, cardId: "card_1" });
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect((result as any).error).toBe("Upload cancelled");
+      expect(mockOnSuccess).not.toHaveBeenCalled();
+      expect(mockOnError).not.toHaveBeenCalled();
+      expect(mockSentryCapture).not.toHaveBeenCalled();
+      expect(mockOnProgress).not.toHaveBeenCalledWith(100);
+    });
+
+    test("does not retry non-transient storage failures", async () => {
+      const file = { size: 100, name: "test.png", type: "image/png" } as any;
+      mockUploadAndCreateCard.mockResolvedValue({
+        success: true,
+        uploadUrl: "https://upload",
+        uploadKey: "store_1",
+      });
+      mockFetch.mockResolvedValue({ ok: false, status: 403 });
+
+      const result = await hook.uploadFile(file);
+
+      expect(result.success).toBe(false);
+      expect((result as any).error).toContain("Upload failed with status 403");
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    test("retries transient URI upload failures", async () => {
+      const uriHook = useFileUploadCore(
+        {
+          ...dependencies,
+          uploadBinaryFromUri: mockUploadBinaryFromUri,
+        },
+        config
+      );
+      mockUploadAndCreateCard.mockResolvedValue({
+        success: true,
+        uploadUrl: "https://upload",
+        uploadKey: "store_1",
+      });
+      mockUploadBinaryFromUri
+        .mockResolvedValueOnce({ ok: false, status: 503 })
+        .mockResolvedValueOnce({ ok: true, status: 200 });
+      mockFinalizeUploadedCard.mockResolvedValue({
+        success: true,
+        cardId: "card_1",
+      });
+
+      const result = await uriHook.uploadFileFromUri({
+        uri: "file:///tmp/photo.jpg",
+        name: "photo.jpg",
+        type: "image/jpeg",
+        size: 100,
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockUploadBinaryFromUri).toHaveBeenCalledTimes(2);
+    });
+
+    test("does not finalize URI uploads after abort", async () => {
+      const uriHook = useFileUploadCore(
+        {
+          ...dependencies,
+          uploadBinaryFromUri: mockUploadBinaryFromUri,
+        },
+        config
+      );
+      let resolveUpload: (response: { ok: boolean; status: number }) => void;
+
+      mockUploadAndCreateCard.mockResolvedValue({
+        success: true,
+        uploadUrl: "https://upload",
+        uploadKey: "store_1",
+      });
+      mockUploadBinaryFromUri.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveUpload = resolve;
+          })
+      );
+
+      const resultPromise = uriHook.uploadFileFromUri({
+        uri: "file:///tmp/photo.jpg",
+        name: "photo.jpg",
+        type: "image/jpeg",
+        size: 100,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      mockUseEffectCleanups.at(-1)?.();
+      resolveUpload!({ ok: true, status: 200 });
+
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect((result as any).error).toBe("Upload cancelled");
+      expect(mockFinalizeUploadedCard).not.toHaveBeenCalled();
+      expect(mockOnSuccess).not.toHaveBeenCalled();
+      expect(mockOnError).not.toHaveBeenCalled();
+      expect(mockSentryCapture).not.toHaveBeenCalled();
+    });
+
+    test("does not finish URI uploads after finalize is aborted", async () => {
+      const uriHook = useFileUploadCore(
+        {
+          ...dependencies,
+          uploadBinaryFromUri: mockUploadBinaryFromUri,
+        },
+        config
+      );
+      let resolveFinalize: (result: {
+        cardId: string;
+        success: boolean;
+      }) => void;
+
+      mockUploadAndCreateCard.mockResolvedValue({
+        success: true,
+        uploadUrl: "https://upload",
+        uploadKey: "store_1",
+      });
+      mockUploadBinaryFromUri.mockResolvedValue({ ok: true, status: 200 });
+      mockFinalizeUploadedCard.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveFinalize = resolve;
+          })
+      );
+
+      const resultPromise = uriHook.uploadFileFromUri({
+        uri: "file:///tmp/photo.jpg",
+        name: "photo.jpg",
+        type: "image/jpeg",
+        size: 100,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(mockFinalizeUploadedCard).toHaveBeenCalled();
+
+      mockUseEffectCleanups.at(-1)?.();
+      resolveFinalize!({ success: true, cardId: "card_1" });
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect((result as any).error).toBe("Upload cancelled");
+      expect(mockOnSuccess).not.toHaveBeenCalled();
+      expect(mockOnError).not.toHaveBeenCalled();
+      expect(mockSentryCapture).not.toHaveBeenCalled();
+      expect(mockOnProgress).not.toHaveBeenCalledWith(100);
     });
 
     test("handles finalize failure", async () => {
