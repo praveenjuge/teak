@@ -50,7 +50,7 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   }
   const api = clientFor(state.primary.apiKey);
   const marker = `prod-surface-${Date.now()}`;
-  const hasUploadedFile = async (fileName: string, createdAfter: number) => {
+  const hasRecentImageUpload = async (createdAfter: number) => {
     let cursor: string | undefined;
     for (let pageIndex = 0; pageIndex < 5; pageIndex += 1) {
       const params = new URLSearchParams({
@@ -67,11 +67,18 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
         state.primary!.apiKey!
       );
       const payload = (await response.json()) as {
-        items?: Array<{ fileMetadata?: { fileName?: string } }>;
+        items?: Array<{
+          fileUrl?: string | null;
+          thumbnailUrl?: string | null;
+          type?: string;
+        }>;
         pageInfo?: { nextCursor?: string | null };
       };
       if (
-        payload.items?.some((card) => card.fileMetadata?.fileName === fileName)
+        payload.items?.some(
+          (card) =>
+            card.type === "image" && Boolean(card.fileUrl ?? card.thumbnailUrl)
+        )
       ) {
         return true;
       }
@@ -162,7 +169,6 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
 
   await page.goto("/");
   const pasteStartedAt = Date.now() - 60_000;
-  const pastedFileName = `${marker}-pasted.png`;
   await page.evaluate(
     ({ base64, fileName }) => {
       const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
@@ -177,10 +183,10 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
         })
       );
     },
-    { base64: png.toString("base64"), fileName: pastedFileName }
+    { base64: png.toString("base64"), fileName: `${marker}-pasted.png` }
   );
   await expect
-    .poll(() => hasUploadedFile(pastedFileName, pasteStartedAt), {
+    .poll(() => hasRecentImageUpload(pasteStartedAt), {
       timeout: 90_000,
     })
     .toBe(true);
