@@ -6,6 +6,7 @@ const R2_FRAME_SOURCES = [
   "https://*.r2.cloudflarestorage.com",
   "https://*.r2.dev",
 ] as const;
+const R2_UPLOAD_SOURCES = ["https://*.r2.cloudflarestorage.com"] as const;
 
 const normalizeHttpsOrigin = (value: string): string | null => {
   try {
@@ -66,6 +67,7 @@ export const buildContentSecurityPolicy = (nonce: string) =>
       "https://polar.sh",
       "https://*.polar.sh",
       TEAK_R2_STORAGE_ORIGIN,
+      ...R2_UPLOAD_SOURCES,
     ].join(" "),
     ["media-src 'self' blob: data:", TEAK_R2_STORAGE_ORIGIN].join(" "),
     [

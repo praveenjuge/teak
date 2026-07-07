@@ -103,9 +103,21 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
   if (account.deleted) {
     return;
   }
-  await signIn(page, account.email, passwordFor(account));
   await page.goto(appPath("/settings"));
-  await page.getByRole("button", { name: /delete your account/i }).click();
+  const deleteAccountButton = page.getByRole("button", {
+    name: /delete your account/i,
+  });
+  const canDelete = await deleteAccountButton
+    .waitFor({ state: "visible", timeout: 5000 })
+    .then(
+      () => true,
+      () => false
+    );
+  if (!canDelete) {
+    await signIn(page, account.email, passwordFor(account));
+  }
+  await page.goto(appPath("/settings"));
+  await deleteAccountButton.click();
   await expect(
     page.getByRole("dialog", { name: "Delete Account" })
   ).toBeVisible();
@@ -152,20 +164,22 @@ export const revokeVisibleKey = async (page: Page, rawKey: string) => {
     .getByRole("button", { name: "Manage" })
     .click();
   const dialog = page.getByRole("dialog", { name: "Manage API Keys" });
-  const row = dialog
-    .locator("div")
-    .filter({
-      has: page.getByRole("button", { name: "Revoke" }),
-      hasText: visiblePrefix,
-    })
-    .last();
+  const row = dialog.getByRole("row").filter({ hasText: visiblePrefix });
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Revoke" }).click();
   await expect(
-    dialog
-      .locator("div")
-      .filter({ hasText: visiblePrefix })
-      .filter({ hasText: /revoked/i })
-      .last()
-  ).toBeVisible();
+    row,
+    "revoked API keys should disappear from the settings table"
+  ).toHaveCount(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await fetch(`${env.apiUrl}/v1/tags`, {
+            headers: { Authorization: `Bearer ${rawKey}` },
+          })
+        ).status,
+      { timeout: 30_000 }
+    )
+    .toBe(401);
 };

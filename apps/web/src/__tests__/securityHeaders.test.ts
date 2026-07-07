@@ -33,6 +33,9 @@ describe("web security headers", () => {
     expect(directiveTokens("img-src")).not.toContain("https:");
     expect(directiveTokens("script-src")).toContain("'nonce-test-nonce'");
     expect(directiveTokens("connect-src")).toContain(teakR2StorageOrigin);
+    expect(directiveTokens("connect-src")).toContain(
+      "https://*.r2.cloudflarestorage.com"
+    );
     expect(directiveTokens("media-src")).toContain(teakR2StorageOrigin);
     expect(directiveTokens("frame-src")).toContain(teakR2StorageOrigin);
     expect(directiveTokens("frame-src")).toContain(
@@ -43,9 +46,6 @@ describe("web security headers", () => {
       "https://*.r2.cloudflarestorage.com"
     );
     expect(directiveTokens("img-src")).not.toContain("https://*.r2.dev");
-    expect(directiveTokens("connect-src")).not.toContain(
-      "https://*.r2.cloudflarestorage.com"
-    );
     expect(directiveTokens("connect-src")).not.toContain("https://*.r2.dev");
     expect(directiveTokens("media-src")).not.toContain(
       "https://*.r2.cloudflarestorage.com"

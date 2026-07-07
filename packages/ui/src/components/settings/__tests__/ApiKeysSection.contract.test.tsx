@@ -16,6 +16,7 @@ mock.module("../../ui/button", () => ({
         onClick,
         "data-size": size,
         "data-variant": variant,
+        type: "button",
       },
       children
     ),
@@ -89,7 +90,8 @@ describe("ApiKeysSection", () => {
     expect(markup).toContain("API Keys");
     expect(markup).toContain(">Manage</button>");
     expect(markup).not.toContain("Manage API Keys");
-    expect(markup).toContain("2 keys");
+    expect(markup).not.toContain("2 keys");
+    expect(markup).not.toContain("No keys");
     expect(markup).not.toContain("Update required");
     expect(markup).not.toContain("Generate Key");
   });
@@ -123,17 +125,23 @@ describe("ApiKeysDialog", () => {
 
     expect(markup).toContain("Manage API Keys");
     expect(markup).toContain("Generate Key");
-    expect(markup).toContain("SDK Key");
+    expect(markup).toContain("<th");
+    expect(markup).toContain("Key");
+    expect(markup).toContain("Last used");
+    expect(markup).toContain("Status");
+    expect(markup).toContain("teakapi_secret_live_a1b2c3d4");
     expect(markup).toContain("Regenerate");
     expect(markup).not.toContain(">Disable<");
-    expect(markup).toContain("Disabled Key");
+    expect(markup).not.toContain("SDK Key");
+    expect(markup).not.toContain("Disabled Key");
+    expect(markup).toContain("Disabled");
     expect(markup).not.toContain(">Enable<");
     expect(markup).not.toContain("Update required");
-    expect(markup).not.toContain(">Active</span>");
-    expect(markup).not.toContain(">active<");
+    expect(markup).toContain("Active");
+    expect(markup).not.toContain("for API, MCP, and Raycast access");
   });
 
-  test("renames the old default key label in the modal", () => {
+  test("does not render repeated default key names in the modal", () => {
     const markup = renderToStaticMarkup(
       <ApiKeysDialog
         isLoading={false}
@@ -149,11 +157,11 @@ describe("ApiKeysDialog", () => {
       />
     );
 
-    expect(markup).toContain("Default API key");
-    expect(markup).not.toContain(">API Keys</span>");
+    expect(markup).not.toContain("Default API key");
+    expect(markup).not.toContain(">API Keys<");
   });
 
-  test("renders terminal key statuses as destructive badges", () => {
+  test("renders terminal key statuses as table text", () => {
     const markup = renderToStaticMarkup(
       <ApiKeysDialog
         isLoading={false}
@@ -171,7 +179,7 @@ describe("ApiKeysDialog", () => {
       />
     );
 
-    expect(markup).toContain('data-variant="destructive"');
-    expect(markup).toContain(">Exhausted</span>");
+    expect(markup).not.toContain('data-variant="destructive"');
+    expect(markup).toContain("Exhausted");
   });
 });
