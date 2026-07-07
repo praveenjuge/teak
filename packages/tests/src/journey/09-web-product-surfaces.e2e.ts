@@ -50,13 +50,22 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   }
   const api = clientFor(state.primary.apiKey);
   const marker = `prod-surface-${Date.now()}`;
-  const cardCount = async () => {
+  const hasUploadedFile = async (fileName: string) => {
+    const params = new URLSearchParams({
+      include: "metadata",
+      limit: "10",
+      q: fileName,
+    });
     const response = await apiFetch(
-      "/v1/cards?limit=100",
+      `/v1/cards?${params.toString()}`,
       state.primary!.apiKey!
     );
-    const payload = (await response.json()) as { items?: unknown[] };
-    return payload.items?.length ?? 0;
+    const payload = (await response.json()) as {
+      items?: Array<{ fileMetadata?: { fileName?: string } }>;
+    };
+    return payload.items?.some(
+      (card) => card.fileMetadata?.fileName === fileName
+    );
   };
 
   await saveTextCard(page, `${marker} original`);
@@ -137,25 +146,26 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   await expect(page.getByText(/Maximum file size is 20MB/i)).toBeVisible();
 
   await page.goto("/");
-  const countBeforePaste = await cardCount();
-  await page.evaluate((base64) => {
-    const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
-    const file = new File([bytes], "pasted-prod-e2e.png", {
-      type: "image/png",
-    });
-    const clipboardData = new DataTransfer();
-    clipboardData.items.add(file);
-    document.dispatchEvent(
-      new ClipboardEvent("paste", {
-        bubbles: true,
-        cancelable: true,
-        clipboardData,
-      })
-    );
-  }, png.toString("base64"));
+  const pastedFileName = `${marker}-pasted.png`;
+  await page.evaluate(
+    ({ base64, fileName }) => {
+      const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+      const file = new File([bytes], fileName, { type: "image/png" });
+      const clipboardData = new DataTransfer();
+      clipboardData.items.add(file);
+      document.dispatchEvent(
+        new ClipboardEvent("paste", {
+          bubbles: true,
+          cancelable: true,
+          clipboardData,
+        })
+      );
+    },
+    { base64: png.toString("base64"), fileName: pastedFileName }
+  );
   await expect
-    .poll(cardCount, { timeout: 90_000 })
-    .toBeGreaterThan(countBeforePaste);
+    .poll(() => hasUploadedFile(pastedFileName), { timeout: 90_000 })
+    .toBe(true);
 
   const bulkA = await api.cards.create({
     content: `${marker} bulk-a`,
