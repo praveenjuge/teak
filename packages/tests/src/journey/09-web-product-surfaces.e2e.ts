@@ -179,13 +179,14 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
       const file = new File([bytes], fileName, { type: "image/png" });
       const clipboardData = new DataTransfer();
       clipboardData.items.add(file);
-      document.dispatchEvent(
-        new ClipboardEvent("paste", {
-          bubbles: true,
-          cancelable: true,
-          clipboardData,
-        })
-      );
+      const event = new Event("paste", {
+        bubbles: true,
+        cancelable: true,
+      }) as ClipboardEvent;
+      Object.defineProperty(event, "clipboardData", {
+        value: clipboardData,
+      });
+      document.dispatchEvent(event);
     },
     { base64: png.toString("base64"), fileName: pastedFileName }
   );
