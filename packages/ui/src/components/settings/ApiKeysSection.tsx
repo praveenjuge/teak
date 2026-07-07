@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import {
-  ApiKeysDialog,
   type ApiKeyListItem,
+  ApiKeysDialog,
   type CreatedApiKey,
 } from "./ApiKeysDialog";
 import { SettingRow } from "./SettingRow";
@@ -34,14 +33,9 @@ export function ApiKeysSection({
             <Spinner />
           </Button>
         ) : (
-          <>
-            <Badge variant={keys?.length ? "outline" : "secondary"}>
-              {keys?.length ? `${keys.length} keys` : "No keys"}
-            </Badge>
-            <Button onClick={() => setOpen(true)} size="sm" variant="link">
-              Manage
-            </Button>
-          </>
+          <Button onClick={() => setOpen(true)} size="sm" variant="link">
+            Manage
+          </Button>
         )}
       </SettingRow>
 

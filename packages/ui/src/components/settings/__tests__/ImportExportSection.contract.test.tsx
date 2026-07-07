@@ -44,7 +44,7 @@ describe("ImportExportSection", () => {
     expect(markup).not.toContain("Start export");
   });
 
-  test("shows a Preparing badge while an export is active", () => {
+  test("keeps the settings row badge-free while an export is active", () => {
     const markup = renderToStaticMarkup(
       <ImportExportSection
         exportLoading={false}
@@ -62,10 +62,11 @@ describe("ImportExportSection", () => {
         {...noopHandlers}
       />
     );
-    expect(markup).toContain("Preparing");
+    expect(markup).not.toContain("Preparing");
+    expect(markup).toContain(">Manage</button>");
   });
 
-  test("shows an Export ready badge when an artifact is downloadable", () => {
+  test("keeps the settings row badge-free when an artifact is downloadable", () => {
     const markup = renderToStaticMarkup(
       <ImportExportSection
         exportLoading={false}
@@ -83,6 +84,7 @@ describe("ImportExportSection", () => {
         {...noopHandlers}
       />
     );
-    expect(markup).toContain("Export ready");
+    expect(markup).not.toContain("Export ready");
+    expect(markup).toContain(">Manage</button>");
   });
 });

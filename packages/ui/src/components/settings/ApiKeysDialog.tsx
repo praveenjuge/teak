@@ -1,17 +1,18 @@
-import { Copy, KeyRound, RotateCw, Trash2 } from "lucide-react";
+import { Copy, RotateCw, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Spinner } from "../ui/spinner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../ui/table";
 
 export interface ApiKeyListItem {
   createdAt: number;
@@ -50,23 +51,23 @@ const formatDate = (value?: number) => {
   return apiKeyDateFormatter.format(new Date(value));
 };
 
-const getStatusVariant = (
-  status: ApiKeyListItem["status"]
-): "default" | "outline" | "secondary" | "destructive" =>
-  status === "active"
-    ? "outline"
-    : status === "disabled"
-      ? "secondary"
-      : "destructive";
-
 const formatStatus = (status: ApiKeyListItem["status"]) =>
   status
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
-const formatKeyName = (name: string) =>
-  name === "API Keys" ? "Default API key" : name;
+const visibleKeyName = (name: string) => {
+  const trimmed = name.trim();
+  if (
+    trimmed === "" ||
+    trimmed === "API Keys" ||
+    trimmed === "Default API key"
+  ) {
+    return null;
+  }
+  return trimmed;
+};
 
 export function ApiKeysDialog({
   isLoading,
@@ -120,7 +121,7 @@ export function ApiKeysDialog({
 
   const runKeyAction = async (
     keyId: string,
-    action: () => Promise<void | CreatedApiKey | null>,
+    action: () => Promise<CreatedApiKey | null | undefined>,
     successMessage: string
   ) => {
     setActionKey(keyId);
@@ -142,12 +143,8 @@ export function ApiKeysDialog({
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="max-h-[82vh] gap-3 overflow-y-auto p-4 sm:max-w-xl">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <DialogHeader className="gap-1">
+          <DialogHeader>
             <DialogTitle>Manage API Keys</DialogTitle>
-            <DialogDescription>
-              {keys?.length ? `${keys.length} keys` : "No keys yet"} for API,
-              MCP, and Raycast access.
-            </DialogDescription>
           </DialogHeader>
 
           <Button
@@ -156,7 +153,7 @@ export function ApiKeysDialog({
             onClick={handleCreate}
             size="sm"
           >
-            {isCreating ? <Spinner /> : <KeyRound />}
+            {isCreating ? <Spinner /> : null}
             Generate Key
           </Button>
         </div>
@@ -182,7 +179,7 @@ export function ApiKeysDialog({
             </div>
           )}
 
-          <div className="divide-y rounded-md border">
+          <div className="rounded-md border">
             {isLoading && (
               <div className="flex items-center justify-center p-6">
                 <Spinner />
@@ -195,73 +192,91 @@ export function ApiKeysDialog({
               </div>
             )}
 
-            {keys?.map((key) => {
-              const isBusy = actionKey === key.id;
-              const canRotate =
-                key.status === "active" || key.status === "disabled";
+            {keys && keys.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Key</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Last used</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {keys.map((key) => {
+                    const isBusy = actionKey === key.id;
+                    const canRotate =
+                      key.status === "active" || key.status === "disabled";
+                    const label = visibleKeyName(key.name);
 
-              return (
-                <div
-                  className="flex flex-col gap-2 p-2.5 sm:flex-row sm:items-center sm:justify-between"
-                  key={key.id}
-                >
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium text-sm">
-                        {formatKeyName(key.name)}
-                      </span>
-                      {key.status !== "active" && (
-                        <Badge variant={getStatusVariant(key.status)}>
+                    return (
+                      <TableRow key={key.id}>
+                        <TableCell>
+                          {label ? (
+                            <div className="font-medium text-foreground text-sm">
+                              {label}
+                            </div>
+                          ) : null}
+                          <div className="break-all font-mono text-muted-foreground text-xs">
+                            {key.maskedKey}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {formatDate(key.createdAt)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {formatDate(key.lastUsedAt)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
                           {formatStatus(key.status)}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="break-all font-mono text-muted-foreground text-xs">
-                      {key.maskedKey}
-                    </div>
-                    <div className="text-muted-foreground text-xs">
-                      Last used: {formatDate(key.lastUsedAt)}
-                    </div>
-                  </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end gap-1.5">
+                            {canRotate && (
+                              <Button
+                                disabled={isBusy}
+                                onClick={() =>
+                                  runKeyAction(
+                                    key.id,
+                                    () => onRotateKey(key.id),
+                                    "API key regenerated. Copy the new key now."
+                                  )
+                                }
+                                size="sm"
+                                variant="outline"
+                              >
+                                {isBusy ? <Spinner /> : <RotateCw />}
+                                Regenerate
+                              </Button>
+                            )}
 
-                  <div className="flex shrink-0 flex-wrap gap-1.5 sm:justify-end">
-                    {canRotate && (
-                      <Button
-                        disabled={isBusy}
-                        onClick={() =>
-                          runKeyAction(
-                            key.id,
-                            () => onRotateKey(key.id),
-                            "API key regenerated. Copy the new key now."
-                          )
-                        }
-                        size="sm"
-                        variant="outline"
-                      >
-                        {isBusy ? <Spinner /> : <RotateCw />}
-                        Regenerate
-                      </Button>
-                    )}
-
-                    <Button
-                      disabled={isBusy}
-                      onClick={() =>
-                        runKeyAction(
-                          key.id,
-                          () => onRevokeKey(key.id),
-                          "API key revoked."
-                        )
-                      }
-                      size="sm"
-                      variant="ghost"
-                    >
-                      {isBusy ? <Spinner /> : <Trash2 />}
-                      Revoke
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
+                            <Button
+                              disabled={isBusy}
+                              onClick={() =>
+                                runKeyAction(
+                                  key.id,
+                                  async () => {
+                                    await onRevokeKey(key.id);
+                                    return;
+                                  },
+                                  "API key revoked."
+                                )
+                              }
+                              size="sm"
+                              variant="ghost"
+                            >
+                              {isBusy ? <Spinner /> : <Trash2 />}
+                              Revoke
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            ) : null}
           </div>
         </div>
       </DialogContent>

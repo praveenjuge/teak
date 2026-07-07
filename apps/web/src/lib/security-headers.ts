@@ -2,6 +2,8 @@ export const CSP_NONCE_HEADER = "x-nonce";
 
 const TEAK_R2_STORAGE_ORIGIN =
   "https://teak-files-prod.dd19e45b8f2f3cc0393cc2deb51fa27d.r2.cloudflarestorage.com";
+const TEAK_R2_UPLOAD_ORIGIN =
+  "https://dd19e45b8f2f3cc0393cc2deb51fa27d.r2.cloudflarestorage.com";
 const R2_FRAME_SOURCES = [
   "https://*.r2.cloudflarestorage.com",
   "https://*.r2.dev",
@@ -25,6 +27,28 @@ const configuredR2FrameSources = () => {
     process.env.NEXT_PUBLIC_R2_PUBLIC_URL,
     process.env.R2_PUBLIC_ORIGIN,
     process.env.R2_PUBLIC_URL,
+  ];
+  return Array.from(
+    new Set(
+      values.flatMap(
+        (value) =>
+          value
+            ?.split(",")
+            .map((item) => normalizeHttpsOrigin(item.trim()))
+            .filter((item): item is string => Boolean(item)) ?? []
+      )
+    )
+  );
+};
+
+const configuredR2UploadSources = () => {
+  const values = [
+    TEAK_R2_UPLOAD_ORIGIN,
+    process.env.NEXT_PUBLIC_R2_UPLOAD_ORIGIN,
+    process.env.NEXT_PUBLIC_R2_UPLOAD_URL,
+    process.env.R2_UPLOAD_ORIGIN,
+    process.env.R2_UPLOAD_URL,
+    process.env.R2_ENDPOINT,
   ];
   return Array.from(
     new Set(
@@ -66,6 +90,7 @@ export const buildContentSecurityPolicy = (nonce: string) =>
       "https://polar.sh",
       "https://*.polar.sh",
       TEAK_R2_STORAGE_ORIGIN,
+      ...configuredR2UploadSources(),
     ].join(" "),
     ["media-src 'self' blob: data:", TEAK_R2_STORAGE_ORIGIN].join(" "),
     [

@@ -13,6 +13,8 @@ const headers = new Map(
 );
 const teakR2StorageOrigin =
   "https://teak-files-prod.dd19e45b8f2f3cc0393cc2deb51fa27d.r2.cloudflarestorage.com";
+const teakR2UploadOrigin =
+  "https://dd19e45b8f2f3cc0393cc2deb51fa27d.r2.cloudflarestorage.com";
 const directiveTokens = (name: string) =>
   contentSecurityPolicy
     .split("; ")
@@ -33,6 +35,7 @@ describe("web security headers", () => {
     expect(directiveTokens("img-src")).not.toContain("https:");
     expect(directiveTokens("script-src")).toContain("'nonce-test-nonce'");
     expect(directiveTokens("connect-src")).toContain(teakR2StorageOrigin);
+    expect(directiveTokens("connect-src")).toContain(teakR2UploadOrigin);
     expect(directiveTokens("media-src")).toContain(teakR2StorageOrigin);
     expect(directiveTokens("frame-src")).toContain(teakR2StorageOrigin);
     expect(directiveTokens("frame-src")).toContain(
@@ -83,6 +86,38 @@ describe("web security headers", () => {
         delete process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN;
       } else {
         process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN = previous;
+      }
+    }
+  });
+
+  test("allows configured R2 upload origins only for browser uploads", () => {
+    const previous = process.env.R2_ENDPOINT;
+    process.env.R2_ENDPOINT =
+      "https://uploads.teakvault.example/path, http://unsafe.example, not-a-url";
+    try {
+      const policy = buildContentSecurityPolicy(nonce);
+      const tokens = (name: string) =>
+        policy
+          .split("; ")
+          .find((directive) => directive.startsWith(`${name} `))
+          ?.split(" ")
+          .slice(1) ?? [];
+
+      expect(tokens("connect-src")).toContain(
+        "https://uploads.teakvault.example"
+      );
+      expect(tokens("connect-src")).not.toContain("http://unsafe.example");
+      expect(tokens("img-src")).not.toContain(
+        "https://uploads.teakvault.example"
+      );
+      expect(tokens("frame-src")).not.toContain(
+        "https://uploads.teakvault.example"
+      );
+    } finally {
+      if (previous === undefined) {
+        delete process.env.R2_ENDPOINT;
+      } else {
+        process.env.R2_ENDPOINT = previous;
       }
     }
   });
