@@ -50,6 +50,48 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   }
   const api = clientFor(state.primary.apiKey);
   const marker = `prod-surface-${Date.now()}`;
+  const hasUploadedFile = async (fileName: string, createdAfter: number) => {
+    let cursor: string | undefined;
+    for (let pageIndex = 0; pageIndex < 5; pageIndex += 1) {
+      const params = new URLSearchParams({
+        createdAfter: String(createdAfter),
+        include: "metadata",
+        limit: "100",
+        type: "image",
+      });
+      if (cursor) {
+        params.set("cursor", cursor);
+      }
+      const response = await apiFetch(
+        `/v1/cards?${params.toString()}`,
+        state.primary!.apiKey!
+      );
+      const payload = (await response.json()) as {
+        items?: Array<{
+          fileName?: string | null;
+          fileUrl?: string | null;
+          thumbnailUrl?: string | null;
+          type?: string;
+        }>;
+        pageInfo?: { nextCursor?: string | null };
+      };
+      if (
+        payload.items?.some(
+          (card) =>
+            card.type === "image" &&
+            card.fileName === fileName &&
+            (card.fileUrl ?? card.thumbnailUrl)
+        )
+      ) {
+        return true;
+      }
+      cursor = payload.pageInfo?.nextCursor ?? undefined;
+      if (!cursor) {
+        return false;
+      }
+    }
+    return false;
+  };
 
   await saveTextCard(page, `${marker} original`);
   await page.getByRole("main").getByText(`${marker} original`).click();
@@ -129,24 +171,29 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   await expect(page.getByText(/Maximum file size is 20MB/i)).toBeVisible();
 
   await page.goto("/");
-  await page.evaluate((base64) => {
-    const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
-    const file = new File([bytes], "pasted-prod-e2e.png", {
-      type: "image/png",
-    });
-    const clipboardData = new DataTransfer();
-    clipboardData.items.add(file);
-    document.dispatchEvent(
-      new ClipboardEvent("paste", {
-        bubbles: true,
-        cancelable: true,
-        clipboardData,
-      })
-    );
-  }, png.toString("base64"));
-  await expect(page.getByText("File uploaded")).toBeVisible({
-    timeout: 90_000,
-  });
+  const pasteStartedAt = Date.now() - 60_000;
+  const pastedFileName = `${marker}-pasted.png`;
+  await page.evaluate(
+    ({ base64, fileName }) => {
+      const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+      const file = new File([bytes], fileName, { type: "image/png" });
+      const clipboardData = new DataTransfer();
+      clipboardData.items.add(file);
+      document.dispatchEvent(
+        new ClipboardEvent("paste", {
+          bubbles: true,
+          cancelable: true,
+          clipboardData,
+        })
+      );
+    },
+    { base64: png.toString("base64"), fileName: pastedFileName }
+  );
+  await expect
+    .poll(() => hasUploadedFile(pastedFileName, pasteStartedAt), {
+      timeout: 90_000,
+    })
+    .toBe(true);
 
   const bulkA = await api.cards.create({
     content: `${marker} bulk-a`,

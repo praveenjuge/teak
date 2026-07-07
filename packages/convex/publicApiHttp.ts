@@ -547,6 +547,9 @@ const serializeListCard = (
       : {}),
     ...(include.has("metadata")
       ? {
+          fileName: card.fileMetadata?.fileName ?? null,
+          fileSize: card.fileMetadata?.fileSize ?? null,
+          mimeType: card.fileMetadata?.mimeType ?? null,
           fileUrl: card.fileUrl ?? null,
           linkPreviewImageUrl: card.linkPreviewImageUrl ?? null,
           screenshotUrl: card.screenshotUrl ?? null,
