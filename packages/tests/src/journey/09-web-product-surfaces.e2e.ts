@@ -50,22 +50,37 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   }
   const api = clientFor(state.primary.apiKey);
   const marker = `prod-surface-${Date.now()}`;
-  const hasUploadedFile = async (fileName: string) => {
-    const params = new URLSearchParams({
-      include: "metadata",
-      limit: "10",
-      q: fileName,
-    });
-    const response = await apiFetch(
-      `/v1/cards?${params.toString()}`,
-      state.primary!.apiKey!
-    );
-    const payload = (await response.json()) as {
-      items?: Array<{ fileMetadata?: { fileName?: string } }>;
-    };
-    return payload.items?.some(
-      (card) => card.fileMetadata?.fileName === fileName
-    );
+  const hasUploadedFile = async (fileName: string, createdAfter: number) => {
+    let cursor: string | undefined;
+    for (let pageIndex = 0; pageIndex < 5; pageIndex += 1) {
+      const params = new URLSearchParams({
+        createdAfter: String(createdAfter),
+        include: "metadata",
+        limit: "100",
+        type: "image",
+      });
+      if (cursor) {
+        params.set("cursor", cursor);
+      }
+      const response = await apiFetch(
+        `/v1/cards?${params.toString()}`,
+        state.primary!.apiKey!
+      );
+      const payload = (await response.json()) as {
+        items?: Array<{ fileMetadata?: { fileName?: string } }>;
+        pageInfo?: { nextCursor?: string | null };
+      };
+      if (
+        payload.items?.some((card) => card.fileMetadata?.fileName === fileName)
+      ) {
+        return true;
+      }
+      cursor = payload.pageInfo?.nextCursor ?? undefined;
+      if (!cursor) {
+        return false;
+      }
+    }
+    return false;
   };
 
   await saveTextCard(page, `${marker} original`);
@@ -146,6 +161,7 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   await expect(page.getByText(/Maximum file size is 20MB/i)).toBeVisible();
 
   await page.goto("/");
+  const pasteStartedAt = Date.now() - 60_000;
   const pastedFileName = `${marker}-pasted.png`;
   await page.evaluate(
     ({ base64, fileName }) => {
@@ -164,7 +180,9 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
     { base64: png.toString("base64"), fileName: pastedFileName }
   );
   await expect
-    .poll(() => hasUploadedFile(pastedFileName), { timeout: 90_000 })
+    .poll(() => hasUploadedFile(pastedFileName, pasteStartedAt), {
+      timeout: 90_000,
+    })
     .toBe(true);
 
   const bulkA = await api.cards.create({
