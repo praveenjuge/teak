@@ -67,7 +67,7 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   );
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).not.toBeVisible();
-  await page.goBack();
+  await page.goto(deepLink);
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   const searchResponse = await apiFetch(
