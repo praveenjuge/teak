@@ -8,7 +8,7 @@ mock.module("../../ui/badge", () => ({
 }));
 
 mock.module("../../ui/button", () => ({
-  Button: ({ children, disabled, onClick, size, variant }: any) =>
+  Button: ({ children, disabled, onClick, size, variant, ...props }: any) =>
     React.createElement(
       "button",
       {
@@ -17,6 +17,7 @@ mock.module("../../ui/button", () => ({
         "data-size": size,
         "data-variant": variant,
         type: "button",
+        ...props,
       },
       children
     ),
@@ -127,12 +128,12 @@ describe("ApiKeysDialog", () => {
     expect(markup).toContain("Generate Key");
     expect(markup).toContain("<th");
     expect(markup).toContain("Key");
+    expect(markup).toContain("Used");
     expect(markup).toContain("Created");
-    expect(markup).toContain("Last used");
     expect(markup).toContain("Status");
     expect(markup).toContain("SDK Key");
     expect(markup).toContain("teakapi_secret_live_a1b2c3d4");
-    expect(markup).toContain("Regenerate");
+    expect(markup).toContain("Regenerate key created");
     expect(markup).not.toContain(">Disable<");
     expect(markup).toContain("Disabled Key");
     expect(markup).toContain("Disabled");
@@ -161,6 +162,7 @@ describe("ApiKeysDialog", () => {
     expect(markup).not.toContain("Default API key");
     expect(markup).not.toContain(">API Keys<");
     expect(markup).toContain("Created");
+    expect(markup).not.toContain("Last used");
   });
 
   test("renders terminal key statuses as table text", () => {
