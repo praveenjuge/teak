@@ -164,6 +164,7 @@ export interface FileUploadDependencies {
   uploadBinaryFromUri?: (args: {
     contentType: string;
     fileUri: string;
+    signal: AbortSignal;
     uploadUrl: string;
   }) => Promise<{ ok: boolean; status: number }>;
 }
@@ -229,6 +230,9 @@ async function uploadWithTransientRetry(
 
     try {
       const response = await upload();
+      if (signal.aborted) {
+        throw createAbortError();
+      }
       if (
         response.ok ||
         !isRetriableUploadStatus(response.status) ||
@@ -561,6 +565,7 @@ export function useFileUploadCore(
               fileUri: uri,
               uploadUrl,
               contentType: type || "application/octet-stream",
+              signal,
             }),
           signal
         );
