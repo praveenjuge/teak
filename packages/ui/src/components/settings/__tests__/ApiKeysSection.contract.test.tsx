@@ -129,11 +129,11 @@ describe("ApiKeysDialog", () => {
     expect(markup).toContain("Key");
     expect(markup).toContain("Last used");
     expect(markup).toContain("Status");
+    expect(markup).toContain("SDK Key");
     expect(markup).toContain("teakapi_secret_live_a1b2c3d4");
     expect(markup).toContain("Regenerate");
     expect(markup).not.toContain(">Disable<");
-    expect(markup).not.toContain("SDK Key");
-    expect(markup).not.toContain("Disabled Key");
+    expect(markup).toContain("Disabled Key");
     expect(markup).toContain("Disabled");
     expect(markup).not.toContain(">Enable<");
     expect(markup).not.toContain("Update required");

@@ -57,6 +57,18 @@ const formatStatus = (status: ApiKeyListItem["status"]) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
+const visibleKeyName = (name: string) => {
+  const trimmed = name.trim();
+  if (
+    trimmed === "" ||
+    trimmed === "API Keys" ||
+    trimmed === "Default API key"
+  ) {
+    return null;
+  }
+  return trimmed;
+};
+
 export function ApiKeysDialog({
   isLoading,
   keys,
@@ -195,11 +207,19 @@ export function ApiKeysDialog({
                     const isBusy = actionKey === key.id;
                     const canRotate =
                       key.status === "active" || key.status === "disabled";
+                    const label = visibleKeyName(key.name);
 
                     return (
                       <TableRow key={key.id}>
-                        <TableCell className="break-all font-mono text-muted-foreground text-xs">
-                          {key.maskedKey}
+                        <TableCell>
+                          {label ? (
+                            <div className="font-medium text-foreground text-sm">
+                              {label}
+                            </div>
+                          ) : null}
+                          <div className="break-all font-mono text-muted-foreground text-xs">
+                            {key.maskedKey}
+                          </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-muted-foreground">
                           {formatDate(key.lastUsedAt)}
