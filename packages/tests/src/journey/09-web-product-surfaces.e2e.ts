@@ -1,0 +1,233 @@
+import { Buffer } from "node:buffer";
+import { expect, type Page, test } from "@playwright/test";
+import { MAX_FILE_SIZE } from "@teak/convex/shared";
+import { apiFetch } from "../helpers/api";
+import { clientFor } from "../helpers/prod";
+import { readState, updateState } from "../helpers/run-state";
+
+const png = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+  "base64"
+);
+
+interface FilePayload {
+  buffer: Buffer;
+  mimeType: string;
+  name: string;
+}
+const pdf = Buffer.from(
+  "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"
+);
+
+const saveTextCard = async (page: Page, content: string) => {
+  await page.goto("/");
+  await page.getByPlaceholder(/Write a note/i).fill(content);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByRole("main").getByText(content).first()).toBeVisible();
+};
+
+const searchFor = async (page: Page, query: string) => {
+  await page.goto("/");
+  const search = page.getByPlaceholder("Search for anything...");
+  await search.fill(query);
+  await search.press("Enter");
+};
+
+const uploadFiles = async (page: Page, files: FilePayload | FilePayload[]) => {
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByRole("button", { name: "Upload files" }).click(),
+  ]);
+  await chooser.setFiles(files);
+};
+
+test("web product surfaces cover edit, deep links, rich cards, import/export, bulk, and empty states", async ({
+  page,
+}) => {
+  const state = readState();
+  if (!state.primary?.apiKey) {
+    throw new Error("Missing primary API key");
+  }
+  const api = clientFor(state.primary.apiKey);
+  const marker = `prod-surface-${Date.now()}`;
+
+  await saveTextCard(page, `${marker} original`);
+  await page.getByRole("main").getByText(`${marker} original`).click();
+  const editor = page.getByPlaceholder("Enter your text...");
+  await editor.fill(`# ${marker} updated\n\n- **bold** item\n- \`code\``);
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(editor).toHaveValue(/updated/);
+  const deepLink = page.url();
+  const cardId = new URL(deepLink).searchParams.get("card");
+  expect(cardId).toBeTruthy();
+  await page.reload();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByPlaceholder("Enter your text...")).toHaveValue(
+    /updated/
+  );
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  const searchResponse = await apiFetch(
+    `/v1/cards/search?q=${encodeURIComponent(marker)}`,
+    state.primary.apiKey
+  );
+  const searchPayload = (await searchResponse.json()) as {
+    items?: Array<{ content?: string }>;
+  };
+  expect(
+    searchPayload.items?.filter((card) => card.content?.includes(marker))
+  ).toHaveLength(1);
+
+  await saveTextCard(page, "https://example.com/");
+  await expect
+    .poll(
+      async () =>
+        (
+          (await (
+            await apiFetch(
+              "/v1/cards/search?q=example.com",
+              state.primary!.apiKey!
+            )
+          ).json()) as { items?: Array<{ metadataTitle?: string }> }
+        ).items?.some((card) =>
+          /Example Domain/i.test(card.metadataTitle ?? "")
+        ),
+      { timeout: 90_000 }
+    )
+    .toBe(true);
+  await searchFor(page, "example.com");
+  await expect(page.getByRole("main").getByText(/Example Domain/i)).toBeVisible(
+    { timeout: 30_000 }
+  );
+
+  await page.goto("/");
+  await uploadFiles(page, [
+    { buffer: pdf, mimeType: "application/pdf", name: `${marker}.pdf` },
+    {
+      buffer: Buffer.from("teak audio"),
+      mimeType: "audio/webm",
+      name: `${marker}.webm`,
+    },
+    {
+      buffer: Buffer.from("teak video"),
+      mimeType: "video/mp4",
+      name: `${marker}.mp4`,
+    },
+  ]);
+  await expect(page.getByText(/Uploaded 3 files|File uploaded/)).toBeVisible({
+    timeout: 90_000,
+  });
+
+  await uploadFiles(page, {
+    buffer: Buffer.alloc(MAX_FILE_SIZE + 1),
+    mimeType: "application/octet-stream",
+    name: `${marker}-too-large.bin`,
+  });
+  await expect(page.getByText(/Maximum file size is 20MB/i)).toBeVisible();
+
+  await page.goto("/");
+  await page.evaluate((base64) => {
+    const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+    const file = new File([bytes], "pasted-prod-e2e.png", {
+      type: "image/png",
+    });
+    const clipboardData = new DataTransfer();
+    clipboardData.items.add(file);
+    document.dispatchEvent(
+      new ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData,
+      })
+    );
+  }, png.toString("base64"));
+  await expect(page.getByText("File uploaded")).toBeVisible({
+    timeout: 90_000,
+  });
+
+  const bulkA = await api.cards.create({
+    content: `${marker} bulk-a`,
+    source: "prod-e2e",
+  });
+  const bulkB = await api.cards.create({
+    content: `${marker} bulk-b`,
+    source: "prod-e2e",
+  });
+  updateState((s) => s.createdCardIds.push(bulkA.cardId, bulkB.cardId));
+  await searchFor(page, `${marker} bulk`);
+  await page.getByText(`${marker} bulk-a`).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Select" }).click();
+  await page.getByText(`${marker} bulk-b`).click();
+  await expect(page.getByText("2 cards selected")).toBeVisible();
+  await page.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText("Deleted 2 cards")).toBeVisible({
+    timeout: 30_000,
+  });
+
+  const restoreCard = await api.cards.create({
+    content: `${marker} restore-me`,
+    source: "prod-e2e",
+  });
+  updateState((s) => s.createdCardIds.push(restoreCard.cardId));
+  await searchFor(page, `${marker} restore-me`);
+  await page.getByText(`${marker} restore-me`).click();
+  await page.getByRole("button", { name: "Favorite" }).click();
+  await page.getByRole("button", { name: "Manage Tags" }).click();
+  await page.locator("#new-tag").fill(`${marker}-tag`);
+  await page.getByRole("button", { name: "Add" }).click();
+  await expect(page.getByText(`${marker}-tag`)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await searchFor(page, "trash");
+  await page.getByText(`${marker} restore-me`).click();
+  await page.getByRole("button", { name: "Restore" }).click();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await searchFor(page, `${marker} restore-me`);
+  await expect(page.getByText(`${marker} restore-me`)).toBeVisible();
+
+  await page.goto("/settings");
+  await page.getByText("Import/Export Data").waitFor();
+  await page
+    .getByText("Import/Export Data")
+    .locator("xpath=ancestor::div[.//button][1]")
+    .getByRole("button", { name: "Manage" })
+    .click();
+  await expect(page.getByRole("dialog")).toContainText("Import or export");
+  await page.getByRole("tab", { name: "Export" }).click();
+  await expect(
+    page.getByText(/Export your data|Your export is ready/)
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Import" }).click();
+  await expect(
+    page.getByRole("button", { name: "Import Bookmarks" })
+  ).toBeVisible();
+  const [bookmarkChooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByRole("button", { name: "Import Bookmarks" }).click(),
+  ]);
+  await bookmarkChooser.setFiles({
+    buffer: Buffer.from(
+      '<!doctype NETSCAPE-Bookmark-file-1><TITLE>Bookmarks</TITLE><H1>Bookmarks</H1><DL><DT><A HREF="https://example.com/">Example import</A></DT></DL>'
+    ),
+    mimeType: "text/html",
+    name: `${marker}-bookmarks.html`,
+  });
+  await expect(page.getByText(`${marker}-bookmarks.html`)).toBeVisible();
+  await page.getByRole("button", { name: "Start import" }).click();
+  await expect(page.getByText(/created|skipped|Import/i)).toBeVisible({
+    timeout: 120_000,
+  });
+  await page.keyboard.press("Escape");
+
+  await searchFor(page, `${marker}-no-results`);
+  await expect(page.getByText(/nothing found/i)).toBeVisible();
+  await page.getByRole("button", { name: "Clear All" }).click();
+  await searchFor(page, `${marker}-tag`);
+  await expect(page.getByText(/nothing found/i)).toBeVisible();
+  await searchFor(page, "trash");
+  await expect(page.getByText(/nothing found|restore-me/i)).toBeVisible();
+});

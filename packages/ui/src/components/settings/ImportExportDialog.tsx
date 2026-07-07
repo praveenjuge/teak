@@ -34,7 +34,7 @@ export function ImportExportDialog({
 }: ImportExportDialogProps) {
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-h-[85vh] gap-4 overflow-y-auto p-4 sm:max-w-lg">
+      <DialogContent className="max-h-[85vh] min-w-0 gap-4 overflow-x-hidden overflow-y-auto p-4 sm:max-w-lg">
         <DialogHeader className="gap-1">
           <DialogTitle>Manage Data</DialogTitle>
           <DialogDescription>
@@ -42,16 +42,16 @@ export function ImportExportDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="import">
+        <Tabs className="min-w-0" defaultValue="import">
           <TabsList className="w-full">
             <TabsTrigger value="import">Import</TabsTrigger>
             <TabsTrigger value="export">Export</TabsTrigger>
           </TabsList>
 
-          <TabsContent className="pt-4" value="import">
+          <TabsContent className="min-w-0 pt-4" value="import">
             <ImportPanel onActiveChange={onImportActiveChange} />
           </TabsContent>
-          <TabsContent className="pt-4" value="export">
+          <TabsContent className="min-w-0 pt-4" value="export">
             <ExportPanel
               exportState={exportState}
               isLoading={exportLoading}

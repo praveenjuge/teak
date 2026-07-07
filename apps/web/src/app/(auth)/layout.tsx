@@ -3,6 +3,7 @@ import { AuthScreenShell } from "@teak/ui/screens";
 import Link from "next/link";
 import { Suspense } from "react";
 import { AuthRouteGuard } from "@/components/AuthRouteGuard";
+import { AuthCardLoading } from "./AuthCardLoading";
 
 export default function RootLayout({
   children,
@@ -17,8 +18,10 @@ export default function RootLayout({
         </Link>
       }
     >
-      <Suspense>
-        <AuthRouteGuard>{children}</AuthRouteGuard>
+      <Suspense fallback={<AuthCardLoading />}>
+        <AuthRouteGuard fallback={<AuthCardLoading />}>
+          {children}
+        </AuthRouteGuard>
       </Suspense>
     </AuthScreenShell>
   );

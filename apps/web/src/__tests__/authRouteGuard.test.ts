@@ -23,5 +23,7 @@ describe("auth route session handling", () => {
     expect(source).toContain("authClient.useSession()");
     expect(source).toContain("if (session)");
     expect(source).toContain("getSafeNextPath");
+    expect(source).toContain("fallback?: ReactNode");
+    expect(source).toContain("return fallback");
   });
 });

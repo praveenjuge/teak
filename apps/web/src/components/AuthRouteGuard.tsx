@@ -6,7 +6,13 @@ import { useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 import { getSafeNextPath } from "@/lib/safe-next-path";
 
-export function AuthRouteGuard({ children }: { children: ReactNode }) {
+export function AuthRouteGuard({
+  children,
+  fallback = null,
+}: {
+  children: ReactNode;
+  fallback?: ReactNode;
+}) {
   const searchParams = useSearchParams();
   const { data: session, isPending } = authClient.useSession();
   const nextPath = getSafeNextPath(searchParams.get("next")) ?? "/";
@@ -20,7 +26,7 @@ export function AuthRouteGuard({ children }: { children: ReactNode }) {
   }, [nextPath, session]);
 
   if (isPending || session) {
-    return null;
+    return fallback;
   }
 
   return <>{children}</>;

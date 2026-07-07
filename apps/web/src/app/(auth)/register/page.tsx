@@ -21,13 +21,14 @@ import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { resolveAuthRedirect } from "@/lib/auth-redirect";
+import { AuthCardLoading } from "../AuthCardLoading";
 
 const MIN_PASSWORD_LENGTH = 8;
 type PendingProvider = "email" | "google" | "apple" | null;
 
 export default function SignUp() {
   return (
-    <Suspense>
+    <Suspense fallback={<AuthCardLoading />}>
       <SignUpForm />
     </Suspense>
   );

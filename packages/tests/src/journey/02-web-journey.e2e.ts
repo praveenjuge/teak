@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import { expect, test } from "@playwright/test";
+import { env } from "../helpers/env";
 import { clientFor, generateApiKey, revokeVisibleKey } from "../helpers/prod";
 import { readState, updateState } from "../helpers/run-state";
 
@@ -31,6 +32,18 @@ test("web journey covers cards, search, settings, upload, and revoked key", asyn
   await page.keyboard.press("Enter");
   await expect(savedCard).toBeVisible();
   await page.getByRole("button", { name: "Clear All" }).click();
+
+  await page.context().grantPermissions(["microphone"], { origin: env.appUrl });
+  await page.getByRole("button", { name: "Record audio" }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Recording audio" })
+  ).toBeVisible();
+  await expect(page.getByText(/Speak naturally/i)).toBeVisible();
+  await expect(page.getByText("0:01")).toBeVisible({ timeout: 5000 });
+  await page.getByRole("button", { name: "Stop and Save" }).click();
+  await expect(page.getByText("Audio recording saved")).toBeVisible({
+    timeout: 45_000,
+  });
 
   const api = clientFor(state.primary.apiKey);
   const png = Buffer.from(
