@@ -178,6 +178,48 @@ export interface UploadFileFromUriArgs {
 }
 
 type CodedError = Error & { code?: CardErrorCode };
+type UploadResponse = Pick<Response, "ok" | "status">;
+
+const UPLOAD_RETRY_DELAYS_MS = [300, 900] as const;
+
+const isRetriableUploadStatus = (status: number) =>
+  status === 408 || status === 429 || status >= 500;
+
+const sleep = (delayMs: number) =>
+  new Promise((resolve) => setTimeout(resolve, delayMs));
+
+async function uploadWithTransientRetry(
+  upload: () => Promise<UploadResponse>
+): Promise<UploadResponse> {
+  let lastError: unknown;
+
+  for (
+    let attempt = 0;
+    attempt <= UPLOAD_RETRY_DELAYS_MS.length;
+    attempt += 1
+  ) {
+    try {
+      const response = await upload();
+      if (
+        response.ok ||
+        !isRetriableUploadStatus(response.status) ||
+        attempt === UPLOAD_RETRY_DELAYS_MS.length
+      ) {
+        return response;
+      }
+      lastError = new Error(`Upload failed with status ${response.status}`);
+    } catch (error) {
+      lastError = error;
+      if (attempt === UPLOAD_RETRY_DELAYS_MS.length) {
+        throw error;
+      }
+    }
+
+    await sleep(UPLOAD_RETRY_DELAYS_MS[attempt]);
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Upload failed");
+}
 
 export function useFileUploadCore(
   {
@@ -258,16 +300,21 @@ export function useFileUploadCore(
           codedError.code = errorInfo.code;
           throw codedError;
         }
+        const { uploadKey, uploadUrl } = uploadResult;
 
         // Step 2: Upload file to R2
         config.onProgress?.(25);
         setProgress(25);
 
-        const uploadResponse = await fetch(uploadResult.uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": file.type || "application/octet-stream" },
-          body: file,
-        });
+        const uploadResponse = await uploadWithTransientRetry(() =>
+          fetch(uploadUrl, {
+            method: "PUT",
+            headers: {
+              "Content-Type": file.type || "application/octet-stream",
+            },
+            body: file,
+          })
+        );
 
         if (!uploadResponse.ok) {
           throw new Error(`Upload failed with status ${uploadResponse.status}`);
@@ -278,7 +325,7 @@ export function useFileUploadCore(
 
         // Step 3: Finalize card creation
         const finalizeResult = await finalizeUploadedCard({
-          fileKey: uploadResult.uploadKey,
+          fileKey: uploadKey,
           fileName: file.name,
           fileSize: file.size,
           fileType: file.type,
@@ -414,15 +461,18 @@ export function useFileUploadCore(
           codedError.code = errorInfo.code;
           throw codedError;
         }
+        const { uploadKey, uploadUrl } = uploadResult;
 
         config.onProgress?.(25);
         setProgress(25);
 
-        const uploadResponse = await uploadBinaryFromUri({
-          fileUri: uri,
-          uploadUrl: uploadResult.uploadUrl,
-          contentType: type || "application/octet-stream",
-        });
+        const uploadResponse = await uploadWithTransientRetry(() =>
+          uploadBinaryFromUri({
+            fileUri: uri,
+            uploadUrl,
+            contentType: type || "application/octet-stream",
+          })
+        );
 
         if (!uploadResponse.ok) {
           throw new Error(`Upload failed with status ${uploadResponse.status}`);
@@ -432,7 +482,7 @@ export function useFileUploadCore(
         setProgress(75);
 
         const finalizeResult = await finalizeUploadedCard({
-          fileKey: uploadResult.uploadKey,
+          fileKey: uploadKey,
           fileName: name,
           fileSize: size,
           fileType: type,
