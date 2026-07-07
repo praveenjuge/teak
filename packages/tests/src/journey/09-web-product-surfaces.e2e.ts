@@ -50,8 +50,7 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   }
   const api = clientFor(state.primary.apiKey);
   const marker = `prod-surface-${Date.now()}`;
-  const recentImageIds = async (createdAfter: number) => {
-    const ids = new Set<string>();
+  const hasUploadedFile = async (fileName: string, createdAfter: number) => {
     let cursor: string | undefined;
     for (let pageIndex = 0; pageIndex < 5; pageIndex += 1) {
       const params = new URLSearchParams({
@@ -69,28 +68,29 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
       );
       const payload = (await response.json()) as {
         items?: Array<{
+          fileName?: string | null;
           fileUrl?: string | null;
-          id?: string;
           thumbnailUrl?: string | null;
           type?: string;
         }>;
         pageInfo?: { nextCursor?: string | null };
       };
-      for (const card of payload.items ?? []) {
-        if (
-          card.id &&
-          card.type === "image" &&
-          (card.fileUrl ?? card.thumbnailUrl)
-        ) {
-          ids.add(card.id);
-        }
+      if (
+        payload.items?.some(
+          (card) =>
+            card.type === "image" &&
+            card.fileName === fileName &&
+            (card.fileUrl ?? card.thumbnailUrl)
+        )
+      ) {
+        return true;
       }
       cursor = payload.pageInfo?.nextCursor ?? undefined;
       if (!cursor) {
-        break;
+        return false;
       }
     }
-    return ids;
+    return false;
   };
 
   await saveTextCard(page, `${marker} original`);
@@ -172,7 +172,7 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
 
   await page.goto("/");
   const pasteStartedAt = Date.now() - 60_000;
-  const imageIdsBeforePaste = await recentImageIds(pasteStartedAt);
+  const pastedFileName = `${marker}-pasted.png`;
   await page.evaluate(
     ({ base64, fileName }) => {
       const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
@@ -187,16 +187,12 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
         })
       );
     },
-    { base64: png.toString("base64"), fileName: `${marker}-pasted.png` }
+    { base64: png.toString("base64"), fileName: pastedFileName }
   );
   await expect
-    .poll(
-      async () =>
-        [...(await recentImageIds(pasteStartedAt))].some(
-          (id) => !imageIdsBeforePaste.has(id)
-        ),
-      { timeout: 90_000 }
-    )
+    .poll(() => hasUploadedFile(pastedFileName, pasteStartedAt), {
+      timeout: 90_000,
+    })
     .toBe(true);
 
   const bulkA = await api.cards.create({

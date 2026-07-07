@@ -968,16 +968,22 @@ describe("publicApiHttp", () => {
     expect(payload.code).toBe("METHOD_NOT_ALLOWED");
   });
 
-  test("listCardsV1 returns paginated items with pageInfo", async () => {
+  test("listCardsV1 returns paginated items with requested includes", async () => {
     const runMutation = buildAuthorizedMutationMock();
     const runQuery = mock().mockResolvedValueOnce({
       itemCursors: ["after-card-1"],
       items: [
         {
           _id: "card_1",
-          type: "link",
+          type: "image",
           content: "Hello",
           url: "https://example.com",
+          fileMetadata: {
+            fileName: "image.png",
+            fileSize: 123,
+            mimeType: "image/png",
+          },
+          fileUrl: "https://files.example.com/image.png",
           tags: ["design"],
           aiTags: ["ui"],
           isFavorited: true,
@@ -994,19 +1000,28 @@ describe("publicApiHttp", () => {
     const response = await runHandler(
       listCardsV1,
       { runMutation, runQuery },
-      new Request("https://example.com/v1/cards?limit=10&include=content", {
-        method: "GET",
-        headers: {
-          Authorization:
-            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        },
-      })
+      new Request(
+        "https://example.com/v1/cards?limit=10&include=content,metadata",
+        {
+          method: "GET",
+          headers: {
+            Authorization:
+              "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          },
+        }
+      )
     );
 
     expect(response.status).toBe(200);
     const payload = await response.json();
     expect(payload.pageInfo).toEqual({ hasMore: false, nextCursor: null });
     expect(payload.items[0].content).toBe("Hello");
+    expect(payload.items[0].fileName).toBe("image.png");
+    expect(payload.items[0].fileSize).toBe(123);
+    expect(payload.items[0].mimeType).toBe("image/png");
+    expect(payload.items[0].fileUrl).toBe(
+      "https://files.example.com/image.png"
+    );
   });
 
   test("bulkCardsV1 executes bulk operations", async () => {
