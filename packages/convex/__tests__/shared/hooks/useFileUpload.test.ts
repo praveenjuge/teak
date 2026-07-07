@@ -458,6 +458,8 @@ describe("useFileUploadCore", () => {
       expect(mockOnSuccess).not.toHaveBeenCalled();
       expect(mockOnError).not.toHaveBeenCalled();
       expect(mockSentryCapture).not.toHaveBeenCalled();
+      expect(mockSetState).toHaveBeenCalledWith(false);
+      expect(mockSetState).toHaveBeenCalledWith(0);
     });
 
     test("treats non-Error AbortError fetch rejections as cancellations", async () => {

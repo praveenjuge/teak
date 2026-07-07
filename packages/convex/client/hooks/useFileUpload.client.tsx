@@ -299,15 +299,18 @@ export function useFileUploadCore(
   }, []);
 
   const finishUpload = useCallback((abortController: AbortController) => {
-    if (activeUploadAbortRef.current === abortController) {
-      activeUploadAbortRef.current = null;
-    }
-
-    if (abortController.signal.aborted) {
+    if (activeUploadAbortRef.current !== abortController) {
       return;
     }
 
+    activeUploadAbortRef.current = null;
     setIsUploading(false);
+
+    if (abortController.signal.aborted) {
+      setProgress(0);
+      return;
+    }
+
     resetProgressTimeoutRef.current = setTimeout(() => {
       setProgress(0);
       resetProgressTimeoutRef.current = null;
