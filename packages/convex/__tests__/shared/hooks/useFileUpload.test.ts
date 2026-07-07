@@ -11,9 +11,17 @@ import {
 
 // Mock React
 const mockSetState = mock();
+const mockUseEffectCleanups: Array<() => void> = [];
 mock.module("react", () => ({
   useState: (init: any) => [init, mockSetState],
   useCallback: (fn: any) => fn,
+  useEffect: (fn: any) => {
+    const cleanup = fn();
+    if (typeof cleanup === "function") {
+      mockUseEffectCleanups.push(cleanup);
+    }
+  },
+  useRef: (init: any) => ({ current: init }),
 }));
 
 // Mock fetch
@@ -123,6 +131,7 @@ describe("useFileUploadCore", () => {
     mockSetState.mockReset();
     mockFetch.mockReset();
     mockSentryCapture.mockReset();
+    mockUseEffectCleanups.length = 0;
     setFileUploadSentryCaptureFunction(mockSentryCapture);
   });
 
@@ -420,6 +429,33 @@ describe("useFileUploadCore", () => {
       expect(mockFinalizeUploadedCard).toHaveBeenCalledWith(
         expect.objectContaining({ fileKey: "store_1" })
       );
+      expect(mockSentryCapture).not.toHaveBeenCalled();
+    });
+
+    test("cancels sleeping retries after unmount", async () => {
+      const file = { size: 100, name: "test.png", type: "image/png" } as any;
+      const localHook = useFileUploadCore(dependencies, config);
+
+      mockUploadAndCreateCard.mockResolvedValue({
+        success: true,
+        uploadUrl: "https://upload",
+        uploadKey: "store_1",
+      });
+      mockFetch.mockResolvedValue({ ok: false, status: 503 });
+
+      const resultPromise = localHook.uploadFile(file);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      mockUseEffectCleanups.at(-1)?.();
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect((result as any).error).toBe("Upload cancelled");
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFinalizeUploadedCard).not.toHaveBeenCalled();
+      expect(mockOnSuccess).not.toHaveBeenCalled();
+      expect(mockOnError).not.toHaveBeenCalled();
       expect(mockSentryCapture).not.toHaveBeenCalled();
     });
 
