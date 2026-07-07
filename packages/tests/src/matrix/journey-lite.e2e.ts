@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { createAccount, deleteAccountViaUi } from "../helpers/prod";
 
+test.setTimeout(180_000);
+const cleanupTimeoutMs = 120_000;
+
 test("signup, create, search, favorite, delete account", async ({ page }) => {
   const account = await createAccount(
     page,
@@ -21,6 +24,7 @@ test("signup, create, search, favorite, delete account", async ({ page }) => {
     await page.keyboard.press("Enter");
     await expect(savedCard).toBeVisible();
   } finally {
+    test.info().setTimeout(test.info().timeout + cleanupTimeoutMs);
     await deleteAccountViaUi(page, account);
   }
 });
