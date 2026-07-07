@@ -1,18 +1,10 @@
 import { chromium } from "@playwright/test";
-import { env } from "../helpers/env";
-import { deleteMessagesFor } from "../helpers/mailpit";
+import { deleteMessagesFor, listMailpitMessages } from "../helpers/mailpit";
 import { deleteAccountViaUi } from "../helpers/prod";
 
-const response = await fetch(`${env.mailpitUrl}/api/v1/messages?limit=200`);
-if (!response.ok) {
-  throw new Error(`Mailpit sweep failed: ${response.status}`);
-}
-const data = (await response.json()) as {
-  messages?: Array<{ To?: Array<{ Address: string }> }>;
-};
 const emails = [
   ...new Set(
-    (data.messages ?? [])
+    (await listMailpitMessages())
       .flatMap((message) => message.To ?? [])
       .map((to) => to.Address.toLowerCase())
       .filter((email) => email.startsWith("e2e-"))
