@@ -197,6 +197,7 @@ export function ApiKeysDialog({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Key</TableHead>
+                    <TableHead>Created</TableHead>
                     <TableHead>Last used</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -220,6 +221,9 @@ export function ApiKeysDialog({
                           <div className="break-all font-mono text-muted-foreground text-xs">
                             {key.maskedKey}
                           </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {formatDate(key.createdAt)}
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-muted-foreground">
                           {formatDate(key.lastUsedAt)}

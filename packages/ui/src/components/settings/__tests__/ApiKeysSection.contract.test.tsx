@@ -127,6 +127,7 @@ describe("ApiKeysDialog", () => {
     expect(markup).toContain("Generate Key");
     expect(markup).toContain("<th");
     expect(markup).toContain("Key");
+    expect(markup).toContain("Created");
     expect(markup).toContain("Last used");
     expect(markup).toContain("Status");
     expect(markup).toContain("SDK Key");
@@ -159,6 +160,7 @@ describe("ApiKeysDialog", () => {
 
     expect(markup).not.toContain("Default API key");
     expect(markup).not.toContain(">API Keys<");
+    expect(markup).toContain("Created");
   });
 
   test("renders terminal key statuses as table text", () => {
