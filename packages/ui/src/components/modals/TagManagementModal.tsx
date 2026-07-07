@@ -71,6 +71,7 @@ export function TagManagementModal({
                 value={tagInput}
               />
               <Button
+                aria-label="Add tag"
                 disabled={!tagInput.trim()}
                 onClick={onAddTag}
                 size="icon"
@@ -94,6 +95,7 @@ export function TagManagementModal({
                       {tag}
                     </Button>
                     <Button
+                      aria-label={`Remove user tag ${tag}`}
                       className="rounded-l-none"
                       onClick={() => onRemoveTag(tag)}
                       size="sm"
@@ -122,6 +124,7 @@ export function TagManagementModal({
                       {tag}
                     </Button>
                     <Button
+                      aria-label={`Remove Teak tag ${tag}`}
                       className="rounded-l-none"
                       onClick={() => onRemoveAiTag(tag)}
                       size="sm"

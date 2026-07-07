@@ -257,9 +257,11 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   await page.getByText(`${marker} restore-me`).click();
   await page.getByRole("button", { name: "Favorite" }).click();
   await page.getByRole("button", { name: "Manage Tags" }).click();
-  await page.locator("#new-tag").fill(`${marker}-tag`);
-  await page.getByRole("button", { name: "Add" }).click();
-  await expect(page.getByText(`${marker}-tag`)).toBeVisible();
+  const tagsDialog = page.getByRole("dialog", { name: "Manage Tags" });
+  await expect(tagsDialog).toBeVisible();
+  await tagsDialog.getByLabel("Add New Tag").fill(`${marker}-tag`);
+  await tagsDialog.getByRole("button", { name: "Add tag" }).click();
+  await expect(tagsDialog.getByText(`${marker}-tag`)).toBeVisible();
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Delete" }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
