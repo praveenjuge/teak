@@ -11,10 +11,15 @@ test("signup, create, search, favorite, delete account", async ({ page }) => {
     await page.goto("/");
     await page.getByPlaceholder(/Write a note/i).fill(marker);
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(page.getByRole("main").getByText(marker)).toBeVisible();
+    const savedCard = page
+      .getByRole("main")
+      .getByRole("paragraph")
+      .filter({ hasText: marker })
+      .first();
+    await expect(savedCard).toBeVisible();
     await page.getByPlaceholder("Search for anything...").fill(marker);
     await page.keyboard.press("Enter");
-    await expect(page.getByRole("main").getByText(marker)).toBeVisible();
+    await expect(savedCard).toBeVisible();
   } finally {
     await deleteAccountViaUi(page, account);
   }
