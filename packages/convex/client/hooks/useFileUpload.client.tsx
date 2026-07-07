@@ -198,6 +198,12 @@ const isAbortError = (error: unknown) =>
   "name" in error &&
   error.name === "AbortError";
 
+const throwIfAborted = (signal: AbortSignal) => {
+  if (signal.aborted) {
+    throw createAbortError();
+  }
+};
+
 const sleep = (delayMs: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
     if (signal.aborted) {
@@ -227,15 +233,11 @@ async function uploadWithTransientRetry(
     attempt <= UPLOAD_RETRY_DELAYS_MS.length;
     attempt += 1
   ) {
-    if (signal.aborted) {
-      throw createAbortError();
-    }
+    throwIfAborted(signal);
 
     try {
       const response = await upload();
-      if (signal.aborted) {
-        throw createAbortError();
-      }
+      throwIfAborted(signal);
       if (
         response.ok ||
         !isRetriableUploadStatus(response.status) ||
@@ -409,6 +411,7 @@ export function useFileUploadCore(
           throw new Error(`Upload failed with status ${uploadResponse.status}`);
         }
 
+        throwIfAborted(signal);
         config.onProgress?.(75);
         setProgress(75);
 
@@ -423,6 +426,7 @@ export function useFileUploadCore(
           additionalMetadata: mergedAdditionalMetadata,
         });
 
+        throwIfAborted(signal);
         if (!(finalizeResult.success && finalizeResult.cardId)) {
           const errorInfo: FileUploadError = {
             message: finalizeResult.error || "Failed to create card",
@@ -580,6 +584,7 @@ export function useFileUploadCore(
           throw new Error(`Upload failed with status ${uploadResponse.status}`);
         }
 
+        throwIfAborted(signal);
         config.onProgress?.(75);
         setProgress(75);
 
@@ -593,6 +598,7 @@ export function useFileUploadCore(
           additionalMetadata,
         });
 
+        throwIfAborted(signal);
         if (!(finalizeResult.success && finalizeResult.cardId)) {
           const errorInfo: FileUploadError = {
             message: finalizeResult.error || "Failed to create card",
