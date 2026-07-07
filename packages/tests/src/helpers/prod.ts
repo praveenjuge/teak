@@ -166,7 +166,7 @@ export const revokeVisibleKey = async (page: Page, rawKey: string) => {
   const dialog = page.getByRole("dialog", { name: "Manage API Keys" });
   const row = dialog.getByRole("row").filter({ hasText: visiblePrefix });
   await expect(row).toBeVisible();
-  await row.getByRole("button", { name: "Revoke" }).click();
+  await row.getByRole("button", { name: /^Revoke / }).click();
   await expect(
     row,
     "revoked API keys should disappear from the settings table"

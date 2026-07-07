@@ -193,14 +193,13 @@ export function ApiKeysDialog({
             )}
 
             {keys && keys.length > 0 ? (
-              <Table>
+              <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Key</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Last used</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="w-[48%]">Key</TableHead>
+                    <TableHead className="w-[22%]">Used</TableHead>
+                    <TableHead className="w-[14%]">Status</TableHead>
+                    <TableHead className="w-[16%]" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -209,21 +208,28 @@ export function ApiKeysDialog({
                     const canRotate =
                       key.status === "active" || key.status === "disabled";
                     const label = visibleKeyName(key.name);
+                    const keyIdentity = [
+                      label,
+                      key.maskedKey,
+                      `created ${formatDate(key.createdAt)}`,
+                    ]
+                      .filter(Boolean)
+                      .join(", ");
 
                     return (
                       <TableRow key={key.id}>
-                        <TableCell>
+                        <TableCell className="max-w-0">
                           {label ? (
-                            <div className="font-medium text-foreground text-sm">
+                            <div className="truncate font-medium text-foreground text-sm">
                               {label}
                             </div>
                           ) : null}
                           <div className="break-all font-mono text-muted-foreground text-xs">
                             {key.maskedKey}
                           </div>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-muted-foreground">
-                          {formatDate(key.createdAt)}
+                          <div className="truncate text-muted-foreground text-xs">
+                            Created {formatDate(key.createdAt)}
+                          </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-muted-foreground">
                           {formatDate(key.lastUsedAt)}
@@ -235,6 +241,7 @@ export function ApiKeysDialog({
                           <div className="flex justify-end gap-1.5">
                             {canRotate && (
                               <Button
+                                aria-label={`Regenerate ${keyIdentity}`}
                                 disabled={isBusy}
                                 onClick={() =>
                                   runKeyAction(
@@ -243,15 +250,16 @@ export function ApiKeysDialog({
                                     "API key regenerated. Copy the new key now."
                                   )
                                 }
-                                size="sm"
+                                size="icon"
+                                title="Regenerate"
                                 variant="outline"
                               >
                                 {isBusy ? <Spinner /> : <RotateCw />}
-                                Regenerate
                               </Button>
                             )}
 
                             <Button
+                              aria-label={`Revoke ${keyIdentity}`}
                               disabled={isBusy}
                               onClick={() =>
                                 runKeyAction(
@@ -263,11 +271,11 @@ export function ApiKeysDialog({
                                   "API key revoked."
                                 )
                               }
-                              size="sm"
+                              size="icon"
+                              title="Revoke"
                               variant="ghost"
                             >
                               {isBusy ? <Spinner /> : <Trash2 />}
-                              Revoke
                             </Button>
                           </div>
                         </TableCell>
