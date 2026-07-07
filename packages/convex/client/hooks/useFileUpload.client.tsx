@@ -193,7 +193,10 @@ const createAbortError = () => {
 };
 
 const isAbortError = (error: unknown) =>
-  error instanceof Error && error.name === "AbortError";
+  typeof error === "object" &&
+  error !== null &&
+  "name" in error &&
+  error.name === "AbortError";
 
 const sleep = (delayMs: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {

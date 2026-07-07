@@ -460,6 +460,28 @@ describe("useFileUploadCore", () => {
       expect(mockSentryCapture).not.toHaveBeenCalled();
     });
 
+    test("treats non-Error AbortError fetch rejections as cancellations", async () => {
+      const file = { size: 100, name: "test.png", type: "image/png" } as any;
+      mockUploadAndCreateCard.mockResolvedValue({
+        success: true,
+        uploadUrl: "https://upload",
+        uploadKey: "store_1",
+      });
+      mockFetch
+        .mockResolvedValueOnce({ ok: false, status: 503 })
+        .mockResolvedValueOnce({ ok: false, status: 503 })
+        .mockRejectedValueOnce({ name: "AbortError" });
+
+      const result = await hook.uploadFile(file);
+
+      expect(result.success).toBe(false);
+      expect((result as any).error).toBe("Upload cancelled");
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      expect(mockFinalizeUploadedCard).not.toHaveBeenCalled();
+      expect(mockOnError).not.toHaveBeenCalled();
+      expect(mockSentryCapture).not.toHaveBeenCalled();
+    });
+
     test("does not retry non-transient storage failures", async () => {
       const file = { size: 100, name: "test.png", type: "image/png" } as any;
       mockUploadAndCreateCard.mockResolvedValue({
