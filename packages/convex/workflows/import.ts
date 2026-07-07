@@ -2,26 +2,10 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
 import { IMPORT_CARD_BATCH } from "../import/constants";
+import { CARD_ERROR_MESSAGES } from "../shared/constants";
 import { workflow } from "./manager";
 
 const internalAny = internal as Record<string, any>;
-
-async function failRemaining(
-  step: any,
-  jobId: string,
-  code: string,
-  reason: string
-) {
-  for (;;) {
-    const result = await step.runMutation(
-      internalAny.dataImport.failPendingPage,
-      { jobId, code, reason, limit: 100 }
-    );
-    if (!result.count) {
-      return;
-    }
-  }
-}
 
 async function finalize(
   step: any,
@@ -120,13 +104,12 @@ export const importWorkflow = workflow.define({
         { jobId, itemIds: items.map((item: any) => item._id) }
       );
       if (result.limitReached) {
-        await failRemaining(
+        return finalize(
           step,
           jobId,
-          "CARD_LIMIT_REACHED",
-          "Your card limit was reached"
+          "failed",
+          CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED
         );
-        return finalize(step, jobId, "completed");
       }
       if (result.retryAt) {
         await step.sleep(Math.max(1000, result.retryAt - Date.now()), {

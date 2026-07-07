@@ -29,10 +29,16 @@ describe("web security headers", () => {
     expect(contentSecurityPolicy).toContain("media-src 'self' blob: data:");
     expect(directiveTokens("img-src")).toContain(teakR2StorageOrigin);
     expect(directiveTokens("img-src")).toContain("https://www.google.com");
+    expect(directiveTokens("img-src")).toContain("https://*.gstatic.com");
     expect(directiveTokens("img-src")).not.toContain("https:");
     expect(directiveTokens("script-src")).toContain("'nonce-test-nonce'");
     expect(directiveTokens("connect-src")).toContain(teakR2StorageOrigin);
     expect(directiveTokens("media-src")).toContain(teakR2StorageOrigin);
+    expect(directiveTokens("frame-src")).toContain(teakR2StorageOrigin);
+    expect(directiveTokens("frame-src")).toContain(
+      "https://*.r2.cloudflarestorage.com"
+    );
+    expect(directiveTokens("frame-src")).toContain("https://*.r2.dev");
     expect(directiveTokens("img-src")).not.toContain(
       "https://*.r2.cloudflarestorage.com"
     );
@@ -52,6 +58,35 @@ describe("web security headers", () => {
     expect(directiveTokens("connect-src")).not.toContain("wss:");
   });
 
+  test("allows configured custom R2 origins only for document frames", () => {
+    const previous = process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN;
+    process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN =
+      "https://files.teakvault.com/path, http://unsafe.example, not-a-url";
+    try {
+      const policy = buildContentSecurityPolicy(nonce);
+      const tokens = (name: string) =>
+        policy
+          .split("; ")
+          .find((directive) => directive.startsWith(`${name} `))
+          ?.split(" ")
+          .slice(1) ?? [];
+
+      expect(tokens("frame-src")).toContain("https://files.teakvault.com");
+      expect(tokens("frame-src")).not.toContain("http://unsafe.example");
+      expect(tokens("img-src")).not.toContain("https://files.teakvault.com");
+      expect(tokens("connect-src")).not.toContain(
+        "https://files.teakvault.com"
+      );
+      expect(tokens("media-src")).not.toContain("https://files.teakvault.com");
+    } finally {
+      if (previous === undefined) {
+        delete process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN;
+      } else {
+        process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN = previous;
+      }
+    }
+  });
+
   test("keeps baseline browser security headers enabled", () => {
     expect(
       staticSecurityHeaders.some(({ key }) => key === "Content-Security-Policy")
@@ -60,6 +95,7 @@ describe("web security headers", () => {
       "includeSubDomains"
     );
     expect(headers.get("Permissions-Policy")).toContain("camera=()");
+    expect(headers.get("Permissions-Policy")).toContain("microphone=(self)");
     expect(headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(headers.get("X-Frame-Options")).toBe("DENY");
   });

@@ -15,7 +15,7 @@ export default defineConfig({
   use: {
     baseURL: env.appUrl,
     trace: "retain-on-failure",
-    screenshot: "only-on-failure",
+    screenshot: "on",
     video: "retain-on-failure",
   },
   projects: [
@@ -30,7 +30,16 @@ export default defineConfig({
       testIgnore: ["journey/01-signup.setup.ts", deleteAccount, postDelete],
       testMatch: journey,
       workers: 1,
-      use: { ...devices["Desktop Chrome"], storageState: ".state/user.json" },
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: ".state/user.json",
+        launchOptions: {
+          args: [
+            "--use-fake-device-for-media-stream",
+            "--use-fake-ui-for-media-stream",
+          ],
+        },
+      },
     },
     {
       name: "journey-delete",

@@ -18,6 +18,7 @@ import { Suspense, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { resolveAuthRedirect } from "@/lib/auth-redirect";
+import { AuthCardLoading } from "../AuthCardLoading";
 
 type PendingProvider = "email" | "google" | "apple" | null;
 
@@ -41,7 +42,7 @@ function showSignInError(message: string) {
 
 export default function SignIn() {
   return (
-    <Suspense>
+    <Suspense fallback={<AuthCardLoading />}>
       <SignInForm />
     </Suspense>
   );

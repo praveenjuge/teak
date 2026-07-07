@@ -222,7 +222,9 @@ export function GlobalFileDropProvider({
         queueRef.current = queueRef.current.slice(snapshot.length);
       }
 
-      resolveResultToast(batchAggregateRef.current);
+      if (batchAggregateRef.current.length > 0) {
+        resolveResultToast(batchAggregateRef.current);
+      }
     } finally {
       batchAggregateRef.current = [];
       uploadingRef.current = false;
@@ -261,11 +263,9 @@ export function GlobalFileDropProvider({
         id: createQueueItemId(),
         file,
       }));
-      setQueue((previous) => {
-        const next = previous.concat(newItems);
-        queueRef.current = next;
-        return next;
-      });
+      const nextQueue = queueRef.current.concat(newItems);
+      queueRef.current = nextQueue;
+      setQueue(nextQueue);
 
       void drainQueue();
     },
@@ -364,6 +364,31 @@ export function GlobalFileDropProvider({
       enqueueValidatedFiles(files);
     };
 
+    const handlePaste = (event: ClipboardEvent) => {
+      if (!dataTransferHasFiles(event.clipboardData)) {
+        return;
+      }
+      if (isBlockedDropTarget(event.target)) {
+        return;
+      }
+
+      const { files } = extractFilesFromDataTransfer(event.clipboardData);
+      if (files.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      if (!isOnline) {
+        toast.error("You're offline. Reconnect and try again.", {
+          ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
+          id: "upload-queue-offline",
+        });
+        return;
+      }
+
+      enqueueValidatedFiles(files);
+    };
+
     const handleDragEnd = () => {
       resetDragState();
     };
@@ -372,6 +397,7 @@ export function GlobalFileDropProvider({
     document.addEventListener("dragover", handleDragOver);
     document.addEventListener("dragleave", handleDragLeave);
     document.addEventListener("drop", handleDrop);
+    document.addEventListener("paste", handlePaste);
     document.addEventListener("dragend", handleDragEnd);
 
     return () => {
@@ -379,6 +405,7 @@ export function GlobalFileDropProvider({
       document.removeEventListener("dragover", handleDragOver);
       document.removeEventListener("dragleave", handleDragLeave);
       document.removeEventListener("drop", handleDrop);
+      document.removeEventListener("paste", handlePaste);
       document.removeEventListener("dragend", handleDragEnd);
     };
   }, [enqueueValidatedFiles, isOnline]);

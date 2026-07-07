@@ -30,6 +30,7 @@ interface ImportJob {
   completedAt?: number;
   createdCount: number;
   failedCount: number;
+  failureClass?: string;
   id: string;
   mode: ImportMode;
   parsedCount: number;
@@ -120,6 +121,13 @@ function describeImport(job: ImportJob): string {
   return `Last import: ${parts.join(", ")} — ${when}`;
 }
 
+function describeFailure(job: ImportJob): string | null {
+  if (job.status !== "failed") {
+    return null;
+  }
+  return job.failureClass ?? "Import failed. Please try again.";
+}
+
 // Overall progress as one monotonic fraction: upload fills the first stretch,
 // then parsing/importing carry it to the end (importing uses the real
 // processed/parsed ratio when available).
@@ -161,7 +169,7 @@ export function ImportProgressSummary({
   ].filter((count) => count.value > 0);
 
   return (
-    <div aria-live="polite" className="space-y-2.5 border-t pt-3">
+    <div aria-live="polite" className="min-w-0 space-y-2.5 border-t pt-3">
       <div className="flex items-center gap-2">
         {active ? <Spinner className="size-4" /> : null}
         <span className="font-medium">{job.phase}</span>
@@ -190,6 +198,12 @@ export function ImportProgressSummary({
             </span>
           ))}
         </div>
+      ) : null}
+      {active && job.status !== "uploading" ? (
+        <p className="text-muted-foreground">
+          You can close this and come back later. Importing continues in the
+          background.
+        </p>
       ) : null}
     </div>
   );
@@ -244,6 +258,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
     job?.status === "importing";
   const active = transporting || serverProcessing;
   const isResuming = job?.status === "uploading" && !transporting;
+  const terminalFailure = job ? describeFailure(job) : null;
 
   const failureSamples = useQuery(
     api.dataImport.getImportFailureSamples,
@@ -401,10 +416,10 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       };
 
   return (
-    <div className="space-y-4 text-sm">
+    <div className="min-w-0 space-y-4 text-sm">
       {pending ? (
         <div className="space-y-3">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <FileText className="size-5 shrink-0 text-muted-foreground" />
             <div className="min-w-0">
               <div className="truncate font-medium">{pending.file.name}</div>
@@ -507,25 +522,34 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       ) : null}
 
       {showIdle ? (
-        <div className="flex items-center gap-2 border-t pt-3 text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-2 border-t pt-3 text-muted-foreground">
           {lastLoading ? <Spinner className="size-4" /> : null}
-          {lastLoading ? "Loading last import details…" : lastText}
+          <span className="min-w-0 break-words">
+            {lastLoading ? "Loading last import details…" : lastText}
+          </span>
+        </div>
+      ) : null}
+
+      {terminalFailure ? (
+        <div className="min-w-0 rounded-md border border-destructive/35 bg-destructive/10 p-3 text-destructive">
+          <div className="font-medium">Import stopped</div>
+          <p className="mt-1 break-words">{terminalFailure}</p>
         </div>
       ) : null}
 
       {terminal && failureSamples && failureSamples.length > 0 ? (
-        <div className="space-y-1.5">
+        <div className="min-w-0 space-y-1.5">
           <div className="font-medium">Items that couldn't be imported</div>
           <ul className="max-h-40 space-y-1.5 overflow-y-auto pr-1">
             {failureSamples.map((sample) => (
               <li
-                className="flex items-start gap-2"
+                className="flex min-w-0 items-start gap-2"
                 key={`${sample.sourceIndex}-${sample.item}`}
               >
                 <X className="mt-0.5 size-3.5 shrink-0 text-destructive" />
                 <span className="min-w-0">
-                  <span className="block truncate">{sample.item}</span>
-                  <span className="block text-muted-foreground">
+                  <span className="block break-words">{sample.item}</span>
+                  <span className="block break-words text-muted-foreground">
                     {sample.reason}
                   </span>
                 </span>
@@ -536,12 +560,18 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       ) : null}
 
       {!active && job?.reportAvailable ? (
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => void copyReport()} size="sm" variant="outline">
+        <div className="flex min-w-0 flex-wrap gap-2">
+          <Button
+            className="min-w-0"
+            onClick={() => void copyReport()}
+            size="sm"
+            variant="outline"
+          >
             <Copy />
             Copy error report
           </Button>
           <Button
+            className="min-w-0"
             onClick={() => void downloadReport()}
             size="sm"
             variant="outline"

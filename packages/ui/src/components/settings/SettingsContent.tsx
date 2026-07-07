@@ -89,30 +89,39 @@ export function SettingsContent({
     </>
   );
 
+  if (isLoading) {
+    return (
+      <>
+        <h1 className="font-semibold text-xl tracking-tight">Settings</h1>
+        <div
+          aria-label="Loading settings"
+          className="flex min-h-64 items-center justify-center"
+          role="status"
+        >
+          <Spinner className="size-5" />
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <h1 className="font-semibold text-xl tracking-tight">Settings</h1>
 
       <SettingRow title="Email">
         <Button disabled size="sm" variant="ghost">
-          {isLoading ? <Spinner /> : (email ?? "Not available")}
+          {email ?? "Not available"}
         </Button>
       </SettingRow>
 
       <SettingRow title="Usage">
         <Button disabled size="sm" variant="ghost">
-          {isLoading ? <Spinner /> : `${cardCount} Cards`}
+          {`${cardCount} Cards`}
         </Button>
       </SettingRow>
 
       <SettingRow title="Plan">
-        {isLoading ? (
-          <Button disabled size="sm" variant="ghost">
-            <Spinner />
-          </Button>
-        ) : (
-          planRowContent
-        )}
+        {planRowContent}
       </SettingRow>
 
       {/* Show the API Keys section once keys have loaded, even for keyless

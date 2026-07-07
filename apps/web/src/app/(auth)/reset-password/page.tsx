@@ -21,6 +21,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
+import { AuthCardLoading } from "../AuthCardLoading";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -32,7 +33,7 @@ const errorMessages: Record<string, string> = {
 
 export default function ResetPassword() {
   return (
-    <Suspense>
+    <Suspense fallback={<AuthCardLoading />}>
       <ResetPasswordForm />
     </Suspense>
   );

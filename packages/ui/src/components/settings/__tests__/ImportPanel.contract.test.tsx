@@ -85,6 +85,7 @@ describe("ImportPanel", () => {
     expect(markup).toContain("2 created");
     expect(markup).toContain("1 skipped");
     expect(markup).toContain("1 failed");
+    expect(markup).toContain("Importing continues in the background");
   });
 
   test("renders a concise completion summary", () => {
@@ -109,6 +110,33 @@ describe("ImportPanel", () => {
     expect(markup).toContain("5 created");
     expect(markup).toContain("3 skipped");
     expect(markup).toContain("2 failed");
+  });
+
+  test("renders job-level failures without requiring report rows", () => {
+    importQueryResult = {
+      id: "job",
+      mode: "bookmarks",
+      status: "failed",
+      createdCount: 105,
+      failedCount: 1,
+      failureClass:
+        "Card limit reached. Please upgrade to Pro for unlimited cards.",
+      reportAvailable: false,
+      parsedCount: 200,
+      phase: "Import failed",
+      processedCount: 106,
+      skippedCount: 0,
+      updatedAt: 0,
+    };
+    try {
+      const markup = renderToStaticMarkup(<ImportPanel />);
+      expect(markup).toContain("Import stopped");
+      expect(markup).toContain(
+        "Card limit reached. Please upgrade to Pro for unlimited cards."
+      );
+    } finally {
+      importQueryResult = null;
+    }
   });
 
   test("shows multipart upload progress and hides counts", () => {
