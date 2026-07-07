@@ -3,6 +3,7 @@ import type { Thing, WithContext } from "schema-dts";
 type JsonLdSchema = WithContext<Thing> | WithContext<Thing>[];
 
 interface JsonLdProps {
+  nonce?: string;
   schema: JsonLdSchema;
 }
 
@@ -10,7 +11,7 @@ interface JsonLdProps {
  * Server-rendered JSON-LD structured data component for SEO.
  * Uses @graph pattern when combining multiple schemas.
  */
-export function JsonLd({ schema }: JsonLdProps) {
+export function JsonLd({ nonce, schema }: JsonLdProps) {
   const jsonLd = Array.isArray(schema)
     ? {
         "@context": "https://schema.org",
@@ -32,6 +33,7 @@ export function JsonLd({ schema }: JsonLdProps) {
     <script
       // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD requires script injection, content is JSON.stringify'd and `<` is escaped
       dangerouslySetInnerHTML={{ __html: serialized }}
+      nonce={nonce}
       type="application/ld+json"
     />
   );
