@@ -208,6 +208,13 @@ export function ApiKeysDialog({
                     const canRotate =
                       key.status === "active" || key.status === "disabled";
                     const label = visibleKeyName(key.name);
+                    const keyIdentity = [
+                      label,
+                      key.maskedKey,
+                      `created ${formatDate(key.createdAt)}`,
+                    ]
+                      .filter(Boolean)
+                      .join(", ");
 
                     return (
                       <TableRow key={key.id}>
@@ -217,10 +224,7 @@ export function ApiKeysDialog({
                               {label}
                             </div>
                           ) : null}
-                          <div
-                            className="truncate font-mono text-muted-foreground text-xs"
-                            title={key.maskedKey}
-                          >
+                          <div className="break-all font-mono text-muted-foreground text-xs">
                             {key.maskedKey}
                           </div>
                           <div className="truncate text-muted-foreground text-xs">
@@ -237,7 +241,7 @@ export function ApiKeysDialog({
                           <div className="flex justify-end gap-1.5">
                             {canRotate && (
                               <Button
-                                aria-label={`Regenerate key created ${formatDate(key.createdAt)}`}
+                                aria-label={`Regenerate ${keyIdentity}`}
                                 disabled={isBusy}
                                 onClick={() =>
                                   runKeyAction(
@@ -255,7 +259,7 @@ export function ApiKeysDialog({
                             )}
 
                             <Button
-                              aria-label={`Revoke key created ${formatDate(key.createdAt)}`}
+                              aria-label={`Revoke ${keyIdentity}`}
                               disabled={isBusy}
                               onClick={() =>
                                 runKeyAction(
