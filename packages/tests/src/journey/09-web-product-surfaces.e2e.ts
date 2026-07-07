@@ -41,6 +41,14 @@ const uploadFiles = async (page: Page, files: FilePayload | FilePayload[]) => {
   await chooser.setFiles(files);
 };
 
+const waitForHomeUploadSurface = async (page: Page) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: "Upload files" })
+  ).toBeVisible();
+  await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
+};
+
 test("web product surfaces cover edit, deep links, rich cards, import/export, bulk, and empty states", async ({
   page,
 }) => {
@@ -145,7 +153,7 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
     { timeout: 30_000 }
   );
 
-  await page.goto("/");
+  await waitForHomeUploadSurface(page);
   await uploadFiles(page, [
     { buffer: pdf, mimeType: "application/pdf", name: `${marker}.pdf` },
     {
@@ -170,26 +178,51 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   });
   await expect(page.getByText(/Maximum file size is 20MB/i)).toBeVisible();
 
-  await page.goto("/");
+  await waitForHomeUploadSurface(page);
   const pasteStartedAt = Date.now() - 60_000;
   const pastedFileName = `${marker}-pasted.png`;
-  await page.evaluate(
+  const pasteResult = await page.evaluate(
     ({ base64, fileName }) => {
       const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
       const file = new File([bytes], fileName, { type: "image/png" });
       const clipboardData = new DataTransfer();
       clipboardData.items.add(file);
-      const event = new Event("paste", {
+
+      const fallbackEvent = new Event("paste", {
         bubbles: true,
         cancelable: true,
       }) as ClipboardEvent;
-      Object.defineProperty(event, "clipboardData", {
-        value: clipboardData,
-      });
-      document.dispatchEvent(event);
+      const event =
+        typeof ClipboardEvent === "function"
+          ? new ClipboardEvent("paste", {
+              bubbles: true,
+              cancelable: true,
+              clipboardData,
+            })
+          : fallbackEvent;
+
+      if (!event.clipboardData) {
+        Object.defineProperty(event, "clipboardData", {
+          configurable: true,
+          value: clipboardData,
+        });
+      }
+
+      document.body.dispatchEvent(event);
+
+      return {
+        defaultPrevented: event.defaultPrevented,
+        fileCount: event.clipboardData?.files.length ?? 0,
+        itemCount: event.clipboardData?.items.length ?? 0,
+      };
     },
     { base64: png.toString("base64"), fileName: pastedFileName }
   );
+  expect(pasteResult).toEqual({
+    defaultPrevented: true,
+    fileCount: 1,
+    itemCount: 1,
+  });
   await expect
     .poll(() => hasUploadedFile(pastedFileName, pasteStartedAt), {
       timeout: 90_000,
