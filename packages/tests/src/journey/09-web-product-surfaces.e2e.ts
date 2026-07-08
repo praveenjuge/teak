@@ -26,11 +26,22 @@ const saveTextCard = async (page: Page, content: string) => {
   await expect(page.getByRole("main").getByText(content).first()).toBeVisible();
 };
 
-const searchFor = async (page: Page, query: string) => {
-  await page.goto("/");
+const enterSearch = async (page: Page, query: string) => {
   const search = page.getByPlaceholder("Search for anything...");
   await search.fill(query);
   await search.press("Enter");
+};
+
+const searchFor = async (page: Page, query: string) => {
+  await page.goto("/");
+  await enterSearch(page, query);
+};
+
+const clearFilters = async (page: Page) => {
+  await page
+    .getByRole("button", { name: /Clear (All|filters)/i })
+    .first()
+    .click();
 };
 
 const uploadFiles = async (page: Page, files: FilePayload | FilePayload[]) => {
@@ -49,58 +60,69 @@ const waitForHomeUploadSurface = async (page: Page) => {
   await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
 };
 
-test("web product surfaces cover edit, deep links, rich cards, import/export, bulk, and empty states", async ({
-  page,
-}) => {
+const primaryContext = () => {
   const state = readState();
   if (!state.primary?.apiKey) {
     throw new Error("Missing primary API key");
   }
-  const api = clientFor(state.primary.apiKey);
-  const marker = `prod-surface-${Date.now()}`;
-  const hasUploadedFile = async (fileName: string, createdAfter: number) => {
-    let cursor: string | undefined;
-    for (let pageIndex = 0; pageIndex < 5; pageIndex += 1) {
-      const params = new URLSearchParams({
-        createdAfter: String(createdAfter),
-        include: "metadata",
-        limit: "100",
-        type: "image",
-      });
-      if (cursor) {
-        params.set("cursor", cursor);
-      }
-      const response = await apiFetch(
-        `/v1/cards?${params.toString()}`,
-        state.primary!.apiKey!
-      );
-      const payload = (await response.json()) as {
-        items?: Array<{
-          fileName?: string | null;
-          fileUrl?: string | null;
-          thumbnailUrl?: string | null;
-          type?: string;
-        }>;
-        pageInfo?: { nextCursor?: string | null };
-      };
-      if (
-        payload.items?.some(
-          (card) =>
-            card.type === "image" &&
-            card.fileName === fileName &&
-            (card.fileUrl ?? card.thumbnailUrl)
-        )
-      ) {
-        return true;
-      }
-      cursor = payload.pageInfo?.nextCursor ?? undefined;
-      if (!cursor) {
-        return false;
-      }
-    }
-    return false;
+  return {
+    api: clientFor(state.primary.apiKey),
+    apiKey: state.primary.apiKey,
   };
+};
 
+const markerFor = (scope: string) =>
+  `prod-surface-${scope}-${Date.now().toString(36)}`;
+
+const hasUploadedFile = async (
+  apiKey: string,
+  fileName: string,
+  createdAfter: number
+) => {
+  let cursor: string | undefined;
+  for (let pageIndex = 0; pageIndex < 5; pageIndex += 1) {
+    const params = new URLSearchParams({
+      createdAfter: String(createdAfter),
+      include: "metadata",
+      limit: "100",
+      type: "image",
+    });
+    if (cursor) {
+      params.set("cursor", cursor);
+    }
+    const response = await apiFetch(`/v1/cards?${params.toString()}`, apiKey);
+    const payload = (await response.json()) as {
+      items?: Array<{
+        fileName?: string | null;
+        fileUrl?: string | null;
+        thumbnailUrl?: string | null;
+        type?: string;
+      }>;
+      pageInfo?: { nextCursor?: string | null };
+    };
+    if (
+      payload.items?.some(
+        (card) =>
+          card.type === "image" &&
+          card.fileName === fileName &&
+          (card.fileUrl ?? card.thumbnailUrl)
+      )
+    ) {
+      return true;
+    }
+    cursor = payload.pageInfo?.nextCursor ?? undefined;
+    if (!cursor) {
+      return false;
+    }
+  }
+  return false;
+};
+
+test("web editor, deep links, and link metadata stay usable", async ({
+  page,
+}) => {
+  const { apiKey } = primaryContext();
+  const marker = markerFor("editor");
   await saveTextCard(page, `${marker} original`);
   await page.getByRole("main").getByText(`${marker} original`).click();
   const editor = page.getByPlaceholder("Enter your text...");
@@ -122,7 +144,7 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   await page.keyboard.press("Escape");
   const searchResponse = await apiFetch(
     `/v1/cards/search?q=${encodeURIComponent(marker)}`,
-    state.primary.apiKey
+    apiKey
   );
   const searchPayload = (await searchResponse.json()) as {
     items?: Array<{ content?: string }>;
@@ -131,15 +153,16 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
     searchPayload.items?.filter((card) => card.content?.includes(marker))
   ).toHaveLength(1);
 
-  await saveTextCard(page, "https://example.com/");
+  const linkUrl = `https://example.com/?teak=${marker}`;
+  await saveTextCard(page, linkUrl);
   await expect
     .poll(
       async () =>
         (
           (await (
             await apiFetch(
-              "/v1/cards/search?q=example.com",
-              state.primary!.apiKey!
+              `/v1/cards/search?q=${encodeURIComponent(marker)}`,
+              apiKey
             )
           ).json()) as { items?: Array<{ metadataTitle?: string }> }
         ).items?.some((card) =>
@@ -148,11 +171,15 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
       { timeout: 90_000 }
     )
     .toBe(true);
-  await searchFor(page, "example.com");
+  await searchFor(page, marker);
   await expect(page.getByRole("main").getByText(/Example Domain/i)).toBeVisible(
     { timeout: 30_000 }
   );
+});
 
+test("web uploads and paste-created files complete", async ({ page }) => {
+  const { apiKey } = primaryContext();
+  const marker = markerFor("uploads");
   await waitForHomeUploadSurface(page);
   await uploadFiles(page, [
     { buffer: pdf, mimeType: "application/pdf", name: `${marker}.pdf` },
@@ -224,11 +251,17 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
     itemCount: 1,
   });
   await expect
-    .poll(() => hasUploadedFile(pastedFileName, pasteStartedAt), {
+    .poll(() => hasUploadedFile(apiKey, pastedFileName, pasteStartedAt), {
       timeout: 90_000,
     })
     .toBe(true);
+});
 
+test("web bulk actions, restore, and empty states stay coherent", async ({
+  page,
+}) => {
+  const { api } = primaryContext();
+  const marker = markerFor("bulk");
   const bulkA = await api.cards.create({
     content: `${marker} bulk-a`,
     source: "prod-e2e",
@@ -275,6 +308,37 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   await searchFor(page, `${marker} restore-me`);
   await expect(page.getByText(`${marker} restore-me`)).toBeVisible();
 
+  await page.getByText(`${marker} restore-me`).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { exact: true, name: `${marker}-tag` })
+    .click();
+  await expect(
+    page.getByRole("button", { exact: true, name: `${marker}-tag` })
+  ).toBeVisible();
+  await expect(page.getByText(`${marker} restore-me`)).toBeVisible();
+  await enterSearch(page, `${marker}-tag-empty`);
+  await expect(
+    page.getByRole("button", { exact: true, name: `${marker}-tag` })
+  ).toBeVisible();
+  await expect(page.getByText(/nothing found/i)).toBeVisible();
+  await clearFilters(page);
+
+  await searchFor(page, `${marker}-no-results`);
+  await expect(page.getByText(/nothing found/i)).toBeVisible();
+  await clearFilters(page);
+  await expect(page.getByPlaceholder("Search for anything...")).toHaveValue("");
+  await searchFor(page, "trash");
+  await enterSearch(page, `${marker} bulk-a`);
+  await expect(page.getByText(`${marker} bulk-a`)).toBeVisible();
+  await enterSearch(page, `${marker}-trash-empty`);
+  await expect(page.getByText(/nothing found/i)).toBeVisible();
+  await clearFilters(page);
+});
+
+test("settings import and export surface terminal states", async ({ page }) => {
+  test.setTimeout(180_000);
+  const marker = markerFor("import");
   await page.goto("/settings");
   await page.getByText("Import/Export Data").waitFor();
   await page
@@ -282,38 +346,41 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
     .locator("xpath=ancestor::div[.//button][1]")
     .getByRole("button", { name: "Manage" })
     .click();
-  await expect(page.getByRole("dialog")).toContainText("Import or export");
-  await page.getByRole("tab", { name: "Export" }).click();
+  const dialog = page.getByRole("dialog", { name: "Manage Data" });
+  await expect(dialog).toContainText("Import or export");
+  await dialog.getByRole("tab", { name: "Export" }).click();
   await expect(
-    page.getByText(/Export your data|Your export is ready/)
+    dialog.getByText(/Export your data|Your export is ready/)
   ).toBeVisible();
-  await page.getByRole("tab", { name: "Import" }).click();
+  await dialog.getByRole("tab", { name: "Import" }).click();
+  const importPanel = dialog.getByRole("tabpanel", { name: "Import" });
   await expect(
-    page.getByRole("button", { name: "Import Bookmarks" })
+    importPanel.getByRole("button", { name: "Import Bookmarks" })
   ).toBeVisible();
   const [bookmarkChooser] = await Promise.all([
     page.waitForEvent("filechooser"),
-    page.getByRole("button", { name: "Import Bookmarks" }).click(),
+    importPanel.getByRole("button", { name: "Import Bookmarks" }).click(),
   ]);
   await bookmarkChooser.setFiles({
     buffer: Buffer.from(
-      '<!doctype NETSCAPE-Bookmark-file-1><TITLE>Bookmarks</TITLE><H1>Bookmarks</H1><DL><DT><A HREF="https://example.com/">Example import</A></DT></DL>'
+      `<!doctype NETSCAPE-Bookmark-file-1><TITLE>Bookmarks</TITLE><H1>Bookmarks</H1><DL><DT><A HREF="https://example.com/?teak=${marker}">Example import ${marker}</A></DT></DL>`
     ),
     mimeType: "text/html",
     name: `${marker}-bookmarks.html`,
   });
-  await expect(page.getByText(`${marker}-bookmarks.html`)).toBeVisible();
-  await page.getByRole("button", { name: "Start import" }).click();
-  await expect(page.getByText(/created|skipped|Import/i)).toBeVisible({
-    timeout: 120_000,
-  });
+  await expect(importPanel.getByText(`${marker}-bookmarks.html`)).toBeVisible();
+  await importPanel.getByRole("button", { name: "Start import" }).click();
+  await expect
+    .poll(
+      async () => {
+        const text = (await importPanel.textContent()) ?? "";
+        return (
+          /Last import: [1-9]\d* created/i.test(text) &&
+          !/Import stopped|failed/i.test(text)
+        );
+      },
+      { timeout: 120_000 }
+    )
+    .toBe(true);
   await page.keyboard.press("Escape");
-
-  await searchFor(page, `${marker}-no-results`);
-  await expect(page.getByText(/nothing found/i)).toBeVisible();
-  await page.getByRole("button", { name: "Clear All" }).click();
-  await searchFor(page, `${marker}-tag`);
-  await expect(page.getByText(/nothing found/i)).toBeVisible();
-  await searchFor(page, "trash");
-  await expect(page.getByText(/nothing found|restore-me/i)).toBeVisible();
 });

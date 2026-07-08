@@ -196,7 +196,37 @@ describe("ImportPanel", () => {
           controllers
         )
       ).rejects.toThrow("Upload part 1 failed (500)");
-      expect(uploadFetch).toHaveBeenCalledTimes(3);
+      expect(uploadFetch).toHaveBeenCalledTimes(5);
+      expect(controllers.size).toBe(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("retries transient multipart upload failures", async () => {
+    const originalFetch = globalThis.fetch;
+    const uploadFetch = mock()
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    globalThis.fetch = uploadFetch as typeof fetch;
+    const controllers = new Set<AbortController>();
+    const onProgress = mock();
+
+    try {
+      await putParts(
+        new File([new Uint8Array([1])], "bookmarks.html"),
+        {
+          jobId: "job",
+          partSize: 1,
+          parts: [{ partNumber: 1, url: "https://uploads.example/1" }],
+          uploadedParts: [],
+        },
+        onProgress,
+        controllers
+      );
+      expect(uploadFetch).toHaveBeenCalledTimes(2);
+      expect(onProgress).toHaveBeenCalledWith(0);
+      expect(onProgress).toHaveBeenCalledWith(100);
       expect(controllers.size).toBe(0);
     } finally {
       globalThis.fetch = originalFetch;
