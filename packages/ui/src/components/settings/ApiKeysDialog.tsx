@@ -1,12 +1,11 @@
 import { Copy, RotateCw, Trash2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Spinner } from "../ui/spinner";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -51,12 +50,6 @@ const formatDate = (value?: number) => {
   return apiKeyDateFormatter.format(new Date(value));
 };
 
-const formatStatus = (status: ApiKeyListItem["status"]) =>
-  status
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-
 const visibleKeyName = (name: string) => {
   const trimmed = name.trim();
   if (
@@ -68,6 +61,26 @@ const visibleKeyName = (name: string) => {
   }
   return trimmed;
 };
+
+function ActionTooltip({
+  children,
+  label,
+}: {
+  children: ReactNode;
+  label: string;
+}) {
+  return (
+    <span className="group relative inline-flex">
+      {children}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute bottom-[calc(100%+0.375rem)] left-1/2 z-10 -translate-x-1/2 rounded-md border bg-popover px-2 py-1 text-popover-foreground text-xs opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+      >
+        {label}
+      </span>
+    </span>
+  );
+}
 
 export function ApiKeysDialog({
   isLoading,
@@ -141,7 +154,7 @@ export function ApiKeysDialog({
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-h-[82vh] gap-3 overflow-y-auto p-4 sm:max-w-xl">
+      <DialogContent className="max-h-[82vh] gap-3 overflow-y-auto p-4 sm:max-w-2xl">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <DialogHeader>
             <DialogTitle>Manage API Keys</DialogTitle>
@@ -193,12 +206,11 @@ export function ApiKeysDialog({
             )}
 
             {keys && keys.length > 0 ? (
-              <Table className="table-fixed">
+              <table className="w-full table-fixed caption-bottom text-sm">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[48%]">Key</TableHead>
-                    <TableHead className="w-[22%]">Used</TableHead>
-                    <TableHead className="w-[14%]">Status</TableHead>
+                    <TableHead className="w-[58%]">Key</TableHead>
+                    <TableHead className="w-[26%]">Used</TableHead>
                     <TableHead className="w-[16%]" />
                   </TableRow>
                 </TableHeader>
@@ -218,72 +230,75 @@ export function ApiKeysDialog({
 
                     return (
                       <TableRow key={key.id}>
-                        <TableCell className="max-w-0">
+                        <TableCell className="max-w-0 py-3 pr-2 pl-3">
                           {label ? (
                             <div className="truncate font-medium text-foreground text-sm">
                               {label}
                             </div>
                           ) : null}
-                          <div className="break-all font-mono text-muted-foreground text-xs">
+                          <div className="truncate font-mono text-muted-foreground text-xs">
                             {key.maskedKey}
                           </div>
                           <div className="truncate text-muted-foreground text-xs">
                             Created {formatDate(key.createdAt)}
                           </div>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                        <TableCell className="whitespace-nowrap px-2 text-muted-foreground">
                           {formatDate(key.lastUsedAt)}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap text-muted-foreground">
-                          {formatStatus(key.status)}
-                        </TableCell>
-                        <TableCell>
+                        <TableCell className="pr-3 pl-2">
                           <div className="flex justify-end gap-1.5">
                             {canRotate && (
+                              <ActionTooltip label="Regenerate key">
+                                <Button
+                                  aria-label={`Regenerate ${keyIdentity}`}
+                                  className="size-8"
+                                  disabled={isBusy}
+                                  onClick={() =>
+                                    runKeyAction(
+                                      key.id,
+                                      () => onRotateKey(key.id),
+                                      "API key regenerated. Copy the new key now."
+                                    )
+                                  }
+                                  size="icon"
+                                  type="button"
+                                  variant="outline"
+                                >
+                                  {isBusy ? <Spinner /> : <RotateCw />}
+                                </Button>
+                              </ActionTooltip>
+                            )}
+
+                            <ActionTooltip label="Revoke key">
                               <Button
-                                aria-label={`Regenerate ${keyIdentity}`}
+                                aria-label={`Revoke ${keyIdentity}`}
+                                className="size-8"
                                 disabled={isBusy}
                                 onClick={() =>
                                   runKeyAction(
                                     key.id,
-                                    () => onRotateKey(key.id),
-                                    "API key regenerated. Copy the new key now."
+                                    async () => {
+                                      await onRevokeKey(key.id);
+                                      return;
+                                    },
+                                    "API key revoked."
                                   )
                                 }
                                 size="icon"
-                                title="Regenerate"
-                                variant="outline"
+                                type="button"
+                                variant="ghost"
                               >
-                                {isBusy ? <Spinner /> : <RotateCw />}
+                                {isBusy ? <Spinner /> : <Trash2 />}
                               </Button>
-                            )}
-
-                            <Button
-                              aria-label={`Revoke ${keyIdentity}`}
-                              disabled={isBusy}
-                              onClick={() =>
-                                runKeyAction(
-                                  key.id,
-                                  async () => {
-                                    await onRevokeKey(key.id);
-                                    return;
-                                  },
-                                  "API key revoked."
-                                )
-                              }
-                              size="icon"
-                              title="Revoke"
-                              variant="ghost"
-                            >
-                              {isBusy ? <Spinner /> : <Trash2 />}
-                            </Button>
+                            </ActionTooltip>
                           </div>
                         </TableCell>
                       </TableRow>
                     );
                   })}
                 </TableBody>
-              </Table>
+              </table>
             ) : null}
           </div>
         </div>

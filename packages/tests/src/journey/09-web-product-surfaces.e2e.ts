@@ -267,7 +267,10 @@ test("web product surfaces cover edit, deep links, rich cards, import/export, bu
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await searchFor(page, "trash");
   await page.getByText(`${marker} restore-me`).click();
-  await page.getByRole("button", { name: "Restore" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { exact: true, name: "Restore" })
+    .click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await searchFor(page, `${marker} restore-me`);
   await expect(page.getByText(`${marker} restore-me`)).toBeVisible();
