@@ -115,7 +115,35 @@ export const scheduleUserCreatedBusinessEvent = (
     surface: "auth",
   });
 
-export const { getAuthUser } = authComponent.clientApi();
+// `AuthBoundary` (see apps/web ClientAuthBoundary) subscribes to
+// `api.auth.getAuthUser` at the provider level to reactively track the
+// session-validated user. The stock query from `authComponent.clientApi()`
+// THROWS `ConvexError("Unauthenticated")` whenever there is no valid session.
+//
+// During sign-out the browser still holds a momentarily-valid JWT, so the
+// subscription stays mounted and re-runs against the just-cleared session. A
+// thrown query result there propagates through Convex's reactive store
+// notification and crashes React (Minified React error #310) on whatever page
+// the user is on, instead of redirecting cleanly. It also spams the backend
+// logs with server errors on every sign-out.
+//
+// Mirror the resilient pattern used by `getCurrentUser` /
+// `getCardCreationStatus` and return null instead of throwing. Redirect on
+// unauth is still driven by `AuthBoundary`'s `useConvexAuth()` effect and the
+// app's explicit post-sign-out navigation.
+export const getAuthUserHandler = async (ctx: any) => {
+  try {
+    return (await authComponent.safeGetAuthUser(ctx)) ?? null;
+  } catch {
+    return null;
+  }
+};
+
+export const getAuthUser = query({
+  args: {},
+  handler: getAuthUserHandler,
+});
+
 export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
 export const resend = new Resend(components.resend, {

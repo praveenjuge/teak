@@ -1,7 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { requirePassword } from "../helpers/env";
 import { waitForEmail } from "../helpers/mailpit";
-import { appPath, newAnonymousContext, signIn } from "../helpers/prod";
+import {
+  appPath,
+  newAnonymousContext,
+  passwordFor,
+  signIn,
+} from "../helpers/prod";
 import { readState, updateState } from "../helpers/run-state";
 
 test("password reset and Polar checkout entry", async ({ browser }) => {
@@ -49,6 +54,31 @@ test("password reset and Polar checkout entry", async ({ browser }) => {
     await expect(
       page.frameLocator('iframe[src*="polar.sh"]').locator("body")
     ).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
+test("signing out from settings returns to login without crashing", async ({
+  browser,
+}) => {
+  const { primary } = readState();
+  if (!primary?.email) {
+    throw new Error("Missing primary account");
+  }
+  const context = await newAnonymousContext(browser);
+  const page = await context.newPage();
+  try {
+    await signIn(page, primary.email, passwordFor(primary));
+    await page.goto(appPath("/settings"));
+
+    // Regression: signing out here used to crash the page with a client error
+    // ("This page couldn't load") instead of returning the user to login.
+    await page.getByRole("button", { name: "Sign out", exact: true }).click();
+
+    await page.waitForURL(/\/login/, { timeout: 15_000 });
+    await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(page.getByText(/couldn't load/i)).toHaveCount(0);
   } finally {
     await context.close();
   }

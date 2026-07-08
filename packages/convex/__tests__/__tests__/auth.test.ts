@@ -14,7 +14,7 @@ process.env.APPLE_CLIENT_ID = "test-apple-client-id";
 process.env.APPLE_CLIENT_SECRET = "test-apple-client-secret";
 
 import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
-import { r2Mocks, r2MockModuleFactory } from "../helpers/r2Mock.test-utils";
+import { r2MockModuleFactory, r2Mocks } from "../helpers/r2Mock.test-utils";
 
 const mockSendEmail = mock().mockResolvedValue({ id: "m1" });
 
@@ -39,6 +39,7 @@ mock.module("../../storage/r2", r2MockModuleFactory);
 // We will dynamically import these
 let ensureCardCreationAllowed: any;
 let getCurrentUserHandler: any;
+let getAuthUserHandler: any;
 let getCardCreationStatusHandler: any;
 let deleteAccountHandler: any;
 let authComponent: any;
@@ -55,6 +56,7 @@ describe("auth", () => {
     const authModule = await import("../../auth");
     ensureCardCreationAllowed = authModule.ensureCardCreationAllowed;
     getCurrentUserHandler = authModule.getCurrentUserHandler;
+    getAuthUserHandler = authModule.getAuthUserHandler;
     getCardCreationStatusHandler = authModule.getCardCreationStatusHandler;
     deleteAccountHandler = authModule.deleteAccountHandler;
     authComponent = authModule.authComponent;
@@ -261,6 +263,38 @@ describe("auth", () => {
       // Restore
       rateLimiter.limit = originalLimit;
       polar.getCurrentSubscription = originalGetSubscription;
+    });
+  });
+
+  describe("getAuthUser", () => {
+    const mockSafeGetAuthUser = mock();
+
+    beforeEach(() => {
+      authComponent.safeGetAuthUser = mockSafeGetAuthUser;
+      mockSafeGetAuthUser.mockReset();
+    });
+
+    it("returns the user when authenticated", async () => {
+      const user = { _id: "u1", email: "a@b.com" };
+      mockSafeGetAuthUser.mockResolvedValue(user);
+      const result = await getAuthUserHandler({} as any);
+      expect(result).toEqual(user);
+    });
+
+    it("returns null when there is no session (does not throw)", async () => {
+      mockSafeGetAuthUser.mockResolvedValue(undefined);
+      const result = await getAuthUserHandler({} as any);
+      expect(result).toBeNull();
+    });
+
+    it("returns null instead of throwing when the lookup errors", async () => {
+      // Regression guard for the production sign-out crash: the provider-level
+      // subscription re-runs against a just-cleared session, and a thrown
+      // result there crashed the page (Minified React error #310). The query
+      // must swallow the error and resolve to null instead of rejecting.
+      mockSafeGetAuthUser.mockRejectedValue(new ConvexError("Unauthenticated"));
+      const result = await getAuthUserHandler({} as any);
+      expect(result).toBeNull();
     });
   });
 
