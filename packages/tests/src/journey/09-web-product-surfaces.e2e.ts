@@ -37,6 +37,13 @@ const searchFor = async (page: Page, query: string) => {
   await enterSearch(page, query);
 };
 
+const clearFilters = async (page: Page) => {
+  await page
+    .getByRole("button", { name: /Clear (All|filters)/i })
+    .first()
+    .click();
+};
+
 const uploadFiles = async (page: Page, files: FilePayload | FilePayload[]) => {
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
@@ -301,20 +308,32 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
   await searchFor(page, `${marker} restore-me`);
   await expect(page.getByText(`${marker} restore-me`)).toBeVisible();
 
-  await searchFor(page, `${marker}-no-results`);
-  await expect(page.getByText(/nothing found/i)).toBeVisible();
-  await page.getByRole("button", { name: "Clear All" }).click();
-  await expect(page.getByPlaceholder("Search for anything...")).toHaveValue("");
-  await searchFor(page, `${marker}missingtag`);
+  await page.getByText(`${marker} restore-me`).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { exact: true, name: `${marker}-tag` })
+    .click();
   await expect(
-    page.getByRole("button", { exact: true, name: `${marker}missingtag` })
+    page.getByRole("button", { exact: true, name: `${marker}-tag` })
+  ).toBeVisible();
+  await expect(page.getByText(`${marker} restore-me`)).toBeVisible();
+  await enterSearch(page, `${marker}-tag-empty`);
+  await expect(
+    page.getByRole("button", { exact: true, name: `${marker}-tag` })
   ).toBeVisible();
   await expect(page.getByText(/nothing found/i)).toBeVisible();
-  await page.getByRole("button", { name: "Clear All" }).click();
-  await page.getByRole("button", { name: /Trash/i }).first().click();
+  await clearFilters(page);
+
+  await searchFor(page, `${marker}-no-results`);
+  await expect(page.getByText(/nothing found/i)).toBeVisible();
+  await clearFilters(page);
+  await expect(page.getByPlaceholder("Search for anything...")).toHaveValue("");
+  await searchFor(page, "trash");
+  await enterSearch(page, `${marker} bulk-a`);
+  await expect(page.getByText(`${marker} bulk-a`)).toBeVisible();
   await enterSearch(page, `${marker}-trash-empty`);
   await expect(page.getByText(/nothing found/i)).toBeVisible();
-  await page.getByRole("button", { name: "Clear All" }).click();
+  await clearFilters(page);
 });
 
 test("settings import and export surface terminal states", async ({ page }) => {
