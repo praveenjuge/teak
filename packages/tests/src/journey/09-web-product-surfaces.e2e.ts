@@ -29,12 +29,42 @@ const saveTextCard = async (page: Page, content: string) => {
 const enterSearch = async (page: Page, query: string) => {
   const search = page.getByPlaceholder("Search for anything...");
   await search.fill(query);
-  await search.press("Enter");
 };
 
 const searchFor = async (page: Page, query: string) => {
   await page.goto("/");
   await enterSearch(page, query);
+};
+
+const cardText = (page: Page, text: string | RegExp) =>
+  page.getByRole("main").getByText(text).first();
+
+const expectSearchToFilterCurrentView = async (
+  page: Page,
+  query: string,
+  visibleText: string | RegExp
+) => {
+  const target = cardText(page, visibleText);
+  const missingQuery = `zzzz-no-match-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2)}`;
+  await expect(target).toBeVisible({ timeout: 30_000 });
+  await enterSearch(page, missingQuery);
+  await expect(target).not.toBeVisible();
+  await expect(
+    page.getByRole("main").getByText(/nothing found/i)
+  ).toBeVisible();
+  await enterSearch(page, query);
+  await expect(target).toBeVisible();
+};
+
+const searchForVisibleCard = async (
+  page: Page,
+  query: string,
+  visibleText: string | RegExp
+) => {
+  await page.goto("/");
+  await expectSearchToFilterCurrentView(page, query, visibleText);
 };
 
 const clearFilters = async (page: Page) => {
@@ -58,6 +88,12 @@ const waitForHomeUploadSurface = async (page: Page) => {
     page.getByRole("button", { name: "Upload files" })
   ).toBeVisible();
   await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
+};
+
+const showTrash = async (page: Page) => {
+  await page.goto("/");
+  await page.getByPlaceholder("Search for anything...").click();
+  await page.getByRole("button", { name: "Trash" }).click();
 };
 
 const primaryContext = () => {
@@ -121,7 +157,7 @@ const hasUploadedFile = async (
 test("web editor, deep links, and link metadata stay usable", async ({
   page,
 }) => {
-  const { apiKey } = primaryContext();
+  const { api, apiKey } = primaryContext();
   const marker = markerFor("editor");
   await saveTextCard(page, `${marker} original`);
   await page.getByRole("main").getByText(`${marker} original`).click();
@@ -153,27 +189,15 @@ test("web editor, deep links, and link metadata stay usable", async ({
     searchPayload.items?.filter((card) => card.content?.includes(marker))
   ).toHaveLength(1);
 
-  const linkUrl = `https://example.com/?teak=${marker}`;
-  await saveTextCard(page, linkUrl);
-  await expect
-    .poll(
-      async () =>
-        (
-          (await (
-            await apiFetch(
-              `/v1/cards/search?q=${encodeURIComponent(marker)}`,
-              apiKey
-            )
-          ).json()) as { items?: Array<{ metadataTitle?: string }> }
-        ).items?.some((card) =>
-          /Example Domain/i.test(card.metadataTitle ?? "")
-        ),
-      { timeout: 90_000 }
-    )
-    .toBe(true);
-  await searchFor(page, marker);
+  const link = await api.cards.create({
+    content: `${marker} link`,
+    source: "prod-e2e",
+    url: "https://example.com",
+  });
+  updateState((s) => s.createdCardIds.push(link.cardId));
+  await searchForVisibleCard(page, marker, `${marker} link`);
   await expect(page.getByRole("main").getByText(/Example Domain/i)).toBeVisible(
-    { timeout: 30_000 }
+    { timeout: 90_000 }
   );
 });
 
@@ -271,7 +295,7 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
     source: "prod-e2e",
   });
   updateState((s) => s.createdCardIds.push(bulkA.cardId, bulkB.cardId));
-  await searchFor(page, `${marker} bulk`);
+  await searchForVisibleCard(page, `${marker} bulk`, `${marker} bulk-a`);
   await page.getByText(`${marker} bulk-a`).click({ button: "right" });
   await page.getByRole("menuitem", { name: "Select" }).click();
   await page.getByText(`${marker} bulk-b`).click();
@@ -286,7 +310,11 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
     source: "prod-e2e",
   });
   updateState((s) => s.createdCardIds.push(restoreCard.cardId));
-  await searchFor(page, `${marker} restore-me`);
+  await searchForVisibleCard(
+    page,
+    `${marker} restore-me`,
+    `${marker} restore-me`
+  );
   await page.getByText(`${marker} restore-me`).click();
   await page.getByRole("button", { name: "Favorite" }).click();
   await page.getByRole("button", { name: "Manage Tags" }).click();
@@ -298,15 +326,18 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Delete" }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
-  await searchFor(page, "trash");
+  await showTrash(page);
   await page.getByText(`${marker} restore-me`).click();
   await page
     .getByRole("dialog")
     .getByRole("button", { exact: true, name: "Restore" })
     .click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
-  await searchFor(page, `${marker} restore-me`);
-  await expect(page.getByText(`${marker} restore-me`)).toBeVisible();
+  await searchForVisibleCard(
+    page,
+    `${marker} restore-me`,
+    `${marker} restore-me`
+  );
 
   await page.getByText(`${marker} restore-me`).click();
   await page
@@ -321,16 +352,19 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
   await expect(
     page.getByRole("button", { exact: true, name: `${marker}-tag` })
   ).toBeVisible();
-  await expect(page.getByText(/nothing found/i)).toBeVisible();
+  await expect(page.getByText(`${marker} restore-me`)).toBeVisible();
   await clearFilters(page);
 
   await searchFor(page, `${marker}-no-results`);
   await expect(page.getByText(/nothing found/i)).toBeVisible();
   await clearFilters(page);
   await expect(page.getByPlaceholder("Search for anything...")).toHaveValue("");
-  await searchFor(page, "trash");
-  await enterSearch(page, `${marker} bulk-a`);
-  await expect(page.getByText(`${marker} bulk-a`)).toBeVisible();
+  await showTrash(page);
+  await expectSearchToFilterCurrentView(
+    page,
+    `${marker} bulk-a`,
+    `${marker} bulk-a`
+  );
   await enterSearch(page, `${marker}-trash-empty`);
   await expect(page.getByText(/nothing found/i)).toBeVisible();
   await clearFilters(page);

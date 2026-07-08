@@ -4,7 +4,7 @@ import { connectMcp } from "../helpers/mcp";
 import { readState, updateState } from "../helpers/run-state";
 
 test("MCP lists and calls every public tool", async () => {
-  const { primary, createdCardIds } = readState();
+  const { primary } = readState();
   if (!primary?.apiKey) {
     throw new Error("Missing primary API key");
   }
@@ -55,11 +55,30 @@ test("MCP lists and calls every public tool", async () => {
       { fileName: "mcp.txt", mimeType: "text/plain", fileSize: 1 },
     ],
     ["search", { query: "mcp" }],
-    ["fetch", { id: createdCardIds[0] || cardId }],
+    ["fetch", { id: cardId }],
   ] as const;
   for (const [name, args] of calls) {
-    expect((await client.callTool({ name, arguments: args })).isError).not.toBe(
-      true
-    );
+    const result = await client.callTool({ name, arguments: args });
+    expect(
+      result.isError,
+      `${name} failed: ${JSON.stringify(result.content ?? result.structuredContent)}`
+    ).not.toBe(true);
+    if (name === "teak_v1_bulk_cards") {
+      const bulk = result.structuredContent as
+        | { results?: Array<{ cardId?: string }> }
+        | undefined;
+      for (const item of bulk?.results ?? []) {
+        if (item.cardId) {
+          updateState((s) => s.createdCardIds.push(item.cardId as string));
+        }
+      }
+    }
+    if (name === "fetch") {
+      expect(result.structuredContent ?? result.content).toBeTruthy();
+    }
+    if (name === "teak_v1_create_upload") {
+      expect(result.structuredContent ?? result.content).toBeTruthy();
+    }
   }
+  await client.close();
 });
