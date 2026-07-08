@@ -146,6 +146,8 @@ Do not invent a release flow. Read `apps/mobile/release.md` and run the commands
 
 The desktop app uses Electron with `electron-builder` and ships signed, notarized macOS builds via GitHub Releases.
 
+Releases are always a patch version bump (e.g. 1.0.55 → 1.0.56). Do not ask for confirmation — just increment the patch, bump, commit, tag, and push.
+
 To publish a new desktop release:
 
 1. Bump the `version` field in **every** `package.json` across the monorepo (root + all workspaces under `apps/*` and `packages/*`).
