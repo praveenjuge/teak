@@ -111,7 +111,7 @@ export const captureBusinessEvent = internalAction({
       environment: resolveEnvironment(),
       release: resolveRelease(),
       tags: await buildTags(args),
-      fingerprint: [message, eventId],
+      fingerprint: [message],
     };
 
     const envelope = [
