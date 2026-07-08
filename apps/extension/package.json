@@ -20,7 +20,7 @@
     "@convex-dev/better-auth": "0.12.2",
     "@tailwindcss/vite": "^4.3.0",
     "@teak/convex": "workspace:*",
-    "better-auth": "1.6.11",
+    "better-auth": "1.6.13",
     "convex": "^1.39.0",
     "lucide-react": "^1.16.0",
     "react": "^19.2.5",

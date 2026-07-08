@@ -26,7 +26,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@sentry/react-native": "~7.11.0",
     "@teak/convex": "workspace:*",
-    "better-auth": "1.6.11",
+    "better-auth": "1.6.13",
     "convex": "^1.39.0",
     "convex-helpers": "0.1.118",
     "expo": "^56.0.0",

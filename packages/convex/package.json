@@ -44,7 +44,7 @@
     "@vllnt/convex-api-keys": "0.2.0",
     "ai": "^6.0.184",
     "archiver": "8.0.0",
-    "better-auth": "1.6.11",
+    "better-auth": "1.6.13",
     "convex": "^1.39.0",
     "convex-helpers": "^0.1.118",
     "exifr": "^7.1.3",
