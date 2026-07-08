@@ -198,6 +198,9 @@ const isAbortError = (error: unknown) =>
   "name" in error &&
   error.name === "AbortError";
 
+const shouldCaptureUploadError = (errorCode?: CardErrorCode) =>
+  errorCode !== CARD_ERROR_CODES.FILE_TOO_LARGE;
+
 const throwIfAborted = (signal: AbortSignal) => {
   if (signal.aborted) {
     throw createAbortError();
@@ -462,16 +465,17 @@ export function useFileUploadCore(
           fileError.code = (error as CodedError).code;
         }
 
-        // Capture upload errors in Sentry
-        captureException(error, {
-          tags: { source: "convex", operation: "fileUpload" },
-          extra: {
-            fileName: file.name,
-            fileType: file.type,
-            fileSize: file.size,
-            errorCode: fileError.code,
-          },
-        });
+        if (shouldCaptureUploadError(fileError.code)) {
+          captureException(error, {
+            tags: { source: "convex", operation: "fileUpload" },
+            extra: {
+              fileName: file.name,
+              fileType: file.type,
+              fileSize: file.size,
+              errorCode: fileError.code,
+            },
+          });
+        }
 
         setError(fileError);
         config.onError?.(fileError);
@@ -634,15 +638,17 @@ export function useFileUploadCore(
           fileError.code = (error as CodedError).code;
         }
 
-        captureException(error, {
-          tags: { source: "convex", operation: "fileUpload" },
-          extra: {
-            fileName: name,
-            fileType: type,
-            fileSize: size,
-            errorCode: fileError.code,
-          },
-        });
+        if (shouldCaptureUploadError(fileError.code)) {
+          captureException(error, {
+            tags: { source: "convex", operation: "fileUpload" },
+            extra: {
+              fileName: name,
+              fileType: type,
+              fileSize: size,
+              errorCode: fileError.code,
+            },
+          });
+        }
 
         setError(fileError);
         config.onError?.(fileError);

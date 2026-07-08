@@ -328,7 +328,7 @@ export function AddCardActions({
 
         toast.error(
           `Failed to upload ${file.name}: ${result.error || "Upload failed"}`,
-          { id: toastId }
+          { ...MANUAL_CLOSE_TOAST_OPTIONS, id: toastId }
         );
       }
     };

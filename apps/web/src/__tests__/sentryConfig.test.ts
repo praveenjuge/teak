@@ -48,6 +48,56 @@ describe("filterClientSentryEvent", () => {
     expect(filterClientSentryEvent(event)).toBeNull();
   });
 
+  test("drops Safari Better Auth session fetch aborts", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            type: "TypeError",
+            value: "Load failed (app.teakvault.com)",
+            stacktrace: {
+              frames: [
+                {
+                  filename:
+                    "node_modules/@convex-dev/better-auth/src/react/index.tsx",
+                },
+                { filename: "node_modules/@better-fetch/fetch/dist/index.js" },
+              ],
+            },
+          },
+        ],
+      },
+      user: { username: "e2e-matrix-matrix-webkit-1783500370949-70o5ch" },
+    } satisfies ErrorEvent;
+
+    expect(filterClientSentryEvent(event)).toBeNull();
+  });
+
+  test("keeps real-user Better Auth session fetch failures", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            type: "TypeError",
+            value: "Load failed (app.teakvault.com)",
+            stacktrace: {
+              frames: [
+                {
+                  filename:
+                    "node_modules/@convex-dev/better-auth/src/react/index.tsx",
+                },
+                { filename: "node_modules/@better-fetch/fetch/dist/index.js" },
+              ],
+            },
+          },
+        ],
+      },
+      user: { username: "Praveen" },
+    } satisfies ErrorEvent;
+
+    expect(filterClientSentryEvent(event)).toBe(event);
+  });
+
   test("keeps app-origin fetch failures", () => {
     const event = {
       exception: {
@@ -55,6 +105,24 @@ describe("filterClientSentryEvent", () => {
           {
             type: "TypeError",
             value: "Failed to fetch",
+            stacktrace: {
+              frames: [{ filename: "app:///src/app/HomePageClient.tsx" }],
+            },
+          },
+        ],
+      },
+    } satisfies ErrorEvent;
+
+    expect(filterClientSentryEvent(event)).toBe(event);
+  });
+
+  test("keeps app-origin Safari load failures", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            type: "TypeError",
+            value: "Load failed (app.teakvault.com)",
             stacktrace: {
               frames: [{ filename: "app:///src/app/HomePageClient.tsx" }],
             },
