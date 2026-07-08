@@ -36,6 +36,37 @@ const searchFor = async (page: Page, query: string) => {
   await enterSearch(page, query);
 };
 
+const cardText = (page: Page, text: string | RegExp) =>
+  page.getByRole("main").getByText(text).first();
+
+const expectSearchToFilterCurrentView = async (
+  page: Page,
+  query: string,
+  visibleText: string | RegExp
+) => {
+  const target = cardText(page, visibleText);
+  const missingQuery = `zzzz-no-match-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2)}`;
+  await expect(target).toBeVisible({ timeout: 30_000 });
+  await enterSearch(page, missingQuery);
+  await expect(target).not.toBeVisible();
+  await expect(
+    page.getByRole("main").getByText(/nothing found/i)
+  ).toBeVisible();
+  await enterSearch(page, query);
+  await expect(target).toBeVisible();
+};
+
+const searchForVisibleCard = async (
+  page: Page,
+  query: string,
+  visibleText: string | RegExp
+) => {
+  await page.goto("/");
+  await expectSearchToFilterCurrentView(page, query, visibleText);
+};
+
 const clearFilters = async (page: Page) => {
   await page
     .getByRole("button", { name: /Clear (All|filters)/i })
@@ -164,7 +195,7 @@ test("web editor, deep links, and link metadata stay usable", async ({
     url: "https://example.com",
   });
   updateState((s) => s.createdCardIds.push(link.cardId));
-  await searchFor(page, marker);
+  await searchForVisibleCard(page, marker, `${marker} link`);
   await expect(page.getByRole("main").getByText(/Example Domain/i)).toBeVisible(
     { timeout: 90_000 }
   );
@@ -264,7 +295,7 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
     source: "prod-e2e",
   });
   updateState((s) => s.createdCardIds.push(bulkA.cardId, bulkB.cardId));
-  await searchFor(page, `${marker} bulk`);
+  await searchForVisibleCard(page, `${marker} bulk`, `${marker} bulk-a`);
   await page.getByText(`${marker} bulk-a`).click({ button: "right" });
   await page.getByRole("menuitem", { name: "Select" }).click();
   await page.getByText(`${marker} bulk-b`).click();
@@ -279,7 +310,11 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
     source: "prod-e2e",
   });
   updateState((s) => s.createdCardIds.push(restoreCard.cardId));
-  await searchFor(page, `${marker} restore-me`);
+  await searchForVisibleCard(
+    page,
+    `${marker} restore-me`,
+    `${marker} restore-me`
+  );
   await page.getByText(`${marker} restore-me`).click();
   await page.getByRole("button", { name: "Favorite" }).click();
   await page.getByRole("button", { name: "Manage Tags" }).click();
@@ -298,8 +333,11 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
     .getByRole("button", { exact: true, name: "Restore" })
     .click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
-  await searchFor(page, `${marker} restore-me`);
-  await expect(page.getByText(`${marker} restore-me`)).toBeVisible();
+  await searchForVisibleCard(
+    page,
+    `${marker} restore-me`,
+    `${marker} restore-me`
+  );
 
   await page.getByText(`${marker} restore-me`).click();
   await page
@@ -322,8 +360,11 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
   await clearFilters(page);
   await expect(page.getByPlaceholder("Search for anything...")).toHaveValue("");
   await showTrash(page);
-  await enterSearch(page, `${marker} bulk-a`);
-  await expect(page.getByText(`${marker} bulk-a`)).toBeVisible();
+  await expectSearchToFilterCurrentView(
+    page,
+    `${marker} bulk-a`,
+    `${marker} bulk-a`
+  );
   await enterSearch(page, `${marker}-trash-empty`);
   await expect(page.getByText(/nothing found/i)).toBeVisible();
   await clearFilters(page);
