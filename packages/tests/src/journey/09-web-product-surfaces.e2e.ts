@@ -26,11 +26,15 @@ const saveTextCard = async (page: Page, content: string) => {
   await expect(page.getByRole("main").getByText(content).first()).toBeVisible();
 };
 
-const searchFor = async (page: Page, query: string) => {
-  await page.goto("/");
+const enterSearch = async (page: Page, query: string) => {
   const search = page.getByPlaceholder("Search for anything...");
   await search.fill(query);
   await search.press("Enter");
+};
+
+const searchFor = async (page: Page, query: string) => {
+  await page.goto("/");
+  await enterSearch(page, query);
 };
 
 const uploadFiles = async (page: Page, files: FilePayload | FilePayload[]) => {
@@ -301,6 +305,13 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
   await expect(page.getByText(/nothing found/i)).toBeVisible();
   await page.getByRole("button", { name: "Clear All" }).click();
   await expect(page.getByPlaceholder("Search for anything...")).toHaveValue("");
+  await searchFor(page, `${marker}-missing-tag`);
+  await expect(page.getByText(/nothing found/i)).toBeVisible();
+  await page.getByRole("button", { name: "Clear All" }).click();
+  await page.getByRole("button", { name: /Trash/i }).first().click();
+  await enterSearch(page, `${marker}-trash-empty`);
+  await expect(page.getByText(/nothing found/i)).toBeVisible();
+  await page.getByRole("button", { name: "Clear All" }).click();
 });
 
 test("settings import and export surface terminal states", async ({ page }) => {
@@ -339,6 +350,6 @@ test("settings import and export surface terminal states", async ({ page }) => {
   await importPanel.getByRole("button", { name: "Start import" }).click();
   await expect
     .poll(async () => importPanel.textContent(), { timeout: 120_000 })
-    .toMatch(/Last import: .*created|Last import: .*skipped|Import stopped/i);
+    .toMatch(/Last import: [1-9]\d* created/i);
   await page.keyboard.press("Escape");
 });
