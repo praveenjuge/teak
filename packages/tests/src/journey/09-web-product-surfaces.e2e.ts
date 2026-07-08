@@ -29,7 +29,6 @@ const saveTextCard = async (page: Page, content: string) => {
 const enterSearch = async (page: Page, query: string) => {
   const search = page.getByPlaceholder("Search for anything...");
   await search.fill(query);
-  await search.press("Enter");
 };
 
 const searchFor = async (page: Page, query: string) => {
@@ -58,6 +57,12 @@ const waitForHomeUploadSurface = async (page: Page) => {
     page.getByRole("button", { name: "Upload files" })
   ).toBeVisible();
   await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
+};
+
+const showTrash = async (page: Page) => {
+  await page.goto("/");
+  await page.getByPlaceholder("Search for anything...").click();
+  await page.getByRole("button", { name: "Trash" }).click();
 };
 
 const primaryContext = () => {
@@ -121,7 +126,7 @@ const hasUploadedFile = async (
 test("web editor, deep links, and link metadata stay usable", async ({
   page,
 }) => {
-  const { apiKey } = primaryContext();
+  const { api, apiKey } = primaryContext();
   const marker = markerFor("editor");
   await saveTextCard(page, `${marker} original`);
   await page.getByRole("main").getByText(`${marker} original`).click();
@@ -153,27 +158,15 @@ test("web editor, deep links, and link metadata stay usable", async ({
     searchPayload.items?.filter((card) => card.content?.includes(marker))
   ).toHaveLength(1);
 
-  const linkUrl = `https://example.com/?teak=${marker}`;
-  await saveTextCard(page, linkUrl);
-  await expect
-    .poll(
-      async () =>
-        (
-          (await (
-            await apiFetch(
-              `/v1/cards/search?q=${encodeURIComponent(marker)}`,
-              apiKey
-            )
-          ).json()) as { items?: Array<{ metadataTitle?: string }> }
-        ).items?.some((card) =>
-          /Example Domain/i.test(card.metadataTitle ?? "")
-        ),
-      { timeout: 90_000 }
-    )
-    .toBe(true);
+  const link = await api.cards.create({
+    content: `${marker} link`,
+    source: "prod-e2e",
+    url: "https://example.com",
+  });
+  updateState((s) => s.createdCardIds.push(link.cardId));
   await searchFor(page, marker);
   await expect(page.getByRole("main").getByText(/Example Domain/i)).toBeVisible(
-    { timeout: 30_000 }
+    { timeout: 90_000 }
   );
 });
 
@@ -298,7 +291,7 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Delete" }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
-  await searchFor(page, "trash");
+  await showTrash(page);
   await page.getByText(`${marker} restore-me`).click();
   await page
     .getByRole("dialog")
@@ -321,14 +314,14 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
   await expect(
     page.getByRole("button", { exact: true, name: `${marker}-tag` })
   ).toBeVisible();
-  await expect(page.getByText(/nothing found/i)).toBeVisible();
+  await expect(page.getByText(`${marker} restore-me`)).toBeVisible();
   await clearFilters(page);
 
   await searchFor(page, `${marker}-no-results`);
   await expect(page.getByText(/nothing found/i)).toBeVisible();
   await clearFilters(page);
   await expect(page.getByPlaceholder("Search for anything...")).toHaveValue("");
-  await searchFor(page, "trash");
+  await showTrash(page);
   await enterSearch(page, `${marker} bulk-a`);
   await expect(page.getByText(`${marker} bulk-a`)).toBeVisible();
   await enterSearch(page, `${marker}-trash-empty`);

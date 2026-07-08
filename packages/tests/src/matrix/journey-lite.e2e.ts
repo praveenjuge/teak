@@ -16,6 +16,5 @@ test("signup, create, and search", async ({ page }) => {
     .first();
   await expect(savedCard).toBeVisible();
   await page.getByPlaceholder("Search for anything...").fill(marker);
-  await page.keyboard.press("Enter");
   await expect(savedCard).toBeVisible();
 });

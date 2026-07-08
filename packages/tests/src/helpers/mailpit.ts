@@ -3,7 +3,7 @@ import { env, requireMailpit } from "./env";
 interface MailpitMessage {
   ID: string;
   Subject: string;
-  To: Array<{ Address: string }>;
+  To?: Array<{ Address: string }> | null;
 }
 
 const api = (path: string) => `${env.mailpitUrl}/api/v1${path}`;
@@ -23,6 +23,11 @@ const mailpitFetch = async (path: string, init?: RequestInit) => {
   throw lastError;
 };
 
+const hasRecipient = (message: MailpitMessage, email: string) =>
+  (message.To ?? []).some(
+    (recipient) => recipient.Address?.toLowerCase() === email
+  );
+
 export const assertMailpitReady = async () => {
   requireMailpit();
   const response = await mailpitFetch("/messages?limit=1");
@@ -41,8 +46,7 @@ export const waitForEmail = async (to: string, subject: string) => {
     const data = (await response.json()) as { messages?: MailpitMessage[] };
     const hit = data.messages?.find(
       (message) =>
-        message.Subject === subject &&
-        message.To.some((recipient) => recipient.Address.toLowerCase() === to)
+        message.Subject === subject && hasRecipient(message, to.toLowerCase())
     );
     if (hit) {
       const detail = await mailpitFetch(`/message/${hit.ID}`);
@@ -68,11 +72,7 @@ export const deleteMessagesFor = async (email: string) => {
     }
     const data = (await response.json()) as { messages?: MailpitMessage[] };
     for (const message of data.messages ?? []) {
-      if (
-        message.To.some(
-          (recipient) => recipient.Address.toLowerCase() === email
-        )
-      ) {
+      if (hasRecipient(message, email.toLowerCase())) {
         await mailpitFetch(`/message/${message.ID}`, { method: "DELETE" });
       }
     }

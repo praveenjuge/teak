@@ -389,17 +389,38 @@ export function useCardsSearchController(
     [localCards, searchState, searchTerms]
   );
 
+  const remoteSearchResults = useMemo(() => {
+    if (!hasActiveSearch) {
+      return remoteCards;
+    }
+    return filterLocalCards(remoteCards, {
+      searchTerms,
+      types: searchState.filterTags,
+      styleFilters: searchState.styleFilters,
+      hueFilters: searchState.hueFilters,
+      hexFilters: searchState.hexFilters,
+      favoritesOnly: searchState.showFavoritesOnly,
+      showTrashOnly: searchState.showTrashOnly,
+      createdAtRange: searchState.timeFilter?.range,
+    });
+  }, [hasActiveSearch, remoteCards, searchState, searchTerms]);
+
   const suppressRemoteCards =
     hasActiveSearch && deferredSearchQuery !== searchState.searchQuery;
 
   const displayCards = useMemo(
     () =>
       mergeLocalAndRemoteSearchResults(
-        suppressRemoteCards ? [] : remoteCards,
+        suppressRemoteCards ? [] : remoteSearchResults,
         localSearchResults,
         hasActiveSearch
       ),
-    [hasActiveSearch, localSearchResults, remoteCards, suppressRemoteCards]
+    [
+      hasActiveSearch,
+      localSearchResults,
+      remoteSearchResults,
+      suppressRemoteCards,
+    ]
   );
 
   const resetKey = useMemo(

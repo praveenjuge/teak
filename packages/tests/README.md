@@ -6,6 +6,7 @@ Run from the repo root:
 
 ```bash
 bun install
+bun run --cwd packages/tests e2e:prod:local
 bun run --cwd packages/tests e2e:prod:docs
 bun run --cwd packages/tests e2e:prod:journey
 bun run --cwd packages/tests teardown
@@ -23,6 +24,9 @@ Useful variables:
 - `PROD_SITE_URL` defaults to `https://teakvault.com`
 - `PROD_API_URL` defaults to `https://teakvault.com/api`
 - `PROD_MCP_URL` defaults to `https://teakvault.com/mcp`
+- `VITE_PUBLIC_CONVEX_URL` and `VITE_PUBLIC_CONVEX_SITE_URL` are required for the extension build. You can use matching `NEXT_PUBLIC_CONVEX_URL` and `NEXT_PUBLIC_CONVEX_SITE_URL` values locally.
+
+For local parity with GitHub Actions, put the required values in `.env.production-e2e.local` at the repo root and run `bun run --cwd packages/tests e2e:prod:local`. The local runner installs Playwright browsers, executes preflight, docs, journey, browser matrix, extension, and teardown steps, then preserves separate reports under `packages/tests/playwright-report`.
 
 Mailpit preflight:
 
