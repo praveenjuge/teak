@@ -130,16 +130,18 @@ describe("ApiKeysDialog", () => {
     expect(markup).toContain("Key");
     expect(markup).toContain("Used");
     expect(markup).toContain("Created");
-    expect(markup).toContain("Status");
+    expect(markup).not.toContain("Status");
     expect(markup).toContain("SDK Key");
     expect(markup).toContain("teakapi_secret_live_a1b2c3d4");
     expect(markup).toContain("Regenerate SDK Key");
+    expect(markup).toContain("Regenerate key");
+    expect(markup).toContain("Revoke key");
     expect(markup).not.toContain(">Disable<");
     expect(markup).toContain("Disabled Key");
     expect(markup).toContain("Disabled");
     expect(markup).not.toContain(">Enable<");
     expect(markup).not.toContain("Update required");
-    expect(markup).toContain("Active");
+    expect(markup).not.toContain(">Active<");
     expect(markup).not.toContain("for API, MCP, and Raycast access");
   });
 
@@ -165,7 +167,7 @@ describe("ApiKeysDialog", () => {
     expect(markup).not.toContain("Last used");
   });
 
-  test("renders terminal key statuses as table text", () => {
+  test("keeps terminal key statuses out of the table", () => {
     const markup = renderToStaticMarkup(
       <ApiKeysDialog
         isLoading={false}
@@ -173,7 +175,7 @@ describe("ApiKeysDialog", () => {
           {
             ...keys[0],
             id: "exhausted_key",
-            name: "Exhausted Key",
+            name: "Terminal Key",
             status: "exhausted" as const,
           },
         ]}
@@ -184,6 +186,8 @@ describe("ApiKeysDialog", () => {
     );
 
     expect(markup).not.toContain('data-variant="destructive"');
-    expect(markup).toContain("Exhausted");
+    expect(markup).not.toContain("Exhausted");
+    expect(markup).not.toContain("Regenerate Terminal Key");
+    expect(markup).toContain("Revoke Terminal Key");
   });
 });
