@@ -82,6 +82,18 @@ describe("electron main process wiring", () => {
     expect(source).toContain("isMicrophoneCheck");
   });
 
+  it("allows clipboard writes so copy actions work", () => {
+    // The shared UI copies via navigator.clipboard.writeText/write, which route
+    // through Electron's permission handlers. Overriding those handlers for the
+    // microphone must not deny clipboard writes ("Write permission denied").
+    const source = readFileSync(
+      resolve(import.meta.dir, "../main/index.ts"),
+      "utf8"
+    );
+
+    expect(source).toContain("clipboard-sanitized-write");
+  });
+
   it("configures the main window with correct dimensions", () => {
     const source = readFileSync(
       resolve(import.meta.dir, "../main/index.ts"),

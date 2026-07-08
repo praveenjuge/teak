@@ -128,6 +128,15 @@ export const createCardForUserHandler = async (
     finalContent = urlExtraction.cleanedContent;
   }
 
+  // If we resolved a URL but the type is still "text" (either defaulted or
+  // provided explicitly by a client that couldn't detect the link), treat it
+  // as a link card. This mirrors the deterministic classifier, which always
+  // upgrades URL-bearing cards to "link", and prevents links from sticking as
+  // text when an explicit type skips async classification.
+  if (finalUrl && cardType === "text") {
+    cardType = "link";
+  }
+
   const quoteNormalization = normalizeQuoteContent(finalContent);
   const shouldDefaultToQuote =
     !providedType && quoteNormalization.removedQuotes;

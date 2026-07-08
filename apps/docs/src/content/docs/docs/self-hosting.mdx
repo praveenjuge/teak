@@ -111,6 +111,10 @@ CONVEX_DEPLOY_KEY=
 NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 TEAK_DEV_APP_URL=http://app.teak.localhost:1355   # Optional local override
+# Origin your R2 files are served from, so the Content-Security-Policy allows
+# loading images and documents. Set this to your bucket's public/signed-URL
+# origin (e.g. https://your-bucket.<account>.r2.cloudflarestorage.com).
+NEXT_PUBLIC_R2_STORAGE_ORIGIN=https://your-bucket.account.r2.cloudflarestorage.com
 ```
 
 ### Client Apps (`apps/mobile`, `apps/extension`, `apps/desktop`)

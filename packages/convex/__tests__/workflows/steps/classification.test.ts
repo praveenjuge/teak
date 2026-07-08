@@ -333,6 +333,19 @@ describe("classification step", () => {
       expect(result.confidence).toBe(0.88);
     });
 
+    test("detects palette from a single hex color", async () => {
+      const card = {
+        _id: "c1",
+        content: "#2050D0",
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const result = await classify(mockCtx, { cardId: "c1" });
+
+      expect(result.type).toBe("palette");
+      expect(result.confidence).toBe(0.88);
+    });
+
     test("detects palette from color names", async () => {
       const card = {
         _id: "c1",

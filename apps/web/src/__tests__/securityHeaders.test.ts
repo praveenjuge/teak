@@ -90,6 +90,63 @@ describe("web security headers", () => {
     }
   });
 
+  test("permits eval only in development for React/Next fast refresh", () => {
+    const previous = process.env.NODE_ENV;
+    const scriptTokens = () =>
+      buildContentSecurityPolicy(nonce)
+        .split("; ")
+        .find((directive) => directive.startsWith("script-src "))
+        ?.split(" ")
+        .slice(1) ?? [];
+    try {
+      process.env.NODE_ENV = "development";
+      expect(scriptTokens()).toContain("'unsafe-eval'");
+
+      process.env.NODE_ENV = "production";
+      expect(scriptTokens()).not.toContain("'unsafe-eval'");
+    } finally {
+      if (previous === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = previous;
+      }
+    }
+  });
+
+  test("allows configured R2 storage origins for images, media, uploads and frames", () => {
+    const previous = process.env.NEXT_PUBLIC_R2_STORAGE_ORIGIN;
+    process.env.NEXT_PUBLIC_R2_STORAGE_ORIGIN =
+      "https://teak-files-dev.example.r2.cloudflarestorage.com/path, http://unsafe.example, not-a-url";
+    try {
+      const policy = buildContentSecurityPolicy(nonce);
+      const tokens = (name: string) =>
+        policy
+          .split("; ")
+          .find((directive) => directive.startsWith(`${name} `))
+          ?.split(" ")
+          .slice(1) ?? [];
+
+      const devStorageOrigin =
+        "https://teak-files-dev.example.r2.cloudflarestorage.com";
+      expect(tokens("img-src")).toContain(devStorageOrigin);
+      expect(tokens("media-src")).toContain(devStorageOrigin);
+      expect(tokens("connect-src")).toContain(devStorageOrigin);
+      expect(tokens("frame-src")).toContain(devStorageOrigin);
+      expect(tokens("img-src")).not.toContain("http://unsafe.example");
+      // Exact origins only - never widened to a bare scheme or wildcard host.
+      expect(tokens("img-src")).not.toContain("https:");
+      expect(tokens("img-src")).not.toContain(
+        "https://*.r2.cloudflarestorage.com"
+      );
+    } finally {
+      if (previous === undefined) {
+        delete process.env.NEXT_PUBLIC_R2_STORAGE_ORIGIN;
+      } else {
+        process.env.NEXT_PUBLIC_R2_STORAGE_ORIGIN = previous;
+      }
+    }
+  });
+
   test("allows configured R2 upload origins only for browser uploads", () => {
     const previous = process.env.R2_ENDPOINT;
     process.env.R2_ENDPOINT =

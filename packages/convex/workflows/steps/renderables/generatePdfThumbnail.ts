@@ -13,9 +13,32 @@ import {
 // Maximum thumbnail width - height will scale proportionally to maintain document aspect ratio
 const THUMBNAIL_MAX_WIDTH = 400;
 
+// pdf.js is loaded directly into the headless browser so we render the first
+// page ourselves instead of relying on Mozilla's externally hosted viewer.
+// Rendering from bytes we inject avoids cross-origin fetch/CORS issues with
+// storage URLs (R2 signed URLs do not send permissive CORS headers).
+const PDFJS_VERSION = "3.11.174";
+const PDFJS_LIB_URL = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`;
+const PDFJS_WORKER_URL = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
+
+/**
+ * Fetch the PDF from storage server-side and return it as a base64 string.
+ * Storage URLs are not guaranteed to be reachable (with CORS) from an external
+ * browser, so we download the bytes here and hand them to the browser directly.
+ */
+async function fetchPdfAsBase64(pdfUrl: string): Promise<string> {
+  const response = await fetch(pdfUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch PDF: ${response.statusText}`);
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer).toString("base64");
+}
+
 /**
  * Generate a thumbnail image from the first page of a PDF document.
- * Uses @onkernel/sdk with Playwright to render the PDF in a headless browser.
+ * Uses @onkernel/sdk with Playwright + pdf.js to render the PDF in a headless
+ * browser from bytes fetched server-side.
  */
 export const generatePdfThumbnail = internalAction({
   args: {
@@ -92,7 +115,25 @@ export const generatePdfThumbnail = internalAction({
 
       console.log(`[renderables/pdf] Processing PDF for card ${args.cardId}`);
 
-      // Use Kernel with Playwright to render the PDF
+      // Download the PDF bytes server-side (bypasses CORS issues) and pass them
+      // to the browser as base64 for rendering.
+      let pdfBase64: string;
+      try {
+        pdfBase64 = await fetchPdfAsBase64(pdfUrl);
+      } catch (fetchError) {
+        console.error(
+          `[renderables/pdf] Failed to fetch PDF content for card ${args.cardId}:`,
+          fetchError
+        );
+        return {
+          success: false,
+          generated: false,
+          error:
+            fetchError instanceof Error ? fetchError.message : "fetch_failed",
+        };
+      }
+
+      // Use Kernel with Playwright + pdf.js to render the first page
       const kernel = new Kernel();
       let kernelBrowser: { session_id: string } | undefined;
 
@@ -102,58 +143,72 @@ export const generatePdfThumbnail = internalAction({
           stealth: true,
         });
 
-        // Execute Playwright code to render PDF and capture screenshot
-        // Use Mozilla's PDF.js viewer which is hosted and works reliably
+        // Execute Playwright code that loads pdf.js and renders page 1 to a
+        // canvas entirely from the injected bytes.
         const response = await kernel.browsers.playwright.execute(
           kernelBrowser.session_id,
           {
             code: `
-              // Set viewport size
               await page.setViewportSize({ width: ${THUMBNAIL_MAX_WIDTH + 50}, height: 700 });
-              
-              // Use Mozilla's hosted PDF.js viewer
-              const viewerUrl = 'https://mozilla.github.io/pdf.js/web/viewer.html?file=' + encodeURIComponent('${pdfUrl.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}');
-              
-              await page.goto(viewerUrl, { 
-                waitUntil: 'networkidle',
-                timeout: 60000 
+
+              // Load a blank page and inject the pdf.js library.
+              await page.goto('about:blank');
+              await page.addScriptTag({ url: '${PDFJS_LIB_URL}' });
+
+              const result = await page.evaluate(async ({ pdfBase64, workerSrc, maxWidth }) => {
+                try {
+                  const pdfjsLib = window['pdfjsLib'];
+                  if (!pdfjsLib) {
+                    return { success: false, error: 'pdf.js failed to load' };
+                  }
+                  pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+
+                  // Decode base64 into a byte array.
+                  const binary = atob(pdfBase64);
+                  const bytes = new Uint8Array(binary.length);
+                  for (let i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                  }
+
+                  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+                  const pdfPage = await pdf.getPage(1);
+
+                  // Scale the first page down to the target thumbnail width.
+                  const baseViewport = pdfPage.getViewport({ scale: 1 });
+                  const scale = Math.min(maxWidth / baseViewport.width, 3);
+                  const viewport = pdfPage.getViewport({ scale });
+
+                  const canvas = document.createElement('canvas');
+                  const ctx = canvas.getContext('2d');
+                  if (!ctx) {
+                    return { success: false, error: 'Could not get canvas context' };
+                  }
+                  canvas.width = Math.ceil(viewport.width);
+                  canvas.height = Math.ceil(viewport.height);
+
+                  // Flatten transparency onto white so the thumbnail looks like paper.
+                  ctx.fillStyle = '#ffffff';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                  await pdfPage.render({ canvasContext: ctx, viewport }).promise;
+
+                  const dataUrl = canvas.toDataURL('image/png');
+                  return {
+                    success: true,
+                    data: dataUrl.split(',')[1],
+                    width: canvas.width,
+                    height: canvas.height,
+                  };
+                } catch (err) {
+                  return { success: false, error: (err && err.message) || 'pdf render error' };
+                }
+              }, {
+                pdfBase64: '${pdfBase64}',
+                workerSrc: '${PDFJS_WORKER_URL}',
+                maxWidth: ${THUMBNAIL_MAX_WIDTH}
               });
-              
-              // Wait for PDF to render - look for the canvas element
-              await page.waitForSelector('#viewer .page canvas', { timeout: 30000 });
-              
-              // Wait a bit more for rendering to complete
-              await new Promise(r => setTimeout(r, 2000));
-              
-              // Inject CSS to remove shadows and gray areas
-              await page.addStyleTag({
-                content: \`
-                  body, html { 
-                    margin: 0 !important;
-                    padding: 0 !important;
-                    box-shadow: none !important;
-                    border: none !important;
-                  }
-                  .page { 
-                    box-shadow: none !important; 
-                    border: none !important;
-                    margin: 0 !important;
-                  }
-                  .page canvas {
-                    box-shadow: none !important;
-                    border: none !important;
-                  }
-                \`
-              });
-              
-              // Get the canvas element directly for a clean screenshot
-              const canvas = await page.$('#viewer .page canvas');
-              if (!canvas) {
-                throw new Error('Could not find PDF canvas element');
-              }
-              
-              const screenshot = await canvas.screenshot({ type: 'png' });
-              return screenshot.toString('base64');
+
+              return JSON.stringify(result);
             `,
             timeout_sec: 120,
           }
@@ -171,7 +226,21 @@ export const generatePdfThumbnail = internalAction({
           };
         }
 
-        const base64Screenshot = response.result as string;
+        const result = JSON.parse(response.result as string);
+
+        if (!result.success) {
+          console.error(
+            `[renderables/pdf] PDF thumbnail generation failed for card ${args.cardId}:`,
+            result.error
+          );
+          return {
+            success: false,
+            generated: false,
+            error: result.error || "thumbnail_generation_failed",
+          };
+        }
+
+        const base64Screenshot = result.data as string;
         const buffer = Buffer.from(base64Screenshot, "base64");
         const imageArrayBuffer = buffer.buffer.slice(
           buffer.byteOffset,
@@ -190,12 +259,17 @@ export const generatePdfThumbnail = internalAction({
           type: "image/png",
         });
 
-        // Update the card with the thumbnail
+        const originalWidth = result.width as number | undefined;
+        const originalHeight = result.height as number | undefined;
+
+        // Update the card with the thumbnail (and dimensions for aspect ratio)
         await ctx.runMutation(
           internal.workflows.steps.renderables.mutations.updateCardThumbnail,
           {
             cardId: args.cardId,
             thumbnailKey,
+            ...(originalWidth !== undefined && { originalWidth }),
+            ...(originalHeight !== undefined && { originalHeight }),
           }
         );
 

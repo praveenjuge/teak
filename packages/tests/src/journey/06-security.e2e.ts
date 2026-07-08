@@ -43,7 +43,16 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", a
     for (const url of ["/login", "/settings"]) {
       const response = await page.goto(url);
       expect(response?.headers()["strict-transport-security"]).toBeTruthy();
-      expect(response?.headers()["content-security-policy"]).toBeTruthy();
+      const csp = response?.headers()["content-security-policy"] ?? "";
+      expect(csp).toBeTruthy();
+      // Regression: images (link previews, PDF thumbnails) are served from R2.
+      // The CSP img-src must allow that origin or they are blocked outright.
+      const imgSrc = csp
+        .split(";")
+        .map((directive) => directive.trim())
+        .find((directive) => directive.startsWith("img-src"));
+      expect(imgSrc).toBeTruthy();
+      expect(imgSrc).toContain("r2.cloudflarestorage.com");
     }
     const cookies = await context.cookies();
     expect(

@@ -6,6 +6,17 @@ import {
 import { ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+// Format long whole numbers (e.g. review counts) with thousands separators for
+// readability. Values with 5+ digits are formatted so years like "2024" and
+// short counts stay untouched.
+function formatFactValue(value: string) {
+  const trimmed = value.trim();
+  if (/^\d{5,}$/.test(trimmed)) {
+    return Number(trimmed).toLocaleString();
+  }
+  return value;
+}
+
 type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
   thumbnailUrl?: string;
@@ -157,14 +168,21 @@ export function LinkPreview({
       </div>
 
       {categoryMetadata?.facts?.length ? (
-        <div className="space-y-1 text-muted-foreground text-sm">
+        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4 pt-4">
           {categoryMetadata.facts.map((fact) => (
-            <div className="flex gap-2" key={`${fact.label}-${fact.value}`}>
-              <span className="font-medium text-foreground">{fact.label}:</span>
-              <span className="text-balance">{fact.value}</span>
+            <div
+              className="flex flex-col gap-0.5 rounded-lg border bg-card px-3 py-2"
+              key={`${fact.label}-${fact.value}`}
+            >
+              <dt className="truncate font-medium text-muted-foreground text-xs uppercase tracking-wide">
+                {fact.label}
+              </dt>
+              <dd className="break-words font-semibold text-foreground text-sm">
+                {formatFactValue(fact.value)}
+              </dd>
             </div>
           ))}
-        </div>
+        </dl>
       ) : null}
     </>
   );

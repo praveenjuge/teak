@@ -79,3 +79,35 @@ test("web journey covers cards, search, settings, upload, and revoked key", asyn
   });
   expect(dialogTrap).toEqual([]);
 });
+
+test("saving a color in the composer creates a palette card", async ({
+  page,
+}) => {
+  // Regression: the web note composer forced type "text", which disabled
+  // server-side classification, so colors stopped becoming palette cards.
+  const state = readState();
+  if (!state.primary?.apiKey) {
+    throw new Error("Missing primary API key");
+  }
+  const hex = "#2050D0";
+
+  await page.goto("/");
+  await page.getByPlaceholder(/Write a note/i).fill(hex);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  // The optimistic card appears immediately; classification runs server-side.
+  await expect(
+    page.locator("main").getByText(hex, { exact: true }).first()
+  ).toBeVisible();
+
+  // Poll the API until the composer-created card is classified as a palette.
+  const api = clientFor(state.primary.apiKey);
+  await expect
+    .poll(
+      async () => {
+        const result = await api.cards.search({ type: "palette" });
+        return result.items.some((card) => card.content === hex);
+      },
+      { timeout: 30_000, intervals: [1000, 2000, 3000, 5000] }
+    )
+    .toBe(true);
+});
