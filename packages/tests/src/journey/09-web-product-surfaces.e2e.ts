@@ -305,7 +305,10 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
   await expect(page.getByText(/nothing found/i)).toBeVisible();
   await page.getByRole("button", { name: "Clear All" }).click();
   await expect(page.getByPlaceholder("Search for anything...")).toHaveValue("");
-  await searchFor(page, `${marker}-missing-tag`);
+  await searchFor(page, `${marker}missingtag`);
+  await expect(
+    page.getByRole("button", { exact: true, name: `${marker}missingtag` })
+  ).toBeVisible();
   await expect(page.getByText(/nothing found/i)).toBeVisible();
   await page.getByRole("button", { name: "Clear All" }).click();
   await page.getByRole("button", { name: /Trash/i }).first().click();
@@ -349,7 +352,16 @@ test("settings import and export surface terminal states", async ({ page }) => {
   await expect(importPanel.getByText(`${marker}-bookmarks.html`)).toBeVisible();
   await importPanel.getByRole("button", { name: "Start import" }).click();
   await expect
-    .poll(async () => importPanel.textContent(), { timeout: 120_000 })
-    .toMatch(/Last import: [1-9]\d* created/i);
+    .poll(
+      async () => {
+        const text = (await importPanel.textContent()) ?? "";
+        return (
+          /Last import: [1-9]\d* created/i.test(text) &&
+          !/Import stopped|failed/i.test(text)
+        );
+      },
+      { timeout: 120_000 }
+    )
+    .toBe(true);
   await page.keyboard.press("Escape");
 });
