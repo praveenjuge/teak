@@ -43,8 +43,31 @@ const isExtensionFetchFailure = (event: ErrorEvent) =>
     );
   }) ?? false;
 
+const isProductionE2eMatrixUser = (event: ErrorEvent) =>
+  typeof event.user?.username === "string" &&
+  event.user.username.startsWith("e2e-matrix-");
+
+const isSafariBetterAuthLoadFailure = (event: ErrorEvent) =>
+  isProductionE2eMatrixUser(event) &&
+  (event.exception?.values?.some((exception) => {
+    const isWebkitLoadFailure =
+      exception.type === "TypeError" &&
+      exception.value === "Load failed (app.teakvault.com)";
+
+    return (
+      isWebkitLoadFailure &&
+      exception.stacktrace?.frames?.some(
+        (frame) =>
+          frame.filename?.includes("node_modules/@convex-dev/better-auth/") ||
+          frame.filename?.includes("node_modules/better-auth/") ||
+          frame.filename?.includes("node_modules/@better-fetch/fetch/")
+      )
+    );
+  }) ??
+    false);
+
 export function filterClientSentryEvent(event: ErrorEvent, _hint?: EventHint) {
-  if (isExtensionFetchFailure(event)) {
+  if (isExtensionFetchFailure(event) || isSafariBetterAuthLoadFailure(event)) {
     return null;
   }
 

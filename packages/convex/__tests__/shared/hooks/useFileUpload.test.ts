@@ -190,6 +190,7 @@ describe("useFileUploadCore", () => {
       const result = await hook.uploadFile(file);
       expect(result.success).toBe(false);
       expect((result as any).errorCode).toBe(CARD_ERROR_CODES.FILE_TOO_LARGE);
+      expect(mockSentryCapture).not.toHaveBeenCalled();
     });
 
     test("returns correct error message for oversized file", async () => {
@@ -376,6 +377,28 @@ describe("useFileUploadCore", () => {
 
       expect(result.success).toBe(false);
       expect((result as any).errorCode).toBe(CARD_ERROR_CODES.UNSUPPORTED_TYPE);
+      expect(mockUploadAndCreateCard).not.toHaveBeenCalled();
+    });
+
+    test("does not capture oversized URI uploads in Sentry", async () => {
+      const uriHook = useFileUploadCore(
+        {
+          ...dependencies,
+          uploadBinaryFromUri: mockUploadBinaryFromUri,
+        },
+        config
+      );
+
+      const result = await uriHook.uploadFileFromUri({
+        uri: "file:///tmp/large.jpg",
+        name: "large.jpg",
+        type: "image/jpeg",
+        size: MAX_FILE_SIZE + 1,
+      });
+
+      expect(result.success).toBe(false);
+      expect((result as any).errorCode).toBe(CARD_ERROR_CODES.FILE_TOO_LARGE);
+      expect(mockSentryCapture).not.toHaveBeenCalled();
       expect(mockUploadAndCreateCard).not.toHaveBeenCalled();
     });
   });
