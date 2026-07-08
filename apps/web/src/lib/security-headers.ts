@@ -21,6 +21,26 @@ const normalizeHttpsOrigin = (value: string): string | null => {
   }
 };
 
+const configuredR2StorageSources = () => {
+  const values = [
+    process.env.NEXT_PUBLIC_R2_STORAGE_ORIGIN,
+    process.env.NEXT_PUBLIC_R2_STORAGE_URL,
+    process.env.R2_STORAGE_ORIGIN,
+    process.env.R2_STORAGE_URL,
+  ];
+  return Array.from(
+    new Set(
+      values.flatMap(
+        (value) =>
+          value
+            ?.split(",")
+            .map((item) => normalizeHttpsOrigin(item.trim()))
+            .filter((item): item is string => Boolean(item)) ?? []
+      )
+    )
+  );
+};
+
 const configuredR2FrameSources = () => {
   const values = [
     process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN,
@@ -73,13 +93,22 @@ export const buildContentSecurityPolicy = (nonce: string) =>
     [
       "img-src 'self' blob: data:",
       TEAK_R2_STORAGE_ORIGIN,
+      ...configuredR2StorageSources(),
       "https://www.google.com",
       "https://*.gstatic.com",
       "https://*.teakvault.com",
     ].join(" "),
     "font-src 'self' data:",
     "style-src 'self' 'unsafe-inline'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' blob:`,
+    [
+      "script-src 'self'",
+      `'nonce-${nonce}'`,
+      "'strict-dynamic'",
+      "blob:",
+      // Next.js/React development mode relies on eval() for Fast Refresh and
+      // for reconstructing callstacks. Only permitted outside production.
+      ...(process.env.NODE_ENV === "development" ? ["'unsafe-eval'"] : []),
+    ].join(" "),
     [
       "connect-src 'self'",
       "https://*.convex.cloud",
@@ -90,12 +119,18 @@ export const buildContentSecurityPolicy = (nonce: string) =>
       "https://polar.sh",
       "https://*.polar.sh",
       TEAK_R2_STORAGE_ORIGIN,
+      ...configuredR2StorageSources(),
       ...configuredR2UploadSources(),
     ].join(" "),
-    ["media-src 'self' blob: data:", TEAK_R2_STORAGE_ORIGIN].join(" "),
+    [
+      "media-src 'self' blob: data:",
+      TEAK_R2_STORAGE_ORIGIN,
+      ...configuredR2StorageSources(),
+    ].join(" "),
     [
       "frame-src https://*.polar.sh https://polar.sh",
       TEAK_R2_STORAGE_ORIGIN,
+      ...configuredR2StorageSources(),
       ...R2_FRAME_SOURCES,
       ...configuredR2FrameSources(),
     ].join(" "),

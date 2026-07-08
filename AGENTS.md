@@ -121,6 +121,7 @@ teak/
 - Add/extend tests for new features or bug fixes.
 - Update or add fixtures/test data so tests are deterministic.
 - Keep tests fast; avoid extra network calls unless the feature requires it.
+- End-to-end tests live in `packages/tests` (Playwright, run against live production surfaces: web, REST API, CLI, MCP, docs, browser matrix, extension). Whenever a change affects an end-to-end, user-observable flow across those surfaces, add or extend an e2e test there in the same PR. Match the existing journey structure in `packages/tests/src/journey` and reuse the helpers in `packages/tests/src/helpers`. See `packages/tests/README.md` for how to run the suite.
 
 ## Changelog Editorial Rules
 

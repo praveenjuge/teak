@@ -32,7 +32,6 @@ export default async function RootLayout({ children }: PropsWithChildren) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <JsonLd
-          nonce={nonce}
           schema={[
             organizationSchema,
             websiteSchema,

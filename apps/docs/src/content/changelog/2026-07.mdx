@@ -3,29 +3,20 @@ title: "July 2026"
 date: "2026-07-06"
 ---
 
-- PDF documents now open and preview correctly when you view them in Teak.
-- Web audio recording now works reliably in Chrome. Dragging, dropping, or pasting files now reports upload progress accurately, and saved link icons load more consistently.
-- File uploads now retry brief storage outages, so a first drag or paste is less likely to fail when storage returns a temporary error.
-- Settings and sign-in screens now show stable loading states instead of partial rows or empty cards.
-- Imports now keep progress visible after you reopen Settings, wrap long error reports inside the dialog, and stop cleanly when your card limit is reached.
-- Import uploads now connect reliably to storage, and API key management in Settings uses a cleaner table layout.
-- Search now clears stale cards when a query has no matches, so empty results show accurately instead of leaving older cards on screen.
-- The desktop app now uploads files reliably again.
-- The desktop app can now record audio notes. macOS will ask for microphone access the first time.
-- Import and Export now share one place in Settings, with a quick tab to switch between them. Imports show step-by-step progress and explain exactly which items were skipped or why any failed.
-- Exports show live progress while your archive is prepared and count down to when your next weekly export unlocks.
-- Raycast, desktop, and MCP clients now let you sign in with your browser in one step. Copying an API key is no longer required to get started, and existing keys keep working.
-- Signing out of the desktop app no longer signs you out of Teak in your browser.
+- The desktop app is here. Record audio notes (macOS asks for microphone access the first time), upload files reliably, and sign in through your browser in one step. Signing out of desktop no longer signs you out of Teak on the web.
 - Install Teak for Safari from the Mac App Store to save pages directly from the Safari toolbar.
-- API card lists now load reliably when a request scans more than one page of saved cards, and deleted cards stay hidden from direct API lookups.
-- Browser sign-in for MCP and API clients completes more reliably across apps that connect from another origin.
-- MCP clients now consistently discover Teak's public server address during browser sign-in.
-- The browser extension now signs you in through the web app, the same one-step browser sign-in used by the desktop app and Raycast.
-- Managing your subscription from Settings now opens reliably in Safari and other browsers.
-- Teak now has a command-line app for saving, searching, editing, favoriting, deleting, syncing, and listing tags from your terminal.
-- The API can now create file cards through direct uploads, so command-line workflows can save images, videos, audio, and documents.
-- API card lists can now include uploaded file names, sizes, and media types when metadata is requested.
-- The command-line app now signs in reliably from npm installs, includes setup docs directly on the npm package page, and ships an Agent Skill for AI assistants that work with Teak.
-- The API and MCP server now have simpler addresses at teakvault.com/api and teakvault.com/mcp. Existing api.teakvault.com links and API keys keep working, so no action is needed.
+- The browser extension now signs you in through the web app in one step.
+- Teak now has a command-line app to save, search, edit, favorite, delete, sync, and list tags from your terminal, with one-step browser sign-in and an Agent Skill for AI assistants.
+- Raycast, MCP, and API clients now sign in with your browser in one step, so copying an API key is optional and existing keys keep working.
+- The API and MCP server moved to simpler addresses at teakvault.com/api and teakvault.com/mcp. Existing api.teakvault.com links and API keys keep working, so no action is needed.
+- The API can now create file cards through direct uploads for images, video, audio, and documents, and card lists can include file names, sizes, and media types. Lists also load reliably across multiple pages, and deleted cards stay hidden from direct lookups.
 - MCP clients can now browse cards, look up a card, list tags, sync changes, run bulk edits, and create file-upload links.
-- Teak now works as a ChatGPT connector with search and fetch support, and the docs include AI-agent pages, markdown copies, and llms.txt files for easier setup.
+- Teak now works as a ChatGPT connector with search and fetch, plus new AI-agent docs pages for easier setup.
+- Import and Export now share one place in Settings with a quick tab to switch. Imports show step-by-step progress and explain exactly which items were skipped or failed, and exports show live progress with a countdown to your next weekly export.
+- Uploaded PDFs now show a page preview in your grid again, open and preview correctly, and web audio recording works reliably in Chrome.
+- Copying from the desktop app now works.
+- Saving colors or a color list as a note now creates a palette card again.
+- File uploads now report progress accurately and retry brief storage hiccups, so a first drag, drop, or paste is less likely to fail.
+- Search now clears old cards when a query has no matches, so empty results show accurately.
+- Settings and sign-in screens now show stable loading states, and managing your subscription opens reliably in Safari and other browsers.
+- Saving a web address now reliably creates a link card with a preview, even when it comes in as plain text.

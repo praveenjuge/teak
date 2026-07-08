@@ -151,6 +151,14 @@ function createMainWindow(): BrowserWindowInstance {
   // (and every other permission) to avoid silently granting camera access.
   const { session } = mainWindow.webContents;
   session.setPermissionRequestHandler((_wc, permission, callback, details) => {
+    // Allow copying to the clipboard. `navigator.clipboard.writeText`/`write`
+    // (used across the shared UI for "copy" actions) route through Electron's
+    // permission handlers; overriding them for microphone access below would
+    // otherwise deny clipboard writes with "Write permission denied".
+    if (permission === "clipboard-sanitized-write") {
+      callback(true);
+      return;
+    }
     if (permission !== "media") {
       callback(false);
       return;
@@ -158,10 +166,12 @@ function createMainWindow(): BrowserWindowInstance {
     const mediaTypes = "mediaTypes" in details ? details.mediaTypes : undefined;
     callback(isMicrophoneOnlyRequest(mediaTypes));
   });
-  session.setPermissionCheckHandler(
-    (_wc, permission, _origin, details) =>
-      permission === "media" && isMicrophoneCheck(details.mediaType)
-  );
+  session.setPermissionCheckHandler((_wc, permission, _origin, details) => {
+    if (permission === "clipboard-sanitized-write") {
+      return true;
+    }
+    return permission === "media" && isMicrophoneCheck(details.mediaType);
+  });
 
   // A single onHeadersReceived listener (Electron keeps only the most recent
   // one) that does two jobs:

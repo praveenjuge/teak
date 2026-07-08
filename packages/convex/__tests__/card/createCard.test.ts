@@ -127,6 +127,102 @@ describe("card/createCard.ts", () => {
     );
   });
 
+  test("honors an explicit text type for a note that mentions a URL", async () => {
+    // Regression: a caller that deliberately saves a note as text (e.g.
+    // "I read this at https://example.com") should keep a text card. The
+    // backend only auto-upgrades URL content to a link when no type is
+    // provided, so an explicit type is always honored.
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        system: { get: mock().mockResolvedValue(null) },
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
+          }),
+        }),
+        insert: mock().mockResolvedValue("c_text_url"),
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any;
+
+    const handler = (createCard as any).handler ?? createCard;
+    await handler(ctx, {
+      content: "I read this at https://example.com",
+      type: "text",
+    });
+
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "cards",
+      expect.objectContaining({
+        type: "text",
+      })
+    );
+  });
+
+  test("lets the backend upgrade a URL to a link card when type is omitted", async () => {
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        system: { get: mock().mockResolvedValue(null) },
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
+          }),
+        }),
+        insert: mock().mockResolvedValue("c_link_auto"),
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any;
+
+    const handler = (createCard as any).handler ?? createCard;
+    await handler(ctx, {
+      content: "https://www.goodreads.com/book/show/2767052-the-hunger-games",
+    });
+
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "cards",
+      expect.objectContaining({
+        type: "link",
+        metadataStatus: "pending",
+        url: "https://www.goodreads.com/book/show/2767052-the-hunger-games",
+      })
+    );
+  });
+
+  test("keeps text card when content has no URL", async () => {
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        system: { get: mock().mockResolvedValue(null) },
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
+          }),
+        }),
+        insert: mock().mockResolvedValue("c_text"),
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any;
+
+    const handler = (createCard as any).handler ?? createCard;
+    await handler(ctx, {
+      content: "just a regular note without any links",
+      type: "text",
+    });
+
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "cards",
+      expect.objectContaining({
+        type: "text",
+        content: "just a regular note without any links",
+      })
+    );
+  });
+
   test("rejects unsafe url schemes", async () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },

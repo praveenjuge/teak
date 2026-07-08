@@ -122,6 +122,15 @@ describe("extractUrlFromContent", () => {
       cleanedContent: "https://müller.de/path",
     });
   });
+
+  it("should extract a Goodreads book URL with a slug in the path", () => {
+    const url = "https://www.goodreads.com/book/show/2767052-the-hunger-games";
+    const result = extractUrlFromContent(url);
+    expect(result).toEqual({
+      url,
+      cleanedContent: url,
+    });
+  });
 });
 
 describe("resolveTextCardInput", () => {
@@ -254,6 +263,16 @@ describe("resolveTextCardInput", () => {
       type: "link",
       url: "https://example.com",
       content: "https://example.com",
+    });
+  });
+
+  it("should resolve a Goodreads book URL in content to a link card", () => {
+    const url = "https://www.goodreads.com/book/show/2767052-the-hunger-games";
+    const result = resolveTextCardInput({ content: url });
+    expect(result).toEqual({
+      type: "link",
+      url,
+      content: url,
     });
   });
 });

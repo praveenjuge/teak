@@ -201,9 +201,11 @@ export function AddCardForm({
     setIsSubmitting(true);
 
     try {
+      // Intentionally omit `type` so the server auto-classifies the note.
+      // Passing an explicit type skips classification, which would stop colors
+      // from becoming palette cards (and quotes/links from being detected).
       await createCard({
         content: submittedContent,
-        type: "text",
       });
 
       onSuccess?.();
