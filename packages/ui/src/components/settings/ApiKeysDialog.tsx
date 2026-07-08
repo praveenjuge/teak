@@ -209,9 +209,9 @@ export function ApiKeysDialog({
               <table className="w-full table-fixed caption-bottom text-sm">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[58%]">Key</TableHead>
-                    <TableHead className="w-[26%]">Used</TableHead>
-                    <TableHead className="w-[16%]" />
+                    <TableHead className="w-[58%] pr-2 pl-3">Key</TableHead>
+                    <TableHead className="w-[26%] px-2">Used</TableHead>
+                    <TableHead className="w-[16%] pr-3 pl-2" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
