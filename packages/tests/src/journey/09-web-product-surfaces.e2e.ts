@@ -352,7 +352,10 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
   await expect(
     page.getByRole("button", { exact: true, name: `${marker}-tag` })
   ).toBeVisible();
-  await expect(page.getByText(`${marker} restore-me`)).toBeVisible();
+  await expect(cardText(page, `${marker} restore-me`)).not.toBeVisible();
+  await expect(
+    page.getByRole("main").getByText(/nothing found/i)
+  ).toBeVisible();
   await clearFilters(page);
 
   await searchFor(page, `${marker}-no-results`);
