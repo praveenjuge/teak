@@ -15,6 +15,10 @@ test("signup, create, and search", async ({ page }) => {
     .filter({ hasText: marker })
     .first();
   await expect(savedCard).toBeVisible();
-  await page.getByPlaceholder("Search for anything...").fill(marker);
+  const search = page.getByPlaceholder("Search for anything...");
+  await search.fill(`${marker}-missing`);
+  await expect(savedCard).not.toBeVisible();
+  await expect(page.getByText(/nothing found/i)).toBeVisible();
+  await search.fill(marker);
   await expect(savedCard).toBeVisible();
 });
