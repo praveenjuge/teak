@@ -15,30 +15,18 @@ const THUMBNAIL_MAX_WIDTH = 400;
 
 // pdf.js is loaded directly into the headless browser so we render the first
 // page ourselves instead of relying on Mozilla's externally hosted viewer.
-// Rendering from bytes we inject avoids cross-origin fetch/CORS issues with
-// storage URLs (R2 signed URLs do not send permissive CORS headers).
+// The PDF bytes are fetched inside the Kernel VM with Playwright's request
+// context (a Node-side request that ignores browser CORS), which avoids the
+// cross-origin fetch issues with R2 signed URLs.
 const PDFJS_VERSION = "3.11.174";
 const PDFJS_LIB_URL = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`;
 const PDFJS_WORKER_URL = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
 
 /**
- * Fetch the PDF from storage server-side and return it as a base64 string.
- * Storage URLs are not guaranteed to be reachable (with CORS) from an external
- * browser, so we download the bytes here and hand them to the browser directly.
- */
-async function fetchPdfAsBase64(pdfUrl: string): Promise<string> {
-  const response = await fetch(pdfUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch PDF: ${response.statusText}`);
-  }
-  const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer).toString("base64");
-}
-
-/**
  * Generate a thumbnail image from the first page of a PDF document.
  * Uses @onkernel/sdk with Playwright + pdf.js to render the PDF in a headless
- * browser from bytes fetched server-side.
+ * browser. The document is downloaded inside the browser VM so the bytes are
+ * never embedded into the code payload sent to Kernel.
  */
 export const generatePdfThumbnail = internalAction({
   args: {
@@ -115,24 +103,6 @@ export const generatePdfThumbnail = internalAction({
 
       console.log(`[renderables/pdf] Processing PDF for card ${args.cardId}`);
 
-      // Download the PDF bytes server-side (bypasses CORS issues) and pass them
-      // to the browser as base64 for rendering.
-      let pdfBase64: string;
-      try {
-        pdfBase64 = await fetchPdfAsBase64(pdfUrl);
-      } catch (fetchError) {
-        console.error(
-          `[renderables/pdf] Failed to fetch PDF content for card ${args.cardId}:`,
-          fetchError
-        );
-        return {
-          success: false,
-          generated: false,
-          error:
-            fetchError instanceof Error ? fetchError.message : "fetch_failed",
-        };
-      }
-
       // Use Kernel with Playwright + pdf.js to render the first page
       const kernel = new Kernel();
       let kernelBrowser: { session_id: string } | undefined;
@@ -143,17 +113,28 @@ export const generatePdfThumbnail = internalAction({
           stealth: true,
         });
 
-        // Execute Playwright code that loads pdf.js and renders page 1 to a
-        // canvas entirely from the injected bytes.
+        // Execute Playwright code that fetches the PDF inside the VM, loads
+        // pdf.js, and renders page 1 to a canvas. Fetching the bytes here (via
+        // Playwright's request context, which ignores browser CORS) keeps the
+        // multi-MB document out of this code payload — only the URL is embedded.
         const response = await kernel.browsers.playwright.execute(
           kernelBrowser.session_id,
           {
             code: `
               await page.setViewportSize({ width: ${THUMBNAIL_MAX_WIDTH + 50}, height: 700 });
 
+              // Fetch the PDF bytes inside the VM (bypasses browser CORS) so the
+              // document never has to be inlined into this code string.
+              const pdfResponse = await context.request.get(${JSON.stringify(pdfUrl)});
+              if (!pdfResponse.ok()) {
+                return JSON.stringify({ success: false, error: 'fetch_failed_' + pdfResponse.status() });
+              }
+              const pdfBuffer = await pdfResponse.body();
+              const pdfBase64 = pdfBuffer.toString('base64');
+
               // Load a blank page and inject the pdf.js library.
               await page.goto('about:blank');
-              await page.addScriptTag({ url: '${PDFJS_LIB_URL}' });
+              await page.addScriptTag({ url: ${JSON.stringify(PDFJS_LIB_URL)} });
 
               const result = await page.evaluate(async ({ pdfBase64, workerSrc, maxWidth }) => {
                 try {
@@ -203,8 +184,8 @@ export const generatePdfThumbnail = internalAction({
                   return { success: false, error: (err && err.message) || 'pdf render error' };
                 }
               }, {
-                pdfBase64: '${pdfBase64}',
-                workerSrc: '${PDFJS_WORKER_URL}',
+                pdfBase64,
+                workerSrc: ${JSON.stringify(PDFJS_WORKER_URL)},
                 maxWidth: ${THUMBNAIL_MAX_WIDTH}
               });
 

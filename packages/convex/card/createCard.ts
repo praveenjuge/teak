@@ -128,12 +128,13 @@ export const createCardForUserHandler = async (
     finalContent = urlExtraction.cleanedContent;
   }
 
-  // If we resolved a URL but the type is still "text" (either defaulted or
-  // provided explicitly by a client that couldn't detect the link), treat it
-  // as a link card. This mirrors the deterministic classifier, which always
-  // upgrades URL-bearing cards to "link", and prevents links from sticking as
-  // text when an explicit type skips async classification.
-  if (finalUrl && cardType === "text") {
+  // When the client does not specify a type, let the backend decide: a resolved
+  // URL upgrades the card to "link". This mirrors the deterministic classifier
+  // (which always upgrades URL-bearing cards) and prevents links from sticking
+  // as "text" before async classification runs. An explicit type is always
+  // honored, so a note like "I read this at https://example.com" that a client
+  // deliberately saves as text stays a text card.
+  if (finalUrl && !providedType && cardType === "text") {
     cardType = "link";
   }
 

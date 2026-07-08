@@ -4,12 +4,10 @@ import { beforeAll, describe, expect, mock, test } from "bun:test";
 // Captured across the mocked Kernel + storage layer so the assertions can
 // inspect exactly how the PDF thumbnail was produced.
 let capturedPlaywrightCode = "";
-let fetchedUrls: string[] = [];
 let storedThumbnail: { key: string; type?: string } | null = null;
 
 let generatePdfThumbnail: any;
 
-const PDF_BYTES_BASE64 = Buffer.from("%PDF-1.7 fake").toString("base64");
 const THUMB_PNG_BASE64 = Buffer.from("fake-png").toString("base64");
 
 beforeAll(async () => {
@@ -54,17 +52,6 @@ beforeAll(async () => {
     },
   }));
 
-  // The action downloads the PDF bytes itself (bypassing browser CORS).
-  globalThis.fetch = ((url: string) => {
-    fetchedUrls.push(String(url));
-    return Promise.resolve({
-      ok: true,
-      statusText: "OK",
-      arrayBuffer: () =>
-        Promise.resolve(Buffer.from(PDF_BYTES_BASE64, "base64").buffer),
-    } as unknown as Response);
-  }) as typeof fetch;
-
   generatePdfThumbnail = (
     await import("../../../../workflows/steps/renderables/generatePdfThumbnail")
   ).generatePdfThumbnail;
@@ -93,8 +80,7 @@ const createCtx = (card: unknown) => {
 };
 
 describe("generatePdfThumbnail", () => {
-  test("downloads the PDF server-side and stores a rendered thumbnail", async () => {
-    fetchedUrls = [];
+  test("fetches the PDF inside the VM and stores a rendered thumbnail", async () => {
     storedThumbnail = null;
     const { ctx, mutationCalls } = createCtx(pdfCard);
 
@@ -104,14 +90,30 @@ describe("generatePdfThumbnail", () => {
     expect(result.generated).toBe(true);
     expect(result.thumbnailKey).toBe("stored-thumbnail-key");
 
-    // The bytes are fetched on the server (the fix for R2 signed-URL CORS),
-    // not handed to an external browser as a cross-origin URL.
-    expect(fetchedUrls).toContain("https://signed.r2.example/the-pdf");
+    // The signed URL is fetched inside the browser VM via Playwright's request
+    // context (the fix for R2 signed-URL CORS) instead of a cross-origin
+    // browser fetch, so only the URL — never the document bytes — is embedded.
+    expect(capturedPlaywrightCode).toContain("context.request");
+    expect(capturedPlaywrightCode).toContain("https://signed.r2.example/the-pdf");
 
     // A PNG thumbnail is persisted and written back to the card.
     expect(storedThumbnail?.type).toBe("image/png");
     expect(mutationCalls).toHaveLength(1);
     expect(mutationCalls[0]?.args.thumbnailKey).toBe("stored-thumbnail-key");
+  });
+
+  test("never inlines the PDF bytes into the Kernel code payload", async () => {
+    // Regression (Greptile P1): embedding the full base64 PDF into the
+    // Playwright source made large-but-valid PDFs exceed the execute payload
+    // limit and fail before pdf.js could render. The document must be fetched
+    // inside the VM, so the code passes the bytes as a runtime variable rather
+    // than interpolating a giant literal string.
+    const { ctx } = createCtx(pdfCard);
+    await generatePdfThumbnail(ctx, { cardId: "card-pdf" });
+
+    // The base64 payload is a runtime variable, not a quoted literal.
+    expect(capturedPlaywrightCode).not.toContain("pdfBase64: '");
+    expect(capturedPlaywrightCode).toContain("const pdfBase64 = pdfBuffer.toString('base64')");
   });
 
   test("renders via injected pdf.js, never the external Mozilla viewer", async () => {

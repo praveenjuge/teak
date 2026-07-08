@@ -127,11 +127,11 @@ describe("card/createCard.ts", () => {
     );
   });
 
-  test("upgrades to link card when content is a URL but type is explicitly text", async () => {
-    // Regression: saving a URL (e.g. a Goodreads book link) was stored as a
-    // "text" card whenever the client passed type: "text" explicitly, because
-    // the extracted URL never upgraded the card type and async classification
-    // was skipped for client-provided types.
+  test("honors an explicit text type for a note that mentions a URL", async () => {
+    // Regression: a caller that deliberately saves a note as text (e.g.
+    // "I read this at https://example.com") should keep a text card. The
+    // backend only auto-upgrades URL content to a link when no type is
+    // provided, so an explicit type is always honored.
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -142,28 +142,26 @@ describe("card/createCard.ts", () => {
             take: mock().mockResolvedValue([]),
           }),
         }),
-        insert: mock().mockResolvedValue("c_goodreads"),
+        insert: mock().mockResolvedValue("c_text_url"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
     const handler = (createCard as any).handler ?? createCard;
     await handler(ctx, {
-      content: "https://www.goodreads.com/book/show/2767052-the-hunger-games",
+      content: "I read this at https://example.com",
       type: "text",
     });
 
     expect(ctx.db.insert).toHaveBeenCalledWith(
       "cards",
       expect.objectContaining({
-        type: "link",
-        metadataStatus: "pending",
-        url: "https://www.goodreads.com/book/show/2767052-the-hunger-games",
+        type: "text",
       })
     );
   });
 
-  test("upgrades to link card when content is a URL and type is omitted", async () => {
+  test("lets the backend upgrade a URL to a link card when type is omitted", async () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
