@@ -17,7 +17,19 @@ requireEnv([
   "APPLE_DISTRIBUTION_PRIVATE_KEY_PATH",
 ]);
 
-const certificateTypes = ["DISTRIBUTION", "MAC_APP_DISTRIBUTION"];
+const certificateTypes = (
+  process.env.APPLE_DISTRIBUTION_CERTIFICATE_TYPES ||
+  "DISTRIBUTION,MAC_APP_DISTRIBUTION"
+)
+  .split(",")
+  .map((type) => type.trim())
+  .filter(Boolean);
+const createCertificateType =
+  process.env.APPLE_DISTRIBUTION_CREATE_CERTIFICATE_TYPE ||
+  certificateTypes[0] ||
+  "DISTRIBUTION";
+const outputPrefix =
+  process.env.APPLE_DISTRIBUTION_OUTPUT_PREFIX || "APPLE_CERTIFICATE";
 const certificatePath =
   process.env.APPLE_DISTRIBUTION_CERTIFICATE_PATH ||
   path.join(os.tmpdir(), "apple-distribution.pem");
@@ -99,7 +111,7 @@ async function createCertificate() {
     data: {
       type: "certificates",
       attributes: {
-        certificateType: "DISTRIBUTION",
+        certificateType: createCertificateType,
         csrContent,
       },
     },
@@ -126,8 +138,8 @@ fs.writeFileSync(certificatePath, certificateToPem(certificateContent), {
   mode: 0o600,
 });
 
-output("APPLE_CERTIFICATE_PATH", certificatePath);
-output("APPLE_CERTIFICATE_SERIAL", certificateSerial);
+output(`${outputPrefix}_PATH`, certificatePath);
+output(`${outputPrefix}_SERIAL`, certificateSerial);
 console.log(
-  `${existingCertificate ? "Reused" : "Created"} Apple distribution certificate ${certificateSerial}.`
+  `${existingCertificate ? "Reused" : "Created"} ${createCertificateType} certificate ${certificateSerial}.`
 );

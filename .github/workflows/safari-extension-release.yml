@@ -156,7 +156,9 @@ jobs:
           private_key_path="$RUNNER_TEMP/apple-distribution-private-key.pem"
           csr_path="$RUNNER_TEMP/apple-distribution.csr"
           certificate_pem_path="$RUNNER_TEMP/apple-distribution.pem"
+          installer_certificate_pem_path="$RUNNER_TEMP/mac-installer-distribution.pem"
           certificate_p12_path="$RUNNER_TEMP/apple-signing-certificate.p12"
+          installer_certificate_p12_path="$RUNNER_TEMP/mac-installer-signing-certificate.p12"
 
           printf '%s' "$APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64" | base64 --decode > "$private_key_path"
           chmod 600 "$private_key_path"
@@ -170,17 +172,35 @@ jobs:
           export APPLE_DISTRIBUTION_PRIVATE_KEY_PATH="$private_key_path"
           node apps/safari-extension/scripts/ensure-distribution-certificate.mjs
 
+          export APPLE_DISTRIBUTION_CERTIFICATE_PATH="$installer_certificate_pem_path"
+          export APPLE_DISTRIBUTION_CERTIFICATE_TYPES="MAC_INSTALLER_DISTRIBUTION"
+          export APPLE_DISTRIBUTION_CREATE_CERTIFICATE_TYPE="MAC_INSTALLER_DISTRIBUTION"
+          export APPLE_DISTRIBUTION_OUTPUT_PREFIX="APPLE_INSTALLER_CERTIFICATE"
+          node apps/safari-extension/scripts/ensure-distribution-certificate.mjs
+
           openssl pkcs12 -legacy -export \
             -inkey "$private_key_path" \
             -in "$certificate_pem_path" \
             -out "$certificate_p12_path" \
             -passout "pass:$APPLE_CERTIFICATE_PASSWORD" \
             -name "$APPLE_SIGNING_IDENTITY"
+          openssl pkcs12 -legacy -export \
+            -inkey "$private_key_path" \
+            -in "$installer_certificate_pem_path" \
+            -out "$installer_certificate_p12_path" \
+            -passout "pass:$APPLE_CERTIFICATE_PASSWORD" \
+            -name "Mac Installer Distribution"
 
           security create-keychain -p "$keychain_password" "$keychain_path"
           security set-keychain-settings -lut 21600 "$keychain_path"
           security unlock-keychain -p "$keychain_password" "$keychain_path"
           security import "$certificate_p12_path" \
+            -k "$keychain_path" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/productsign \
+            -T /usr/bin/security
+          security import "$installer_certificate_p12_path" \
             -k "$keychain_path" \
             -P "$APPLE_CERTIFICATE_PASSWORD" \
             -T /usr/bin/codesign \
@@ -192,6 +212,11 @@ jobs:
 
           if ! security find-certificate -c "$APPLE_SIGNING_IDENTITY" "$keychain_path" >/dev/null 2>&1; then
             echo "Could not find imported Apple signing certificate for identity: $APPLE_SIGNING_IDENTITY" >&2
+            security find-identity -v -p codesigning "$keychain_path" >&2
+            exit 1
+          fi
+          if ! security find-certificate -c "Mac Installer Distribution" "$keychain_path" >/dev/null 2>&1; then
+            echo "Could not find imported Mac Installer Distribution certificate." >&2
             security find-identity -v -p codesigning "$keychain_path" >&2
             exit 1
           fi
@@ -255,6 +280,7 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :signingStyle string manual" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :signingCertificate string $APPLE_SIGNING_IDENTITY" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :installerSigningCertificate string Mac Installer Distribution" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles dict" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.praveenjuge.teak-safari string $SAFARI_APP_PROFILE_NAME" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.praveenjuge.teak-safari.Extension string $SAFARI_EXTENSION_PROFILE_NAME" "$export_options"
