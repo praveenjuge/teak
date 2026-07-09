@@ -7,6 +7,8 @@ let importQueryResult: unknown = null;
 mock.module("convex/react", () => ({
   ...convexReact,
   useAction: () => mock(),
+}));
+mock.module("../../../convexQueryHooks", () => ({
   useQuery: () => importQueryResult,
 }));
 mock.module("../../ui/button", () => ({
@@ -23,16 +25,20 @@ mock.module("sonner", () => ({
 const { ImportPanel, ImportProgressSummary } = await import("../ImportPanel");
 const { putParts } = await import("../importUpload");
 
+function renderImportPanel() {
+  return renderToStaticMarkup(<ImportPanel />);
+}
+
 describe("ImportPanel", () => {
   test("renders all backend import modes", () => {
-    const markup = renderToStaticMarkup(<ImportPanel />);
+    const markup = renderImportPanel();
     expect(markup).toContain("Import Bookmarks");
     expect(markup).toContain("Import Teak Archive");
     expect(markup).toContain("Import from Raindrop");
   });
 
   test("shows an empty last-import state when there are no imports", () => {
-    const markup = renderToStaticMarkup(<ImportPanel />);
+    const markup = renderImportPanel();
     expect(markup).toContain("No imports yet.");
   });
 
@@ -51,7 +57,7 @@ describe("ImportPanel", () => {
       updatedAt: 0,
     };
     try {
-      const markup = renderToStaticMarkup(<ImportPanel />);
+      const markup = renderImportPanel();
       expect(markup).toContain("Upload interrupted");
       expect(markup).toContain("Resume upload");
       // The interrupted upload can also be discarded.
@@ -129,7 +135,7 @@ describe("ImportPanel", () => {
       updatedAt: 0,
     };
     try {
-      const markup = renderToStaticMarkup(<ImportPanel />);
+      const markup = renderImportPanel();
       expect(markup).toContain("Import stopped");
       expect(markup).toContain(
         "Card limit reached. Please upgrade to Pro for unlimited cards."
