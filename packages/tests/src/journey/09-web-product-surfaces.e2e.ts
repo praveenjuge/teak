@@ -94,8 +94,12 @@ const waitForHomeUploadSurface = async (page: Page) => {
 
 const showTrash = async (page: Page) => {
   await page.goto("/");
-  await page.getByPlaceholder("Search for anything...").click();
-  await clickVisibleControl(page.getByRole("button", { name: "Trash" }));
+  const search = page.getByPlaceholder("Search for anything...");
+  await search.fill("trash");
+  await search.press("Enter");
+  await expect(
+    page.getByRole("button", { exact: true, name: "Trash" }).first()
+  ).toBeVisible();
 };
 
 const primaryContext = () => {
