@@ -40,17 +40,22 @@ async function findBundleId(identifier) {
       limit: "10",
     })
   );
-  const bundleId = response.data?.find((candidate) =>
-    ["MAC_OS", "UNIVERSAL"].includes(candidate.attributes?.platform)
+  const bundleId = response.data?.find(
+    (candidate) =>
+      candidate.attributes?.identifier === identifier &&
+      ["MAC_OS", "UNIVERSAL"].includes(candidate.attributes?.platform)
   );
   if (!bundleId) {
-    const platforms =
+    const candidates =
       response.data
-        ?.map((candidate) => candidate.attributes?.platform)
+        ?.map(
+          (candidate) =>
+            `${candidate.attributes?.identifier || "unknown"} (${candidate.attributes?.platform || "unknown"})`
+        )
         .filter(Boolean)
         .join(", ") || "none";
     throw new Error(
-      `No macOS-compatible bundle ID found for ${identifier}; found platforms: ${platforms}.`
+      `No exact macOS-compatible bundle ID found for ${identifier}; found: ${candidates}.`
     );
   }
   return bundleId;
