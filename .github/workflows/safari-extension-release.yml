@@ -271,6 +271,7 @@ jobs:
       - name: Export App Store package
         id: export
         if: steps.check.outputs.should_upload == 'true'
+        timeout-minutes: 15
         env:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
@@ -291,13 +292,15 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.praveenjuge.teak-safari string $SAFARI_APP_PROFILE_NAME" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.praveenjuge.teak-safari.Extension string $SAFARI_EXTENSION_PROFILE_NAME" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :stripSwiftSymbols bool true" "$export_options"
-          /usr/libexec/PlistBuddy -c "Add :uploadSymbols bool true" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :uploadSymbols bool false" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :manageAppVersionAndBuildNumber bool false" "$export_options"
 
+          plutil -p "$export_options"
+          set -o pipefail
           xcodebuild -exportArchive \
             -archivePath "$ARCHIVE_PATH" \
             -exportPath "$export_path" \
-            -exportOptionsPlist "$export_options"
+            -exportOptionsPlist "$export_options" 2>&1 | tee "$RUNNER_TEMP/xcodebuild-export.log"
 
           package_path="$(find "$export_path" -maxdepth 1 -name '*.pkg' -print -quit)"
           if [ -z "$package_path" ] || [ ! -f "$package_path" ]; then
