@@ -15,9 +15,9 @@ When the user says to release a Safari version, treat that as approval to:
 3. Push `main`.
 4. Create and push the matching `v<version>` tag.
 5. Wait for the Safari GitHub Action to finish.
-6. Update the App Store version with the correct user-facing release notes.
-7. Attach the newest processed build if needed.
-8. Add the version for review and submit it to App Review.
+6. Verify the workflow uploaded the build, attached the processed build to the
+   macOS App Store version, set generic release notes, and submitted the version
+   to App Review with automatic release after approval.
 
 Stop only for real blockers: failed checks, failed GitHub Action, Apple
 login/2FA, missing secrets, missing processed build, or App Store Connect
@@ -104,7 +104,7 @@ gh run watch <run-id> --exit-status
 The workflow uploads the Mac App Store package to App Store Connect and attaches
 `teak-safari-<version>-mac-app-store.pkg` to the GitHub Release.
 
-### 6. Submit in App Store Connect
+### 6. Verify App Store Connect submission
 
 Open:
 
@@ -112,19 +112,9 @@ Open:
 https://appstoreconnect.apple.com/apps/6770003409/distribution/macos/version/inflight
 ```
 
-Before submitting:
-
-- Set the version's release notes to the user-facing notes from step 2.
-- Confirm the newest processed build for this version is selected.
-- Confirm the screenshots are still present.
-- Keep release type as manual unless the user asks for automatic release.
-- Click **Add for Review**.
-- Resolve any validation errors.
-- Open **App Review** and submit the item.
-
-If App Store Connect says **Newer Build Available**, cancel the prompt, remove
-the older selected build, attach the newest processed build, save, and submit
-again.
+The workflow should leave the version in App Review without manual clicks. Use
+App Store Connect only to inspect Apple-side validation errors, missing metadata,
+or stuck processing.
 
 ## Constants
 
