@@ -210,15 +210,26 @@ async function waitForBuild() {
 }
 
 async function attachBuild(versionId, buildId) {
-  await request("PATCH", `/v1/builds/${buildId}`, {
-    data: {
-      type: "builds",
-      id: buildId,
-      attributes: {
-        usesNonExemptEncryption: false,
+  try {
+    await request("PATCH", `/v1/builds/${buildId}`, {
+      data: {
+        type: "builds",
+        id: buildId,
+        attributes: {
+          usesNonExemptEncryption: false,
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    if (
+      error.statusCode !== 409 ||
+      !error.message.includes("value is already set")
+    ) {
+      throw error;
+    }
+    console.log("Build encryption compliance is already set.");
+  }
+
   await request(
     "PATCH",
     `/v1/appStoreVersions/${versionId}/relationships/build`,
