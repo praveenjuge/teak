@@ -112,12 +112,12 @@ jobs:
       - name: Verify Apple signing credentials
         if: steps.check.outputs.should_upload == 'true'
         env:
-          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64 }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
           missing=()
-          for name in APPLE_CERTIFICATE_BASE64 APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY; do
+          for name in APPLE_CERTIFICATE_PASSWORD APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64 APPLE_SIGNING_IDENTITY; do
             if [ -z "${!name}" ]; then
               missing+=("$name")
             fi
@@ -145,20 +145,42 @@ jobs:
       - name: Prepare Apple signing certificate
         if: steps.check.outputs.should_upload == 'true'
         env:
-          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64 }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
           keychain_path="$RUNNER_TEMP/teak-safari-signing.keychain-db"
           keychain_password="$(uuidgen)"
-          certificate_path="$RUNNER_TEMP/apple-signing-certificate.p12"
+          private_key_path="$RUNNER_TEMP/apple-distribution-private-key.pem"
+          csr_path="$RUNNER_TEMP/apple-distribution.csr"
+          certificate_pem_path="$RUNNER_TEMP/apple-distribution.pem"
+          certificate_p12_path="$RUNNER_TEMP/apple-signing-certificate.p12"
 
-          printf '%s' "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
+          printf '%s' "$APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64" | base64 --decode > "$private_key_path"
+          chmod 600 "$private_key_path"
+          openssl req -new \
+            -key "$private_key_path" \
+            -out "$csr_path" \
+            -subj "/CN=Teak Safari Distribution/O=$APPLE_TEAM_ID/C=US"
+
+          export APPLE_DISTRIBUTION_CSR_PATH="$csr_path"
+          export APPLE_DISTRIBUTION_CERTIFICATE_PATH="$certificate_pem_path"
+          export APPLE_DISTRIBUTION_PRIVATE_KEY_PATH="$private_key_path"
+          node apps/safari-extension/scripts/ensure-distribution-certificate.mjs
+
+          openssl pkcs12 -export \
+            -inkey "$private_key_path" \
+            -in "$certificate_pem_path" \
+            -out "$certificate_p12_path" \
+            -passout "pass:$APPLE_CERTIFICATE_PASSWORD" \
+            -name "$APPLE_SIGNING_IDENTITY"
 
           security create-keychain -p "$keychain_password" "$keychain_path"
           security set-keychain-settings -lut 21600 "$keychain_path"
           security unlock-keychain -p "$keychain_password" "$keychain_path"
-          security import "$certificate_path" \
+          security import "$certificate_p12_path" \
             -k "$keychain_path" \
             -P "$APPLE_CERTIFICATE_PASSWORD" \
             -T /usr/bin/codesign \
@@ -168,13 +190,11 @@ jobs:
           security default-keychain -s "$keychain_path"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain_path"
 
-          certificate_serial="$(security find-certificate -c "$APPLE_SIGNING_IDENTITY" -p "$keychain_path" 2>/dev/null | openssl x509 -noout -serial | sed 's/^serial=//' | tr '[:lower:]' '[:upper:]')"
-          if [ -z "$certificate_serial" ]; then
+          if ! security find-certificate -c "$APPLE_SIGNING_IDENTITY" "$keychain_path" >/dev/null 2>&1; then
             echo "Could not find imported Apple signing certificate for identity: $APPLE_SIGNING_IDENTITY" >&2
             security find-identity -v -p codesigning "$keychain_path" >&2
             exit 1
           fi
-          echo "APPLE_CERTIFICATE_SERIAL=$certificate_serial" >> "$GITHUB_ENV"
 
       - name: Create or reuse App Store version
         env:
