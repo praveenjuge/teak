@@ -2,7 +2,7 @@ import { Buffer } from "node:buffer";
 import { expect, type Page, test } from "@playwright/test";
 import { MAX_FILE_SIZE } from "@teak/convex/shared";
 import { apiFetch } from "../helpers/api";
-import { clientFor } from "../helpers/prod";
+import { clickVisibleControl, clientFor } from "../helpers/prod";
 import { readState, updateState } from "../helpers/run-state";
 
 const png = Buffer.from(
@@ -22,7 +22,9 @@ const pdf = Buffer.from(
 const saveTextCard = async (page: Page, content: string) => {
   await page.goto("/");
   await page.getByPlaceholder(/Write a note/i).fill(content);
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await clickVisibleControl(
+    page.getByRole("button", { exact: true, name: "Save" })
+  );
   await expect(page.getByRole("main").getByText(content).first()).toBeVisible();
 };
 
@@ -93,7 +95,7 @@ const waitForHomeUploadSurface = async (page: Page) => {
 const showTrash = async (page: Page) => {
   await page.goto("/");
   await page.getByPlaceholder("Search for anything...").click();
-  await page.getByRole("button", { name: "Trash" }).click();
+  await clickVisibleControl(page.getByRole("button", { name: "Trash" }));
 };
 
 const primaryContext = () => {

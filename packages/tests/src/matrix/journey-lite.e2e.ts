@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createAccount } from "../helpers/prod";
+import { clickVisibleControl, createAccount } from "../helpers/prod";
 
 test.setTimeout(180_000);
 
@@ -8,7 +8,9 @@ test("signup, create, and search", async ({ page }) => {
   const marker = `matrix-${Date.now()}`;
   await page.goto("/");
   await page.getByPlaceholder(/Write a note/i).fill(marker);
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await clickVisibleControl(
+    page.getByRole("button", { exact: true, name: "Save" })
+  );
   const savedCard = page
     .getByRole("main")
     .getByRole("paragraph")
