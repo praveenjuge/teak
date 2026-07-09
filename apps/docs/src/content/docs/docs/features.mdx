@@ -1,149 +1,91 @@
 ---
 title: Features
-description: Core features of Teak visual bookmarking platform
+description: Card types, search, AI enrichment, and sync in Teak
 ---
 
-## Card System
+## Card types
 
-Eight card types cover common design workflows. Each type is optimized for its content with automatic processing and rich previews.
+Eight types cover common save workflows. Each gets automatic processing and a rich preview.
 
-### 📝 Design Notes
+| Type | What you save | Auto-features |
+| --- | --- | --- |
+| **Text** | Notes, decisions, feedback | Full-text search |
+| **Link** | Articles, Dribbble shots, tools | Metadata, screenshot, preview |
+| **Image** | Screenshots, mockups, photos | Color palette extraction |
+| **Video** | Tutorials, animations, clips | Inline player, thumbnails |
+| **Audio** | Voice memos, recordings | Transcription |
+| **Document** | PDFs and other files | Thumbnail previews |
+| **Palette** | Color swatches from images | Hex values per color |
+| **Quote** | Highlighted passages | Source context |
 
-Capture project decisions, meeting notes, and feedback. Full Markdown support with syntax highlighting for code snippets.
+## Search and organization
 
-### 🔗 Design Resources
+### Smart search
 
-Save links with automatic metadata extraction and full-page screenshots. Teak captures the title, description, favicon, and a visual preview.
+Search titles, descriptions, tags, transcripts, and extracted text. Special tokens work automatically:
 
-### 📷 Visual References
+| Token | Examples | Effect |
+| --- | --- | --- |
+| **Color name** | `red`, `blue`, `teal` | Dominant palette color |
+| **Visual style** | `minimal`, `dark`, `cinematic`, `pastel`, `vibrant` | Visual aesthetic |
+| **Hex color** | `#FF5733`, `#3B82F6` | Exact color match |
+| **Date** | `today`, `this week`, `january`, `last year` | Creation date |
+| **Quick view** | `favorites` / `fav`, `trash` / `bin` / `deleted` | Favorites or trash |
+| **Keyword** | anything else | Full-text match |
 
-Store screenshots, mockups, and mood board images. Automatic color palette extraction helps you find images by dominant colors.
-
-### 🎬 Animation References
-
-Save video files with an inline player and auto-generated thumbnails. Perfect for motion design references and tutorial clips.
-
-### 🎙️ Voice Notes
-
-Record audio directly or upload files. Automatic transcription makes voice notes fully searchable.
-
-### 📁 Design Files
-
-Upload PDFs, Sketch files, Figma exports, and other assets. Thumbnail previews help you browse without opening each file.
-
-### 🎨 Color Palettes
-
-Extract and save color palettes from any image. Each color includes hex values for easy copying.
-
-### 💬 Quote Cards
-
-Save highlighted quotes with source context. Perfect for design principles, testimonials, and notable passages.
-
----
-
-## Search & Organization
-
-### Smart Search
-
-Type any word or phrase to search across card titles, descriptions, tags, transcriptions, and extracted text. Teak also recognizes special search tokens automatically:
-
-| Token type         | Examples                                                                                                                                              | What it does                             |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| **Color name**     | `red`, `blue`, `teal`, `purple`, `pink`                                                                                                               | Filters cards by dominant palette color  |
-| **Visual style**   | `minimal`, `dark`, `cinematic`, `pastel`, `vibrant`, `moody`, `retro`, `vintage`, `abstract`, `illustrative`, `monochrome`, `photographic`, `surreal` | Filters cards by visual aesthetic        |
-| **Hex color**      | `#FF5733`, `#3B82F6`                                                                                                                                  | Filters cards by exact color match       |
-| **Date shorthand** | `today`, `this week`, `january`, `last year`                                                                                                          | Filters cards by creation date           |
-| **Quick view**     | `favorites` (or `fav`), `trash` (or `bin`, `deleted`)                                                                                                 | Switches to your favorites or trash view |
-| **Keyword**        | anything else                                                                                                                                         | Full-text match on card content          |
-
-Mix multiple tokens in one search — Teak applies all recognized filters simultaneously.
+Mix tokens in one query — all recognized filters apply together.
 
 ```
-Examples:
-- "blue button hover state"
-- "minimal dark"
-- "#3B82F6"
-- "feedback from Sarah this week"
-- "onboarding flow mobile"
+blue button hover state
+minimal dark
+#3B82F6
+feedback this week
 ```
 
-### Smart Tagging
+### Tags and filters
 
-AI automatically analyzes your content and applies relevant tags. You can also add custom tags manually.
-
-### Filtering
-
-Filter by card type, favorites, visual style, color, or date. Active filters appear as removable pills in the search bar. Combine multiple filters to narrow down large collections quickly.
+AI applies tags automatically; you can add your own. Filter by type, favorites, style, color, or date. Active filters show as removable pills in the search bar.
 
 ### Trash
 
-Deleted cards are moved to trash instead of being removed immediately. From the trash view you can:
+Deleted cards go to trash first. Restore them, or delete permanently (including files). Open trash with `trash`, `bin`, or `deleted` in the search bar.
 
-- **Restore** — sends the card back to your main library
-- **Delete permanently** — removes the card and any associated files for good
+### Import and export
 
-Access trash by typing `trash` (or `bin`, `deleted`) in the search bar and pressing Enter.
+From Settings on web and desktop:
 
-### Data Import
+- [Import](/docs/import) bookmarks, Raindrop CSV, or a Teak archive
+- [Export](/docs/export) a portable ZIP of active cards and original files
 
-Bring in links from a browser bookmarks export, a Raindrop.io CSV export, or a previous Teak archive, all from Settings on web and desktop. See [Import Your Data](/docs/import) for supported formats, duplicate handling, and limits.
+### Grid
 
-### Data Export
+Cards show in a masonry grid that adapts to different sizes and aspect ratios.
 
-Export a portable ZIP of your active cards and original files from Settings on web and desktop. See [Export Your Data](/docs/export) for archive contents, limits, and download availability.
+## AI enrichment
 
-### Masonry Grid
+Each card is processed automatically:
 
-Browse your inspiration in a Pinterest-style grid that adapts to different content sizes and aspect ratios.
+| Feature | Description |
+| --- | --- |
+| **Auto-tagging** | Keywords and concepts |
+| **Summaries** | Short descriptions for scanning |
+| **Categorization** | Link type (design, development, article, tool) |
+| **Color extraction** | Dominant colors in images |
+| **Transcription** | Audio → searchable text |
+| **Thumbnails** | Previews for video and documents |
 
----
+## Apps and access
 
-## AI Enrichment
+Everything syncs in real time. Pick the surface that fits:
 
-Teak's AI pipeline processes each card automatically:
+| Surface | Docs |
+| --- | --- |
+| Web | Full library, drag-and-drop, bulk actions |
+| [Desktop (macOS)](/docs/desktop) | Native app with auto-updates |
+| [Mobile (iOS)](/docs/mobile) | Share sheet, camera, voice notes |
+| [Browser extension](/docs/extension) | One-click save from Chrome, Safari, Edge, and more |
+| [Raycast](/docs/raycast) | Keyboard-first save and search |
+| [CLI](/docs/cli) | Terminal save, search, and manage |
+| [API](/docs/api) / [MCP](/docs/mcp) | Programmatic access for tools and agents |
 
-| Feature                  | Description                                               |
-| ------------------------ | --------------------------------------------------------- |
-| **Auto-tagging**         | Extracts relevant keywords and concepts                   |
-| **Summaries**            | Generates brief descriptions for quick scanning           |
-| **Categorization**       | Groups links by type (design, development, article, tool) |
-| **Color extraction**     | Identifies dominant colors in images                      |
-| **Transcription**        | Converts audio to searchable text                         |
-| **Thumbnail generation** | Creates previews for videos and documents                 |
-
----
-
-## Cross-Platform Sync
-
-Your inspiration syncs in real-time across all platforms:
-
-### 🌐 Web App
-
-Full-featured dashboard with drag-and-drop uploads, bulk selection, full-screen card previews, and URL-synced card modal state for direct deep links.
-
-### 🖥️ Desktop App
-
-Signed and notarized native macOS app (Apple Silicon, macOS 13+) with auto-updates and a native menu bar. Download from [GitHub Releases](https://github.com/praveenjuge/teak/releases/latest) — no App Store required. See the [Desktop App guide](/docs/desktop) for install and troubleshooting details.
-
-### 📱 Mobile App
-
-Native iOS app with share sheet integration, camera capture, one-tap voice recording, and offline viewing. Share directly from any app to save instantly.
-
-### 🧩 Browser Extensions
-
-Save the current page from the Safari toolbar with [Teak for Safari](https://apps.apple.com/us/app/teak-for-safari/id6770003409?mt=12). On Chrome and Chromium-based browsers, you can also right-click to save pages or selected text and use inline save buttons on supported social sites. See the [Browser Extension guide](/docs/extension) for setup and full details.
-
-### ⚡ Raycast, CLI, API & MCP
-
-Save and search without leaving your keyboard using the [Raycast extension](/docs/raycast) or [command line](/docs/cli), or connect your own tools with the [public API](/docs/api) and [MCP server](/docs/mcp). Sign in with your browser or generate a long-lived key from the dedicated API Keys window in Settings, where you can view status, copy, revoke, disable, and regenerate keys.
-
----
-
-## Who It's For
-
-| Audience             | Use                                                                                   |
-| -------------------- | ------------------------------------------------------------------------------------- |
-| **Designers**        | Build a personal library of UI patterns, interactions, and visual references          |
-| **Developers**       | Save documentation, code examples, and technical references                           |
-| **Creative Teams**   | Share inspiration collections; keep everyone aligned on visual direction              |
-| **Content Creators** | Organize research, quotes, and visual assets for articles, videos, and social content |
+Sign in with your browser, or create a long-lived key under **Settings → API Keys**.

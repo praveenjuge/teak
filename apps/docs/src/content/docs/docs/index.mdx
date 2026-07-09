@@ -1,143 +1,106 @@
 ---
 title: Welcome to Teak
-description: Your personal design library that never loses anything
+description: Save inspiration in one click and find it in seconds
 ---
 
 import { CardGrid, LinkCard } from "@astrojs/starlight/components";
 
-Teak helps you save inspiration in 1 click and find it in 2 seconds—no more lost bookmarks or messy folders.
+Teak is a personal library for links, notes, images, files, and more. Save from any device; AI tags and organizes so you can find things with a short search.
 
-## Why Teak?
-
-Everyone who collects references has the same problem: you find the perfect example—then lose it forever in a sea of bookmarks, screenshots, and "inspiration" folders.
-
-Teak fixes this by:
-
-- **Instant saving** — One click from any browser, phone, or app
-- **Smart organization** — AI auto-tags and categorizes everything
-- **Lightning search** — Type "blue button" and find it in 2 seconds
-- **Cross-platform sync** — Save on mobile, find on desktop
-
-## Common Use Cases
-
-### Building a Design System
-
-Save UI patterns, component examples, and interaction references. Search by component type to find exactly what you need when building new features.
-
-### Client Mood Boards
-
-Collect visual references for client projects. Share curated collections or export for presentations.
-
-### Learning & Reference
-
-Save tutorials, code snippets, and documentation. Voice notes let you capture quick ideas on the go.
-
-### Color & Typography Research
-
-Extract color palettes from any image. Save font pairings and typography examples with full context.
-
-## Start Here
+## Get started
 
 <CardGrid>
   <LinkCard
-    title="Desktop App"
-    href="/docs/desktop"
-    description="Native macOS app with automatic updates and real-time sync."
-  />
-  <LinkCard
-    title="Mobile App"
-    href="/docs/mobile"
-    description="Save on the go from iOS, including the system share sheet."
-  />
-  <LinkCard
-    title="Browser Extensions"
-    href="/docs/extension"
-    description="One-click saves from Chrome, Safari, Edge, Brave, and Arc."
-  />
-  <LinkCard
-    title="Raycast Extension"
-    href="/docs/raycast"
-    description="Save and search cards without leaving your keyboard."
-  />
-  <LinkCard
-    title="Command Line"
-    href="/docs/cli"
-    description="Save, search, and manage cards from your terminal."
-  />
-  <LinkCard
     title="Features"
     href="/docs/features"
-    description="Tour every card type, AI pipeline step, and search surface."
+    description="Card types, search, AI enrichment, and sync."
   />
   <LinkCard
-    title="Import Your Data"
+    title="Desktop"
+    href="/docs/desktop"
+    description="Native macOS app with automatic updates."
+  />
+  <LinkCard
+    title="Mobile"
+    href="/docs/mobile"
+    description="iOS app with share sheet and voice notes."
+  />
+  <LinkCard
+    title="Browser extension"
+    href="/docs/extension"
+    description="One-click save from Chrome, Safari, Edge, and more."
+  />
+  <LinkCard
+    title="Raycast"
+    href="/docs/raycast"
+    description="Save and search without leaving the keyboard."
+  />
+  <LinkCard
+    title="Command line"
+    href="/docs/cli"
+    description="Manage cards from your terminal."
+  />
+  <LinkCard
+    title="Import"
     href="/docs/import"
-    description="Bring in bookmarks, a Raindrop export, or a Teak archive."
+    description="Bookmarks, Raindrop, or a Teak archive."
   />
   <LinkCard
-    title="Export Your Data"
+    title="Export"
     href="/docs/export"
-    description="Download a portable archive of your cards and original files."
+    description="Download a portable ZIP of your library."
   />
   <LinkCard
     title="API"
     href="/docs/api"
-    description="Programmatic access to your cards over HTTP."
+    description="HTTP API for cards, uploads, and sync."
   />
   <LinkCard
-    title="MCP"
-    href="/docs/mcp"
-    description="Connect Teak to any MCP-compatible AI client."
+    title="MCP & agents"
+    href="/docs/ai-agents"
+    description="MCP, CLI, and Agent Skill for AI tools."
   />
   <LinkCard
     title="Development"
     href="/docs/development"
-    description="Clone, install, and run the monorepo locally."
+    description="Run the monorepo locally."
   />
   <LinkCard
-    title="Self-Hosting"
+    title="Self-hosting"
     href="/docs/self-hosting"
-    description="Run Teak on your own Convex deployment."
+    description="Run Teak on your own deployment."
   />
 </CardGrid>
 
-## How It Works
+## What you can save
 
-1. **Install desktop, browser extension, mobile app, or CLI**
-2. **Save anything** with one click—images, links, notes, files
-3. **Let Teak organize** with automatic tagging and categorization
-4. **Search visually** using keywords, colors, or content type
-5. **Access anywhere** with real-time sync across all devices
+| Type | Examples | Auto-features |
+| --- | --- | --- |
+| Text | Notes, decisions | Full-text search |
+| Link | Articles, tools, references | Screenshot, metadata |
+| Image | Screenshots, mockups | Color palette |
+| Video | Tutorials, clips | Thumbnails |
+| Audio | Voice memos | Transcription |
+| Document | PDFs and files | Thumbnail previews |
+| Palette | Color swatches | Hex values |
+| Quote | Passages with source | Source context |
 
-## What You Can Save
-
-| Type     | Examples                                | Auto-Features                   |
-| -------- | --------------------------------------- | ------------------------------- |
-| Links    | Articles, Dribbble shots, CodePen demos | Screenshot, metadata extraction |
-| Images   | Screenshots, mockups, photos            | Color palette extraction        |
-| Notes    | Ideas, feedback, decisions              | Full-text search                |
-| Files    | PDFs, design files, assets              | Thumbnail previews              |
-| Audio    | Voice memos, feedback recordings        | Transcription                   |
-| Video    | Tutorials, animations, references       | Thumbnail generation            |
-| Palettes | Brand colors, inspiration swatches      | Hex values extracted per color  |
-| Quotes   | Design principles, notable passages     | Saved with source context       |
-
-## Policies & Help
+## Help
 
 <CardGrid>
   <LinkCard
+    title="Support"
+    href="/docs/support"
+    description="Contact and bug reports."
+  />
+  <LinkCard
     title="Privacy Policy"
     href="/docs/privacy-policy"
-    description="How we collect, use, and safeguard your data."
+    description="How we handle your data."
   />
   <LinkCard
     title="Terms of Service"
     href="/docs/terms-of-service"
-    description="The rules for using Teak."
-  />
-  <LinkCard
-    title="Support"
-    href="/docs/support"
-    description="Contact channels and how to get help fast."
+    description="Rules for using Teak."
   />
 </CardGrid>
