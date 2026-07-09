@@ -3,9 +3,9 @@ title: Agent Skill
 description: Install the Teak Agent Skill for Codex, Claude Code, Cursor, and other skills-compatible agents
 ---
 
-The Teak Agent Skill gives AI agents a reliable playbook for using Teak through the CLI, API, MCP server, and TypeScript SDK.
+The Teak Agent Skill teaches AI agents how to save, search, and manage Teak cards through the CLI, API, MCP server, and TypeScript SDK.
 
-View it on Skills.sh: [skills.sh/praveenjuge/teak](https://skills.sh/praveenjuge/teak)
+[skills.sh/praveenjuge/teak](https://skills.sh/praveenjuge/teak)
 
 ## Install
 
@@ -13,29 +13,27 @@ View it on Skills.sh: [skills.sh/praveenjuge/teak](https://skills.sh/praveenjuge
 npx skills add praveenjuge/teak --skill teak
 ```
 
-The skill installs from Teak's public GitHub repository and works with skills-compatible agents such as Codex, Claude Code, Cursor, GitHub Copilot, Windsurf, and others. Skills.sh lists public skills after successful installs are reported by the `skills` CLI, so installing the command above also makes Teak discoverable there.
+Works with skills-compatible agents such as Codex, Claude Code, Cursor, GitHub Copilot, and Windsurf.
 
-## What It Teaches Agents
+## What it covers
 
-- When to use the Teak CLI, public API, MCP server, or SDK.
-- How to authenticate with browser sign-in or a Teak API key.
-- How to save text, links, files, tags, and notes.
-- How to search, inspect, update, favorite, delete, and sync cards.
-- How to use production-safe smoke-test markers and clean up test cards.
-- How to avoid leaking API keys, OAuth tokens, or private saved content.
+- When to use CLI vs API vs MCP vs SDK
+- Browser sign-in or API key auth
+- Save text, links, files, tags, and notes
+- Search, update, favorite, delete, and sync cards
+- Keep API keys and private content out of logs and prompts
 
 ## Use
-
-After installing, ask your agent to use the Teak skill:
 
 ```text
 Use the Teak skill to save this research link with the tags ai and reference.
 ```
 
-Agents that support implicit skill activation can also choose it automatically when a task mentions Teak cards, the Teak CLI, Teak MCP, or the Teak API.
+Agents with implicit skill activation may pick it up when a task mentions Teak.
 
-## Related Docs
+## Related
 
-- [Command Line](/docs/cli/)
-- [API](/docs/api/)
-- [MCP](/docs/mcp/)
+- [Teak for AI Agents](/docs/ai-agents)
+- [CLI](/docs/cli)
+- [API](/docs/api)
+- [MCP](/docs/mcp)

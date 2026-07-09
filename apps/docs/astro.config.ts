@@ -88,19 +88,22 @@ export default defineConfig({
             { label: "Browser Extension", slug: "docs/extension" },
             { label: "Raycast Extension", slug: "docs/raycast" },
             { label: "Command Line", slug: "docs/cli" },
-            { label: "Agent Skill", slug: "docs/skills" },
+          ],
+        },
+        {
+          label: "Data",
+          items: [
+            { label: "Import", slug: "docs/import" },
+            { label: "Export", slug: "docs/export" },
           ],
         },
         {
           label: "Developers",
           items: [
             { label: "API", slug: "docs/api" },
-            {
-              label: "MCP",
-              slug: "docs/mcp",
-              badge: { text: "New", variant: "success" },
-            },
+            { label: "MCP", slug: "docs/mcp" },
             { label: "Teak for AI Agents", slug: "docs/ai-agents" },
+            { label: "Agent Skill", slug: "docs/skills" },
             { label: "Development Guide", slug: "docs/development" },
             {
               label: "Self-Hosting",
@@ -117,8 +120,6 @@ export default defineConfig({
             { label: "Support", slug: "docs/support" },
           ],
         },
-        { label: "Import Your Data", slug: "docs/import" },
-        { label: "Export Your Data", slug: "docs/export" },
       ],
       head: [
         {
