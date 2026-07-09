@@ -147,6 +147,7 @@ jobs:
         env:
           APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
           keychain_path="$RUNNER_TEMP/teak-safari-signing.keychain-db"
           keychain_password="$(uuidgen)"
@@ -167,9 +168,10 @@ jobs:
           security default-keychain -s "$keychain_path"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain_path"
 
-          certificate_serial="$(openssl pkcs12 -in "$certificate_path" -nokeys -clcerts -passin "pass:$APPLE_CERTIFICATE_PASSWORD" 2>/dev/null | openssl x509 -noout -serial | sed 's/^serial=//' | tr '[:lower:]' '[:upper:]')"
+          certificate_serial="$(security find-certificate -c "$APPLE_SIGNING_IDENTITY" -p "$keychain_path" 2>/dev/null | openssl x509 -noout -serial | sed 's/^serial=//' | tr '[:lower:]' '[:upper:]')"
           if [ -z "$certificate_serial" ]; then
-            echo "Could not read Apple signing certificate serial number." >&2
+            echo "Could not find imported Apple signing certificate for identity: $APPLE_SIGNING_IDENTITY" >&2
+            security find-identity -v -p codesigning "$keychain_path" >&2
             exit 1
           fi
           echo "APPLE_CERTIFICATE_SERIAL=$certificate_serial" >> "$GITHUB_ENV"
