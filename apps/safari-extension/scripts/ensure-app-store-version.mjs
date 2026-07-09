@@ -19,10 +19,25 @@ async function findVersion() {
     apiPath(`/v1/apps/${process.env.ASC_APP_ID}/appStoreVersions`, {
       "filter[platform]": platform,
       "filter[versionString]": process.env.SAFARI_VERSION,
+      "fields[appStoreVersions]": "platform,versionString,appStoreState",
       limit: "1",
     })
   );
   return response.data?.[0];
+}
+
+async function findEditableVersion() {
+  const response = await request(
+    "GET",
+    apiPath(`/v1/apps/${process.env.ASC_APP_ID}/appStoreVersions`, {
+      "filter[platform]": platform,
+      "fields[appStoreVersions]": "platform,versionString,appStoreState",
+      limit: "20",
+    })
+  );
+  return (response.data || []).find(
+    (version) => version.attributes?.appStoreState === "PREPARE_FOR_SUBMISSION"
+  );
 }
 
 function createVersion() {
@@ -43,6 +58,26 @@ function createVersion() {
       },
     },
   });
+}
+
+async function updateVersionString(version) {
+  const response = await request(
+    "PATCH",
+    `/v1/appStoreVersions/${version.id}`,
+    {
+      data: {
+        type: "appStoreVersions",
+        id: version.id,
+        attributes: {
+          versionString: process.env.SAFARI_VERSION,
+        },
+      },
+    }
+  );
+  console.log(
+    `Updated editable macOS version ${version.attributes?.versionString} to ${process.env.SAFARI_VERSION} (${version.id}).`
+  );
+  return response.data;
 }
 
 let version = await findVersion();
@@ -68,14 +103,14 @@ try {
     console.log(
       `App Store Connect macOS version ${process.env.SAFARI_VERSION} exists after conflict (${version.id}).`
     );
-  } else if (
-    error.message.includes(
-      "cannot create a new version of the App in the current state"
-    )
-  ) {
-    console.log(
-      `App Store Connect cannot create macOS version ${process.env.SAFARI_VERSION} in the current app state. Continuing with build upload.`
-    );
+  } else if (error.message.includes("cannot create a new version of the App")) {
+    const editableVersion = await findEditableVersion();
+    if (!editableVersion) {
+      throw new Error(
+        `App Store Connect cannot create macOS version ${process.env.SAFARI_VERSION}, and no editable macOS version is available to reuse.`
+      );
+    }
+    await updateVersionString(editableVersion);
   } else {
     throw error;
   }

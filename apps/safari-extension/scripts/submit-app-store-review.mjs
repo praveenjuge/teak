@@ -31,18 +31,60 @@ async function findVersion() {
     apiPath(`/v1/apps/${process.env.ASC_APP_ID}/appStoreVersions`, {
       "filter[platform]": platform,
       "filter[versionString]": process.env.SAFARI_VERSION,
-      "fields[appStoreVersions]": "platform,versionString,releaseType,build",
+      "fields[appStoreVersions]":
+        "platform,versionString,appStoreState,releaseType,build",
       include: "build",
       limit: "1",
     })
   );
   const version = response.data?.[0];
-  if (!version) {
+  if (version) {
+    return version;
+  }
+
+  const editableVersion = await findEditableVersion();
+  if (!editableVersion) {
     throw new Error(
-      `No macOS App Store Connect version found for ${process.env.SAFARI_VERSION}.`
+      `No macOS App Store Connect version found for ${process.env.SAFARI_VERSION}, and no editable macOS version is available to reuse.`
     );
   }
-  return version;
+  return updateVersionString(editableVersion);
+}
+
+async function findEditableVersion() {
+  const response = await request(
+    "GET",
+    apiPath(`/v1/apps/${process.env.ASC_APP_ID}/appStoreVersions`, {
+      "filter[platform]": platform,
+      "fields[appStoreVersions]":
+        "platform,versionString,appStoreState,releaseType,build",
+      include: "build",
+      limit: "20",
+    })
+  );
+  return (response.data || []).find(
+    (version) => version.attributes?.appStoreState === "PREPARE_FOR_SUBMISSION"
+  );
+}
+
+async function updateVersionString(version) {
+  const response = await request(
+    "PATCH",
+    `/v1/appStoreVersions/${version.id}`,
+    {
+      data: {
+        type: "appStoreVersions",
+        id: version.id,
+        attributes: {
+          versionString: process.env.SAFARI_VERSION,
+        },
+      },
+    }
+  );
+  console.log(
+    `Updated editable macOS version ${version.attributes?.versionString} to ${process.env.SAFARI_VERSION} (${version.id}).`
+  );
+  return response.data;
 }
 
 async function upsertReleaseNotes(versionId) {
