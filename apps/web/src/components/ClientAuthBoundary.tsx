@@ -5,14 +5,14 @@ import { api } from "@teak/convex";
 import { isAuthError } from "@teak/ui/lib/utils";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { authClient } from "@/lib/auth-client";
+import { convexAuthClient } from "@/lib/auth-client";
 
 export function ClientAuthBoundary({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   return (
     <AuthBoundary
-      authClient={authClient}
+      authClient={convexAuthClient}
       getAuthUserFn={(api as any).auth.getAuthUser}
       isAuthError={isAuthError}
       onUnauth={() => {

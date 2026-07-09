@@ -18,15 +18,15 @@
     "review:submit": "node scripts/submit-app-review.mjs"
   },
   "dependencies": {
-    "@better-auth/expo": "1.6.11",
-    "@convex-dev/better-auth": "0.12.2",
+    "@better-auth/expo": "1.6.23",
+    "@convex-dev/better-auth": "0.12.5",
     "@expo/metro-runtime": "~56.0.11",
     "@expo/ui": "~56.0.12",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@sentry/react-native": "~7.11.0",
     "@teak/convex": "workspace:*",
-    "better-auth": "1.6.11",
+    "better-auth": "1.6.23",
     "convex": "^1.39.0",
     "convex-helpers": "0.1.118",
     "expo": "^56.0.0",
