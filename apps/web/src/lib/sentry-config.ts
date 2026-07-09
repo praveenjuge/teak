@@ -47,8 +47,29 @@ const isProductionE2eMatrixUser = (event: ErrorEvent) =>
   typeof event.user?.username === "string" &&
   event.user.username.startsWith("e2e-matrix-");
 
+const isSafariBrowser = (event: ErrorEvent) => {
+  const browser = event.contexts?.browser;
+
+  return (
+    typeof browser === "object" &&
+    browser !== null &&
+    "name" in browser &&
+    browser.name === "Safari"
+  );
+};
+
+const isBetterAuthSessionFrame = (filename?: string) =>
+  Boolean(
+    filename &&
+      (filename.includes("node_modules/@convex-dev/better-auth/") ||
+        filename.includes("node_modules/better-auth/") ||
+        filename.includes("node_modules/@better-fetch/fetch/") ||
+        filename.includes("/_next/static/chunks/"))
+  );
+
 const isSafariBetterAuthLoadFailure = (event: ErrorEvent) =>
   isProductionE2eMatrixUser(event) &&
+  isSafariBrowser(event) &&
   (event.exception?.values?.some((exception) => {
     const isWebkitLoadFailure =
       exception.type === "TypeError" &&
@@ -56,12 +77,10 @@ const isSafariBetterAuthLoadFailure = (event: ErrorEvent) =>
 
     return (
       isWebkitLoadFailure &&
-      exception.stacktrace?.frames?.some(
-        (frame) =>
-          frame.filename?.includes("node_modules/@convex-dev/better-auth/") ||
-          frame.filename?.includes("node_modules/better-auth/") ||
-          frame.filename?.includes("node_modules/@better-fetch/fetch/")
-      )
+      (exception.stacktrace?.frames?.some((frame) =>
+        isBetterAuthSessionFrame(frame.filename)
+      ) ??
+        false)
     );
   }) ??
     false);

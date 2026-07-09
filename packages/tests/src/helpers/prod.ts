@@ -1,4 +1,9 @@
-import { type Browser, expect, type Page } from "@playwright/test";
+import {
+  type Browser,
+  expect,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 import { createTeakClient } from "@teak/convex/sdk";
 import { env, requirePassword, uniqueEmail } from "./env";
 import { waitForEmail } from "./mailpit";
@@ -15,6 +20,33 @@ export const appPath = (path: string) => new URL(path, env.appUrl).toString();
 
 export const newAnonymousContext = (browser: Browser) =>
   browser.newContext({ storageState: { cookies: [], origins: [] } });
+
+const isRetryableActionabilityError = (error: unknown) =>
+  error instanceof Error &&
+  /element (is not stable|was detached)|Timeout .* exceeded/.test(
+    error.message
+  );
+
+export const clickVisibleControl = async (
+  locator: Locator,
+  options: { timeout?: number } = {}
+) => {
+  const timeout = options.timeout ?? 15_000;
+  const target = locator.first();
+  await expect(target).toBeVisible({ timeout });
+  await expect(target).toBeEnabled({ timeout });
+
+  try {
+    await target.click({ timeout: Math.min(timeout, 5000) });
+  } catch (error) {
+    if (!isRetryableActionabilityError(error)) {
+      throw error;
+    }
+    await expect(target).toBeVisible({ timeout });
+    await expect(target).toBeEnabled({ timeout });
+    await target.click({ force: true, timeout: Math.min(timeout, 5000) });
+  }
+};
 
 const settingsRow = (page: Page, label: string) =>
   page

@@ -67,10 +67,54 @@ describe("filterClientSentryEvent", () => {
           },
         ],
       },
+      contexts: { browser: { name: "Safari" } },
       user: { username: "e2e-matrix-matrix-webkit-1783500370949-70o5ch" },
     } satisfies ErrorEvent;
 
     expect(filterClientSentryEvent(event)).toBeNull();
+  });
+
+  test("drops pre-symbolicated Safari e2e session fetch aborts", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            type: "TypeError",
+            value: "Load failed (app.teakvault.com)",
+            stacktrace: {
+              frames: [
+                { filename: "app:///_next/static/chunks/0k5wuabdzwsx5.js" },
+                { filename: "app:///_next/static/chunks/0-abc.js" },
+              ],
+            },
+          },
+        ],
+      },
+      contexts: { browser: { name: "Safari" } },
+      user: { username: "e2e-matrix-matrix-webkit-1783578880540-apowrq" },
+    } satisfies ErrorEvent;
+
+    expect(filterClientSentryEvent(event)).toBeNull();
+  });
+
+  test("keeps non-Safari e2e session fetch failures", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            type: "TypeError",
+            value: "Load failed (app.teakvault.com)",
+            stacktrace: {
+              frames: [{ filename: "app:///_next/static/chunks/app.js" }],
+            },
+          },
+        ],
+      },
+      contexts: { browser: { name: "Chrome" } },
+      user: { username: "e2e-matrix-matrix-chromium-1783578880540-apowrq" },
+    } satisfies ErrorEvent;
+
+    expect(filterClientSentryEvent(event)).toBe(event);
   });
 
   test("keeps real-user Better Auth session fetch failures", () => {
