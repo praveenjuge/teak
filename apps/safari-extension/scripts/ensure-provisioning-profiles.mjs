@@ -35,14 +35,22 @@ async function findBundleId(identifier) {
     "GET",
     apiPath("/v1/bundleIds", {
       "filter[identifier]": identifier,
-      "filter[platform]": "MAC_OS",
       "fields[bundleIds]": "identifier,name,platform",
-      limit: "1",
+      limit: "10",
     })
   );
-  const bundleId = response.data?.[0];
+  const bundleId = response.data?.find((candidate) =>
+    ["MAC_OS", "UNIVERSAL"].includes(candidate.attributes?.platform)
+  );
   if (!bundleId) {
-    throw new Error(`No macOS bundle ID found for ${identifier}.`);
+    const platforms =
+      response.data
+        ?.map((candidate) => candidate.attributes?.platform)
+        .filter(Boolean)
+        .join(", ") || "none";
+    throw new Error(
+      `No macOS-compatible bundle ID found for ${identifier}; found platforms: ${platforms}.`
+    );
   }
   return bundleId;
 }
@@ -167,9 +175,13 @@ function installProfile(profile, identifier) {
   return profilePath;
 }
 
-async function ensureProfile({ identifier, outputPrefix, profileLabel }) {
+async function ensureProfile({
+  certificate,
+  identifier,
+  outputPrefix,
+  profileLabel,
+}) {
   const bundleId = await findBundleId(identifier);
-  const certificate = await findCertificate();
   const serial = normalizeSerial(certificate.attributes?.serialNumber);
   const name = `${profileLabel} ${serial.slice(-8)}`;
   const profile =
@@ -185,12 +197,16 @@ async function ensureProfile({ identifier, outputPrefix, profileLabel }) {
   );
 }
 
+const certificate = await findCertificate();
+
 await ensureProfile({
+  certificate,
   identifier: appBundleId,
   outputPrefix: "SAFARI_APP",
   profileLabel: "Teak Safari App Store",
 });
 await ensureProfile({
+  certificate,
   identifier: extensionBundleId,
   outputPrefix: "SAFARI_EXTENSION",
   profileLabel: "Teak Safari Extension App Store",

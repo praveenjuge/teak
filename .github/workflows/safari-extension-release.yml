@@ -10,6 +10,10 @@ on:
         description: "Version to upload, matching every package.json"
         required: true
         type: string
+      release_notes:
+        description: "App Store release notes"
+        required: false
+        type: string
 
 concurrency:
   group: safari-extension-release-${{ github.ref }}
@@ -87,24 +91,40 @@ jobs:
             exit 1
           fi
 
-      - name: Verify Apple release credentials
+      - name: Verify App Store Connect API credentials
         env:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
-          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
           missing=()
-          for name in APPLE_API_ISSUER APPLE_API_KEY_ID APPLE_API_KEY_P8 APPLE_CERTIFICATE_BASE64 APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY; do
+          for name in APPLE_API_ISSUER APPLE_API_KEY_ID APPLE_API_KEY_P8; do
             if [ -z "${!name}" ]; then
               missing+=("$name")
             fi
           done
 
           if [ "${#missing[@]}" -gt 0 ]; then
-            printf 'Missing required Safari App Store secret(s): %s\n' "${missing[*]}" >&2
+            printf 'Missing required App Store Connect secret(s): %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Verify Apple signing credentials
+        if: steps.check.outputs.should_upload == 'true'
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          missing=()
+          for name in APPLE_CERTIFICATE_BASE64 APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY; do
+            if [ -z "${!name}" ]; then
+              missing+=("$name")
+            fi
+          done
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required Apple signing secret(s): %s\n' "${missing[*]}" >&2
             exit 1
           fi
 
@@ -280,5 +300,5 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           SAFARI_VERSION: ${{ steps.version.outputs.version }}
-          SAFARI_RELEASE_NOTES: Small fixes and polish to keep saving pages from Safari smooth and reliable.
+          SAFARI_RELEASE_NOTES: ${{ github.event.inputs.release_notes || 'Small fixes and polish to keep saving pages from Safari smooth and reliable.' }}
         run: node apps/safari-extension/scripts/submit-app-store-review.mjs
