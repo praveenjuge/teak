@@ -10,10 +10,11 @@ import {
   TOAST_IDS,
 } from "@teak/ui/constants/toast";
 import type { OptimisticLocalStore } from "convex/browser";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { Maximize2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useQuery } from "../../convexQueryHooks";
 import { FullScreenAddCardDialog } from "./FullScreenAddCardDialog";
 
 function addCardToSearchQueries(

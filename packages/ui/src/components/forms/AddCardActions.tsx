@@ -18,10 +18,11 @@ import {
   TOAST_IDS,
 } from "@teak/ui/constants/toast";
 import { useGlobalFileDrop } from "@teak/ui/hooks";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { Mic, Square, Upload } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useQuery } from "../../convexQueryHooks";
 
 interface AddCardActionsProps {
   onSuccess?: () => void;

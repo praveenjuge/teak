@@ -6,7 +6,7 @@ import {
   MAX_BOOKMARK_BYTES,
   MAX_RAINDROP_BYTES,
 } from "@teak/convex/import/constants";
-import { useAction, useQuery } from "convex/react";
+import { useAction } from "convex/react";
 import {
   Archive,
   Bookmark,
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { type ChangeEvent, type ComponentType, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useQuery } from "../../convexQueryHooks";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { formatBytes, formatRelativeTime } from "./importExportFormat";

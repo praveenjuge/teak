@@ -1,6 +1,6 @@
 import { api } from "@teak/convex";
-import { useQuery } from "convex/react";
 import { useEffect, useState } from "react";
+import { useQuery } from "../../convexQueryHooks";
 import { useCardModal } from "../../hooks/useCardModal";
 import { MoreInformationModal } from "../modals/MoreInformationModal";
 import { NotesEditModal } from "../modals/NotesEditModal";
