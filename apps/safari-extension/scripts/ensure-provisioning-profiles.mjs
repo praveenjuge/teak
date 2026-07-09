@@ -183,6 +183,11 @@ async function ensureProfile({
 }) {
   const bundleId = await findBundleId(identifier);
   const serial = normalizeSerial(certificate.attributes?.serialNumber);
+  if (!serial) {
+    throw new Error(
+      `Mac App Distribution certificate ${certificate.id} is missing a serial number.`
+    );
+  }
   const name = `${profileLabel} ${serial.slice(-8)}`;
   const profile =
     (await findReusableProfile({ bundleId, certificate, name })) ||

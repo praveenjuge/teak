@@ -300,5 +300,6 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           SAFARI_VERSION: ${{ steps.version.outputs.version }}
+          BUILD_NUMBER: ${{ steps.check.outputs.should_upload == 'true' && steps.version.outputs.build_number || '' }}
           SAFARI_RELEASE_NOTES: ${{ github.event.inputs.release_notes || 'Small fixes and polish to keep saving pages from Safari smooth and reliable.' }}
         run: node apps/safari-extension/scripts/submit-app-store-review.mjs

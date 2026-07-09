@@ -132,6 +132,15 @@ function pickBuild(builds) {
 async function waitForBuild() {
   const deadline = Date.now() + waitSeconds * 1000;
   while (Date.now() < deadline) {
+    for (const failedState of ["FAILED", "INVALID"]) {
+      const failedBuild = pickBuild(await listBuilds(failedState));
+      if (failedBuild) {
+        throw new Error(
+          `App Store Connect marked build ${failedBuild.attributes?.version || failedBuild.id} as ${failedState}. Check the build processing errors before retrying.`
+        );
+      }
+    }
+
     const validBuild = pickBuild(await listBuilds("VALID"));
     if (validBuild) {
       console.log(
