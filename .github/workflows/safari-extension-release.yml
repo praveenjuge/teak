@@ -10,6 +10,10 @@ on:
         description: "Version to upload, matching every package.json"
         required: true
         type: string
+      release_notes:
+        description: "App Store release notes"
+        required: false
+        type: string
 
 concurrency:
   group: safari-extension-release-${{ github.ref }}
@@ -27,7 +31,7 @@ env:
 jobs:
   build-and-upload:
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
@@ -63,14 +67,13 @@ jobs:
         run: |
           expected_asset="teak-safari-${VERSION}-mac-app-store.pkg"
           if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx "$expected_asset"; then
-            echo "Release $TAG_NAME already contains $expected_asset — skipping Safari upload."
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG_NAME already contains $expected_asset — skipping package upload."
+            echo "should_upload=false" >> "$GITHUB_OUTPUT"
           else
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "should_upload=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Verify every package version matches release
-        if: steps.check.outputs.should_run == 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
@@ -88,29 +91,44 @@ jobs:
             exit 1
           fi
 
-      - name: Verify Apple release credentials
-        if: steps.check.outputs.should_run == 'true'
+      - name: Verify App Store Connect API credentials
         env:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
-          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
           missing=()
-          for name in APPLE_API_ISSUER APPLE_API_KEY_ID APPLE_API_KEY_P8 APPLE_CERTIFICATE_BASE64 APPLE_CERTIFICATE_PASSWORD; do
+          for name in APPLE_API_ISSUER APPLE_API_KEY_ID APPLE_API_KEY_P8; do
             if [ -z "${!name}" ]; then
               missing+=("$name")
             fi
           done
 
           if [ "${#missing[@]}" -gt 0 ]; then
-            printf 'Missing required Safari App Store secret(s): %s\n' "${missing[*]}" >&2
+            printf 'Missing required App Store Connect secret(s): %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Verify Apple signing credentials
+        if: steps.check.outputs.should_upload == 'true'
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          missing=()
+          for name in APPLE_CERTIFICATE_BASE64 APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY; do
+            if [ -z "${!name}" ]; then
+              missing+=("$name")
+            fi
+          done
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required Apple signing secret(s): %s\n' "${missing[*]}" >&2
             exit 1
           fi
 
       - name: Prepare App Store Connect API key
-        if: steps.check.outputs.should_run == 'true'
         env:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
@@ -125,7 +143,7 @@ jobs:
           echo "API_PRIVATE_KEYS_DIR=$key_dir" >> "$GITHUB_ENV"
 
       - name: Prepare Apple signing certificate
-        if: steps.check.outputs.should_run == 'true'
+        if: steps.check.outputs.should_upload == 'true'
         env:
           APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -149,19 +167,32 @@ jobs:
           security default-keychain -s "$keychain_path"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain_path"
 
+          certificate_serial="$(openssl pkcs12 -in "$certificate_path" -nokeys -clcerts -passin "pass:$APPLE_CERTIFICATE_PASSWORD" 2>/dev/null | openssl x509 -noout -serial | sed 's/^serial=//' | tr '[:lower:]' '[:upper:]')"
+          if [ -z "$certificate_serial" ]; then
+            echo "Could not read Apple signing certificate serial number." >&2
+            exit 1
+          fi
+          echo "APPLE_CERTIFICATE_SERIAL=$certificate_serial" >> "$GITHUB_ENV"
+
       - name: Create or reuse App Store version
-        if: steps.check.outputs.should_run == 'true'
         env:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           SAFARI_VERSION: ${{ steps.version.outputs.version }}
         run: node apps/safari-extension/scripts/ensure-app-store-version.mjs
 
-      - name: Archive Teak for Safari
-        if: steps.check.outputs.should_run == 'true'
+      - name: Create and install provisioning profiles
+        if: steps.check.outputs.should_upload == 'true'
         env:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: node apps/safari-extension/scripts/ensure-provisioning-profiles.mjs
+
+      - name: Archive Teak for Safari
+        if: steps.check.outputs.should_upload == 'true'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           VERSION: ${{ steps.version.outputs.version }}
           BUILD_NUMBER: ${{ steps.version.outputs.build_number }}
         run: |
@@ -177,18 +208,20 @@ jobs:
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             MARKETING_VERSION="$VERSION" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
-            CODE_SIGN_STYLE=Automatic \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$APPLE_API_KEY_PATH" \
-            -authenticationKeyID "$APPLE_API_KEY_ID" \
-            -authenticationKeyIssuerID "$APPLE_API_ISSUER"
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
+            SAFARI_APP_PROFILE_NAME="$SAFARI_APP_PROFILE_NAME" \
+            SAFARI_APP_PROFILE_UUID="$SAFARI_APP_PROFILE_UUID" \
+            SAFARI_EXTENSION_PROFILE_NAME="$SAFARI_EXTENSION_PROFILE_NAME" \
+            SAFARI_EXTENSION_PROFILE_UUID="$SAFARI_EXTENSION_PROFILE_UUID"
 
       - name: Export App Store package
         id: export
-        if: steps.check.outputs.should_run == 'true'
+        if: steps.check.outputs.should_upload == 'true'
         env:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           export_path="$RUNNER_TEMP/safari-export"
@@ -198,7 +231,11 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :method string app-store-connect" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :destination string export" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" "$export_options"
-          /usr/libexec/PlistBuddy -c "Add :signingStyle string automatic" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :signingStyle string manual" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :signingCertificate string $APPLE_SIGNING_IDENTITY" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles dict" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.praveenjuge.teak-safari string $SAFARI_APP_PROFILE_NAME" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.praveenjuge.teak-safari.Extension string $SAFARI_EXTENSION_PROFILE_NAME" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :stripSwiftSymbols bool true" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :uploadSymbols bool true" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :manageAppVersionAndBuildNumber bool false" "$export_options"
@@ -206,11 +243,7 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath "$ARCHIVE_PATH" \
             -exportPath "$export_path" \
-            -exportOptionsPlist "$export_options" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$APPLE_API_KEY_PATH" \
-            -authenticationKeyID "$APPLE_API_KEY_ID" \
-            -authenticationKeyIssuerID "$APPLE_API_ISSUER"
+            -exportOptionsPlist "$export_options"
 
           package_path="$(find "$export_path" -maxdepth 1 -name '*.pkg' -print -quit)"
           if [ -z "$package_path" ] || [ ! -f "$package_path" ]; then
@@ -224,7 +257,7 @@ jobs:
           echo "package_path=$release_pkg" >> "$GITHUB_OUTPUT"
 
       - name: Validate App Store package
-        if: steps.check.outputs.should_run == 'true'
+        if: steps.check.outputs.should_upload == 'true'
         env:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
@@ -236,7 +269,7 @@ jobs:
             --apiIssuer "$APPLE_API_ISSUER"
 
       - name: Upload to App Store Connect
-        if: steps.check.outputs.should_run == 'true'
+        if: steps.check.outputs.should_upload == 'true'
         env:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
@@ -248,7 +281,7 @@ jobs:
             --apiIssuer "$APPLE_API_ISSUER"
 
       - name: Publish GitHub release asset
-        if: steps.check.outputs.should_run == 'true'
+        if: steps.check.outputs.should_upload == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: v${{ steps.version.outputs.version }}
@@ -261,3 +294,12 @@ jobs:
           else
             echo "No $TAG_NAME tag exists, so the App Store package was uploaded but no GitHub Release asset was published."
           fi
+
+      - name: Submit to App Review
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          SAFARI_VERSION: ${{ steps.version.outputs.version }}
+          BUILD_NUMBER: ${{ steps.check.outputs.should_upload == 'true' && steps.version.outputs.build_number || '' }}
+          SAFARI_RELEASE_NOTES: ${{ github.event.inputs.release_notes || 'Small fixes and polish to keep saving pages from Safari smooth and reliable.' }}
+        run: node apps/safari-extension/scripts/submit-app-store-review.mjs
