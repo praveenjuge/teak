@@ -17,6 +17,7 @@ const extensionBundleId =
   "com.praveenjuge.teak-safari.Extension";
 const certificateSerial = normalizeSerial(process.env.APPLE_CERTIFICATE_SERIAL);
 const signingIdentity = process.env.APPLE_SIGNING_IDENTITY || "";
+const distributionCertificateTypes = ["DISTRIBUTION", "MAC_APP_DISTRIBUTION"];
 const profileDir =
   process.env.SAFARI_PROFILE_DIR ||
   path.join(os.homedir(), "Library/MobileDevice/Provisioning Profiles");
@@ -56,19 +57,24 @@ async function findBundleId(identifier) {
 }
 
 async function findCertificate() {
-  const response = await request(
-    "GET",
-    apiPath("/v1/certificates", {
-      "filter[certificateType]": "MAC_APP_DISTRIBUTION",
-      "fields[certificates]":
-        "certificateType,displayName,expirationDate,serialNumber,activated",
-      limit: "200",
-      sort: "-id",
-    })
-  );
-  const certificates = (response.data || []).filter(
-    (certificate) => certificate.attributes?.activated !== false
-  );
+  const certificates = [];
+  for (const certificateType of distributionCertificateTypes) {
+    const response = await request(
+      "GET",
+      apiPath("/v1/certificates", {
+        "filter[certificateType]": certificateType,
+        "fields[certificates]":
+          "certificateType,displayName,expirationDate,serialNumber,activated",
+        limit: "200",
+        sort: "-id",
+      })
+    );
+    certificates.push(
+      ...(response.data || []).filter(
+        (certificate) => certificate.attributes?.activated !== false
+      )
+    );
+  }
 
   if (certificateSerial) {
     const match = certificates.find(
@@ -100,7 +106,7 @@ async function findCertificate() {
     )
   );
   if (!first) {
-    throw new Error("No active Mac App Distribution certificate found.");
+    throw new Error("No active Apple distribution certificate found.");
   }
   return first;
 }
