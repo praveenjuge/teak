@@ -170,7 +170,7 @@ jobs:
           export APPLE_DISTRIBUTION_PRIVATE_KEY_PATH="$private_key_path"
           node apps/safari-extension/scripts/ensure-distribution-certificate.mjs
 
-          openssl pkcs12 -export \
+          openssl pkcs12 -legacy -export \
             -inkey "$private_key_path" \
             -in "$certificate_pem_path" \
             -out "$certificate_p12_path" \
