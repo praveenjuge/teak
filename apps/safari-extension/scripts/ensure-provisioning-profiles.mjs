@@ -219,11 +219,11 @@ await ensureProfile({
   certificate,
   identifier: appBundleId,
   outputPrefix: "SAFARI_APP",
-  profileLabel: "Teak Safari App Store",
+  profileLabel: "Teak Safari macOS App",
 });
 await ensureProfile({
   certificate,
   identifier: extensionBundleId,
   outputPrefix: "SAFARI_EXTENSION",
-  profileLabel: "Teak Safari Extension App Store",
+  profileLabel: "Teak Safari macOS Extension",
 });
