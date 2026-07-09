@@ -177,6 +177,12 @@ jobs:
           export APPLE_DISTRIBUTION_CREATE_CERTIFICATE_TYPE="MAC_INSTALLER_DISTRIBUTION"
           export APPLE_DISTRIBUTION_OUTPUT_PREFIX="APPLE_INSTALLER_CERTIFICATE"
           node apps/safari-extension/scripts/ensure-distribution-certificate.mjs
+          installer_signing_identity="$(openssl x509 -in "$installer_certificate_pem_path" -noout -subject -nameopt multiline | awk -F'= ' '/commonName/{ print $2; exit }')"
+          if [ -z "$installer_signing_identity" ]; then
+            echo "Could not read Mac Installer Distribution certificate common name." >&2
+            exit 1
+          fi
+          echo "APPLE_INSTALLER_SIGNING_IDENTITY=$installer_signing_identity" >> "$GITHUB_ENV"
 
           openssl pkcs12 -legacy -export \
             -inkey "$private_key_path" \
@@ -189,7 +195,7 @@ jobs:
             -in "$installer_certificate_pem_path" \
             -out "$installer_certificate_p12_path" \
             -passout "pass:$APPLE_CERTIFICATE_PASSWORD" \
-            -name "Mac Installer Distribution"
+            -name "$installer_signing_identity"
 
           security create-keychain -p "$keychain_password" "$keychain_path"
           security set-keychain-settings -lut 21600 "$keychain_path"
@@ -215,8 +221,8 @@ jobs:
             security find-identity -v -p codesigning "$keychain_path" >&2
             exit 1
           fi
-          if ! security find-certificate -c "Mac Installer Distribution" "$keychain_path" >/dev/null 2>&1; then
-            echo "Could not find imported Mac Installer Distribution certificate." >&2
+          if ! security find-certificate -c "$installer_signing_identity" "$keychain_path" >/dev/null 2>&1; then
+            echo "Could not find imported Mac Installer Distribution certificate: $installer_signing_identity" >&2
             security find-identity -v -p codesigning "$keychain_path" >&2
             exit 1
           fi
@@ -280,7 +286,7 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :signingStyle string manual" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :signingCertificate string $APPLE_SIGNING_IDENTITY" "$export_options"
-          /usr/libexec/PlistBuddy -c "Add :installerSigningCertificate string Mac Installer Distribution" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :installerSigningCertificate string $APPLE_INSTALLER_SIGNING_IDENTITY" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles dict" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.praveenjuge.teak-safari string $SAFARI_APP_PROFILE_NAME" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.praveenjuge.teak-safari.Extension string $SAFARI_EXTENSION_PROFILE_NAME" "$export_options"
