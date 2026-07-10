@@ -3,6 +3,7 @@ import { internal } from "../_generated/api";
 import { type MutationCtx, mutation } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
 import { type CardType, cardTypeValidator } from "../schema";
+import { normalizeErrorClass } from "../shared/telemetry";
 import { buildR2ObjectKey, buildR2UserPrefix, r2 } from "../storage/r2";
 import {
   scheduleCardOutcome,
@@ -107,6 +108,7 @@ export const uploadAndCreateCard = mutation({
     } catch (error) {
       await scheduleUploadOutcome(ctx, {
         bytes: _args.fileSize,
+        errorClass: normalizeErrorClass(error),
         fileBucket: _args.cardType,
         outcome: "failure",
         userId: user.subject,
@@ -128,7 +130,6 @@ export const uploadAndCreateCard = mutation({
           };
         }
       }
-      console.error("Failed to prepare upload:", error);
       return {
         success: false,
         error:
@@ -320,6 +321,7 @@ export const finalizeUploadedCard = mutation({
       });
       await scheduleUploadOutcome(ctx, {
         bytes: args.fileSize,
+        errorClass: normalizeErrorClass(error),
         fileBucket: args.cardType,
         outcome: "failure",
         userId: user.subject,
@@ -341,7 +343,6 @@ export const finalizeUploadedCard = mutation({
           };
         }
       }
-      console.error("Failed to finalize uploaded card:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Failed to create card",

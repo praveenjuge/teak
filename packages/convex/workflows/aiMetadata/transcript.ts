@@ -3,6 +3,8 @@ import { TRANSCRIPTION_MODEL, TRANSCRIPTION_MODEL_ID } from "../../ai/models";
 import { observeAiGeneration } from "../../ai/telemetry";
 import {
   recordBackendAiContent,
+  recordBackendHandledFailure,
+  recordBackendLog,
   withBackendSpan,
 } from "../../telemetry/sentry";
 
@@ -23,8 +25,7 @@ export const generateTranscript = async (
     const mimeType =
       mimeHint || response.headers.get("content-type") || "audio/webm";
     if (!mimeType.startsWith("audio/")) {
-      console.warn("Unexpected MIME type while generating transcript", {
-        audioUrl,
+      recordBackendLog("warn", "ai.transcript.unexpected_mime_type", {
         mimeType,
       });
     }
@@ -61,7 +62,10 @@ export const generateTranscript = async (
       }
     );
   } catch (error) {
-    console.error("Error generating transcript:", error);
+    recordBackendHandledFailure(error, {
+      operation: "gen_ai.generate",
+      stage: "transcript",
+    });
     return null;
   }
 };

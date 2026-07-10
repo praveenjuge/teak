@@ -1,0 +1,96 @@
+name: Sentry Snapshots
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sentry-snapshots-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROD_APP_URL: http://app.teak.localhost:1355
+  PROD_API_URL: https://teakvault.com/api
+  PROD_SITE_URL: https://teakvault.com
+  PROD_E2E_PASSWORD: ${{ secrets.PROD_E2E_PASSWORD }}
+  E2E_CLEANUP_TOKEN: ${{ secrets.E2E_CLEANUP_TOKEN }}
+  E2E_EMAIL_DOMAIN: ${{ secrets.E2E_EMAIL_DOMAIN }}
+  MAILPIT_URL: ${{ secrets.MAILPIT_URL }}
+  NEXT_PUBLIC_CONVEX_SITE_URL: ${{ secrets.VITE_PUBLIC_CONVEX_SITE_URL }}
+  NEXT_PUBLIC_CONVEX_URL: ${{ secrets.VITE_PUBLIC_CONVEX_URL }}
+  NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.SENTRY_WEB_DSN }}
+  NEXT_PUBLIC_SENTRY_ENVIRONMENT: test
+  VITE_PUBLIC_CONVEX_SITE_URL: ${{ secrets.VITE_PUBLIC_CONVEX_SITE_URL }}
+
+jobs:
+  snapshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run --cwd apps/web build
+      - name: Capture controlled fixtures
+        run: |
+          bun run --cwd apps/web start -- -H 0.0.0.0 -p 1355 > "$RUNNER_TEMP/teak-web.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          for attempt in {1..60}; do
+            if curl -fsS "$PROD_APP_URL/login" >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS "$PROD_APP_URL/login" >/dev/null
+          bun run --cwd packages/tests e2e:snapshots
+      - name: Upload pull request comparison
+        if: github.event_name == 'pull_request'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          bunx sentry-cli snapshots upload \
+            --org teakvault \
+            --project teak-web-prod \
+            --app-id teak-web \
+            --diff-threshold 0.01 \
+            --head-sha "${{ github.event.pull_request.head.sha }}" \
+            --base-sha "${{ github.event.pull_request.base.sha }}" \
+            --vcs-provider github \
+            --head-repo-name "${{ github.repository }}" \
+            --base-repo-name "${{ github.repository }}" \
+            --head-ref "${{ github.head_ref }}" \
+            --base-ref "${{ github.base_ref }}" \
+            --pr-number "${{ github.event.pull_request.number }}" \
+            packages/tests/.snapshots/current
+      - name: Upload main baseline
+        if: github.event_name != 'pull_request'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          bunx sentry-cli snapshots upload \
+            --org teakvault \
+            --project teak-web-prod \
+            --app-id teak-web \
+            --diff-threshold 0.01 \
+            --head-sha "${{ github.sha }}" \
+            --vcs-provider github \
+            --head-repo-name "${{ github.repository }}" \
+            --head-ref main \
+            packages/tests/.snapshots/current
+      - if: always()
+        run: bun packages/tests/src/scripts/teardown.ts
+      - if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: sentry-snapshots
+          path: packages/tests/.snapshots/current
+          retention-days: 7

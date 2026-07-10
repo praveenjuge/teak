@@ -17,6 +17,7 @@ import {
   type TelemetryContextInput,
   type TelemetryEnvironment,
   type TelemetryMetricName,
+  type TelemetryOperation,
   type TelemetryOutcome,
   type TelemetryStage,
 } from "../shared/telemetry";
@@ -153,6 +154,9 @@ export const ensureBackendTelemetry = (): boolean => {
       enableLogs: true,
       environment,
       integrations: [
+        Sentry.consoleLoggingIntegration({
+          levels: ["log", "warn", "error"],
+        }),
         Sentry.vercelAIIntegration({
           enableTruncation: false,
           force: true,
@@ -273,6 +277,10 @@ export const withBackendSpan = async <T>(
             resultRecord?.ok === false ||
             resultRecord?.status === "failed";
           const outcome = returnedFailure ? "failure" : "success";
+          span.setAttribute("outcome", outcome);
+          if (resultRecord?.mode === "skipped") {
+            span.setAttribute("outcome", "skipped");
+          }
           span.setStatus({
             code: returnedFailure ? SpanStatusCode.ERROR : SpanStatusCode.OK,
           });
@@ -298,7 +306,7 @@ export const withBackendSpan = async <T>(
               })
             );
           }
-          if (returnedFailure) {
+          if (returnedFailure && input.operation.startsWith("teak.workflow")) {
             safely(() =>
               Sentry.metrics.count(TELEMETRY_METRICS.workflowFailure, 1, {
                 attributes: { ...attributes, outcome },
@@ -322,6 +330,9 @@ export const withBackendSpan = async <T>(
           const retryable = /retry|waiting|not yet|rate.?limit/iu.test(
             error instanceof Error ? error.message : String(error)
           );
+          span.setAttribute("error.class", errorClass);
+          span.setAttribute("outcome", "failure");
+          span.setAttribute("retryable", retryable);
           span.recordException(error instanceof Error ? error : String(error));
           span.setStatus({ code: SpanStatusCode.ERROR, message: errorClass });
           safely(() =>
@@ -486,10 +497,22 @@ export const recordBackendHandledFailure = (
   );
 };
 
+export const recordBackendLog = (
+  level: "info" | "warn" | "error",
+  message: string,
+  attributes: TelemetryAttributes = {}
+): void => {
+  if (!ensureBackendTelemetry()) {
+    return;
+  }
+  safely(() => Sentry.logger[level](message, attributes));
+};
+
 export const recordBackendOutcome = async (input: {
   attributes?: TelemetryAttributes;
   cardId?: string;
   metric: TelemetryMetricName;
+  operation?: TelemetryOperation;
   outcome: TelemetryOutcome;
   stage?: TelemetryStage;
   surface?: string;
@@ -499,6 +522,7 @@ export const recordBackendOutcome = async (input: {
   if (!ensureBackendTelemetry()) {
     return false;
   }
+  const operation = input.operation ?? "teak.workflow.step";
   const attributes = await contextAttributes(
     {
       attributes: {
@@ -507,7 +531,7 @@ export const recordBackendOutcome = async (input: {
         outcome: input.outcome,
       },
       cardId: input.cardId,
-      operation: "teak.workflow.step",
+      operation,
       release: resolveBackendRelease(),
       surface: "backend",
       userId: input.userId,
@@ -515,9 +539,32 @@ export const recordBackendOutcome = async (input: {
     },
     input.stage
   );
-  safely(() => Sentry.metrics.count(input.metric, 1, { attributes }));
-  safely(() => Sentry.logger.info(input.metric, attributes));
-  await flushBackendTelemetry();
+  await withBackendSpan(
+    {
+      attributes: {
+        ...input.attributes,
+        origin: input.surface ?? "unknown",
+        outcome: input.outcome,
+      },
+      cardId: input.cardId,
+      name: input.metric,
+      operation,
+      stage: input.stage,
+      surface: "backend",
+      userId: input.userId,
+      workflowId: input.workflowId,
+    },
+    () => {
+      safely(() => Sentry.metrics.count(input.metric, 1, { attributes }));
+      safely(() =>
+        Sentry.logger[input.outcome === "failure" ? "error" : "info"](
+          input.metric,
+          attributes
+        )
+      );
+      return Promise.resolve({ success: input.outcome !== "failure" });
+    }
+  );
   return true;
 };
 

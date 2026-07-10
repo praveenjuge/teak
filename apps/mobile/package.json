@@ -12,6 +12,7 @@
     "test": "bun test __tests__ --coverage --dots",
     "typecheck": "tsc --noEmit",
     "build:local": "eas build --platform ios --local",
+    "build:sentry": "sentry-cli build upload --org teakvault --project teak-mobile-prod --build-configuration production",
     "build:submit": "eas submit --platform ios",
     "eas-build-pre-install": "node scripts/verify-sentry-build-env.mjs",
     "metadata:pull": "eas metadata:pull",

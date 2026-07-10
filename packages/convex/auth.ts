@@ -28,8 +28,9 @@ import {
   FREE_TIER_LIMIT,
 } from "./shared/constants";
 import { rateLimiter } from "./shared/rateLimits";
+import { normalizeErrorClass } from "./shared/telemetry";
 import { deleteObject } from "./storage/r2";
-import { scheduleUserCreated } from "./telemetry/schedule";
+import { scheduleAuthOutcome, scheduleUserCreated } from "./telemetry/schedule";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 if (!googleClientId) {
@@ -115,6 +116,11 @@ export const scheduleUserCreatedTelemetry = (
     userId,
   });
 
+const hasScheduler = (
+  ctx: GenericCtx<DataModel>
+): ctx is GenericCtx<DataModel> & Pick<MutationCtx, "scheduler"> =>
+  "scheduler" in ctx;
+
 // `AuthBoundary` (see apps/web ClientAuthBoundary) subscribes to
 // `api.auth.getAuthUser` at the provider level to reactively track the
 // session-validated user. The stock query from `authComponent.clientApi()`
@@ -197,7 +203,13 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     onAPIError: {
       errorURL: "/login",
       onError: (error) => {
-        console.error("Better Auth error:", error);
+        if (hasScheduler(ctx)) {
+          void scheduleAuthOutcome(ctx, {
+            errorClass: normalizeErrorClass(error),
+            outcome: "failure",
+            stage: "sign_in",
+          });
+        }
       },
     },
     socialProviders: {

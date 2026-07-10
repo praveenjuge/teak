@@ -862,11 +862,6 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
       linkPreview,
     };
   } catch (error) {
-    console.error(
-      `[linkMetadata] Error extracting metadata for card ${cardId}:`,
-      error
-    );
-
     if ((error as Error)?.message?.startsWith(LINK_METADATA_RETRYABLE_PREFIX)) {
       throw error;
     }

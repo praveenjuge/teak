@@ -8,6 +8,8 @@ const telemetryFunctions = (
     telemetry: {
       events: {
         emitCardOutcome: ScheduledFunction;
+        emitAuthOutcome: ScheduledFunction;
+        emitBillingOutcome: ScheduledFunction;
         emitUploadOutcome: ScheduledFunction;
         emitUserCreated: ScheduledFunction;
       };
@@ -45,11 +47,48 @@ export const scheduleUserCreated = async (
   }
 };
 
+export const scheduleAuthOutcome = async (
+  ctx: Pick<MutationCtx, "scheduler">,
+  args: {
+    errorClass?: string;
+    outcome: "attempt" | "success" | "failure";
+    stage: "auth_bootstrap" | "session_refresh" | "sign_in";
+    userId?: string;
+  }
+): Promise<void> => {
+  try {
+    await ctx.scheduler.runAfter(0, telemetryFunctions.emitAuthOutcome, args);
+  } catch {
+    // Scheduling telemetry must never alter authentication.
+  }
+};
+
+export const scheduleBillingOutcome = async (
+  ctx: Pick<MutationCtx, "scheduler">,
+  args: {
+    errorClass?: string;
+    flow: "checkout" | "portal";
+    outcome: "attempt" | "success" | "failure";
+    userId?: string;
+  }
+): Promise<void> => {
+  try {
+    await ctx.scheduler.runAfter(
+      0,
+      telemetryFunctions.emitBillingOutcome,
+      args
+    );
+  } catch {
+    // Scheduling telemetry must never alter billing.
+  }
+};
+
 export const scheduleUploadOutcome = async (
   ctx: Pick<MutationCtx, "scheduler">,
   args: {
     bytes?: number;
     durationMs?: number;
+    errorClass?: string;
     fileBucket: string;
     outcome: "attempt" | "success" | "failure";
     userId?: string;

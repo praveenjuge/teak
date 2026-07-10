@@ -8,17 +8,20 @@ const startActiveSpan = mock(
     callback: (span: {
       end: () => void;
       recordException: (error: unknown) => void;
+      setAttribute: (name: string, value: unknown) => void;
       setStatus: (status: unknown) => void;
     }) => Promise<unknown>
   ) =>
     await callback({
       end: spanEnd,
       recordException: spanRecordException,
+      setAttribute: spanSetAttribute,
       setStatus: spanSetStatus,
     })
 );
 const spanEnd = mock();
 const spanRecordException = mock();
+const spanSetAttribute = mock();
 const spanSetStatus = mock();
 const sentryInit = mock();
 const sentryFlush = mock(async () => true);
@@ -33,6 +36,10 @@ const sentryVercelAiIntegration = mock((options: unknown) => ({
   name: "VercelAI",
   options,
 }));
+const sentryConsoleLoggingIntegration = mock((options: unknown) => ({
+  name: "ConsoleLogging",
+  options,
+}));
 
 mock.module("@opentelemetry/api", () => ({
   SpanStatusCode: { ERROR: 2, OK: 1 },
@@ -43,6 +50,7 @@ mock.module("@opentelemetry/api", () => ({
 
 mock.module("@sentry/node", () => ({
   captureCheckIn: sentryCaptureCheckIn,
+  consoleLoggingIntegration: sentryConsoleLoggingIntegration,
   captureException: sentryCaptureException,
   flush: sentryFlush,
   init: sentryInit,
@@ -87,6 +95,7 @@ afterEach(() => {
     sentryLogError,
     spanEnd,
     spanRecordException,
+    spanSetAttribute,
     spanSetStatus,
     startActiveSpan,
   ]) {
@@ -103,6 +112,9 @@ describe("backend Sentry OpenTelemetry", () => {
       force: true,
       recordInputs: true,
       recordOutputs: true,
+    });
+    expect(sentryConsoleLoggingIntegration).toHaveBeenCalledWith({
+      levels: ["log", "warn", "error"],
     });
     const options = sentryInit.mock.calls[0]?.[0] as {
       beforeSendSpan: (span: { data: Record<string, unknown> }) => {
@@ -153,6 +165,7 @@ describe("backend Sentry OpenTelemetry", () => {
     expect(options.attributes["sentry.op"]).toBe("teak.workflow");
     expect(JSON.stringify(options.attributes)).not.toContain("card-123");
     expect(JSON.stringify(options.attributes)).not.toContain("user-123");
+    expect(spanSetAttribute).toHaveBeenCalledWith("outcome", "success");
     expect(spanSetStatus).toHaveBeenCalledWith({ code: 1 });
     expect(spanEnd).toHaveBeenCalledTimes(1);
     expect(sentryFlush).toHaveBeenCalledWith(2000);
@@ -174,6 +187,8 @@ describe("backend Sentry OpenTelemetry", () => {
     ).rejects.toBe(applicationError);
 
     expect(spanRecordException).toHaveBeenCalledWith(applicationError);
+    expect(spanSetAttribute).toHaveBeenCalledWith("outcome", "failure");
+    expect(spanSetAttribute).toHaveBeenCalledWith("retryable", false);
     expect(spanSetStatus).toHaveBeenCalledWith({
       code: 2,
       message: "ProviderError",
@@ -204,6 +219,24 @@ describe("backend Sentry OpenTelemetry", () => {
     expect(JSON.stringify(attributes)).not.toContain("card-123");
     expect(JSON.stringify(attributes)).not.toContain("user-123");
     expect(attributes.attributes.origin).toBe("web");
+    expect(startActiveSpan).toHaveBeenCalledTimes(1);
+    expect(spanSetStatus).toHaveBeenCalledWith({ code: 1 });
+  });
+
+  test("marks canonical failure outcomes as failed spans", async () => {
+    await telemetry.recordBackendOutcome({
+      metric: "teak.card.create.failure",
+      operation: "teak.workflow.step",
+      outcome: "failure",
+      stage: "creation",
+      surface: "mobile",
+    });
+
+    expect(spanSetStatus).toHaveBeenCalledWith({ code: 2 });
+    expect(sentryLogError).toHaveBeenCalledWith(
+      "teak.card.create.failure",
+      expect.objectContaining({ outcome: "failure", origin: "mobile" })
+    );
   });
 
   test("emits cron start and completion check-ins around the original result", async () => {

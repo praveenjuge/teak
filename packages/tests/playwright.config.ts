@@ -80,6 +80,16 @@ export default defineConfig({
       },
     },
     {
+      name: "snapshots",
+      dependencies: ["journey-setup"],
+      testMatch: "snapshots/web.snapshots.ts",
+      workers: 1,
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: ".state/user.json",
+      },
+    },
+    {
       name: "journey-account",
       dependencies: [
         "journey-web",

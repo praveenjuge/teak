@@ -20,6 +20,11 @@ const uploadOutcomeValidator = v.union(
   v.literal("success"),
   v.literal("failure")
 );
+const businessOutcomeValidator = v.union(
+  v.literal("attempt"),
+  v.literal("success"),
+  v.literal("failure")
+);
 
 export const emitCardOutcome = internalAction({
   args: {
@@ -76,6 +81,75 @@ export const emitUserCreated = internalAction({
   },
 });
 
+export const emitAuthOutcome = internalAction({
+  args: {
+    errorClass: v.optional(v.string()),
+    outcome: businessOutcomeValidator,
+    stage: v.union(
+      v.literal("auth_bootstrap"),
+      v.literal("session_refresh"),
+      v.literal("sign_in")
+    ),
+    userId: v.optional(v.string()),
+  },
+  returns: v.object({ sent: v.boolean() }),
+  handler: async (_ctx, args) => {
+    try {
+      const metric = {
+        auth_bootstrap: TELEMETRY_METRICS.authBootstrap,
+        session_refresh: TELEMETRY_METRICS.authSessionRefresh,
+        sign_in: TELEMETRY_METRICS.authSignIn,
+      }[args.stage];
+      const sent = await recordBackendOutcome({
+        attributes: { "error.class": args.errorClass },
+        metric,
+        operation: "auth",
+        outcome: args.outcome,
+        stage: args.stage,
+        surface: "backend",
+        userId: args.userId,
+      });
+      return { sent };
+    } catch {
+      return { sent: false };
+    }
+  },
+});
+
+export const emitBillingOutcome = internalAction({
+  args: {
+    errorClass: v.optional(v.string()),
+    flow: v.union(v.literal("checkout"), v.literal("portal")),
+    outcome: businessOutcomeValidator,
+    userId: v.optional(v.string()),
+  },
+  returns: v.object({ sent: v.boolean() }),
+  handler: async (_ctx, args) => {
+    try {
+      const metric = {
+        attempt: TELEMETRY_METRICS.checkoutStart,
+        failure: TELEMETRY_METRICS.checkoutFailure,
+        success: TELEMETRY_METRICS.checkoutSuccess,
+      }[args.outcome];
+      const sent = await recordBackendOutcome({
+        attributes: {
+          "billing.flow": args.flow,
+          "error.class": args.errorClass,
+        },
+        metric,
+        operation: "billing",
+        outcome: args.outcome,
+        stage: "checkout",
+        surface: "backend",
+        userId: args.userId,
+      });
+      return { sent };
+    } catch {
+      return { sent: false };
+    }
+  },
+});
+
 export const emitWorkflowCompletion = internalAction({
   args: {
     cardId: v.string(),
@@ -116,6 +190,7 @@ export const emitUploadOutcome = internalAction({
   args: {
     bytes: v.optional(v.number()),
     durationMs: v.optional(v.number()),
+    errorClass: v.optional(v.string()),
     fileBucket: v.string(),
     outcome: uploadOutcomeValidator,
     userId: v.optional(v.string()),
@@ -126,6 +201,7 @@ export const emitUploadOutcome = internalAction({
       await withBackendSpan(
         {
           attributes: {
+            "error.class": args.errorClass,
             "file.bucket": args.fileBucket,
             outcome: args.outcome,
           },
@@ -164,7 +240,7 @@ export const emitUploadOutcome = internalAction({
               "millisecond"
             );
           }
-          return Promise.resolve();
+          return Promise.resolve({ success: args.outcome !== "failure" });
         }
       );
       return { sent: true };

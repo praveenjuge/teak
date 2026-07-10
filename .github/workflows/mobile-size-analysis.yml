@@ -1,0 +1,81 @@
+name: Mobile Size Analysis
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/mobile-size-analysis.yml"
+      - "apps/mobile/**"
+      - "packages/convex/**"
+      - "packages/ui/**"
+      - "bun.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-size-analysis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Verify build credentials
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          test -n "$EXPO_TOKEN"
+          test -n "$SENTRY_AUTH_TOKEN"
+      - name: Build comparable iOS artifact
+        working-directory: apps/mobile
+        run: |
+          bunx eas-cli@20.5.1 build \
+            --platform ios \
+            --profile preview \
+            --non-interactive \
+            --wait \
+            --json > "$RUNNER_TEMP/eas-build.json"
+          artifact_url="$(jq -r 'if type == "array" then .[0].artifacts.buildUrl else .artifacts.buildUrl end' "$RUNNER_TEMP/eas-build.json")"
+          test "$artifact_url" != "null"
+          curl -fL "$artifact_url" -o "$RUNNER_TEMP/teak-mobile.ipa"
+      - name: Upload pull request artifact
+        if: github.event_name == 'pull_request'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          bunx sentry-cli build upload \
+            --org teakvault \
+            --project teak-mobile-prod \
+            --head-sha "${{ github.event.pull_request.head.sha }}" \
+            --base-sha "${{ github.event.pull_request.base.sha }}" \
+            --vcs-provider github \
+            --head-repo-name "${{ github.repository }}" \
+            --base-repo-name "${{ github.repository }}" \
+            --head-ref "${{ github.head_ref }}" \
+            --base-ref "${{ github.base_ref }}" \
+            --pr-number "${{ github.event.pull_request.number }}" \
+            --build-configuration preview \
+            "$RUNNER_TEMP/teak-mobile.ipa"
+      - name: Upload manually requested artifact
+        if: github.event_name != 'pull_request'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          bunx sentry-cli build upload \
+            --org teakvault \
+            --project teak-mobile-prod \
+            --head-sha "${{ github.sha }}" \
+            --vcs-provider github \
+            --head-repo-name "${{ github.repository }}" \
+            --head-ref "${{ github.ref_name }}" \
+            --build-configuration preview \
+            "$RUNNER_TEMP/teak-mobile.ipa"

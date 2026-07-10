@@ -28,4 +28,8 @@ test("production mobile builds require Sentry uploads", () => {
   expect(eas.build.production.env.SENTRY_DISABLE_AUTO_UPLOAD).toBeUndefined();
   expect(eas.build.production.env.SENTRY_ALLOW_FAILURE).toBe("false");
   expect(metro).toContain("getSentryExpoConfig");
+  expect(packageJson.scripts["build:sentry"]).toContain(
+    "sentry-cli build upload"
+  );
+  expect(packageJson.scripts["build:sentry"]).toContain("teak-mobile-prod");
 });
