@@ -2,6 +2,7 @@ import type { Platform } from "./social";
 
 export const MESSAGE_TYPES = {
   GET_AUTH_STATE: "TEAK_GET_AUTH_STATE",
+  SAVE_ASSET: "TEAK_SAVE_ASSET",
   SAVE_CONTENT: "TEAK_SAVE_CONTENT",
   SAVE_POST: "TEAK_SAVE_POST",
   // Fired by the content script on the /native/auth/complete page once the
@@ -40,6 +41,13 @@ export interface SaveContentRequest {
   type: typeof MESSAGE_TYPES.SAVE_CONTENT;
 }
 
+export interface SaveAssetRequest {
+  payload: {
+    assetUrl: string;
+  };
+  type: typeof MESSAGE_TYPES.SAVE_ASSET;
+}
+
 export interface SavePostRequest {
   payload: {
     platform: Platform;
@@ -51,6 +59,7 @@ export interface SavePostRequest {
 
 export type TeakRuntimeRequest =
   | GetAuthStateRequest
+  | SaveAssetRequest
   | SaveContentRequest
   | SavePostRequest
   | NativeAuthCompletedRequest

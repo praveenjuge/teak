@@ -72,19 +72,21 @@ const createUploadInputSchema = z.object({
   fileSize: z.number().positive(),
 });
 
-const bulkCardsInputSchema = z.object({
-  operation: z.enum(["create", "update", "favorite", "delete"]),
-  items: z.array(z.record(z.string(), z.unknown())).min(1).max(100),
-  confirm: z.literal(true).optional(),
-}).superRefine((value, ctx) => {
-  if (value.operation === "delete" && value.confirm !== true) {
-    ctx.addIssue({
-      code: "custom",
-      message: "confirm must be true for delete batches",
-      path: ["confirm"],
-    });
-  }
-});
+const bulkCardsInputSchema = z
+  .object({
+    operation: z.enum(["create", "update", "favorite", "delete"]),
+    items: z.array(z.record(z.string(), z.unknown())).min(1).max(100),
+    confirm: z.literal(true).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.operation === "delete" && value.confirm !== true) {
+      ctx.addIssue({
+        code: "custom",
+        message: "confirm must be true for delete batches",
+        path: ["confirm"],
+      });
+    }
+  });
 
 const chatgptSearchInputSchema = z.object({
   query: nonEmptyString,
@@ -94,7 +96,46 @@ const chatgptFetchInputSchema = z.object({
   id: nonEmptyString,
 });
 
-const createCardInputSchema = z.object({ content: nonEmptyString });
+const createCardInputSchema = z
+  .object({
+    cardType: cardTypeSchema.optional(),
+    content: nonEmptyString.optional(),
+    fileKey: nonEmptyString.optional(),
+    fileName: nonEmptyString.optional(),
+    fileSize: z.number().positive().optional(),
+    mimeType: nonEmptyString.optional(),
+    notes: z.string().or(z.null()).optional(),
+    source: nonEmptyString.optional(),
+    tags: z.array(z.string()).optional(),
+    url: nonEmptyString.optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.fileKey) {
+      if (!value.fileName) {
+        ctx.addIssue({
+          code: "custom",
+          message: "fileName is required with fileKey",
+          path: ["fileName"],
+        });
+      }
+      if (!value.mimeType) {
+        ctx.addIssue({
+          code: "custom",
+          message: "mimeType is required with fileKey",
+          path: ["mimeType"],
+        });
+      }
+      return;
+    }
+
+    if (!(value.content || value.url)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "content, url, or fileKey is required",
+        path: ["content"],
+      });
+    }
+  });
 const cardIdInputSchema = z.object({ cardId: nonEmptyString });
 const deleteCardInputSchema = z.object({
   cardId: nonEmptyString,
@@ -168,18 +209,26 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_get_card",
     description: "Get a card by ID.",
-    inputSchema: inputSchema(
-      { cardId: { type: "string", minLength: 1 } },
-      ["cardId"]
-    ),
+    inputSchema: inputSchema({ cardId: { type: "string", minLength: 1 } }, [
+      "cardId",
+    ]),
   },
   {
     name: "teak_v1_create_card",
-    description: "Create a new card from text or a URL.",
-    inputSchema: inputSchema(
-      { content: { type: "string", minLength: 1 } },
-      ["content"]
-    ),
+    description:
+      "Create a card from text, a URL, or a completed file upload. cardType is optional for file uploads and inferred when omitted.",
+    inputSchema: inputSchema({
+      cardType: { enum: cardTypeSchema.options },
+      content: { type: "string", minLength: 1 },
+      fileKey: { type: "string", minLength: 1 },
+      fileName: { type: "string", minLength: 1 },
+      fileSize: { type: "number", minimum: 1 },
+      mimeType: { type: "string", minLength: 1 },
+      notes: { type: ["string", "null"] },
+      source: { type: "string", minLength: 1 },
+      tags: { type: "array", items: { type: "string" } },
+      url: { type: "string", minLength: 1 },
+    }),
   },
   {
     name: "teak_v1_list_tags",
@@ -231,21 +280,16 @@ export const TEAK_V1_TOOLS = [
   },
   {
     name: "search",
-    description:
-      "Search Teak cards for ChatGPT connectors and Deep Research.",
-    inputSchema: inputSchema(
-      { query: { type: "string", minLength: 1 } },
-      ["query"]
-    ),
+    description: "Search Teak cards for ChatGPT connectors and Deep Research.",
+    inputSchema: inputSchema({ query: { type: "string", minLength: 1 } }, [
+      "query",
+    ]),
   },
   {
     name: "fetch",
     description:
       "Fetch a Teak card by ID for ChatGPT connectors and Deep Research.",
-    inputSchema: inputSchema(
-      { id: { type: "string", minLength: 1 } },
-      ["id"]
-    ),
+    inputSchema: inputSchema({ id: { type: "string", minLength: 1 } }, ["id"]),
   },
   {
     name: "teak_v1_search_cards",
@@ -460,12 +504,12 @@ const executeToolOperation = async (
   };
 };
 
-type ToolConfig = {
-  schema: z.ZodTypeAny;
+interface ToolConfig {
   operation: (input: any) => PublicApiToolOperation;
+  schema: z.ZodTypeAny;
   summary: (payload: JsonObject, input: any) => string;
   transform?: (payload: JsonObject, input: any) => JsonObject;
-};
+}
 
 const count = (payload: JsonObject, field = "items"): number =>
   Array.isArray(payload[field]) ? payload[field].length : 0;
@@ -501,7 +545,7 @@ const toolConfigs: Record<string, ToolConfig> = {
     operation: (input) => ({
       method: "POST",
       path: "/v1/cards",
-      body: { content: input.content },
+      body: input,
     }),
     summary: (payload) =>
       `Card ${typeof payload.status === "string" ? payload.status : "created"}`,
@@ -509,7 +553,8 @@ const toolConfigs: Record<string, ToolConfig> = {
   teak_v1_search_cards: queryTool("/v1/cards/search"),
   teak_v1_list_favorite_cards: {
     ...queryTool("/v1/cards/favorites"),
-    summary: (payload) => `Fetched ${Number(payload.total) || 0} favorite cards`,
+    summary: (payload) =>
+      `Fetched ${Number(payload.total) || 0} favorite cards`,
   },
   teak_v1_update_card: {
     schema: updateCardInputSchema,
@@ -567,7 +612,11 @@ const toolConfigs: Record<string, ToolConfig> = {
   },
   teak_v1_create_upload: {
     schema: createUploadInputSchema,
-    operation: (input) => ({ method: "POST", path: "/v1/uploads", body: input }),
+    operation: (input) => ({
+      method: "POST",
+      path: "/v1/uploads",
+      body: input,
+    }),
     summary: () =>
       "Upload URL created. PUT bytes to uploadUrl, then create a card with fileKey.",
   },
@@ -609,23 +658,25 @@ const toolConfigs: Record<string, ToolConfig> = {
   },
 };
 
-const buildToolHandler = (
-  name: string,
-  executor: PublicApiToolExecutor
-) =>
+const buildToolHandler = (name: string, executor: PublicApiToolExecutor) =>
   instrumentToolHandler(name, async (input: unknown, request) => {
     const config = toolConfigs[name];
     const parsed = config.schema.safeParse(input);
     if (!parsed.success) {
-      return validationError(parsed.error.issues[0]?.message ?? "Invalid input");
+      return validationError(
+        parsed.error.issues[0]?.message ?? "Invalid input"
+      );
     }
     const result = await executeToolOperation(
       config.operation(parsed.data),
       request,
       executor
     );
-    if (!result.ok) return result.result;
-    const payload = config.transform?.(result.payload, parsed.data) ?? result.payload;
+    if (!result.ok) {
+      return result.result;
+    }
+    const payload =
+      config.transform?.(result.payload, parsed.data) ?? result.payload;
     return successResult(payload, config.summary(payload, parsed.data));
   });
 
@@ -652,5 +703,5 @@ export const callTeakV1Tool = async (
     });
   }
 
-  return handler(input, request);
+  return await handler(input, request);
 };

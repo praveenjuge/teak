@@ -134,7 +134,7 @@ Supported request body fields:
 - `content` — text or URL to save (required if `url` is not set)
 - `url` — URL to save (required if `content` is not set). Must be an `http` or `https` URL.
 - `fileKey` — key returned by `POST /v1/uploads` for file cards
-- `cardType` — required with `fileKey`; must be `image`, `video`, `audio`, or `document`
+- `cardType` — optional with `fileKey`; Teak infers `image`, `video`, `audio`, or `document` from the file name and media type. Existing clients may keep sending it, and mismatches are rejected.
 - `fileName`, `mimeType`, `fileSize` — file metadata for uploaded cards
 - `notes` — optional freeform notes attached to the card (string or null)
 - `tags` — optional array of tag strings
@@ -179,7 +179,7 @@ The response includes a presigned `uploadUrl` and `fileKey`. Upload the bytes wi
   "method": "PUT",
   "uploadUrl": "https://...",
   "fileKey": "users/user_1/file/...",
-  "maxFileSize": 20971520,
+  "maxFileSize": 104857600,
   "expiresIn": 600
 }
 ```
@@ -198,13 +198,16 @@ Idempotency-Key: upload-image-123
 ```json
 {
   "fileKey": "users/user_1/file/...",
-  "cardType": "image",
   "fileName": "image.png",
   "mimeType": "image/png",
   "fileSize": 12345,
   "tags": ["reference"]
 }
 ```
+
+The maximum file size is 100 MB. Supported uploads include JSON and design-token files; TSX, JSX, Vue, Svelte, HTML, CSS, Markdown, and MDX source; GIF, WebM, MP4, WebP, AVIF, SVG, and HEIC media; PDF, DOCX, PPTX, TXT, and RTF documents; ZIP archives; and Figma `.fig` files. Generic `application/octet-stream` uploads are accepted when the file name identifies a supported format.
+
+File responses can include `fileKind`, `fileExtension`, `fileLanguage`, and compact `filePreview` facts. Extracted source or document text is used only while generating AI tags and summaries and is not returned or stored as raw text.
 
 ### Bulk Card Operations
 

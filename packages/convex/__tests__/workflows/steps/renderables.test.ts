@@ -344,10 +344,10 @@ describe("renderables step", () => {
       expect(result.thumbnailGenerated).toBe(true);
     });
 
-    test("does not generate thumbnail for non-PDF documents", async () => {
+    test("keeps file-fact preview failures quiet for non-PDF documents", async () => {
       const runMutation = createMockFn<[any, any], null>(async () => null);
       const runAction = createMockFn<[any, any], any>(async () => ({
-        success: true,
+        success: false,
         generated: false,
       }));
       const mockCtx = {
@@ -362,9 +362,16 @@ describe("renderables step", () => {
         runMutation,
       };
 
-      await generateHandler(mockCtx, { cardId: "doc1", cardType: "document" });
+      const result = await generateHandler(mockCtx, {
+        cardId: "doc1",
+        cardType: "document",
+      });
 
-      expect(runAction.calls.length).toBe(0);
+      expect(runAction.calls.length).toBe(1);
+      expect(result).toEqual({ success: true, thumbnailGenerated: false });
+      expect(
+        runMutation.calls[0]?.[1].processingStatus.renderables.status
+      ).toBe("completed");
     });
 
     test("handles PDF thumbnail generation failure", async () => {

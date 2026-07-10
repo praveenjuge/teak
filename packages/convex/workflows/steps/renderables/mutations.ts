@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
+import { filePreviewFactsValidator } from "../../../schema";
 
 /**
  * Update only the fileMetadata dimensions (width/height) for a card.
@@ -24,6 +25,32 @@ export const updateCardFileMetadata = internalMutation({
         ...(card.fileMetadata || {}),
         width: args.width,
         height: args.height,
+      },
+      updatedAt: Date.now(),
+    });
+    return null;
+  },
+});
+
+export const updateCardFilePreview = internalMutation({
+  args: {
+    cardId: v.id("cards"),
+    preview: filePreviewFactsValidator,
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const card = await ctx.db.get("cards", args.cardId);
+    if (!card) {
+      return null;
+    }
+
+    await ctx.db.patch("cards", args.cardId, {
+      fileMetadata: {
+        ...(card.fileMetadata || {}),
+        preview: {
+          ...(card.fileMetadata?.preview || {}),
+          ...args.preview,
+        },
       },
       updatedAt: Date.now(),
     });

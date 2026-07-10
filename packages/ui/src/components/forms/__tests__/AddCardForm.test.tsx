@@ -118,7 +118,7 @@ mock.module("@teak/convex/shared", () => ({
     CARD_LIMIT_REACHED: "CARD_LIMIT_REACHED",
     RATE_LIMITED: "RATE_LIMITED",
   },
-  MAX_FILE_SIZE: 20 * 1024 * 1024,
+  MAX_FILE_SIZE: 100 * 1024 * 1024,
   MAX_FILES_PER_UPLOAD: 5,
   CARD_ERROR_MESSAGES: {
     TOO_MANY_FILES: "Too many files",

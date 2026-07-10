@@ -26,6 +26,7 @@ import * as Sharing from "expo-sharing";
 import { memo, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Alert, Platform, Image as RNImage } from "react-native";
 import { colors } from "@/constants/colors";
+import { getNativeShareOptions } from "@/lib/files";
 
 const WWW_PREFIX_REGEX = /^www\./;
 const FAVICON_RENDER_DELAY_MS = 250;
@@ -162,39 +163,6 @@ const PreviewBox = ({ children }: { children: React.ReactNode }) => (
   </VStack>
 );
 
-const getShareOptions = (name?: string) => {
-  const extension = name?.split(".").pop()?.toLowerCase();
-
-  switch (extension) {
-    case "m4a":
-      return { UTI: "public.mpeg-4-audio", mimeType: "audio/mp4" };
-    case "mp3":
-      return { UTI: "public.mp3", mimeType: "audio/mpeg" };
-    case "wav":
-      return { UTI: "com.microsoft.waveform-audio", mimeType: "audio/wav" };
-    case "mp4":
-      return { UTI: "public.mpeg-4", mimeType: "video/mp4" };
-    case "mov":
-      return {
-        UTI: "com.apple.quicktime-movie",
-        mimeType: "video/quicktime",
-      };
-    case "png":
-      return { UTI: "public.png", mimeType: "image/png" };
-    case "jpg":
-    case "jpeg":
-      return { UTI: "public.jpeg", mimeType: "image/jpeg" };
-    case "gif":
-      return { UTI: "com.compuserve.gif", mimeType: "image/gif" };
-    case "pdf":
-      return { UTI: "com.adobe.pdf", mimeType: "application/pdf" };
-    case "txt":
-      return { UTI: "public.plain-text", mimeType: "text/plain" };
-    default:
-      return {};
-  }
-};
-
 const buildFileName = (url?: string | null, fallback?: string) => {
   if (fallback) {
     return fallback;
@@ -253,7 +221,7 @@ const CardItem = memo(function CardItem({
 
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(result.uri, {
-            ...getShareOptions(name),
+            ...getNativeShareOptions(name),
             dialogTitle: "Save to Files",
           });
         }
@@ -286,7 +254,7 @@ const CardItem = memo(function CardItem({
       await FileSystem.writeAsStringAsync(destination, value);
 
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(destination, getShareOptions(fileName));
+        await Sharing.shareAsync(destination, getNativeShareOptions(fileName));
       } else {
         Alert.alert("Sharing Unavailable", "Sharing is not available here.");
       }
@@ -309,7 +277,7 @@ const CardItem = memo(function CardItem({
       const result = await FileSystem.downloadAsync(url, destination);
 
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(result.uri, getShareOptions(fileName));
+        await Sharing.shareAsync(result.uri, getNativeShareOptions(fileName));
       } else {
         Alert.alert("Sharing Unavailable", "Sharing is not available here.");
       }

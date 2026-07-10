@@ -234,9 +234,9 @@ export function normalizeHueFilters(values?: string[]): ColorHueBucket[] {
 export const FREE_TIER_LIMIT = 200;
 
 /**
- * Maximum file size for uploads (20MB in bytes)
+ * Maximum file size for uploads (100MB in bytes)
  */
-export const MAX_FILE_SIZE = 20 * 1024 * 1024;
+export { MAX_FILE_SIZE } from "./fileFormats";
 
 /**
  * Maximum number of files that can be uploaded at once
@@ -261,7 +261,7 @@ export const CARD_ERROR_MESSAGES: Record<CardErrorCode, string> = {
   CARD_LIMIT_REACHED:
     "Card limit reached. Please upgrade to Pro for unlimited cards.",
   RATE_LIMITED: "Too many cards created. Please wait a moment and try again.",
-  FILE_TOO_LARGE: "File is too large. Maximum file size is 20MB.",
+  FILE_TOO_LARGE: "File is too large. Maximum file size is 100MB.",
   TOO_MANY_FILES:
     "Too many files selected. You can upload up to 5 files at a time.",
   UNSUPPORTED_TYPE:

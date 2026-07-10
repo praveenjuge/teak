@@ -1,6 +1,6 @@
 {
   "name": "@teak/convex",
-  "version": "1.0.56",
+  "version": "1.0.57",
   "type": "module",
   "exports": {
     ".": "./index.ts",
@@ -9,6 +9,7 @@
     "./dev-urls": "./devUrls.ts",
     "./shared": "./shared/index.ts",
     "./shared/constants": "./shared/constants.ts",
+    "./shared/file-formats": "./shared/fileFormats.ts",
     "./shared/metrics": "./shared/metrics.ts",
     "./shared/hooks/useCardActions": "./client/hooks/useCardActions.client.tsx",
     "./shared/hooks/useFileUpload": "./client/hooks/useFileUpload.client.tsx",
@@ -48,6 +49,7 @@
     "convex": "^1.39.0",
     "convex-helpers": "^0.1.118",
     "exifr": "^7.1.3",
+    "heic-convert": "2.1.0",
     "htmlparser2": "^12.0.0",
     "react": "^19.2.5",
     "yauzl": "^3.4.0",
@@ -55,6 +57,7 @@
   },
   "devDependencies": {
     "@types/archiver": "^8.0.0",
+    "@types/heic-convert": "2.1.1",
     "@types/react": "^19.2.17",
     "@types/yauzl": "^2.10.3",
     "fflate": "^0.8.3",

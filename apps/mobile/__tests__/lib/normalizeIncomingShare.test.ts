@@ -62,6 +62,26 @@ describe("normalizeIncomingSharePayloads", () => {
     }
   });
 
+  test("infers source-file MIME types from shared filenames", () => {
+    const result = normalizeIncomingSharePayloads({
+      resolvedSharedPayloads: [],
+      sharedPayloads: [
+        {
+          value: "file:///tmp/component.tsx",
+          shareType: "file",
+          mimeType: "application/octet-stream",
+        },
+      ],
+    });
+
+    const item = result.items[0];
+    expect(item?.kind).toBe("file");
+    if (item?.kind === "file") {
+      expect(item.fileName).toBe("component.tsx");
+      expect(item.mimeType).toBe("text/tsx");
+    }
+  });
+
   test("drops unsupported and empty payloads with deterministic reasons", () => {
     const result = normalizeIncomingSharePayloads({
       resolvedSharedPayloads: [],

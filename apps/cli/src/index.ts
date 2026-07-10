@@ -25,7 +25,7 @@ import {
   writeError,
 } from "./runtime";
 
-export { mimeFor, typeForMime } from "./files";
+export { getUploadFileInfo, mimeFor } from "./files";
 export { formatCardLine } from "./format";
 
 const parseLimit = (value: string) => {

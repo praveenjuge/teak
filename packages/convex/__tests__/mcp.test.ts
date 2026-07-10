@@ -326,6 +326,25 @@ describe("Convex MCP endpoint", () => {
     const toolCalls = [
       ["teak_v1_list_cards", { limit: 25, cursor: "cursor_1", tag: "design" }],
       ["teak_v1_create_card", { content: "https://example.com" }],
+      [
+        "teak_v1_create_card",
+        {
+          fileKey: "users/user_1/file/readme.md",
+          fileName: "readme.md",
+          fileSize: 42,
+          mimeType: "text/markdown",
+        },
+      ],
+      [
+        "teak_v1_create_card",
+        {
+          cardType: "image",
+          fileKey: "users/user_1/file/image.png",
+          fileName: "image.png",
+          fileSize: 123,
+          mimeType: "image/png",
+        },
+      ],
       ["teak_v1_search_cards", { q: "design", limit: 10 }],
       ["teak_v1_delete_card", { cardId: "card_1", confirm: true }],
       ["teak_v1_get_card", { cardId: "card_1" }],
@@ -333,7 +352,10 @@ describe("Convex MCP endpoint", () => {
       ["teak_v1_get_card_changes", { since: 1_710_000_000_000, limit: 10 }],
       [
         "teak_v1_bulk_cards",
-        { operation: "favorite", items: [{ cardId: "card_1", isFavorited: true }] },
+        {
+          operation: "favorite",
+          items: [{ cardId: "card_1", isFavorited: true }],
+        },
       ],
       [
         "teak_v1_create_upload",
@@ -355,6 +377,8 @@ describe("Convex MCP endpoint", () => {
     expect(captured.map(({ method, path }) => `${method} ${path}`)).toEqual([
       "GET /v1/cards",
       "POST /v1/cards",
+      "POST /v1/cards",
+      "POST /v1/cards",
       "GET /v1/cards/search",
       "DELETE /v1/cards/card_1",
       "GET /v1/cards/card_1",
@@ -365,23 +389,32 @@ describe("Convex MCP endpoint", () => {
       "GET /v1/cards/search",
       "GET /v1/cards/card_1",
     ]);
-    expect(captured.every((call) => call.authorization === TEST_AUTHORIZATION)).toBe(true);
+    expect(captured[2]?.body).toEqual({
+      fileKey: "users/user_1/file/readme.md",
+      fileName: "readme.md",
+      fileSize: 42,
+      mimeType: "text/markdown",
+    });
+    expect(captured[3]?.body).toMatchObject({ cardType: "image" });
+    expect(
+      captured.every((call) => call.authorization === TEST_AUTHORIZATION)
+    ).toBe(true);
     expect(captured[0]?.query).toEqual({
       cursor: "cursor_1",
       tag: "design",
       limit: 25,
     });
     expect(captured[1]?.body).toEqual({ content: "https://example.com" });
-    expect(captured[7]?.body).toEqual({
+    expect(captured[9]?.body).toEqual({
       operation: "favorite",
       items: [{ cardId: "card_1", isFavorited: true }],
     });
-    expect(captured[8]?.body).toEqual({
+    expect(captured[10]?.body).toEqual({
       fileName: "image.png",
       mimeType: "image/png",
       fileSize: 123,
     });
-    expect(captured[9]?.query).toEqual({ q: "design", limit: 10 });
+    expect(captured[11]?.query).toEqual({ q: "design", limit: 10 });
   });
 
   test("requires confirm=true for bulk delete tool", async () => {
@@ -396,6 +429,25 @@ describe("Convex MCP endpoint", () => {
 
     expect(result.isError).toBe(true);
     expect(result.content?.[0]?.text.toLowerCase()).toContain("confirm");
+  });
+
+  test("returns a validation error for incomplete file-card input", async () => {
+    const executor = mock(async () =>
+      Response.json({ status: "created", cardId: "unexpected" })
+    ) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      "teak_v1_create_card",
+      {
+        fileKey: "users/user_1/file/readme.md",
+        fileName: "readme.md",
+      },
+      mcpRequest({ jsonrpc: "2.0", id: 29, method: "tools/call" }),
+      executor
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content?.[0]?.text).toContain("mimeType");
+    expect(executor).not.toHaveBeenCalled();
   });
 
   test("requires confirm=true for delete tool", async () => {

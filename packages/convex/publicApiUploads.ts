@@ -3,22 +3,28 @@ import { internalMutation } from "./_generated/server";
 import { ensureCardCreationAllowed } from "./auth";
 import { createUploadedCardForUser } from "./card/uploadCard";
 import { type CardType, cardTypeValidator } from "./schema";
-import { MAX_FILE_SIZE } from "./shared/constants";
+import {
+  FileFormatValidationError,
+  MAX_FILE_SIZE,
+  validateFileName,
+  validateUploadFile,
+} from "./shared/fileFormats";
 import { buildR2ObjectKey, r2 } from "./storage/r2";
 
-const MAX_FILE_NAME_LENGTH = 240;
 const UPLOAD_URL_EXPIRES_IN_SECONDS = 60 * 10;
 
 const sanitizeFileName = (fileName: string): string => {
-  const trimmed = fileName.trim().replace(/[\\/]/g, "-");
-  if (!(trimmed && trimmed.length <= MAX_FILE_NAME_LENGTH)) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message:
-        "fileName must be 1-240 characters and cannot include path separators",
-    });
+  try {
+    return validateFileName(fileName);
+  } catch (error) {
+    if (error instanceof FileFormatValidationError) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: error.message,
+      });
+    }
+    throw error;
   }
-  return trimmed;
 };
 
 const validateUploadRequest = (args: {
@@ -26,26 +32,17 @@ const validateUploadRequest = (args: {
   fileSize: number;
   mimeType: string;
 }) => {
-  if (!(Number.isFinite(args.fileSize) && args.fileSize > 0)) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "fileSize must be a positive number",
-    });
+  try {
+    return validateUploadFile(args);
+  } catch (error) {
+    if (error instanceof FileFormatValidationError) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: error.message,
+      });
+    }
+    throw error;
   }
-  if (args.fileSize > MAX_FILE_SIZE) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: `fileSize must not exceed ${MAX_FILE_SIZE} bytes`,
-    });
-  }
-  const mimeType = args.mimeType.trim().toLowerCase();
-  if (!/^[\w.+-]+\/[\w.+-]+$/.test(mimeType)) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "mimeType must be a valid media type",
-    });
-  }
-  return { fileName: sanitizeFileName(args.fileName), mimeType };
 };
 
 export const generateUploadUrlForUser = internalMutation({
@@ -80,7 +77,7 @@ export const generateUploadUrlForUser = internalMutation({
 
 export const finalizeUploadedCardForUser = internalMutation({
   args: {
-    cardType: cardTypeValidator,
+    cardType: v.optional(cardTypeValidator),
     content: v.optional(v.string()),
     fileKey: v.string(),
     fileName: v.string(),

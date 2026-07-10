@@ -1,8 +1,6 @@
 import { CARD_ERROR_CODES } from "@teak/convex/shared/constants";
-import {
-  inferCardType,
-  type UploadFileFromUriArgs,
-} from "@teak/convex/shared/hooks/useFileUpload";
+import { inferFileFormat } from "@teak/convex/shared/file-formats";
+import type { UploadFileFromUriArgs } from "@teak/convex/shared/hooks/useFileUpload";
 import type { UploadFileResult } from "@teak/convex/shared/types";
 import * as FileSystem from "expo-file-system/legacy";
 
@@ -52,7 +50,12 @@ export async function uploadFileFromUri(
   dependencies: UploadFileFromUriDependencies
 ): Promise<UploadFileResult> {
   try {
-    if (!inferCardType(params.mimeType)) {
+    if (
+      !inferFileFormat({
+        fileName: params.fileName,
+        mimeType: params.mimeType,
+      })
+    ) {
       return {
         success: false,
         error: "Unsupported file type",
