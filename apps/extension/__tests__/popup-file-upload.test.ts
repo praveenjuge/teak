@@ -21,3 +21,8 @@ test("popup keeps upload failures in its existing visible error state", () => {
   expect(popupSource).toContain('fileUploadState === "error"');
   expect(popupSource).toContain("{fileUploadError}");
 });
+
+test("popup gives an active file upload ownership of auto-close behavior", () => {
+  expect(popupSource).toContain("shouldAutoClosePopup({");
+  expect(popupSource).toContain("fileUploadState,");
+});
