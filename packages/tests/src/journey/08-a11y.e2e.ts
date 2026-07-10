@@ -6,7 +6,9 @@ const authPaths = new Set(["/login", "/register"]);
 
 const waitForReadySurface = async (path: string, page: Page) => {
   if (path === "/") {
-    const composer = page.locator("#content");
+    const composer = page.locator(
+      'form[data-card-creation-status="ready"] #content'
+    );
     await expect(composer).toBeVisible();
     await expect(composer).toBeEnabled();
     return;
