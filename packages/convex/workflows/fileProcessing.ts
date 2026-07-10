@@ -12,6 +12,15 @@ const MAX_COMPRESSION_RATIO = 100;
 const PPTX_SLIDE_REGEX = /^ppt\/slides\/slide\d+\.xml$/iu;
 const PPTX_TEXT_REGEX = /^ppt\/slides\/slide\d+\.xml$/iu;
 const DOCX_TEXT_PATH = "word/document.xml";
+const XML_ENTITY_REGEX = /&(amp|apos|gt|lt|quot|#39);/gu;
+const XML_ENTITIES: Record<string, string> = {
+  "&#39;": "'",
+  "&amp;": "&",
+  "&apos;": "'",
+  "&gt;": ">",
+  "&lt;": "<",
+  "&quot;": '"',
+};
 const CSS_COLOR_VARIABLE_REGEX =
   /--[a-z0-9_-]+\s*:\s*(?:#[0-9a-f]{3,8}\b|(?:rgb|hsl|oklab|oklch|lab|lch|color)\([^;]+\))/giu;
 
@@ -32,11 +41,7 @@ interface ZipInspection {
 const decodeXmlText = (value: string): string =>
   value
     .replace(/<[^>]+>/gu, " ")
-    .replace(/&lt;/gu, "<")
-    .replace(/&gt;/gu, ">")
-    .replace(/&amp;/gu, "&")
-    .replace(/&quot;/gu, '"')
-    .replace(/&#39;|&apos;/gu, "'")
+    .replace(XML_ENTITY_REGEX, (entity) => XML_ENTITIES[entity] ?? entity)
     .replace(/\s+/gu, " ")
     .trim();
 

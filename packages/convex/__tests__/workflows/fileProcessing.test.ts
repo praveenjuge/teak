@@ -49,7 +49,7 @@ describe("file processing", () => {
     const bytes = zipSync({
       "[Content_Types].xml": strToU8("<Types />"),
       "word/document.xml": strToU8(
-        "<w:document><w:body><w:p><w:t>Private design brief</w:t></w:p></w:body></w:document>"
+        "<w:document><w:body><w:p><w:t>Private &amp;lt;design&amp;gt; &amp; brief</w:t></w:p></w:body></w:document>"
       ),
     });
     const format = validateFileFormat({
@@ -59,7 +59,7 @@ describe("file processing", () => {
     });
     const result = await inspectZip(bytes, format);
 
-    expect(result.text).toBe("Private design brief");
+    expect(result.text).toBe("Private &lt;design&gt; & brief");
     expect(JSON.stringify(result.facts)).not.toContain("Private design brief");
   });
 
