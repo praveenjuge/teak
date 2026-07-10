@@ -14,6 +14,10 @@ import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
 import { useContextMenuSave } from "../../hooks/useContextMenuSave";
 import { useExtensionSession } from "../../hooks/useExtensionSession";
 import { beginSignIn } from "../../lib/nativeAuth";
+import {
+  type FileUploadState,
+  shouldAutoClosePopup,
+} from "../../lib/popupAutoClose";
 import { saveFileToTeak } from "../../lib/saveFileToTeak";
 import { MESSAGE_TYPES } from "../../types/messages";
 import { getAuthErrorMessage } from "../../utils/getAuthErrorMessage";
@@ -231,9 +235,8 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
   const { state, error, duplicateCard } = useAutoSaveUrl(!isRecentSave);
   const [_signOutLoading, _setSignOutLoading] = useState(false);
   const [signOutError, _setSignOutError] = useState<string | null>(null);
-  const [fileUploadState, setFileUploadState] = useState<
-    "idle" | "saving" | "success" | "error"
-  >("idle");
+  const [fileUploadState, setFileUploadState] =
+    useState<FileUploadState>("idle");
   const [fileUploadError, setFileUploadError] = useState<string | null>(null);
 
   // Auto-close popup after successful save
@@ -243,9 +246,11 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
       isRecentSave && contextMenuState.status === "success";
 
     if (
-      isAutoSaveSuccess ||
-      isContextMenuSuccess ||
-      fileUploadState === "success"
+      shouldAutoClosePopup({
+        fileUploadState,
+        isAutoSaveSuccess,
+        isContextMenuSuccess,
+      })
     ) {
       const timer = setTimeout(() => {
         window.close();
