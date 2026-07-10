@@ -30,14 +30,16 @@ describe("@teak/convex/sdk", () => {
         getAccessToken: () => "old",
         onUnauthorized: () => "new",
       },
-      fetch: (async (_url, init) => {
+      fetch: ((_url, init) => {
         calls.push(new Headers(init?.headers).get("authorization") || "");
-        return calls.length === 1
-          ? new Response(
-              JSON.stringify({ code: "UNAUTHORIZED", error: "Expired" }),
-              { status: 401 }
-            )
-          : new Response(JSON.stringify({ items: [] }), { status: 200 });
+        return Promise.resolve(
+          calls.length === 1
+            ? new Response(
+                JSON.stringify({ code: "UNAUTHORIZED", error: "Expired" }),
+                { status: 401 }
+              )
+            : new Response(JSON.stringify({ items: [] }), { status: 200 })
+        );
       }) as typeof fetch,
     });
     await expect(client.tags.list()).resolves.toEqual({ items: [] });
@@ -83,6 +85,63 @@ describe("@teak/convex/sdk", () => {
     expect(seenHeaders).toEqual({
       contentLength: "3",
       contentType: "image/png",
+    });
+  });
+
+  test("parses the backwards-compatible upload response contract", async () => {
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: (() =>
+        Promise.resolve(
+          Response.json({
+            expiresIn: 600,
+            fileKey: "users/u/cards/pending/file/source.tsx",
+            maxFileSize: 100 * 1024 * 1024,
+            method: "PUT",
+            uploadUrl: "https://upload.example",
+          })
+        )) as typeof fetch,
+    });
+
+    await expect(
+      client.uploads.create({
+        fileName: "source.tsx",
+        fileSize: 12,
+        mimeType: "text/tsx",
+      })
+    ).resolves.toMatchObject({ method: "PUT", maxFileSize: 104_857_600 });
+  });
+
+  test("sends uploaded-file creation without a cardType", async () => {
+    let requestBody: unknown;
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((_url, init) => {
+        requestBody = JSON.parse(String(init?.body));
+        return Promise.resolve(
+          Response.json({
+            appUrl: "https://app.example/?card=card_1",
+            cardId: "card_1",
+            status: "created",
+          })
+        );
+      }) as typeof fetch,
+    });
+
+    await client.cards.create({
+      fileKey: "users/u/cards/pending/file/readme.md",
+      fileName: "readme.md",
+      fileSize: 12,
+      mimeType: "text/markdown",
+    });
+
+    expect(requestBody).toEqual({
+      fileKey: "users/u/cards/pending/file/readme.md",
+      fileName: "readme.md",
+      fileSize: 12,
+      mimeType: "text/markdown",
     });
   });
 });

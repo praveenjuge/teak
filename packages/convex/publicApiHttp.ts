@@ -5,7 +5,12 @@ import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
 import { isWellFormedOAuthToken } from "./oauthTokens";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
-import { MAX_FILE_SIZE } from "./shared/constants";
+import {
+  FileFormatValidationError,
+  fileUploadErrorCode,
+  MAX_FILE_SIZE,
+  validateFileFormat,
+} from "./shared/fileFormats";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 import { r2ComponentConfig } from "./storage/r2";
 
@@ -30,12 +35,14 @@ const CARD_SORTS = new Set(["newest", "oldest"]);
 type ErrorCode =
   | "BAD_REQUEST"
   | "CONFLICT"
+  | "FILE_TOO_LARGE"
   | "INTERNAL_ERROR"
   | "INVALID_API_KEY"
   | "INVALID_INPUT"
   | "METHOD_NOT_ALLOWED"
   | "NOT_FOUND"
   | "RATE_LIMITED"
+  | "TYPE_MISMATCH"
   | "UNAUTHORIZED";
 
 interface AuthorizedUser {
@@ -503,11 +510,18 @@ const serializeCard = (card: any, requestUrl: string) => ({
   content: card.content,
   createdAt: card.createdAt,
   fileUrl: card.fileUrl ?? null,
+  fileExtension: card.fileMetadata?.extension ?? null,
+  fileKind: card.fileMetadata?.kind ?? null,
+  fileLanguage: card.fileMetadata?.language ?? null,
+  fileName: card.fileMetadata?.fileName ?? null,
+  filePreview: card.fileMetadata?.preview ?? null,
+  fileSize: card.fileMetadata?.fileSize ?? null,
   id: card._id,
   isFavorited: Boolean(card.isFavorited),
   linkPreviewImageUrl: card.linkPreviewImageUrl ?? null,
   metadataDescription: card.metadataDescription ?? null,
   metadataTitle: card.metadataTitle ?? null,
+  mimeType: card.fileMetadata?.mimeType ?? null,
   notes: card.notes ?? null,
   screenshotUrl: card.screenshotUrl ?? null,
   tags: card.tags ?? [],
@@ -550,6 +564,10 @@ const serializeListCard = (
           fileName: card.fileMetadata?.fileName ?? null,
           fileSize: card.fileMetadata?.fileSize ?? null,
           mimeType: card.fileMetadata?.mimeType ?? null,
+          fileExtension: card.fileMetadata?.extension ?? null,
+          fileKind: card.fileMetadata?.kind ?? null,
+          fileLanguage: card.fileMetadata?.language ?? null,
+          filePreview: card.fileMetadata?.preview ?? null,
           fileUrl: card.fileUrl ?? null,
           linkPreviewImageUrl: card.linkPreviewImageUrl ?? null,
           screenshotUrl: card.screenshotUrl ?? null,
@@ -713,7 +731,7 @@ const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
   }
 
   if (fileKey) {
-    if (!(cardType && fileName && mimeType) || url) {
+    if (!(fileName && mimeType) || url) {
       return null;
     }
     return {
@@ -921,7 +939,7 @@ const verifyUploadedFile = async (
 
   if (headMetadata.size > MAX_FILE_SIZE) {
     throw new ConvexError({
-      code: "INVALID_INPUT",
+      code: "FILE_TOO_LARGE",
       message: `Uploaded file must not exceed ${MAX_FILE_SIZE} bytes`,
     });
   }
@@ -932,22 +950,39 @@ const verifyUploadedFile = async (
       : undefined;
   const requestedMimeType = payload.mimeType?.trim().toLowerCase();
 
-  if (payload.fileSize !== undefined && payload.fileSize !== headMetadata.size) {
+  if (
+    payload.fileSize !== undefined &&
+    payload.fileSize !== headMetadata.size
+  ) {
     throw new ConvexError({
       code: "INVALID_INPUT",
       message: "Uploaded file size does not match the stored object",
     });
   }
 
-  if (
-    requestedMimeType &&
-    storedMimeType &&
-    requestedMimeType !== storedMimeType
-  ) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Uploaded file type does not match the stored object",
+  try {
+    const requestedFormat = validateFileFormat({
+      fileName: payload.fileName ?? "",
+      mimeType: requestedMimeType,
     });
+    const storedFormat = validateFileFormat({
+      fileName: payload.fileName ?? "",
+      mimeType: storedMimeType,
+    });
+    if (requestedFormat.id !== storedFormat.id) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Uploaded file type does not match the stored object",
+      });
+    }
+  } catch (error) {
+    if (error instanceof FileFormatValidationError) {
+      throw new ConvexError({
+        code: fileUploadErrorCode(error),
+        message: error.message,
+      });
+    }
+    throw error;
   }
 
   return { storedFileSize: headMetadata.size, storedMimeType };
@@ -974,7 +1009,7 @@ export const handleCreateCardRequest = async (
     return errorResponse(
       400,
       "INVALID_INPUT",
-      "Body must include `content` or `url` and only valid fields: content, url, notes, tags, source"
+      "Body must include text, a URL, or valid uploaded-file fields"
     );
   }
 
@@ -1314,10 +1349,12 @@ const ensureCardExistsForUser = (
   userId: string,
   cardId: string
 ): Promise<any | null> =>
-  ctx.runQuery((internal as any).raycast.getCardForUser, {
-    cardId,
-    userId,
-  }).then((card: any | null) => (card?.isDeleted ? null : card));
+  ctx
+    .runQuery((internal as any).raycast.getCardForUser, {
+      cardId,
+      userId,
+    })
+    .then((card: any | null) => (card?.isDeleted ? null : card));
 
 const validatePatchPayload = (
   payload: unknown
@@ -1705,7 +1742,10 @@ const toPublicApiRequest = (operation: PublicApiOperation): Request => {
   const normalizedPath = operation.path.startsWith("/")
     ? operation.path
     : `/${operation.path}`;
-  const url = new URL(normalizedPath, operation.origin ?? "https://teakvault.com");
+  const url = new URL(
+    normalizedPath,
+    operation.origin ?? "https://teakvault.com"
+  );
 
   for (const [key, value] of Object.entries(operation.query ?? {})) {
     if (value !== undefined) {
@@ -1779,7 +1819,7 @@ const withGatewayHeaders = (
     withPublicApiGatewayHeaders(await handler(ctx, request))
   );
 
-export const createCardV1 = withGatewayHeaders(async (ctx, request) => {
+export const createCardV1 = withGatewayHeaders((ctx, request) => {
   if (request.method !== "POST") {
     return Promise.resolve(
       errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
@@ -1789,7 +1829,7 @@ export const createCardV1 = withGatewayHeaders(async (ctx, request) => {
   return handleCreateCardRequest(ctx, request);
 });
 
-export const createUploadV1 = withGatewayHeaders(async (ctx, request) => {
+export const createUploadV1 = withGatewayHeaders((ctx, request) => {
   if (request.method !== "POST") {
     return Promise.resolve(
       errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
@@ -1799,7 +1839,7 @@ export const createUploadV1 = withGatewayHeaders(async (ctx, request) => {
   return handleCreateUploadRequest(ctx, request);
 });
 
-export const listCardsV1 = withGatewayHeaders(async (ctx, request) => {
+export const listCardsV1 = withGatewayHeaders((ctx, request) => {
   if (request.method !== "GET") {
     return Promise.resolve(
       errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
@@ -1809,7 +1849,7 @@ export const listCardsV1 = withGatewayHeaders(async (ctx, request) => {
   return handleCardsListRequest(ctx, request);
 });
 
-export const searchCardsV1 = withGatewayHeaders(async (ctx, request) => {
+export const searchCardsV1 = withGatewayHeaders((ctx, request) => {
   if (request.method !== "GET") {
     return Promise.resolve(
       errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
@@ -1819,7 +1859,7 @@ export const searchCardsV1 = withGatewayHeaders(async (ctx, request) => {
   return handleCardsQueryRequest(ctx, request, false);
 });
 
-export const favoriteCardsV1 = withGatewayHeaders(async (ctx, request) => {
+export const favoriteCardsV1 = withGatewayHeaders((ctx, request) => {
   if (request.method !== "GET") {
     return Promise.resolve(
       errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
@@ -1829,7 +1869,7 @@ export const favoriteCardsV1 = withGatewayHeaders(async (ctx, request) => {
   return handleCardsQueryRequest(ctx, request, true);
 });
 
-export const cardByIdV1 = withGatewayHeaders(async (ctx, request) => {
+export const cardByIdV1 = withGatewayHeaders((ctx, request) => {
   if (
     !(
       request.method === "DELETE" ||
@@ -1845,7 +1885,7 @@ export const cardByIdV1 = withGatewayHeaders(async (ctx, request) => {
   return handleCardsByIdV1Request(ctx, request);
 });
 
-export const bulkCardsV1 = withGatewayHeaders(async (ctx, request) => {
+export const bulkCardsV1 = withGatewayHeaders((ctx, request) => {
   if (request.method !== "POST") {
     return Promise.resolve(
       errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
@@ -1855,7 +1895,7 @@ export const bulkCardsV1 = withGatewayHeaders(async (ctx, request) => {
   return handleBulkCardsRequest(ctx, request);
 });
 
-export const changesCardsV1 = withGatewayHeaders(async (ctx, request) => {
+export const changesCardsV1 = withGatewayHeaders((ctx, request) => {
   if (request.method !== "GET") {
     return Promise.resolve(
       errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
@@ -1865,7 +1905,7 @@ export const changesCardsV1 = withGatewayHeaders(async (ctx, request) => {
   return handleCardChangesRequest(ctx, request);
 });
 
-export const tagsV1 = withGatewayHeaders(async (ctx, request) => {
+export const tagsV1 = withGatewayHeaders((ctx, request) => {
   if (request.method !== "GET") {
     return Promise.resolve(
       errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")

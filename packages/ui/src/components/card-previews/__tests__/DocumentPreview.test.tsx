@@ -70,9 +70,56 @@ describe("DocumentPreview", () => {
     expect(markup).toContain("notes.docx");
   });
 
+  test("shows ZIP manifest facts without archive contents", () => {
+    const markup = renderToStaticMarkup(
+      <DocumentPreview
+        card={
+          createDocumentCard({
+            fileMetadata: {
+              fileName: "package.zip",
+              kind: "archive",
+              mimeType: "application/zip",
+              preview: {
+                archiveDirectoryCount: 3,
+                archiveFileCount: 12,
+              },
+            },
+          }) as never
+        }
+      />
+    );
+
+    expect(markup).toContain("12 files");
+    expect(markup).toContain("3 folders");
+  });
+
+  test("shows Office slide facts and a safe open action", () => {
+    const markup = renderToStaticMarkup(
+      <DocumentPreview
+        card={
+          createDocumentCard({
+            fileMetadata: {
+              fileName: "deck.pptx",
+              kind: "office",
+              mimeType:
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+              preview: { slideCount: 8 },
+            },
+          }) as never
+        }
+      />
+    );
+
+    expect(markup).toContain("8 slides");
+    expect(markup).toContain("Open file");
+    expect(markup).toContain('rel="noopener noreferrer"');
+  });
+
   test("does not render an iframe when the file URL is missing", () => {
     const markup = renderToStaticMarkup(
-      <DocumentPreview card={createDocumentCard({ fileUrl: undefined }) as never} />
+      <DocumentPreview
+        card={createDocumentCard({ fileUrl: undefined }) as never}
+      />
     );
 
     expect(markup).not.toContain("<iframe");

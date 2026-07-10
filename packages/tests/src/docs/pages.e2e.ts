@@ -19,3 +19,20 @@ test("docs Pagefind assets are published", async ({ page }) => {
     expect(response.status(), path).toBe(200);
   }
 });
+
+test("public docs describe expanded file support and inferred uploads", async ({
+  page,
+}) => {
+  await page.goto("/docs/api/");
+  await expect(page.locator("body")).toContainText("100 MB");
+  await expect(page.locator("body")).toContainText(/cardType.*optional/i);
+
+  await page.goto("/docs/cli/");
+  await expect(page.locator("body")).toContainText(/Markdown and MDX/i);
+
+  await page.goto("/docs/mcp/");
+  await expect(page.locator("body")).toContainText(/cardType.*inferred/i);
+
+  await page.goto("/docs/extension/");
+  await expect(page.locator("body")).toContainText("Save Asset to Teak");
+});

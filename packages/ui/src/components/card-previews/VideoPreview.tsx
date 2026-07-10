@@ -1,4 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { inferFileFormat } from "@teak/convex/shared/file-formats";
 
 type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
@@ -14,6 +15,25 @@ export function VideoPreview({ card }: VideoPreviewProps) {
 
   if (!fileUrl) {
     return null;
+  }
+
+  const format = card.fileMetadata?.fileName
+    ? inferFileFormat({
+        fileName: card.fileMetadata.fileName,
+        mimeType: card.fileMetadata.mimeType,
+      })
+    : null;
+
+  if (format?.id === "gif") {
+    return (
+      <img
+        alt={card.fileMetadata?.fileName || card.content || "Animated GIF"}
+        className="h-full w-full rounded-lg object-contain"
+        height={480}
+        src={fileUrl}
+        width={640}
+      />
+    );
   }
 
   return (

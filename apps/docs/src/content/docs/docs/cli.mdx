@@ -47,6 +47,7 @@ Removes stored credentials from your machine.
 teak add "A note from the terminal" --tags research
 teak add --url https://example.com --tags research,web
 teak add --file ./screenshot.png --notes "Inspiration" --tags inspiration
+teak add --file ./component.tsx --tags source
 teak ls
 teak search "blue buttons"
 teak cards get <card-id>
@@ -60,6 +61,8 @@ teak tags
 example `teak add https://example.com`) — the CLI detects whether it's text,
 a URL, or a file. Use `--url` / `--file` when you want to be explicit or when
 scripting.
+
+File uploads support source and design-token files, Markdown and MDX, ZIP archives, PDF and Office documents, SVG, HEIC, animated GIF, WebM/MP4, Figma `.fig`, and common image/audio formats up to 100 MB. The CLI infers the media and card type from the file name, so no type flag is required.
 
 ### Getting help
 

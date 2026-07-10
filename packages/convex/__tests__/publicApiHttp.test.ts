@@ -265,7 +265,7 @@ describe("publicApiHttp", () => {
     const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
       expiresIn: 600,
       fileKey: "users/user_1/file/image.png",
-      maxFileSize: 20_971_520,
+      maxFileSize: MAX_FILE_SIZE,
       method: "PUT",
       uploadUrl: "https://upload.example",
     });
@@ -291,7 +291,7 @@ describe("publicApiHttp", () => {
     expect(await response.json()).toEqual({
       expiresIn: 600,
       fileKey: "users/user_1/file/image.png",
-      maxFileSize: 20_971_520,
+      maxFileSize: MAX_FILE_SIZE,
       method: "PUT",
       uploadUrl: "https://upload.example",
     });
@@ -301,6 +301,52 @@ describe("publicApiHttp", () => {
       mimeType: "image/png",
       userId: "user_1",
     });
+  });
+
+  test("createUploadV1 maps invalid MIME and oversized upload validation", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    for (const scenario of [
+      {
+        body: {
+          fileName: "component.tsx",
+          fileSize: 20,
+          mimeType: "image/png",
+        },
+        code: "TYPE_MISMATCH",
+        message: "File extension does not match the provided MIME type",
+      },
+      {
+        body: {
+          fileName: "archive.zip",
+          fileSize: MAX_FILE_SIZE + 1,
+          mimeType: "application/zip",
+        },
+        code: "FILE_TOO_LARGE",
+        message: `fileSize must not exceed ${MAX_FILE_SIZE} bytes`,
+      },
+    ]) {
+      const runMutation = buildAuthorizedMutationMock().mockRejectedValueOnce(
+        new ConvexError({ code: scenario.code, message: scenario.message })
+      );
+      const response = await runHandler(
+        createUploadV1,
+        { runMutation, runQuery: mock() },
+        new Request("https://example.com/v1/uploads", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(scenario.body),
+        })
+      );
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        code: scenario.code,
+        error: scenario.message,
+      });
+    }
   });
 
   test("createCardV1 finalizes fileKey uploads through the upload mutation", async () => {
@@ -360,6 +406,45 @@ describe("publicApiHttp", () => {
       storedMimeType: "image/png",
       tags: ["reference"],
       userId: "user_1",
+    });
+  });
+
+  test("createCardV1 infers an uploaded file type when cardType is omitted", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation =
+      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
+        cardId: "card_source",
+        status: "created",
+      });
+    const runAction = mock()
+      .mockResolvedValueOnce({ contentType: "text/tsx", size: 321 })
+      .mockResolvedValueOnce(null);
+
+    const response = await runHandler(
+      createCardV1,
+      { runAction, runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileKey: "users/user_1/file/component.tsx",
+          fileName: "component.tsx",
+          fileSize: 321,
+          mimeType: "text/tsx",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ cardId: "card_source" });
+    expect(runMutation.mock.calls[3]?.[1]).toMatchObject({
+      cardType: undefined,
+      fileName: "component.tsx",
+      mimeType: "text/tsx",
+      storedMimeType: "text/tsx",
     });
   });
 
@@ -465,6 +550,41 @@ describe("publicApiHttp", () => {
     expect(runMutation).toHaveBeenCalledTimes(3);
   });
 
+  test("createCardV1 reports stored MIME mismatches consistently", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runAction = mock().mockResolvedValueOnce({
+      contentType: "application/pdf",
+      size: 123,
+    });
+
+    const response = await runHandler(
+      createCardV1,
+      { runAction, runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cardType: "image",
+          fileKey: "users/user_1/file/image.png",
+          fileName: "image.png",
+          fileSize: 123,
+          mimeType: "image/png",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "TYPE_MISMATCH",
+      error: "File extension does not match the provided MIME type",
+    });
+    expect(runMutation).toHaveBeenCalledTimes(3);
+  });
+
   test("createCardV1 rejects fileKey uploads when stored object is too large", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
@@ -493,7 +613,7 @@ describe("publicApiHttp", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
-      code: "INVALID_INPUT",
+      code: "FILE_TOO_LARGE",
       error: `Uploaded file must not exceed ${MAX_FILE_SIZE} bytes`,
     });
     expect(runMutation).toHaveBeenCalledTimes(3);

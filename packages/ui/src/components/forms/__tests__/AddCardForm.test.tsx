@@ -1,6 +1,9 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+
+let cardCreationStatusResult: { canCreateCard: boolean } | undefined;
 
 mock.module("@teak/ui/components/ui/button", () => ({
   Button: ({ children, type, onClick, disabled, variant, size }: any) =>
@@ -56,7 +59,7 @@ mock.module("convex/react", () => ({
 }));
 
 mock.module("convex-helpers/react/cache/hooks", () => ({
-  useQuery: () => null,
+  useQuery: () => cardCreationStatusResult,
 }));
 
 mock.module("@teak/convex/shared/hooks/useFileUpload", () => ({
@@ -115,7 +118,7 @@ mock.module("@teak/convex/shared", () => ({
     CARD_LIMIT_REACHED: "CARD_LIMIT_REACHED",
     RATE_LIMITED: "RATE_LIMITED",
   },
-  MAX_FILE_SIZE: 20 * 1024 * 1024,
+  MAX_FILE_SIZE: 100 * 1024 * 1024,
   MAX_FILES_PER_UPLOAD: 5,
   CARD_ERROR_MESSAGES: {
     TOO_MANY_FILES: "Too many files",
@@ -133,6 +136,7 @@ import { AddCardForm } from "../AddCardForm";
 
 describe("AddCardForm", () => {
   beforeEach(() => {
+    cardCreationStatusResult = undefined;
     global.crypto = {
       ...global.crypto,
       randomUUID: mock(() => "mock-uuid"),
@@ -162,6 +166,17 @@ describe("AddCardForm", () => {
     expect(() => {
       React.createElement(AddCardForm, { canCreateCard: false });
     }).not.toThrow();
+  });
+
+  test("exposes loading and ready card-creation states", () => {
+    expect(renderToStaticMarkup(<AddCardForm />)).toContain(
+      'data-card-creation-status="loading"'
+    );
+
+    cardCreationStatusResult = { canCreateCard: true };
+    expect(renderToStaticMarkup(<AddCardForm />)).toContain(
+      'data-card-creation-status="ready"'
+    );
   });
 
   test("renders with custom upgrade link component", () => {

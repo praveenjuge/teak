@@ -1,3 +1,7 @@
+import {
+  inferFileFormat,
+  isGenericMimeType,
+} from "@teak/convex/shared/file-formats";
 import type { ResolvedSharePayload, SharePayload } from "expo-sharing";
 import type {
   DroppedSharePayload,
@@ -118,7 +122,15 @@ function mapPayload<TPayload extends ShareLikePayload>(
   }
 
   const fileName = adapter.getFileName(payload, fileUri, index);
-  const mimeType = adapter.getMimeType(payload, shareType);
+  const declaredMimeType = adapter.getMimeType(payload, shareType);
+  const format = inferFileFormat({
+    fileName,
+    mimeType: declaredMimeType,
+  });
+  const mimeType =
+    format && isGenericMimeType(declaredMimeType)
+      ? format.mimeType
+      : declaredMimeType;
 
   return {
     id: buildItemId(adapter.source, index, `${fileUri}|${fileName}`),

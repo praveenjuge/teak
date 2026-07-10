@@ -5,6 +5,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { useCallback } from "react";
 import { Alert, PlatformColor } from "react-native";
+import { normalizeNativeFileAsset } from "@/lib/files";
 import { useUploadFromUri } from "@/lib/hooks/use-upload-from-uri";
 
 interface UploadFileActionsSectionProps {
@@ -141,7 +142,7 @@ export function UploadFileActionsSection({
     try {
       const result = await DocumentPicker.getDocumentAsync({
         copyToCacheDirectory: true,
-        type: ["image/*", "video/*", "audio/*"],
+        type: "*/*",
       });
 
       if (result.canceled || !result.assets[0]) {
@@ -149,12 +150,14 @@ export function UploadFileActionsSection({
       }
 
       const asset = result.assets[0];
+      const normalized = normalizeNativeFileAsset(asset);
+      if (!normalized) {
+        Alert.alert("Unsupported File", "This file format cannot be uploaded.");
+        return;
+      }
       await uploadFromUri({
-        content: asset.name,
-        fileName: asset.name,
-        fileSize: asset.size ?? null,
-        fileUri: asset.uri,
-        mimeType: asset.mimeType || "application/octet-stream",
+        content: normalized.fileName,
+        ...normalized,
       });
     } catch (error) {
       console.error(

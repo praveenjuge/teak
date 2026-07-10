@@ -64,7 +64,7 @@ shown above, so MCP clients validate and connect to the same public resource.
   - Input: `{ cardId: string }`
   - Output: full card object
 - `teak_v1_create_card`
-  - Input: `{ content: string }`
+  - Input: text/URL fields or uploaded-file fields `{ fileKey, fileName, mimeType, fileSize?, cardType? }`. `cardType` is inferred when omitted; existing explicit values remain supported.
   - Output: `{ status: "created", cardId: string, appUrl: string }`
 - `teak_v1_list_tags`
   - Input: `{}`
@@ -78,6 +78,7 @@ shown above, so MCP clients validate and connect to the same public resource.
 - `teak_v1_create_upload`
   - Input: `{ fileName: string, mimeType: string, fileSize: number }`
   - Output: `{ uploadUrl: string, fileKey: string, method: "PUT", maxFileSize: number, expiresIn: number }`
+  - Supports the same 100 MB source, Markdown, archive, Office, design, image, motion, and audio file matrix as the web app, API, and CLI.
 - `teak_v1_search_cards`
   - Input: `{ q?: string, limit?: number }`
   - Output: `{ items: Card[], total: number }`

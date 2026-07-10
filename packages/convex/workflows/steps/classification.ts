@@ -17,6 +17,7 @@ import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
 import type { CardType } from "../../schema";
+import { inferFileFormat } from "../../shared/fileFormats";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import type { Id } from "../../shared/types";
 import { withBackendSpan } from "../../telemetry/sentry";
@@ -149,124 +150,28 @@ const isProbablyPalette = (card: any): boolean => {
   return false;
 };
 
-const extensionFromUrl = (url?: string): string | undefined => {
+const fileNameFromUrl = (url?: string): string | undefined => {
   if (!url) {
     return;
   }
   try {
     const pathname = new URL(url).pathname;
-    const match = /\.([a-zA-Z0-9]+)(?:$|[?#])/u.exec(pathname);
-    return match?.[1]?.toLowerCase();
+    return pathname.split("/").filter(Boolean).pop();
   } catch {
     return;
   }
 };
 
-const classifyByMime = (
-  mimeType?: string
+const classifyFile = (
+  fileName: string | undefined,
+  mimeType: string | undefined,
+  confidence: number
 ): { type: CardType; confidence: number } | null => {
-  if (!mimeType) {
-    return null;
-  }
-  const mime = mimeType.toLowerCase();
-
-  if (mime.startsWith("image/")) {
-    return { type: "image", confidence: STRONG_CONFIDENCE };
-  }
-  if (mime.startsWith("video/")) {
-    return { type: "video", confidence: STRONG_CONFIDENCE };
-  }
-  if (mime.startsWith("audio/")) {
-    return { type: "audio", confidence: STRONG_CONFIDENCE };
-  }
-
-  const documentMimes = [
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.ms-powerpoint",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "text/markdown",
-    "text/csv",
-    "application/rtf",
-  ];
-
-  if (documentMimes.some((candidate) => mime.includes(candidate))) {
-    return { type: "document", confidence: STRONG_CONFIDENCE };
-  }
-
-  if (mime.startsWith("text/")) {
-    return { type: "text", confidence: MEDIUM_CONFIDENCE };
-  }
-
-  return null;
-};
-
-const classifyByExtension = (
-  extension?: string
-): { type: CardType; confidence: number } | null => {
-  if (!extension) {
-    return null;
-  }
-  const ext = extension.toLowerCase();
-
-  const imageExt = [
-    "png",
-    "jpg",
-    "jpeg",
-    "webp",
-    "gif",
-    "bmp",
-    "svg",
-    "tiff",
-    "avif",
-    "heic",
-  ];
-  const videoExt = [
-    "mp4",
-    "mov",
-    "m4v",
-    "webm",
-    "mkv",
-    "avi",
-    "mpeg",
-    "mpg",
-    "wmv",
-  ];
-  const audioExt = ["mp3", "wav", "flac", "m4a", "aac", "ogg", "oga", "opus"];
-  const documentExt = [
-    "pdf",
-    "doc",
-    "docx",
-    "ppt",
-    "pptx",
-    "xls",
-    "xlsx",
-    "csv",
-    "rtf",
-    "md",
-    "txt",
-    "pages",
-    "key",
-    "numbers",
-  ];
-
-  if (imageExt.includes(ext)) {
-    return { type: "image", confidence: MEDIUM_CONFIDENCE };
-  }
-  if (videoExt.includes(ext)) {
-    return { type: "video", confidence: MEDIUM_CONFIDENCE };
-  }
-  if (audioExt.includes(ext)) {
-    return { type: "audio", confidence: MEDIUM_CONFIDENCE };
-  }
-  if (documentExt.includes(ext)) {
-    return { type: "document", confidence: MEDIUM_CONFIDENCE };
-  }
-
-  return null;
+  const format = inferFileFormat({
+    fileName: fileName || "file",
+    mimeType,
+  });
+  return format ? { type: format.cardType, confidence } : null;
 };
 
 const classifyByFileMetadata = (
@@ -276,7 +181,11 @@ const classifyByFileMetadata = (
     return null;
   }
 
-  const mimeClassification = classifyByMime(metadata.mimeType);
+  const mimeClassification = classifyFile(
+    metadata.fileName,
+    metadata.mimeType,
+    STRONG_CONFIDENCE
+  );
   if (mimeClassification) {
     return mimeClassification;
   }
@@ -307,7 +216,11 @@ const deterministicClassify = (
   }
 
   // 2) URL extension cues
-  const extensionResult = classifyByExtension(extensionFromUrl(card.url));
+  const extensionResult = classifyFile(
+    fileNameFromUrl(card.url),
+    undefined,
+    MEDIUM_CONFIDENCE
+  );
   if (extensionResult) {
     return extensionResult;
   }

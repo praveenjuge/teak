@@ -168,6 +168,20 @@ describe("Background Service Worker", () => {
   });
 
   describe("Context Menu Creation", () => {
+    test("should create save-asset menu item for downloadable assets", () => {
+      const menu = {
+        id: "save-asset",
+        title: "Save Asset to Teak",
+        contexts: ["image", "video", "audio", "link"],
+      };
+
+      expect(menu).toEqual({
+        id: "save-asset",
+        title: "Save Asset to Teak",
+        contexts: ["image", "video", "audio", "link"],
+      });
+    });
+
     test("should create save-page menu item", () => {
       const mockCreate = mock(() => Promise.resolve());
       const mockRemoveAll = mock((callback: () => void) => {
@@ -574,7 +588,9 @@ describe("Background Service Worker", () => {
     });
 
     test("rejects a trusted origin on the wrong path", () => {
-      expect(isAllowedSender("https://app.teakvault.com/dashboard")).toBe(false);
+      expect(isAllowedSender("https://app.teakvault.com/dashboard")).toBe(
+        false
+      );
     });
 
     test("rejects an untrusted origin", () => {

@@ -46,13 +46,15 @@ export default defineConfig({
     {
       name: "journey-services",
       dependencies: ["journey-setup"],
-      fullyParallel: true,
       testMatch: [
         "journey/03-api.e2e.ts",
         "journey/04-cli.e2e.ts",
         "journey/05-mcp.e2e.ts",
       ],
-      workers: 3,
+      // These surfaces share one production API key. Keep their requests
+      // serial to avoid rate-limiter contention while this project still runs
+      // concurrently with the longer web and accessibility projects.
+      workers: 1,
       use: {
         ...devices["Desktop Chrome"],
         storageState: ".state/user.json",

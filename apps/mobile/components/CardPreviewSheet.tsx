@@ -30,6 +30,7 @@ import {
   VideoPreview,
 } from "@/components/card-preview/preview-sections";
 import { colors } from "@/constants/colors";
+import { getMobileFilePreview } from "@/lib/files";
 
 type Card = Doc<"cards"> & {
   fileUrl?: string;
@@ -122,8 +123,6 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
   const textContent = card.content?.trim() || "No content";
   const title =
     card.metadataTitle || card.fileMetadata?.fileName || "Attachment";
-  const imageUrl = card.fileUrl ?? null;
-  const imageFallback = card.thumbnailUrl ?? card.screenshotUrl ?? null;
   const videoPoster = card.thumbnailUrl ?? card.screenshotUrl;
   const documentUrl = card.fileUrl ?? card.url ?? null;
   const linkTitle =
@@ -131,6 +130,16 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
       ? card.metadata.linkPreview.title || card.url || "Link"
       : card.metadataTitle || card.url || "Link";
   const linkUrl = card.url ?? "";
+  const filePreview = getMobileFilePreview({
+    fileKind: card.fileMetadata?.kind,
+    fileLanguage: card.fileMetadata?.language,
+    fileName: card.fileMetadata?.fileName,
+    fileUrl: card.fileUrl,
+    mimeType: card.fileMetadata?.mimeType,
+    preview: card.fileMetadata?.preview,
+    screenshotUrl: card.screenshotUrl,
+    thumbnailUrl: card.thumbnailUrl,
+  });
 
   const renderActionButton = (
     label: string,
@@ -164,13 +173,25 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
             <FullHeightMedia
               fallbackIcon="photo"
               fallbackLabel="Image unavailable"
-              fallbackUri={imageFallback}
+              fallbackUri={filePreview.imageFallback}
               height={PREVIEW_HEIGHT}
-              primaryUri={imageUrl}
+              primaryUri={filePreview.imagePrimary}
             />
           </List>
         );
       case "video":
+        if (filePreview.isAnimatedGif) {
+          return (
+            <List modifiers={[listStyle("plain")]}>
+              <FullHeightMedia
+                fallbackIcon="photo.on.rectangle.angled"
+                fallbackLabel="Animated preview unavailable"
+                height={PREVIEW_HEIGHT}
+                primaryUri={card.fileUrl}
+              />
+            </List>
+          );
+        }
         return (
           <List modifiers={[listStyle("plain")]}>
             {card.fileUrl ? (
@@ -348,6 +369,19 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
                 ]}
               >
                 {card.fileMetadata.mimeType}
+              </Text>
+            ) : null}
+            {filePreview.facts.length > 0 ? (
+              <Text
+                modifiers={[
+                  foregroundStyle({
+                    type: "hierarchical",
+                    style: "secondary",
+                  }),
+                  font({ design: "rounded" }),
+                ]}
+              >
+                {filePreview.facts.join(" · ")}
               </Text>
             ) : null}
             {card.type === "document" && documentUrl
