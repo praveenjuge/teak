@@ -8,6 +8,7 @@
     "./sdk": "./client/sdk.ts",
     "./dev-urls": "./devUrls.ts",
     "./shared": "./shared/index.ts",
+    "./shared/bounded-response": "./shared/boundedResponse.ts",
     "./shared/constants": "./shared/constants.ts",
     "./shared/file-formats": "./shared/fileFormats.ts",
     "./shared/metrics": "./shared/metrics.ts",

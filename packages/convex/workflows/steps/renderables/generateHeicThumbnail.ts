@@ -14,6 +14,12 @@ import { fetchBoundedBytes } from "../../fileProcessing";
 
 const MAX_HEIC_PREVIEW_BYTES = 25 * 1024 * 1024;
 
+export const copyToExactArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+};
+
 export const generateHeicThumbnail = internalAction({
   args: { cardId: v.id("cards") },
   returns: v.object({
@@ -43,13 +49,14 @@ export const generateHeicThumbnail = internalAction({
         quality: 0.82,
       });
       const jpegBytes = Uint8Array.from(converted);
+      const jpegBuffer = copyToExactArrayBuffer(jpegBytes);
       const thumbnailKey = buildR2ObjectKey({
         cardId,
         fileName: "heic-preview.jpg",
         role: "thumbnail",
         userId: card.userId,
       });
-      await storeObject(ctx, new Blob([jpegBytes.buffer]), {
+      await storeObject(ctx, new Blob([jpegBuffer]), {
         key: thumbnailKey,
         type: "image/jpeg",
       });

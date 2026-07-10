@@ -1,5 +1,6 @@
 "use client";
 
+import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
 import type { FileFormat } from "@teak/convex/shared/file-formats";
 import { Highlight, type Language, themes } from "prism-react-renderer";
 import { useEffect, useState } from "react";
@@ -111,31 +112,45 @@ interface FileTextPreviewProps {
   format: FileFormat;
 }
 
+interface LoadFileTextPreviewOptions {
+  fetchImpl?: typeof fetch;
+  maxBytes?: number;
+  signal?: AbortSignal;
+}
+
+export async function loadFileTextPreview(
+  fileUrl: string,
+  options: LoadFileTextPreviewOptions = {}
+): Promise<string | null> {
+  const maxBytes = options.maxBytes ?? MAX_BROWSER_PREVIEW_BYTES;
+  const response = await (options.fetchImpl ?? fetch)(fileUrl, {
+    credentials: "omit",
+    signal: options.signal,
+  });
+  const contentLength = Number(response.headers.get("content-length"));
+  if (
+    !response.ok ||
+    (Number.isFinite(contentLength) && contentLength > maxBytes)
+  ) {
+    await response.body?.cancel();
+    return null;
+  }
+  return readResponseTextWithinLimit(response, maxBytes);
+}
+
 export function FileTextPreview({ fileUrl, format }: FileTextPreviewProps) {
   const [source, setSource] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
+    setSource(null);
 
     void (async () => {
       try {
-        const response = await fetch(fileUrl, {
-          credentials: "omit",
+        const text = await loadFileTextPreview(fileUrl, {
           signal: controller.signal,
         });
-        const contentLength = Number(response.headers.get("content-length"));
-        if (
-          !response.ok ||
-          (Number.isFinite(contentLength) &&
-            contentLength > MAX_BROWSER_PREVIEW_BYTES)
-        ) {
-          await response.body?.cancel();
-          return;
-        }
-        const text = await response.text();
-        if (
-          new TextEncoder().encode(text).byteLength <= MAX_BROWSER_PREVIEW_BYTES
-        ) {
+        if (text !== null) {
           setSource(text);
         }
       } catch {

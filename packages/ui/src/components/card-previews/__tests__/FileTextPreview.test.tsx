@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { SafeMarkdownPreview, SourceCodePreview } from "../FileTextPreview";
+import {
+  loadFileTextPreview,
+  SafeMarkdownPreview,
+  SourceCodePreview,
+} from "../FileTextPreview";
 import { ImagePreview } from "../ImagePreview";
 import { VideoPreview } from "../VideoPreview";
 
@@ -39,6 +43,32 @@ describe("file text previews", () => {
     expect(markup).toContain("Source");
     expect(markup).not.toContain("<Widget");
     expect(markup).toContain("Widget");
+  });
+
+  test("cancels unknown-length previews before buffering past the limit", async () => {
+    let cancelled = false;
+    const fetchImpl = () =>
+      Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            cancel() {
+              cancelled = true;
+            },
+            start(controller) {
+              controller.enqueue(new Uint8Array([65, 66, 67]));
+              controller.enqueue(new Uint8Array([68, 69, 70]));
+            },
+          })
+        )
+      );
+
+    await expect(
+      loadFileTextPreview("https://files.example/source", {
+        fetchImpl: fetchImpl as typeof fetch,
+        maxBytes: 5,
+      })
+    ).resolves.toBeNull();
+    expect(cancelled).toBe(true);
   });
 
   test("prefers the rasterized derivative for SVG and HEIC", () => {

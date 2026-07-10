@@ -1,4 +1,5 @@
 import { assertUrlStructureSafe } from "@teak/convex/linkMetadata/ssrf";
+import { readResponseBlobWithinLimit } from "@teak/convex/shared/bounded-response";
 import {
   inferFileFormat,
   isGenericMimeType,
@@ -35,45 +36,6 @@ const fileTooLargeResponse = (): TeakSaveResponse =>
     `File must be between 1 byte and ${MAX_FILE_SIZE} bytes`,
     "FILE_TOO_LARGE"
   );
-
-class AssetSizeLimitError extends Error {}
-
-export async function readResponseBlobWithinLimit(
-  response: Response,
-  maxBytes = MAX_FILE_SIZE
-): Promise<Blob | null> {
-  if (!response.body) {
-    return new Blob([], {
-      type: response.headers.get("content-type") ?? undefined,
-    });
-  }
-
-  let bytesRead = 0;
-  const boundedBody = response.body.pipeThrough(
-    new TransformStream<Uint8Array, Uint8Array>({
-      transform(chunk, controller) {
-        bytesRead += chunk.byteLength;
-        if (bytesRead > maxBytes) {
-          throw new AssetSizeLimitError();
-        }
-        controller.enqueue(chunk);
-      },
-    })
-  );
-
-  try {
-    return await new Response(boundedBody, {
-      headers: {
-        "Content-Type": response.headers.get("content-type") ?? "",
-      },
-    }).blob();
-  } catch (error) {
-    if (error instanceof AssetSizeLimitError) {
-      return null;
-    }
-    throw error;
-  }
-}
 
 export const isSafeDownloadableAssetUrl = (value: string): boolean => {
   try {
@@ -221,7 +183,7 @@ export async function saveAssetUrlToTeak(
       await response.body?.cancel();
       return errorResponse("The asset could not be downloaded safely.");
     }
-    const bytes = await readResponseBlobWithinLimit(response);
+    const bytes = await readResponseBlobWithinLimit(response, MAX_FILE_SIZE);
     if (!bytes) {
       return fileTooLargeResponse();
     }
