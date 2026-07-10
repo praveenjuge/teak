@@ -77,11 +77,12 @@ export async function generateHandler(
     }
   };
 
-  const format = card.fileMetadata?.fileName
-    ? inferFileFormat({
-        fileName: card.fileMetadata.fileName,
+  const fileName = card.fileMetadata?.fileName;
+  const format = fileName
+    ? (inferFileFormat({
+        fileName,
         mimeType: card.fileMetadata.mimeType,
-      })
+      }) ?? inferFileFormat({ fileName }))
     : null;
 
   // Generate thumbnail for image cards (raster images like PNG, JPG, WebP)

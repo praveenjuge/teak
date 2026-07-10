@@ -548,6 +548,41 @@ describe("publicApiHttp", () => {
     expect(runMutation).toHaveBeenCalledTimes(3);
   });
 
+  test("createCardV1 reports stored MIME mismatches consistently", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runAction = mock().mockResolvedValueOnce({
+      contentType: "application/pdf",
+      size: 123,
+    });
+
+    const response = await runHandler(
+      createCardV1,
+      { runAction, runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cardType: "image",
+          fileKey: "users/user_1/file/image.png",
+          fileName: "image.png",
+          fileSize: 123,
+          mimeType: "image/png",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "TYPE_MISMATCH",
+      error: "File extension does not match the provided MIME type",
+    });
+    expect(runMutation).toHaveBeenCalledTimes(3);
+  });
+
   test("createCardV1 rejects fileKey uploads when stored object is too large", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();

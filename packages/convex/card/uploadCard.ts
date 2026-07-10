@@ -6,6 +6,7 @@ import { type CardType, cardTypeValidator } from "../schema";
 import {
   type FileFormat,
   FileFormatValidationError,
+  fileUploadErrorCode,
   isGenericMimeType,
   MAX_FILE_SIZE,
   validateFileFormat,
@@ -17,15 +18,11 @@ import {
   stageCompleted,
 } from "./processingStatus";
 
-const toConvexFileError = (error: FileFormatValidationError) => {
-  let code = "INVALID_INPUT";
-  if (error.code === "MIME_MISMATCH") {
-    code = "TYPE_MISMATCH";
-  } else if (error.code === "FILE_TOO_LARGE") {
-    code = "FILE_TOO_LARGE";
-  }
-  return new ConvexError({ code, message: error.message });
-};
+const toConvexFileError = (error: FileFormatValidationError) =>
+  new ConvexError({
+    code: fileUploadErrorCode(error),
+    message: error.message,
+  });
 
 // Unified upload mutation that handles the complete upload-to-card pipeline
 export const uploadAndCreateCard = mutation({

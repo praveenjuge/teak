@@ -267,6 +267,35 @@ describe("renderables step", () => {
       expect(result.thumbnailGenerated).toBe(true);
     });
 
+    test("skips video thumbnail generation for legacy GIF MIME mismatches", async () => {
+      const runAction = createMockFn<[any, any], any>(async () => ({
+        success: true,
+        generated: true,
+      }));
+      const mockCtx = {
+        runQuery: createMockFn<[any, any], any>(async () => ({
+          _id: "legacy-gif",
+          type: "video",
+          fileKey: "legacy-gif-file",
+          fileMetadata: {
+            fileName: "animation.gif",
+            mimeType: "application/pdf",
+          },
+          processingStatus: {},
+        })),
+        runAction,
+        runMutation: createMockFn<[any, any], null>(async () => null),
+      };
+
+      const result = await generateHandler(mockCtx, {
+        cardId: "legacy-gif",
+        cardType: "video",
+      });
+
+      expect(result).toEqual({ success: true, thumbnailGenerated: false });
+      expect(runAction.calls.length).toBe(0);
+    });
+
     test("handles video thumbnail generation failure", async () => {
       const runMutation = createMockFn<[any, any], null>(async () => null);
       const mockCtx = {

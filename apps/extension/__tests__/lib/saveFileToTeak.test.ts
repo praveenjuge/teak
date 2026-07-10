@@ -109,6 +109,11 @@ describe("extension file saving", () => {
       "http://localhost/photo.png",
       "http://192.168.1.2/photo.png",
       "http://[::1]/photo.png",
+      "http://[::ffff:192.168.1.2]/photo.png",
+      "http://[::ffff:c0a8:102]/photo.png",
+      "http://[64:ff9b::c0a8:102]/photo.png",
+      "https://user:password@example.com/photo.png",
+      "https://example.com:8443/photo.png",
     ]) {
       expect(isSafeDownloadableAssetUrl(url)).toBe(false);
       await expect(
@@ -117,6 +122,10 @@ describe("extension file saving", () => {
     }
     expect(
       isSafeDownloadableAssetUrl("https://cdn.example.com/photo.png")
+    ).toBe(true);
+    expect(isSafeDownloadableAssetUrl("https://8.8.8.8/photo.png")).toBe(true);
+    expect(
+      isSafeDownloadableAssetUrl("https://[2606:4700:4700::1111]/photo.png")
     ).toBe(true);
     expect(mutation).not.toHaveBeenCalled();
   });

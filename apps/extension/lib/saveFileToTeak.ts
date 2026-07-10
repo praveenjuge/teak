@@ -1,3 +1,4 @@
+import { assertUrlStructureSafe } from "@teak/convex/linkMetadata/ssrf";
 import {
   inferFileFormat,
   isGenericMimeType,
@@ -15,8 +16,6 @@ import {
 
 const CONTENT_DISPOSITION_FILENAME_REGEX =
   /filename\*?=(?:UTF-8''|")?([^";]+)/iu;
-const PRIVATE_IPV4_REGEX =
-  /^(?:10\.|127\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)/u;
 
 export interface FileUploadInput {
   bytes: Blob;
@@ -33,21 +32,13 @@ const errorResponse = (message: string, code?: string): TeakSaveResponse => ({
 
 export const isSafeDownloadableAssetUrl = (value: string): boolean => {
   try {
-    const url = new URL(value);
-    if (!(url.protocol === "http:" || url.protocol === "https:")) {
-      return false;
-    }
+    const url = assertUrlStructureSafe(value);
     const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/gu, "");
     return !(
       hostname === "localhost" ||
-      hostname === "0.0.0.0" ||
-      hostname === "::1" ||
+      hostname === "local" ||
       hostname.endsWith(".localhost") ||
-      hostname.endsWith(".local") ||
-      hostname.startsWith("fe80:") ||
-      hostname.startsWith("fc") ||
-      hostname.startsWith("fd") ||
-      PRIVATE_IPV4_REGEX.test(hostname)
+      hostname.endsWith(".local")
     );
   } catch {
     return false;

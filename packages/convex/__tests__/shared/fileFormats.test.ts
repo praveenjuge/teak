@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   FILE_FORMATS,
+  FileFormatValidationError,
+  fileUploadErrorCode,
   inferFileFormat,
   MAX_FILE_SIZE,
   mimeTypeForFileName,
@@ -113,6 +115,30 @@ describe("file format registry", () => {
         mimeType: "image/pjpeg",
       }).id
     ).toBe("jpeg");
+    expect(
+      validateFileFormat({
+        fileName: "windows-export.csv",
+        mimeType: "application/vnd.ms-excel",
+      }).id
+    ).toBe("csv");
+  });
+
+  test("maps validation failures to canonical public upload codes", () => {
+    expect(
+      fileUploadErrorCode(
+        new FileFormatValidationError("MIME_MISMATCH", "mismatch")
+      )
+    ).toBe("TYPE_MISMATCH");
+    expect(
+      fileUploadErrorCode(
+        new FileFormatValidationError("FILE_TOO_LARGE", "too large")
+      )
+    ).toBe("FILE_TOO_LARGE");
+    expect(
+      fileUploadErrorCode(
+        new FileFormatValidationError("INVALID_MIME_TYPE", "invalid")
+      )
+    ).toBe("INVALID_INPUT");
   });
 
   test("rejects extension and MIME mismatches", () => {

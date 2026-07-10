@@ -7,6 +7,7 @@ import { withPublicApiGatewayHeaders } from "./publicApiMeta";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
 import {
   FileFormatValidationError,
+  fileUploadErrorCode,
   MAX_FILE_SIZE,
   validateFileFormat,
 } from "./shared/fileFormats";
@@ -34,12 +35,14 @@ const CARD_SORTS = new Set(["newest", "oldest"]);
 type ErrorCode =
   | "BAD_REQUEST"
   | "CONFLICT"
+  | "FILE_TOO_LARGE"
   | "INTERNAL_ERROR"
   | "INVALID_API_KEY"
   | "INVALID_INPUT"
   | "METHOD_NOT_ALLOWED"
   | "NOT_FOUND"
   | "RATE_LIMITED"
+  | "TYPE_MISMATCH"
   | "UNAUTHORIZED";
 
 interface AuthorizedUser {
@@ -975,7 +978,7 @@ const verifyUploadedFile = async (
   } catch (error) {
     if (error instanceof FileFormatValidationError) {
       throw new ConvexError({
-        code: "INVALID_INPUT",
+        code: fileUploadErrorCode(error),
         message: error.message,
       });
     }
