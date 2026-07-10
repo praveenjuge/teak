@@ -43,20 +43,9 @@ const isExtensionFetchFailure = (event: ErrorEvent) =>
     );
   }) ?? false;
 
-const isProductionE2eMatrixUser = (event: ErrorEvent) =>
+const isProductionE2eWebkitUser = (event: ErrorEvent) =>
   typeof event.user?.username === "string" &&
-  event.user.username.startsWith("e2e-matrix-");
-
-const isSafariBrowser = (event: ErrorEvent) => {
-  const browser = event.contexts?.browser;
-
-  return (
-    typeof browser === "object" &&
-    browser !== null &&
-    "name" in browser &&
-    browser.name === "Safari"
-  );
-};
+  event.user.username.startsWith("e2e-matrix-matrix-webkit-");
 
 const isBetterAuthSessionFrame = (filename?: string) =>
   Boolean(
@@ -68,8 +57,7 @@ const isBetterAuthSessionFrame = (filename?: string) =>
   );
 
 const isSafariBetterAuthLoadFailure = (event: ErrorEvent) =>
-  isProductionE2eMatrixUser(event) &&
-  isSafariBrowser(event) &&
+  isProductionE2eWebkitUser(event) &&
   (event.exception?.values?.some((exception) => {
     const isWebkitLoadFailure =
       exception.type === "TypeError" &&
