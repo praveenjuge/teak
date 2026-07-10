@@ -286,6 +286,9 @@ export function AddCardForm({
         <CardContent className="h-full p-0">
           <form
             className="flex h-full flex-1 flex-col"
+            data-card-creation-status={
+              cardCreationStatus === undefined ? "loading" : "ready"
+            }
             onSubmit={handleTextSubmit}
           >
             <Textarea

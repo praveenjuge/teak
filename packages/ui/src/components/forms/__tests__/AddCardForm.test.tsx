@@ -1,6 +1,9 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+
+let cardCreationStatusResult: { canCreateCard: boolean } | undefined;
 
 mock.module("@teak/ui/components/ui/button", () => ({
   Button: ({ children, type, onClick, disabled, variant, size }: any) =>
@@ -56,7 +59,7 @@ mock.module("convex/react", () => ({
 }));
 
 mock.module("convex-helpers/react/cache/hooks", () => ({
-  useQuery: () => null,
+  useQuery: () => cardCreationStatusResult,
 }));
 
 mock.module("@teak/convex/shared/hooks/useFileUpload", () => ({
@@ -133,6 +136,7 @@ import { AddCardForm } from "../AddCardForm";
 
 describe("AddCardForm", () => {
   beforeEach(() => {
+    cardCreationStatusResult = undefined;
     global.crypto = {
       ...global.crypto,
       randomUUID: mock(() => "mock-uuid"),
@@ -162,6 +166,17 @@ describe("AddCardForm", () => {
     expect(() => {
       React.createElement(AddCardForm, { canCreateCard: false });
     }).not.toThrow();
+  });
+
+  test("exposes loading and ready card-creation states", () => {
+    expect(renderToStaticMarkup(<AddCardForm />)).toContain(
+      'data-card-creation-status="loading"'
+    );
+
+    cardCreationStatusResult = { canCreateCard: true };
+    expect(renderToStaticMarkup(<AddCardForm />)).toContain(
+      'data-card-creation-status="ready"'
+    );
   });
 
   test("renders with custom upgrade link component", () => {
