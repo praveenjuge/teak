@@ -67,7 +67,6 @@ describe("filterClientSentryEvent", () => {
           },
         ],
       },
-      contexts: { browser: { name: "Safari" } },
       user: { username: "e2e-matrix-matrix-webkit-1783500370949-70o5ch" },
     } satisfies ErrorEvent;
 
@@ -90,14 +89,13 @@ describe("filterClientSentryEvent", () => {
           },
         ],
       },
-      contexts: { browser: { name: "Safari" } },
       user: { username: "e2e-matrix-matrix-webkit-1783578880540-apowrq" },
     } satisfies ErrorEvent;
 
     expect(filterClientSentryEvent(event)).toBeNull();
   });
 
-  test("keeps non-Safari e2e session fetch failures", () => {
+  test("keeps non-WebKit e2e session fetch failures", () => {
     const event = {
       exception: {
         values: [
@@ -110,7 +108,6 @@ describe("filterClientSentryEvent", () => {
           },
         ],
       },
-      contexts: { browser: { name: "Chrome" } },
       user: { username: "e2e-matrix-matrix-chromium-1783578880540-apowrq" },
     } satisfies ErrorEvent;
 
