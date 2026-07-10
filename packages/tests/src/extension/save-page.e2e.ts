@@ -80,14 +80,17 @@ test("extension saves a selected file and safe page asset with private URL fallb
       mimeType: "text/mdx",
       name: `${marker}.mdx`,
     });
+    await expect(uploadPopup.getByText("File saved!")).toBeVisible({
+      timeout: 45_000,
+    });
 
     const client = clientFor(account.apiKey!);
     await expect
       .poll(
         async () =>
-          (await client.cards.list({ limit: 100 })).items.some(
-            (card) => card.fileName === `${marker}.mdx`
-          ),
+          (
+            await client.cards.list({ include: "metadata", limit: 100 })
+          ).items.some((card) => card.fileName === `${marker}.mdx`),
         { timeout: 45_000 }
       )
       .toBe(true);
@@ -111,9 +114,9 @@ test("extension saves a selected file and safe page asset with private URL fallb
     await expect
       .poll(
         async () =>
-          (await client.cards.list({ limit: 100 })).items.some(
-            (card) => card.fileName === "icon.svg"
-          ),
+          (
+            await client.cards.list({ include: "metadata", limit: 100 })
+          ).items.some((card) => card.fileName === "icon.svg"),
         { timeout: 45_000 }
       )
       .toBe(true);
@@ -132,7 +135,7 @@ test("extension saves a selected file and safe page asset with private URL fallb
       status: "error",
     });
     expect(
-      (await client.cards.list({ limit: 100 })).items.some(
+      (await client.cards.list({ include: "metadata", limit: 100 })).items.some(
         (card) => card.fileName === "private.png"
       )
     ).toBe(false);
