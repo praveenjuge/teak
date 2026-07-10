@@ -5,6 +5,7 @@ import { createUploadedCardForUser } from "./card/uploadCard";
 import { type CardType, cardTypeValidator } from "./schema";
 import {
   FileFormatValidationError,
+  fileUploadErrorCode,
   MAX_FILE_SIZE,
   validateFileName,
   validateUploadFile,
@@ -19,7 +20,7 @@ const sanitizeFileName = (fileName: string): string => {
   } catch (error) {
     if (error instanceof FileFormatValidationError) {
       throw new ConvexError({
-        code: "INVALID_INPUT",
+        code: fileUploadErrorCode(error),
         message: error.message,
       });
     }
@@ -37,7 +38,7 @@ const validateUploadRequest = (args: {
   } catch (error) {
     if (error instanceof FileFormatValidationError) {
       throw new ConvexError({
-        code: "INVALID_INPUT",
+        code: fileUploadErrorCode(error),
         message: error.message,
       });
     }
@@ -60,8 +61,8 @@ export const generateUploadUrlForUser = internalMutation({
     uploadUrl: v.string(),
   }),
   handler: async (ctx, args) => {
-    await ensureCardCreationAllowed(ctx, args.userId);
     const { fileName } = validateUploadRequest(args);
+    await ensureCardCreationAllowed(ctx, args.userId);
     const upload = await r2.generateUploadUrl(
       buildR2ObjectKey({ userId: args.userId, role: "file", fileName })
     );

@@ -348,6 +348,8 @@ GET /v1/tags
 
 Errors preserve the stable `{ code, error }` shape. Some responses may also include `requestId`, `details`, or `retryAt`.
 
+Upload validation returns `TYPE_MISMATCH` when a filename extension conflicts with its declared MIME type and `FILE_TOO_LARGE` when the file exceeds the advertised upload limit.
+
 ```json
 {
   "code": "INVALID_INPUT",

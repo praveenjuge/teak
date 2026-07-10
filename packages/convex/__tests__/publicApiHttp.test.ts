@@ -312,6 +312,7 @@ describe("publicApiHttp", () => {
           fileSize: 20,
           mimeType: "image/png",
         },
+        code: "TYPE_MISMATCH",
         message: "File extension does not match the provided MIME type",
       },
       {
@@ -320,11 +321,12 @@ describe("publicApiHttp", () => {
           fileSize: MAX_FILE_SIZE + 1,
           mimeType: "application/zip",
         },
+        code: "FILE_TOO_LARGE",
         message: `fileSize must not exceed ${MAX_FILE_SIZE} bytes`,
       },
     ]) {
       const runMutation = buildAuthorizedMutationMock().mockRejectedValueOnce(
-        new ConvexError({ code: "INVALID_INPUT", message: scenario.message })
+        new ConvexError({ code: scenario.code, message: scenario.message })
       );
       const response = await runHandler(
         createUploadV1,
@@ -341,7 +343,7 @@ describe("publicApiHttp", () => {
 
       expect(response.status).toBe(400);
       expect(await response.json()).toMatchObject({
-        code: "INVALID_INPUT",
+        code: scenario.code,
         error: scenario.message,
       });
     }
