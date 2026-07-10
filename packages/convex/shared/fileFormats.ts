@@ -531,6 +531,7 @@ export class FileFormatValidationError extends Error {
   readonly code:
     | "FILE_TOO_LARGE"
     | "INVALID_FILE_NAME"
+    | "INVALID_FILE_SIZE"
     | "INVALID_MIME_TYPE"
     | "MIME_MISMATCH"
     | "UNSUPPORTED_FILE_TYPE";
@@ -700,7 +701,7 @@ export const validateUploadFile = (input: {
 }): { fileName: string; format: FileFormat; mimeType: string } => {
   if (!(Number.isFinite(input.fileSize) && input.fileSize > 0)) {
     throw new FileFormatValidationError(
-      "FILE_TOO_LARGE",
+      "INVALID_FILE_SIZE",
       "fileSize must be a positive number"
     );
   }

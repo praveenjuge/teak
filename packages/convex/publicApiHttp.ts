@@ -939,7 +939,7 @@ const verifyUploadedFile = async (
 
   if (headMetadata.size > MAX_FILE_SIZE) {
     throw new ConvexError({
-      code: "INVALID_INPUT",
+      code: "FILE_TOO_LARGE",
       message: `Uploaded file must not exceed ${MAX_FILE_SIZE} bytes`,
     });
   }

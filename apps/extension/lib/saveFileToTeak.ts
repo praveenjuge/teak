@@ -30,6 +30,51 @@ const errorResponse = (message: string, code?: string): TeakSaveResponse => ({
   status: "error",
 });
 
+const fileTooLargeResponse = (): TeakSaveResponse =>
+  errorResponse(
+    `File must be between 1 byte and ${MAX_FILE_SIZE} bytes`,
+    "FILE_TOO_LARGE"
+  );
+
+class AssetSizeLimitError extends Error {}
+
+export async function readResponseBlobWithinLimit(
+  response: Response,
+  maxBytes = MAX_FILE_SIZE
+): Promise<Blob | null> {
+  if (!response.body) {
+    return new Blob([], {
+      type: response.headers.get("content-type") ?? undefined,
+    });
+  }
+
+  let bytesRead = 0;
+  const boundedBody = response.body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        bytesRead += chunk.byteLength;
+        if (bytesRead > maxBytes) {
+          throw new AssetSizeLimitError();
+        }
+        controller.enqueue(chunk);
+      },
+    })
+  );
+
+  try {
+    return await new Response(boundedBody, {
+      headers: {
+        "Content-Type": response.headers.get("content-type") ?? "",
+      },
+    }).blob();
+  } catch (error) {
+    if (error instanceof AssetSizeLimitError) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export const isSafeDownloadableAssetUrl = (value: string): boolean => {
   try {
     const url = assertUrlStructureSafe(value);
@@ -82,10 +127,7 @@ export async function saveFileToTeak(
   }
 
   if (!(input.bytes.size > 0 && input.bytes.size <= MAX_FILE_SIZE)) {
-    return errorResponse(
-      `File must be between 1 byte and ${MAX_FILE_SIZE} bytes`,
-      "FILE_TOO_LARGE"
-    );
+    return fileTooLargeResponse();
   }
 
   const format = inferFileFormat({
@@ -179,7 +221,10 @@ export async function saveAssetUrlToTeak(
       await response.body?.cancel();
       return errorResponse("The asset could not be downloaded safely.");
     }
-    const bytes = await response.blob();
+    const bytes = await readResponseBlobWithinLimit(response);
+    if (!bytes) {
+      return fileTooLargeResponse();
+    }
     return saveFileToTeak(
       {
         bytes,

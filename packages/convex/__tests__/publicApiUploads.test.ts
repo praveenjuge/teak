@@ -32,6 +32,15 @@ describe("public API uploads", () => {
       },
       code: "FILE_TOO_LARGE",
     },
+    {
+      args: {
+        fileName: "notes.txt",
+        fileSize: 0,
+        mimeType: "text/plain",
+        userId: "user_1",
+      },
+      code: "INVALID_INPUT",
+    },
   ]) {
     test(`maps upload validation to ${scenario.code}`, async () => {
       let thrown: unknown;

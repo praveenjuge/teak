@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { MAX_FILE_SIZE } from "@teak/convex/shared/file-formats";
 import {
   isSafeDownloadableAssetUrl,
+  readResponseBlobWithinLimit,
   saveAssetUrlToTeak,
   saveFileToTeak,
 } from "../../lib/saveFileToTeak";
@@ -151,6 +152,29 @@ describe("extension file saving", () => {
     await expect(
       saveAssetUrlToTeak("https://cdn.example.com/vector.svg", dependencies)
     ).resolves.toEqual({ cardId: "card_1", status: "saved" });
+  });
+
+  test("cancels unknown-length asset streams before buffering past the limit", async () => {
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      cancel() {
+        cancelled = true;
+      },
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2, 3]));
+        controller.enqueue(new Uint8Array([4, 5, 6]));
+      },
+    });
+
+    const bytes = await readResponseBlobWithinLimit(
+      new Response(stream, {
+        headers: { "content-type": "application/octet-stream" },
+      }),
+      5
+    );
+
+    expect(bytes).toBeNull();
+    expect(cancelled).toBe(true);
   });
 
   test("surfaces upload errors without finalizing a broken card", async () => {

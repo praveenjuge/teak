@@ -184,4 +184,22 @@ describe("file format registry", () => {
       })
     ).toThrow(`${MAX_FILE_SIZE}`);
   });
+
+  test("classifies non-positive and non-finite sizes as invalid input", () => {
+    for (const fileSize of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      try {
+        validateUploadFile({
+          fileName: "notes.txt",
+          fileSize,
+          mimeType: "text/plain",
+        });
+        throw new Error("Expected validation to fail");
+      } catch (error) {
+        expect(error).toBeInstanceOf(FileFormatValidationError);
+        expect(fileUploadErrorCode(error as FileFormatValidationError)).toBe(
+          "INVALID_INPUT"
+        );
+      }
+    }
+  });
 });

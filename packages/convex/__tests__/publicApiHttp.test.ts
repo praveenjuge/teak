@@ -613,7 +613,7 @@ describe("publicApiHttp", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
-      code: "INVALID_INPUT",
+      code: "FILE_TOO_LARGE",
       error: `Uploaded file must not exceed ${MAX_FILE_SIZE} bytes`,
     });
     expect(runMutation).toHaveBeenCalledTimes(3);
