@@ -123,11 +123,17 @@ export const generateApiKey = async (page: Page) => {
   return input.inputValue();
 };
 
-export const createAccount = async (page: Page, label = "acct") => {
+export const createAccount = async (
+  page: Page,
+  label = "acct",
+  options: { remember?: boolean } = {}
+) => {
   const email = await signUp(page, uniqueEmail(label));
   const apiKey = await generateApiKey(page);
   const account = { email, apiKey };
-  rememberAccount(account);
+  if (options.remember !== false) {
+    rememberAccount(account);
+  }
   return account;
 };
 

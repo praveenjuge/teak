@@ -9,18 +9,19 @@ import { requireActionCtx } from "@convex-dev/better-auth/utils";
 import { Resend } from "@convex-dev/resend";
 import { type BetterAuthOptions, betterAuth } from "better-auth/minimal";
 import { mcp } from "better-auth/plugins";
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import {
   internalAction,
+  internalMutation,
   type MutationCtx,
-  mutation,
   query,
 } from "./_generated/server";
 import authConfig from "./auth.config";
 import { polar } from "./billing";
 import { isLocalDevelopmentUrl, resolveTeakDevAppUrl } from "./devUrls";
+import { e2eCleanupPlugin } from "./e2eCleanup";
 import { scheduleBusinessEvent } from "./sentry";
 import {
   CARD_ERROR_CODES,
@@ -241,10 +242,19 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     user: {
       deleteUser: {
         enabled: true,
+        beforeDelete: async (user) => {
+          await requireActionCtx(ctx).runMutation(
+            internal.auth.deleteAccountData,
+            {
+              userId: user.id,
+            }
+          );
+        },
       },
     },
     plugins: [
       expo(),
+      e2eCleanupPlugin(ctx),
       convex({
         authConfig,
         jwksRotateOnTokenGenerationError: true,
@@ -495,13 +505,10 @@ export async function ensureCardCreationAllowed(
   }
 }
 
-export const deleteAccountHandler = async (ctx: any) => {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    throw new Error("User must be authenticated");
-  }
-
-  const userId = identity.subject;
+export const deleteAccountDataHandler = async (
+  ctx: MutationCtx,
+  userId: string
+) => {
   let deletedStorageObjectCount = 0;
 
   // Use by_user_deleted index with partial match (just userId)
@@ -559,9 +566,13 @@ export const deleteAccountHandler = async (ctx: any) => {
   return { deletedCards: cards.length, deletedStorageObjectCount };
 };
 
-export const deleteAccount = mutation({
-  args: {},
-  handler: deleteAccountHandler,
+export const deleteAccountData = internalMutation({
+  args: { userId: v.string() },
+  returns: v.object({
+    deletedCards: v.number(),
+    deletedStorageObjectCount: v.number(),
+  }),
+  handler: async (ctx, { userId }) => deleteAccountDataHandler(ctx, userId),
 });
 
 export const getLatestJwks = internalAction({

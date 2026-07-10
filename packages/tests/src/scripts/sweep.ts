@@ -1,30 +1,28 @@
-import { chromium } from "@playwright/test";
-import { deleteMessagesFor, listMailpitMessages } from "../helpers/mailpit";
-import { deleteAccountViaUi } from "../helpers/prod";
+import {
+  cleanupE2EAccounts,
+  isConfiguredE2EEmail,
+  summarizeE2ECleanup,
+} from "../helpers/e2e-cleanup";
+import {
+  deleteMailpitMessages,
+  listMailpitMessages,
+  messageIdsForRecipients,
+} from "../helpers/mailpit";
 
-const emails = [
+const cleanup = await cleanupE2EAccounts();
+const messages = await listMailpitMessages();
+const recipients = [
   ...new Set(
-    (await listMailpitMessages())
+    messages
       .flatMap((message) => message.To ?? [])
-      .map((to) => to.Address.toLowerCase())
-      .filter((email) => email.startsWith("e2e-"))
+      .map((recipient) => recipient.Address.toLowerCase())
+      .filter((email) => isConfiguredE2EEmail(email))
   ),
-].slice(0, 20);
+];
+const deletedMessages = await deleteMailpitMessages(
+  messageIdsForRecipients(messages, recipients)
+);
 
-const browser = await chromium.launch();
-try {
-  for (const email of emails) {
-    const page = await browser.newPage();
-    try {
-      await deleteAccountViaUi(page, { email });
-    } catch (error) {
-      console.warn(`sweep skipped ${email}: ${error}`);
-    } finally {
-      await deleteMessagesFor(email);
-      await page.close();
-      await new Promise((resolve) => setTimeout(resolve, 15_000));
-    }
-  }
-} finally {
-  await browser.close();
-}
+console.log(
+  `Production E2E sweep complete: ${summarizeE2ECleanup(cleanup)} mailpitDeleted=${deletedMessages}`
+);

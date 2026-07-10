@@ -58,6 +58,7 @@ if (
 
 const required = [
   "PROD_E2E_PASSWORD",
+  "E2E_CLEANUP_TOKEN",
   "MAILPIT_URL",
   "E2E_EMAIL_DOMAIN",
   "VITE_PUBLIC_CONVEX_URL",
@@ -116,8 +117,9 @@ mkdirSync(runnerTemp, { recursive: true });
 mkdirSync(resultsRoot, { recursive: true });
 
 const results = [
-  run("preflight", "bun", ["run", "--cwd", "packages/tests", "preflight"]),
+  run("preflight", "bun", ["packages/tests/src/scripts/preflight.ts"]),
   run("smoke urls", "bash", ["scripts/smoke-urls.sh"]),
+  run("orphan sweep", "bun", ["packages/tests/src/scripts/sweep.ts"]),
   run("install playwright browsers", "bunx", [
     "playwright",
     "install",
@@ -135,7 +137,11 @@ const results = [
   ]),
   playwright("journey", [
     "journey-setup",
-    "journey",
+    "journey-web",
+    "journey-services",
+    "journey-a11y",
+    "journey-security",
+    "journey-account",
     "journey-delete",
     "journey-post-delete",
   ]),
@@ -148,22 +154,8 @@ const results = [
     }
   ),
   playwright("matrix", ["matrix-chromium", "matrix-firefox", "matrix-webkit"]),
-  run(
-    "matrix teardown",
-    "bun",
-    ["run", "--cwd", "packages/tests", "teardown"],
-    {
-      optional: true,
-    }
-  ),
   run("build extension", "bun", ["run", "--cwd", "apps/extension", "build"]),
   playwright("extension", ["extension"]),
-  run(
-    "extension teardown",
-    "bun",
-    ["run", "--cwd", "packages/tests", "teardown"],
-    { optional: true }
-  ),
 ];
 
 const failed = results.filter(

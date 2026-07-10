@@ -145,38 +145,35 @@ const contentType = {
 for (const [index, probe] of probes.entries()) {
   const prefix = `extra-${String(index + 1).padStart(3, "0")} ${probe.name}`;
 
-  test(`${prefix} status is successful`, async () => {
-    expect((await fetch(probe.url)).status).toBeLessThan(400);
-  });
+  test(`${prefix} production response contract`, async () => {
+    const response = await test.step("fetch once", () => fetch(probe.url));
+    const body = await response.text();
 
-  test(`${prefix} content type is stable`, async () => {
-    const response = await fetch(probe.url);
-    expect(response.headers.get("content-type") ?? "").toMatch(
-      contentType[probe.kind]
-    );
-  });
-
-  test(`${prefix} security headers are present`, async () => {
-    const response = await fetch(probe.url);
-    expect(response.headers.get("strict-transport-security") ?? "").toContain(
-      "max-age"
-    );
-    if (probe.nosniff !== false) {
-      expect(response.headers.get("x-content-type-options") ?? "").toBe(
-        "nosniff"
+    await test.step("status is successful", () => {
+      expect(response.status).toBeLessThan(400);
+    });
+    await test.step("content type is stable", () => {
+      expect(response.headers.get("content-type") ?? "").toMatch(
+        contentType[probe.kind]
       );
-    }
-  });
-
-  test(`${prefix} body contains expected product marker`, async () => {
-    const body = await fetch(probe.url).then((response) => response.text());
-    expect(body).toMatch(probe.body);
-  });
-
-  test(`${prefix} body has no obvious server error leak`, async () => {
-    const body = await fetch(probe.url).then((response) => response.text());
-    expect(body).not.toMatch(
-      /Unhandled Runtime Error|Internal Server Error|stack trace/i
-    );
+    });
+    await test.step("security headers are present", () => {
+      expect(response.headers.get("strict-transport-security") ?? "").toContain(
+        "max-age"
+      );
+      if (probe.nosniff !== false) {
+        expect(response.headers.get("x-content-type-options") ?? "").toBe(
+          "nosniff"
+        );
+      }
+    });
+    await test.step("body contains expected product marker", () => {
+      expect(body).toMatch(probe.body);
+    });
+    await test.step("body has no obvious server error leak", () => {
+      expect(body).not.toMatch(
+        /Unhandled Runtime Error|Internal Server Error|stack trace/i
+      );
+    });
   });
 }

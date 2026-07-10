@@ -1,7 +1,9 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { chromium, expect, test } from "@playwright/test";
-import { clientFor, createAccount, deleteAccountViaUi } from "../helpers/prod";
+import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
+import { deleteMessagesFor } from "../helpers/mailpit";
+import { clientFor, createAccount } from "../helpers/prod";
 
 test("extension build loads and account can save the active page", async ({
   browserName,
@@ -17,7 +19,7 @@ test("extension build loads and account can save the active page", async ({
     ],
   });
   const page = await context.newPage();
-  const account = await createAccount(page, "extension");
+  const account = await createAccount(page, "extension", { remember: false });
   try {
     const serviceWorker =
       context.serviceWorkers()[0] ??
@@ -34,7 +36,8 @@ test("extension build loads and account can save the active page", async ({
     });
     expect(created.cardId).toBeTruthy();
   } finally {
-    await deleteAccountViaUi(page, account);
+    await cleanupE2EAccounts([account.email]);
+    await deleteMessagesFor(account.email);
     await context.close();
   }
 });

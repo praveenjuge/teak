@@ -32,7 +32,7 @@ mock.module("@convex-dev/better-auth/utils", () => ({
   isActionCtx: () => true,
 }));
 
-// Mock the R2 storage helpers used by auth.deleteAccountHandler so we can
+// Mock the R2 storage helpers used by auth.deleteAccountDataHandler so we can
 // assert deletions without standing up an actual R2 client.
 mock.module("../../storage/r2", r2MockModuleFactory);
 
@@ -41,7 +41,7 @@ let ensureCardCreationAllowed: any;
 let getCurrentUserHandler: any;
 let getAuthUserHandler: any;
 let getCardCreationStatusHandler: any;
-let deleteAccountHandler: any;
+let deleteAccountDataHandler: any;
 let authComponent: any;
 let createAuth: any;
 let polar: any;
@@ -58,7 +58,7 @@ describe("auth", () => {
     getCurrentUserHandler = authModule.getCurrentUserHandler;
     getAuthUserHandler = authModule.getAuthUserHandler;
     getCardCreationStatusHandler = authModule.getCardCreationStatusHandler;
-    deleteAccountHandler = authModule.deleteAccountHandler;
+    deleteAccountDataHandler = authModule.deleteAccountDataHandler;
     authComponent = authModule.authComponent;
     createAuth = authModule.createAuth;
 
@@ -467,23 +467,11 @@ describe("auth", () => {
     });
   });
 
-  describe("deleteAccount", () => {
-    it("throws if not authenticated", () => {
-      const ctx = {
-        auth: { getUserIdentity: mock().mockResolvedValue(null) },
-      } as any;
-      expect(deleteAccountHandler(ctx)).rejects.toThrow(
-        "User must be authenticated"
-      );
-    });
-
+  describe("deleteAccountData", () => {
     it("deletes cards and files", async () => {
       r2Mocks.deleteObject.mockClear();
 
       const ctx = {
-        auth: {
-          getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
-        },
         db: {
           query: () => ({
             withIndex: (_name: any, cb: any) => {
@@ -506,7 +494,7 @@ describe("auth", () => {
         },
       } as any;
 
-      const result = await deleteAccountHandler(ctx);
+      const result = await deleteAccountDataHandler(ctx, "u1");
 
       expect(result.deletedCards).toBe(2);
       expect(result.deletedStorageObjectCount).toBe(2);
@@ -517,7 +505,7 @@ describe("auth", () => {
   });
 
   describe("createAuth", () => {
-    it("returns betterAuth instance and covers callbacks", () => {
+    it("returns betterAuth instance and covers callbacks", async () => {
       const originalSiteUrl = process.env.SITE_URL;
       const originalGoogleClientId = process.env.GOOGLE_CLIENT_ID;
       const originalGoogleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -550,6 +538,10 @@ describe("auth", () => {
         const options = auth.options;
         expect(options.emailAndPassword?.sendResetPassword).toBeFunction();
         expect(options.emailVerification?.sendVerificationEmail).toBeFunction();
+        await options.user.deleteUser.beforeDelete({ id: "u1" });
+        expect(ctx.runMutation).toHaveBeenCalledWith(expect.anything(), {
+          userId: "u1",
+        });
       } finally {
         process.env.SITE_URL = originalSiteUrl;
         process.env.GOOGLE_CLIENT_ID = originalGoogleClientId;

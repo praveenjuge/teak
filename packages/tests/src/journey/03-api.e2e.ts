@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { apiFetch, loadOpenApi } from "../helpers/api";
-import { readState, updateState } from "../helpers/run-state";
+import { readState } from "../helpers/run-state";
 
 test("REST API happy paths and OpenAPI contracts", async () => {
   const { primary } = readState();
@@ -33,7 +33,6 @@ test("REST API happy paths and OpenAPI contracts", async () => {
   });
   const payload = await created.json();
   openapi.validate("/v1/cards", "POST", created.status, payload);
-  updateState((s) => s.createdCardIds.push(payload.cardId));
   const cardPath = `/v1/cards/${payload.cardId}`;
   expect((await apiFetch(cardPath, primary.apiKey)).status).toBe(200);
   expect(
@@ -87,7 +86,6 @@ test("saving a URL as content creates a link card, not a text card", async () =>
   });
   expect(created.status).toBe(200);
   const payload = await created.json();
-  updateState((s) => s.createdCardIds.push(payload.cardId));
 
   // The create response should already reflect the link classification.
   expect(payload.card?.type).toBe("link");
@@ -120,7 +118,6 @@ test("saving a color as content creates a palette card, not a text card", async 
   });
   expect(created.status).toBe(200);
   const payload = await created.json();
-  updateState((s) => s.createdCardIds.push(payload.cardId));
 
   await expect
     .poll(

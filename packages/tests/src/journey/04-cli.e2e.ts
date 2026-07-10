@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { runCli } from "../helpers/cli";
-import { readState, updateState } from "../helpers/run-state";
+import { readState } from "../helpers/run-state";
 
 for (const kind of ["repo", "npm"] as const) {
   test(`${kind} CLI covers auth, cards, tags, and aliases`, async () => {
@@ -20,7 +20,6 @@ for (const kind of ["repo", "npm"] as const) {
         primary.apiKey
       )
     );
-    updateState((s) => s.createdCardIds.push(created.cardId));
     for (const args of [
       ["--json", "cards", "list", "--limit", "5"],
       ["--json", "cards", "search", "cli"],

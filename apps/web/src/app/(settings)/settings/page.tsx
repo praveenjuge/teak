@@ -9,7 +9,7 @@ import { getPolarPlanIds } from "@teak/ui/constants/billing";
 import { TOAST_IDS } from "@teak/ui/constants/toast";
 import { useSettingsController } from "@teak/ui/hooks";
 import { SettingsContent, SubscriptionSection } from "@teak/ui/settings";
-import { useAction, useMutation } from "convex/react";
+import { useAction } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
@@ -17,7 +17,6 @@ import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 
 export default function ProfileSettingsPage() {
-  const deleteAccount = useMutation(api.auth.deleteAccount);
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const checkoutInstanceRef = useRef<PolarEmbedCheckout | null>(null);
@@ -39,8 +38,6 @@ export default function ProfileSettingsPage() {
       });
     },
     onDeleteAccount: async () => {
-      await deleteAccount({});
-
       let deleteError: string | null = null;
       // The awaited call's onError callback assigns `deleteError`; the guard
       // below reads that side effect, so this await cannot be deferred past it.

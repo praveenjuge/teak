@@ -25,8 +25,10 @@ env:
   PROD_API_URL: https://teakvault.com/api
   PROD_MCP_URL: https://teakvault.com/mcp
   PROD_E2E_PASSWORD: ${{ secrets.PROD_E2E_PASSWORD }}
+  E2E_CLEANUP_TOKEN: ${{ secrets.E2E_CLEANUP_TOKEN }}
   MAILPIT_URL: ${{ secrets.MAILPIT_URL }}
   E2E_EMAIL_DOMAIN: ${{ secrets.E2E_EMAIL_DOMAIN }}
+  VITE_PUBLIC_CONVEX_SITE_URL: ${{ vars.VITE_PUBLIC_CONVEX_SITE_URL }}
 
 jobs:
   gate:
@@ -34,8 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bun run --cwd packages/tests preflight
+      - run: bun packages/tests/src/scripts/preflight.ts
       - run: curl -fsS "$PROD_APP_URL/login" >/dev/null
       - run: bash scripts/smoke-urls.sh
 
@@ -52,7 +53,7 @@ jobs:
       - run: bunx playwright install --with-deps chromium
       - run: bun run --cwd packages/tests e2e:prod:journey
       - if: always()
-        run: bun run --cwd packages/tests teardown
+        run: bun packages/tests/src/scripts/teardown.ts
       - if: always()
         uses: actions/upload-artifact@v6
         with:
@@ -93,8 +94,6 @@ jobs:
       - run: bunx playwright install --with-deps chromium firefox webkit
       - run: bun run --cwd packages/tests e2e:prod:matrix
       - if: always()
-        run: bun run --cwd packages/tests teardown
-      - if: always()
         uses: actions/upload-artifact@v6
         with:
           name: prod-e2e-matrix-results
@@ -119,8 +118,6 @@ jobs:
       - run: bunx playwright install --with-deps chromium
       - run: bun run --cwd packages/tests e2e:prod:extension
       - if: always()
-        run: bun run --cwd packages/tests teardown
-      - if: always()
         uses: actions/upload-artifact@v6
         with:
           name: prod-e2e-extension-results
@@ -130,16 +127,14 @@ jobs:
           retention-days: 7
 
   sweep:
-    needs: [journey, matrix, extension]
-    if: always() && (github.event_name == 'schedule' || inputs.sweep)
+    needs: gate
+    if: always() && needs.gate.result == 'success' && (github.event_name == 'schedule' || inputs.sweep)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps chromium
-      - run: bun run --cwd packages/tests sweep
+      - run: bun packages/tests/src/scripts/sweep.ts
 
   notify:
     needs: [gate, journey, docs, matrix, extension, sweep]
