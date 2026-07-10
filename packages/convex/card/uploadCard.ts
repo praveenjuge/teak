@@ -3,53 +3,26 @@ import { internal } from "../_generated/api";
 import { type MutationCtx, mutation } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
 import { type CardType, cardTypeValidator } from "../schema";
+import {
+  type FileFormat,
+  FileFormatValidationError,
+  fileUploadErrorCode,
+  isGenericMimeType,
+  MAX_FILE_SIZE,
+  validateFileFormat,
+  validateUploadFile,
+} from "../shared/fileFormats";
 import { buildR2ObjectKey, buildR2UserPrefix, r2 } from "../storage/r2";
 import {
   buildInitialProcessingStatus,
   stageCompleted,
 } from "./processingStatus";
 
-const FILE_CARD_TYPES: CardType[] = ["image", "video", "audio", "document"];
-
-export const validateFileCardType = (cardType: CardType) => {
-  if (!FILE_CARD_TYPES.includes(cardType)) {
-    throw new ConvexError({
-      code: "TYPE_MISMATCH",
-      message:
-        "File uploads must specify a file-based card type (image, video, audio, or document)",
-    });
-  }
-};
-
-export const mimeMatchesCardType = (
-  mime: string | undefined,
-  cardType: CardType
-) => {
-  if (!mime) {
-    return true; // fall back to trusting the client when mime is missing
-  }
-
-  if (cardType === "image") {
-    return mime.startsWith("image/");
-  }
-  if (cardType === "video") {
-    return mime.startsWith("video/");
-  }
-  if (cardType === "audio") {
-    return mime.startsWith("audio/");
-  }
-
-  if (cardType === "document") {
-    return (
-      mime === "application/pdf" ||
-      mime.startsWith("application/msword") ||
-      mime.startsWith("application/vnd.openxmlformats-officedocument") ||
-      mime.startsWith("text/")
-    );
-  }
-
-  return false;
-};
+const toConvexFileError = (error: FileFormatValidationError) =>
+  new ConvexError({
+    code: fileUploadErrorCode(error),
+    message: error.message,
+  });
 
 // Unified upload mutation that handles the complete upload-to-card pipeline
 export const uploadAndCreateCard = mutation({
@@ -57,7 +30,7 @@ export const uploadAndCreateCard = mutation({
     fileName: v.string(),
     fileType: v.string(),
     fileSize: v.number(),
-    cardType: cardTypeValidator,
+    cardType: v.optional(cardTypeValidator),
     content: v.optional(v.string()),
     additionalMetadata: v.optional(v.any()),
   },
@@ -76,6 +49,25 @@ export const uploadAndCreateCard = mutation({
     }
 
     try {
+      try {
+        const validated = validateUploadFile({
+          fileName: _args.fileName,
+          fileSize: _args.fileSize,
+          mimeType: _args.fileType,
+        });
+        if (_args.cardType && _args.cardType !== validated.format.cardType) {
+          throw new ConvexError({
+            code: "TYPE_MISMATCH",
+            message: `Uploaded file does not match expected ${_args.cardType} type`,
+          });
+        }
+      } catch (error) {
+        if (error instanceof FileFormatValidationError) {
+          throw toConvexFileError(error);
+        }
+        throw error;
+      }
+
       // Check rate limit and card count limit
       await ensureCardCreationAllowed(ctx, user.subject);
 
@@ -125,7 +117,7 @@ export const createUploadedCardForUser = async (
   ctx: MutationCtx,
   args: {
     additionalMetadata?: any;
-    cardType: CardType;
+    cardType?: CardType;
     content?: string;
     fileKey: string;
     fileName: string;
@@ -141,7 +133,6 @@ export const createUploadedCardForUser = async (
   const now = Date.now();
 
   await ensureCardCreationAllowed(ctx, args.userId);
-  validateFileCardType(args.cardType);
 
   if (!args.fileKey.startsWith(`${buildR2UserPrefix(args.userId)}/`)) {
     throw new ConvexError({
@@ -152,13 +143,6 @@ export const createUploadedCardForUser = async (
 
   const fileType = args.fileType?.trim().toLowerCase();
   const storedFileType = args.storedFileType?.trim().toLowerCase();
-
-  if (storedFileType && fileType && fileType !== storedFileType) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Uploaded file type does not match the stored object",
-    });
-  }
 
   if (
     args.storedFileSize !== undefined &&
@@ -171,19 +155,65 @@ export const createUploadedCardForUser = async (
     });
   }
 
-  if (!mimeMatchesCardType(storedFileType ?? fileType, args.cardType)) {
+  if (
+    (args.storedFileSize ?? args.fileSize) !== undefined &&
+    (args.storedFileSize ?? args.fileSize ?? 0) > MAX_FILE_SIZE
+  ) {
+    throw new ConvexError({
+      code: "FILE_TOO_LARGE",
+      message: `Uploaded file must not exceed ${MAX_FILE_SIZE} bytes`,
+    });
+  }
+
+  let declaredFormat: FileFormat;
+  let storedFormat: FileFormat;
+  try {
+    declaredFormat = validateFileFormat({
+      fileName: args.fileName,
+      mimeType: fileType,
+    });
+    storedFormat = validateFileFormat({
+      fileName: args.fileName,
+      mimeType: storedFileType,
+    });
+  } catch (error) {
+    if (error instanceof FileFormatValidationError) {
+      throw toConvexFileError(error);
+    }
+    throw error;
+  }
+
+  if (declaredFormat.id !== storedFormat.id) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Uploaded file type does not match the stored object",
+    });
+  }
+
+  const cardType = storedFormat.cardType;
+  if (args.cardType && args.cardType !== cardType) {
     throw new ConvexError({
       code: "TYPE_MISMATCH",
       message: `Uploaded file does not match expected ${args.cardType} type`,
     });
   }
 
-  const cardType = args.cardType;
+  let resolvedMimeType = storedFormat.mimeType;
+  if (fileType && !isGenericMimeType(fileType)) {
+    resolvedMimeType = fileType;
+  }
+  if (storedFileType && !isGenericMimeType(storedFileType)) {
+    resolvedMimeType = storedFileType;
+  }
   const additionalMeta = args.additionalMetadata || {};
   const fileMetadataObj = {
+    extension: storedFormat.extension,
     fileName: args.fileName,
     fileSize: args.storedFileSize ?? args.fileSize,
-    mimeType: storedFileType ?? fileType,
+    kind: storedFormat.kind,
+    language: storedFormat.language,
+    mimeType: resolvedMimeType,
+    ...(storedFormat.id === "gif" && { preview: { animated: true } }),
     ...(additionalMeta.recordingTimestamp && {
       recordingTimestamp: additionalMeta.recordingTimestamp,
     }),
@@ -192,31 +222,16 @@ export const createUploadedCardForUser = async (
     ...(additionalMeta.height && { height: additionalMeta.height }),
   };
 
-  const {
-    recordingTimestamp: _recordingTimestamp,
-    duration: _duration,
-    width: _width,
-    height: _height,
-    fileName: _fileName,
-    fileSize: _fileSize,
-    mimeType: _mimeType,
-    ...nonFileMetadata
-  } = additionalMeta;
-
-  const hasNonFileMetadata = Object.values(nonFileMetadata).some(
-    (v) => v !== undefined
-  );
-  const metadata = hasNonFileMetadata ? nonFileMetadata : undefined;
-
   const cardId = await ctx.db.insert("cards", {
     userId: args.userId,
     content: args.content || "",
     type: cardType,
     fileKey: args.fileKey,
     fileMetadata: fileMetadataObj,
+    metadataTitle: args.fileName,
     notes: args.notes ?? undefined,
     tags: args.tags,
-    metadata,
+    metadata: undefined,
     processingStatus: buildInitialProcessingStatus({
       now,
       cardType,
@@ -248,7 +263,7 @@ export const finalizeUploadedCard = mutation({
     fileName: v.string(),
     fileSize: v.optional(v.number()),
     fileType: v.optional(v.string()),
-    cardType: cardTypeValidator,
+    cardType: v.optional(cardTypeValidator),
     content: v.optional(v.string()),
     additionalMetadata: v.optional(v.any()),
   },

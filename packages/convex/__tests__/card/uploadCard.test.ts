@@ -371,6 +371,83 @@ describe("card/uploadCard.ts", () => {
     expect(result.success).toBe(true);
   });
 
+  test("finalizeUploadedCard infers file card type and compact metadata", async () => {
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
+          }),
+        }),
+        insert: mock().mockResolvedValue("c1"),
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any;
+
+    const finalizeHandler =
+      (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
+    const result = await finalizeHandler(ctx, {
+      fileKey: VALID_FILE_KEY,
+      fileName: "component.tsx",
+      fileSize: 2000,
+      fileType: "application/octet-stream",
+      content: "",
+    });
+
+    expect(result).toMatchObject({ success: true, cardId: "c1" });
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "cards",
+      expect.objectContaining({
+        type: "document",
+        fileMetadata: expect.objectContaining({
+          extension: "tsx",
+          kind: "source",
+          language: "tsx",
+          mimeType: "text/tsx",
+        }),
+      })
+    );
+  });
+
+  test("finalizeUploadedCard infers GIF uploads as video-like motion", async () => {
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
+          }),
+        }),
+        insert: mock().mockResolvedValue("c1"),
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any;
+    const finalizeHandler =
+      (finalizeUploadedCard as any).handler ?? finalizeUploadedCard;
+
+    await finalizeHandler(ctx, {
+      fileKey: VALID_FILE_KEY,
+      fileName: "motion.gif",
+      fileSize: 99,
+      fileType: "image/gif",
+    });
+
+    expect(ctx.db.insert.mock.calls[0]?.[1]).toMatchObject({
+      type: "video",
+      fileMetadata: {
+        extension: "gif",
+        fileName: "motion.gif",
+        fileSize: 99,
+        kind: "motion",
+        mimeType: "image/gif",
+        preview: { animated: true },
+      },
+    });
+  });
+
   test("finalizeUploadedCard handles additional metadata", async () => {
     // Ensure rate limiter allows the operation
     const rateLimitsModule = await import("../../shared/rateLimits");
@@ -403,12 +480,18 @@ describe("card/uploadCard.ts", () => {
         width: 100,
         height: 100,
         customField: "custom",
+        extractedText: "must never be persisted",
       },
     });
 
     // Just verify success - the internal metadata structure is handled by the function
     expect(result.success).toBe(true);
     expect(result.cardId).toBe("c1");
+    const insertedCard = ctx.db.insert.mock.calls[0]?.[1];
+    expect(insertedCard.metadata).toBeUndefined();
+    expect(JSON.stringify(insertedCard.fileMetadata)).not.toContain(
+      "must never be persisted"
+    );
   });
 
   test("finalizeUploadedCard throws for non-file card type", async () => {

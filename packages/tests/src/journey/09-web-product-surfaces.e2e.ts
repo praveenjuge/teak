@@ -233,7 +233,7 @@ test("web uploads and paste-created files complete", async ({ page }) => {
     mimeType: "application/octet-stream",
     name: `${marker}-too-large.bin`,
   });
-  await expect(page.getByText(/Maximum file size is 20MB/i)).toBeVisible();
+  await expect(page.getByText(/Maximum file size is 100MB/i)).toBeVisible();
 
   await waitForHomeUploadSurface(page);
   const pasteStartedAt = Date.now() - 60_000;

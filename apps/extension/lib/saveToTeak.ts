@@ -11,7 +11,12 @@ import {
 const CARD_LIMIT_REACHED_CODE = "CARD_LIMIT_REACHED";
 const JWT_EXPIRY_SKEW_MS = 10_000;
 
-type SaveSource = "context-menu" | "inline-post" | "popup-auto-save";
+export type SaveSource =
+  | "context-menu"
+  | "context-menu-asset"
+  | "inline-post"
+  | "popup-auto-save"
+  | "popup-file";
 
 interface SaveToTeakInput {
   content: string;
@@ -19,12 +24,12 @@ interface SaveToTeakInput {
   source: SaveSource;
 }
 
-interface ConvexClientLike {
+export interface ConvexClientLike {
   mutation: ConvexHttpClient["mutation"];
   query: ConvexHttpClient["query"];
 }
 
-interface SaveToTeakDependencies {
+export interface SaveToTeakDependencies {
   createClient?: (token: string) => ConvexClientLike;
   fetchImpl?: typeof fetch;
   getSessionToken?: () => Promise<string | null>;
@@ -157,6 +162,18 @@ const createDefaultClient = (token: string): ConvexClientLike => {
   return client;
 };
 
+export const getAuthenticatedConvexClient = async (
+  dependencies: SaveToTeakDependencies = {}
+): Promise<ConvexClientLike | null> => {
+  const convexToken = await getConvexAuthToken(dependencies);
+  if (!convexToken) {
+    return null;
+  }
+  return (
+    dependencies.createClient?.(convexToken) ?? createDefaultClient(convexToken)
+  );
+};
+
 export function resetSaveToTeakTokenCache(): void {
   cachedConvexToken = null;
 }
@@ -186,9 +203,9 @@ export async function saveToTeak(
     };
   }
 
-  let convexToken: string | null;
+  let client: ConvexClientLike | null;
   try {
-    convexToken = await getConvexAuthToken(dependencies);
+    client = await getAuthenticatedConvexClient(dependencies);
   } catch (error) {
     const message = getErrorMessage(error);
     return {
@@ -198,13 +215,9 @@ export async function saveToTeak(
     };
   }
 
-  if (!convexToken) {
+  if (!client) {
     return { status: "unauthenticated" };
   }
-
-  const client =
-    dependencies.createClient?.(convexToken) ??
-    createDefaultClient(convexToken);
 
   try {
     const normalizedContent = parsedUrl ? parsedUrl.toString() : trimmedContent;

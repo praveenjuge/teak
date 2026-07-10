@@ -5,12 +5,14 @@ import {
   pollPendingNativeAuth,
   readPendingNativeAuth,
 } from "../lib/nativeAuth";
+import { saveAssetUrlToTeak } from "../lib/saveFileToTeak";
 import { saveToTeak } from "../lib/saveToTeak";
 import type { ContextMenuAction } from "../types/contextMenu";
 import {
   type AuthStateResponse,
   MESSAGE_TYPES,
   type NativeAuthCompletedRequest,
+  type SaveAssetRequest,
   type SaveContentRequest,
   type SavePostRequest,
   type TeakRuntimeRequest,
@@ -65,14 +67,6 @@ const isNativeAuthCompleteSender = (rawUrl: string | undefined): boolean => {
   }
   return import.meta.env.DEV && isLocalDevelopmentHostname(url.hostname);
 };
-
-function captureSaveResult(
-  result: TeakSaveResponse,
-  source: string,
-  contentType: "url" | "text"
-) {
-  // Analytics removed
-}
 
 // Check if a URL is restricted (can't inject scripts)
 function isRestrictedUrl(url?: string): boolean {
@@ -189,6 +183,7 @@ const isRuntimeRequest = (message: unknown): message is TeakRuntimeRequest => {
   const candidate = message as { type?: unknown };
   return (
     candidate.type === MESSAGE_TYPES.GET_AUTH_STATE ||
+    candidate.type === MESSAGE_TYPES.SAVE_ASSET ||
     candidate.type === MESSAGE_TYPES.SAVE_CONTENT ||
     candidate.type === MESSAGE_TYPES.SAVE_POST ||
     candidate.type === MESSAGE_TYPES.NATIVE_AUTH_COMPLETED ||
@@ -212,6 +207,12 @@ export default defineBackground(() => {
         id: "save-page",
         title: "Save Page to Teak",
         contexts: ["page"],
+      });
+
+      chrome.contextMenus.create({
+        id: "save-asset",
+        title: "Save Asset to Teak",
+        contexts: ["image", "video", "audio", "link"],
       });
 
       chrome.contextMenus.create({
@@ -241,7 +242,13 @@ export default defineBackground(() => {
         );
       }
 
-      const content = await extractContextMenuContent(action, info, tab);
+      const content =
+        action === "save-asset"
+          ? info.srcUrl || info.linkUrl || ""
+          : await extractContextMenuContent(action, info, tab);
+      if (!content) {
+        throw new Error("Could not access the selected asset URL");
+      }
 
       // Store content for processing
       const contextMenuState = {
@@ -254,16 +261,13 @@ export default defineBackground(() => {
         contextMenuSave: contextMenuState,
       });
 
-      const saveResult = await saveToTeak({
-        content,
-        source: "context-menu",
-      });
-      void captureSaveResult(
-        saveResult,
-        "context-menu",
-        action === "save-text" ? "text" : "url"
-      );
-
+      const saveResult =
+        action === "save-asset"
+          ? await saveAssetUrlToTeak(content)
+          : await saveToTeak({
+              content,
+              source: "context-menu",
+            });
       if (saveResult.status === "unauthenticated") {
         // Clear the "saving" state and send the user to the sign-in tab rather
         // than surfacing an auth error in the popup.
@@ -348,14 +352,16 @@ export default defineBackground(() => {
             content: saveRequest.payload.content,
             source: saveRequest.payload.source,
           });
-          const isUrl =
-            saveRequest.payload.content.startsWith("http://") ||
-            saveRequest.payload.content.startsWith("https://");
-          void captureSaveResult(
-            result,
-            saveRequest.payload.source,
-            isUrl ? "url" : "text"
-          );
+          if (result.status === "unauthenticated") {
+            await openSignInTab();
+          }
+          sendResponse(result);
+          return;
+        }
+
+        if (message.type === MESSAGE_TYPES.SAVE_ASSET) {
+          const saveRequest = message as SaveAssetRequest;
+          const result = await saveAssetUrlToTeak(saveRequest.payload.assetUrl);
           if (result.status === "unauthenticated") {
             await openSignInTab();
           }
@@ -421,7 +427,6 @@ export default defineBackground(() => {
             enforceAllowedHosts: platformRule.permalinkPolicy === "same-host",
             source: "inline-post",
           });
-          void captureSaveResult(result, "inline-post", "url");
           if (result.status === "unauthenticated") {
             await openSignInTab();
           }

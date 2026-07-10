@@ -1,87 +1,62 @@
+"use client";
+
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { Archive, Code, File, FileText } from "lucide-react";
+import { inferFileFormat } from "@teak/convex/shared/file-formats";
+import { Button } from "@teak/ui/components/ui/button";
+import { Archive, Code, ExternalLink, File, FileText } from "lucide-react";
+import { FileTextPreview } from "./FileTextPreview";
 
 type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
   thumbnailUrl?: string;
 };
 
-function getDocumentIcon(fileName: string, mimeType: string) {
-  const name = (fileName || "").toLowerCase();
-  const mime = (mimeType || "").toLowerCase();
-
-  if (mime.includes("pdf")) {
-    return <FileText className="size-4 text-destructive" />;
-  }
-  if (
-    mime.includes("word") ||
-    name.endsWith(".doc") ||
-    name.endsWith(".docx")
-  ) {
-    return <FileText className="size-4 text-blue-500" />;
-  }
-  if (
-    mime.includes("excel") ||
-    name.endsWith(".xls") ||
-    name.endsWith(".xlsx")
-  ) {
-    return <FileText className="size-4 text-green-500" />;
-  }
-  if (
-    mime.includes("powerpoint") ||
-    name.endsWith(".ppt") ||
-    name.endsWith(".pptx")
-  ) {
-    return <FileText className="size-4 text-orange-500" />;
-  }
-  if (
-    mime.includes("zip") ||
-    mime.includes("rar") ||
-    name.endsWith(".7z") ||
-    name.endsWith(".tar.gz")
-  ) {
-    return <Archive className="size-4 text-yellow-500" />;
-  }
-  if (
-    name.endsWith(".js") ||
-    name.endsWith(".ts") ||
-    name.endsWith(".py") ||
-    name.endsWith(".html") ||
-    name.endsWith(".css") ||
-    name.endsWith(".json") ||
-    name.endsWith(".xml")
-  ) {
-    return <Code className="size-4 text-green-500" />;
-  }
-  if (name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".rtf")) {
-    return <FileText className="size-4 text-muted-foreground" />;
-  }
-  return <File className="size-4 text-muted-foreground" />;
-}
-
-function isPdf(fileName: string, mimeType: string): boolean {
-  const name = (fileName || "").toLowerCase();
-  const mime = (mimeType || "").toLowerCase();
-  return mime.includes("pdf") || name.endsWith(".pdf");
-}
-
 interface DocumentPreviewProps {
   card: CardWithUrls;
 }
 
+const previewFactLabels = (card: CardWithUrls): string[] => {
+  const preview = card.fileMetadata?.preview;
+  if (!preview) {
+    return [];
+  }
+
+  const facts: string[] = [];
+  if (typeof preview.slideCount === "number") {
+    facts.push(`${preview.slideCount} slides`);
+  }
+  if (typeof preview.archiveFileCount === "number") {
+    facts.push(`${preview.archiveFileCount} files`);
+  }
+  if (typeof preview.archiveDirectoryCount === "number") {
+    facts.push(`${preview.archiveDirectoryCount} folders`);
+  }
+  if (typeof preview.colorVariableCount === "number") {
+    facts.push(`${preview.colorVariableCount} color variables`);
+  }
+  return facts;
+};
+
+const iconForKind = (kind?: string) => {
+  if (kind === "archive") {
+    return Archive;
+  }
+  if (["markdown", "source", "tokens"].includes(kind ?? "")) {
+    return Code;
+  }
+  if (["office", "pdf", "text"].includes(kind ?? "")) {
+    return FileText;
+  }
+  return File;
+};
+
 export function DocumentPreview({ card }: DocumentPreviewProps) {
   const fileName = card.fileMetadata?.fileName || card.content || "Document";
   const mimeType = card.fileMetadata?.mimeType || "";
-
   const fileUrl = card.fileUrl;
+  const format = inferFileFormat({ fileName, mimeType });
 
-  if (isPdf(fileName, mimeType) && fileUrl) {
-    // Intentionally NOT sandboxed. The browser's built-in PDF viewer refuses to
-    // render inside a sandboxed iframe (even with the most permissive flags),
-    // and combining `sandbox="allow-same-origin"` with a cross-origin file URL
-    // (our signed R2 links) trips a "Blocked a frame with origin ... from
-    // accessing a frame ..." SecurityError. Dropping the sandbox lets the PDF
-    // load directly from its cross-origin URL without the frame-access error.
+  if (format?.preview === "pdf" && fileUrl) {
     return (
       <div className="flex h-full w-full flex-col">
         <iframe
@@ -93,10 +68,34 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
     );
   }
 
+  const Icon = iconForKind(format?.kind ?? card.fileMetadata?.kind);
+  const facts = previewFactLabels(card);
+
   return (
-    <div className="flex items-center gap-4">
-      <div className="shrink-0">{getDocumentIcon(fileName, mimeType)}</div>
-      <p className="min-w-0 truncate font-medium">{fileName}</p>
+    <div className="flex h-full flex-col gap-4">
+      <div className="flex items-center gap-3 rounded-lg border p-4">
+        <Icon className="size-5 shrink-0 text-muted-foreground" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium">{fileName}</p>
+          <p className="text-muted-foreground text-xs">
+            {[format?.language, format?.kind, ...facts]
+              .filter(Boolean)
+              .join(" · ") || "File"}
+          </p>
+        </div>
+        {fileUrl ? (
+          <Button asChild size="sm" variant="outline">
+            <a href={fileUrl} rel="noopener noreferrer" target="_blank">
+              <ExternalLink data-icon="inline-start" />
+              Open file
+            </a>
+          </Button>
+        ) : null}
+      </div>
+
+      {fileUrl && format && ["markdown", "source"].includes(format.preview) ? (
+        <FileTextPreview fileUrl={fileUrl} format={format} />
+      ) : null}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { api } from "@teak/convex";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
+import { inferFileFormat } from "@teak/convex/shared/file-formats";
 import {
   type FinalizeUploadedCardArgs,
   type UploadAndCreateCardArgs,
@@ -28,22 +29,6 @@ interface AddCardActionsProps {
   onSuccess?: () => void;
   onUpgrade?: () => void;
   upgradeUrl?: string;
-}
-
-function inferCardTypeFromMime(mimeType: string | undefined): string {
-  if (!mimeType) {
-    return "document";
-  }
-  if (mimeType.startsWith("image/")) {
-    return "image";
-  }
-  if (mimeType.startsWith("video/")) {
-    return "video";
-  }
-  if (mimeType.startsWith("audio/")) {
-    return "audio";
-  }
-  return "document";
 }
 
 function formatTime(seconds: number) {
@@ -307,7 +292,9 @@ export function AddCardActions({
 
         if (result.success) {
           trackCardCreated({
-            cardType: inferCardTypeFromMime(file.type),
+            cardType:
+              inferFileFormat({ fileName: file.name, mimeType: file.type })
+                ?.cardType ?? "document",
             source: "web",
             via: "file_upload",
           });

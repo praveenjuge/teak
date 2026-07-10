@@ -5,14 +5,16 @@ import {
   Check,
   Info,
   Loader2,
+  Upload,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type ChangeEvent, useEffect, useState } from "react";
 import type { DuplicateCard } from "../../hooks/useAutoSaveUrl";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
 import { useContextMenuSave } from "../../hooks/useContextMenuSave";
 import { useExtensionSession } from "../../hooks/useExtensionSession";
 import { beginSignIn } from "../../lib/nativeAuth";
+import { saveFileToTeak } from "../../lib/saveFileToTeak";
 import { MESSAGE_TYPES } from "../../types/messages";
 import { getAuthErrorMessage } from "../../utils/getAuthErrorMessage";
 
@@ -229,6 +231,10 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
   const { state, error, duplicateCard } = useAutoSaveUrl(!isRecentSave);
   const [_signOutLoading, _setSignOutLoading] = useState(false);
   const [signOutError, _setSignOutError] = useState<string | null>(null);
+  const [fileUploadState, setFileUploadState] = useState<
+    "idle" | "saving" | "success" | "error"
+  >("idle");
+  const [fileUploadError, setFileUploadError] = useState<string | null>(null);
 
   // Auto-close popup after successful save
   useEffect(() => {
@@ -236,14 +242,50 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
     const isContextMenuSuccess =
       isRecentSave && contextMenuState.status === "success";
 
-    if (isAutoSaveSuccess || isContextMenuSuccess) {
+    if (
+      isAutoSaveSuccess ||
+      isContextMenuSuccess ||
+      fileUploadState === "success"
+    ) {
       const timer = setTimeout(() => {
         window.close();
       }, 2000);
 
       return () => clearTimeout(timer);
     }
-  }, [state, isRecentSave, contextMenuState.status]);
+  }, [state, isRecentSave, contextMenuState.status, fileUploadState]);
+
+  const handleFileSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+
+    setFileUploadError(null);
+    setFileUploadState("saving");
+    const result = await saveFileToTeak({
+      bytes: file,
+      fileName: file.name,
+      mimeType: file.type,
+      source: "popup-file",
+    });
+    if (result.status === "unauthenticated") {
+      setFileUploadState("idle");
+      const url = await beginSignIn();
+      await chrome.tabs.create({ url });
+      window.close();
+      return;
+    }
+    if (result.status === "saved") {
+      setFileUploadState("success");
+      return;
+    }
+    setFileUploadError(
+      result.status === "error" ? result.message : "File is already saved."
+    );
+    setFileUploadState("error");
+  };
 
   const renderStatus = () => {
     if (isRecentSave) {
@@ -259,6 +301,8 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
           return "Page saved!";
         case "save-text":
           return "Text saved!";
+        case "save-asset":
+          return "Asset saved!";
         default:
           return "Saved to Teak!";
       }
@@ -305,6 +349,31 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
   };
 
   const renderAutoSaveStatus = () => {
+    if (fileUploadState === "saving") {
+      return (
+        <div className="flex min-h-96 w-96 items-center justify-center gap-2 p-3">
+          <Loader2 className="h-4 w-4 animate-spin text-red-600" />
+          <span className="text-red-700 text-sm">Uploading file...</span>
+        </div>
+      );
+    }
+    if (fileUploadState === "success") {
+      return (
+        <div className="flex min-h-96 w-96 items-center justify-center gap-2 p-3">
+          <Check className="h-4 w-4 text-green-500" strokeWidth={3} />
+          <span className="text-green-700 text-sm">File saved!</span>
+        </div>
+      );
+    }
+    if (fileUploadState === "error") {
+      return (
+        <div className="flex min-h-96 w-96 flex-col items-center justify-center gap-2 p-4 text-center">
+          <X className="h-4 w-4 text-red-600" />
+          <span className="text-red-700 text-sm">{fileUploadError}</span>
+        </div>
+      );
+    }
+
     switch (state) {
       case "loading":
         return (
@@ -363,8 +432,22 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
           <img alt="Teak Logo" className="h-4" src="./icon.svg" />
         </a>
 
-        <div className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1">
-          {user?.email}
+        <div className="flex items-center gap-2">
+          <label className="flex cursor-pointer items-center gap-1 rounded-full border border-gray-200 px-3 py-1 text-gray-700 text-xs hover:bg-gray-50">
+            <Upload className="h-3 w-3" />
+            Upload file
+            <input
+              className="sr-only"
+              disabled={fileUploadState === "saving"}
+              onChange={(event) => {
+                void handleFileSelected(event);
+              }}
+              type="file"
+            />
+          </label>
+          <div className="max-w-36 truncate rounded-full bg-gray-100 px-3 py-1">
+            {user?.email}
+          </div>
         </div>
       </div>
 

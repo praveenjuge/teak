@@ -1,4 +1,5 @@
-import { cardTypes, type CardType } from "../shared/constants";
+import { type CardType, cardTypes } from "../shared/constants";
+import type { FileKind, FilePreviewFacts } from "../shared/fileFormats";
 
 export type { CardType } from "../shared/constants";
 
@@ -36,12 +37,19 @@ export interface Card {
   appUrl: string;
   content: string;
   createdAt: number;
+  fileExtension: string | null;
+  fileKind: FileKind | null;
+  fileLanguage: string | null;
+  fileName: string | null;
+  filePreview: FilePreviewFacts | null;
+  fileSize: number | null;
   fileUrl: string | null;
   id: string;
   isFavorited: boolean;
   linkPreviewImageUrl: string | null;
   metadataDescription: string | null;
   metadataTitle: string | null;
+  mimeType: string | null;
   notes: string | null;
   screenshotUrl: string | null;
   tags: string[];
@@ -320,7 +328,10 @@ const asUpload = (value: unknown): CreateUploadResponse => {
   if (
     !isObject(value) ||
     typeof value.uploadUrl !== "string" ||
-    typeof value.fileKey !== "string"
+    typeof value.fileKey !== "string" ||
+    value.method !== "PUT" ||
+    typeof value.maxFileSize !== "number" ||
+    typeof value.expiresIn !== "number"
   ) {
     throw new TeakApiError("PARSE_ERROR");
   }

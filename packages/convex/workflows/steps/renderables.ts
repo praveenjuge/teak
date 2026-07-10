@@ -15,6 +15,7 @@ import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
 import { stageCompleted, stageFailed } from "../../card/processingStatus";
+import { inferFileFormat } from "../../shared/fileFormats";
 
 /**
  * Workflow Step: Generate renderables (thumbnails, etc.)
@@ -67,20 +68,45 @@ export async function generateHandler(
     }
   };
 
+  const handleOptionalResult = (result: {
+    generated: boolean;
+    success: boolean;
+  }) => {
+    if (result.generated) {
+      thumbnailGenerated = true;
+    }
+  };
+
+  const fileName = card.fileMetadata?.fileName;
+  const format = fileName
+    ? (inferFileFormat({
+        fileName,
+        mimeType: card.fileMetadata.mimeType,
+      }) ?? inferFileFormat({ fileName }))
+    : null;
+
   // Generate thumbnail for image cards (raster images like PNG, JPG, WebP)
   // SVG files are handled separately below
-  const isSvgFile =
-    card.fileMetadata?.mimeType === "image/svg+xml" ||
-    card.fileMetadata?.fileName?.endsWith(".svg") ||
-    card.fileMetadata?.fileName?.endsWith(".SVG");
+  const isSvgFile = format?.id === "svg";
+  const isHeicFile = format?.id === "heic";
+  const isGifFile = format?.id === "gif";
 
-  if (cardType === "image" && card.fileKey && !isSvgFile) {
+  if (cardType === "image" && card.fileKey && !(isSvgFile || isHeicFile)) {
     const result = await ctx.runAction(
       (internal as any).workflows.steps.renderables.generateThumbnail
         .generateThumbnail,
       { cardId }
     );
     handleResult(result);
+  }
+
+  if (cardType === "image" && card.fileKey && isHeicFile) {
+    const result = await ctx.runAction(
+      (internal as any).workflows.steps.renderables.generateHeicThumbnail
+        .generateHeicThumbnail,
+      { cardId }
+    );
+    handleOptionalResult(result);
   }
 
   // Generate thumbnail for SVG images (rasterize to PNG using Playwright)
@@ -94,13 +120,21 @@ export async function generateHandler(
   }
 
   // Generate thumbnail for video cards using MediaBunny
-  if (cardType === "video" && card.fileKey) {
+  if (cardType === "video" && card.fileKey && !isGifFile) {
     const result = await ctx.runAction(
       (internal as any).workflows.steps.renderables.generateVideoThumbnail
         .generateVideoThumbnail,
       { cardId }
     );
     handleResult(result);
+  }
+
+  if (cardType === "document" && card.fileKey) {
+    await ctx.runAction(
+      (internal as any).workflows.steps.renderables.generateFilePreview
+        .generateFilePreview,
+      { cardId }
+    );
   }
 
   // Generate thumbnail for PDF documents

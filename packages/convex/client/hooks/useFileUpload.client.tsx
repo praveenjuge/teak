@@ -6,6 +6,7 @@ import {
   MAX_FILE_SIZE,
   MAX_FILES_PER_UPLOAD,
 } from "../../shared/constants";
+import { inferFileFormat, isGenericMimeType } from "../../shared/fileFormats";
 import type {
   UploadFileResult,
   UploadMultipleFilesResultItem,
@@ -70,32 +71,6 @@ async function buildAdditionalMetadata(
   }
 
   return metadata;
-}
-
-export function inferCardType(
-  mimeType: string | undefined
-): CardType | undefined {
-  if (!mimeType) {
-    return;
-  }
-  if (mimeType.startsWith("image/")) {
-    return "image";
-  }
-  if (mimeType.startsWith("video/")) {
-    return "video";
-  }
-  if (mimeType.startsWith("audio/")) {
-    return "audio";
-  }
-  if (
-    mimeType === "application/pdf" ||
-    mimeType.startsWith("application/msword") ||
-    mimeType.startsWith("application/vnd.openxmlformats-officedocument") ||
-    mimeType.startsWith("text/")
-  ) {
-    return "document";
-  }
-  return;
 }
 
 export function setFileUploadSentryCaptureFunction(fn: SentryCaptureFunction) {
@@ -355,9 +330,12 @@ export function useFileUploadCore(
         );
 
         // Step 1: Get upload URL from Convex
-        const cardType = inferCardType(file.type);
+        const fileFormat = inferFileFormat({
+          fileName: file.name,
+          mimeType: file.type,
+        });
 
-        if (!cardType) {
+        if (!fileFormat) {
           const errorInfo: FileUploadError = {
             message: "Unsupported file type",
             code: CARD_ERROR_CODES.UNSUPPORTED_TYPE,
@@ -367,9 +345,14 @@ export function useFileUploadCore(
           throw codedError;
         }
 
+        const cardType = fileFormat.cardType;
+        const fileType = isGenericMimeType(file.type)
+          ? fileFormat.mimeType
+          : file.type;
+
         const uploadResult = await uploadAndCreateCard({
           fileName: file.name,
-          fileType: file.type,
+          fileType,
           fileSize: file.size,
           cardType,
           content: options.content,
@@ -402,7 +385,7 @@ export function useFileUploadCore(
             fetch(uploadUrl, {
               method: "PUT",
               headers: {
-                "Content-Type": file.type || "application/octet-stream",
+                "Content-Type": fileType,
               },
               body: file,
               signal,
@@ -423,7 +406,7 @@ export function useFileUploadCore(
           fileKey: uploadKey,
           fileName: file.name,
           fileSize: file.size,
-          fileType: file.type,
+          fileType,
           cardType,
           content: options.content,
           additionalMetadata: mergedAdditionalMetadata,
@@ -533,8 +516,8 @@ export function useFileUploadCore(
           throw codedError;
         }
 
-        const cardType = inferCardType(type);
-        if (!cardType) {
+        const fileFormat = inferFileFormat({ fileName: name, mimeType: type });
+        if (!fileFormat) {
           const errorInfo: FileUploadError = {
             message: "Unsupported file type",
             code: CARD_ERROR_CODES.UNSUPPORTED_TYPE,
@@ -544,9 +527,12 @@ export function useFileUploadCore(
           throw codedError;
         }
 
+        const cardType = fileFormat.cardType;
+        const fileType = isGenericMimeType(type) ? fileFormat.mimeType : type;
+
         const uploadResult = await uploadAndCreateCard({
           fileName: name,
-          fileType: type,
+          fileType,
           fileSize: size,
           cardType,
           content,
@@ -578,7 +564,7 @@ export function useFileUploadCore(
             uploadBinaryFromUri({
               fileUri: uri,
               uploadUrl,
-              contentType: type || "application/octet-stream",
+              contentType: fileType,
               signal,
             }),
           signal
@@ -596,7 +582,7 @@ export function useFileUploadCore(
           fileKey: uploadKey,
           fileName: name,
           fileSize: size,
-          fileType: type,
+          fileType,
           cardType,
           content,
           additionalMetadata,

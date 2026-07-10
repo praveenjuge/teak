@@ -13,6 +13,7 @@ import { internalAction } from "../../_generated/server";
 import { stageCompleted } from "../../card/processingStatus";
 import type { CardType } from "../../schema";
 import { extractVisualStylesFromTags } from "../../shared/constants";
+import { inferFileFormat } from "../../shared/fileFormats";
 import type { Id } from "../../shared/types";
 import { resolveObjectUrl } from "../../storage/r2";
 import {
@@ -21,6 +22,7 @@ import {
   generateTextMetadata,
 } from "../aiMetadata/generators";
 import { generateTranscript } from "../aiMetadata/transcript";
+import { extractFileTextForAi } from "../fileProcessing";
 
 interface LinkPreviewMetadata {
   author?: string;
@@ -219,10 +221,31 @@ export async function generateHandler(
       break;
     }
     case "document": {
-      let contentToAnalyze = card.content;
+      const contentParts: string[] = [];
       if (card.fileMetadata?.fileName) {
-        contentToAnalyze = `${card.fileMetadata.fileName}\n${contentToAnalyze}`;
+        contentParts.push(card.fileMetadata.fileName);
       }
+      if (card.fileKey && card.fileMetadata?.fileName) {
+        const format = inferFileFormat({
+          fileName: card.fileMetadata.fileName,
+          mimeType: card.fileMetadata.mimeType,
+        });
+        const fileUrl = await resolveObjectUrl(card.fileKey);
+        if (format && fileUrl) {
+          const extractedText = await extractFileTextForAi(
+            fileUrl,
+            format,
+            card
+          );
+          if (extractedText) {
+            contentParts.push(extractedText);
+          }
+        }
+      }
+      if (card.content?.trim()) {
+        contentParts.push(card.content);
+      }
+      const contentToAnalyze = contentParts.join("\n");
       if (contentToAnalyze.trim()) {
         const result = await generateTextMetadata(contentToAnalyze);
         aiTags = result.aiTags;

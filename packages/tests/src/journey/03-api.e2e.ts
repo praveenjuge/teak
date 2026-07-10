@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { apiFetch, loadOpenApi } from "../helpers/api";
-import { readState } from "../helpers/run-state";
+import { expandedFileFixtures } from "../helpers/file-formats";
+import { readState, updateState } from "../helpers/run-state";
 
 test("REST API happy paths and OpenAPI contracts", async () => {
   const { primary } = readState();
@@ -131,4 +132,80 @@ test("saving a color as content creates a palette card, not a text card", async 
       { timeout: 30_000, intervals: [1000, 2000, 3000, 5000] }
     )
     .toBe("palette");
+});
+
+test("REST API uploads and infers the expanded file-format matrix", async () => {
+  const { primary } = readState();
+  if (!primary?.apiKey) {
+    throw new Error("Missing primary API key");
+  }
+  const marker = `api-file-${Date.now()}`;
+  const fixtures = expandedFileFixtures(marker);
+
+  for (const [index, fixture] of fixtures.entries()) {
+    const prepared = await apiFetch("/v1/uploads", primary.apiKey, {
+      method: "POST",
+      body: JSON.stringify({
+        fileName: fixture.fileName,
+        fileSize: fixture.bytes.byteLength,
+        mimeType: fixture.mimeType,
+      }),
+    });
+    expect(prepared.status, fixture.fileName).toBe(200);
+    const upload = await prepared.json();
+    expect(upload).toMatchObject({
+      maxFileSize: 100 * 1024 * 1024,
+      method: "PUT",
+    });
+
+    const put = await fetch(upload.uploadUrl, {
+      body: Uint8Array.from(fixture.bytes).buffer,
+      headers: { "Content-Type": fixture.mimeType },
+      method: "PUT",
+    });
+    expect(put.ok, fixture.fileName).toBe(true);
+
+    let explicitCardType: "document" | "image" | undefined;
+    if (index === 1) {
+      explicitCardType = fixture.mimeType.startsWith("image/")
+        ? "image"
+        : "document";
+    }
+    const created = await apiFetch("/v1/cards", primary.apiKey, {
+      method: "POST",
+      body: JSON.stringify({
+        ...(explicitCardType ? { cardType: explicitCardType } : {}),
+        fileKey: upload.fileKey,
+        fileName: fixture.fileName,
+        fileSize: fixture.bytes.byteLength,
+        mimeType: fixture.mimeType,
+        source: "prod-e2e-file-formats",
+        tags: ["prod-e2e", "file-formats"],
+      }),
+    });
+    expect(created.status, fixture.fileName).toBe(200);
+    const card = await created.json();
+    updateState((state) => state.createdCardIds.push(card.cardId));
+
+    const fetched = await apiFetch(`/v1/cards/${card.cardId}`, primary.apiKey);
+    expect(fetched.status).toBe(200);
+    const fetchedCard = await fetched.json();
+    expect(fetchedCard.fileName).toBe(fixture.fileName);
+    expect(fetchedCard.fileKind).toBeTruthy();
+    expect(fetchedCard.mimeType).toBe(fixture.mimeType);
+    if (fixture.fileName.endsWith(".gif")) {
+      expect(fetchedCard.type).toBe("video");
+      expect(fetchedCard.filePreview?.animated).toBe(true);
+    }
+  }
+
+  const unsupported = await apiFetch("/v1/uploads", primary.apiKey, {
+    method: "POST",
+    body: JSON.stringify({
+      fileName: `${marker}.riv`,
+      fileSize: 4,
+      mimeType: "application/octet-stream",
+    }),
+  });
+  expect(unsupported.status).toBe(400);
 });

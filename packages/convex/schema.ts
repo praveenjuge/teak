@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { FILE_KINDS } from "./shared/fileFormats";
 import { LINK_CATEGORIES } from "./shared/linkCategories";
 
 // Card types as literals for validator
@@ -70,15 +71,28 @@ export const linkCategoryMetadataValidator = v.object({
   raw: v.optional(v.any()),
 });
 
+export const filePreviewFactsValidator = v.object({
+  animated: v.optional(v.boolean()),
+  archiveDirectoryCount: v.optional(v.number()),
+  archiveFileCount: v.optional(v.number()),
+  colorVariableCount: v.optional(v.number()),
+  inspectedEntryCount: v.optional(v.number()),
+  slideCount: v.optional(v.number()),
+});
+
 export const fileMetadataValidator = v.optional(
   v.object({
     // File metadata (for non-link cards)
     fileSize: v.optional(v.number()),
     fileName: v.optional(v.string()),
     mimeType: v.optional(v.string()),
+    extension: v.optional(v.string()),
+    kind: v.optional(v.union(...FILE_KINDS.map((kind) => v.literal(kind)))),
+    language: v.optional(v.string()),
     duration: v.optional(v.number()),
     width: v.optional(v.number()),
     height: v.optional(v.number()),
+    preview: v.optional(filePreviewFactsValidator),
     // Recording-specific metadata
     recordingTimestamp: v.optional(v.number()),
   })

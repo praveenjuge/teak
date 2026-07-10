@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { MAX_FILE_SIZE } from "@teak/convex/shared/file-formats";
 import { importIncomingShareItems } from "../../lib/share/importIncomingShare";
 import type { NormalizedShareItem } from "../../lib/share/types";
 
@@ -127,7 +128,7 @@ describe("importIncomingShareItems", () => {
     }));
 
     const result = await importIncomingShareItems(
-      [createFileItem("item-1", 25 * 1024 * 1024)],
+      [createFileItem("item-1", MAX_FILE_SIZE + 1)],
       { createCard, uploadFileFromUri },
       { isAuthenticated: true }
     );

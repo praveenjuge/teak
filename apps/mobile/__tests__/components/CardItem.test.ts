@@ -33,3 +33,18 @@ test("CardItem defers favicon loading and caches failed hosts", () => {
   expect(source).toContain("setTimeout(() =>");
   expect(source).toContain("failedFaviconHosts.add(hostname)");
 });
+
+test("CardItem exposes download and share actions for file-card types", () => {
+  const filePath = join(
+    (import.meta as any).dir,
+    "../../../mobile/components/CardItem.tsx"
+  );
+  const source = readFileSync(filePath, "utf8");
+
+  for (const cardType of ["document", "audio", "image", "video"]) {
+    expect(source).toContain(`case "${cardType}"`);
+  }
+  expect(source).toContain("downloadItem(");
+  expect(source).toContain("handleShareFromUrl(");
+  expect(source).toContain("getNativeShareOptions(");
+});

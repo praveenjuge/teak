@@ -1,11 +1,16 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
-import { type CardType, parseTags } from "@teak/convex/sdk";
+import { parseTags } from "@teak/convex/sdk";
+import {
+  inferFileFormat,
+  isGenericMimeType,
+  MAX_FILE_SIZE,
+  mimeTypeForFileName,
+} from "@teak/convex/shared/file-formats";
 import { InvalidArgumentError } from "commander";
 import { type ClientOptions, client } from "./runtime";
 
 const MAX_STDIN_BYTES = 1024 * 1024;
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
 export const readStdin = async () => {
   if (process.stdin.isTTY) {
@@ -24,40 +29,33 @@ export const readStdin = async () => {
   return Buffer.concat(chunks).toString("utf8").trim();
 };
 
-export const mimeFor = (filePath: string) => {
-  const ext = path.extname(filePath).toLowerCase();
-  return (
-    (
-      {
-        ".aac": "audio/aac",
-        ".gif": "image/gif",
-        ".jpeg": "image/jpeg",
-        ".jpg": "image/jpeg",
-        ".m4a": "audio/mp4",
-        ".mov": "video/quicktime",
-        ".mp3": "audio/mpeg",
-        ".mp4": "video/mp4",
-        ".pdf": "application/pdf",
-        ".png": "image/png",
-        ".txt": "text/plain",
-        ".wav": "audio/wav",
-        ".webp": "image/webp",
-      } as Record<string, string>
-    )[ext] || "application/octet-stream"
-  );
-};
+export const mimeFor = (filePath: string) =>
+  mimeTypeForFileName(path.basename(filePath));
 
-export const typeForMime = (mimeType: string): CardType => {
-  if (mimeType.startsWith("image/")) {
-    return "image";
+export const getUploadFileInfo = (candidate: string) => {
+  if (!(existsSync(candidate) && statSync(candidate).isFile())) {
+    return null;
   }
-  if (mimeType.startsWith("video/")) {
-    return "video";
+  const stats = statSync(candidate);
+  if (stats.size > MAX_FILE_SIZE) {
+    throw new InvalidArgumentError(
+      `file must be at most ${MAX_FILE_SIZE} bytes`
+    );
   }
-  if (mimeType.startsWith("audio/")) {
-    return "audio";
+  const fileName = path.basename(candidate);
+  const inferredMimeType = mimeFor(candidate);
+  const format = inferFileFormat({ fileName, mimeType: inferredMimeType });
+  if (!format) {
+    throw new InvalidArgumentError("unsupported file type");
   }
-  return "document";
+  return {
+    fileName,
+    fileSize: stats.size,
+    format,
+    mimeType: isGenericMimeType(inferredMimeType)
+      ? format.mimeType
+      : inferredMimeType,
+  };
 };
 
 export const resolveAddInput = async (
@@ -80,17 +78,12 @@ export const addCard = async (
   const api = client(options);
   const tags = parseTags(options.tags);
   const { candidate, raw } = await resolveAddInput(input, options.file);
-  if (candidate && existsSync(candidate) && statSync(candidate).isFile()) {
-    const stats = statSync(candidate);
-    if (stats.size > MAX_FILE_SIZE) {
-      throw new InvalidArgumentError(
-        `file must be at most ${MAX_FILE_SIZE} bytes`
-      );
-    }
-    const mimeType = mimeFor(candidate);
+  const uploadFile = candidate ? getUploadFileInfo(candidate) : null;
+  if (candidate && uploadFile) {
+    const { fileName, fileSize, mimeType } = uploadFile;
     const upload = await api.uploads.create({
-      fileName: path.basename(candidate),
-      fileSize: stats.size,
+      fileName,
+      fileSize,
       mimeType,
     });
     await api.uploads.putFile(
@@ -99,10 +92,9 @@ export const addCard = async (
       mimeType
     );
     return api.cards.create({
-      cardType: typeForMime(mimeType),
       fileKey: upload.fileKey,
-      fileName: path.basename(candidate),
-      fileSize: stats.size,
+      fileName,
+      fileSize,
       mimeType,
       notes: options.notes,
       source: "cli",

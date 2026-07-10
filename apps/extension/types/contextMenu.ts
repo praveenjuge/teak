@@ -1,4 +1,4 @@
-export type ContextMenuAction = "save-page" | "save-text";
+export type ContextMenuAction = "save-asset" | "save-page" | "save-text";
 
 export interface ContextMenuSaveState {
   action?: ContextMenuAction;

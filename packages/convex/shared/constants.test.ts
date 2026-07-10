@@ -44,9 +44,9 @@ describe("Constants", () => {
   });
 
   describe("MAX_FILE_SIZE", () => {
-    it("should be 20MB in bytes", () => {
-      expect(MAX_FILE_SIZE).toBe(20 * 1024 * 1024);
-      expect(MAX_FILE_SIZE).toBe(20_971_520);
+    it("should be 100MB in bytes", () => {
+      expect(MAX_FILE_SIZE).toBe(100 * 1024 * 1024);
+      expect(MAX_FILE_SIZE).toBe(104_857_600);
     });
   });
 
@@ -89,7 +89,7 @@ describe("Constants", () => {
       expect(CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED).toContain(
         "upgrade to Pro"
       );
-      expect(CARD_ERROR_MESSAGES.FILE_TOO_LARGE).toContain("20MB");
+      expect(CARD_ERROR_MESSAGES.FILE_TOO_LARGE).toContain("100MB");
       expect(CARD_ERROR_MESSAGES.TOO_MANY_FILES).toContain("5 files");
     });
   });
