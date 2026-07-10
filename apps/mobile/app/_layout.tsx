@@ -13,7 +13,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { colors } from "@/constants/colors";
-import { Sentry } from "@/lib/sentry";
+import { finishMobileStartup, Sentry } from "@/lib/sentry";
 import { INCOMING_SHARE_SCREEN } from "@/lib/share/constants";
 import {
   ThemePreferenceProvider,
@@ -71,6 +71,7 @@ function RootLayoutContent() {
     const frame = requestAnimationFrame(() => {
       void hideSplashScreen();
       hasHiddenSplash.current = true;
+      finishMobileStartup();
     });
 
     return () => cancelAnimationFrame(frame);

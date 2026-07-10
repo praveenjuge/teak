@@ -1,9 +1,10 @@
 // @ts-nocheck
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { createCardActions } from "../../../client/hooks/useCardActions.client";
 import {
-  createCardActions,
-  setSentryCaptureFunction,
-} from "../../../client/hooks/useCardActions.client";
+  configureClientTelemetry,
+  resetClientTelemetry,
+} from "../../../shared/client-telemetry";
 
 describe("defaults", () => {
   test("uses default sentry capture without error", async () => {
@@ -50,13 +51,14 @@ describe("createCardActions", () => {
     mockOnPermanentDeleteSuccess.mockReset();
     mockOnError.mockReset();
     mockSentryCapture.mockReset();
-    setSentryCaptureFunction(mockSentryCapture);
+    configureClientTelemetry({ captureException: mockSentryCapture });
   });
 
   afterEach(() => {
     // Clear all mocks after each test
     mockPermanentDeleteCard.mockReset();
     mockUpdateCardField.mockReset();
+    resetClientTelemetry();
   });
 
   const actions = createCardActions(dependencies, config);
@@ -123,19 +125,15 @@ describe("createCardActions", () => {
       expect(mockSentryCapture).toHaveBeenCalled();
       const callArgs = mockSentryCapture.mock.calls[0];
       expect(callArgs[0]).toBe(error);
-      expect(callArgs[1].tags).toEqual({
-        source: "convex",
-        mutation: "cards:updateCardField",
-        operation: "delete",
-      });
+      expect(callArgs[1].operation).toBe("card.delete");
     });
 
-    test("includes cardId in Sentry extra context", async () => {
+    test("does not include raw card IDs in telemetry context", async () => {
       const error = new Error("fail");
       mockUpdateCardField.mockRejectedValue(error);
       await actions.handleDeleteCard("c123" as any);
       const callArgs = mockSentryCapture.mock.calls[0];
-      expect(callArgs[1].extra).toEqual({ cardId: "c123" });
+      expect(JSON.stringify(callArgs[1])).not.toContain("c123");
     });
   });
 
@@ -175,7 +173,7 @@ describe("createCardActions", () => {
       await actions.handleRestoreCard("c1" as any);
       expect(mockSentryCapture).toHaveBeenCalled();
       const callArgs = mockSentryCapture.mock.calls[0];
-      expect(callArgs[1].tags.operation).toBe("restore");
+      expect(callArgs[1].operation).toBe("card.restore");
     });
   });
 
@@ -267,7 +265,7 @@ describe("createCardActions", () => {
       await actions.handlePermanentDeleteCard("c1" as any);
       expect(mockSentryCapture).toHaveBeenCalled();
       const callArgs = mockSentryCapture.mock.calls[0];
-      expect(callArgs[1].tags.mutation).toBe("cards:permanentDeleteCard");
+      expect(callArgs[1].operation).toBe("card.permanent_delete");
     });
   });
 
@@ -294,7 +292,7 @@ describe("createCardActions", () => {
       await actions.handleToggleFavorite("c1" as any);
       expect(mockSentryCapture).toHaveBeenCalled();
       const callArgs = mockSentryCapture.mock.calls[0];
-      expect(callArgs[1].tags.operation).toBe("toggleFavorite");
+      expect(callArgs[1].operation).toBe("card.favorite");
     });
   });
 
@@ -389,35 +387,19 @@ describe("createCardActions", () => {
       await actions.updateField("c1" as any, "content", "test");
       expect(mockSentryCapture).toHaveBeenCalled();
       const callArgs = mockSentryCapture.mock.calls[0];
-      expect(callArgs[1].tags.operation).toBe("update_content");
+      expect(callArgs[1].operation).toBe("card.update");
     });
 
-    test("includes field in Sentry extra context", async () => {
+    test("includes only bounded field context", async () => {
       const error = new Error("fail");
       mockUpdateCardField.mockRejectedValue(error);
       await actions.updateField("c1" as any, "url", "test");
       const callArgs = mockSentryCapture.mock.calls[0];
-      expect(callArgs[1].extra).toEqual({
-        cardId: "c1",
+      expect(callArgs[1]).toEqual({
+        "error.class": "UnknownError",
         field: "url",
-        value: "test",
+        operation: "card.update",
       });
-    });
-  });
-
-  describe("setSentryCaptureFunction", () => {
-    test("sets custom sentry capture function", () => {
-      const customCapture = mock();
-      setSentryCaptureFunction(customCapture);
-      const actions = createCardActions(dependencies, config);
-      expect(actions).toBeDefined();
-    });
-
-    test("uses default sentry capture if not set", async () => {
-      const defaultActions = createCardActions(dependencies);
-      mockUpdateCardField.mockRejectedValue(new Error("test"));
-      await defaultActions.handleDeleteCard("c1" as any);
-      // Should not throw
     });
   });
 

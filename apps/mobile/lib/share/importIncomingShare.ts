@@ -78,6 +78,7 @@ export async function importIncomingShareItems(
       try {
         const createdCard = await createCardFromText(item.content, {
           createCard: dependencies.createCard,
+          source: "share_intent",
         });
 
         if (typeof createdCard === "string") {

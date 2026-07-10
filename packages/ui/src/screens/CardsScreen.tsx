@@ -3,6 +3,8 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { SEARCH_DEFAULT_CARD_LIMIT } from "@teak/convex/shared";
+import { addTelemetryBreadcrumb } from "@teak/convex/shared/client-telemetry";
+import { trackSearch } from "@teak/convex/shared/metrics";
 import { ConnectedCardModal } from "@teak/ui/card-modal";
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Button } from "@teak/ui/components/ui/button";
@@ -21,7 +23,7 @@ import { CardsSearchHeader } from "@teak/ui/search";
 import { Authenticated, AuthLoading, useMutation } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 interface CardsScreenProps {
@@ -54,6 +56,12 @@ export function CardsScreen({
   const searchController = useCardsSearchController();
 
   const queryArgs = searchController.queryArgs;
+  const searchKey = useMemo(() => JSON.stringify(queryArgs), [queryArgs]);
+  const searchTimingRef = useRef({
+    key: searchKey,
+    startedAt: performance.now(),
+  });
+  const reportedSearchKeyRef = useRef<string | null>(null);
   const {
     results: cards,
     status: cardsStatus,
@@ -77,6 +85,42 @@ export function CardsScreen({
   useEffect(() => {
     setRemoteCards(cards);
   }, [cards, setRemoteCards]);
+
+  useEffect(() => {
+    searchTimingRef.current = {
+      key: searchKey,
+      startedAt: performance.now(),
+    };
+    reportedSearchKeyRef.current = null;
+  }, [searchKey]);
+
+  useEffect(() => {
+    if (
+      !searchController.hasActiveSearch ||
+      cardsStatus === "LoadingFirstPage" ||
+      reportedSearchKeyRef.current === searchKey
+    ) {
+      return;
+    }
+    reportedSearchKeyRef.current = searchKey;
+    const durationMs = performance.now() - searchTimingRef.current.startedAt;
+    trackSearch({ durationMs, resultCount: cards.length });
+    addTelemetryBreadcrumb({
+      attributes: {
+        "duration.ms": durationMs,
+        "filter.count": Object.keys(queryArgs).length,
+        "result.count": cards.length,
+      },
+      category: "search",
+      message: "card.search.completed",
+    });
+  }, [
+    cards.length,
+    cardsStatus,
+    queryArgs,
+    searchController.hasActiveSearch,
+    searchKey,
+  ]);
 
   const selectedCard = useMemo(
     () =>

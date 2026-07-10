@@ -85,10 +85,10 @@ describe("card/createCard.ts", () => {
       0,
       expect.anything(),
       expect.objectContaining({
-        event: "card.created",
         cardId: "c1",
         cardType: "quote",
-        surface: "unknown",
+        outcome: "success",
+        source: "unknown",
         userId: "u1",
       })
     );

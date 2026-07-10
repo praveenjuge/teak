@@ -6,6 +6,11 @@ import {
   MAX_BOOKMARK_BYTES,
   MAX_RAINDROP_BYTES,
 } from "@teak/convex/import/constants";
+import {
+  captureClientException,
+  runClientSpan,
+} from "@teak/convex/shared/client-telemetry";
+import { trackLifecycle, trackUpload } from "@teak/convex/shared/metrics";
 import { useAction } from "convex/react";
 import {
   Archive,
@@ -17,7 +22,13 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { type ChangeEvent, type ComponentType, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type ComponentType,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { useQuery } from "../../convexQueryHooks";
 import { Button } from "../ui/button";
@@ -241,6 +252,8 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
     controllersRef.current = new Set<AbortController>();
   }
   const controllers = controllersRef.current;
+  const observedImportIdRef = useRef<string | null>(null);
+  const observedImportStartedAtRef = useRef<number | null>(null);
   const [uploadPercent, setUploadPercent] = useState<number>();
   const [transporting, setTransporting] = useState(false);
   const [pending, setPending] = useState<{
@@ -268,32 +281,103 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       : "skip"
   ) as { item: string; reason: string; sourceIndex: number }[] | undefined;
 
+  useEffect(() => {
+    if (!(latest && latest.id === observedImportIdRef.current)) {
+      return;
+    }
+    const outcome = (
+      {
+        canceled: "cancelled",
+        completed: "success",
+        failed: "failure",
+      } as Partial<
+        Record<ImportJob["status"], "cancelled" | "success" | "failure">
+      >
+    )[latest.status];
+    if (!outcome) {
+      return;
+    }
+    trackLifecycle({
+      durationMs: observedImportStartedAtRef.current
+        ? Date.now() - observedImportStartedAtRef.current
+        : undefined,
+      kind: "import",
+      outcome,
+    });
+    observedImportIdRef.current = null;
+    observedImportStartedAtRef.current = null;
+  }, [latest]);
+
   const performUpload = async (file: File, mode: ImportMode) => {
+    const startedAt = Date.now();
+    trackLifecycle({ kind: "import", outcome: "attempt" });
+    trackUpload({
+      bytes: file.size,
+      fileBucket: "import",
+      outcome: "attempt",
+      source: "import",
+    });
     setTransporting(true);
     setUploadPercent(0);
     onActiveChange?.(true);
     try {
-      let plan: UploadPlan;
-      if (job?.status === "uploading") {
-        plan = (await resumeUpload({
-          fileName: file.name,
-          fileSize: file.size,
-          fileLastModified: file.lastModified,
-        })) as UploadPlan;
-      } else {
-        plan = (await createUpload({
-          mode,
-          fileName: file.name,
-          fileSize: file.size,
-          fileLastModified: file.lastModified,
-        })) as UploadPlan;
-      }
-      await putParts(file, plan, setUploadPercent, controllers);
-      await completeUpload({ jobId: plan.jobId as never });
+      await runClientSpan(
+        {
+          attributes: { "file.bucket": "import", mode },
+          name: "import.upload",
+          operation: "import",
+          stage: "import",
+        },
+        async () => {
+          let plan: UploadPlan;
+          if (job?.status === "uploading") {
+            plan = (await resumeUpload({
+              fileName: file.name,
+              fileSize: file.size,
+              fileLastModified: file.lastModified,
+            })) as UploadPlan;
+          } else {
+            plan = (await createUpload({
+              mode,
+              fileName: file.name,
+              fileSize: file.size,
+              fileLastModified: file.lastModified,
+            })) as UploadPlan;
+          }
+          observedImportIdRef.current = plan.jobId;
+          observedImportStartedAtRef.current = startedAt;
+          await putParts(file, plan, setUploadPercent, controllers);
+          await completeUpload({ jobId: plan.jobId as never });
+        }
+      );
+      trackUpload({
+        bytes: file.size,
+        durationMs: Date.now() - startedAt,
+        fileBucket: "import",
+        outcome: "success",
+        source: "import",
+      });
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === "AbortError")) {
+      const cancelled =
+        error instanceof DOMException && error.name === "AbortError";
+      trackLifecycle({
+        durationMs: Date.now() - startedAt,
+        kind: "import",
+        outcome: cancelled ? "cancelled" : "failure",
+      });
+      trackUpload({
+        bytes: file.size,
+        durationMs: Date.now() - startedAt,
+        fileBucket: "import",
+        outcome: "failure",
+        source: "import",
+      });
+      if (!cancelled) {
+        captureClientException(error, { mode, operation: "import.upload" });
         toast.error(errorMessage(error));
       }
+      observedImportIdRef.current = null;
+      observedImportStartedAtRef.current = null;
     } finally {
       setTransporting(false);
       onActiveChange?.(false);
@@ -346,6 +430,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
     try {
       if (job) {
         await cancelImport({ jobId: job.id as never });
+        trackLifecycle({ kind: "import", outcome: "cancelled" });
       }
     } catch (error) {
       toast.error(errorMessage(error, "Import could not be canceled."));
@@ -383,7 +468,9 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       anchor.download = "teak-import-report.txt";
       anchor.click();
     } catch (error) {
-      toast.error(errorMessage(error, "Import report could not be downloaded."));
+      toast.error(
+        errorMessage(error, "Import report could not be downloaded.")
+      );
     }
   };
 

@@ -1,4 +1,11 @@
 import type { ErrorEvent, EventHint } from "@sentry/nextjs";
+import {
+  buildWebRelease,
+  resolveTelemetryEnvironment,
+  resolveTraceSampleRate,
+  scrubTelemetryValue,
+  type TelemetryEnvironment,
+} from "@teak/convex/shared/telemetry";
 
 const EXTENSION_FRAME_PREFIXES = [
   "app:///scripts/",
@@ -7,21 +14,55 @@ const EXTENSION_FRAME_PREFIXES = [
   "safari-web-extension://",
 ];
 
-export function resolveSentryEnvironment() {
-  if (process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT) {
-    return process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT;
-  }
+export const resolveSentryEnvironment = (): TelemetryEnvironment =>
+  resolveTelemetryEnvironment({
+    explicit:
+      process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ??
+      process.env.SENTRY_ENVIRONMENT,
+    nodeEnvironment: process.env.NODE_ENV,
+    vercelEnvironment: process.env.VERCEL_ENV,
+  });
 
-  if (process.env.SENTRY_ENVIRONMENT) {
-    return process.env.SENTRY_ENVIRONMENT;
-  }
+export const resolveSentryDsn = (): string | undefined =>
+  (process.env.NEXT_PUBLIC_SENTRY_DSN ?? process.env.SENTRY_DSN)?.trim() ||
+  undefined;
 
-  if (process.env.VERCEL_ENV) {
-    return `vercel-${process.env.VERCEL_ENV}`;
-  }
+export const resolveSentryRelease = (): string | undefined =>
+  process.env.NEXT_PUBLIC_SENTRY_RELEASE ??
+  process.env.SENTRY_RELEASE ??
+  buildWebRelease(
+    process.env.NEXT_PUBLIC_APP_VERSION ?? process.env.npm_package_version,
+    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ??
+      process.env.VERCEL_GIT_COMMIT_SHA ??
+      process.env.GITHUB_SHA
+  );
 
-  return process.env.NODE_ENV ?? "development";
+interface WebSamplingContext {
+  attributes?: Record<string, unknown>;
+  name: string;
 }
+
+export const webTracesSampler = ({
+  attributes = {},
+  name,
+}: WebSamplingContext): number =>
+  resolveTraceSampleRate({
+    durationMs:
+      typeof attributes["duration.ms"] === "number"
+        ? attributes["duration.ms"]
+        : undefined,
+    environment: resolveSentryEnvironment(),
+    name,
+    operation:
+      typeof attributes["sentry.op"] === "string"
+        ? attributes["sentry.op"]
+        : undefined,
+    outcome:
+      typeof attributes.outcome === "string" ? attributes.outcome : undefined,
+  });
+
+export const scrubSentryPayload = <T>(payload: T): T =>
+  scrubTelemetryValue(payload) as T;
 
 const isExtensionFrame = (filename?: string) =>
   Boolean(
@@ -78,5 +119,5 @@ export function filterClientSentryEvent(event: ErrorEvent, _hint?: EventHint) {
     return null;
   }
 
-  return event;
+  return scrubSentryPayload(event);
 }

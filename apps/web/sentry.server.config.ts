@@ -4,14 +4,24 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { configureMetrics } from "@teak/convex/shared/metrics";
-import { resolveSentryEnvironment } from "./src/lib/sentry-config";
+import {
+  resolveSentryDsn,
+  resolveSentryEnvironment,
+  resolveSentryRelease,
+  scrubSentryPayload,
+  webTracesSampler,
+} from "./src/lib/sentry-config";
 
 Sentry.init({
-  dsn: "https://9206eebecdbbbd9229ddc419b82165c7@o4509483678236672.ingest.us.sentry.io/4510434608480256",
+  dsn: resolveSentryDsn(),
   environment: resolveSentryEnvironment(),
+  release: resolveSentryRelease(),
+  beforeSend: scrubSentryPayload,
+  beforeSendLog: scrubSentryPayload,
+  beforeSendSpan: scrubSentryPayload,
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: 1,
+  tracesSampler: webTracesSampler,
 
   // Enable logs to be sent to Sentry
   enableLogs: true,
@@ -22,13 +32,13 @@ Sentry.init({
 
   integrations: [
     // send console.log, console.warn, and console.error calls as logs to Sentry
-    Sentry.consoleLoggingIntegration(),
+    Sentry.consoleLoggingIntegration({ levels: ["warn", "error"] }),
   ],
 });
 
 configureMetrics({
   app: "web",
-  env: process.env.NODE_ENV ?? "development",
+  env: resolveSentryEnvironment(),
   recorder: {
     count: (name, value, attributes) =>
       Sentry.metrics.count(name, value, { attributes }),

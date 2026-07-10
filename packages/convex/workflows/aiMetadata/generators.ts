@@ -1,10 +1,17 @@
 import { generateText, Output } from "ai";
 import {
   IMAGE_METADATA_MODEL,
+  IMAGE_METADATA_MODEL_ID,
   LINK_METADATA_MODEL,
+  LINK_METADATA_MODEL_ID,
   SYSTEM_PROMPTS,
   TEXT_METADATA_MODEL,
+  TEXT_METADATA_MODEL_ID,
 } from "../../ai/models";
+import {
+  createAiTelemetrySettings,
+  observeAiGeneration,
+} from "../../ai/telemetry";
 import { aiMetadataSchema } from "./schemas";
 
 /**
@@ -34,22 +41,34 @@ export const generateTextMetadata = async (content: string, title?: string) => {
     : content;
 
   try {
-    const result = await generateText({
-      model: TEXT_METADATA_MODEL,
-      // Static system prompt - will be cached across requests
-      system: SYSTEM_PROMPTS.textAnalysis,
-      // Dynamic content last for cache optimization
-      prompt: `Analyze this content and generate tags and summary:\n\n${fullContent}`,
-      output: Output.object({
-        schema: aiMetadataSchema,
-      }),
-      // Use Groq JSON object mode instead of strict json_schema. gpt-oss
-      // models intermittently echo the schema definition back, which the
-      // strict server-side validator rejects with a 400. In json_object mode
-      // the SDK validates client-side against the Zod schema (unknown keys are
-      // stripped), so leaked schema fields no longer fail the request.
-      providerOptions: GROQ_JSON_OBJECT_OPTIONS,
-    });
+    const result = await observeAiGeneration(
+      {
+        functionId: "teak.ai.metadata.text",
+        model: TEXT_METADATA_MODEL_ID,
+      },
+      () =>
+        generateText({
+          experimental_telemetry: createAiTelemetrySettings({
+            functionId: "teak.ai.metadata.text",
+            model: TEXT_METADATA_MODEL_ID,
+            stage: "ai_metadata",
+          }),
+          model: TEXT_METADATA_MODEL,
+          // Static system prompt - will be cached across requests
+          system: SYSTEM_PROMPTS.textAnalysis,
+          // Dynamic content last for cache optimization
+          prompt: `Analyze this content and generate tags and summary:\n\n${fullContent}`,
+          output: Output.object({
+            schema: aiMetadataSchema,
+          }),
+          // Use Groq JSON object mode instead of strict json_schema. gpt-oss
+          // models intermittently echo the schema definition back, which the
+          // strict server-side validator rejects with a 400. In json_object mode
+          // the SDK validates client-side against the Zod schema (unknown keys are
+          // stripped), so leaked schema fields no longer fail the request.
+          providerOptions: GROQ_JSON_OBJECT_OPTIONS,
+        })
+    );
 
     return {
       aiTags: result.output.tags,
@@ -70,34 +89,46 @@ export const generateImageMetadata = async (
   title?: string
 ) => {
   try {
-    const result = await generateText({
-      model: IMAGE_METADATA_MODEL,
-      // Static system prompt - structured for potential future caching support
-      system: SYSTEM_PROMPTS.imageAnalysis,
-      messages: [
-        {
-          role: "user",
-          content: [
+    const result = await observeAiGeneration(
+      {
+        functionId: "teak.ai.metadata.image",
+        model: IMAGE_METADATA_MODEL_ID,
+      },
+      () =>
+        generateText({
+          experimental_telemetry: createAiTelemetrySettings({
+            functionId: "teak.ai.metadata.image",
+            model: IMAGE_METADATA_MODEL_ID,
+            stage: "ai_metadata",
+          }),
+          model: IMAGE_METADATA_MODEL,
+          // Static system prompt - structured for potential future caching support
+          system: SYSTEM_PROMPTS.imageAnalysis,
+          messages: [
             {
-              type: "text",
-              // Dynamic text content
-              text: title
-                ? `Image title: ${title}\n\nAnalyze this image and generate tags and summary:`
-                : "Analyze this image and generate tags and summary:",
-            },
-            {
-              type: "image",
-              // Dynamic image content
-              image: imageUrl,
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  // Dynamic text content
+                  text: title
+                    ? `Image title: ${title}\n\nAnalyze this image and generate tags and summary:`
+                    : "Analyze this image and generate tags and summary:",
+                },
+                {
+                  type: "image",
+                  // Dynamic image content
+                  image: imageUrl,
+                },
+              ],
             },
           ],
-        },
-      ],
-      output: Output.object({
-        schema: aiMetadataSchema,
-      }),
-      providerOptions: GROQ_JSON_OBJECT_OPTIONS,
-    });
+          output: Output.object({
+            schema: aiMetadataSchema,
+          }),
+          providerOptions: GROQ_JSON_OBJECT_OPTIONS,
+        })
+    );
 
     return {
       aiTags: result.output.tags,
@@ -115,23 +146,35 @@ export const generateImageMetadata = async (
  */
 export const generateLinkMetadata = async (content: string, url?: string) => {
   try {
-    const result = await generateText({
-      model: LINK_METADATA_MODEL,
-      // Static system prompt - will be cached across requests
-      system: SYSTEM_PROMPTS.linkAnalysis,
-      // Dynamic content last for cache optimization
-      prompt: `Analyze this web page content and generate optimized tags and summary for knowledge management:
+    const result = await observeAiGeneration(
+      {
+        functionId: "teak.ai.metadata.link",
+        model: LINK_METADATA_MODEL_ID,
+      },
+      () =>
+        generateText({
+          experimental_telemetry: createAiTelemetrySettings({
+            functionId: "teak.ai.metadata.link",
+            model: LINK_METADATA_MODEL_ID,
+            stage: "ai_metadata",
+          }),
+          model: LINK_METADATA_MODEL,
+          // Static system prompt - will be cached across requests
+          system: SYSTEM_PROMPTS.linkAnalysis,
+          // Dynamic content last for cache optimization
+          prompt: `Analyze this web page content and generate optimized tags and summary for knowledge management:
 
 ${content}
 
 ${url ? `\nURL: ${url}` : ""}
 
 Generate tags and summary that will help the user rediscover and understand the value of this content.`,
-      output: Output.object({
-        schema: aiMetadataSchema,
-      }),
-      providerOptions: GROQ_JSON_OBJECT_OPTIONS,
-    });
+          output: Output.object({
+            schema: aiMetadataSchema,
+          }),
+          providerOptions: GROQ_JSON_OBJECT_OPTIONS,
+        })
+    );
 
     return {
       aiTags: result.output.tags,

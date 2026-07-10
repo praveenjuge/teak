@@ -1,6 +1,11 @@
 "use client";
 
 import { api } from "@teak/convex";
+import {
+  captureClientException,
+  runClientSpan,
+} from "@teak/convex/shared/client-telemetry";
+import { trackAuth, trackLifecycle } from "@teak/convex/shared/metrics";
 import { useAction, useMutation } from "convex/react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -9,10 +14,6 @@ import { useQuery } from "../convexQueryHooks";
 import { openCustomerPortal } from "../lib/customerPortal";
 
 interface UseSettingsControllerOptions {
-  onCaptureError?: (
-    error: unknown,
-    context: { action: string; source: string }
-  ) => void;
   onDeleteAccount: () => Promise<void>;
   /**
    * Trigger a file download for the given URL. Optional; defaults to
@@ -25,7 +26,6 @@ interface UseSettingsControllerOptions {
 }
 
 export function useSettingsController({
-  onCaptureError,
   onDeleteAccount,
   onDownloadFile,
   onOpenExternal,
@@ -85,47 +85,73 @@ export function useSettingsController({
   const getExportDownloadUrl = useAction(api.dataExport.getExportDownloadUrl);
 
   const handleStartExport = async () => {
-    const result = (await startExportMutation({})) as {
-      started: boolean;
-      reason?: "quota_exceeded" | "already_active";
-      quotaResetMs?: number;
-    };
-    if (!result.started && result.reason === "quota_exceeded") {
-      throw new Error("Weekly export limit reached.");
-    }
-    if (!result.started && result.reason === "already_active") {
-      // An export is already pending/running; surface as a failure so the
-      // dialog does not show a misleading "export started" success toast.
-      throw new Error("An export is already in progress.");
+    const startedAt = Date.now();
+    trackLifecycle({ kind: "export", outcome: "attempt" });
+    try {
+      await runClientSpan(
+        { name: "export.start", operation: "export", stage: "export" },
+        async () => {
+          const result = (await startExportMutation({})) as {
+            started: boolean;
+            reason?: "quota_exceeded" | "already_active";
+            quotaResetMs?: number;
+          };
+          if (!result.started && result.reason === "quota_exceeded") {
+            throw new Error("Weekly export limit reached.");
+          }
+          if (!result.started && result.reason === "already_active") {
+            throw new Error("An export is already in progress.");
+          }
+        }
+      );
+      trackLifecycle({
+        durationMs: Date.now() - startedAt,
+        kind: "export",
+        outcome: "success",
+      });
+    } catch (error) {
+      trackLifecycle({
+        durationMs: Date.now() - startedAt,
+        kind: "export",
+        outcome: "failure",
+      });
+      captureClientException(error, { operation: "export.start" });
+      throw error;
     }
   };
 
   const handleCancelExport = async (jobId: string) => {
-    await cancelExportMutation({ jobId: jobId as never });
+    await runClientSpan(
+      { name: "export.cancel", operation: "export", stage: "export" },
+      () => cancelExportMutation({ jobId: jobId as never })
+    );
+    trackLifecycle({ kind: "export", outcome: "cancelled" });
   };
 
   const handleDownloadExport = async (jobId: string) => {
-    const result = (await getExportDownloadUrl({ jobId: jobId as never })) as {
-      url: string;
-      expiresInSeconds: number;
-    } | null;
-    if (!result?.url) {
-      throw new Error("Download is not available.");
-    }
-    await (onDownloadFile ?? onOpenExternal)(result.url);
+    await runClientSpan(
+      { name: "export.download", operation: "export", stage: "export" },
+      async () => {
+        const result = (await getExportDownloadUrl({
+          jobId: jobId as never,
+        })) as { url: string; expiresInSeconds: number } | null;
+        if (!result?.url) {
+          throw new Error("Download is not available.");
+        }
+        await (onDownloadFile ?? onOpenExternal)(result.url);
+      }
+    );
   };
 
-  const handleCreateApiKey = async () => {
-    return (await createKey({ name: "Default API key" })) as { key: string };
-  };
+  const handleCreateApiKey = async () =>
+    (await createKey({ name: "Default API key" })) as { key: string };
 
   const handleRevokeApiKey = async (keyId: string) => {
     await revokeKey({ keyId });
   };
 
-  const handleRotateApiKey = async (keyId: string) => {
-    return (await rotateKey({ keyId })) as { key: string };
-  };
+  const handleRotateApiKey = async (keyId: string) =>
+    (await rotateKey({ keyId })) as { key: string };
 
   const handleCreateCustomerPortal = async () => {
     const toastId = toast.loading("Opening customer portal...", {
@@ -133,16 +159,22 @@ export function useSettingsController({
     });
 
     try {
-      await openCustomerPortal({
-        createCustomerPortal: () => createCustomerPortal({}),
-        openPortal: onOpenExternal,
-      });
+      await runClientSpan(
+        {
+          name: "billing.customer_portal",
+          operation: "billing",
+          stage: "checkout",
+        },
+        () =>
+          openCustomerPortal({
+            createCustomerPortal: () => createCustomerPortal({}),
+            openPortal: onOpenExternal,
+          })
+      );
       toast.success("Customer portal opened", { id: toastId });
     } catch (error) {
-      console.error("Failed to open customer portal", error);
-      onCaptureError?.(error, {
-        action: "billing:createCustomerPortal",
-        source: "convex",
+      captureClientException(error, {
+        operation: "billing.customer_portal",
       });
       toast.error("Could not open portal", { id: toastId });
     }
@@ -156,6 +188,7 @@ export function useSettingsController({
       await onDeleteAccount();
       setDeleteDialogOpen(false);
     } catch (error) {
+      captureClientException(error, { operation: "account.delete" });
       setDeleteError(
         error instanceof Error
           ? error.message
@@ -168,9 +201,16 @@ export function useSettingsController({
 
   const handleSignOut = async () => {
     setSignOutLoading(true);
+    trackAuth({ outcome: "attempt", stage: "sign_in" });
     try {
-      await onSignOut();
-    } catch {
+      await runClientSpan(
+        { name: "auth.sign_out", operation: "auth", stage: "sign_in" },
+        async () => await onSignOut()
+      );
+      trackAuth({ outcome: "success", stage: "sign_in" });
+    } catch (error) {
+      trackAuth({ outcome: "failure", stage: "sign_in" });
+      captureClientException(error, { operation: "auth.sign_out" });
       toast.error("Failed to sign out. Please try again.");
     } finally {
       setSignOutLoading(false);

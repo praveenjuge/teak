@@ -1,7 +1,7 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
-import { trackCardCreated } from "@teak/convex/shared/metrics";
+import { trackCardCreateAttempt } from "@teak/convex/shared/metrics";
 import { Button } from "@teak/ui/components/ui/button";
 import { Card, CardContent } from "@teak/ui/components/ui/card";
 import { Textarea } from "@teak/ui/components/ui/textarea";
@@ -200,6 +200,11 @@ export function AddCardForm({
 
     const toastId = toast.loading("Saving note...");
     setIsSubmitting(true);
+    trackCardCreateAttempt({
+      cardType: "text",
+      source: "web",
+      via: "text_form",
+    });
 
     try {
       // Intentionally omit `type` so the server auto-classifies the note.
@@ -210,11 +215,6 @@ export function AddCardForm({
       });
 
       onSuccess?.();
-      trackCardCreated({
-        cardType: "text",
-        source: "web",
-        via: "text_form",
-      });
       toast.success("Note saved", { id: toastId });
       return true;
     } catch (error) {

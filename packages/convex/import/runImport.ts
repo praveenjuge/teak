@@ -10,8 +10,13 @@ import {
 import { v } from "convex/values";
 import yauzl from "yauzl";
 import { internal } from "../_generated/api";
-import { internalAction } from "../_generated/server";
+import { type ActionCtx, internalAction } from "../_generated/server";
+import { TELEMETRY_OPERATIONS } from "../shared/telemetry";
 import { buildR2UserPrefix } from "../storage/r2";
+import {
+  recordBackendHandledFailure,
+  withBackendSpan,
+} from "../telemetry/sentry";
 import { type ParsedBookmarkItem, parseBookmarksHtml } from "./bookmarks";
 import {
   IMPORT_INDEX_BATCH,
@@ -31,6 +36,29 @@ import {
 } from "./validate";
 
 const internalAny = internal as Record<string, any>;
+
+const observeImport =
+  <TArgs, TResult>(
+    name: string,
+    handler: (ctx: ActionCtx, args: TArgs) => Promise<TResult>
+  ) =>
+  (ctx: ActionCtx, args: TArgs): Promise<TResult> =>
+    withBackendSpan(
+      {
+        name,
+        operation: TELEMETRY_OPERATIONS.import,
+        stage: "import",
+        surface: "backend",
+        workflowId:
+          args &&
+          typeof args === "object" &&
+          "jobId" in args &&
+          typeof args.jobId === "string"
+            ? args.jobId
+            : undefined,
+      },
+      () => handler(ctx, args)
+    );
 
 class R2RangeReader extends yauzl.RandomAccessReader {
   private readonly client: ReturnType<typeof createImportS3Client>;
@@ -286,83 +314,96 @@ async function indexParsedBookmarks(
 export const indexImportSource = internalAction({
   args: { jobId: v.id("importJobs") },
   returns: v.object({ ok: v.boolean(), failureClass: v.optional(v.string()) }),
-  handler: async (ctx, { jobId }) => {
-    const job = await ctx.runQuery(internalAny.dataImport.getJob, { jobId });
-    if (!job) {
-      return { ok: false, failureClass: "missing_job" };
-    }
-    const config = getImportR2Config();
-    const client = createImportS3Client(config);
-    try {
-      if (job.mode === "bookmarks" || job.mode === "raindrop") {
-        const isRaindrop = job.mode === "raindrop";
-        const maxBytes = isRaindrop ? MAX_RAINDROP_BYTES : MAX_BOOKMARK_BYTES;
-        if (job.fileSize > maxBytes) {
-          throw new Error(
-            isRaindrop
-              ? "Raindrop CSV exceeds 20 MiB"
-              : "Bookmark file exceeds 20 MiB"
-          );
-        }
-        const response = await client.send(
-          new GetObjectCommand({ Bucket: config.bucket, Key: job.sourceKey })
-        );
-        const bytes = await response.Body?.transformToByteArray();
-        if (!bytes || bytes.byteLength !== job.fileSize) {
-          throw new Error(
-            isRaindrop
-              ? "Raindrop source could not be read"
-              : "Bookmark source could not be read"
-          );
-        }
-        const text = Buffer.from(bytes).toString("utf8");
-        const parsed = isRaindrop
-          ? parseRaindropCsv(text)
-          : parseBookmarksHtml(text);
-        await indexParsedBookmarks(ctx, jobId, parsed, job.mode as ImportMode);
-      } else {
-        const zip = await openZip(
-          client,
-          config.bucket,
-          job.sourceKey,
-          job.fileSize
-        );
-        try {
-          const index = await readZipIndex(zip);
-          const manifest = index.manifest as any;
-          const version = manifest?.version ?? manifest?.exportVersion;
-          if (version !== 1) {
-            throw new Error("Unsupported Teak archive version");
+  handler: observeImport(
+    "import.index",
+    async (ctx, { jobId }: { jobId: string }) => {
+      const job = await ctx.runQuery(internalAny.dataImport.getJob, { jobId });
+      if (!job) {
+        return { ok: false, failureClass: "missing_job" };
+      }
+      const config = getImportR2Config();
+      const client = createImportS3Client(config);
+      try {
+        if (job.mode === "bookmarks" || job.mode === "raindrop") {
+          const isRaindrop = job.mode === "raindrop";
+          const maxBytes = isRaindrop ? MAX_RAINDROP_BYTES : MAX_BOOKMARK_BYTES;
+          if (job.fileSize > maxBytes) {
+            throw new Error(
+              isRaindrop
+                ? "Raindrop CSV exceeds 20 MiB"
+                : "Bookmark file exceeds 20 MiB"
+            );
           }
-          const rawCards = Array.isArray(manifest?.cards)
-            ? manifest.cards
-            : index.cards;
-          if (!Array.isArray(rawCards)) {
-            throw new Error("Archive is missing cards");
+          const response = await client.send(
+            new GetObjectCommand({ Bucket: config.bucket, Key: job.sourceKey })
+          );
+          const bytes = await response.Body?.transformToByteArray();
+          if (!bytes || bytes.byteLength !== job.fileSize) {
+            throw new Error(
+              isRaindrop
+                ? "Raindrop source could not be read"
+                : "Bookmark source could not be read"
+            );
           }
-          assertImportCardCount(rawCards.length, job.mode as ImportMode);
-          const seen = new Set<string>();
-          await storeItems(
+          const text = Buffer.from(bytes).toString("utf8");
+          const parsed = isRaindrop
+            ? parseRaindropCsv(text)
+            : parseBookmarksHtml(text);
+          await indexParsedBookmarks(
             ctx,
             jobId,
-            rawCards.map((card, sourceIndex) =>
-              normalizeIndexItem(card, sourceIndex, index.entries, seen)
-            )
+            parsed,
+            job.mode as ImportMode
           );
-        } finally {
-          zip.close();
+        } else {
+          const zip = await openZip(
+            client,
+            config.bucket,
+            job.sourceKey,
+            job.fileSize
+          );
+          try {
+            const index = await readZipIndex(zip);
+            const manifest = index.manifest as any;
+            const version = manifest?.version ?? manifest?.exportVersion;
+            if (version !== 1) {
+              throw new Error("Unsupported Teak archive version");
+            }
+            const rawCards = Array.isArray(manifest?.cards)
+              ? manifest.cards
+              : index.cards;
+            if (!Array.isArray(rawCards)) {
+              throw new Error("Archive is missing cards");
+            }
+            assertImportCardCount(rawCards.length, job.mode as ImportMode);
+            const seen = new Set<string>();
+            await storeItems(
+              ctx,
+              jobId,
+              rawCards.map((card, sourceIndex) =>
+                normalizeIndexItem(card, sourceIndex, index.entries, seen)
+              )
+            );
+          } finally {
+            zip.close();
+          }
         }
+        return { ok: true };
+      } catch (error) {
+        recordBackendHandledFailure(error, {
+          operation: TELEMETRY_OPERATIONS.import,
+          stage: "import",
+        });
+        return {
+          ok: false,
+          failureClass:
+            error instanceof Error
+              ? error.message.slice(0, 160)
+              : "parse_failed",
+        };
       }
-      return { ok: true };
-    } catch (error) {
-      console.error("[import/index]", error);
-      return {
-        ok: false,
-        failureClass:
-          error instanceof Error ? error.message.slice(0, 160) : "parse_failed",
-      };
     }
-  },
+  ),
 });
 
 function deterministicFileKey(
@@ -379,191 +420,158 @@ function deterministicFileKey(
 export const extractImportFiles = internalAction({
   args: { jobId: v.id("importJobs"), itemIds: v.array(v.id("importJobItems")) },
   returns: v.object({ ok: v.boolean(), failureClass: v.optional(v.string()) }),
-  handler: async (ctx, { jobId, itemIds }) => {
-    const job = await ctx.runQuery(internalAny.dataImport.getJob, { jobId });
-    if (job?.mode !== "archive") {
-      return { ok: false, failureClass: "missing_archive" };
-    }
-    const items = await ctx.runQuery(internalAny.dataImport.getItemsByIds, {
-      jobId,
-      itemIds,
-    });
-    const needed = new Map<string, any>(
-      items
-        .filter((item: any) => item.filePath && !item.extractedFileKey)
-        .map((item: any) => [item.filePath, item] as [string, any])
-    );
-    if (!needed.size) {
-      return { ok: true };
-    }
-    const config = getImportR2Config();
-    const client = createImportS3Client(config);
-    const zip = await openZip(
-      client,
-      config.bucket,
-      job.sourceKey,
-      job.fileSize
-    );
-    try {
-      await new Promise<void>((resolve, reject) => {
-        zip.on("error", reject);
-        zip.on("end", resolve);
-        zip.on("entry", (entry) => {
-          void (async () => {
-            const item = needed.get(entry.fileName);
-            if (item) {
-              const key = deterministicFileKey(
-                job.userId,
-                jobId,
-                item._id,
-                item.fileName ?? "file"
-              );
-              const stream = await new Promise<Readable>((res, rej) =>
-                zip.openReadStream(entry, (error, value) =>
-                  error || !value
-                    ? rej(error ?? new Error("Unreadable file entry"))
-                    : res(value)
-                )
-              );
-              await client.send(
-                new PutObjectCommand({
-                  Bucket: config.bucket,
-                  Key: key,
-                  Body: stream,
-                  ContentLength: entry.uncompressedSize,
-                  ContentType: item.mimeType,
-                })
-              );
-              await ctx.runMutation(internalAny.dataImport.setExtractedFile, {
-                itemId: item._id,
-                key,
-              });
-              needed.delete(entry.fileName);
-            }
-            zip.readEntry();
-          })().catch(reject);
-        });
-        zip.readEntry();
-      });
-      if (needed.size) {
-        return { ok: false, failureClass: "missing_file_entry" };
+  handler: observeImport(
+    "import.extract_files",
+    async (ctx, { jobId, itemIds }: { jobId: string; itemIds: string[] }) => {
+      const job = await ctx.runQuery(internalAny.dataImport.getJob, { jobId });
+      if (job?.mode !== "archive") {
+        return { ok: false, failureClass: "missing_archive" };
       }
-      return { ok: true };
-    } catch (error) {
-      return {
-        ok: false,
-        failureClass:
-          error instanceof Error
-            ? error.message.slice(0, 160)
-            : "file_extract_failed",
-      };
-    } finally {
-      zip.close();
+      const items = await ctx.runQuery(internalAny.dataImport.getItemsByIds, {
+        jobId,
+        itemIds,
+      });
+      const needed = new Map<string, any>(
+        items
+          .filter((item: any) => item.filePath && !item.extractedFileKey)
+          .map((item: any) => [item.filePath, item] as [string, any])
+      );
+      if (!needed.size) {
+        return { ok: true };
+      }
+      const config = getImportR2Config();
+      const client = createImportS3Client(config);
+      const zip = await openZip(
+        client,
+        config.bucket,
+        job.sourceKey,
+        job.fileSize
+      );
+      try {
+        await new Promise<void>((resolve, reject) => {
+          zip.on("error", reject);
+          zip.on("end", resolve);
+          zip.on("entry", (entry) => {
+            void (async () => {
+              const item = needed.get(entry.fileName);
+              if (item) {
+                const key = deterministicFileKey(
+                  job.userId,
+                  jobId,
+                  item._id,
+                  item.fileName ?? "file"
+                );
+                const stream = await new Promise<Readable>((res, rej) =>
+                  zip.openReadStream(entry, (error, value) =>
+                    error || !value
+                      ? rej(error ?? new Error("Unreadable file entry"))
+                      : res(value)
+                  )
+                );
+                await client.send(
+                  new PutObjectCommand({
+                    Bucket: config.bucket,
+                    Key: key,
+                    Body: stream,
+                    ContentLength: entry.uncompressedSize,
+                    ContentType: item.mimeType,
+                  })
+                );
+                await ctx.runMutation(internalAny.dataImport.setExtractedFile, {
+                  itemId: item._id,
+                  key,
+                });
+                needed.delete(entry.fileName);
+              }
+              zip.readEntry();
+            })().catch(reject);
+          });
+          zip.readEntry();
+        });
+        if (needed.size) {
+          return { ok: false, failureClass: "missing_file_entry" };
+        }
+        return { ok: true };
+      } catch (error) {
+        return {
+          ok: false,
+          failureClass:
+            error instanceof Error
+              ? error.message.slice(0, 160)
+              : "file_extract_failed",
+        };
+      } finally {
+        zip.close();
+      }
     }
-  },
+  ),
 });
 
 export const finalizeImportObjects = internalAction({
   args: { jobId: v.id("importJobs") },
   returns: v.object({ reportKey: v.optional(v.string()) }),
-  handler: async (ctx, { jobId }) => {
-    const job = await ctx.runQuery(internalAny.dataImport.getJob, { jobId });
-    if (!job) {
-      return {};
-    }
-    const config = getImportR2Config();
-    const client = createImportS3Client(config);
-    let reportKey: string | undefined;
-    if (job.failedCount > 0) {
-      const lines = [
-        "Teak import report",
-        `Created: ${job.createdCount}`,
-        `Skipped: ${job.skippedCount}`,
-        `Failed: ${job.failedCount}`,
-        "",
-      ];
-      let cursor: string | null = null;
-      do {
-        const page: any = await ctx.runQuery(
-          internalAny.dataImport.getFailureReportRows,
-          { jobId, cursor, limit: 200 }
-        );
-        for (const item of page.page) {
-          lines.push(
-            `${item.sourceIndex + 1}. ${item.content || item.fileName}: ${item.failureReason ?? "Import failed"}`
+  handler: observeImport(
+    "import.finalize",
+    async (ctx, { jobId }: { jobId: string }) => {
+      const job = await ctx.runQuery(internalAny.dataImport.getJob, { jobId });
+      if (!job) {
+        return {};
+      }
+      const config = getImportR2Config();
+      const client = createImportS3Client(config);
+      let reportKey: string | undefined;
+      if (job.failedCount > 0) {
+        const lines = [
+          "Teak import report",
+          `Created: ${job.createdCount}`,
+          `Skipped: ${job.skippedCount}`,
+          `Failed: ${job.failedCount}`,
+          "",
+        ];
+        let cursor: string | null = null;
+        do {
+          const page: any = await ctx.runQuery(
+            internalAny.dataImport.getFailureReportRows,
+            { jobId, cursor, limit: 200 }
           );
-        }
-        cursor = page.isDone ? null : page.continueCursor;
-      } while (cursor);
-      reportKey = `${buildR2UserPrefix(job.userId)}/imports/${jobId}/error-report.txt`;
-      await client.send(
-        new PutObjectCommand({
-          Bucket: config.bucket,
-          Key: reportKey,
-          Body: lines.join("\n"),
-          ContentType: "text/plain; charset=utf-8",
-          ContentDisposition: 'attachment; filename="teak-import-report.txt"',
-        })
-      );
+          for (const item of page.page) {
+            lines.push(
+              `${item.sourceIndex + 1}. ${item.content || item.fileName}: ${item.failureReason ?? "Import failed"}`
+            );
+          }
+          cursor = page.isDone ? null : page.continueCursor;
+        } while (cursor);
+        reportKey = `${buildR2UserPrefix(job.userId)}/imports/${jobId}/error-report.txt`;
+        await client.send(
+          new PutObjectCommand({
+            Bucket: config.bucket,
+            Key: reportKey,
+            Body: lines.join("\n"),
+            ContentType: "text/plain; charset=utf-8",
+            ContentDisposition: 'attachment; filename="teak-import-report.txt"',
+          })
+        );
+      }
+      await client
+        .send(
+          new DeleteObjectCommand({ Bucket: config.bucket, Key: job.sourceKey })
+        )
+        .catch(() => undefined);
+      return { reportKey };
     }
-    await client
-      .send(
-        new DeleteObjectCommand({ Bucket: config.bucket, Key: job.sourceKey })
-      )
-      .catch(() => undefined);
-    return { reportKey };
-  },
+  ),
 });
 
 export const cleanupImportJob = internalAction({
   args: { jobId: v.id("importJobs") },
   returns: v.null(),
-  handler: async (ctx, { jobId }) => {
-    const job = await ctx.runQuery(internalAny.dataImport.getJob, { jobId });
-    if (!job) {
-      return null;
-    }
-    const config = getImportR2Config();
-    const client = createImportS3Client(config);
-    if (job.uploadId) {
-      await client
-        .send(
-          new AbortMultipartUploadCommand({
-            Bucket: config.bucket,
-            Key: job.sourceKey,
-            UploadId: job.uploadId,
-          })
-        )
-        .catch(() => undefined);
-    }
-    for (const key of [job.sourceKey, job.reportKey].filter(Boolean)) {
-      await client
-        .send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }))
-        .catch(() => undefined);
-    }
-    for (;;) {
-      const result = await ctx.runMutation(
-        internalAny.dataImport.deleteItemsPage,
-        { jobId, limit: 200 }
-      );
-      if (!result.count) {
-        break;
+  handler: observeImport(
+    "import.cleanup",
+    async (ctx, { jobId }: { jobId: string }) => {
+      const job = await ctx.runQuery(internalAny.dataImport.getJob, { jobId });
+      if (!job) {
+        return null;
       }
-    }
-    await ctx.runMutation(internalAny.dataImport.deleteJob, { jobId });
-    return null;
-  },
-});
-
-export const cleanupExpiredUploads = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: async (ctx) => {
-    const jobs = await ctx.runQuery(internalAny.dataImport.findExpiredUploads, {
-      now: Date.now(),
-      limit: 50,
-    });
-    for (const job of jobs) {
       const config = getImportR2Config();
       const client = createImportS3Client(config);
       if (job.uploadId) {
@@ -577,19 +585,70 @@ export const cleanupExpiredUploads = internalAction({
           )
           .catch(() => undefined);
       }
-      await client
-        .send(
-          new DeleteObjectCommand({ Bucket: config.bucket, Key: job.sourceKey })
-        )
-        .catch(() => undefined);
-      await ctx.runMutation(internalAny.dataImport.finishJob, {
-        jobId: job._id,
-        status: "failed",
-        failureClass: "upload_expired",
-      });
+      for (const key of [job.sourceKey, job.reportKey].filter(Boolean)) {
+        await client
+          .send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }))
+          .catch(() => undefined);
+      }
+      for (;;) {
+        const result = await ctx.runMutation(
+          internalAny.dataImport.deleteItemsPage,
+          { jobId, limit: 200 }
+        );
+        if (!result.count) {
+          break;
+        }
+      }
+      await ctx.runMutation(internalAny.dataImport.deleteJob, { jobId });
+      return null;
     }
-    return null;
-  },
+  ),
+});
+
+export const cleanupExpiredUploads = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: observeImport(
+    "import.cleanup_expired",
+    async (ctx, _args: Record<string, never>) => {
+      const jobs = await ctx.runQuery(
+        internalAny.dataImport.findExpiredUploads,
+        {
+          now: Date.now(),
+          limit: 50,
+        }
+      );
+      for (const job of jobs) {
+        const config = getImportR2Config();
+        const client = createImportS3Client(config);
+        if (job.uploadId) {
+          await client
+            .send(
+              new AbortMultipartUploadCommand({
+                Bucket: config.bucket,
+                Key: job.sourceKey,
+                UploadId: job.uploadId,
+              })
+            )
+            .catch(() => undefined);
+        }
+        await client
+          .send(
+            new DeleteObjectCommand({
+              Bucket: config.bucket,
+              Key: job.sourceKey,
+            })
+          )
+          .catch(() => undefined);
+        await ctx.runMutation(internalAny.dataImport.finishJob, {
+          jobId: job._id,
+          status: "failed",
+          failureClass: "upload_expired",
+        });
+      }
+      return null;
+    }
+  ),
 });
 
 export const deleteAccountImportObjects = internalAction({

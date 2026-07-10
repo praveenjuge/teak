@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  captureClientException,
+  runClientSpan,
+} from "../../shared/client-telemetry";
 import type { CardErrorCode, CardType } from "../../shared/constants";
 import {
   CARD_ERROR_CODES,
@@ -6,19 +10,11 @@ import {
   MAX_FILE_SIZE,
   MAX_FILES_PER_UPLOAD,
 } from "../../shared/constants";
+import { trackUpload } from "../../shared/metrics";
 import type {
   UploadFileResult,
   UploadMultipleFilesResultItem,
 } from "../../shared/types";
-
-// Sentry capture function - will be injected by platform-specific wrappers
-type SentryCaptureFunction = (
-  error: unknown,
-  context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }
-) => void;
-let captureException: SentryCaptureFunction = () => {
-  // noop until a platform-specific capture function is injected
-};
 
 // Best-effort image dimension extraction (browser-only).
 // Returns undefined when dimensions cannot be determined or we're in a non-DOM environment.
@@ -96,10 +92,6 @@ export function inferCardType(
     return "document";
   }
   return;
-}
-
-export function setFileUploadSentryCaptureFunction(fn: SentryCaptureFunction) {
-  captureException = fn;
 }
 
 export interface UnifiedFileUploadConfig {
@@ -200,6 +192,13 @@ const isAbortError = (error: unknown) =>
 
 const shouldCaptureUploadError = (errorCode?: CardErrorCode) =>
   errorCode !== CARD_ERROR_CODES.FILE_TOO_LARGE;
+
+const fileBucket = (mimeType?: string): string => {
+  const bucket = mimeType?.split("/", 1)[0] ?? "unknown";
+  return ["audio", "image", "text", "video"].includes(bucket)
+    ? bucket
+    : "document";
+};
 
 const throwIfAborted = (signal: AbortSignal) => {
   if (signal.aborted) {
@@ -335,6 +334,14 @@ export function useFileUploadCore(
       setIsUploading(true);
       setProgress(0);
       setError(null);
+      const startedAt = Date.now();
+      const bucket = fileBucket(file.type);
+      trackUpload({
+        bytes: file.size,
+        fileBucket: bucket,
+        outcome: "attempt",
+        source: "unknown",
+      });
 
       try {
         // Validate file size
@@ -397,17 +404,26 @@ export function useFileUploadCore(
         config.onProgress?.(25);
         setProgress(25);
 
-        const uploadResponse = await uploadWithTransientRetry(
+        const uploadResponse = await runClientSpan(
+          {
+            attributes: { bytes: file.size, "file.bucket": bucket },
+            name: "card.upload",
+            operation: "storage.upload",
+            stage: "upload",
+          },
           () =>
-            fetch(uploadUrl, {
-              method: "PUT",
-              headers: {
-                "Content-Type": file.type || "application/octet-stream",
-              },
-              body: file,
-              signal,
-            }),
-          signal
+            uploadWithTransientRetry(
+              () =>
+                fetch(uploadUrl, {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": file.type || "application/octet-stream",
+                  },
+                  body: file,
+                  signal,
+                }),
+              signal
+            )
         );
 
         if (!uploadResponse.ok) {
@@ -443,12 +459,27 @@ export function useFileUploadCore(
         config.onProgress?.(100);
         setProgress(100);
         config.onSuccess?.(finalizeResult.cardId);
+        trackUpload({
+          bytes: file.size,
+          durationMs: Date.now() - startedAt,
+          fileBucket: bucket,
+          outcome: "success",
+          source: "unknown",
+        });
 
         return { success: true, cardId: finalizeResult.cardId };
       } catch (error) {
         if (isAbortError(error)) {
           return { success: false, error: "Upload cancelled" };
         }
+
+        trackUpload({
+          bytes: file.size,
+          durationMs: Date.now() - startedAt,
+          fileBucket: bucket,
+          outcome: "failure",
+          source: "unknown",
+        });
 
         const errorMessage =
           error instanceof Error ? error.message : "Upload failed";
@@ -466,14 +497,10 @@ export function useFileUploadCore(
         }
 
         if (shouldCaptureUploadError(fileError.code)) {
-          captureException(error, {
-            tags: { source: "convex", operation: "fileUpload" },
-            extra: {
-              fileName: file.name,
-              fileType: file.type,
-              fileSize: file.size,
-              errorCode: fileError.code,
-            },
+          captureClientException(error, {
+            "error.code": fileError.code,
+            "file.bucket": bucket,
+            operation: "storage.upload",
           });
         }
 
@@ -511,6 +538,14 @@ export function useFileUploadCore(
       setIsUploading(true);
       setProgress(0);
       setError(null);
+      const startedAt = Date.now();
+      const bucket = fileBucket(type);
+      trackUpload({
+        bytes: size,
+        fileBucket: bucket,
+        outcome: "attempt",
+        source: "unknown",
+      });
 
       try {
         if (!uploadBinaryFromUri) {
@@ -573,15 +608,24 @@ export function useFileUploadCore(
         config.onProgress?.(25);
         setProgress(25);
 
-        const uploadResponse = await uploadWithTransientRetry(
+        const uploadResponse = await runClientSpan(
+          {
+            attributes: { bytes: size, "file.bucket": bucket },
+            name: "card.upload",
+            operation: "storage.upload",
+            stage: "upload",
+          },
           () =>
-            uploadBinaryFromUri({
-              fileUri: uri,
-              uploadUrl,
-              contentType: type || "application/octet-stream",
-              signal,
-            }),
-          signal
+            uploadWithTransientRetry(
+              () =>
+                uploadBinaryFromUri({
+                  fileUri: uri,
+                  uploadUrl,
+                  contentType: type || "application/octet-stream",
+                  signal,
+                }),
+              signal
+            )
         );
 
         if (!uploadResponse.ok) {
@@ -616,12 +660,27 @@ export function useFileUploadCore(
         config.onProgress?.(100);
         setProgress(100);
         config.onSuccess?.(finalizeResult.cardId);
+        trackUpload({
+          bytes: size,
+          durationMs: Date.now() - startedAt,
+          fileBucket: bucket,
+          outcome: "success",
+          source: "unknown",
+        });
 
         return { success: true, cardId: finalizeResult.cardId };
       } catch (error) {
         if (isAbortError(error)) {
           return { success: false, error: "Upload cancelled" };
         }
+
+        trackUpload({
+          bytes: size,
+          durationMs: Date.now() - startedAt,
+          fileBucket: bucket,
+          outcome: "failure",
+          source: "unknown",
+        });
 
         const errorMessage =
           error instanceof Error ? error.message : "Upload failed";
@@ -639,14 +698,10 @@ export function useFileUploadCore(
         }
 
         if (shouldCaptureUploadError(fileError.code)) {
-          captureException(error, {
-            tags: { source: "convex", operation: "fileUpload" },
-            extra: {
-              fileName: name,
-              fileType: type,
-              fileSize: size,
-              errorCode: fileError.code,
-            },
+          captureClientException(error, {
+            "error.code": fileError.code,
+            "file.bucket": bucket,
+            operation: "storage.upload",
           });
         }
 

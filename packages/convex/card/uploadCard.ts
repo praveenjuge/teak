@@ -5,6 +5,10 @@ import { ensureCardCreationAllowed } from "../auth";
 import { type CardType, cardTypeValidator } from "../schema";
 import { buildR2ObjectKey, buildR2UserPrefix, r2 } from "../storage/r2";
 import {
+  scheduleCardOutcome,
+  scheduleUploadOutcome,
+} from "../telemetry/schedule";
+import {
   buildInitialProcessingStatus,
   stageCompleted,
 } from "./processingStatus";
@@ -75,6 +79,13 @@ export const uploadAndCreateCard = mutation({
       return { success: false, error: "User must be authenticated" };
     }
 
+    await scheduleUploadOutcome(ctx, {
+      bytes: _args.fileSize,
+      fileBucket: _args.cardType,
+      outcome: "attempt",
+      userId: user.subject,
+    });
+
     try {
       // Check rate limit and card count limit
       await ensureCardCreationAllowed(ctx, user.subject);
@@ -94,6 +105,12 @@ export const uploadAndCreateCard = mutation({
         cardId: undefined, // Will be set after successful upload
       };
     } catch (error) {
+      await scheduleUploadOutcome(ctx, {
+        bytes: _args.fileSize,
+        fileBucket: _args.cardType,
+        outcome: "failure",
+        userId: user.subject,
+      });
       if (
         error instanceof ConvexError &&
         typeof error.data === "object" &&
@@ -238,6 +255,20 @@ export const createUploadedCardForUser = async (
     { cardId }
   );
 
+  await scheduleCardOutcome(ctx, {
+    cardId,
+    cardType,
+    outcome: "success",
+    source: "unknown",
+    userId: args.userId,
+  });
+  await scheduleUploadOutcome(ctx, {
+    bytes: args.storedFileSize ?? args.fileSize,
+    fileBucket: cardType,
+    outcome: "success",
+    userId: args.userId,
+  });
+
   return cardId;
 };
 
@@ -280,6 +311,19 @@ export const finalizeUploadedCard = mutation({
 
       return { success: true, cardId };
     } catch (error) {
+      await scheduleCardOutcome(ctx, {
+        cardType: args.cardType,
+        errorClass: error instanceof Error ? error.name : "UnknownError",
+        outcome: "failure",
+        source: "unknown",
+        userId: user.subject,
+      });
+      await scheduleUploadOutcome(ctx, {
+        bytes: args.fileSize,
+        fileBucket: args.cardType,
+        outcome: "failure",
+        userId: user.subject,
+      });
       if (
         error instanceof ConvexError &&
         typeof error.data === "object" &&

@@ -1,6 +1,7 @@
-import { createRequire } from "node:module";
 import { createServer, type Server } from "node:http";
+import { createRequire } from "node:module";
 import { join } from "node:path";
+import { TELEMETRY_METRICS } from "@teak/convex/shared/telemetry";
 import type {
   BrowserWindow as BrowserWindowInstance,
   MenuItemConstructorOptions,
@@ -9,6 +10,13 @@ import type {
 import electronUpdater from "electron-updater";
 import { OAUTH_CALLBACK_CHANNEL } from "./channels";
 import { isMicrophoneCheck, isMicrophoneOnlyRequest } from "./mediaPermissions";
+import {
+  captureDesktopMainException,
+  configureDesktopMainContext,
+  logDesktopMain,
+  recordDesktopMainCount,
+  recordDesktopMainDistribution,
+} from "./sentry";
 import { createStore, readStoreValue, writeStoreValue } from "./store";
 
 // Route the `electron` import through Node's CJS loader.
@@ -26,16 +34,25 @@ import { createStore, readStoreValue, writeStoreValue } from "./store";
 // actually read it. Fix for the Electron ESM keychain issue; can be
 // reverted when Electron 43 ships (see electron/electron PR 50419).
 const require = createRequire(import.meta.url);
+declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
+declare const MAIN_WINDOW_VITE_NAME: string;
 const electron = require("electron") as typeof import("electron");
 const { app, BrowserWindow, dialog, ipcMain, Menu, Notification, shell } =
   electron;
 
 const { autoUpdater } = electronUpdater;
 
+configureDesktopMainContext({
+  appVersion: app.getVersion(),
+  packaged: app.isPackaged,
+  updateChannel: import.meta.env.VITE_DESKTOP_UPDATE_CHANNEL ?? "stable",
+});
+
 // `MAIN_WINDOW_VITE_DEV_SERVER_URL` and `MAIN_WINDOW_VITE_NAME` are injected
 // at build time by `@electron-forge/plugin-vite`. In dev the URL points at
 // the Vite dev server; in prod it's `undefined` and we load the built HTML.
 const isDevServer = typeof MAIN_WINDOW_VITE_DEV_SERVER_URL === "string";
+const mainStartedAt = Date.now();
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -62,7 +79,7 @@ function isR2RequestUrl(url: string): boolean {
 // Loopback OAuth callback (RFC 8252). The desktop client tries 14203 first and
 // falls back to 24203; both are registered as exact-match redirect URIs on the
 // `teak-desktop` trusted client server-side.
-const OAUTH_CALLBACK_PORTS = [14203, 24203];
+const OAUTH_CALLBACK_PORTS = [14_203, 24_203];
 const OAUTH_CALLBACK_PATH = "/oauth/callback";
 const OAUTH_RETURN_HTML = `<!doctype html>
 <html lang="en">
@@ -120,13 +137,32 @@ function showUpdateNotification(title: string, body: string): void {
   }
 }
 
+function recordUpdater(
+  outcome: "attempt" | "success" | "failure",
+  stage: string,
+  version?: string
+): void {
+  recordDesktopMainCount(TELEMETRY_METRICS.desktopUpdater, {
+    outcome,
+    stage,
+    version,
+  });
+  logDesktopMain(
+    outcome === "failure" ? "error" : "info",
+    `desktop.updater.${stage}`,
+    { outcome, version }
+  );
+}
+
 // ── Main Window ────────────────────────────────────────────────────────────────
 
 function createMainWindow(): BrowserWindowInstance {
   // Forge's plugin-vite emits the preload bundle alongside the main bundle.
   // Our preload Vite config names the output `preload.js`, sibling to `main.js`.
   const preloadPath = join(import.meta.dirname, "preload.js");
-  console.log("[main] preload path:", preloadPath);
+  logDesktopMain("info", "desktop.window.creating", {
+    preload: "preload.js",
+  });
 
   mainWindow = new BrowserWindow({
     width: MAIN_WINDOW_WIDTH,
@@ -160,11 +196,17 @@ function createMainWindow(): BrowserWindowInstance {
       return;
     }
     if (permission !== "media") {
+      logDesktopMain("warn", "desktop.permission.denied", { permission });
       callback(false);
       return;
     }
     const mediaTypes = "mediaTypes" in details ? details.mediaTypes : undefined;
-    callback(isMicrophoneOnlyRequest(mediaTypes));
+    const allowed = isMicrophoneOnlyRequest(mediaTypes);
+    logDesktopMain(allowed ? "info" : "warn", "desktop.permission.media", {
+      allowed,
+      mediaTypes: mediaTypes?.join(",") ?? "unknown",
+    });
+    callback(allowed);
   });
   session.setPermissionCheckHandler((_wc, permission, _origin, details) => {
     if (permission === "clipboard-sanitized-write") {
@@ -292,6 +334,19 @@ function createMainWindow(): BrowserWindowInstance {
     stopOAuthCallbackServer();
     mainWindow = null;
   });
+  mainWindow.on("unresponsive", () => {
+    logDesktopMain("error", "desktop.renderer.unresponsive");
+  });
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    const error = new Error(`Renderer process exited: ${details.reason}`);
+    captureDesktopMainException(error, "desktop.renderer.crash", {
+      exitCode: details.exitCode,
+      reason: details.reason,
+    });
+    recordDesktopMainCount(TELEMETRY_METRICS.desktopCrash, {
+      reason: details.reason,
+    });
+  });
 
   return mainWindow;
 }
@@ -342,9 +397,11 @@ async function startOAuthCallbackServer(): Promise<{ port: number }> {
   }
 
   if (!server) {
-    throw new Error(
+    const error = new Error(
       "Unable to start the login listener. Ports 14203 and 24203 are both in use."
     );
+    captureDesktopMainException(error, "desktop.oauth.listen");
+    throw error;
   }
 
   oauthCallbackServer = server;
@@ -366,6 +423,15 @@ async function startOAuthCallbackServer(): Promise<{ port: number }> {
       mainWindow.webContents.send(OAUTH_CALLBACK_CHANNEL, { code, state });
       mainWindow.show();
       mainWindow.focus();
+      recordDesktopMainCount(TELEMETRY_METRICS.desktopOauth, {
+        outcome: "success",
+        stage: "callback",
+      });
+    } else {
+      logDesktopMain("warn", "desktop.oauth.callback.invalid", {
+        hasCode: Boolean(code),
+        hasState: Boolean(state),
+      });
     }
 
     // Single-shot: tear the listener down once the redirect is handled.
@@ -384,7 +450,12 @@ function setupIpcHandlers(): void {
       if (typeof key !== "string" || !key.trim()) {
         return null;
       }
-      return readStoreValue(key);
+      try {
+        return readStoreValue(key);
+      } catch (error) {
+        captureDesktopMainException(error, "desktop.store.read", { key });
+        throw error;
+      }
     }
   );
 
@@ -398,7 +469,12 @@ function setupIpcHandlers(): void {
       if (typeof key !== "string" || !key.trim()) {
         return;
       }
-      await writeStoreValue(key, value);
+      try {
+        await writeStoreValue(key, value);
+      } catch (error) {
+        captureDesktopMainException(error, "desktop.store.write", { key });
+        throw error;
+      }
     }
   );
 
@@ -441,6 +517,7 @@ function buildAppMenu(): void {
           label: "Check for Updates...",
           click: () => {
             manualUpdateCheck = true;
+            recordUpdater("attempt", "check");
             // Give the user immediate feedback that a check is in flight.
             // The updater's event handlers will surface the outcome
             // (update found, up-to-date, or error) via dialogs below.
@@ -452,6 +529,8 @@ function buildAppMenu(): void {
             }
             autoUpdater.checkForUpdates().catch((err) => {
               manualUpdateCheck = false;
+              captureDesktopMainException(err, "desktop.updater.check");
+              recordUpdater("failure", "check");
               // In dev mode there's no app-update.yml, so show a helpful message
               const isDev = isDevServer;
               dialog.showMessageBox({
@@ -538,6 +617,7 @@ function setupAutoUpdater(): void {
   autoUpdater.logger = null;
 
   autoUpdater.on("update-available", (info) => {
+    recordUpdater("success", "available", info.version);
     dialog
       .showMessageBox({
         type: "info",
@@ -569,6 +649,7 @@ function setupAutoUpdater(): void {
   });
 
   autoUpdater.on("update-downloaded", (info) => {
+    recordUpdater("success", "downloaded", info.version);
     if (app.dock) {
       app.dock.setBadge("");
     }
@@ -594,6 +675,7 @@ function setupAutoUpdater(): void {
   });
 
   autoUpdater.on("update-not-available", () => {
+    recordUpdater("success", "current", app.getVersion());
     if (manualUpdateCheck) {
       dialog.showMessageBox({
         type: "info",
@@ -606,6 +688,8 @@ function setupAutoUpdater(): void {
   });
 
   autoUpdater.on("error", (err) => {
+    captureDesktopMainException(err, "desktop.updater");
+    recordUpdater("failure", "error");
     if (app.dock) {
       app.dock.setBadge("");
     }
@@ -622,8 +706,10 @@ function setupAutoUpdater(): void {
   });
 
   // Check on launch — dialogs only appear if an update is found
-  autoUpdater.checkForUpdates().catch(() => {
-    // Silent failure — retry on next launch
+  recordUpdater("attempt", "launch_check");
+  autoUpdater.checkForUpdates().catch((error) => {
+    captureDesktopMainException(error, "desktop.updater.launch_check");
+    recordUpdater("failure", "launch_check");
   });
 }
 
@@ -635,6 +721,16 @@ app.whenReady().then(() => {
   buildAppMenu();
   createMainWindow();
   setupAutoUpdater();
+  recordDesktopMainCount(TELEMETRY_METRICS.desktopStartup, {
+    outcome: "success",
+    process: "main",
+  });
+  recordDesktopMainDistribution(
+    TELEMETRY_METRICS.desktopStartup,
+    Date.now() - mainStartedAt,
+    { outcome: "success", process: "main" },
+    "millisecond"
+  );
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

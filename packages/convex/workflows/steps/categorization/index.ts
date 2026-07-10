@@ -12,7 +12,9 @@ import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import { type DnsResolver, safeFetch } from "../../../linkMetadata/ssrf";
+import { TELEMETRY_OPERATIONS } from "../../../shared/telemetry";
 import type { Id } from "../../../shared/types";
+import { withBackendSpan } from "../../../telemetry/sentry";
 import { enrichProvider } from "./providers";
 import {
   formatDate,
@@ -275,9 +277,8 @@ const matchesType = (candidate: any, types: string[]): boolean => {
 const findByType = (
   entities: any[],
   typeCandidates: string[]
-): any | undefined => {
-  return entities.find((entity) => matchesType(entity, typeCandidates));
-};
+): any | undefined =>
+  entities.find((entity) => matchesType(entity, typeCandidates));
 
 const stringArray = (value: any): string[] => {
   if (!value) {
@@ -302,7 +303,7 @@ const valueToText = (value: any): string | undefined => {
     return value;
   }
   if (!value) {
-    return undefined;
+    return;
   }
   if (typeof value === "number") {
     return value.toString();
@@ -310,12 +311,12 @@ const valueToText = (value: any): string | undefined => {
   if (typeof value === "object" && value.name) {
     return value.name;
   }
-  return undefined;
+  return;
 };
 
 const normalizeImage = (value: any): string | undefined => {
   if (!value) {
-    return undefined;
+    return;
   }
   if (typeof value === "string") {
     return value;
@@ -332,19 +333,18 @@ const normalizeImage = (value: any): string | undefined => {
   if (value?.url) {
     return value.url;
   }
-  return undefined;
+  return;
 };
 
-const hostnameMatchesDomain = (hostname: string, domain: string): boolean => {
-  return hostname === domain || hostname.endsWith(`.${domain}`);
-};
+const hostnameMatchesDomain = (hostname: string, domain: string): boolean =>
+  hostname === domain || hostname.endsWith(`.${domain}`);
 
 const detectProvider = (url?: string, hint?: string): string | undefined => {
   if (hint) {
     return hint;
   }
   if (!url) {
-    return undefined;
+    return;
   }
   try {
     const hostname = new URL(url).hostname.toLowerCase();
@@ -400,7 +400,7 @@ const detectProvider = (url?: string, hint?: string): string | undefined => {
     }
     return hostname;
   } catch {
-    return undefined;
+    return;
   }
 };
 
@@ -442,11 +442,11 @@ const mergeFacts = (
 
 function formatDuration(value: string | undefined): string | undefined {
   if (!value) {
-    return undefined;
+    return;
   }
   const match = ISO_DURATION_REGEX.exec(value);
   if (!match) {
-    return undefined;
+    return;
   }
   const [, hours, minutes, seconds] = match;
   const parts: string[] = [];
@@ -858,7 +858,17 @@ export const classifyStep: any = internalAction({
     existingMetadata: v.optional(v.any()),
     shouldFetchStructured: v.boolean(),
   }),
-  handler: classifyHandler,
+  handler: (ctx: any, args: { cardId: Id<"cards"> }) =>
+    withBackendSpan(
+      {
+        cardId: args.cardId,
+        name: "card.categorization.classify",
+        operation: TELEMETRY_OPERATIONS.workflowStep,
+        stage: "categorization",
+        surface: "backend",
+      },
+      () => classifyHandler(ctx, args)
+    ),
 });
 
 export async function classifyHandler(
@@ -947,7 +957,17 @@ export const fetchStructuredDataStep: any = internalAction({
   returns: v.object({
     structuredData: v.optional(v.any()),
   }),
-  handler: fetchStructuredDataHandler,
+  handler: (ctx: any, args: any) =>
+    withBackendSpan(
+      {
+        cardId: args.cardId,
+        name: "card.categorization.fetch",
+        operation: TELEMETRY_OPERATIONS.workflowStep,
+        stage: "categorization",
+        surface: "backend",
+      },
+      () => fetchStructuredDataHandler(ctx, args)
+    ),
 });
 
 export async function fetchStructuredDataHandler(
@@ -982,7 +1002,17 @@ export const mergeAndSaveStep: any = internalAction({
     imageUrl: v.optional(v.string()),
     factsCount: v.number(),
   }),
-  handler: mergeAndSaveHandler,
+  handler: (ctx: any, args: any) =>
+    withBackendSpan(
+      {
+        cardId: args.cardId,
+        name: "card.categorization.persist",
+        operation: TELEMETRY_OPERATIONS.workflowStep,
+        stage: "persistence",
+        surface: "backend",
+      },
+      () => mergeAndSaveHandler(ctx, args)
+    ),
 });
 
 export async function mergeAndSaveHandler(

@@ -16,8 +16,12 @@
     },
     "production": {
       "autoIncrement": true,
+      "environment": "production",
       "env": {
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "production",
+        "SENTRY_ALLOW_FAILURE": "false",
+        "SENTRY_ORG": "teakvault",
+        "SENTRY_PROJECT": "teak-mobile-prod",
         "SKIP_SIMPLE_GIT_HOOKS": "1"
       }
     }

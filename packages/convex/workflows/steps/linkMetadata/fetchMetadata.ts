@@ -36,7 +36,9 @@ import {
   isXStatusUrl,
   type XStatusMedia,
 } from "../../../linkMetadata/x";
+import { TELEMETRY_OPERATIONS } from "../../../shared/telemetry";
 import { buildR2ObjectKey, storeObject } from "../../../storage/r2";
+import { withBackendSpan } from "../../../telemetry/sentry";
 import {
   LINK_METADATA_RETRYABLE_PREFIX,
   type LinkMetadataRetryableError,
@@ -363,7 +365,7 @@ const storeLinkPreviewMedia = async (
   keyBase: { cardId: string; userId: string }
 ): Promise<LinkPreviewMediaItem[] | undefined> => {
   if (!media?.length) {
-    return undefined;
+    return;
   }
 
   const storedMedia = await Promise.all(
@@ -917,5 +919,15 @@ export const fetchMetadata = internalAction({
     errorType: v.optional(v.string()),
     errorMessage: v.optional(v.string()),
   }),
-  handler: fetchMetadataHandler,
+  handler: (ctx: any, args: any) =>
+    withBackendSpan(
+      {
+        cardId: args.cardId,
+        name: "card.link_metadata",
+        operation: TELEMETRY_OPERATIONS.workflowStep,
+        stage: "link_metadata",
+        surface: "backend",
+      },
+      () => fetchMetadataHandler(ctx, args)
+    ),
 });

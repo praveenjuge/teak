@@ -1,17 +1,8 @@
+import {
+  captureClientException,
+  runClientSpan,
+} from "../../shared/client-telemetry";
 import type { Id } from "../../shared/types";
-
-// Sentry capture function - will be injected by platform-specific wrappers
-type SentryCaptureFunction = (
-  error: unknown,
-  context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }
-) => void;
-let captureException: SentryCaptureFunction = () => {
-  // noop until a platform-specific capture function is injected
-};
-
-export function setSentryCaptureFunction(fn: SentryCaptureFunction) {
-  captureException = fn;
-}
 
 export interface CardActionsConfig {
   onDeleteSuccess?: (message?: string) => void;
@@ -63,21 +54,20 @@ export function createCardActions(
     } = {}
   ): Promise<boolean> => {
     try {
-      await updateCardField({ cardId, field: "delete" });
+      await runClientSpan(
+        {
+          name: "card.delete",
+          operation: "teak.workflow",
+          stage: "persistence",
+        },
+        () => updateCardField({ cardId, field: "delete" })
+      );
       if (!options.suppressSuccessCallback) {
         config.onDeleteSuccess?.("Card deleted. Find it by searching 'trash'");
       }
       return true;
     } catch (error) {
-      console.error("Failed to delete card:", error);
-      captureException(error, {
-        tags: {
-          source: "convex",
-          mutation: "cards:updateCardField",
-          operation: "delete",
-        },
-        extra: { cardId },
-      });
+      captureClientException(error, { operation: "card.delete" });
       if (!options.suppressErrorCallback) {
         config.onError?.(error as Error, "delete");
       }
@@ -114,52 +104,54 @@ export function createCardActions(
 
   const handleRestoreCard = async (cardId: Id<"cards">) => {
     try {
-      await updateCardField({ cardId, field: "restore" });
+      await runClientSpan(
+        {
+          name: "card.restore",
+          operation: "teak.workflow",
+          stage: "persistence",
+        },
+        () => updateCardField({ cardId, field: "restore" })
+      );
       config.onRestoreSuccess?.("Card restored");
     } catch (error) {
-      console.error("Failed to restore card:", error);
-      captureException(error, {
-        tags: {
-          source: "convex",
-          mutation: "cards:updateCardField",
-          operation: "restore",
-        },
-        extra: { cardId },
-      });
+      captureClientException(error, { operation: "card.restore" });
       config.onError?.(error as Error, "restore");
     }
   };
 
   const handlePermanentDeleteCard = async (cardId: Id<"cards">) => {
     try {
-      await permanentDeleteCard({ id: cardId });
+      await runClientSpan(
+        {
+          name: "card.permanent_delete",
+          operation: "teak.workflow",
+          stage: "persistence",
+        },
+        () => permanentDeleteCard({ id: cardId })
+      );
       config.onPermanentDeleteSuccess?.("Card permanently deleted");
     } catch (error) {
-      console.error("Failed to permanently delete card:", error);
-      captureException(error, {
-        tags: { source: "convex", mutation: "cards:permanentDeleteCard" },
-        extra: { cardId },
-      });
+      captureClientException(error, { operation: "card.permanent_delete" });
       config.onError?.(error as Error, "permanent delete");
     }
   };
 
   const handleToggleFavorite = async (cardId: Id<"cards">) => {
     try {
-      await updateCardField({
-        cardId,
-        field: "isFavorited",
-      });
-    } catch (error) {
-      console.error("Failed to toggle favorite:", error);
-      captureException(error, {
-        tags: {
-          source: "convex",
-          mutation: "cards:updateCardField",
-          operation: "toggleFavorite",
+      await runClientSpan(
+        {
+          name: "card.favorite",
+          operation: "teak.workflow",
+          stage: "persistence",
         },
-        extra: { cardId },
-      });
+        () =>
+          updateCardField({
+            cardId,
+            field: "isFavorited",
+          })
+      );
+    } catch (error) {
+      captureClientException(error, { operation: "card.favorite" });
       config.onError?.(error as Error, "toggle favorite");
     }
   };
@@ -181,22 +173,23 @@ export function createCardActions(
     tagToRemove?: string
   ) => {
     try {
-      await updateCardField({
-        cardId,
-        field,
-        value,
-        tagToRemove,
-      });
-    } catch (error) {
-      console.error(`Failed to update ${field}:`, error);
-      captureException(error, {
-        tags: {
-          source: "convex",
-          mutation: "cards:updateCardField",
-          operation: `update_${field}`,
+      await runClientSpan(
+        {
+          attributes: { field },
+          name: "card.update",
+          operation: "teak.workflow",
+          stage: "persistence",
         },
-        extra: { cardId, field, value },
-      });
+        () =>
+          updateCardField({
+            cardId,
+            field,
+            value,
+            tagToRemove,
+          })
+      );
+    } catch (error) {
+      captureClientException(error, { field, operation: "card.update" });
       config.onError?.(error as Error, `update ${field}`);
     }
   };

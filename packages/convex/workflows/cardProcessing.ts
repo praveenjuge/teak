@@ -349,6 +349,18 @@ export const cardProcessingWorkflow: any = workflow.define({
       tags: metadata.aiTags.length,
     });
 
+    await step.runAction(
+      internalWorkflow.telemetry.events.emitWorkflowCompletion,
+      {
+        cardId: String(cardId),
+        cardType: classification.type,
+        durationMs: Math.max(
+          0,
+          Date.now() - (initialCard?._creationTime ?? Date.now())
+        ),
+      }
+    );
+
     return result;
   },
 });

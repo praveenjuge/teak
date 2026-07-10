@@ -1,3 +1,9 @@
+import {
+  normalizeErrorClass,
+  normalizeTelemetryAttributes,
+  TELEMETRY_METRICS,
+} from "./telemetry";
+
 /**
  * Shared metrics helpers for Teak.
  *
@@ -11,15 +17,14 @@
  * Design goals:
  * - Zero runtime coupling to `@sentry/*` so this file can be imported from
  *   Convex actions and pure utility code.
- * - Safe default behaviour: a `console.info` logger that prefixes
- *   `[metric]` so Sentry's `consoleLoggingIntegration` picks the events up as
- *   logs when a proper metrics recorder is not configured.
- * - Consistent tag shape (`app`, `env`, plus domain-specific attributes).
+ * - Safe default behaviour: a no-op recorder. Metrics never become duplicate
+ *   console-log events and telemetry failures never affect product behavior.
+ * - Consistent tag shape (`surface`, `environment`, plus bounded attributes).
  *
  * Usage:
  *
  * ```ts
- * import { configureMetrics, trackCardCreated } from "@teak/convex/shared/metrics";
+ * import { configureMetrics, trackCardCreateAttempt } from "@teak/convex/shared/metrics";
  *
  * configureMetrics({
  *   app: "web",
@@ -34,7 +39,7 @@
  *   },
  * });
  *
- * trackCardCreated({ cardType: "link", source: "web" });
+ * trackCardCreateAttempt({ cardType: "link", source: "web" });
  * ```
  */
 
@@ -83,25 +88,18 @@ export interface MetricsConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Default (console) recorder.
-// Emits structured entries so log shippers can parse them. Sentry's
-// consoleLoggingIntegration will forward these as logs when a real metrics
-// recorder is not configured.
+// Default recorder. Hosts configure a first-class Sentry recorder at startup.
 // ---------------------------------------------------------------------------
 
-const consoleRecorder: MetricsRecorder = {
-  count(name, value, attributes) {
-    console.info(`[metric] count ${name}`, { value, attributes });
+const noopRecorder: MetricsRecorder = {
+  count() {
+    // Telemetry is intentionally disabled until the host configures a recorder.
   },
-  gauge(name, value, attributes, unit) {
-    console.info(`[metric] gauge ${name}`, { value, unit, attributes });
+  distribution() {
+    // Telemetry is intentionally disabled until the host configures a recorder.
   },
-  distribution(name, value, attributes, unit) {
-    console.info(`[metric] distribution ${name}`, {
-      value,
-      unit,
-      attributes,
-    });
+  gauge() {
+    // Telemetry is intentionally disabled until the host configures a recorder.
   },
 };
 
@@ -118,7 +116,7 @@ interface InternalConfig {
 const defaultConfig: InternalConfig = {
   app: "convex",
   env: "development",
-  recorder: consoleRecorder,
+  recorder: noopRecorder,
 };
 
 let activeConfig: InternalConfig = defaultConfig;
@@ -139,19 +137,18 @@ export function resetMetricsConfig(): void {
 }
 
 function withBaseAttributes(attributes?: MetricAttributes): MetricAttributes {
-  return {
-    app: activeConfig.app,
-    env: activeConfig.env,
+  return normalizeTelemetryAttributes({
+    surface: activeConfig.app === "convex" ? "backend" : activeConfig.app,
+    environment: activeConfig.env,
     ...(attributes ?? {}),
-  };
+  });
 }
 
-function safeRecord(fn: () => void): void {
+export function safeRecord(fn: () => void): void {
   try {
     fn();
-  } catch (error) {
-    // Never let metrics take down a request.
-    console.warn("[metric] recorder failed", error);
+  } catch {
+    // Metrics must never alter application outcomes.
   }
 }
 
@@ -228,7 +225,7 @@ export async function timedAsync<T>(
       {
         ...(attributes ?? {}),
         outcome: "error",
-        errorClass: classifyError(error),
+        "error.class": normalizeErrorClass(error),
       },
       "millisecond"
     );
@@ -241,16 +238,6 @@ function nowMs(): number {
     return performance.now();
   }
   return Date.now();
-}
-
-function classifyError(error: unknown): string {
-  if (error instanceof Error) {
-    return error.name || "Error";
-  }
-  if (typeof error === "string") {
-    return "StringError";
-  }
-  return "UnknownError";
 }
 
 // ---------------------------------------------------------------------------
@@ -271,14 +258,19 @@ export type CardCreationSource =
   | "paste"
   | "unknown";
 
-export function trackCardCreated(params: {
-  cardType: string;
+export function trackCardCreateAttempt(params: {
+  cardType?: string;
   source: CardCreationSource;
   via?: string;
 }): void {
-  counter("card.created", 1, {
-    cardType: params.cardType,
-    source: params.source,
+  const configuredSource = ["web", "mobile", "desktop"].includes(
+    activeConfig.app
+  )
+    ? activeConfig.app
+    : params.source;
+  counter(TELEMETRY_METRICS.cardAttempt, 1, {
+    "card.type": params.cardType ?? "unknown",
+    source: configuredSource,
     via: params.via ?? null,
   });
 }
@@ -301,24 +293,191 @@ export function trackAiStage(params: {
   errorClass?: string;
 }): void {
   distribution(
-    "card.pipeline.stage.duration",
+    TELEMETRY_METRICS.workflowStageDuration,
     params.durationMs,
     {
       stage: params.stage,
       outcome: params.outcome,
       cardType: params.cardType ?? null,
-      errorClass: params.errorClass ?? null,
+      "error.class": params.errorClass ?? null,
     },
     "millisecond"
   );
 
   if (params.outcome === "error") {
-    counter("card.pipeline.stage.failures", 1, {
+    counter(TELEMETRY_METRICS.workflowFailure, 1, {
       stage: params.stage,
-      cardType: params.cardType ?? null,
-      errorClass: params.errorClass ?? null,
+      "card.type": params.cardType ?? null,
+      "error.class": params.errorClass ?? null,
     });
   }
+}
+
+export function trackUpload(params: {
+  bytes?: number;
+  durationMs?: number;
+  fileBucket: string;
+  outcome: "attempt" | "success" | "failure";
+  source: CardCreationSource;
+}): void {
+  const attributes = {
+    "file.bucket": params.fileBucket,
+    outcome: params.outcome,
+    source: params.source,
+  };
+  if (params.outcome === "attempt") {
+    counter(TELEMETRY_METRICS.uploadAttempts, 1, attributes);
+  }
+  if (params.outcome === "failure") {
+    counter(TELEMETRY_METRICS.uploadFailure, 1, attributes);
+  }
+  if (typeof params.bytes === "number") {
+    distribution(
+      TELEMETRY_METRICS.uploadBytes,
+      params.bytes,
+      attributes,
+      "byte"
+    );
+  }
+  if (typeof params.durationMs === "number") {
+    distribution(
+      TELEMETRY_METRICS.uploadDuration,
+      params.durationMs,
+      attributes,
+      "millisecond"
+    );
+  }
+}
+
+export function trackSearch(params: {
+  durationMs: number;
+  resultCount: number;
+  surface?: "web" | "mobile" | "desktop";
+}): void {
+  const surface = ["web", "mobile", "desktop"].includes(activeConfig.app)
+    ? activeConfig.app
+    : (params.surface ?? "web");
+  const attributes = { surface };
+  distribution(
+    TELEMETRY_METRICS.searchDuration,
+    params.durationMs,
+    attributes,
+    "millisecond"
+  );
+  if (params.resultCount === 0) {
+    counter(TELEMETRY_METRICS.searchZeroResult, 1, attributes);
+  }
+}
+
+export function trackAuth(params: {
+  durationMs?: number;
+  outcome: "attempt" | "success" | "failure";
+  stage: "bootstrap" | "sign_in" | "session_refresh";
+}): void {
+  const metric = {
+    bootstrap: TELEMETRY_METRICS.authBootstrap,
+    session_refresh: TELEMETRY_METRICS.authSessionRefresh,
+    sign_in: TELEMETRY_METRICS.authSignIn,
+  }[params.stage];
+  const attributes = { outcome: params.outcome };
+  counter(metric, 1, attributes);
+  if (typeof params.durationMs === "number") {
+    distribution(metric, params.durationMs, attributes, "millisecond");
+  }
+}
+
+export function trackCheckout(params: {
+  outcome: "start" | "open" | "success" | "cancel" | "failure";
+}): void {
+  const metric = {
+    cancel: TELEMETRY_METRICS.checkoutCancel,
+    failure: TELEMETRY_METRICS.checkoutFailure,
+    open: TELEMETRY_METRICS.checkoutOpen,
+    start: TELEMETRY_METRICS.checkoutStart,
+    success: TELEMETRY_METRICS.checkoutSuccess,
+  }[params.outcome];
+  counter(metric, 1, { outcome: params.outcome });
+}
+
+export function trackLifecycle(params: {
+  durationMs?: number;
+  kind: "import" | "export";
+  outcome: "attempt" | "success" | "failure" | "cancelled";
+}): void {
+  const metric =
+    params.kind === "import"
+      ? TELEMETRY_METRICS.importLifecycle
+      : TELEMETRY_METRICS.exportLifecycle;
+  const attributes = { outcome: params.outcome };
+  counter(metric, 1, attributes);
+  if (typeof params.durationMs === "number") {
+    distribution(metric, params.durationMs, attributes, "millisecond");
+  }
+}
+
+export function trackAiCall(params: {
+  costUsd?: number;
+  durationMs: number;
+  inputTokens?: number;
+  model: string;
+  outcome: "success" | "failure";
+  outputTokens?: number;
+  provider: string;
+  retries?: number;
+  validationFailure?: boolean;
+}): void {
+  const attributes = {
+    model: params.model,
+    outcome: params.outcome,
+    provider: params.provider,
+  };
+  counter(TELEMETRY_METRICS.aiCalls, 1, attributes);
+  distribution(
+    TELEMETRY_METRICS.aiLatency,
+    params.durationMs,
+    attributes,
+    "millisecond"
+  );
+  if (typeof params.inputTokens === "number") {
+    counter(TELEMETRY_METRICS.aiTokensInput, params.inputTokens, attributes);
+  }
+  if (typeof params.outputTokens === "number") {
+    counter(TELEMETRY_METRICS.aiTokensOutput, params.outputTokens, attributes);
+  }
+  if (params.retries) {
+    counter(TELEMETRY_METRICS.aiRetries, params.retries, attributes);
+  }
+  if (params.validationFailure) {
+    counter(TELEMETRY_METRICS.aiValidationFailures, 1, attributes);
+  }
+  if (typeof params.costUsd === "number") {
+    distribution(
+      TELEMETRY_METRICS.aiCostUsd,
+      params.costUsd,
+      attributes,
+      "none"
+    );
+  }
+}
+
+export function trackCron(params: {
+  durationMs: number;
+  monitor: string;
+  outcome: "success" | "failure" | "missed";
+}): void {
+  const metric = {
+    failure: TELEMETRY_METRICS.cronFailure,
+    missed: TELEMETRY_METRICS.cronMissed,
+    success: TELEMETRY_METRICS.cronSuccess,
+  }[params.outcome];
+  const attributes = { monitor: params.monitor, outcome: params.outcome };
+  counter(metric, 1, attributes);
+  distribution(
+    TELEMETRY_METRICS.cronDuration,
+    params.durationMs,
+    attributes,
+    "millisecond"
+  );
 }
 
 export function trackMcpToolInvocation(params: {

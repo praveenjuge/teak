@@ -1,5 +1,10 @@
 import { experimental_transcribe as transcribe } from "ai";
-import { TRANSCRIPTION_MODEL } from "../../ai/models";
+import { TRANSCRIPTION_MODEL, TRANSCRIPTION_MODEL_ID } from "../../ai/models";
+import { observeAiGeneration } from "../../ai/telemetry";
+import {
+  recordBackendAiContent,
+  withBackendSpan,
+} from "../../telemetry/sentry";
 
 // Generate transcript for audio content
 export const generateTranscript = async (
@@ -27,12 +32,34 @@ export const generateTranscript = async (
     const arrayBuffer = await response.arrayBuffer();
 
     // Use Groq's whisper-large-v3-turbo for fast, cost-effective transcription
-    const { text } = await transcribe({
-      model: TRANSCRIPTION_MODEL,
-      audio: new Uint8Array(arrayBuffer),
-    });
-
-    return text;
+    return await withBackendSpan(
+      {
+        attributes: {
+          "audio.byte_length": arrayBuffer.byteLength,
+          model: TRANSCRIPTION_MODEL_ID,
+          provider: "groq",
+        },
+        name: "teak.ai.transcript",
+        operation: "gen_ai.generate",
+        stage: "transcript",
+        surface: "backend",
+      },
+      async () => {
+        const { text } = await observeAiGeneration(
+          {
+            functionId: "teak.ai.transcript",
+            model: TRANSCRIPTION_MODEL_ID,
+          },
+          () =>
+            transcribe({
+              audio: new Uint8Array(arrayBuffer),
+              model: TRANSCRIPTION_MODEL,
+            })
+        );
+        recordBackendAiContent({ response: text });
+        return text;
+      }
+    );
   } catch (error) {
     console.error("Error generating transcript:", error);
     return null;

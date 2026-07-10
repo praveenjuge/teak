@@ -1,12 +1,11 @@
 // @ts-nocheck
 import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
-const aiMocks = (global as any).__AI_MOCKS__ || {
-  generateText: mock(),
-  generateObject: mock(),
-  experimental_transcribe: mock(),
-  Output: { object: mock() },
-};
+const aiMocks = (global as any).__AI_MOCKS__ ?? {};
+aiMocks.generateText ??= mock();
+aiMocks.generateObject ??= mock();
+aiMocks.experimental_transcribe ??= mock();
+aiMocks.Output ??= { object: mock() };
 (global as any).__AI_MOCKS__ = aiMocks;
 const mockGenerateText = aiMocks.generateText;
 
@@ -21,6 +20,7 @@ const mockResponse = {
     tags: ["tag1", "tag2"],
     summary: "A summary",
   },
+  usage: { inputTokens: 10, outputTokens: 5 },
 };
 
 describe("aiMetadata generators", () => {
@@ -43,6 +43,11 @@ describe("aiMetadata generators", () => {
 
     expect(mockGenerateText).toHaveBeenCalledWith(
       expect.objectContaining({
+        experimental_telemetry: expect.objectContaining({
+          functionId: "teak.ai.metadata.text",
+          recordInputs: true,
+          recordOutputs: true,
+        }),
         prompt: expect.stringContaining("some content"),
       })
     );
@@ -54,6 +59,9 @@ describe("aiMetadata generators", () => {
 
     expect(mockGenerateText).toHaveBeenCalledWith(
       expect.objectContaining({
+        experimental_telemetry: expect.objectContaining({
+          functionId: "teak.ai.metadata.image",
+        }),
         messages: expect.arrayContaining([expect.any(Object)]),
       })
     );
@@ -65,6 +73,9 @@ describe("aiMetadata generators", () => {
 
     expect(mockGenerateText).toHaveBeenCalledWith(
       expect.objectContaining({
+        experimental_telemetry: expect.objectContaining({
+          functionId: "teak.ai.metadata.link",
+        }),
         prompt: expect.stringContaining("page content"),
       })
     );

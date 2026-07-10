@@ -1,3 +1,4 @@
+import "@sentry/electron/preload";
 import { contextBridge, ipcRenderer } from "electron";
 import { MENU_CHANNELS, OAUTH_CALLBACK_CHANNEL } from "../main/channels";
 
@@ -34,8 +35,7 @@ const teakDesktopApi = {
   // ── OAuth (browser login) ──────────────────────────────────────────────────
   oauth: {
     // Start the loopback callback server; resolves with the bound port.
-    listen: (): Promise<{ port: number }> =>
-      ipcRenderer.invoke("oauth:listen"),
+    listen: (): Promise<{ port: number }> => ipcRenderer.invoke("oauth:listen"),
     // Tear down the loopback server (e.g. on timeout or cancel).
     cancel: (): Promise<void> => ipcRenderer.invoke("oauth:cancel"),
     // Subscribe to the redirect callback. Returns an unsubscribe function.

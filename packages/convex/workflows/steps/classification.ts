@@ -17,7 +17,9 @@ import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
 import type { CardType } from "../../schema";
+import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import type { Id } from "../../shared/types";
+import { withBackendSpan } from "../../telemetry/sentry";
 
 const MAX_PALETTE_COLORS = 12;
 
@@ -149,14 +151,14 @@ const isProbablyPalette = (card: any): boolean => {
 
 const extensionFromUrl = (url?: string): string | undefined => {
   if (!url) {
-    return undefined;
+    return;
   }
   try {
     const pathname = new URL(url).pathname;
     const match = /\.([a-zA-Z0-9]+)(?:$|[?#])/u.exec(pathname);
     return match?.[1]?.toLowerCase();
   } catch {
-    return undefined;
+    return;
   }
 };
 
@@ -379,115 +381,128 @@ export const classify = internalAction({
     shouldGenerateMetadata: v.boolean(),
     shouldGenerateRenderables: v.boolean(),
   }),
-  handler: async (ctx, { cardId }): Promise<ClassificationWorkflowResult> => {
-    const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
-      cardId,
-    });
-
-    if (!card) {
-      throw new Error(`Card ${cardId} not found for classification`);
-    }
-
-    // If previously classified as quote and no conflicting signals, keep it sticky
-    if (card.type === "quote" && !card.url && !card.fileKey) {
-      const confidence = card.processingStatus?.classify?.confidence ?? 0.95;
-      const stickyResult: ClassificationWorkflowResult = {
-        type: "quote",
-        confidence,
-        needsLinkMetadata: false,
-        shouldCategorize: false,
-        shouldGenerateMetadata: true,
-        shouldGenerateRenderables: false,
-      };
-
-      return stickyResult;
-    }
-
-    const quoteNormalization = normalizeQuoteContent(card.content ?? "");
-    const heuristicQuote =
-      quoteNormalization.removedQuotes && !card.url && !card.fileKey;
-
-    if (heuristicQuote) {
-      await ctx.runMutation(
-        (internal as any)["workflows/steps/classificationMutations"]
-          .updateClassification,
-        {
+  handler: async (ctx, { cardId }): Promise<ClassificationWorkflowResult> =>
+    withBackendSpan(
+      {
+        cardId,
+        name: "card.classification",
+        operation: TELEMETRY_OPERATIONS.workflowStep,
+        stage: "classification",
+        surface: "backend",
+      },
+      async () => {
+        const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
           cardId,
-          type: "quote",
-          confidence: 0.95,
+        });
+
+        if (!card) {
+          throw new Error(`Card ${cardId} not found for classification`);
         }
-      );
 
-      const heuristicResult: ClassificationWorkflowResult = {
-        type: "quote",
-        confidence: 0.95,
-        needsLinkMetadata: false,
-        shouldCategorize: false,
-        shouldGenerateMetadata: true,
-        shouldGenerateRenderables: false,
-      };
+        // If previously classified as quote and no conflicting signals, keep it sticky
+        if (card.type === "quote" && !card.url && !card.fileKey) {
+          const confidence =
+            card.processingStatus?.classify?.confidence ?? 0.95;
+          const stickyResult: ClassificationWorkflowResult = {
+            type: "quote",
+            confidence,
+            needsLinkMetadata: false,
+            shouldCategorize: false,
+            shouldGenerateMetadata: true,
+            shouldGenerateRenderables: false,
+          };
 
-      return heuristicResult;
-    }
+          return stickyResult;
+        }
 
-    // Deterministic classification (no external AI call)
-    const { type: resultType, confidence: resultConfidence } =
-      deterministicClassify(card);
+        const quoteNormalization = normalizeQuoteContent(card.content ?? "");
+        const heuristicQuote =
+          quoteNormalization.removedQuotes && !card.url && !card.fileKey;
 
-    // Normalize type for URL-only cards
-    const trimmedContent =
-      typeof card.content === "string" ? card.content.trim() : "";
-    const urlOnlyCard =
-      !!card.url &&
-      !card.fileKey &&
-      (trimmedContent.length === 0 || trimmedContent === card.url);
+        if (heuristicQuote) {
+          await ctx.runMutation(
+            (internal as any)["workflows/steps/classificationMutations"]
+              .updateClassification,
+            {
+              cardId,
+              type: "quote",
+              confidence: 0.95,
+            }
+          );
 
-    const normalizedType =
-      urlOnlyCard && resultType !== "link" ? "link" : resultType;
-    const normalizedConfidence = Math.max(0, Math.min(resultConfidence, 1));
+          const heuristicResult: ClassificationWorkflowResult = {
+            type: "quote",
+            confidence: 0.95,
+            needsLinkMetadata: false,
+            shouldCategorize: false,
+            shouldGenerateMetadata: true,
+            shouldGenerateRenderables: false,
+          };
 
-    // Determine if type should be updated
-    const shouldForceLink = urlOnlyCard && card.type !== "link";
-    const shouldUpdateType =
-      shouldForceLink ||
-      (normalizedType !== card.type && normalizedConfidence >= 0.6);
+          return heuristicResult;
+        }
 
-    if (shouldUpdateType) {
-      // Update card type via mutation
-      await ctx.runMutation(
-        (internal as any)["workflows/steps/classificationMutations"]
-          .updateClassification,
-        {
-          cardId,
+        // Deterministic classification (no external AI call)
+        const { type: resultType, confidence: resultConfidence } =
+          deterministicClassify(card);
+
+        // Normalize type for URL-only cards
+        const trimmedContent =
+          typeof card.content === "string" ? card.content.trim() : "";
+        const urlOnlyCard =
+          !!card.url &&
+          !card.fileKey &&
+          (trimmedContent.length === 0 || trimmedContent === card.url);
+
+        const normalizedType =
+          urlOnlyCard && resultType !== "link" ? "link" : resultType;
+        const normalizedConfidence = Math.max(0, Math.min(resultConfidence, 1));
+
+        // Determine if type should be updated
+        const shouldForceLink = urlOnlyCard && card.type !== "link";
+        const shouldUpdateType =
+          shouldForceLink ||
+          (normalizedType !== card.type && normalizedConfidence >= 0.6);
+
+        if (shouldUpdateType) {
+          // Update card type via mutation
+          await ctx.runMutation(
+            (internal as any)["workflows/steps/classificationMutations"]
+              .updateClassification,
+            {
+              cardId,
+              type: normalizedType,
+              confidence: normalizedConfidence,
+            }
+          );
+
+          // Update palette colors if needed
+          await maybeUpdatePaletteColors(ctx, card, normalizedType, cardId);
+        }
+
+        const needsLinkMetadata =
+          normalizedType === "link" &&
+          card.metadata?.linkPreview?.status !== "success";
+
+        // Determine which stages need to run next
+        const shouldCategorize = normalizedType === "link";
+        const shouldGenerateMetadata = true; // Always generate metadata
+        const shouldGenerateRenderables = [
+          "image",
+          "video",
+          "document",
+        ].includes(normalizedType);
+
+        const result: ClassificationWorkflowResult = {
           type: normalizedType,
           confidence: normalizedConfidence,
-        }
-      );
+          needsLinkMetadata,
+          shouldCategorize,
+          shouldGenerateMetadata,
+          shouldGenerateRenderables,
+        };
 
-      // Update palette colors if needed
-      await maybeUpdatePaletteColors(ctx, card, normalizedType, cardId);
-    }
-
-    const needsLinkMetadata =
-      normalizedType === "link" &&
-      card.metadata?.linkPreview?.status !== "success";
-
-    // Determine which stages need to run next
-    const shouldCategorize = normalizedType === "link";
-    const shouldGenerateMetadata = true; // Always generate metadata
-    const shouldGenerateRenderables = ["image", "video", "document"].includes(
-      normalizedType
-    );
-
-    const result: ClassificationWorkflowResult = {
-      type: normalizedType,
-      confidence: normalizedConfidence,
-      needsLinkMetadata,
-      shouldCategorize,
-      shouldGenerateMetadata,
-      shouldGenerateRenderables,
-    };
-
-    return result;
-  },
+        return result;
+      }
+    ),
 });
