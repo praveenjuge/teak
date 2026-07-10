@@ -28,7 +28,8 @@ env:
   E2E_CLEANUP_TOKEN: ${{ secrets.E2E_CLEANUP_TOKEN }}
   MAILPIT_URL: ${{ secrets.MAILPIT_URL }}
   E2E_EMAIL_DOMAIN: ${{ secrets.E2E_EMAIL_DOMAIN }}
-  VITE_PUBLIC_CONVEX_SITE_URL: ${{ vars.VITE_PUBLIC_CONVEX_SITE_URL }}
+  VITE_PUBLIC_CONVEX_URL: ${{ secrets.VITE_PUBLIC_CONVEX_URL }}
+  VITE_PUBLIC_CONVEX_SITE_URL: ${{ secrets.VITE_PUBLIC_CONVEX_SITE_URL }}
 
 jobs:
   gate:
@@ -107,9 +108,6 @@ jobs:
     if: always() && needs.gate.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    env:
-      VITE_PUBLIC_CONVEX_URL: ${{ vars.VITE_PUBLIC_CONVEX_URL }}
-      VITE_PUBLIC_CONVEX_SITE_URL: ${{ vars.VITE_PUBLIC_CONVEX_SITE_URL }}
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
