@@ -20,7 +20,6 @@ import {
   tag,
 } from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
-import { useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { Stack, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
@@ -36,7 +35,6 @@ export default function SettingsScreen() {
   const { preference, setPreference, isLoaded } = useThemePreference();
   const router = useRouter();
   const currentUser = useQuery(api.auth.getCurrentUser, {});
-  const deleteAccount = useMutation(api.auth.deleteAccount);
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -110,8 +108,6 @@ export default function SettingsScreen() {
     setIsDeleting(true);
 
     try {
-      await deleteAccount({});
-
       let deleteUserFailed = false;
       await authClient.deleteUser(undefined, {
         onError: (ctx) => {

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { env } from "../helpers/env";
 import { connectMcp } from "../helpers/mcp";
-import { readState, updateState } from "../helpers/run-state";
+import { readState } from "../helpers/run-state";
 
 test("MCP lists and calls every public tool", async () => {
   const { primary } = readState();
@@ -36,7 +36,6 @@ test("MCP lists and calls every public tool", async () => {
     arguments: { content: `mcp-${Date.now()}` },
   });
   const cardId = created.structuredContent.cardId;
-  updateState((s) => s.createdCardIds.push(cardId));
   const calls = [
     ["teak_v1_list_cards", { limit: 5 }],
     ["teak_v1_get_card", { cardId }],
@@ -63,16 +62,6 @@ test("MCP lists and calls every public tool", async () => {
       result.isError,
       `${name} failed: ${JSON.stringify(result.content ?? result.structuredContent)}`
     ).not.toBe(true);
-    if (name === "teak_v1_bulk_cards") {
-      const bulk = result.structuredContent as
-        | { results?: Array<{ cardId?: string }> }
-        | undefined;
-      for (const item of bulk?.results ?? []) {
-        if (item.cardId) {
-          updateState((s) => s.createdCardIds.push(item.cardId as string));
-        }
-      }
-    }
     if (name === "fetch") {
       expect(result.structuredContent ?? result.content).toBeTruthy();
     }

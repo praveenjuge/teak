@@ -1,11 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { apiFetch } from "../helpers/api";
-import {
-  clientFor,
-  createAccount,
-  deleteAccountViaUi,
-  newAnonymousContext,
-} from "../helpers/prod";
+import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
+import { deleteMessagesFor } from "../helpers/mailpit";
+import { clientFor, createAccount, newAnonymousContext } from "../helpers/prod";
 import { readState } from "../helpers/run-state";
 
 test("cross-tenant, revoked-key, hostile input, headers, and cookie security", async ({
@@ -19,7 +16,9 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", a
   }
   const secondContext = await newAnonymousContext(browser);
   const secondPage = await secondContext.newPage();
-  const second = await createAccount(secondPage, "tenant-b");
+  const second = await createAccount(secondPage, "tenant-b", {
+    remember: false,
+  });
   try {
     const targetCard = state.createdCardIds[0];
     if (targetCard) {
@@ -61,7 +60,8 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", a
       )
     ).toBe(true);
   } finally {
-    await deleteAccountViaUi(secondPage, second);
+    await cleanupE2EAccounts([second.email]);
+    await deleteMessagesFor(second.email);
     await secondContext.close();
   }
 });

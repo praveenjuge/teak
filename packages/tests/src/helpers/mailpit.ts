@@ -1,6 +1,6 @@
 import { env, requireMailpit } from "./env";
 
-interface MailpitMessage {
+export interface MailpitMessage {
   ID: string;
   Subject: string;
   To?: Array<{ Address: string }> | null;
@@ -64,24 +64,53 @@ export const waitForEmail = async (to: string, subject: string) => {
   throw new Error(`Timed out waiting for ${subject} email to ${to}`);
 };
 
+export const deleteMailpitMessages = async (messageIds: string[]) => {
+  const uniqueMessageIds = [...new Set(messageIds)];
+  if (uniqueMessageIds.length === 0) {
+    return 0;
+  }
+  const response = await mailpitFetch("/messages", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ IDs: uniqueMessageIds }),
+  });
+  if (!response.ok) {
+    throw new Error(`Mailpit message deletion failed: ${response.status}`);
+  }
+  return uniqueMessageIds.length;
+};
+
+export const messageIdsForRecipients = (
+  messages: MailpitMessage[],
+  emails: string[]
+) => {
+  const recipients = new Set(emails.map((email) => email.toLowerCase()));
+  return messages
+    .filter((message) =>
+      (message.To ?? []).some((recipient) =>
+        recipients.has(recipient.Address?.toLowerCase())
+      )
+    )
+    .map((message) => message.ID);
+};
+
 export const deleteMessagesFor = async (email: string) => {
   try {
-    const response = await mailpitFetch("/messages?limit=100");
+    const query = encodeURIComponent(`to:"${email.toLowerCase()}"`);
+    const response = await mailpitFetch(`/search?query=${query}&limit=200`);
     if (!response.ok) {
-      return;
+      throw new Error(`Mailpit recipient search failed: ${response.status}`);
     }
     const data = (await response.json()) as { messages?: MailpitMessage[] };
-    for (const message of data.messages ?? []) {
-      if (hasRecipient(message, email.toLowerCase())) {
-        await mailpitFetch(`/message/${message.ID}`, { method: "DELETE" });
-      }
-    }
+    return await deleteMailpitMessages(
+      messageIdsForRecipients(data.messages ?? [], [email])
+    );
   } catch (error) {
-    console.warn(`Mailpit cleanup skipped for ${email}: ${error}`);
+    throw new Error(`Mailpit cleanup failed for ${email}: ${error}`);
   }
 };
 
-export const listMailpitMessages = async (limit = 200) => {
+export const listMailpitMessages = async (limit = 500) => {
   const response = await mailpitFetch(`/messages?limit=${limit}`);
   if (!response.ok) {
     throw new Error(`Mailpit sweep list failed: ${response.status}`);

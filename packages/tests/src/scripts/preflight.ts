@@ -1,6 +1,12 @@
 import { resolveMx } from "node:dns/promises";
 import { Socket } from "node:net";
-import { env, requireMailpit, requirePassword } from "../helpers/env";
+import { assertE2ECleanupReady } from "../helpers/e2e-cleanup";
+import {
+  env,
+  requireE2ECleanup,
+  requireMailpit,
+  requirePassword,
+} from "../helpers/env";
 import { assertMailpitReady } from "../helpers/mailpit";
 
 const checkPort = (host: string, port: number) =>
@@ -22,7 +28,9 @@ const checkPort = (host: string, port: number) =>
 const main = async () => {
   requirePassword();
   requireMailpit();
+  requireE2ECleanup();
   await assertMailpitReady();
+  await assertE2ECleanupReady();
 
   const mx = await resolveMx(env.emailDomain).catch(() => []);
   if (!mx.length) {

@@ -6,6 +6,12 @@ export const env = {
   siteUrl: trim(process.env.PROD_SITE_URL, "https://teakvault.com"),
   apiUrl: trim(process.env.PROD_API_URL, "https://teakvault.com/api"),
   mcpUrl: trim(process.env.PROD_MCP_URL, "https://teakvault.com/mcp"),
+  convexSiteUrl: trim(
+    process.env.VITE_PUBLIC_CONVEX_SITE_URL ??
+      process.env.NEXT_PUBLIC_CONVEX_SITE_URL,
+    ""
+  ),
+  cleanupToken: process.env.E2E_CLEANUP_TOKEN ?? "",
   mailpitUrl: trim(process.env.MAILPIT_URL, ""),
   emailDomain: process.env.E2E_EMAIL_DOMAIN?.trim() || "",
   password: process.env.PROD_E2E_PASSWORD || "",
@@ -21,6 +27,14 @@ export const requirePassword = () => {
 export const requireMailpit = () => {
   if (!(env.mailpitUrl && env.emailDomain)) {
     throw new Error("MAILPIT_URL and E2E_EMAIL_DOMAIN secrets are required");
+  }
+};
+
+export const requireE2ECleanup = () => {
+  if (!(env.cleanupToken && env.convexSiteUrl)) {
+    throw new Error(
+      "E2E_CLEANUP_TOKEN and VITE_PUBLIC_CONVEX_SITE_URL are required"
+    );
   }
 };
 

@@ -1,13 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
 import { env } from "./src/helpers/env";
 
-const journey = "src/journey/**/*.e2e.ts";
 const deleteAccount = "journey/99-delete-account.e2e.ts";
 const postDelete = "journey/100-post-delete.e2e.ts";
 
 export default defineConfig({
   testDir: "./src",
   timeout: 120_000,
+  workers: 4,
   expect: { timeout: 15_000 },
   reporter: process.env.CI
     ? [["list"], ["html", { open: "never" }]]
@@ -25,10 +25,12 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
-      name: "journey",
+      name: "journey-web",
       dependencies: ["journey-setup"],
-      testIgnore: ["journey/01-signup.setup.ts", deleteAccount, postDelete],
-      testMatch: journey,
+      testMatch: [
+        "journey/02-web-journey.e2e.ts",
+        "journey/09-web-product-surfaces.e2e.ts",
+      ],
       workers: 1,
       use: {
         ...devices["Desktop Chrome"],
@@ -42,8 +44,56 @@ export default defineConfig({
       },
     },
     {
+      name: "journey-services",
+      dependencies: ["journey-setup"],
+      fullyParallel: true,
+      testMatch: [
+        "journey/03-api.e2e.ts",
+        "journey/04-cli.e2e.ts",
+        "journey/05-mcp.e2e.ts",
+      ],
+      workers: 3,
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: ".state/user.json",
+      },
+    },
+    {
+      name: "journey-a11y",
+      dependencies: ["journey-setup"],
+      fullyParallel: true,
+      testMatch: "journey/08-a11y.e2e.ts",
+      workers: 4,
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: ".state/user.json",
+      },
+    },
+    {
+      name: "journey-security",
+      dependencies: ["journey-web"],
+      testMatch: "journey/06-security.e2e.ts",
+      workers: 1,
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: ".state/user.json",
+      },
+    },
+    {
+      name: "journey-account",
+      dependencies: [
+        "journey-web",
+        "journey-services",
+        "journey-a11y",
+        "journey-security",
+      ],
+      testMatch: "journey/07-account-flows.e2e.ts",
+      workers: 1,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
       name: "journey-delete",
-      dependencies: ["journey"],
+      dependencies: ["journey-account"],
       testMatch: deleteAccount,
       workers: 1,
       use: { ...devices["Desktop Chrome"], storageState: ".state/user.json" },
@@ -57,24 +107,29 @@ export default defineConfig({
     },
     {
       name: "docs",
+      fullyParallel: true,
       testMatch: "docs/**/*.e2e.ts",
       retries: 1,
+      workers: 4,
       use: { ...devices["Desktop Chrome"], baseURL: env.siteUrl },
     },
     {
       name: "matrix-chromium",
+      fullyParallel: true,
       testMatch: "matrix/journey-lite.e2e.ts",
       workers: 1,
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "matrix-firefox",
+      fullyParallel: true,
       testMatch: "matrix/journey-lite.e2e.ts",
       workers: 1,
       use: { ...devices["Desktop Firefox"] },
     },
     {
       name: "matrix-webkit",
+      fullyParallel: true,
       testMatch: "matrix/journey-lite.e2e.ts",
       workers: 1,
       use: { ...devices["Desktop Safari"] },
