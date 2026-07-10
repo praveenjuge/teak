@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { truncateSync, writeFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
 import { MAX_FILE_SIZE } from "@teak/convex/shared";
 import { apiFetch } from "../helpers/api";
@@ -76,7 +77,10 @@ const clearFilters = async (page: Page) => {
     .click();
 };
 
-const uploadFiles = async (page: Page, files: FilePayload | FilePayload[]) => {
+const uploadFiles = async (
+  page: Page,
+  files: FilePayload | FilePayload[] | string | string[]
+) => {
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
     page.getByRole("button", { name: "Upload files" }).click(),
@@ -207,7 +211,9 @@ test("web editor, deep links, and link metadata stay usable", async ({
   );
 });
 
-test("web uploads and paste-created files complete", async ({ page }) => {
+test("web uploads and paste-created files complete", async ({
+  page,
+}, testInfo) => {
   const { apiKey } = primaryContext();
   const marker = markerFor("uploads");
   await waitForHomeUploadSurface(page);
@@ -228,11 +234,10 @@ test("web uploads and paste-created files complete", async ({ page }) => {
     timeout: 90_000,
   });
 
-  await uploadFiles(page, {
-    buffer: Buffer.alloc(MAX_FILE_SIZE + 1),
-    mimeType: "application/octet-stream",
-    name: `${marker}-too-large.bin`,
-  });
+  const oversizedPath = testInfo.outputPath(`${marker}-too-large.bin`);
+  writeFileSync(oversizedPath, "");
+  truncateSync(oversizedPath, MAX_FILE_SIZE + 1);
+  await uploadFiles(page, oversizedPath);
   await expect(page.getByText(/Maximum file size is 100MB/i)).toBeVisible();
 
   await waitForHomeUploadSurface(page);
