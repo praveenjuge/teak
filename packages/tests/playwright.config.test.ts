@@ -2,13 +2,13 @@ import { describe, expect, test } from "bun:test";
 import config from "./playwright.config";
 
 describe("production E2E project graph", () => {
-  test("keeps stateful web flows serial and parallelizes independent coverage", () => {
+  test("bounds shared-key load while parallelizing independent projects", () => {
     const projects = new Map(
       config.projects?.map((project) => [project.name, project])
     );
     expect(projects.get("journey-web")?.workers).toBe(1);
-    expect(projects.get("journey-services")?.fullyParallel).toBe(true);
-    expect(projects.get("journey-services")?.workers).toBe(3);
+    expect(projects.get("journey-services")?.fullyParallel).not.toBe(true);
+    expect(projects.get("journey-services")?.workers).toBe(1);
     expect(projects.get("journey-a11y")?.fullyParallel).toBe(true);
     expect(projects.get("journey-account")?.dependencies).toEqual([
       "journey-web",
