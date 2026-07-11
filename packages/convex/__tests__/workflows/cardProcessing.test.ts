@@ -8,6 +8,19 @@ describe("workflows/cardProcessing", () => {
       expect(module.cardProcessingWorkflow).toBeDefined();
     });
 
+    test("omits completion duration when the initial card is missing", async () => {
+      const module = await import("../../workflows/cardProcessing");
+      expect(module.resolveCardProcessingDurationMs(undefined, 1000)).toBe(
+        undefined
+      );
+    });
+
+    test("clamps completion duration to a non-negative value", async () => {
+      const module = await import("../../workflows/cardProcessing");
+      expect(module.resolveCardProcessingDurationMs(500, 1000)).toBe(500);
+      expect(module.resolveCardProcessingDurationMs(1500, 1000)).toBe(0);
+    });
+
     test("accepts cardId argument", () => {
       const args = { cardId: "card123" };
       expect(args).toHaveProperty("cardId");
