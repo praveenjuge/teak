@@ -298,7 +298,7 @@ export function trackAiStage(params: {
     {
       stage: params.stage,
       outcome: params.outcome,
-      cardType: params.cardType ?? null,
+      "card.type": params.cardType ?? null,
       "error.class": params.errorClass ?? null,
     },
     "millisecond"
