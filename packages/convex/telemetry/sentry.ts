@@ -364,15 +364,17 @@ export const withBackendSpan = async <T>(
               }
             )
           );
-          safely(() =>
-            Sentry.metrics.count(TELEMETRY_METRICS.workflowFailure, 1, {
-              attributes: {
-                ...attributes,
-                "error.class": errorClass,
-                outcome: "failure",
-              },
-            })
-          );
+          if (input.operation.startsWith("teak.workflow")) {
+            safely(() =>
+              Sentry.metrics.count(TELEMETRY_METRICS.workflowFailure, 1, {
+                attributes: {
+                  ...attributes,
+                  "error.class": errorClass,
+                  outcome: "failure",
+                },
+              })
+            );
+          }
           if (retryable) {
             safely(() =>
               Sentry.metrics.count(TELEMETRY_METRICS.workflowRetry, 1, {

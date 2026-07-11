@@ -222,7 +222,34 @@ describe("backend Sentry OpenTelemetry", () => {
     };
     expect(sentryCaptureException.mock.calls[0]?.[0]).toBe(applicationError);
     expect(captureContext.tags["error.class"]).toBe("ProviderError");
+    expect(
+      sentryMetricCount.mock.calls.some(
+        ([metric]) => metric === "teak.workflow.failure"
+      )
+    ).toBe(false);
     expect(sentryFlush).toHaveBeenCalled();
+  });
+
+  test("counts a thrown workflow failure exactly once", async () => {
+    const workflowError = new Error("workflow step failed");
+
+    await expect(
+      telemetry.withBackendSpan(
+        {
+          name: "card.classification",
+          operation: "teak.workflow.step",
+          stage: "classification",
+          surface: "backend",
+        },
+        () => Promise.reject(workflowError)
+      )
+    ).rejects.toBe(workflowError);
+
+    expect(
+      sentryMetricCount.mock.calls.filter(
+        ([metric]) => metric === "teak.workflow.failure"
+      )
+    ).toHaveLength(1);
   });
 
   test("records canonical outcomes without raw identifiers", async () => {
