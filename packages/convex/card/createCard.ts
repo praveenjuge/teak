@@ -13,6 +13,7 @@ import {
 import { ensureCardCreationAllowed } from "../auth";
 import { cardTypeValidator, colorValidator } from "../schema";
 import type { CardCreationSource } from "../shared/metrics";
+import { normalizeErrorClass } from "../shared/telemetry";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { scheduleCardOutcome } from "../telemetry/schedule";
 import { workflow } from "../workflows/manager";
@@ -228,7 +229,7 @@ export const createCard = mutation({
     } catch (error) {
       await scheduleCardOutcome(ctx, {
         cardType: args.type,
-        errorClass: error instanceof Error ? error.name : "UnknownError",
+        errorClass: normalizeErrorClass(error),
         outcome: "failure",
         source: "unknown",
         userId: user.subject,

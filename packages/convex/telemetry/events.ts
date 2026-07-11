@@ -26,6 +26,27 @@ const businessOutcomeValidator = v.union(
   v.literal("failure")
 );
 
+type BillingFlow = "checkout" | "portal";
+type BusinessOutcome = "attempt" | "success" | "failure";
+
+const BILLING_METRICS = {
+  checkout: {
+    attempt: TELEMETRY_METRICS.checkoutStart,
+    failure: TELEMETRY_METRICS.checkoutFailure,
+    success: TELEMETRY_METRICS.checkoutSuccess,
+  },
+  portal: {
+    attempt: TELEMETRY_METRICS.portalAttempt,
+    failure: TELEMETRY_METRICS.portalFailure,
+    success: TELEMETRY_METRICS.portalSuccess,
+  },
+} as const;
+
+export const resolveBillingTelemetry = (
+  flow: BillingFlow,
+  outcome: BusinessOutcome
+) => ({ metric: BILLING_METRICS[flow][outcome], stage: flow });
+
 export const emitCardOutcome = internalAction({
   args: {
     cardId: v.optional(v.string()),
@@ -126,11 +147,10 @@ export const emitBillingOutcome = internalAction({
   returns: v.object({ sent: v.boolean() }),
   handler: async (_ctx, args) => {
     try {
-      const metric = {
-        attempt: TELEMETRY_METRICS.checkoutStart,
-        failure: TELEMETRY_METRICS.checkoutFailure,
-        success: TELEMETRY_METRICS.checkoutSuccess,
-      }[args.outcome];
+      const { metric, stage } = resolveBillingTelemetry(
+        args.flow,
+        args.outcome
+      );
       const sent = await recordBackendOutcome({
         attributes: {
           "billing.flow": args.flow,
@@ -139,7 +159,7 @@ export const emitBillingOutcome = internalAction({
         metric,
         operation: "billing",
         outcome: args.outcome,
-        stage: "checkout",
+        stage,
         surface: "backend",
         userId: args.userId,
       });

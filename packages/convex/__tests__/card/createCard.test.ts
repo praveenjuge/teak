@@ -251,6 +251,36 @@ describe("card/createCard.ts", () => {
     expect(ctx.db.insert).not.toHaveBeenCalled();
   });
 
+  test("normalizes failure classes before scheduling telemetry", async () => {
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        system: { get: mock().mockResolvedValue(null) },
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
+          }),
+        }),
+        insert: mock().mockRejectedValue(new Error("Request timed out")),
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any;
+
+    const handler = (createCard as any).handler ?? createCard;
+    await expect(handler(ctx, { content: "Hello" })).rejects.toThrow(
+      "Request timed out"
+    );
+    expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(
+      0,
+      expect.anything(),
+      expect.objectContaining({
+        errorClass: "TimeoutError",
+        outcome: "failure",
+      })
+    );
+  });
+
   test("builds fileMetadata when fileKey provided", async () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },

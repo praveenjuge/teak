@@ -143,6 +143,7 @@ describe("telemetry naming and sampling", () => {
     expect(new Set(names).size).toBe(names.length);
     expect(names.every((name) => name.startsWith("teak."))).toBe(true);
     expect(names).not.toContain("card.created");
+    expect(TELEMETRY_METRICS.portalAttempt).toBe("teak.billing.portal.attempt");
   });
 
   test("keeps high-value production traces and samples routine navigation", () => {

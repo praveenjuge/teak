@@ -180,6 +180,7 @@ describe("card/uploadCard.ts", () => {
           }),
         }),
       },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
     const finalizeHandler =
@@ -192,6 +193,18 @@ describe("card/uploadCard.ts", () => {
     });
     expect(result.success).toBe(false);
     expect(result.errorCode).toBe("INVALID_STORAGE_KEY");
+    const telemetryArgs = ctx.scheduler.runAfter.mock.calls.map(
+      (call: unknown[]) => call[2]
+    );
+    expect(telemetryArgs).toHaveLength(2);
+    for (const args of telemetryArgs) {
+      expect(args).toEqual(
+        expect.objectContaining({
+          errorClass: "ValidationError",
+          outcome: "failure",
+        })
+      );
+    }
   });
 
   test("finalizeUploadedCard creates card and schedules workflow", async () => {

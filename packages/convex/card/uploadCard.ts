@@ -329,7 +329,7 @@ export const finalizeUploadedCard = mutation({
     } catch (error) {
       await scheduleCardOutcome(ctx, {
         cardType: args.cardType,
-        errorClass: error instanceof Error ? error.name : "UnknownError",
+        errorClass: normalizeErrorClass(error),
         outcome: "failure",
         source: "unknown",
         userId: user.subject,
