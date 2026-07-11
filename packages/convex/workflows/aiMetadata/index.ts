@@ -91,8 +91,6 @@ export const startAiMetadataWorkflow = internalMutation({
 });
 
 export * from "./actions";
-export * from "./generators";
 export * from "./mutations";
 export * from "./schemas";
-export * from "./transcript";
 export * from "./types";

@@ -1,3 +1,5 @@
+"use node";
+
 import { generateText, Output } from "ai";
 import {
   IMAGE_METADATA_MODEL,
