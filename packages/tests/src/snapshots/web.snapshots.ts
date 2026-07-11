@@ -62,6 +62,27 @@ const stabilizeSettingsIdentity = async (page: Page, email: string) => {
   });
 };
 
+const stabilizeCardModalMetadata = async (page: Page) => {
+  const dialog = page.getByRole("dialog");
+  const summaryLabel = dialog.getByText("Summary", { exact: true });
+  if ((await summaryLabel.count()) === 1) {
+    await summaryLabel.locator("xpath=..").evaluate((container) => {
+      container.remove();
+    });
+  }
+
+  const typeBadge = dialog.getByRole("button", { name: "Text", exact: true });
+  await expect(typeBadge).toBeVisible();
+  await typeBadge.evaluate((button) => {
+    for (const sibling of button.parentElement?.querySelectorAll("button") ??
+      []) {
+      if (sibling !== button) {
+        sibling.remove();
+      }
+    }
+  });
+};
+
 test("captures the deterministic Teak web product surface", async ({
   browser,
   page,
@@ -107,6 +128,7 @@ test("captures the deterministic Teak web product surface", async ({
 
     await fixtureCard.click();
     await expect(page.getByRole("dialog")).toBeVisible();
+    await stabilizeCardModalMetadata(page);
     await capture(page, viewportName, "card-modal");
     await page.keyboard.press("Escape");
 
