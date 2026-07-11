@@ -88,6 +88,11 @@ export const TELEMETRY_ERROR_CLASSES = [
 
 export type TelemetryErrorClass = (typeof TELEMETRY_ERROR_CLASSES)[number];
 
+export const resolveBackendTelemetryDsn = (
+  env: Readonly<Record<string, string | undefined>>
+): string | undefined =>
+  (env.SENTRY_BACKEND_DSN ?? env.SENTRY_DSN)?.trim() || undefined;
+
 export const TELEMETRY_METRICS = {
   aiCalls: "teak.ai.calls",
   aiCostUsd: "teak.ai.cost.usd",
@@ -425,10 +430,14 @@ const scrubPrivateKeys = (value: string): string => {
     while (blockCursor < value.length) {
       const marker = value.indexOf("-----", blockCursor);
       if (marker === -1) {
+        output += `${value.slice(copyFrom, begin)}[REDACTED_PRIVATE_KEY]`;
+        copyFrom = value.length;
         searchFrom = value.length;
         break search;
       }
       if (value.startsWith(PRIVATE_KEY_BEGIN, marker)) {
+        output += `${value.slice(copyFrom, begin)}[REDACTED_PRIVATE_KEY]`;
+        copyFrom = marker;
         searchFrom = marker;
         continue search;
       }
@@ -441,6 +450,8 @@ const scrubPrivateKeys = (value: string): string => {
       blockCursor = marker + 5;
     }
 
+    output += `${value.slice(copyFrom, begin)}[REDACTED_PRIVATE_KEY]`;
+    copyFrom = value.length;
     searchFrom = value.length;
   }
 

@@ -8,6 +8,7 @@ import {
   normalizeErrorClass,
   normalizeTelemetryAttributes,
   prepareTelemetryContent,
+  resolveBackendTelemetryDsn,
   resolveTelemetryEnvironment,
   resolveTraceSampleRate,
   scrubTelemetryString,
@@ -54,6 +55,16 @@ describe("telemetry environment and releases", () => {
     expect(buildMobileRelease("1.2.3", undefined)).toBeUndefined();
     expect(buildBackendRelease("not-a-sha")).toBeUndefined();
   });
+
+  test("resolves the backend telemetry target from canonical environment keys", () => {
+    expect(
+      resolveBackendTelemetryDsn({
+        SENTRY_BACKEND_DSN: " https://backend.invalid/1 ",
+        SENTRY_DSN: "https://fallback.invalid/2",
+      })
+    ).toBe("https://backend.invalid/1");
+    expect(resolveBackendTelemetryDsn({ SENTRY_DSN: "  " })).toBeUndefined();
+  });
 });
 
 describe("telemetry privacy and bounds", () => {
@@ -86,7 +97,29 @@ describe("telemetry privacy and bounds", () => {
     const adversarial = "-----BEGIN PRIVATE KEY-----".repeat(10_000);
 
     expect(scrubTelemetryString(privateKey)).toBe("[REDACTED_PRIVATE_KEY]");
-    expect(scrubTelemetryString(adversarial)).toBe(adversarial);
+    expect(scrubTelemetryString(adversarial)).not.toContain(
+      "-----BEGIN PRIVATE KEY-----"
+    );
+  });
+
+  test("scrubs truncated and nested private-key blocks", () => {
+    const truncated = [
+      "before",
+      "-----BEGIN PRIVATE KEY-----",
+      "sensitive-key-material",
+    ].join("\n");
+    const nested = [
+      "-----BEGIN PRIVATE KEY-----",
+      "first-sensitive-value",
+      "-----BEGIN PRIVATE KEY-----",
+      "second-sensitive-value",
+    ].join("\n");
+
+    expect(scrubTelemetryString(truncated)).toBe(
+      "before\n[REDACTED_PRIVATE_KEY]"
+    );
+    expect(scrubTelemetryString(nested)).not.toContain("sensitive-value");
+    expect(scrubTelemetryString(nested)).not.toContain("PRIVATE KEY");
   });
 
   test("retains an allowed prefix and suffix for oversized content", async () => {

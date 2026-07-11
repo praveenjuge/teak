@@ -55,11 +55,13 @@ export const scheduleAuthOutcome = async (
     stage: "auth_bootstrap" | "session_refresh" | "sign_in";
     userId?: string;
   }
-): Promise<void> => {
+): Promise<boolean> => {
   try {
     await ctx.scheduler.runAfter(0, telemetryFunctions.emitAuthOutcome, args);
+    return true;
   } catch {
     // Scheduling telemetry must never alter authentication.
+    return false;
   }
 };
 

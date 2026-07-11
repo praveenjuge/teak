@@ -8,6 +8,7 @@ import {
   buildBackendRelease,
   buildTelemetryContext,
   normalizeErrorClass,
+  resolveBackendTelemetryDsn,
   resolveTelemetryEnvironment,
   resolveTraceSampleRate,
   scrubTelemetryString,
@@ -43,10 +44,6 @@ export const resolveBackendRelease = (): string | undefined =>
       process.env.VERCEL_GIT_COMMIT_SHA ??
       process.env.GITHUB_SHA
   );
-
-const resolveBackendDsn = (): string | undefined =>
-  (process.env.SENTRY_BACKEND_DSN ?? process.env.SENTRY_DSN)?.trim() ||
-  undefined;
 
 interface PreparedString {
   content: string;
@@ -139,7 +136,7 @@ export const ensureBackendTelemetry = (): boolean => {
     return enabled;
   }
   initialized = true;
-  const dsn = resolveBackendDsn();
+  const dsn = resolveBackendTelemetryDsn(process.env);
   if (!dsn) {
     return false;
   }

@@ -28,7 +28,10 @@ import {
   FREE_TIER_LIMIT,
 } from "./shared/constants";
 import { rateLimiter } from "./shared/rateLimits";
-import { normalizeErrorClass } from "./shared/telemetry";
+import {
+  normalizeErrorClass,
+  resolveBackendTelemetryDsn,
+} from "./shared/telemetry";
 import { deleteObject } from "./storage/r2";
 import { scheduleAuthOutcome, scheduleUserCreated } from "./telemetry/schedule";
 
@@ -203,13 +206,29 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     onAPIError: {
       errorURL: "/login",
       onError: (error) => {
-        if (hasScheduler(ctx)) {
-          void scheduleAuthOutcome(ctx, {
-            errorClass: normalizeErrorClass(error),
-            outcome: "failure",
-            stage: "sign_in",
-          });
+        const errorClass = normalizeErrorClass(error);
+        const logFallback = () => {
+          console.error("[auth] Request failed", { errorClass });
+        };
+        const hasTelemetryDsn = Boolean(
+          resolveBackendTelemetryDsn(process.env)
+        );
+        if (!hasScheduler(ctx)) {
+          logFallback();
+          return;
         }
+        if (!hasTelemetryDsn) {
+          logFallback();
+        }
+        void scheduleAuthOutcome(ctx, {
+          errorClass,
+          outcome: "failure",
+          stage: "sign_in",
+        }).then((scheduled) => {
+          if (hasTelemetryDsn && !scheduled) {
+            logFallback();
+          }
+        });
       },
     },
     socialProviders: {
