@@ -52,6 +52,8 @@ jobs:
       - name: Deploy Convex production
         working-directory: packages/convex
         run: |
+          export PATH="$GITHUB_WORKSPACE/node_modules/.bin:$PATH"
+          test -x "$GITHUB_WORKSPACE/node_modules/.bin/tsc"
           bunx convex deploy \
             --typecheck enable \
             --typecheck-components \

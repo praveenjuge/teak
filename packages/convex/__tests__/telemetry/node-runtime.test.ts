@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const convexRoot = resolve(import.meta.dirname, "../..");
+const repositoryRoot = resolve(convexRoot, "../..");
 const readConvexSource = (relativePath: string) =>
   readFileSync(resolve(convexRoot, relativePath), "utf8");
 
@@ -61,5 +62,20 @@ describe("backend telemetry Node runtime", () => {
     );
 
     expect(invalidPaths).toEqual([]);
+  });
+
+  test("exposes the hoisted TypeScript binary to Convex deploy", () => {
+    const workflow = readFileSync(
+      resolve(repositoryRoot, ".github/workflows/backend-deploy.yml"),
+      "utf8"
+    );
+
+    expect(workflow).toContain(
+      'export PATH="$GITHUB_WORKSPACE/node_modules/.bin:$PATH"'
+    );
+    expect(workflow).toContain(
+      'test -x "$GITHUB_WORKSPACE/node_modules/.bin/tsc"'
+    );
+    expect(workflow).toContain("--typecheck enable");
   });
 });
