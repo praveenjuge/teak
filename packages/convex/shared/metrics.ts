@@ -331,7 +331,7 @@ export function trackUpload(params: {
   if (params.outcome === "failure") {
     counter(TELEMETRY_METRICS.uploadFailure, 1, attributes);
   }
-  if (typeof params.bytes === "number") {
+  if (params.outcome === "success" && typeof params.bytes === "number") {
     distribution(
       TELEMETRY_METRICS.uploadBytes,
       params.bytes,
