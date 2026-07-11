@@ -366,6 +366,7 @@ describe("backend Sentry OpenTelemetry", () => {
         status: "ok",
       })
     );
+    expect(sentryFlush).toHaveBeenCalledTimes(1);
   });
 
   test("reports cron failures and preserves the thrown application error", async () => {
@@ -389,5 +390,6 @@ describe("backend Sentry OpenTelemetry", () => {
         status: "error",
       })
     );
+    expect(sentryFlush).toHaveBeenCalledTimes(1);
   });
 });

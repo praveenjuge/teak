@@ -609,60 +609,60 @@ export const withCronCheckIn = async <T>(
     );
   });
 
-  try {
-    const result = await withBackendSpan(
-      {
-        attributes: { monitor: config.slug },
-        name: `cron.${config.slug}`,
-        operation: "teak.workflow",
-        stage: "cron",
-        surface: "backend",
-      },
-      callback
-    );
-    const durationMs = Date.now() - startedAt;
-    recordBackendMetric(TELEMETRY_METRICS.cronSuccess, 1, {
-      monitor: config.slug,
-      outcome: "success",
-    });
-    recordBackendMetric(
-      TELEMETRY_METRICS.cronDuration,
-      durationMs,
-      { monitor: config.slug, outcome: "success" },
-      "millisecond"
-    );
-    safely(() =>
-      Sentry.captureCheckIn({
-        ...(checkInId ? { checkInId } : {}),
-        duration: durationMs / 1000,
-        monitorSlug: config.slug,
-        status: "ok",
-      })
-    );
-    await flushBackendTelemetry();
-    return result;
-  } catch (error) {
-    const durationMs = Date.now() - startedAt;
-    recordBackendMetric(TELEMETRY_METRICS.cronFailure, 1, {
-      "error.class": normalizeErrorClass(error),
-      monitor: config.slug,
-      outcome: "failure",
-    });
-    recordBackendMetric(
-      TELEMETRY_METRICS.cronDuration,
-      durationMs,
-      { monitor: config.slug, outcome: "failure" },
-      "millisecond"
-    );
-    safely(() =>
-      Sentry.captureCheckIn({
-        ...(checkInId ? { checkInId } : {}),
-        duration: durationMs / 1000,
-        monitorSlug: config.slug,
-        status: "error",
-      })
-    );
-    await flushBackendTelemetry();
-    throw error;
-  }
+  return await withBackendSpan(
+    {
+      attributes: { monitor: config.slug },
+      name: `cron.${config.slug}`,
+      operation: "teak.workflow",
+      stage: "cron",
+      surface: "backend",
+    },
+    async () => {
+      try {
+        const result = await callback();
+        const durationMs = Date.now() - startedAt;
+        recordBackendMetric(TELEMETRY_METRICS.cronSuccess, 1, {
+          monitor: config.slug,
+          outcome: "success",
+        });
+        recordBackendMetric(
+          TELEMETRY_METRICS.cronDuration,
+          durationMs,
+          { monitor: config.slug, outcome: "success" },
+          "millisecond"
+        );
+        safely(() =>
+          Sentry.captureCheckIn({
+            ...(checkInId ? { checkInId } : {}),
+            duration: durationMs / 1000,
+            monitorSlug: config.slug,
+            status: "ok",
+          })
+        );
+        return result;
+      } catch (error) {
+        const durationMs = Date.now() - startedAt;
+        recordBackendMetric(TELEMETRY_METRICS.cronFailure, 1, {
+          "error.class": normalizeErrorClass(error),
+          monitor: config.slug,
+          outcome: "failure",
+        });
+        recordBackendMetric(
+          TELEMETRY_METRICS.cronDuration,
+          durationMs,
+          { monitor: config.slug, outcome: "failure" },
+          "millisecond"
+        );
+        safely(() =>
+          Sentry.captureCheckIn({
+            ...(checkInId ? { checkInId } : {}),
+            duration: durationMs / 1000,
+            monitorSlug: config.slug,
+            status: "error",
+          })
+        );
+        throw error;
+      }
+    }
+  );
 };
