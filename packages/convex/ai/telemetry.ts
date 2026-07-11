@@ -1,3 +1,5 @@
+"use node";
+
 import { distribution, trackAiCall } from "../shared/metrics";
 import {
   normalizeErrorClass,

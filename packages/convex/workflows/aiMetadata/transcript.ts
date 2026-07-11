@@ -1,3 +1,5 @@
+"use node";
+
 import { experimental_transcribe as transcribe } from "ai";
 import { TRANSCRIPTION_MODEL, TRANSCRIPTION_MODEL_ID } from "../../ai/models";
 import { observeAiGeneration } from "../../ai/telemetry";
