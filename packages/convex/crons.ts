@@ -12,44 +12,44 @@ const crons = cronJobs();
 // seeds these clients as part of the deploy rather than up to an interval
 // later; the recurring interval then just re-asserts them and corrects drift.
 // Also runnable on demand via `bunx convex run oauthClients:ensureOAuthClients`.
-crons.interval(
+crons.cron(
   "ensure-oauth-clients",
-  { minutes: 15 },
-  (internal as any).oauthClients.ensureOAuthClients,
+  "*/15 * * * *",
+  (internal as any).telemetry.crons.ensureOauthClients,
   {}
 );
 
 // Clean up cards that have been soft-deleted for more than 30 days
 // Runs daily at 2:00 AM UTC (off-peak hours)
-crons.daily(
+crons.cron(
   "cleanup-old-deleted-cards",
-  { hourUTC: 2, minuteUTC: 0 },
-  internal.workflows.cardCleanup.startCardCleanupWorkflow,
+  "0 2 * * *",
+  (internal as any).telemetry.crons.cleanupOldDeletedCards,
   {}
 );
 
-crons.interval(
+crons.cron(
   "cleanup-abandoned-import-uploads",
-  { hours: 1 },
-  (internal as any)["import/runImport"].cleanupExpiredUploads,
+  "0 * * * *",
+  (internal as any).telemetry.crons.cleanupAbandonedImportUploads,
   {}
 );
 
 // Generate AI metadata for cards that don't have it yet
 // Runs every 6 hours to catch any cards that failed generation
-crons.interval(
+crons.cron(
   "ai-metadata-backfill",
-  { hours: 6 },
-  internal.workflows.aiBackfill.startAiBackfillWorkflow,
+  "0 */6 * * *",
+  (internal as any).telemetry.crons.aiMetadataBackfill,
   {}
 );
 
 // Delete expired export artifacts, remove leftover snapshot items, and mark
 // jobs expired. Runs daily at 3:00 AM UTC (off-peak, after card cleanup).
-crons.daily(
+crons.cron(
   "cleanup-expired-exports",
-  { hourUTC: 3, minuteUTC: 0 },
-  (internal as any).workflows.exportCleanup.startExportCleanupWorkflow,
+  "0 3 * * *",
+  (internal as any).telemetry.crons.cleanupExpiredExports,
   {}
 );
 

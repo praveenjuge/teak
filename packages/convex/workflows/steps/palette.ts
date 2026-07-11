@@ -4,7 +4,9 @@ import { PhotonImage } from "@cf-wasm/photon";
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
+import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import { resolveObjectUrl } from "../../storage/r2";
+import { withBackendSpan } from "../../telemetry/sentry";
 
 const MAX_COLORS = 5;
 const SAMPLE_TARGET = 4000;
@@ -64,76 +66,88 @@ export const extractPaletteFromImage = internalAction({
   args: {
     cardId: v.id("cards"),
   },
-  handler: async (ctx, { cardId }) => {
-    const card = await ctx.runQuery(internal.card.getCard.getCardInternal, {
-      cardId,
-    });
-
-    if (card?.type !== "image" || !card.fileKey) {
-      return undefined;
-    }
-
-    // If palette already exists, skip recomputation
-    if (Array.isArray(card.colors) && card.colors.length > 0) {
-      return card.colors as any;
-    }
-
-    // For SVG files, use the generated thumbnail (rasterized PNG) for palette extraction
-    // Photon can only process raster images, not SVG
-    const isSvg =
-      card.fileMetadata?.mimeType === "image/svg+xml" ||
-      card.fileMetadata?.fileName?.endsWith(".svg") ||
-      card.fileMetadata?.fileName?.endsWith(".SVG");
-
-    // Determine which R2 key to use: thumbnail for SVGs, original file for raster images
-    const fileKeyForPalette = isSvg ? card.thumbnailKey : card.fileKey;
-
-    // For SVGs without a thumbnail yet, skip (will run after thumbnail generation)
-    if (isSvg && !fileKeyForPalette) {
-      return undefined;
-    }
-
-    const fileUrl = await resolveObjectUrl(fileKeyForPalette);
-    if (!fileUrl) {
-      return undefined;
-    }
-
-    const response = await fetch(fileUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image for palette: ${response.status}`);
-    }
-
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    const image = PhotonImage.new_from_byteslice(bytes);
-
-    try {
-      const width = image.get_width();
-      const height = image.get_height();
-
-      if (width < MIN_DIMENSION || height < MIN_DIMENSION) {
-        return undefined;
-      }
-
-      const rawPixels = image.get_raw_pixels();
-      const colors = computePalette(rawPixels, MAX_COLORS);
-
-      if (!colors.length) {
-        return undefined;
-      }
-
-      const palette = colors.map((hex) => ({ hex }));
-
-      await ctx.runMutation(
-        internal.workflows.aiMetadata.mutations.updateCardColors,
-        {
+  handler: async (ctx, { cardId }) =>
+    withBackendSpan(
+      {
+        cardId,
+        name: "card.palette",
+        operation: TELEMETRY_OPERATIONS.storageRender,
+        stage: "palette",
+        surface: "backend",
+      },
+      async () => {
+        const card = await ctx.runQuery(internal.card.getCard.getCardInternal, {
           cardId,
-          colors: palette,
-        }
-      );
+        });
 
-      return palette as any;
-    } finally {
-      image.free();
-    }
-  },
+        if (card?.type !== "image" || !card.fileKey) {
+          return;
+        }
+
+        // If palette already exists, skip recomputation
+        if (Array.isArray(card.colors) && card.colors.length > 0) {
+          return card.colors as any;
+        }
+
+        // For SVG files, use the generated thumbnail (rasterized PNG) for palette extraction
+        // Photon can only process raster images, not SVG
+        const isSvg =
+          card.fileMetadata?.mimeType === "image/svg+xml" ||
+          card.fileMetadata?.fileName?.endsWith(".svg") ||
+          card.fileMetadata?.fileName?.endsWith(".SVG");
+
+        // Determine which R2 key to use: thumbnail for SVGs, original file for raster images
+        const fileKeyForPalette = isSvg ? card.thumbnailKey : card.fileKey;
+
+        // For SVGs without a thumbnail yet, skip (will run after thumbnail generation)
+        if (isSvg && !fileKeyForPalette) {
+          return;
+        }
+
+        const fileUrl = await resolveObjectUrl(fileKeyForPalette);
+        if (!fileUrl) {
+          return;
+        }
+
+        const response = await fetch(fileUrl);
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch image for palette: ${response.status}`
+          );
+        }
+
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        const image = PhotonImage.new_from_byteslice(bytes);
+
+        try {
+          const width = image.get_width();
+          const height = image.get_height();
+
+          if (width < MIN_DIMENSION || height < MIN_DIMENSION) {
+            return;
+          }
+
+          const rawPixels = image.get_raw_pixels();
+          const colors = computePalette(rawPixels, MAX_COLORS);
+
+          if (!colors.length) {
+            return;
+          }
+
+          const palette = colors.map((hex) => ({ hex }));
+
+          await ctx.runMutation(
+            internal.workflows.aiMetadata.mutations.updateCardColors,
+            {
+              cardId,
+              colors: palette,
+            }
+          );
+
+          return palette as any;
+        } finally {
+          image.free();
+        }
+      }
+    ),
 });

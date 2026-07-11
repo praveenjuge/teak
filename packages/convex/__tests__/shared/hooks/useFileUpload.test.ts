@@ -76,9 +76,9 @@ global.Image = MockImage as any;
 
 import {
   type FileUploadDependencies,
-  setFileUploadSentryCaptureFunction,
   useFileUploadCore,
 } from "../../../client/hooks/useFileUpload.client";
+import { configureClientTelemetry } from "../../../shared/client-telemetry";
 import {
   CARD_ERROR_CODES,
   CARD_ERROR_MESSAGES,
@@ -132,7 +132,7 @@ describe("useFileUploadCore", () => {
     mockFetch.mockReset();
     mockSentryCapture.mockReset();
     mockUseEffectCleanups.length = 0;
-    setFileUploadSentryCaptureFunction(mockSentryCapture);
+    configureClientTelemetry({ captureException: mockSentryCapture });
   });
 
   const hook = useFileUploadCore(dependencies, config);
@@ -728,9 +728,11 @@ describe("useFileUploadCore", () => {
 
       expect(mockSentryCapture).toHaveBeenCalled();
       const callArgs = mockSentryCapture.mock.calls[0];
-      expect(callArgs[1].tags).toEqual({
-        source: "convex",
-        operation: "fileUpload",
+      expect(callArgs[1]).toEqual({
+        "error.class": "UnknownError",
+        "error.code": undefined,
+        "file.bucket": "image",
+        operation: "storage.upload",
       });
     });
   });

@@ -5,21 +5,22 @@ import { groq } from "@ai-sdk/groq";
  * Supports prompt caching for 50% cost savings on cached tokens
  */
 export const TEXT_METADATA_MODEL = groq("openai/gpt-oss-20b");
+export const TEXT_METADATA_MODEL_ID = "openai/gpt-oss-20b" as const;
 
 /**
  * Model for link content analysis
  * Supports prompt caching for 50% cost savings on cached tokens
  */
 export const LINK_METADATA_MODEL = groq("openai/gpt-oss-20b");
+export const LINK_METADATA_MODEL_ID = "openai/gpt-oss-20b" as const;
 
 /**
  * Model for image/vision analysis
  * Note: Currently does NOT support prompt caching
- * Using Llama 4 Scout for multimodal capabilities
+ * Uses Qwen 3.6 27B for multimodal vision after Llama 4 Scout deprecation
  */
-export const IMAGE_METADATA_MODEL = groq(
-  "meta-llama/llama-4-scout-17b-16e-instruct"
-);
+export const IMAGE_METADATA_MODEL_ID = "qwen/qwen3.6-27b" as const;
+export const IMAGE_METADATA_MODEL = groq(IMAGE_METADATA_MODEL_ID);
 
 /**
  * Model for changelog generation (docs)
@@ -27,12 +28,14 @@ export const IMAGE_METADATA_MODEL = groq(
  * Using larger model for better quality summaries
  */
 export const CHANGELOG_MODEL = groq("openai/gpt-oss-120b");
+export const CHANGELOG_MODEL_ID = "openai/gpt-oss-120b" as const;
 
 /**
  * Transcription model for audio content
  * Uses Whisper for fast, accurate speech-to-text
  */
 export const TRANSCRIPTION_MODEL = groq.transcription("whisper-large-v3-turbo");
+export const TRANSCRIPTION_MODEL_ID = "whisper-large-v3-turbo" as const;
 
 /**
  * System prompts optimized for prompt caching

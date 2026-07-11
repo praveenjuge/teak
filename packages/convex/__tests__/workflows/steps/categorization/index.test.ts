@@ -9,10 +9,11 @@ import {
   test,
 } from "bun:test";
 
-const aiMocks = (global as any).__AI_MOCKS__ || {
-  generateObject: mock(),
-  experimental_transcribe: mock(),
-};
+const aiMocks = (global as any).__AI_MOCKS__ ?? {};
+aiMocks.generateText ??= mock();
+aiMocks.generateObject ??= mock();
+aiMocks.experimental_transcribe ??= mock();
+aiMocks.Output ??= { object: mock() };
 (global as any).__AI_MOCKS__ = aiMocks;
 
 mock.module("ai", () => aiMocks);

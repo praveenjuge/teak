@@ -17,7 +17,7 @@ const config: ForgeConfig = {
     new VitePlugin({
       build: [
         {
-          entry: "src/main/index.ts",
+          entry: "src/main/bootstrap.ts",
           config: "vite.main.config.ts",
           target: "main",
         },

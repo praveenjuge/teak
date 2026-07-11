@@ -73,6 +73,7 @@ describe("card/uploadCard.ts", () => {
       storage: {
         generateUploadUrl: mock().mockResolvedValue("https://upload"),
       },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
     const uploadHandler =
@@ -86,6 +87,7 @@ describe("card/uploadCard.ts", () => {
     expect(result.success).toBe(true);
     expect(result.uploadKey).toBe(VALID_FILE_KEY);
     expect(result.uploadUrl).toBe("https://upload");
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
   });
 
   test("uploadAndCreateCard returns error with code when rate limit exceeded", async () => {
@@ -180,6 +182,7 @@ describe("card/uploadCard.ts", () => {
           }),
         }),
       },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
     const finalizeHandler =
@@ -192,6 +195,24 @@ describe("card/uploadCard.ts", () => {
     });
     expect(result.success).toBe(false);
     expect(result.errorCode).toBe("INVALID_STORAGE_KEY");
+    const telemetryArgs = ctx.scheduler.runAfter.mock.calls.map(
+      (call: unknown[]) => call[2]
+    );
+    expect(telemetryArgs.map((args) => args?.outcome).filter(Boolean)).toEqual([
+      "attempt",
+      "failure",
+      "failure",
+    ]);
+    for (const args of telemetryArgs.filter(
+      (candidate) => candidate?.outcome === "failure"
+    )) {
+      expect(args).toEqual(
+        expect.objectContaining({
+          errorClass: "ValidationError",
+          outcome: "failure",
+        })
+      );
+    }
   });
 
   test("finalizeUploadedCard creates card and schedules workflow", async () => {
@@ -234,6 +255,10 @@ describe("card/uploadCard.ts", () => {
       })
     );
     expect(ctx.scheduler.runAfter).toHaveBeenCalled();
+    const uploadAndCardOutcomes = ctx.scheduler.runAfter.mock.calls
+      .map((call: unknown[]) => call[2]?.outcome)
+      .filter(Boolean);
+    expect(uploadAndCardOutcomes).toEqual(["attempt", "success", "success"]);
   });
 
   test("finalizeUploadedCard returns type mismatch", async () => {

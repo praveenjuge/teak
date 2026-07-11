@@ -1,0 +1,63 @@
+name: Backend Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/backend-deploy.yml"
+      - "packages/convex/**"
+      - "bun.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_BACKEND_DSN: ${{ secrets.SENTRY_BACKEND_DSN }}
+      SENTRY_ORG: teakvault
+      SENTRY_PROJECT: teak-backend-prod
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Verify deployment credentials
+        run: |
+          test -n "$CONVEX_DEPLOY_KEY"
+          test -n "$SENTRY_AUTH_TOKEN"
+          test -n "$SENTRY_BACKEND_DSN"
+      - name: Configure backend release context
+        working-directory: packages/convex
+        run: |
+          bunx convex env set SENTRY_BACKEND_DSN "$SENTRY_BACKEND_DSN"
+          bunx convex env set SENTRY_ENVIRONMENT production
+          bunx convex env set CONVEX_GIT_COMMIT_SHA "$GITHUB_SHA"
+          bunx convex env set SENTRY_RELEASE "teak-backend@$GITHUB_SHA"
+      - name: Create Sentry release
+        run: |
+          release="teak-backend@$GITHUB_SHA"
+          bunx sentry-cli releases new "$release"
+          bunx sentry-cli releases set-commits "$release" --auto --ignore-missing
+      - name: Deploy Convex production
+        working-directory: packages/convex
+        run: |
+          bunx convex deploy \
+            --typecheck enable \
+            --typecheck-components \
+            --message "Sentry release teak-backend@$GITHUB_SHA"
+      - name: Finalize Sentry release
+        run: |
+          release="teak-backend@$GITHUB_SHA"
+          bunx sentry-cli releases finalize "$release"
+          bunx sentry-cli releases deploys "$release" new -e production

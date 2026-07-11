@@ -14,8 +14,10 @@ import { stageCompleted } from "../../card/processingStatus";
 import type { CardType } from "../../schema";
 import { extractVisualStylesFromTags } from "../../shared/constants";
 import { inferFileFormat } from "../../shared/fileFormats";
+import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import type { Id } from "../../shared/types";
 import { resolveObjectUrl } from "../../storage/r2";
+import { withBackendSpan } from "../../telemetry/sentry";
 import {
   generateImageMetadata,
   generateLinkMetadata,
@@ -101,7 +103,18 @@ export const generate: any = internalAction({
     aiTranscript: v.optional(v.string()),
     confidence: v.number(),
   }),
-  handler: generateHandler,
+  handler: (ctx: any, args: { cardId: Id<"cards">; cardType: string }) =>
+    withBackendSpan(
+      {
+        attributes: { "card.type": args.cardType },
+        cardId: args.cardId,
+        name: "card.ai_metadata",
+        operation: TELEMETRY_OPERATIONS.genAiGenerate,
+        stage: "ai_metadata",
+        surface: "backend",
+      },
+      () => generateHandler(ctx, args)
+    ),
 });
 
 export async function generateHandler(

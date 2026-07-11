@@ -542,6 +542,51 @@ describe("auth", () => {
         expect(ctx.runMutation).toHaveBeenCalledWith(expect.anything(), {
           userId: "u1",
         });
+
+        const originalBackendDsn = process.env.SENTRY_BACKEND_DSN;
+        const originalConsoleError = console.error;
+        const consoleError = mock();
+        const scheduler = { runAfter: mock().mockResolvedValue(null) };
+        try {
+          process.env.SENTRY_BACKEND_DSN = "";
+          console.error = consoleError;
+          const authWithScheduler = createAuth({ ...ctx, scheduler }) as any;
+          authWithScheduler.options.onAPIError.onError(
+            new Error("Invalid session")
+          );
+          expect(consoleError).toHaveBeenCalledWith("[auth] Request failed", {
+            errorClass: "AuthError",
+          });
+          expect(scheduler.runAfter).toHaveBeenCalledWith(
+            0,
+            expect.anything(),
+            expect.objectContaining({
+              errorClass: "AuthError",
+              outcome: "failure",
+              stage: "sign_in",
+            })
+          );
+
+          process.env.SENTRY_BACKEND_DSN = "https://public@example.invalid/1";
+          consoleError.mockClear();
+          scheduler.runAfter.mockRejectedValueOnce(
+            new Error("Scheduler unavailable")
+          );
+          authWithScheduler.options.onAPIError.onError(
+            new Error("Invalid session")
+          );
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          expect(consoleError).toHaveBeenCalledWith("[auth] Request failed", {
+            errorClass: "AuthError",
+          });
+        } finally {
+          if (originalBackendDsn === undefined) {
+            delete process.env.SENTRY_BACKEND_DSN;
+          } else {
+            process.env.SENTRY_BACKEND_DSN = originalBackendDsn;
+          }
+          console.error = originalConsoleError;
+        }
       } finally {
         process.env.SITE_URL = originalSiteUrl;
         process.env.GOOGLE_CLIENT_ID = originalGoogleClientId;

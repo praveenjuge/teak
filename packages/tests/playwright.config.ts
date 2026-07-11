@@ -82,6 +82,12 @@ export default defineConfig({
       },
     },
     {
+      name: "snapshots",
+      testMatch: "snapshots/web.snapshots.ts",
+      workers: 1,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
       name: "journey-account",
       dependencies: [
         "journey-web",

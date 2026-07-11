@@ -16,6 +16,8 @@ import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
 import { stageCompleted, stageFailed } from "../../card/processingStatus";
 import { inferFileFormat } from "../../shared/fileFormats";
+import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
+import { withBackendSpan } from "../../telemetry/sentry";
 
 /**
  * Workflow Step: Generate renderables (thumbnails, etc.)
@@ -31,7 +33,18 @@ export const generate: any = internalAction({
     success: v.boolean(),
     thumbnailGenerated: v.boolean(),
   }),
-  handler: generateHandler,
+  handler: (ctx: any, args: { cardId: any; cardType: string }) =>
+    withBackendSpan(
+      {
+        attributes: { "card.type": args.cardType },
+        cardId: args.cardId,
+        name: "card.renderables",
+        operation: TELEMETRY_OPERATIONS.storageRender,
+        stage: "renderables",
+        surface: "backend",
+      },
+      () => generateHandler(ctx, args)
+    ),
 });
 
 export async function generateHandler(

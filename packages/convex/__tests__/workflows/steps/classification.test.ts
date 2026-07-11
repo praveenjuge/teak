@@ -2,12 +2,11 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 // Mock AI module
-const aiMocks = (global as any).__AI_MOCKS__ || {
-  generateText: mock(),
-  generateObject: mock(),
-  experimental_transcribe: mock(),
-  Output: { object: mock() },
-};
+const aiMocks = (global as any).__AI_MOCKS__ ?? {};
+aiMocks.generateText ??= mock();
+aiMocks.generateObject ??= mock();
+aiMocks.experimental_transcribe ??= mock();
+aiMocks.Output ??= { object: mock() };
 (global as any).__AI_MOCKS__ = aiMocks;
 mock.module("ai", () => aiMocks);
 

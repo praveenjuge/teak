@@ -18,7 +18,15 @@
     },
     "plugins": [
       "expo-router",
-      "@sentry/react-native",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "teakvault",
+          "project": "teak-mobile-prod",
+          "url": "https://sentry.io/",
+          "disableAutoUpload": false
+        }
+      ],
       "expo-status-bar",
       [
         "expo-build-properties",

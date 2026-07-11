@@ -50,18 +50,17 @@ describe("auth.ts", () => {
     expect(module.authComponent).toBeDefined();
   });
 
-  test("schedules user-created business event", async () => {
+  test("schedules user-created telemetry", async () => {
     const module = await import("../auth");
     const ctx = {
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
-    await module.scheduleUserCreatedBusinessEvent(ctx, "user_123");
+    await module.scheduleUserCreatedTelemetry(ctx, "user_123");
 
     expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(0, expect.anything(), {
-      event: "user.created",
+      source: "auth",
       userId: "user_123",
-      surface: "auth",
     });
   });
 

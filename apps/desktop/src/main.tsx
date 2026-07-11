@@ -1,3 +1,4 @@
+import "./sentry";
 import { Toaster } from "@teak/ui/components/ui/sonner";
 import { ConvexQueryCacheProvider } from "@teak/ui/convex-query-cache";
 import { ErrorBoundary } from "@teak/ui/feedback";

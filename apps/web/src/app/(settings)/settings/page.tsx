@@ -3,6 +3,8 @@
 import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
+import { runClientSpan } from "@teak/convex/shared/client-telemetry";
+import { trackCheckout } from "@teak/convex/shared/metrics";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { Dialog, DialogContent } from "@teak/ui/components/ui/dialog";
 import { getPolarPlanIds } from "@teak/ui/constants/billing";
@@ -32,11 +34,6 @@ export default function ProfileSettingsPage() {
   );
 
   const settings = useSettingsController({
-    onCaptureError: (error, context) => {
-      Sentry.captureException(error, {
-        tags: context,
-      });
-    },
     onDeleteAccount: async () => {
       let deleteError: string | null = null;
       // The awaited call's onError callback assigns `deleteError`; the guard
@@ -87,35 +84,49 @@ export default function ProfileSettingsPage() {
   });
 
   const handleCheckout = async (planId: string) => {
+    trackCheckout({ outcome: "start" });
     setLoadingPlanId(planId);
     const toastId = toast.loading("Opening checkout...", {
       id: TOAST_IDS.checkoutOpen,
     });
 
     try {
-      const checkoutUrl = await createCheckoutLink({ productId: planId });
-
-      let effectiveTheme: "light" | "dark" = "light";
-      if (theme === "dark") {
-        effectiveTheme = "dark";
-      } else if (theme === "system") {
-        effectiveTheme = window.matchMedia("(prefers-color-scheme: dark)")
-          .matches
-          ? "dark"
-          : "light";
-      }
-
-      const checkout = await PolarEmbedCheckout.create(checkoutUrl, {
-        theme: effectiveTheme,
-      });
+      const checkout = await runClientSpan(
+        {
+          name: "checkout.open",
+          operation: "billing",
+          stage: "checkout",
+        },
+        async () => {
+          const checkoutUrl = await createCheckoutLink({ productId: planId });
+          let effectiveTheme: "light" | "dark" = "light";
+          if (theme === "dark") {
+            effectiveTheme = "dark";
+          } else if (theme === "system") {
+            effectiveTheme = window.matchMedia("(prefers-color-scheme: dark)")
+              .matches
+              ? "dark"
+              : "light";
+          }
+          return await PolarEmbedCheckout.create(checkoutUrl, {
+            theme: effectiveTheme,
+          });
+        }
+      );
+      trackCheckout({ outcome: "open" });
       toast.success("Checkout opened", { id: toastId });
 
       checkoutInstanceRef.current = checkout;
       setSubscriptionOpen(false);
 
+      let completed = false;
       checkout.addEventListener(
         "success",
         (event: CustomEvent<{ redirect?: string | boolean }>) => {
+          if (!completed) {
+            completed = true;
+            trackCheckout({ outcome: "success" });
+          }
           if (!event.detail.redirect) {
             toast.success(
               "Welcome to Pro! Your subscription has been activated."
@@ -125,11 +136,14 @@ export default function ProfileSettingsPage() {
       );
 
       checkout.addEventListener("close", () => {
+        if (!completed) {
+          trackCheckout({ outcome: "cancel" });
+        }
         checkoutInstanceRef.current = null;
         toast("Checkout closed", { id: toastId });
       });
     } catch (error) {
-      console.error("Failed to open checkout", error);
+      trackCheckout({ outcome: "failure" });
       Sentry.captureException(error, {
         tags: { source: "convex", action: "billing:createCheckoutLink" },
       });

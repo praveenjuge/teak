@@ -2,6 +2,7 @@ import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react-swc";
 import { defineConfig } from "vite";
+import { sentryDesktopPlugins } from "./vite.sentry";
 
 /**
  * Vite config for the Electron renderer (React frontend).
@@ -30,7 +31,17 @@ const singletonDedupe = ["convex", "convex-helpers", "react", "react-dom"];
 
 export default defineConfig({
   base: "./",
-  plugins: [react(), tailwindcss()],
+  build: {
+    sourcemap: "hidden",
+  },
+  plugins: [
+    react(),
+    tailwindcss(),
+    ...sentryDesktopPlugins(
+      ".vite/renderer/main_window/**/*.{js,map}",
+      ".vite/renderer/main_window/**/*.map"
+    ),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "./src"),

@@ -1,5 +1,6 @@
 import { builtinModules } from "node:module";
 import { defineConfig } from "vite";
+import { sentryDesktopPlugins } from "./vite.sentry";
 
 /**
  * Vite config for the Electron preload script.
@@ -38,8 +39,12 @@ export default defineConfig({
         ...builtinModules.map((m) => `node:${m}`),
       ],
     },
-    sourcemap: "inline",
+    sourcemap: "hidden",
     minify: false,
     target: "node20",
   },
+  plugins: sentryDesktopPlugins(
+    ".vite/build/**/*.{js,map}",
+    ".vite/build/**/*.map"
+  ),
 });

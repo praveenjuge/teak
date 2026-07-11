@@ -12,7 +12,12 @@ import {
   validateFileFormat,
   validateUploadFile,
 } from "../shared/fileFormats";
+import { normalizeErrorClass } from "../shared/telemetry";
 import { buildR2ObjectKey, buildR2UserPrefix, r2 } from "../storage/r2";
+import {
+  scheduleCardOutcome,
+  scheduleUploadOutcome,
+} from "../telemetry/schedule";
 import {
   buildInitialProcessingStatus,
   stageCompleted,
@@ -103,7 +108,6 @@ export const uploadAndCreateCard = mutation({
           };
         }
       }
-      console.error("Failed to prepare upload:", error);
       return {
         success: false,
         error:
@@ -253,6 +257,13 @@ export const createUploadedCardForUser = async (
     { cardId }
   );
 
+  await scheduleCardOutcome(ctx, {
+    cardId,
+    cardType,
+    outcome: "success",
+    source: "unknown",
+    userId: args.userId,
+  });
   return cardId;
 };
 
@@ -279,6 +290,13 @@ export const finalizeUploadedCard = mutation({
       return { success: false, error: "User must be authenticated" };
     }
 
+    await scheduleUploadOutcome(ctx, {
+      bytes: args.fileSize,
+      fileBucket: args.cardType ?? "unknown",
+      outcome: "attempt",
+      userId: user.subject,
+    });
+
     try {
       const cardId = await createUploadedCardForUser(ctx, {
         additionalMetadata: args.additionalMetadata,
@@ -293,8 +311,29 @@ export const finalizeUploadedCard = mutation({
         userId: user.subject,
       });
 
+      await scheduleUploadOutcome(ctx, {
+        bytes: args.fileSize,
+        fileBucket: args.cardType ?? "unknown",
+        outcome: "success",
+        userId: user.subject,
+      });
+
       return { success: true, cardId };
     } catch (error) {
+      await scheduleCardOutcome(ctx, {
+        cardType: args.cardType,
+        errorClass: normalizeErrorClass(error),
+        outcome: "failure",
+        source: "unknown",
+        userId: user.subject,
+      });
+      await scheduleUploadOutcome(ctx, {
+        bytes: args.fileSize,
+        errorClass: normalizeErrorClass(error),
+        fileBucket: args.cardType ?? "unknown",
+        outcome: "failure",
+        userId: user.subject,
+      });
       if (
         error instanceof ConvexError &&
         typeof error.data === "object" &&
@@ -312,7 +351,6 @@ export const finalizeUploadedCard = mutation({
           };
         }
       }
-      console.error("Failed to finalize uploaded card:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Failed to create card",

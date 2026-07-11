@@ -11,7 +11,7 @@
 import type { RetryBehavior } from "@convex-dev/workpool";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { trackAiStage } from "../shared/metrics";
+import { type AiPipelineStage, trackAiStage } from "../shared/metrics";
 import { workflow } from "./manager";
 
 // Helper to get properly typed internal references
@@ -37,14 +37,14 @@ const PIPELINE_LOG_PREFIX = "[workflow/cardProcessing]";
 
 type StageOutcome = "ok" | "error" | "skipped";
 
+export const resolveCardProcessingDurationMs = (
+  creationTime: number | undefined,
+  now = Date.now()
+): number | undefined =>
+  creationTime === undefined ? undefined : Math.max(0, now - creationTime);
+
 async function timeStage<T>(
-  stage:
-    | "classification"
-    | "categorization"
-    | "metadata"
-    | "renderables"
-    | "linkMetadata"
-    | "palette",
+  stage: AiPipelineStage,
   cardType: string | undefined,
   fn: () => Promise<T>
 ): Promise<T> {
@@ -174,7 +174,7 @@ export const cardProcessingWorkflow: any = workflow.define({
         linkMetadataCard?.metadataStatus === "pending";
 
       if (needsLinkMetadata) {
-        await timeStage("linkMetadata", classification.type, () =>
+        await timeStage("link_metadata", classification.type, () =>
           step.runAction(
             internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
               .fetchMetadata,
@@ -282,7 +282,7 @@ export const cardProcessingWorkflow: any = workflow.define({
       }
 
       metadataResult = classification.shouldGenerateMetadata
-        ? await timeStage("metadata", classification.type, () =>
+        ? await timeStage("ai_metadata", classification.type, () =>
             step.runAction(
               internalWorkflow["workflows/steps/metadata"].generate,
               { cardId, cardType: classification.type },
@@ -292,7 +292,7 @@ export const cardProcessingWorkflow: any = workflow.define({
         : null;
     } else {
       const metadataPromise = classification.shouldGenerateMetadata
-        ? timeStage("metadata", classification.type, () =>
+        ? timeStage("ai_metadata", classification.type, () =>
             step.runAction(
               internalWorkflow["workflows/steps/metadata"].generate,
               { cardId, cardType: classification.type },
@@ -348,6 +348,25 @@ export const cardProcessingWorkflow: any = workflow.define({
       type: classification.type,
       tags: metadata.aiTags.length,
     });
+
+    const durationMs = resolveCardProcessingDurationMs(
+      initialCard?._creationTime
+    );
+    if (durationMs === undefined) {
+      console.warn(`${PIPELINE_LOG_PREFIX} Skipped completion duration`, {
+        cardId: String(cardId),
+        reason: "initial_card_missing",
+      });
+    } else {
+      await step.runAction(
+        internalWorkflow.telemetry.events.emitWorkflowCompletion,
+        {
+          cardId: String(cardId),
+          cardType: classification.type,
+          durationMs,
+        }
+      );
+    }
 
     return result;
   },

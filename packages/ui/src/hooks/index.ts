@@ -53,11 +53,7 @@ export {
   createInitialCardsSearchState,
   useCardsSearchController,
 } from "./useCardsSearchController";
-export type { FileUploadErrorCaptureFunction } from "./useFileUpload";
-export {
-  configureFileUploadErrorCapture,
-  useFileUpload,
-} from "./useFileUpload";
+export { useFileUpload } from "./useFileUpload";
 export type { UseInfiniteScrollOptions } from "./useInfiniteScroll";
 export { useInfiniteScroll } from "./useInfiniteScroll";
 export { useNetworkStatus } from "./useNetworkStatus";

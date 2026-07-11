@@ -14,7 +14,7 @@
   "dependencies": {
     "@convex-dev/better-auth": "^0.12.5",
     "@polar-sh/checkout": "^0.2.1",
-    "@sentry/nextjs": "^10.53.1",
+    "@sentry/nextjs": "10.65.0",
     "@teak/convex": "workspace:*",
     "@teak/ui": "workspace:*",
     "@vercel/analytics": "^2.0.1",

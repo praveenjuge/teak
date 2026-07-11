@@ -1,27 +1,11 @@
 import { api } from "@teak/convex";
 import {
   type FinalizeUploadedCardArgs,
-  setFileUploadSentryCaptureFunction,
   type UnifiedFileUploadConfig,
   type UploadAndCreateCardArgs,
   useFileUploadCore,
 } from "@teak/convex/shared/hooks/useFileUpload";
 import { useMutation } from "convex/react";
-
-export type FileUploadErrorCaptureFunction = (
-  error: unknown,
-  context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }
-) => void;
-
-const noopCapture: FileUploadErrorCaptureFunction = () => {
-  // noop
-};
-
-export function configureFileUploadErrorCapture(
-  capture?: FileUploadErrorCaptureFunction
-) {
-  setFileUploadSentryCaptureFunction(capture ?? noopCapture);
-}
 
 export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
   const uploadAndCreateCardMutation = useMutation(

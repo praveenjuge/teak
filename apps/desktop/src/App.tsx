@@ -1,11 +1,12 @@
 import { PageLoadingState } from "@teak/ui/feedback/PageLoadingState";
 import { GlobalFileDropProvider, useNetworkStatus } from "@teak/ui/hooks";
 import { useConvexAuth } from "convex/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDesktopMenuEvents } from "@/hooks/useDesktopMenuEvents";
-import { logoutNativeSession } from "@/lib/native-auth";
 import { buildWebUrl } from "@/lib/desktop-config";
+import { logoutNativeSession } from "@/lib/native-auth";
+import { finishDesktopStartup, syncDesktopSentryUser } from "@/sentry";
 import { CardsPage } from "./pages/CardsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -16,6 +17,20 @@ function App() {
   const [page, setPage] = useState<DesktopPage>("cards");
   const { isOnline } = useNetworkStatus();
   const { isAuthenticated, isLoading } = useConvexAuth();
+  const reportedStartupRef = useRef(false);
+
+  useEffect(() => {
+    if (!(isLoading || reportedStartupRef.current)) {
+      reportedStartupRef.current = true;
+      finishDesktopStartup();
+    }
+  }, [isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      void syncDesktopSentryUser(isAuthenticated);
+    }
+  }, [isAuthenticated, isLoading]);
 
   const handleLogout = useCallback(async () => {
     try {

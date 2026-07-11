@@ -10,7 +10,11 @@
     "skipLibCheck": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "types": ["electron", "@electron-forge/plugin-vite/forge-vite-env"]
+    "types": [
+      "electron",
+      "vite/client",
+      "@electron-forge/plugin-vite/forge-vite-env"
+    ]
   },
   "include": ["src/main"]
 }

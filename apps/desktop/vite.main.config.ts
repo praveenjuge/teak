@@ -1,5 +1,6 @@
 import { builtinModules } from "node:module";
 import { defineConfig } from "vite";
+import { sentryDesktopPlugins } from "./vite.sentry";
 
 /**
  * Vite config for the Electron main process.
@@ -22,7 +23,7 @@ export default defineConfig(({ command }) => ({
     // Preload shares this outDir; don't wipe it when main builds.
     emptyOutDir: false,
     lib: {
-      entry: "src/main/index.ts",
+      entry: "src/main/bootstrap.ts",
       fileName: () => "main.js",
       formats: ["es"],
     },
@@ -35,10 +36,14 @@ export default defineConfig(({ command }) => ({
         ...builtinModules.map((m) => `node:${m}`),
       ],
     },
-    sourcemap: true,
+    sourcemap: "hidden",
     minify: false,
     target: "node20",
   },
+  plugins: sentryDesktopPlugins(
+    ".vite/build/**/*.{js,map}",
+    ".vite/build/**/*.map"
+  ),
   // Only inject the Forge globals during `vite build` (production).
   // In `electron-forge start`, plugin-vite injects them with live values
   // and we must not clobber them here.

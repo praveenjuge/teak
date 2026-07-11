@@ -58,7 +58,7 @@ mock.module("convex/react", () => ({
   },
 }));
 
-mock.module("convex-helpers/react/cache/hooks", () => ({
+mock.module("../../../convexQueryHooks", () => ({
   useQuery: () => cardCreationStatusResult,
 }));
 

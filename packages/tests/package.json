@@ -9,6 +9,7 @@
     "e2e:prod:matrix": "playwright test --workers=1 --project=matrix-chromium --project=matrix-firefox --project=matrix-webkit",
     "e2e:prod:extension": "playwright test --project=extension",
     "e2e:prod:local": "tsx src/scripts/run-prod-suite.ts",
+    "e2e:snapshots": "playwright test --project=snapshots",
     "preflight": "tsx src/scripts/preflight.ts",
     "teardown": "tsx src/scripts/teardown.ts",
     "sweep": "tsx src/scripts/sweep.ts",

@@ -3,38 +3,50 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { configureClientTelemetry } from "@teak/convex/shared/client-telemetry";
 import { configureMetrics } from "@teak/convex/shared/metrics";
-import { configureFileUploadErrorCapture } from "@teak/ui/hooks";
+import type { TelemetryAttributeValue } from "@teak/convex/shared/telemetry";
 import {
   filterClientSentryEvent,
+  resolveSentryDsn,
   resolveSentryEnvironment,
+  resolveSentryRelease,
+  scrubSentryPayload,
+  webTracesSampler,
 } from "./lib/sentry-config";
 
-Sentry.init({
-  dsn: "https://9206eebecdbbbd9229ddc419b82165c7@o4509483678236672.ingest.us.sentry.io/4510434608480256",
-  environment: resolveSentryEnvironment(),
-  beforeSend: filterClientSentryEvent,
+const isSpanAttribute = (
+  entry: [string, TelemetryAttributeValue]
+): entry is [string, string | number | boolean] =>
+  ["string", "number", "boolean"].includes(typeof entry[1]);
 
-  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: 1,
+Sentry.init({
+  dsn: resolveSentryDsn(),
+  environment: resolveSentryEnvironment(),
+  release: resolveSentryRelease(),
+  beforeSend: filterClientSentryEvent,
+  beforeSendLog: scrubSentryPayload,
+  beforeSendSpan: scrubSentryPayload,
+
+  tracesSampler: webTracesSampler,
   // Enable logs to be sent to Sentry
   enableLogs: true,
 
-  // Enable sending user PII (Personally Identifiable Information)
-  // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
-  sendDefaultPii: true,
+  // Teak attaches only a hashed user id through SentryUserManager.
+  sendDefaultPii: false,
 
   replaysSessionSampleRate: 0.1, // This sets the sample rate at 10%. You may want to change it to 100% while in development and then sample at a lower rate in production.
   replaysOnErrorSampleRate: 1.0, // If you're not already sampling the entire session, change the sample rate to 100% when sampling sessions where errors occur.
 
   integrations: [
     // send console.log, console.warn, and console.error calls as logs to Sentry
-    Sentry.consoleLoggingIntegration(),
-    Sentry.replayIntegration(),
+    Sentry.consoleLoggingIntegration({ levels: ["warn", "error"] }),
+    Sentry.replayIntegration({ maskAllText: true, blockAllMedia: true }),
     Sentry.feedbackIntegration({
       // Additional SDK configuration goes in here, for example:
       colorScheme: "system",
       showBranding: false,
+      enableScreenshot: false,
       showName: false,
       showEmail: false,
       themeLight: {
@@ -50,7 +62,7 @@ Sentry.init({
 // Route the shared @teak metrics helpers to Sentry's Application Metrics API.
 configureMetrics({
   app: "web",
-  env: process.env.NODE_ENV ?? "development",
+  env: resolveSentryEnvironment(),
   recorder: {
     count: (name, value, attributes) =>
       Sentry.metrics.count(name, value, { attributes }),
@@ -61,8 +73,36 @@ configureMetrics({
   },
 });
 
-configureFileUploadErrorCapture((error, context) => {
-  Sentry.captureException(error, context);
+configureClientTelemetry({
+  addBreadcrumb: ({ attributes, category, level, message }) => {
+    Sentry.addBreadcrumb({
+      category,
+      data: attributes,
+      level,
+      message,
+    });
+  },
+  captureException: (error, attributes) => {
+    Sentry.captureException(error, { extra: attributes });
+  },
+  log: (level, message, attributes) => {
+    if (level === "warning") {
+      Sentry.logger.warn(message, attributes);
+      return;
+    }
+    Sentry.logger[level](message, attributes);
+  },
+  startSpan: async (input, callback) =>
+    await Sentry.startSpan(
+      {
+        attributes: Object.fromEntries(
+          Object.entries(input.attributes ?? {}).filter(isSpanAttribute)
+        ),
+        name: input.name,
+        op: input.operation,
+      },
+      callback
+    ),
 });
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

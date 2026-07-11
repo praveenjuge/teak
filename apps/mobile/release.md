@@ -2,7 +2,7 @@
 
 The mobile app ships to the App Store through EAS Build and EAS Submit. Metadata, version, and release notes live in `apps/mobile/store.config.json` and are synced to App Store Connect via `eas metadata`.
 
-Follow these steps in order from `apps/mobile/`. A full release runs all six steps — pull, edit, push metadata, build, upload, and submit for App Review. When the user asks to "start the release process" (or to release/ship the mobile app), run all six to completion unless they explicitly say to stop earlier.
+Follow these steps in order from `apps/mobile/`. A full release runs all seven steps — pull, edit, push metadata, build, upload the build to Sentry, upload to App Store Connect, and submit for App Review. When the user asks to "start the release process" (or to release/ship the mobile app), run all seven to completion unless they explicitly say to stop earlier.
 
 ## 1. Pull the current App Store metadata
 
@@ -60,7 +60,15 @@ bun run build:local
 
 This runs `eas build --platform ios --local` and produces a signed IPA in the working directory.
 
-## 5. Upload the IPA to App Store Connect
+## 5. Upload the IPA to Sentry Size Analysis
+
+```bash
+bun run build:sentry -- build-<version>.ipa
+```
+
+Use the IPA produced by step 4. This upload is required for every production binary and must finish successfully before App Store submission. It associates install/download size, oversized assets, duplicate assets, the release commit, and the build configuration with `teak-mobile-prod`. `SENTRY_AUTH_TOKEN` must be available in the environment; do not continue if the upload fails.
+
+## 6. Upload the IPA to App Store Connect
 
 ```bash
 bun run build:submit
@@ -74,7 +82,7 @@ When prompted for the binary, choose **Provide a path to a local app binary file
 ls -lh build-*.ipa | tail
 ```
 
-## 6. Submit the uploaded build for App Review
+## 7. Submit the uploaded build for App Review
 
 ```bash
 bun run review:submit
@@ -100,20 +108,21 @@ Optional environment:
 
 ## Quick reference
 
-| Step | Command                  | What it does                                        |
-| ---- | ------------------------ | --------------------------------------------------- |
-| 1    | `bun run metadata:pull`  | Pull current App Store metadata to local file.      |
-| 2    | edit `store.config.json` | Bump version, update release notes if needed.       |
-| 3    | `bun run metadata:push`  | Sync local metadata to App Store Connect.           |
-| 4    | `bun run build:local`    | Build signed IPA locally via EAS.                   |
-| 5    | `bun run build:submit`   | Upload the built IPA to App Store Connect.          |
-| 6    | `bun run review:submit`  | Add the version/build to App Review and submit it.  |
+| Step | Command                               | What it does                                       |
+| ---- | ------------------------------------- | -------------------------------------------------- |
+| 1    | `bun run metadata:pull`               | Pull current App Store metadata to local file.     |
+| 2    | edit `store.config.json`              | Bump version, update release notes if needed.      |
+| 3    | `bun run metadata:push`               | Sync local metadata to App Store Connect.          |
+| 4    | `bun run build:local`                 | Build signed IPA locally via EAS.                  |
+| 5    | `bun run build:sentry -- <ipa-path>`  | Upload the binary to Sentry Size Analysis.         |
+| 6    | `bun run build:submit`                | Upload the built IPA to App Store Connect.         |
+| 7    | `bun run review:submit`               | Add the version/build to App Review and submit it. |
 
 All release scripts are defined in `apps/mobile/package.json`.
 
 ## Agent notes
 
-When an automated agent runs this process, complete all six steps in one pass — metadata, build, upload, **and** review submission. "Start the release process" (or any equivalent request to release/ship the mobile app) means run steps 1 through 6 to completion, ending with `bun run review:submit`. Do not stop between `metadata:push`, `build:local`, `build:submit`, and `review:submit` to ask for confirmation. The user already signaled intent to ship when they asked you to run the release, and pausing mid-flight leaves the App Store version metadata out of sync with the binary.
+When an automated agent runs this process, complete all seven steps in one pass — metadata, build, Sentry Size Analysis upload, App Store upload, **and** review submission. "Start the release process" (or any equivalent request to release/ship the mobile app) means run steps 1 through 7 to completion, ending with `bun run review:submit`. Do not stop between `metadata:push`, `build:local`, `build:sentry`, `build:submit`, and `review:submit` to ask for confirmation. The user already signaled intent to ship when they asked you to run the release, and pausing mid-flight leaves the App Store version metadata out of sync with the binary.
 
 Specifically:
 

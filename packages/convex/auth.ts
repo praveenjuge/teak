@@ -22,14 +22,18 @@ import authConfig from "./auth.config";
 import { polar } from "./billing";
 import { isLocalDevelopmentUrl, resolveTeakDevAppUrl } from "./devUrls";
 import { e2eCleanupPlugin } from "./e2eCleanup";
-import { scheduleBusinessEvent } from "./sentry";
 import {
   CARD_ERROR_CODES,
   CARD_ERROR_MESSAGES,
   FREE_TIER_LIMIT,
 } from "./shared/constants";
 import { rateLimiter } from "./shared/rateLimits";
+import {
+  normalizeErrorClass,
+  resolveBackendTelemetryDsn,
+} from "./shared/telemetry";
 import { deleteObject } from "./storage/r2";
+import { scheduleAuthOutcome, scheduleUserCreated } from "./telemetry/schedule";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 if (!googleClientId) {
@@ -100,21 +104,25 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
           internal.card.defaultCards.createDefaultCardsForUser,
           { userId: user._id }
         );
-        await scheduleUserCreatedBusinessEvent(ctx, user._id);
+        await scheduleUserCreatedTelemetry(ctx, user._id);
       },
     },
   },
 });
 
-export const scheduleUserCreatedBusinessEvent = (
-  ctx: Parameters<typeof scheduleBusinessEvent>[0],
+export const scheduleUserCreatedTelemetry = (
+  ctx: Pick<MutationCtx, "scheduler">,
   userId: string
 ) =>
-  scheduleBusinessEvent(ctx, {
-    event: "user.created",
+  scheduleUserCreated(ctx, {
+    source: "auth",
     userId,
-    surface: "auth",
   });
+
+const hasScheduler = (
+  ctx: GenericCtx<DataModel>
+): ctx is GenericCtx<DataModel> & Pick<MutationCtx, "scheduler"> =>
+  "scheduler" in ctx;
 
 // `AuthBoundary` (see apps/web ClientAuthBoundary) subscribes to
 // `api.auth.getAuthUser` at the provider level to reactively track the
@@ -198,7 +206,29 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     onAPIError: {
       errorURL: "/login",
       onError: (error) => {
-        console.error("Better Auth error:", error);
+        const errorClass = normalizeErrorClass(error);
+        const logFallback = () => {
+          console.error("[auth] Request failed", { errorClass });
+        };
+        const hasTelemetryDsn = Boolean(
+          resolveBackendTelemetryDsn(process.env)
+        );
+        if (!hasScheduler(ctx)) {
+          logFallback();
+          return;
+        }
+        if (!hasTelemetryDsn) {
+          logFallback();
+        }
+        void scheduleAuthOutcome(ctx, {
+          errorClass,
+          outcome: "failure",
+          stage: "sign_in",
+        }).then((scheduled) => {
+          if (hasTelemetryDsn && !scheduled) {
+            logFallback();
+          }
+        });
       },
     },
     socialProviders: {

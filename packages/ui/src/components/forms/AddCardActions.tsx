@@ -6,7 +6,7 @@ import {
   type UploadAndCreateCardArgs,
   useFileUploadCore,
 } from "@teak/convex/shared/hooks/useFileUpload";
-import { trackCardCreated } from "@teak/convex/shared/metrics";
+import { trackCardCreateAttempt } from "@teak/convex/shared/metrics";
 import { Button } from "@teak/ui/components/ui/button";
 import {
   Dialog,
@@ -126,6 +126,12 @@ export function AddCardActions({
           type: blob.type,
         });
 
+        trackCardCreateAttempt({
+          cardType: "audio",
+          source: "web",
+          via: "recording",
+        });
+
         const result = await uploadFile(file, {
           content: "",
           additionalMetadata: {
@@ -137,11 +143,6 @@ export function AddCardActions({
           setRecordingTime(0);
           setIsRecordingDialogOpen(false);
           onSuccess?.();
-          trackCardCreated({
-            cardType: "audio",
-            source: "web",
-            via: "recording",
-          });
           toast.success("Audio recording saved", { id: toastId });
           return;
         }
@@ -285,19 +286,19 @@ export function AddCardActions({
 
       for (const file of files) {
         const toastId = toast.loading(`Uploading ${file.name}...`);
+        trackCardCreateAttempt({
+          cardType:
+            inferFileFormat({ fileName: file.name, mimeType: file.type })
+              ?.cardType ?? "document",
+          source: "web",
+          via: "file_upload",
+        });
         // Uploads run sequentially so we can stop early when the card limit is
         // hit and surface per-file progress in order.
         // react-doctor-disable-next-line react-doctor/async-await-in-loop
         const result = await uploadFile(file, { content: "" });
 
         if (result.success) {
-          trackCardCreated({
-            cardType:
-              inferFileFormat({ fileName: file.name, mimeType: file.type })
-                ?.cardType ?? "document",
-            source: "web",
-            via: "file_upload",
-          });
           toast.success(`${file.name} uploaded`, { id: toastId });
           onSuccess?.();
           continue;

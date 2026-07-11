@@ -12,9 +12,10 @@ import {
 } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
 import { cardTypeValidator, colorValidator } from "../schema";
-import { scheduleBusinessEvent } from "../sentry";
-import { type CardCreationSource, trackCardCreated } from "../shared/metrics";
+import type { CardCreationSource } from "../shared/metrics";
+import { normalizeErrorClass } from "../shared/telemetry";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
+import { scheduleCardOutcome } from "../telemetry/schedule";
 import { workflow } from "../workflows/manager";
 import {
   buildInitialProcessingStatus,
@@ -203,18 +204,12 @@ export const createCardForUserHandler = async (
     { cardId }
   );
 
-  const source = options.source ?? "unknown";
-  trackCardCreated({
-    cardType,
-    source,
-    via: "server_create",
-  });
-  await scheduleBusinessEvent(ctx, {
-    event: "card.created",
-    userId,
+  await scheduleCardOutcome(ctx, {
     cardId,
     cardType,
-    surface: source,
+    outcome: "success",
+    source: options.source ?? "unknown",
+    userId,
   });
 
   return cardId;
@@ -229,7 +224,18 @@ export const createCard = mutation({
       throw new Error("User must be authenticated");
     }
 
-    return createCardForUserHandler(ctx, user.subject, args);
+    try {
+      return await createCardForUserHandler(ctx, user.subject, args);
+    } catch (error) {
+      await scheduleCardOutcome(ctx, {
+        cardType: args.type,
+        errorClass: normalizeErrorClass(error),
+        outcome: "failure",
+        source: "unknown",
+        userId: user.subject,
+      });
+      throw error;
+    }
   },
 });
 

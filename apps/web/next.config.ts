@@ -1,9 +1,25 @@
 import path from "node:path";
 import { withSentryConfig } from "@sentry/nextjs";
+import { buildWebRelease } from "@teak/convex/shared/telemetry";
 import type { NextConfig } from "next";
+import packageJson from "./package.json";
 import { staticSecurityHeaders } from "./src/lib/security-headers";
 
 const workspaceRoot = path.resolve(process.cwd(), "../..");
+const releaseSha =
+  process.env.VERCEL_GIT_COMMIT_SHA ??
+  process.env.GITHUB_SHA ??
+  process.env.GIT_SHA;
+const sentryRelease = buildWebRelease(packageJson.version, releaseSha);
+
+process.env.NEXT_PUBLIC_APP_VERSION = packageJson.version;
+if (releaseSha) {
+  process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA = releaseSha;
+}
+if (sentryRelease) {
+  process.env.SENTRY_RELEASE = sentryRelease;
+  process.env.NEXT_PUBLIC_SENTRY_RELEASE = sentryRelease;
+}
 const singletonAliasTargets = {
   convex: path.join(workspaceRoot, "node_modules/convex"),
   "convex/react": path.join(workspaceRoot, "node_modules/convex/react"),
@@ -26,6 +42,11 @@ const turbopackSingletonAliases = Object.fromEntries(
 );
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: packageJson.version,
+    NEXT_PUBLIC_SENTRY_RELEASE: sentryRelease,
+    NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA: releaseSha,
+  },
   reactCompiler: true,
   experimental: {
     turbopackFileSystemCacheForDev: true,
@@ -72,6 +93,7 @@ export default withSentryConfig(nextConfig, {
   // Upload a larger set of source maps for prettier stack traces (increases build time)
   widenClientFileUpload: true,
   release: {
+    name: sentryRelease,
     setCommits: {
       auto: true,
       // Avoid hard failures when Sentry cannot derive a compare range

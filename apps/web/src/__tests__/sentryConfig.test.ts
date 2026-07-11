@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { ErrorEvent } from "@sentry/nextjs";
 import {
+  buildPseudonymousSentryUser,
   filterClientSentryEvent,
+  resolveSentryDsn,
   resolveSentryEnvironment,
+  resolveSentryRelease,
+  scrubSentryPayload,
+  webTracesSampler,
 } from "../lib/sentry-config";
 
 const originalEnv = { ...process.env };
@@ -12,6 +19,38 @@ afterEach(() => {
 });
 
 describe("resolveSentryEnvironment", () => {
+  test("disables default PII in every web runtime", () => {
+    for (const file of [
+      "../instrumentation-client.ts",
+      "../../sentry.server.config.ts",
+      "../../sentry.edge.config.ts",
+    ]) {
+      const source = readFileSync(resolve(import.meta.dir, file), "utf8");
+      expect(source).toContain("sendDefaultPii: false");
+      expect(source).not.toContain("sendDefaultPii: true");
+    }
+  });
+
+  test("builds user context from only a hashed id", async () => {
+    const user = await buildPseudonymousSentryUser("user-123");
+
+    expect(user).toEqual({
+      id: "fcdec6df4d44dbc637c7c5b58efface52a7f8a88535423430255be0bb89bedd8",
+    });
+    expect(JSON.stringify(user)).not.toContain("user-123");
+    expect(await buildPseudonymousSentryUser(undefined)).toBeNull();
+  });
+
+  test("contains pseudonymous user synchronization failures", () => {
+    const source = readFileSync(
+      resolve(import.meta.dir, "../components/SentryUserManager.tsx"),
+      "utf8"
+    );
+
+    expect(source).toContain(".catch(() => {");
+    expect(source).toContain("Sentry.setUser(null)");
+  });
+
   test("uses explicit public Sentry environment first", () => {
     process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = "production";
     process.env.SENTRY_ENVIRONMENT = "ignored";
@@ -25,7 +64,55 @@ describe("resolveSentryEnvironment", () => {
     delete process.env.SENTRY_ENVIRONMENT;
     process.env.VERCEL_ENV = "production";
 
-    expect(resolveSentryEnvironment()).toBe("vercel-production");
+    expect(resolveSentryEnvironment()).toBe("production");
+  });
+
+  test("uses environment DSNs and versioned releases", () => {
+    process.env.NEXT_PUBLIC_SENTRY_DSN = "https://public@example.invalid/1";
+    process.env.NEXT_PUBLIC_APP_VERSION = "1.2.3";
+    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA =
+      "abcdef0123456789abcdef0123456789abcdef01";
+
+    expect(resolveSentryDsn()).toBe("https://public@example.invalid/1");
+    expect(resolveSentryRelease()).toBe(
+      "teak-web@1.2.3+abcdef0123456789abcdef0123456789abcdef01"
+    );
+  });
+
+  test("falls back from empty explicit releases", () => {
+    process.env.NEXT_PUBLIC_SENTRY_RELEASE = " ";
+    process.env.SENTRY_RELEASE = "";
+    process.env.NEXT_PUBLIC_APP_VERSION = "1.2.3";
+    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA =
+      "abcdef0123456789abcdef0123456789abcdef01";
+
+    expect(resolveSentryRelease()).toBe(
+      "teak-web@1.2.3+abcdef0123456789abcdef0123456789abcdef01"
+    );
+  });
+
+  test("keeps high-value traces and samples routine production navigation", () => {
+    process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = "production";
+    expect(webTracesSampler({ name: "/cards/create" })).toBe(1);
+    expect(webTracesSampler({ name: "/settings/profile" })).toBe(0.2);
+    expect(
+      webTracesSampler({
+        attributes: { outcome: "failure" },
+        name: "/settings/profile",
+      })
+    ).toBe(1);
+  });
+
+  test("scrubs structured log and span payloads", () => {
+    const payload = scrubSentryPayload({
+      attributes: {
+        authorization: "Bearer secret-token",
+        email: "person@example.com",
+      },
+    });
+
+    expect(JSON.stringify(payload)).not.toContain("secret-token");
+    expect(JSON.stringify(payload)).not.toContain("person@example.com");
   });
 });
 
@@ -111,7 +198,7 @@ describe("filterClientSentryEvent", () => {
       user: { username: "e2e-matrix-matrix-chromium-1783578880540-apowrq" },
     } satisfies ErrorEvent;
 
-    expect(filterClientSentryEvent(event)).toBe(event);
+    expect(filterClientSentryEvent(event)).toEqual(event);
   });
 
   test("keeps real-user Better Auth session fetch failures", () => {
@@ -136,7 +223,7 @@ describe("filterClientSentryEvent", () => {
       user: { username: "Praveen" },
     } satisfies ErrorEvent;
 
-    expect(filterClientSentryEvent(event)).toBe(event);
+    expect(filterClientSentryEvent(event)).toEqual(event);
   });
 
   test("keeps app-origin fetch failures", () => {
@@ -154,7 +241,7 @@ describe("filterClientSentryEvent", () => {
       },
     } satisfies ErrorEvent;
 
-    expect(filterClientSentryEvent(event)).toBe(event);
+    expect(filterClientSentryEvent(event)).toEqual(event);
   });
 
   test("keeps app-origin Safari load failures", () => {
@@ -172,6 +259,6 @@ describe("filterClientSentryEvent", () => {
       },
     } satisfies ErrorEvent;
 
-    expect(filterClientSentryEvent(event)).toBe(event);
+    expect(filterClientSentryEvent(event)).toEqual(event);
   });
 });
