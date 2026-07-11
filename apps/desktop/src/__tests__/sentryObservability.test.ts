@@ -70,6 +70,24 @@ describe("desktop Sentry observability", () => {
     expect(main).toContain("desktop.oauth");
   });
 
+  test("contains desktop user synchronization failures", () => {
+    const rendererSentry = readFileSync(
+      resolve(desktopRoot, "src/sentry.ts"),
+      "utf8"
+    );
+    const syncUser = rendererSentry.slice(
+      rendererSentry.indexOf("export const syncDesktopSentryUser"),
+      rendererSentry.indexOf('if (typeof window !== "undefined"')
+    );
+
+    expect(syncUser).toContain("try {");
+    expect(syncUser).toContain("catch (error)");
+    expect(syncUser).toContain('operation: "desktop.user.sync"');
+    expect(syncUser).toContain(
+      "Telemetry failures must not create renderer rejections."
+    );
+  });
+
   test("uploads every desktop source map and strips distributable maps", () => {
     for (const config of [
       "vite.main.config.ts",

@@ -6,6 +6,7 @@ import {
   distribution,
 } from "@teak/convex/shared/metrics";
 import {
+  normalizeErrorClass,
   TELEMETRY_METRICS,
   type TelemetryAttributeValue,
 } from "@teak/convex/shared/telemetry";
@@ -112,15 +113,29 @@ const DEVICE_ID_PATTERN =
 export const syncDesktopSentryUser = async (
   authenticated: boolean
 ): Promise<void> => {
-  const stored = await window.teakDesktop.store.read<string>("auth.deviceId");
-  const deviceId =
-    typeof stored === "string" && DEVICE_ID_PATTERN.test(stored)
-      ? stored
-      : crypto.randomUUID();
-  if (deviceId !== stored) {
-    await window.teakDesktop.store.write("auth.deviceId", deviceId);
+  try {
+    const stored = await window.teakDesktop.store.read<string>("auth.deviceId");
+    const deviceId =
+      typeof stored === "string" && DEVICE_ID_PATTERN.test(stored)
+        ? stored
+        : crypto.randomUUID();
+    if (deviceId !== stored) {
+      await window.teakDesktop.store.write("auth.deviceId", deviceId);
+    }
+    await setDesktopSentryUser(deviceId, authenticated);
+  } catch (error) {
+    try {
+      Sentry.captureException(error, {
+        tags: {
+          "error.class": normalizeErrorClass(error),
+          operation: "desktop.user.sync",
+        },
+      });
+    } catch {
+      // Telemetry failures must not create renderer rejections.
+      return;
+    }
   }
-  await setDesktopSentryUser(deviceId, authenticated);
 };
 
 if (typeof window !== "undefined" && window.teakDesktop) {
