@@ -75,6 +75,6 @@ describe("backend telemetry Node runtime", () => {
     );
     expect(workflow).toContain("test -f node_modules/typescript/bin/tsc");
     expect(workflow).toContain("--typecheck enable");
-    expect(workflow).toContain("--typecheck-components");
+    expect(workflow).not.toContain("--typecheck-components");
   });
 });
