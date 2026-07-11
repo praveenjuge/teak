@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { assertMailpitReady } from "../helpers/mailpit";
-import { signUp } from "../helpers/prod";
+import { signIn, signUp } from "../helpers/prod";
 import { rememberAccount } from "../helpers/run-state";
 
 const FIXTURE_TEXT = "Sentry Snapshot Fixture";
@@ -70,9 +70,12 @@ test("captures the deterministic Teak web product surface", async ({
   await assertMailpitReady();
   const email = await signUp(page);
   rememberAccount({ email }, true);
+  await signIn(page, email);
 
   await page.goto("/");
-  await page.getByPlaceholder(/Write a note/i).fill(FIXTURE_TEXT);
+  const fixtureComposer = page.getByPlaceholder(/Write a note/i);
+  await expect(fixtureComposer).toBeVisible({ timeout: 30_000 });
+  await fixtureComposer.fill(FIXTURE_TEXT);
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(
     page.getByRole("main").getByText(FIXTURE_TEXT, { exact: true }).first()
