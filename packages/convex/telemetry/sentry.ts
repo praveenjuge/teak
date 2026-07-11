@@ -258,6 +258,7 @@ export const withBackendSpan = async <T>(
       },
       async (span) => {
         callbackStarted = true;
+        const isWorkflowOperation = input.operation.startsWith("teak.workflow");
         const startedAt = Date.now();
         safely(() =>
           Sentry.logger.info("telemetry.operation.started", attributes)
@@ -281,17 +282,20 @@ export const withBackendSpan = async <T>(
           span.setStatus({
             code: returnedFailure ? SpanStatusCode.ERROR : SpanStatusCode.OK,
           });
-          safely(() =>
-            Sentry.metrics.distribution(
-              TELEMETRY_METRICS.workflowStageDuration,
-              durationMs,
-              {
-                attributes: { ...attributes, outcome },
-                unit: "millisecond",
-              }
-            )
-          );
+          if (isWorkflowOperation) {
+            safely(() =>
+              Sentry.metrics.distribution(
+                TELEMETRY_METRICS.workflowStageDuration,
+                durationMs,
+                {
+                  attributes: { ...attributes, outcome },
+                  unit: "millisecond",
+                }
+              )
+            );
+          }
           if (
+            isWorkflowOperation &&
             result &&
             typeof result === "object" &&
             "mode" in result &&
@@ -303,7 +307,7 @@ export const withBackendSpan = async <T>(
               })
             );
           }
-          if (returnedFailure && input.operation.startsWith("teak.workflow")) {
+          if (returnedFailure && isWorkflowOperation) {
             safely(() =>
               Sentry.metrics.count(TELEMETRY_METRICS.workflowFailure, 1, {
                 attributes: { ...attributes, outcome },
@@ -350,21 +354,21 @@ export const withBackendSpan = async <T>(
               outcome: "failure",
             })
           );
-          safely(() =>
-            Sentry.metrics.distribution(
-              TELEMETRY_METRICS.workflowStageDuration,
-              durationMs,
-              {
-                attributes: {
-                  ...attributes,
-                  "error.class": errorClass,
-                  outcome: "failure",
-                },
-                unit: "millisecond",
-              }
-            )
-          );
-          if (input.operation.startsWith("teak.workflow")) {
+          if (isWorkflowOperation) {
+            safely(() =>
+              Sentry.metrics.distribution(
+                TELEMETRY_METRICS.workflowStageDuration,
+                durationMs,
+                {
+                  attributes: {
+                    ...attributes,
+                    "error.class": errorClass,
+                    outcome: "failure",
+                  },
+                  unit: "millisecond",
+                }
+              )
+            );
             safely(() =>
               Sentry.metrics.count(TELEMETRY_METRICS.workflowFailure, 1, {
                 attributes: {
@@ -375,7 +379,7 @@ export const withBackendSpan = async <T>(
               })
             );
           }
-          if (retryable) {
+          if (retryable && isWorkflowOperation) {
             safely(() =>
               Sentry.metrics.count(TELEMETRY_METRICS.workflowRetry, 1, {
                 attributes: {
@@ -489,11 +493,13 @@ export const recordBackendHandledFailure = (
   safely(() =>
     Sentry.logger.error("telemetry.operation.handled_failure", attributes)
   );
-  safely(() =>
-    Sentry.metrics.count(TELEMETRY_METRICS.workflowFailure, 1, {
-      attributes,
-    })
-  );
+  if (input.operation.startsWith("teak.workflow")) {
+    safely(() =>
+      Sentry.metrics.count(TELEMETRY_METRICS.workflowFailure, 1, {
+        attributes,
+      })
+    );
+  }
 };
 
 export const recordBackendLog = (

@@ -191,6 +191,11 @@ describe("backend Sentry OpenTelemetry", () => {
     expect(JSON.stringify(options.attributes)).not.toContain("user-123");
     expect(spanSetAttribute).toHaveBeenCalledWith("outcome", "success");
     expect(spanSetStatus).toHaveBeenCalledWith({ code: 1 });
+    expect(sentryMetricDistribution).toHaveBeenCalledWith(
+      "teak.workflow.stage.duration",
+      expect.any(Number),
+      expect.objectContaining({ unit: "millisecond" })
+    );
     expect(spanEnd).toHaveBeenCalledTimes(1);
     expect(sentryFlush).toHaveBeenCalledWith(2000);
   });
@@ -244,6 +249,40 @@ describe("backend Sentry OpenTelemetry", () => {
         () => Promise.reject(workflowError)
       )
     ).rejects.toBe(workflowError);
+
+    expect(
+      sentryMetricCount.mock.calls.filter(
+        ([metric]) => metric === "teak.workflow.failure"
+      )
+    ).toHaveLength(1);
+  });
+
+  test("keeps handled non-workflow failures out of workflow metrics", () => {
+    const importError = new Error("import rejected");
+
+    telemetry.recordBackendHandledFailure(importError, {
+      operation: "import",
+      stage: "import",
+    });
+
+    expect(sentryCaptureException).toHaveBeenCalledWith(
+      importError,
+      expect.objectContaining({
+        tags: expect.objectContaining({ operation: "import" }),
+      })
+    );
+    expect(sentryLogError).toHaveBeenCalledWith(
+      "telemetry.operation.handled_failure",
+      expect.objectContaining({ operation: "import", outcome: "failure" })
+    );
+    expect(sentryMetricCount).not.toHaveBeenCalled();
+  });
+
+  test("counts handled workflow failures exactly once", () => {
+    telemetry.recordBackendHandledFailure(new Error("step rejected"), {
+      operation: "teak.workflow.step",
+      stage: "classification",
+    });
 
     expect(
       sentryMetricCount.mock.calls.filter(
