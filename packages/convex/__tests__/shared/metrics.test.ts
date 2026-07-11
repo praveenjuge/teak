@@ -4,6 +4,7 @@ import {
   type MetricAttributes,
   resetMetricsConfig,
   trackAiStage,
+  trackAuth,
   trackUpload,
 } from "../../shared/metrics";
 import { TELEMETRY_METRICS } from "../../shared/telemetry";
@@ -110,6 +111,45 @@ describe("trackUpload", () => {
         },
         name: TELEMETRY_METRICS.uploadBytes,
         value: 512,
+      },
+    ]);
+  });
+});
+
+describe("trackAuth", () => {
+  test("records the canonical authentication stage", () => {
+    const counts: Array<{
+      attributes: MetricAttributes;
+      name: string;
+    }> = [];
+
+    configureMetrics({
+      app: "web",
+      env: "production",
+      recorder: {
+        count(name, _value, attributes) {
+          counts.push({ attributes, name });
+        },
+        distribution() {
+          // Not used by this count-only assertion.
+        },
+        gauge() {
+          // Not used by authentication lifecycle metrics.
+        },
+      },
+    });
+
+    trackAuth({ outcome: "success", stage: "bootstrap" });
+
+    expect(counts).toEqual([
+      {
+        attributes: {
+          environment: "production",
+          outcome: "success",
+          stage: "auth_bootstrap",
+          surface: "web",
+        },
+        name: TELEMETRY_METRICS.authBootstrap,
       },
     ]);
   });

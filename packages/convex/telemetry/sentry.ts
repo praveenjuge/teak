@@ -38,7 +38,7 @@ const resolveBackendEnvironment = (): TelemetryEnvironment =>
   });
 
 export const resolveBackendRelease = (): string | undefined =>
-  process.env.SENTRY_RELEASE ??
+  process.env.SENTRY_RELEASE?.trim() ||
   buildBackendRelease(
     process.env.CONVEX_GIT_COMMIT_SHA ??
       process.env.VERCEL_GIT_COMMIT_SHA ??

@@ -79,6 +79,18 @@ describe("resolveSentryEnvironment", () => {
     );
   });
 
+  test("falls back from empty explicit releases", () => {
+    process.env.NEXT_PUBLIC_SENTRY_RELEASE = " ";
+    process.env.SENTRY_RELEASE = "";
+    process.env.NEXT_PUBLIC_APP_VERSION = "1.2.3";
+    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA =
+      "abcdef0123456789abcdef0123456789abcdef01";
+
+    expect(resolveSentryRelease()).toBe(
+      "teak-web@1.2.3+abcdef0123456789abcdef0123456789abcdef01"
+    );
+  });
+
   test("keeps high-value traces and samples routine production navigation", () => {
     process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = "production";
     expect(webTracesSampler({ name: "/cards/create" })).toBe(1);

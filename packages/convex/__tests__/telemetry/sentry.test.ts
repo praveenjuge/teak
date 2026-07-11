@@ -105,6 +105,14 @@ afterEach(() => {
 });
 
 describe("backend Sentry OpenTelemetry", () => {
+  test("falls back from an empty explicit release", () => {
+    process.env.SENTRY_RELEASE = "  ";
+
+    expect(telemetry.resolveBackendRelease()).toBe(
+      "teak-backend@abcdef0123456789abcdef0123456789abcdef01"
+    );
+  });
+
   test("initializes full AI monitoring with streaming and scrubbing", () => {
     expect(telemetry.ensureBackendTelemetry()).toBe(true);
     expect(sentryInit).toHaveBeenCalledTimes(1);

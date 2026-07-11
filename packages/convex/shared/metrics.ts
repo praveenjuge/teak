@@ -379,7 +379,12 @@ export function trackAuth(params: {
     session_refresh: TELEMETRY_METRICS.authSessionRefresh,
     sign_in: TELEMETRY_METRICS.authSignIn,
   }[params.stage];
-  const attributes = { outcome: params.outcome };
+  const stage = {
+    bootstrap: "auth_bootstrap",
+    session_refresh: "session_refresh",
+    sign_in: "sign_in",
+  }[params.stage];
+  const attributes = { outcome: params.outcome, stage };
   counter(metric, 1, attributes);
   if (typeof params.durationMs === "number") {
     distribution(metric, params.durationMs, attributes, "millisecond");
