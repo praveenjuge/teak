@@ -205,6 +205,7 @@ describe("backend Sentry OpenTelemetry", () => {
       expect.objectContaining({ unit: "millisecond" })
     );
     expect(spanEnd).toHaveBeenCalledTimes(1);
+    expect(sentryFlush).toHaveBeenCalledTimes(1);
     expect(sentryFlush).toHaveBeenCalledWith(2000);
   });
 

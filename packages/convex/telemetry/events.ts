@@ -5,7 +5,6 @@ import { internalAction } from "../_generated/server";
 import { TELEMETRY_METRICS } from "../shared/telemetry";
 import {
   BACKEND_CARD_METRICS,
-  flushBackendTelemetry,
   recordBackendMetric,
   recordBackendOutcome,
   withBackendSpan,
@@ -200,7 +199,6 @@ export const emitWorkflowCompletion = internalAction({
           return Promise.resolve();
         }
       );
-      await flushBackendTelemetry();
       return { sent: true };
     } catch {
       return { sent: false };
