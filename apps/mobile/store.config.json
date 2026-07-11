@@ -1,7 +1,7 @@
 {
   "configVersion": 0,
   "apple": {
-    "version": "1.0.45",
+    "version": "1.0.58",
     "copyright": "Praveen Juge. All rights reserved.",
     "release": {
       "automaticRelease": true
@@ -18,7 +18,7 @@
           "creative",
           "save"
         ],
-        "releaseNotes": "FIXED: When your iPhone is offline, Teak now shows a clear connection screen with a retry action instead of sending you to sign in.",
+        "releaseNotes": "NEW: Save source files, Markdown, archives, SVGs, GIFs, HEIC images, presentations, and design files from the picker or share sheet.\nIMPROVED: File cards now show safe previews or clear file details when a format cannot be previewed.",
         "marketingUrl": "https://teakvault.com",
         "promoText": "Capture, organize, and access your creative inspiration anywhere.",
         "supportUrl": "https://teakvault.com/docs",
