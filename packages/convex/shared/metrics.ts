@@ -280,7 +280,7 @@ export type AiPipelineStage =
   | "categorization"
   | "metadata"
   | "renderables"
-  | "linkMetadata"
+  | "link_metadata"
   | "palette";
 
 export type AiStageOutcome = "ok" | "error" | "skipped";

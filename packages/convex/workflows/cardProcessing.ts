@@ -11,7 +11,7 @@
 import type { RetryBehavior } from "@convex-dev/workpool";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { trackAiStage } from "../shared/metrics";
+import { type AiPipelineStage, trackAiStage } from "../shared/metrics";
 import { workflow } from "./manager";
 
 // Helper to get properly typed internal references
@@ -38,13 +38,7 @@ const PIPELINE_LOG_PREFIX = "[workflow/cardProcessing]";
 type StageOutcome = "ok" | "error" | "skipped";
 
 async function timeStage<T>(
-  stage:
-    | "classification"
-    | "categorization"
-    | "metadata"
-    | "renderables"
-    | "linkMetadata"
-    | "palette",
+  stage: AiPipelineStage,
   cardType: string | undefined,
   fn: () => Promise<T>
 ): Promise<T> {
@@ -174,7 +168,7 @@ export const cardProcessingWorkflow: any = workflow.define({
         linkMetadataCard?.metadataStatus === "pending";
 
       if (needsLinkMetadata) {
-        await timeStage("linkMetadata", classification.type, () =>
+        await timeStage("link_metadata", classification.type, () =>
           step.runAction(
             internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
               .fetchMetadata,
