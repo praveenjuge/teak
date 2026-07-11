@@ -1,8 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { clientFor } from "../helpers/prod";
-import { readState, updateState } from "../helpers/run-state";
+import { readState } from "../helpers/run-state";
 
 const FIXTURE_TEXT = "Sentry Snapshot Fixture";
 const DRAFT_TEXT = "A deterministic note for Teak snapshots";
@@ -67,16 +66,16 @@ test("captures the deterministic Teak web product surface", async ({
 }) => {
   test.setTimeout(240_000);
   const state = readState();
-  if (!(state.primary?.apiKey && state.primary.email)) {
+  if (!state.primary?.email) {
     throw new Error("Snapshot setup did not create the controlled account");
   }
 
-  const fixture = await clientFor(state.primary.apiKey).cards.create({
-    content: FIXTURE_TEXT,
-    source: "prod-e2e",
-    tags: ["sentry-snapshot"],
-  });
-  updateState((next) => next.createdCardIds.push(fixture.cardId));
+  await page.goto("/");
+  await page.getByPlaceholder(/Write a note/i).fill(FIXTURE_TEXT);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(
+    page.getByRole("main").getByText(FIXTURE_TEXT, { exact: true }).first()
+  ).toBeVisible({ timeout: 30_000 });
 
   for (const [viewportName, viewport] of Object.entries(
     VIEWPORTS

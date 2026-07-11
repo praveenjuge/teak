@@ -10,6 +10,7 @@ describe("production E2E project graph", () => {
     expect(projects.get("journey-services")?.fullyParallel).not.toBe(true);
     expect(projects.get("journey-services")?.workers).toBe(1);
     expect(projects.get("journey-a11y")?.fullyParallel).toBe(true);
+    expect(projects.get("snapshots")?.dependencies).toEqual(["snapshot-setup"]);
     expect(projects.get("journey-account")?.dependencies).toEqual([
       "journey-web",
       "journey-services",

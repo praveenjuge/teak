@@ -25,6 +25,11 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
+      name: "snapshot-setup",
+      testMatch: "snapshots/setup.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
       name: "journey-web",
       dependencies: ["journey-setup"],
       testMatch: [
@@ -83,7 +88,7 @@ export default defineConfig({
     },
     {
       name: "snapshots",
-      dependencies: ["journey-setup"],
+      dependencies: ["snapshot-setup"],
       testMatch: "snapshots/web.snapshots.ts",
       workers: 1,
       use: {
