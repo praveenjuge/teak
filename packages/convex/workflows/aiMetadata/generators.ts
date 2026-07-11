@@ -81,7 +81,7 @@ export const generateTextMetadata = async (content: string, title?: string) => {
 
 /**
  * Generate AI metadata for image content (using vision)
- * Note: Vision model (llama-4-scout) does NOT currently support prompt caching
+ * Note: Qwen 3.6 vision does NOT currently support prompt caching
  */
 export const generateImageMetadata = async (
   imageUrl: string,

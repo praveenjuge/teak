@@ -17,7 +17,7 @@ export const LINK_METADATA_MODEL_ID = "openai/gpt-oss-20b" as const;
 /**
  * Model for image/vision analysis
  * Note: Currently does NOT support prompt caching
- * Using Llama 4 Scout for multimodal capabilities
+ * Uses Qwen 3.6 27B for multimodal vision after Llama 4 Scout deprecation
  */
 export const IMAGE_METADATA_MODEL_ID = "qwen/qwen3.6-27b" as const;
 export const IMAGE_METADATA_MODEL = groq(IMAGE_METADATA_MODEL_ID);
