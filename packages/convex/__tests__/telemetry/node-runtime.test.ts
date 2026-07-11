@@ -64,18 +64,16 @@ describe("backend telemetry Node runtime", () => {
     expect(invalidPaths).toEqual([]);
   });
 
-  test("exposes the hoisted TypeScript binary to Convex deploy", () => {
+  test("links hoisted TypeScript where Convex deploy resolves it", () => {
     const workflow = readFileSync(
       resolve(repositoryRoot, ".github/workflows/backend-deploy.yml"),
       "utf8"
     );
 
     expect(workflow).toContain(
-      'export PATH="$GITHUB_WORKSPACE/node_modules/.bin:$PATH"'
+      'ln -s "$GITHUB_WORKSPACE/node_modules/typescript" node_modules/typescript'
     );
-    expect(workflow).toContain(
-      'test -x "$GITHUB_WORKSPACE/node_modules/.bin/tsc"'
-    );
+    expect(workflow).toContain("test -f node_modules/typescript/bin/tsc");
     expect(workflow).toContain("--typecheck enable");
     expect(workflow).toContain("--typecheck-components");
   });
