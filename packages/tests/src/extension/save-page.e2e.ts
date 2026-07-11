@@ -74,6 +74,9 @@ test("extension saves a selected file and safe page asset with private URL fallb
 
     const marker = `extension-file-${Date.now()}`;
     const uploadPopup = await context.newPage();
+    await uploadPopup.addInitScript(() => {
+      window.close = () => undefined;
+    });
     await uploadPopup.goto(popupUrl);
     await uploadPopup.locator('input[type="file"]').setInputFiles({
       buffer: Buffer.from(`# ${marker}\n\nSaved from the extension.`),
@@ -95,7 +98,7 @@ test("extension saves a selected file and safe page asset with private URL fallb
       )
       .toBe(true);
 
-    const assetResult = await serviceWorker.evaluate(
+    const assetResult = await uploadPopup.evaluate(
       ({ assetUrl, messageType }) => {
         const extensionChrome = (
           globalThis as typeof globalThis & { chrome: ExtensionChrome }
@@ -121,7 +124,7 @@ test("extension saves a selected file and safe page asset with private URL fallb
       )
       .toBe(true);
 
-    const unsafeResult = await serviceWorker.evaluate((messageType) => {
+    const unsafeResult = await uploadPopup.evaluate((messageType) => {
       const extensionChrome = (
         globalThis as typeof globalThis & { chrome: ExtensionChrome }
       ).chrome;

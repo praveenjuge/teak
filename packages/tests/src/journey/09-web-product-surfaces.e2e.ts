@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import { truncateSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
 import { MAX_FILE_SIZE } from "@teak/convex/shared";
 import { apiFetch } from "../helpers/api";
@@ -235,8 +235,7 @@ test("web uploads and paste-created files complete", async ({
   });
 
   const oversizedPath = testInfo.outputPath(`${marker}-too-large.bin`);
-  writeFileSync(oversizedPath, "");
-  truncateSync(oversizedPath, MAX_FILE_SIZE + 1);
+  writeFileSync(oversizedPath, Buffer.alloc(MAX_FILE_SIZE + 1));
   await uploadFiles(page, oversizedPath);
   await expect(page.getByText(/Maximum file size is 100MB/i)).toBeVisible();
 
