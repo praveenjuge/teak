@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const mobileRoot = resolve(import.meta.dir, "../..");
@@ -35,19 +35,20 @@ test("production mobile builds require Sentry uploads", () => {
   expect(packageJson.scripts["build:sentry"]).toContain("teak-mobile-prod");
 });
 
-test("size analysis builds locally without Expo cloud quota", () => {
-  const workflow = readFileSync(
-    resolve(repositoryRoot, ".github/workflows/mobile-size-analysis.yml"),
-    "utf8"
+test("keeps mobile artifacts out of GitHub Actions and Expo cloud builds", () => {
+  const packageJson = JSON.parse(
+    readFileSync(resolve(mobileRoot, "package.json"), "utf8")
+  );
+  const workflowPath = resolve(
+    repositoryRoot,
+    ".github/workflows/mobile-size-analysis.yml"
   );
 
-  expect(workflow).toContain("runs-on: macos-26");
-  expect(workflow).toContain("Xcode_26.4.1.app");
-  expect(workflow).toContain("--local");
-  expect(workflow).toContain('--output "$RUNNER_TEMP/teak-mobile.ipa"');
-  expect(workflow).toContain("secrets.SENTRY_AUTH_TOKEN");
-  expect(workflow).not.toContain("--wait");
-  expect(workflow).not.toContain("artifacts.buildUrl");
+  expect(existsSync(workflowPath)).toBe(false);
+  expect(packageJson.scripts["build:local"]).toContain("--local");
+  expect(packageJson.scripts["build:sentry"]).toContain(
+    "sentry-cli build upload"
+  );
 });
 
 test("pins the Expo 56 macro-compatible native build set", () => {

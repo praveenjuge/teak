@@ -10,7 +10,7 @@
     "./shared": "./shared/index.ts",
     "./shared/bounded-response": "./shared/boundedResponse.ts",
     "./shared/constants": "./shared/constants.ts",
-    "./shared/client-telemetry": "./shared/client-telemetry.ts",
+    "./shared/client-telemetry": "./shared/client_telemetry.ts",
     "./shared/file-formats": "./shared/fileFormats.ts",
     "./shared/metrics": "./shared/metrics.ts",
     "./shared/telemetry": "./shared/telemetry.ts",

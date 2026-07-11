@@ -1,7 +1,7 @@
 import {
   captureClientException,
   runClientSpan,
-} from "../../shared/client-telemetry";
+} from "../../shared/client_telemetry";
 import type { Id } from "../../shared/types";
 
 export interface CardActionsConfig {

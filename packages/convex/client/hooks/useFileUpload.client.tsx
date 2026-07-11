@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   captureClientException,
   runClientSpan,
-} from "../../shared/client-telemetry";
+} from "../../shared/client_telemetry";
 import type { CardErrorCode, CardType } from "../../shared/constants";
 import {
   CARD_ERROR_CODES,
