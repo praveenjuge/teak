@@ -77,5 +77,6 @@ describe("backend telemetry Node runtime", () => {
       'test -x "$GITHUB_WORKSPACE/node_modules/.bin/tsc"'
     );
     expect(workflow).toContain("--typecheck enable");
+    expect(workflow).toContain("--typecheck-components");
   });
 });
