@@ -78,7 +78,7 @@ import {
   type FileUploadDependencies,
   useFileUploadCore,
 } from "../../../client/hooks/useFileUpload.client";
-import { configureClientTelemetry } from "../../../shared/client-telemetry";
+import { configureClientTelemetry } from "../../../shared/client_telemetry";
 import {
   CARD_ERROR_CODES,
   CARD_ERROR_MESSAGES,

@@ -1,5 +1,5 @@
 export * from "./boundedResponse";
-export * from "./client-telemetry";
+export * from "./client_telemetry";
 export * from "./constants";
 export * from "./fileFormats";
 export * from "./linkCategories";

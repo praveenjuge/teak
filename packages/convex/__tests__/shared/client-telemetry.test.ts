@@ -5,7 +5,7 @@ import {
   configureClientTelemetry,
   resetClientTelemetry,
   runClientSpan,
-} from "../../shared/client-telemetry";
+} from "../../shared/client_telemetry";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 
 afterEach(() => {

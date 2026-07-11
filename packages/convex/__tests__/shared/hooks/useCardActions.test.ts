@@ -4,7 +4,7 @@ import { createCardActions } from "../../../client/hooks/useCardActions.client";
 import {
   configureClientTelemetry,
   resetClientTelemetry,
-} from "../../../shared/client-telemetry";
+} from "../../../shared/client_telemetry";
 
 describe("defaults", () => {
   test("uses default sentry capture without error", async () => {
