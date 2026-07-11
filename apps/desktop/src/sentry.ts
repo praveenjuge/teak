@@ -33,6 +33,7 @@ Sentry.init({
   beforeSend: scrubDesktopPayload,
   beforeSendLog: scrubDesktopPayload,
   beforeSendSpan: scrubDesktopPayload,
+  enableLogs: true,
   integrations: [
     Sentry.browserTracingIntegration(),
     Sentry.consoleLoggingIntegration({ levels: ["warn", "error"] }),

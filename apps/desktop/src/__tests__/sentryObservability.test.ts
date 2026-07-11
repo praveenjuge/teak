@@ -62,6 +62,9 @@ describe("desktop Sentry observability", () => {
       preload.trimStart().startsWith('import "@sentry/electron/preload"')
     ).toBe(true);
     expect(renderer.trimStart().startsWith('import "./sentry"')).toBe(true);
+    expect(
+      readFileSync(resolve(desktopRoot, "src/sentry.ts"), "utf8")
+    ).toContain("enableLogs: true");
     expect(mainSentry).toContain("rendererEventLoopBlockIntegration");
     expect(mainSentry).toContain("startupTracingIntegration");
     expect(mainSentry).toContain("attachScreenshot: false");
