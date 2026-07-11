@@ -344,8 +344,9 @@ const EMAIL_PATTERN =
   /\b[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+\b/giu;
 const DATA_URL_PATTERN =
   /data:(?:image|audio|video|application)\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/giu;
-const PRIVATE_KEY_PATTERN =
-  /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/gu;
+const PRIVATE_KEY_BEGIN = "-----BEGIN ";
+const PRIVATE_KEY_LABEL_SUFFIX = "PRIVATE KEY-----";
+const PRIVATE_KEY_LABEL_MAX_LENGTH = 32;
 const URL_PATTERN = /https?:\/\/[^\s"'<>]+/giu;
 const SIGNED_QUERY_KEYS = new Set([
   "x-amz-algorithm",
@@ -377,9 +378,73 @@ const scrubUrl = (rawUrl: string): string => {
   }
 };
 
+const findPrivateKeyLabelEnd = (value: string, start: number): number => {
+  const limit = Math.min(
+    value.length,
+    start + PRIVATE_KEY_LABEL_MAX_LENGTH + 1
+  );
+  for (let cursor = start; cursor < limit; cursor += 1) {
+    if (value.startsWith(PRIVATE_KEY_LABEL_SUFFIX, cursor)) {
+      return cursor;
+    }
+    const code = value.charCodeAt(cursor);
+    if (code !== 32 && (code < 65 || code > 90)) {
+      return -1;
+    }
+  }
+  return -1;
+};
+
+const scrubPrivateKeys = (value: string): string => {
+  let output = "";
+  let copyFrom = 0;
+  let searchFrom = 0;
+
+  search: while (searchFrom < value.length) {
+    const begin = value.indexOf(PRIVATE_KEY_BEGIN, searchFrom);
+    if (begin === -1) {
+      break;
+    }
+
+    const labelStart = begin + PRIVATE_KEY_BEGIN.length;
+    const labelEnd = findPrivateKeyLabelEnd(value, labelStart);
+    if (labelEnd === -1) {
+      searchFrom = labelStart;
+      continue;
+    }
+
+    const label = value.slice(labelStart, labelEnd);
+    const contentStart = labelEnd + PRIVATE_KEY_LABEL_SUFFIX.length;
+    const endMarker = `-----END ${label}${PRIVATE_KEY_LABEL_SUFFIX}`;
+    let blockCursor = contentStart;
+
+    while (blockCursor < value.length) {
+      const marker = value.indexOf("-----", blockCursor);
+      if (marker === -1) {
+        searchFrom = value.length;
+        break search;
+      }
+      if (value.startsWith(PRIVATE_KEY_BEGIN, marker)) {
+        searchFrom = marker;
+        continue search;
+      }
+      if (value.startsWith(endMarker, marker)) {
+        output += `${value.slice(copyFrom, begin)}[REDACTED_PRIVATE_KEY]`;
+        copyFrom = marker + endMarker.length;
+        searchFrom = copyFrom;
+        continue search;
+      }
+      blockCursor = marker + 5;
+    }
+
+    searchFrom = value.length;
+  }
+
+  return output + value.slice(copyFrom);
+};
+
 export const scrubTelemetryString = (value: string): string =>
-  value
-    .replace(PRIVATE_KEY_PATTERN, "[REDACTED_PRIVATE_KEY]")
+  scrubPrivateKeys(value)
     .replace(DATA_URL_PATTERN, "[REDACTED_BINARY_DATA]")
     .replace(BEARER_PATTERN, "Bearer [REDACTED]")
     .replace(JSON_SECRET_PATTERN, "$1[REDACTED]$2")

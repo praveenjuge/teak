@@ -77,6 +77,18 @@ describe("telemetry privacy and bounds", () => {
     expect(scrubbed).toContain("[REDACTED_SIGNED_URL]");
   });
 
+  test("scrubs private keys without backtracking on repeated headers", () => {
+    const privateKey = [
+      "-----BEGIN PRIVATE KEY-----",
+      "sensitive-key-material",
+      "-----END PRIVATE KEY-----",
+    ].join("\n");
+    const adversarial = "-----BEGIN PRIVATE KEY-----".repeat(10_000);
+
+    expect(scrubTelemetryString(privateKey)).toBe("[REDACTED_PRIVATE_KEY]");
+    expect(scrubTelemetryString(adversarial)).toBe(adversarial);
+  });
+
   test("retains an allowed prefix and suffix for oversized content", async () => {
     const raw = `${"a".repeat(90)}TOKEN=secret\n${"z".repeat(90)}`;
     const prepared = await prepareTelemetryContent(raw, 100);
