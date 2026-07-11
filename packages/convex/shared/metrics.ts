@@ -2,6 +2,7 @@ import {
   normalizeErrorClass,
   normalizeTelemetryAttributes,
   TELEMETRY_METRICS,
+  type TelemetryStage,
 } from "./telemetry";
 
 /**
@@ -275,13 +276,15 @@ export function trackCardCreateAttempt(params: {
   });
 }
 
-export type AiPipelineStage =
+export type AiPipelineStage = Extract<
+  TelemetryStage,
   | "classification"
   | "categorization"
-  | "metadata"
+  | "ai_metadata"
   | "renderables"
   | "link_metadata"
-  | "palette";
+  | "palette"
+>;
 
 export type AiStageOutcome = "ok" | "error" | "skipped";
 

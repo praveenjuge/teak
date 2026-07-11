@@ -282,7 +282,7 @@ export const cardProcessingWorkflow: any = workflow.define({
       }
 
       metadataResult = classification.shouldGenerateMetadata
-        ? await timeStage("metadata", classification.type, () =>
+        ? await timeStage("ai_metadata", classification.type, () =>
             step.runAction(
               internalWorkflow["workflows/steps/metadata"].generate,
               { cardId, cardType: classification.type },
@@ -292,7 +292,7 @@ export const cardProcessingWorkflow: any = workflow.define({
         : null;
     } else {
       const metadataPromise = classification.shouldGenerateMetadata
-        ? timeStage("metadata", classification.type, () =>
+        ? timeStage("ai_metadata", classification.type, () =>
             step.runAction(
               internalWorkflow["workflows/steps/metadata"].generate,
               { cardId, cardType: classification.type },

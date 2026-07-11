@@ -40,7 +40,7 @@ describe("trackAiStage", () => {
       cardType: "link",
       durationMs: 125,
       outcome: "ok",
-      stage: "link_metadata",
+      stage: "ai_metadata",
     });
 
     expect(distributions).toEqual([
@@ -50,7 +50,7 @@ describe("trackAiStage", () => {
           environment: "test",
           "error.class": null,
           outcome: "ok",
-          stage: "link_metadata",
+          stage: "ai_metadata",
           surface: "backend",
         },
         name: TELEMETRY_METRICS.workflowStageDuration,
