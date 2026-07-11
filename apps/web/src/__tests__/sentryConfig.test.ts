@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { ErrorEvent } from "@sentry/nextjs";
 import {
+  buildPseudonymousSentryUser,
   filterClientSentryEvent,
   resolveSentryDsn,
   resolveSentryEnvironment,
@@ -16,6 +19,28 @@ afterEach(() => {
 });
 
 describe("resolveSentryEnvironment", () => {
+  test("disables default PII in every web runtime", () => {
+    for (const file of [
+      "../instrumentation-client.ts",
+      "../../sentry.server.config.ts",
+      "../../sentry.edge.config.ts",
+    ]) {
+      const source = readFileSync(resolve(import.meta.dir, file), "utf8");
+      expect(source).toContain("sendDefaultPii: false");
+      expect(source).not.toContain("sendDefaultPii: true");
+    }
+  });
+
+  test("builds user context from only a hashed id", async () => {
+    const user = await buildPseudonymousSentryUser("user-123");
+
+    expect(user).toEqual({
+      id: "fcdec6df4d44dbc637c7c5b58efface52a7f8a88535423430255be0bb89bedd8",
+    });
+    expect(JSON.stringify(user)).not.toContain("user-123");
+    expect(await buildPseudonymousSentryUser(undefined)).toBeNull();
+  });
+
   test("uses explicit public Sentry environment first", () => {
     process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = "production";
     process.env.SENTRY_ENVIRONMENT = "ignored";

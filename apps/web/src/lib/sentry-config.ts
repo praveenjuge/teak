@@ -1,11 +1,23 @@
 import type { ErrorEvent, EventHint } from "@sentry/nextjs";
 import {
   buildWebRelease,
+  hashTelemetryId,
   resolveTelemetryEnvironment,
   resolveTraceSampleRate,
   scrubTelemetryValue,
   type TelemetryEnvironment,
 } from "@teak/convex/shared/telemetry";
+
+export interface PseudonymousSentryUser {
+  id: string;
+}
+
+export const buildPseudonymousSentryUser = async (
+  userId: string | undefined
+): Promise<PseudonymousSentryUser | null> => {
+  const id = await hashTelemetryId(userId);
+  return id ? { id } : null;
+};
 
 const EXTENSION_FRAME_PREFIXES = [
   "app:///scripts/",
