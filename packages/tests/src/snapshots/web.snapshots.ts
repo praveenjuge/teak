@@ -60,6 +60,16 @@ const settingsRow = (page: Page, label: string) =>
     .getByText(label, { exact: true })
     .locator("xpath=ancestor::div[.//button][1]");
 
+const waitForCardGridReady = async (page: Page, fixtureCard: Locator) => {
+  const skeletons = page.locator('[data-slot="skeleton"]');
+  await skeletons
+    .first()
+    .waitFor({ state: "visible", timeout: 1000 })
+    .catch(() => undefined);
+  await expect(skeletons).toHaveCount(0, { timeout: 30_000 });
+  await expect(fixtureCard).toBeVisible({ timeout: 30_000 });
+};
+
 const stabilizeSettingsIdentity = async (page: Page, email: string) => {
   const emailControl = page.getByRole("button", { name: email });
   await expect(emailControl).toBeVisible();
@@ -209,9 +219,11 @@ test("captures the deterministic Teak web product surface", async ({
     await expect(fixtureCard).toBeVisible();
     await capture(page, viewportName, "search");
     await search.fill("");
+    await waitForCardGridReady(page, fixtureCard);
 
     const composer = page.getByPlaceholder(/Write a note/i);
     await composer.fill(DRAFT_TEXT);
+    await expect(composer).toHaveValue(DRAFT_TEXT);
     await capture(page, viewportName, "add-card");
 
     await page.goto("/settings");
