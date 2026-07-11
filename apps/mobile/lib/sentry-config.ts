@@ -1,11 +1,11 @@
 import {
   buildMobileRelease,
-  hashTelemetryId,
   resolveTelemetryEnvironment,
   resolveTraceSampleRate,
   scrubTelemetryValue,
   type TelemetryEnvironment,
 } from "@teak/convex/shared/telemetry";
+import * as Crypto from "expo-crypto";
 
 export const resolveMobileEnvironment = (
   explicit = process.env.EXPO_PUBLIC_SENTRY_ENVIRONMENT,
@@ -45,4 +45,9 @@ export const scrubMobilePayload = <T>(payload: T): T =>
 export const resolvePseudonymousUserId = async (
   userId: string | null | undefined
 ): Promise<string | undefined> =>
-  userId ? await hashTelemetryId(userId) : undefined;
+  userId
+    ? await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        userId
+      )
+    : undefined;

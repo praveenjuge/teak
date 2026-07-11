@@ -128,9 +128,20 @@ export const setMobileSentryUser = async (
     SentryClient.setContext("account", null);
     return;
   }
-  const id = await resolvePseudonymousUserId(userId);
-  SentryClient.setUser({ id });
-  SentryClient.setContext("account", { authenticated: true });
+  try {
+    const id = await resolvePseudonymousUserId(userId);
+    SentryClient.setUser({ id });
+    SentryClient.setContext("account", { authenticated: true });
+  } catch (error) {
+    SentryClient.setUser(null);
+    SentryClient.setContext("account", {
+      authenticated: true,
+      pseudonymousIdAvailable: false,
+    });
+    SentryClient.captureException(error, {
+      tags: { operation: "mobile.auth.user_context" },
+    });
+  }
 };
 
 export const finishMobileStartup = (): void => {

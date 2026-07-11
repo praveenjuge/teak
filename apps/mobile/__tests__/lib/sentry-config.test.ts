@@ -1,11 +1,19 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import {
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import { createHash } from "node:crypto";
+
+mock.module("expo-crypto", () => ({
+  CryptoDigestAlgorithm: { SHA256: "SHA-256" },
+  digestStringAsync: async (_algorithm: string, value: string) =>
+    createHash("sha256").update(value).digest("hex"),
+}));
+
+const {
   mobileTracesSampler,
   resolveMobileEnvironment,
   resolveMobileRelease,
   resolvePseudonymousUserId,
   scrubMobilePayload,
-} from "../../lib/sentry-config";
+} = await import("../../lib/sentry-config");
 
 const originalEnvironment = process.env.EXPO_PUBLIC_SENTRY_ENVIRONMENT;
 
@@ -44,5 +52,23 @@ describe("mobile Sentry configuration", () => {
     const id = await resolvePseudonymousUserId("user-123");
     expect(id).toHaveLength(64);
     expect(id).not.toContain("user-123");
+  });
+
+  test("hashes authenticated users without Web Crypto globals", async () => {
+    const originalCrypto = globalThis.crypto;
+    Object.defineProperty(globalThis, "crypto", {
+      configurable: true,
+      value: undefined,
+    });
+    try {
+      await expect(resolvePseudonymousUserId("user-123")).resolves.toMatch(
+        /^[a-f0-9]{64}$/u
+      );
+    } finally {
+      Object.defineProperty(globalThis, "crypto", {
+        configurable: true,
+        value: originalCrypto,
+      });
+    }
   });
 });

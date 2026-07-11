@@ -126,6 +126,7 @@
         "expo-build-properties": "~56.0.13",
         "expo-clipboard": "~56.0.3",
         "expo-constants": "~56.0.14",
+        "expo-crypto": "~56.0.4",
         "expo-dev-client": "~56.0.14",
         "expo-document-picker": "~56.0.4",
         "expo-file-system": "~56.0.7",
@@ -2532,6 +2533,8 @@
     "expo-clipboard": ["expo-clipboard@56.0.3", "", { "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-8mCdhmAomm0yBIonJFjAhKUXvSkc2avdNh4+rBwoe7DSWF2AC4w3uy+pa419rvVFbTyVxOBmh83UHAbUwD6qAg=="],
 
     "expo-constants": ["expo-constants@56.0.14", "", { "dependencies": { "@expo/env": "~2.3.0" }, "peerDependencies": { "expo": "*", "react-native": "*" } }, "sha512-NeFIFXi+RAB5ayR/CPiQXRab0HczkA+BQfF8uci4G3RMBSy+uzd+1skRx/uqLUo3OYjSfs6LUQ8JDVbRgJRRQQ=="],
+
+    "expo-crypto": ["expo-crypto@56.0.4", "", { "peerDependencies": { "expo": "*" } }, "sha512-fRNEhoXRXgAWBpe3/hq5X+KXTit3OZqdiAGts1YvNEUHQb+H5591mpPac0Yw+sZg9pXcrjRnzo5AxvZaENpc7g=="],
 
     "expo-dev-client": ["expo-dev-client@56.0.14", "", { "dependencies": { "expo-dev-launcher": "~56.0.14", "expo-dev-menu": "~56.0.13", "expo-dev-menu-interface": "~56.0.0", "expo-manifests": "~56.0.4", "expo-updates-interface": "~56.0.1" }, "peerDependencies": { "expo": "*" } }, "sha512-YfclIpX/FnMAusna+7QF6Ocbw8aYAAYsd0rEVRRx1TAVop+zhls6p32sdDzoUmKMgmUFkFQofiiEn4rSuqt/Dg=="],
 
