@@ -35,6 +35,20 @@ test("production mobile builds require Sentry uploads", () => {
   expect(packageJson.scripts["build:sentry"]).toContain("teak-mobile-prod");
 });
 
+test("size analysis builds locally without Expo cloud quota", () => {
+  const workflow = readFileSync(
+    resolve(repositoryRoot, ".github/workflows/mobile-size-analysis.yml"),
+    "utf8"
+  );
+
+  expect(workflow).toContain("runs-on: macos-latest");
+  expect(workflow).toContain("--local");
+  expect(workflow).toContain('--output "$RUNNER_TEMP/teak-mobile.ipa"');
+  expect(workflow).toContain("secrets.SENTRY_AUTH_TOKEN");
+  expect(workflow).not.toContain("--wait");
+  expect(workflow).not.toContain("artifacts.buildUrl");
+});
+
 test("pins the Expo 56 macro-compatible native build set", () => {
   const packageJson = JSON.parse(
     readFileSync(resolve(mobileRoot, "package.json"), "utf8")
