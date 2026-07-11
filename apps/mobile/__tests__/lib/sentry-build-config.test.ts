@@ -41,7 +41,8 @@ test("size analysis builds locally without Expo cloud quota", () => {
     "utf8"
   );
 
-  expect(workflow).toContain("runs-on: macos-latest");
+  expect(workflow).toContain("runs-on: macos-26");
+  expect(workflow).toContain("Xcode_26.4.1.app");
   expect(workflow).toContain("--local");
   expect(workflow).toContain('--output "$RUNNER_TEMP/teak-mobile.ipa"');
   expect(workflow).toContain("secrets.SENTRY_AUTH_TOKEN");

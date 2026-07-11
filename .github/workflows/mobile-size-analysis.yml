@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   ios:
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 90
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -27,6 +27,11 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+      - name: Select Expo SDK 56 Xcode
+        run: |
+          sudo xcode-select \
+            --switch /Applications/Xcode_26.4.1.app/Contents/Developer
+          xcodebuild -version
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Verify build credentials
