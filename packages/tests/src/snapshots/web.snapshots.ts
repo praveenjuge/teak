@@ -1,7 +1,9 @@
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { readState } from "../helpers/run-state";
+import { assertMailpitReady } from "../helpers/mailpit";
+import { signUp } from "../helpers/prod";
+import { rememberAccount } from "../helpers/run-state";
 
 const FIXTURE_TEXT = "Sentry Snapshot Fixture";
 const DRAFT_TEXT = "A deterministic note for Teak snapshots";
@@ -64,11 +66,10 @@ test("captures the deterministic Teak web product surface", async ({
   browser,
   page,
 }) => {
-  test.setTimeout(240_000);
-  const state = readState();
-  if (!state.primary?.email) {
-    throw new Error("Snapshot setup did not create the controlled account");
-  }
+  test.setTimeout(300_000);
+  await assertMailpitReady();
+  const email = await signUp(page);
+  rememberAccount({ email }, true);
 
   await page.goto("/");
   await page.getByPlaceholder(/Write a note/i).fill(FIXTURE_TEXT);
@@ -118,7 +119,7 @@ test("captures the deterministic Teak web product surface", async ({
 
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-    await stabilizeSettingsIdentity(page, state.primary.email);
+    await stabilizeSettingsIdentity(page, email);
     await capture(page, viewportName, "settings");
 
     await page.getByRole("button", { name: "Upgrade" }).click();
