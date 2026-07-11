@@ -140,16 +140,30 @@ export const syncDesktopSentryUser = async (
 };
 
 if (typeof window !== "undefined" && window.teakDesktop) {
-  void window.teakDesktop.app.getVersion().then((appVersion) => {
-    Sentry.setContext("desktop", {
-      appVersion,
-      packaged: !import.meta.env.DEV,
-      updateChannel: import.meta.env.VITE_DESKTOP_UPDATE_CHANNEL ?? "stable",
+  void window.teakDesktop.app
+    .getVersion()
+    .then((appVersion) => {
+      Sentry.setContext("desktop", {
+        appVersion,
+        packaged: !import.meta.env.DEV,
+        updateChannel: import.meta.env.VITE_DESKTOP_UPDATE_CHANNEL ?? "stable",
+      });
+      Sentry.setTag("app.version", appVersion);
+      Sentry.setTag(
+        "desktop.update_channel",
+        import.meta.env.VITE_DESKTOP_UPDATE_CHANNEL ?? "stable"
+      );
+    })
+    .catch((error: unknown) => {
+      try {
+        Sentry.captureException(error, {
+          tags: {
+            "error.class": normalizeErrorClass(error),
+            operation: "desktop.app.version",
+          },
+        });
+      } catch {
+        // Telemetry context lookup must never create a renderer rejection.
+      }
     });
-    Sentry.setTag("app.version", appVersion);
-    Sentry.setTag(
-      "desktop.update_channel",
-      import.meta.env.VITE_DESKTOP_UPDATE_CHANNEL ?? "stable"
-    );
-  });
 }

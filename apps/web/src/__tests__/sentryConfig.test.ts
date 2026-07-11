@@ -41,6 +41,16 @@ describe("resolveSentryEnvironment", () => {
     expect(await buildPseudonymousSentryUser(undefined)).toBeNull();
   });
 
+  test("contains pseudonymous user synchronization failures", () => {
+    const source = readFileSync(
+      resolve(import.meta.dir, "../components/SentryUserManager.tsx"),
+      "utf8"
+    );
+
+    expect(source).toContain(".catch(() => {");
+    expect(source).toContain("Sentry.setUser(null)");
+  });
+
   test("uses explicit public Sentry environment first", () => {
     process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = "production";
     process.env.SENTRY_ENVIRONMENT = "ignored";

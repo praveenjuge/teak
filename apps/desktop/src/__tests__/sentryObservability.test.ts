@@ -91,6 +91,23 @@ describe("desktop Sentry observability", () => {
     );
   });
 
+  test("contains desktop app-version context failures", () => {
+    const rendererSentry = readFileSync(
+      resolve(desktopRoot, "src/sentry.ts"),
+      "utf8"
+    );
+    const versionContext = rendererSentry.slice(
+      rendererSentry.indexOf('if (typeof window !== "undefined"'),
+      rendererSentry.length
+    );
+
+    expect(versionContext).toContain(".catch((error: unknown) => {");
+    expect(versionContext).toContain('operation: "desktop.app.version"');
+    expect(versionContext).toContain(
+      "Telemetry context lookup must never create a renderer rejection."
+    );
+  });
+
   test("uploads every desktop source map and strips distributable maps", () => {
     for (const config of [
       "vite.main.config.ts",
