@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   desktopTracesSampler,
+  resolveDesktopDsn,
   resolveDesktopEnvironment,
   resolveDesktopRelease,
   resolveDesktopUserId,
@@ -23,6 +24,9 @@ describe("desktop Sentry observability", () => {
     const id = await resolveDesktopUserId("install-device-id");
     expect(id).toHaveLength(64);
     expect(id).not.toContain("install-device-id");
+    expect(resolveDesktopDsn(" https://public@example.invalid/1 ")).toBe(
+      "https://public@example.invalid/1"
+    );
   });
 
   test("retains high-value production traces and scrubs credentials", () => {
@@ -62,9 +66,16 @@ describe("desktop Sentry observability", () => {
       preload.trimStart().startsWith('import "@sentry/electron/preload"')
     ).toBe(true);
     expect(renderer.trimStart().startsWith('import "./sentry"')).toBe(true);
-    expect(
-      readFileSync(resolve(desktopRoot, "src/sentry.ts"), "utf8")
-    ).toContain("enableLogs: true");
+    const rendererSentry = readFileSync(
+      resolve(desktopRoot, "src/sentry.ts"),
+      "utf8"
+    );
+    expect(rendererSentry).toContain("enableLogs: true");
+    expect(rendererSentry).toContain(
+      "dsn: resolveDesktopDsn(import.meta.env.VITE_PUBLIC_SENTRY_DESKTOP_DSN)"
+    );
+    expect(rendererSentry).toContain("environment,");
+    expect(rendererSentry).toContain("release,");
     expect(mainSentry).toContain("rendererEventLoopBlockIntegration");
     expect(mainSentry).toContain("startupTracingIntegration");
     expect(mainSentry).toContain("attachScreenshot: false");

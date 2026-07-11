@@ -10,9 +10,12 @@ import {
   TELEMETRY_METRICS,
   type TelemetryAttributeValue,
 } from "@teak/convex/shared/telemetry";
+import packageJson from "../package.json";
 import {
   desktopTracesSampler,
+  resolveDesktopDsn,
   resolveDesktopEnvironment,
+  resolveDesktopRelease,
   resolveDesktopUserId,
   scrubDesktopPayload,
 } from "./sentry-config";
@@ -20,6 +23,11 @@ import {
 const environment = resolveDesktopEnvironment(
   import.meta.env.VITE_SENTRY_ENVIRONMENT,
   import.meta.env.MODE
+);
+const release = resolveDesktopRelease(
+  packageJson.version,
+  import.meta.env.VITE_GIT_COMMIT_SHA,
+  import.meta.env.VITE_SENTRY_RELEASE
 );
 const startupStartedAt = Date.now();
 
@@ -33,11 +41,14 @@ Sentry.init({
   beforeSend: scrubDesktopPayload,
   beforeSendLog: scrubDesktopPayload,
   beforeSendSpan: scrubDesktopPayload,
+  dsn: resolveDesktopDsn(import.meta.env.VITE_PUBLIC_SENTRY_DESKTOP_DSN),
   enableLogs: true,
+  environment,
   integrations: [
     Sentry.browserTracingIntegration(),
     Sentry.consoleLoggingIntegration({ levels: ["warn", "error"] }),
   ],
+  release,
   sendDefaultPii: false,
   tracesSampler: (context) => desktopTracesSampler(context, environment),
 });
