@@ -39,11 +39,15 @@ export const generateTextMetadata = async (content: string, title?: string) => {
   const fullContent = title
     ? `Title: ${title}\n\nContent: ${content}`
     : content;
+  const prompt = `Analyze this content and generate tags and summary:\n\n${fullContent}`;
 
   const result = await observeAiGeneration(
     {
       functionId: "teak.ai.metadata.text",
       model: TEXT_METADATA_MODEL_ID,
+      prompt,
+      stage: "ai_metadata",
+      system: SYSTEM_PROMPTS.textAnalysis,
     },
     () =>
       generateText({
@@ -56,7 +60,7 @@ export const generateTextMetadata = async (content: string, title?: string) => {
         // Static system prompt - will be cached across requests
         system: SYSTEM_PROMPTS.textAnalysis,
         // Dynamic content last for cache optimization
-        prompt: `Analyze this content and generate tags and summary:\n\n${fullContent}`,
+        prompt,
         output: Output.object({
           schema: aiMetadataSchema,
         }),
@@ -83,10 +87,16 @@ export const generateImageMetadata = async (
   imageUrl: string,
   title?: string
 ) => {
+  const prompt = title
+    ? `Image title: ${title}\n\nAnalyze this image and generate tags and summary:`
+    : "Analyze this image and generate tags and summary:";
   const result = await observeAiGeneration(
     {
       functionId: "teak.ai.metadata.image",
       model: IMAGE_METADATA_MODEL_ID,
+      prompt,
+      stage: "ai_metadata",
+      system: SYSTEM_PROMPTS.imageAnalysis,
     },
     () =>
       generateText({
@@ -105,9 +115,7 @@ export const generateImageMetadata = async (
               {
                 type: "text",
                 // Dynamic text content
-                text: title
-                  ? `Image title: ${title}\n\nAnalyze this image and generate tags and summary:`
-                  : "Analyze this image and generate tags and summary:",
+                text: prompt,
               },
               {
                 type: "image",
@@ -135,10 +143,20 @@ export const generateImageMetadata = async (
  * Uses prompt caching-enabled model (openai/gpt-oss-20b)
  */
 export const generateLinkMetadata = async (content: string, url?: string) => {
+  const prompt = `Analyze this web page content and generate optimized tags and summary for knowledge management:
+
+${content}
+
+${url ? `\nURL: ${url}` : ""}
+
+Generate tags and summary that will help the user rediscover and understand the value of this content.`;
   const result = await observeAiGeneration(
     {
       functionId: "teak.ai.metadata.link",
       model: LINK_METADATA_MODEL_ID,
+      prompt,
+      stage: "ai_metadata",
+      system: SYSTEM_PROMPTS.linkAnalysis,
     },
     () =>
       generateText({
@@ -151,13 +169,7 @@ export const generateLinkMetadata = async (content: string, url?: string) => {
         // Static system prompt - will be cached across requests
         system: SYSTEM_PROMPTS.linkAnalysis,
         // Dynamic content last for cache optimization
-        prompt: `Analyze this web page content and generate optimized tags and summary for knowledge management:
-
-${content}
-
-${url ? `\nURL: ${url}` : ""}
-
-Generate tags and summary that will help the user rediscover and understand the value of this content.`,
+        prompt,
         output: Output.object({
           schema: aiMetadataSchema,
         }),

@@ -53,13 +53,6 @@ export const uploadAndCreateCard = mutation({
       return { success: false, error: "User must be authenticated" };
     }
 
-    await scheduleUploadOutcome(ctx, {
-      bytes: _args.fileSize,
-      fileBucket: _args.cardType ?? "unknown",
-      outcome: "attempt",
-      userId: user.subject,
-    });
-
     try {
       try {
         const validated = validateUploadFile({
@@ -98,13 +91,6 @@ export const uploadAndCreateCard = mutation({
         cardId: undefined, // Will be set after successful upload
       };
     } catch (error) {
-      await scheduleUploadOutcome(ctx, {
-        bytes: _args.fileSize,
-        errorClass: normalizeErrorClass(error),
-        fileBucket: _args.cardType ?? "unknown",
-        outcome: "failure",
-        userId: user.subject,
-      });
       if (
         error instanceof ConvexError &&
         typeof error.data === "object" &&
@@ -278,13 +264,6 @@ export const createUploadedCardForUser = async (
     source: "unknown",
     userId: args.userId,
   });
-  await scheduleUploadOutcome(ctx, {
-    bytes: args.storedFileSize ?? args.fileSize,
-    fileBucket: cardType,
-    outcome: "success",
-    userId: args.userId,
-  });
-
   return cardId;
 };
 
@@ -311,6 +290,13 @@ export const finalizeUploadedCard = mutation({
       return { success: false, error: "User must be authenticated" };
     }
 
+    await scheduleUploadOutcome(ctx, {
+      bytes: args.fileSize,
+      fileBucket: args.cardType ?? "unknown",
+      outcome: "attempt",
+      userId: user.subject,
+    });
+
     try {
       const cardId = await createUploadedCardForUser(ctx, {
         additionalMetadata: args.additionalMetadata,
@@ -322,6 +308,13 @@ export const finalizeUploadedCard = mutation({
         fileType: args.fileType,
         notes: undefined,
         tags: undefined,
+        userId: user.subject,
+      });
+
+      await scheduleUploadOutcome(ctx, {
+        bytes: args.fileSize,
+        fileBucket: args.cardType ?? "unknown",
+        outcome: "success",
         userId: user.subject,
       });
 

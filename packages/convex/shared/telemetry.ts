@@ -25,6 +25,7 @@ export type TelemetrySurface = (typeof TELEMETRY_SURFACES)[number];
 export const TELEMETRY_OPERATIONS = {
   auth: "auth",
   billing: "billing",
+  cardCreate: "teak.card.create",
   export: "export",
   genAiGenerate: "gen_ai.generate",
   import: "import",

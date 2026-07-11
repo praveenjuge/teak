@@ -4,6 +4,7 @@ import {
   TELEMETRY_METRICS,
   type TelemetryStage,
 } from "../shared/telemetry";
+import { recordBackendAiContent, withBackendSpan } from "../telemetry/sentry";
 
 const ONE_MILLION = 1_000_000;
 
@@ -27,8 +28,9 @@ export const createAiTelemetrySettings = (input: {
     "teak.provider": "groq",
     "teak.stage": input.stage,
   },
-  recordInputs: true,
-  recordOutputs: true,
+  // Content is recorded explicitly through Teak's scrubbed/truncated span path.
+  recordInputs: false,
+  recordOutputs: false,
 });
 
 export const estimateGroqCostUsd = (input: {
@@ -72,44 +74,84 @@ export const observeAiGeneration = async <T>(
   input: {
     functionId: string;
     model: string;
+    prompt?: string;
+    stage?: TelemetryStage;
+    system?: string;
   },
   generate: () => Promise<T>
 ): Promise<T> => {
-  const startedAt = Date.now();
-  try {
-    const result = await generate();
-    const usage = getUsage(result);
-    const costUsd = estimateGroqCostUsd({
-      cachedInputTokens: usage?.inputTokenDetails?.cacheReadTokens,
-      inputTokens: usage?.inputTokens,
-      model: input.model,
-      outputTokens: usage?.outputTokens,
-    });
-    trackAiCall({
-      durationMs: Date.now() - startedAt,
-      inputTokens: usage?.inputTokens,
-      model: input.model,
-      outcome: "success",
-      outputTokens: usage?.outputTokens,
-      provider: "groq",
-    });
-    if (costUsd !== undefined) {
-      distribution(
-        TELEMETRY_METRICS.aiCostUsd,
-        costUsd,
-        { function: input.functionId, model: input.model, provider: "groq" },
-        "none"
-      );
+  const run = async (): Promise<T> => {
+    const startedAt = Date.now();
+    recordBackendAiContent({ prompt: input.prompt, system: input.system });
+    try {
+      const result = await generate();
+      const usage = getUsage(result);
+      const costUsd = estimateGroqCostUsd({
+        cachedInputTokens: usage?.inputTokenDetails?.cacheReadTokens,
+        inputTokens: usage?.inputTokens,
+        model: input.model,
+        outputTokens: usage?.outputTokens,
+      });
+      recordBackendAiContent({ response: getResponseText(result) });
+      trackAiCall({
+        durationMs: Date.now() - startedAt,
+        inputTokens: usage?.inputTokens,
+        model: input.model,
+        outcome: "success",
+        outputTokens: usage?.outputTokens,
+        provider: "groq",
+      });
+      if (costUsd !== undefined) {
+        distribution(
+          TELEMETRY_METRICS.aiCostUsd,
+          costUsd,
+          { function: input.functionId, model: input.model, provider: "groq" },
+          "none"
+        );
+      }
+      return result;
+    } catch (error) {
+      trackAiCall({
+        durationMs: Date.now() - startedAt,
+        model: input.model,
+        outcome: "failure",
+        provider: "groq",
+        validationFailure: normalizeErrorClass(error) === "ValidationError",
+      });
+      throw error;
     }
-    return result;
-  } catch (error) {
-    trackAiCall({
-      durationMs: Date.now() - startedAt,
-      model: input.model,
-      outcome: "failure",
-      provider: "groq",
-      validationFailure: normalizeErrorClass(error) === "ValidationError",
-    });
-    throw error;
+  };
+
+  if (!(input.prompt || input.system)) {
+    return await run();
+  }
+
+  return await withBackendSpan(
+    {
+      attributes: { model: input.model, provider: "groq" },
+      name: input.functionId,
+      operation: "gen_ai.generate",
+      stage: input.stage ?? "ai_metadata",
+      surface: "backend",
+    },
+    run
+  );
+};
+
+const getResponseText = (result: unknown): string | undefined => {
+  if (!(result && typeof result === "object")) {
+    return;
+  }
+  if ("text" in result && typeof result.text === "string") {
+    return result.text;
+  }
+  if (!("output" in result)) {
+    return;
+  }
+  try {
+    return JSON.stringify(result.output);
+  } catch {
+    // Content telemetry must never alter the generation result.
+    return;
   }
 };

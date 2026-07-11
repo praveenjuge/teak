@@ -45,8 +45,8 @@ describe("aiMetadata generators", () => {
       expect.objectContaining({
         experimental_telemetry: expect.objectContaining({
           functionId: "teak.ai.metadata.text",
-          recordInputs: true,
-          recordOutputs: true,
+          recordInputs: false,
+          recordOutputs: false,
         }),
         prompt: expect.stringContaining("some content"),
       })

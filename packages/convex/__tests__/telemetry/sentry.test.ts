@@ -44,6 +44,7 @@ const sentryConsoleLoggingIntegration = mock((options: unknown) => ({
 mock.module("@opentelemetry/api", () => ({
   SpanStatusCode: { ERROR: 2, OK: 1 },
   trace: {
+    getActiveSpan: () => ({ setAttribute: spanSetAttribute }),
     getTracer: () => ({ startActiveSpan }),
   },
 }));
@@ -110,8 +111,8 @@ describe("backend Sentry OpenTelemetry", () => {
     expect(sentryVercelAiIntegration).toHaveBeenCalledWith({
       enableTruncation: false,
       force: true,
-      recordInputs: true,
-      recordOutputs: true,
+      recordInputs: false,
+      recordOutputs: false,
     });
     expect(sentryConsoleLoggingIntegration).toHaveBeenCalledWith({
       levels: ["log", "warn", "error"],
@@ -140,6 +141,29 @@ describe("backend Sentry OpenTelemetry", () => {
     ).toBeGreaterThan(17_000);
     expect(span.data["gen_ai.request.messages.content.sha256"]).toMatch(
       /^[a-f0-9]{64}$/u
+    );
+  });
+
+  test("records AI content only through the scrubbed explicit span path", () => {
+    telemetry.recordBackendAiContent({
+      prompt: "Private note for planning TOKEN=secret person@example.com",
+      response: "Generated private summary",
+      system: "Follow the system instructions",
+    });
+
+    const attributes = Object.fromEntries(spanSetAttribute.mock.calls);
+    expect(attributes["gen_ai.request.prompt"]).toContain(
+      "Private note for planning"
+    );
+    expect(attributes["gen_ai.request.prompt"]).not.toContain("secret");
+    expect(attributes["gen_ai.request.prompt"]).not.toContain(
+      "person@example.com"
+    );
+    expect(attributes["gen_ai.request.system"]).toBe(
+      "Follow the system instructions"
+    );
+    expect(attributes["gen_ai.response.text"]).toBe(
+      "Generated private summary"
     );
   });
 
@@ -205,6 +229,7 @@ describe("backend Sentry OpenTelemetry", () => {
     const sent = await telemetry.recordBackendOutcome({
       cardId: "card-123",
       metric: "teak.card.create.success",
+      operation: "teak.card.create",
       outcome: "success",
       stage: "creation",
       surface: "web",

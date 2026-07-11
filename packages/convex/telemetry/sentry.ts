@@ -157,8 +157,8 @@ export const ensureBackendTelemetry = (): boolean => {
         Sentry.vercelAIIntegration({
           enableTruncation: false,
           force: true,
-          recordInputs: true,
-          recordOutputs: true,
+          recordInputs: false,
+          recordOutputs: false,
         }),
       ],
       release: resolveBackendRelease(),
@@ -509,7 +509,7 @@ export const recordBackendOutcome = async (input: {
   attributes?: TelemetryAttributes;
   cardId?: string;
   metric: TelemetryMetricName;
-  operation?: TelemetryOperation;
+  operation: TelemetryOperation;
   outcome: TelemetryOutcome;
   stage?: TelemetryStage;
   surface?: string;
@@ -519,7 +519,7 @@ export const recordBackendOutcome = async (input: {
   if (!ensureBackendTelemetry()) {
     return false;
   }
-  const operation = input.operation ?? "teak.workflow.step";
+  const operation = input.operation;
   const attributes = await contextAttributes(
     {
       attributes: {

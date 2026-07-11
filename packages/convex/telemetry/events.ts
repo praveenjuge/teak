@@ -67,6 +67,7 @@ export const emitCardOutcome = internalAction({
         },
         cardId: args.cardId,
         metric: BACKEND_CARD_METRICS[args.outcome],
+        operation: "teak.card.create",
         outcome: args.outcome,
         stage: "creation",
         surface: args.source,
@@ -90,6 +91,7 @@ export const emitUserCreated = internalAction({
     try {
       const sent = await recordBackendOutcome({
         metric: TELEMETRY_METRICS.userCreated,
+        operation: "auth",
         outcome: "success",
         stage: "auth_bootstrap",
         surface: args.source,
