@@ -27,6 +27,12 @@ const stableCss = `
   }
   [data-sonner-toaster] { display: none !important; }
 `;
+const stableCardModalCss = `
+  [data-snapshot-ai-summary] { display: none !important; }
+  [data-snapshot-metadata-row] > button:not([data-snapshot-card-type]) {
+    display: none !important;
+  }
+`;
 
 const capture = async (
   page: Page,
@@ -64,23 +70,49 @@ const stabilizeSettingsIdentity = async (page: Page, email: string) => {
 
 const stabilizeCardModalMetadata = async (page: Page) => {
   const dialog = page.getByRole("dialog");
-  const summaryLabel = dialog.getByText("Summary", { exact: true });
-  if ((await summaryLabel.count()) === 1) {
-    await summaryLabel.locator("xpath=..").evaluate((container) => {
-      container.remove();
-    });
-  }
-
   const typeBadge = dialog.getByRole("button", { name: "Text", exact: true });
   await expect(typeBadge).toBeVisible();
-  await typeBadge.evaluate((button) => {
-    for (const sibling of button.parentElement?.querySelectorAll("button") ??
-      []) {
-      if (sibling !== button) {
-        sibling.remove();
+  await page.addStyleTag({ content: stableCardModalCss });
+  await dialog.evaluate((dialogElement) => {
+    const snapshotDialog = dialogElement as HTMLElement & {
+      snapshotObserver?: MutationObserver;
+    };
+    const markVolatileMetadata = () => {
+      for (const label of snapshotDialog.querySelectorAll("label")) {
+        if (label.textContent?.trim() === "Summary") {
+          label.parentElement?.setAttribute("data-snapshot-ai-summary", "");
+        }
       }
-    }
+
+      for (const button of snapshotDialog.querySelectorAll("button")) {
+        if (button.textContent?.trim() === "Text") {
+          button.setAttribute("data-snapshot-card-type", "");
+          button.parentElement?.setAttribute("data-snapshot-metadata-row", "");
+        }
+      }
+    };
+
+    markVolatileMetadata();
+    snapshotDialog.snapshotObserver?.disconnect();
+    snapshotDialog.snapshotObserver = new MutationObserver(
+      markVolatileMetadata
+    );
+    snapshotDialog.snapshotObserver.observe(snapshotDialog, {
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
   });
+
+  return async () => {
+    await dialog.evaluate((dialogElement) => {
+      const snapshotDialog = dialogElement as HTMLElement & {
+        snapshotObserver?: MutationObserver;
+      };
+      snapshotDialog.snapshotObserver?.disconnect();
+      snapshotDialog.snapshotObserver = undefined;
+    });
+  };
 };
 
 test("captures the deterministic Teak web product surface", async ({
@@ -128,8 +160,12 @@ test("captures the deterministic Teak web product surface", async ({
 
     await fixtureCard.click();
     await expect(page.getByRole("dialog")).toBeVisible();
-    await stabilizeCardModalMetadata(page);
-    await capture(page, viewportName, "card-modal");
+    const stopStabilizingCardModal = await stabilizeCardModalMetadata(page);
+    try {
+      await capture(page, viewportName, "card-modal");
+    } finally {
+      await stopStabilizingCardModal();
+    }
     await page.keyboard.press("Escape");
 
     const search = page.getByPlaceholder("Search for anything...");
