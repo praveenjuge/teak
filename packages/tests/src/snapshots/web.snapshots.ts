@@ -63,9 +63,45 @@ const settingsRow = (page: Page, label: string) =>
 const stabilizeSettingsIdentity = async (page: Page, email: string) => {
   const emailControl = page.getByRole("button", { name: email });
   await expect(emailControl).toBeVisible();
-  await emailControl.evaluate((element) => {
-    element.textContent = "snapshot@fixtures.invalid";
-  });
+  await page.evaluate((actualEmail) => {
+    const root = document.documentElement as HTMLElement & {
+      snapshotIdentityObserver?: MutationObserver;
+    };
+    const stabilizeIdentity = () => {
+      for (const button of document.querySelectorAll("button")) {
+        if (button.textContent?.trim() === actualEmail) {
+          button.textContent = "snapshot@fixtures.invalid";
+        }
+      }
+    };
+
+    stabilizeIdentity();
+    root.snapshotIdentityObserver?.disconnect();
+    root.snapshotIdentityObserver = new MutationObserver(stabilizeIdentity);
+    root.snapshotIdentityObserver.observe(document.body, {
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
+  }, email);
+
+  return async () => {
+    await page.evaluate(() => {
+      const root = document.documentElement as HTMLElement & {
+        snapshotIdentityObserver?: MutationObserver;
+      };
+      root.snapshotIdentityObserver?.disconnect();
+      root.snapshotIdentityObserver = undefined;
+    });
+  };
+};
+
+const stopSafely = async (stop: () => Promise<void>) => {
+  try {
+    await stop();
+  } catch {
+    // The observed page may have navigated or closed during a failed capture.
+  }
 };
 
 const stabilizeCardModalMetadata = async (page: Page) => {
@@ -180,27 +216,34 @@ test("captures the deterministic Teak web product surface", async ({
 
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-    await stabilizeSettingsIdentity(page, email);
-    await capture(page, viewportName, "settings");
+    const stopStabilizingIdentity = await stabilizeSettingsIdentity(
+      page,
+      email
+    );
+    try {
+      await capture(page, viewportName, "settings");
 
-    await page.getByRole("button", { name: "Upgrade" }).click();
-    await expect(
-      page.getByRole("dialog").getByText("Upgrade to Pro")
-    ).toBeVisible();
-    await capture(page, viewportName, "billing");
-    await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: "Upgrade" }).click();
+      await expect(
+        page.getByRole("dialog").getByText("Upgrade to Pro")
+      ).toBeVisible();
+      await capture(page, viewportName, "billing");
+      await page.keyboard.press("Escape");
 
-    await settingsRow(page, "Import/Export Data")
-      .getByRole("button", { name: "Manage" })
-      .click();
-    const dataDialog = page.getByRole("dialog", { name: "Manage Data" });
-    await expect(dataDialog).toBeVisible();
-    await capture(page, viewportName, "import");
+      await settingsRow(page, "Import/Export Data")
+        .getByRole("button", { name: "Manage" })
+        .click();
+      const dataDialog = page.getByRole("dialog", { name: "Manage Data" });
+      await expect(dataDialog).toBeVisible();
+      await capture(page, viewportName, "import");
 
-    await dataDialog.getByRole("tab", { name: "Export" }).click();
-    await expect(dataDialog.getByText(/export/i).last()).toBeVisible();
-    await capture(page, viewportName, "export");
-    await page.keyboard.press("Escape");
+      await dataDialog.getByRole("tab", { name: "Export" }).click();
+      await expect(dataDialog.getByText(/export/i).last()).toBeVisible();
+      await capture(page, viewportName, "export");
+      await page.keyboard.press("Escape");
+    } finally {
+      await stopSafely(stopStabilizingIdentity);
+    }
   }
 
   expect(Object.keys(VIEWPORTS)).toHaveLength(2);
