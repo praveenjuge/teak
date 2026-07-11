@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const mobileRoot = resolve(import.meta.dir, "../..");
+const repositoryRoot = resolve(mobileRoot, "../..");
 
 test("production mobile builds require Sentry uploads", () => {
   const app = JSON.parse(readFileSync(resolve(mobileRoot, "app.json"), "utf8"));
@@ -32,4 +33,22 @@ test("production mobile builds require Sentry uploads", () => {
     "sentry-cli build upload"
   );
   expect(packageJson.scripts["build:sentry"]).toContain("teak-mobile-prod");
+});
+
+test("pins the Expo 56 macro-compatible native build set", () => {
+  const packageJson = JSON.parse(
+    readFileSync(resolve(mobileRoot, "package.json"), "utf8")
+  );
+  const repositoryPackage = JSON.parse(
+    readFileSync(resolve(repositoryRoot, "package.json"), "utf8")
+  );
+  const lockfile = readFileSync(resolve(repositoryRoot, "bun.lock"), "utf8");
+
+  expect(packageJson.dependencies.expo).toBe("~56.0.15");
+  expect(packageJson.dependencies["expo-build-properties"]).toBe("~56.0.22");
+  expect(repositoryPackage.overrides["expo-constants"]).toBe("56.0.20");
+  expect(repositoryPackage.overrides["expo-font"]).toBe("56.0.7");
+  expect(repositoryPackage.overrides["expo-linking"]).toBe("56.0.15");
+  expect(lockfile).toContain('"@expo/expo-modules-macros-plugin@0.2.2"');
+  expect(lockfile).not.toContain('"@expo/expo-modules-macros-plugin@0.0.9"');
 });
