@@ -28,18 +28,22 @@ describe("classification step", () => {
   });
 
   describe("classification error handling", () => {
-    test("throws error when card not found", async () => {
+    test("skips when card was deleted before classification", async () => {
       mockRunQuery.mockResolvedValue(null);
 
-      await expect(classify(mockCtx, { cardId: "c1" })).rejects.toThrow(
-        "Card c1 not found for classification"
-      );
+      await expect(classify(mockCtx, { cardId: "c1" })).resolves.toEqual({
+        mode: "skipped",
+      });
+      expect(mockRunMutation).not.toHaveBeenCalled();
     });
 
-    test("handles missing card gracefully", async () => {
+    test("treats an undefined card as the same deletion race", async () => {
       mockRunQuery.mockResolvedValue(undefined);
 
-      await expect(classify(mockCtx, { cardId: "c2" })).rejects.toThrow();
+      await expect(classify(mockCtx, { cardId: "c2" })).resolves.toEqual({
+        mode: "skipped",
+      });
+      expect(mockRunMutation).not.toHaveBeenCalled();
     });
   });
 
@@ -55,6 +59,7 @@ describe("classification step", () => {
 
       const result = await classify(mockCtx, { cardId: "c1" });
 
+      expect(result.mode).toBe("completed");
       expect(result.type).toBe("quote");
       expect(result.confidence).toBe(0.95);
       expect(result.shouldCategorize).toBe(false);

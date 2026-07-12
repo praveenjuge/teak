@@ -43,6 +43,12 @@ export const resolveCardProcessingDurationMs = (
 ): number | undefined =>
   creationTime === undefined ? undefined : Math.max(0, now - creationTime);
 
+export const createMissingCardWorkflowResult = () => ({
+  success: true as const,
+  mode: "skipped" as const,
+  reason: "card_missing" as const,
+});
+
 async function timeStage<T>(
   stage: AiPipelineStage,
   cardType: string | undefined,
@@ -87,29 +93,37 @@ export const cardProcessingWorkflow: any = workflow.define({
   args: {
     cardId: v.id("cards"),
   },
-  returns: v.object({
-    success: v.boolean(),
-    classification: v.object({
-      type: v.string(),
-      confidence: v.number(),
-    }),
-    categorization: v.optional(
-      v.object({
-        category: v.string(),
+  returns: v.union(
+    v.object({
+      success: v.boolean(),
+      mode: v.literal("completed"),
+      classification: v.object({
+        type: v.string(),
         confidence: v.number(),
-      })
-    ),
-    metadata: v.object({
-      aiTagsCount: v.number(),
-      hasSummary: v.boolean(),
-      hasTranscript: v.boolean(),
+      }),
+      categorization: v.optional(
+        v.object({
+          category: v.string(),
+          confidence: v.number(),
+        })
+      ),
+      metadata: v.object({
+        aiTagsCount: v.number(),
+        hasSummary: v.boolean(),
+        hasTranscript: v.boolean(),
+      }),
+      renderables: v.optional(
+        v.object({
+          thumbnailGenerated: v.boolean(),
+        })
+      ),
     }),
-    renderables: v.optional(
-      v.object({
-        thumbnailGenerated: v.boolean(),
-      })
-    ),
-  }),
+    v.object({
+      success: v.boolean(),
+      mode: v.literal("skipped"),
+      reason: v.literal("card_missing"),
+    })
+  ),
   handler: async (step, { cardId }) => {
     console.info(`${PIPELINE_LOG_PREFIX} Starting`, { cardId });
 
@@ -118,12 +132,22 @@ export const cardProcessingWorkflow: any = workflow.define({
       { cardId }
     );
 
+    if (!initialCard) {
+      trackAiStage({
+        stage: "classification",
+        durationMs: 0,
+        outcome: "skipped",
+      });
+      return createMissingCardWorkflowResult();
+    }
+
     // Step 1: Classification
     // If already classified (client-provided type), reuse it; otherwise run classifier
     const existingClassifyStatus = initialCard?.processingStatus?.classify;
     const classification =
       existingClassifyStatus?.status === "completed" && initialCard
         ? {
+            mode: "completed" as const,
             type: initialCard.type,
             confidence: existingClassifyStatus.confidence ?? 1,
             needsLinkMetadata:
@@ -141,6 +165,10 @@ export const cardProcessingWorkflow: any = workflow.define({
               { cardId }
             )
           );
+
+    if (classification.mode === "skipped") {
+      return createMissingCardWorkflowResult();
+    }
 
     // Ensure link metadata is ready before proceeding with downstream AI steps.
     if (classification.type === "link") {
@@ -304,6 +332,7 @@ export const cardProcessingWorkflow: any = workflow.define({
 
     const result = {
       success: true,
+      mode: "completed" as const,
       classification: {
         type: classification.type,
         confidence: classification.confidence,

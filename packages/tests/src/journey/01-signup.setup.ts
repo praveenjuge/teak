@@ -5,11 +5,30 @@ import { storageStateFile, updateState } from "../helpers/run-state";
 
 test.setTimeout(240_000);
 
-test("create verified production account and API key", async ({ page }) => {
+test("create isolated verified production accounts and API keys", async ({
+  browser,
+  page,
+}) => {
   await assertMailpitReady();
   const account = await createAccount(page, "primary");
   updateState((state) => {
     state.primary = account;
   });
   await page.context().storageState({ path: storageStateFile });
+
+  for (const surface of ["api", "cli", "mcp"] as const) {
+    const context = await browser.newContext();
+    try {
+      const serviceAccount = await createAccount(
+        await context.newPage(),
+        `service-${surface}`
+      );
+      updateState((state) => {
+        state.serviceAccounts ??= {};
+        state.serviceAccounts[surface] = serviceAccount;
+      });
+    } finally {
+      await context.close();
+    }
+  }
 });

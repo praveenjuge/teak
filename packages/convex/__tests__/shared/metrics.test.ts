@@ -57,6 +57,49 @@ describe("trackAiStage", () => {
       },
     ]);
   });
+
+  test("counts skipped workflow stages without reporting a failure", () => {
+    const counts: Array<{
+      attributes: MetricAttributes;
+      name: string;
+      value: number;
+    }> = [];
+
+    configureMetrics({
+      app: "convex",
+      env: "production",
+      recorder: {
+        count(name, value, attributes) {
+          counts.push({ attributes, name, value });
+        },
+        distribution() {
+          // The duration distribution is covered above.
+        },
+        gauge() {
+          // Not used by workflow stage metrics.
+        },
+      },
+    });
+
+    trackAiStage({
+      durationMs: 0,
+      outcome: "skipped",
+      stage: "classification",
+    });
+
+    expect(counts).toEqual([
+      {
+        attributes: {
+          "card.type": null,
+          environment: "production",
+          stage: "classification",
+          surface: "backend",
+        },
+        name: TELEMETRY_METRICS.workflowSkip,
+        value: 1,
+      },
+    ]);
+  });
 });
 
 describe("trackUpload", () => {
