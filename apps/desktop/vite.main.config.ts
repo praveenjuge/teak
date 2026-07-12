@@ -29,6 +29,10 @@ export default defineConfig(({ command }) => ({
     },
     rollupOptions: {
       external: [
+        // Keep the Electron SDK in its native Node module boundary. Bundling
+        // its require-in-the-middle instrumentation into this ESM entry leaves
+        // CommonJS globals such as `require.cache` undefined at runtime.
+        "@sentry/electron/main",
         "electron",
         "electron-updater",
         "electron-store",

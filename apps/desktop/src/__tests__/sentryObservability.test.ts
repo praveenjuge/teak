@@ -138,4 +138,15 @@ describe("desktop Sentry observability", () => {
     expect(workflow).toContain("debug-files upload");
     expect(workflow).toContain("find .vite -name '*.map'");
   });
+
+  test("keeps main-process Sentry instrumentation outside the ESM bundle", () => {
+    const mainConfig = readFileSync(
+      resolve(desktopRoot, "vite.main.config.ts"),
+      "utf8"
+    );
+
+    expect(mainConfig).toContain('"@sentry/electron/main"');
+    expect(mainConfig).toContain("rollupOptions");
+    expect(mainConfig).toContain("external:");
+  });
 });
