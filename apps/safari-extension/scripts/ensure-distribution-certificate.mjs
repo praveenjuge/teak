@@ -141,5 +141,7 @@ fs.writeFileSync(certificatePath, certificateToPem(certificateContent), {
 output(`${outputPrefix}_PATH`, certificatePath);
 output(`${outputPrefix}_SERIAL`, certificateSerial);
 console.log(
-  `${existingCertificate ? "Reused" : "Created"} ${createCertificateType} certificate ${certificateSerial}.`
+  existingCertificate
+    ? "Reused Apple distribution certificate."
+    : "Created Apple distribution certificate."
 );

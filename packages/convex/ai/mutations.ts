@@ -12,14 +12,20 @@ export const updateCardProcessing = internalMutation({
     ),
     metadata: v.optional(v.any()),
   },
+  returns: v.boolean(),
   handler: async (ctx, args) => {
     const { cardId, processingStatus, type, metadataStatus, metadata } = args;
-    return await ctx.db.patch("cards", cardId, {
+    const card = await ctx.db.get("cards", cardId);
+    if (!card) {
+      return false;
+    }
+    await ctx.db.patch("cards", cardId, {
       ...(type ? { type } : {}),
       processingStatus,
       ...(metadataStatus ? { metadataStatus } : {}),
-      ...(metadata !== undefined ? { metadata } : {}),
+      ...(metadata === undefined ? {} : { metadata }),
       updatedAt: Date.now(),
     });
+    return true;
   },
 });

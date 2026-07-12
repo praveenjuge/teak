@@ -13,13 +13,19 @@ export const updateCardAI = internalMutation({
     visualStyles: v.optional(v.array(v.string())),
     processingStatus: processingStatusValidator,
   },
+  returns: v.boolean(),
   handler: async (ctx, args) => {
     const { cardId, processingStatus, ...updates } = args;
-    return await ctx.db.patch("cards", cardId, {
+    const card = await ctx.db.get("cards", cardId);
+    if (!card) {
+      return false;
+    }
+    await ctx.db.patch("cards", cardId, {
       ...updates,
-      ...(processingStatus !== undefined ? { processingStatus } : {}),
+      ...(processingStatus === undefined ? {} : { processingStatus }),
       updatedAt: Date.now(),
     });
+    return true;
   },
 });
 
@@ -49,6 +55,10 @@ export const updateCardColors = internalMutation({
     colors: v.optional(v.array(colorValidator)),
   },
   handler: async (ctx, { cardId, colors }) => {
+    const card = await ctx.db.get("cards", cardId);
+    if (!card) {
+      return null;
+    }
     const { colorHexes, colorHues } = buildColorFacets(colors);
     await ctx.db.patch("cards", cardId, {
       colors,

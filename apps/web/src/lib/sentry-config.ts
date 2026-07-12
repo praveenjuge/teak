@@ -10,13 +10,18 @@ import {
 
 export interface PseudonymousSentryUser {
   id: string;
+  segment?: "production_e2e";
 }
 
 export const buildPseudonymousSentryUser = async (
-  userId: string | undefined
+  userId: string | undefined,
+  email?: string
 ): Promise<PseudonymousSentryUser | null> => {
   const id = await hashTelemetryId(userId);
-  return id ? { id } : null;
+  if (!id) {
+    return null;
+  }
+  return email?.startsWith("e2e-") ? { id, segment: "production_e2e" } : { id };
 };
 
 const EXTENSION_FRAME_PREFIXES = [
@@ -96,35 +101,36 @@ const isExtensionFetchFailure = (event: ErrorEvent) =>
     );
   }) ?? false;
 
-const isProductionE2eWebkitUser = (event: ErrorEvent) =>
-  typeof event.user?.username === "string" &&
-  event.user.username.startsWith("e2e-matrix-matrix-webkit-");
-
 const isBetterAuthSessionFrame = (filename?: string) =>
   Boolean(
     filename &&
       (filename.includes("node_modules/@convex-dev/better-auth/") ||
         filename.includes("node_modules/better-auth/") ||
-        filename.includes("node_modules/@better-fetch/fetch/") ||
-        filename.includes("/_next/static/chunks/"))
+        filename.includes("node_modules/@better-fetch/fetch/"))
   );
 
+const isBundledNextFrame = (filename?: string) =>
+  filename?.includes("/_next/static/chunks/") ?? false;
+
 const isSafariBetterAuthLoadFailure = (event: ErrorEvent) =>
-  isProductionE2eWebkitUser(event) &&
-  (event.exception?.values?.some((exception) => {
+  event.exception?.values?.some((exception) => {
     const isWebkitLoadFailure =
       exception.type === "TypeError" &&
       exception.value === "Load failed (app.teakvault.com)";
 
+    const frames = exception.stacktrace?.frames ?? [];
+    const hasExplicitBetterAuthFrame = frames.some((frame) =>
+      isBetterAuthSessionFrame(frame.filename)
+    );
+    const isKnownE2eBundleAbort =
+      event.user?.segment === "production_e2e" &&
+      frames.some((frame) => isBundledNextFrame(frame.filename));
+
     return (
       isWebkitLoadFailure &&
-      (exception.stacktrace?.frames?.some((frame) =>
-        isBetterAuthSessionFrame(frame.filename)
-      ) ??
-        false)
+      (hasExplicitBetterAuthFrame || isKnownE2eBundleAbort)
     );
-  }) ??
-    false);
+  }) ?? false;
 
 export function filterClientSentryEvent(event: ErrorEvent, _hint?: EventHint) {
   if (isExtensionFetchFailure(event) || isSafariBetterAuthLoadFailure(event)) {

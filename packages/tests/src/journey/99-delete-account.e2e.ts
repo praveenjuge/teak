@@ -8,7 +8,6 @@ test("delete primary account through the web UI", async ({ page }) => {
     throw new Error("Missing primary account");
   }
   await deleteAccountViaUi(page, primary);
-  await page.goto("/login");
   await page.getByLabel("Email").fill(primary.email);
   await page.getByLabel("Password").fill(process.env.PROD_E2E_PASSWORD!);
   await page.getByRole("button", { name: /login|sign in/i }).click();

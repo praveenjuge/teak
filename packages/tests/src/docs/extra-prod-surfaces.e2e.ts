@@ -142,11 +142,29 @@ const contentType = {
   text: /text\/plain/,
 } as const;
 
+const fetchWithNetworkRetry = async (url: string): Promise<Response> => {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await fetch(url);
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) {
+        await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+      }
+    }
+  }
+
+  throw lastError;
+};
+
 for (const [index, probe] of probes.entries()) {
   const prefix = `extra-${String(index + 1).padStart(3, "0")} ${probe.name}`;
 
   test(`${prefix} production response contract`, async () => {
-    const response = await test.step("fetch once", () => fetch(probe.url));
+    const response = await test.step("fetch with network retry", () =>
+      fetchWithNetworkRetry(probe.url));
     const body = await response.text();
 
     await test.step("status is successful", () => {

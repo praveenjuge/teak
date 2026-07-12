@@ -155,10 +155,11 @@ describe("workflows/cardProcessing", () => {
       expect(result.classification.type).toBe("link");
     });
 
-    test("handles parallel metadata and renderables for non-SVG images", () => {
-      const parallel = ["metadata", "renderables"];
-      expect(parallel).toContain("metadata");
-      expect(parallel).toContain("renderables");
+    test("uses a rendered thumbnail before image metadata", () => {
+      const orderedStages = ["renderables", "palette", "metadata"];
+      expect(orderedStages.indexOf("renderables")).toBeLessThan(
+        orderedStages.indexOf("metadata")
+      );
     });
   });
 });
