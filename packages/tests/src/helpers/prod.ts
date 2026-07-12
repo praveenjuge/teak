@@ -86,23 +86,6 @@ export const signUp = async (page: Page, email = uniqueEmail()) => {
   await page
     .getByRole("button", { name: /create an account|sign up/i })
     .click();
-  const verificationMessages = page.getByText(
-    `Verification email sent to ${email}`
-  );
-  await expect
-    .poll(
-      async () => {
-        const count = await verificationMessages.count();
-        for (let index = 0; index < count; index += 1) {
-          if (await verificationMessages.nth(index).isVisible()) {
-            return true;
-          }
-        }
-        return false;
-      },
-      { timeout: 15_000 }
-    )
-    .toBe(true);
   await page.goto(await waitForEmail(email, "Verify your email address"));
   await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
   return email;

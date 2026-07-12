@@ -25,6 +25,7 @@ import {
 } from "../aiMetadata/generators";
 import { generateTranscript } from "../aiMetadata/transcript";
 import { extractFileTextForAi } from "../fileProcessing";
+import { hasMinimumImageAnalysisDimensions } from "../imageAnalysis";
 
 interface LinkPreviewMetadata {
   author?: string;
@@ -63,8 +64,7 @@ export const resolveImageAnalysisKey = (
     card.fileKey &&
     typeof width === "number" &&
     typeof height === "number" &&
-    width > 0 &&
-    height > 0 &&
+    hasMinimumImageAnalysisDimensions(card.fileMetadata) &&
     width * height <= MAX_ORIGINAL_AI_IMAGE_PIXELS
   ) {
     return card.fileKey;

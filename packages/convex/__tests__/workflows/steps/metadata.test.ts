@@ -115,6 +115,12 @@ describe("resolveImageAnalysisKey", () => {
         fileMetadata: { height: 6000, width: 6000 },
       })
     ).toBeUndefined();
+    expect(
+      resolveImageAnalysisKey({
+        fileKey: "tiny",
+        fileMetadata: { height: 1, width: 1 },
+      })
+    ).toBeUndefined();
   });
 });
 

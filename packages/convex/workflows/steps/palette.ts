@@ -7,11 +7,11 @@ import { internalAction } from "../../_generated/server";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import { resolveObjectUrl } from "../../storage/r2";
 import { withBackendSpan } from "../../telemetry/sentry";
+import { hasKnownTinyImageDimensions } from "../imageAnalysis";
 
 const MAX_COLORS = 5;
 const SAMPLE_TARGET = 4000;
 const CHANNEL_PRECISION = 16;
-const MIN_DIMENSION = 12;
 
 const quantizeChannel = (value: number): number => {
   const clamped = Math.max(0, Math.min(255, value));
@@ -106,6 +106,13 @@ export const extractPaletteFromImage = internalAction({
           width <= 500 &&
           height <= 500;
 
+        if (
+          !card.thumbnailKey &&
+          hasKnownTinyImageDimensions(card.fileMetadata)
+        ) {
+          return;
+        }
+
         // Prefer the bounded thumbnail for every image. Only decode the
         // original when thumbnailing intentionally skipped an already-small
         // raster image.
@@ -130,13 +137,18 @@ export const extractPaletteFromImage = internalAction({
         }
 
         const bytes = new Uint8Array(await response.arrayBuffer());
-        const image = PhotonImage.new_from_byteslice(bytes);
+        let image: PhotonImage;
+        try {
+          image = PhotonImage.new_from_byteslice(bytes);
+        } catch {
+          return;
+        }
 
         try {
           const width = image.get_width();
           const height = image.get_height();
 
-          if (width < MIN_DIMENSION || height < MIN_DIMENSION) {
+          if (hasKnownTinyImageDimensions({ height, width })) {
             return;
           }
 
