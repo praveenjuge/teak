@@ -32,8 +32,12 @@ const GROQ_JSON_OBJECT_OPTIONS = {
   groq: { structuredOutputs: false },
 } as const;
 
+const GROQ_LOW_REASONING_JSON_OBJECT_OPTIONS = {
+  groq: { reasoningEffort: "low", structuredOutputs: false },
+} as const;
+
 export const MAX_AI_METADATA_INPUT_CHARS = 6000;
-export const MAX_AI_METADATA_OUTPUT_TOKENS = 384;
+export const MAX_AI_METADATA_OUTPUT_TOKENS = 768;
 
 export const boundAiMetadataInput = (content: string): string => {
   if (content.length <= MAX_AI_METADATA_INPUT_CHARS) {
@@ -90,7 +94,7 @@ export const generateTextMetadata = async (content: string, title?: string) => {
         // strict server-side validator rejects with a 400. In json_object mode
         // the SDK validates client-side against the Zod schema (unknown keys are
         // stripped), so leaked schema fields no longer fail the request.
-        providerOptions: GROQ_JSON_OBJECT_OPTIONS,
+        providerOptions: GROQ_LOW_REASONING_JSON_OBJECT_OPTIONS,
       })
   );
 
@@ -200,7 +204,7 @@ Generate tags and summary that will help the user rediscover and understand the 
         output: Output.object({
           schema: aiMetadataSchema,
         }),
-        providerOptions: GROQ_JSON_OBJECT_OPTIONS,
+        providerOptions: GROQ_LOW_REASONING_JSON_OBJECT_OPTIONS,
       })
   );
 
