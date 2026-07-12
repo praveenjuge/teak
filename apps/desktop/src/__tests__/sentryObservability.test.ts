@@ -139,6 +139,9 @@ describe("desktop Sentry observability", () => {
     expect(workflow).toContain("find .vite -name '*.map'");
     expect(workflow).toContain("SENTRY_ORG: teakvault");
     expect(workflow).toContain("SENTRY_PROJECT: teak-desktop-prod");
+    expect(workflow).toContain("RELEASE_VERSION:");
+    expect(workflow).toContain("RELEASE_VERSION#v");
+    expect(workflow).toContain('tag_name="v');
   });
 
   test("keeps main-process Sentry instrumentation outside the ESM bundle", () => {

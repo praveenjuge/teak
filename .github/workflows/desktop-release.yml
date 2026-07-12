@@ -5,9 +5,14 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: Release version to retry from the selected branch
+        required: false
+        type: string
 
 concurrency:
-  group: desktop-release-${{ github.ref }}
+  group: desktop-release-${{ inputs.version || github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -17,6 +22,8 @@ jobs:
   build-mac-arm64:
     runs-on: macos-14
     timeout-minutes: 30
+    env:
+      RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
 
     steps:
       - name: Checkout
@@ -26,12 +33,12 @@ jobs:
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ github.ref_name }}
         run: |
-          version="${TAG_NAME#v}"
+          version="${RELEASE_VERSION#v}"
+          tag_name="v${version}"
           expected_asset="Teak-${version}-arm64.dmg"
-          if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx "$expected_asset"; then
-            echo "Release $TAG_NAME already contains $expected_asset — skipping desktop release."
+          if gh release view "$tag_name" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx "$expected_asset"; then
+            echo "Release $tag_name already contains $expected_asset — skipping desktop release."
             echo "should_run=false" >> "$GITHUB_OUTPUT"
           else
             echo "should_run=true" >> "$GITHUB_OUTPUT"
@@ -108,7 +115,7 @@ jobs:
           SENTRY_ORG: teakvault
           SENTRY_PROJECT: teak-desktop-prod
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="${RELEASE_VERSION#v}"
           SENTRY_RELEASE="teak-desktop@${version}+${GITHUB_SHA}"
           if find .vite -name '*.map' -print -quit | grep -q .; then
             echo "Source maps must be removed after successful Sentry upload." >&2
@@ -141,10 +148,8 @@ jobs:
       - name: Verify macOS release artifacts
         if: steps.check.outputs.should_run == 'true'
         working-directory: apps/desktop
-        env:
-          TAG_NAME: ${{ github.ref_name }}
         run: |
-          version="${TAG_NAME#v}"
+          version="${RELEASE_VERSION#v}"
           app_path="release/mac-arm64/Teak.app"
           codesign --verify --deep --strict --verbose=4 "$app_path"
           spctl --assess --type execute --verbose=4 "$app_path"
@@ -162,9 +167,9 @@ jobs:
         working-directory: apps/desktop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ github.ref_name }}
         run: |
-          version="${TAG_NAME#v}"
+          version="${RELEASE_VERSION#v}"
+          tag_name="v${version}"
           assets=(
             "release/latest-mac.yml"
             "release/Teak-${version}-arm64.dmg"
@@ -173,8 +178,8 @@ jobs:
             "release/Teak-${version}-arm64-mac.zip.blockmap"
           )
 
-          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            gh release upload "$TAG_NAME" "${assets[@]}" --clobber
+          if gh release view "$tag_name" >/dev/null 2>&1; then
+            gh release upload "$tag_name" "${assets[@]}" --clobber
           else
-            gh release create "$TAG_NAME" "${assets[@]}" --title "$version" --verify-tag
+            gh release create "$tag_name" "${assets[@]}" --title "$version" --verify-tag
           fi
