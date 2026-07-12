@@ -107,6 +107,23 @@ describe("aiMetadata generators", () => {
     expect(bounded).not.toContain("MIDDLE");
   });
 
+  test("bounds complete text, image, and link prompts", async () => {
+    const oversized = "x".repeat(maxInputChars * 2);
+    mockGenerateText.mockResolvedValue(mockResponse);
+
+    await generateTextMetadata(oversized, oversized);
+    const textCall = mockGenerateText.mock.calls.at(-1)?.[0];
+    expect(textCall.prompt.length).toBe(maxInputChars);
+
+    await generateImageMetadata("https://img.com", oversized);
+    const imageCall = mockGenerateText.mock.calls.at(-1)?.[0];
+    expect(imageCall.messages[0].content[0].text.length).toBe(maxInputChars);
+
+    await generateLinkMetadata(oversized, `https://example.com/${oversized}`);
+    const linkCall = mockGenerateText.mock.calls.at(-1)?.[0];
+    expect(linkCall.prompt.length).toBe(maxInputChars);
+  });
+
   test("handles errors in all generators", () => {
     mockGenerateText.mockRejectedValue(new Error("AI error"));
     expect(generateTextMetadata("c")).rejects.toThrow("AI error");

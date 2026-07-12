@@ -57,7 +57,9 @@ export const generateTextMetadata = async (content: string, title?: string) => {
   const fullContent = title
     ? `Title: ${title}\n\nContent: ${content}`
     : content;
-  const prompt = `Analyze this content and generate tags and summary:\n\n${boundAiMetadataInput(fullContent)}`;
+  const prompt = boundAiMetadataInput(
+    `Analyze this content and generate tags and summary:\n\n${fullContent}`
+  );
 
   const result = await observeAiGeneration(
     {
@@ -106,9 +108,11 @@ export const generateImageMetadata = async (
   imageUrl: string,
   title?: string
 ) => {
-  const prompt = title
-    ? `Image title: ${title}\n\nAnalyze this image and generate tags and summary:`
-    : "Analyze this image and generate tags and summary:";
+  const prompt = boundAiMetadataInput(
+    title
+      ? `Image title: ${title}\n\nAnalyze this image and generate tags and summary:`
+      : "Analyze this image and generate tags and summary:"
+  );
   const result = await observeAiGeneration(
     {
       functionId: "teak.ai.metadata.image",
@@ -163,14 +167,15 @@ export const generateImageMetadata = async (
  * Uses prompt caching-enabled model (openai/gpt-oss-20b)
  */
 export const generateLinkMetadata = async (content: string, url?: string) => {
-  const boundedContent = boundAiMetadataInput(
-    `${content}${url ? `\n\nURL: ${url}` : ""}`
+  const prompt = boundAiMetadataInput(
+    `Analyze this web page content and generate optimized tags and summary for knowledge management:
+
+${content}
+
+${url ? `URL: ${url}` : ""}
+
+Generate tags and summary that will help the user rediscover and understand the value of this content.`
   );
-  const prompt = `Analyze this web page content and generate optimized tags and summary for knowledge management:
-
-${boundedContent}
-
-Generate tags and summary that will help the user rediscover and understand the value of this content.`;
   const result = await observeAiGeneration(
     {
       functionId: "teak.ai.metadata.link",
