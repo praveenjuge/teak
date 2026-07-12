@@ -56,6 +56,9 @@ describe("aiMetadata generators", () => {
         }),
         prompt: expect.stringContaining("some content"),
         maxOutputTokens,
+        providerOptions: {
+          groq: { reasoningEffort: "low", structuredOutputs: false },
+        },
       })
     );
   });
@@ -71,6 +74,7 @@ describe("aiMetadata generators", () => {
         }),
         messages: expect.arrayContaining([expect.any(Object)]),
         maxOutputTokens,
+        providerOptions: { groq: { structuredOutputs: false } },
       })
     );
   });
@@ -86,11 +90,15 @@ describe("aiMetadata generators", () => {
         }),
         prompt: expect.stringContaining("page content"),
         maxOutputTokens,
+        providerOptions: {
+          groq: { reasoningEffort: "low", structuredOutputs: false },
+        },
       })
     );
   });
 
   test("keeps short metadata input unchanged", () => {
+    expect(maxOutputTokens).toBe(768);
     expect(boundAiMetadataInput("short content")).toBe("short content");
   });
 
