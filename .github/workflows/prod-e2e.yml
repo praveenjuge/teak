@@ -84,7 +84,7 @@ jobs:
           retention-days: 7
 
   matrix:
-    needs: gate
+    needs: [gate, journey]
     if: always() && needs.gate.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30

@@ -32,6 +32,22 @@ const GROQ_JSON_OBJECT_OPTIONS = {
   groq: { structuredOutputs: false },
 } as const;
 
+export const MAX_AI_METADATA_INPUT_CHARS = 6000;
+export const MAX_AI_METADATA_OUTPUT_TOKENS = 384;
+
+export const boundAiMetadataInput = (content: string): string => {
+  if (content.length <= MAX_AI_METADATA_INPUT_CHARS) {
+    return content;
+  }
+
+  const marker = `\n\n[Content truncated from ${content.length} characters]\n\n`;
+  const retainedLength = MAX_AI_METADATA_INPUT_CHARS - marker.length;
+  const prefixLength = Math.ceil(retainedLength / 2);
+  const suffixLength = Math.floor(retainedLength / 2);
+
+  return `${content.slice(0, prefixLength)}${marker}${content.slice(-suffixLength)}`;
+};
+
 /**
  * Generate AI metadata for text content
  * Uses prompt caching-enabled model (openai/gpt-oss-20b)
@@ -41,7 +57,9 @@ export const generateTextMetadata = async (content: string, title?: string) => {
   const fullContent = title
     ? `Title: ${title}\n\nContent: ${content}`
     : content;
-  const prompt = `Analyze this content and generate tags and summary:\n\n${fullContent}`;
+  const prompt = boundAiMetadataInput(
+    `Analyze this content and generate tags and summary:\n\n${fullContent}`
+  );
 
   const result = await observeAiGeneration(
     {
@@ -59,6 +77,7 @@ export const generateTextMetadata = async (content: string, title?: string) => {
           stage: "ai_metadata",
         }),
         model: TEXT_METADATA_MODEL,
+        maxOutputTokens: MAX_AI_METADATA_OUTPUT_TOKENS,
         // Static system prompt - will be cached across requests
         system: SYSTEM_PROMPTS.textAnalysis,
         // Dynamic content last for cache optimization
@@ -89,9 +108,11 @@ export const generateImageMetadata = async (
   imageUrl: string,
   title?: string
 ) => {
-  const prompt = title
-    ? `Image title: ${title}\n\nAnalyze this image and generate tags and summary:`
-    : "Analyze this image and generate tags and summary:";
+  const prompt = boundAiMetadataInput(
+    title
+      ? `Image title: ${title}\n\nAnalyze this image and generate tags and summary:`
+      : "Analyze this image and generate tags and summary:"
+  );
   const result = await observeAiGeneration(
     {
       functionId: "teak.ai.metadata.image",
@@ -108,6 +129,7 @@ export const generateImageMetadata = async (
           stage: "ai_metadata",
         }),
         model: IMAGE_METADATA_MODEL,
+        maxOutputTokens: MAX_AI_METADATA_OUTPUT_TOKENS,
         // Static system prompt - structured for potential future caching support
         system: SYSTEM_PROMPTS.imageAnalysis,
         messages: [
@@ -145,13 +167,15 @@ export const generateImageMetadata = async (
  * Uses prompt caching-enabled model (openai/gpt-oss-20b)
  */
 export const generateLinkMetadata = async (content: string, url?: string) => {
-  const prompt = `Analyze this web page content and generate optimized tags and summary for knowledge management:
+  const prompt = boundAiMetadataInput(
+    `Analyze this web page content and generate optimized tags and summary for knowledge management:
 
 ${content}
 
-${url ? `\nURL: ${url}` : ""}
+${url ? `URL: ${url}` : ""}
 
-Generate tags and summary that will help the user rediscover and understand the value of this content.`;
+Generate tags and summary that will help the user rediscover and understand the value of this content.`
+  );
   const result = await observeAiGeneration(
     {
       functionId: "teak.ai.metadata.link",
@@ -168,6 +192,7 @@ Generate tags and summary that will help the user rediscover and understand the 
           stage: "ai_metadata",
         }),
         model: LINK_METADATA_MODEL,
+        maxOutputTokens: MAX_AI_METADATA_OUTPUT_TOKENS,
         // Static system prompt - will be cached across requests
         system: SYSTEM_PROMPTS.linkAnalysis,
         // Dynamic content last for cache optimization
