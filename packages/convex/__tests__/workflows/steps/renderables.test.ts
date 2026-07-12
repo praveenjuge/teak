@@ -566,6 +566,34 @@ describe("renderables step", () => {
       );
     });
 
+    test("does not report a failed span when the card was deleted before save", async () => {
+      const mockCtx = {
+        runQuery: createMockFn<[any, any], any>(async () => ({
+          _id: "card_deleted_late",
+          type: "image",
+          fileKey: "f1",
+          processingStatus: {},
+        })),
+        runAction: createMockFn<[any, any], any>(async () => ({
+          success: false,
+          generated: false,
+          error: "thumbnail_failed",
+        })),
+        runMutation: createMockFn<[any, any], boolean>(async () => false),
+      };
+
+      const result = await generateHandler(mockCtx, {
+        cardId: "card_deleted_late",
+        cardType: "image",
+      });
+
+      expect(result).toEqual({
+        mode: "skipped",
+        success: true,
+        thumbnailGenerated: false,
+      });
+    });
+
     test("preserves existing processing status fields", async () => {
       const runMutation = createMockFn<[any, any], null>(async () => null);
       const mockCtx = {

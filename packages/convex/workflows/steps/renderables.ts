@@ -193,7 +193,7 @@ export async function generateHandler(
 
   return {
     mode: saved === false ? ("skipped" as const) : ("completed" as const),
-    success: renderablesSucceeded,
+    success: saved === false ? true : renderablesSucceeded,
     thumbnailGenerated,
   };
 }
