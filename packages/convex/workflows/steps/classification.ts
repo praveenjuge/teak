@@ -29,14 +29,23 @@ const MEDIUM_CONFIDENCE = 0.9;
 const PALETTE_CONFIDENCE = 0.88;
 const DEFAULT_CONFIDENCE = 0.7;
 
-interface ClassificationWorkflowResult {
+interface CompletedClassificationWorkflowResult {
   confidence: number;
+  mode: "completed";
   needsLinkMetadata: boolean;
   shouldCategorize: boolean;
   shouldGenerateMetadata: boolean;
   shouldGenerateRenderables: boolean;
   type: CardType;
 }
+
+interface SkippedClassificationWorkflowResult {
+  mode: "skipped";
+}
+
+type ClassificationWorkflowResult =
+  | CompletedClassificationWorkflowResult
+  | SkippedClassificationWorkflowResult;
 
 interface DbColor {
   hex: string;
@@ -286,14 +295,20 @@ export const classify = internalAction({
   args: {
     cardId: v.id("cards"),
   },
-  returns: v.object({
-    type: v.string(),
-    confidence: v.number(),
-    needsLinkMetadata: v.boolean(),
-    shouldCategorize: v.boolean(),
-    shouldGenerateMetadata: v.boolean(),
-    shouldGenerateRenderables: v.boolean(),
-  }),
+  returns: v.union(
+    v.object({
+      mode: v.literal("completed"),
+      type: v.string(),
+      confidence: v.number(),
+      needsLinkMetadata: v.boolean(),
+      shouldCategorize: v.boolean(),
+      shouldGenerateMetadata: v.boolean(),
+      shouldGenerateRenderables: v.boolean(),
+    }),
+    v.object({
+      mode: v.literal("skipped"),
+    })
+  ),
   handler: async (ctx, { cardId }): Promise<ClassificationWorkflowResult> =>
     withBackendSpan(
       {
@@ -309,7 +324,7 @@ export const classify = internalAction({
         });
 
         if (!card) {
-          throw new Error(`Card ${cardId} not found for classification`);
+          return { mode: "skipped" };
         }
 
         // If previously classified as quote and no conflicting signals, keep it sticky
@@ -317,6 +332,7 @@ export const classify = internalAction({
           const confidence =
             card.processingStatus?.classify?.confidence ?? 0.95;
           const stickyResult: ClassificationWorkflowResult = {
+            mode: "completed",
             type: "quote",
             confidence,
             needsLinkMetadata: false,
@@ -344,6 +360,7 @@ export const classify = internalAction({
           );
 
           const heuristicResult: ClassificationWorkflowResult = {
+            mode: "completed",
             type: "quote",
             confidence: 0.95,
             needsLinkMetadata: false,
@@ -407,6 +424,7 @@ export const classify = internalAction({
         ].includes(normalizedType);
 
         const result: ClassificationWorkflowResult = {
+          mode: "completed",
           type: normalizedType,
           confidence: normalizedConfidence,
           needsLinkMetadata,

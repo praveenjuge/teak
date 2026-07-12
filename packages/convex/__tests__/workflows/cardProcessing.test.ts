@@ -15,6 +15,16 @@ describe("workflows/cardProcessing", () => {
       );
     });
 
+    test("finishes a deleted-card workflow as skipped instead of failed", async () => {
+      const module = await import("../../workflows/cardProcessing");
+
+      expect(module.createMissingCardWorkflowResult()).toEqual({
+        success: true,
+        mode: "skipped",
+        reason: "card_missing",
+      });
+    });
+
     test("clamps completion duration to a non-negative value", async () => {
       const module = await import("../../workflows/cardProcessing");
       expect(module.resolveCardProcessingDurationMs(500, 1000)).toBe(500);

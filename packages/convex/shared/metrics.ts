@@ -314,6 +314,12 @@ export function trackAiStage(params: {
       "error.class": params.errorClass ?? null,
     });
   }
+  if (params.outcome === "skipped") {
+    counter(TELEMETRY_METRICS.workflowSkip, 1, {
+      stage: params.stage,
+      "card.type": params.cardType ?? null,
+    });
+  }
 }
 
 export function trackUpload(params: {

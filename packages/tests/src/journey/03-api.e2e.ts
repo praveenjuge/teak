@@ -1,13 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { apiFetch, loadOpenApi } from "../helpers/api";
 import { expandedFileFixtures } from "../helpers/file-formats";
-import { readState, updateState } from "../helpers/run-state";
+import { requireServiceApiKey, updateState } from "../helpers/run-state";
 
 test("REST API happy paths and OpenAPI contracts", async () => {
-  const { primary } = readState();
-  if (!primary?.apiKey) {
-    throw new Error("Missing primary API key");
-  }
+  const apiKey = requireServiceApiKey("api");
   const openapi = await loadOpenApi();
   for (const path of [
     "/v1/cards",
@@ -15,7 +12,7 @@ test("REST API happy paths and OpenAPI contracts", async () => {
     "/v1/cards/favorites",
     "/v1/tags",
   ]) {
-    const response = await apiFetch(path, primary.apiKey);
+    const response = await apiFetch(path, apiKey);
     expect(response.ok).toBe(true);
     openapi.validate(
       path,
@@ -24,7 +21,7 @@ test("REST API happy paths and OpenAPI contracts", async () => {
       await response.clone().json()
     );
   }
-  const created = await apiFetch("/v1/cards", primary.apiKey, {
+  const created = await apiFetch("/v1/cards", apiKey, {
     method: "POST",
     body: JSON.stringify({
       content: `api-prod-e2e-${Date.now()}`,
@@ -35,10 +32,10 @@ test("REST API happy paths and OpenAPI contracts", async () => {
   const payload = await created.json();
   openapi.validate("/v1/cards", "POST", created.status, payload);
   const cardPath = `/v1/cards/${payload.cardId}`;
-  expect((await apiFetch(cardPath, primary.apiKey)).status).toBe(200);
+  expect((await apiFetch(cardPath, apiKey)).status).toBe(200);
   expect(
     (
-      await apiFetch(`${cardPath}/favorite`, primary.apiKey, {
+      await apiFetch(`${cardPath}/favorite`, apiKey, {
         method: "PATCH",
         body: JSON.stringify({ isFavorited: true }),
       })
@@ -46,7 +43,7 @@ test("REST API happy paths and OpenAPI contracts", async () => {
   ).toBe(200);
   expect(
     (
-      await apiFetch(cardPath, primary.apiKey, {
+      await apiFetch(cardPath, apiKey, {
         method: "PATCH",
         body: JSON.stringify({ notes: "updated by prod e2e" }),
       })
@@ -54,7 +51,7 @@ test("REST API happy paths and OpenAPI contracts", async () => {
   ).toBe(200);
   expect(
     (
-      await apiFetch("/v1/cards/bulk", primary.apiKey, {
+      await apiFetch("/v1/cards/bulk", apiKey, {
         method: "POST",
         body: JSON.stringify({
           operation: "create",
@@ -63,21 +60,16 @@ test("REST API happy paths and OpenAPI contracts", async () => {
       })
     ).status
   ).toBe(200);
-  expect((await apiFetch("/v1/cards/not-a-card", primary.apiKey)).status).toBe(
-    404
-  );
+  expect((await apiFetch("/v1/cards/not-a-card", apiKey)).status).toBe(404);
 });
 
 test("saving a URL as content creates a link card, not a text card", async () => {
   // Regression: a bare URL (e.g. a Goodreads book link) submitted as card
   // content was stored as a "text" card instead of being recognized as a link.
-  const { primary } = readState();
-  if (!primary?.apiKey) {
-    throw new Error("Missing primary API key");
-  }
+  const apiKey = requireServiceApiKey("api");
   const bookUrl =
     "https://www.goodreads.com/book/show/2767052-the-hunger-games";
-  const created = await apiFetch("/v1/cards", primary.apiKey, {
+  const created = await apiFetch("/v1/cards", apiKey, {
     method: "POST",
     body: JSON.stringify({
       content: bookUrl,
@@ -93,7 +85,7 @@ test("saving a URL as content creates a link card, not a text card", async () =>
   expect(payload.card?.url).toBe(bookUrl);
 
   // And it should persist as a link when fetched back.
-  const fetched = await apiFetch(`/v1/cards/${payload.cardId}`, primary.apiKey);
+  const fetched = await apiFetch(`/v1/cards/${payload.cardId}`, apiKey);
   expect(fetched.status).toBe(200);
   const fetchedPayload = await fetched.json();
   expect(fetchedPayload.type).toBe("link");
@@ -104,11 +96,7 @@ test("saving a color as content creates a palette card, not a text card", async 
   // Regression: saving a color (single hex, or a list of colors/names) as card
   // content stopped becoming a "palette" card and stuck as "text". Palette
   // classification runs asynchronously after creation, so poll until it lands.
-  const { primary } = readState();
-  if (!primary?.apiKey) {
-    throw new Error("Missing primary API key");
-  }
-  const apiKey = primary.apiKey;
+  const apiKey = requireServiceApiKey("api");
   const created = await apiFetch("/v1/cards", apiKey, {
     method: "POST",
     body: JSON.stringify({
@@ -135,15 +123,12 @@ test("saving a color as content creates a palette card, not a text card", async 
 });
 
 test("REST API uploads and infers the expanded file-format matrix", async () => {
-  const { primary } = readState();
-  if (!primary?.apiKey) {
-    throw new Error("Missing primary API key");
-  }
+  const apiKey = requireServiceApiKey("api");
   const marker = `api-file-${Date.now()}`;
   const fixtures = expandedFileFixtures(marker);
 
   for (const [index, fixture] of fixtures.entries()) {
-    const prepared = await apiFetch("/v1/uploads", primary.apiKey, {
+    const prepared = await apiFetch("/v1/uploads", apiKey, {
       method: "POST",
       body: JSON.stringify({
         fileName: fixture.fileName,
@@ -171,7 +156,7 @@ test("REST API uploads and infers the expanded file-format matrix", async () => 
         ? "image"
         : "document";
     }
-    const created = await apiFetch("/v1/cards", primary.apiKey, {
+    const created = await apiFetch("/v1/cards", apiKey, {
       method: "POST",
       body: JSON.stringify({
         ...(explicitCardType ? { cardType: explicitCardType } : {}),
@@ -187,7 +172,7 @@ test("REST API uploads and infers the expanded file-format matrix", async () => 
     const card = await created.json();
     updateState((state) => state.createdCardIds.push(card.cardId));
 
-    const fetched = await apiFetch(`/v1/cards/${card.cardId}`, primary.apiKey);
+    const fetched = await apiFetch(`/v1/cards/${card.cardId}`, apiKey);
     expect(fetched.status).toBe(200);
     const fetchedCard = await fetched.json();
     expect(fetchedCard.fileName).toBe(fixture.fileName);
@@ -199,7 +184,7 @@ test("REST API uploads and infers the expanded file-format matrix", async () => 
     }
   }
 
-  const unsupported = await apiFetch("/v1/uploads", primary.apiKey, {
+  const unsupported = await apiFetch("/v1/uploads", apiKey, {
     method: "POST",
     body: JSON.stringify({
       fileName: `${marker}.riv`,

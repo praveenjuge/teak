@@ -13,7 +13,10 @@ export interface RunState {
   createdCardIds: string[];
   primary?: AccountState;
   revokedKey?: string;
+  serviceAccounts?: Partial<Record<ServiceAccountSurface, AccountState>>;
 }
+
+export type ServiceAccountSurface = "api" | "cli" | "mcp";
 
 const file = new URL("../../.state/run-state.json", import.meta.url);
 export const storageStateFile = ".state/user.json";
@@ -36,6 +39,16 @@ export const updateState = (fn: (state: RunState) => void) => {
   fn(state);
   writeState(state);
   return state;
+};
+
+export const requireServiceApiKey = (
+  surface: ServiceAccountSurface
+): string => {
+  const apiKey = readState().serviceAccounts?.[surface]?.apiKey;
+  if (!apiKey) {
+    throw new Error(`Missing ${surface} service account API key`);
+  }
+  return apiKey;
 };
 
 export const rememberAccount = (account: AccountState, primary = false) =>

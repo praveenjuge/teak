@@ -2,17 +2,14 @@ import { expect, test } from "@playwright/test";
 import { env } from "../helpers/env";
 import { cliFileFixtures } from "../helpers/file-formats";
 import { connectMcp } from "../helpers/mcp";
-import { readState, updateState } from "../helpers/run-state";
+import { requireServiceApiKey, updateState } from "../helpers/run-state";
 
 test("MCP lists and calls every public tool", async () => {
-  const { primary } = readState();
-  if (!primary?.apiKey) {
-    throw new Error("Missing primary API key");
-  }
+  const apiKey = requireServiceApiKey("mcp");
   const unauth = await fetch(env.mcpUrl);
   expect(unauth.status).toBe(401);
   expect(unauth.headers.get("www-authenticate")).toContain("resource_metadata");
-  const client = await connectMcp(primary.apiKey);
+  const client = await connectMcp(apiKey);
   const tools = await client.listTools();
   expect(tools.tools.map((tool) => tool.name).sort()).toEqual(
     [
@@ -74,12 +71,9 @@ test("MCP lists and calls every public tool", async () => {
 });
 
 test("MCP uploads, creates, fetches, and searches expanded file cards", async () => {
-  const { primary } = readState();
-  if (!primary?.apiKey) {
-    throw new Error("Missing primary API key");
-  }
+  const apiKey = requireServiceApiKey("mcp");
   const marker = `mcp-file-${Date.now()}`;
-  const client = await connectMcp(primary.apiKey);
+  const client = await connectMcp(apiKey);
   try {
     for (const fixture of cliFileFixtures(marker)) {
       const prepared: any = await client.callTool({
