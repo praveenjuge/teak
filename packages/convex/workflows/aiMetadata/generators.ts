@@ -38,6 +38,7 @@ const GROQ_LOW_REASONING_JSON_OBJECT_OPTIONS = {
 
 export const MAX_AI_METADATA_INPUT_CHARS = 6000;
 export const MAX_AI_METADATA_OUTPUT_TOKENS = 768;
+export const MAX_AI_METADATA_RETRIES = 5;
 
 export const boundAiMetadataInput = (content: string): string => {
   if (content.length <= MAX_AI_METADATA_INPUT_CHARS) {
@@ -81,6 +82,9 @@ export const generateTextMetadata = async (content: string, title?: string) => {
           stage: "ai_metadata",
         }),
         model: TEXT_METADATA_MODEL,
+        // Groq's free tier has an 8K TPM window. Keep retrying provider 429s
+        // long enough to cross that reset instead of failing card enrichment.
+        maxRetries: MAX_AI_METADATA_RETRIES,
         maxOutputTokens: MAX_AI_METADATA_OUTPUT_TOKENS,
         // Static system prompt - will be cached across requests
         system: SYSTEM_PROMPTS.textAnalysis,
@@ -133,6 +137,7 @@ export const generateImageMetadata = async (
           stage: "ai_metadata",
         }),
         model: IMAGE_METADATA_MODEL,
+        maxRetries: MAX_AI_METADATA_RETRIES,
         maxOutputTokens: MAX_AI_METADATA_OUTPUT_TOKENS,
         // Static system prompt - structured for potential future caching support
         system: SYSTEM_PROMPTS.imageAnalysis,
@@ -196,6 +201,7 @@ Generate tags and summary that will help the user rediscover and understand the 
           stage: "ai_metadata",
         }),
         model: LINK_METADATA_MODEL,
+        maxRetries: MAX_AI_METADATA_RETRIES,
         maxOutputTokens: MAX_AI_METADATA_OUTPUT_TOKENS,
         // Static system prompt - will be cached across requests
         system: SYSTEM_PROMPTS.linkAnalysis,

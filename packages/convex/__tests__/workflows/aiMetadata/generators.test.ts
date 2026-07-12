@@ -17,6 +17,7 @@ let generateLinkMetadata: any;
 let boundAiMetadataInput: any;
 let maxInputChars: number;
 let maxOutputTokens: number;
+let maxRetries: number;
 
 const mockResponse = {
   output: {
@@ -35,6 +36,7 @@ describe("aiMetadata generators", () => {
     boundAiMetadataInput = mod.boundAiMetadataInput;
     maxInputChars = mod.MAX_AI_METADATA_INPUT_CHARS;
     maxOutputTokens = mod.MAX_AI_METADATA_OUTPUT_TOKENS;
+    maxRetries = mod.MAX_AI_METADATA_RETRIES;
   });
 
   beforeEach(() => {
@@ -55,6 +57,7 @@ describe("aiMetadata generators", () => {
           recordOutputs: false,
         }),
         prompt: expect.stringContaining("some content"),
+        maxRetries,
         maxOutputTokens,
         providerOptions: {
           groq: { reasoningEffort: "low", structuredOutputs: false },
@@ -73,6 +76,7 @@ describe("aiMetadata generators", () => {
           functionId: "teak.ai.metadata.image",
         }),
         messages: expect.arrayContaining([expect.any(Object)]),
+        maxRetries,
         maxOutputTokens,
         providerOptions: { groq: { structuredOutputs: false } },
       })
@@ -89,6 +93,7 @@ describe("aiMetadata generators", () => {
           functionId: "teak.ai.metadata.link",
         }),
         prompt: expect.stringContaining("page content"),
+        maxRetries,
         maxOutputTokens,
         providerOptions: {
           groq: { reasoningEffort: "low", structuredOutputs: false },
@@ -98,6 +103,7 @@ describe("aiMetadata generators", () => {
   });
 
   test("keeps short metadata input unchanged", () => {
+    expect(maxRetries).toBe(5);
     expect(maxOutputTokens).toBe(768);
     expect(boundAiMetadataInput("short content")).toBe("short content");
   });
