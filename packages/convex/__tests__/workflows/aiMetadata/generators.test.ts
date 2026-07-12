@@ -18,6 +18,7 @@ let boundAiMetadataInput: any;
 let maxInputChars: number;
 let maxOutputTokens: number;
 let maxRetries: number;
+let maxValidationRetries: number;
 
 const mockResponse = {
   output: {
@@ -37,6 +38,7 @@ describe("aiMetadata generators", () => {
     maxInputChars = mod.MAX_AI_METADATA_INPUT_CHARS;
     maxOutputTokens = mod.MAX_AI_METADATA_OUTPUT_TOKENS;
     maxRetries = mod.MAX_AI_METADATA_RETRIES;
+    maxValidationRetries = mod.MAX_AI_METADATA_VALIDATION_RETRIES;
   });
 
   beforeEach(() => {
@@ -104,6 +106,7 @@ describe("aiMetadata generators", () => {
 
   test("keeps short metadata input unchanged", () => {
     expect(maxRetries).toBe(5);
+    expect(maxValidationRetries).toBe(2);
     expect(maxOutputTokens).toBe(768);
     expect(boundAiMetadataInput("short content")).toBe("short content");
   });
@@ -143,5 +146,34 @@ describe("aiMetadata generators", () => {
     expect(generateTextMetadata("c")).rejects.toThrow("AI error");
     expect(generateImageMetadata("url")).rejects.toThrow("AI error");
     expect(generateLinkMetadata("url")).rejects.toThrow("AI error");
+  });
+
+  test("retries provider JSON validation failures with a corrective prompt", async () => {
+    mockGenerateText
+      .mockRejectedValueOnce(
+        new Error(
+          "Failed to validate JSON. See failed_generation for more details."
+        )
+      )
+      .mockResolvedValueOnce(mockResponse);
+
+    await generateImageMetadata("https://img.com/example.jpeg");
+
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    const retryCall = mockGenerateText.mock.calls[1]?.[0];
+    expect(retryCall.messages[0].content[0].text).toStartWith(
+      "JSON validation retry 1:"
+    );
+  });
+
+  test("stops after the bounded JSON validation retry budget", async () => {
+    mockGenerateText.mockRejectedValue(
+      new Error("Failed to validate JSON. See failed_generation.")
+    );
+
+    await expect(
+      generateImageMetadata("https://img.com/example.jpeg")
+    ).rejects.toThrow("Failed to validate JSON");
+    expect(mockGenerateText).toHaveBeenCalledTimes(maxValidationRetries + 1);
   });
 });
