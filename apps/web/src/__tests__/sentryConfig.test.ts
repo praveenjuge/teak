@@ -41,6 +41,16 @@ describe("resolveSentryEnvironment", () => {
     expect(await buildPseudonymousSentryUser(undefined)).toBeNull();
   });
 
+  test("marks production E2E accounts without retaining their email", async () => {
+    const user = await buildPseudonymousSentryUser(
+      "user-123",
+      "e2e-matrix-webkit-123@example.test"
+    );
+
+    expect(user?.segment).toBe("production_e2e");
+    expect(JSON.stringify(user)).not.toContain("example.test");
+  });
+
   test("contains pseudonymous user synchronization failures", () => {
     const source = readFileSync(
       resolve(import.meta.dir, "../components/SentryUserManager.tsx"),
@@ -176,13 +186,16 @@ describe("filterClientSentryEvent", () => {
           },
         ],
       },
-      user: { id: "pseudonymous-user-id" },
+      user: {
+        id: "pseudonymous-user-id",
+        segment: "production_e2e",
+      },
     } satisfies ErrorEvent;
 
     expect(filterClientSentryEvent(event)).toBeNull();
   });
 
-  test("drops Better Auth load failures independent of user naming", () => {
+  test("keeps bare bundled load failures for real users", () => {
     const event = {
       exception: {
         values: [
@@ -198,7 +211,7 @@ describe("filterClientSentryEvent", () => {
       user: { id: "pseudonymous-user-id" },
     } satisfies ErrorEvent;
 
-    expect(filterClientSentryEvent(event)).toBeNull();
+    expect(filterClientSentryEvent(event)).toEqual(event);
   });
 
   test("keeps app-origin fetch failures", () => {

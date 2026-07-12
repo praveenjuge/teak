@@ -15,7 +15,7 @@ export function SentryUserManager() {
   useEffect(() => {
     let cancelled = false;
 
-    void buildPseudonymousSentryUser(session?.user.id)
+    void buildPseudonymousSentryUser(session?.user.id, session?.user.email)
       .then((user) => {
         if (!cancelled) {
           Sentry.setUser(user);
@@ -30,7 +30,7 @@ export function SentryUserManager() {
     return () => {
       cancelled = true;
     };
-  }, [session?.user.id]);
+  }, [session?.user.email, session?.user.id]);
 
   return null;
 }
