@@ -474,6 +474,18 @@ export function trackAiCall(params: {
   }
 }
 
+export function trackAiRetry(params: {
+  model: string;
+  provider: string;
+  reason: "validation";
+}): void {
+  counter(TELEMETRY_METRICS.aiRetries, 1, {
+    model: params.model,
+    provider: params.provider,
+    reason: params.reason,
+  });
+}
+
 export function trackCron(params: {
   durationMs: number;
   monitor: string;

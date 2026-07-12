@@ -3,6 +3,7 @@ import {
   configureMetrics,
   type MetricAttributes,
   resetMetricsConfig,
+  trackAiRetry,
   trackAiStage,
   trackAuth,
   trackUpload,
@@ -96,6 +97,52 @@ describe("trackAiStage", () => {
           surface: "backend",
         },
         name: TELEMETRY_METRICS.workflowSkip,
+        value: 1,
+      },
+    ]);
+  });
+});
+
+describe("trackAiRetry", () => {
+  test("records a bounded validation retry", () => {
+    const counts: Array<{
+      attributes: MetricAttributes;
+      name: string;
+      value: number;
+    }> = [];
+
+    configureMetrics({
+      app: "convex",
+      env: "production",
+      recorder: {
+        count(name, value, attributes) {
+          counts.push({ attributes, name, value });
+        },
+        distribution() {
+          // Not used by retry metrics.
+        },
+        gauge() {
+          // Not used by retry metrics.
+        },
+      },
+    });
+
+    trackAiRetry({
+      model: "qwen/qwen3.6-27b",
+      provider: "groq",
+      reason: "validation",
+    });
+
+    expect(counts).toEqual([
+      {
+        attributes: {
+          environment: "production",
+          model: "qwen/qwen3.6-27b",
+          provider: "groq",
+          reason: "validation",
+          surface: "backend",
+        },
+        name: TELEMETRY_METRICS.aiRetries,
         value: 1,
       },
     ]);
