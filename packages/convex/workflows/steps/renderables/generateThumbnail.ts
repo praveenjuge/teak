@@ -77,6 +77,15 @@ function getOutputSettings(fileSizeBytes: number): {
   return { quality: 50, useJpeg: false, skipThumbnail: false };
 }
 
+export const shouldSkipThumbnail = (
+  fileSizeBytes: number,
+  width: number,
+  height: number
+): boolean =>
+  getOutputSettings(fileSizeBytes).skipThumbnail &&
+  width <= THUMBNAIL_MAX_WIDTH &&
+  height <= THUMBNAIL_MAX_HEIGHT;
+
 /**
  * Apply EXIF orientation transformations to the image.
  * Returns a potentially new PhotonImage if rotation was performed (since rotate() returns a new image).
@@ -202,8 +211,13 @@ export const generateThumbnail = internalAction({
       const fileSizeBytes = inputBytes.byteLength;
 
       // Get output settings based on file size (primary logic for thumbnail optimization)
-      const { quality, useJpeg, skipThumbnail } =
-        getOutputSettings(fileSizeBytes);
+      const outputSettings = getOutputSettings(fileSizeBytes);
+      const { quality, useJpeg } = outputSettings;
+      const skipThumbnail = shouldSkipThumbnail(
+        fileSizeBytes,
+        originalWidth,
+        originalHeight
+      );
 
       // Skip thumbnail generation for very small files, but still store dimensions
       if (skipThumbnail) {

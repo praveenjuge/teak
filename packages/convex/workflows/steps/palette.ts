@@ -96,11 +96,24 @@ export const extractPaletteFromImage = internalAction({
           card.fileMetadata?.fileName?.endsWith(".svg") ||
           card.fileMetadata?.fileName?.endsWith(".SVG");
 
-        // Determine which R2 key to use: thumbnail for SVGs, original file for raster images
-        const fileKeyForPalette = isSvg ? card.thumbnailKey : card.fileKey;
+        const width = card.fileMetadata?.width;
+        const height = card.fileMetadata?.height;
+        const originalIsBounded =
+          typeof width === "number" &&
+          typeof height === "number" &&
+          width > 0 &&
+          height > 0 &&
+          width <= 500 &&
+          height <= 500;
 
-        // For SVGs without a thumbnail yet, skip (will run after thumbnail generation)
-        if (isSvg && !fileKeyForPalette) {
+        // Prefer the bounded thumbnail for every image. Only decode the
+        // original when thumbnailing intentionally skipped an already-small
+        // raster image.
+        const fileKeyForPalette =
+          card.thumbnailKey ??
+          (!isSvg && originalIsBounded ? card.fileKey : null);
+
+        if (!fileKeyForPalette) {
           return;
         }
 

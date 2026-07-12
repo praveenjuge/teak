@@ -135,7 +135,7 @@ describe("filterClientSentryEvent", () => {
     expect(filterClientSentryEvent(event)).toBeNull();
   });
 
-  test("drops Safari Better Auth session fetch aborts", () => {
+  test("drops Safari Better Auth session fetch aborts for pseudonymous users", () => {
     const event = {
       exception: {
         values: [
@@ -154,7 +154,7 @@ describe("filterClientSentryEvent", () => {
           },
         ],
       },
-      user: { username: "e2e-matrix-matrix-webkit-1783500370949-70o5ch" },
+      user: { id: "pseudonymous-user-id" },
     } satisfies ErrorEvent;
 
     expect(filterClientSentryEvent(event)).toBeNull();
@@ -176,13 +176,13 @@ describe("filterClientSentryEvent", () => {
           },
         ],
       },
-      user: { username: "e2e-matrix-matrix-webkit-1783578880540-apowrq" },
+      user: { id: "pseudonymous-user-id" },
     } satisfies ErrorEvent;
 
     expect(filterClientSentryEvent(event)).toBeNull();
   });
 
-  test("keeps non-WebKit e2e session fetch failures", () => {
+  test("drops Better Auth load failures independent of user naming", () => {
     const event = {
       exception: {
         values: [
@@ -195,35 +195,10 @@ describe("filterClientSentryEvent", () => {
           },
         ],
       },
-      user: { username: "e2e-matrix-matrix-chromium-1783578880540-apowrq" },
+      user: { id: "pseudonymous-user-id" },
     } satisfies ErrorEvent;
 
-    expect(filterClientSentryEvent(event)).toEqual(event);
-  });
-
-  test("keeps real-user Better Auth session fetch failures", () => {
-    const event = {
-      exception: {
-        values: [
-          {
-            type: "TypeError",
-            value: "Load failed (app.teakvault.com)",
-            stacktrace: {
-              frames: [
-                {
-                  filename:
-                    "node_modules/@convex-dev/better-auth/src/react/index.tsx",
-                },
-                { filename: "node_modules/@better-fetch/fetch/dist/index.js" },
-              ],
-            },
-          },
-        ],
-      },
-      user: { username: "Praveen" },
-    } satisfies ErrorEvent;
-
-    expect(filterClientSentryEvent(event)).toEqual(event);
+    expect(filterClientSentryEvent(event)).toBeNull();
   });
 
   test("keeps app-origin fetch failures", () => {

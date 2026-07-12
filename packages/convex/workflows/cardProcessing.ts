@@ -52,7 +52,16 @@ async function timeStage<T>(
   let outcome: StageOutcome = "ok";
   let errorClass: string | undefined;
   try {
-    return await fn();
+    const result = await fn();
+    if (
+      result &&
+      typeof result === "object" &&
+      "mode" in result &&
+      result.mode === "skipped"
+    ) {
+      outcome = "skipped";
+    }
+    return result;
   } catch (error) {
     outcome = "error";
     errorClass = error instanceof Error ? error.name : "UnknownError";
@@ -133,36 +142,6 @@ export const cardProcessingWorkflow: any = workflow.define({
             )
           );
 
-    // Check if this is an SVG image that needs thumbnail generation for palette extraction
-    const isSvgImage =
-      classification.type === "image" &&
-      (initialCard?.fileMetadata?.mimeType === "image/svg+xml" ||
-        initialCard?.fileMetadata?.fileName?.endsWith(".svg") ||
-        initialCard?.fileMetadata?.fileName?.endsWith(".SVG"));
-
-    // Palette extraction for image cards
-    // For SVGs, we'll run this after renderables (thumbnail needs to be ready first)
-    // For raster images, we can run it in parallel
-    const palettePromise =
-      classification.type === "image" && !isSvgImage
-        ? step
-            .runAction(
-              internalWorkflow["workflows/steps/palette"]
-                .extractPaletteFromImage,
-              { cardId }
-            )
-            .catch((error: unknown) => {
-              console.error(
-                `${PIPELINE_LOG_PREFIX} Palette extraction failed`,
-                {
-                  cardId,
-                  error,
-                }
-              );
-              return null;
-            })
-        : Promise.resolve(null);
-
     // Ensure link metadata is ready before proceeding with downstream AI steps.
     if (classification.type === "link") {
       const linkMetadataCard = await step.runQuery(
@@ -242,14 +221,12 @@ export const cardProcessingWorkflow: any = workflow.define({
     }
 
     // Step 3 & 4: Metadata generation and renderables can run in parallel when needed.
-    // For videos and SVG images, generate renderables first so the thumbnail can power AI metadata.
+    // Images and videos generate renderables first so bounded thumbnails power
+    // palette extraction and vision metadata.
     let metadataResult: any = null;
     let renderablesResult: any = null;
 
-    // isSvgImage was already declared above at line 98-102
-
-    if (classification.type === "video" || isSvgImage) {
-      // For videos and SVGs: renderables first, then metadata (thumbnail needed for AI)
+    if (["image", "video"].includes(classification.type)) {
       renderablesResult = classification.shouldGenerateRenderables
         ? await timeStage("renderables", classification.type, () =>
             step.runAction(
@@ -259,8 +236,7 @@ export const cardProcessingWorkflow: any = workflow.define({
           )
         : null;
 
-      // For SVGs, now run palette extraction since the thumbnail is ready
-      if (isSvgImage) {
+      if (classification.type === "image") {
         await timeStage("palette", classification.type, () =>
           step
             .runAction(
@@ -270,7 +246,7 @@ export const cardProcessingWorkflow: any = workflow.define({
             )
             .catch((error: unknown) => {
               console.error(
-                `${PIPELINE_LOG_PREFIX} Palette extraction failed for SVG`,
+                `${PIPELINE_LOG_PREFIX} Palette extraction failed`,
                 {
                   cardId,
                   error,
@@ -315,8 +291,6 @@ export const cardProcessingWorkflow: any = workflow.define({
         renderablesPromise,
       ]);
     }
-
-    await palettePromise;
 
     const metadata = metadataResult ?? {
       aiTags: [],

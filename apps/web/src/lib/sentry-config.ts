@@ -96,10 +96,6 @@ const isExtensionFetchFailure = (event: ErrorEvent) =>
     );
   }) ?? false;
 
-const isProductionE2eWebkitUser = (event: ErrorEvent) =>
-  typeof event.user?.username === "string" &&
-  event.user.username.startsWith("e2e-matrix-matrix-webkit-");
-
 const isBetterAuthSessionFrame = (filename?: string) =>
   Boolean(
     filename &&
@@ -110,8 +106,7 @@ const isBetterAuthSessionFrame = (filename?: string) =>
   );
 
 const isSafariBetterAuthLoadFailure = (event: ErrorEvent) =>
-  isProductionE2eWebkitUser(event) &&
-  (event.exception?.values?.some((exception) => {
+  event.exception?.values?.some((exception) => {
     const isWebkitLoadFailure =
       exception.type === "TypeError" &&
       exception.value === "Load failed (app.teakvault.com)";
@@ -123,8 +118,7 @@ const isSafariBetterAuthLoadFailure = (event: ErrorEvent) =>
       ) ??
         false)
     );
-  }) ??
-    false);
+  }) ?? false;
 
 export function filterClientSentryEvent(event: ErrorEvent, _hint?: EventHint) {
   if (isExtensionFetchFailure(event) || isSafariBetterAuthLoadFailure(event)) {

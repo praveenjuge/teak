@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import { r2Mocks, r2MockModuleFactory } from "../../helpers/r2Mock.test-utils";
+import { r2MockModuleFactory, r2Mocks } from "../../helpers/r2Mock.test-utils";
 
 const aiMocks = (global as any).__AI_MOCKS__ ?? {};
 aiMocks.generateText ??= mock();
@@ -23,6 +23,7 @@ global.fetch = mockFetch as any;
 import {
   buildLinkContentParts,
   generateHandler,
+  resolveImageAnalysisKey,
 } from "../../../../convex/workflows/steps/metadata";
 
 afterAll(() => {
@@ -91,6 +92,32 @@ describe("metadata builds link content parts", () => {
   });
 });
 
+describe("resolveImageAnalysisKey", () => {
+  test("always prefers the bounded thumbnail", () => {
+    expect(
+      resolveImageAnalysisKey({
+        fileKey: "original",
+        thumbnailKey: "thumbnail",
+      })
+    ).toBe("thumbnail");
+  });
+
+  test("uses an original only when stored dimensions prove it is bounded", () => {
+    expect(
+      resolveImageAnalysisKey({
+        fileKey: "small",
+        fileMetadata: { height: 400, width: 400 },
+      })
+    ).toBe("small");
+    expect(
+      resolveImageAnalysisKey({
+        fileKey: "large",
+        fileMetadata: { height: 6000, width: 6000 },
+      })
+    ).toBeUndefined();
+  });
+});
+
 describe("metadata handler", () => {
   const mockRunQuery = mock();
   const mockRunMutation = mock();
@@ -113,6 +140,7 @@ describe("metadata handler", () => {
     mockFetch.mockReset();
 
     // Set up default mock returns
+    mockRunMutation.mockResolvedValue(true);
     aiMocks.Output.object.mockReturnValue({ schema: {} });
     aiMocks.generateText.mockResolvedValue({
       output: { tags: ["tag1"], summary: "summary" },
@@ -120,33 +148,40 @@ describe("metadata handler", () => {
   });
 
   describe("error handling", () => {
-    test("throws if card not found", async () => {
+    test("skips if card was deleted before metadata generation", async () => {
       mockRunQuery.mockResolvedValue(null);
-      await expect(
-        generateHandler(ctx, { cardId: "c1", cardType: "text" })
-      ).rejects.toThrow("Card c1 not found for metadata generation");
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "text",
+      });
+      expect(result.mode).toBe("skipped");
     });
 
-    test("throws if no metadata generated", async () => {
+    test("completes without retry when there is no AI input", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", content: "" });
       aiMocks.generateText.mockResolvedValue({
         output: { tags: [], summary: "" },
       });
-      await expect(
-        generateHandler(ctx, { cardId: "c1", cardType: "text" })
-      ).rejects.toThrow("No AI metadata generated");
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "text",
+      });
+      expect(result.mode).toBe("skipped");
     });
 
-    test("throws if link metadata is pending", async () => {
+    test("uses the URL while optional link enrichment is pending", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
         url: "https://example.com",
         metadataStatus: "pending",
         metadata: {},
       });
-      await expect(
-        generateHandler(ctx, { cardId: "c1", cardType: "link" })
-      ).rejects.toThrow("Link metadata extraction not yet complete");
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "link",
+      });
+      expect(result.mode).toBe("completed");
+      expect(result.aiTags).toEqual(["tag1"]);
     });
   });
 
@@ -174,9 +209,11 @@ describe("metadata handler", () => {
         output: { tags: [], summary: "" },
       });
 
-      await expect(
-        generateHandler(ctx, { cardId: "c1", cardType: "text" })
-      ).rejects.toThrow("No AI metadata generated");
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "text",
+      });
+      expect(result.mode).toBe("skipped");
     });
   });
 
@@ -185,6 +222,7 @@ describe("metadata handler", () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
         fileKey: "f1",
+        thumbnailKey: "t1",
         fileMetadata: { mimeType: "image/png" },
       });
       r2Mocks.resolveObjectUrl.mockResolvedValue("https://image.png");
@@ -199,7 +237,7 @@ describe("metadata handler", () => {
 
       expect(result.aiTags).toEqual(["photo"]);
       expect(result.confidence).toBe(0.9);
-      expect(r2Mocks.resolveObjectUrl).toHaveBeenCalledWith("f1");
+      expect(r2Mocks.resolveObjectUrl).toHaveBeenCalledWith("t1");
     });
 
     test("uses thumbnail for SVG files", async () => {
@@ -264,9 +302,11 @@ describe("metadata handler", () => {
       });
       r2Mocks.resolveObjectUrl.mockResolvedValue(null);
 
-      await expect(
-        generateHandler(ctx, { cardId: "c1", cardType: "image" })
-      ).rejects.toThrow("No AI metadata generated");
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "image",
+      });
+      expect(result.mode).toBe("skipped");
     });
   });
 
@@ -359,9 +399,11 @@ describe("metadata handler", () => {
       });
       r2Mocks.resolveObjectUrl.mockResolvedValue(null);
 
-      await expect(
-        generateHandler(ctx, { cardId: "c1", cardType: "audio" })
-      ).rejects.toThrow("No AI metadata generated");
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "audio",
+      });
+      expect(result.mode).toBe("skipped");
     });
   });
 

@@ -24,7 +24,7 @@ export const updateCategorization = internalMutation({
     // Get current card to update processing status
     const card = await ctx.db.get("cards", cardId);
     if (!card) {
-      throw new Error(`Card ${cardId} not found`);
+      return null;
     }
 
     // Update processing status to mark categorization as complete

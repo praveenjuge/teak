@@ -43,6 +43,35 @@ interface LinkCardMetadataInput {
   url?: string;
 }
 
+interface ImageAnalysisCard {
+  fileKey?: string;
+  fileMetadata?: { height?: number; width?: number };
+  thumbnailKey?: string;
+}
+
+const MAX_ORIGINAL_AI_IMAGE_PIXELS = 500 * 500;
+
+export const resolveImageAnalysisKey = (
+  card: ImageAnalysisCard
+): string | undefined => {
+  if (card.thumbnailKey) {
+    return card.thumbnailKey;
+  }
+  const width = card.fileMetadata?.width;
+  const height = card.fileMetadata?.height;
+  if (
+    card.fileKey &&
+    typeof width === "number" &&
+    typeof height === "number" &&
+    width > 0 &&
+    height > 0 &&
+    width * height <= MAX_ORIGINAL_AI_IMAGE_PIXELS
+  ) {
+    return card.fileKey;
+  }
+  return;
+};
+
 export const buildLinkContentParts = (
   card: LinkCardMetadataInput
 ): string[] => {
@@ -102,6 +131,7 @@ export const generate: any = internalAction({
     aiSummary: v.optional(v.string()),
     aiTranscript: v.optional(v.string()),
     confidence: v.number(),
+    mode: v.union(v.literal("completed"), v.literal("skipped")),
   }),
   handler: (ctx: any, args: { cardId: Id<"cards">; cardType: string }) =>
     withBackendSpan(
@@ -126,19 +156,13 @@ export async function generateHandler(
   });
 
   if (!card) {
-    throw new Error(`Card ${cardId} not found for metadata generation`);
-  }
-
-  // For link cards, ensure metadata extraction finished first
-  if (
-    cardType === "link" &&
-    !card.metadata?.linkPreview &&
-    card.metadataStatus === "pending"
-  ) {
-    // Wait a bit and retry
-    throw new Error(
-      `Link metadata extraction not yet complete for card ${cardId}`
-    );
+    return {
+      aiTags: [],
+      aiSummary: undefined,
+      aiTranscript: undefined,
+      confidence: 0,
+      mode: "skipped" as const,
+    };
   }
 
   let aiTags: string[] = [];
@@ -146,7 +170,6 @@ export async function generateHandler(
   let aiTranscript: string | undefined;
   let visualStyles: string[] | undefined;
   let confidence = 0.9;
-  let generationSource = "unknown";
 
   switch (cardType as CardType) {
     case "text": {
@@ -154,19 +177,10 @@ export async function generateHandler(
       aiTags = result.aiTags;
       aiSummary = result.aiSummary;
       confidence = 0.95;
-      generationSource = "text";
       break;
     }
     case "image": {
-      // For SVG images, use the thumbnail (rasterized PNG) for AI analysis
-      // For raster images, use the original file
-      const isSvgFile =
-        card.fileMetadata?.mimeType === "image/svg+xml" ||
-        card.fileMetadata?.fileName?.endsWith(".svg") ||
-        card.fileMetadata?.fileName?.endsWith(".SVG");
-
-      const imageKey =
-        isSvgFile && card.thumbnailKey ? card.thumbnailKey : card.fileKey;
+      const imageKey = resolveImageAnalysisKey(card);
 
       if (imageKey) {
         const imageUrl = await resolveObjectUrl(imageKey);
@@ -176,7 +190,6 @@ export async function generateHandler(
           aiSummary = result.aiSummary;
           visualStyles = extractVisualStylesFromTags(result.aiTags);
           confidence = 0.9;
-          generationSource = isSvgFile ? "svg_thumbnail" : "image";
         }
       }
       break;
@@ -192,7 +205,6 @@ export async function generateHandler(
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
           confidence = 0.88;
-          generationSource = "video_thumbnail";
         }
       }
       break;
@@ -211,7 +223,6 @@ export async function generateHandler(
             aiTags = result.aiTags;
             aiSummary = result.aiSummary;
             confidence = 0.85;
-            generationSource = "audio";
           }
         }
       }
@@ -229,7 +240,6 @@ export async function generateHandler(
         aiTags = result.aiTags;
         aiSummary = result.aiSummary;
         confidence = 0.9;
-        generationSource = "link";
       }
       break;
     }
@@ -264,7 +274,6 @@ export async function generateHandler(
         aiTags = result.aiTags;
         aiSummary = result.aiSummary;
         confidence = 0.85;
-        generationSource = "document";
       }
       break;
     }
@@ -274,7 +283,6 @@ export async function generateHandler(
         aiTags = result.aiTags;
         aiSummary = result.aiSummary;
         confidence = 0.95;
-        generationSource = "quote";
       }
       break;
     }
@@ -294,7 +302,6 @@ export async function generateHandler(
         aiTags = result.aiTags;
         aiSummary = result.aiSummary;
         confidence = 0.9;
-        generationSource = "palette";
       }
       break;
     }
@@ -303,9 +310,23 @@ export async function generateHandler(
   }
 
   if (aiTags.length === 0 && !aiSummary && !aiTranscript) {
-    throw new Error(
-      `No AI metadata generated for card (source: ${generationSource})`
-    );
+    const now = Date.now();
+    const processingStatus = card.processingStatus || {};
+    await ctx.runMutation((internal as any).ai.mutations.updateCardProcessing, {
+      cardId,
+      metadataStatus: "completed",
+      processingStatus: {
+        ...processingStatus,
+        metadata: stageCompleted(now, 0),
+      },
+    });
+    return {
+      aiTags: [],
+      aiSummary: undefined,
+      aiTranscript: undefined,
+      confidence: 0,
+      mode: "skipped" as const,
+    };
   }
 
   // Update card with AI metadata
@@ -316,15 +337,28 @@ export async function generateHandler(
     metadata: stageCompleted(now, confidence),
   };
 
-  await ctx.runMutation(internal.workflows.aiMetadata.mutations.updateCardAI, {
-    cardId,
-    aiTags: aiTags.length > 0 ? aiTags : undefined,
-    aiSummary: aiSummary || undefined,
-    aiTranscript,
-    visualStyles:
-      cardType === "image" && visualStyles?.length ? visualStyles : undefined,
-    processingStatus: updatedProcessing,
-  });
+  const saved = await ctx.runMutation(
+    internal.workflows.aiMetadata.mutations.updateCardAI,
+    {
+      cardId,
+      aiTags: aiTags.length > 0 ? aiTags : undefined,
+      aiSummary: aiSummary || undefined,
+      aiTranscript,
+      visualStyles:
+        cardType === "image" && visualStyles?.length ? visualStyles : undefined,
+      processingStatus: updatedProcessing,
+    }
+  );
+
+  if (saved === false) {
+    return {
+      aiTags: [],
+      aiSummary: undefined,
+      aiTranscript: undefined,
+      confidence: 0,
+      mode: "skipped" as const,
+    };
+  }
 
   // Trigger link screenshot generation if it's a link
   if (cardType === "link") {
@@ -340,5 +374,6 @@ export async function generateHandler(
     aiSummary,
     aiTranscript,
     confidence,
+    mode: "completed" as const,
   };
 }

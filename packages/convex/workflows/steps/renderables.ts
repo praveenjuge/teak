@@ -30,6 +30,7 @@ export const generate: any = internalAction({
     cardType: v.string(),
   },
   returns: v.object({
+    mode: v.union(v.literal("completed"), v.literal("skipped")),
     success: v.boolean(),
     thumbnailGenerated: v.boolean(),
   }),
@@ -56,7 +57,11 @@ export async function generateHandler(
   });
 
   if (!card) {
-    throw new Error(`Card ${cardId} not found for renderables generation`);
+    return {
+      mode: "skipped" as const,
+      success: true,
+      thumbnailGenerated: false,
+    };
   }
 
   let thumbnailGenerated = false;
@@ -178,12 +183,16 @@ export async function generateHandler(
         ),
   };
 
-  await ctx.runMutation((internal as any).ai.mutations.updateCardProcessing, {
-    cardId,
-    processingStatus: updatedProcessing,
-  });
+  const saved = await ctx.runMutation(
+    (internal as any).ai.mutations.updateCardProcessing,
+    {
+      cardId,
+      processingStatus: updatedProcessing,
+    }
+  );
 
   return {
+    mode: saved === false ? ("skipped" as const) : ("completed" as const),
     success: renderablesSucceeded,
     thumbnailGenerated,
   };

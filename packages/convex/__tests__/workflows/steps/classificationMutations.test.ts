@@ -504,7 +504,7 @@ describe("classification updateClassification", () => {
     }
   });
 
-  test("throws if card not found", async () => {
+  test("skips if the card was deleted during classification", async () => {
     const mutation =
       (updateClassification as any).handler ||
       (updateClassification as any)._handler ||
@@ -522,7 +522,7 @@ describe("classification updateClassification", () => {
         type: "text",
         confidence: 0.9,
       })
-    ).rejects.toThrow("Card card_missing not found");
+    ).resolves.toBeNull();
   });
 
   test("preserves existing processing status fields", async () => {

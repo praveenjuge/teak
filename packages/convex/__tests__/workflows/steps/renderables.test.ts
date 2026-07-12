@@ -2,10 +2,14 @@
 import { beforeAll, describe, expect, mock, test } from "bun:test";
 
 let generateHandler: any;
+let shouldSkipThumbnail: any;
 
 beforeAll(async () => {
   const photonMock = () => ({
+    fliph: () => undefined,
+    flipv: () => undefined,
     PhotonImage: { new_from_byteslice: () => ({}) },
+    rotate: (image: unknown) => image,
     SamplingFilter: { Lanczos3: "Lanczos3", Nearest: "Nearest" },
     resize: () => new Uint8Array(),
   });
@@ -30,6 +34,9 @@ beforeAll(async () => {
 
   generateHandler = (await import("../../../workflows/steps/renderables"))
     .generateHandler;
+  shouldSkipThumbnail = (
+    await import("../../../workflows/steps/renderables/generateThumbnail")
+  ).shouldSkipThumbnail;
 });
 
 describe("renderables step", () => {
@@ -45,26 +52,36 @@ describe("renderables step", () => {
     return fn;
   };
 
+  test("does not skip a large-pixel image just because its file is small", () => {
+    expect(shouldSkipThumbnail(100_000, 400, 400)).toBe(true);
+    expect(shouldSkipThumbnail(100_000, 6000, 6000)).toBe(false);
+  });
+
   describe("error handling", () => {
-    test("throws error when card is not found", async () => {
+    test("skips when the card was deleted before rendering", async () => {
       const mockCtx = {
         runQuery: async () => null,
       };
-      await expect(
-        generateHandler(mockCtx, { cardId: "none", cardType: "image" })
-      ).rejects.toThrow(/not found/);
+      const result = await generateHandler(mockCtx, {
+        cardId: "none",
+        cardType: "image",
+      });
+      expect(result).toEqual({
+        mode: "skipped",
+        success: true,
+        thumbnailGenerated: false,
+      });
     });
 
     test("handles undefined card gracefully", async () => {
       const mockCtx = {
         runQuery: async () => undefined,
       };
-      await expect(
-        generateHandler(mockCtx, {
-          cardId: "undefined-card",
-          cardType: "image",
-        })
-      ).rejects.toThrow();
+      const result = await generateHandler(mockCtx, {
+        cardId: "undefined-card",
+        cardType: "image",
+      });
+      expect(result.mode).toBe("skipped");
     });
   });
 
@@ -292,7 +309,11 @@ describe("renderables step", () => {
         cardType: "video",
       });
 
-      expect(result).toEqual({ success: true, thumbnailGenerated: false });
+      expect(result).toEqual({
+        mode: "completed",
+        success: true,
+        thumbnailGenerated: false,
+      });
       expect(runAction.calls.length).toBe(0);
     });
 
@@ -397,7 +418,11 @@ describe("renderables step", () => {
       });
 
       expect(runAction.calls.length).toBe(1);
-      expect(result).toEqual({ success: true, thumbnailGenerated: false });
+      expect(result).toEqual({
+        mode: "completed",
+        success: true,
+        thumbnailGenerated: false,
+      });
       expect(
         runMutation.calls[0]?.[1].processingStatus.renderables.status
       ).toBe("completed");
