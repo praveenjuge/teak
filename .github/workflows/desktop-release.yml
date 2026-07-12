@@ -105,6 +105,8 @@ jobs:
         working-directory: apps/desktop
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: teakvault
+          SENTRY_PROJECT: teak-desktop-prod
         run: |
           version="${GITHUB_REF_NAME#v}"
           SENTRY_RELEASE="teak-desktop@${version}+${GITHUB_SHA}"
