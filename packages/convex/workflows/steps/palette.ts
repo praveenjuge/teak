@@ -106,10 +106,7 @@ export const extractPaletteFromImage = internalAction({
           width <= 500 &&
           height <= 500;
 
-        if (
-          !card.thumbnailKey &&
-          hasKnownTinyImageDimensions(card.fileMetadata)
-        ) {
+        if (hasKnownTinyImageDimensions(card.fileMetadata)) {
           return;
         }
 

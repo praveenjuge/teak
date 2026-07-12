@@ -119,6 +119,7 @@ describe("resolveImageAnalysisKey", () => {
       resolveImageAnalysisKey({
         fileKey: "tiny",
         fileMetadata: { height: 1, width: 1 },
+        thumbnailKey: "tiny-thumbnail",
       })
     ).toBeUndefined();
   });
@@ -313,6 +314,24 @@ describe("metadata handler", () => {
         cardType: "image",
       });
       expect(result.mode).toBe("skipped");
+    });
+
+    test("skips a known tiny original even if a thumbnail key exists", async () => {
+      mockRunQuery.mockResolvedValue({
+        _id: "c1",
+        fileKey: "f1",
+        fileMetadata: { height: 1, width: 1 },
+        thumbnailKey: "t1",
+      });
+
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "image",
+      });
+
+      expect(result.mode).toBe("skipped");
+      expect(r2Mocks.resolveObjectUrl).not.toHaveBeenCalled();
+      expect(aiMocks.generateText).not.toHaveBeenCalled();
     });
   });
 

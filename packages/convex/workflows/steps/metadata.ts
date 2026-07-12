@@ -25,7 +25,10 @@ import {
 } from "../aiMetadata/generators";
 import { generateTranscript } from "../aiMetadata/transcript";
 import { extractFileTextForAi } from "../fileProcessing";
-import { hasMinimumImageAnalysisDimensions } from "../imageAnalysis";
+import {
+  hasKnownTinyImageDimensions,
+  hasMinimumImageAnalysisDimensions,
+} from "../imageAnalysis";
 
 interface LinkPreviewMetadata {
   author?: string;
@@ -55,6 +58,9 @@ const MAX_ORIGINAL_AI_IMAGE_PIXELS = 500 * 500;
 export const resolveImageAnalysisKey = (
   card: ImageAnalysisCard
 ): string | undefined => {
+  if (hasKnownTinyImageDimensions(card.fileMetadata)) {
+    return;
+  }
   if (card.thumbnailKey) {
     return card.thumbnailKey;
   }
