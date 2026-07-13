@@ -1,3 +1,14 @@
+@import "./typeset.css";
+
+.typeset-docs {
+  --typeset-font-body: var(--font-sans);
+  --typeset-font-heading: var(--font-sans);
+  --typeset-font-mono: var(--font-mono);
+  --typeset-size: 15px;
+  --typeset-leading: 1.75;
+  --typeset-flow: 1.25em;
+}
+
 /* SN Pro Font Face Declarations */
 @font-face {
   font-family: "SN Pro";

@@ -137,6 +137,9 @@ describe("electron main process wiring", () => {
     expect(source).toContain('ipcMain.handle("oauth:listen"');
     expect(source).toContain('ipcMain.handle("oauth:cancel"');
     expect(source).toContain("OAUTH_CALLBACK_CHANNEL");
+    expect(source).toContain('class="success-icon"');
+    expect(source).toContain('fill="#16a34a"');
+    expect(source).toContain('aria-hidden="true"');
   });
 
   it("sets up auto-updater with native dialogs via electron-updater", () => {

@@ -20,6 +20,14 @@ test("docs Pagefind assets are published", async ({ page }) => {
   }
 });
 
+test("changelog renders release notes with Typeset", async ({ page }) => {
+  await page.goto("/changelog/");
+
+  const releaseNotes = page.locator(".typeset.typeset-docs").first();
+  await expect(releaseNotes).toBeVisible();
+  await expect(releaseNotes.locator("ul")).toHaveCSS("list-style-type", "disc");
+});
+
 test("public docs describe expanded file support and inferred uploads", async ({
   page,
 }) => {

@@ -43,8 +43,14 @@ test("web picker and drag-drop upload files with safe opened previews", async ({
     timeout: 45_000,
   });
 
-  await expect(page.getByText(pickedName).first()).toBeVisible();
-  await page.getByText(pickedName).first().click();
+  const markdownCard = page.getByText(pickedName).first();
+  await expect(markdownCard).toBeVisible();
+  const prefetchedFile = page.waitForRequest((request) =>
+    decodeURIComponent(request.url()).includes(pickedName)
+  );
+  await markdownCard.hover();
+  await prefetchedFile;
+  await markdownCard.click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("Open file")).toBeVisible();
   await expect(dialog.getByText(marker, { exact: false }).first()).toBeVisible({

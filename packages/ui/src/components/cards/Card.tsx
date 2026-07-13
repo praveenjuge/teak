@@ -1,3 +1,4 @@
+import { inferFileFormat } from "@teak/convex/shared/file-formats";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { CardContent, Card as UICard } from "@teak/ui/components/ui/card";
 import { Checkbox } from "@teak/ui/components/ui/checkbox";
@@ -22,6 +23,7 @@ import {
 } from "lucide-react";
 import type { SyntheticEvent } from "react";
 import { memo, useState } from "react";
+import { prefetchFileTextPreview } from "../card-previews/fileTextPreviewCache";
 import { AudioWavePreview } from "./previews/AudioWavePreview";
 import { GridDocumentPreview } from "./previews/GridDocumentPreview";
 import { GridImagePreview } from "./previews/GridImagePreview";
@@ -46,6 +48,30 @@ export const Card = memo(function Card({
   onToggleSelection,
 }: CardProps) {
   const isOptimistic = isOptimisticCard(card._id);
+  const fileName = card.fileMetadata?.fileName;
+  const fileFormat =
+    card.type === "document" && fileName
+      ? inferFileFormat({ fileName, mimeType: card.fileMetadata?.mimeType })
+      : null;
+
+  const prefetchDocumentPreview = () => {
+    if (
+      isOptimistic ||
+      !card.fileKey ||
+      !card.fileUrl ||
+      !fileFormat ||
+      !["markdown", "source"].includes(fileFormat.preview)
+    ) {
+      return;
+    }
+
+    void prefetchFileTextPreview({
+      cacheKey: card.fileKey,
+      fileUrl: card.fileUrl,
+    }).catch(() => {
+      // The modal retries and keeps file facts visible if intent prefetch fails.
+    });
+  };
 
   const handleClick = () => {
     if (isOptimistic) {
@@ -370,6 +396,9 @@ export const Card = memo(function Card({
             isOptimistic ? "cursor-default opacity-70" : "cursor-pointer"
           } ${card.isDeleted ? "opacity-60" : ""} ${isSelected ? "rounded-xl ring-2 ring-primary" : ""}`}
           onClick={handleClick}
+          onFocus={prefetchDocumentPreview}
+          onPointerDown={prefetchDocumentPreview}
+          onPointerEnter={prefetchDocumentPreview}
         >
           {isOptimistic && (
             <div className="absolute inset-0 z-10 flex items-center justify-center">

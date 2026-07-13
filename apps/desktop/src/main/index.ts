@@ -90,12 +90,17 @@ const OAUTH_RETURN_HTML = `<!doctype html>
     <style>
       body { font-family: -apple-system, system-ui, sans-serif; background: #faf9f7; color: #1c1a17; display: flex; min-height: 100vh; align-items: center; justify-content: center; margin: 0; }
       main { text-align: center; padding: 2rem; }
+      .success-icon { display: block; width: 1.25rem; height: 1.25rem; margin: 0 auto 0.75rem; }
       h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
       p { color: #6b665f; margin: 0; }
     </style>
   </head>
   <body>
     <main>
+      <svg class="success-icon" viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="10" cy="10" r="10" fill="#16a34a" />
+        <path d="m5.75 10.25 2.5 2.5 6-6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
       <h1>You're signed in</h1>
       <p>Return to the Teak app to continue. You can close this tab.</p>
     </main>

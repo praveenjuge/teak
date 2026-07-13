@@ -1,12 +1,15 @@
 "use client";
 
-import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
 import type { FileFormat } from "@teak/convex/shared/file-formats";
+import { Skeleton } from "@teak/ui/components/ui/skeleton";
 import { Highlight, type Language, themes } from "prism-react-renderer";
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
+import {
+  cachedFileTextPreview,
+  requestFileTextPreview,
+} from "./fileTextPreviewCache";
 
-const MAX_BROWSER_PREVIEW_BYTES = 1024 * 1024;
 const LANGUAGE_CLASS_REGEX = /language-([\w-]+)/u;
 const SUPPORTED_LANGUAGES: Record<string, Language> = {
   css: "css",
@@ -56,6 +59,7 @@ export function SourceCodePreview({ code, language }: SourceCodePreviewProps) {
       {({ className, getLineProps, getTokenProps, style, tokens }) => (
         <pre
           className={`${className} max-h-[70vh] overflow-auto rounded-lg p-4 font-mono text-xs leading-5`}
+          data-not-typeset
           style={style}
         >
           {withStableKeys(tokens, (line) => line.map(tokenKey).join("|")).map(
@@ -75,7 +79,7 @@ export function SourceCodePreview({ code, language }: SourceCodePreviewProps) {
 
 export function SafeMarkdownPreview({ source }: { source: string }) {
   return (
-    <div className="prose prose-sm dark:prose-invert max-w-none text-foreground">
+    <div className="typeset typeset-docs max-w-[37em] pb-6">
       <Markdown
         components={{
           a: ({ children, href }) => (
@@ -92,77 +96,85 @@ export function SafeMarkdownPreview({ source }: { source: string }) {
               <code>{children}</code>
             );
           },
+          pre: ({ children }) => children,
         }}
         skipHtml
       >
         {source}
       </Markdown>
-      <details className="mt-4 rounded-lg border p-3">
-        <summary className="cursor-pointer font-medium text-sm">Source</summary>
-        <div className="mt-3">
-          <SourceCodePreview code={source} language="markdown" />
-        </div>
-      </details>
     </div>
   );
 }
 
 interface FileTextPreviewProps {
+  fileKey?: string;
   fileUrl: string;
   format: FileFormat;
 }
 
-interface LoadFileTextPreviewOptions {
-  fetchImpl?: typeof fetch;
-  maxBytes?: number;
-  signal?: AbortSignal;
+function MarkdownPreviewSkeleton() {
+  return (
+    <div
+      aria-label="Loading file preview"
+      className="flex max-w-[37em] flex-col gap-3 pb-6"
+      role="status"
+    >
+      <Skeleton aria-hidden="true" className="h-7 w-2/5" />
+      <Skeleton aria-hidden="true" className="h-4 w-full" />
+      <Skeleton aria-hidden="true" className="h-4 w-11/12" />
+      <Skeleton aria-hidden="true" className="h-6 w-1/3" />
+      <Skeleton aria-hidden="true" className="h-4 w-10/12" />
+      <Skeleton aria-hidden="true" className="h-4 w-3/4" />
+    </div>
+  );
 }
 
-export async function loadFileTextPreview(
-  fileUrl: string,
-  options: LoadFileTextPreviewOptions = {}
-): Promise<string | null> {
-  const maxBytes = options.maxBytes ?? MAX_BROWSER_PREVIEW_BYTES;
-  const response = await (options.fetchImpl ?? fetch)(fileUrl, {
-    credentials: "omit",
-    signal: options.signal,
-  });
-  const contentLength = Number(response.headers.get("content-length"));
-  if (
-    !response.ok ||
-    (Number.isFinite(contentLength) && contentLength > maxBytes)
-  ) {
-    await response.body?.cancel();
-    return null;
-  }
-  return readResponseTextWithinLimit(response, maxBytes);
-}
-
-export function FileTextPreview({ fileUrl, format }: FileTextPreviewProps) {
-  const [source, setSource] = useState<string | null>(null);
+export function FileTextPreview({
+  fileKey,
+  fileUrl,
+  format,
+}: FileTextPreviewProps) {
+  const cacheKey = fileKey ?? fileUrl;
+  const initialSource = cachedFileTextPreview(cacheKey);
+  const [source, setSource] = useState<string | null>(initialSource ?? null);
+  const [isLoading, setIsLoading] = useState(initialSource === undefined);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let active = true;
+    const cached = cachedFileTextPreview(cacheKey);
+    if (cached !== undefined) {
+      setSource(cached);
+      setIsLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
     setSource(null);
+    setIsLoading(true);
 
     void (async () => {
       try {
-        const text = await loadFileTextPreview(fileUrl, {
-          signal: controller.signal,
-        });
-        if (text !== null) {
+        const text = await requestFileTextPreview({ cacheKey, fileUrl });
+        if (active && text !== null) {
           setSource(text);
         }
       } catch {
         // File facts remain visible when source loading is unavailable.
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
       }
     })();
 
-    return () => controller.abort();
-  }, [fileUrl]);
+    return () => {
+      active = false;
+    };
+  }, [cacheKey, fileUrl]);
 
   if (source === null) {
-    return null;
+    return isLoading ? <MarkdownPreviewSkeleton /> : null;
   }
 
   return format.preview === "markdown" ? (
