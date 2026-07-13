@@ -1,3 +1,5 @@
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { R2 } from "@convex-dev/r2";
 import { v } from "convex/values";
 import { components } from "../_generated/api";
@@ -5,8 +7,27 @@ import type { ActionCtx, MutationCtx } from "../_generated/server";
 import { internalMutation, mutation, query } from "../_generated/server";
 
 const SIGNED_URL_EXPIRES_IN_SECONDS = 15 * 60;
+const PRIVATE_FILE_CACHE_CONTROL = `private, max-age=${SIGNED_URL_EXPIRES_IN_SECONDS}, immutable`;
 
 export const r2 = new R2(components.r2);
+
+let downloadClient: S3Client | null = null;
+
+// Build the download client lazily (on first signed-URL request) rather than at
+// module load, reusing the same R2 config the component resolves from env vars.
+const getDownloadClient = (): S3Client => {
+  if (!downloadClient) {
+    downloadClient = new S3Client({
+      credentials: {
+        accessKeyId: r2.config.accessKeyId,
+        secretAccessKey: r2.config.secretAccessKey,
+      },
+      endpoint: r2.config.endpoint,
+      region: "auto",
+    });
+  }
+  return downloadClient;
+};
 
 export type R2ObjectKey = string;
 
@@ -38,8 +59,20 @@ export const buildR2ObjectKey = ({
   ].join("/");
 };
 
+export const buildR2DownloadCommand = (
+  key: string,
+  bucket = r2.config.bucket
+) =>
+  new GetObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    ResponseCacheControl: PRIVATE_FILE_CACHE_CONTROL,
+  });
+
 export const getR2Url = async (key: string) =>
-  r2.getUrl(key, { expiresIn: SIGNED_URL_EXPIRES_IN_SECONDS });
+  getSignedUrl(getDownloadClient(), buildR2DownloadCommand(key), {
+    expiresIn: SIGNED_URL_EXPIRES_IN_SECONDS,
+  });
 
 export const r2ComponentConfig = () => {
   const { R2_BUCKET, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } =

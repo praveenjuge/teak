@@ -94,7 +94,11 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
       </div>
 
       {fileUrl && format && ["markdown", "source"].includes(format.preview) ? (
-        <FileTextPreview fileUrl={fileUrl} format={format} />
+        <FileTextPreview
+          fileKey={card.fileKey}
+          fileUrl={fileUrl}
+          format={format}
+        />
       ) : null}
     </div>
   );
