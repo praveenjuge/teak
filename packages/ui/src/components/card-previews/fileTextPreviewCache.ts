@@ -2,6 +2,9 @@ import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-respons
 
 const MAX_BROWSER_PREVIEW_BYTES = 1024 * 1024;
 const MAX_MEMORY_CACHE_BYTES = 4 * 1024 * 1024;
+// Match the 15-minute signed URL lifetime so a cached preview stops rendering
+// once the underlying private file may have expired or been deleted.
+const PREVIEW_CACHE_TTL_MS = 15 * 60 * 1000;
 
 interface LoadFileTextPreviewOptions {
   fetchImpl?: typeof fetch;
@@ -17,6 +20,7 @@ export interface PrefetchFileTextPreviewOptions {
 
 interface CachedPreview {
   byteLength: number;
+  expiresAt: number;
   source: string;
 }
 
@@ -47,11 +51,24 @@ export async function loadFileTextPreview(
   return readResponseTextWithinLimit(response, maxBytes);
 }
 
+const dropCacheEntry = (cacheKey: string) => {
+  const existing = previewCache.get(cacheKey);
+  if (existing) {
+    previewCacheBytes -= existing.byteLength;
+    previewCache.delete(cacheKey);
+  }
+};
+
 export const cachedFileTextPreview = (cacheKey: string): string | undefined => {
   const cached = previewCache.get(cacheKey);
   if (!cached) {
     return;
   }
+  if (cached.expiresAt <= Date.now()) {
+    dropCacheEntry(cacheKey);
+    return;
+  }
+  // Refresh recency so the byte-budget eviction stays LRU-ordered.
   previewCache.delete(cacheKey);
   previewCache.set(cacheKey, cached);
   return cached.source;
@@ -59,12 +76,12 @@ export const cachedFileTextPreview = (cacheKey: string): string | undefined => {
 
 const cachePreview = (cacheKey: string, source: string) => {
   const byteLength = new TextEncoder().encode(source).byteLength;
-  const existing = previewCache.get(cacheKey);
-  if (existing) {
-    previewCacheBytes -= existing.byteLength;
-    previewCache.delete(cacheKey);
-  }
-  previewCache.set(cacheKey, { byteLength, source });
+  dropCacheEntry(cacheKey);
+  previewCache.set(cacheKey, {
+    byteLength,
+    expiresAt: Date.now() + PREVIEW_CACHE_TTL_MS,
+    source,
+  });
   previewCacheBytes += byteLength;
 
   while (previewCacheBytes > MAX_MEMORY_CACHE_BYTES && previewCache.size > 1) {

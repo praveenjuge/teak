@@ -6,6 +6,7 @@ import {
   SourceCodePreview,
 } from "../FileTextPreview";
 import {
+  cachedFileTextPreview,
   loadFileTextPreview,
   prefetchFileTextPreview,
 } from "../fileTextPreviewCache";
@@ -122,6 +123,41 @@ describe("file text previews", () => {
     });
 
     expect(requestCount).toBe(1);
+  });
+
+  test("expires cached previews after the signed URL lifetime", async () => {
+    const realNow = Date.now;
+    let requestCount = 0;
+    const fetchImpl = (() => {
+      requestCount += 1;
+      return Promise.resolve(new Response("# Expiring"));
+    }) as typeof fetch;
+    const options = {
+      cacheKey: "file-expiry-test",
+      fetchImpl,
+      fileUrl: "https://files.example/expiring.md",
+    };
+    const fifteenMinutesMs = 15 * 60 * 1000;
+    const start = 1_000_000;
+
+    try {
+      Date.now = () => start;
+      await prefetchFileTextPreview(options);
+      expect(cachedFileTextPreview(options.cacheKey)).toBe("# Expiring");
+
+      // Still served just before the 15-minute lifetime elapses.
+      Date.now = () => start + fifteenMinutesMs - 1;
+      expect(cachedFileTextPreview(options.cacheKey)).toBe("# Expiring");
+
+      // Dropped once the lifetime passes, so a fresh fetch is required.
+      Date.now = () => start + fifteenMinutesMs + 1;
+      expect(cachedFileTextPreview(options.cacheKey)).toBeUndefined();
+
+      await prefetchFileTextPreview(options);
+      expect(requestCount).toBe(2);
+    } finally {
+      Date.now = realNow;
+    }
   });
 
   test("shows a Markdown-shaped skeleton while the preview loads", () => {

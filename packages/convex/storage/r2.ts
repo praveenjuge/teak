@@ -10,14 +10,24 @@ const SIGNED_URL_EXPIRES_IN_SECONDS = 15 * 60;
 const PRIVATE_FILE_CACHE_CONTROL = `private, max-age=${SIGNED_URL_EXPIRES_IN_SECONDS}, immutable`;
 
 export const r2 = new R2(components.r2);
-const r2DownloadClient = new S3Client({
-  credentials: {
-    accessKeyId: r2.config.accessKeyId,
-    secretAccessKey: r2.config.secretAccessKey,
-  },
-  endpoint: r2.config.endpoint,
-  region: "auto",
-});
+
+let downloadClient: S3Client | null = null;
+
+// Build the download client lazily (on first signed-URL request) rather than at
+// module load, reusing the same R2 config the component resolves from env vars.
+const getDownloadClient = (): S3Client => {
+  if (!downloadClient) {
+    downloadClient = new S3Client({
+      credentials: {
+        accessKeyId: r2.config.accessKeyId,
+        secretAccessKey: r2.config.secretAccessKey,
+      },
+      endpoint: r2.config.endpoint,
+      region: "auto",
+    });
+  }
+  return downloadClient;
+};
 
 export type R2ObjectKey = string;
 
@@ -60,7 +70,7 @@ export const buildR2DownloadCommand = (
   });
 
 export const getR2Url = async (key: string) =>
-  getSignedUrl(r2DownloadClient, buildR2DownloadCommand(key), {
+  getSignedUrl(getDownloadClient(), buildR2DownloadCommand(key), {
     expiresIn: SIGNED_URL_EXPIRES_IN_SECONDS,
   });
 
