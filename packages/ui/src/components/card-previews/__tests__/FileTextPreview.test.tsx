@@ -87,16 +87,17 @@ describe("file text previews", () => {
     expect(cancelled).toBe(true);
   });
 
-  test("requests file previews through the browser cache", async () => {
-    let requestCache: RequestCache | undefined;
+  test("lets Cache-Control govern preview freshness instead of forcing stale reads", async () => {
+    let requestInit: RequestInit | undefined;
     const fetchImpl = ((_input: RequestInfo | URL, init?: RequestInit) => {
-      requestCache = init?.cache;
+      requestInit = init;
       return Promise.resolve(new Response("# Cached"));
     }) as typeof fetch;
 
     await loadFileTextPreview("https://files.example/cached.md", { fetchImpl });
 
-    expect(requestCache).toBe("force-cache");
+    expect(requestInit?.cache).not.toBe("force-cache");
+    expect(requestInit?.credentials).toBe("omit");
   });
 
   test("deduplicates intent prefetches by stable file key", async () => {

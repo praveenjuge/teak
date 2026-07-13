@@ -29,8 +29,10 @@ export async function loadFileTextPreview(
   options: LoadFileTextPreviewOptions = {}
 ): Promise<string | null> {
   const maxBytes = options.maxBytes ?? MAX_BROWSER_PREVIEW_BYTES;
+  // Use the default cache mode so the response Cache-Control (private,
+  // max-age=900, immutable) governs freshness. force-cache would keep serving a
+  // cached preview after the signed URL lifetime expires or the file is deleted.
   const response = await (options.fetchImpl ?? fetch)(fileUrl, {
-    cache: "force-cache",
     credentials: "omit",
     signal: options.signal,
   });
