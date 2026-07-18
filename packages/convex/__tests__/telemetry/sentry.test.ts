@@ -123,7 +123,7 @@ describe("backend Sentry OpenTelemetry", () => {
       recordOutputs: false,
     });
     expect(sentryConsoleLoggingIntegration).toHaveBeenCalledWith({
-      levels: ["log", "warn", "error"],
+      levels: ["warn", "error"],
     });
     const options = sentryInit.mock.calls[0]?.[0] as {
       beforeSendSpan: (span: { data: Record<string, unknown> }) => {
