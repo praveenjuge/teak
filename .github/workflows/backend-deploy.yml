@@ -19,7 +19,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     env:
       CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -60,6 +60,19 @@ jobs:
           bunx convex deploy \
             --typecheck enable \
             --message "Sentry release teak-backend@$GITHUB_SHA"
+      - name: Preflight Markdown document conversion
+        working-directory: packages/convex
+        run: |
+          bunx convex run migrations:run \
+            '{"fn":"migrations:seedMarkdownDocumentConversions","dryRun":true}'
+      - name: Seed Markdown document conversion
+        working-directory: packages/convex
+        run: |
+          bunx convex run \
+            migrations:seedMarkdownDocumentConversionsToCompletion
+      - name: Run Markdown document conversion
+        working-directory: packages/convex
+        run: bun run migrate:markdown
       - name: Finalize Sentry release
         run: |
           release="teak-backend@$GITHUB_SHA"

@@ -10,6 +10,12 @@ import {
   validateFileName,
   validateUploadFile,
 } from "./shared/fileFormats";
+import {
+  isMarkdownFileName,
+  MARKDOWN_CONTENT_MAX_BYTES,
+  MarkdownContentError,
+  validateMarkdownByteLength,
+} from "./shared/markdown";
 import { buildR2ObjectKey, r2 } from "./storage/r2";
 
 const UPLOAD_URL_EXPIRES_IN_SECONDS = 60 * 10;
@@ -34,13 +40,20 @@ const validateUploadRequest = (args: {
   mimeType: string;
 }) => {
   try {
-    return validateUploadFile(args);
+    const validated = validateUploadFile(args);
+    if (isMarkdownFileName(validated.fileName)) {
+      validateMarkdownByteLength(args.fileSize);
+    }
+    return validated;
   } catch (error) {
     if (error instanceof FileFormatValidationError) {
       throw new ConvexError({
         code: fileUploadErrorCode(error),
         message: error.message,
       });
+    }
+    if (error instanceof MarkdownContentError) {
+      throw new ConvexError({ code: error.code, message: error.message });
     }
     throw error;
   }
@@ -69,7 +82,9 @@ export const generateUploadUrlForUser = internalMutation({
     return {
       expiresIn: UPLOAD_URL_EXPIRES_IN_SECONDS,
       fileKey: upload.key,
-      maxFileSize: MAX_FILE_SIZE,
+      maxFileSize: isMarkdownFileName(fileName)
+        ? MARKDOWN_CONTENT_MAX_BYTES
+        : MAX_FILE_SIZE,
       method: "PUT" as const,
       uploadUrl: upload.url,
     };
@@ -78,6 +93,7 @@ export const generateUploadUrlForUser = internalMutation({
 
 export const finalizeUploadedCardForUser = internalMutation({
   args: {
+    additionalMetadata: v.optional(v.any()),
     cardType: v.optional(cardTypeValidator),
     content: v.optional(v.string()),
     fileKey: v.string(),
@@ -96,6 +112,7 @@ export const finalizeUploadedCardForUser = internalMutation({
   }),
   handler: async (ctx, args) => {
     const cardId = await createUploadedCardForUser(ctx, {
+      additionalMetadata: args.additionalMetadata,
       cardType: args.cardType as CardType,
       content: args.content,
       fileKey: args.fileKey,

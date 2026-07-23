@@ -178,6 +178,28 @@ describe("saveToTeak", () => {
     expect(query).not.toHaveBeenCalled();
   });
 
+  test("preserves selected Markdown exactly for text cards", async () => {
+    const query = mock(async () => null);
+    const mutation = mock(async () => "card_markdown");
+    const content = "\uFEFF  # Heading\r\n\r\n- [ ] task  \r\n";
+
+    await saveToTeak(
+      { content, source: "context-menu" },
+      {
+        createClient: () => ({ query, mutation }),
+        fetchImpl: mock(async () =>
+          Response.json({ token: "header.payload.signature" })
+        ) as unknown as typeof fetch,
+        getSessionToken: async () => "session_token",
+      }
+    );
+
+    expect(mutation.mock.calls[0]?.[1]).toMatchObject({
+      content,
+      type: "text",
+    });
+  });
+
   test("maps card limit failures to explicit error code", async () => {
     const result = await saveToTeak(
       {

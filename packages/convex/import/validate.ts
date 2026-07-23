@@ -1,3 +1,4 @@
+import { validateMarkdownContent } from "../shared/markdown";
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
 import {
   type ImportMode,
@@ -116,7 +117,9 @@ export function validateImportCard(raw: unknown): ImportCardInput {
   }
   const type = value.type as ImportCardType;
   const content = typeof value.content === "string" ? value.content : "";
-  if (content.length > 100_000) {
+  if (type === "text") {
+    validateMarkdownContent(content);
+  } else if (content.length > 100_000) {
     throw new Error("Card content is too long");
   }
   const notes = typeof value.notes === "string" ? value.notes : undefined;

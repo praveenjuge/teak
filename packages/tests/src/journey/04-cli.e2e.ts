@@ -1,3 +1,4 @@
+import { basename } from "node:path";
 import { expect, test } from "@playwright/test";
 import { runCli } from "../helpers/cli";
 import { cliFileFixtures, materializeFixtures } from "../helpers/file-formats";
@@ -53,5 +54,18 @@ test("repo CLI uploads source, Markdown, ZIP, SVG, GIF, and Figma files", async 
     );
     expect(created.cardId, filePath).toBeTruthy();
     updateState((state) => state.createdCardIds.push(created.cardId));
+    if (filePath.toLowerCase().endsWith(".md")) {
+      const fetched = JSON.parse(
+        await runCli("repo", ["--json", "cards", "get", created.cardId], apiKey)
+      );
+      const fixture = cliFileFixtures(marker).find(
+        (item) => item.fileName === basename(filePath)
+      );
+      expect(fetched).toMatchObject({
+        content: new TextDecoder().decode(fixture?.bytes),
+        fileName: basename(filePath),
+        type: "text",
+      });
+    }
   }
 });

@@ -162,6 +162,25 @@ describe("serializeCard", () => {
     expect(out.id).toBe("card_1");
   });
 
+  test("never exports a retained source attachment for text cards", () => {
+    const serialized = serializeCard(
+      {
+        ...baseCard,
+        type: "text",
+        content: "# Canonical source",
+        fileKey: "users/u/cards/source.md",
+        fileMetadata: {
+          fileName: "source.md",
+          fileSize: 18,
+          mimeType: "text/markdown",
+        },
+      },
+      { includeFile: true }
+    );
+    expect(serialized.content).toBe("# Canonical source");
+    expect(serialized.file).toBeUndefined();
+  });
+
   test("emits timestamps as ISO + epoch", () => {
     const out = serializeCard(baseCard);
     expect(out.createdAt.epochMs).toBe(1_700_000_000_000);

@@ -86,6 +86,9 @@ test("MCP uploads, creates, fetches, and searches expanded file cards", async ()
       });
       expect(prepared.isError, fixture.fileName).not.toBe(true);
       const upload = prepared.structuredContent;
+      if (fixture.fileName.toLowerCase().endsWith(".md")) {
+        expect(upload.maxFileSize).toBe(512 * 1024);
+      }
       const put = await fetch(upload.uploadUrl, {
         body: Uint8Array.from(fixture.bytes).buffer,
         headers: { "Content-Type": fixture.mimeType },
@@ -117,6 +120,13 @@ test("MCP uploads, creates, fetches, and searches expanded file cards", async ()
         arguments: { cardId },
       });
       expect(fetched.isError).not.toBe(true);
+      if (fixture.fileName.toLowerCase().endsWith(".md")) {
+        expect(fetched.structuredContent).toMatchObject({
+          content: new TextDecoder().decode(fixture.bytes),
+          fileName: fixture.fileName,
+          type: "text",
+        });
+      }
     }
 
     const searched: any = await client.callTool({

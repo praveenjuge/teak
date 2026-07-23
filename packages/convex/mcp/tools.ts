@@ -99,7 +99,7 @@ const chatgptFetchInputSchema = z.object({
 const createCardInputSchema = z
   .object({
     cardType: cardTypeSchema.optional(),
-    content: nonEmptyString.optional(),
+    content: z.string().optional(),
     fileKey: nonEmptyString.optional(),
     fileName: nonEmptyString.optional(),
     fileSize: z.number().positive().optional(),
@@ -128,7 +128,10 @@ const createCardInputSchema = z
       return;
     }
 
-    if (!(value.content || value.url)) {
+    if (
+      (value.content === undefined && !value.url) ||
+      (value.cardType !== "text" && !value.url && !value.content?.trim())
+    ) {
       ctx.addIssue({
         code: "custom",
         message: "content, url, or fileKey is required",
@@ -149,7 +152,7 @@ const favoriteInputSchema = z.object({
 const updateCardInputSchema = z
   .object({
     cardId: nonEmptyString,
-    content: nonEmptyString.optional(),
+    content: z.string().optional(),
     url: nonEmptyString.optional(),
     notes: z.string().or(z.null()).optional(),
     tags: z.array(z.string()).optional(),

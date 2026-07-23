@@ -3,6 +3,7 @@ export * from "./client_telemetry";
 export * from "./constants";
 export * from "./fileFormats";
 export * from "./linkCategories";
+export * from "./markdown";
 export * from "./metrics";
 export * from "./search";
 export * from "./telemetry";

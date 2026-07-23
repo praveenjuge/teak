@@ -59,6 +59,8 @@ describe("Constants", () => {
   describe("CARD_ERROR_CODES", () => {
     it("should have all expected error codes", () => {
       expect(CARD_ERROR_CODES.CARD_LIMIT_REACHED).toBe("CARD_LIMIT_REACHED");
+      expect(CARD_ERROR_CODES.CONTENT_TOO_LARGE).toBe("CONTENT_TOO_LARGE");
+      expect(CARD_ERROR_CODES.INVALID_UTF8).toBe("INVALID_UTF8");
       expect(CARD_ERROR_CODES.RATE_LIMITED).toBe("RATE_LIMITED");
       expect(CARD_ERROR_CODES.FILE_TOO_LARGE).toBe("FILE_TOO_LARGE");
       expect(CARD_ERROR_CODES.TOO_MANY_FILES).toBe("TOO_MANY_FILES");
@@ -71,6 +73,8 @@ describe("Constants", () => {
     it("should have message for each error code", () => {
       const codes: CardErrorCode[] = [
         "CARD_LIMIT_REACHED",
+        "CONTENT_TOO_LARGE",
+        "INVALID_UTF8",
         "RATE_LIMITED",
         "FILE_TOO_LARGE",
         "TOO_MANY_FILES",
@@ -89,6 +93,8 @@ describe("Constants", () => {
       expect(CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED).toContain(
         "upgrade to Pro"
       );
+      expect(CARD_ERROR_MESSAGES.CONTENT_TOO_LARGE).toContain("512 KiB");
+      expect(CARD_ERROR_MESSAGES.INVALID_UTF8).toContain("UTF-8");
       expect(CARD_ERROR_MESSAGES.FILE_TOO_LARGE).toContain("100MB");
       expect(CARD_ERROR_MESSAGES.TOO_MANY_FILES).toContain("5 files");
     });
