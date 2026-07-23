@@ -87,7 +87,7 @@ describe("teak cli formatting", () => {
     writeFileSync(oversizedMarkdownPath, "");
     truncateSync(oversizedMarkdownPath, 512 * 1024 + 1);
     expect(() => getUploadFileInfo(oversizedMarkdownPath)).toThrow(
-      "524288 UTF-8 bytes"
+      "512 KiB when encoded as UTF-8"
     );
   });
 

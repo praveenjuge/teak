@@ -10,6 +10,7 @@ import {
 import {
   isMarkdownFileName,
   MARKDOWN_CONTENT_MAX_BYTES,
+  MARKDOWN_CONTENT_TOO_LARGE_MESSAGE,
 } from "@teak/convex/shared/markdown";
 import { InvalidArgumentError } from "commander";
 import { type ClientOptions, client } from "./runtime";
@@ -48,9 +49,7 @@ export const getUploadFileInfo = (candidate: string) => {
   }
   const fileName = path.basename(candidate);
   if (isMarkdownFileName(fileName) && stats.size > MARKDOWN_CONTENT_MAX_BYTES) {
-    throw new InvalidArgumentError(
-      `Markdown files must be at most ${MARKDOWN_CONTENT_MAX_BYTES} UTF-8 bytes`
-    );
+    throw new InvalidArgumentError(MARKDOWN_CONTENT_TOO_LARGE_MESSAGE);
   }
   const inferredMimeType = mimeFor(candidate);
   const format = inferFileFormat({ fileName, mimeType: inferredMimeType });

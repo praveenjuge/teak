@@ -210,7 +210,8 @@ describe("extension file saving", () => {
   test("preserves stable Markdown preparation errors", async () => {
     const { action, dependencies, mutation } = createDependencies();
     mutation.mockResolvedValueOnce({
-      error: "Text card content must not exceed 524288 UTF-8 bytes",
+      error:
+        "Text card content must not exceed 512 KiB when encoded as UTF-8.",
       errorCode: "CONTENT_TOO_LARGE",
       success: false,
     });
