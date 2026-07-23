@@ -486,7 +486,7 @@ describe("publicApiHttp", () => {
   test("createCardV1 rejects fileKey uploads when the object is missing", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
-    const runAction = mock().mockRejectedValueOnce(new Error("not found"));
+    const runAction = mock().mockRejectedValue(new Error("not found"));
 
     const response = await runHandler(
       createCardV1,
@@ -512,7 +512,46 @@ describe("publicApiHttp", () => {
       code: "INVALID_INPUT",
       error: "Uploaded file was not found",
     });
+    expect(runAction).toHaveBeenCalledTimes(2);
     expect(runMutation).toHaveBeenCalledTimes(3);
+  });
+
+  test("createCardV1 retries transient uploaded-file metadata failures", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation =
+      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
+        cardId: "card_file",
+        status: "created",
+      });
+    const runAction = mock()
+      .mockRejectedValueOnce(new Error("temporary R2 failure"))
+      .mockResolvedValueOnce({
+        contentType: "image/svg+xml",
+        size: 123,
+      })
+      .mockResolvedValueOnce(null);
+
+    const response = await runHandler(
+      createCardV1,
+      { runAction, runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileKey: "users/user_1/file/image.svg",
+          fileName: "image.svg",
+          fileSize: 123,
+          mimeType: "image/svg+xml",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ cardId: "card_file" });
+    expect(runAction).toHaveBeenCalledTimes(3);
   });
 
   test("createCardV1 rejects fileKey uploads when stored metadata differs", async () => {

@@ -901,6 +901,40 @@ const buildCreateCardResponse = (
   };
 };
 
+const UPLOAD_METADATA_ATTEMPTS = 2;
+const UPLOAD_METADATA_RETRY_DELAY_MS = 100;
+
+const readUploadedFileMetadata = async (
+  ctx: any,
+  fileKey: string
+): Promise<{ contentType?: string; size?: number }> => {
+  const config = r2ComponentConfig();
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= UPLOAD_METADATA_ATTEMPTS; attempt += 1) {
+    try {
+      const metadata = await ctx.runAction(
+        (internal as any).publicApiUploadMetadata.headUploadedObject,
+        { key: fileKey }
+      );
+      await ctx.runAction(components.r2.lib.syncMetadata, {
+        key: fileKey,
+        ...config,
+      });
+      return metadata;
+    } catch (error) {
+      lastError = error;
+      if (attempt < UPLOAD_METADATA_ATTEMPTS) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, UPLOAD_METADATA_RETRY_DELAY_MS)
+        );
+      }
+    }
+  }
+
+  throw lastError;
+};
+
 const verifyUploadedFile = async (
   ctx: any,
   payload: CreateCardPayload
@@ -912,17 +946,9 @@ const verifyUploadedFile = async (
     });
   }
 
-  const config = r2ComponentConfig();
   let headMetadata: { contentType?: string; size?: number };
   try {
-    headMetadata = await ctx.runAction(
-      (internal as any).publicApiUploadMetadata.headUploadedObject,
-      { key: payload.fileKey }
-    );
-    await ctx.runAction(components.r2.lib.syncMetadata, {
-      key: payload.fileKey,
-      ...config,
-    });
+    headMetadata = await readUploadedFileMetadata(ctx, payload.fileKey);
   } catch {
     throw new ConvexError({
       code: "INVALID_INPUT",

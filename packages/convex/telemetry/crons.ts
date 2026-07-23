@@ -33,7 +33,7 @@ export const CRON_MONITORS = {
     slug: "cleanup-old-deleted-cards",
   },
   ensureOauthClients: {
-    checkinMarginMinutes: 5,
+    checkinMarginMinutes: 15,
     maxRuntimeMinutes: 5,
     schedule: "*/15 * * * *",
     slug: "ensure-oauth-clients",

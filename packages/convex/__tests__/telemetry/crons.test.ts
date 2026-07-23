@@ -24,6 +24,7 @@ describe("Sentry cron monitoring", () => {
         slug: "cleanup-old-deleted-cards",
       }),
       expect.objectContaining({
+        checkinMarginMinutes: 15,
         schedule: "*/15 * * * *",
         slug: "ensure-oauth-clients",
       }),

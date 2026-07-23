@@ -103,7 +103,12 @@ test("MCP uploads, creates, fetches, and searches expanded file cards", async ()
           tags: ["prod-e2e", "file-formats"],
         },
       });
-      expect(created.isError, fixture.fileName).not.toBe(true);
+      expect(
+        created.isError,
+        `${fixture.fileName}: ${JSON.stringify(
+          created.structuredContent ?? created.content
+        )}`
+      ).not.toBe(true);
       const cardId = created.structuredContent.cardId;
       updateState((state) => state.createdCardIds.push(cardId));
 
