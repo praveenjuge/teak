@@ -15,19 +15,16 @@ beforeEach(() => {
 });
 
 const createDependencies = () => {
-  let mutationCount = 0;
-  const mutation = mock(() => {
-    mutationCount += 1;
-    return Promise.resolve(
-      mutationCount === 1
-        ? {
-            success: true,
-            uploadKey: "users/u/cards/pending/file/key",
-            uploadUrl: "https://upload.example/file",
-          }
-        : { success: true, cardId: "card_1" }
-    );
-  });
+  const mutation = mock(() =>
+    Promise.resolve({
+      success: true,
+      uploadKey: "users/u/cards/pending/file/key",
+      uploadUrl: "https://upload.example/file",
+    })
+  );
+  const action = mock(() =>
+    Promise.resolve({ success: true, cardId: "card_1" })
+  );
   const query = mock(() => Promise.resolve(null));
   const fetchImpl = mock((url: string | URL | Request) => {
     const value = String(url);
@@ -41,18 +38,19 @@ const createDependencies = () => {
 
   return {
     dependencies: {
-      createClient: () => ({ mutation, query }),
+      createClient: () => ({ action, mutation, query }),
       fetchImpl,
       getSessionToken: () => Promise.resolve("session"),
       now: () => 0,
     },
+    action,
     mutation,
   };
 };
 
 describe("extension file saving", () => {
   test("uploads a user-selected source file through the canonical mutations", async () => {
-    const { dependencies, mutation } = createDependencies();
+    const { action, dependencies, mutation } = createDependencies();
     const result = await saveFileToTeak(
       {
         bytes: new Blob(["export const value = 1"], { type: "text/tsx" }),
@@ -64,8 +62,14 @@ describe("extension file saving", () => {
     );
 
     expect(result).toEqual({ cardId: "card_1", status: "saved" });
-    expect(mutation).toHaveBeenCalledTimes(2);
+    expect(mutation).toHaveBeenCalledTimes(1);
     expect(mutation.mock.calls[0]?.[1]).toMatchObject({
+      cardType: "document",
+      fileName: "component.tsx",
+      fileType: "text/tsx",
+    });
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(action.mock.calls[0]?.[1]).toMatchObject({
       cardType: "document",
       fileName: "component.tsx",
       fileType: "text/tsx",
@@ -201,5 +205,29 @@ describe("extension file saving", () => {
       status: "error",
     });
     expect(mutation).toHaveBeenCalledTimes(1);
+  });
+
+  test("preserves stable Markdown preparation errors", async () => {
+    const { action, dependencies, mutation } = createDependencies();
+    mutation.mockResolvedValueOnce({
+      error: "Text card content must not exceed 524288 UTF-8 bytes",
+      errorCode: "CONTENT_TOO_LARGE",
+      success: false,
+    });
+
+    await expect(
+      saveFileToTeak(
+        {
+          bytes: new Blob(["# Read me"], { type: "text/markdown" }),
+          fileName: "readme.md",
+          source: "popup-file",
+        },
+        dependencies
+      )
+    ).resolves.toMatchObject({
+      code: "CONTENT_TOO_LARGE",
+      status: "error",
+    });
+    expect(action).not.toHaveBeenCalled();
   });
 });

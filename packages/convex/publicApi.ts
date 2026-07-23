@@ -12,7 +12,7 @@ import { cardReturnValidator } from "./card/getCards";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import { updateCardFieldForUserHandler } from "./card/updateCard";
-import { cardTypeValidator } from "./schema";
+import { cardTypes, cardTypeValidator } from "./schema";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const DEFAULT_LIMIT = 50;
@@ -117,7 +117,7 @@ const normalizeSort = (value?: ApiCardSort): ApiCardSort =>
 
 const normalizeCreatedTimestamp = (value?: number): number | undefined => {
   if (!(typeof value === "number" && Number.isFinite(value))) {
-    return undefined;
+    return;
   }
 
   return value;
@@ -711,13 +711,28 @@ const performBulkUpdate = async (
 
 const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
   const content =
-    typeof payload.content === "string" ? payload.content.trim() : undefined;
+    typeof payload.content === "string" ? payload.content : undefined;
   const url = typeof payload.url === "string" ? payload.url.trim() : undefined;
+  const type =
+    typeof payload.cardType === "string" ? payload.cardType : undefined;
 
-  if (!(content || url)) {
+  if (content === undefined && !url) {
     throw new ConvexError({
       code: "INVALID_INPUT",
       message: "Each create item must include `content` or `url`",
+    });
+  }
+  if (!(type || url || content?.trim())) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Each create item must include `content` or `url`",
+    });
+  }
+
+  if (type && !cardTypes.includes(type as (typeof cardTypes)[number])) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Each create item `cardType` must be a valid card type",
     });
   }
 
@@ -775,6 +790,12 @@ export const executeBulkCardsForUser = internalMutation({
         switch (args.operation as BulkOperation) {
           case "create": {
             assertBulkCreatePayload(payload);
+            let requestedType: (typeof cardTypes)[number] | undefined;
+            if (typeof payload.cardType === "string") {
+              requestedType = payload.cardType as (typeof cardTypes)[number];
+            } else if (typeof payload.url === "string" && payload.url.trim()) {
+              requestedType = "link";
+            }
             const cardId = await createCardForUserHandler(
               ctx,
               args.userId,
@@ -789,10 +810,7 @@ export const executeBulkCardsForUser = internalMutation({
                       (value): value is string => typeof value === "string"
                     )
                   : undefined,
-                type:
-                  typeof payload.url === "string" && payload.url.trim()
-                    ? "link"
-                    : undefined,
+                type: requestedType,
               },
               { source: "api" }
             );
@@ -898,16 +916,20 @@ export const executeBulkCardsForUser = internalMutation({
         succeeded += 1;
       } catch (error) {
         let message = "Bulk operation failed";
+        let code: string | undefined;
         if (
           error instanceof ConvexError &&
           typeof error.data?.message === "string"
         ) {
           message = error.data.message;
+          code =
+            typeof error.data.code === "string" ? error.data.code : undefined;
         } else if (error instanceof Error) {
           message = error.message;
         }
 
         results.push({
+          code,
           index,
           status: "error",
           error: message,

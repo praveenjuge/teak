@@ -48,6 +48,7 @@ export interface CardSearchInput {
 }
 
 export interface CreateCardInput {
+  cardType?: RaycastCardType;
   content?: string;
   notes?: string | null;
   source?: string;

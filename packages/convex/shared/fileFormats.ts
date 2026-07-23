@@ -31,7 +31,10 @@ export const FILE_PREVIEW_KINDS = [
 export type FilePreviewKind = (typeof FILE_PREVIEW_KINDS)[number];
 
 export interface FileFormat {
-  cardType: Extract<CardType, "audio" | "document" | "image" | "video">;
+  cardType: Extract<
+    CardType,
+    "audio" | "document" | "image" | "text" | "video"
+  >;
   extension: string;
   id: string;
   kind: FileKind;
@@ -206,7 +209,7 @@ export const FILE_FORMATS = [
   defineFormat({
     id: "markdown",
     suffixes: ["md", "markdown"],
-    cardType: "document",
+    cardType: "text",
     extension: "md",
     kind: "markdown",
     language: "markdown",
@@ -618,6 +621,13 @@ const publicFormat = (definition: FileFormatDefinition): FileFormat => ({
   preview: definition.preview,
 });
 
+const publicMimeOnlyFormat = (definition: FileFormatDefinition): FileFormat => {
+  const format = publicFormat(definition);
+  return definition.id === "markdown"
+    ? { ...format, cardType: "document" }
+    : format;
+};
+
 export const inferFileFormat = (input: {
   fileName: string;
   mimeType?: string | null;
@@ -647,7 +657,7 @@ export const inferFileFormat = (input: {
   }
 
   const byMime = findFormatByMime(mimeType);
-  return byMime ? publicFormat(byMime) : null;
+  return byMime ? publicMimeOnlyFormat(byMime) : null;
 };
 
 export const validateFileFormat = (input: {
@@ -671,7 +681,7 @@ export const validateFileFormat = (input: {
         ? undefined
         : findFormatByMime(mimeType);
     if (byMime) {
-      return publicFormat(byMime);
+      return publicMimeOnlyFormat(byMime);
     }
     throw new FileFormatValidationError(
       "UNSUPPORTED_FILE_TYPE",

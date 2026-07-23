@@ -16,6 +16,15 @@ describe("public API uploads", () => {
   for (const scenario of [
     {
       args: {
+        fileName: "README.MD",
+        fileSize: 512 * 1024 + 1,
+        mimeType: "text/markdown",
+        userId: "user_1",
+      },
+      code: "CONTENT_TOO_LARGE",
+    },
+    {
+      args: {
         fileName: "component.tsx",
         fileSize: 20,
         mimeType: "image/png",

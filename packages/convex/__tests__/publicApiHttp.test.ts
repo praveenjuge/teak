@@ -349,19 +349,13 @@ describe("publicApiHttp", () => {
     }
   });
 
-  test("createCardV1 finalizes fileKey uploads through the upload mutation", async () => {
+  test("createCardV1 finalizes fileKey uploads through the canonical action", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
-        cardId: "card_file",
-        status: "created",
-      });
-    const runAction = mock()
-      .mockResolvedValueOnce({
-        contentType: "image/png",
-        size: 123,
-      })
-      .mockResolvedValueOnce(null);
+    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runAction = mock().mockResolvedValueOnce({
+      success: true,
+      cardId: "card_file",
+    });
     const runQuery = mock();
     const response = await runHandler(
       createCardV1,
@@ -389,36 +383,89 @@ describe("publicApiHttp", () => {
       status: "created",
     });
     expect(runAction.mock.calls[0][1]).toMatchObject({
-      key: "users/user_1/file/image.png",
-    });
-    expect(runAction.mock.calls[1][1]).toMatchObject({
-      bucket: "test-r2-bucket",
-      key: "users/user_1/file/image.png",
-    });
-    expect(runQuery).not.toHaveBeenCalled();
-    expect(runMutation.mock.calls[3][1]).toMatchObject({
       cardType: "image",
       fileKey: "users/user_1/file/image.png",
       fileName: "image.png",
       fileSize: 123,
-      mimeType: "image/png",
-      storedFileSize: 123,
-      storedMimeType: "image/png",
+      fileType: "image/png",
       tags: ["reference"],
       userId: "user_1",
+    });
+    expect(runQuery).not.toHaveBeenCalled();
+  });
+
+  test("createCardV1 forwards explicit text Markdown without normalization", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const content =
+      "\uFEFF  # Heading\r\n\r\n- [ ] task  \r\nhttps://example.com  ";
+    const runMutation =
+      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
+        cardId: "card_text",
+        status: "created",
+      });
+
+    const response = await runHandler(
+      createCardV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ cardType: "text", content }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(runMutation.mock.calls[3]?.[1]).toMatchObject({
+      cardType: "text",
+      content,
+      userId: "user_1",
+    });
+  });
+
+  test("createCardV1 preserves stable text-size errors", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation =
+      buildAuthorizedMutationMockWithIdempotencySkip().mockRejectedValueOnce(
+        new ConvexError({
+          code: "CONTENT_TOO_LARGE",
+          message:
+            "Text card content must not exceed 512 KiB when encoded as UTF-8.",
+        })
+      );
+    const response = await runHandler(
+      createCardV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cardType: "text",
+          content: `${"a".repeat(512 * 1024)}b`,
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "CONTENT_TOO_LARGE",
+      error:
+        "Text card content must not exceed 512 KiB when encoded as UTF-8.",
     });
   });
 
   test("createCardV1 infers an uploaded file type when cardType is omitted", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
-        cardId: "card_source",
-        status: "created",
-      });
-    const runAction = mock()
-      .mockResolvedValueOnce({ contentType: "text/tsx", size: 321 })
-      .mockResolvedValueOnce(null);
+    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runAction = mock().mockResolvedValueOnce({
+      success: true,
+      cardId: "card_source",
+    });
 
     const response = await runHandler(
       createCardV1,
@@ -440,20 +487,22 @@ describe("publicApiHttp", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ cardId: "card_source" });
-    expect(runMutation.mock.calls[3]?.[1]).toMatchObject({
+    expect(runAction.mock.calls[0]?.[1]).toMatchObject({
       cardType: undefined,
       fileName: "component.tsx",
-      mimeType: "text/tsx",
-      storedMimeType: "text/tsx",
+      fileType: "text/tsx",
     });
   });
 
   test("createCardV1 rejects fileKey uploads when direct metadata omits size", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
-    const runAction = mock().mockResolvedValueOnce({
-      contentType: "image/png",
-    });
+    const runAction = mock().mockRejectedValueOnce(
+      new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Uploaded file metadata is unavailable",
+      })
+    );
 
     const response = await runHandler(
       createCardV1,
@@ -486,7 +535,12 @@ describe("publicApiHttp", () => {
   test("createCardV1 rejects fileKey uploads when the object is missing", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
-    const runAction = mock().mockRejectedValue(new Error("not found"));
+    const runAction = mock().mockRejectedValue(
+      new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Uploaded file was not found",
+      })
+    );
 
     const response = await runHandler(
       createCardV1,
@@ -512,24 +566,17 @@ describe("publicApiHttp", () => {
       code: "INVALID_INPUT",
       error: "Uploaded file was not found",
     });
-    expect(runAction).toHaveBeenCalledTimes(2);
+    expect(runAction).toHaveBeenCalledTimes(1);
     expect(runMutation).toHaveBeenCalledTimes(3);
   });
 
-  test("createCardV1 retries transient uploaded-file metadata failures", async () => {
+  test("createCardV1 accepts a successful canonical upload finalization", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
-        cardId: "card_file",
-        status: "created",
-      });
-    const runAction = mock()
-      .mockRejectedValueOnce(new Error("temporary R2 failure"))
-      .mockResolvedValueOnce({
-        contentType: "image/svg+xml",
-        size: 123,
-      })
-      .mockResolvedValueOnce(null);
+    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runAction = mock().mockResolvedValueOnce({
+      success: true,
+      cardId: "card_file",
+    });
 
     const response = await runHandler(
       createCardV1,
@@ -551,16 +598,18 @@ describe("publicApiHttp", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ cardId: "card_file" });
-    expect(runAction).toHaveBeenCalledTimes(3);
+    expect(runAction).toHaveBeenCalledTimes(1);
   });
 
   test("createCardV1 rejects fileKey uploads when stored metadata differs", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
-    const runAction = mock().mockResolvedValueOnce({
-      contentType: "image/png",
-      size: 456,
-    });
+    const runAction = mock().mockRejectedValueOnce(
+      new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Uploaded file size does not match the stored object",
+      })
+    );
 
     const response = await runHandler(
       createCardV1,
@@ -592,10 +641,12 @@ describe("publicApiHttp", () => {
   test("createCardV1 reports stored MIME mismatches consistently", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
-    const runAction = mock().mockResolvedValueOnce({
-      contentType: "application/pdf",
-      size: 123,
-    });
+    const runAction = mock().mockRejectedValueOnce(
+      new ConvexError({
+        code: "TYPE_MISMATCH",
+        message: "File extension does not match the provided MIME type",
+      })
+    );
 
     const response = await runHandler(
       createCardV1,
@@ -627,10 +678,12 @@ describe("publicApiHttp", () => {
   test("createCardV1 rejects fileKey uploads when stored object is too large", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
-    const runAction = mock().mockResolvedValueOnce({
-      contentType: "image/png",
-      size: MAX_FILE_SIZE + 1,
-    });
+    const runAction = mock().mockRejectedValueOnce(
+      new ConvexError({
+        code: "FILE_TOO_LARGE",
+        message: `Uploaded file must not exceed ${MAX_FILE_SIZE} bytes`,
+      })
+    );
 
     const response = await runHandler(
       createCardV1,
@@ -1392,6 +1445,83 @@ describe("publicApiHttp", () => {
     expect(payload.id).toBe("card_1");
     expect(payload.notes).toBeNull();
     expect(payload.tags).toEqual([]);
+  });
+
+  test("cardByIdV1 forwards raw Markdown updates without normalization", async () => {
+    const content =
+      "\uFEFF  # Heading\r\n\r\n- [ ] task  \r\nhttps://example.com  ";
+    const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+      _id: "card_1",
+      aiTags: [],
+      content,
+      createdAt: 1,
+      isFavorited: false,
+      tags: [],
+      type: "text",
+      updatedAt: 2,
+      userId: "user_1",
+    });
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({
+        _id: "card_1",
+        type: "text",
+        userId: "user_1",
+      });
+
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/card_1", {
+        method: "PATCH",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(runMutation.mock.calls[2]?.[1]).toMatchObject({ content });
+    expect((await response.json()).content).toBe(content);
+  });
+
+  test("cardByIdV1 preserves stable text-size errors", async () => {
+    const runMutation = buildAuthorizedMutationMock().mockRejectedValueOnce(
+      new ConvexError({
+        code: "CONTENT_TOO_LARGE",
+        message:
+          "Text card content must not exceed 512 KiB when encoded as UTF-8.",
+      })
+    );
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({
+        _id: "card_1",
+        type: "text",
+        userId: "user_1",
+      });
+
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/card_1", {
+        method: "PATCH",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: `${"a".repeat(512 * 1024)}b` }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "CONTENT_TOO_LARGE",
+    });
   });
 
   test("cardByIdV1 rejects unsafe url scheme on patch", async () => {

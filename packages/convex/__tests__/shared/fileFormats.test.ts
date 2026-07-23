@@ -105,6 +105,30 @@ describe("file format registry", () => {
     ).toBe("markdown");
     expect(
       validateFileFormat({
+        fileName: "NOTES.MarkDown",
+        mimeType: "text/plain",
+      }).cardType
+    ).toBe("text");
+    expect(
+      validateFileFormat({
+        fileName: "notes.mdx",
+        mimeType: "text/markdown",
+      }).cardType
+    ).toBe("document");
+    expect(
+      inferFileFormat({
+        fileName: "notes.txt",
+        mimeType: "text/markdown",
+      })
+    ).toBeNull();
+    expect(
+      inferFileFormat({
+        fileName: "attachment",
+        mimeType: "text/markdown",
+      })?.cardType
+    ).toBe("document");
+    expect(
+      validateFileFormat({
         fileName: "archive.zip",
         mimeType: "application/x-zip-compressed",
       }).id

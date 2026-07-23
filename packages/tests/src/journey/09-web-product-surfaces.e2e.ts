@@ -1,7 +1,8 @@
 import { Buffer } from "node:buffer";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
 import { MAX_FILE_SIZE } from "@teak/convex/shared";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { apiFetch } from "../helpers/api";
 import { clickVisibleControl, clientFor } from "../helpers/prod";
 import { readState, updateState } from "../helpers/run-state";
@@ -384,8 +385,9 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
 });
 
 test("settings import and export surface terminal states", async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
   const marker = markerFor("import");
+  const { apiKey } = primaryContext();
   await page.goto("/settings");
   await page.getByText("Import/Export Data").waitFor();
   await page
@@ -429,5 +431,128 @@ test("settings import and export surface terminal states", async ({ page }) => {
       { timeout: 120_000 }
     )
     .toBe(true);
+
+  const legacyContent = `\uFEFF  # ${marker}-legacy\r\n\r\n- [ ] retained  \n`;
+  const legacyFileName = `${marker}.MARKDOWN`;
+  const legacyFilePath = `files/${legacyFileName}`;
+  const legacyBytes = strToU8(legacyContent);
+  const legacyArchive = zipSync({
+    "cards.json": strToU8(
+      JSON.stringify({
+        cards: [
+          {
+            content: "legacy document placeholder",
+            file: {
+              fileName: legacyFileName,
+              fileSize: legacyBytes.byteLength,
+              mimeType: "text/markdown",
+              path: legacyFilePath,
+            },
+            id: `legacy-${marker}`,
+            tags: ["prod-e2e", "markdown"],
+            type: "document",
+          },
+        ],
+      })
+    ),
+    [legacyFilePath]: legacyBytes,
+    "manifest.json": strToU8(JSON.stringify({ exportVersion: 1 })),
+  });
+  const [archiveChooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    importPanel.getByRole("button", { name: "Import Teak Archive" }).click(),
+  ]);
+  await archiveChooser.setFiles({
+    buffer: Buffer.from(legacyArchive),
+    mimeType: "application/zip",
+    name: `${marker}-legacy.zip`,
+  });
+  await importPanel.getByRole("button", { name: "Start import" }).click();
+  await expect
+    .poll(
+      async () => {
+        const response = await apiFetch(
+          `/v1/cards/search?q=${encodeURIComponent(`${marker}-legacy`)}`,
+          apiKey
+        );
+        const payload = (await response.json()) as {
+          items?: Array<{
+            content?: string;
+            fileName?: string;
+            fileUrl?: string;
+            type?: string;
+          }>;
+        };
+        return payload.items?.find((card) => card.content === legacyContent);
+      },
+      { timeout: 120_000, intervals: [1000, 2000, 5000] }
+    )
+    .toMatchObject({
+      content: legacyContent,
+      fileName: legacyFileName,
+      fileUrl: expect.stringMatching(/^https?:\/\//),
+      type: "text",
+    });
+
+  await dialog.getByRole("tab", { name: "Export" }).click();
+  await dialog.getByRole("button", { name: "Start export" }).click();
+  await expect(
+    dialog.getByRole("button", { name: "Download archive" })
+  ).toBeVisible({ timeout: 120_000 });
+  const downloadPromise = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "Download archive" }).click();
+  const download = await downloadPromise;
+  const downloadPath = await download.path();
+  expect(downloadPath).toBeTruthy();
+  const exportedBytes = new Uint8Array(readFileSync(downloadPath!));
+  const exported = unzipSync(exportedBytes);
+  const exportedCards = JSON.parse(strFromU8(exported["cards.json"])).cards;
+  const exportedMarkdown = exportedCards.find(
+    (card: { content?: string }) => card.content === legacyContent
+  );
+  expect(exportedMarkdown).toMatchObject({
+    content: legacyContent,
+    type: "text",
+  });
+  expect(exportedMarkdown.file).toBeUndefined();
+  expect(Object.keys(exported)).not.toContain(legacyFilePath);
+
+  await dialog.getByRole("tab", { name: "Import" }).click();
+  const [roundTripChooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    importPanel.getByRole("button", { name: "Import Teak Archive" }).click(),
+  ]);
+  await roundTripChooser.setFiles({
+    buffer: Buffer.from(exportedBytes),
+    mimeType: "application/zip",
+    name: `${marker}-round-trip.zip`,
+  });
+  await importPanel.getByRole("button", { name: "Start import" }).click();
+  await expect
+    .poll(
+      async () => {
+        const response = await apiFetch(
+          `/v1/cards/search?q=${encodeURIComponent(`${marker}-legacy`)}`,
+          apiKey
+        );
+        const payload = (await response.json()) as {
+          items?: Array<{
+            content?: string;
+            fileName?: string;
+            type?: string;
+          }>;
+        };
+        return (
+          payload.items?.filter(
+            (card) =>
+              card.content === legacyContent &&
+              card.type === "text" &&
+              !card.fileName
+          ).length ?? 0
+        );
+      },
+      { timeout: 120_000, intervals: [1000, 2000, 5000] }
+    )
+    .toBeGreaterThanOrEqual(1);
   await page.keyboard.press("Escape");
 });

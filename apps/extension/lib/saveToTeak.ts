@@ -25,6 +25,7 @@ interface SaveToTeakInput {
 }
 
 export interface ConvexClientLike {
+  action: ConvexHttpClient["action"];
   mutation: ConvexHttpClient["mutation"];
   query: ConvexHttpClient["query"];
 }
@@ -220,7 +221,7 @@ export async function saveToTeak(
   }
 
   try {
-    const normalizedContent = parsedUrl ? parsedUrl.toString() : trimmedContent;
+    const normalizedContent = parsedUrl ? parsedUrl.toString() : input.content;
 
     if (parsedUrl) {
       const duplicate = await client.query(api.cards.findDuplicateCard, {
@@ -236,6 +237,7 @@ export async function saveToTeak(
     }
 
     const cardId = await client.mutation(api.cards.createCard, {
+      type: parsedUrl ? undefined : "text",
       content: normalizedContent,
     });
 

@@ -39,9 +39,7 @@ export default function AddTextScreen() {
   const canSave = content.trim().length > 0 && !isSavingCard;
 
   const handleSaveText = useCallback(async () => {
-    const trimmedContent = content.trim();
-
-    if (!trimmedContent) {
+    if (!content.trim()) {
       setValidationMessage("Enter a bookmark, URL, or note before saving.");
       void triggerValidationErrorHaptic();
       Alert.alert("Error", "Please enter some content");
@@ -56,7 +54,7 @@ export default function AddTextScreen() {
     setIsSavingCard(true);
 
     try {
-      await createCardFromText(trimmedContent, {
+      await createCardFromText(content, {
         createCard,
       });
 

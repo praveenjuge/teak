@@ -30,6 +30,7 @@ export default defineConfig({
       testMatch: [
         "journey/02-web-journey.e2e.ts",
         "journey/09-web-product-surfaces.e2e.ts",
+        "journey/10-file-format-ui.e2e.ts",
       ],
       workers: 1,
       use: {

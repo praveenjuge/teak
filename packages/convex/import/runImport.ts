@@ -1,6 +1,6 @@
 "use node";
 
-import { PassThrough, Readable } from "node:stream";
+import type { Readable } from "node:stream";
 import {
   AbortMultipartUploadCommand,
   DeleteObjectCommand,
@@ -8,32 +8,32 @@ import {
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
 import { v } from "convex/values";
-import yauzl from "yauzl";
+import type yauzl from "yauzl";
 import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
+import {
+  isMarkdownFileName,
+  MARKDOWN_CONTENT_MAX_BYTES,
+} from "../shared/markdown";
 import { TELEMETRY_OPERATIONS } from "../shared/telemetry";
 import { buildR2UserPrefix } from "../storage/r2";
 import {
   recordBackendHandledFailure,
   withBackendSpan,
 } from "../telemetry/sentry";
+import { entryBuffer, openZip, readZipIndex } from "./archiveZip";
 import { type ParsedBookmarkItem, parseBookmarksHtml } from "./bookmarks";
 import {
   IMPORT_INDEX_BATCH,
   type ImportMode,
   MAX_BOOKMARK_BYTES,
-  MAX_IMPORT_EXPANDED_BYTES,
   MAX_IMPORT_FILE_BYTES,
-  MAX_IMPORT_JSON_BYTES,
   MAX_RAINDROP_BYTES,
 } from "./constants";
+import { resolveLegacyMarkdownImport } from "./markdown";
 import { createImportS3Client, getImportR2Config } from "./r2Client";
 import { parseRaindropCsv } from "./raindrop";
-import {
-  assertImportCardCount,
-  isSafeArchivePath,
-  validateImportCard,
-} from "./validate";
+import { assertImportCardCount, validateImportCard } from "./validate";
 
 const internalAny = internal as Record<string, any>;
 
@@ -59,150 +59,6 @@ const observeImport =
       },
       () => handler(ctx, args)
     );
-
-class R2RangeReader extends yauzl.RandomAccessReader {
-  private readonly client: ReturnType<typeof createImportS3Client>;
-  private readonly bucket: string;
-  private readonly key: string;
-
-  constructor(
-    client: ReturnType<typeof createImportS3Client>,
-    bucket: string,
-    key: string
-  ) {
-    super();
-    this.client = client;
-    this.bucket = bucket;
-    this.key = key;
-  }
-  _readStreamForRange(start: number, end: number) {
-    const output = new PassThrough();
-    void this.client
-      .send(
-        new GetObjectCommand({
-          Bucket: this.bucket,
-          Key: this.key,
-          Range: `bytes=${start}-${end - 1}`,
-        })
-      )
-      .then((response) => {
-        const body = response.Body;
-        if (body instanceof Readable) {
-          body.pipe(output);
-        } else {
-          output.destroy(new Error("R2 did not return a readable range"));
-        }
-      })
-      .catch((error) => output.destroy(error as Error));
-    return output;
-  }
-}
-
-function openZip(
-  client: ReturnType<typeof createImportS3Client>,
-  bucket: string,
-  key: string,
-  size: number
-) {
-  return new Promise<yauzl.ZipFile>((resolve, reject) => {
-    yauzl.fromRandomAccessReader(
-      new R2RangeReader(client, bucket, key),
-      size,
-      {
-        lazyEntries: true,
-        decodeStrings: true,
-        validateEntrySizes: true,
-        strictFileNames: true,
-      },
-      (error, zip) =>
-        error || !zip ? reject(error ?? new Error("Invalid ZIP")) : resolve(zip)
-    );
-  });
-}
-
-function entryBuffer(zip: yauzl.ZipFile, entry: yauzl.Entry, limit: number) {
-  if (entry.uncompressedSize > limit) {
-    return Promise.reject(new Error(`${entry.fileName} is too large`));
-  }
-  return new Promise<Buffer>((resolve, reject) => {
-    zip.openReadStream(entry, (error, stream) => {
-      if (error || !stream) {
-        return reject(error ?? new Error("ZIP entry is unreadable"));
-      }
-      const chunks: Buffer[] = [];
-      let total = 0;
-      stream.on("data", (chunk: Buffer) => {
-        total += chunk.length;
-        if (total > limit) {
-          stream.destroy(new Error("Expanded ZIP entry exceeds its limit"));
-        } else {
-          chunks.push(chunk);
-        }
-      });
-      stream.on("error", reject);
-      stream.on("end", () => resolve(Buffer.concat(chunks)));
-    });
-  });
-}
-
-interface ZipIndex {
-  cards?: unknown[];
-  entries: Map<string, yauzl.Entry>;
-  manifest?: unknown;
-}
-
-function readZipIndex(zip: yauzl.ZipFile): Promise<ZipIndex> {
-  const entries = new Map<string, yauzl.Entry>();
-  let manifest: unknown;
-  let cards: unknown[] | undefined;
-  let expanded = 0;
-  return new Promise((resolve, reject) => {
-    zip.on("error", reject);
-    zip.on("end", () => resolve({ entries, manifest, cards }));
-    zip.on("entry", (entry: yauzl.Entry) => {
-      void (async () => {
-        if (
-          !isSafeArchivePath(entry.fileName) ||
-          entry.generalPurposeBitFlag % 2 !== 0
-        ) {
-          throw new Error("Archive contains an unsafe or encrypted entry");
-        }
-        if (![0, 8].includes(entry.compressionMethod)) {
-          throw new Error("Archive uses unsupported compression");
-        }
-        expanded += entry.uncompressedSize;
-        if (expanded > MAX_IMPORT_EXPANDED_BYTES) {
-          throw new Error("Archive expands beyond 5 GiB");
-        }
-        if (!entry.fileName.endsWith("/")) {
-          if (entries.has(entry.fileName)) {
-            throw new Error(
-              `Archive contains a duplicate entry: ${entry.fileName}`
-            );
-          }
-          entries.set(entry.fileName, entry);
-        }
-        if (entry.fileName === "manifest.json") {
-          manifest = JSON.parse(
-            (await entryBuffer(zip, entry, MAX_IMPORT_JSON_BYTES)).toString(
-              "utf8"
-            )
-          );
-        }
-        if (entry.fileName === "cards.json") {
-          const parsed = JSON.parse(
-            (await entryBuffer(zip, entry, MAX_IMPORT_JSON_BYTES)).toString(
-              "utf8"
-            )
-          );
-          cards = Array.isArray(parsed) ? parsed : parsed?.cards;
-        }
-        zip.readEntry();
-      })().catch(reject);
-    });
-    zip.readEntry();
-  });
-}
 
 function normalizeIndexItem(
   raw: unknown,
@@ -285,6 +141,65 @@ async function storeItems(ctx: any, jobId: string, items: any[]) {
       jobId,
       items: items.slice(index, index + IMPORT_INDEX_BATCH),
     });
+  }
+}
+
+async function decodeLegacyMarkdownItems(
+  client: ReturnType<typeof createImportS3Client>,
+  bucket: string,
+  key: string,
+  size: number,
+  items: any[]
+) {
+  const needed = new Map<string, any>(
+    items
+      .filter(
+        (item) =>
+          item.status === "pending" &&
+          item.type === "document" &&
+          item.filePath &&
+          item.fileName &&
+          isMarkdownFileName(item.fileName)
+      )
+      .map((item) => [item.filePath, item] as [string, any])
+  );
+  if (!needed.size) {
+    return;
+  }
+
+  const zip = await openZip(client, bucket, key, size);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      zip.on("error", reject);
+      zip.on("end", resolve);
+      zip.on("entry", (entry) => {
+        void (async () => {
+          const item = needed.get(entry.fileName);
+          if (item) {
+            try {
+              const bytes = await entryBuffer(
+                zip,
+                entry,
+                MARKDOWN_CONTENT_MAX_BYTES
+              );
+              Object.assign(item, resolveLegacyMarkdownImport(item, bytes));
+            } catch (error) {
+              item.status = "failed";
+              item.failureCode = "CONTENT_TOO_LARGE";
+              item.failureReason =
+                error instanceof Error
+                  ? error.message
+                  : "Markdown file could not be imported";
+            }
+            needed.delete(entry.fileName);
+          }
+          zip.readEntry();
+        })().catch(reject);
+      });
+      zip.readEntry();
+    });
+  } finally {
+    zip.close();
   }
 }
 
@@ -377,13 +292,17 @@ export const indexImportSource = internalAction({
             }
             assertImportCardCount(rawCards.length, job.mode as ImportMode);
             const seen = new Set<string>();
-            await storeItems(
-              ctx,
-              jobId,
-              rawCards.map((card, sourceIndex) =>
-                normalizeIndexItem(card, sourceIndex, index.entries, seen)
-              )
+            const items = rawCards.map((card, sourceIndex) =>
+              normalizeIndexItem(card, sourceIndex, index.entries, seen)
             );
+            await decodeLegacyMarkdownItems(
+              client,
+              config.bucket,
+              job.sourceKey,
+              job.fileSize,
+              items
+            );
+            await storeItems(ctx, jobId, items);
           } finally {
             zip.close();
           }

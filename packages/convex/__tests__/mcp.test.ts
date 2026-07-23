@@ -431,6 +431,48 @@ describe("Convex MCP endpoint", () => {
     expect(result.content?.[0]?.text.toLowerCase()).toContain("confirm");
   });
 
+  test("forwards raw Markdown through create and update tools", async () => {
+    const captured: Array<{ body?: unknown; method: string; path: string }> =
+      [];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      return Response.json({
+        appUrl: "https://app.teakvault.com/?card=card_1",
+        cardId: "card_1",
+        content: (operation.body as { content?: string } | undefined)?.content,
+        id: "card_1",
+        status: "created",
+        type: "text",
+      });
+    }) as PublicApiToolExecutor;
+    const created = "\uFEFF  # MCP\r\n\r\n- [ ] create  \n";
+    const updated = "  ---\r\ntitle: Update\r\n---  ";
+
+    await callTeakV1Tool(
+      "teak_v1_create_card",
+      { cardType: "text", content: created },
+      mcpRequest({ jsonrpc: "2.0", id: 40, method: "tools/call" }),
+      executor
+    );
+    await callTeakV1Tool(
+      "teak_v1_update_card",
+      { cardId: "card_1", content: updated },
+      mcpRequest({ jsonrpc: "2.0", id: 41, method: "tools/call" }),
+      executor
+    );
+
+    expect(captured[0]).toMatchObject({
+      body: { cardType: "text", content: created },
+      method: "POST",
+      path: "/v1/cards",
+    });
+    expect(captured[1]).toMatchObject({
+      body: { content: updated },
+      method: "PATCH",
+      path: "/v1/cards/card_1",
+    });
+  });
+
   test("returns a validation error for incomplete file-card input", async () => {
     const executor = mock(async () =>
       Response.json({ status: "created", cardId: "unexpected" })

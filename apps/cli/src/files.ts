@@ -7,6 +7,10 @@ import {
   MAX_FILE_SIZE,
   mimeTypeForFileName,
 } from "@teak/convex/shared/file-formats";
+import {
+  isMarkdownFileName,
+  MARKDOWN_CONTENT_MAX_BYTES,
+} from "@teak/convex/shared/markdown";
 import { InvalidArgumentError } from "commander";
 import { type ClientOptions, client } from "./runtime";
 
@@ -26,7 +30,7 @@ export const readStdin = async () => {
     }
     chunks.push(buffer);
   }
-  return Buffer.concat(chunks).toString("utf8").trim();
+  return Buffer.concat(chunks).toString("utf8");
 };
 
 export const mimeFor = (filePath: string) =>
@@ -43,6 +47,11 @@ export const getUploadFileInfo = (candidate: string) => {
     );
   }
   const fileName = path.basename(candidate);
+  if (isMarkdownFileName(fileName) && stats.size > MARKDOWN_CONTENT_MAX_BYTES) {
+    throw new InvalidArgumentError(
+      `Markdown files must be at most ${MARKDOWN_CONTENT_MAX_BYTES} UTF-8 bytes`
+    );
+  }
   const inferredMimeType = mimeFor(candidate);
   const format = inferFileFormat({ fileName, mimeType: inferredMimeType });
   if (!format) {
@@ -109,6 +118,7 @@ export const addCard = async (
     );
   }
   return api.cards.create({
+    cardType: url ? undefined : "text",
     content,
     notes: options.notes,
     source: "cli",

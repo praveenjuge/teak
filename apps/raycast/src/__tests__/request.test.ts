@@ -329,6 +329,27 @@ describe("raycast request handling", () => {
     expect(result.card?.id).toBe("card_123");
   });
 
+  test("createCard forwards explicit text Markdown exactly", async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    globalThis.fetch = mock((_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedBody = JSON.parse(String(init?.body));
+      return createCardsResponse(200, {
+        appUrl: sampleCard.appUrl,
+        cardId: sampleCard.id,
+        status: "created",
+      });
+    }) as unknown as typeof fetch;
+    const content = "\uFEFF  # Raycast\r\n\r\nBody  \n";
+
+    await createCard({ cardType: "text", content, source: "raycast_test" });
+
+    expect(capturedBody).toEqual({
+      cardType: "text",
+      content,
+      source: "raycast_test",
+    });
+  });
+
   test("getCardById sends a GET request to the card endpoint", async () => {
     let capturedMethod: string | null = null;
 

@@ -73,15 +73,16 @@ test("extension saves a selected file and safe page asset with private URL fallb
       .toBe(true);
 
     const marker = `extension-file-${Date.now()}`;
+    const markdown = `\uFEFF  # ${marker}\r\n\r\nSaved from the extension.  \n`;
     const uploadPopup = await context.newPage();
     await uploadPopup.addInitScript(() => {
       window.close = () => undefined;
     });
     await uploadPopup.goto(popupUrl);
     await uploadPopup.locator('input[type="file"]').setInputFiles({
-      buffer: Buffer.from(`# ${marker}\n\nSaved from the extension.`),
-      mimeType: "text/mdx",
-      name: `${marker}.mdx`,
+      buffer: Buffer.from(markdown),
+      mimeType: "text/markdown",
+      name: `${marker}.md`,
     });
     await expect(uploadPopup.getByText("File saved!")).toBeVisible({
       timeout: 45_000,
@@ -90,13 +91,24 @@ test("extension saves a selected file and safe page asset with private URL fallb
     const client = clientFor(account.apiKey!);
     await expect
       .poll(
-        async () =>
-          (
-            await client.cards.list({ include: "metadata", limit: 100 })
-          ).items.some((card) => card.fileName === `${marker}.mdx`),
+        async () => {
+          const card = (
+            await client.cards.list({
+              include: "content,metadata",
+              limit: 100,
+            })
+          ).items.find((item) => item.fileName === `${marker}.md`);
+          return card
+            ? {
+                content: card.content,
+                hasFileUrl: Boolean(card.fileUrl),
+                type: card.type,
+              }
+            : null;
+        },
         { timeout: 45_000 }
       )
-      .toBe(true);
+      .toEqual({ content: markdown, hasFileUrl: true, type: "text" });
 
     const assetResult = await uploadPopup.evaluate(
       ({ assetUrl, messageType }) => {

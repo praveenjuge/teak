@@ -141,7 +141,7 @@ async function extractContextMenuContent(
       }
 
       if (typeof info.selectionText === "string" && info.selectionText.trim()) {
-        return info.selectionText.trim();
+        return info.selectionText;
       }
 
       try {
@@ -149,14 +149,14 @@ async function extractContextMenuContent(
           target: { tabId: tab.id },
           func: () => {
             const selection = window.getSelection();
-            const selectedText = selection ? selection.toString().trim() : "";
-            return selectedText || document.title || "";
+            const selectedText = selection?.toString() ?? "";
+            return selectedText.trim() ? selectedText : document.title || "";
           },
         });
 
         const content = results[0]?.result;
         if (typeof content === "string" && content.trim()) {
-          return content.trim();
+          return content;
         }
       } catch {
         // Fall through to tab-title fallback below.

@@ -17,6 +17,7 @@ import { normalizeErrorClass } from "../shared/telemetry";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { scheduleCardOutcome } from "../telemetry/schedule";
 import { workflow } from "../workflows/manager";
+import { validateTextCardContent } from "./markdown";
 import {
   buildInitialProcessingStatus,
   stageCompleted,
@@ -82,6 +83,7 @@ export const createCardForUserHandler = async (
   const now = Date.now();
 
   const providedType = args.type;
+  const explicitText = providedType === "text";
   let cardType = providedType ?? "text";
   let finalContent = args.content;
   let finalUrl = assertSafeExternalUrl(args.url);
@@ -123,7 +125,7 @@ export const createCardForUserHandler = async (
     fileMetadata = extractedFileMetadata;
   }
 
-  if (!finalUrl && args.content?.trim()) {
+  if (!(explicitText || finalUrl) && args.content?.trim()) {
     const urlExtraction = extractUrlFromContent(args.content);
     finalUrl = urlExtraction.url ?? finalUrl;
     finalContent = urlExtraction.cleanedContent;
@@ -149,6 +151,10 @@ export const createCardForUserHandler = async (
 
   if (cardType === "quote" && quoteNormalization.removedQuotes) {
     finalContent = quoteNormalization.text;
+  }
+
+  if (cardType === "text") {
+    finalContent = validateTextCardContent(finalContent);
   }
 
   // Pre-populate palette colours when explicitly creating a palette card without provided colours

@@ -112,6 +112,34 @@ describe("card/updateCard.ts", () => {
     );
   });
 
+  test("updateCard preserves raw Markdown bytes and rejects one byte over", async () => {
+    const card = {
+      _id: "c1",
+      userId: "u1",
+      type: "text",
+      content: "Old",
+      processingStatus: { classify: { status: "completed" } },
+    };
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        get: mock().mockResolvedValue(card),
+        patch: mock().mockResolvedValue(null),
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any;
+    const handler = (updateCard as any).handler ?? updateCard;
+    const source = "\uFEFF  # Heading\r\n\rBody  ";
+    await handler(ctx, { id: "c1", content: source });
+    expect(ctx.db.patch.mock.calls[0]?.[2].content).toBe(source);
+    await expect(
+      handler(ctx, {
+        id: "c1",
+        content: `${"a".repeat(512 * 1024)}b`,
+      })
+    ).rejects.toThrow("512 KiB when encoded as UTF-8");
+  });
+
   test("updateCard updates link type with categorize stage", async () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },

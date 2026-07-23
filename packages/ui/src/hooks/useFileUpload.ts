@@ -5,21 +5,19 @@ import {
   type UploadAndCreateCardArgs,
   useFileUploadCore,
 } from "@teak/convex/shared/hooks/useFileUpload";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 
 export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
   const uploadAndCreateCardMutation = useMutation(
     api.cards.uploadAndCreateCard
   );
-  const finalizeUploadedCardMutation = useMutation(
-    api.cards.finalizeUploadedCard
-  );
+  const finalizeUploadedCardAction = useAction(api.cards.finalizeUploadedCard);
 
   const uploadAndCreateCard = (args: UploadAndCreateCardArgs) =>
     uploadAndCreateCardMutation(args);
 
   const finalizeUploadedCard = (args: FinalizeUploadedCardArgs) =>
-    finalizeUploadedCardMutation(args);
+    finalizeUploadedCardAction(args);
 
   return useFileUploadCore(
     { uploadAndCreateCard, finalizeUploadedCard },
