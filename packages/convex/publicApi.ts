@@ -722,7 +722,7 @@ const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
       message: "Each create item must include `content` or `url`",
     });
   }
-  if (!(type || url || content?.trim())) {
+  if (type !== "text" && !url && !content?.trim()) {
     throw new ConvexError({
       code: "INVALID_INPUT",
       message: "Each create item must include `content` or `url`",

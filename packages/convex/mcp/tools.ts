@@ -130,7 +130,7 @@ const createCardInputSchema = z
 
     if (
       (value.content === undefined && !value.url) ||
-      (value.cardType === undefined && !value.url && !value.content?.trim())
+      (value.cardType !== "text" && !value.url && !value.content?.trim())
     ) {
       ctx.addIssue({
         code: "custom",

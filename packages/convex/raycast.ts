@@ -503,7 +503,10 @@ export const quickSaveForUser = internalMutation({
     const normalizedTags = normalizeTags(args.tags);
     const normalizedSource = args.source?.trim() || undefined;
 
-    if (submittedContent === undefined && !normalizedUrl) {
+    if (
+      (submittedContent === undefined && !normalizedUrl) ||
+      (args.cardType !== "text" && !normalizedUrl && !submittedContent?.trim())
+    ) {
       throw new ConvexError({
         code: "INVALID_INPUT",
         message: "Provide `content` or `url` to create a card",

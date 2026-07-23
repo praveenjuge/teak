@@ -425,6 +425,45 @@ describe("publicApiHttp", () => {
     });
   });
 
+  test("createCardV1 only allows whitespace content for explicit text cards", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const textMutation =
+      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
+        cardId: "card_text",
+        status: "created",
+      });
+    const request = (cardType: "quote" | "text") =>
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ cardType, content: "  \r\n" }),
+      });
+
+    const textResponse = await runHandler(
+      createCardV1,
+      { runMutation: textMutation, runQuery: mock() },
+      request("text")
+    );
+    const quoteResponse = await runHandler(
+      createCardV1,
+      {
+        runMutation: buildAuthorizedMutationMockWithIdempotencySkip(),
+        runQuery: mock(),
+      },
+      request("quote")
+    );
+
+    expect(textResponse.status).toBe(200);
+    expect(textMutation.mock.calls[3]?.[1]).toMatchObject({
+      cardType: "text",
+      content: "  \r\n",
+    });
+    expect(quoteResponse.status).toBe(400);
+  });
+
   test("createCardV1 preserves stable text-size errors", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const runMutation =
@@ -1486,6 +1525,34 @@ describe("publicApiHttp", () => {
     expect(response.status).toBe(200);
     expect(runMutation.mock.calls[2]?.[1]).toMatchObject({ content });
     expect((await response.json()).content).toBe(content);
+  });
+
+  test("cardByIdV1 keeps empty updates exclusive to text cards", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({
+        _id: "card_1",
+        type: "quote",
+        userId: "user_1",
+      });
+
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/card_1", {
+        method: "PATCH",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "  \n" }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(runMutation).toHaveBeenCalledTimes(2);
   });
 
   test("cardByIdV1 preserves stable text-size errors", async () => {

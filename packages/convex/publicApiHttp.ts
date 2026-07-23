@@ -746,7 +746,7 @@ const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
   if (content === undefined && !url) {
     return null;
   }
-  if (cardType === undefined && !url && !content?.trim()) {
+  if (cardType !== "text" && !url && !content?.trim()) {
     return null;
   }
   if (fileName || mimeType) {
@@ -1433,6 +1433,17 @@ export const handleCardsByIdV1Request = async (
         400,
         "INVALID_INPUT",
         "Body must include at least one valid field: content, url, notes, tags"
+      );
+    }
+    if (
+      patchPayload.content !== undefined &&
+      currentCard.type !== "text" &&
+      !patchPayload.content.trim()
+    ) {
+      return errorResponse(
+        400,
+        "INVALID_INPUT",
+        "Text content cannot be empty for this card type"
       );
     }
 
