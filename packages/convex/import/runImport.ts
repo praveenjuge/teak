@@ -21,7 +21,12 @@ import {
   recordBackendHandledFailure,
   withBackendSpan,
 } from "../telemetry/sentry";
-import { entryBuffer, openZip, readZipIndex } from "./archiveZip";
+import {
+  ArchiveEntryTooLargeError,
+  entryBuffer,
+  openZip,
+  readZipIndex,
+} from "./archiveZip";
 import { type ParsedBookmarkItem, parseBookmarksHtml } from "./bookmarks";
 import {
   IMPORT_INDEX_BATCH,
@@ -185,7 +190,10 @@ async function decodeLegacyMarkdownItems(
               Object.assign(item, resolveLegacyMarkdownImport(item, bytes));
             } catch (error) {
               item.status = "failed";
-              item.failureCode = "CONTENT_TOO_LARGE";
+              item.failureCode =
+                error instanceof ArchiveEntryTooLargeError
+                  ? "CONTENT_TOO_LARGE"
+                  : "INVALID_ITEM";
               item.failureReason =
                 error instanceof Error
                   ? error.message

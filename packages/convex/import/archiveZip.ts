@@ -7,6 +7,13 @@ import { MAX_IMPORT_EXPANDED_BYTES, MAX_IMPORT_JSON_BYTES } from "./constants";
 import type { createImportS3Client } from "./r2Client";
 import { isSafeArchivePath } from "./validate";
 
+export class ArchiveEntryTooLargeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ArchiveEntryTooLargeError";
+  }
+}
+
 class R2RangeReader extends yauzl.RandomAccessReader {
   private readonly bucket: string;
   private readonly client: ReturnType<typeof createImportS3Client>;
@@ -73,7 +80,9 @@ export function entryBuffer(
   limit: number
 ) {
   if (entry.uncompressedSize > limit) {
-    return Promise.reject(new Error(`${entry.fileName} is too large`));
+    return Promise.reject(
+      new ArchiveEntryTooLargeError(`${entry.fileName} is too large`)
+    );
   }
   return new Promise<Buffer>((resolve, reject) => {
     zip.openReadStream(entry, (error, stream) => {
@@ -85,7 +94,11 @@ export function entryBuffer(
       stream.on("data", (chunk: Buffer) => {
         total += chunk.length;
         if (total > limit) {
-          stream.destroy(new Error("Expanded ZIP entry exceeds its limit"));
+          stream.destroy(
+            new ArchiveEntryTooLargeError(
+              "Expanded ZIP entry exceeds its limit"
+            )
+          );
         } else {
           chunks.push(chunk);
         }
