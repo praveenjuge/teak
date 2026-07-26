@@ -124,11 +124,7 @@ const headUploadedObject = async (
     }
   }
 
-  if (
-    incompleteHead &&
-    typeof incompleteHead.ContentLength === "number" &&
-    Number.isFinite(incompleteHead.ContentLength)
-  ) {
+  if (incompleteHead || expectedEtag) {
     try {
       const probe = await storage.client.send(
         new GetObjectCommand({
@@ -141,10 +137,21 @@ const headUploadedObject = async (
       if (probe.Body) {
         await probe.Body.transformToByteArray();
       }
-      if (probe.ETag || expectedEtag) {
+      const contentRangeSize = /^bytes \d+-\d+\/(\d+)$/u.exec(
+        probe.ContentRange ?? ""
+      )?.[1];
+      const storedSize = contentRangeSize
+        ? Number(contentRangeSize)
+        : incompleteHead?.ContentLength;
+      if (
+        typeof storedSize === "number" &&
+        Number.isFinite(storedSize) &&
+        (probe.ETag || expectedEtag)
+      ) {
         return {
           ...incompleteHead,
-          ContentType: incompleteHead.ContentType ?? probe.ContentType,
+          ContentLength: storedSize,
+          ContentType: incompleteHead?.ContentType ?? probe.ContentType,
           ETag: probe.ETag || expectedEtag,
         } as CompleteHeadMetadata;
       }
