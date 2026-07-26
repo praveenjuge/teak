@@ -151,6 +151,7 @@ export function MarkdownTextEditor({
         EditorView.contentAttributes.of({
           "aria-label": initial.ariaLabel,
           "aria-multiline": "true",
+          "aria-placeholder": initial.placeholder,
           role: "textbox",
           spellcheck: "true",
         }),
