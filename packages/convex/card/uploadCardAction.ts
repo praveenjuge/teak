@@ -77,7 +77,7 @@ type CompleteHeadMetadata = HeadObjectCommandOutput & {
   ETag: string;
 };
 
-const HEAD_RETRY_DELAYS_MS = [75, 225] as const;
+const HEAD_RETRY_DELAYS_MS = [100, 300, 900, 2700] as const;
 
 const convexUploadError = (code: string, message: string): never => {
   throw new ConvexError({ code, message });
