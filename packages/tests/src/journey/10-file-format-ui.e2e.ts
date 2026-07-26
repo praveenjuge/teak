@@ -1,5 +1,7 @@
 import { Buffer } from "node:buffer";
 import { expect, test } from "@playwright/test";
+import { clientFor } from "../helpers/prod";
+import { readState } from "../helpers/run-state";
 
 test("web picker and drag-drop upload files with safe opened previews", async ({
   page,
@@ -9,6 +11,11 @@ test("web picker and drag-drop upload files with safe opened previews", async ({
   const droppedName = `${marker}-drop.tsx`;
   const markdownName = `${marker}-text.MARKDOWN`;
   const rawMarkdown = `\uFEFF  # ${marker}-text\r\n\r\n- [ ] keep spacing  \n`;
+  const state = readState();
+  if (!state.primary?.apiKey) {
+    throw new Error("Missing primary API key");
+  }
+  const api = clientFor(state.primary.apiKey);
 
   await page.goto("/");
   await page.getByRole("button", { name: "Upload files" }).click();
@@ -69,6 +76,18 @@ test("web picker and drag-drop upload files with safe opened previews", async ({
       mimeType: "text/markdown",
       name: markdownName,
     });
+  await expect
+    .poll(
+      async () =>
+        (
+          await api.cards.list({
+            include: "content,metadata",
+            limit: 100,
+          })
+        ).items.find((card) => card.fileName === markdownName)?.content,
+      { timeout: 45_000 }
+    )
+    .toBe(rawMarkdown);
   await page.getByPlaceholder("Search for anything...").fill(`${marker}-text`);
   await page.keyboard.press("Enter");
   const textCard = page
@@ -79,7 +98,7 @@ test("web picker and drag-drop upload files with safe opened previews", async ({
   await textCard.click();
   const textDialog = page.getByRole("dialog");
   await expect(textDialog.getByPlaceholder("Enter your text...")).toHaveValue(
-    rawMarkdown
+    rawMarkdown.replace(/\r\n?/g, "\n")
   );
   await expect(
     textDialog.getByRole("button", { name: /Download/i })
