@@ -1,5 +1,5 @@
 import { test } from "@playwright/test";
-import { assertMailpitReady } from "../helpers/mailpit";
+import { env } from "../helpers/env";
 import { createAccount } from "../helpers/prod";
 import { storageStateFile, updateState } from "../helpers/run-state";
 
@@ -9,8 +9,9 @@ test("create isolated verified production accounts and API keys", async ({
   browser,
   page,
 }) => {
-  await assertMailpitReady();
-  const account = await createAccount(page, "primary");
+  const account = await createAccount(page, "primary", {
+    viaEmail: env.emailDeliveryEnabled,
+  });
   updateState((state) => {
     state.primary = account;
   });

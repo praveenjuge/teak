@@ -3,7 +3,6 @@ import { resolve } from "node:path";
 import { chromium, expect, test } from "@playwright/test";
 import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
 import { env } from "../helpers/env";
-import { deleteMessagesFor } from "../helpers/mailpit";
 import { clientFor, createAccount } from "../helpers/prod";
 
 interface ExtensionChrome {
@@ -164,8 +163,7 @@ test("extension saves a selected file and safe page asset with private URL fallb
       )
     ).toBe(false);
   } finally {
-    await cleanupE2EAccounts([account.email]);
-    await deleteMessagesFor(account.email);
     await context.close();
+    await cleanupE2EAccounts([account.email]);
   }
 });

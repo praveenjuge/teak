@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { apiFetch } from "../helpers/api";
 import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
-import { deleteMessagesFor } from "../helpers/mailpit";
 import { clientFor, createAccount, newAnonymousContext } from "../helpers/prod";
 import { readState } from "../helpers/run-state";
 
@@ -60,8 +59,7 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", a
       )
     ).toBe(true);
   } finally {
-    await cleanupE2EAccounts([second.email]);
-    await deleteMessagesFor(second.email);
     await secondContext.close();
+    await cleanupE2EAccounts([second.email]);
   }
 });

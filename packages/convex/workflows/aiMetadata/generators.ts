@@ -40,10 +40,18 @@ const GROQ_LOW_REASONING_JSON_OBJECT_OPTIONS = {
 
 export const MAX_AI_METADATA_INPUT_CHARS = 6000;
 export const MAX_AI_METADATA_OUTPUT_TOKENS = 768;
-export const MAX_AI_METADATA_RETRIES = 5;
+export const MAX_AI_METADATA_RETRIES = 2;
 export const MAX_AI_METADATA_VALIDATION_RETRIES = 2;
 
-const JSON_VALIDATION_ERROR = /failed to validate json|failed_generation/iu;
+const JSON_VALIDATION_ERROR =
+  /failed to validate json|failed_generation|no object generated|response did not match schema|type validation failed/iu;
+const PROVIDER_CAPACITY_ERROR =
+  /\b(?:rate limit(?:ed| reached)?|too many requests|tokens per (?:day|minute)|tpd|tpm|status(?: code)? 429|429)\b/iu;
+
+export const isAiProviderCapacityError = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error);
+  return PROVIDER_CAPACITY_ERROR.test(message);
+};
 
 const validationRetryPrompt = (prompt: string, attempt: number): string => {
   if (attempt === 0) {
@@ -123,8 +131,8 @@ export const generateTextMetadata = async (content: string, title?: string) => {
             stage: "ai_metadata",
           }),
           model: TEXT_METADATA_MODEL,
-          // Groq's free tier has an 8K TPM window. Keep retrying provider 429s
-          // long enough to cross that reset instead of failing card enrichment.
+          // Keep provider retries bounded so capacity exhaustion does not turn
+          // optional enrichment into a long-running card creation.
           maxRetries: MAX_AI_METADATA_RETRIES,
           maxOutputTokens: MAX_AI_METADATA_OUTPUT_TOKENS,
           // Static system prompt - will be cached across requests

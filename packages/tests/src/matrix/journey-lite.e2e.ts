@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
-import { deleteMessagesFor } from "../helpers/mailpit";
 import { clickVisibleControl, createAccount } from "../helpers/prod";
 
 test.setTimeout(180_000);
@@ -33,7 +32,7 @@ test("signup, create, and search", async ({ page }) => {
     await search.fill(marker);
     await expect(savedCard).toBeVisible();
   } finally {
+    await page.context().close();
     await cleanupE2EAccounts([account.email]);
-    await deleteMessagesFor(account.email);
   }
 });

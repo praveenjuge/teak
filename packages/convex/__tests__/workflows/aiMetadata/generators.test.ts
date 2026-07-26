@@ -19,6 +19,7 @@ let maxInputChars: number;
 let maxOutputTokens: number;
 let maxRetries: number;
 let maxValidationRetries: number;
+let isAiProviderCapacityError: any;
 
 const mockResponse = {
   output: {
@@ -39,6 +40,7 @@ describe("aiMetadata generators", () => {
     maxOutputTokens = mod.MAX_AI_METADATA_OUTPUT_TOKENS;
     maxRetries = mod.MAX_AI_METADATA_RETRIES;
     maxValidationRetries = mod.MAX_AI_METADATA_VALIDATION_RETRIES;
+    isAiProviderCapacityError = mod.isAiProviderCapacityError;
   });
 
   beforeEach(() => {
@@ -105,7 +107,7 @@ describe("aiMetadata generators", () => {
   });
 
   test("keeps short metadata input unchanged", () => {
-    expect(maxRetries).toBe(5);
+    expect(maxRetries).toBe(2);
     expect(maxValidationRetries).toBe(2);
     expect(maxOutputTokens).toBe(768);
     expect(boundAiMetadataInput("short content")).toBe("short content");
@@ -164,6 +166,34 @@ describe("aiMetadata generators", () => {
     expect(retryCall.messages[0].content[0].text).toStartWith(
       "JSON validation retry 1:"
     );
+  });
+
+  test("retries AI SDK schema mismatches with a corrective prompt", async () => {
+    mockGenerateText
+      .mockRejectedValueOnce(
+        new Error("No object generated: response did not match schema.")
+      )
+      .mockResolvedValueOnce(mockResponse);
+
+    await generateTextMetadata("content");
+
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    expect(mockGenerateText.mock.calls[1]?.[0].prompt).toStartWith(
+      "JSON validation retry 1:"
+    );
+  });
+
+  test("detects provider capacity errors without treating validation as capacity", () => {
+    expect(
+      isAiProviderCapacityError(
+        new Error("Rate limit reached on tokens per day (TPD), status code 429")
+      )
+    ).toBe(true);
+    expect(
+      isAiProviderCapacityError(
+        new Error("No object generated: response did not match schema")
+      )
+    ).toBe(false);
   });
 
   test("stops after the bounded JSON validation retry budget", async () => {

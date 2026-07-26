@@ -5,6 +5,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { createTeakClient } from "@teak/convex/sdk";
+import { provisionE2EAccount } from "./e2e-cleanup";
 import { env, requirePassword, uniqueEmail } from "./env";
 import { waitForEmail } from "./mailpit";
 import { type AccountState, rememberAccount, updateState } from "./run-state";
@@ -109,9 +110,15 @@ export const generateApiKey = async (page: Page) => {
 export const createAccount = async (
   page: Page,
   label = "acct",
-  options: { remember?: boolean } = {}
+  options: { remember?: boolean; viaEmail?: boolean } = {}
 ) => {
-  const email = await signUp(page, uniqueEmail(label));
+  const email = options.viaEmail
+    ? await signUp(page, uniqueEmail(label))
+    : uniqueEmail(label);
+  if (!options.viaEmail) {
+    await provisionE2EAccount(email, requirePassword());
+    await signIn(page, email);
+  }
   const apiKey = await generateApiKey(page);
   const account = { email, apiKey };
   if (options.remember !== false) {

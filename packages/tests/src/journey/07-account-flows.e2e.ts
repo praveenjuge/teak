@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { requirePassword } from "../helpers/env";
+import { env, requirePassword } from "../helpers/env";
 import { waitForEmail } from "../helpers/mailpit";
 import {
   appPath,
@@ -9,7 +9,11 @@ import {
 } from "../helpers/prod";
 import { readState, updateState } from "../helpers/run-state";
 
-test("password reset and Polar checkout entry", async ({ browser }) => {
+test("scheduled email canary resets the password", async ({ browser }) => {
+  test.skip(
+    !env.emailDeliveryEnabled,
+    "Real email delivery runs only in the nightly production canary"
+  );
   const { primary } = readState();
   if (!primary?.email) {
     throw new Error("Missing primary account");
@@ -45,6 +49,20 @@ test("password reset and Polar checkout entry", async ({ browser }) => {
     await page.getByRole("button", { name: /login|sign in/i }).click();
     await expect(page.getByText(/invalid|incorrect/i)).toBeVisible();
     await signIn(page, primary.email, nextPassword);
+  } finally {
+    await context.close();
+  }
+});
+
+test("Polar checkout entry stays usable", async ({ browser }) => {
+  const { primary } = readState();
+  if (!primary?.email) {
+    throw new Error("Missing primary account");
+  }
+  const context = await newAnonymousContext(browser);
+  const page = await context.newPage();
+  try {
+    await signIn(page, primary.email, passwordFor(primary));
     await page.goto(appPath("/settings"));
     await page.getByRole("button", { name: "Upgrade" }).click();
     await expect(
