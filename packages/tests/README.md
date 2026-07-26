@@ -30,6 +30,9 @@ Useful variables:
 
 Most test accounts are provisioned as already-verified users through the token-protected backend endpoint, so manual runs send no email. The nightly run sends one signup verification and one password-reset message to preserve real delivery coverage. Cleanup is browserless. Exact accounts created by a test are removed during teardown, while the scheduled sweep discovers orphan accounts directly from the production auth database. The backend accepts only the configured `e2e-*` email namespace, enforces account-age bounds, caps each sweep, and reuses the same Teak data-deletion path as user-initiated account deletion. Mailpit messages are deleted separately by exact message ID.
 
+For a zero-email health check without the browser suites, manually dispatch the
+Production E2E workflow with `preflight_only` enabled.
+
 For local parity with GitHub Actions, put the required values in `.env.production-e2e.local` at the repo root and run `bun run --cwd packages/tests e2e:prod:local`. The local runner installs Playwright browsers, executes preflight, docs, journey, browser matrix, extension, and teardown steps, then preserves separate reports under `packages/tests/playwright-report`.
 
 Mailpit preflight:
