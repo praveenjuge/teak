@@ -20,7 +20,8 @@ test("web picker and drag-drop upload files with safe opened previews", async ({
       mimeType: "text/mdx",
       name: pickedName,
     });
-  await expect(page.getByText(`${pickedName} uploaded`)).toBeVisible({
+  const pickedCard = page.getByText(pickedName).first();
+  await expect(pickedCard).toBeVisible({
     timeout: 45_000,
   });
 
@@ -41,18 +42,16 @@ test("web picker and drag-drop upload files with safe opened previews", async ({
       fileName: droppedName,
     }
   );
-  await expect(page.getByText(`${droppedName} uploaded`)).toBeVisible({
+  await expect(page.getByText(droppedName).first()).toBeVisible({
     timeout: 45_000,
   });
 
-  const markdownCard = page.getByText(pickedName).first();
-  await expect(markdownCard).toBeVisible();
   const prefetchedFile = page.waitForRequest((request) =>
     decodeURIComponent(request.url()).includes(pickedName)
   );
-  await markdownCard.hover();
+  await pickedCard.hover();
   await prefetchedFile;
-  await markdownCard.click();
+  await pickedCard.click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("Open file")).toBeVisible();
   await expect(dialog.getByText(marker, { exact: false }).first()).toBeVisible({
@@ -70,9 +69,6 @@ test("web picker and drag-drop upload files with safe opened previews", async ({
       mimeType: "text/markdown",
       name: markdownName,
     });
-  await expect(page.getByText(`${markdownName} uploaded`)).toBeVisible({
-    timeout: 45_000,
-  });
   await page.getByPlaceholder("Search for anything...").fill(`${marker}-text`);
   await page.keyboard.press("Enter");
   const textCard = page

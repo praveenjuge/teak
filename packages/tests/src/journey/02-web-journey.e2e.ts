@@ -11,7 +11,9 @@ test("web journey covers cards, search, settings, upload, and revoked key", asyn
   if (!state.primary?.apiKey) {
     throw new Error("Missing primary API key");
   }
+  const api = clientFor(state.primary.apiKey);
   const marker = `prod-e2e-${Date.now()}`;
+  const rawMarkdown = `  # ${marker}\n\n- [ ] <script>alert("xss")</script>  \n`;
   const dialogTrap: string[] = [];
   page.on("dialog", (dialog) => {
     dialogTrap.push(dialog.message());
@@ -22,12 +24,19 @@ test("web journey covers cards, search, settings, upload, and revoked key", asyn
   await expect(
     page.getByText(/Welcome to Teak|Let's add your first card/i)
   ).toBeVisible();
-  await page
-    .getByPlaceholder(/Write a note/i)
-    .fill(`${marker} <script>alert("xss")</script>`);
+  await page.getByPlaceholder(/Write a note/i).fill(rawMarkdown);
   await page.getByRole("button", { name: "Save", exact: true }).click();
   const savedCard = page.locator("main p").filter({ hasText: marker }).first();
   await expect(savedCard).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        (await api.cards.search({ query: marker })).items.find((card) =>
+          card.content?.includes(marker)
+        )?.content,
+      { timeout: 30_000, intervals: [1000, 2000, 3000, 5000] }
+    )
+    .toBe(rawMarkdown);
   await page.getByPlaceholder("Search for anything...").fill(marker);
   await page.keyboard.press("Enter");
   await expect(savedCard).toBeVisible();
@@ -45,7 +54,6 @@ test("web journey covers cards, search, settings, upload, and revoked key", asyn
     timeout: 45_000,
   });
 
-  const api = clientFor(state.primary.apiKey);
   const png = Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
     "base64"

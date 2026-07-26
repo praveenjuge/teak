@@ -127,8 +127,10 @@ export const createCardForUserHandler = async (
 
   if (!(explicitText || finalUrl) && args.content?.trim()) {
     const urlExtraction = extractUrlFromContent(args.content);
-    finalUrl = urlExtraction.url ?? finalUrl;
-    finalContent = urlExtraction.cleanedContent;
+    if (urlExtraction.url) {
+      finalUrl = urlExtraction.url;
+      finalContent = urlExtraction.cleanedContent;
+    }
   }
 
   // When the client does not specify a type, let the backend decide: a resolved

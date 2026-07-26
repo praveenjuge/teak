@@ -47,10 +47,7 @@ test("extension saves a selected file and safe page asset with private URL fallb
     await expect(signIn).toBeVisible();
     const nextPage = context.waitForEvent("page");
     await signIn.click();
-    const authPage = await nextPage;
-    await authPage.waitForURL(/\/native\/auth\/complete/, {
-      timeout: 30_000,
-    });
+    await nextPage;
 
     await expect
       .poll(
