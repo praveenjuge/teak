@@ -244,9 +244,12 @@ describe("card uploads", () => {
     });
   });
 
-  test("retries incomplete storage metadata before finalizing", async () => {
+  test("retries incomplete storage metadata across the readiness window", async () => {
     const wait = mock().mockResolvedValue(undefined);
     const send = mock()
+      .mockResolvedValueOnce({ ContentLength: 10 })
+      .mockResolvedValueOnce({ ContentLength: 10 })
+      .mockResolvedValueOnce({ ContentLength: 10 })
       .mockResolvedValueOnce({ ContentLength: 10 })
       .mockResolvedValueOnce({
         ContentLength: 10,
@@ -271,8 +274,10 @@ describe("card uploads", () => {
       storedFileSize: 10,
       storedMimeType: "image/png",
     });
-    expect(send).toHaveBeenCalledTimes(2);
-    expect(wait).toHaveBeenCalledWith(75);
+    expect(send).toHaveBeenCalledTimes(5);
+    expect(wait.mock.calls.map(([delay]) => delay)).toEqual([
+      100, 300, 900, 2700,
+    ]);
   });
 
   test("keeps a stable error after incomplete storage metadata retries", async () => {
@@ -297,8 +302,8 @@ describe("card uploads", () => {
         message: "Uploaded file metadata is unavailable",
       },
     });
-    expect(send).toHaveBeenCalledTimes(3);
-    expect(wait).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenCalledTimes(5);
+    expect(wait).toHaveBeenCalledTimes(4);
   });
 
   test("rejects oversized and invalid UTF-8 Markdown objects without reading partial text", async () => {

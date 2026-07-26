@@ -72,8 +72,8 @@ test("web picker and drag-drop upload files with safe opened previews", async ({
   await page.getByPlaceholder("Search for anything...").fill(`${marker}-text`);
   await page.keyboard.press("Enter");
   const textCard = page
-    .getByRole("main")
-    .getByText(`${marker}-text`, { exact: false })
+    .locator("main p")
+    .filter({ hasText: `${marker}-text` })
     .first();
   await expect(textCard).toBeVisible();
   await textCard.click();
