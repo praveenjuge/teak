@@ -173,7 +173,7 @@ Content-Type: application/json
 }
 ```
 
-The response includes a presigned `uploadUrl` and `fileKey`. Upload the bytes with `PUT`, then create the card with `POST /v1/cards`.
+The response includes a presigned `uploadUrl` and `fileKey`. Upload the bytes with `PUT`, retain the `ETag` response header, then create the card with `POST /v1/cards`.
 
 ```json
 {
@@ -198,6 +198,7 @@ Idempotency-Key: upload-image-123
 
 ```json
 {
+  "fileEtag": "\"d41d8cd98f00b204e9800998ecf8427e\"",
   "fileKey": "users/user_1/file/...",
   "fileName": "image.png",
   "mimeType": "image/png",

@@ -329,6 +329,7 @@ describe("Convex MCP endpoint", () => {
       [
         "teak_v1_create_card",
         {
+          fileEtag: '"upload-etag"',
           fileKey: "users/user_1/file/readme.md",
           fileName: "readme.md",
           fileSize: 42,
@@ -390,6 +391,7 @@ describe("Convex MCP endpoint", () => {
       "GET /v1/cards/card_1",
     ]);
     expect(captured[2]?.body).toEqual({
+      fileEtag: '"upload-etag"',
       fileKey: "users/user_1/file/readme.md",
       fileName: "readme.md",
       fileSize: 42,

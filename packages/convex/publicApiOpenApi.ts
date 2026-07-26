@@ -142,6 +142,12 @@ const components = {
           example: "  # Draft\r\n\r\n- [ ] Keep spacing  \n",
           type: "string",
         },
+        fileEtag: {
+          description:
+            "ETag returned by the completed upload PUT. Include it when creating an uploaded-file card so Teak can verify the exact stored object.",
+          example: '"d41d8cd98f00b204e9800998ecf8427e"',
+          type: "string",
+        },
         fileKey: { type: "string" },
         fileName: { type: "string" },
         fileSize: { type: "number" },

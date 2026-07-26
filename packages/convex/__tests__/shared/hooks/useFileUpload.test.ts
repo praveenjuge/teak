@@ -231,6 +231,7 @@ describe("useFileUploadCore", () => {
         uploadKey: "store_1",
       });
       mockFetch.mockResolvedValue({
+        headers: new Headers({ ETag: '"browser-etag"' }),
         ok: true,
         json: async () => ({ storageId: "store_1" }),
       });
@@ -247,7 +248,10 @@ describe("useFileUploadCore", () => {
         expect.any(Object)
       );
       expect(mockFinalizeUploadedCard).toHaveBeenCalledWith(
-        expect.objectContaining({ fileKey: "store_1" })
+        expect.objectContaining({
+          fileEtag: '"browser-etag"',
+          fileKey: "store_1",
+        })
       );
       expect(mockOnSuccess).toHaveBeenCalledWith("card_1");
       expect(result.success).toBe(true);
@@ -336,7 +340,11 @@ describe("useFileUploadCore", () => {
         uploadUrl: "https://upload",
         uploadKey: "store_1",
       });
-      mockUploadBinaryFromUri.mockResolvedValue({ ok: true, status: 200 });
+      mockUploadBinaryFromUri.mockResolvedValue({
+        headers: { ETag: '"mobile-etag"' },
+        ok: true,
+        status: 200,
+      });
       mockFinalizeUploadedCard.mockResolvedValue({
         success: true,
         cardId: "card_1",
@@ -360,6 +368,7 @@ describe("useFileUploadCore", () => {
       expect(mockFinalizeUploadedCard).toHaveBeenCalledWith(
         expect.objectContaining({
           fileKey: "store_1",
+          fileEtag: '"mobile-etag"',
           fileName: "photo.jpg",
           additionalMetadata: { width: 10, height: 20 },
         })

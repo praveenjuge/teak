@@ -96,10 +96,13 @@ test("MCP uploads, creates, fetches, and searches expanded file cards", async ()
         method: "PUT",
       });
       expect(put.ok).toBe(true);
+      const fileEtag = put.headers.get("etag");
+      expect(fileEtag, fixture.fileName).toBeTruthy();
 
       const created: any = await client.callTool({
         name: "teak_v1_create_card",
         arguments: {
+          fileEtag,
           fileKey: upload.fileKey,
           fileName: fixture.fileName,
           fileSize: fixture.bytes.byteLength,

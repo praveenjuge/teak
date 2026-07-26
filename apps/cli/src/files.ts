@@ -94,13 +94,14 @@ export const addCard = async (
       fileSize,
       mimeType,
     });
-    await api.uploads.putFile(
+    const uploaded = await api.uploads.putFile(
       upload.uploadUrl,
       readFileSync(candidate),
       mimeType
     );
     return api.cards.create({
       fileKey: upload.fileKey,
+      fileEtag: uploaded.fileEtag,
       fileName,
       fileSize,
       mimeType,

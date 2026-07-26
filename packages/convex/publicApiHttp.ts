@@ -63,6 +63,7 @@ interface CardsQueryOptions {
 interface CreateCardPayload {
   cardType?: string;
   content?: string;
+  fileEtag?: string;
   fileKey?: string;
   fileName?: string;
   fileSize?: number;
@@ -673,6 +674,7 @@ const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
   const allowedKeys = new Set([
     "cardType",
     "content",
+    "fileEtag",
     "fileKey",
     "fileName",
     "fileSize",
@@ -693,6 +695,7 @@ const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
     typeof source.content === "string" ? source.content : undefined;
   const url = parseOptionalString(source.url);
   const fileKey = parseOptionalString(source.fileKey);
+  const fileEtag = parseOptionalString(source.fileEtag);
   const fileName = parseOptionalString(source.fileName);
   const mimeType = parseOptionalString(source.mimeType);
   const cardType = parseOptionalString(source.cardType);
@@ -733,6 +736,7 @@ const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
     return {
       cardType,
       content,
+      fileEtag,
       fileKey,
       fileName,
       fileSize,
@@ -956,6 +960,7 @@ export const handleCreateCardRequest = async (
             {
               cardType: createPayload.cardType,
               content: createPayload.content,
+              fileEtag: createPayload.fileEtag,
               fileKey: createPayload.fileKey,
               fileName: createPayload.fileName,
               fileSize: createPayload.fileSize,

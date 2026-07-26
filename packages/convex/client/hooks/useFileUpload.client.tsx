@@ -108,6 +108,7 @@ export interface FinalizeUploadedCardArgs {
   additionalMetadata?: any;
   cardType: CardType;
   content?: string;
+  fileEtag?: string;
   fileKey: string;
   fileName: string;
   fileSize?: number;
@@ -133,7 +134,11 @@ export interface FileUploadDependencies {
     fileUri: string;
     signal: AbortSignal;
     uploadUrl: string;
-  }) => Promise<{ ok: boolean; status: number }>;
+  }) => Promise<{
+    headers?: Headers | Record<string, string>;
+    ok: boolean;
+    status: number;
+  }>;
 }
 
 export interface UploadFileFromUriArgs {
@@ -146,7 +151,26 @@ export interface UploadFileFromUriArgs {
 }
 
 type CodedError = Error & { code?: CardErrorCode };
-type UploadResponse = Pick<Response, "ok" | "status">;
+interface UploadResponse {
+  headers?: Headers | Record<string, string>;
+  ok: boolean;
+  status: number;
+}
+
+export const getUploadEtag = (
+  headers?: Headers | Record<string, string>
+): string | undefined => {
+  if (!headers) {
+    return;
+  }
+  if (headers instanceof Headers) {
+    return headers.get("etag") ?? undefined;
+  }
+  const entry = Object.entries(headers).find(
+    ([key]) => key.toLowerCase() === "etag"
+  );
+  return entry?.[1];
+};
 
 const UPLOAD_RETRY_DELAYS_MS = [300, 900] as const;
 
@@ -423,6 +447,7 @@ export function useFileUploadCore(
           fileName: file.name,
           fileSize: file.size,
           fileType,
+          fileEtag: getUploadEtag(uploadResponse.headers),
           cardType,
           content: options.content,
           additionalMetadata: mergedAdditionalMetadata,
@@ -627,6 +652,7 @@ export function useFileUploadCore(
           fileName: name,
           fileSize: size,
           fileType,
+          fileEtag: getUploadEtag(uploadResponse.headers),
           cardType,
           content,
           additionalMetadata,

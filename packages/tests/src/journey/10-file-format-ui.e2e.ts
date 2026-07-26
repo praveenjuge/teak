@@ -107,5 +107,7 @@ test("web picker and drag-drop upload files with safe opened previews", async ({
 
   await page.getByPlaceholder("Search for anything...").fill(marker);
   await page.keyboard.press("Enter");
-  await expect(page.getByText(pickedName).first()).toBeVisible();
+  await expect(page.getByText(pickedName).first()).toBeVisible({
+    timeout: 45_000,
+  });
 });

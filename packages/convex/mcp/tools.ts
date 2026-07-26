@@ -100,6 +100,7 @@ const createCardInputSchema = z
   .object({
     cardType: cardTypeSchema.optional(),
     content: z.string().optional(),
+    fileEtag: nonEmptyString.optional(),
     fileKey: nonEmptyString.optional(),
     fileName: nonEmptyString.optional(),
     fileSize: z.number().positive().optional(),
@@ -223,6 +224,7 @@ export const TEAK_V1_TOOLS = [
     inputSchema: inputSchema({
       cardType: { enum: cardTypeSchema.options },
       content: { type: "string", minLength: 1 },
+      fileEtag: { type: "string", minLength: 1 },
       fileKey: { type: "string", minLength: 1 },
       fileName: { type: "string", minLength: 1 },
       fileSize: { type: "number", minimum: 1 },

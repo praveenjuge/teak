@@ -71,6 +71,7 @@ export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
         }
 
         return {
+          headers: result?.headers,
           ok: result ? result.status >= 200 && result.status < 300 : false,
           status: result?.status ?? 0,
         };
