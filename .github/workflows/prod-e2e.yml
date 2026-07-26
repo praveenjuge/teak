@@ -5,6 +5,11 @@ on:
     - cron: "17 5 * * *"
   workflow_dispatch:
     inputs:
+      preflight_only:
+        description: Run zero-email production preflight without E2E suites
+        default: false
+        required: false
+        type: boolean
       sweep:
         description: Run orphan account sweep after tests
         default: true
@@ -44,6 +49,7 @@ jobs:
 
   journey:
     needs: gate
+    if: ${{ !inputs.preflight_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -67,6 +73,7 @@ jobs:
 
   docs:
     needs: gate
+    if: ${{ !inputs.preflight_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -86,7 +93,7 @@ jobs:
 
   matrix:
     needs: [gate, journey]
-    if: always() && needs.gate.result == 'success'
+    if: always() && needs.gate.result == 'success' && !inputs.preflight_only
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -106,7 +113,7 @@ jobs:
 
   extension:
     needs: gate
-    if: always() && needs.gate.result == 'success'
+    if: always() && needs.gate.result == 'success' && !inputs.preflight_only
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -127,7 +134,7 @@ jobs:
 
   sweep:
     needs: gate
-    if: always() && needs.gate.result == 'success' && (github.event_name == 'schedule' || inputs.sweep)
+    if: always() && needs.gate.result == 'success' && !inputs.preflight_only && (github.event_name == 'schedule' || inputs.sweep)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
