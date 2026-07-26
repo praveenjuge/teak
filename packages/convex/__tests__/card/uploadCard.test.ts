@@ -382,6 +382,49 @@ describe("card uploads", () => {
     ).toBe(true);
   });
 
+  test("derives verified size from a bounded range response", async () => {
+    const commands: Array<{ input?: { IfMatch?: string; Range?: string } }> =
+      [];
+    const send = mock(async (command) => {
+      commands.push(command);
+      if (command.constructor.name === "GetObjectCommand") {
+        return {
+          Body: {
+            transformToByteArray: async () => new Uint8Array([60]),
+          },
+          ContentRange: "bytes 0-0/16467",
+          ContentType: "image/svg+xml",
+        };
+      }
+      return {};
+    });
+    const wait = mock().mockResolvedValue(undefined);
+
+    await expect(
+      inspectUploadedCardSource(
+        "u1",
+        {
+          cardType: "image",
+          fileEtag: '"upload-etag"',
+          fileKey: VALID_FILE_KEY,
+          fileName: "icon.svg",
+          fileSize: 16_467,
+          fileType: "image/svg+xml",
+        },
+        { bucket: "test", client: { send }, wait }
+      )
+    ).resolves.toMatchObject({
+      cardType: "image",
+      storedFileSize: 16_467,
+      storedMimeType: "image/svg+xml",
+    });
+    expect(commands).toHaveLength(6);
+    expect(commands.at(-1)?.input).toMatchObject({
+      IfMatch: '"upload-etag"',
+      Range: "bytes=0-0",
+    });
+  });
+
   test("rejects oversized and invalid UTF-8 Markdown objects without reading partial text", async () => {
     const oversizedSend = mock(async () => ({
       ContentLength: 512 * 1024 + 1,
