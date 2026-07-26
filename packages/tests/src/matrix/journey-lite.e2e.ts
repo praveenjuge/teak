@@ -13,7 +13,7 @@ test("signup, create, and search", async ({ page }) => {
   try {
     const marker = `matrix-${Date.now()}`;
     await page.goto("/");
-    const note = page.getByPlaceholder(/Write a note/i);
+    const note = page.getByRole("textbox", { name: "Markdown content" });
     await note.fill(marker);
     await expect(note).toHaveValue(marker);
     await clickVisibleControl(

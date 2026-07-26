@@ -223,7 +223,7 @@ test("captures the deterministic Teak web product surface", async ({
 
     const composer = page.getByPlaceholder(/Write a note/i);
     await composer.fill(DRAFT_TEXT);
-    await expect(composer).toHaveValue(DRAFT_TEXT);
+    await expect(composer).toHaveText(DRAFT_TEXT);
     await capture(page, viewportName, "add-card");
 
     await page.goto("/settings");

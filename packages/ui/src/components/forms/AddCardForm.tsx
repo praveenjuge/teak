@@ -4,11 +4,12 @@ import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { trackCardCreateAttempt } from "@teak/convex/shared/metrics";
 import { Button } from "@teak/ui/components/ui/button";
 import { Card, CardContent } from "@teak/ui/components/ui/card";
-import { Textarea } from "@teak/ui/components/ui/textarea";
 import {
   MANUAL_CLOSE_TOAST_OPTIONS,
   TOAST_IDS,
 } from "@teak/ui/constants/toast";
+import { cn } from "@teak/ui/lib/utils";
+import { MarkdownTextEditor } from "@teak/ui/text-editor";
 import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation } from "convex/react";
 import { Maximize2 } from "lucide-react";
@@ -184,8 +185,6 @@ export function AddCardForm({
     }
   );
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   const resetDraft = () => {
     setContent("");
   };
@@ -254,22 +253,6 @@ export function AddCardForm({
     setIsFullScreenOpen(false);
   };
 
-  const handleFullScreenShortcut = (
-    event: React.KeyboardEvent<HTMLTextAreaElement>
-  ) => {
-    const isShortcut =
-      (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "e";
-    if (!isShortcut) {
-      return false;
-    }
-    if (!canCreateCard) {
-      return false;
-    }
-    event.preventDefault();
-    setIsFullScreenOpen(true);
-    return true;
-  };
-
   return (
     <>
       <FullScreenAddCardDialog
@@ -285,37 +268,41 @@ export function AddCardForm({
       <Card className="min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary">
         <CardContent className="h-full p-0">
           <form
-            className="flex h-full flex-1 flex-col"
+            className="relative flex min-h-36 flex-1 flex-col"
             data-card-creation-status={
               cardCreationStatus === undefined ? "loading" : "ready"
             }
             onSubmit={handleTextSubmit}
           >
-            <Textarea
+            <MarkdownTextEditor
+              ariaLabel="Markdown content"
               autoFocus={autoFocus}
-              className="h-full min-h-20 flex-1 resize-none rounded-none border-0 bg-transparent p-4 shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent"
+              className={cn(
+                "h-full min-h-20 flex-1 p-4",
+                hasContent && "pb-12"
+              )}
               disabled={!canCreateCard}
-              id="content"
-              onChange={(e) => setContent(e.target.value)}
-              onKeyDown={(e) => {
-                if (handleFullScreenShortcut(e)) {
-                  return;
+              minHeight="5rem"
+              onChange={setContent}
+              onLimitExceeded={() =>
+                toast.error("Notes can be up to 512 KiB of UTF-8 text")
+              }
+              onOpenFullScreen={() => {
+                if (canCreateCard) {
+                  setIsFullScreenOpen(true);
                 }
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault();
-                  if (hasContent && canCreateCard) {
-                    handleTextSubmit(
-                      e as unknown as React.FormEvent<HTMLFormElement>
-                    ).catch(console.error);
-                  }
+              }}
+              onSaveShortcut={() => {
+                if (hasContent && canCreateCard && !isSubmitting) {
+                  void submitTextCard();
                 }
               }}
               placeholder={inlinePlaceholderText}
-              ref={textareaRef}
               value={content}
+              variant="compact"
             />
 
-            <div className="flex justify-end gap-2 p-3">
+            <div className="absolute right-3 bottom-3 flex justify-end gap-2">
               {hasContent && (
                 <>
                   <Button

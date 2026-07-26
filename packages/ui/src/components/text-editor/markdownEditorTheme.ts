@@ -1,0 +1,146 @@
+import { EditorView } from "@codemirror/view";
+
+export const markdownEditorTheme = EditorView.theme({
+  "&": {
+    backgroundColor: "transparent",
+    color: "var(--color-foreground, currentColor)",
+    fontFamily: "var(--typeset-font-body, inherit)",
+    fontSize: "var(--typeset-size, 1rem)",
+    height: "100%",
+  },
+  "&.cm-focused": { outline: "none" },
+  ".cm-scroller": {
+    fontFamily: "var(--typeset-font-body, inherit)",
+    overflow: "auto",
+  },
+  ".cm-content": {
+    caretColor: "var(--color-foreground, currentColor)",
+    lineHeight: "var(--typeset-leading, 1.75)",
+    minHeight: "var(--teak-editor-min-height, 5rem)",
+    padding: "0",
+  },
+  ".cm-cursor, .cm-dropCursor": {
+    borderLeftColor: "var(--color-foreground, currentColor)",
+  },
+  ".cm-gutters": { display: "none" },
+  ".cm-line": {
+    padding: "0",
+  },
+  ".cm-placeholder": {
+    color: "var(--typeset-muted, var(--muted-foreground))",
+    fontStyle: "normal",
+  },
+  ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
+    backgroundColor: "color-mix(in oklch, var(--primary) 18%, transparent)",
+  },
+  ".cm-tooltip": {
+    backgroundColor: "transparent",
+    border: "0",
+  },
+  ".cm-md-format-toolbar": {
+    alignItems: "center",
+    backgroundColor: "var(--popover)",
+    border: "1px solid var(--border)",
+    borderRadius: "0.55rem",
+    boxShadow: "0 10px 30px color-mix(in oklch, black 14%, transparent)",
+    display: "flex",
+    gap: "0.15rem",
+    padding: "0.2rem",
+  },
+  ".cm-md-format-button": {
+    alignItems: "center",
+    background: "transparent",
+    border: "0",
+    borderRadius: "0.35rem",
+    color: "var(--popover-foreground)",
+    cursor: "pointer",
+    display: "inline-flex",
+    fontFamily: "var(--font-sans, sans-serif)",
+    fontSize: "0.72rem",
+    fontWeight: "650",
+    height: "1.75rem",
+    justifyContent: "center",
+    minWidth: "1.75rem",
+    padding: "0 0.35rem",
+  },
+  ".cm-md-format-button:hover, .cm-md-format-button:focus-visible": {
+    backgroundColor: "var(--accent)",
+    color: "var(--accent-foreground)",
+    outline: "none",
+  },
+  ".cm-md-heading": {
+    color: "var(--color-foreground, currentColor)",
+    fontFamily: "var(--typeset-font-heading, inherit)",
+    fontWeight: "600",
+  },
+  ".cm-md-heading-1": { fontSize: "1.75em", lineHeight: "1.3" },
+  ".cm-md-heading-2": { fontSize: "1.25em", lineHeight: "1.4" },
+  ".cm-md-heading-3": { fontSize: "1.125em", lineHeight: "1.45" },
+  ".cm-md-heading-4": { fontSize: "1em", lineHeight: "1.5" },
+  ".cm-md-heading-5": {
+    color: "var(--typeset-muted)",
+    fontSize: "0.875em",
+  },
+  ".cm-md-heading-6": {
+    color: "var(--typeset-muted)",
+    fontSize: "0.8125em",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+  },
+  ".cm-md-strong": { fontWeight: "600" },
+  ".cm-md-emphasis": { fontStyle: "italic" },
+  ".cm-md-inline-code": {
+    backgroundColor: "var(--muted)",
+    borderRadius: "0.25rem",
+    fontFamily: "var(--typeset-font-mono, monospace)",
+    fontSize: "0.86em",
+    padding: "0.04rem 0.2rem",
+  },
+  ".cm-md-code-line": {
+    backgroundColor: "color-mix(in oklch, var(--muted) 75%, transparent)",
+    fontFamily: "var(--typeset-font-mono, monospace)",
+    fontSize: "0.86em",
+    paddingLeft: "0.65rem",
+    paddingRight: "0.65rem",
+  },
+  ".cm-md-code-first": {
+    borderRadius: "0.4rem 0.4rem 0 0",
+    paddingTop: "0.35rem",
+  },
+  ".cm-md-code-last": {
+    borderRadius: "0 0 0.4rem 0.4rem",
+    paddingBottom: "0.35rem",
+  },
+  ".cm-md-quote": {
+    borderLeft: "2px solid var(--typeset-rule, var(--border))",
+    color: "var(--typeset-muted, var(--muted-foreground))",
+    paddingLeft: "0.65rem",
+  },
+  ".cm-md-divider": {
+    borderTop: "1px solid var(--typeset-rule, var(--border))",
+    height: "var(--typeset-flow, 1.25em)",
+    marginTop: "var(--typeset-flow, 1.25em)",
+  },
+  ".cm-md-syntax, .cm-md-image-source": {
+    color: "var(--typeset-muted, var(--muted-foreground))",
+    fontSize: "0.88em",
+  },
+  ".cm-md-list-marker": {
+    color: "var(--typeset-muted, var(--muted-foreground))",
+    display: "inline-block",
+    minWidth: "1.35rem",
+    paddingLeft: "0.15rem",
+  },
+  ".cm-md-link": {
+    color: "inherit",
+    cursor: "text",
+    fontWeight: "500",
+    textDecoration: "underline",
+    textDecorationColor: "color-mix(in oklab, currentColor 30%, transparent)",
+    textUnderlineOffset: "0.15em",
+  },
+  ".cm-md-link-unsafe": {
+    color: "var(--muted-foreground)",
+    textDecorationStyle: "dotted",
+  },
+});

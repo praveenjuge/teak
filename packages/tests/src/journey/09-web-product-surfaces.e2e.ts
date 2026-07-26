@@ -23,7 +23,7 @@ const pdf = Buffer.from(
 
 const saveTextCard = async (page: Page, content: string) => {
   await page.goto("/");
-  await page.getByPlaceholder(/Write a note/i).fill(content);
+  await page.getByRole("textbox", { name: "Markdown content" }).fill(content);
   await clickVisibleControl(
     page.getByRole("button", { exact: true, name: "Save" })
   );
@@ -94,7 +94,9 @@ const waitForHomeUploadSurface = async (page: Page) => {
   await expect(
     page.getByRole("button", { name: "Upload files" })
   ).toBeVisible();
-  await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "Markdown content" })
+  ).toBeVisible();
 };
 
 const showTrash = async (page: Page) => {
@@ -172,18 +174,32 @@ test("web editor, deep links, and link metadata stay usable", async ({
   const marker = markerFor("editor");
   await saveTextCard(page, `${marker} original`);
   await page.getByRole("main").getByText(`${marker} original`).click();
-  const editor = page.getByPlaceholder("Enter your text...");
+  const editor = page
+    .getByRole("dialog")
+    .getByRole("textbox", { name: "Markdown content" });
   await editor.fill(`# ${marker} updated\n\n- **bold** item\n- \`code\``);
+  await expect(
+    editor.locator(
+      "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' teak-markdown-editor ')]"
+    )
+  ).toHaveClass(/typeset/);
+  await expect(
+    page.getByRole("dialog").locator(".cm-md-heading-1")
+  ).toBeVisible();
+  await expect(page.getByRole("dialog").locator(".cm-editor")).toHaveAttribute(
+    "data-not-typeset",
+    "true"
+  );
   await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(editor).toHaveValue(/updated/);
+  await expect(editor).toContainText("updated");
   const deepLink = page.url();
   const cardId = new URL(deepLink).searchParams.get("card");
   expect(cardId).toBeTruthy();
   await page.reload();
   await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByPlaceholder("Enter your text...")).toHaveValue(
-    /updated/
-  );
+  await expect(
+    page.getByRole("dialog").getByRole("textbox", { name: "Markdown content" })
+  ).toContainText("updated");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await page.goto(deepLink);

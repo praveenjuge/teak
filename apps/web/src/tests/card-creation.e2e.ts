@@ -319,6 +319,46 @@ test.describe("Card Creation", () => {
       expect(isVisible).toBe(false);
     });
 
+    test("should overlay composer actions without changing its height", async ({
+      page,
+    }) => {
+      const uiHelper = new UiHelper(page);
+      const composer = uiHelper.getComposer();
+      const form = page.locator("form[data-card-creation-status]");
+      const emptyHeight = await form.evaluate(
+        (element) => element.getBoundingClientRect().height
+      );
+
+      await composer.fill("A short note");
+      await expect(uiHelper.getSaveButton()).toBeVisible();
+      const actionsHeight = await form.evaluate(
+        (element) => element.getBoundingClientRect().height
+      );
+
+      expect(actionsHeight).toBe(emptyHeight);
+    });
+
+    test("should release composer focus when the page margin is clicked", async ({
+      page,
+    }) => {
+      const uiHelper = new UiHelper(page);
+      const composer = uiHelper.getComposer();
+      const form = page.locator("form[data-card-creation-status]");
+      const formBounds = await form.boundingBox();
+      if (!formBounds) {
+        throw new Error("Add card form is not visible");
+      }
+
+      await composer.click();
+      await expect(composer).toBeFocused();
+      await page.mouse.click(
+        Math.max(1, formBounds.x - 8),
+        formBounds.y + formBounds.height / 2
+      );
+
+      await expect(composer).not.toBeFocused();
+    });
+
     test("should handle very long text", async ({ page }) => {
       const uiHelper = new UiHelper(page);
       const longText = "A".repeat(5000);
@@ -393,7 +433,7 @@ test.describe("Card Creation", () => {
       await page.waitForTimeout(1000);
 
       // Composer should be empty
-      await expect(composer).toHaveValue("");
+      await expect(composer).toHaveText("");
     });
   });
 });

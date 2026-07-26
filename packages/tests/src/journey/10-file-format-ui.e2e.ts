@@ -97,9 +97,9 @@ test("web picker and drag-drop upload files with safe opened previews", async ({
   await expect(textCard).toBeVisible();
   await textCard.click();
   const textDialog = page.getByRole("dialog");
-  await expect(textDialog.getByPlaceholder("Enter your text...")).toHaveValue(
-    rawMarkdown.replace(/\r\n?/g, "\n")
-  );
+  await expect(
+    textDialog.getByRole("textbox", { name: "Markdown content" })
+  ).toContainText(`${marker}-text`);
   await expect(
     textDialog.getByRole("button", { name: /Download/i })
   ).toHaveCount(0);

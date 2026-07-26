@@ -28,11 +28,13 @@ test.describe("Text Cards", () => {
     // Update card
     await createdCard.click();
 
-    const editor = page.getByPlaceholder("Enter your text...");
+    const editor = page
+      .getByRole("dialog")
+      .getByRole("textbox", { name: "Markdown content" });
     await expect(editor).toBeVisible();
     await editor.fill(updatedContent);
     await page.locator('button:has-text("Save changes"):visible').click();
-    await expect(editor).toHaveValue(updatedContent);
+    await expect(editor).toContainText(updatedContent);
 
     // Close modal
     await uiHelper.closeModal();

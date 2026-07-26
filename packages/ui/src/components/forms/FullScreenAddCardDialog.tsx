@@ -5,8 +5,8 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@teak/ui/components/ui/dialog";
-import { Textarea } from "@teak/ui/components/ui/textarea";
-import { useCallback, useEffect, useRef } from "react";
+import { MarkdownTextEditor } from "@teak/ui/text-editor";
+import { toast } from "sonner";
 
 interface FullScreenAddCardDialogProps {
   canCreateCard: boolean;
@@ -29,68 +29,7 @@ export function FullScreenAddCardDialog({
   onSave,
   onRequestClose,
 }: FullScreenAddCardDialogProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const scrollContainerRef = useRef<HTMLLabelElement>(null);
-
-  const resizeTextarea = useCallback((keepBottom = false) => {
-    if (!textareaRef.current) {
-      return;
-    }
-
-    const textarea = textareaRef.current;
-    textarea.style.height = "0px";
-    textarea.style.height = `${textarea.scrollHeight}px`;
-
-    if (keepBottom && scrollContainerRef.current) {
-      const container = scrollContainerRef.current;
-      container.scrollTop = container.scrollHeight - container.clientHeight;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const focusTextarea = () => {
-      if (!textareaRef.current) {
-        return;
-      }
-      textareaRef.current.focus();
-      const length = textareaRef.current.value.length;
-      textareaRef.current.setSelectionRange(length, length);
-      resizeTextarea(true);
-    };
-
-    const frame = requestAnimationFrame(focusTextarea);
-    return () => cancelAnimationFrame(frame);
-  }, [open, resizeTextarea]);
-
   const canSave = Boolean(content.trim() && canCreateCard && !isSubmitting);
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-      event.preventDefault();
-      if (canSave) {
-        void onSave();
-      }
-    }
-  };
-
-  const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const target = event.currentTarget;
-    const container = scrollContainerRef.current;
-    const wasNearBottom = container
-      ? container.scrollTop + container.clientHeight >=
-        container.scrollHeight - 24
-      : false;
-    target.style.height = "0px";
-    target.style.height = `${target.scrollHeight}px`;
-    if (container && wasNearBottom) {
-      container.scrollTop = container.scrollHeight - container.clientHeight;
-    }
-    onContentChange(target.value);
-  };
 
   return (
     <Dialog
@@ -110,8 +49,8 @@ export function FullScreenAddCardDialog({
           Add a new note in full-screen mode
         </DialogDescription>
 
-        <div className="relative h-dvh w-full">
-          <div className="fixed top-0 right-0 left-0 z-20 flex items-center justify-between border-b bg-background/90 px-6 py-2 backdrop-blur">
+        <div className="flex h-dvh w-full flex-col">
+          <div className="z-20 flex items-center justify-between border-b bg-background/90 px-4 py-2 backdrop-blur sm:px-6">
             <Button
               onClick={() => void onRequestClose()}
               size="sm"
@@ -130,26 +69,24 @@ export function FullScreenAddCardDialog({
             </Button>
           </div>
 
-          <label
-            className="block h-full w-full cursor-text overflow-y-auto"
-            htmlFor="fullscreen-content"
-            ref={scrollContainerRef}
-          >
-            <div className="w-full px-6 pt-20 pb-16">
-              <div className="mx-auto w-full max-w-3xl">
-                <Textarea
-                  className="min-h-[60vh] resize-none rounded-none border-0 bg-transparent! p-0 text-2xl leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent!"
-                  disabled={!canCreateCard}
-                  id="fullscreen-content"
-                  onChange={handleChange}
-                  onKeyDown={handleKeyDown}
-                  placeholder={placeholder}
-                  ref={textareaRef}
-                  value={content}
-                />
-              </div>
-            </div>
-          </label>
+          <MarkdownTextEditor
+            ariaLabel="Markdown content"
+            autoFocus
+            className="mx-auto h-full w-full max-w-3xl overflow-y-auto px-4 py-6 sm:px-7 sm:py-8"
+            disabled={!canCreateCard}
+            minHeight="60vh"
+            onChange={onContentChange}
+            onLimitExceeded={() =>
+              toast.error("Notes can be up to 512 KiB of UTF-8 text")
+            }
+            onSaveShortcut={() => {
+              if (canSave) {
+                void onSave();
+              }
+            }}
+            placeholder={placeholder}
+            value={content}
+          />
         </div>
       </DialogContent>
     </Dialog>

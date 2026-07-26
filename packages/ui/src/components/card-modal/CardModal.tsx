@@ -20,10 +20,12 @@ import type { CardModalCard, GetCurrentValue } from "./types";
 function CardPreview({
   card,
   getCurrentValue,
+  saveChanges,
   updateContent,
 }: {
   card: CardModalCard;
   getCurrentValue: GetCurrentValue;
+  saveChanges: () => Promise<void>;
   updateContent: (value: string) => void;
 }) {
   switch (card.type) {
@@ -33,6 +35,9 @@ function CardPreview({
           card={card}
           getCurrentValue={getCurrentValue}
           onContentChange={updateContent}
+          onSaveShortcut={() => {
+            void saveChanges();
+          }}
         />
       );
     case "quote":
@@ -160,6 +165,7 @@ export function CardModal({
                     <CardPreview
                       card={card}
                       getCurrentValue={getCurrentValue}
+                      saveChanges={saveChanges}
                       updateContent={updateContent}
                     />
                   </div>

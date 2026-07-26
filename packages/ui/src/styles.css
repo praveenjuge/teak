@@ -157,3 +157,17 @@
 [data-sonner-toaster] .sonner-loading-bar {
   background: var(--primary-foreground);
 }
+
+.teak-markdown-editor {
+  --teak-editor-font-size: 1rem;
+}
+
+.teak-markdown-editor .cm-editor {
+  font-size: var(--teak-editor-font-size);
+}
+
+@media (min-width: 48rem) {
+  .teak-markdown-editor[data-editor-variant="compact"] {
+    --teak-editor-font-size: 0.875rem;
+  }
+}

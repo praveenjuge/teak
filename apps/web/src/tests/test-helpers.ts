@@ -70,7 +70,7 @@ export class AuthHelper {
 
       // Wait for the main page element to be visible
       await this.page
-        .getByPlaceholder(/Write a note/i)
+        .getByRole("textbox", { name: "Markdown content" })
         .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
       return;
     } catch {
@@ -104,7 +104,7 @@ export class AuthHelper {
 
     // Wait for the main page element to be visible
     await this.page
-      .getByPlaceholder(/Write a note/i)
+      .getByRole("textbox", { name: "Markdown content" })
       .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
   }
 
@@ -148,7 +148,7 @@ export class AuthHelper {
 
       // Wait for the main page element to be visible
       await this.page
-        .getByPlaceholder(/Write a note/i)
+        .getByRole("textbox", { name: "Markdown content" })
         .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
     } catch (error) {
       // Provide more context for debugging
@@ -224,10 +224,10 @@ export class UiHelper {
   }
 
   /**
-   * Get the main composer textarea
+   * Get the main Markdown composer
    */
   getComposer(): Locator {
-    return this.page.getByPlaceholder(/Write a note/i);
+    return this.page.getByRole("textbox", { name: "Markdown content" });
   }
 
   /**
@@ -372,7 +372,7 @@ export class UiHelper {
     await this.page.goto("/");
     // Wait for page to be ready by checking for a key element
     await this.page
-      .getByPlaceholder(/Write a note/i)
+      .getByRole("textbox", { name: "Markdown content" })
       .waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
   }
 
