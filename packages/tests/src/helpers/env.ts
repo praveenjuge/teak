@@ -12,6 +12,7 @@ export const env = {
     ""
   ),
   cleanupToken: process.env.E2E_CLEANUP_TOKEN ?? "",
+  emailDeliveryEnabled: process.env.E2E_EMAIL_DELIVERY_ENABLED === "true",
   mailpitUrl: trim(process.env.MAILPIT_URL, ""),
   emailDomain: process.env.E2E_EMAIL_DOMAIN?.trim() || "",
   password: process.env.PROD_E2E_PASSWORD || "",
@@ -35,6 +36,12 @@ export const requireE2ECleanup = () => {
     throw new Error(
       "E2E_CLEANUP_TOKEN and VITE_PUBLIC_CONVEX_SITE_URL are required"
     );
+  }
+};
+
+export const requireE2ENamespace = () => {
+  if (!env.emailDomain) {
+    throw new Error("E2E_EMAIL_DOMAIN is required");
   }
 };
 

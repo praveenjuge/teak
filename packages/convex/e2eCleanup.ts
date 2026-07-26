@@ -7,6 +7,9 @@ import { z } from "zod";
 import { internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
+import { isE2EEmail, normalizeE2EEmailDomain } from "./e2eAccounts";
+
+export { isE2EEmail, normalizeE2EEmailDomain } from "./e2eAccounts";
 
 const CLEANUP_CONCURRENCY = 3;
 const EXACT_EMAIL_LIMIT = 20;
@@ -45,30 +48,10 @@ const requestSchema = z.object({
     .optional(),
 });
 
-export const normalizeE2EEmailDomain = (value: string): string => {
-  const domain = value.trim().toLowerCase();
-  const isValid =
-    domain.length <= 253 &&
-    domain.includes(".") &&
-    !domain.includes("@") &&
-    domain
-      .split(".")
-      .every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label));
-  if (!isValid) {
-    throw new Error("E2E_EMAIL_DOMAIN is invalid");
-  }
-  return domain;
-};
-
-export const isE2EEmail = (email: string, domain: string): boolean => {
-  const normalized = email.trim().toLowerCase();
-  const suffix = `@${domain}`;
-  if (!normalized.endsWith(suffix)) {
-    return false;
-  }
-  const localPart = normalized.slice(0, -suffix.length);
-  return /^e2e-[a-z0-9][a-z0-9-]{0,100}$/.test(localPart);
-};
+const provisionRequestSchema = z.object({
+  email: z.string().email().max(254),
+  password: z.string().min(8).max(128),
+});
 
 export const isWithinCleanupAge = ({
   createdAt,
@@ -223,11 +206,81 @@ export const resolveOrphanE2ECleanupCandidates = async ({
   };
 };
 
+export const provisionE2EAccount = async ({
+  authCtx,
+  domain,
+  email,
+  password,
+}: {
+  authCtx: AuthContext;
+  domain: string;
+  email: string;
+  password: string;
+}) => {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!isE2EEmail(normalizedEmail, domain)) {
+    throw new APIError("BAD_REQUEST", { message: "Invalid E2E email" });
+  }
+  if (
+    password.length < authCtx.password.config.minPasswordLength ||
+    password.length > authCtx.password.config.maxPasswordLength
+  ) {
+    throw new APIError("BAD_REQUEST", { message: "Invalid E2E password" });
+  }
+  if (await authCtx.internalAdapter.findUserByEmail(normalizedEmail)) {
+    throw new APIError("CONFLICT", { message: "E2E account already exists" });
+  }
+
+  const passwordHash = await authCtx.password.hash(password);
+  const user = await authCtx.internalAdapter.createUser({
+    email: normalizedEmail,
+    emailVerified: true,
+    name: "Production E2E",
+  });
+  try {
+    await authCtx.internalAdapter.linkAccount({
+      accountId: user.id,
+      password: passwordHash,
+      providerId: "credential",
+      userId: user.id,
+    });
+  } catch (error) {
+    await authCtx.internalAdapter.deleteUser(user.id);
+    throw error;
+  }
+
+  return { email: normalizedEmail };
+};
+
 export const e2eCleanupPlugin = (
   appCtx: GenericCtx<DataModel>
 ): BetterAuthPlugin => ({
   id: "teak-e2e-cleanup",
   endpoints: {
+    provisionE2EAccount: createAuthEndpoint(
+      "/internal/e2e/provision",
+      { method: "POST", body: provisionRequestSchema },
+      async (ctx) => {
+        const expectedToken = process.env.E2E_CLEANUP_TOKEN;
+        const emailDomain = process.env.E2E_EMAIL_DOMAIN;
+        if (!(expectedToken && emailDomain)) {
+          throw new APIError("SERVICE_UNAVAILABLE", {
+            message: "E2E provisioning is not configured",
+          });
+        }
+        if (ctx.headers?.get("authorization") !== `Bearer ${expectedToken}`) {
+          throw new APIError("UNAUTHORIZED", { message: "Unauthorized" });
+        }
+
+        const result = await provisionE2EAccount({
+          authCtx: ctx.context,
+          domain: normalizeE2EEmailDomain(emailDomain),
+          email: ctx.body.email,
+          password: ctx.body.password,
+        });
+        return ctx.json(result);
+      }
+    ),
     cleanupE2EAccounts: createAuthEndpoint(
       "/internal/e2e/cleanup",
       { method: "POST", body: requestSchema },

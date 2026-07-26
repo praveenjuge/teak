@@ -3,6 +3,7 @@ import {
   cleanupE2EAccounts,
   isConfiguredE2EEmail,
   isE2ECleanupResult,
+  provisionE2EAccount,
   summarizeE2ECleanup,
 } from "./e2e-cleanup";
 import { env } from "./env";
@@ -15,11 +16,13 @@ import {
 const originalFetch = globalThis.fetch;
 const originalCleanupToken = env.cleanupToken;
 const originalConvexSiteUrl = env.convexSiteUrl;
+const originalEmailDomain = env.emailDomain;
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
   env.cleanupToken = originalCleanupToken;
   env.convexSiteUrl = originalConvexSiteUrl;
+  env.emailDomain = originalEmailDomain;
 });
 
 describe("production E2E cleanup helpers", () => {
@@ -90,5 +93,31 @@ describe("production E2E cleanup helpers", () => {
     await expect(cleanupE2EAccounts()).rejects.toThrow(
       "invalid response (401)"
     );
+  });
+
+  test("provisions only configured E2E accounts through the protected endpoint", async () => {
+    env.cleanupToken = "test-token";
+    env.convexSiteUrl = "https://example.convex.site";
+    env.emailDomain = "tests.example.com";
+    const fetchMock = mock(
+      async (_input: RequestInfo | URL, init?: RequestInit) =>
+        Response.json({
+          email: JSON.parse(String(init?.body)).email,
+        })
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await provisionE2EAccount("e2e-primary@tests.example.com", "safe-password");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toEndWith("/api/auth/internal/e2e/provision");
+    expect(init?.headers).toEqual({
+      Authorization: "Bearer test-token",
+      "Content-Type": "application/json",
+    });
+    await expect(
+      provisionE2EAccount("person@example.com", "safe-password")
+    ).rejects.toThrow("provisioning email is invalid");
   });
 });

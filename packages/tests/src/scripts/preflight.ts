@@ -1,9 +1,13 @@
 import { resolveMx } from "node:dns/promises";
 import { Socket } from "node:net";
-import { assertE2ECleanupReady } from "../helpers/e2e-cleanup";
+import {
+  assertE2ECleanupReady,
+  assertE2EProvisioningReady,
+} from "../helpers/e2e-cleanup";
 import {
   env,
   requireE2ECleanup,
+  requireE2ENamespace,
   requireMailpit,
   requirePassword,
 } from "../helpers/env";
@@ -27,27 +31,33 @@ const checkPort = (host: string, port: number) =>
 
 const main = async () => {
   requirePassword();
-  requireMailpit();
   requireE2ECleanup();
-  await assertMailpitReady();
+  requireE2ENamespace();
   await assertE2ECleanupReady();
+  await assertE2EProvisioningReady();
 
-  const mx = await resolveMx(env.emailDomain).catch(() => []);
-  if (!mx.length) {
-    throw new Error(`No MX records found for ${env.emailDomain}`);
+  if (env.emailDeliveryEnabled) {
+    requireMailpit();
+    await assertMailpitReady();
+    const mx = await resolveMx(env.emailDomain).catch(() => []);
+    if (!mx.length) {
+      throw new Error(`No MX records found for ${env.emailDomain}`);
+    }
+
+    mx.sort((a, b) => a.priority - b.priority);
+    await checkPort(mx[0].exchange, 25);
+
+    console.log(
+      `Production E2E preflight ok: provisioning=direct email=${env.emailDomain} -> ${mx[0].exchange}:25`
+    );
+    return;
   }
-
-  mx.sort((a, b) => a.priority - b.priority);
-  await checkPort(mx[0].exchange, 25);
-
-  console.log(
-    `Mailpit preflight ok: ${env.emailDomain} -> ${mx[0].exchange}:25`
-  );
+  console.log("Production E2E preflight ok: provisioning=direct email=skipped");
 };
 
 main().catch((error) => {
   console.error(
-    `Mailpit preflight failed: ${error instanceof Error ? error.message : String(error)}`
+    `Production E2E preflight failed: ${error instanceof Error ? error.message : String(error)}`
   );
   process.exit(1);
 });

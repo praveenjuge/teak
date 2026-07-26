@@ -190,6 +190,52 @@ describe("metadata handler", () => {
       expect(result.mode).toBe("completed");
       expect(result.aiTags).toEqual(["tag1"]);
     });
+
+    test("skips AI generation for production E2E users", async () => {
+      const originalDomain = process.env.E2E_EMAIL_DOMAIN;
+      process.env.E2E_EMAIL_DOMAIN = "tests.example.com";
+      mockRunQuery
+        .mockResolvedValueOnce({
+          _id: "c1",
+          content: "content",
+          userId: "e2e-user",
+        })
+        .mockResolvedValueOnce({
+          email: "e2e-primary-123@tests.example.com",
+        });
+
+      try {
+        const result = await generateHandler(ctx, {
+          cardId: "c1",
+          cardType: "text",
+        });
+
+        expect(result.mode).toBe("skipped");
+        expect(aiMocks.generateText).not.toHaveBeenCalled();
+        expect(mockRunMutation).toHaveBeenCalled();
+      } finally {
+        if (originalDomain === undefined) {
+          delete process.env.E2E_EMAIL_DOMAIN;
+        } else {
+          process.env.E2E_EMAIL_DOMAIN = originalDomain;
+        }
+      }
+    });
+
+    test("defers metadata when provider capacity is exhausted", async () => {
+      mockRunQuery.mockResolvedValue({ _id: "c1", content: "content" });
+      aiMocks.generateText.mockRejectedValue(
+        new Error("Rate limit reached on tokens per day (TPD): status 429")
+      );
+
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "text",
+      });
+
+      expect(result.mode).toBe("skipped");
+      expect(mockRunMutation).toHaveBeenCalled();
+    });
   });
 
   describe("text card metadata", () => {

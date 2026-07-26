@@ -2,6 +2,7 @@ import {
   cleanupE2EAccounts,
   summarizeE2ECleanup,
 } from "../helpers/e2e-cleanup";
+import { env } from "../helpers/env";
 import {
   deleteMailpitMessages,
   listMailpitMessages,
@@ -38,13 +39,16 @@ updateState((state) => {
   }
 });
 
-const messages = await listMailpitMessages();
-const deletedMessages = await deleteMailpitMessages(
-  messageIdsForRecipients(
-    messages,
-    accounts.map((account) => account.email)
-  )
-);
+const deletedMessages = env.emailDeliveryEnabled
+  ? await listMailpitMessages().then((messages) =>
+      deleteMailpitMessages(
+        messageIdsForRecipients(
+          messages,
+          accounts.map((account) => account.email)
+        )
+      )
+    )
+  : 0;
 console.log(
   `Production E2E teardown complete: ${summarizeE2ECleanup(cleanup)} mailpitDeleted=${deletedMessages}`
 );

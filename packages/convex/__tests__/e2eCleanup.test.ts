@@ -5,6 +5,7 @@ import {
   isE2EEmail,
   isWithinCleanupAge,
   normalizeE2EEmailDomain,
+  provisionE2EAccount,
   resolveExactE2ECleanupCandidates,
   resolveOrphanE2ECleanupCandidates,
 } from "../e2eCleanup";
@@ -59,11 +60,92 @@ describe("production E2E cleanup safety", () => {
     ).toBe(false);
   });
 
-  test("registers one schema-free protected cleanup endpoint", () => {
+  test("registers schema-free protected provisioning and cleanup endpoints", () => {
     const plugin = e2eCleanupPlugin({} as never);
     expect(plugin.id).toBe("teak-e2e-cleanup");
     expect(plugin.schema).toBeUndefined();
+    expect(plugin.endpoints?.provisionE2EAccount).toBeDefined();
     expect(plugin.endpoints?.cleanupE2EAccounts).toBeDefined();
+  });
+
+  test("provisions a verified credential account without email delivery", async () => {
+    const findUserByEmail = mock(async () => null);
+    const createUser = mock(async (input: Record<string, unknown>) => ({
+      ...input,
+      id: "user-1",
+    }));
+    const linkAccount = mock(async () => undefined);
+    const deleteUser = mock(async () => undefined);
+    const hash = mock(async (password: string) => `hashed:${password}`);
+    const result = await provisionE2EAccount({
+      authCtx: {
+        internalAdapter: {
+          createUser,
+          deleteUser,
+          findUserByEmail,
+          linkAccount,
+        },
+        password: {
+          config: { maxPasswordLength: 128, minPasswordLength: 8 },
+          hash,
+        },
+      } as never,
+      domain: "tests.example.com",
+      email: "E2E-Primary-123@Tests.Example.Com",
+      password: "safe-password",
+    });
+
+    expect(result).toEqual({
+      email: "e2e-primary-123@tests.example.com",
+    });
+    expect(createUser).toHaveBeenCalledWith({
+      email: "e2e-primary-123@tests.example.com",
+      emailVerified: true,
+      name: "Production E2E",
+    });
+    expect(linkAccount).toHaveBeenCalledWith({
+      accountId: "user-1",
+      password: "hashed:safe-password",
+      providerId: "credential",
+      userId: "user-1",
+    });
+    expect(deleteUser).not.toHaveBeenCalled();
+  });
+
+  test("rejects unsafe provisioning and rolls back credential failures", async () => {
+    const deleteUser = mock(async () => undefined);
+    const authCtx = {
+      internalAdapter: {
+        createUser: mock(async () => ({ id: "user-1" })),
+        deleteUser,
+        findUserByEmail: mock(async () => null),
+        linkAccount: mock(() => {
+          throw new Error("link failed");
+        }),
+      },
+      password: {
+        config: { maxPasswordLength: 128, minPasswordLength: 8 },
+        hash: mock(async () => "hash"),
+      },
+    } as never;
+
+    await expect(
+      provisionE2EAccount({
+        authCtx,
+        domain: "tests.example.com",
+        email: "person@example.com",
+        password: "safe-password",
+      })
+    ).rejects.toThrow("Invalid E2E email");
+    await expect(
+      provisionE2EAccount({
+        authCtx,
+        domain: "tests.example.com",
+        email: "e2e-primary@tests.example.com",
+        password: "safe-password",
+      })
+    ).rejects.toThrow("link failed");
+    expect(deleteUser).toHaveBeenCalledWith("user-1");
   });
 
   test("exact cleanup separates missing, eligible, and unsafe accounts", async () => {

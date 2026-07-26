@@ -8,9 +8,10 @@
 "use node";
 
 import { v } from "convex/values";
-import { internal } from "../../_generated/api";
+import { components, internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
 import { stageCompleted } from "../../card/processingStatus";
+import { isE2EEmail, normalizeE2EEmailDomain } from "../../e2eAccounts";
 import type { CardType } from "../../schema";
 import { extractVisualStylesFromTags } from "../../shared/constants";
 import { inferFileFormat } from "../../shared/fileFormats";
@@ -22,6 +23,7 @@ import {
   generateImageMetadata,
   generateLinkMetadata,
   generateTextMetadata,
+  isAiProviderCapacityError,
 } from "../aiMetadata/generators";
 import { generateTranscript } from "../aiMetadata/transcript";
 import { extractFileTextForAi } from "../fileProcessing";
@@ -171,151 +173,7 @@ export async function generateHandler(
     };
   }
 
-  let aiTags: string[] = [];
-  let aiSummary = "";
-  let aiTranscript: string | undefined;
-  let visualStyles: string[] | undefined;
-  let confidence = 0.9;
-
-  switch (cardType as CardType) {
-    case "text": {
-      const result = await generateTextMetadata(card.content);
-      aiTags = result.aiTags;
-      aiSummary = result.aiSummary;
-      confidence = 0.95;
-      break;
-    }
-    case "image": {
-      const imageKey = resolveImageAnalysisKey(card);
-
-      if (imageKey) {
-        const imageUrl = await resolveObjectUrl(imageKey);
-        if (imageUrl) {
-          const result = await generateImageMetadata(imageUrl);
-          aiTags = result.aiTags;
-          aiSummary = result.aiSummary;
-          visualStyles = extractVisualStylesFromTags(result.aiTags);
-          confidence = 0.9;
-        }
-      }
-      break;
-    }
-    case "video": {
-      if (card.thumbnailKey) {
-        const thumbnailUrl = await resolveObjectUrl(card.thumbnailKey);
-        if (thumbnailUrl) {
-          const title =
-            card.fileMetadata?.fileName ||
-            (typeof card.content === "string" ? card.content : undefined);
-          const result = await generateImageMetadata(thumbnailUrl, title);
-          aiTags = result.aiTags;
-          aiSummary = result.aiSummary;
-          confidence = 0.88;
-        }
-      }
-      break;
-    }
-    case "audio": {
-      if (card.fileKey) {
-        const audioUrl = await resolveObjectUrl(card.fileKey);
-        if (audioUrl) {
-          const transcriptResult = await generateTranscript(
-            audioUrl,
-            card.fileMetadata?.mimeType
-          );
-          if (transcriptResult) {
-            aiTranscript = transcriptResult;
-            const result = await generateTextMetadata(transcriptResult);
-            aiTags = result.aiTags;
-            aiSummary = result.aiSummary;
-            confidence = 0.85;
-          }
-        }
-      }
-      break;
-    }
-    case "link": {
-      const contentParts = buildLinkContentParts(card);
-
-      const contentToAnalyze = contentParts.join("\n");
-      if (contentToAnalyze.trim()) {
-        const result = await generateLinkMetadata(
-          contentToAnalyze,
-          card.url || card.content
-        );
-        aiTags = result.aiTags;
-        aiSummary = result.aiSummary;
-        confidence = 0.9;
-      }
-      break;
-    }
-    case "document": {
-      const contentParts: string[] = [];
-      if (card.fileMetadata?.fileName) {
-        contentParts.push(card.fileMetadata.fileName);
-      }
-      if (card.fileKey && card.fileMetadata?.fileName) {
-        const format = inferFileFormat({
-          fileName: card.fileMetadata.fileName,
-          mimeType: card.fileMetadata.mimeType,
-        });
-        const fileUrl = await resolveObjectUrl(card.fileKey);
-        if (format && fileUrl) {
-          const extractedText = await extractFileTextForAi(
-            fileUrl,
-            format,
-            card
-          );
-          if (extractedText) {
-            contentParts.push(extractedText);
-          }
-        }
-      }
-      if (card.content?.trim()) {
-        contentParts.push(card.content);
-      }
-      const contentToAnalyze = contentParts.join("\n");
-      if (contentToAnalyze.trim()) {
-        const result = await generateTextMetadata(contentToAnalyze);
-        aiTags = result.aiTags;
-        aiSummary = result.aiSummary;
-        confidence = 0.85;
-      }
-      break;
-    }
-    case "quote": {
-      if (card.content?.trim()) {
-        const result = await generateTextMetadata(card.content);
-        aiTags = result.aiTags;
-        aiSummary = result.aiSummary;
-        confidence = 0.95;
-      }
-      break;
-    }
-    case "palette": {
-      let contentToAnalyze = card.content || "";
-      if (card.colors && card.colors.length > 0) {
-        const colorInfo = card.colors
-          .map(
-            (color: any) =>
-              `${color.hex}${color.name ? ` (${color.name})` : ""}`
-          )
-          .join(", ");
-        contentToAnalyze = `Colors: ${colorInfo}\n${contentToAnalyze}`;
-      }
-      if (contentToAnalyze.trim()) {
-        const result = await generateTextMetadata(contentToAnalyze);
-        aiTags = result.aiTags;
-        aiSummary = result.aiSummary;
-        confidence = 0.9;
-      }
-      break;
-    }
-    default:
-      break;
-  }
-
-  if (aiTags.length === 0 && !aiSummary && !aiTranscript) {
+  const completeWithoutAi = async () => {
     const now = Date.now();
     const processingStatus = card.processingStatus || {};
     await ctx.runMutation((internal as any).ai.mutations.updateCardProcessing, {
@@ -333,6 +191,182 @@ export async function generateHandler(
       confidence: 0,
       mode: "skipped" as const,
     };
+  };
+
+  const configuredE2EDomain = process.env.E2E_EMAIL_DOMAIN;
+  const user =
+    configuredE2EDomain && card.userId
+      ? ((await ctx.runQuery(components.betterAuth.adapter.findOne, {
+          model: "user",
+          where: [{ field: "id", operator: "eq", value: card.userId }],
+        })) as { email?: string } | null)
+      : null;
+  const isProductionE2EUser = Boolean(
+    user?.email &&
+      configuredE2EDomain &&
+      isE2EEmail(user.email, normalizeE2EEmailDomain(configuredE2EDomain))
+  );
+  if (isProductionE2EUser) {
+    return await completeWithoutAi();
+  }
+
+  let aiTags: string[] = [];
+  let aiSummary = "";
+  let aiTranscript: string | undefined;
+  let visualStyles: string[] | undefined;
+  let confidence = 0.9;
+
+  try {
+    switch (cardType as CardType) {
+      case "text": {
+        const result = await generateTextMetadata(card.content);
+        aiTags = result.aiTags;
+        aiSummary = result.aiSummary;
+        confidence = 0.95;
+        break;
+      }
+      case "image": {
+        const imageKey = resolveImageAnalysisKey(card);
+
+        if (imageKey) {
+          const imageUrl = await resolveObjectUrl(imageKey);
+          if (imageUrl) {
+            const result = await generateImageMetadata(imageUrl);
+            aiTags = result.aiTags;
+            aiSummary = result.aiSummary;
+            visualStyles = extractVisualStylesFromTags(result.aiTags);
+            confidence = 0.9;
+          }
+        }
+        break;
+      }
+      case "video": {
+        if (card.thumbnailKey) {
+          const thumbnailUrl = await resolveObjectUrl(card.thumbnailKey);
+          if (thumbnailUrl) {
+            const title =
+              card.fileMetadata?.fileName ||
+              (typeof card.content === "string" ? card.content : undefined);
+            const result = await generateImageMetadata(thumbnailUrl, title);
+            aiTags = result.aiTags;
+            aiSummary = result.aiSummary;
+            confidence = 0.88;
+          }
+        }
+        break;
+      }
+      case "audio": {
+        if (card.fileKey) {
+          const audioUrl = await resolveObjectUrl(card.fileKey);
+          if (audioUrl) {
+            const transcriptResult = await generateTranscript(
+              audioUrl,
+              card.fileMetadata?.mimeType
+            );
+            if (transcriptResult) {
+              aiTranscript = transcriptResult;
+              const result = await generateTextMetadata(transcriptResult);
+              aiTags = result.aiTags;
+              aiSummary = result.aiSummary;
+              confidence = 0.85;
+            }
+          }
+        }
+        break;
+      }
+      case "link": {
+        const contentParts = buildLinkContentParts(card);
+
+        const contentToAnalyze = contentParts.join("\n");
+        if (contentToAnalyze.trim()) {
+          const result = await generateLinkMetadata(
+            contentToAnalyze,
+            card.url || card.content
+          );
+          aiTags = result.aiTags;
+          aiSummary = result.aiSummary;
+          confidence = 0.9;
+        }
+        break;
+      }
+      case "document": {
+        const contentParts: string[] = [];
+        if (card.fileMetadata?.fileName) {
+          contentParts.push(card.fileMetadata.fileName);
+        }
+        if (card.fileKey && card.fileMetadata?.fileName) {
+          const format = inferFileFormat({
+            fileName: card.fileMetadata.fileName,
+            mimeType: card.fileMetadata.mimeType,
+          });
+          const fileUrl = await resolveObjectUrl(card.fileKey);
+          if (format && fileUrl) {
+            const extractedText = await extractFileTextForAi(
+              fileUrl,
+              format,
+              card
+            );
+            if (extractedText) {
+              contentParts.push(extractedText);
+            }
+          }
+        }
+        if (card.content?.trim()) {
+          contentParts.push(card.content);
+        }
+        const contentToAnalyze = contentParts.join("\n");
+        if (contentToAnalyze.trim()) {
+          const result = await generateTextMetadata(contentToAnalyze);
+          aiTags = result.aiTags;
+          aiSummary = result.aiSummary;
+          confidence = 0.85;
+        }
+        break;
+      }
+      case "quote": {
+        if (card.content?.trim()) {
+          const result = await generateTextMetadata(card.content);
+          aiTags = result.aiTags;
+          aiSummary = result.aiSummary;
+          confidence = 0.95;
+        }
+        break;
+      }
+      case "palette": {
+        let contentToAnalyze = card.content || "";
+        if (card.colors && card.colors.length > 0) {
+          const colorInfo = card.colors
+            .map(
+              (color: any) =>
+                `${color.hex}${color.name ? ` (${color.name})` : ""}`
+            )
+            .join(", ");
+          contentToAnalyze = `Colors: ${colorInfo}\n${contentToAnalyze}`;
+        }
+        if (contentToAnalyze.trim()) {
+          const result = await generateTextMetadata(contentToAnalyze);
+          aiTags = result.aiTags;
+          aiSummary = result.aiSummary;
+          confidence = 0.9;
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  } catch (error) {
+    if (!isAiProviderCapacityError(error)) {
+      throw error;
+    }
+    console.warn("[workflow/metadata] AI capacity unavailable; deferring", {
+      cardId,
+      cardType,
+    });
+    return await completeWithoutAi();
+  }
+
+  if (aiTags.length === 0 && !aiSummary && !aiTranscript) {
+    return await completeWithoutAi();
   }
 
   // Update card with AI metadata

@@ -26,6 +26,7 @@ env:
   PROD_MCP_URL: https://teakvault.com/mcp
   PROD_E2E_PASSWORD: ${{ secrets.PROD_E2E_PASSWORD }}
   E2E_CLEANUP_TOKEN: ${{ secrets.E2E_CLEANUP_TOKEN }}
+  E2E_EMAIL_DELIVERY_ENABLED: ${{ github.event_name == 'schedule' && 'true' || 'false' }}
   MAILPIT_URL: ${{ secrets.MAILPIT_URL }}
   E2E_EMAIL_DOMAIN: ${{ secrets.E2E_EMAIL_DOMAIN }}
   VITE_PUBLIC_CONVEX_URL: ${{ secrets.VITE_PUBLIC_CONVEX_URL }}
