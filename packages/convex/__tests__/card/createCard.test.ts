@@ -257,7 +257,7 @@ describe("card/createCard.ts", () => {
     );
   });
 
-  test("keeps text card when content has no URL", async () => {
+  test("keeps implicit text source exact when content has no URL", async () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -274,16 +274,16 @@ describe("card/createCard.ts", () => {
     } as any;
 
     const handler = (createCard as any).handler ?? createCard;
+    const content = "\uFEFF  # regular note\r\n\rBody  ";
     await handler(ctx, {
-      content: "just a regular note without any links",
-      type: "text",
+      content,
     });
 
     expect(ctx.db.insert).toHaveBeenCalledWith(
       "cards",
       expect.objectContaining({
         type: "text",
-        content: "just a regular note without any links",
+        content,
       })
     );
   });
