@@ -15,7 +15,7 @@ test("signup, create, and search", async ({ page }) => {
     const marker = `matrix-${Date.now()}`;
     await page.goto("/");
     const note = page.getByPlaceholder(/Write a note/i);
-    await note.pressSequentially(marker);
+    await note.fill(marker);
     await expect(note).toHaveValue(marker);
     await clickVisibleControl(
       page.getByRole("button", { exact: true, name: "Save" })

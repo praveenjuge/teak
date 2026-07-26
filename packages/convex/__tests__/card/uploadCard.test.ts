@@ -244,6 +244,63 @@ describe("card uploads", () => {
     });
   });
 
+  test("retries incomplete storage metadata before finalizing", async () => {
+    const wait = mock().mockResolvedValue(undefined);
+    const send = mock()
+      .mockResolvedValueOnce({ ContentLength: 10 })
+      .mockResolvedValueOnce({
+        ContentLength: 10,
+        ContentType: "image/png",
+        ETag: '"etag"',
+      });
+
+    await expect(
+      inspectUploadedCardSource(
+        "u1",
+        {
+          cardType: "image",
+          fileKey: VALID_FILE_KEY,
+          fileName: "image.png",
+          fileSize: 10,
+          fileType: "image/png",
+        },
+        { bucket: "test", client: { send }, wait }
+      )
+    ).resolves.toMatchObject({
+      cardType: "image",
+      storedFileSize: 10,
+      storedMimeType: "image/png",
+    });
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(wait).toHaveBeenCalledWith(75);
+  });
+
+  test("keeps a stable error after incomplete storage metadata retries", async () => {
+    const send = mock().mockResolvedValue({ ContentLength: 10 });
+    const wait = mock().mockResolvedValue(undefined);
+
+    await expect(
+      inspectUploadedCardSource(
+        "u1",
+        {
+          cardType: "image",
+          fileKey: VALID_FILE_KEY,
+          fileName: "image.png",
+          fileSize: 10,
+          fileType: "image/png",
+        },
+        { bucket: "test", client: { send }, wait }
+      )
+    ).rejects.toMatchObject({
+      data: {
+        code: "INVALID_INPUT",
+        message: "Uploaded file metadata is unavailable",
+      },
+    });
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(wait).toHaveBeenCalledTimes(2);
+  });
+
   test("rejects oversized and invalid UTF-8 Markdown objects without reading partial text", async () => {
     const oversizedSend = mock(async () => ({
       ContentLength: 512 * 1024 + 1,
