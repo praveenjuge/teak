@@ -433,7 +433,7 @@ test.describe("Card Creation", () => {
       await page.waitForTimeout(1000);
 
       // Composer should be empty
-      await expect(composer).toHaveValue("");
+      await expect(composer).toHaveText("");
     });
   });
 });
