@@ -72,11 +72,16 @@ describe("@teak/convex/sdk", () => {
         const headers = new Headers(init?.headers);
         seenHeaders.contentLength = headers.get("content-length");
         seenHeaders.contentType = headers.get("content-type");
-        return Promise.resolve(new Response(null, { status: 200 }));
+        return Promise.resolve(
+          new Response(null, {
+            headers: { ETag: '"upload-etag"' },
+            status: 200,
+          })
+        );
       }) as typeof fetch,
     });
 
-    await client.uploads.putFile(
+    const uploaded = await client.uploads.putFile(
       "https://upload.example",
       new Uint8Array([1, 2, 3]),
       "image/png"
@@ -86,6 +91,7 @@ describe("@teak/convex/sdk", () => {
       contentLength: "3",
       contentType: "image/png",
     });
+    expect(uploaded).toEqual({ fileEtag: '"upload-etag"' });
   });
 
   test("parses the backwards-compatible upload response contract", async () => {

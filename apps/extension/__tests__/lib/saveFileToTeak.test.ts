@@ -33,7 +33,12 @@ const createDependencies = () => {
         Response.json({ token: "header.payload.signature" })
       );
     }
-    return Promise.resolve(new Response(null, { status: 200 }));
+    return Promise.resolve(
+      new Response(null, {
+        headers: { ETag: '"upload-etag"' },
+        status: 200,
+      })
+    );
   }) as unknown as typeof fetch;
 
   return {
@@ -71,6 +76,7 @@ describe("extension file saving", () => {
     expect(action).toHaveBeenCalledTimes(1);
     expect(action.mock.calls[0]?.[1]).toMatchObject({
       cardType: "document",
+      fileEtag: '"upload-etag"',
       fileName: "component.tsx",
       fileType: "text/tsx",
     });

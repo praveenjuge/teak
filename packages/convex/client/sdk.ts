@@ -96,6 +96,7 @@ export interface TagSummary {
 export interface CreateCardInput {
   cardType?: CardType;
   content?: string;
+  fileEtag?: string;
   fileKey?: string;
   fileName?: string;
   fileSize?: number;
@@ -509,6 +510,7 @@ export const createTeakClient = (options: {
             { status: response.status }
           );
         }
+        return { fileEtag: response.headers.get("etag") ?? undefined };
       },
     },
   };

@@ -368,6 +368,7 @@ describe("publicApiHttp", () => {
         },
         body: JSON.stringify({
           cardType: "image",
+          fileEtag: '"upload-etag"',
           fileKey: "users/user_1/file/image.png",
           fileName: "image.png",
           fileSize: 123,
@@ -384,6 +385,7 @@ describe("publicApiHttp", () => {
     });
     expect(runAction.mock.calls[0][1]).toMatchObject({
       cardType: "image",
+      fileEtag: '"upload-etag"',
       fileKey: "users/user_1/file/image.png",
       fileName: "image.png",
       fileSize: 123,

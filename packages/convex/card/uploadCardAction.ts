@@ -31,6 +31,7 @@ const finalizeArgs = {
   additionalMetadata: v.optional(v.any()),
   cardType: v.optional(cardTypeValidator),
   content: v.optional(v.string()),
+  fileEtag: v.optional(v.string()),
   fileKey: v.string(),
   fileName: v.string(),
   fileSize: v.optional(v.number()),
@@ -58,6 +59,7 @@ interface FinalizeArgs {
     | "palette"
     | "quote";
   content?: string;
+  fileEtag?: string;
   fileKey: string;
   fileName: string;
   fileSize?: number;
@@ -88,20 +90,28 @@ const waitFor = (delayMs: number): Promise<void> =>
 
 const headUploadedObject = async (
   storage: UploadStorage,
-  key: string
+  key: string,
+  expectedEtag?: string
 ): Promise<CompleteHeadMetadata> => {
   let incompleteHead: HeadObjectCommandOutput | undefined;
   for (let attempt = 0; attempt <= HEAD_RETRY_DELAYS_MS.length; attempt += 1) {
     try {
       const head = await storage.client.send(
-        new HeadObjectCommand({ Bucket: storage.bucket, Key: key })
+        new HeadObjectCommand({
+          Bucket: storage.bucket,
+          Key: key,
+          IfMatch: expectedEtag,
+        })
       );
       if (
         typeof head.ContentLength === "number" &&
         Number.isFinite(head.ContentLength) &&
-        head.ETag
+        (head.ETag || expectedEtag)
       ) {
-        return head as CompleteHeadMetadata;
+        return {
+          ...head,
+          ETag: head.ETag || expectedEtag,
+        } as CompleteHeadMetadata;
       }
       incompleteHead = head;
     } catch {
@@ -123,6 +133,7 @@ const headUploadedObject = async (
       const probe = await storage.client.send(
         new GetObjectCommand({
           Bucket: storage.bucket,
+          IfMatch: expectedEtag,
           Key: key,
           Range: "bytes=0-0",
         })
@@ -130,11 +141,11 @@ const headUploadedObject = async (
       if (probe.Body) {
         await probe.Body.transformToByteArray();
       }
-      if (probe.ETag) {
+      if (probe.ETag || expectedEtag) {
         return {
           ...incompleteHead,
           ContentType: incompleteHead.ContentType ?? probe.ContentType,
-          ETag: probe.ETag,
+          ETag: probe.ETag || expectedEtag,
         } as CompleteHeadMetadata;
       }
     } catch {
@@ -199,8 +210,18 @@ export async function inspectUploadedCardSource(
     );
   }
 
+  if (
+    args.fileEtag !== undefined &&
+    !/^"[A-Za-z0-9+/=_-]{1,128}"$/u.test(args.fileEtag)
+  ) {
+    return convexUploadError(
+      "INVALID_INPUT",
+      "Uploaded file ETag is invalid"
+    );
+  }
+
   const { bucket, client } = storage;
-  const head = await headUploadedObject(storage, args.fileKey);
+  const head = await headUploadedObject(storage, args.fileKey, args.fileEtag);
 
   const storedFileSize = head.ContentLength;
   const sourceEtag = head.ETag;
@@ -263,7 +284,10 @@ export async function inspectUploadedCardSource(
         IfMatch: sourceEtag,
       })
     );
-    if (!(object.Body && object.ETag === sourceEtag)) {
+    if (
+      !object.Body ||
+      (object.ETag !== undefined && object.ETag !== sourceEtag)
+    ) {
       return convexUploadError(
         "CONFLICT",
         "Uploaded file changed before it could be saved"
@@ -277,10 +301,14 @@ export async function inspectUploadedCardSource(
       );
     }
     const verified = await client.send(
-      new HeadObjectCommand({ Bucket: bucket, Key: args.fileKey })
+      new HeadObjectCommand({
+        Bucket: bucket,
+        Key: args.fileKey,
+        IfMatch: sourceEtag,
+      })
     );
     if (
-      verified.ETag !== sourceEtag ||
+      (verified.ETag !== undefined && verified.ETag !== sourceEtag) ||
       verified.ContentLength !== storedFileSize
     ) {
       return convexUploadError(

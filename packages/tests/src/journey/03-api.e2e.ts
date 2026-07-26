@@ -224,6 +224,8 @@ test("REST API uploads and infers the expanded file-format matrix", async () => 
       method: "PUT",
     });
     expect(put.ok, fixture.fileName).toBe(true);
+    const fileEtag = put.headers.get("etag");
+    expect(fileEtag, fixture.fileName).toBeTruthy();
 
     let explicitCardType: "document" | "image" | undefined;
     if (index === 1) {
@@ -235,6 +237,7 @@ test("REST API uploads and infers the expanded file-format matrix", async () => 
       method: "POST",
       body: JSON.stringify({
         ...(explicitCardType ? { cardType: explicitCardType } : {}),
+        fileEtag,
         fileKey: upload.fileKey,
         fileName: fixture.fileName,
         fileSize: fixture.bytes.byteLength,

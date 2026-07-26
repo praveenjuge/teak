@@ -149,6 +149,7 @@ export async function saveFileToTeak(
       fileName,
       fileSize: input.bytes.size,
       fileType: mimeType,
+      fileEtag: uploadResponse.headers.get("etag") ?? undefined,
     });
     if (!(finalized.success && finalized.cardId)) {
       return errorResponse(

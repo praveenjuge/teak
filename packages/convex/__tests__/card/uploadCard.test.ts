@@ -343,6 +343,45 @@ describe("card uploads", () => {
     expect(transformToByteArray).toHaveBeenCalledTimes(1);
   });
 
+  test("verifies an upload-response ETag when storage responses omit it", async () => {
+    const bytes = new TextEncoder().encode("# exact");
+    const commands: Array<{ input?: { IfMatch?: string } }> = [];
+    const send = mock(async (command) => {
+      commands.push(command);
+      if (command.constructor.name === "GetObjectCommand") {
+        return { Body: { transformToByteArray: async () => bytes } };
+      }
+      return {
+        ContentLength: bytes.byteLength,
+        ContentType: "text/markdown",
+      };
+    });
+
+    await expect(
+      inspectUploadedCardSource(
+        "u1",
+        {
+          fileEtag: '"upload-etag"',
+          fileKey: VALID_FILE_KEY,
+          fileName: "README.md",
+          fileSize: bytes.byteLength,
+          fileType: "text/markdown",
+        },
+        { bucket: "test", client: { send } }
+      )
+    ).resolves.toMatchObject({
+      cardType: "text",
+      content: "# exact",
+      storedFileSize: bytes.byteLength,
+    });
+    expect(commands).toHaveLength(3);
+    expect(
+      commands.every(
+        (command) => command.input?.IfMatch === '"upload-etag"'
+      )
+    ).toBe(true);
+  });
+
   test("rejects oversized and invalid UTF-8 Markdown objects without reading partial text", async () => {
     const oversizedSend = mock(async () => ({
       ContentLength: 512 * 1024 + 1,

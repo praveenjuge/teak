@@ -64,7 +64,7 @@ shown above, so MCP clients validate and connect to the same public resource.
   - Input: `{ cardId: string }`
   - Output: full card object
 - `teak_v1_create_card`
-  - Input: text/URL fields or uploaded-file fields `{ fileKey, fileName, mimeType, fileSize?, cardType? }`. Explicit `cardType: "text"` stores raw Markdown exactly; automatic URL, quote, and palette detection remains when the type is omitted.
+  - Input: text/URL fields or uploaded-file fields `{ fileKey, fileEtag?, fileName, mimeType, fileSize?, cardType? }`. Pass the `ETag` response header from the upload PUT as `fileEtag` so Teak can verify the exact stored object. Explicit `cardType: "text"` stores raw Markdown exactly; automatic URL, quote, and palette detection remains when the type is omitted.
   - Output: `{ status: "created", cardId: string, appUrl: string }`
 - `teak_v1_list_tags`
   - Input: `{}`
