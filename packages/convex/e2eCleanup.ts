@@ -40,6 +40,16 @@ export interface E2ECleanupResult {
   remainingEligible: boolean;
 }
 
+export const requireE2EEmailDomain = (value: string): string => {
+  try {
+    return normalizeE2EEmailDomain(value);
+  } catch {
+    throw new APIError("SERVICE_UNAVAILABLE", {
+      message: "E2E account automation is misconfigured",
+    });
+  }
+};
+
 const requestSchema = z.object({
   emails: z
     .array(z.string().email().max(254))
@@ -274,7 +284,7 @@ export const e2eCleanupPlugin = (
 
         const result = await provisionE2EAccount({
           authCtx: ctx.context,
-          domain: normalizeE2EEmailDomain(emailDomain),
+          domain: requireE2EEmailDomain(emailDomain),
           email: ctx.body.email,
           password: ctx.body.password,
         });
@@ -296,7 +306,7 @@ export const e2eCleanupPlugin = (
           throw new APIError("UNAUTHORIZED", { message: "Unauthorized" });
         }
 
-        const domain = normalizeE2EEmailDomain(emailDomain);
+        const domain = requireE2EEmailDomain(emailDomain);
         const now = Date.now();
         const exact = ctx.body.emails
           ? await resolveExactE2ECleanupCandidates({

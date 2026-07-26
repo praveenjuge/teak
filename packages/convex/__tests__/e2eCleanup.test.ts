@@ -6,6 +6,7 @@ import {
   isWithinCleanupAge,
   normalizeE2EEmailDomain,
   provisionE2EAccount,
+  requireE2EEmailDomain,
   resolveExactE2ECleanupCandidates,
   resolveOrphanE2ECleanupCandidates,
 } from "../e2eCleanup";
@@ -18,6 +19,12 @@ describe("production E2E cleanup safety", () => {
     for (const domain of ["", "localhost", "@example.com", "-bad.example"]) {
       expect(() => normalizeE2EEmailDomain(domain)).toThrow();
     }
+  });
+
+  test("reports invalid endpoint configuration as unavailable", () => {
+    expect(() => requireE2EEmailDomain("not-a-domain")).toThrow(
+      "E2E account automation is misconfigured"
+    );
   });
 
   test("accepts only the configured E2E namespace", () => {
