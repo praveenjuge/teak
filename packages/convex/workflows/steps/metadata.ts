@@ -193,7 +193,16 @@ export async function generateHandler(
     };
   };
 
-  const configuredE2EDomain = process.env.E2E_EMAIL_DOMAIN;
+  let configuredE2EDomain: string | undefined;
+  try {
+    configuredE2EDomain = process.env.E2E_EMAIL_DOMAIN
+      ? normalizeE2EEmailDomain(process.env.E2E_EMAIL_DOMAIN)
+      : undefined;
+  } catch (error) {
+    console.warn("[workflow/metadata] Ignoring invalid E2E email domain", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
   const user =
     configuredE2EDomain && card.userId
       ? ((await ctx.runQuery(components.betterAuth.adapter.findOne, {
@@ -204,7 +213,7 @@ export async function generateHandler(
   const isProductionE2EUser = Boolean(
     user?.email &&
       configuredE2EDomain &&
-      isE2EEmail(user.email, normalizeE2EEmailDomain(configuredE2EDomain))
+      isE2EEmail(user.email, configuredE2EDomain)
   );
   if (isProductionE2EUser) {
     return await completeWithoutAi();

@@ -222,6 +222,32 @@ describe("metadata handler", () => {
       }
     });
 
+    test("ignores an invalid E2E namespace for normal metadata generation", async () => {
+      const originalDomain = process.env.E2E_EMAIL_DOMAIN;
+      process.env.E2E_EMAIL_DOMAIN = "invalid-domain";
+      mockRunQuery.mockResolvedValueOnce({
+        _id: "c1",
+        content: "content",
+        userId: "user-1",
+      });
+
+      try {
+        const result = await generateHandler(ctx, {
+          cardId: "c1",
+          cardType: "text",
+        });
+
+        expect(result.mode).toBe("completed");
+        expect(aiMocks.generateText).toHaveBeenCalled();
+      } finally {
+        if (originalDomain === undefined) {
+          delete process.env.E2E_EMAIL_DOMAIN;
+        } else {
+          process.env.E2E_EMAIL_DOMAIN = originalDomain;
+        }
+      }
+    });
+
     test("defers metadata when provider capacity is exhausted", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", content: "content" });
       aiMocks.generateText.mockRejectedValue(
