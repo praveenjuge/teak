@@ -302,8 +302,45 @@ describe("card uploads", () => {
         message: "Uploaded file metadata is unavailable",
       },
     });
-    expect(send).toHaveBeenCalledTimes(5);
+    expect(send).toHaveBeenCalledTimes(6);
     expect(wait).toHaveBeenCalledTimes(4);
+  });
+
+  test("uses a bounded GET probe when HEAD omits the object ETag", async () => {
+    const transformToByteArray = mock().mockResolvedValue(new Uint8Array([1]));
+    const send = mock(async (command) =>
+      command.constructor.name === "GetObjectCommand"
+        ? {
+            Body: { transformToByteArray },
+            ContentType: "image/svg+xml",
+            ETag: '"etag"',
+          }
+        : {
+            ContentLength: 10,
+            ContentType: "image/svg+xml",
+          }
+    );
+    const wait = mock().mockResolvedValue(undefined);
+
+    await expect(
+      inspectUploadedCardSource(
+        "u1",
+        {
+          cardType: "image",
+          fileKey: VALID_FILE_KEY,
+          fileName: "icon.svg",
+          fileSize: 10,
+          fileType: "image/svg+xml",
+        },
+        { bucket: "test", client: { send }, wait }
+      )
+    ).resolves.toMatchObject({
+      cardType: "image",
+      storedFileSize: 10,
+      storedMimeType: "image/svg+xml",
+    });
+    expect(send).toHaveBeenCalledTimes(6);
+    expect(transformToByteArray).toHaveBeenCalledTimes(1);
   });
 
   test("rejects oversized and invalid UTF-8 Markdown objects without reading partial text", async () => {
