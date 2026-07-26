@@ -1,7 +1,7 @@
 "use client";
 
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
+import { markdownKeymap } from "@codemirror/lang-markdown";
 import { Annotation, Compartment, EditorState } from "@codemirror/state";
 import {
   drawSelection,
@@ -22,6 +22,7 @@ import {
   selectionFormatTooltip,
 } from "./liveMarkdown";
 import { markdownEditorTheme } from "./markdownEditorTheme";
+import { teakMarkdownSupport } from "./markdownSupport";
 import type { MarkdownTextEditorProps } from "./types";
 
 const externalContentUpdate = Annotation.define<boolean>();
@@ -100,7 +101,7 @@ export function MarkdownTextEditor({
       doc: initial.value,
       extensions: [
         EditorState.lineSeparator.of("\n"),
-        markdown(),
+        teakMarkdownSupport(),
         history(),
         drawSelection(),
         EditorView.lineWrapping,

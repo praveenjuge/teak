@@ -44,6 +44,40 @@ test.describe("Card Creation", () => {
       await expect(page.getByText(/line 1/i)).toBeVisible();
     });
 
+    test("should render Markdown comments, tables, and code while editing", async ({
+      page,
+    }) => {
+      const uiHelper = new UiHelper(page);
+      const composer = uiHelper.getComposer();
+      await composer.fill(`# Heading
+
+<!-- Quiet editing context -->
+
+| Package | Target |
+| :--- | ---: |
+| \`teak\` | Web |
+
+\`\`\`sh
+npm install -g teak-cli
+\`\`\``);
+      await page.getByPlaceholder("Search for anything...").click();
+
+      const editor = page.locator(".cm-editor").first();
+      await expect(editor.locator(".cm-md-comment")).toHaveCSS(
+        "opacity",
+        "0.62"
+      );
+      await expect(
+        editor.getByRole("table", { name: "Markdown table" })
+      ).toBeVisible();
+      await expect(editor.locator(".cm-md-code-first")).toBeVisible();
+      await expect(editor.locator(".cm-md-code-last")).toBeVisible();
+      await expect(editor.locator(".cm-md-code-fence-hidden")).toHaveCSS(
+        "height",
+        "0px"
+      );
+    });
+
     test("should create card using keyboard shortcut", async ({ page }) => {
       const uiHelper = new UiHelper(page);
       const content = generateTestContent("Keyboard");

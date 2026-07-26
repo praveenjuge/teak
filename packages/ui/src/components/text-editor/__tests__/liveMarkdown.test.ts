@@ -1,12 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { markdown } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import {
   activeMarkdownConstructs,
   applyInlineFormat,
+  buildMarkdownDecorations,
   isSafeExternalUrl,
 } from "../liveMarkdown";
+import { teakMarkdownSupport } from "../markdownSupport";
+import { parseMarkdownTable } from "../markdownTable";
 
 function createTestView(
   source: string,
@@ -14,7 +16,7 @@ function createTestView(
 ) {
   let state = EditorState.create({
     doc: source,
-    extensions: [EditorState.lineSeparator.of("\n"), markdown()],
+    extensions: [EditorState.lineSeparator.of("\n"), teakMarkdownSupport()],
     selection,
   });
   const view = {
@@ -36,11 +38,33 @@ function createTestView(
   };
 }
 
+function decorationSpecs(source: string) {
+  const state = EditorState.create({
+    doc: source,
+    extensions: [teakMarkdownSupport()],
+    selection: { anchor: source.length },
+  });
+  const view = {
+    hasFocus: false,
+    state,
+    visibleRanges: [{ from: 0, to: state.doc.length }],
+  } as unknown as EditorView;
+  const specs: Array<{ from: number; spec: unknown; to: number }> = [];
+  buildMarkdownDecorations(view).between(
+    0,
+    state.doc.length,
+    (from, to, decoration) => {
+      specs.push({ from, spec: decoration.spec, to });
+    }
+  );
+  return specs;
+}
+
 describe("live Markdown editor", () => {
   test("identifies the complete construct around the caret", () => {
     const state = EditorState.create({
       doc: "# Heading\n\n**Bold** and plain",
-      extensions: markdown(),
+      extensions: teakMarkdownSupport(),
       selection: { anchor: 15 },
     });
 
@@ -97,6 +121,72 @@ describe("live Markdown editor", () => {
     expect(isSafeExternalUrl("javascript:alert(1)")).toBe(false);
     expect(isSafeExternalUrl("data:text/html,unsafe")).toBe(false);
     expect(isSafeExternalUrl("not a url")).toBe(false);
+  });
+
+  test("removes heading syntax whitespace from the inactive rendering", () => {
+    expect(decorationSpecs("#  Heading")).toContainEqual({
+      from: 0,
+      spec: {},
+      to: 3,
+    });
+  });
+
+  test("keeps Markdown comments visible with subdued styling", () => {
+    expect(decorationSpecs("<!-- quiet context -->")).toContainEqual({
+      from: 0,
+      spec: { class: "cm-md-comment" },
+      to: 22,
+    });
+  });
+
+  test("collapses the closing fence after the final code line", () => {
+    const source = "```sh\nnpm install\n```";
+
+    expect(decorationSpecs(source)).toEqual(
+      expect.arrayContaining([
+        {
+          from: 0,
+          spec: { class: "cm-md-code-line cm-md-code-first" },
+          to: 0,
+        },
+        {
+          from: 6,
+          spec: { class: "cm-md-code-line cm-md-code-last" },
+          to: 6,
+        },
+        {
+          from: 18,
+          spec: { class: "cm-md-code-fence-hidden" },
+          to: 18,
+        },
+      ])
+    );
+  });
+
+  test("parses simple tables with alignment and escaped pipes", () => {
+    expect(
+      parseMarkdownTable(
+        "| Package | Target | Notes |\n| :--- | :---: | ---: |\n| `teak` | Web | A \\| B |"
+      )
+    ).toEqual({
+      alignments: ["left", "center", "right"],
+      headers: ["Package", "Target", "Notes"],
+      rows: [["`teak`", "Web", "A | B"]],
+    });
+  });
+
+  test("renders an inactive table as one block widget", () => {
+    const source = "| Name | Use |\n| --- | --- |\n| Teak | Notes |";
+    expect(decorationSpecs(source)).toEqual(
+      expect.arrayContaining([
+        {
+          from: 0,
+          spec: expect.objectContaining({ block: true }),
+          to: 0,
+        },
+        { from: 0, spec: {}, to: source.length },
+      ])
+    );
   });
 
   test("round-trips LF, CRLF, mixed whitespace, and trailing spaces", () => {

@@ -2,17 +2,19 @@ import { syntaxTree } from "@codemirror/language";
 import {
   EditorSelection,
   type EditorState,
+  type Extension,
   type Range,
+  StateEffect,
+  StateField,
 } from "@codemirror/state";
 import {
   Decoration,
   type DecorationSet,
-  type EditorView,
+  EditorView,
   showTooltip,
-  ViewPlugin,
-  type ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
+import { MarkdownTableWidget, parseMarkdownTable } from "./markdownTable";
 import type { MarkdownInlineFormat } from "./types";
 
 const ACTIVE_CONSTRUCTS = new Set([
@@ -29,12 +31,12 @@ const ACTIVE_CONSTRUCTS = new Set([
   "Link",
   "ListItem",
   "StrongEmphasis",
+  "Table",
 ]);
 
 const HIDDEN_MARKS = new Set([
   "CodeMark",
   "EmphasisMark",
-  "HeaderMark",
   "LinkMark",
   "QuoteMark",
 ]);
@@ -106,19 +108,19 @@ function belongsToActiveConstruct(
 }
 
 function addBlockLineDecorations(
-  view: EditorView,
+  state: EditorState,
   from: number,
   to: number,
   className: string,
   ranges: Range<Decoration>[]
 ) {
-  let line = view.state.doc.lineAt(from);
+  let line = state.doc.lineAt(from);
   while (line.from <= to) {
     ranges.push(Decoration.line({ class: className }).range(line.from));
-    if (line.to >= to || line.number >= view.state.doc.lines) {
+    if (line.to >= to || line.number >= state.doc.lines) {
       break;
     }
-    line = view.state.doc.line(line.number + 1);
+    line = state.doc.line(line.number + 1);
   }
 }
 
@@ -225,27 +227,53 @@ function parseMarkdownLink(source: string) {
   return { href: match[2], label: match[1].replace(/\\([\\\]])/gu, "$1") };
 }
 
-function codeFenceClasses(view: EditorView, from: number, to: number) {
+function codeFenceClasses(state: EditorState, from: number, to: number) {
   const ranges: Range<Decoration>[] = [];
-  let line = view.state.doc.lineAt(from);
+  const firstLine = state.doc.lineAt(from);
+  const lastLine = state.doc.lineAt(Math.max(from, to - 1));
+  const hasClosingFence =
+    lastLine.number > firstLine.number &&
+    /^[ \t]*(?:`{3,}|~{3,})[ \t]*$/u.test(
+      state.sliceDoc(lastLine.from, lastLine.to)
+    );
+  const visualLastLineNumber = hasClosingFence
+    ? lastLine.number - 1
+    : lastLine.number;
+  let line = firstLine;
+
   while (line.from <= to) {
+    if (hasClosingFence && line.number === lastLine.number) {
+      ranges.push(
+        Decoration.line({ class: "cm-md-code-fence-hidden" }).range(line.from)
+      );
+      break;
+    }
+
     const classes = ["cm-md-code-line"];
-    if (line.from === view.state.doc.lineAt(from).from) {
+    if (line.number === firstLine.number) {
       classes.push("cm-md-code-first");
     }
-    if (line.to >= to) {
+    if (line.number === visualLastLineNumber) {
       classes.push("cm-md-code-last");
     }
     ranges.push(Decoration.line({ class: classes.join(" ") }).range(line.from));
-    if (line.to >= to || line.number >= view.state.doc.lines) {
+    if (line.number >= lastLine.number || line.number >= state.doc.lines) {
       break;
     }
-    line = view.state.doc.line(line.number + 1);
+    line = state.doc.line(line.number + 1);
   }
   return ranges;
 }
 
-export function buildMarkdownDecorations(view: EditorView): DecorationSet {
+interface MarkdownDecorationContext {
+  hasFocus: boolean;
+  state: EditorState;
+  visibleRanges: SourceRange[];
+}
+
+export function buildMarkdownDecorations(
+  view: MarkdownDecorationContext
+): DecorationSet {
   const ranges: Range<Decoration>[] = [];
   const active = view.hasFocus ? activeMarkdownConstructs(view.state) : [];
   const visibleFrom = view.visibleRanges[0]?.from ?? 0;
@@ -286,9 +314,26 @@ export function buildMarkdownDecorations(view: EditorView): DecorationSet {
           Decoration.mark({ class: "cm-md-inline-code" }).range(from, to)
         );
       } else if (name === "Blockquote") {
-        addBlockLineDecorations(view, from, to, "cm-md-quote", ranges);
+        addBlockLineDecorations(view.state, from, to, "cm-md-quote", ranges);
       } else if (name === "FencedCode") {
-        ranges.push(...codeFenceClasses(view, from, to));
+        ranges.push(...codeFenceClasses(view.state, from, to));
+      } else if (name === "Comment" || name === "CommentBlock") {
+        ranges.push(
+          Decoration.mark({ class: "cm-md-comment" }).range(from, to)
+        );
+        return false;
+      } else if (name === "Table" && !isActive) {
+        const table = parseMarkdownTable(source);
+        if (table) {
+          ranges.push(
+            Decoration.widget({
+              block: true,
+              widget: new MarkdownTableWidget(from, table),
+            }).range(from),
+            Decoration.replace({}).range(from, to)
+          );
+          return false;
+        }
       } else if (name === "HorizontalRule") {
         ranges.push(
           Decoration.line({ class: "cm-md-divider" }).range(
@@ -322,7 +367,19 @@ export function buildMarkdownDecorations(view: EditorView): DecorationSet {
         return false;
       }
 
-      if (name === "ListMark") {
+      if (name === "HeaderMark") {
+        const line = view.state.doc.lineAt(from);
+        const followingWhitespace =
+          from === line.from
+            ? (/^[ \t]+/u.exec(view.state.sliceDoc(to, line.to))?.[0] ?? "")
+            : "";
+        ranges.push(
+          (isActive
+            ? Decoration.mark({ class: "cm-md-syntax" })
+            : Decoration.replace({})
+          ).range(from, isActive ? to : to + followingWhitespace.length)
+        );
+      } else if (name === "ListMark") {
         ranges.push(
           (isActive
             ? Decoration.mark({ class: "cm-md-syntax" })
@@ -349,28 +406,67 @@ export function buildMarkdownDecorations(view: EditorView): DecorationSet {
   return Decoration.set(ranges, true);
 }
 
-export function createLiveMarkdownPlugin() {
-  return ViewPlugin.fromClass(
-    class {
-      decorations: DecorationSet;
+const markdownFocusEffect = StateEffect.define<boolean>();
 
-      constructor(view: EditorView) {
-        this.decorations = buildMarkdownDecorations(view);
-      }
+interface LiveMarkdownState {
+  decorations: DecorationSet;
+  hasFocus: boolean;
+}
 
-      update(update: ViewUpdate) {
-        if (
-          update.docChanged ||
-          update.selectionSet ||
-          update.viewportChanged ||
-          update.focusChanged
-        ) {
-          this.decorations = buildMarkdownDecorations(update.view);
-        }
+function decorationsForState(state: EditorState, hasFocus: boolean) {
+  return buildMarkdownDecorations({
+    hasFocus,
+    state,
+    visibleRanges: [{ from: 0, to: state.doc.length }],
+  });
+}
+
+const liveMarkdownState = StateField.define<LiveMarkdownState>({
+  create(state) {
+    return {
+      decorations: decorationsForState(state, false),
+      hasFocus: false,
+    };
+  },
+  provide: (field) =>
+    EditorView.decorations.from(field, (value) => value.decorations),
+  update(value, transaction) {
+    let hasFocus = value.hasFocus;
+    for (const effect of transaction.effects) {
+      if (effect.is(markdownFocusEffect)) {
+        hasFocus = effect.value;
       }
-    },
-    { decorations: (plugin) => plugin.decorations }
-  );
+    }
+    if (
+      transaction.docChanged ||
+      transaction.selection ||
+      hasFocus !== value.hasFocus
+    ) {
+      return {
+        decorations: decorationsForState(transaction.state, hasFocus),
+        hasFocus,
+      };
+    }
+    return {
+      decorations: value.decorations.map(transaction.changes),
+      hasFocus,
+    };
+  },
+});
+
+const liveMarkdownFocusHandlers = EditorView.domEventHandlers({
+  blur(_event, view) {
+    view.dispatch({ effects: markdownFocusEffect.of(false) });
+    return false;
+  },
+  focus(_event, view) {
+    view.dispatch({ effects: markdownFocusEffect.of(true) });
+    return false;
+  },
+});
+
+export function createLiveMarkdownPlugin(): Extension {
+  return [liveMarkdownState, liveMarkdownFocusHandlers];
 }
 
 function backtickDelimiter(content: string) {
