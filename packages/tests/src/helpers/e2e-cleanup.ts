@@ -132,8 +132,17 @@ export const assertE2ECleanupReady = async (): Promise<void> => {
 export const assertE2EProvisioningReady = async (): Promise<void> => {
   const email = `e2e-preflight-${Date.now()}-provision@${env.emailDomain}`;
   await provisionE2EAccount(email, env.password);
-  const result = await cleanupE2EAccounts([email]);
-  if (!result.deleted.includes(email)) {
-    throw new Error("Production E2E provisioning preflight did not clean up");
+  let cleanupConfirmed = false;
+  try {
+    const result = await cleanupE2EAccounts([email]);
+    cleanupConfirmed =
+      result.deleted.includes(email) || result.alreadyDeleted.includes(email);
+    if (!cleanupConfirmed) {
+      throw new Error("Production E2E provisioning preflight did not clean up");
+    }
+  } finally {
+    if (!cleanupConfirmed) {
+      await cleanupE2EAccounts([email]).catch(() => undefined);
+    }
   }
 };

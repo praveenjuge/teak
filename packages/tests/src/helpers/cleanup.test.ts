@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
+  assertE2EProvisioningReady,
   cleanupE2EAccounts,
   isConfiguredE2EEmail,
   isE2ECleanupResult,
@@ -17,12 +18,14 @@ const originalFetch = globalThis.fetch;
 const originalCleanupToken = env.cleanupToken;
 const originalConvexSiteUrl = env.convexSiteUrl;
 const originalEmailDomain = env.emailDomain;
+const originalPassword = env.password;
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
   env.cleanupToken = originalCleanupToken;
   env.convexSiteUrl = originalConvexSiteUrl;
   env.emailDomain = originalEmailDomain;
+  env.password = originalPassword;
 });
 
 describe("production E2E cleanup helpers", () => {
@@ -119,5 +122,41 @@ describe("production E2E cleanup helpers", () => {
     await expect(
       provisionE2EAccount("person@example.com", "safe-password")
     ).rejects.toThrow("provisioning email is invalid");
+  });
+
+  test("retries preflight cleanup after a failed first attempt", async () => {
+    env.cleanupToken = "test-token";
+    env.convexSiteUrl = "https://example.convex.site";
+    env.emailDomain = "tests.example.com";
+    env.password = "safe-password";
+    let cleanupAttempts = 0;
+    globalThis.fetch = mock((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const body = JSON.parse(String(init?.body));
+      if (url.endsWith("/api/auth/internal/e2e/provision")) {
+        return Response.json({ email: body.email });
+      }
+      cleanupAttempts += 1;
+      if (cleanupAttempts === 1) {
+        return Response.json(
+          { message: "temporarily unavailable" },
+          {
+            status: 503,
+          }
+        );
+      }
+      return Response.json({
+        alreadyDeleted: [],
+        deleted: body.emails,
+        failures: [],
+        ignoredOutOfRange: [],
+        remainingEligible: false,
+      });
+    }) as unknown as typeof fetch;
+
+    await expect(assertE2EProvisioningReady()).rejects.toThrow(
+      "invalid response (503)"
+    );
+    expect(cleanupAttempts).toBe(2);
   });
 });
