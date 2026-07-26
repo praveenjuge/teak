@@ -161,6 +161,71 @@ describe("card/createCard.ts", () => {
     );
   });
 
+  test("keeps explicit text stable for URLs, quotes, colors, and Markdown", async () => {
+    const insert = mock(async () => "c_explicit");
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
+          }),
+        }),
+        insert,
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any;
+    const handler = (createCard as any).handler ?? createCard;
+    const sources = [
+      "https://example.com",
+      '"A quoted note"',
+      "#ff00aa, rgb(0, 10, 20)",
+      "# Heading\n\n| A | B |\n| - | - |\n| 1 | 2 |",
+    ];
+
+    for (const content of sources) {
+      await handler(ctx, { content, type: "text" });
+    }
+
+    expect(insert.mock.calls.map((call) => call[1])).toEqual(
+      sources.map((content) =>
+        expect.objectContaining({ content, type: "text" })
+      )
+    );
+  });
+
+  test("preserves explicit Markdown text source exactly and enforces UTF-8 bytes", async () => {
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            take: mock().mockResolvedValue([]),
+          }),
+        }),
+        insert: mock().mockResolvedValue("c_markdown"),
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any;
+    const source =
+      "\uFEFF  # Heading\r\n- [ ] task\rBody\nhttps://example.com  ";
+    const handler = (createCard as any).handler ?? createCard;
+    await handler(ctx, { content: source, type: "text" });
+    expect(ctx.db.insert.mock.calls[0]?.[1]).toMatchObject({
+      content: source,
+      type: "text",
+      url: undefined,
+    });
+
+    await expect(
+      handler(ctx, {
+        content: `${"a".repeat(512 * 1024)}b`,
+        type: "text",
+      })
+    ).rejects.toThrow("512 KiB when encoded as UTF-8");
+  });
+
   test("lets the backend upgrade a URL to a link card when type is omitted", async () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },

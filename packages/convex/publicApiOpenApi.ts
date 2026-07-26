@@ -132,11 +132,16 @@ const components = {
       properties: {
         cardType: {
           description:
-            "Optional for uploaded files. When omitted, Teak infers the type from fileName and mimeType.",
+            "Optional explicit card type. Text content is stored as raw Markdown without normalization. When omitted, Teak keeps automatic URL, quote, and palette classification. Uploaded file types are inferred from fileName and mimeType.",
           enum: CARD_TYPES,
           type: "string",
         },
-        content: { type: "string" },
+        content: {
+          description:
+            "Card content. For text cards this is canonical raw Markdown, preserved exactly, with a maximum of 512 KiB measured in UTF-8 bytes.",
+          example: "  # Draft\r\n\r\n- [ ] Keep spacing  \n",
+          type: "string",
+        },
         fileKey: { type: "string" },
         fileName: { type: "string" },
         fileSize: { type: "number" },
@@ -246,7 +251,12 @@ const components = {
     },
     UpdateCardRequest: {
       properties: {
-        content: { type: "string" },
+        content: {
+          description:
+            "Replacement card content. Text-card Markdown is preserved exactly and is limited to 512 KiB measured in UTF-8 bytes.",
+          example: "---\r\ntitle: Notes\r\n---\r\n\r\n# Heading  \r\n",
+          type: "string",
+        },
         notes: { nullable: true, type: "string" },
         tags: { items: { type: "string" }, type: "array" },
         url: { type: "string" },

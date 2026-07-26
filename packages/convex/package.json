@@ -13,6 +13,7 @@
     "./shared/client-telemetry": "./shared/client_telemetry.ts",
     "./shared/file-formats": "./shared/fileFormats.ts",
     "./shared/metrics": "./shared/metrics.ts",
+    "./shared/markdown": "./shared/markdown.ts",
     "./shared/telemetry": "./shared/telemetry.ts",
     "./shared/hooks/useCardActions": "./client/hooks/useCardActions.client.tsx",
     "./shared/hooks/useFileUpload": "./client/hooks/useFileUpload.client.tsx",
@@ -26,6 +27,7 @@
   "types": "./index.ts",
   "scripts": {
     "dev": "convex dev",
+    "migrate:markdown": "bun ../../scripts/runMarkdownConversion.mjs",
     "test": "GOOGLE_CLIENT_ID=test GOOGLE_CLIENT_SECRET=test SITE_URL=http://app.teak.localhost:1355 bun test __tests__ --coverage --dots",
     "typecheck": "tsc --noEmit"
   },

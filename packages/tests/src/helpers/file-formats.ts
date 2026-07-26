@@ -19,6 +19,11 @@ export const expandedFileFixtures = (marker: string): FileFixture[] => [
     mimeType: "text/tsx",
   },
   {
+    bytes: strToU8(`\uFEFF  # ${marker}\r\n\r\n- [ ] exact Markdown  \n`),
+    fileName: `${marker}.MD`,
+    mimeType: "text/markdown",
+  },
+  {
     bytes: strToU8(`# ${marker}\n\nA safe **Markdown** fixture.`),
     fileName: `${marker}.mdx`,
     mimeType: "text/mdx",
@@ -71,7 +76,7 @@ export const expandedFileFixtures = (marker: string): FileFixture[] => [
 ];
 
 export const cliFileFixtures = (marker: string): FileFixture[] => {
-  const wanted = new Set(["tsx", "mdx", "zip", "svg", "gif", "fig"]);
+  const wanted = new Set(["tsx", "md", "mdx", "zip", "svg", "gif", "fig"]);
   return expandedFileFixtures(marker).filter((fixture) =>
     wanted.has(fixture.fileName.split(".").pop() ?? "")
   );

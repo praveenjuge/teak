@@ -92,6 +92,78 @@ test("saving a URL as content creates a link card, not a text card", async () =>
   expect(fetchedPayload.url).toBe(bookUrl);
 });
 
+test("REST text cards preserve raw Markdown and enforce the UTF-8 limit", async () => {
+  const apiKey = requireServiceApiKey("api");
+  const marker = `api-markdown-${Date.now()}`;
+  const original = `\uFEFF  # ${marker}\r\n\r\n- [ ] task  \r\nhttps://example.com  `;
+  const created = await apiFetch("/v1/cards", apiKey, {
+    method: "POST",
+    body: JSON.stringify({
+      cardType: "text",
+      content: original,
+      tags: ["prod-e2e", "markdown"],
+    }),
+  });
+  expect(created.status).toBe(200);
+  const createdCard = await created.json();
+  updateState((state) => state.createdCardIds.push(createdCard.cardId));
+  expect(createdCard.card).toMatchObject({
+    content: original,
+    type: "text",
+  });
+
+  const updated = `  ---\r\ntitle: ${marker}\r\n---\r\n\r\n| A | B |\r\n| - | - |\r\n`;
+  const patched = await apiFetch(`/v1/cards/${createdCard.cardId}`, apiKey, {
+    method: "PATCH",
+    body: JSON.stringify({ content: updated }),
+  });
+  expect(patched.status).toBe(200);
+  expect(await patched.json()).toMatchObject({
+    content: updated,
+    type: "text",
+  });
+
+  const listed = await apiFetch(
+    `/v1/cards?include=content&q=${encodeURIComponent(marker)}`,
+    apiKey
+  );
+  expect((await listed.json()).items).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ content: updated, type: "text" }),
+    ])
+  );
+  const searched = await apiFetch(
+    `/v1/cards/search?q=${encodeURIComponent(marker)}`,
+    apiKey
+  );
+  expect((await searched.json()).items).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ content: updated, type: "text" }),
+    ])
+  );
+
+  const exact = await apiFetch("/v1/cards", apiKey, {
+    method: "POST",
+    body: JSON.stringify({
+      cardType: "text",
+      content: "a".repeat(512 * 1024),
+    }),
+  });
+  expect(exact.status).toBe(200);
+  const exactCard = await exact.json();
+  updateState((state) => state.createdCardIds.push(exactCard.cardId));
+
+  const oversized = await apiFetch("/v1/cards", apiKey, {
+    method: "POST",
+    body: JSON.stringify({
+      cardType: "text",
+      content: `${"a".repeat(512 * 1024)}b`,
+    }),
+  });
+  expect(oversized.status).toBe(400);
+  expect(await oversized.json()).toMatchObject({ code: "CONTENT_TOO_LARGE" });
+});
+
 test("saving a color as content creates a palette card, not a text card", async () => {
   // Regression: saving a color (single hex, or a list of colors/names) as card
   // content stopped becoming a "palette" card and stuck as "text". Palette
@@ -139,7 +211,9 @@ test("REST API uploads and infers the expanded file-format matrix", async () => 
     expect(prepared.status, fixture.fileName).toBe(200);
     const upload = await prepared.json();
     expect(upload).toMatchObject({
-      maxFileSize: 100 * 1024 * 1024,
+      maxFileSize: fixture.fileName.toLowerCase().endsWith(".md")
+        ? 512 * 1024
+        : 100 * 1024 * 1024,
       method: "PUT",
     });
 
@@ -178,6 +252,13 @@ test("REST API uploads and infers the expanded file-format matrix", async () => 
     expect(fetchedCard.fileName).toBe(fixture.fileName);
     expect(fetchedCard.fileKind).toBeTruthy();
     expect(fetchedCard.mimeType).toBe(fixture.mimeType);
+    if (fixture.fileName.toLowerCase().endsWith(".md")) {
+      expect(fetchedCard).toMatchObject({
+        content: new TextDecoder().decode(fixture.bytes),
+        type: "text",
+      });
+      expect(fetchedCard.fileUrl).toMatch(/^https?:\/\//);
+    }
     if (fixture.fileName.endsWith(".gif")) {
       expect(fetchedCard.type).toBe("video");
       expect(fetchedCard.filePreview?.animated).toBe(true);

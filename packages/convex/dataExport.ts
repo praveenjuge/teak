@@ -425,11 +425,14 @@ export const recordSnapshotPage = internalMutation({
         jobId,
         userId: job.userId,
         cardId: card._id,
-        ...(card.fileKey ? { fileKey: card.fileKey } : {}),
+        ...(card.type !== "text" && card.fileKey
+          ? { fileKey: card.fileKey }
+          : {}),
         createdAt: now,
       });
       addedCount += 1;
-      addedBytes += card.fileMetadata?.fileSize ?? 0;
+      addedBytes +=
+        card.type === "text" ? 0 : (card.fileMetadata?.fileSize ?? 0);
     }
 
     return {
@@ -473,8 +476,8 @@ export const getExportCardsPage = internalQuery({
         notes: card.notes,
         tags: card.tags,
         isFavorited: card.isFavorited,
-        fileKey: card.fileKey,
-        fileMetadata: card.fileMetadata,
+        fileKey: card.type === "text" ? undefined : card.fileKey,
+        fileMetadata: card.type === "text" ? undefined : card.fileMetadata,
         colors: card.colors,
         createdAt: card.createdAt,
         updatedAt: card.updatedAt,

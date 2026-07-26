@@ -49,6 +49,7 @@ const raycastRateLimitResultValidator = v.object({
 
 const createCardForUserArgs = {
   userId: v.string(),
+  cardType: v.optional(cardTypeValidator),
   content: v.optional(v.string()),
   url: v.optional(v.string()),
   notes: v.optional(v.union(v.string(), v.null())),
@@ -493,7 +494,7 @@ export const quickSaveForUser = internalMutation({
   args: createCardForUserArgs,
   returns: quickSaveResultValidator,
   handler: async (ctx, args) => {
-    const normalizedContent = args.content?.trim();
+    const submittedContent = args.content;
     const normalizedUrl = args.url?.trim();
     const normalizedNotes =
       typeof args.notes === "string"
@@ -502,7 +503,10 @@ export const quickSaveForUser = internalMutation({
     const normalizedTags = normalizeTags(args.tags);
     const normalizedSource = args.source?.trim() || undefined;
 
-    if (!(normalizedContent || normalizedUrl)) {
+    if (
+      (submittedContent === undefined && !normalizedUrl) ||
+      (args.cardType !== "text" && !normalizedUrl && !submittedContent?.trim())
+    ) {
       throw new ConvexError({
         code: "INVALID_INPUT",
         message: "Provide `content` or `url` to create a card",
@@ -512,11 +516,11 @@ export const quickSaveForUser = internalMutation({
     // The guard above ensures at least one of these is set; the trailing
     // fallback only exists so TypeScript sees a definite string.
     const createArgs: Parameters<typeof createCardForUserHandler>[2] = {
-      content: normalizedContent ?? normalizedUrl ?? "",
+      content: submittedContent ?? normalizedUrl ?? "",
       metadata: normalizedSource ? { source: normalizedSource } : undefined,
       notes: normalizedNotes,
       tags: normalizedTags,
-      type: normalizedUrl ? "link" : undefined,
+      type: args.cardType ?? (normalizedUrl ? "link" : undefined),
       url: normalizedUrl,
     };
 

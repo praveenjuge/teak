@@ -1,18 +1,11 @@
 import { ConvexError } from "convex/values";
-import { components, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
 import { isWellFormedOAuthToken } from "./oauthTokens";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
-import {
-  FileFormatValidationError,
-  fileUploadErrorCode,
-  MAX_FILE_SIZE,
-  validateFileFormat,
-} from "./shared/fileFormats";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
-import { r2ComponentConfig } from "./storage/r2";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -35,10 +28,12 @@ const CARD_SORTS = new Set(["newest", "oldest"]);
 type ErrorCode =
   | "BAD_REQUEST"
   | "CONFLICT"
+  | "CONTENT_TOO_LARGE"
   | "FILE_TOO_LARGE"
   | "INTERNAL_ERROR"
   | "INVALID_API_KEY"
   | "INVALID_INPUT"
+  | "INVALID_UTF8"
   | "METHOD_NOT_ALLOWED"
   | "NOT_FOUND"
   | "RATE_LIMITED"
@@ -694,7 +689,8 @@ const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
     }
   }
 
-  const content = parseOptionalString(source.content);
+  const content =
+    typeof source.content === "string" ? source.content : undefined;
   const url = parseOptionalString(source.url);
   const fileKey = parseOptionalString(source.fileKey);
   const fileName = parseOptionalString(source.fileName);
@@ -747,11 +743,18 @@ const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
     };
   }
 
-  if (!(content || url) || cardType || fileName || mimeType) {
+  if (content === undefined && !url) {
+    return null;
+  }
+  if (cardType !== "text" && !url && !content?.trim()) {
+    return null;
+  }
+  if (fileName || mimeType) {
     return null;
   }
 
   return {
+    cardType,
     content,
     notes,
     source: sourceValue,
@@ -901,119 +904,6 @@ const buildCreateCardResponse = (
   };
 };
 
-const UPLOAD_METADATA_ATTEMPTS = 2;
-const UPLOAD_METADATA_RETRY_DELAY_MS = 100;
-
-const readUploadedFileMetadata = async (
-  ctx: any,
-  fileKey: string
-): Promise<{ contentType?: string; size?: number }> => {
-  const config = r2ComponentConfig();
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= UPLOAD_METADATA_ATTEMPTS; attempt += 1) {
-    try {
-      const metadata = await ctx.runAction(
-        (internal as any).publicApiUploadMetadata.headUploadedObject,
-        { key: fileKey }
-      );
-      await ctx.runAction(components.r2.lib.syncMetadata, {
-        key: fileKey,
-        ...config,
-      });
-      return metadata;
-    } catch (error) {
-      lastError = error;
-      if (attempt < UPLOAD_METADATA_ATTEMPTS) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, UPLOAD_METADATA_RETRY_DELAY_MS)
-        );
-      }
-    }
-  }
-
-  throw lastError;
-};
-
-const verifyUploadedFile = async (
-  ctx: any,
-  payload: CreateCardPayload
-): Promise<{ storedFileSize: number; storedMimeType?: string }> => {
-  if (!payload.fileKey) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "fileKey is required",
-    });
-  }
-
-  let headMetadata: { contentType?: string; size?: number };
-  try {
-    headMetadata = await readUploadedFileMetadata(ctx, payload.fileKey);
-  } catch {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Uploaded file was not found",
-    });
-  }
-
-  if (typeof headMetadata.size !== "number") {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Uploaded file metadata is unavailable",
-    });
-  }
-
-  if (headMetadata.size > MAX_FILE_SIZE) {
-    throw new ConvexError({
-      code: "FILE_TOO_LARGE",
-      message: `Uploaded file must not exceed ${MAX_FILE_SIZE} bytes`,
-    });
-  }
-
-  const storedMimeType =
-    typeof headMetadata.contentType === "string"
-      ? headMetadata.contentType.trim().toLowerCase()
-      : undefined;
-  const requestedMimeType = payload.mimeType?.trim().toLowerCase();
-
-  if (
-    payload.fileSize !== undefined &&
-    payload.fileSize !== headMetadata.size
-  ) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Uploaded file size does not match the stored object",
-    });
-  }
-
-  try {
-    const requestedFormat = validateFileFormat({
-      fileName: payload.fileName ?? "",
-      mimeType: requestedMimeType,
-    });
-    const storedFormat = validateFileFormat({
-      fileName: payload.fileName ?? "",
-      mimeType: storedMimeType,
-    });
-    if (requestedFormat.id !== storedFormat.id) {
-      throw new ConvexError({
-        code: "INVALID_INPUT",
-        message: "Uploaded file type does not match the stored object",
-      });
-    }
-  } catch (error) {
-    if (error instanceof FileFormatValidationError) {
-      throw new ConvexError({
-        code: fileUploadErrorCode(error),
-        message: error.message,
-      });
-    }
-    throw error;
-  }
-
-  return { storedFileSize: headMetadata.size, storedMimeType };
-};
-
 export const handleCreateCardRequest = async (
   ctx: any,
   request: Request
@@ -1058,28 +948,38 @@ export const handleCreateCardRequest = async (
     }
     idempotencyState = idempotency;
 
-    const uploadMetadata = createPayload.fileKey
-      ? await verifyUploadedFile(ctx, createPayload)
-      : null;
-    const result = uploadMetadata
-      ? await ctx.runMutation(
-          (internal as any).publicApiUploads.finalizeUploadedCardForUser,
-          {
-            cardType: createPayload.cardType,
-            content: createPayload.content,
-            fileKey: createPayload.fileKey,
-            fileName: createPayload.fileName,
-            fileSize: createPayload.fileSize,
-            mimeType: createPayload.mimeType,
-            notes:
-              createPayload.notes === null ? undefined : createPayload.notes,
-            storedFileSize: uploadMetadata.storedFileSize,
-            storedMimeType: uploadMetadata.storedMimeType,
-            tags: createPayload.tags,
-            userId: auth.validated.userId,
-          }
-        )
+    const result = createPayload.fileKey
+      ? await ctx
+          .runAction(
+            (internal as any)["card/uploadCardAction"]
+              .finalizeUploadedCardForUser,
+            {
+              cardType: createPayload.cardType,
+              content: createPayload.content,
+              fileKey: createPayload.fileKey,
+              fileName: createPayload.fileName,
+              fileSize: createPayload.fileSize,
+              fileType: createPayload.mimeType,
+              notes:
+                createPayload.notes === null ? undefined : createPayload.notes,
+              tags: createPayload.tags,
+              userId: auth.validated.userId,
+            }
+          )
+          .then((uploaded: { cardId?: string; success: boolean }) => {
+            if (!(uploaded.success && uploaded.cardId)) {
+              throw new ConvexError({
+                code: "INVALID_INPUT",
+                message: "Uploaded file could not be finalized",
+              });
+            }
+            return {
+              cardId: uploaded.cardId,
+              status: "created" as const,
+            };
+          })
       : await ctx.runMutation((internal as any).raycast.quickSaveForUser, {
+          cardType: createPayload.cardType,
           content: createPayload.content,
           notes: createPayload.notes === null ? undefined : createPayload.notes,
           source: createPayload.source,
@@ -1411,10 +1311,10 @@ const validatePatchPayload = (
   } = {};
 
   if ("content" in source) {
-    if (typeof source.content !== "string" || !source.content.trim()) {
+    if (typeof source.content !== "string") {
       return null;
     }
-    next.content = source.content.trim();
+    next.content = source.content;
   }
 
   if ("url" in source) {
@@ -1533,6 +1433,17 @@ export const handleCardsByIdV1Request = async (
         400,
         "INVALID_INPUT",
         "Body must include at least one valid field: content, url, notes, tags"
+      );
+    }
+    if (
+      patchPayload.content !== undefined &&
+      currentCard.type !== "text" &&
+      !patchPayload.content.trim()
+    ) {
+      return errorResponse(
+        400,
+        "INVALID_INPUT",
+        "Text content cannot be empty for this card type"
       );
     }
 

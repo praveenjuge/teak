@@ -166,7 +166,7 @@ export function serializeCard(
     );
   }
 
-  if (options.includeFile) {
+  if (options.includeFile && card.type !== "text") {
     const fileName = sanitizeFilename(card.fileMetadata?.fileName);
     const file: SerializedCardFile = {
       path: buildFilePath(card._id, card.fileMetadata?.fileName),

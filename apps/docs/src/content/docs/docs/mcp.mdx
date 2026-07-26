@@ -64,7 +64,7 @@ shown above, so MCP clients validate and connect to the same public resource.
   - Input: `{ cardId: string }`
   - Output: full card object
 - `teak_v1_create_card`
-  - Input: text/URL fields or uploaded-file fields `{ fileKey, fileName, mimeType, fileSize?, cardType? }`. `cardType` is inferred when omitted; existing explicit values remain supported.
+  - Input: text/URL fields or uploaded-file fields `{ fileKey, fileName, mimeType, fileSize?, cardType? }`. Explicit `cardType: "text"` stores raw Markdown exactly; automatic URL, quote, and palette detection remains when the type is omitted.
   - Output: `{ status: "created", cardId: string, appUrl: string }`
 - `teak_v1_list_tags`
   - Input: `{}`
@@ -78,7 +78,7 @@ shown above, so MCP clients validate and connect to the same public resource.
 - `teak_v1_create_upload`
   - Input: `{ fileName: string, mimeType: string, fileSize: number }`
   - Output: `{ uploadUrl: string, fileKey: string, method: "PUT", maxFileSize: number, expiresIn: number }`
-  - Supports the same 100 MB source, Markdown, archive, Office, design, image, motion, and audio file matrix as the web app, API, and CLI.
+  - Supports the same upload matrix as the web app, API, and CLI. `.md` and `.markdown` files become editable text cards and must be valid UTF-8 no larger than 512 KiB; other supported files allow up to 100 MB.
 - `teak_v1_search_cards`
   - Input: `{ q?: string, limit?: number }`
   - Output: `{ items: Card[], total: number }`
@@ -87,6 +87,7 @@ shown above, so MCP clients validate and connect to the same public resource.
   - Output: `{ items: Card[], total: number }`
 - `teak_v1_update_card`
   - Input: `{ cardId: string, content?: string, url?: string, notes?: string | null, tags?: string[] }`
+  - Text-card content remains raw Markdown, preserved exactly, with a 512 KiB UTF-8 limit.
   - Output: updated card object
 - `teak_v1_set_card_favorite`
   - Input: `{ cardId: string, isFavorited: boolean }`

@@ -47,6 +47,14 @@ describe("teak cli formatting", () => {
       inferFileFormat({ fileName: "document.pdf", mimeType: "application/pdf" })
         ?.cardType
     ).toBe("document");
+    expect(
+      inferFileFormat({ fileName: "README.MD", mimeType: "text/markdown" })
+        ?.cardType
+    ).toBe("text");
+    expect(
+      inferFileFormat({ fileName: "readme.mdx", mimeType: "text/mdx" })
+        ?.cardType
+    ).toBe("document");
   });
 
   test("covers representative expanded upload formats", () => {
@@ -74,6 +82,13 @@ describe("teak cli formatting", () => {
     writeFileSync(oversizedPath, "");
     truncateSync(oversizedPath, 100 * 1024 * 1024 + 1);
     expect(() => getUploadFileInfo(oversizedPath)).toThrow("at most");
+
+    const oversizedMarkdownPath = join(fixtureDirectory, "oversized.md");
+    writeFileSync(oversizedMarkdownPath, "");
+    truncateSync(oversizedMarkdownPath, 512 * 1024 + 1);
+    expect(() => getUploadFileInfo(oversizedMarkdownPath)).toThrow(
+      "512 KiB when encoded as UTF-8"
+    );
   });
 
   test("explicit file input wins before stdin is read", async () => {
@@ -83,6 +98,14 @@ describe("teak cli formatting", () => {
         raw: "",
       }
     );
+  });
+
+  test("keeps positional Markdown whitespace intact", async () => {
+    const raw = "\uFEFF  # Heading\r\n\r\nBody  \n";
+    await expect(resolveAddInput(raw, undefined)).resolves.toEqual({
+      candidate: raw,
+      raw,
+    });
   });
 
   test("rejects invalid sort values", () => {

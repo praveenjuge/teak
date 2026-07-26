@@ -35,7 +35,7 @@ You can cancel an import while it is uploading or in progress. If your browser c
 |---|---|---|
 | **Import Bookmarks** | An HTML bookmarks export from any browser (`.html`, up to 20 MiB) | Each bookmark becomes a link card. Folder names become tags, and the original save date is preserved when present. |
 | **Import from Raindrop** | A Raindrop.io CSV export (`.csv`, up to 20 MiB) | Each row becomes a link card with its title, notes, tags, folder (as a tag), favorite status, and saved date. |
-| **Import Teak Archive** | A ZIP archive previously downloaded from [Export Your Data](/docs/export) (`.zip`, up to 5 GiB) | Cards are recreated with their original type, content, tags, notes, favorite status, palette colors, and attached files. |
+| **Import Teak Archive** | A ZIP archive previously downloaded from [Export Your Data](/docs/export) (`.zip`, up to 5 GiB) | Cards are recreated with their original type, content, tags, notes, favorite status, palette colors, and attached files. Older archive document cards backed by `.md` or `.markdown` files become editable text cards with their raw Markdown and original source attachment. |
 
 ## Duplicate Handling
 
@@ -50,6 +50,7 @@ Bookmark and Raindrop files can also contain duplicate links within the same fil
 | File size | 20 MiB for bookmarks HTML and Raindrop CSV; 5 GiB for a Teak archive. |
 | Cards per import | Up to 10,000 items in a single file. |
 | File attachments | Each file inside a Teak archive must be 20 MiB or smaller to be attached to its card. |
+| Markdown text | Imported `.md` and `.markdown` content must be valid UTF-8 and no larger than 512 KiB. |
 | Concurrent imports | One import can run at a time. |
 
 ## After an Import Finishes

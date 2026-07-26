@@ -131,10 +131,10 @@ Idempotency-Key: save-link-123
 
 Supported request body fields:
 
-- `content` — text or URL to save (required if `url` is not set)
+- `content` — text or URL to save (required if `url` is not set). With `cardType: "text"`, this is raw Markdown source and Teak preserves it exactly.
 - `url` — URL to save (required if `content` is not set). Must be an `http` or `https` URL.
 - `fileKey` — key returned by `POST /v1/uploads` for file cards
-- `cardType` — optional with `fileKey`; Teak infers `image`, `video`, `audio`, or `document` from the file name and media type. Existing clients may keep sending it, and mismatches are rejected.
+- `cardType` — optional explicit type. `text` always creates a text card, even when the content looks like a URL, quote, color, or Markdown. When omitted, Teak keeps its automatic link, quote, and palette detection. For files, Teak infers the type from the file name and media type, and mismatches are rejected.
 - `fileName`, `mimeType`, `fileSize` — file metadata for uploaded cards
 - `notes` — optional freeform notes attached to the card (string or null)
 - `tags` — optional array of tag strings
@@ -142,8 +142,9 @@ Supported request body fields:
 
 ```json
 {
-  "content": "https://teakvault.com",
-  "tags": ["design"]
+  "content": "  # Project notes\r\n\r\n- [ ] Keep the original spacing  \n",
+  "cardType": "text",
+  "tags": ["project"]
 }
 ```
 
@@ -205,7 +206,9 @@ Idempotency-Key: upload-image-123
 }
 ```
 
-The maximum file size is 100 MB. Supported uploads include JSON and design-token files; TSX, JSX, Vue, Svelte, HTML, CSS, Markdown, and MDX source; GIF, WebM, MP4, WebP, AVIF, SVG, and HEIC media; PDF, DOCX, PPTX, TXT, and RTF documents; ZIP archives; and Figma `.fig` files. Generic `application/octet-stream` uploads are accepted when the file name identifies a supported format.
+The maximum file size is 100 MB, except `.md` and `.markdown` uploads, which are limited to 512 KiB of valid UTF-8 content and become editable text cards. The filename extension is matched case-insensitively; `.mdx` remains a document, and a Markdown MIME type alone does not convert another extension. The original uploaded Markdown file remains available through API file fields as source provenance while edits change only the text-card content.
+
+Other supported uploads include JSON and design-token files; TSX, JSX, Vue, Svelte, HTML, CSS, and MDX source; GIF, WebM, MP4, WebP, AVIF, SVG, and HEIC media; PDF, DOCX, PPTX, TXT, and RTF documents; ZIP archives; and Figma `.fig` files. Generic `application/octet-stream` uploads are accepted when the file name identifies a supported format.
 
 File responses can include `fileKind`, `fileExtension`, `fileLanguage`, and compact `filePreview` facts. Extracted source or document text is used only while generating AI tags and summaries and is not returned or stored as raw text.
 
@@ -348,7 +351,7 @@ GET /v1/tags
 
 Errors preserve the stable `{ code, error }` shape. Some responses may also include `requestId`, `details`, or `retryAt`.
 
-Upload validation returns `TYPE_MISMATCH` when a filename extension conflicts with its declared MIME type and `FILE_TOO_LARGE` when the file exceeds the advertised upload limit.
+Upload validation returns `TYPE_MISMATCH` when a filename extension conflicts with its declared MIME type and `FILE_TOO_LARGE` when a non-Markdown file exceeds the advertised upload limit. Text content and Markdown uploads return `CONTENT_TOO_LARGE` above 512 KiB of UTF-8 data; an uploaded Markdown file that is not valid UTF-8 returns `INVALID_UTF8`.
 
 ```json
 {

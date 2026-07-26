@@ -144,4 +144,27 @@ describe("@teak/convex/sdk", () => {
       mimeType: "text/markdown",
     });
   });
+
+  test("sends explicit raw Markdown without changing bytes", async () => {
+    let requestBody: any;
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((_url, init) => {
+        requestBody = JSON.parse(String(init?.body));
+        return Promise.resolve(
+          Response.json({
+            appUrl: "https://app.example/?card=card_text",
+            cardId: "card_text",
+            status: "created",
+          })
+        );
+      }) as typeof fetch,
+    });
+    const content = "\uFEFF  # SDK\r\n\r\nBody  \n";
+
+    await client.cards.create({ cardType: "text", content });
+
+    expect(requestBody).toEqual({ cardType: "text", content });
+  });
 });

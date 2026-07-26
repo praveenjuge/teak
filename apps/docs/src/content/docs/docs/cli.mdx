@@ -62,7 +62,9 @@ example `teak add https://example.com`) — the CLI detects whether it's text,
 a URL, or a file. Use `--url` / `--file` when you want to be explicit or when
 scripting.
 
-File uploads support source and design-token files, Markdown and MDX, ZIP archives, PDF and Office documents, SVG, HEIC, animated GIF, WebM/MP4, Figma `.fig`, and common image/audio formats up to 100 MB. The CLI infers the media and card type from the file name, so no type flag is required.
+File uploads support source and design-token files, Markdown and MDX, ZIP archives, PDF and Office documents, SVG, HEIC, animated GIF, WebM/MP4, Figma `.fig`, and common image/audio formats. `.md` and `.markdown` files become editable text cards, must be valid UTF-8, and are limited to 512 KiB; `.mdx` remains a document. Other supported files allow up to 100 MB.
+
+Text passed to `teak add`, including standard input, is stored as raw Markdown exactly as submitted. Text cards have a 512 KiB UTF-8 limit.
 
 ### Getting help
 

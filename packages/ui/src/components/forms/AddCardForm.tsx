@@ -168,13 +168,13 @@ export function AddCardForm({
   const createCard = useMutation(api.cards.createCard).withOptimisticUpdate(
     (localStore, args) => {
       const now = Date.now();
-      const contentTrimmed = args.content?.trim() || "";
+      const submittedContent = args.content ?? "";
 
       const optimisticCard: Doc<"cards"> = {
         _id: crypto.randomUUID() as Id<"cards">,
         _creationTime: now,
         userId: "",
-        content: contentTrimmed,
+        content: submittedContent,
         type: "text",
         createdAt: now,
         updatedAt: now,

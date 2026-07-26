@@ -262,6 +262,64 @@ describe("publicApi", () => {
     });
   });
 
+  test("executeBulkCardsForUser preserves explicit text and enforces its byte limit", async () => {
+    const rateLimitsModule = await import("../shared/rateLimits");
+    const billingModule = await import("../billing");
+    const managerModule = await import("../workflows/manager");
+    const originalLimit = rateLimitsModule.rateLimiter.limit;
+    const originalGetSubscription = billingModule.polar.getCurrentSubscription;
+    const originalWorkflowStart = managerModule.workflow.start;
+    rateLimitsModule.rateLimiter.limit = mock().mockResolvedValue({ ok: true });
+    billingModule.polar.getCurrentSubscription = mock().mockResolvedValue(null);
+    managerModule.workflow.start = mock().mockResolvedValue(undefined);
+
+    try {
+      const handler =
+        (executeBulkCardsForUser as any).handler ?? executeBulkCardsForUser;
+      const source = `\uFEFF${"a".repeat(512 * 1024 - 3)}`;
+      expect(new TextEncoder().encode(source)).toHaveLength(512 * 1024);
+      const insert = mock().mockResolvedValue("card_1");
+
+      const result = await handler(
+        {
+          db: {
+            insert,
+            query: () => ({
+              withIndex: () => ({ take: mock().mockResolvedValue([]) }),
+            }),
+          },
+          scheduler: { runAfter: mock().mockResolvedValue(null) },
+        },
+        {
+          items: [
+            { cardType: "text", content: source },
+            { cardType: "text", content: `${"a".repeat(512 * 1024)}b` },
+          ],
+          operation: "create",
+          userId: "user_1",
+        }
+      );
+
+      expect(result.summary).toEqual({
+        failed: 1,
+        succeeded: 1,
+        total: 2,
+      });
+      expect(insert.mock.calls[0]?.[1]).toMatchObject({
+        content: source,
+        type: "text",
+      });
+      expect(result.results[1]).toMatchObject({
+        code: "CONTENT_TOO_LARGE",
+        status: "error",
+      });
+    } finally {
+      rateLimitsModule.rateLimiter.limit = originalLimit;
+      billingModule.polar.getCurrentSubscription = originalGetSubscription;
+      managerModule.workflow.start = originalWorkflowStart;
+    }
+  });
+
   test("executeBulkCardsForUser validates favorite booleans", async () => {
     const handler =
       (executeBulkCardsForUser as any).handler ?? executeBulkCardsForUser;

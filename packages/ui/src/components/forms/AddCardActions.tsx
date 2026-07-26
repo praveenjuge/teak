@@ -19,7 +19,7 @@ import {
   TOAST_IDS,
 } from "@teak/ui/constants/toast";
 import { useGlobalFileDrop } from "@teak/ui/hooks";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { Mic, Square, Upload } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -57,15 +57,13 @@ export function AddCardActions({
   const uploadAndCreateCardMutation = useMutation(
     api.cards.uploadAndCreateCard
   );
-  const finalizeUploadedCardMutation = useMutation(
-    api.cards.finalizeUploadedCard
-  );
+  const finalizeUploadedCardAction = useAction(api.cards.finalizeUploadedCard);
 
   const uploadAndCreateCard = (args: UploadAndCreateCardArgs) =>
     uploadAndCreateCardMutation(args);
 
   const finalizeUploadedCard = (args: FinalizeUploadedCardArgs) =>
-    finalizeUploadedCardMutation(args);
+    finalizeUploadedCardAction(args);
 
   const { uploadFile } = useFileUploadCore({
     uploadAndCreateCard,

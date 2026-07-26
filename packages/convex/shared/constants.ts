@@ -1,3 +1,8 @@
+import {
+  MARKDOWN_CONTENT_TOO_LARGE_MESSAGE,
+  MARKDOWN_INVALID_UTF8_MESSAGE,
+} from "./markdown";
+
 // === Card Types ===
 // NOTE: Keep in sync with convex/schema.ts
 export const cardTypes = [
@@ -247,6 +252,8 @@ export const MAX_FILES_PER_UPLOAD = 5;
 
 export const CARD_ERROR_CODES = {
   CARD_LIMIT_REACHED: "CARD_LIMIT_REACHED",
+  CONTENT_TOO_LARGE: "CONTENT_TOO_LARGE",
+  INVALID_UTF8: "INVALID_UTF8",
   RATE_LIMITED: "RATE_LIMITED",
   FILE_TOO_LARGE: "FILE_TOO_LARGE",
   TOO_MANY_FILES: "TOO_MANY_FILES",
@@ -260,6 +267,8 @@ export type CardErrorCode =
 export const CARD_ERROR_MESSAGES: Record<CardErrorCode, string> = {
   CARD_LIMIT_REACHED:
     "Card limit reached. Please upgrade to Pro for unlimited cards.",
+  CONTENT_TOO_LARGE: MARKDOWN_CONTENT_TOO_LARGE_MESSAGE,
+  INVALID_UTF8: MARKDOWN_INVALID_UTF8_MESSAGE,
   RATE_LIMITED: "Too many cards created. Please wait a moment and try again.",
   FILE_TOO_LARGE: "File is too large. Maximum file size is 100MB.",
   TOO_MANY_FILES:

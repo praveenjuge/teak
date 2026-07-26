@@ -266,6 +266,32 @@ export const importItemStatusValidator = v.union(
   v.literal("failed")
 );
 
+export const markdownConversionStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("in_progress"),
+  v.literal("converted"),
+  v.literal("failed")
+);
+
+export const markdownConversionAuditValidator = v.object({
+  cardId: v.id("cards"),
+  userId: v.string(),
+  sourceFileKey: v.optional(r2KeyValidator),
+  sourceUpdatedAt: v.number(),
+  sourceEtag: v.optional(v.string()),
+  sourceChecksum: v.optional(v.string()),
+  sourceByteSize: v.optional(v.number()),
+  status: markdownConversionStatusValidator,
+  attempts: v.number(),
+  retryable: v.boolean(),
+  failureReason: v.optional(v.string()),
+  nextRetryAt: v.optional(v.number()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+  startedAt: v.optional(v.number()),
+  completedAt: v.optional(v.number()),
+});
+
 // Canonical export job record. No backfill: rows are created on demand.
 export const exportJobValidator = v.object({
   userId: v.string(),
@@ -405,6 +431,7 @@ export default defineSchema({
     // Note: by_user index removed as redundant - by_user_deleted can serve same purpose
     // with partial index matching (just userId) per Convex best practices
     .index("by_user_type", ["userId", "type"])
+    .index("by_type", ["type"])
     // Compound index for type filtering with isDeleted to avoid post-index .filter()
     .index("by_user_type_deleted", ["userId", "type", "isDeleted"])
     .index("by_user_favorites", ["userId", "isFavorited"])
@@ -491,4 +518,8 @@ export default defineSchema({
     .index("by_job_source", ["jobId", "sourceIndex"])
     .index("by_job_status_source", ["jobId", "status", "sourceIndex"])
     .index("by_user", ["userId"]),
+  markdownConversionAudits: defineTable(markdownConversionAuditValidator)
+    .index("by_card_id", ["cardId"])
+    .index("by_status_and_next_retry_at", ["status", "nextRetryAt"])
+    .index("by_status_and_updated_at", ["status", "updatedAt"]),
 });

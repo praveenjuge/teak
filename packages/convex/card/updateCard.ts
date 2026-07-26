@@ -6,6 +6,8 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
+import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
+import { validateTextCardContent } from "./markdown";
 import {
   buildInitialProcessingStatus,
   type ProcessingStatus,
@@ -13,7 +15,6 @@ import {
   withStageStatus,
 } from "./processingStatus";
 import { normalizeQuoteContent } from "./quoteFormatting";
-import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 
 const updateCardFieldValidator = v.union(
   v.literal("content"),
@@ -90,6 +91,8 @@ export const updateCard = mutation({
     if (updates.content !== undefined) {
       if (card.type === "quote") {
         updates.content = normalizeQuoteContent(updates.content).text;
+      } else if (card.type === "text") {
+        updates.content = validateTextCardContent(updates.content);
       }
       processingStatus = processingStatus
         ? withStageStatus(processingStatus, "metadata", stagePending())
@@ -150,9 +153,14 @@ export const updateCardFieldForUserHandler = async (
 
   switch (field) {
     case "content": {
-      let nextContent = typeof value === "string" ? value.trim() : value;
+      let nextContent =
+        typeof value === "string" && card.type !== "text"
+          ? value.trim()
+          : value;
       if (typeof nextContent === "string" && card.type === "quote") {
         nextContent = normalizeQuoteContent(nextContent).text;
+      } else if (typeof nextContent === "string" && card.type === "text") {
+        nextContent = validateTextCardContent(nextContent);
       }
       updateData.content = nextContent;
       if (updateData.content !== card.content) {

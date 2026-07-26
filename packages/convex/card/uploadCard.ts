@@ -12,12 +12,13 @@ import {
   validateFileFormat,
   validateUploadFile,
 } from "../shared/fileFormats";
-import { normalizeErrorClass } from "../shared/telemetry";
-import { buildR2ObjectKey, buildR2UserPrefix, r2 } from "../storage/r2";
 import {
-  scheduleCardOutcome,
-  scheduleUploadOutcome,
-} from "../telemetry/schedule";
+  isMarkdownFileName,
+  MarkdownContentError,
+  validateMarkdownByteLength,
+} from "../shared/markdown";
+import { buildR2ObjectKey, buildR2UserPrefix, r2 } from "../storage/r2";
+import { scheduleCardOutcome } from "../telemetry/schedule";
 import {
   buildInitialProcessingStatus,
   stageCompleted,
@@ -28,6 +29,32 @@ const toConvexFileError = (error: FileFormatValidationError) =>
     code: fileUploadErrorCode(error),
     message: error.message,
   });
+
+export const validateDirectUploadRequest = (args: {
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+}) => {
+  try {
+    const validated = validateUploadFile({
+      fileName: args.fileName,
+      fileSize: args.fileSize,
+      mimeType: args.fileType,
+    });
+    if (isMarkdownFileName(validated.fileName)) {
+      validateMarkdownByteLength(args.fileSize);
+    }
+    return validated;
+  } catch (error) {
+    if (error instanceof FileFormatValidationError) {
+      throw toConvexFileError(error);
+    }
+    if (error instanceof MarkdownContentError) {
+      throw new ConvexError({ code: error.code, message: error.message });
+    }
+    throw error;
+  }
+};
 
 // Unified upload mutation that handles the complete upload-to-card pipeline
 export const uploadAndCreateCard = mutation({
@@ -54,23 +81,16 @@ export const uploadAndCreateCard = mutation({
     }
 
     try {
-      try {
-        const validated = validateUploadFile({
-          fileName: _args.fileName,
-          fileSize: _args.fileSize,
-          mimeType: _args.fileType,
+      const validated = validateDirectUploadRequest(_args);
+      if (
+        _args.cardType &&
+        !isMarkdownFileName(validated.fileName) &&
+        _args.cardType !== validated.format.cardType
+      ) {
+        throw new ConvexError({
+          code: "TYPE_MISMATCH",
+          message: `Uploaded file does not match expected ${_args.cardType} type`,
         });
-        if (_args.cardType && _args.cardType !== validated.format.cardType) {
-          throw new ConvexError({
-            code: "TYPE_MISMATCH",
-            message: `Uploaded file does not match expected ${_args.cardType} type`,
-          });
-        }
-      } catch (error) {
-        if (error instanceof FileFormatValidationError) {
-          throw toConvexFileError(error);
-        }
-        throw error;
       }
 
       // Check rate limit and card count limit
@@ -266,95 +286,3 @@ export const createUploadedCardForUser = async (
   });
   return cardId;
 };
-
-// Mutation to finalize card creation after successful upload
-export const finalizeUploadedCard = mutation({
-  args: {
-    fileKey: v.string(),
-    fileName: v.string(),
-    fileSize: v.optional(v.number()),
-    fileType: v.optional(v.string()),
-    cardType: v.optional(cardTypeValidator),
-    content: v.optional(v.string()),
-    additionalMetadata: v.optional(v.any()),
-  },
-  returns: v.object({
-    success: v.boolean(),
-    cardId: v.optional(v.id("cards")),
-    error: v.optional(v.string()),
-    errorCode: v.optional(v.string()),
-  }),
-  handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
-    if (!user) {
-      return { success: false, error: "User must be authenticated" };
-    }
-
-    await scheduleUploadOutcome(ctx, {
-      bytes: args.fileSize,
-      fileBucket: args.cardType ?? "unknown",
-      outcome: "attempt",
-      userId: user.subject,
-    });
-
-    try {
-      const cardId = await createUploadedCardForUser(ctx, {
-        additionalMetadata: args.additionalMetadata,
-        cardType: args.cardType,
-        content: args.content,
-        fileKey: args.fileKey,
-        fileName: args.fileName,
-        fileSize: args.fileSize,
-        fileType: args.fileType,
-        notes: undefined,
-        tags: undefined,
-        userId: user.subject,
-      });
-
-      await scheduleUploadOutcome(ctx, {
-        bytes: args.fileSize,
-        fileBucket: args.cardType ?? "unknown",
-        outcome: "success",
-        userId: user.subject,
-      });
-
-      return { success: true, cardId };
-    } catch (error) {
-      await scheduleCardOutcome(ctx, {
-        cardType: args.cardType,
-        errorClass: normalizeErrorClass(error),
-        outcome: "failure",
-        source: "unknown",
-        userId: user.subject,
-      });
-      await scheduleUploadOutcome(ctx, {
-        bytes: args.fileSize,
-        errorClass: normalizeErrorClass(error),
-        fileBucket: args.cardType ?? "unknown",
-        outcome: "failure",
-        userId: user.subject,
-      });
-      if (
-        error instanceof ConvexError &&
-        typeof error.data === "object" &&
-        error.data
-      ) {
-        const { code, message } = error.data as {
-          code?: string;
-          message?: string;
-        };
-        if (code) {
-          return {
-            success: false,
-            errorCode: code,
-            error: message,
-          };
-        }
-      }
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to create card",
-      };
-    }
-  },
-});

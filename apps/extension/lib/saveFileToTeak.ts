@@ -124,7 +124,10 @@ export async function saveFileToTeak(
       fileType: mimeType,
     });
     if (!(upload.success && upload.uploadKey && upload.uploadUrl)) {
-      return errorResponse(upload.error || "Failed to prepare upload");
+      return errorResponse(
+        upload.error || "Failed to prepare upload",
+        upload.errorCode
+      );
     }
 
     const fetchImpl = dependencies.fetchImpl ?? fetch;
@@ -139,7 +142,7 @@ export async function saveFileToTeak(
       );
     }
 
-    const finalized = await client.mutation(api.cards.finalizeUploadedCard, {
+    const finalized = await client.action(api.cards.finalizeUploadedCard, {
       cardType: format.cardType,
       content: fileName,
       fileKey: upload.uploadKey,
@@ -148,7 +151,10 @@ export async function saveFileToTeak(
       fileType: mimeType,
     });
     if (!(finalized.success && finalized.cardId)) {
-      return errorResponse(finalized.error || "Failed to create card");
+      return errorResponse(
+        finalized.error || "Failed to create card",
+        finalized.errorCode
+      );
     }
     return { cardId: String(finalized.cardId), status: "saved" };
   } catch (error) {
