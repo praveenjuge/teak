@@ -90,7 +90,7 @@ const headUploadedObject = async (
   storage: UploadStorage,
   key: string
 ): Promise<CompleteHeadMetadata> => {
-  let sawIncompleteMetadata = false;
+  let incompleteHead: HeadObjectCommandOutput | undefined;
   for (let attempt = 0; attempt <= HEAD_RETRY_DELAYS_MS.length; attempt += 1) {
     try {
       const head = await storage.client.send(
@@ -103,7 +103,7 @@ const headUploadedObject = async (
       ) {
         return head as CompleteHeadMetadata;
       }
-      sawIncompleteMetadata = true;
+      incompleteHead = head;
     } catch {
       // A just-uploaded object may not be readable on the first HEAD attempt.
     }
@@ -114,9 +114,37 @@ const headUploadedObject = async (
     }
   }
 
+  if (
+    incompleteHead &&
+    typeof incompleteHead.ContentLength === "number" &&
+    Number.isFinite(incompleteHead.ContentLength)
+  ) {
+    try {
+      const probe = await storage.client.send(
+        new GetObjectCommand({
+          Bucket: storage.bucket,
+          Key: key,
+          Range: "bytes=0-0",
+        })
+      );
+      if (probe.Body) {
+        await probe.Body.transformToByteArray();
+      }
+      if (probe.ETag) {
+        return {
+          ...incompleteHead,
+          ContentType: incompleteHead.ContentType ?? probe.ContentType,
+          ETag: probe.ETag,
+        } as CompleteHeadMetadata;
+      }
+    } catch {
+      // Preserve the stable metadata error below when the bounded probe fails.
+    }
+  }
+
   return convexUploadError(
     "INVALID_INPUT",
-    sawIncompleteMetadata
+    incompleteHead
       ? "Uploaded file metadata is unavailable"
       : "Uploaded file was not found"
   );
