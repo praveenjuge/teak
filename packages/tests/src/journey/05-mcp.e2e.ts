@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { expect, test } from "@playwright/test";
 import { env } from "../helpers/env";
 import { cliFileFixtures } from "../helpers/file-formats";
@@ -122,7 +123,7 @@ test("MCP uploads, creates, fetches, and searches expanded file cards", async ()
       expect(fetched.isError).not.toBe(true);
       if (fixture.fileName.toLowerCase().endsWith(".md")) {
         expect(fetched.structuredContent).toMatchObject({
-          content: new TextDecoder().decode(fixture.bytes),
+          content: Buffer.from(fixture.bytes).toString("utf8"),
           fileName: fixture.fileName,
           type: "text",
         });

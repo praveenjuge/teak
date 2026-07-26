@@ -66,8 +66,60 @@ interface FinalizeArgs {
   tags?: string[];
 }
 
+interface UploadStorage {
+  bucket: string;
+  client: Pick<S3Client, "send">;
+  wait?: (delayMs: number) => Promise<void>;
+}
+
+type CompleteHeadMetadata = HeadObjectCommandOutput & {
+  ContentLength: number;
+  ETag: string;
+};
+
+const HEAD_RETRY_DELAYS_MS = [75, 225] as const;
+
 const convexUploadError = (code: string, message: string): never => {
   throw new ConvexError({ code, message });
+};
+
+const waitFor = (delayMs: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, delayMs));
+
+const headUploadedObject = async (
+  storage: UploadStorage,
+  key: string
+): Promise<CompleteHeadMetadata> => {
+  let sawIncompleteMetadata = false;
+  for (let attempt = 0; attempt <= HEAD_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      const head = await storage.client.send(
+        new HeadObjectCommand({ Bucket: storage.bucket, Key: key })
+      );
+      if (
+        typeof head.ContentLength === "number" &&
+        Number.isFinite(head.ContentLength) &&
+        head.ETag
+      ) {
+        return head as CompleteHeadMetadata;
+      }
+      sawIncompleteMetadata = true;
+    } catch {
+      // A just-uploaded object may not be readable on the first HEAD attempt.
+    }
+
+    const delayMs = HEAD_RETRY_DELAYS_MS[attempt];
+    if (delayMs !== undefined) {
+      await (storage.wait ?? waitFor)(delayMs);
+    }
+  }
+
+  return convexUploadError(
+    "INVALID_INPUT",
+    sawIncompleteMetadata
+      ? "Uploaded file metadata is unavailable"
+      : "Uploaded file was not found"
+  );
 };
 
 const normalizeMimeType = (value?: string): string | undefined => {
@@ -95,7 +147,7 @@ const createClient = () => {
 export async function inspectUploadedCardSource(
   userId: string,
   args: FinalizeArgs,
-  storage = createClient()
+  storage: UploadStorage = createClient()
 ): Promise<{
   cardType: FinalizeArgs["cardType"];
   content?: string;
@@ -120,27 +172,10 @@ export async function inspectUploadedCardSource(
   }
 
   const { bucket, client } = storage;
-  let head: HeadObjectCommandOutput;
-  try {
-    head = await client.send(
-      new HeadObjectCommand({ Bucket: bucket, Key: args.fileKey })
-    );
-  } catch {
-    return convexUploadError("INVALID_INPUT", "Uploaded file was not found");
-  }
+  const head = await headUploadedObject(storage, args.fileKey);
 
   const storedFileSize = head.ContentLength;
   const sourceEtag = head.ETag;
-  if (
-    typeof storedFileSize !== "number" ||
-    !Number.isFinite(storedFileSize) ||
-    !sourceEtag
-  ) {
-    return convexUploadError(
-      "INVALID_INPUT",
-      "Uploaded file metadata is unavailable"
-    );
-  }
   if (args.fileSize !== undefined && args.fileSize !== storedFileSize) {
     return convexUploadError(
       "INVALID_INPUT",

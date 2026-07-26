@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { expect, test } from "@playwright/test";
 import { apiFetch, loadOpenApi } from "../helpers/api";
 import { expandedFileFixtures } from "../helpers/file-formats";
@@ -254,7 +255,7 @@ test("REST API uploads and infers the expanded file-format matrix", async () => 
     expect(fetchedCard.mimeType).toBe(fixture.mimeType);
     if (fixture.fileName.toLowerCase().endsWith(".md")) {
       expect(fetchedCard).toMatchObject({
-        content: new TextDecoder().decode(fixture.bytes),
+        content: Buffer.from(fixture.bytes).toString("utf8"),
         type: "text",
       });
       expect(fetchedCard.fileUrl).toMatch(/^https?:\/\//);

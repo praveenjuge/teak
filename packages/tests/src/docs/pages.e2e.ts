@@ -28,7 +28,7 @@ test("changelog renders release notes with Typeset", async ({ page }) => {
   await expect(releaseNotes.locator("ul")).toHaveCSS("list-style-type", "disc");
 });
 
-test("public docs describe expanded file support and inferred uploads", async ({
+test("public docs describe expanded file support and optional card types", async ({
   page,
 }) => {
   await page.goto("/docs/api/");
@@ -39,7 +39,12 @@ test("public docs describe expanded file support and inferred uploads", async ({
   await expect(page.locator("body")).toContainText(/Markdown and MDX/i);
 
   await page.goto("/docs/mcp/");
-  await expect(page.locator("body")).toContainText(/cardType.*inferred/i);
+  await expect(page.locator("body")).toContainText(
+    /cardType.*text.*stores raw Markdown exactly/i
+  );
+  await expect(page.locator("body")).toContainText(
+    /automatic URL, quote, and palette detection remains when the type is omitted/i
+  );
 
   await page.goto("/docs/extension/");
   await expect(page.locator("body")).toContainText("Save Asset to Teak");
