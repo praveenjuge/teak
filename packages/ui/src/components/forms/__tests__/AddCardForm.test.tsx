@@ -169,9 +169,9 @@ describe("AddCardForm", () => {
   });
 
   test("exposes loading and ready card-creation states", () => {
-    expect(renderToStaticMarkup(<AddCardForm />)).toContain(
-      'data-card-creation-status="loading"'
-    );
+    const loadingMarkup = renderToStaticMarkup(<AddCardForm />);
+    expect(loadingMarkup).toContain('data-card-creation-status="loading"');
+    expect(loadingMarkup).toContain('data-editor-variant="compact"');
 
     cardCreationStatusResult = { canCreateCard: true };
     expect(renderToStaticMarkup(<AddCardForm />)).toContain(

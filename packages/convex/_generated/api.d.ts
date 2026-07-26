@@ -43,6 +43,7 @@ import type * as crons from "../crons.js";
 import type * as dataExport from "../dataExport.js";
 import type * as dataImport from "../dataImport.js";
 import type * as devUrls from "../devUrls.js";
+import type * as e2eAccounts from "../e2eAccounts.js";
 import type * as e2eCleanup from "../e2eCleanup.js";
 import type * as export_archiveBuilder from "../export/archiveBuilder.js";
 import type * as export_constants from "../export/constants.js";
@@ -198,6 +199,7 @@ declare const fullApi: ApiFromModules<{
   dataExport: typeof dataExport;
   dataImport: typeof dataImport;
   devUrls: typeof devUrls;
+  e2eAccounts: typeof e2eAccounts;
   e2eCleanup: typeof e2eCleanup;
   "export/archiveBuilder": typeof export_archiveBuilder;
   "export/constants": typeof export_constants;

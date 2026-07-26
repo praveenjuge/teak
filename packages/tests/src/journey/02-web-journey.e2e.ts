@@ -20,11 +20,12 @@ test("web journey covers cards, search, settings, upload, and revoked key", asyn
     return dialog.dismiss();
   });
   await page.goto("/");
-  await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
+  const composer = page.getByRole("textbox", { name: "Markdown content" });
+  await expect(composer).toBeVisible();
   await expect(
     page.getByText(/Welcome to Teak|Let's add your first card/i)
   ).toBeVisible();
-  await page.getByPlaceholder(/Write a note/i).fill(rawMarkdown);
+  await composer.fill(rawMarkdown);
   await page.getByRole("button", { name: "Save", exact: true }).click();
   const savedCard = page.locator("main p").filter({ hasText: marker }).first();
   await expect(savedCard).toBeVisible();
@@ -100,7 +101,7 @@ test("saving a color in the composer creates a palette card", async ({
   const hex = "#2050D0";
 
   await page.goto("/");
-  await page.getByPlaceholder(/Write a note/i).fill(hex);
+  await page.getByRole("textbox", { name: "Markdown content" }).fill(hex);
   await page.getByRole("button", { name: "Save", exact: true }).click();
   // The optimistic card appears immediately; classification runs server-side.
   await expect(

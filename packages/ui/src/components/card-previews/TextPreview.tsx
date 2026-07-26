@@ -1,5 +1,6 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { Textarea } from "@teak/ui/components/ui/textarea";
+import { MarkdownTextEditor } from "@teak/ui/text-editor";
+import { toast } from "sonner";
 import type { GetCurrentValue } from "../card-modal/types";
 
 type CardWithUrls = Doc<"cards"> & {
@@ -11,26 +12,32 @@ interface TextPreviewProps {
   card: CardWithUrls;
   getCurrentValue?: GetCurrentValue;
   onContentChange: (content: string) => void;
+  onSaveShortcut?: () => void;
 }
 
 export function TextPreview({
   card,
   onContentChange,
   getCurrentValue,
+  onSaveShortcut,
 }: TextPreviewProps) {
   const currentContent = getCurrentValue
     ? getCurrentValue("content")
     : card.content;
 
   return (
-    <Textarea
-      className="h-full resize-none rounded-none border-0 bg-transparent p-0 text-base leading-relaxed shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
-      onChange={(e) => {
-        const newContent = e.target.value;
-        onContentChange(newContent);
-      }}
-      placeholder="Enter your text..."
+    <MarkdownTextEditor
+      ariaLabel="Markdown content"
+      className="h-full"
+      minHeight="55vh"
+      onChange={onContentChange}
+      onLimitExceeded={() =>
+        toast.error("Notes can be up to 512 KiB of UTF-8 text")
+      }
+      onSaveShortcut={onSaveShortcut}
+      placeholder="Write a note..."
       value={currentContent || ""}
+      variant="modal"
     />
   );
 }

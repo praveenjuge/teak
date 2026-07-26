@@ -14,6 +14,7 @@
     "./cards/previews": "./src/components/cards/previews/index.ts",
     "./card-modal": "./src/components/card-modal/index.ts",
     "./card-previews": "./src/components/card-previews/index.ts",
+    "./text-editor": "./src/components/text-editor/index.ts",
     "./auth": "./src/components/auth/index.ts",
     "./modals": "./src/components/modals/index.ts",
     "./feedback/CardSkeleton": "./src/feedback/CardSkeleton.tsx",
@@ -40,10 +41,16 @@
     "./constants/toast": "./src/constants/toast.ts"
   },
   "scripts": {
-    "test": "bun test src/components/card-previews/__tests__ src/components/forms/__tests__ src/components/settings/__tests__ src/hooks/__tests__ --coverage --dots",
+    "test": "bun test src/components/card-previews/__tests__ src/components/forms/__tests__ src/components/settings/__tests__ src/components/text-editor/__tests__ src/hooks/__tests__ --coverage --dots",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@codemirror/commands": "6.10.4",
+    "@codemirror/lang-markdown": "6.5.1",
+    "@codemirror/language": "6.12.4",
+    "@codemirror/state": "6.7.1",
+    "@codemirror/view": "6.43.6",
+    "@lezer/markdown": "1.7.2",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-checkbox": "^1.3.3",
     "@radix-ui/react-context-menu": "^2.2.16",

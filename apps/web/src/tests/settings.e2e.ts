@@ -50,7 +50,9 @@ test.describe("Settings Navigation and Management", () => {
 
       // Should be on home page
       await expect(page).toHaveURL("/");
-      await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
+      await expect(
+        page.getByRole("textbox", { name: "Markdown content" })
+      ).toBeVisible();
     });
   });
 
