@@ -105,6 +105,7 @@ test("web picker and drag-drop upload files with safe opened previews", async ({
   ).toHaveCount(0);
   await page.keyboard.press("Escape");
 
+  await page.getByRole("button", { name: "Clear All" }).click();
   await page.getByPlaceholder("Search for anything...").fill(marker);
   await page.keyboard.press("Enter");
   await expect(page.getByText(pickedName).first()).toBeVisible({
