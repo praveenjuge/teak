@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { ImageResponse } from "next/og";
 
 export const alt = "Teak - A personal knowledge hub for creative minds";
@@ -15,28 +17,18 @@ const backgroundImage =
 const taglineLineOne = "Personal knowledge hub";
 const taglineLineTwo = "for creative minds.";
 
-async function loadGoogleFont(font: string, text: string, weight = 700) {
-  const url = `https://fonts.googleapis.com/css2?family=${font}:wght@${weight}&text=${encodeURIComponent(
-    text
-  )}`;
-  const css = await (await fetch(url)).text();
-  const resource = css.match(
-    /src: url\((.+)\) format\('(opentype|truetype)'\)/
-  );
-
-  if (resource) {
-    const response = await fetch(resource[1]);
-    if (response.status === 200) {
-      return await response.arrayBuffer();
-    }
-  }
-
-  throw new Error("Failed to load font data");
-}
+const snPro = readFile(
+  path.join(process.cwd(), "src/app/assets/SNPro-ExtraBold.ttf")
+).then(
+  (font) =>
+    font.buffer.slice(
+      font.byteOffset,
+      font.byteOffset + font.byteLength
+    ) as ArrayBuffer
+);
 
 export default async function Image() {
-  const text = `${taglineLineOne} ${taglineLineTwo}`;
-  const nunitoData = await loadGoogleFont("Nunito", text, 800);
+  const snProData = await snPro;
 
   return new ImageResponse(
     <div
@@ -70,7 +62,7 @@ export default async function Image() {
           flexDirection: "column",
           alignItems: "center",
           textAlign: "center",
-          fontFamily: "Nunito",
+          fontFamily: "SN Pro",
           fontSize: 80,
           fontWeight: 800,
           letterSpacing: "-0.035em",
@@ -119,8 +111,8 @@ export default async function Image() {
       ...size,
       fonts: [
         {
-          name: "Nunito",
-          data: nunitoData,
+          name: "SN Pro",
+          data: snProData,
           style: "normal",
           weight: 800,
         },

@@ -41,7 +41,9 @@ const turbopackSingletonAliases = Object.fromEntries(
   ])
 );
 
-const nextConfig: NextConfig = {
+export const nextConfig: NextConfig = {
+  cacheComponents: true,
+  partialPrefetching: true,
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,
     NEXT_PUBLIC_SENTRY_RELEASE: sentryRelease,
@@ -49,19 +51,15 @@ const nextConfig: NextConfig = {
   },
   reactCompiler: true,
   experimental: {
-    turbopackFileSystemCacheForDev: true,
+    sri: {
+      algorithm: "sha384",
+    },
+    turbopackFileSystemCacheForBuild: true,
+    turbopackRustReactCompiler: true,
   },
   allowedDevOrigins: ["app.teak.localhost"],
   turbopack: {
     resolveAlias: turbopackSingletonAliases,
-  },
-  webpack(config) {
-    config.resolve ??= {};
-    config.resolve.alias = {
-      ...(config.resolve.alias ?? {}),
-      ...singletonAliasTargets,
-    };
-    return config;
   },
   async rewrites() {
     return [];

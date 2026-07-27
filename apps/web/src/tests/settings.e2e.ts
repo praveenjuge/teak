@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { instant } from "@next/playwright";
 import { expect, test } from "@playwright/test";
 import { AuthHelper, UiHelper } from "./test-helpers";
 
@@ -20,14 +21,16 @@ test.describe("Settings Navigation and Management", () => {
   });
 
   test.describe("Settings Page Navigation", () => {
-    test("should navigate to settings page", async ({ page }) => {
-      const uiHelper = new UiHelper(page);
+    test("should stream settings behind an instant shell", async ({ page }) => {
+      await instant(page, async () => {
+        await page.getByRole("link", { name: /settings/i }).click();
+        await expect(page).toHaveURL("/settings");
+        await expect(page.getByRole("link", { name: /back/i })).toBeVisible();
+        await expect(
+          page.getByRole("status", { name: "Loading" })
+        ).toBeVisible();
+      });
 
-      // Click settings button
-      await uiHelper.goToSettings();
-
-      // Should be on settings page
-      await expect(page).toHaveURL("/settings");
       await expect(
         page.getByRole("heading", { name: /settings/i })
       ).toBeVisible();
@@ -39,17 +42,19 @@ test.describe("Settings Navigation and Management", () => {
       await expect(settingsButton).toBeVisible();
     });
 
-    test("should navigate back to home from settings", async ({ page }) => {
+    test("should stream home behind an instant shell", async ({ page }) => {
       const uiHelper = new UiHelper(page);
 
-      // Go to settings
       await uiHelper.goToSettings();
 
-      // Navigate back home
-      await uiHelper.goToHome();
+      await instant(page, async () => {
+        await page.getByRole("link", { name: /back/i }).click();
+        await expect(page).toHaveURL("/");
+        await expect(
+          page.getByRole("status", { name: "Loading" })
+        ).toBeVisible();
+      });
 
-      // Should be on home page
-      await expect(page).toHaveURL("/");
       await expect(
         page.getByRole("textbox", { name: "Markdown content" })
       ).toBeVisible();

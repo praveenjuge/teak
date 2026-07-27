@@ -1,5 +1,3 @@
-export const CSP_NONCE_HEADER = "x-nonce";
-
 const TEAK_R2_STORAGE_ORIGIN =
   "https://teak-files-prod.dd19e45b8f2f3cc0393cc2deb51fa27d.r2.cloudflarestorage.com";
 const TEAK_R2_UPLOAD_ORIGIN =
@@ -83,7 +81,10 @@ const configuredR2UploadSources = () => {
   );
 };
 
-export const buildContentSecurityPolicy = (nonce: string) =>
+export const buildContentSecurityPolicy = (
+  environment: "development" | "production" | "test" | undefined = process.env
+    .NODE_ENV
+) =>
   [
     "default-src 'self'",
     "base-uri 'self'",
@@ -102,12 +103,13 @@ export const buildContentSecurityPolicy = (nonce: string) =>
     "style-src 'self' 'unsafe-inline'",
     [
       "script-src 'self'",
-      `'nonce-${nonce}'`,
-      "'strict-dynamic'",
       "blob:",
-      // Next.js/React development mode relies on eval() for Fast Refresh and
-      // for reconstructing callstacks. Only permitted outside production.
-      ...(process.env.NODE_ENV === "development" ? ["'unsafe-eval'"] : []),
+      "https://va.vercel-scripts.com",
+      // Next.js emits inline bootstrap scripts in both production and
+      // development. SHA-384 SRI still covers external framework chunks, while
+      // eval remains limited to development tooling.
+      "'unsafe-inline'",
+      ...(environment === "development" ? ["'unsafe-eval'"] : []),
     ].join(" "),
     [
       "connect-src 'self'",
@@ -140,6 +142,10 @@ export const buildContentSecurityPolicy = (nonce: string) =>
 
 export const staticSecurityHeaders: { key: string; value: string }[] = [
   {
+    key: "Content-Security-Policy",
+    value: buildContentSecurityPolicy(),
+  },
+  {
     key: "Permissions-Policy",
     value: "camera=(), geolocation=(), microphone=(self)",
   },
@@ -163,12 +169,4 @@ export const staticSecurityHeaders: { key: string; value: string }[] = [
     key: "Referrer-Policy",
     value: "strict-origin-when-cross-origin",
   },
-];
-
-export const securityHeaders = (nonce: string) => [
-  {
-    key: "Content-Security-Policy",
-    value: buildContentSecurityPolicy(nonce),
-  },
-  ...staticSecurityHeaders,
 ];

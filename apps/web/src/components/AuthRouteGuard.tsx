@@ -14,7 +14,7 @@ export function AuthRouteGuard({
   fallback?: ReactNode;
 }) {
   const searchParams = useSearchParams();
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session } = authClient.useSession();
   const nextPath = getSafeNextPath(searchParams.get("next")) ?? "/";
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export function AuthRouteGuard({
     }
   }, [nextPath, session]);
 
-  if (isPending || session) {
+  if (session) {
     return fallback;
   }
 

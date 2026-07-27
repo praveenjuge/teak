@@ -4,8 +4,6 @@ import { NextResponse } from "next/server";
 import { fetchAuthMutation, isAuthenticated } from "@/lib/auth-server";
 import { buildPublicAppUrl } from "@/lib/public-app-url";
 
-export const dynamic = "force-dynamic";
-
 const DEVICE_ID_PATTERN = /^[A-Za-z0-9-]{16,128}$/;
 const PKCE_CHALLENGE_PATTERN = /^[A-Za-z0-9_-]{43,128}$/;
 const STATE_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;

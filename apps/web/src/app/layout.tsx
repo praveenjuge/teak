@@ -1,6 +1,5 @@
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import "./globals.css";
 import { Toaster } from "@teak/ui/components/ui/sonner";
 import type { PropsWithChildren } from "react";
@@ -11,9 +10,6 @@ import {
   softwareApplicationSchema,
   websiteSchema,
 } from "@/lib/jsonld";
-import { CSP_NONCE_HEADER } from "@/lib/security-headers";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Teak",
@@ -25,9 +21,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({ children }: PropsWithChildren) {
-  const nonce = (await headers()).get(CSP_NONCE_HEADER) ?? undefined;
-
+export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -45,7 +39,6 @@ export default async function RootLayout({ children }: PropsWithChildren) {
           defaultTheme="system"
           disableTransitionOnChange
           enableSystem={true}
-          nonce={nonce}
         >
           <main className="mx-auto max-w-7xl px-4 pb-10">{children}</main>
           <Toaster position="bottom-center" />

@@ -14,7 +14,29 @@ describe("auth route session handling", () => {
     expect(source).not.toContain("isSignInRoute && sessionCookie");
   });
 
-  test("auth routes redirect only after a live session is confirmed", () => {
+  test("middleware no longer creates or forwards per-request CSP nonces", () => {
+    const source = readFileSync(
+      resolve(import.meta.dir, "../proxy.ts"),
+      "utf8"
+    );
+
+    expect(source).not.toContain("createNonce");
+    expect(source).not.toContain("x-nonce");
+    expect(source).not.toContain("Content-Security-Policy");
+    expect(source).not.toContain("request: {");
+  });
+
+  test("middleware leaves public metadata and telemetry infrastructure reachable", () => {
+    const source = readFileSync(
+      resolve(import.meta.dir, "../proxy.ts"),
+      "utf8"
+    );
+
+    expect(source).toContain('["/monitoring", "/opengraph-image"]');
+    expect(source).toContain("publicInfrastructureRoutes.has");
+  });
+
+  test("auth routes render immediately and redirect only after a live session", () => {
     const source = readFileSync(
       resolve(import.meta.dir, "../components/AuthRouteGuard.tsx"),
       "utf8"
@@ -24,6 +46,28 @@ describe("auth route session handling", () => {
     expect(source).toContain("if (session)");
     expect(source).toContain("getSafeNextPath");
     expect(source).toContain("fallback?: ReactNode");
+    expect(source).not.toContain("isPending");
     expect(source).toContain("return fallback");
+  });
+
+  test("token lookup is explicitly request-time behind route suspense", () => {
+    const providerSource = readFileSync(
+      resolve(import.meta.dir, "../components/AuthenticatedAppProvider.tsx"),
+      "utf8"
+    );
+    const homeSource = readFileSync(
+      resolve(import.meta.dir, "../app/page.tsx"),
+      "utf8"
+    );
+    const settingsSource = readFileSync(
+      resolve(import.meta.dir, "../app/(settings)/layout.tsx"),
+      "utf8"
+    );
+
+    expect(providerSource.indexOf("await connection()")).toBeLessThan(
+      providerSource.indexOf("await getToken()")
+    );
+    expect(homeSource).toContain("<Suspense fallback=");
+    expect(settingsSource).toContain("<Suspense fallback=");
   });
 });
