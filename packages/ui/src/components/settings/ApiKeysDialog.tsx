@@ -209,9 +209,13 @@ export function ApiKeysDialog({
               <table className="w-full table-fixed caption-bottom text-sm">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[58%] pr-2 pl-3">Key</TableHead>
-                    <TableHead className="w-[26%] px-2">Used</TableHead>
-                    <TableHead className="w-[16%] pr-3 pl-2" />
+                    <TableHead className="w-[70%] pr-2 pl-3 sm:w-[58%]">
+                      Key
+                    </TableHead>
+                    <TableHead className="hidden px-2 sm:table-cell sm:w-[26%]">
+                      Used
+                    </TableHead>
+                    <TableHead className="w-[30%] pr-3 pl-2 sm:w-[16%]" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -242,8 +246,11 @@ export function ApiKeysDialog({
                           <div className="truncate text-muted-foreground text-xs">
                             Created {formatDate(key.createdAt)}
                           </div>
+                          <div className="truncate text-muted-foreground text-xs sm:hidden">
+                            Used {formatDate(key.lastUsedAt)}
+                          </div>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap px-2 text-muted-foreground">
+                        <TableCell className="hidden whitespace-nowrap px-2 text-muted-foreground sm:table-cell">
                           {formatDate(key.lastUsedAt)}
                         </TableCell>
                         <TableCell className="pr-3 pl-2">

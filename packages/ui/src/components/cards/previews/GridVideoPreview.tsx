@@ -2,10 +2,30 @@ import { Image } from "antd";
 import { Play } from "lucide-react";
 
 interface GridVideoPreviewProps {
+  height?: number;
+  isGif?: boolean;
   thumbnailUrl?: string;
+  videoUrl?: string;
+  width?: number;
 }
 
-export function GridVideoPreview({ thumbnailUrl }: GridVideoPreviewProps) {
+function PlayOverlay() {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+      <div className="rounded-full bg-black/50 p-2">
+        <Play className="size-6 text-white" />
+      </div>
+    </div>
+  );
+}
+
+export function GridVideoPreview({
+  height,
+  isGif,
+  thumbnailUrl,
+  videoUrl,
+  width,
+}: GridVideoPreviewProps) {
   if (thumbnailUrl) {
     return (
       <div className="relative overflow-hidden rounded-xl border bg-card">
@@ -17,11 +37,43 @@ export function GridVideoPreview({ thumbnailUrl }: GridVideoPreviewProps) {
           preview={false}
           src={thumbnailUrl}
         />
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-          <div className="rounded-full bg-black/50 p-2">
-            <Play className="size-6 text-white" />
-          </div>
+        <PlayOverlay />
+      </div>
+    );
+  }
+
+  // No generated thumbnail yet: render a real frame from the media itself so
+  // the card never falls back to an empty black cover.
+  if (videoUrl) {
+    if (isGif) {
+      return (
+        <div className="relative overflow-hidden rounded-xl border bg-card">
+          <img
+            alt="GIF preview"
+            className="w-full object-cover"
+            height={height ?? 480}
+            loading="lazy"
+            src={videoUrl}
+            width={width ?? 640}
+          />
         </div>
+      );
+    }
+
+    return (
+      <div className="relative overflow-hidden rounded-xl border bg-card">
+        <video
+          className="w-full object-cover"
+          muted
+          playsInline
+          preload="metadata"
+          // Seek slightly into the clip so we render actual content instead of
+          // a leading black frame.
+          src={`${videoUrl}#t=0.1`}
+        >
+          <track kind="captions" />
+        </video>
+        <PlayOverlay />
       </div>
     );
   }
