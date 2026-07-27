@@ -2,7 +2,7 @@
 
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdownKeymap } from "@codemirror/lang-markdown";
-import { Annotation, Compartment, EditorState } from "@codemirror/state";
+import { Annotation, Compartment, EditorState, Text } from "@codemirror/state";
 import {
   drawSelection,
   EditorView,
@@ -22,12 +22,24 @@ import {
   selectionFormatTooltip,
 } from "./liveMarkdown";
 import { markdownEditorTheme } from "./markdownEditorTheme";
-import { teakMarkdownSupport } from "./markdownSupport";
+import {
+  indentMarkdownListItem,
+  outdentMarkdownListItem,
+  teakMarkdownSupport,
+} from "./markdownSupport";
 import type { MarkdownTextEditorProps } from "./types";
 
 const externalContentUpdate = Annotation.define<boolean>();
 
+function markdownLineSeparator(value: string) {
+  const withoutCrLf = value.replace(/\r\n/gu, "");
+  return value.includes("\r\n") && !withoutCrLf.includes("\n") ? "\r\n" : "\n";
+}
+
 function pasteLinkOverSelection(event: ClipboardEvent, view: EditorView) {
+  if (view.state.readOnly) {
+    return false;
+  }
   const selection = view.state.selection.main;
   if (selection.empty) {
     return false;
@@ -70,6 +82,7 @@ export function MarkdownTextEditor({
 }: MarkdownTextEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const lineSeparatorCompartmentRef = useRef(new Compartment());
   const readOnlyCompartmentRef = useRef(new Compartment());
   const initialRef = useRef({
     ariaLabel,
@@ -97,10 +110,13 @@ export function MarkdownTextEditor({
       return;
     }
     const initial = initialRef.current;
+    const initialLineSeparator = markdownLineSeparator(initial.value);
     const state = EditorState.create({
-      doc: initial.value,
+      doc: Text.of(initial.value.split(initialLineSeparator)),
       extensions: [
-        EditorState.lineSeparator.of("\n"),
+        lineSeparatorCompartmentRef.current.of(
+          EditorState.lineSeparator.of(initialLineSeparator)
+        ),
         teakMarkdownSupport(),
         history(),
         drawSelection(),
@@ -130,6 +146,18 @@ export function MarkdownTextEditor({
           {
             key: "Mod-`",
             run: (view) => applyInlineFormat(view, "code"),
+          },
+          {
+            key: "Mod-Shift-x",
+            run: (view) => applyInlineFormat(view, "strikethrough"),
+          },
+          {
+            key: "Tab",
+            run: indentMarkdownListItem,
+          },
+          {
+            key: "Shift-Tab",
+            run: outdentMarkdownListItem,
           },
           {
             key: "Mod-Enter",
@@ -165,7 +193,7 @@ export function MarkdownTextEditor({
         EditorState.transactionFilter.of((transaction) => {
           if (
             transaction.docChanged &&
-            markdownContentByteLength(transaction.newDoc.toString()) >
+            markdownContentByteLength(transaction.state.sliceDoc(0)) >
               MARKDOWN_CONTENT_MAX_BYTES
           ) {
             callbacksRef.current.onLimitExceeded?.();
@@ -181,7 +209,7 @@ export function MarkdownTextEditor({
             transaction.annotation(externalContentUpdate)
           );
           if (!isExternal) {
-            callbacksRef.current.onChange(update.state.doc.toString());
+            callbacksRef.current.onChange(update.state.sliceDoc(0));
           }
         }),
       ],
@@ -219,12 +247,20 @@ export function MarkdownTextEditor({
 
   useEffect(() => {
     const view = viewRef.current;
-    if (!view || view.state.doc.toString() === value) {
+    if (!view || view.state.sliceDoc(0) === value) {
       return;
     }
+    const lineSeparator = markdownLineSeparator(value);
     view.dispatch({
       annotations: externalContentUpdate.of(true),
-      changes: { from: 0, insert: value, to: view.state.doc.length },
+      changes: {
+        from: 0,
+        insert: Text.of(value.split(lineSeparator)),
+        to: view.state.doc.length,
+      },
+      effects: lineSeparatorCompartmentRef.current.reconfigure(
+        EditorState.lineSeparator.of(lineSeparator)
+      ),
     });
   }, [value]);
 

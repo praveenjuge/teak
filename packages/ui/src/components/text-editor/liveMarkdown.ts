@@ -14,8 +14,22 @@ import {
   showTooltip,
   WidgetType,
 } from "@codemirror/view";
+import {
+  isSafeExternalUrl,
+  MarkdownLinkWidget,
+  parseMarkdownLink,
+} from "./markdownLink";
 import { MarkdownTableWidget, parseMarkdownTable } from "./markdownTable";
+import { MarkdownTaskWidget } from "./markdownTask";
 import type { MarkdownInlineFormat } from "./types";
+
+export {
+  copyLinkUrl,
+  editLinkDestination,
+  isSafeExternalUrl,
+  parseMarkdownLink,
+} from "./markdownLink";
+export { toggleTaskMarker } from "./markdownTask";
 
 const ACTIVE_CONSTRUCTS = new Set([
   "ATXHeading1",
@@ -31,6 +45,7 @@ const ACTIVE_CONSTRUCTS = new Set([
   "Link",
   "ListItem",
   "StrongEmphasis",
+  "Strikethrough",
   "Table",
 ]);
 
@@ -39,20 +54,14 @@ const HIDDEN_MARKS = new Set([
   "EmphasisMark",
   "LinkMark",
   "QuoteMark",
+  "StrikethroughMark",
 ]);
+
+const NON_PLAIN_URL_PARENTS = new Set(["Autolink", "Image", "Link"]);
 
 interface SourceRange {
   from: number;
   to: number;
-}
-
-export function isSafeExternalUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:";
-  } catch {
-    return false;
-  }
 }
 
 function rangesOverlap(
@@ -145,88 +154,6 @@ class ListMarkerWidget extends WidgetType {
   }
 }
 
-class LinkWidget extends WidgetType {
-  readonly from: number;
-  readonly href: string;
-  readonly label: string;
-  readonly safe: boolean;
-
-  constructor(from: number, label: string, href: string, safe: boolean) {
-    super();
-    this.from = from;
-    this.href = href;
-    this.label = label;
-    this.safe = safe;
-  }
-
-  eq(other: LinkWidget) {
-    return (
-      other.from === this.from &&
-      other.label === this.label &&
-      other.href === this.href &&
-      other.safe === this.safe
-    );
-  }
-
-  toDOM(view: EditorView) {
-    const link = document.createElement("span");
-    link.className = this.safe ? "cm-md-link" : "cm-md-link cm-md-link-unsafe";
-    link.textContent = this.label;
-    link.setAttribute("role", "link");
-    link.tabIndex = 0;
-    link.title = this.safe
-      ? "Command-click or Control-click to open"
-      : "This link cannot be opened";
-
-    const reveal = () => {
-      view.dispatch({
-        scrollIntoView: true,
-        selection: { anchor: this.from },
-      });
-      view.focus();
-    };
-    const open = () => {
-      if (this.safe) {
-        window.open(this.href, "_blank", "noopener,noreferrer");
-      }
-    };
-
-    link.addEventListener("mousedown", (event) => {
-      event.preventDefault();
-      if (event.metaKey || event.ctrlKey) {
-        open();
-      } else {
-        reveal();
-      }
-    });
-    link.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        open();
-      } else if (event.key === "F2") {
-        event.preventDefault();
-        reveal();
-      }
-    });
-
-    return link;
-  }
-
-  ignoreEvent() {
-    return true;
-  }
-}
-
-function parseMarkdownLink(source: string) {
-  const match = /^\[([\s\S]*?)\]\((\S+?)(?:\s+["'][^"']*["'])?\)$/u.exec(
-    source
-  );
-  if (!(match?.[1] && match[2])) {
-    return null;
-  }
-  return { href: match[2], label: match[1].replace(/\\([\\\]])/gu, "$1") };
-}
-
 function codeFenceClasses(state: EditorState, from: number, to: number) {
   const ranges: Range<Decoration>[] = [];
   const firstLine = state.doc.lineAt(from);
@@ -309,6 +236,14 @@ export function buildMarkdownDecorations(
         ranges.push(
           Decoration.mark({ class: "cm-md-emphasis" }).range(from, to)
         );
+      } else if (name === "Strikethrough") {
+        const delimiterWidth = source.startsWith("~~") ? 2 : 1;
+        ranges.push(
+          Decoration.mark({ class: "cm-md-strikethrough" }).range(
+            from + delimiterWidth,
+            to - delimiterWidth
+          )
+        );
       } else if (name === "InlineCode") {
         ranges.push(
           Decoration.mark({ class: "cm-md-inline-code" }).range(from, to)
@@ -350,18 +285,39 @@ export function buildMarkdownDecorations(
       }
 
       if (name === "Link" && !isActive) {
-        const link = parseMarkdownLink(source);
+        const link = parseMarkdownLink(source, from);
         if (!link) {
           return;
         }
+        if (!isSafeExternalUrl(link.href)) {
+          ranges.push(
+            Decoration.mark({ class: "cm-md-link-unsafe" }).range(from, to)
+          );
+          return false;
+        }
         ranges.push(
           Decoration.replace({
-            widget: new LinkWidget(
+            widget: new MarkdownLinkWidget(link),
+          }).range(from, to)
+        );
+        return false;
+      }
+
+      if (
+        name === "URL" &&
+        !NON_PLAIN_URL_PARENTS.has(node.node.parent?.name ?? "") &&
+        isSafeExternalUrl(source)
+      ) {
+        ranges.push(
+          Decoration.replace({
+            widget: new MarkdownLinkWidget({
+              destinationFrom: from,
+              destinationTo: to,
               from,
-              link.label,
-              link.href,
-              isSafeExternalUrl(link.href)
-            ),
+              href: source,
+              label: source,
+              to,
+            }),
           }).range(from, to)
         );
         return false;
@@ -387,6 +343,26 @@ export function buildMarkdownDecorations(
                 widget: new ListMarkerWidget(source),
               })
           ).range(from, to)
+        );
+      } else if (name === "TaskMarker") {
+        ranges.push(
+          (isActive
+            ? Decoration.mark({ class: "cm-md-syntax" })
+            : Decoration.replace({
+                widget: new MarkdownTaskWidget(
+                  from,
+                  source.toLowerCase() === "[x]",
+                  view.state.readOnly
+                ),
+              })
+          ).range(from, to)
+        );
+      } else if (name === "Task" && /^\[[xX]\]/u.test(source)) {
+        ranges.push(
+          Decoration.mark({ class: "cm-md-task-complete" }).range(
+            Math.min(from + 4, to),
+            to
+          )
         );
       } else if (HIDDEN_MARKS.has(name)) {
         ranges.push(
@@ -440,6 +416,7 @@ const liveMarkdownState = StateField.define<LiveMarkdownState>({
     if (
       transaction.docChanged ||
       transaction.selection ||
+      transaction.startState.readOnly !== transaction.state.readOnly ||
       hasFocus !== value.hasFocus
     ) {
       return {
@@ -490,6 +467,9 @@ function formatParts(format: MarkdownInlineFormat, content: string) {
       suffix: `${padding}${delimiter}`,
     };
   }
+  if (format === "strikethrough") {
+    return { prefix: "~~", suffix: "~~" };
+  }
   return { prefix: "[", suffix: "](https://)" };
 }
 
@@ -497,6 +477,9 @@ export function applyInlineFormat(
   view: EditorView,
   format: MarkdownInlineFormat
 ): boolean {
+  if (view.state.readOnly) {
+    return false;
+  }
   const selection = view.state.selection.main;
   if (selection.empty) {
     return false;
@@ -563,6 +546,12 @@ const FORMAT_LABELS: Array<{
 }> = [
   { format: "bold", glyph: "B", label: "Bold", shortcut: "⌘B" },
   { format: "italic", glyph: "I", label: "Italic", shortcut: "⌘I" },
+  {
+    format: "strikethrough",
+    glyph: "S",
+    label: "Strikethrough",
+    shortcut: "⌘⇧X",
+  },
   { format: "link", glyph: "↗", label: "Link", shortcut: "⌘K" },
   { format: "code", glyph: "</>", label: "Code", shortcut: "⌘`" },
 ];
