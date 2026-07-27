@@ -5,7 +5,7 @@ import Loading from "./loading";
 
 export default function HomePage() {
   return (
-    <Suspense fallback={<Loading fullscreen={false} />}>
+    <Suspense fallback={<Loading />}>
       <AuthenticatedAppProvider>
         <HomePageClient />
       </AuthenticatedAppProvider>

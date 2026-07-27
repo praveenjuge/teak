@@ -67,7 +67,9 @@ describe("auth route session handling", () => {
     expect(providerSource.indexOf("await connection()")).toBeLessThan(
       providerSource.indexOf("await getToken()")
     );
-    expect(homeSource).toContain("<Suspense fallback=");
-    expect(settingsSource).toContain("<Suspense fallback=");
+    expect(homeSource).toContain("<Suspense fallback={<Loading />}");
+    expect(settingsSource).toContain(
+      "<Suspense fallback={<Loading fullscreen={false} />}>"
+    );
   });
 });
