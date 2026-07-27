@@ -152,7 +152,7 @@ export const ensureBackendTelemetry = (): boolean => {
       environment,
       integrations: [
         Sentry.consoleLoggingIntegration({
-          levels: ["log", "warn", "error"],
+          levels: ["warn", "error"],
         }),
         Sentry.vercelAIIntegration({
           enableTruncation: false,
