@@ -177,7 +177,19 @@ test("web editor, deep links, and link metadata stay usable", async ({
   const editor = page
     .getByRole("dialog")
     .getByRole("textbox", { name: "Markdown content" });
-  await editor.fill(`# ${marker} updated\n\n- **bold** item\n- \`code\``);
+  const initialMarkdown = `# ${marker} updated
+
+- [ ] clickable task
+- [x] finished task
+
+[Teak docs](https://teakvault.com/docs)
+
+https://example.com/editor
+
+~~already struck~~
+
+- [x] completed seed`;
+  await editor.fill(initialMarkdown);
   await expect(
     editor.locator(
       "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' teak-markdown-editor ')]"
@@ -190,11 +202,83 @@ test("web editor, deep links, and link metadata stay usable", async ({
     "data-not-typeset",
     "true"
   );
+  await page
+    .getByRole("dialog")
+    .getByRole("checkbox", { name: "Mark task complete" })
+    .click();
+  await expect(
+    page.getByRole("dialog").locator(".cm-md-task-complete")
+  ).toHaveCount(3);
+
+  await editor.press("Enter");
+  await editor.pressSequentially("continued task");
+  await editor.press("Enter");
+  await editor.press("Enter");
+  await editor.pressSequentially("toolbar strike");
+  for (const _character of "strike") {
+    await editor.press("Shift+ArrowLeft");
+  }
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Strikethrough" })
+    .click();
+  await expect(
+    page.getByRole("dialog").locator(".cm-md-strikethrough")
+  ).toHaveCount(2);
+
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"], {
+    origin: new URL(page.url()).origin,
+  });
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Teak docs" })
+    .click();
+  const explicitLinkActions = page.getByRole("dialog", {
+    name: "Link actions",
+  });
+  await expect(explicitLinkActions).toBeVisible();
+  await explicitLinkActions.getByRole("button", { name: "Copy URL" }).click();
+  await expect(
+    explicitLinkActions.getByRole("button", { name: "Copied" })
+  ).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "https://teakvault.com/docs"
+  );
+  await explicitLinkActions.getByRole("button", { name: "Edit" }).click();
+  await expect(
+    page.getByRole("dialog").getByRole("button", { name: "Teak docs" })
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog").locator(".cm-md-syntax")
+  ).not.toHaveCount(0);
+
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "https://example.com/editor" })
+    .click();
+  const plainUrlActions = page.getByRole("dialog", { name: "Link actions" });
+  await expect(plainUrlActions).toBeVisible();
+  await plainUrlActions.getByRole("button", { name: "Edit" }).click();
+  await expect(
+    page
+      .getByRole("dialog")
+      .getByRole("button", { name: "https://example.com/editor" })
+  ).toHaveCount(0);
+
+  const expectedMarkdown = `${initialMarkdown.replace(
+    "- [ ] clickable task",
+    "- [x] clickable task"
+  )}
+- [ ] continued task
+toolbar ~~strike~~`;
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(editor).toContainText("updated");
   const deepLink = page.url();
   const cardId = new URL(deepLink).searchParams.get("card");
   expect(cardId).toBeTruthy();
+  await expect
+    .poll(async () => (await api.cards.get(cardId!)).content)
+    .toBe(expectedMarkdown);
   await page.reload();
   await expect(page.getByRole("dialog")).toBeVisible();
   await expect(
