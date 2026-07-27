@@ -152,7 +152,7 @@ export const ensureBackendTelemetry = (): boolean => {
       environment,
       integrations: [
         Sentry.consoleLoggingIntegration({
-          levels: ["log", "warn", "error"],
+          levels: ["warn", "error"],
         }),
         Sentry.vercelAIIntegration({
           enableTruncation: false,
@@ -261,7 +261,7 @@ export const withBackendSpan = async <T>(
         const isWorkflowOperation = input.operation.startsWith("teak.workflow");
         const startedAt = Date.now();
         safely(() =>
-          Sentry.logger.info("telemetry.operation.started", attributes)
+          console.info("telemetry.operation.started", attributes)
         );
         try {
           const result = await callback();
@@ -314,16 +314,14 @@ export const withBackendSpan = async <T>(
               })
             );
           }
-          safely(() =>
-            Sentry.logger[returnedFailure ? "error" : "info"](
-              "telemetry.operation.completed",
-              {
-                ...attributes,
-                "duration.ms": durationMs,
-                outcome,
-              }
-            )
-          );
+          safely(() => {
+            const logFn = returnedFailure ? console.error : console.info;
+            logFn("telemetry.operation.completed", {
+              ...attributes,
+              "duration.ms": durationMs,
+              outcome,
+            });
+          });
           return result;
         } catch (error) {
           const durationMs = Date.now() - startedAt;
@@ -347,7 +345,7 @@ export const withBackendSpan = async <T>(
             })
           );
           safely(() =>
-            Sentry.logger.error("telemetry.operation.failed", {
+            console.error("telemetry.operation.failed", {
               ...attributes,
               "duration.ms": durationMs,
               "error.class": errorClass,
@@ -491,7 +489,7 @@ export const recordBackendHandledFailure = (
     })
   );
   safely(() =>
-    Sentry.logger.error("telemetry.operation.handled_failure", attributes)
+    console.error("telemetry.operation.handled_failure", attributes)
   );
   if (input.operation.startsWith("teak.workflow")) {
     safely(() =>
@@ -510,7 +508,7 @@ export const recordBackendLog = (
   if (!ensureBackendTelemetry()) {
     return;
   }
-  safely(() => Sentry.logger[level](message, attributes));
+  safely(() => console[level](message, attributes));
 };
 
 export const recordBackendOutcome = async (input: {
@@ -561,12 +559,10 @@ export const recordBackendOutcome = async (input: {
     },
     () => {
       safely(() => Sentry.metrics.count(input.metric, 1, { attributes }));
-      safely(() =>
-        Sentry.logger[input.outcome === "failure" ? "error" : "info"](
-          input.metric,
-          attributes
-        )
-      );
+      safely(() => {
+        const logFn = input.outcome === "failure" ? console.error : console.info;
+        logFn(input.metric, attributes);
+      });
       return Promise.resolve({ success: input.outcome !== "failure" });
     }
   );

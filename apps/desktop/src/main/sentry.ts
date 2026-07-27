@@ -83,7 +83,7 @@ export const logDesktopMain = (
   message: string,
   attributes: Record<string, unknown> = {}
 ): void => {
-  Sentry.logger[level](message, scrubDesktopPayload(attributes));
+  console[level](message, scrubDesktopPayload(attributes));
 };
 
 export const recordDesktopMainCount = (

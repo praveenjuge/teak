@@ -78,10 +78,10 @@ configureClientTelemetry({
   },
   log: (level, message, attributes) => {
     if (level === "warning") {
-      Sentry.logger.warn(message, attributes);
+      console.warn(message, attributes);
       return;
     }
-    Sentry.logger[level](message, attributes);
+    console[level](message, attributes);
   },
   startSpan: async (input, callback) =>
     await Sentry.startSpan(
@@ -105,7 +105,7 @@ export const finishDesktopStartup = (): void => {
     { outcome: "success" },
     "millisecond"
   );
-  Sentry.logger.info("desktop.startup.completed", {
+  console.info("desktop.startup.completed", {
     "duration.ms": durationMs,
   });
 };
