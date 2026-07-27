@@ -1,7 +1,6 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import { buildPublicAppUrl } from "@/lib/public-app-url";
-import { CSP_NONCE_HEADER, securityHeaders } from "@/lib/security-headers";
 
 const signInRoutes = [
   "/login",
@@ -9,6 +8,7 @@ const signInRoutes = [
   "/reset-password",
   "/forgot-password",
 ];
+const publicInfrastructureRoutes = new Set(["/monitoring", "/opengraph-image"]);
 
 // Browser MCP/OAuth clients (e.g. claude.ai) preflight the OAuth token endpoint
 // cross-origin. The Better Auth catch-all route does not reliably answer these
@@ -18,33 +18,6 @@ const MCP_OAUTH_CORS_HEADERS = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Max-Age": "86400",
-};
-
-const createNonce = () => btoa(crypto.randomUUID());
-
-const withSecurityHeaders = (request: NextRequest, response?: NextResponse) => {
-  const nonce = createNonce();
-  const requestHeaders = new Headers(request.headers);
-  const headers = securityHeaders(nonce);
-
-  requestHeaders.set(CSP_NONCE_HEADER, nonce);
-  for (const { key, value } of headers) {
-    requestHeaders.set(key, value);
-  }
-
-  const nextResponse =
-    response ??
-    NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    });
-
-  for (const { key, value } of headers) {
-    nextResponse.headers.set(key, value);
-  }
-
-  return nextResponse;
 };
 
 export default function middleware(request: NextRequest) {
@@ -57,32 +30,33 @@ export default function middleware(request: NextRequest) {
         headers: MCP_OAUTH_CORS_HEADERS,
       });
     }
-    return withSecurityHeaders(request);
+    return NextResponse.next();
   }
 
   const sessionCookie = getSessionCookie(request);
   const isSignInRoute = signInRoutes.includes(request.nextUrl.pathname);
   const isNativeAuthRoute = request.nextUrl.pathname.startsWith("/native/auth");
 
+  if (publicInfrastructureRoutes.has(request.nextUrl.pathname)) {
+    return NextResponse.next();
+  }
+
   if (isNativeAuthRoute) {
-    return withSecurityHeaders(request);
+    return NextResponse.next();
   }
 
   // Auth routes must remain reachable when a stale session cookie is present.
   // The auth route guard validates the session before redirecting signed-in
   // users; cookie presence alone cannot distinguish an expired session.
   if (isSignInRoute) {
-    return withSecurityHeaders(request);
+    return NextResponse.next();
   }
 
   if (!(isSignInRoute || sessionCookie)) {
-    return withSecurityHeaders(
-      request,
-      NextResponse.redirect(buildPublicAppUrl("/login", request.nextUrl))
-    );
+    return NextResponse.redirect(buildPublicAppUrl("/login", request.nextUrl));
   }
 
-  return withSecurityHeaders(request);
+  return NextResponse.next();
 }
 
 export const config = {

@@ -1,3 +1,4 @@
+import { instant } from "@next/playwright";
 import { expect, test } from "@playwright/test";
 import { AuthHelper, generateTestEmail } from "./test-helpers";
 
@@ -49,15 +50,28 @@ test.describe("Authentication Flows", () => {
       ).toBeVisible();
     });
 
-    test("should navigate to register page", async ({ page }) => {
-      await page.getByRole("link", { name: /new user\? register/i }).click();
-      await expect(page).toHaveURL(/\/register/);
-      await expect(page.getByText("Get started on Teak")).toBeVisible();
+    test("should navigate instantly to the register page", async ({ page }) => {
+      await instant(page, async () => {
+        await page.getByRole("link", { name: /new user\? register/i }).click();
+        await expect(page).toHaveURL(/\/register/);
+        await expect(page.getByText("Get started on Teak")).toBeVisible();
+      });
+
+      await expect(page.getByLabel("Email")).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /create an account/i })
+      ).toBeVisible();
     });
 
-    test("should navigate to forgot password page", async ({ page }) => {
-      await page.getByRole("link", { name: /^forgot\?$/i }).click();
-      await expect(page).toHaveURL(/\/forgot-password/);
+    test("should navigate instantly to forgot password", async ({ page }) => {
+      await instant(page, async () => {
+        await page.getByRole("link", { name: /^forgot\?$/i }).click();
+        await expect(page).toHaveURL(/\/forgot-password/);
+        await expect(page.getByText(/^forgot password$/i)).toBeVisible();
+      });
+
+      await expect(page.getByLabel("Email")).toBeVisible();
+      await expect(page.getByRole("button", { name: /reset/i })).toBeVisible();
     });
 
     test("should show validation error for invalid email format", async ({

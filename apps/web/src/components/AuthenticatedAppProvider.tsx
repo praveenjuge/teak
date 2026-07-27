@@ -1,5 +1,6 @@
 import { ConvexQueryCacheProvider } from "@teak/ui/convex-query-cache";
 import { GlobalFileDropProvider } from "@teak/ui/hooks/GlobalFileDropProvider";
+import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { getToken } from "@/lib/auth-server";
 import { ClientAuthBoundary } from "./ClientAuthBoundary";
@@ -11,6 +12,7 @@ export default async function AuthenticatedAppProvider({
 }: {
   children: ReactNode;
 }) {
+  await connection();
   const initialToken = await getToken();
 
   return (

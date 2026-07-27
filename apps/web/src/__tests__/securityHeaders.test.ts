@@ -1,15 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildContentSecurityPolicy,
-  securityHeaders,
   staticSecurityHeaders,
 } from "../lib/security-headers";
 
-const nonce = "test-nonce";
-const contentSecurityPolicy = buildContentSecurityPolicy(nonce);
+const contentSecurityPolicy = buildContentSecurityPolicy("production");
 
 const headers = new Map(
-  securityHeaders(nonce).map(({ key, value }) => [key, value] as const)
+  staticSecurityHeaders.map(({ key, value }) => [key, value] as const)
 );
 const teakR2StorageOrigin =
   "https://teak-files-prod.dd19e45b8f2f3cc0393cc2deb51fa27d.r2.cloudflarestorage.com";
@@ -33,7 +31,14 @@ describe("web security headers", () => {
     expect(directiveTokens("img-src")).toContain("https://www.google.com");
     expect(directiveTokens("img-src")).toContain("https://*.gstatic.com");
     expect(directiveTokens("img-src")).not.toContain("https:");
-    expect(directiveTokens("script-src")).toContain("'nonce-test-nonce'");
+    expect(directiveTokens("script-src")).toContain("'self'");
+    expect(directiveTokens("script-src")).toContain(
+      "https://va.vercel-scripts.com"
+    );
+    expect(directiveTokens("script-src")).not.toContain("'strict-dynamic'");
+    expect(
+      directiveTokens("script-src").some((token) => token.startsWith("'nonce-"))
+    ).toBe(false);
     expect(directiveTokens("connect-src")).toContain(teakR2StorageOrigin);
     expect(directiveTokens("connect-src")).toContain(teakR2UploadOrigin);
     expect(directiveTokens("media-src")).toContain(teakR2StorageOrigin);
@@ -55,7 +60,7 @@ describe("web security headers", () => {
     );
     expect(directiveTokens("media-src")).not.toContain("https://*.r2.dev");
     expect(directiveTokens("script-src")).not.toContain("https:");
-    expect(directiveTokens("script-src")).not.toContain("'unsafe-inline'");
+    expect(directiveTokens("script-src")).toContain("'unsafe-inline'");
     expect(directiveTokens("script-src")).not.toContain("'unsafe-eval'");
     expect(directiveTokens("connect-src")).not.toContain("https:");
     expect(directiveTokens("connect-src")).not.toContain("wss:");
@@ -66,7 +71,7 @@ describe("web security headers", () => {
     process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN =
       "https://files.teakvault.com/path, http://unsafe.example, not-a-url";
     try {
-      const policy = buildContentSecurityPolicy(nonce);
+      const policy = buildContentSecurityPolicy("production");
       const tokens = (name: string) =>
         policy
           .split("; ")
@@ -90,27 +95,18 @@ describe("web security headers", () => {
     }
   });
 
-  test("permits eval only in development for React/Next fast refresh", () => {
-    const previous = process.env.NODE_ENV;
-    const scriptTokens = () =>
-      buildContentSecurityPolicy(nonce)
+  test("allows framework bootstraps in production but eval only in development", () => {
+    const scriptTokens = (environment: "development" | "production") =>
+      buildContentSecurityPolicy(environment)
         .split("; ")
         .find((directive) => directive.startsWith("script-src "))
         ?.split(" ")
         .slice(1) ?? [];
-    try {
-      process.env.NODE_ENV = "development";
-      expect(scriptTokens()).toContain("'unsafe-eval'");
 
-      process.env.NODE_ENV = "production";
-      expect(scriptTokens()).not.toContain("'unsafe-eval'");
-    } finally {
-      if (previous === undefined) {
-        delete process.env.NODE_ENV;
-      } else {
-        process.env.NODE_ENV = previous;
-      }
-    }
+    expect(scriptTokens("development")).toContain("'unsafe-eval'");
+    expect(scriptTokens("development")).toContain("'unsafe-inline'");
+    expect(scriptTokens("production")).not.toContain("'unsafe-eval'");
+    expect(scriptTokens("production")).toContain("'unsafe-inline'");
   });
 
   test("allows configured R2 storage origins for images, media, uploads and frames", () => {
@@ -118,7 +114,7 @@ describe("web security headers", () => {
     process.env.NEXT_PUBLIC_R2_STORAGE_ORIGIN =
       "https://teak-files-dev.example.r2.cloudflarestorage.com/path, http://unsafe.example, not-a-url";
     try {
-      const policy = buildContentSecurityPolicy(nonce);
+      const policy = buildContentSecurityPolicy("production");
       const tokens = (name: string) =>
         policy
           .split("; ")
@@ -152,7 +148,7 @@ describe("web security headers", () => {
     process.env.R2_ENDPOINT =
       "https://uploads.teakvault.example/path, http://unsafe.example, not-a-url";
     try {
-      const policy = buildContentSecurityPolicy(nonce);
+      const policy = buildContentSecurityPolicy("production");
       const tokens = (name: string) =>
         policy
           .split("; ")
@@ -182,7 +178,7 @@ describe("web security headers", () => {
   test("keeps baseline browser security headers enabled", () => {
     expect(
       staticSecurityHeaders.some(({ key }) => key === "Content-Security-Policy")
-    ).toBe(false);
+    ).toBe(true);
     expect(headers.get("Strict-Transport-Security")).toContain(
       "includeSubDomains"
     );

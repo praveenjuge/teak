@@ -76,6 +76,8 @@ describe("MCP OAuth metadata and endpoints", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
     expect(await response.json()).toEqual({
       sub: "user_1",
       email: "hello@example.com",
@@ -91,6 +93,7 @@ describe("MCP OAuth metadata and endpoints", () => {
 
     expect(response.status).toBe(401);
     expect(response.headers.get("WWW-Authenticate")).toBe("Bearer");
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
   });
 
   test("serves MCP JWKS from the Convex auth JWKS source", async () => {
@@ -105,6 +108,8 @@ describe("MCP OAuth metadata and endpoints", () => {
     const response = await mcpJwks();
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
     expect(await response.json()).toEqual({ keys: [{ kid: "key_1" }] });
   });
 
