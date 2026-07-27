@@ -32,12 +32,14 @@ export function HomePageClient() {
     const nextQuery = params.toString();
     const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
 
+    // Opening/closing the card modal only toggles a query param; keep the
+    // masonry scroll position instead of letting the router jump to the top.
     if (replace) {
-      router.replace(nextUrl);
+      router.replace(nextUrl, { scroll: false });
       return;
     }
 
-    router.push(nextUrl);
+    router.push(nextUrl, { scroll: false });
   };
 
   const handleUpgrade = () => {

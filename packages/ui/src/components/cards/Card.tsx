@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import type { SyntheticEvent } from "react";
 import { memo, useState } from "react";
+import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { prefetchFileTextPreview } from "../card-previews/fileTextPreviewCache";
 import { AudioWavePreview } from "./previews/AudioWavePreview";
 import { GridDocumentPreview } from "./previews/GridDocumentPreview";
@@ -243,7 +244,7 @@ export const Card = memo(function Card({
       return (
         <div className="rounded-xl border bg-card p-4">
           <p className="line-clamp-2 font-medium">
-            {card.content || card.fileMetadata?.fileName}
+            {markdownToPlainText(card.content) || card.fileMetadata?.fileName}
           </p>
         </div>
       );
@@ -254,7 +255,7 @@ export const Card = memo(function Card({
         <div className="rounded-xl border bg-card px-6 py-4">
           <div className="relative">
             <p className="line-clamp-2 text-balance text-center font-medium italic leading-relaxed">
-              {card.content}
+              {markdownToPlainText(card.content)}
             </p>
             <div className="pointer-events-none absolute -top-3.5 -left-4 select-none font-serif text-4xl text-muted-foreground/20 leading-none">
               &ldquo;
@@ -318,7 +319,7 @@ export const Card = memo(function Card({
 
       return (
         <p className="w-full min-w-0 overflow-hidden truncate text-ellipsis whitespace-nowrap rounded-xl border bg-card p-4 font-medium">
-          {card.content || linkCardTitle}
+          {markdownToPlainText(card.content) || linkCardTitle}
         </p>
       );
     }
@@ -335,7 +336,18 @@ export const Card = memo(function Card({
     }
 
     if (card.type === "video") {
-      return <GridVideoPreview thumbnailUrl={card.thumbnailUrl ?? undefined} />;
+      const isGif =
+        card.fileMetadata?.mimeType === "image/gif" ||
+        (card.fileMetadata?.fileName?.toLowerCase().endsWith(".gif") ?? false);
+      return (
+        <GridVideoPreview
+          height={card.fileMetadata?.height}
+          isGif={isGif}
+          thumbnailUrl={card.thumbnailUrl ?? undefined}
+          videoUrl={card.fileUrl ?? undefined}
+          width={card.fileMetadata?.width}
+        />
+      );
     }
 
     if (card.type === "audio") {
@@ -369,7 +381,9 @@ export const Card = memo(function Card({
 
       return (
         <div className="rounded-xl border bg-card p-4">
-          <p className="line-clamp-2 font-medium">{card.content}</p>
+          <p className="line-clamp-2 font-medium">
+            {markdownToPlainText(card.content)}
+          </p>
         </div>
       );
     }
@@ -377,7 +391,7 @@ export const Card = memo(function Card({
     return (
       <div className="rounded-xl border bg-card p-4">
         <p className="line-clamp-2 font-medium">
-          {card.content || card.fileMetadata?.fileName}
+          {markdownToPlainText(card.content) || card.fileMetadata?.fileName}
         </p>
       </div>
     );
