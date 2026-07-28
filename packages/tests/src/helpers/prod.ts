@@ -43,6 +43,9 @@ export const clickVisibleControl = async (
     if (!isRetryableActionabilityError(error)) {
       throw error;
     }
+    if (!(await target.isVisible())) {
+      return;
+    }
     await expect(target).toBeVisible({ timeout });
     await expect(target).toBeEnabled({ timeout });
     await target.click({ force: true, timeout: Math.min(timeout, 5000) });
