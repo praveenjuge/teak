@@ -32,6 +32,11 @@ const LINK_ENRICHMENT_STEP_RETRY: RetryBehavior = {
   initialBackoffMs: 1200,
   base: 1.6,
 };
+export const RENDERABLES_STEP_RETRY: RetryBehavior = {
+  maxAttempts: 3,
+  initialBackoffMs: 500,
+  base: 2,
+};
 
 const PIPELINE_LOG_PREFIX = "[workflow/cardProcessing]";
 
@@ -63,7 +68,7 @@ async function timeStage<T>(
       result &&
       typeof result === "object" &&
       "mode" in result &&
-      result.mode === "skipped"
+      (result.mode === "skipped" || result.mode === "missing")
     ) {
       outcome = "skipped";
     }
@@ -196,7 +201,7 @@ export const cardProcessingWorkflow: any = workflow.define({
     // Wait for link metadata extraction if needed, then categorize and enrich
     let categorization: { category: string; confidence: number } | undefined;
     if (classification.shouldCategorize) {
-      categorization = await timeStage(
+      const categorizationOutcome = await timeStage(
         "categorization",
         classification.type,
         async () => {
@@ -206,6 +211,10 @@ export const cardProcessingWorkflow: any = workflow.define({
             { cardId },
             { retry: LINK_ENRICHMENT_STEP_RETRY }
           );
+
+          if (classifyStepResult.mode === "missing") {
+            return null;
+          }
 
           let structuredData: unknown = null;
           if (
@@ -246,6 +255,10 @@ export const cardProcessingWorkflow: any = workflow.define({
           };
         }
       );
+      if (!categorizationOutcome) {
+        return createMissingCardWorkflowResult();
+      }
+      categorization = categorizationOutcome;
     }
 
     // Step 3 & 4: Metadata generation and renderables can run in parallel when needed.
@@ -259,7 +272,8 @@ export const cardProcessingWorkflow: any = workflow.define({
         ? await timeStage("renderables", classification.type, () =>
             step.runAction(
               internalWorkflow["workflows/steps/renderables"].generate,
-              { cardId, cardType: classification.type }
+              { cardId, cardType: classification.type },
+              { retry: RENDERABLES_STEP_RETRY }
             )
           )
         : null;
@@ -309,7 +323,8 @@ export const cardProcessingWorkflow: any = workflow.define({
         ? timeStage("renderables", classification.type, () =>
             step.runAction(
               internalWorkflow["workflows/steps/renderables"].generate,
-              { cardId, cardType: classification.type }
+              { cardId, cardType: classification.type },
+              { retry: RENDERABLES_STEP_RETRY }
             )
           )
         : Promise.resolve(null);

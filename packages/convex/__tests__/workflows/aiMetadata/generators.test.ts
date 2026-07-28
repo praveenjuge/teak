@@ -107,7 +107,7 @@ describe("aiMetadata generators", () => {
   });
 
   test("keeps short metadata input unchanged", () => {
-    expect(maxRetries).toBe(2);
+    expect(maxRetries).toBe(0);
     expect(maxValidationRetries).toBe(2);
     expect(maxOutputTokens).toBe(768);
     expect(boundAiMetadataInput("short content")).toBe("short content");

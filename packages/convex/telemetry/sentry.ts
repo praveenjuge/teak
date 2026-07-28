@@ -237,6 +237,13 @@ export interface BackendSpanInput extends TelemetryContextInput {
   stage?: TelemetryStage;
 }
 
+export const isRetryableBackendError = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error);
+  return /retry|waiting|not yet|rate.?limit|too many requests|tokens per (?:day|minute)|\b(?:tpd|tpm|429)\b/iu.test(
+    message
+  );
+};
+
 export const withBackendSpan = async <T>(
   input: BackendSpanInput,
   callback: () => Promise<T>
@@ -328,31 +335,36 @@ export const withBackendSpan = async <T>(
         } catch (error) {
           const durationMs = Date.now() - startedAt;
           const errorClass = normalizeErrorClass(error);
-          const retryable = /retry|waiting|not yet|rate.?limit/iu.test(
-            error instanceof Error ? error.message : String(error)
-          );
+          const retryable = isRetryableBackendError(error);
           span.setAttribute("error.class", errorClass);
           span.setAttribute("outcome", "failure");
           span.setAttribute("retryable", retryable);
           span.recordException(error instanceof Error ? error : String(error));
           span.setStatus({ code: SpanStatusCode.ERROR, message: errorClass });
+          if (!retryable) {
+            safely(() =>
+              Sentry.captureException(error, {
+                tags: {
+                  "error.class": errorClass,
+                  operation: input.operation,
+                  stage: input.stage,
+                  surface: input.surface,
+                },
+              })
+            );
+          }
           safely(() =>
-            Sentry.captureException(error, {
-              tags: {
+            Sentry.logger[retryable ? "info" : "error"](
+              retryable
+                ? "telemetry.operation.retrying"
+                : "telemetry.operation.failed",
+              {
+                ...attributes,
+                "duration.ms": durationMs,
                 "error.class": errorClass,
-                operation: input.operation,
-                stage: input.stage,
-                surface: input.surface,
-              },
-            })
-          );
-          safely(() =>
-            Sentry.logger.error("telemetry.operation.failed", {
-              ...attributes,
-              "duration.ms": durationMs,
-              "error.class": errorClass,
-              outcome: "failure",
-            })
+                outcome: retryable ? "retry" : "failure",
+              }
+            )
           );
           if (isWorkflowOperation) {
             safely(() =>

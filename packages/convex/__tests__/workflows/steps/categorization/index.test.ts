@@ -101,11 +101,11 @@ describe("categorization index", () => {
   });
 
   describe("classifyHandler", () => {
-    test("throws if card not found", () => {
+    test("skips if card was deleted before categorization", async () => {
       mockRunQuery.mockResolvedValue(null);
-      expect(classifyHandler(ctx, { cardId: "c1" })).rejects.toThrow(
-        "not found"
-      );
+      await expect(classifyHandler(ctx, { cardId: "c1" })).resolves.toEqual({
+        mode: "missing",
+      });
     });
 
     test("throws if card type is not link", () => {

@@ -25,6 +25,16 @@ describe("workflows/cardProcessing", () => {
       });
     });
 
+    test("retries transient renderable failures", async () => {
+      const module = await import("../../workflows/cardProcessing");
+
+      expect(module.RENDERABLES_STEP_RETRY).toEqual({
+        maxAttempts: 3,
+        initialBackoffMs: 500,
+        base: 2,
+      });
+    });
+
     test("clamps completion duration to a non-negative value", async () => {
       const module = await import("../../workflows/cardProcessing");
       expect(module.resolveCardProcessingDurationMs(500, 1000)).toBe(500);

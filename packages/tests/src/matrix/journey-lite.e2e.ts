@@ -15,7 +15,7 @@ test("signup, create, and search", async ({ page }) => {
     await page.goto("/");
     const note = page.getByRole("textbox", { name: "Markdown content" });
     await note.fill(marker);
-    await expect(note).toHaveValue(marker);
+    await expect(note).toHaveText(marker);
     await clickVisibleControl(
       page.getByRole("button", { exact: true, name: "Save" })
     );

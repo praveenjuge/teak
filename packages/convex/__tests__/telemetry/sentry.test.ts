@@ -244,6 +244,33 @@ describe("backend Sentry OpenTelemetry", () => {
     expect(sentryFlush).toHaveBeenCalled();
   });
 
+  test("keeps recoverable provider capacity errors out of the issue feed", async () => {
+    const capacityError = new Error(
+      "Rate limit reached on tokens per day (TPD): status 429"
+    );
+
+    await expect(
+      telemetry.withBackendSpan(
+        {
+          name: "ai.metadata",
+          operation: "gen_ai.generate",
+          stage: "ai_metadata",
+          surface: "backend",
+        },
+        () => Promise.reject(capacityError)
+      )
+    ).rejects.toBe(capacityError);
+
+    expect(spanRecordException).toHaveBeenCalledWith(capacityError);
+    expect(spanSetAttribute).toHaveBeenCalledWith("retryable", true);
+    expect(sentryCaptureException).not.toHaveBeenCalled();
+    expect(sentryLogError).not.toHaveBeenCalled();
+    expect(sentryLogInfo).toHaveBeenCalledWith(
+      "telemetry.operation.retrying",
+      expect.objectContaining({ outcome: "retry" })
+    );
+  });
+
   test("counts a thrown workflow failure exactly once", async () => {
     const workflowError = new Error("workflow step failed");
 

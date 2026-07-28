@@ -82,6 +82,10 @@ export interface CategoryClassificationResult {
   reason?: string;
 }
 
+export const createMissingCardCategorizationResult = () => ({
+  mode: "missing" as const,
+});
+
 const normalizeUrlForComparison = (
   value: string | undefined
 ): string | null => {
@@ -850,14 +854,17 @@ export const classifyStep: any = internalAction({
   args: {
     cardId: v.id("cards"),
   },
-  returns: v.object({
-    mode: v.union(v.literal("classified"), v.literal("skipped")),
-    card: v.any(),
-    sourceUrl: v.string(),
-    classification: v.optional(v.any()),
-    existingMetadata: v.optional(v.any()),
-    shouldFetchStructured: v.boolean(),
-  }),
+  returns: v.union(
+    v.object({ mode: v.literal("missing") }),
+    v.object({
+      mode: v.union(v.literal("classified"), v.literal("skipped")),
+      card: v.any(),
+      sourceUrl: v.string(),
+      classification: v.optional(v.any()),
+      existingMetadata: v.optional(v.any()),
+      shouldFetchStructured: v.boolean(),
+    })
+  ),
   handler: (ctx: any, args: { cardId: Id<"cards"> }) =>
     withBackendSpan(
       {
@@ -880,7 +887,7 @@ export async function classifyHandler(
   });
 
   if (!card) {
-    throw new Error(`Card ${cardId} not found for categorization`);
+    return createMissingCardCategorizationResult();
   }
 
   if (card.type !== "link") {

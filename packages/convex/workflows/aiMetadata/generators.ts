@@ -40,7 +40,7 @@ const GROQ_LOW_REASONING_JSON_OBJECT_OPTIONS = {
 
 export const MAX_AI_METADATA_INPUT_CHARS = 6000;
 export const MAX_AI_METADATA_OUTPUT_TOKENS = 768;
-export const MAX_AI_METADATA_RETRIES = 2;
+export const MAX_AI_METADATA_RETRIES = 0;
 export const MAX_AI_METADATA_VALIDATION_RETRIES = 2;
 
 const JSON_VALIDATION_ERROR =
@@ -131,8 +131,9 @@ export const generateTextMetadata = async (content: string, title?: string) => {
             stage: "ai_metadata",
           }),
           model: TEXT_METADATA_MODEL,
-          // Keep provider retries bounded so capacity exhaustion does not turn
-          // optional enrichment into a long-running card creation.
+          // Metadata is optional. Surface provider errors immediately so the
+          // workflow can skip exhausted capacity or apply its own bounded retry
+          // without the SDK waiting through provider-supplied reset windows.
           maxRetries: MAX_AI_METADATA_RETRIES,
           maxOutputTokens: MAX_AI_METADATA_OUTPUT_TOKENS,
           // Static system prompt - will be cached across requests
