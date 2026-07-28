@@ -334,6 +334,12 @@ describe("live Markdown editor", () => {
       ])
     );
     expect(
+      decorationSpecs(safe, {
+        hasFocus: true,
+        selection: safe.indexOf("example.com"),
+      }).some(({ spec }) => "widget" in (spec as Record<string, unknown>))
+    ).toBe(false);
+    expect(
       decorationSpecs("Email hello@example.com").some(
         ({ spec }) => "widget" in (spec as Record<string, unknown>)
       )

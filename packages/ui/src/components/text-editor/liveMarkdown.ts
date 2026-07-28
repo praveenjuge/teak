@@ -47,6 +47,7 @@ const ACTIVE_CONSTRUCTS = new Set([
   "StrongEmphasis",
   "Strikethrough",
   "Table",
+  "URL",
 ]);
 
 const HIDDEN_MARKS = new Set([
@@ -305,6 +306,7 @@ export function buildMarkdownDecorations(
 
       if (
         name === "URL" &&
+        !isActive &&
         !NON_PLAIN_URL_PARENTS.has(node.node.parent?.name ?? "") &&
         isSafeExternalUrl(source)
       ) {
