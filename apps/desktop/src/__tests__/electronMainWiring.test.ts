@@ -92,6 +92,23 @@ describe("electron main process wiring", () => {
     );
 
     expect(source).toContain("clipboard-sanitized-write");
+    expect(source).toMatch(
+      /setPermissionRequestHandler[\s\S]*clipboard-sanitized-write[\s\S]*callback\(true\)/
+    );
+    expect(source).toMatch(
+      /setPermissionCheckHandler[\s\S]*clipboard-sanitized-write[\s\S]*return true/
+    );
+  });
+
+  it("denies non-clipboard and non-microphone permission requests", () => {
+    const source = readFileSync(
+      resolve(import.meta.dir, "../main/index.ts"),
+      "utf8"
+    );
+
+    expect(source).toContain('permission !== "media"');
+    expect(source).toContain("callback(false)");
+    expect(source).toContain("isMicrophoneOnlyRequest");
   });
 
   it("configures the main window with correct dimensions", () => {

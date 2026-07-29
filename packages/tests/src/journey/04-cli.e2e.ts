@@ -32,6 +32,59 @@ for (const kind of ["repo", "npm"] as const) {
   });
 }
 
+test("repo CLI favorites, unfavorites, searches, deletes, and lists tags", async () => {
+  const apiKey = requireServiceApiKey("cli");
+  const marker = `cli-lifecycle-${Date.now()}`;
+  const created = JSON.parse(
+    await runCli(
+      "repo",
+      ["--json", "cards", "create", marker, "--tags", "prod-e2e,cli-lifecycle"],
+      apiKey
+    )
+  );
+  expect(created.cardId).toBeTruthy();
+  updateState((state) => state.createdCardIds.push(created.cardId));
+
+  await runCli("repo", ["--json", "cards", "favorite", created.cardId], apiKey);
+  const favorites = JSON.parse(
+    await runCli("repo", ["--json", "cards", "favorites"], apiKey)
+  );
+  expect(
+    (favorites.items ?? []).some(
+      (card: { id?: string }) => card.id === created.cardId
+    )
+  ).toBe(true);
+
+  const searched = JSON.parse(
+    await runCli("repo", ["--json", "cards", "search", marker], apiKey)
+  );
+  expect(
+    (searched.items ?? []).some(
+      (card: { id?: string; content?: string }) =>
+        card.id === created.cardId || card.content?.includes(marker)
+    )
+  ).toBe(true);
+
+  const tags = JSON.parse(await runCli("repo", ["--json", "tags"], apiKey));
+  expect(
+    (tags.items ?? []).some(
+      (tag: { name?: string }) => tag.name === "cli-lifecycle"
+    )
+  ).toBe(true);
+
+  await runCli(
+    "repo",
+    ["--json", "cards", "favorite", created.cardId, "--remove"],
+    apiKey
+  );
+  await runCli("repo", ["--json", "cards", "delete", created.cardId], apiKey);
+  updateState((state) => {
+    state.createdCardIds = state.createdCardIds.filter(
+      (id) => id !== created.cardId
+    );
+  });
+});
+
 test("repo CLI uploads source, Markdown, ZIP, SVG, GIF, and Figma files", async () => {
   const apiKey = requireServiceApiKey("cli");
   const marker = `cli-file-${Date.now()}`;

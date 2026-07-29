@@ -248,6 +248,70 @@ describe("shared search helpers", () => {
     expect(merged.map((card) => card._id)).toEqual(["1", "2"]);
   });
 
+  it("returns an empty list when neither local nor remote matches", () => {
+    const cards = [
+      makeCard({
+        _id: "1",
+        content: "Alpha",
+        type: "text",
+        tags: ["design"],
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+      makeCard({
+        _id: "2",
+        content: "Beta",
+        type: "link",
+        isFavorited: true,
+        createdAt: 2,
+        updatedAt: 2,
+      }),
+    ];
+
+    const noMatches = filterLocalCards(cards, {
+      searchTerms: "zzzz-no-match",
+    });
+    expect(noMatches).toEqual([]);
+
+    const mergedEmpty = mergeLocalAndRemoteSearchResults([], [], true);
+    expect(mergedEmpty).toEqual([]);
+  });
+
+  it("combines type, tag, and trash filters without leaking active cards", () => {
+    const cards = [
+      makeCard({
+        _id: "active-link",
+        type: "link",
+        tags: ["prod"],
+        createdAt: 3,
+        updatedAt: 3,
+      }),
+      makeCard({
+        _id: "trashed-link",
+        type: "link",
+        tags: ["prod"],
+        isDeleted: true,
+        createdAt: 2,
+        updatedAt: 2,
+      }),
+      makeCard({
+        _id: "trashed-text",
+        type: "text",
+        tags: ["prod"],
+        isDeleted: true,
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    ];
+
+    const results = filterLocalCards(cards, {
+      types: ["link"],
+      searchTerms: "prod",
+      showTrashOnly: true,
+    });
+    expect(results.map((card) => card._id)).toEqual(["trashed-link"]);
+  });
+
   it("updates local cache by id+updatedAt and enforces max size", () => {
     const current = [
       makeCard({

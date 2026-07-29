@@ -60,5 +60,36 @@ describe("quoteFormatting", () => {
       const result = applyQuoteDisplayFormatting(card);
       expect(result).toBe(card);
     });
+
+    test("formats quote cards with empty or whitespace-only bodies", () => {
+      expect(normalizeQuoteContent("")).toEqual({
+        text: "",
+        removedQuotes: false,
+      });
+      expect(normalizeQuoteContent("   ")).toEqual({
+        text: "   ",
+        removedQuotes: false,
+      });
+      expect(normalizeQuoteContent('""')).toEqual({
+        text: "",
+        removedQuotes: true,
+      });
+    });
+
+    test("keeps attribution after closing quotes", () => {
+      expect(normalizeQuoteContent('"Be curious." — Ada Lovelace')).toEqual({
+        text: "Be curious. — Ada Lovelace",
+        removedQuotes: true,
+      });
+      expect(normalizeQuoteContent('"Ship it." (Teak)')).toEqual({
+        text: "Ship it. (Teak)",
+        removedQuotes: true,
+      });
+    });
+
+    test("formats quote-typed cards even when quotes were already stripped", () => {
+      const card = { type: "quote", content: '"Still wrapped"' };
+      expect(applyQuoteDisplayFormatting(card).content).toBe("Still wrapped");
+    });
   });
 });

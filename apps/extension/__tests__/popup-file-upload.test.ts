@@ -26,3 +26,14 @@ test("popup gives an active file upload ownership of auto-close behavior", () =>
   expect(popupSource).toContain("shouldAutoClosePopup({");
   expect(popupSource).toContain("fileUploadState,");
 });
+
+test("popup stays open until the selected file upload settles", () => {
+  expect(popupSource).toContain('setFileUploadState("saving")');
+  expect(popupSource).toContain('setFileUploadState("success")');
+  expect(popupSource).toContain('setFileUploadState("error")');
+  expect(popupSource).toContain('setFileUploadState("idle")');
+  expect(popupSource).toContain("shouldAutoClosePopup({");
+  expect(popupSource).toMatch(
+    /shouldAutoClosePopup\(\{\s*fileUploadState,/
+  );
+});

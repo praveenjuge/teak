@@ -202,6 +202,77 @@ describe("publicApi", () => {
     expect(requestedCursors).toEqual([null, "cursor-1"]);
   });
 
+  test("scanCardsPageForUser hides soft-deleted cards from list pages", async () => {
+    const pagination = buildSinglePaginateContext({
+      continueCursor: "",
+      isDone: true,
+      page: [
+        buildBaseCard({ _id: "card_active", createdAt: 2, updatedAt: 2 }),
+        buildBaseCard({
+          _id: "card_trashed",
+          createdAt: 1,
+          deletedAt: 99,
+          isDeleted: true,
+          updatedAt: 1,
+        }),
+      ],
+    });
+    const handler =
+      (scanCardsPageForUser as any).handler ?? scanCardsPageForUser;
+
+    pagination.beginInvocation();
+    const scan = await handler(pagination.ctx, {
+      scanLimit: 100,
+      userId: "user_1",
+    });
+
+    expect(scan.items.map((card: any) => card._id)).toEqual(["card_active"]);
+    expect(scan.scannedRows).toBe(2);
+  });
+
+  test("listCardChangesForUser returns active items and soft-deleted ids", async () => {
+    const module = await import("../publicApi");
+    const handler =
+      (module.listCardChangesForUser as any).handler ??
+      module.listCardChangesForUser;
+    const ctx = {
+      db: {
+        query: mock(() => ({
+          withIndex: mock().mockReturnValue({
+            order: mock().mockReturnValue({
+              paginate: mock().mockResolvedValue({
+                continueCursor: "",
+                isDone: true,
+                page: [
+                  buildBaseCard({
+                    _id: "card_active",
+                    updatedAt: 10,
+                  }),
+                  buildBaseCard({
+                    _id: "card_trashed",
+                    isDeleted: true,
+                    deletedAt: 11,
+                    updatedAt: 11,
+                  }),
+                ],
+              }),
+            }),
+          }),
+        })),
+      },
+    } as any;
+
+    const result = await handler(ctx, {
+      limit: 50,
+      since: 0,
+      userId: "user_1",
+    });
+
+    expect(result.items.map((card: any) => card._id)).toEqual(["card_active"]);
+    expect(result.deletedIds).toEqual(["card_trashed"]);
+    expect(result.pageInfo).toEqual({ hasMore: false, nextCursor: null });
+  });
+
   test("executeBulkCardsForUser rejects batches over the item limit", async () => {
     const handler =
       (executeBulkCardsForUser as any).handler ?? executeBulkCardsForUser;
