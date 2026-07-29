@@ -27,7 +27,6 @@ export function LinkImageDisplay({
         <Image
           alt={linkCardTitle}
           className="h-full w-full object-cover"
-          placeholder
           preview={false}
           rootClassName="h-full w-full"
           src={primaryImageUrl}
@@ -47,7 +46,6 @@ export function LinkImageDisplay({
         <Image
           alt={linkCardTitle}
           className="h-full w-full object-cover"
-          placeholder
           preview={false}
           rootClassName="h-full w-full"
           src={fallbackImageUrl}
@@ -85,7 +83,6 @@ export function LinkCardWithImage({
             alt={linkCardTitle}
             className="h-full w-full object-cover"
             onError={onImageError}
-            placeholder
             preview={false}
             rootClassName="h-full w-full"
             src={displayImage}
@@ -106,7 +103,6 @@ export function LinkCardWithImage({
             alt={linkCardTitle}
             className="h-full w-full object-cover"
             onError={onImageError}
-            placeholder
             preview={false}
             rootClassName="h-full w-full"
             src={displayImage}
