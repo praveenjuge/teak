@@ -212,3 +212,55 @@ Convex agent skills for common tasks can be installed by running
 `npx convex ai-files install`.
 
 <!-- convex-ai-end -->
+
+## Cursor Cloud specific instructions
+
+### Runtime
+
+- Package manager: **Bun 1.3.5** (`packageManager` in root `package.json`). If `bun` is missing, install with `curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.5"` and ensure `~/.bun/bin` is on `PATH`.
+- Dependency refresh on startup: `bun install --frozen-lockfile` from the repo root (see VM update script).
+
+### Minimum dev stack (web + Convex)
+
+`bun run dev:web` uses `turbo watch`, which requires an interactive TUI. In headless/tmux Cloud VMs, either set `TURBO_UI=tui` or start services separately (recommended):
+
+1. **Convex** (tmux session `convex-dev`, cwd `packages/convex`):
+   ```bash
+   export CONVEX_AGENT_MODE=anonymous
+   bun run dev
+   ```
+   On first run, set required Convex env vars on the anonymous deployment (dummy values are fine for local dev):
+   ```bash
+   bunx convex env set GOOGLE_CLIENT_ID test
+   bunx convex env set GOOGLE_CLIENT_SECRET test
+   bunx convex env set SITE_URL http://localhost:4330
+   bunx convex env set JWKS '<JwksDoc JSON array — see @convex-dev/better-auth auth-config docs>'
+   ```
+   Generate `JWKS` with a short Bun script that exports an array of `{ id, publicKey, privateKey, createdAt, alg }` objects (RSA keys via `jose`).
+
+2. **Web** (tmux session `web-dev`, cwd `apps/web`):
+   ```bash
+   bunx portless app.teak next dev
+   ```
+   Portless prints the bound port (often `4330`). Create `apps/web/.env.local` from `packages/convex/.env.local`:
+   ```
+   NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3210
+   NEXT_PUBLIC_CONVEX_SITE_URL=http://127.0.0.1:3211
+   ```
+
+3. Open **`http://localhost:<port>/login`** (direct localhost, not `app.teak.localhost`, unless portless HTTPS is configured).
+
+### Auth gotcha (Cloud VMs)
+
+Better Auth validates the browser `Origin` against `SITE_URL` / trusted origins. If sign-up/login returns **Invalid origin**, set Convex `SITE_URL` to the exact origin you use in the browser (e.g. `http://localhost:4330`), then retry after Convex redeploys.
+
+Mark test users verified without email: `POST http://127.0.0.1:3210/api/internal/testSetup:markUserVerified` with `{"email":"..."}`.
+
+### Lint, typecheck, tests
+
+Standard commands from the repo root: `bun run lint`, `bun run typecheck`, `bun run test`. See **Quick Commands** above.
+
+### Optional services
+
+- Docs: `bun run dev:docs` (also needs portless/turbo TUI considerations).
+- Mobile/desktop/extension: see **Quick Commands**; they need Convex URLs in their own `.env.local` files and are not required for web-only work.
