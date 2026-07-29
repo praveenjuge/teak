@@ -35,7 +35,14 @@ const originalURL = global.URL;
 beforeAll(() => {
   global.fetch = mockFetch;
   global.window = {} as any;
-  global.document = {} as any;
+  global.document = {
+    createElement: (tag: string) => {
+      if (tag === "video") {
+        return new MockVideo();
+      }
+      return {};
+    },
+  } as any;
   global.URL = {
     createObjectURL: mock(() => "blob:url"),
     revokeObjectURL: mock(),
@@ -73,6 +80,30 @@ class MockImage {
   }
 }
 global.Image = MockImage as any;
+
+class MockVideo {
+  muted = false;
+  playsInline = false;
+  preload = "";
+  onloadedmetadata: any;
+  onerror: any;
+  videoWidth = 0;
+  videoHeight = 0;
+  _src = "";
+
+  set src(value: string) {
+    this._src = value;
+    setTimeout(() => {
+      if (value === "blob:url") {
+        this.videoWidth = 1280;
+        this.videoHeight = 720;
+        this.onloadedmetadata?.();
+      } else {
+        this.onerror?.();
+      }
+    }, 10);
+  }
+}
 
 import {
   type FileUploadDependencies,
@@ -797,6 +828,60 @@ describe("useFileUploadCore", () => {
       expect(mockUploadAndCreateCard).toHaveBeenCalledWith(
         expect.objectContaining({
           additionalMetadata: { width: 100, height: 200 },
+        })
+      );
+    });
+
+    test("extracts video dimensions when not provided", async () => {
+      const file = { size: 100, name: "test.mp4", type: "video/mp4" } as any;
+
+      mockUploadAndCreateCard.mockResolvedValue({
+        success: true,
+        uploadUrl: "https://upload",
+        uploadKey: "store_1",
+      });
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ storageId: "store_1" }),
+      });
+      mockFinalizeUploadedCard.mockResolvedValue({
+        success: true,
+        cardId: "card_1",
+      });
+
+      await hook.uploadFile(file);
+
+      expect(mockUploadAndCreateCard).toHaveBeenCalledWith(
+        expect.objectContaining({
+          additionalMetadata: { width: 1280, height: 720 },
+        })
+      );
+    });
+
+    test("handles video load failure gracefully", async () => {
+      const file = { size: 100, name: "test.mp4", type: "video/mp4" } as any;
+
+      (global.URL.createObjectURL as any).mockReturnValueOnce("blob:fail");
+
+      mockUploadAndCreateCard.mockResolvedValue({
+        success: true,
+        uploadUrl: "https://upload",
+        uploadKey: "store_1",
+      });
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ storageId: "store_1" }),
+      });
+      mockFinalizeUploadedCard.mockResolvedValue({
+        success: true,
+        cardId: "card_1",
+      });
+
+      await hook.uploadFile(file);
+
+      expect(mockUploadAndCreateCard).toHaveBeenCalledWith(
+        expect.objectContaining({
+          additionalMetadata: undefined,
         })
       );
     });

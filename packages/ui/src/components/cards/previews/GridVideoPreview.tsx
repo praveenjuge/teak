@@ -26,15 +26,22 @@ export function GridVideoPreview({
   videoUrl,
   width,
 }: GridVideoPreviewProps) {
+  const aspectRatio = width && height ? width / height : 16 / 9;
+
   if (thumbnailUrl) {
     return (
-      <div className="relative overflow-hidden rounded-xl border bg-card">
+      <div
+        className="relative h-full w-full overflow-hidden rounded-xl border bg-card"
+        style={{ aspectRatio }}
+      >
         <Image
           alt="Video thumbnail"
-          className="w-full object-cover"
+          className="h-full w-full object-cover"
           loading="lazy"
           preview={false}
+          rootClassName="h-full w-full"
           src={thumbnailUrl}
+          style={{ objectFit: "cover" }}
         />
         <PlayOverlay />
       </div>
@@ -46,10 +53,13 @@ export function GridVideoPreview({
   if (videoUrl) {
     if (isGif) {
       return (
-        <div className="relative overflow-hidden rounded-xl border bg-card">
+        <div
+          className="relative h-full w-full overflow-hidden rounded-xl border bg-card"
+          style={{ aspectRatio }}
+        >
           <img
             alt="GIF preview"
-            className="w-full object-cover"
+            className="h-full w-full object-cover"
             height={height ?? 480}
             loading="lazy"
             src={videoUrl}
@@ -60,9 +70,12 @@ export function GridVideoPreview({
     }
 
     return (
-      <div className="relative overflow-hidden rounded-xl border bg-card">
+      <div
+        className="relative h-full w-full overflow-hidden rounded-xl border bg-card"
+        style={{ aspectRatio }}
+      >
         <video
-          className="w-full object-cover"
+          className="h-full w-full object-cover"
           muted
           playsInline
           preload="metadata"
@@ -78,7 +91,10 @@ export function GridVideoPreview({
   }
 
   return (
-    <div className="flex h-32 w-full items-center justify-center rounded-xl border bg-black text-white">
+    <div
+      className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl border bg-black text-white"
+      style={{ aspectRatio }}
+    >
       <Play className="size-6 text-white" />
     </div>
   );

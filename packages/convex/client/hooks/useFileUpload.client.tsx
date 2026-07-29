@@ -52,6 +52,48 @@ function getImageDimensions(
   });
 }
 
+// Best-effort video dimension extraction (browser-only).
+// Returns undefined when dimensions cannot be determined or we're in a non-DOM environment.
+function getVideoDimensions(
+  file: File
+): Promise<{ width: number; height: number } | undefined> {
+  if (
+    typeof window === "undefined" ||
+    typeof document === "undefined" ||
+    typeof document.createElement !== "function" ||
+    !file.type?.startsWith("video/")
+  ) {
+    return Promise.resolve(undefined);
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.muted = true;
+    video.playsInline = true;
+
+    const cleanup = () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    video.onloadedmetadata = () => {
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+      cleanup();
+      resolve(width && height ? { width, height } : undefined);
+    };
+
+    video.onerror = () => {
+      cleanup();
+      resolve(undefined);
+    };
+
+    video.src = objectUrl;
+  });
+}
+
 async function buildAdditionalMetadata(
   file: File,
   metadata?: any
@@ -61,7 +103,8 @@ async function buildAdditionalMetadata(
     return metadata;
   }
 
-  const dimensions = await getImageDimensions(file);
+  const dimensions =
+    (await getImageDimensions(file)) ?? (await getVideoDimensions(file));
   if (dimensions) {
     return { ...dimensions, ...metadata };
   }
@@ -354,7 +397,7 @@ export function useFileUploadCore(
           throw codedError;
         }
 
-        // Attach image dimensions when possible to avoid layout shifts in grids
+        // Attach image/video dimensions when possible to avoid layout shifts in grids
         const mergedAdditionalMetadata = await buildAdditionalMetadata(
           file,
           options.additionalMetadata
