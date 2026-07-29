@@ -32,6 +32,26 @@ describe("shouldAutoClosePopup", () => {
     }
   });
 
+  test("stays open for an idle popup with no completed save", () => {
+    expect(
+      shouldAutoClosePopup({
+        fileUploadState: "idle",
+        isAutoSaveSuccess: false,
+        isContextMenuSuccess: false,
+      })
+    ).toBe(false);
+  });
+
+  test("does not close on ordinary save success while a file upload is still saving", () => {
+    expect(
+      shouldAutoClosePopup({
+        fileUploadState: "saving",
+        isAutoSaveSuccess: true,
+        isContextMenuSuccess: false,
+      })
+    ).toBe(false);
+  });
+
   test("closes only after the selected file finishes saving", () => {
     expect(
       shouldAutoClosePopup({

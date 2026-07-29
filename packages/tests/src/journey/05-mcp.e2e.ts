@@ -142,3 +142,62 @@ test("MCP uploads, creates, fetches, and searches expanded file cards", async ()
     await client.close();
   }
 });
+
+test("MCP bulk update and sync cursor return coherent changes", async () => {
+  const apiKey = requireServiceApiKey("mcp");
+  const marker = `mcp-bulk-sync-${Date.now()}`;
+  const client = await connectMcp(apiKey);
+  try {
+    const created: any = await client.callTool({
+      name: "teak_v1_create_card",
+      arguments: {
+        content: `${marker} original`,
+        tags: ["prod-e2e", "mcp-bulk"],
+      },
+    });
+    expect(created.isError).not.toBe(true);
+    const cardId = created.structuredContent.cardId;
+    updateState((state) => state.createdCardIds.push(cardId));
+
+    const since = Date.now() - 60_000;
+    const bulk: any = await client.callTool({
+      name: "teak_v1_bulk_cards",
+      arguments: {
+        operation: "update",
+        items: [{ cardId, notes: `${marker} bulk-notes` }],
+      },
+    });
+    expect(bulk.isError).not.toBe(true);
+    expect(bulk.structuredContent?.summary?.succeeded ?? 1).toBeGreaterThan(0);
+
+    const favorite: any = await client.callTool({
+      name: "teak_v1_set_card_favorite",
+      arguments: { cardId, isFavorited: true },
+    });
+    expect(favorite.isError).not.toBe(true);
+
+    const changes: any = await client.callTool({
+      name: "teak_v1_get_card_changes",
+      arguments: { since },
+    });
+    expect(changes.isError).not.toBe(true);
+    const payload = changes.structuredContent;
+    expect(payload).toBeTruthy();
+    expect(
+      (payload.items ?? []).some(
+        (card: { id?: string }) => card.id === cardId
+      ) || Array.isArray(payload.deletedIds)
+    ).toBe(true);
+
+    const fetched: any = await client.callTool({
+      name: "teak_v1_get_card",
+      arguments: { cardId },
+    });
+    expect(fetched.isError).not.toBe(true);
+    expect(String(fetched.structuredContent?.notes ?? "")).toContain(
+      `${marker} bulk-notes`
+    );
+  } finally {
+    await client.close();
+  }
+});

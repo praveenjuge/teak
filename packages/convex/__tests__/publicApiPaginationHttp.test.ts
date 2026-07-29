@@ -186,4 +186,32 @@ describe("public API card-list pagination", () => {
     });
     expect(runQuery).toHaveBeenCalledTimes(4);
   });
+
+  test("assembled pages never surface soft-deleted card ids", async () => {
+    const runQuery = mock((_reference, args) => {
+      if (!args.cursor) {
+        return Promise.resolve({
+          itemCursors: ["after-active"],
+          items: [card("card_active", 1)],
+          nextCursor: null,
+          scannedRows: 2,
+        });
+      }
+      return Promise.resolve({
+        itemCursors: [],
+        items: [],
+        nextCursor: null,
+        scannedRows: 0,
+      });
+    });
+
+    const result = await requestPage(runQuery, undefined, 10);
+
+    expect(result.items.map((item: { id: string }) => item.id)).toEqual([
+      "card_active",
+    ]);
+    expect(result.items.some((item: { id: string }) => item.id.includes("trash"))).toBe(
+      false
+    );
+  });
 });

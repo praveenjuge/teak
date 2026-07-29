@@ -433,6 +433,23 @@ describe("classification step", () => {
       expect(result.type).toBe("link");
     });
 
+    test("classifies content-only bare URL as link when url field is set", async () => {
+      // createCard extracts the URL onto the card before classification runs.
+      const card = {
+        _id: "c1",
+        type: "text",
+        content: "https://www.goodreads.com/book/show/2767052-the-hunger-games",
+        url: "https://www.goodreads.com/book/show/2767052-the-hunger-games",
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const result = await classify(mockCtx, { cardId: "c1" });
+
+      expect(result.type).toBe("link");
+      expect(result.shouldCategorize).toBe(true);
+      expect(result.needsLinkMetadata).toBe(true);
+    });
+
     test("preserves non-link type with additional content", async () => {
       const card = {
         _id: "c1",
@@ -447,6 +464,36 @@ describe("classification step", () => {
       // Since there's additional content beyond just the URL, it's not a URL-only card
       // So the type remains "image" instead of being normalized to "link"
       expect(result.type).toBe("image");
+    });
+  });
+
+  describe("markdown and color-list regressions", () => {
+    test("keeps Markdown notes as text even when a heading looks like a hex", async () => {
+      const card = {
+        _id: "c1",
+        type: "text",
+        content: "# Heading\n\n- [ ] task\n\n| A | B |\n| - | - |\n| 1 | 2 |",
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const result = await classify(mockCtx, { cardId: "c1" });
+
+      expect(result.type).toBe("text");
+      expect(result.shouldGenerateRenderables).toBe(false);
+    });
+
+    test("detects a comma-separated color list as palette", async () => {
+      const card = {
+        _id: "c1",
+        type: "text",
+        content: "#ff00aa, #00ffaa, rgb(0, 10, 20)",
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const result = await classify(mockCtx, { cardId: "c1" });
+
+      expect(result.type).toBe("palette");
+      expect(result.confidence).toBe(0.88);
     });
   });
 

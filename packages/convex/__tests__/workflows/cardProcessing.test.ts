@@ -25,6 +25,16 @@ describe("workflows/cardProcessing", () => {
       });
     });
 
+    test("delete-while-processing uses the skipped missing-card result shape", async () => {
+      const module = await import("../../workflows/cardProcessing");
+      const skipped = module.createMissingCardWorkflowResult();
+
+      expect(skipped.success).toBe(true);
+      expect(skipped.mode).toBe("skipped");
+      expect(skipped.reason).toBe("card_missing");
+      expect(skipped).not.toHaveProperty("error");
+    });
+
     test("retries transient renderable failures", async () => {
       const module = await import("../../workflows/cardProcessing");
 

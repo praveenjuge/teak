@@ -578,6 +578,41 @@ describe("card/updateCard.ts", () => {
     );
   });
 
+  test("updateCardField soft-deletes while processing is still pending", async () => {
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "image",
+          processingStatus: {
+            classify: { status: "completed", confidence: 0.9 },
+            metadata: { status: "pending" },
+            renderables: { status: "pending" },
+          },
+        }),
+        patch: mock().mockResolvedValue(null),
+      },
+      scheduler: { runAfter: mock() },
+    } as any;
+
+    const handler = (updateCardField as any).handler ?? updateCardField;
+    await expect(
+      handler(ctx, { cardId: "c1", field: "delete" })
+    ).resolves.toBeNull();
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "cards",
+      "c1",
+      expect.objectContaining({
+        isDeleted: true,
+        deletedAt: expect.any(Number),
+      })
+    );
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
+  });
+
   test("updateCardField restores deleted card", async () => {
     const ctx = {
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },

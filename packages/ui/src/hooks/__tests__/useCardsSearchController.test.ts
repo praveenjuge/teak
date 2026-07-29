@@ -124,4 +124,34 @@ describe("useCardsSearchController helpers", () => {
     expect(resetKey).toContain("vintage");
     expect(resetKey).toContain("10-20");
   });
+
+  it("resets to a clean empty-search state for Clear All", () => {
+    const cleared = createInitialCardsSearchState();
+    expect(cleared).toEqual({
+      searchQuery: "",
+      keywordTags: [],
+      filterTags: [],
+      styleFilters: [],
+      hueFilters: [],
+      hexFilters: [],
+      showFavoritesOnly: false,
+      showTrashOnly: false,
+      timeFilter: null,
+    });
+    expect(buildCardsSearchQueryArgs(cleared).searchQuery).toBeUndefined();
+    expect(buildCardsSearchResetKey(cleared)).toBe(
+      "::::::::::false::false::-"
+    );
+  });
+
+  it("keeps type filter chips in query args for image link palette and quote", () => {
+    for (const type of ["image", "link", "palette", "quote"] as const) {
+      const next = buildCardsSearchQueryArgs({
+        ...baseState(),
+        filterTags: [type],
+      });
+      expect(next.types).toEqual([type]);
+      expect(next.searchQuery).toBeUndefined();
+    }
+  });
 });
