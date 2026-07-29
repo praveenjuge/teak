@@ -17,7 +17,6 @@ export function GridDocumentPreview({
           alt={`Preview of ${fileName || "document"}`}
           className="w-full bg-muted object-contain"
           loading="lazy"
-          placeholder
           preview={false}
           src={thumbnailUrl}
         />

@@ -33,7 +33,6 @@ export function GridVideoPreview({
           alt="Video thumbnail"
           className="w-full object-cover"
           loading="lazy"
-          placeholder
           preview={false}
           src={thumbnailUrl}
         />

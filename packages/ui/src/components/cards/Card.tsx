@@ -283,7 +283,6 @@ export const Card = memo(function Card({
                 alt={linkCardTitle}
                 className="h-full w-full object-cover"
                 onError={handleLinkImageError}
-                placeholder
                 preview={false}
                 rootClassName="h-full w-full"
                 src={displayLinkImage}
@@ -304,7 +303,6 @@ export const Card = memo(function Card({
                 alt={linkCardTitle}
                 className="h-full w-full object-cover"
                 onError={handleLinkImageError}
-                placeholder
                 preview={false}
                 rootClassName="h-full w-full"
                 src={legacyDisplayImage}
