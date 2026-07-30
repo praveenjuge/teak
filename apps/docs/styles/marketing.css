@@ -1,6 +1,30 @@
 @import "tailwindcss";
 @import "../../../packages/ui/src/typeset.css";
 
+/* Scan marketing Astro sources so utilities land in HomeLayout CSS
+   (Astro otherwise splits Header utilities into a chunk only docs link). */
+@source "../components/**/*.{astro,ts,tsx,js,jsx}";
+@source "../layouts/**/*.{astro,ts,tsx,js,jsx}";
+@source "../pages/**/*.{astro,ts,tsx,js,jsx}";
+
+@font-face {
+  font-family: "SN Pro";
+  src:
+    url("/fonts/SNPro-VariableRegular.woff2") format("woff2"),
+    url("/fonts/SNPro-VariableRegular.woff") format("woff");
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "SN Pro";
+  src: url("/fonts/SNPro-VariableItalic.woff2") format("woff2");
+  font-weight: 200 900;
+  font-style: italic;
+  font-display: swap;
+}
+
 .typeset-docs {
   --typeset-font-body: var(--font-sans);
   --typeset-font-heading: var(--font-sans);

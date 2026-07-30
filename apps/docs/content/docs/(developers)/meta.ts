@@ -3,6 +3,7 @@ import { defineMeta } from "blume";
 export default defineMeta({
   title: "Developers",
   order: 5,
+  collapsed: false,
   pages: [
     "api",
     "mcp",
