@@ -1,6 +1,25 @@
 import { sentryVitePlugin } from "@sentry/vite-plugin";
-import { buildDesktopRelease } from "@teak/convex/shared/telemetry";
 import packageJson from "./package.json";
+
+// Keep this local so Vite can load the config under Node's ESM loader
+// without resolving workspace `.ts` package exports at config-eval time.
+const buildDesktopRelease = (
+  version: string | undefined,
+  sha: string | undefined
+): string | undefined => {
+  const normalizedVersion = version?.trim().replace(/^v/u, "");
+  const normalizedSha = sha?.trim().toLowerCase();
+  if (
+    !(
+      normalizedVersion &&
+      normalizedSha &&
+      /^[a-f0-9]{7,64}$/u.test(normalizedSha)
+    )
+  ) {
+    return;
+  }
+  return `teak-desktop@${normalizedVersion}+${normalizedSha.slice(0, 40)}`;
+};
 
 const authToken = process.env.SENTRY_AUTH_TOKEN?.trim();
 const release =

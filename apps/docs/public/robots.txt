@@ -20,4 +20,4 @@ Allow: /
 User-agent: Google-Extended
 Allow: /
 
-Sitemap: https://teakvault.com/sitemap-index.xml
+Sitemap: https://teakvault.com/sitemap.xml

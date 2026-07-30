@@ -1,0 +1,140 @@
+---
+title: Browser Extensions
+description: Save anything from the web to Teak with the browser extensions
+---
+
+Teak for Safari saves the page you are viewing in one click. The Chrome extension adds richer capture options for images, links, selected text, and supported social media posts.
+
+:::note[Safari vs. Chrome feature set]
+Teak for Safari is intentionally focused on one-click page saving from the
+toolbar. The context menu, inline social-media save buttons, and other capture
+options on this page are Chrome/Chromium-only.
+:::
+
+## Install
+
+<Tabs param="browser">
+  <Tab title="Chrome">
+    <Steps>
+      <Step title="Open the Chrome Web Store">
+        Open the [Teak extension](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) in the Chrome Web Store.
+      </Step>
+      <Step title="Add the extension">
+        Click **Add to Chrome**, then confirm by clicking **Add extension**.
+      </Step>
+      <Step title="Sign in">
+        Click the Teak icon in your Chrome toolbar to sign in.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Safari">
+    <Steps>
+      <Step title="Install from the Mac App Store">
+        Install [Teak for Safari](https://apps.apple.com/us/app/teak-for-safari/id6770003409?mt=12) from the Mac App Store.
+      </Step>
+      <Step title="Enable the extension">
+        Open the app once, then enable the Teak extension in Safari Settings.
+      </Step>
+      <Step title="Sign in and save">
+        Click the Teak icon in the Safari toolbar to sign in and save the current page.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Edge">
+    <Steps>
+      <Step title="Open the Chrome Web Store">
+        Open the [Teak extension](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) in the Chrome Web Store.
+      </Step>
+      <Step title="Allow other stores">
+        Edge will prompt you to allow extensions from other stores — accept it.
+      </Step>
+      <Step title="Add the extension">
+        Click **Add to Chrome**, then confirm in the Edge dialog.
+      </Step>
+      <Step title="Sign in">
+        Click the Teak icon in your Edge toolbar to sign in.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Brave / Arc / other Chromium">
+    <Steps>
+      <Step title="Open the Chrome Web Store">
+        Open the [Teak extension](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) in the Chrome Web Store.
+      </Step>
+      <Step title="Add the extension">
+        Click **Add to Brave** (or your browser's equivalent), then confirm.
+      </Step>
+      <Step title="Sign in">
+        Pin the Teak icon to your toolbar and click it to sign in.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+The Chrome extension works in Chrome and any Chromium-based browser (Edge, Brave, Arc, etc.). Teak for Safari is a native macOS Safari extension app.
+
+## Safari Extension
+
+Clicking the Safari toolbar extension signs you in when needed and saves the current page URL to Teak when you are signed in.
+
+## Auto-Save on Open
+
+When you open either extension popup, Teak automatically saves the current page. The popup shows whether the page was saved, was already in your library, or cannot be saved.
+
+In Chrome and Chromium browsers, choose **Upload file** in the popup to save a supported local file up to 100 MB.
+
+## Chrome and Chromium Features
+
+### Context Menu
+
+Right-click anywhere on a page to access quick-save actions:
+
+| Menu item              | What it saves                                      |
+| ---------------------- | -------------------------------------------------- |
+| **Save Page to Teak**  | The current URL                                    |
+| **Save Text to Teak**  | The selected text (creates a text card)            |
+| **Save Asset to Teak** | A safely downloadable image, video, audio, or file |
+
+Context menu saves are available on standard web pages. Teak does not attempt to download local, private-network, `file:`, or `blob:` URLs; use **Upload file** when you own a local file.
+
+### Social Media Inline Save Buttons
+
+On supported sites, Teak injects a save button directly into each post or story. You can save individual items without leaving the feed.
+
+| Platform                                               | Supported content                                                             |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| [instagram.com](https://www.instagram.com)             | Posts and Reels                                                               |
+| [pinterest.com](https://www.pinterest.com)             | Pins                                                                          |
+| [x.com](https://x.com)                                 | Posts (tweets) — saved with tweet text, author, and attached images or videos |
+| [news.ycombinator.com](https://news.ycombinator.com)   | Story links (saves the outbound article URL)                                  |
+| [sidebar.io](https://sidebar.io)                       | Story links                                                                   |
+| [webdesignernews.com](https://www.webdesignernews.com) | Story links                                                                   |
+| [heydesigner.com](https://heydesigner.com)             | Story links                                                                   |
+
+Inline save buttons appear automatically once you are signed in to the extension. Each saved post is deduplicated — saving the same post twice will not create a duplicate card.
+
+### Free Tier Limit
+
+When you reach your free plan card limit, the Chrome extension popup shows an upgrade prompt instead of saving. Click **Upgrade to Pro** to open Teak Settings.
+
+## Sign In
+
+In Safari, choose **Sign in** to complete authentication in the Teak web app. In Chrome and Chromium-based browsers, the popup provides **Login** and **Create Account** actions that open the web app in a new tab.
+
+## Troubleshooting
+
+### Extension popup shows an error
+
+- Check that you are signed in at [app.teakvault.com](https://app.teakvault.com).
+- Reload the tab you are trying to save and try again.
+
+### Chrome inline buttons do not appear
+
+- Make sure you are signed in to the extension.
+- Reload the page. Buttons are injected after the page fully loads.
+- Verify the extension is enabled in `chrome://extensions`.
+- Inline buttons are supported on Instagram, Pinterest, X (Twitter), Hacker News, Sidebar, Web Designer News, and HeyDesigner. They are not available on other sites.
+
+### Still stuck?
+
+Reach out via [Support](/docs/support).

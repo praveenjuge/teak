@@ -11,7 +11,7 @@ const runHandler = (fn: any, ctx: any, request: Request) => {
 
 const docsPath = path.resolve(
   path.dirname(new URL(import.meta.url).pathname),
-  "../../../apps/docs/src/content/docs/docs/api.mdx"
+  "../../../apps/docs/content/docs/(developers)/api.mdx"
 );
 
 describe("Convex public API metadata", () => {

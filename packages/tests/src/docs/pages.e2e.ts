@@ -8,16 +8,19 @@ for (const path of ["/docs/", "/docs/api/", "/docs/mcp/", "/docs/cli/"]) {
   });
 }
 
-test("docs Pagefind assets are published", async ({ page }) => {
-  for (const path of [
-    "/pagefind/pagefind.js",
-    "/pagefind/pagefind-ui.js",
-    "/pagefind/pagefind-ui.css",
-    "/pagefind/pagefind-entry.json",
-  ]) {
-    const response = await page.request.get(path);
-    expect(response.status(), path).toBe(200);
-  }
+test("docs Orama search index is published", async ({ page }) => {
+  const response = await page.request.get("/blume-search.json");
+  expect(response.status()).toBe(200);
+  const payload = await response.json();
+  expect(payload).toBeTruthy();
+});
+
+test("docs llms.txt is published", async ({ page }) => {
+  const response = await page.request.get("/llms.txt");
+  expect(response.status()).toBe(200);
+  const body = await response.text();
+  expect(body).toContain("Teak");
+  expect(body).toContain("/docs/api");
 });
 
 test("changelog renders release notes with Typeset", async ({ page }) => {
