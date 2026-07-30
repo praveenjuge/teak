@@ -3,14 +3,19 @@
   "compilerOptions": {
     "baseUrl": ".",
     "types": ["bun"],
+    "resolveJsonModule": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./*"]
     }
   },
   "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.astro",
-    "astro.config.ts"
+    "blume.config.ts",
+    "components.ts",
+    "content/**/*.ts",
+    "lib/**/*.ts",
+    "pages/**/*.astro",
+    "layouts/**/*.astro",
+    "components/**/*.astro",
+    "vercel.json"
   ]
 }

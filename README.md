@@ -40,7 +40,7 @@ teak/
 │   ├── safari-extension/ # Native macOS Safari extension app
 │   ├── raycast/    # Raycast extension
 │   ├── cli/        # npm command line client
-│   └── docs/       # Documentation site (Astro + Starlight)
+│   └── docs/       # Documentation site (Blume)
 ├── .agents/
 │   └── skills/     # Agent Skills published through skills.sh-compatible repos
 ├── packages/

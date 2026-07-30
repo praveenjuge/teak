@@ -1,5 +1,22 @@
 {
   "buildCommand": "bun run build",
+  "redirects": [
+    {
+      "source": "/sitemap-index.xml",
+      "destination": "/sitemap.xml",
+      "permanent": true
+    },
+    {
+      "source": "/llms-small.txt",
+      "destination": "/llms.txt",
+      "permanent": true
+    },
+    {
+      "source": "/docs/index.md",
+      "destination": "/docs.md",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/api",

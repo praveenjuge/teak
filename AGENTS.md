@@ -62,7 +62,7 @@ teak/
 │   ├── safari-extension/ # Native macOS Safari extension app
 │   ├── raycast/     # Raycast extension
 │   ├── cli/         # npm command line client
-│   └── docs/        # Documentation site (Astro + Starlight)
+│   └── docs/        # Documentation site (Blume)
 ├── .agents/
 │   └── skills/      # Agent Skills exposed through skills.sh-compatible repos
 ├── packages/
@@ -98,17 +98,17 @@ teak/
 - **Raycast (apps/raycast/)**: Raycast extension with commands (`quick-save`, `save-clipboard-url`, `save-current-browser-tab`, `search-cards`, `favorites`), AI tools (`search-cards`, `get-card`, `save-card`), API client helpers, and extension metadata/changelog.
 - **Backend/API/MCP/SDK (packages/convex/)**: directories `_generated/`, `workflows/`, `ai/`, `card/`, `client/`, `mcp/`, `linkMetadata/`, `migrations/`, `packages/`, `shared/`, `storage/`, `types/`; key files `billing.ts`, `admin.ts`, `schema.ts`, `cards.ts`, `auth.config.ts`, `auth.ts`, `authDesktop.ts`, `http.ts`, `apiKeys.ts`, `publicApi.ts`, `publicApiHttp.ts`, `publicApiMeta.ts`, `publicApiOpenApi.ts`, `raycast.ts`, `idempotency.ts`, `crons.ts`, `convex.config.ts`, `vercel.json`, entrypoint `index.ts`; shared utils/constants/hooks under `shared/`; SDK exports live at `@teak/convex/sdk`.
 - **UI (packages/ui/)**: shared UI component library consumed by web, desktop, and extension; `src/components/` (cards, card-modal, card-previews, forms, grids, modals, patterns, search, selection, settings, ui); `src/feedback/` (skeletons, loading, error states, global file drop overlay, empty state); `src/screens/`, `src/hooks/`, `src/icons/`, `src/constants/`; `convexQueryCache.ts`, `convexQueryHooks.ts`, `logo.tsx`, `styles.css`.
-- **Docs (apps/docs/)**: Astro + Starlight static site; `src/content/docs/docs/` for documentation MDX; `src/content/changelog/` for release notes; `src/components/` for Astro components; `src/layouts/` for page layouts; `src/assets/` for fonts and logos; `src/styles/starlight.css`; `src/lib/`; `astro.config.ts`; `package.json`.
+- **Docs (apps/docs/)**: Blume static site; `content/docs/` for documentation MDX; `content/changelog/` for release notes; `pages/` for marketing routes; `components/`, `layouts/`, `lib/`, `styles/`; `blume.config.ts`; `theme.css`; `package.json`.
 - **Repo**: Turborepo monorepo with workspaces in `apps/*` and `packages/*`; TypeScript paths point to `@teak/convex` aliases; turbo runs tasks with `--filter` for individual apps.
 - **Convex**: hot deployment on save; schema changes need migrations; define indexes in `schema.ts`; scheduled functions in `crons.ts`; config in `packages/convex/convex.config.ts`; workflows must keep `processingStatus` consistent; Polar integration depends on `components.polar` + env keys `POLAR_ACCESS_TOKEN`, `POLAR_SERVER`;
 
 ## Docs Synchronization Rules
 
-- Any API contract change in `packages/convex/http.ts`, `packages/convex/publicApiHttp.ts`, `packages/convex/publicApiMeta.ts`, or `packages/convex/publicApiOpenApi.ts` must update `apps/docs/src/content/docs/docs/api.mdx` in the same PR.
-- Any MCP endpoint change in `packages/convex/mcp/` must update `apps/docs/src/content/docs/docs/mcp.mdx` in the same PR.
-- Any Raycast command/auth change in `apps/raycast` must update `apps/docs/src/content/docs/docs/raycast.mdx` in the same PR.
-- Any CLI command/auth/publish change in `apps/cli` or `packages/convex/client/sdk.ts` must update `apps/docs/src/content/docs/docs/cli.mdx` when user-facing behavior changes.
-- Any public Agent Skill change in `.agents/skills` must update `apps/docs/src/content/docs/docs/skills.mdx` and `apps/docs/src/pages/apps.astro` when install or capability details change.
+- Any API contract change in `packages/convex/http.ts`, `packages/convex/publicApiHttp.ts`, `packages/convex/publicApiMeta.ts`, or `packages/convex/publicApiOpenApi.ts` must update `apps/docs/content/docs/(developers)/api.mdx` in the same PR.
+- Any MCP endpoint change in `packages/convex/mcp/` must update `apps/docs/content/docs/(developers)/mcp.mdx` in the same PR.
+- Any Raycast command/auth change in `apps/raycast` must update `apps/docs/content/docs/(apps)/raycast.mdx` in the same PR.
+- Any CLI command/auth/publish change in `apps/cli` or `packages/convex/client/sdk.ts` must update `apps/docs/content/docs/(apps)/cli.mdx` when user-facing behavior changes.
+- Any public Agent Skill change in `.agents/skills` must update `apps/docs/content/docs/(developers)/skills.mdx` and `apps/docs/pages/apps.astro` when install or capability details change.
 
 ## Git Commit Rules
 
@@ -116,7 +116,7 @@ teak/
 
 ## Release Notes Hygiene
 
-- Any user-visible feature change across web, mobile, desktop, extension, Raycast, API, or backend behavior must include a docs changelog update in `apps/docs/src/content/changelog/*.mdx`.
+- Any user-visible feature change across web, mobile, desktop, extension, Raycast, API, or backend behavior must include a docs changelog update in `apps/docs/content/changelog/*.mdx`.
 - When adding a feature, write or update tests and make sure `bun run test` passes.
 - Add/extend tests for new features or bug fixes.
 - Update or add fixtures/test data so tests are deterministic.
@@ -125,10 +125,10 @@ teak/
 
 ## Changelog Editorial Rules
 
-These rules govern everything that lands in `apps/docs/src/content/changelog/*.mdx`. The changelog is a public, user-facing product surface — not a release log for engineers.
+These rules govern everything that lands in `apps/docs/content/changelog/*.mdx`. The changelog is a public, user-facing product surface — not a release log for engineers.
 
 - **Public entries describe user impact only.** If a user would not notice the change, do not publish it.
-- **Do not mention** package names, frameworks, libraries, build tooling, bundlers, loaders, ESM/CJS, schemas, data migrations, internal endpoints, refactors, tests, CI, signing/notarization, dependency bumps, or any implementation mechanics. That includes (non-exhaustive): Electron, Vite, Webpack, Forge, Next.js, Astro, Starlight, Expo, Wxt, Hono, Convex (as backend), Better Auth, Groq, Polar, `electron-updater`, `electron-builder`, oEmbed, `package.json`, `tsconfig`.
+- **Do not mention** package names, frameworks, libraries, build tooling, bundlers, loaders, ESM/CJS, schemas, data migrations, internal endpoints, refactors, tests, CI, signing/notarization, dependency bumps, or any implementation mechanics. That includes (non-exhaustive): Electron, Vite, Webpack, Forge, Next.js, Astro, Starlight, Blume, Expo, Wxt, Hono, Convex (as backend), Better Auth, Groq, Polar, `electron-updater`, `electron-builder`, oEmbed, `package.json`, `tsconfig`.
 - **Product-facing terms are fine** when users recognize them: desktop, mobile, web, browser extension, Raycast, API, MCP, sync, settings, import/export, updates, sign-in, macOS, Dock, notifications, keychain.
 - **If the change is only internal** (tooling, dependency work, refactor, tests, CI, cleanup, silent maintenance), do not add a public changelog entry. Update the code and move on.
 - **Format:** one frontmatter title plus 1–3 short bullets. No inline code (backticks), no fenced code blocks, no H2/H3 headers inside the entry.
