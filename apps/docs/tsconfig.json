@@ -10,9 +10,9 @@
   },
   "include": [
     "blume.config.ts",
-    "components.ts",
     "content/**/*.ts",
     "lib/**/*.ts",
+    "scripts/**/*.ts",
     "pages/**/*.astro",
     "layouts/**/*.astro",
     "components/**/*.astro",

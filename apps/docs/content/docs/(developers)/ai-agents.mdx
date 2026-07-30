@@ -33,8 +33,14 @@ Use the production base URL `https://teakvault.com/api/v1`. See the [API docs](/
 - `https://teakvault.com/llms.txt` for the compact documentation map
 - `https://teakvault.com/llms-full.txt` for the full docs context
 - `https://teakvault.com/docs/api.md` for the REST API contract
+- `https://teakvault.com/reference` for the interactive OpenAPI reference
 - `https://teakvault.com/docs/mcp.md` for MCP setup and tools
 - `https://teakvault.com/.well-known/mcp.json` for remote MCP discovery metadata
+- `https://teakvault.com/agent-readability.json` for the machine-readable docs surface map
+
+:::tip[Two different MCP surfaces]
+`https://teakvault.com/mcp` is Teak's **card** MCP (save, search, sync cards). It is not a docs-search server. Prefer `llms.txt`, page `.md` URLs, and the OpenAPI reference when an agent needs product documentation.
+:::
 
 ## Can agents use the command line?
 

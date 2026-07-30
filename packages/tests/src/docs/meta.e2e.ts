@@ -5,6 +5,12 @@ test("llms, OpenAPI, and OAuth metadata are fresh", async () => {
   expect(await fetch(`${env.siteUrl}/llms.txt`).then((r) => r.status)).toBe(
     200
   );
+  expect(await fetch(`${env.siteUrl}/robots.txt`).then((r) => r.status)).toBe(
+    200
+  );
+  expect(
+    await fetch(`${env.siteUrl}/agent-readability.json`).then((r) => r.status)
+  ).toBe(200);
   const spec = await fetch(`${env.apiUrl}/openapi.json`).then(
     (r) => r.json() as any
   );
