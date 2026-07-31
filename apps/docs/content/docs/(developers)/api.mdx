@@ -20,20 +20,8 @@ Teak provides a public REST API for saving, querying, and syncing cards. Use thi
 | --- | --- |
 | Production | `https://teakvault.com/api/v1` |
 | Local development | `http://docs.teak.localhost:1355/api/v1` |
-| Legacy production | `https://api.teakvault.com/v1` |
 
 The machine-readable OpenAPI document is available at `https://teakvault.com/api/openapi.json`.
-
-:::tip[Prefer the apex API URL]
-New integrations should use `https://teakvault.com/api/v1`. The legacy `api.teakvault.com` host keeps working, so existing keys and scripts need no changes.
-:::
-
-<Diff
-  old={`curl https://api.teakvault.com/v1/cards \\
-  --header "Authorization: Bearer $TEAK_API_KEY"`}
-  new={`curl https://teakvault.com/api/v1/cards \\
-  --header "Authorization: Bearer $TEAK_API_KEY"`}
-/>
 
 ## Authentication
 
