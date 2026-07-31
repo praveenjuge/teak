@@ -68,6 +68,7 @@ export interface UseCardsSearchControllerResult {
   showTrashOnly: boolean;
   styleFilters: VisualStyle[];
   timeFilter: TimeFilter | null;
+  updateCachedCard: (card: Doc<"cards">) => void;
 }
 
 export function createInitialCardsSearchState(): CardsSearchState {
@@ -353,6 +354,15 @@ export function useCardsSearchController(
     [localSearchCacheLimit]
   );
 
+  const updateCachedCard = useCallback((card: Doc<"cards">) => {
+    const replaceCard = (cards: Doc<"cards">[]) =>
+      cards.map((cachedCard) =>
+        cachedCard._id === card._id ? card : cachedCard
+      );
+    setRemoteCardsState(replaceCard);
+    setLocalCards(replaceCard);
+  }, []);
+
   const searchTerms = useMemo(
     () => buildCardsSearchTerms(searchState),
     [searchState]
@@ -579,5 +589,6 @@ export function useCardsSearchController(
     addKeywordTag,
     clearAllFilters,
     searchBarProps,
+    updateCachedCard,
   };
 }

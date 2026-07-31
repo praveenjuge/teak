@@ -8,6 +8,10 @@ import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation } from "convex/react";
 import { updateCardInSearchQueries } from "./cardQueryOptimisticUpdates";
 
+interface UiCardActionsConfig extends CardActionsConfig {
+  onCardUpdate?: (card: Doc<"cards">) => void;
+}
+
 function updateSingleCardQuery(
   localStore: OptimisticLocalStore,
   cardId: Id<"cards">,
@@ -23,7 +27,8 @@ function updateSingleCardQuery(
   }
 }
 
-export function useCardActions(config: CardActionsConfig = {}) {
+export function useCardActions(config: UiCardActionsConfig = {}) {
+  const { onCardUpdate, ...cardActionsConfig } = config;
   const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
   const updateCardField = useMutation(
     api.cards.updateCardField
@@ -31,6 +36,18 @@ export function useCardActions(config: CardActionsConfig = {}) {
     const { cardId, field, value, tagToRemove } = args;
 
     const now = Date.now();
+    const updateSearchQueries = (
+      updater: (card: Doc<"cards">) => Doc<"cards"> | null
+    ) => {
+      const updatedCard = updateCardInSearchQueries(
+        localStore,
+        cardId,
+        updater
+      );
+      if (updatedCard) {
+        onCardUpdate?.(updatedCard);
+      }
+    };
 
     switch (field) {
       case "isFavorited": {
@@ -39,7 +56,7 @@ export function useCardActions(config: CardActionsConfig = {}) {
           isFavorited: !card.isFavorited,
           updatedAt: now,
         });
-        updateCardInSearchQueries(localStore, cardId, toggleFavorite);
+        updateSearchQueries(toggleFavorite);
         updateSingleCardQuery(localStore, cardId, toggleFavorite);
         break;
       }
@@ -51,7 +68,7 @@ export function useCardActions(config: CardActionsConfig = {}) {
           deletedAt: now,
           updatedAt: now,
         });
-        updateCardInSearchQueries(localStore, cardId, markDeleted);
+        updateSearchQueries(markDeleted);
         updateSingleCardQuery(localStore, cardId, markDeleted);
         break;
       }
@@ -63,7 +80,7 @@ export function useCardActions(config: CardActionsConfig = {}) {
           deletedAt: undefined,
           updatedAt: now,
         });
-        updateCardInSearchQueries(localStore, cardId, markRestored);
+        updateSearchQueries(markRestored);
         updateSingleCardQuery(localStore, cardId, markRestored);
         break;
       }
@@ -74,7 +91,7 @@ export function useCardActions(config: CardActionsConfig = {}) {
           tags: Array.isArray(value) && value.length > 0 ? value : undefined,
           updatedAt: now,
         });
-        updateCardInSearchQueries(localStore, cardId, updateTags);
+        updateSearchQueries(updateTags);
         updateSingleCardQuery(localStore, cardId, updateTags);
         break;
       }
@@ -96,7 +113,7 @@ export function useCardActions(config: CardActionsConfig = {}) {
             updatedAt: now,
           };
         };
-        updateCardInSearchQueries(localStore, cardId, removeAiTag);
+        updateSearchQueries(removeAiTag);
         updateSingleCardQuery(localStore, cardId, removeAiTag);
         break;
       }
@@ -111,7 +128,7 @@ export function useCardActions(config: CardActionsConfig = {}) {
             typeof value === "string" ? value.trim() || undefined : value,
           updatedAt: now,
         });
-        updateCardInSearchQueries(localStore, cardId, updateTextField);
+        updateSearchQueries(updateTextField);
         updateSingleCardQuery(localStore, cardId, updateTextField);
         break;
       }
@@ -123,7 +140,7 @@ export function useCardActions(config: CardActionsConfig = {}) {
 
   const cardActions = createCardActions(
     { permanentDeleteCard, updateCardField },
-    config
+    cardActionsConfig
   );
 
   return {

@@ -1,5 +1,5 @@
 import { api } from "@teak/convex";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "../../convexQueryHooks";
 import { useCardModal } from "../../hooks/useCardModal";
 import { MoreInformationModal } from "../modals/MoreInformationModal";
@@ -13,6 +13,7 @@ interface ConnectedCardModalProps {
   cardId: string | null;
   onCancel?: () => void;
   onCardTypeClick?: (cardType: string) => void;
+  onCardUpdate?: (card: CardModalCard) => void;
   onInvalidCard?: () => void;
   onTagClick?: (tag: string) => void;
   onTagManagementOpenChange?: (open: boolean) => void;
@@ -26,6 +27,7 @@ export function ConnectedCardModal({
   open,
   onCancel,
   onCardTypeClick,
+  onCardUpdate,
   onInvalidCard,
   onTagManagementOpenChange,
   onTagClick,
@@ -42,10 +44,13 @@ export function ConnectedCardModal({
 
   const resolvedCard = cardData ?? hydratedCard ?? null;
 
-  const setTagManagementModalOpen = (nextOpen: boolean) => {
-    setShowTagManagementModal(nextOpen);
-    onTagManagementOpenChange?.(nextOpen);
-  };
+  const setTagManagementModalOpen = useCallback(
+    (nextOpen: boolean) => {
+      setShowTagManagementModal(nextOpen);
+      onTagManagementOpenChange?.(nextOpen);
+    },
+    [onTagManagementOpenChange]
+  );
 
   const {
     card,
@@ -66,7 +71,11 @@ export function ConnectedCardModal({
     hasUnsavedChanges,
     getCurrentValue,
     isDownloading,
-  } = useCardModal(cardId, { card: resolvedCard, onCardTypeClick });
+  } = useCardModal(cardId, {
+    card: resolvedCard,
+    onCardTypeClick,
+    onCardUpdate,
+  });
 
   useEffect(() => {
     if (!(open && cardId && !cardData)) {
@@ -82,9 +91,7 @@ export function ConnectedCardModal({
     if (open && openTagManagement) {
       setTagManagementModalOpen(true);
     }
-    // Intentionally not depending on callback identity to avoid re-opening loops.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, openTagManagement]);
+  }, [open, openTagManagement, setTagManagementModalOpen]);
 
   return (
     <CardModal

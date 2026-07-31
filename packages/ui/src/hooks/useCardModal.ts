@@ -6,7 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { updateCardInSearchQueries } from "./cardQueryOptimisticUpdates";
 
-type CardWithUrls = Doc<"cards"> & {
+export type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
   thumbnailUrl?: string;
   screenshotUrl?: string;
@@ -34,6 +34,7 @@ interface PendingChanges {
 
 export interface CardModalConfig {
   onCardTypeClick?: (cardType: string) => void;
+  onCardUpdate?: (card: CardWithUrls) => void;
   onClose?: () => void;
   onError?: (error: Error, operation: string) => void;
   onOpenLink?: (url: string) => void;
@@ -193,7 +194,7 @@ export function useCardModal(
       tagToRemove?: string
     ) => {
       if (!cardId) {
-        return;
+        return false;
       }
 
       try {
@@ -211,6 +212,7 @@ export function useCardModal(
             return rest;
           });
         }
+        return true;
       } catch (error) {
         console.error(`Failed to update ${field}:`, error);
 
@@ -223,6 +225,7 @@ export function useCardModal(
         }
 
         notifyError(error as Error, `update ${field}`);
+        return false;
       }
     },
     [cardId, updateCardField, notifyError]
@@ -280,9 +283,20 @@ export function useCardModal(
     }
 
     const newFavoriteState = !card.isFavorited;
+    const previousCard = card;
+    const updatedCard = {
+      ...card,
+      isFavorited: newFavoriteState,
+      updatedAt: Date.now(),
+    };
+    config.onCardUpdate?.(updatedCard);
     setPendingChanges((prev) => ({ ...prev, isFavorited: newFavoriteState }));
-    void updateField("isFavorited");
-  }, [card, updateField]);
+    void updateField("isFavorited").then((didUpdate) => {
+      if (!didUpdate) {
+        config.onCardUpdate?.(previousCard);
+      }
+    });
+  }, [card, config.onCardUpdate, updateField]);
 
   const removeAiTag = useCallback(
     (tagToRemove: string) => {

@@ -80,6 +80,7 @@ export function CardsScreen({
     searchBarProps,
     setRemoteCards,
     showTrashOnly,
+    updateCachedCard,
   } = searchController;
 
   useEffect(() => {
@@ -136,6 +137,7 @@ export function CardsScreen({
     onError: (_error: Error, operation: string) => {
       toast.error(`Failed to ${operation}`);
     },
+    onCardUpdate: updateCachedCard,
   });
 
   const updateCardField = useMutation(api.cards.updateCardField);
@@ -322,6 +324,7 @@ export function CardsScreen({
         cardId={selectedCardId}
         onCancel={onCloseCard}
         onCardTypeClick={handleCardTypeClick}
+        onCardUpdate={updateCachedCard}
         onInvalidCard={handleInvalidSelectedCard}
         onTagClick={handleTagClick}
         open={!!selectedCardId}

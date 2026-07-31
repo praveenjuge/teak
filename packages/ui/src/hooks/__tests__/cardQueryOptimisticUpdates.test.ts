@@ -37,8 +37,12 @@ describe("card query optimistic updates", () => {
 
   it("removes an unfavorited card from every active Favorites query", () => {
     const values: Doc<"cards">[][] = [];
+    let getAllQueriesCall = 0;
     const localStore = {
-      getAllQueries: () => [{ args: { favoritesOnly: true }, value: [card()] }],
+      getAllQueries: () =>
+        getAllQueriesCall++ === 0
+          ? [{ args: { favoritesOnly: true }, value: [card()] }]
+          : [],
       setQuery: (_query: unknown, _args: unknown, value: Doc<"cards">[]) =>
         values.push(value),
     } as unknown as OptimisticLocalStore;
@@ -50,5 +54,48 @@ describe("card query optimistic updates", () => {
     );
 
     expect(values).toEqual([[]]);
+  });
+
+  it("removes an unfavorited card from paginated Favorites pages", () => {
+    const values: Array<{ page: Doc<"cards">[] }> = [];
+    let getAllQueriesCall = 0;
+    const localStore = {
+      getAllQueries: () =>
+        getAllQueriesCall++ === 0
+          ? []
+          : [
+              {
+                args: {
+                  favoritesOnly: true,
+                  paginationOpts: { cursor: null, numItems: 20 },
+                },
+                value: {
+                  continueCursor: null,
+                  isDone: true,
+                  page: [card()],
+                },
+              },
+            ],
+      setQuery: (
+        _query: unknown,
+        _args: unknown,
+        value: { page: Doc<"cards">[] }
+      ) => values.push(value),
+    } as unknown as OptimisticLocalStore;
+
+    const updatedCard = updateCardInSearchQueries(
+      localStore,
+      "card-1" as Id<"cards">,
+      (current) => ({ ...current, isFavorited: false })
+    );
+
+    expect(updatedCard?.isFavorited).toBe(false);
+    expect(values).toEqual([
+      {
+        continueCursor: null,
+        isDone: true,
+        page: [],
+      },
+    ]);
   });
 });
