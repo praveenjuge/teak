@@ -1,4 +1,7 @@
 ---
+import Icon from "blume/components/Icon.astro";
+import Badge from "blume/components/content/Badge.astro";
+
 interface Props {
   name: string;
   description: string;
@@ -25,9 +28,12 @@ const isFixedPrice = typeof price === "string";
 ]}>
   {popular && (
     <div class="absolute -top-3 left-1/2 -translate-x-1/2 transform">
-      <span class="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-xs bg-primary text-primary-foreground border-transparent">
+      <Badge
+        class="!border-transparent !bg-primary !text-primary-foreground px-2.5 py-0.5 font-semibold"
+        size="md"
+      >
         Pro - Most Popular
-      </span>
+      </Badge>
     </div>
   )}
 
@@ -63,9 +69,7 @@ const isFixedPrice = typeof price === "string";
   <ul class="mb-8 space-y-3">
     {features.map((feature) => (
       <li class="flex items-start gap-3">
-        <div class="mt-1 text-primary">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-        </div>
+        <Icon class="mt-1 text-primary" name="check" size={16} />
         <span>{feature}</span>
       </li>
     ))}

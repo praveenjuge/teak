@@ -15,31 +15,32 @@ After installing, the `teak` command is available globally.
 
 ## Authentication
 
-### Browser sign-in (recommended)
+<Tabs param="auth">
+  <Tab title="Browser sign-in">
+    Run:
 
-```bash
-teak login
-```
+    ```bash
+    teak login
+    ```
 
-Opens your browser to authorize the CLI with your Teak account. Credentials are stored locally so you stay signed in across sessions.
+    Teak opens your browser to authorize the CLI and stores the credentials locally so you stay signed in across sessions.
+  </Tab>
+  <Tab title="API key">
+    Set `TEAK_API_KEY` to skip interactive sign-in in scripts and CI:
 
-### API key (for scripts and CI)
+    ```bash
+    TEAK_API_KEY=teakapi_... teak ls --json
+    ```
 
-Set the `TEAK_API_KEY` environment variable to skip interactive sign-in:
-
-```bash
-TEAK_API_KEY=teakapi_... teak ls --json
-```
-
-Generate and manage API keys in Teak Settings → **Manage API Keys**.
-
-### Sign out
+    Generate and manage API keys in Teak Settings → **Manage API Keys**.
+  </Tab>
+</Tabs>
 
 ```bash
 teak logout
 ```
 
-Removes stored credentials from your machine.
+`teak logout` removes stored credentials from your machine.
 
 ## Commands
 
@@ -86,22 +87,21 @@ teak search "buttons" --json | jq '.[].url'
 
 ## Troubleshooting
 
-### `teak: command not found`
-
-- Confirm the package installed globally: `npm ls -g teak-cli`
-- Make sure your npm global bin directory is in your `PATH`.
-
-### Login opens the browser but never completes
-
-- Check your internet connection.
-- Try again — the local callback server occasionally fails to start if the port is in use.
-- As a fallback, use `TEAK_API_KEY` with a key from Settings.
-
-### Commands return "Unauthorized"
-
-- Run `teak login` to refresh your session.
-- If using `TEAK_API_KEY`, confirm the key is still active in Teak Settings.
-
-### Still stuck?
-
-Reach out via [Support](/docs/support).
+<Accordion>
+  <AccordionItem title="teak: command not found">
+    - Confirm the package installed globally: `npm ls -g teak-cli`
+    - Make sure your npm global bin directory is in your `PATH`.
+  </AccordionItem>
+  <AccordionItem title="Login opens the browser but never completes">
+    - Check your internet connection.
+    - Try again in case the local callback port was already in use.
+    - As a fallback, use `TEAK_API_KEY` with a key from Settings.
+  </AccordionItem>
+  <AccordionItem title='Commands return "Unauthorized"'>
+    - Run `teak login` to refresh your session.
+    - If using `TEAK_API_KEY`, confirm the key is still active in Teak Settings.
+  </AccordionItem>
+  <AccordionItem title="Still stuck?">
+    Reach out via [Support](/docs/support).
+  </AccordionItem>
+</Accordion>

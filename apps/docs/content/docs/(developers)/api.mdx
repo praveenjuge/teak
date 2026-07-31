@@ -1,400 +1,124 @@
 ---
 title: API
-description: Public Teak API for creating, querying, and syncing cards
+description: Authenticate, create cards, upload files, and build reliable Teak integrations
 ---
 
-Teak provides a public API at `https://teakvault.com/api/v1`.
+Teak provides a public REST API for saving, querying, and syncing cards. Use this guide for integration decisions and the generated reference for every operation, field, schema, and code sample.
 
 <CardGroup cols={2}>
   <Card title="API Reference" href="/reference" icon="code">
-    Operation-by-operation OpenAPI pages with schemas and code samples.
+    Explore the complete OpenAPI contract and samples in curl, JavaScript, and Python.
   </Card>
   <Card title="MCP" href="/docs/mcp" icon="bot">
-    Remote MCP tools for the same card operations.
+    Connect an AI client to Teak through its remote MCP server.
   </Card>
 </CardGroup>
 
 ## Base URLs
 
-- Production: `https://teakvault.com/api/v1`
-- Local development: `http://docs.teak.localhost:1355/api/v1`
-- OpenAPI: `https://teakvault.com/api/openapi.json`
-- Interactive reference: `/reference`
-- Legacy production: `https://api.teakvault.com/v1`
+| Environment | REST API |
+| --- | --- |
+| Production | `https://teakvault.com/api/v1` |
+| Local development | `http://docs.teak.localhost:1355/api/v1` |
+| Legacy production | `https://api.teakvault.com/v1` |
 
-## MCP Endpoint
-
-Teak also exposes a remote MCP server:
-
-- Production: `https://teakvault.com/mcp`
-- Local development: `http://docs.teak.localhost:1355/mcp`
-- Legacy production: `https://api.teakvault.com/mcp`
-
-See the dedicated [MCP docs](./mcp) for tool contracts and JSON-RPC examples.
-API discovery always returns the canonical production MCP URL.
+The machine-readable OpenAPI document is available at `https://teakvault.com/api/openapi.json`.
 
 ## Authentication
 
-All API requests use a bearer token in the `Authorization` header. Two token types are accepted:
+Every API request uses a bearer token in the `Authorization` header.
 
-- **OAuth access token** — obtained by signing in with your browser (used by browser-login clients such as Raycast and MCP). Access tokens expire after 1 hour and are refreshed automatically by the client.
-- **Teak API key** — a long-lived `teakapi_` key you generate in Settings.
+<Tabs param="auth">
+  <Tab title="API key">
+    Generate a long-lived `teakapi_` key in Teak Settings. API keys are the simplest option for scripts, CI, and private integrations.
+
+    ```bash
+    Authorization: Bearer teakapi_secret_live_a1b2c3d4_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    ```
+  </Tab>
+  <Tab title="OAuth">
+    Browser-login clients can send an OAuth access token. Access tokens expire after one hour and should be refreshed by the client.
+  </Tab>
+</Tabs>
+
+## Create your first card
 
 ```bash
-Authorization: Bearer teakapi_secret_live_a1b2c3d4_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+curl https://teakvault.com/api/v1/cards \
+  --request POST \
+  --header "Authorization: Bearer $TEAK_API_KEY" \
+  --header "Content-Type: application/json" \
+  --header "Idempotency-Key: first-card" \
+  --data '{
+    "content": "# Project notes\n\nKeep the original spacing.",
+    "cardType": "text",
+    "tags": ["project"]
+  }'
 ```
 
-Generate and manage API keys in Teak Settings: `https://app.teakvault.com/settings`.
-
 <Prompt
-  description="Ask an agent to call the Teak API with a bearer key."
+  description="Ask an agent to explore your cards through Teak's API."
   actions={["copy", "cursor"]}
 >
-  Read https://teakvault.com/docs/api.md and browse https://teakvault.com/reference.
-  Call the Teak REST API at https://teakvault.com/api/v1 with an Authorization
-  Bearer token (teakapi_ key or OAuth access token). List my newest 10 cards,
-  then summarize titles and tags.
+  Read the Teak API guide and generated reference. Use my bearer token to list
+  my newest 10 cards, then summarize their titles and tags.
 </Prompt>
 
-## Headers
+## Create behavior
+
+- `content` or `url` supplies the card body.
+- `cardType` is optional. Set it to `text` to store raw Markdown exactly; omit it to keep Teak's automatic URL, quote, and palette detection.
+- `notes`, `tags`, and `source` add optional context.
+- A create response includes the new `cardId` and its Teak app URL.
+
+See **Create Card** in the [API Reference](/reference) for the complete request and response schemas.
+
+## Upload files
+
+File cards use a direct upload flow, so large bytes never pass through the REST API.
+
+<Steps>
+  <Step title="Create an upload">
+    Send the file name, media type, and size to `POST /v1/uploads`.
+  </Step>
+  <Step title="Upload the bytes">
+    `PUT` the file to the returned presigned URL and retain its `ETag` response header.
+  </Step>
+  <Step title="Create the card">
+    Send the returned `fileKey`, retained `fileEtag`, and file metadata to `POST /v1/cards`.
+  </Step>
+</Steps>
+
+Files can be up to 100 MB. Uploaded `.md` and `.markdown` files become editable text cards, must contain valid UTF-8, and are limited to 512 KiB. `.mdx` remains a document.
+
+Supported uploads include common image, audio, video, source, design-token, document, archive, and Figma formats. The [API Reference](/reference) is the canonical source for accepted fields and validation responses.
+
+## Reliable requests
 
 <TypeTable
   type={{
     "X-Request-Id": {
-      type: "string",
-      description: "Returned on every API response for support and log correlation.",
+      type: "response header",
+      description: "Returned for support and log correlation.",
     },
     "Idempotency-Key": {
-      type: "string",
+      type: "request header",
       description:
-        "Supported on POST /v1/cards and POST /v1/cards/bulk to safely retry creates.",
+        "Safely retries card creation and bulk operations without duplicating work.",
     },
     "RateLimit-Limit": {
-      type: "string",
-      description: "Present on rate-limited responses with Remaining, Reset, and Retry-After.",
-    },
-  }}
-/>
-
-## Endpoints
-
-### Service Health
-
-```http
-GET /healthz
-```
-
-```json
-{
-  "status": "ok",
-  "service": "teak-api",
-  "version": "v1"
-}
-```
-
-### API Info
-
-```http
-GET /v1
-```
-
-Response includes the current v1 route list plus MCP connection details.
-
-### Canonical Card Listing
-
-```http
-GET /v1/cards?q=design&limit=25&cursor=opaque&include=content,metadata
-```
-
-Supported query parameters:
-
-- `q`
-- `limit`
-- `cursor`
-- `sort=newest|oldest`
-- `type`
-- `tag`
-- `favorited=true|false`
-- `createdAfter`
-- `createdBefore`
-- `include=content,metadata,processing`
-
-The `include` parameter is a comma-separated list of field groups to add to each item. Omitting it returns the base fields only.
-
-<TypeTable
-  type={{
-    content: {
-      type: "include value",
-      description: "Adds content, notes, and aiSummary.",
-    },
-    metadata: {
-      type: "include value",
+      type: "response header",
       description:
-        "Adds fileName, fileSize, mimeType, fileUrl, linkPreviewImageUrl, screenshotUrl, and thumbnailUrl.",
-    },
-    processing: {
-      type: "include value",
-      description: "Adds processingStatus, metadataStatus, and aiTranscript.",
+        "Appears with Remaining, Reset, and Retry-After rate-limit headers.",
     },
   }}
 />
 
-Response:
-
-```json
-{
-  "items": [
-    {
-      "id": "card_1",
-      "appUrl": "https://app.teakvault.com/?card=card_1",
-      "createdAt": 1,
-      "isFavorited": true,
-      "metadataTitle": "Example",
-      "tags": ["design"],
-      "type": "link",
-      "updatedAt": 2,
-      "url": "https://example.com"
-    }
-  ],
-  "pageInfo": {
-    "hasMore": false,
-    "nextCursor": null
-  }
-}
-```
-
-### Create Card
-
-```http
-POST /v1/cards
-Content-Type: application/json
-Idempotency-Key: save-link-123
-```
-
-Supported request body fields:
-
-- `content` — text or URL to save (required if `url` is not set). With `cardType: "text"`, this is raw Markdown source and Teak preserves it exactly.
-- `url` — URL to save (required if `content` is not set). Must be an `http` or `https` URL.
-- `fileKey` — key returned by `POST /v1/uploads` for file cards
-- `cardType` — optional explicit type. `text` always creates a text card, even when the content looks like a URL, quote, color, or Markdown. When omitted, Teak keeps its automatic link, quote, and palette detection. For files, Teak infers the type from the file name and media type, and mismatches are rejected.
-- `fileName`, `mimeType`, `fileSize` — file metadata for uploaded cards
-- `notes` — optional freeform notes attached to the card (string or null)
-- `tags` — optional array of tag strings
-- `source` — optional string identifying the client or integration (e.g. `"raycast_quick_save"`)
-
-```json
-{
-  "content": "  # Project notes\r\n\r\n- [ ] Keep the original spacing  \n",
-  "cardType": "text",
-  "tags": ["project"]
-}
-```
-
-```json
-{
-  "status": "created",
-  "cardId": "card_1",
-  "appUrl": "https://app.teakvault.com/?card=card_1"
-}
-```
-
-### Upload File
-
-File cards use a direct upload flow so large bytes do not pass through the API.
-
-```http
-POST /v1/uploads
-Content-Type: application/json
-```
-
-```json
-{
-  "fileName": "image.png",
-  "mimeType": "image/png",
-  "fileSize": 12345
-}
-```
-
-The response includes a presigned `uploadUrl` and `fileKey`. Upload the bytes with `PUT`, retain the `ETag` response header, then create the card with `POST /v1/cards`.
-
-```json
-{
-  "method": "PUT",
-  "uploadUrl": "https://...",
-  "fileKey": "users/user_1/file/...",
-  "maxFileSize": 104857600,
-  "expiresIn": 600
-}
-```
-
-```http
-PUT <uploadUrl>
-Content-Type: image/png
-```
-
-```http
-POST /v1/cards
-Content-Type: application/json
-Idempotency-Key: upload-image-123
-```
-
-```json
-{
-  "fileEtag": "\"d41d8cd98f00b204e9800998ecf8427e\"",
-  "fileKey": "users/user_1/file/...",
-  "fileName": "image.png",
-  "mimeType": "image/png",
-  "fileSize": 12345,
-  "tags": ["reference"]
-}
-```
-
-The maximum file size is 100 MB, except `.md` and `.markdown` uploads, which are limited to 512 KiB of valid UTF-8 content and become editable text cards. The filename extension is matched case-insensitively; `.mdx` remains a document, and a Markdown MIME type alone does not convert another extension. The original uploaded Markdown file remains available through API file fields as source provenance while edits change only the text-card content.
-
-Other supported uploads include JSON and design-token files; TSX, JSX, Vue, Svelte, HTML, CSS, and MDX source; GIF, WebM, MP4, WebP, AVIF, SVG, and HEIC media; PDF, DOCX, PPTX, TXT, and RTF documents; ZIP archives; and Figma `.fig` files. Generic `application/octet-stream` uploads are accepted when the file name identifies a supported format.
-
-File responses can include `fileKind`, `fileExtension`, `fileLanguage`, and compact `filePreview` facts. Extracted source or document text is used only while generating AI tags and summaries and is not returned or stored as raw text.
-
-### Bulk Card Operations
-
-```http
-POST /v1/cards/bulk
-Content-Type: application/json
-Idempotency-Key: bulk-ops-001
-```
-
-```json
-{
-  "operation": "favorite",
-  "items": [{ "cardId": "card_1", "isFavorited": true }]
-}
-```
-
-Supported operations:
-
-- `create`
-- `update`
-- `favorite`
-- `delete`
-
-A single request accepts at most 100 items. Requests with an empty `items`
-array, or more than 100 items, are rejected with `400 INVALID_INPUT`. Split
-larger batches across multiple requests.
-
-Response:
-
-```json
-{
-  "operation": "favorite",
-  "results": [{ "index": 0, "status": "success", "cardId": "card_1" }],
-  "summary": { "total": 1, "succeeded": 1, "failed": 0 }
-}
-```
-
-### Incremental Sync
-
-```http
-GET /v1/cards/changes?since=1710000000000&limit=50
-```
-
-```json
-{
-  "items": [],
-  "deletedIds": ["card_2"],
-  "pageInfo": {
-    "hasMore": false,
-    "nextCursor": null
-  }
-}
-```
-
-### Legacy Search Endpoints
-
-These are not deprecated and will keep working for existing consumers, but Teak does not add new features to them. New integrations should use `GET /v1/cards` instead, which supports the same filters plus cursor pagination and the `include` parameter.
-
-```http
-GET /v1/cards/search?q=design&limit=50
-GET /v1/cards/favorites?q=design&limit=50
-```
-
-They accept the same query parameters as the canonical listing (`q`, `limit`, `type`, `tag`, `sort`, `favorited`, `createdAfter`, `createdBefore`) and return a flat response:
-
-```json
-{
-  "items": [],
-  "total": 0
-}
-```
-
-### Get Card
-
-```http
-GET /v1/cards/:cardId
-```
-
-Returns the full card object.
-
-### Update Card
-
-```http
-PATCH /v1/cards/:cardId
-Content-Type: application/json
-```
-
-Allowed fields:
-
-- `content`
-- `url` — must be an `http` or `https` URL
-- `notes`
-- `tags`
-
-Example:
-
-```json
-{
-  "notes": "Updated note",
-  "tags": ["reference"]
-}
-```
-
-### Delete Card
-
-```http
-DELETE /v1/cards/:cardId
-```
-
-Response: `204 No Content`
-
-### Favorite State
-
-```http
-PATCH /v1/cards/:cardId/favorite
-Content-Type: application/json
-```
-
-```json
-{
-  "isFavorited": true
-}
-```
-
-### Tags
-
-```http
-GET /v1/tags
-```
-
-```json
-{
-  "items": [{ "name": "design", "count": 3 }]
-}
-```
+Bulk operations accept up to 100 items. Cursor-based listing and the card changes endpoint are available for integrations that need complete pagination or incremental sync.
 
 ## Errors
 
-Errors preserve the stable `{ code, error }` shape. Some responses may also include `requestId`, `details`, or `retryAt`.
-
-Upload validation returns `TYPE_MISMATCH` when a filename extension conflicts with its declared MIME type and `FILE_TOO_LARGE` when a non-Markdown file exceeds the advertised upload limit. Text content and Markdown uploads return `CONTENT_TOO_LARGE` above 512 KiB of UTF-8 data; an uploaded Markdown file that is not valid UTF-8 returns `INVALID_UTF8`.
+Errors keep a stable `{ code, error }` shape and can also include `requestId`, `details`, or `retryAt`.
 
 ```json
 {
@@ -403,13 +127,4 @@ Upload validation returns `TYPE_MISMATCH` when a filename extension conflicts wi
 }
 ```
 
-### Idempotency Key Errors
-
-When using `Idempotency-Key` on `POST /v1/cards` or `POST /v1/cards/bulk`, two `409 Conflict` scenarios may occur:
-
-| Situation                                              | `code`     | `error`                                                     |
-| ------------------------------------------------------ | ---------- | ----------------------------------------------------------- |
-| A request with the same key is still in flight         | `CONFLICT` | `Idempotency-Key is already being processed`                |
-| The key was already used with a different request body | `CONFLICT` | `Idempotency-Key was already used with a different request` |
-
-If the key was previously used with an identical request body, the original response is replayed without re-processing the operation.
+Use the returned request ID when contacting [Support](/docs/support). For MCP tool contracts and JSON-RPC examples, continue to the dedicated [MCP guide](/docs/mcp).

@@ -3,6 +3,7 @@
 
 # generated
 .blume
+.generated
 
 # test & build
 /coverage

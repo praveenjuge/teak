@@ -6,7 +6,7 @@ description: Remote MCP server for Teak card operations
 Teak provides a remote MCP server at `https://teakvault.com/mcp`.
 
 :::tip[Product MCP vs docs]
-`https://teakvault.com/mcp` is Teak's **card** MCP (save, search, sync). It is not a documentation search server. For human and agent-readable docs, start at [`/llms.txt`](https://teakvault.com/llms.txt) or any page's `.md` URL.
+`https://teakvault.com/mcp` is Teak's **card** MCP (save, search, sync). It is not a documentation search server. For human and agent-readable docs, start at `/llms.txt` or any page's `.md` URL.
 :::
 
 ## Base URLs
@@ -20,37 +20,36 @@ Teak provides a remote MCP server at `https://teakvault.com/mcp`.
 
 Teak's MCP server supports two authentication methods.
 
-### Browser sign-in (recommended)
+<Tabs param="auth">
+  <Tab title="Browser sign-in">
+    Spec-compliant MCP clients discover Teak's authorization server, open your browser to sign in, and store the resulting access token automatically. Access tokens are short-lived and refresh automatically.
 
-Spec-compliant MCP clients authenticate with a browser-based OAuth flow. On first connect, the client discovers Teak's authorization server, opens your browser to sign in, and stores the resulting access token automatically. Access tokens are short-lived (1 hour) and refresh automatically.
+    For example, with Claude:
 
-For example, with Claude:
+    ```bash
+    claude mcp add --transport http teak https://teakvault.com/mcp
+    ```
 
-```bash
-claude mcp add --transport http teak https://teakvault.com/mcp
-```
+    Start the MCP connection, then complete the browser sign-in when prompted.
 
-Then start the MCP connection (for example, run `/mcp` in Claude) and complete the browser sign-in when prompted.
+    <Prompt
+      description="Connect Claude Code to Teak MCP with browser sign-in."
+      actions={["copy", "cursor"]}
+    >
+      Add Teak as a remote HTTP MCP server, complete browser sign-in, and list my
+      favorite cards.
+    </Prompt>
+  </Tab>
+  <Tab title="API key">
+    Send a Teak API key in the `Authorization` header:
 
-<Prompt
-  description="Connect Claude Code to Teak MCP with browser sign-in."
-  actions={["copy", "cursor"]}
->
-  Run: claude mcp add --transport http teak https://teakvault.com/mcp
-  Then open /mcp in Claude, complete browser sign-in, and list my favorite cards.
-</Prompt>
+    ```bash
+    Authorization: Bearer teakapi_secret_live_a1b2c3d4_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    ```
 
-### API key
-
-You can also authenticate with a Teak API key in the `Authorization` header:
-
-```bash
-Authorization: Bearer teakapi_secret_live_a1b2c3d4_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
-Generate and manage API keys in Teak Settings: `https://app.teakvault.com/settings`.
-
-Unauthenticated requests receive `401` with a `WWW-Authenticate` header pointing to the OAuth protected-resource metadata at `https://teakvault.com/.well-known/oauth-protected-resource/mcp`, which clients use to begin the browser sign-in flow.
+    Generate and manage API keys in Teak Settings. Unauthenticated requests receive `401` with discovery metadata that compatible clients use to begin browser sign-in.
+  </Tab>
+</Tabs>
 
 ## Transport
 
@@ -141,7 +140,7 @@ Tool failures are returned as MCP tool errors with this structured shape:
 
 ## JSON-RPC Examples
 
-Initialize:
+<Expandable title="Initialize a connection">
 
 ```json
 {
@@ -159,7 +158,9 @@ Initialize:
 }
 ```
 
-List tools:
+</Expandable>
+
+<Expandable title="List available tools">
 
 ```json
 {
@@ -170,7 +171,9 @@ List tools:
 }
 ```
 
-Call `teak_v1_create_card`:
+</Expandable>
+
+<Expandable title="Create a card">
 
 ```json
 {
@@ -185,3 +188,5 @@ Call `teak_v1_create_card`:
   }
 }
 ```
+
+</Expandable>

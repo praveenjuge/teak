@@ -6,6 +6,13 @@
 @source "../components/**/*.{astro,ts,tsx,js,jsx}";
 @source "../layouts/**/*.{astro,ts,tsx,js,jsx}";
 @source "../pages/**/*.{astro,ts,tsx,js,jsx}";
+@source "../../../node_modules/blume/src/components/Icon.astro";
+@source "../../../node_modules/blume/src/components/content/**/*.{astro,ts,tsx,js,jsx}";
+
+[data-blume-update] ul {
+  padding-inline-start: 1.25rem;
+  list-style: disc;
+}
 
 .typeset-docs {
   --typeset-font-body: var(--font-sans);

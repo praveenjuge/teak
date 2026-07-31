@@ -55,25 +55,19 @@ export default defineConfig({
   github: {
     owner: "praveenjuge",
     repo: "teak",
-    branch: "main",
     dir: "apps/docs",
   },
   content: {
     root: "content",
-    pages: "pages",
   },
   deployment: {
-    output: "static",
     site: "https://teakvault.com",
   },
   lastModified: true,
   theme: {
     accent: "oklch(0.58 0.22 27)",
-    radius: "md",
-    mode: "system",
   },
   navigation: {
-    sidebar: { display: "group" },
     tabs: [
       { label: "Docs", path: "/docs" },
       { label: "Apps", path: "/apps", href: "/apps" },
@@ -86,23 +80,23 @@ export default defineConfig({
   openapi: {
     enabled: true,
     route: "/reference",
-    spec: "./openapi.json",
-    codeSamples: ["curl", "js"],
+    spec: "./.generated/openapi.json",
   },
-  markdown: {
-    code: {
-      icons: true,
-    },
+  search: {
+    popular: [
+      { label: "Features", href: "/docs/features", icon: "sparkles" },
+      { label: "Desktop", href: "/docs/desktop", icon: "monitor" },
+      { label: "Mobile", href: "/docs/mobile", icon: "smartphone" },
+      {
+        label: "Browser extensions",
+        href: "/docs/extension",
+        icon: "puzzle",
+      },
+      { label: "API reference", href: "/reference", icon: "code" },
+      { label: "Self-hosting", href: "/docs/self-hosting", icon: "server" },
+    ],
   },
   seo: {
-    og: { enabled: true },
-    sitemap: true,
-    robots: true,
-    structuredData: true,
-    rss: {
-      enabled: true,
-      types: ["changelog"],
-    },
     x: { handle: "@praveenjuge" },
   },
   integrations: [teakDevProxy()],

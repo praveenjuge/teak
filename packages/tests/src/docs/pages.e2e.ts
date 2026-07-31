@@ -31,12 +31,13 @@ test("docs llms.txt is published", async ({ page }) => {
   expect(body).toContain("/docs/api");
 });
 
-test("changelog renders release notes with Typeset", async ({ page }) => {
+test("changelog renders Blume release notes", async ({ page }) => {
   await page.goto("/changelog/");
 
-  const releaseNotes = page.locator(".typeset.typeset-docs").first();
+  const releaseNotes = page.locator("[data-blume-update]").first();
   await expect(releaseNotes).toBeVisible();
-  await expect(releaseNotes.locator("ul")).toHaveCSS("list-style-type", "disc");
+  await expect(releaseNotes).toContainText("July 2026");
+  await expect(releaseNotes.locator("li")).not.toHaveCount(0);
 });
 
 test("public docs describe expanded file support and optional card types", async ({

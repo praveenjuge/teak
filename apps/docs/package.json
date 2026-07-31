@@ -6,13 +6,16 @@
   },
   "scripts": {
     "generate:openapi": "bun run scripts/generate-openapi.ts",
-    "build": "bun run generate:openapi && blume build",
+    "build": "bun run build:site && blume audit --fail-on error",
+    "build:site": "bun run generate:openapi && blume build",
     "dev": "bun run generate:openapi && PORTLESS_PORT=1355 portless docs.teak blume dev",
     "lint": "biome check blume.config.ts lib scripts styles vercel.json package.json turbo.json tsconfig.json tsconfig.typecheck.json",
     "preview": "blume preview",
     "start": "blume preview",
     "test": "bun test lib --coverage --dots",
-    "typecheck": "bun run generate:openapi && blume check"
+    "typecheck": "bun run generate:openapi && blume check --strict",
+    "validate": "bun run generate:openapi && blume validate --strict",
+    "audit": "bun run build:site && blume audit --fail-on error"
   },
   "dependencies": {
     "@teak/convex": "workspace:*",

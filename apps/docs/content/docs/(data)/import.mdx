@@ -61,22 +61,20 @@ Teak shows how many items were created, skipped, and failed. If any items failed
 
 ## Troubleshooting
 
-### My import failed immediately
-
-Confirm the file matches the mode you chose (an HTML bookmarks file for **Import Bookmarks**, a Raindrop CSV for **Import from Raindrop**, or a Teak-exported ZIP for **Import Teak Archive**). A file in the wrong format, or a Teak archive from an incompatible version, will fail before any cards are created.
-
-### Some items were skipped
-
-Skipped items already exist in your library with the same URL. This is expected and does not indicate an error.
-
-### Some items failed
-
-Open the error report from the import dialog to see the reason for each failed item, such as an unsafe or malformed URL, a file that exceeds the size limit, or a file missing from the archive.
-
-### My upload was interrupted
-
-Reopen **Import/Export Data** in Settings and choose **Resume upload** with the same file to continue from where the upload stopped.
-
-### Still stuck?
-
-Reach out via [Support](/docs/support).
+<Accordion>
+  <AccordionItem title="My import failed immediately">
+    Confirm the file matches the selected mode: bookmarks HTML, Raindrop CSV, or a Teak-exported ZIP. A wrong format or incompatible archive fails before cards are created.
+  </AccordionItem>
+  <AccordionItem title="Some items were skipped">
+    Skipped items already exist in your library with the same URL. This is expected and does not indicate an error.
+  </AccordionItem>
+  <AccordionItem title="Some items failed">
+    Open the import error report to see whether each item had an unsafe URL, exceeded a limit, or was missing from the archive.
+  </AccordionItem>
+  <AccordionItem title="My upload was interrupted">
+    Reopen **Import/Export Data** and choose **Resume upload** with the same file.
+  </AccordionItem>
+  <AccordionItem title="Still stuck?">
+    Reach out via [Support](/docs/support).
+  </AccordionItem>
+</Accordion>
