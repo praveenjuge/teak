@@ -1,16 +1,6 @@
 ---
 import BottomPattern from "./BottomPattern.astro";
 import Logo from "./Logo.astro";
-
-interface Props {
-  site?: { title: string; description?: string };
-  navigation?: unknown;
-  ui?: unknown;
-}
-
-// Props are supplied by Blume's layout.Footer slot on docs pages; unused on
-// marketing pages that mount this component via PageLayout's footer slot.
-Astro.props;
 ---
 
 <footer class="relative overflow-hidden bg-background px-4 pt-20 pb-8">
@@ -47,13 +37,7 @@ Astro.props;
 
     <div class="mt-16 flex flex-row items-center justify-between gap-4">
       <Logo />
-      <div class="flex items-center gap-6 text-muted-foreground">
-        <a
-          class="text-sm transition-colors hover:text-foreground"
-          href="/changelog/rss.xml"
-        >
-          RSS
-        </a>
+      <div class="flex gap-6 text-muted-foreground">
         <a
           aria-label="GitHub"
           class="transition-colors hover:text-foreground"

@@ -10,7 +10,6 @@
   },
   "include": [
     "blume.config.ts",
-    "components.ts",
     "env.d.ts",
     "content/**/*.ts",
     "lib/**/*.ts",
