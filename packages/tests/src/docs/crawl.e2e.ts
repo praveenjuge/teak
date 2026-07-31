@@ -9,16 +9,18 @@ test("sitemap pages and internal links resolve", async () => {
   const index = await fetch(`${env.siteUrl}/sitemap-index.xml`).then((r) =>
     r.text()
   );
-  const sitemaps = urlsFromXml(index);
-  const pages = (
-    await Promise.all(
-      sitemaps.map((url) =>
-        fetch(url)
-          .then((r) => r.text())
-          .then(urlsFromXml)
-      )
-    )
-  ).flat();
+  const sitemapUrls = urlsFromXml(index);
+  const pages = /<urlset[\s>]/i.test(index)
+    ? sitemapUrls
+    : (
+        await Promise.all(
+          sitemapUrls.map((url) =>
+            fetch(url)
+              .then((r) => r.text())
+              .then(urlsFromXml)
+          )
+        )
+      ).flat();
   expect(pages.length).toBeGreaterThan(0);
   for (const url of pages.slice(
     0,

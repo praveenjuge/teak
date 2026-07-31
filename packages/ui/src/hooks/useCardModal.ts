@@ -1,26 +1,10 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
-import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-
-function updateCardInSearchQueries(
-  localStore: OptimisticLocalStore,
-  cardId: Id<"cards">,
-  updater: (card: Doc<"cards">) => Doc<"cards">
-) {
-  const allQueries = localStore.getAllQueries(api.cards.searchCards);
-  for (const { args, value } of allQueries) {
-    if (value !== undefined) {
-      const updatedCards = (value as Doc<"cards">[]).map(
-        (card: Doc<"cards">) => (card._id === cardId ? updater(card) : card)
-      );
-      localStore.setQuery(api.cards.searchCards, args, updatedCards);
-    }
-  }
-}
+import { updateCardInSearchQueries } from "./cardQueryOptimisticUpdates";
 
 type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
@@ -460,11 +444,10 @@ export function useCardModal(
   }, [card?.type, config.onCardTypeClick]);
 
   const getCurrentValue = useCallback(
-    (field: "content" | "url" | "notes" | "aiSummary") => {
-      return pendingChanges[field] !== undefined
-        ? pendingChanges[field]
-        : card?.[field];
-    },
+    (field: "content" | "url" | "notes" | "aiSummary") =>
+      pendingChanges[field] === undefined
+        ? card?.[field]
+        : pendingChanges[field],
     [card, pendingChanges]
   );
 
@@ -475,9 +458,9 @@ export function useCardModal(
     return {
       ...card,
       isFavorited:
-        pendingChanges.isFavorited !== undefined
-          ? pendingChanges.isFavorited
-          : card.isFavorited,
+        pendingChanges.isFavorited === undefined
+          ? card.isFavorited
+          : pendingChanges.isFavorited,
     } satisfies CardWithUrls;
   }, [card, pendingChanges.isFavorited]);
 

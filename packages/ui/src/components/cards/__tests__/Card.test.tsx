@@ -41,10 +41,6 @@ mock.module("@teak/ui/components/ui/checkbox", () => ({
     }),
 }));
 
-mock.module("../previews/AudioWavePreview", () => ({
-  AudioWavePreview: () => React.createElement("div"),
-}));
-
 mock.module("../previews/GridDocumentPreview", () => ({
   GridDocumentPreview: () => React.createElement("div"),
 }));

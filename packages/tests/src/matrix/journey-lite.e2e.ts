@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
-import { clickVisibleControl, createAccount } from "../helpers/prod";
+import { clickVisibleControl, clientFor, createAccount } from "../helpers/prod";
 
 test.setTimeout(180_000);
 
@@ -14,11 +14,21 @@ test("signup, create, and search", async ({ page }) => {
     const marker = `matrix-${Date.now()}`;
     await page.goto("/");
     const note = page.getByRole("textbox", { name: "Markdown content" });
-    await note.fill(marker);
+    await note.pressSequentially(marker);
     await expect(note).toHaveText(marker);
     await clickVisibleControl(
       page.getByRole("button", { exact: true, name: "Save" })
     );
+    const api = clientFor(account.apiKey);
+    await expect
+      .poll(
+        async () =>
+          (await api.cards.search({ query: marker })).items.some(
+            (card) => card.content === marker
+          ),
+        { timeout: 30_000, intervals: [1000, 2000, 3000, 5000] }
+      )
+      .toBe(true);
     const savedCard = page
       .getByRole("main")
       .getByRole("paragraph")

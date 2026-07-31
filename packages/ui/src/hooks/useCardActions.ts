@@ -6,77 +6,7 @@ import {
 } from "@teak/convex/shared/hooks/useCardActions";
 import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation } from "convex/react";
-
-const cardMatchesQueryArgs = (card: Doc<"cards">, args: any): boolean => {
-  const isTrashQuery = Boolean(args.showTrashOnly);
-  if (isTrashQuery ? card.isDeleted !== true : card.isDeleted === true) {
-    return false;
-  }
-
-  if (args.types?.length && !args.types.includes(card.type)) {
-    return false;
-  }
-
-  if (args.favoritesOnly && card.isFavorited !== true) {
-    return false;
-  }
-
-  if (args.styleFilters?.length) {
-    if (card.type !== "image") {
-      return false;
-    }
-
-    const styleSet = new Set(card.visualStyles ?? []);
-    if (!args.styleFilters.some((style: string) => styleSet.has(style))) {
-      return false;
-    }
-  }
-
-  if (args.hueFilters?.length) {
-    if (!(card.type === "image" || card.type === "palette")) {
-      return false;
-    }
-
-    const hueSet = new Set(card.colorHues ?? []);
-    if (!args.hueFilters.some((hue: string) => hueSet.has(hue))) {
-      return false;
-    }
-  }
-
-  if (args.hexFilters?.length) {
-    if (!(card.type === "image" || card.type === "palette")) {
-      return false;
-    }
-
-    const hexSet = new Set(card.colorHexes ?? []);
-    if (!args.hexFilters.some((hex: string) => hexSet.has(hex))) {
-      return false;
-    }
-  }
-
-  return true;
-};
-
-function updateCardInSearchQueries(
-  localStore: OptimisticLocalStore,
-  cardId: Id<"cards">,
-  updater: (card: Doc<"cards">) => Doc<"cards"> | null
-) {
-  const allQueries = localStore.getAllQueries(api.cards.searchCards);
-  for (const { args, value } of allQueries) {
-    if (value !== undefined) {
-      const updatedCards = (value as Doc<"cards">[])
-        .map((card: Doc<"cards">) =>
-          card._id === cardId ? updater(card) : card
-        )
-        .filter(
-          (card: Doc<"cards"> | null): card is Doc<"cards"> => card !== null
-        )
-        .filter((card: Doc<"cards">) => cardMatchesQueryArgs(card, args));
-      localStore.setQuery(api.cards.searchCards, args, updatedCards);
-    }
-  }
-}
+import { updateCardInSearchQueries } from "./cardQueryOptimisticUpdates";
 
 function updateSingleCardQuery(
   localStore: OptimisticLocalStore,
@@ -115,45 +45,14 @@ export function useCardActions(config: CardActionsConfig = {}) {
       }
 
       case "delete": {
-        const markDeleted = (card: Doc<"cards">): Doc<"cards"> | null => {
-          return {
-            ...card,
-            isDeleted: true,
-            deletedAt: now,
-            updatedAt: now,
-          };
-        };
-        const allQueries = localStore.getAllQueries(api.cards.searchCards);
-        for (const { args: queryArgs, value: cards } of allQueries) {
-          if (cards !== undefined) {
-            const typedCards = cards as Doc<"cards">[];
-            if (queryArgs.showTrashOnly) {
-              const updatedCards = typedCards.map((card: Doc<"cards">) =>
-                card._id === cardId ? (markDeleted(card) ?? card) : card
-              );
-              localStore.setQuery(
-                api.cards.searchCards,
-                queryArgs,
-                updatedCards
-              );
-            } else {
-              const filteredCards = typedCards.filter(
-                (card: Doc<"cards">) =>
-                  card._id !== cardId && cardMatchesQueryArgs(card, queryArgs)
-              );
-              localStore.setQuery(
-                api.cards.searchCards,
-                queryArgs,
-                filteredCards
-              );
-            }
-          }
-        }
-        updateSingleCardQuery(
-          localStore,
-          cardId,
-          markDeleted as (card: Doc<"cards">) => Doc<"cards">
-        );
+        const markDeleted = (card: Doc<"cards">): Doc<"cards"> => ({
+          ...card,
+          isDeleted: true,
+          deletedAt: now,
+          updatedAt: now,
+        });
+        updateCardInSearchQueries(localStore, cardId, markDeleted);
+        updateSingleCardQuery(localStore, cardId, markDeleted);
         break;
       }
 
@@ -164,33 +63,7 @@ export function useCardActions(config: CardActionsConfig = {}) {
           deletedAt: undefined,
           updatedAt: now,
         });
-        const allQueriesRestore = localStore.getAllQueries(
-          api.cards.searchCards
-        );
-        for (const { args: queryArgs, value: cards } of allQueriesRestore) {
-          if (cards !== undefined) {
-            const typedCards = cards as Doc<"cards">[];
-            if (queryArgs.showTrashOnly) {
-              const filteredCards = typedCards.filter(
-                (card: Doc<"cards">) => card._id !== cardId
-              );
-              localStore.setQuery(
-                api.cards.searchCards,
-                queryArgs,
-                filteredCards
-              );
-            } else {
-              const filteredCards = typedCards.filter((card: Doc<"cards">) =>
-                cardMatchesQueryArgs(card, queryArgs)
-              );
-              localStore.setQuery(
-                api.cards.searchCards,
-                queryArgs,
-                filteredCards
-              );
-            }
-          }
-        }
+        updateCardInSearchQueries(localStore, cardId, markRestored);
         updateSingleCardQuery(localStore, cardId, markRestored);
         break;
       }
@@ -255,8 +128,7 @@ export function useCardActions(config: CardActionsConfig = {}) {
 
   return {
     ...cardActions,
-    handleBulkDeleteCards: (cardIds: Id<"cards">[]) => {
-      return cardActions.handleBulkDeleteCards(cardIds);
-    },
+    handleBulkDeleteCards: (cardIds: Id<"cards">[]) =>
+      cardActions.handleBulkDeleteCards(cardIds),
   };
 }
