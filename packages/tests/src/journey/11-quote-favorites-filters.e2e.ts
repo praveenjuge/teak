@@ -27,15 +27,10 @@ const focusSearch = async (page: Page) => {
 };
 
 const clearFilters = async (page: Page) => {
-  const clear = page.getByRole("button", { name: /Clear (All|filters)/i });
-  if (
-    await clear
-      .first()
-      .isVisible()
-      .catch(() => false)
-  ) {
-    await clear.first().click();
-  }
+  const clear = page
+    .getByRole("button", { name: /Clear (All|filters)/i })
+    .filter({ visible: true });
+  await clickVisibleControl(clear);
 };
 
 test("quote cards open in the modal and stay searchable", async ({ page }) => {
