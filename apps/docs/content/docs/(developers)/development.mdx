@@ -49,22 +49,22 @@ description: Setup and development workflow for Teak
 
 - teak/
   - apps/
-    - web/
-    - mobile/
-    - desktop/
-    - extension/
-    - safari-extension/
-    - raycast/
-    - cli/
-    - docs/
+    - web/ Next.js frontend (app router, shadcn/ui)
+    - mobile/ Expo React Native
+    - desktop/ Electron desktop app (React)
+    - extension/ Chrome extension (Wxt)
+    - safari-extension/ Native macOS Safari extension app
+    - raycast/ Raycast extension
+    - cli/ npm command line client
+    - docs/ Documentation site (Blume)
   - packages/
-    - convex/
-      - ai/
-      - card/
-      - workflows/
-    - ui/
-  - turbo.json
-  - package.json
+    - convex/ Convex backend
+      - ai/ AI metadata helpers
+      - card/ Card mutations/queries
+      - workflows/ AI pipeline orchestration
+    - ui/ Shared UI components and hooks
+  - turbo.json Turborepo pipeline config
+  - package.json Root package + workspaces
 
 </FileTree>
 

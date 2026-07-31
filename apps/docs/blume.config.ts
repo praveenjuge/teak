@@ -61,8 +61,7 @@ export default defineConfig({
     root: "content",
   },
   deployment: {
-    // Keep static hosting. Ask AI and Blume's docs MCP need server output and
-    // would collide with Teak's product MCP at /mcp — leave them off.
+    // Keep static hosting (Ask AI needs server output).
     output: "static",
     site: "https://teakvault.com",
   },
@@ -118,8 +117,6 @@ export default defineConfig({
   ],
   ai: {
     llmsTxt: true,
-    // Docs Ask AI / hosted docs MCP stay disabled: static deploy, and /mcp is
-    // reserved for Teak's product card MCP (not documentation search).
   },
   integrations: [teakDevProxy()],
 });
