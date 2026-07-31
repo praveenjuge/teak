@@ -30,6 +30,19 @@ Use the production base URL `https://teakvault.com/api/v1`. See the [API docs](/
 
 ## What should coding agents read first?
 
+<Visibility for="web">
+
+Prefer the compact map first, then deepen into API or MCP pages as needed:
+
+</Visibility>
+
+<Visibility for="agents">
+
+Load these URLs in order before calling Teak tools. Prefer `.md` mirrors when
+you need the full page body without HTML chrome.
+
+</Visibility>
+
 - `https://teakvault.com/llms.txt` for the compact documentation map
 - `https://teakvault.com/llms-full.txt` for the full docs context
 - `https://teakvault.com/docs/api.md` for the REST API contract
@@ -37,6 +50,13 @@ Use the production base URL `https://teakvault.com/api/v1`. See the [API docs](/
 - `https://teakvault.com/docs/mcp.md` for MCP setup and tools
 - `https://teakvault.com/.well-known/mcp.json` for remote MCP discovery metadata
 - `https://teakvault.com/agent-readability.json` for the machine-readable docs surface map
+
+:::note[Docs stay static]
+Teak's public docs ship as a static site. There is no in-page Ask AI assistant
+and no documentation-search MCP on this host — `/mcp` is reserved for Teak's
+product card MCP. Use `llms.txt`, page `.md` mirrors, and the OpenAPI reference
+instead.
+:::
 
 ## Can agents use the command line?
 

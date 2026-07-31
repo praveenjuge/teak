@@ -5,6 +5,11 @@ description: Setup and development workflow for Teak
 
 **Prerequisites:** Bun 1.0+, Node.js 20+, Git
 
+:::tip[Monorepo layout]
+Teak is a Turborepo monorepo. Apps live under `apps/`, shared backend and UI under
+`packages/`. The tree below is the mental model for local development.
+:::
+
 ## Quick Start (local)
 
 <Steps>
@@ -45,30 +50,28 @@ description: Setup and development workflow for Teak
 
 ## Project Layout
 
-<Tree>
-  <Tree.Folder name="teak" openable={false}>
-    <Tree.Folder name="apps" defaultOpen>
-      <Tree.Folder name="web" openable={false} />
-      <Tree.Folder name="mobile" openable={false} />
-      <Tree.Folder name="desktop" openable={false} />
-      <Tree.Folder name="extension" openable={false} />
-      <Tree.Folder name="safari-extension" openable={false} />
-      <Tree.Folder name="raycast" openable={false} />
-      <Tree.Folder name="cli" openable={false} />
-      <Tree.Folder name="docs" openable={false} />
-    </Tree.Folder>
-    <Tree.Folder name="packages" defaultOpen>
-      <Tree.Folder name="convex" defaultOpen>
-        <Tree.Folder name="ai" openable={false} />
-        <Tree.Folder name="card" openable={false} />
-        <Tree.Folder name="workflows" openable={false} />
-      </Tree.Folder>
-      <Tree.Folder name="ui" openable={false} />
-    </Tree.Folder>
-    <Tree.File name="turbo.json" />
-    <Tree.File name="package.json" />
-  </Tree.Folder>
-</Tree>
+<FileTree>
+
+- teak/
+  - apps/
+    - web/
+    - mobile/
+    - desktop/
+    - extension/
+    - safari-extension/
+    - raycast/
+    - cli/
+    - docs/
+  - packages/
+    - convex/
+      - ai/
+      - card/
+      - workflows/
+    - ui/
+  - turbo.json
+  - package.json
+
+</FileTree>
 
 ## Tech Stack
 

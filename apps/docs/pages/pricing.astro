@@ -1,9 +1,10 @@
 ---
 import Accordion from "blume/components/content/Accordion.astro";
 import AccordionItem from "blume/components/content/AccordionItem.astro";
-import HomeLayout from "../layouts/HomeLayout.astro";
+import data from "blume:data";
 import PricingCard from "../components/PricingCard.astro";
 import PricingToggle from "../components/PricingToggle.astro";
+import MarketingLayout from "../layouts/MarketingLayout.astro";
 import { buildPageSchemas, buildProductSchema, SITE_URL } from "../lib/jsonld";
 
 const pricingPlans = [
@@ -124,13 +125,12 @@ const pageSchemas = buildPageSchemas({
 });
 ---
 
-<HomeLayout
-  title="200 Cards Free. $19/month After. No Tricks."
+<MarketingLayout
+  data={data}
+  title="200 Cards Free. $19/month After. No Tricks. | Teak"
   description="Try Teak free with 200 cards. Pro is $19/month - less than 2 coffees. Or self-host for free. Simple pricing."
+  route="/pricing"
   canonical="https://teakvault.com/pricing"
-  ogTitle="200 Cards Free. $19/month After. No Tricks."
-  ogDescription="Try Teak free with 200 cards. Pro is $19/month - less than 2 coffees. Or self-host for free."
-  keywords="design bookmarking pricing, visual inspiration tool, designer subscription, creative workflow pricing"
   jsonLd={[...pageSchemas, productSchema]}
 >
   <main class="flex flex-1 flex-col">
@@ -225,4 +225,4 @@ const pageSchemas = buildPageSchemas({
       </div>
     </section>
   </main>
-</HomeLayout>
+</MarketingLayout>

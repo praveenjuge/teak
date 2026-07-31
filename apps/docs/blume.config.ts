@@ -61,6 +61,9 @@ export default defineConfig({
     root: "content",
   },
   deployment: {
+    // Keep static hosting. Ask AI and Blume's docs MCP need server output and
+    // would collide with Teak's product MCP at /mcp — leave them off.
+    output: "static",
     site: "https://teakvault.com",
   },
   lastModified: true,
@@ -98,6 +101,25 @@ export default defineConfig({
   },
   seo: {
     x: { handle: "@praveenjuge" },
+    rss: {
+      enabled: true,
+      types: ["changelog"],
+    },
+    sitemap: true,
+    robots: true,
+    structuredData: true,
+  },
+  // Mirrored in vercel.json for Vercel Git HTTP redirects; Astro also emits
+  // these as soft redirects for non-Vercel previews and link audits.
+  redirects: [
+    { from: "/sitemap-index.xml", to: "/sitemap.xml", status: 301 },
+    { from: "/llms-small.txt", to: "/llms.txt", status: 301 },
+    { from: "/docs/index.md", to: "/docs.md", status: 301 },
+  ],
+  ai: {
+    llmsTxt: true,
+    // Docs Ask AI / hosted docs MCP stay disabled: static deploy, and /mcp is
+    // reserved for Teak's product card MCP (not documentation search).
   },
   integrations: [teakDevProxy()],
 });

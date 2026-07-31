@@ -1,0 +1,80 @@
+---
+import PageLayout from "blume/components/layout/PageLayout.astro";
+import type { BlumeData } from "blume";
+import BackgroundPattern from "../components/BackgroundPattern.astro";
+import Footer from "../components/Footer.astro";
+import "../styles/marketing.css";
+
+interface Props {
+  data: BlumeData;
+  title: string;
+  description: string;
+  route: string;
+  canonical?: string;
+  ogImage?: string;
+  jsonLd?: object | object[];
+}
+
+const {
+  data,
+  title,
+  description,
+  route,
+  canonical,
+  ogImage,
+  jsonLd,
+} = Astro.props;
+
+const { config } = data;
+
+function buildJsonLd(schema: object | object[]) {
+  if (Array.isArray(schema)) {
+    return JSON.stringify({
+      "@context": "https://schema.org",
+      "@graph": schema.map((item) => {
+        const { "@context": _, ...rest } = item as Record<string, unknown>;
+        return rest;
+      }),
+    });
+  }
+  return JSON.stringify(schema);
+}
+---
+
+<PageLayout
+  site={{ title: config.title, description: config.description }}
+  logo={config.logo}
+  favicon={config.favicon}
+  appleIcon={config.appleIcon}
+  banner={config.banner}
+  analytics={config.analytics}
+  navigation={data.navigation}
+  page={{ title, description, route }}
+  themeMode={config.theme.mode}
+  fontCssVars={data.fontCssVars}
+  searchEnabled={config.search.enabled}
+  siteUrl={config.site}
+  ogEnabled={config.og.enabled}
+  ogImage={ogImage}
+  canonical={canonical}
+  x={config.x}
+>
+  <div class="relative">
+    <div
+      class="pointer-events-none absolute top-0 left-0 -z-10 h-150 w-full overflow-hidden"
+    >
+      <BackgroundPattern />
+    </div>
+    <slot />
+  </div>
+  <Footer slot="footer" />
+  {
+    jsonLd && (
+      <script
+        is:inline
+        type="application/ld+json"
+        set:html={buildJsonLd(jsonLd)}
+      />
+    )
+  }
+</PageLayout>

@@ -54,6 +54,11 @@ Deleted cards go to trash first. Restore them, or delete permanently (including 
 
 From Settings on web and desktop:
 
+:::note[Limits]
+Imports accept up to 10,000 items per file. Exports can take a few minutes for
+large libraries — keep the tab open until the archive downloads.
+:::
+
 - [Import](/docs/import) bookmarks, Raindrop CSV, or a Teak archive
 - [Export](/docs/export) a portable ZIP of active cards and original files
 
@@ -78,14 +83,27 @@ Each card is processed automatically:
 
 Everything syncs in real time. Pick the surface that fits:
 
-| Surface | Docs |
-| --- | --- |
-| Web | Full library, drag-and-drop, bulk actions |
-| [Desktop (macOS)](/docs/desktop) | Native app with auto-updates |
-| [Mobile (iOS)](/docs/mobile) | Share sheet, camera, voice notes |
-| [Browser extension](/docs/extension) | One-click save from Chrome, Safari, Edge, and more |
-| [Raycast](/docs/raycast) | Keyboard-first save and search |
-| [CLI](/docs/cli) | Terminal save, search, and manage |
-| [API](/docs/api) / [MCP](/docs/mcp) | Programmatic access for tools and agents |
+<Columns cols={2}>
+  <Column>
+    <Card title="Desktop" href="/docs/desktop" icon="monitor">
+      Native macOS app with automatic updates.
+    </Card>
+  </Column>
+  <Column>
+    <Card title="Mobile" href="/docs/mobile" icon="smartphone">
+      Share sheet, camera, and voice notes on iOS.
+    </Card>
+  </Column>
+  <Column>
+    <Card title="Browser extension" href="/docs/extension" icon="puzzle">
+      One-click save from Chrome, Safari, Edge, and more.
+    </Card>
+  </Column>
+  <Column>
+    <Card title="API and MCP" href="/docs/api" icon="code">
+      Programmatic access for tools and agents.
+    </Card>
+  </Column>
+</Columns>
 
 Sign in with your browser, or create a long-lived key under **Settings → API Keys**.
