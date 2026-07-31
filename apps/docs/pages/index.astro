@@ -2,7 +2,6 @@
 import FeatureCard from "../components/FeatureCard.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
 import { buildPageSchemas } from "../lib/jsonld";
-import data from "blume:data";
 
 const features = [
   {
@@ -161,12 +160,12 @@ const jsonLd = buildPageSchemas({
 ---
 
 <MarketingLayout
-  data={data}
-  title="Never Lose That Perfect Design Again | Teak"
+  title="Never Lose That Perfect Design Again"
   description="Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again."
-  route="/"
   canonical="https://teakvault.com"
-  ogImage="/hero-image.png"
+  ogTitle="Never Lose That Perfect Design Again"
+  ogDescription="Save inspiration in 1 click, find it in 2 seconds. Never lose your best ideas again."
+  keywords="design bookmarking, visual inspiration, design organization, creative workflow, designer tools, bookmark manager"
   jsonLd={jsonLd}
 >
   <!-- Hero Section -->

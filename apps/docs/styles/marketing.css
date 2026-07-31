@@ -76,4 +76,12 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    min-height: 100%;
+  }
+
+  body {
+    @apply bg-gray-50 text-foreground dark:bg-gray-950;
+  }
 }
