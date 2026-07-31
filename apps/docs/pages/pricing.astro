@@ -1,9 +1,9 @@
 ---
 import Accordion from "blume/components/content/Accordion.astro";
 import AccordionItem from "blume/components/content/AccordionItem.astro";
-import HomeLayout from "../layouts/HomeLayout.astro";
 import PricingCard from "../components/PricingCard.astro";
 import PricingToggle from "../components/PricingToggle.astro";
+import MarketingLayout from "../layouts/MarketingLayout.astro";
 import { buildPageSchemas, buildProductSchema, SITE_URL } from "../lib/jsonld";
 
 const pricingPlans = [
@@ -124,7 +124,7 @@ const pageSchemas = buildPageSchemas({
 });
 ---
 
-<HomeLayout
+<MarketingLayout
   title="200 Cards Free. $19/month After. No Tricks."
   description="Try Teak free with 200 cards. Pro is $19/month - less than 2 coffees. Or self-host for free. Simple pricing."
   canonical="https://teakvault.com/pricing"
@@ -225,4 +225,4 @@ const pageSchemas = buildPageSchemas({
       </div>
     </section>
   </main>
-</HomeLayout>
+</MarketingLayout>

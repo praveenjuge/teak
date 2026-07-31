@@ -20,13 +20,16 @@ Teak provides a public REST API for saving, querying, and syncing cards. Use thi
 | --- | --- |
 | Production | `https://teakvault.com/api/v1` |
 | Local development | `http://docs.teak.localhost:1355/api/v1` |
-| Legacy production | `https://api.teakvault.com/v1` |
 
 The machine-readable OpenAPI document is available at `https://teakvault.com/api/openapi.json`.
 
 ## Authentication
 
 Every API request uses a bearer token in the `Authorization` header.
+
+:::warning[Keep secrets out of logs]
+Never commit `teakapi_` keys or paste them into public issue trackers. Rotate a key immediately if it leaks.
+:::
 
 <Tabs param="auth">
   <Tab title="API key">
@@ -43,7 +46,8 @@ Every API request uses a bearer token in the `Authorization` header.
 
 ## Create your first card
 
-```bash
+<CodeGroup>
+```bash curl
 curl https://teakvault.com/api/v1/cards \
   --request POST \
   --header "Authorization: Bearer $TEAK_API_KEY" \
@@ -56,6 +60,23 @@ curl https://teakvault.com/api/v1/cards \
   }'
 ```
 
+```js JavaScript
+const response = await fetch("https://teakvault.com/api/v1/cards", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${process.env.TEAK_API_KEY}`,
+    "Content-Type": "application/json",
+    "Idempotency-Key": "first-card",
+  },
+  body: JSON.stringify({
+    content: "# Project notes\n\nKeep the original spacing.",
+    cardType: "text",
+    tags: ["project"],
+  }),
+});
+```
+</CodeGroup>
+
 <Prompt
   description="Ask an agent to explore your cards through Teak's API."
   actions={["copy", "cursor"]}
@@ -66,12 +87,9 @@ curl https://teakvault.com/api/v1/cards \
 
 ## Create behavior
 
-- `content` or `url` supplies the card body.
-- `cardType` is optional. Set it to `text` to store raw Markdown exactly; omit it to keep Teak's automatic URL, quote, and palette detection.
-- `notes`, `tags`, and `source` add optional context.
-- A create response includes the new `cardId` and its Teak app URL.
+<AutoTypeTable path="types/create-card.ts" name="CreateCardBody" />
 
-See **Create Card** in the [API Reference](/reference) for the complete request and response schemas.
+A create response includes the new `cardId` and its Teak app URL. See **Create Card** in the [API Reference](/reference) for the complete request and response schemas.
 
 ## Upload files
 

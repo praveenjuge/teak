@@ -1,102 +1,36 @@
+/** Site constants and marketing-only structured data (FAQ / Product). */
+
 export const SITE_URL = "https://teakvault.com";
-export const APP_URL = "https://app.teakvault.com";
 export const SITE_NAME = "Teak";
-export const ORGANIZATION_LOGO = `${SITE_URL}/icon.png`;
-
-export const organizationSchema = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "@id": `${SITE_URL}/#organization`,
-  name: SITE_NAME,
-  url: SITE_URL,
-  logo: { "@type": "ImageObject", url: ORGANIZATION_LOGO },
-  sameAs: ["https://github.com/praveenjuge/teak", "https://x.com/praveenjuge"],
-  contactPoint: {
-    "@type": "ContactPoint",
-    email: "hi@praveenjuge.com",
-    contactType: "Customer Support",
-  },
-} as const;
-
-export const websiteSchema = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "@id": `${SITE_URL}/#website`,
-  name: SITE_NAME,
-  url: SITE_URL,
-  publisher: { "@id": `${SITE_URL}/#organization` },
-} as const;
-
-export const softwareApplicationSchema = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "@id": `${SITE_URL}/#software`,
-  name: SITE_NAME,
-  applicationCategory: "ProductivityApplication",
-  operatingSystem: "macOS, iOS, Web, Chrome, Raycast",
-  url: SITE_URL,
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD",
-  },
-  publisher: { "@id": `${SITE_URL}/#organization` },
-} as const;
-
-export const webApiSchema = {
-  "@context": "https://schema.org",
-  "@type": "WebAPI",
-  "@id": `${SITE_URL}/api/#webapi`,
-  name: "Teak API",
-  description:
-    "REST API and MCP server for saving, searching, syncing, and managing Teak cards.",
-  documentation: `${SITE_URL}/docs/api`,
-  endpointUrl: `${SITE_URL}/api/v1`,
-  provider: { "@id": `${SITE_URL}/#organization` },
-} as const;
 
 /**
- * Auto-generate common JSON-LD schemas from page metadata.
- * Replaces the old per-page manual schema builder calls.
+ * FAQ / WebPage graph for marketing pages. Docs pages rely on Blume's built-in
+ * structuredData instead of this helper.
  */
 export function buildPageSchemas(opts: {
   title: string;
   description?: string;
   url: string;
-  type?: "article" | "webpage";
   breadcrumbs?: { name: string; url: string }[];
   faqs?: { question: string; answer: string }[];
 }) {
-  const schemas: object[] = [organizationSchema, websiteSchema];
-
-  if (opts.url === SITE_URL || opts.url.startsWith(`${SITE_URL}/docs`)) {
-    schemas.push(softwareApplicationSchema);
-  }
-
-  if (
-    opts.url.startsWith(`${SITE_URL}/docs/api`) ||
-    opts.url.startsWith(`${SITE_URL}/docs/mcp`) ||
-    opts.url.startsWith(`${SITE_URL}/docs/ai-agents`)
-  ) {
-    schemas.push(webApiSchema);
-  }
-
-  // Article or WebPage
-  if (opts.type === "article") {
-    schemas.push({
+  const schemas: object[] = [
+    {
       "@context": "https://schema.org",
-      "@type": "Article",
-      "@id": `${opts.url}/#article`,
-      headline: opts.title,
-      description: opts.description,
-      url: opts.url,
-      isPartOf: { "@id": `${SITE_URL}/#website` },
-      author: { "@id": `${SITE_URL}/#organization` },
-      publisher: { "@id": `${SITE_URL}/#organization` },
-      image: `${SITE_URL}/hero-image.png`,
-    });
-  } else {
-    schemas.push({
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: SITE_NAME,
+      url: SITE_URL,
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/icon.png`,
+      },
+      sameAs: [
+        "https://github.com/praveenjuge/teak",
+        "https://x.com/praveenjuge",
+      ],
+    },
+    {
       "@context": "https://schema.org",
       "@type": "WebPage",
       "@id": `${opts.url}/#webpage`,
@@ -105,14 +39,9 @@ export function buildPageSchemas(opts: {
       description: opts.description,
       isPartOf: { "@id": `${SITE_URL}/#website` },
       about: { "@id": `${SITE_URL}/#organization` },
-      primaryImageOfPage: {
-        "@type": "ImageObject",
-        url: `${SITE_URL}/hero-image.png`,
-      },
-    });
-  }
+    },
+  ];
 
-  // Breadcrumbs
   if (opts.breadcrumbs?.length) {
     schemas.push({
       "@context": "https://schema.org",
@@ -126,7 +55,6 @@ export function buildPageSchemas(opts: {
     });
   }
 
-  // FAQs
   if (opts.faqs?.length) {
     schemas.push({
       "@context": "https://schema.org",

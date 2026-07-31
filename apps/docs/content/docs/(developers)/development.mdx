@@ -45,30 +45,28 @@ description: Setup and development workflow for Teak
 
 ## Project Layout
 
-<Tree>
-  <Tree.Folder name="teak" openable={false}>
-    <Tree.Folder name="apps" defaultOpen>
-      <Tree.Folder name="web" openable={false} />
-      <Tree.Folder name="mobile" openable={false} />
-      <Tree.Folder name="desktop" openable={false} />
-      <Tree.Folder name="extension" openable={false} />
-      <Tree.Folder name="safari-extension" openable={false} />
-      <Tree.Folder name="raycast" openable={false} />
-      <Tree.Folder name="cli" openable={false} />
-      <Tree.Folder name="docs" openable={false} />
-    </Tree.Folder>
-    <Tree.Folder name="packages" defaultOpen>
-      <Tree.Folder name="convex" defaultOpen>
-        <Tree.Folder name="ai" openable={false} />
-        <Tree.Folder name="card" openable={false} />
-        <Tree.Folder name="workflows" openable={false} />
-      </Tree.Folder>
-      <Tree.Folder name="ui" openable={false} />
-    </Tree.Folder>
-    <Tree.File name="turbo.json" />
-    <Tree.File name="package.json" />
-  </Tree.Folder>
-</Tree>
+<FileTree>
+
+- teak/
+  - apps/
+    - web/ Next.js frontend (app router, shadcn/ui)
+    - mobile/ Expo React Native
+    - desktop/ Electron desktop app (React)
+    - extension/ Chrome extension (Wxt)
+    - safari-extension/ Native macOS Safari extension app
+    - raycast/ Raycast extension
+    - cli/ npm command line client
+    - docs/ Documentation site (Blume)
+  - packages/
+    - convex/ Convex backend
+      - ai/ AI metadata helpers
+      - card/ Card mutations/queries
+      - workflows/ AI pipeline orchestration
+    - ui/ Shared UI components and hooks
+  - turbo.json Turborepo pipeline config
+  - package.json Root package + workspaces
+
+</FileTree>
 
 ## Tech Stack
 

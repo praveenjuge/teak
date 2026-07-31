@@ -61,6 +61,8 @@ export default defineConfig({
     root: "content",
   },
   deployment: {
+    // Keep static hosting (Ask AI needs server output).
+    output: "static",
     site: "https://teakvault.com",
   },
   lastModified: true,
@@ -69,10 +71,10 @@ export default defineConfig({
   },
   navigation: {
     tabs: [
-      { label: "Docs", path: "/docs" },
       { label: "Apps", path: "/apps", href: "/apps" },
       { label: "Pricing", path: "/pricing", href: "/pricing" },
       { label: "Changelog", path: "/changelog", href: "/changelog" },
+      { label: "Docs", path: "/docs" },
       { label: "API Reference", path: "/reference" },
     ],
   },
@@ -98,6 +100,23 @@ export default defineConfig({
   },
   seo: {
     x: { handle: "@praveenjuge" },
+    rss: {
+      enabled: true,
+      types: ["changelog"],
+    },
+    sitemap: true,
+    robots: true,
+    structuredData: true,
+  },
+  // Mirrored in vercel.json for Vercel Git HTTP redirects; Astro also emits
+  // these as soft redirects for non-Vercel previews and link audits.
+  redirects: [
+    { from: "/sitemap-index.xml", to: "/sitemap.xml", status: 301 },
+    { from: "/llms-small.txt", to: "/llms.txt", status: 301 },
+    { from: "/docs/index.md", to: "/docs.md", status: 301 },
+  ],
+  ai: {
+    llmsTxt: true,
   },
   integrations: [teakDevProxy()],
 });

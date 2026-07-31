@@ -2,7 +2,7 @@
 import { getCollection, render } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import Update from "blume/components/content/Update.astro";
-import HomeLayout from "../layouts/HomeLayout.astro";
+import MarketingLayout from "../layouts/MarketingLayout.astro";
 
 type DocsEntry = CollectionEntry<"docs">;
 
@@ -23,18 +23,9 @@ const renderedEntries = await Promise.all(
     return { entry, Content, slug };
   })
 );
-
-function formatDate(date: Date | string | undefined): string {
-  const value = date ? new Date(date) : new Date();
-  return value.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 ---
 
-<HomeLayout
+<MarketingLayout
   title="What's New in Teak"
   description="See how we're making Teak better every week. Real updates, no fluff."
   canonical="https://teakvault.com/changelog"
@@ -63,14 +54,13 @@ function formatDate(date: Date | string | undefined): string {
     <div>
       {renderedEntries.map(({ entry, Content, slug }) => (
         <Update
-          description={formatDate(entry.data.date)}
           href={`/changelog/${slug}`}
           label={entry.data.title}
-          tags="Product updates"
+          tags={entry.data.changelog?.category ?? "Product updates"}
         >
           <Content />
         </Update>
       ))}
     </div>
   </main>
-</HomeLayout>
+</MarketingLayout>

@@ -34,6 +34,7 @@
  * A Tab panel containing a code block receives Blume's flush-code treatment,
  * which also removes the inset from the prose around it. Restore a consistent
  * content gutter while keeping the code block itself borderless.
+ * Prefer `blume add tabs` if this needs a deeper fork later.
  */
 blume-tabs [data-blume-tab-content] > [data-blume-tab-panel][role="tabpanel"] {
   min-width: 0;

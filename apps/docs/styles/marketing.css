@@ -1,8 +1,6 @@
 @import "tailwindcss";
-@import "../../../packages/ui/src/typeset.css";
 
-/* Scan marketing Astro sources so utilities land in HomeLayout CSS
-   (Astro otherwise splits Header utilities into a chunk only docs link). */
+/* Scan marketing Astro sources so utilities land in the marketing CSS chunk. */
 @source "../components/**/*.{astro,ts,tsx,js,jsx}";
 @source "../layouts/**/*.{astro,ts,tsx,js,jsx}";
 @source "../pages/**/*.{astro,ts,tsx,js,jsx}";
@@ -14,29 +12,18 @@
   list-style: disc;
 }
 
-.typeset-docs {
-  --typeset-font-body: var(--font-sans);
-  --typeset-font-heading: var(--font-sans);
-  --typeset-font-mono: var(--font-mono);
-  --typeset-size: 15px;
-  --typeset-leading: 1.75;
-  --typeset-flow: 1.25em;
-}
-
 @custom-variant dark (&:is(.dark *, [data-theme="dark"] *));
 
 @theme inline {
   --font-sans: var(--blume-font-body);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: calc(var(--blume-radius) - 4px);
+  --radius-md: calc(var(--blume-radius) - 2px);
+  --radius-lg: var(--blume-radius);
+  --radius-xl: calc(var(--blume-radius) + 4px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
@@ -52,13 +39,10 @@
 }
 
 :root {
-  --radius: var(--blume-radius);
   --background: oklch(1 0 0);
   --foreground: oklch(0.13 0.028 261.692);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.13 0.028 261.692);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.13 0.028 261.692);
   --primary: var(--blume-accent);
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.967 0.003 264.542);
@@ -71,10 +55,6 @@
   --border: oklch(0.928 0.006 264.531);
   --input: oklch(0.928 0.006 264.531);
   --ring: oklch(0.707 0.022 261.325);
-  --font-sans: var(--blume-font-body);
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
 }
 
 .dark,
@@ -83,8 +63,6 @@
   --foreground: oklch(0.985 0.002 247.839);
   --card: oklch(0.21 0.034 264.665);
   --card-foreground: oklch(0.985 0.002 247.839);
-  --popover: oklch(0.21 0.034 264.665);
-  --popover-foreground: oklch(0.985 0.002 247.839);
   --primary: var(--blume-accent);
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.278 0.033 256.848);
