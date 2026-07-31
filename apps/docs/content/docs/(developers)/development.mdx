@@ -149,58 +149,6 @@ bun run dev:convex
 
 The docs dev server proxies `/api`, `/mcp`, and OAuth protected-resource metadata to the Convex dev deployment. That gives local docs, examples, and smoke tests the same path shape as production: `/api/v1` and `/mcp`.
 
-### Docs site (Blume)
-
-`apps/docs` is a Blume site. Content lives under `content/`; marketing pages stay under `pages/`.
-
-```bash
-bun run generate:openapi   # refresh apps/docs/openapi.json from @teak/convex
-bun run dev:docs           # docs + OpenAPI generate
-```
-
-Contributor agents that edit the docs site should install the Blume skill:
-
-```bash
-npx skills add haydenbleasel/blume
-npx skills add haydenbleasel/blume --skill blume-update-docs
-```
-
-#### Ask AI and docs MCP (optional, not enabled)
-
-The site stays on **static** output. Product Teak MCP remains at `/mcp` (Vercel rewrite to Convex).
-
-To add in-page **Ask AI** without leaving static hosting, point Blume at an external streaming endpoint:
-
-```ts
-ai: {
-  ask: {
-    enabled: true,
-    endpoint: "https://your-ask-backend.example/v1/docs/ask",
-    suggestions: [
-      { label: "How do I save from the extension?", icon: "puzzle" },
-      { label: "How does MCP auth work?", icon: "bot" },
-      { label: "How do I self-host?", icon: "server" },
-    ],
-  },
-},
-```
-
-To host Blume's **docs** MCP (search/read documentation — not card tools), switch to server output and use a non-conflicting route:
-
-```ts
-deployment: {
-  output: "server",
-  adapter: "vercel",
-  site: "https://teakvault.com",
-},
-ai: {
-  mcp: {
-    enabled: true,
-    route: "/docs-mcp", // never /mcp — that path is product Teak MCP
-  },
-},
-```
-
 ### MCP Registry
 
 The repo includes `server.json` for the MCP registry under the `com.teakvault/mcp` namespace. Publishing is manual because the namespace requires DNS verification for `teakvault.com`:

@@ -72,13 +72,6 @@ export default defineConfig({
     radius: "md",
     mode: "system",
   },
-  banner: {
-    content:
-      "Desktop, Safari, CLI, and browser sign-in for API and MCP are available.",
-    link: { text: "See apps", href: "/apps" },
-    dismissible: true,
-    id: "apps-surface-2026",
-  },
   navigation: {
     sidebar: { display: "group" },
     tabs: [
@@ -89,10 +82,6 @@ export default defineConfig({
       { label: "API Reference", path: "/reference" },
     ],
   },
-  // Stay static: Ask AI and Blume docs MCP need server output or an external
-  // Ask endpoint. Product Teak MCP stays at /mcp via Vercel rewrite — if you
-  // enable Blume's docs MCP later, mount it at /docs-mcp only. See
-  // content/docs/(developers)/development.mdx.
   export: true,
   openapi: {
     enabled: true,
@@ -106,6 +95,10 @@ export default defineConfig({
     },
   },
   seo: {
+    og: { enabled: true },
+    sitemap: true,
+    robots: true,
+    structuredData: true,
     rss: {
       enabled: true,
       types: ["changelog"],
