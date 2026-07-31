@@ -5,15 +5,17 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "build": "blume build",
-    "dev": "PORTLESS_PORT=1355 portless docs.teak blume dev",
-    "lint": "biome check blume.config.ts lib styles vercel.json package.json turbo.json tsconfig.json tsconfig.typecheck.json",
+    "generate:openapi": "bun run scripts/generate-openapi.ts",
+    "build": "bun run generate:openapi && blume build",
+    "dev": "bun run generate:openapi && PORTLESS_PORT=1355 portless docs.teak blume dev",
+    "lint": "biome check blume.config.ts lib scripts styles vercel.json package.json turbo.json tsconfig.json tsconfig.typecheck.json",
     "preview": "blume preview",
     "start": "blume preview",
     "test": "bun test lib --coverage --dots",
-    "typecheck": "blume check"
+    "typecheck": "bun run generate:openapi && blume check"
   },
   "dependencies": {
+    "@teak/convex": "workspace:*",
     "blume": "^1.2.1"
   },
   "devDependencies": {

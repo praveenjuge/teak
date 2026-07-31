@@ -5,15 +5,21 @@ description: Public Teak API for creating, querying, and syncing cards
 
 Teak provides a public API at `https://teakvault.com/api/v1`.
 
-> The API moved from `api.teakvault.com` to `teakvault.com/api`. Existing
-> `api.teakvault.com` URLs and API keys keep working, but new integrations
-> should use the simpler `teakvault.com/api` address.
+<CardGroup cols={2}>
+  <Card title="API Reference" href="/reference" icon="code">
+    Operation-by-operation OpenAPI pages with schemas and code samples.
+  </Card>
+  <Card title="MCP" href="/docs/mcp" icon="bot">
+    Remote MCP tools for the same card operations.
+  </Card>
+</CardGroup>
 
 ## Base URLs
 
 - Production: `https://teakvault.com/api/v1`
 - Local development: `http://docs.teak.localhost:1355/api/v1`
 - OpenAPI: `https://teakvault.com/api/openapi.json`
+- Interactive reference: `/reference`
 - Legacy production: `https://api.teakvault.com/v1`
 
 ## MCP Endpoint
@@ -40,11 +46,35 @@ Authorization: Bearer teakapi_secret_live_a1b2c3d4_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 Generate and manage API keys in Teak Settings: `https://app.teakvault.com/settings`.
 
+<Prompt
+  description="Ask an agent to call the Teak API with a bearer key."
+  actions={["copy", "cursor"]}
+>
+  Read https://teakvault.com/docs/api.md and browse https://teakvault.com/reference.
+  Call the Teak REST API at https://teakvault.com/api/v1 with an Authorization
+  Bearer token (teakapi_ key or OAuth access token). List my newest 10 cards,
+  then summarize titles and tags.
+</Prompt>
+
 ## Headers
 
-- `X-Request-Id` is returned on every API response.
-- `Idempotency-Key` is supported on `POST /v1/cards` and `POST /v1/cards/bulk`.
-- Rate-limited responses may include `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`, and `Retry-After`.
+<TypeTable
+  type={{
+    "X-Request-Id": {
+      type: "string",
+      description: "Returned on every API response for support and log correlation.",
+    },
+    "Idempotency-Key": {
+      type: "string",
+      description:
+        "Supported on POST /v1/cards and POST /v1/cards/bulk to safely retry creates.",
+    },
+    "RateLimit-Limit": {
+      type: "string",
+      description: "Present on rate-limited responses with Remaining, Reset, and Retry-After.",
+    },
+  }}
+/>
 
 ## Endpoints
 
@@ -91,11 +121,23 @@ Supported query parameters:
 
 The `include` parameter is a comma-separated list of field groups to add to each item. Omitting it returns the base fields only.
 
-| `include` value | Extra fields added                                                |
-| --------------- | ----------------------------------------------------------------- |
-| `content`       | `content`, `notes`, `aiSummary`                                   |
-| `metadata`      | `fileName`, `fileSize`, `mimeType`, `fileUrl`, `linkPreviewImageUrl`, `screenshotUrl`, `thumbnailUrl` |
-| `processing`    | `processingStatus`, `metadataStatus`, `aiTranscript`              |
+<TypeTable
+  type={{
+    content: {
+      type: "include value",
+      description: "Adds content, notes, and aiSummary.",
+    },
+    metadata: {
+      type: "include value",
+      description:
+        "Adds fileName, fileSize, mimeType, fileUrl, linkPreviewImageUrl, screenshotUrl, and thumbnailUrl.",
+    },
+    processing: {
+      type: "include value",
+      description: "Adds processingStatus, metadataStatus, and aiTranscript.",
+    },
+  }}
+/>
 
 Response:
 

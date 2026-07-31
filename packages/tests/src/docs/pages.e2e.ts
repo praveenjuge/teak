@@ -1,10 +1,18 @@
 import { expect, test } from "@playwright/test";
 
-for (const path of ["/docs/", "/docs/api/", "/docs/mcp/", "/docs/cli/"]) {
+for (const path of [
+  "/docs/",
+  "/docs/api/",
+  "/docs/mcp/",
+  "/docs/cli/",
+  "/reference/",
+]) {
   test(`docs key page ${path}`, async ({ page }) => {
     await page.goto(path);
     await expect(page.locator("h1")).toBeVisible();
-    await expect(page.locator("body")).toContainText(/Teak|API|MCP|CLI/);
+    await expect(page.locator("body")).toContainText(
+      /Teak|API|MCP|CLI|Reference|Health/
+    );
   });
 }
 

@@ -66,6 +66,7 @@
       "name": "@teak/docs",
       "version": "1.0.59",
       "dependencies": {
+        "@teak/convex": "workspace:*",
         "blume": "^1.2.1",
       },
       "devDependencies": {

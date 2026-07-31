@@ -1,10 +1,7 @@
 # deps
 /node_modules
 
-# generated content
-.contentlayer
-.content-collections
-.source
+# generated
 .blume
 
 # test & build
@@ -26,4 +23,3 @@ yarn-error.log*
 .env*.local
 .vercel
 .env.local
-.astro

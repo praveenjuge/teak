@@ -79,10 +79,20 @@ export default defineConfig({
       { label: "Apps", path: "/apps", href: "/apps" },
       { label: "Pricing", path: "/pricing", href: "/pricing" },
       { label: "Changelog", path: "/changelog", href: "/changelog" },
+      { label: "API Reference", path: "/reference" },
     ],
   },
-  ai: {
-    llmsTxt: true,
+  export: true,
+  openapi: {
+    enabled: true,
+    route: "/reference",
+    spec: "./openapi.json",
+    codeSamples: ["curl", "js"],
+  },
+  markdown: {
+    code: {
+      icons: true,
+    },
   },
   seo: {
     og: { enabled: true },
@@ -93,14 +103,7 @@ export default defineConfig({
       enabled: true,
       types: ["changelog"],
     },
-  },
-  markdown: {
-    codeBlocks: {
-      theme: {
-        light: "github-light",
-        dark: "github-dark",
-      },
-    },
+    x: { handle: "@praveenjuge" },
   },
   integrations: [teakDevProxy()],
 });

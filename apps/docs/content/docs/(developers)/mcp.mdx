@@ -5,8 +5,9 @@ description: Remote MCP server for Teak card operations
 
 Teak provides a remote MCP server at `https://teakvault.com/mcp`.
 
-> The MCP server moved from `api.teakvault.com/mcp` to `teakvault.com/mcp`.
-> Existing connections keep working — see the [API migration notice](./api#base-urls) for details.
+:::tip[Product MCP vs docs]
+`https://teakvault.com/mcp` is Teak's **card** MCP (save, search, sync). It is not a documentation search server. For human and agent-readable docs, start at [`/llms.txt`](https://teakvault.com/llms.txt) or any page's `.md` URL.
+:::
 
 ## Base URLs
 
@@ -31,6 +32,14 @@ claude mcp add --transport http teak https://teakvault.com/mcp
 
 Then start the MCP connection (for example, run `/mcp` in Claude) and complete the browser sign-in when prompted.
 
+<Prompt
+  description="Connect Claude Code to Teak MCP with browser sign-in."
+  actions={["copy", "cursor"]}
+>
+  Run: claude mcp add --transport http teak https://teakvault.com/mcp
+  Then open /mcp in Claude, complete browser sign-in, and list my favorite cards.
+</Prompt>
+
 ### API key
 
 You can also authenticate with a Teak API key in the `Authorization` header:
@@ -45,10 +54,25 @@ Unauthenticated requests receive `401` with a `WWW-Authenticate` header pointing
 
 ## Transport
 
-- Protocol: MCP Streamable HTTP
-- Endpoint path: `/mcp`
-- Also supported: `/mcp/`
-- Server mode: stateless JSON response mode
+<TypeTable
+  type={{
+    Protocol: {
+      type: "string",
+      required: true,
+      description: "MCP Streamable HTTP",
+    },
+    "Endpoint path": {
+      type: "string",
+      required: true,
+      description: "/mcp (also /mcp/)",
+    },
+    "Server mode": {
+      type: "string",
+      required: true,
+      description: "Stateless JSON response mode",
+    },
+  }}
+/>
 
 OAuth protected-resource discovery advertises the canonical production endpoint
 shown above, so MCP clients validate and connect to the same public resource.
