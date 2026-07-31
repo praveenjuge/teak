@@ -1,0 +1,66 @@
+---
+import { getCollection, render } from "astro:content";
+import type { CollectionEntry } from "astro:content";
+import Update from "blume/components/content/Update.astro";
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+
+type DocsEntry = CollectionEntry<"docs">;
+
+const entries = (await getCollection("docs"))
+  .filter(
+    (entry: DocsEntry) => entry.data.type === "changelog" && !entry.data.draft
+  )
+  .sort((a: DocsEntry, b: DocsEntry) => {
+    const aDate = new Date(a.data.date ?? 0).getTime();
+    const bDate = new Date(b.data.date ?? 0).getTime();
+    return bDate - aDate;
+  });
+
+const renderedEntries = await Promise.all(
+  entries.map(async (entry: DocsEntry) => {
+    const { Content } = await render(entry);
+    const slug = entry.id.split("/").at(-1)?.replace(/\.mdx$/u, "");
+    return { entry, Content, slug };
+  })
+);
+---
+
+<MarketingLayout
+  title="What's New in Teak"
+  description="See how we're making Teak better every week. Real updates, no fluff."
+  canonical="https://teakvault.com/changelog"
+  ogTitle="What's New in Teak"
+  ogDescription="See how we're making Teak better every week. Real updates, no fluff."
+  keywords="teak changelog, teak updates, what's new teak, teak release notes, teak new features"
+>
+  <main class="container mx-auto max-w-2xl px-4 py-12">
+    <div class="mx-auto mt-10 mb-12 max-w-md text-center">
+      <h1 class="mb-4 text-balance font-bold text-4xl tracking-tight md:text-5xl">
+        What's New
+      </h1>
+      <p class="mb-6 text-balance text-lg text-muted-foreground">
+        Real updates that make Teak better. No corporate fluff, promise.
+      </p>
+      <a
+        class="inline-flex h-10 items-center justify-center rounded-md border bg-background px-4 font-medium text-sm hover:bg-accent hover:text-accent-foreground"
+        href="https://x.com/praveenjuge"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        Follow on X
+      </a>
+    </div>
+
+    <div>
+      {renderedEntries.map(({ entry, Content, slug }) => (
+        <Update
+          href={`/changelog/${slug}`}
+          label={entry.data.title}
+          tags={entry.data.changelog?.category ?? "Product updates"}
+        >
+          <Content />
+        </Update>
+      ))}
+    </div>
+  </main>
+</MarketingLayout>
