@@ -14,7 +14,7 @@ test("signup, create, and search", async ({ page }) => {
     const marker = `matrix-${Date.now()}`;
     await page.goto("/");
     const note = page.getByRole("textbox", { name: "Markdown content" });
-    await note.pressSequentially(marker);
+    await note.fill(marker);
     await expect(note).toHaveText(marker);
     await clickVisibleControl(
       page.getByRole("button", { exact: true, name: "Save" })
