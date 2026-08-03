@@ -1,10 +1,12 @@
 import { api } from "@teak/convex";
+import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "../../convexQueryHooks";
 import { useCardModal } from "../../hooks/useCardModal";
 import { MoreInformationModal } from "../modals/MoreInformationModal";
 import { NotesEditModal } from "../modals/NotesEditModal";
 import { TagManagementModal } from "../modals/TagManagementModal";
+import { shouldReportInvalidHydratedCard } from "./cardHydrationState";
 import { CardModal } from "./CardModal";
 import type { CardModalCard } from "./types";
 
@@ -36,10 +38,14 @@ export function ConnectedCardModal({
   const [showTagManagementModal, setShowTagManagementModal] = useState(false);
   const [showMoreInfoModal, setShowMoreInfoModal] = useState(false);
   const [showNotesEditModal, setShowNotesEditModal] = useState(false);
+  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
+  const canHydrateCard = Boolean(
+    cardId && !cardData && !isAuthLoading && isAuthenticated
+  );
 
   const hydratedCard = useQuery(
     api.cards.getCardByUrlId,
-    cardId && !cardData ? { id: cardId } : "skip"
+    canHydrateCard ? { id: cardId as string } : "skip"
   );
 
   const resolvedCard = cardData ?? hydratedCard ?? null;
@@ -78,14 +84,27 @@ export function ConnectedCardModal({
   });
 
   useEffect(() => {
-    if (!(open && cardId && !cardData)) {
-      return;
-    }
-
-    if (hydratedCard === null) {
+    if (
+      shouldReportInvalidHydratedCard({
+        cardId,
+        hasCardData: Boolean(cardData),
+        hydratedCard,
+        isAuthenticated,
+        isAuthLoading,
+        open,
+      })
+    ) {
       onInvalidCard?.();
     }
-  }, [cardData, cardId, hydratedCard, onInvalidCard, open]);
+  }, [
+    cardData,
+    cardId,
+    hydratedCard,
+    isAuthenticated,
+    isAuthLoading,
+    onInvalidCard,
+    open,
+  ]);
 
   useEffect(() => {
     if (open && openTagManagement) {
