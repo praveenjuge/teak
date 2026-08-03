@@ -12,7 +12,12 @@ test("signup, create, and search", async ({ page }) => {
   );
   try {
     const marker = `matrix-${Date.now()}`;
+    const convexAuthReady = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/auth/convex/token" && response.ok();
+    });
     await page.goto("/");
+    await convexAuthReady;
     const note = page.getByRole("textbox", { name: "Markdown content" });
     await note.fill(marker);
     await expect(note).toHaveText(marker);
