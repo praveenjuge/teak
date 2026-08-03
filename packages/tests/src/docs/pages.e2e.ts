@@ -36,7 +36,12 @@ test("changelog renders Blume release notes", async ({ page }) => {
 
   const releaseNotes = page.locator("[data-blume-update]").first();
   await expect(releaseNotes).toBeVisible();
-  await expect(releaseNotes).toContainText("July 2026");
+  const releaseLink = releaseNotes.getByRole("link").first();
+  await expect(releaseLink).toHaveText(/^[A-Z][a-z]+ 20\d{2}$/);
+  await expect(releaseLink).toHaveAttribute(
+    "href",
+    /^\/changelog\/[a-z]+-20\d{2}$/
+  );
   await expect(releaseNotes.locator("li")).not.toHaveCount(0);
 });
 
