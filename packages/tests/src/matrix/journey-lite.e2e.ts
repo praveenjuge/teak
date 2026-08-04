@@ -12,12 +12,13 @@ test("signup, create, and search", async ({ page }) => {
   );
   try {
     const marker = `matrix-${Date.now()}`;
-    const convexAuthReady = page.waitForResponse((response) => {
-      const url = new URL(response.url());
-      return url.pathname === "/api/auth/convex/token" && response.ok();
-    });
     await page.goto("/");
-    await convexAuthReady;
+    await expect(
+      page.getByText(
+        "Welcome to Teak! Start capturing your thoughts, links, and inspiration.",
+        { exact: true }
+      )
+    ).toBeVisible();
     const note = page.getByRole("textbox", { name: "Markdown content" });
     await note.fill(marker);
     await expect(note).toHaveText(marker);
