@@ -133,7 +133,15 @@ describe("Apple release workflows", () => {
     ]) {
       expect(versionTag).toContain(`workflow: ${workflow}`);
     }
-    expect(versionTag).toContain('gh workflow run "$WORKFLOW"');
+    expect(versionTag).toContain(
+      'gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY"'
+    );
+    expect(versionTag).toContain(
+      'gh run watch "$run_id" --repo "$GITHUB_REPOSITORY"'
+    );
+    expect(versionTag).toContain(
+      'gh run watch "$active" --repo "$GITHUB_REPOSITORY"'
+    );
     expect(versionTag).toContain(".display_title == $title");
     expect(versionTag).toContain('.event == "workflow_dispatch"');
     expect(versionTag).toContain("Reusing successful $WORKFLOW run");
