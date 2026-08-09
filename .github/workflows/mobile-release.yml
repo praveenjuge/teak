@@ -480,13 +480,18 @@ jobs:
           IPA_PATH: ${{ steps.ipa.outputs.path }}
         run: |
           sha256="$(shasum -a 256 "$IPA_PATH" | awk '{print $1}')"
-          descriptor="$RUNNER_TEMP/ios-handoff.json"
+          handoff_directory="$RUNNER_TEMP/ios-handoff"
+          mkdir -p "$handoff_directory"
+          handoff_ipa="$handoff_directory/$(basename "$IPA_PATH")"
+          descriptor="$handoff_directory/ios-handoff.json"
+          cp "$IPA_PATH" "$handoff_ipa"
           jq -n \
             --arg version "$VERSION" \
             --arg buildNumber "$BUILD_NUMBER" \
             --arg sha256 "$sha256" \
-            --arg fileName "$(basename "$IPA_PATH")" \
+            --arg fileName "$(basename "$handoff_ipa")" \
             '{version: $version, buildNumber: $buildNumber, sha256: $sha256, fileName: $fileName}' > "$descriptor"
+          echo "directory=$handoff_directory" >> "$GITHUB_OUTPUT"
           echo "descriptor=$descriptor" >> "$GITHUB_OUTPUT"
           echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
 
@@ -495,9 +500,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: teak-ios-${{ env.VERSION }}-signed
-          path: |
-            ${{ steps.ipa.outputs.path }}
-            ${{ steps.handoff.outputs.descriptor }}
+          path: ${{ steps.handoff.outputs.directory }}
           if-no-files-found: error
           retention-days: 1
 
@@ -563,9 +566,11 @@ jobs:
             echo "Sentry Size Analysis is mandatory and SENTRY_AUTH_TOKEN is missing." >&2
             exit 1
           fi
+          descriptor_count="$(find "$RUNNER_TEMP/ios-handoff" -maxdepth 1 -type f -name 'ios-handoff.json' | wc -l | tr -d ' ')"
+          ipa_count="$(find "$RUNNER_TEMP/ios-handoff" -maxdepth 1 -type f -name '*.ipa' | wc -l | tr -d ' ')"
           descriptor="$(find "$RUNNER_TEMP/ios-handoff" -maxdepth 1 -type f -name 'ios-handoff.json')"
           ipa_path="$(find "$RUNNER_TEMP/ios-handoff" -maxdepth 1 -type f -name '*.ipa')"
-          if [ "$(find "$RUNNER_TEMP/ios-handoff" -maxdepth 1 -type f -name '*.ipa' | wc -l | tr -d ' ')" -ne 1 ] || [ ! -s "$descriptor" ]; then
+          if [ "$descriptor_count" -ne 1 ] || [ "$ipa_count" -ne 1 ] || [ ! -s "$descriptor" ] || [ ! -s "$ipa_path" ]; then
             echo "Expected one signed IPA and its handoff descriptor." >&2
             exit 1
           fi
