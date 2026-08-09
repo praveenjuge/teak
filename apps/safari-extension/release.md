@@ -14,32 +14,36 @@ patch bump merged to `main` is the only normal manual release action. Root
    reuses successful or active child runs and dispatches only missing work.
 3. The workflow verifies the tag, Xcode project, asc version, and App Store
    Connect credentials.
-4. asc finds or creates the `MAC_OS` App Store version, copies localization
+4. The package version is authoritative. If an older Safari version is waiting
+   for or currently in App Review, asc cancels that superseded submission,
+   waits for Apple to make it editable, and updates the same version record to
+   the new package version. Dry runs only report the replacement plan.
+5. asc finds or creates the `MAC_OS` App Store version, copies localization
    metadata from the prior live macOS version without copying What's New,
    applies the generic note, preserves review details and the existing age
    rating declaration, sparsely completes Apple's new social-media age-rating
    fields, and sets `AFTER_APPROVAL`.
-5. For a new build, asc resolves or creates the Mac App Distribution and Mac
+6. For a new build, asc resolves or creates the Mac App Distribution and Mac
    Installer Distribution certificates that match the repository's private key,
    then resolves, creates, and downloads the two Mac App Store provisioning
    profiles. The private key and certificates live only in the runner's secure
    temporary keychain.
-6. Xcode archives and exports
+7. Xcode archives and exports
    `teak-safari-<version>-mac-app-store.pkg` without changing the stable app,
    extension, App Group, native-messaging, or keychain identifiers.
-7. The macOS job publishes the signed PKG and a SHA-256 handoff descriptor as a
+8. The macOS job publishes the signed PKG and a SHA-256 handoff descriptor as a
    one-day private Actions artifact. An Ubuntu job verifies the digest before
    continuing.
-8. `asc builds upload --pkg --wait` uploads the PKG from Ubuntu. The workflow resolves the
+9. `asc builds upload --pkg --wait` uploads the PKG from Ubuntu. The workflow resolves the
    exact returned marketing-version/build-number pair and requires one `VALID`
    `MAC_OS` build.
-9. The PKG is attached to the matching GitHub Release. asc attaches the exact
+10. The PKG is attached to the matching GitHub Release. asc attaches the exact
    Apple build, validates readiness, runs review doctor, and submits it directly
    to App Review.
-10. A separate read-only proof pass verifies the exact version, platform,
+11. A separate read-only proof pass verifies the exact version, platform,
     attached `VALID` build, submission, `AFTER_APPROVAL`, and review state. It
     writes `teak-safari-<version>-app-store.json` to the GitHub Release.
-11. The workflow succeeds only after Safari macOS reaches `WAITING_FOR_REVIEW`
+12. The workflow succeeds only after Safari macOS reaches `WAITING_FOR_REVIEW`
     or a later valid state.
 
 The release note is:
@@ -59,8 +63,12 @@ gh workflow run safari-extension-release.yml --ref main -f "version=$version" -f
   build only when the matching labeled GitHub PKG and release manifest exist.
 - The workflow addresses only `MAC_OS`; unrelated iOS version records are
   ignored.
-- In-review or already-live versions are read-only. Rejected versions are never
-  resubmitted or modified automatically.
+- The newest lockstep package version wins. All Safari App Store mutations are
+  serialized across versions. A different Safari version in an active review is
+  cancelled and promoted to the new version. Ambiguous active reviews or a newer
+  App Store version fail closed.
+- An exact target version already in review or live remains read-only. Terminal
+  Apple rejections remain manual recovery states.
 - A terminal failure opens or updates the same version-scoped Apple release
   issue used by iOS. The scheduled status workflow checks every open release
   issue and closes it only when both ASC states are live and both public

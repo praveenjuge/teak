@@ -16,19 +16,23 @@ iOS build history.
    reuses successful or active child runs and dispatches only missing work.
 4. The workflow verifies the tag, lockstep packages, dynamic Expo version, asc
    version, and credentials.
-5. It reuses an exact valid App Store Connect build for the target marketing
+5. The package version is authoritative. If an older version is waiting for or
+   currently in App Review, asc cancels that superseded submission, waits for
+   Apple to make the version editable, updates the same version record to the
+   new package version, and preserves its metadata. Dry runs report this plan
+   without changing App Store Connect.
+6. It reuses an exact valid App Store Connect build for the target marketing
    version when one exists. Otherwise it allocates the next build number from
    App Store Connect, generates the native iOS project with Expo Prebuild, and
    uses CocoaPods plus Xcode directly on the GitHub Actions macOS runner.
-6. asc finds or creates the exact iOS distribution certificate and App Store
+7. asc finds or creates the exact iOS distribution certificate and App Store
    provisioning profiles for the Teak app and share extension. The workflow
    archives, exports, and verifies the signed IPA locally, including bundle IDs,
    marketing version, build number, embedded profiles, and signatures.
-7. The macOS job publishes the signed IPA and a SHA-256 handoff descriptor as a
+8. The macOS job uploads the verified IPA to mandatory Sentry Size Analysis,
+   then publishes the signed IPA and a SHA-256 handoff descriptor as a
    one-day private Actions artifact. An Ubuntu job verifies the digest before
    any external upload.
-8. The Ubuntu job uploads the exact IPA to Sentry Size Analysis. A failed or
-   missing Sentry upload stops the release before App Store Connect upload.
 9. asc uploads the exact IPA directly to App Store Connect and waits for a
    `VALID` build.
 10. asc finds or creates the iOS App Store version, copies localization metadata
@@ -62,8 +66,12 @@ gh workflow run mobile-release.yml --ref main -f "version=$version" -f dry_run=t
 - App-wide concurrency keeps build-number allocation through upload atomic.
   Reruns reuse an exact valid Apple build only when its release manifest proves
   the artifact, Sentry analysis, build, submission, and prior workflow.
-- In-review or already-live versions are read-only and return success.
-- Rejected versions are never resubmitted or modified automatically.
+- The newest lockstep package version wins. A different version in an active
+  review is cancelled and promoted to the new version before submission. The
+  workflow fails closed if multiple active reviews or a newer App Store version
+  make that choice ambiguous.
+- An exact target version already in review or live remains read-only and
+  returns success. Terminal Apple rejections remain manual recovery states.
 - A terminal workflow failure opens or updates the single
   `Apple release v<version>` GitHub issue with the workflow link, redacted asc
   status, doctor remediation, and the exact rerun command.
