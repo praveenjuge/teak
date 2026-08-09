@@ -7,6 +7,7 @@ const repositoryRoot = resolve(mobileRoot, "../..");
 
 test("production mobile builds require Sentry uploads", () => {
   const app = JSON.parse(readFileSync(resolve(mobileRoot, "app.json"), "utf8"));
+  const appConfig = readFileSync(resolve(mobileRoot, "app.config.js"), "utf8");
   const eas = JSON.parse(readFileSync(resolve(mobileRoot, "eas.json"), "utf8"));
   const metro = readFileSync(resolve(mobileRoot, "metro.config.js"), "utf8");
   const packageJson = JSON.parse(
@@ -16,8 +17,10 @@ test("production mobile builds require Sentry uploads", () => {
     readFileSync(resolve(mobileRoot, "store.config.json"), "utf8")
   );
 
-  expect(app.expo.version).toBe(packageJson.version);
-  expect(store.apple.version).toBe(packageJson.version);
+  expect(app.expo.version).toBeUndefined();
+  expect(store.apple.version).toBeUndefined();
+  expect(appConfig).toContain('require("../../package.json")');
+  expect(appConfig).toContain("version: rootPackage.version");
   expect(app.expo.plugins).toContainEqual([
     "@sentry/react-native/expo",
     expect.objectContaining({
@@ -35,19 +38,27 @@ test("production mobile builds require Sentry uploads", () => {
   expect(packageJson.scripts["build:sentry"]).toContain("teak-mobile-prod");
 });
 
-test("keeps mobile artifacts out of GitHub Actions and Expo cloud builds", () => {
+test("uploads hosted production builds to Sentry before App Store Connect", () => {
   const packageJson = JSON.parse(
     readFileSync(resolve(mobileRoot, "package.json"), "utf8")
   );
-  const workflowPath = resolve(
+  const legacyWorkflowPath = resolve(
     repositoryRoot,
     ".github/workflows/mobile-size-analysis.yml"
   );
+  const workflow = readFileSync(
+    resolve(repositoryRoot, ".github/workflows/mobile-release.yml"),
+    "utf8"
+  );
 
-  expect(existsSync(workflowPath)).toBe(false);
-  expect(packageJson.scripts["build:local"]).toContain("--local");
+  expect(existsSync(legacyWorkflowPath)).toBe(false);
+  expect(packageJson.scripts["build:local"]).toBeUndefined();
+  expect(packageJson.scripts["build:submit"]).toBeUndefined();
   expect(packageJson.scripts["build:sentry"]).toContain(
     "sentry-cli build upload"
+  );
+  expect(workflow.indexOf("Upload IPA to Sentry Size Analysis")).toBeLessThan(
+    workflow.indexOf("Upload IPA with asc")
   );
 });
 

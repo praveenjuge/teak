@@ -25,14 +25,5 @@
         "SKIP_SIMPLE_GIT_HOOKS": "1"
       }
     }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "ascAppId": "6756574989",
-        "appleId": "hello@praveenjuge.com",
-        "metadataPath": "./store.config.json"
-      }
-    }
   }
 }

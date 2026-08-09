@@ -1,259 +1,395 @@
 name: Safari Extension Release
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to upload, matching every package.json"
+        description: "Patch version matching every package.json"
         required: true
         type: string
       release_notes:
         description: "App Store release notes"
         required: false
         type: string
+      dry_run:
+        description: "Verify release readiness without building or mutating Apple state"
+        required: true
+        default: true
+        type: boolean
 
 concurrency:
-  group: safari-extension-release-${{ github.ref }}
+  group: safari-app-store-${{ inputs.version }}
   cancel-in-progress: false
 
 permissions:
   contents: write
+  issues: write
 
 env:
   ASC_APP_ID: "6770003409"
+  ASC_BYPASS_KEYCHAIN: "1"
+  ASC_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER }}
+  ASC_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+  ASC_NO_UPDATE: "1"
+  ASC_VERSION: "3.6.1"
   APPLE_TEAM_ID: LW385M78LW
+  PLATFORM: MAC_OS
   PROJECT_PATH: apps/safari-extension/teak-safari.xcodeproj
+  RELEASE_NOTES: ${{ inputs.release_notes || 'Small fixes and polish to keep saving pages from Safari smooth and reliable.' }}
   SCHEME_NAME: teak-safari (macOS)
+  VERSION: ${{ inputs.version }}
 
 jobs:
-  build-and-upload:
+  release:
     runs-on: macos-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     steps:
-      - name: Checkout
+      - name: Checkout release ref
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Resolve release version
-        id: version
+      - name: Set up asc
+        uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
+        with:
+          version: ${{ env.ASC_VERSION }}
+
+      - name: Prepare App Store Connect key
         env:
-          TAG_NAME: ${{ github.ref_name }}
-          DISPATCH_VERSION: ${{ inputs.version }}
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            version="$DISPATCH_VERSION"
-          else
-            version="${TAG_NAME#v}"
-          fi
-
-          if ! [[ "$version" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
-            echo "Invalid release version: $version" >&2
-            exit 1
-          fi
-
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "build_number=${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
-
-      - name: Check if version already uploaded
-        id: check
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
-          TAG_NAME: v${{ steps.version.outputs.version }}
-        run: |
-          expected_asset="teak-safari-${VERSION}-mac-app-store.pkg"
-          if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx "$expected_asset"; then
-            echo "Release $TAG_NAME already contains $expected_asset — skipping package upload."
-            echo "should_upload=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "should_upload=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Verify every package version matches release
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          failed=0
-          while IFS= read -r file; do
-            package_version="$(node -p "require('./${file}').version")"
-            if [ "$package_version" != "$VERSION" ]; then
-              echo "$file has version $package_version, expected $VERSION" >&2
-              failed=1
-            fi
-          done < <(git ls-files 'package.json' 'apps/*/package.json' 'packages/*/package.json')
-
-          if [ "$failed" -ne 0 ]; then
-            echo "Bump every package.json in the monorepo to $VERSION before releasing." >&2
-            exit 1
-          fi
-
-      - name: Verify App Store Connect API credentials
-        env:
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
         run: |
-          missing=()
-          for name in APPLE_API_ISSUER APPLE_API_KEY_ID APPLE_API_KEY_P8; do
-            if [ -z "${!name}" ]; then
-              missing+=("$name")
-            fi
-          done
-
-          if [ "${#missing[@]}" -gt 0 ]; then
-            printf 'Missing required App Store Connect secret(s): %s\n' "${missing[*]}" >&2
+          if [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$APPLE_API_KEY_P8" ]; then
+            echo "Missing App Store Connect credentials." >&2
             exit 1
           fi
-
-      - name: Verify Apple signing credentials
-        if: steps.check.outputs.should_upload == 'true'
-        env:
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64 }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-        run: |
-          missing=()
-          for name in APPLE_CERTIFICATE_PASSWORD APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64 APPLE_SIGNING_IDENTITY; do
-            if [ -z "${!name}" ]; then
-              missing+=("$name")
-            fi
-          done
-
-          if [ "${#missing[@]}" -gt 0 ]; then
-            printf 'Missing required Apple signing secret(s): %s\n' "${missing[*]}" >&2
-            exit 1
-          fi
-
-      - name: Prepare App Store Connect API key
-        env:
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
-        run: |
-          key_dir="$RUNNER_TEMP/appstoreconnect/private_keys"
-          mkdir -p "$key_dir"
-          key_path="$key_dir/AuthKey_${APPLE_API_KEY_ID}.p8"
+          key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
           printf '%s' "$APPLE_API_KEY_P8" > "$key_path"
           chmod 600 "$key_path"
+          echo "ASC_PRIVATE_KEY_PATH=$key_path" >> "$GITHUB_ENV"
 
-          echo "APPLE_API_KEY_PATH=$key_path" >> "$GITHUB_ENV"
-          echo "API_PRIVATE_KEYS_DIR=$key_dir" >> "$GITHUB_ENV"
-
-      - name: Prepare Apple signing certificate
-        if: steps.check.outputs.should_upload == 'true'
+      - name: Verify release identity, package versions, asc, and Xcode project
         env:
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          node scripts/release-version.mjs lockstep "$VERSION"
+          if [ "$DRY_RUN" != "true" ] && [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+            echo "A real release must run from v$VERSION; received $GITHUB_REF_NAME." >&2
+            exit 1
+          fi
+          asc auth status --validate --output table
+          asc_version="$(asc --version | awk '{print $1}')"
+          if [ "$asc_version" != "$ASC_VERSION" ]; then
+            echo "asc $ASC_VERSION is required; found $asc_version." >&2
+            exit 1
+          fi
+          xcodebuild -list -project "$PROJECT_PATH"
+
+      - name: Resolve current Apple release state
+        id: release_state
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          versions_json="$RUNNER_TEMP/safari-versions.json"
+          for attempt in 1 2 3; do
+            if asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --paginate > "$versions_json"; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep $((attempt * 10))
+          done
+
+          target="$(jq -c --arg version "$VERSION" '.data[]? | select(.attributes.versionString == $version)' "$versions_json" | head -1)"
+          target_id="$(jq -r '.id // empty' <<< "$target")"
+          target_state="$(jq -r '.attributes.appVersionState // .attributes.appStoreState // empty' <<< "$target")"
+          source_version="$(jq -r --arg target "$VERSION" '
+            .data[]?
+            | select((.attributes.appVersionState // .attributes.appStoreState) as $state
+              | ["READY_FOR_DISTRIBUTION", "READY_FOR_SALE", "PROCESSING_FOR_DISTRIBUTION"]
+              | index($state))
+            | .attributes.versionString
+            | select(. != $target)
+          ' "$versions_json" | sort -V | tail -1)"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            mutate=false
+            {
+              echo "### Safari macOS dry run"
+              echo "- App: $ASC_APP_ID"
+              echo "- Target: $VERSION (${target_state:-not created})"
+              echo "- Metadata source: ${source_version:-not found}"
+              echo "- Xcode project and asc authentication: valid"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            case "$target_state" in
+              ""|PREPARE_FOR_SUBMISSION)
+                mutate=true
+                ;;
+              WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)
+                mutate=false
+                echo "Safari macOS $VERSION is already $target_state; no mutation will run." >> "$GITHUB_STEP_SUMMARY"
+                ;;
+              DEVELOPER_REJECTED|REJECTED|METADATA_REJECTED|INVALID_BINARY)
+                echo "Safari macOS $VERSION is $target_state. Rejections are never resubmitted automatically." >&2
+                exit 1
+                ;;
+              *)
+                echo "Refusing to mutate Safari macOS $VERSION in unknown state: $target_state" >&2
+                exit 1
+                ;;
+            esac
+          fi
+          {
+            echo "target_id=$target_id"
+            echo "target_state=$target_state"
+            echo "source_version=$source_version"
+            echo "mutate=$mutate"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Find or create the macOS version and preserve release metadata
+        id: apple_version
+        if: steps.release_state.outputs.mutate == 'true'
+        env:
+          SOURCE_VERSION: ${{ steps.release_state.outputs.source_version }}
+          TARGET_ID: ${{ steps.release_state.outputs.target_id }}
+        run: |
+          version_id="$TARGET_ID"
+          if [ -z "$version_id" ]; then
+            if [ -z "$SOURCE_VERSION" ]; then
+              echo "No prior live macOS version is available for metadata carry-forward." >&2
+              exit 1
+            fi
+            asc versions create \
+              --app "$ASC_APP_ID" \
+              --version "$VERSION" \
+              --platform "$PLATFORM" \
+              --release-type AFTER_APPROVAL \
+              --copy-metadata-from "$SOURCE_VERSION" \
+              --exclude-fields whatsNew > "$RUNNER_TEMP/safari-version-create.json"
+            version_id="$(jq -r '.id // empty' "$RUNNER_TEMP/safari-version-create.json")"
+          fi
+          if [ -z "$version_id" ]; then
+            version_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 | jq -r '.data[0].id // empty')"
+          fi
+          if [ -z "$version_id" ]; then
+            echo "Could not resolve Safari macOS App Store version $VERSION." >&2
+            exit 1
+          fi
+
+          asc versions update --version-id "$version_id" --release-type AFTER_APPROVAL > "$RUNNER_TEMP/safari-version-update.json"
+          localizations="$RUNNER_TEMP/safari-localizations.json"
+          asc localizations list --version "$version_id" --paginate > "$localizations"
+          if [ "$(jq '.data | length' "$localizations")" -eq 0 ]; then
+            echo "Metadata carry-forward produced no version localizations." >&2
+            exit 1
+          fi
+          while IFS= read -r locale; do
+            asc localizations update \
+              --version "$version_id" \
+              --locale "$locale" \
+              --whats-new "$RELEASE_NOTES" > /dev/null
+          done < <(jq -r '.data[].attributes.locale' "$localizations")
+
+          source_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$SOURCE_VERSION" --limit 1 | jq -r '.data[0].id // empty')"
+          if ! asc review details-for-version --version-id "$version_id" > "$RUNNER_TEMP/safari-review-target.json" 2>/dev/null; then
+            asc review details-for-version --version-id "$source_id" > "$RUNNER_TEMP/safari-review-source.json"
+            review="$RUNNER_TEMP/safari-review-source.json"
+            args=(review details-create --version-id "$version_id")
+            for field in contactFirstName contactLastName contactEmail contactPhone notes; do
+              value="$(jq -r --arg field "$field" '.data.attributes[$field] // .[$field] // empty' "$review")"
+              case "$field" in
+                contactFirstName) flag=--contact-first-name ;;
+                contactLastName) flag=--contact-last-name ;;
+                contactEmail) flag=--contact-email ;;
+                contactPhone) flag=--contact-phone ;;
+                notes) flag=--notes ;;
+              esac
+              if [ -n "$value" ]; then args+=("$flag" "$value"); fi
+            done
+            demo_required="$(jq -r '.data.attributes.demoAccountRequired // .demoAccountRequired // false' "$review")"
+            if [ "$demo_required" = "true" ]; then
+              echo "Source review details require sensitive demo credentials; refusing to expose or copy them." >&2
+              exit 1
+            fi
+            args+=(--demo-account-required=false)
+            asc "${args[@]}" > "$RUNNER_TEMP/safari-review-create.json"
+          fi
+
+          echo "id=$version_id" >> "$GITHUB_OUTPUT"
+          echo "- App Store version: $version_id (AFTER_APPROVAL)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Reuse an exact uploaded Safari build and PKG when available
+        id: reuse
+        if: steps.release_state.outputs.mutate == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          asset="teak-safari-$VERSION-mac-app-store.pkg"
+          asc builds list \
+            --app "$ASC_APP_ID" \
+            --platform "$PLATFORM" \
+            --version "$VERSION" \
+            --processing-state VALID \
+            --exclude-expired \
+            --sort=-uploadedDate \
+            --limit 1 > "$RUNNER_TEMP/safari-existing-build.json"
+          build_id="$(jq -r '.data[0].id // empty' "$RUNNER_TEMP/safari-existing-build.json")"
+          build_number="$(jq -r '.data[0].attributes.version // empty' "$RUNNER_TEMP/safari-existing-build.json")"
+          asset_label="App Store build $build_number"
+          existing_label="$(gh release view "v$VERSION" --json assets --jq ".assets[] | select(.name == \"$asset\") | .label" 2>/dev/null || true)"
+          if [ -n "$build_id" ] && [ "$existing_label" = "$asset_label" ]; then
+            reuse=true
+            echo "Reusing VALID Safari build $build_id and its exact GitHub PKG asset."
+          else
+            reuse=false
+            build_number="${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          fi
+          {
+            echo "reuse=$reuse"
+            echo "build_id=$build_id"
+            echo "build_number=$build_number"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Prepare signing certificate and secure temporary keychain with asc
+        id: signing
+        if: steps.release_state.outputs.mutate == 'true' && steps.reuse.outputs.reuse != 'true'
+        env:
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64 }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          EXPECTED_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
-          keychain_path="$RUNNER_TEMP/teak-safari-signing.keychain-db"
+          if [ -z "$APPLE_CERTIFICATE_PASSWORD" ] || [ -z "$APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64" ] || [ -z "$EXPECTED_SIGNING_IDENTITY" ]; then
+            echo "Missing Safari signing credentials." >&2
+            exit 1
+          fi
+
+          private_key="$RUNNER_TEMP/apple-distribution-private-key.pem"
+          csr="$RUNNER_TEMP/apple-distribution.csr"
+          printf '%s' "$APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64" | base64 --decode > "$private_key"
+          chmod 600 "$private_key"
+          openssl req -new -key "$private_key" -out "$csr" -subj "/CN=Teak Safari Distribution/O=$APPLE_TEAM_ID/C=US"
+          private_hash="$(openssl pkey -in "$private_key" -pubout -outform DER | shasum -a 256 | awk '{print $1}')"
+
+          ensure_certificate() {
+            local types="$1" create_type="$2" prefix="$3"
+            local list_path="$RUNNER_TEMP/${prefix}-certificates.json"
+            local cert_path="$RUNNER_TEMP/${prefix}.pem"
+            asc certificates list --certificate-type "$types" --paginate > "$list_path"
+            local cert_id=""
+            while IFS= read -r row; do
+              candidate_id="$(jq -r '.id' <<< "$row")"
+              content="$(jq -r '.attributes.certificateContent // empty' <<< "$row")"
+              if [ -z "$content" ]; then continue; fi
+              candidate="$RUNNER_TEMP/${prefix}-${candidate_id}.cer"
+              printf '%s' "$content" | base64 --decode > "$candidate"
+              candidate_hash="$(openssl x509 -inform DER -in "$candidate" -pubkey -noout | openssl pkey -pubin -outform DER | shasum -a 256 | awk '{print $1}')"
+              if [ "$candidate_hash" = "$private_hash" ]; then
+                cert_id="$candidate_id"
+                openssl x509 -inform DER -in "$candidate" -out "$cert_path"
+                break
+              fi
+            done < <(jq -c '.data[]?' "$list_path")
+
+            if [ -z "$cert_id" ]; then
+              asc certificates create --certificate-type "$create_type" --csr "$csr" > "$RUNNER_TEMP/${prefix}-create.json"
+              cert_id="$(jq -r '.data.id // .id // empty' "$RUNNER_TEMP/${prefix}-create.json")"
+              content="$(jq -r '.data.attributes.certificateContent // .attributes.certificateContent // empty' "$RUNNER_TEMP/${prefix}-create.json")"
+              printf '%s' "$content" | base64 --decode | openssl x509 -inform DER -out "$cert_path"
+            fi
+            if [ -z "$cert_id" ] || [ ! -s "$cert_path" ]; then
+              echo "Could not resolve $create_type signing certificate with asc." >&2
+              exit 1
+            fi
+            echo "${prefix}_id=$cert_id" >> "$GITHUB_OUTPUT"
+            echo "${prefix}_path=$cert_path" >> "$GITHUB_OUTPUT"
+          }
+
+          ensure_certificate "DISTRIBUTION,MAC_APP_DISTRIBUTION" "DISTRIBUTION" "distribution"
+          ensure_certificate "MAC_INSTALLER_DISTRIBUTION" "MAC_INSTALLER_DISTRIBUTION" "installer"
+
+          distribution_identity="$(openssl x509 -in "$RUNNER_TEMP/distribution.pem" -noout -subject -nameopt multiline | awk -F'= ' '/commonName/{print $2; exit}')"
+          installer_identity="$(openssl x509 -in "$RUNNER_TEMP/installer.pem" -noout -subject -nameopt multiline | awk -F'= ' '/commonName/{print $2; exit}')"
+          if [ "$distribution_identity" != "$EXPECTED_SIGNING_IDENTITY" ]; then
+            echo "Resolved certificate identity does not match the configured Apple signing identity." >&2
+            exit 1
+          fi
+
+          distribution_p12="$RUNNER_TEMP/distribution.p12"
+          installer_p12="$RUNNER_TEMP/installer.p12"
+          openssl pkcs12 -legacy -export -inkey "$private_key" -in "$RUNNER_TEMP/distribution.pem" -out "$distribution_p12" -passout "pass:$APPLE_CERTIFICATE_PASSWORD" -name "$distribution_identity"
+          openssl pkcs12 -legacy -export -inkey "$private_key" -in "$RUNNER_TEMP/installer.pem" -out "$installer_p12" -passout "pass:$APPLE_CERTIFICATE_PASSWORD" -name "$installer_identity"
+
+          keychain="$RUNNER_TEMP/teak-safari-signing.keychain-db"
           keychain_password="$(uuidgen)"
-          private_key_path="$RUNNER_TEMP/apple-distribution-private-key.pem"
-          csr_path="$RUNNER_TEMP/apple-distribution.csr"
-          certificate_pem_path="$RUNNER_TEMP/apple-distribution.pem"
-          installer_certificate_pem_path="$RUNNER_TEMP/mac-installer-distribution.pem"
-          certificate_p12_path="$RUNNER_TEMP/apple-signing-certificate.p12"
-          installer_certificate_p12_path="$RUNNER_TEMP/mac-installer-signing-certificate.p12"
+          echo "::add-mask::$keychain_password"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          for archive in "$distribution_p12" "$installer_p12"; do
+            security import "$archive" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productbuild -T /usr/bin/productsign -T /usr/bin/security
+          done
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          security default-keychain -s "$keychain"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain"
 
-          printf '%s' "$APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64" | base64 --decode > "$private_key_path"
-          chmod 600 "$private_key_path"
-          openssl req -new \
-            -key "$private_key_path" \
-            -out "$csr_path" \
-            -subj "/CN=Teak Safari Distribution/O=$APPLE_TEAM_ID/C=US"
+          echo "distribution_identity=$distribution_identity" >> "$GITHUB_OUTPUT"
+          echo "installer_identity=$installer_identity" >> "$GITHUB_OUTPUT"
 
-          export APPLE_DISTRIBUTION_CSR_PATH="$csr_path"
-          export APPLE_DISTRIBUTION_CERTIFICATE_PATH="$certificate_pem_path"
-          export APPLE_DISTRIBUTION_PRIVATE_KEY_PATH="$private_key_path"
-          node apps/safari-extension/scripts/ensure-distribution-certificate.mjs
-
-          export APPLE_DISTRIBUTION_CERTIFICATE_PATH="$installer_certificate_pem_path"
-          export APPLE_DISTRIBUTION_CERTIFICATE_TYPES="MAC_INSTALLER_DISTRIBUTION"
-          export APPLE_DISTRIBUTION_CREATE_CERTIFICATE_TYPE="MAC_INSTALLER_DISTRIBUTION"
-          export APPLE_DISTRIBUTION_OUTPUT_PREFIX="APPLE_INSTALLER_CERTIFICATE"
-          node apps/safari-extension/scripts/ensure-distribution-certificate.mjs
-          installer_signing_identity="$(openssl x509 -in "$installer_certificate_pem_path" -noout -subject -nameopt multiline | awk -F'= ' '/commonName/{ print $2; exit }')"
-          if [ -z "$installer_signing_identity" ]; then
-            echo "Could not read Mac Installer Distribution certificate common name." >&2
-            exit 1
-          fi
-          echo "APPLE_INSTALLER_SIGNING_IDENTITY=$installer_signing_identity" >> "$GITHUB_ENV"
-
-          openssl pkcs12 -legacy -export \
-            -inkey "$private_key_path" \
-            -in "$certificate_pem_path" \
-            -out "$certificate_p12_path" \
-            -passout "pass:$APPLE_CERTIFICATE_PASSWORD" \
-            -name "$APPLE_SIGNING_IDENTITY"
-          openssl pkcs12 -legacy -export \
-            -inkey "$private_key_path" \
-            -in "$installer_certificate_pem_path" \
-            -out "$installer_certificate_p12_path" \
-            -passout "pass:$APPLE_CERTIFICATE_PASSWORD" \
-            -name "$installer_signing_identity"
-
-          security create-keychain -p "$keychain_password" "$keychain_path"
-          security set-keychain-settings -lut 21600 "$keychain_path"
-          security unlock-keychain -p "$keychain_password" "$keychain_path"
-          security import "$certificate_p12_path" \
-            -k "$keychain_path" \
-            -P "$APPLE_CERTIFICATE_PASSWORD" \
-            -T /usr/bin/codesign \
-            -T /usr/bin/productbuild \
-            -T /usr/bin/productsign \
-            -T /usr/bin/security
-          security import "$installer_certificate_p12_path" \
-            -k "$keychain_path" \
-            -P "$APPLE_CERTIFICATE_PASSWORD" \
-            -T /usr/bin/codesign \
-            -T /usr/bin/productbuild \
-            -T /usr/bin/productsign \
-            -T /usr/bin/security
-          security list-keychains -d user -s "$keychain_path" login.keychain-db
-          security default-keychain -s "$keychain_path"
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain_path"
-
-          if ! security find-certificate -c "$APPLE_SIGNING_IDENTITY" "$keychain_path" >/dev/null 2>&1; then
-            echo "Could not find imported Apple signing certificate for identity: $APPLE_SIGNING_IDENTITY" >&2
-            security find-identity -v -p codesigning "$keychain_path" >&2
-            exit 1
-          fi
-          if ! security find-certificate -c "$installer_signing_identity" "$keychain_path" >/dev/null 2>&1; then
-            echo "Could not find imported Mac Installer Distribution certificate: $installer_signing_identity" >&2
-            security find-identity -v -p codesigning "$keychain_path" >&2
-            exit 1
-          fi
-
-      - name: Create or reuse App Store version
+      - name: Create or reuse Safari provisioning profiles with asc
+        id: profiles
+        if: steps.release_state.outputs.mutate == 'true' && steps.reuse.outputs.reuse != 'true'
         env:
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          SAFARI_VERSION: ${{ steps.version.outputs.version }}
-        run: node apps/safari-extension/scripts/ensure-app-store-version.mjs
+          CERTIFICATE_ID: ${{ steps.signing.outputs.distribution_id }}
+        run: |
+          asc bundle-ids list --paginate > "$RUNNER_TEMP/bundle-ids.json"
+          asc profiles list --profile-type MAC_APP_STORE --profile-state ACTIVE --paginate > "$RUNNER_TEMP/profiles.json"
+          profile_dir="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$profile_dir"
 
-      - name: Create and install provisioning profiles
-        if: steps.check.outputs.should_upload == 'true'
-        env:
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-        run: node apps/safari-extension/scripts/ensure-provisioning-profiles.mjs
+          ensure_profile() {
+            local identifier="$1" label="$2" output_prefix="$3"
+            local bundle_id
+            bundle_id="$(jq -r --arg identifier "$identifier" '.data[] | select(.attributes.identifier == $identifier and (.attributes.platform == "MAC_OS" or .attributes.platform == "UNIVERSAL")) | .id' "$RUNNER_TEMP/bundle-ids.json" | head -1)"
+            if [ -z "$bundle_id" ]; then
+              echo "Missing exact macOS bundle ID: $identifier" >&2
+              exit 1
+            fi
+            profile_name="$label ${CERTIFICATE_ID: -8}"
+            profile_id="$(jq -r --arg name "$profile_name" '.data[] | select(.attributes.name == $name and .attributes.profileState == "ACTIVE") | .id' "$RUNNER_TEMP/profiles.json" | head -1)"
+            if [ -z "$profile_id" ]; then
+              asc profiles create \
+                --name "$profile_name" \
+                --profile-type MAC_APP_STORE \
+                --bundle "$bundle_id" \
+                --certificate "$CERTIFICATE_ID" > "$RUNNER_TEMP/${output_prefix}-profile-create.json"
+              profile_id="$(jq -r '.data.id // .id // empty' "$RUNNER_TEMP/${output_prefix}-profile-create.json")"
+            fi
+            profile_path="$RUNNER_TEMP/${output_prefix}.provisionprofile"
+            asc profiles download --id "$profile_id" --output "$profile_path" > "$RUNNER_TEMP/${output_prefix}-profile-download.json"
+            plist="$RUNNER_TEMP/${output_prefix}-profile.plist"
+            security cms -D -i "$profile_path" > "$plist"
+            profile_uuid="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$plist")"
+            resolved_name="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$plist")"
+            cp "$profile_path" "$profile_dir/$profile_uuid.provisionprofile"
+            echo "${output_prefix}_name=$resolved_name" >> "$GITHUB_OUTPUT"
+            echo "${output_prefix}_uuid=$profile_uuid" >> "$GITHUB_OUTPUT"
+          }
+
+          ensure_profile "com.praveenjuge.teak-safari" "Teak Safari macOS App" "app"
+          ensure_profile "com.praveenjuge.teak-safari.Extension" "Teak Safari macOS Extension" "extension"
 
       - name: Archive Teak for Safari
-        if: steps.check.outputs.should_upload == 'true'
+        id: archive
+        if: steps.release_state.outputs.mutate == 'true' && steps.reuse.outputs.reuse != 'true'
         env:
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          VERSION: ${{ steps.version.outputs.version }}
-          BUILD_NUMBER: ${{ steps.version.outputs.build_number }}
+          APP_PROFILE_NAME: ${{ steps.profiles.outputs.app_name }}
+          APP_PROFILE_UUID: ${{ steps.profiles.outputs.app_uuid }}
+          BUILD_NUMBER: ${{ steps.reuse.outputs.build_number }}
+          EXTENSION_PROFILE_NAME: ${{ steps.profiles.outputs.extension_name }}
+          EXTENSION_PROFILE_UUID: ${{ steps.profiles.outputs.extension_uuid }}
+          SIGNING_IDENTITY: ${{ steps.signing.outputs.distribution_identity }}
         run: |
           archive_path="$RUNNER_TEMP/Teak for Safari.xcarchive"
-          echo "ARCHIVE_PATH=$archive_path" >> "$GITHUB_ENV"
-
           xcodebuild archive \
             -project "$PROJECT_PATH" \
             -scheme "$SCHEME_NAME" \
@@ -264,105 +400,189 @@ jobs:
             MARKETING_VERSION="$VERSION" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
-            SAFARI_APP_PROFILE_NAME="$SAFARI_APP_PROFILE_NAME" \
-            SAFARI_APP_PROFILE_UUID="$SAFARI_APP_PROFILE_UUID" \
-            SAFARI_EXTENSION_PROFILE_NAME="$SAFARI_EXTENSION_PROFILE_NAME" \
-            SAFARI_EXTENSION_PROFILE_UUID="$SAFARI_EXTENSION_PROFILE_UUID"
+            CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
+            SAFARI_APP_PROFILE_NAME="$APP_PROFILE_NAME" \
+            SAFARI_APP_PROFILE_UUID="$APP_PROFILE_UUID" \
+            SAFARI_EXTENSION_PROFILE_NAME="$EXTENSION_PROFILE_NAME" \
+            SAFARI_EXTENSION_PROFILE_UUID="$EXTENSION_PROFILE_UUID"
+          echo "path=$archive_path" >> "$GITHUB_OUTPUT"
 
-      - name: Export App Store package
+      - name: Export the Mac App Store PKG
         id: export
-        if: steps.check.outputs.should_upload == 'true'
-        timeout-minutes: 15
+        if: steps.release_state.outputs.mutate == 'true' && steps.reuse.outputs.reuse != 'true'
         env:
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          VERSION: ${{ steps.version.outputs.version }}
+          APP_PROFILE_NAME: ${{ steps.profiles.outputs.app_name }}
+          ARCHIVE_PATH: ${{ steps.archive.outputs.path }}
+          EXTENSION_PROFILE_NAME: ${{ steps.profiles.outputs.extension_name }}
+          INSTALLER_IDENTITY: ${{ steps.signing.outputs.installer_identity }}
+          SIGNING_IDENTITY: ${{ steps.signing.outputs.distribution_identity }}
         run: |
           export_path="$RUNNER_TEMP/safari-export"
           export_options="$RUNNER_TEMP/SafariExportOptions.plist"
           mkdir -p "$export_path"
-
           /usr/libexec/PlistBuddy -c "Add :method string app-store-connect" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :destination string export" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :signingStyle string manual" "$export_options"
-          /usr/libexec/PlistBuddy -c "Add :signingCertificate string $APPLE_SIGNING_IDENTITY" "$export_options"
-          /usr/libexec/PlistBuddy -c "Add :installerSigningCertificate string $APPLE_INSTALLER_SIGNING_IDENTITY" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :signingCertificate string $SIGNING_IDENTITY" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :installerSigningCertificate string $INSTALLER_IDENTITY" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles dict" "$export_options"
-          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.praveenjuge.teak-safari string $SAFARI_APP_PROFILE_NAME" "$export_options"
-          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.praveenjuge.teak-safari.Extension string $SAFARI_EXTENSION_PROFILE_NAME" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.praveenjuge.teak-safari string $APP_PROFILE_NAME" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.praveenjuge.teak-safari.Extension string $EXTENSION_PROFILE_NAME" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :stripSwiftSymbols bool true" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :uploadSymbols bool false" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :manageAppVersionAndBuildNumber bool false" "$export_options"
 
-          plutil -p "$export_options"
-          set -o pipefail
           xcodebuild -exportArchive \
             -archivePath "$ARCHIVE_PATH" \
             -exportPath "$export_path" \
             -exportOptionsPlist "$export_options" \
             -allowProvisioningUpdates \
-            -authenticationKeyPath "$APPLE_API_KEY_PATH" \
-            -authenticationKeyID "$APPLE_API_KEY_ID" \
-            -authenticationKeyIssuerID "$APPLE_API_ISSUER" 2>&1 | tee "$RUNNER_TEMP/xcodebuild-export.log"
+            -authenticationKeyPath "$ASC_PRIVATE_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
 
           package_path="$(find "$export_path" -maxdepth 1 -name '*.pkg' -print -quit)"
           if [ -z "$package_path" ] || [ ! -f "$package_path" ]; then
-            echo "Could not find exported Mac App Store package under $export_path" >&2
-            find "$export_path" -maxdepth 2 -type f -print >&2
+            echo "Could not find the exported Mac App Store package." >&2
             exit 1
           fi
-
-          release_pkg="$RUNNER_TEMP/teak-safari-${VERSION}-mac-app-store.pkg"
+          release_pkg="$RUNNER_TEMP/teak-safari-$VERSION-mac-app-store.pkg"
           cp "$package_path" "$release_pkg"
-          echo "package_path=$release_pkg" >> "$GITHUB_OUTPUT"
+          echo "path=$release_pkg" >> "$GITHUB_OUTPUT"
 
-      - name: Validate App Store package
-        if: steps.check.outputs.should_upload == 'true'
+      - name: Upload PKG with asc and resolve the exact VALID build
+        id: uploaded_build
+        if: steps.release_state.outputs.mutate == 'true' && steps.reuse.outputs.reuse != 'true'
         env:
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          BUILD_NUMBER: ${{ steps.reuse.outputs.build_number }}
+          PACKAGE_PATH: ${{ steps.export.outputs.path }}
         run: |
-          xcrun altool --validate-app \
-            -f "${{ steps.export.outputs.package_path }}" \
-            -t macos \
-            --apiKey "$APPLE_API_KEY_ID" \
-            --apiIssuer "$APPLE_API_ISSUER"
+          asc builds upload \
+            --app "$ASC_APP_ID" \
+            --pkg "$PACKAGE_PATH" \
+            --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --checksum \
+            --wait > "$RUNNER_TEMP/safari-upload.json"
+          asc builds list \
+            --app "$ASC_APP_ID" \
+            --platform "$PLATFORM" \
+            --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --processing-state VALID \
+            --exclude-expired > "$RUNNER_TEMP/safari-build.json"
+          build_id="$(jq -r '.data[0].id // empty' "$RUNNER_TEMP/safari-build.json")"
+          if [ -z "$build_id" ] || [ "$(jq '.data | length' "$RUNNER_TEMP/safari-build.json")" -ne 1 ]; then
+            echo "Expected exactly one VALID macOS build for $VERSION/$BUILD_NUMBER." >&2
+            exit 1
+          fi
+          echo "id=$build_id" >> "$GITHUB_OUTPUT"
+          echo "- App Store build: $build_id ($VERSION/$BUILD_NUMBER, VALID)" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload to App Store Connect
-        if: steps.check.outputs.should_upload == 'true'
+      - name: Publish GitHub Release PKG
+        if: steps.release_state.outputs.mutate == 'true' && steps.reuse.outputs.reuse != 'true'
         env:
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-        run: |
-          xcrun altool --upload-app \
-            -f "${{ steps.export.outputs.package_path }}" \
-            -t macos \
-            --apiKey "$APPLE_API_KEY_ID" \
-            --apiIssuer "$APPLE_API_ISSUER"
-
-      - name: Publish GitHub release asset
-        if: steps.check.outputs.should_upload == 'true'
-        env:
+          BUILD_NUMBER: ${{ steps.reuse.outputs.build_number }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: v${{ steps.version.outputs.version }}
+          PACKAGE_PATH: ${{ steps.export.outputs.path }}
         run: |
-          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            gh release upload "$TAG_NAME" "${{ steps.export.outputs.package_path }}" --clobber
-          elif git ls-remote --exit-code --tags origin "refs/tags/${TAG_NAME}" >/dev/null 2>&1; then
-            git fetch --tags origin "$TAG_NAME"
-            gh release create "$TAG_NAME" "${{ steps.export.outputs.package_path }}" --title "${{ steps.version.outputs.version }}" --verify-tag
+          labeled_package="$PACKAGE_PATH#App Store build $BUILD_NUMBER"
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            gh release upload "v$VERSION" "$labeled_package" --clobber
           else
-            echo "No $TAG_NAME tag exists, so the App Store package was uploaded but no GitHub Release asset was published."
+            gh release create "v$VERSION" "$labeled_package" --title "$VERSION" --verify-tag
           fi
 
-      - name: Submit to App Review
+      - name: Attach exact build, validate, run doctor, and submit
+        id: submit
+        if: steps.release_state.outputs.mutate == 'true'
         env:
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          SAFARI_VERSION: ${{ steps.version.outputs.version }}
-          BUILD_NUMBER: ${{ steps.check.outputs.should_upload == 'true' && steps.version.outputs.build_number || '' }}
-          SAFARI_RELEASE_NOTES: ${{ github.event.inputs.release_notes || 'Small fixes and polish to keep saving pages from Safari smooth and reliable.' }}
-        run: node apps/safari-extension/scripts/submit-app-store-review.mjs
+          NEW_BUILD_ID: ${{ steps.uploaded_build.outputs.id }}
+          REUSED_BUILD_ID: ${{ steps.reuse.outputs.build_id }}
+          VERSION_ID: ${{ steps.apple_version.outputs.id }}
+        run: |
+          build_id="$NEW_BUILD_ID"
+          if [ -z "$build_id" ]; then build_id="$REUSED_BUILD_ID"; fi
+          if [ -z "$build_id" ]; then
+            echo "No exact VALID Safari build was resolved." >&2
+            exit 1
+          fi
+          asc versions attach-build --version-id "$VERSION_ID" --build-id "$build_id" > "$RUNNER_TEMP/safari-attach.json"
+          asc validate --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" --strict > "$RUNNER_TEMP/safari-validate.json"
+          asc review doctor --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/safari-doctor.json"
+          asc review submit \
+            --app "$ASC_APP_ID" \
+            --version-id "$VERSION_ID" \
+            --build "$build_id" \
+            --platform "$PLATFORM" \
+            --confirm > "$RUNNER_TEMP/safari-submit.json"
+          submission_id="$(jq -r '.submissionId // .id // empty' "$RUNNER_TEMP/safari-submit.json")"
+          echo "submission_id=$submission_id" >> "$GITHUB_OUTPUT"
+
+      - name: Prove Safari macOS reached App Review
+        if: steps.release_state.outputs.mutate == 'true'
+        env:
+          VERSION_ID: ${{ steps.apple_version.outputs.id }}
+        run: |
+          deadline=$((SECONDS + 1200))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 > "$RUNNER_TEMP/safari-final-version.json"
+            final_state="$(jq -r '.data[0].attributes.appVersionState // .data[0].attributes.appStoreState // empty' "$RUNNER_TEMP/safari-final-version.json")"
+            case "$final_state" in
+              WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)
+                asc review status --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/safari-final-review.json"
+                {
+                  echo "- Review submission: ${{ steps.submit.outputs.submission_id }}"
+                  echo "- Final Safari macOS state: $final_state"
+                  echo "- Release: automatic after approval"
+                  echo "- GitHub asset: teak-safari-$VERSION-mac-app-store.pkg"
+                } >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+                ;;
+              DEVELOPER_REJECTED|REJECTED|METADATA_REJECTED|INVALID_BINARY)
+                echo "Safari macOS $VERSION entered terminal state $final_state." >&2
+                exit 1
+                ;;
+            esac
+            sleep 30
+          done
+          echo "Timed out waiting for Safari macOS $VERSION to reach WAITING_FOR_REVIEW." >&2
+          exit 1
+
+  report-failure:
+    if: ${{ failure() && inputs.dry_run == false }}
+    needs: release
+    runs-on: ubuntu-latest
+    concurrency:
+      group: apple-release-issue-${{ inputs.version }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up asc
+        uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
+        with:
+          version: ${{ env.ASC_VERSION }}
+      - name: Prepare App Store Connect key
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY_P8" > "$key_path"
+          chmod 600 "$key_path"
+          echo "ASC_PRIVATE_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+      - name: Capture redacted asc diagnostics
+        run: |
+          asc status --app "$ASC_APP_ID" > "$RUNNER_TEMP/safari-status.txt" 2>&1 || true
+          asc review doctor --app "$ASC_APP_ID" --version "$VERSION" --platform "$PLATFORM" > "$RUNNER_TEMP/safari-doctor.txt" 2>&1 || true
+      - name: Open or update the release issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/apple-release-issue.mjs failure \
+            --version "$VERSION" \
+            --platform "$PLATFORM" \
+            --app-id "$ASC_APP_ID" \
+            --workflow-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --status-file "$RUNNER_TEMP/safari-status.txt" \
+            --doctor-file "$RUNNER_TEMP/safari-doctor.txt"
