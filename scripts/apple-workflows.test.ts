@@ -170,6 +170,10 @@ describe("Apple release workflows", () => {
   test("publishes replayable proof manifests after exact read-only verification", () => {
     for (const workflow of [mobile, safari]) {
       expect(workflow).toContain("apple-release-proof.mjs verify");
+      expect(workflow).toContain('asc builds info --build-id "$build_id"');
+      expect(workflow).toContain(
+        'asc review submissions-get --id "$submission_id" --include appStoreVersionForReview'
+      );
       expect(workflow).toContain("apple-release-manifest.mjs create");
       expect(workflow).toContain("app-store.json");
       expect(workflow).toContain("gh release upload");

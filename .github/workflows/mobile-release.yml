@@ -900,9 +900,9 @@ jobs:
             echo "Timed out waiting for iOS $VERSION to reach WAITING_FOR_REVIEW." >&2
             exit 1
           fi
-
-          asc versions view --version-id "$version_id" --include-build --include-submission --output json > "$RUNNER_TEMP/ios-final-view.json"
-          asc status --app "$ASC_APP_ID" --platform "$PLATFORM" --output json > "$RUNNER_TEMP/ios-final-status.json"
+          asc versions view --version-id "$version_id" --include-build --output json > "$RUNNER_TEMP/ios-final-view.json"
+          asc builds info --build-id "$build_id" --output json > "$RUNNER_TEMP/ios-final-build.json"
+          asc review submissions-get --id "$submission_id" --include appStoreVersionForReview --output json > "$RUNNER_TEMP/ios-final-submission.json"
           jq -n \
             --arg version "$VERSION" \
             --arg platform "$PLATFORM" \
@@ -915,10 +915,10 @@ jobs:
           node scripts/apple-release-proof.mjs verify \
             --version-list "$RUNNER_TEMP/ios-final-version.json" \
             --version-view "$RUNNER_TEMP/ios-final-view.json" \
-            --status "$RUNNER_TEMP/ios-final-status.json" \
+            --build "$RUNNER_TEMP/ios-final-build.json" \
+            --submission "$RUNNER_TEMP/ios-final-submission.json" \
             --expected "$RUNNER_TEMP/ios-expected.json" \
             --output "$RUNNER_TEMP/ios-proof.json"
-
           artifact_sha="${{ steps.handoff.outputs.sha256 }}"
           sentry="success"
           prior_args=()

@@ -10,7 +10,8 @@ const fixture = (name: string) =>
 const waiting = () => ({
   versionList: fixture("waiting-ios-version-list.json"),
   versionView: fixture("waiting-ios-version-view.json"),
-  status: fixture("waiting-ios-status.json"),
+  build: fixture("waiting-ios-build.json"),
+  submission: fixture("waiting-ios-submission.json"),
   expected: fixture("waiting-ios-expected.json"),
 });
 
@@ -46,7 +47,7 @@ describe("Apple release proof", () => {
 
   test("rejects a non-valid build", () => {
     const input = waiting();
-    input.status.builds.latest.processingState = "PROCESSING";
+    input.build.data.attributes.processingState = "PROCESSING";
     expect(() => verifyReleaseProof(input)).toThrow(
       "build processing state mismatch"
     );
@@ -54,9 +55,25 @@ describe("Apple release proof", () => {
 
   test("rejects a waiting version without an in-flight submission", () => {
     const input = waiting();
-    input.status.submission.inFlight = false;
+    input.submission.data.attributes.state = "READY_FOR_REVIEW";
     expect(() => verifyReleaseProof(input)).toThrow(
-      "must have an in-flight review submission"
+      "in-flight submission state mismatch"
     );
+  });
+
+  test("ignores newer app-wide latest records when replaying an older release", () => {
+    const input = {
+      ...waiting(),
+      status: fixture("waiting-ios-status.json"),
+    };
+    input.status.appstore.version = "1.0.62";
+    input.status.builds.latest = {
+      ...input.status.builds.latest,
+      id: "ios-build-66",
+      version: "1.0.62",
+      buildNumber: "66",
+    };
+    input.status.review.latestSubmissionId = "ios-submission-62";
+    expect(verifyReleaseProof(input).buildId).toBe("ios-build-65");
   });
 });

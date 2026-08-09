@@ -57,26 +57,34 @@ function versionRecord(payload) {
       attributes.buildId ??
       row?.relationships?.build?.data?.id ??
       payload?.included?.find?.((item) => item.type === "builds")?.id,
-    buildNumber: attributes.buildNumber,
+    buildNumber: attributes.buildNumber ?? attributes.buildVersion,
     submissionId:
       attributes.submissionId ??
       row?.relationships?.appStoreVersionSubmission?.data?.id,
   };
 }
 
-function statusRecord(payload) {
+function buildRecord(payload) {
+  const row = payload?.data ?? payload;
+  const preReleaseVersion = payload?.included?.find?.(
+    (item) => item.type === "preReleaseVersions"
+  );
   return {
-    versionId: payload?.appstore?.versionId,
-    version: payload?.appstore?.version,
-    platform: payload?.appstore?.platform,
-    state: payload?.appstore?.state,
-    buildId: payload?.builds?.latest?.id,
-    buildVersion: payload?.builds?.latest?.version,
-    buildNumber: payload?.builds?.latest?.buildNumber,
-    processingState: payload?.builds?.latest?.processingState,
-    submissionId: payload?.review?.latestSubmissionId,
-    submissionState: payload?.review?.state,
-    inFlight: payload?.submission?.inFlight,
+    id: row?.id,
+    buildNumber: row?.attributes?.version,
+    processingState: row?.attributes?.processingState,
+    version: preReleaseVersion?.attributes?.version,
+    platform: preReleaseVersion?.attributes?.platform,
+  };
+}
+
+function submissionRecord(payload) {
+  const row = payload?.data ?? payload;
+  return {
+    id: row?.id,
+    state: row?.attributes?.state,
+    platform: row?.attributes?.platform,
+    versionId: row?.relationships?.appStoreVersionForReview?.data?.id,
   };
 }
 
@@ -91,7 +99,8 @@ function same(actual, expected, label) {
 export function verifyReleaseProof({
   versionList,
   versionView,
-  status,
+  build,
+  submission,
   expected,
 }) {
   const version = required(expected.version, "expected version");
@@ -106,7 +115,8 @@ export function verifyReleaseProof({
 
   const listed = versionRecord(versionList);
   const viewed = versionRecord(versionView);
-  const dashboard = statusRecord(status);
+  const exactBuild = buildRecord(build);
+  const exactSubmission = submissionRecord(submission);
   const versionId = required(
     expected.versionId ?? listed.id ?? viewed.id,
     "version ID"
@@ -116,29 +126,17 @@ export function verifyReleaseProof({
 
   same(listed.id, versionId, "listed version ID");
   same(viewed.id, versionId, "viewed version ID");
-  same(dashboard.versionId, versionId, "status version ID");
-  for (const [actual, label] of [
-    [listed.version, "listed version"],
-    [dashboard.version, "status version"],
-    [dashboard.buildVersion, "build marketing version"],
-  ]) {
-    same(actual, version, label);
-  }
+  same(listed.version, version, "listed version");
   if (viewed.version) {
     same(viewed.version, version, "viewed version");
   }
-  for (const [actual, label] of [
-    [listed.platform, "listed platform"],
-    [dashboard.platform, "status platform"],
-  ]) {
-    same(String(actual).toUpperCase(), platform, label);
-  }
+  same(String(listed.platform).toUpperCase(), platform, "listed platform");
   if (viewed.platform) {
     same(String(viewed.platform).toUpperCase(), platform, "viewed platform");
   }
 
   const state = required(
-    dashboard.state ?? listed.state ?? viewed.state,
+    listed.state ?? viewed.state,
     "release state"
   ).toUpperCase();
   if (!reviewStates.has(state)) {
@@ -146,9 +144,7 @@ export function verifyReleaseProof({
       `Release state ${state} is not waiting for review or later.`
     );
   }
-  for (const candidate of [listed.state, viewed.state, dashboard.state].filter(
-    Boolean
-  )) {
+  for (const candidate of [listed.state, viewed.state].filter(Boolean)) {
     same(String(candidate).toUpperCase(), state, "release state");
   }
 
@@ -157,27 +153,33 @@ export function verifyReleaseProof({
     same(viewed.releaseType, "AFTER_APPROVAL", "viewed release type");
   }
   same(viewed.buildId, buildId, "attached build ID");
-  same(dashboard.buildId, buildId, "status build ID");
   if (viewed.buildNumber) {
     same(viewed.buildNumber, buildNumber, "attached build number");
   }
-  same(dashboard.buildNumber, buildNumber, "status build number");
-  same(dashboard.processingState, "VALID", "build processing state");
-
-  const submissionId = required(
-    expected.submissionId ?? viewed.submissionId ?? dashboard.submissionId,
-    "submission ID"
+  same(exactBuild.id, buildId, "exact build ID");
+  same(exactBuild.buildNumber, buildNumber, "exact build number");
+  same(exactBuild.version, version, "exact build marketing version");
+  same(
+    String(exactBuild.platform).toUpperCase(),
+    platform,
+    "exact build platform"
   );
-  same(dashboard.submissionId, submissionId, "status submission ID");
+  same(exactBuild.processingState, "VALID", "build processing state");
+
+  const submissionId = required(expected.submissionId, "submission ID");
+  same(exactSubmission.id, submissionId, "exact submission ID");
+  same(exactSubmission.versionId, versionId, "submission version ID");
+  same(
+    String(exactSubmission.platform).toUpperCase(),
+    platform,
+    "submission platform"
+  );
   const submissionState = required(
-    dashboard.submissionState,
+    exactSubmission.state,
     "submission state"
   ).toUpperCase();
-  if (
-    ["WAITING_FOR_REVIEW", "IN_REVIEW"].includes(state) &&
-    dashboard.inFlight !== true
-  ) {
-    throw new Error(`${state} must have an in-flight review submission.`);
+  if (["WAITING_FOR_REVIEW", "IN_REVIEW"].includes(state)) {
+    same(submissionState, state, "in-flight submission state");
   }
 
   return {
@@ -203,7 +205,8 @@ function main() {
   const proof = verifyReleaseProof({
     versionList: readJson(values["version-list"], "version list"),
     versionView: readJson(values["version-view"], "version view"),
-    status: readJson(values.status, "release status"),
+    build: readJson(values.build, "exact build"),
+    submission: readJson(values.submission, "exact submission"),
     expected: readJson(values.expected, "expected release"),
   });
   const output = `${JSON.stringify(proof, null, 2)}\n`;
