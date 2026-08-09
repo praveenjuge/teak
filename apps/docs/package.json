@@ -1,6 +1,6 @@
 {
   "name": "@teak/docs",
-  "version": "1.0.61",
+  "version": "1.0.62",
   "engines": {
     "node": ">=22.12.0"
   },
