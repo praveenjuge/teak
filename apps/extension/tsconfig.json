@@ -3,6 +3,8 @@
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
+    "noImplicitOverride": false,
+    "noUncheckedIndexedAccess": false,
     "strictNullChecks": true,
     "types": ["chrome"]
   }

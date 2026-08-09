@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@teak/convex": "workspace:*",
-    "@types/node": "^25.9.3",
+    "@types/node": "^26.2.0",
     "typescript": "^6.0.3"
   },
   "publishConfig": {
