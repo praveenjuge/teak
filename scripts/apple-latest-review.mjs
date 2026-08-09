@@ -113,9 +113,10 @@ export function planLatestReviewVersion(response, targetVersion) {
     (candidate) =>
       candidate.version !== targetVersion && reusableStates.has(candidate.state)
   );
-  const superseded = completedStates.has(target?.state)
-    ? undefined
-    : (activeOlder[0] ?? (target ? undefined : newest(reusableOlder)));
+  const superseded =
+    target && !mutableStates.has(target.state)
+      ? undefined
+      : (activeOlder[0] ?? (target ? undefined : newest(reusableOlder)));
   const source = newest(
     versions.filter(
       (candidate) =>
@@ -194,12 +195,11 @@ export async function applyLatestReviewVersion({
   waitCommand = wait,
 }) {
   const plan = planLatestReviewVersion(response, targetVersion);
-  if (dryRun) {
-    return { ...plan, mutate: false };
-  }
-
   if (plan.targetId) {
     mutationForState(plan.targetState, false);
+  }
+  if (dryRun) {
+    return { ...plan, mutate: false };
   }
 
   if (plan.cancelSuperseded) {
