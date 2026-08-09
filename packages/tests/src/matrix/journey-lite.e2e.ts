@@ -19,6 +19,9 @@ test("signup, create, and search", async ({ page }) => {
         { exact: true }
       )
     ).toBeVisible();
+    await expect(
+      page.locator('form[data-card-creation-status="ready"]')
+    ).toBeVisible();
     const note = page.getByRole("textbox", { name: "Markdown content" });
     await note.fill(marker);
     await expect(note).toHaveText(marker);
