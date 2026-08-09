@@ -27,6 +27,8 @@ describe("Apple release workflows", () => {
     expect(mobile).toContain("bunx expo prebuild --platform ios");
     expect(mobile).toContain("xcodebuild");
     expect(mobile).toContain("IOS_APP_STORE");
+    expect(mobile).toContain("--certificate-type IOS_DISTRIBUTION");
+    expect(mobile).not.toContain("--certificate-type DISTRIBUTION");
     expect(mobile).toContain("Upload local IPA to Sentry Size Analysis");
     expect(mobile).toContain("asc builds upload");
     expect(mobile).toContain("asc validate");

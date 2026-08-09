@@ -233,7 +233,7 @@ jobs:
           openssl req -new -key "$private_key" -out "$csr" -subj "/CN=Teak iOS Distribution/O=$APPLE_TEAM_ID/C=US"
           private_hash="$(openssl pkey -in "$private_key" -pubout -outform DER | shasum -a 256 | awk '{print $1}')"
 
-          asc certificates list --certificate-type DISTRIBUTION --paginate > "$RUNNER_TEMP/ios-certificates.json"
+          asc certificates list --certificate-type IOS_DISTRIBUTION --paginate > "$RUNNER_TEMP/ios-certificates.json"
           certificate_id=""
           certificate_path="$RUNNER_TEMP/ios-distribution.pem"
           while IFS= read -r row; do
@@ -251,7 +251,7 @@ jobs:
           done < <(jq -c '.data[]?' "$RUNNER_TEMP/ios-certificates.json")
 
           if [ -z "$certificate_id" ]; then
-            asc certificates create --certificate-type DISTRIBUTION --csr "$csr" > "$RUNNER_TEMP/ios-certificate-create.json"
+            asc certificates create --certificate-type IOS_DISTRIBUTION --csr "$csr" > "$RUNNER_TEMP/ios-certificate-create.json"
             certificate_id="$(jq -r '.data.id // .id // empty' "$RUNNER_TEMP/ios-certificate-create.json")"
             content="$(jq -r '.data.attributes.certificateContent // .attributes.certificateContent // empty' "$RUNNER_TEMP/ios-certificate-create.json")"
             printf '%s' "$content" | base64 --decode | openssl x509 -inform DER -out "$certificate_path"
