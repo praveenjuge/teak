@@ -155,16 +155,16 @@ jobs:
           active="$(jq -r '[.[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "pending")][0].id // empty' <<< "$runs")"
           if [ -n "$active" ]; then
             echo "Waiting for existing $WORKFLOW run $active."
-            gh run watch "$active" --exit-status
+            gh run watch "$active" --repo "$GITHUB_REPOSITORY" --exit-status
             echo "- ${{ matrix.name }}: https://github.com/$GITHUB_REPOSITORY/actions/runs/$active" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
           dispatched_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           if [ "$APPLE_WORKFLOW" = "true" ]; then
-            gh workflow run "$WORKFLOW" --ref "$TAG_NAME" -f "version=$VERSION" -f dry_run=false
+            gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref "$TAG_NAME" -f "version=$VERSION" -f dry_run=false
           else
-            gh workflow run "$WORKFLOW" --ref "$TAG_NAME"
+            gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref "$TAG_NAME"
           fi
 
           run_id=""
@@ -180,5 +180,5 @@ jobs:
             echo "Could not resolve the dispatched $WORKFLOW run." >&2
             exit 1
           fi
-          gh run watch "$run_id" --exit-status
+          gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status
           echo "- ${{ matrix.name }}: https://github.com/$GITHUB_REPOSITORY/actions/runs/$run_id" >> "$GITHUB_STEP_SUMMARY"
