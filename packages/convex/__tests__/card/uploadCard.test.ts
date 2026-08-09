@@ -503,6 +503,48 @@ describe("card uploads", () => {
     ).rejects.toMatchObject({ data: { code: "CONFLICT" } });
   });
 
+  test("retries incomplete verification metadata after reading Markdown", async () => {
+    const bytes = new TextEncoder().encode("# stable");
+    const wait = mock().mockResolvedValue(undefined);
+    let call = 0;
+    const send = mock((command) => {
+      call += 1;
+      if (command.constructor.name === "GetObjectCommand") {
+        return {
+          Body: { transformToByteArray: async () => bytes },
+          ETag: '"etag"',
+        };
+      }
+      if (call === 3) {
+        return { ETag: '"etag"' };
+      }
+      return {
+        ContentLength: bytes.byteLength,
+        ContentType: "text/markdown",
+        ETag: '"etag"',
+      };
+    });
+
+    await expect(
+      inspectUploadedCardSource(
+        "u1",
+        {
+          fileKey: VALID_FILE_KEY,
+          fileName: "README.md",
+          fileSize: bytes.byteLength,
+          fileType: "text/markdown",
+        },
+        { bucket: "test", client: { send }, wait }
+      )
+    ).resolves.toMatchObject({
+      cardType: "text",
+      content: "# stable",
+      storedFileSize: bytes.byteLength,
+    });
+    expect(wait).toHaveBeenCalledTimes(1);
+    expect(wait).toHaveBeenCalledWith(100);
+  });
+
   test("rejects ownership and stored metadata mismatches", async () => {
     const ctx = {
       db: {

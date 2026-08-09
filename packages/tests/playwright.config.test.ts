@@ -7,13 +7,25 @@ describe("production E2E project graph", () => {
       config.projects?.map((project) => [project.name, project])
     );
     expect(projects.get("journey-web")?.workers).toBe(1);
-    expect(projects.get("journey-services")?.fullyParallel).not.toBe(true);
-    expect(projects.get("journey-services")?.workers).toBe(1);
+    expect(projects.get("journey-web")?.grepInvert).toEqual(
+      /settings import and export surface terminal states/
+    );
+    expect(projects.get("journey-import-export")?.grep).toEqual(
+      /settings import and export surface terminal states/
+    );
+    expect(projects.get("journey-import-export")?.use?.storageState).toBe(
+      ".state/import-export.json"
+    );
+    for (const surface of ["api", "cli", "mcp"]) {
+      expect(projects.get(`journey-${surface}`)?.workers).toBe(1);
+    }
     expect(projects.get("journey-a11y")?.fullyParallel).toBe(true);
     expect(projects.get("snapshots")?.dependencies).toBeUndefined();
     expect(projects.get("journey-account")?.dependencies).toEqual([
       "journey-web",
-      "journey-services",
+      "journey-api",
+      "journey-cli",
+      "journey-mcp",
       "journey-a11y",
       "journey-security",
     ]);

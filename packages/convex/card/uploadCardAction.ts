@@ -307,12 +307,13 @@ export async function inspectUploadedCardSource(
         "Uploaded file changed before it could be saved"
       );
     }
-    const verified = await client.send(
-      new HeadObjectCommand({
-        Bucket: bucket,
-        Key: args.fileKey,
-        IfMatch: sourceEtag,
-      })
+    // R2 can briefly return an incomplete HEAD response immediately after a
+    // successful read. Reuse the bounded readiness check so a valid upload is
+    // not misclassified as changed while still requiring the original ETag.
+    const verified = await headUploadedObject(
+      storage,
+      args.fileKey,
+      sourceEtag
     );
     if (
       (verified.ETag !== undefined && verified.ETag !== sourceEtag) ||

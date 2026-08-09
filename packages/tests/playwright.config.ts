@@ -3,6 +3,7 @@ import { env } from "./src/helpers/env";
 
 const deleteAccount = "journey/99-delete-account.e2e.ts";
 const postDelete = "journey/100-post-delete.e2e.ts";
+const importExportTest = /settings import and export surface terminal states/;
 
 export default defineConfig({
   testDir: "./src",
@@ -33,6 +34,7 @@ export default defineConfig({
         "journey/10-file-format-ui.e2e.ts",
         "journey/11-quote-favorites-filters.e2e.ts",
       ],
+      grepInvert: importExportTest,
       workers: 1,
       use: {
         ...devices["Desktop Chrome"],
@@ -46,22 +48,32 @@ export default defineConfig({
       },
     },
     {
-      name: "journey-services",
+      name: "journey-import-export",
       dependencies: ["journey-setup"],
-      testMatch: [
-        "journey/03-api.e2e.ts",
-        "journey/04-cli.e2e.ts",
-        "journey/05-mcp.e2e.ts",
-      ],
-      // These surfaces share one production API key. Keep their requests
-      // serial to avoid rate-limiter contention while this project still runs
-      // concurrently with the longer web and accessibility projects.
+      grep: importExportTest,
+      testMatch: "journey/09-web-product-surfaces.e2e.ts",
+      workers: 1,
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: ".state/import-export.json",
+      },
+    },
+    ...(
+      [
+        ["api", "journey/03-api.e2e.ts"],
+        ["cli", "journey/04-cli.e2e.ts"],
+        ["mcp", "journey/05-mcp.e2e.ts"],
+      ] as const
+    ).map(([surface, testMatch]) => ({
+      name: `journey-${surface}`,
+      dependencies: ["journey-setup"],
+      testMatch,
       workers: 1,
       use: {
         ...devices["Desktop Chrome"],
         storageState: ".state/user.json",
       },
-    },
+    })),
     {
       name: "journey-a11y",
       dependencies: ["journey-setup"],
@@ -93,7 +105,9 @@ export default defineConfig({
       name: "journey-account",
       dependencies: [
         "journey-web",
-        "journey-services",
+        "journey-api",
+        "journey-cli",
+        "journey-mcp",
         "journey-a11y",
         "journey-security",
       ],

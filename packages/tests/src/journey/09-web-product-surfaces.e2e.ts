@@ -487,7 +487,11 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
 test("settings import and export surface terminal states", async ({ page }) => {
   test.setTimeout(300_000);
   const marker = markerFor("import");
-  const { apiKey } = primaryContext();
+  const state = readState();
+  if (!state.importExport?.apiKey) {
+    throw new Error("Missing import/export API key");
+  }
+  const apiKey = state.importExport.apiKey;
   await page.goto("/settings");
   await page.getByText("Import/Export Data").waitFor();
   await page

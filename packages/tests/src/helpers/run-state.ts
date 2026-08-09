@@ -11,6 +11,7 @@ export interface AccountState {
 export interface RunState {
   accounts: AccountState[];
   createdCardIds: string[];
+  importExport?: AccountState;
   primary?: AccountState;
   revokedKey?: string;
   serviceAccounts?: Partial<Record<ServiceAccountSurface, AccountState>>;
@@ -19,6 +20,7 @@ export interface RunState {
 export type ServiceAccountSurface = "api" | "cli" | "mcp";
 
 const file = new URL("../../.state/run-state.json", import.meta.url);
+export const importExportStorageStateFile = ".state/import-export.json";
 export const storageStateFile = ".state/user.json";
 
 export const readState = (): RunState => {

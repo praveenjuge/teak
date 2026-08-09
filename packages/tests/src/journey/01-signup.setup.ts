@@ -1,7 +1,11 @@
 import { test } from "@playwright/test";
 import { env } from "../helpers/env";
 import { createAccount } from "../helpers/prod";
-import { storageStateFile, updateState } from "../helpers/run-state";
+import {
+  importExportStorageStateFile,
+  storageStateFile,
+  updateState,
+} from "../helpers/run-state";
 
 test.setTimeout(240_000);
 
@@ -17,19 +21,33 @@ test("create isolated verified production accounts and API keys", async ({
   });
   await page.context().storageState({ path: storageStateFile });
 
-  for (const surface of ["api", "cli", "mcp"] as const) {
+  const createIsolatedAccount = async (
+    label: string,
+    storageStatePath?: string
+  ) => {
     const context = await browser.newContext();
     try {
-      const serviceAccount = await createAccount(
-        await context.newPage(),
-        `service-${surface}`
-      );
-      updateState((state) => {
-        state.serviceAccounts ??= {};
-        state.serviceAccounts[surface] = serviceAccount;
+      const account = await createAccount(await context.newPage(), label, {
+        remember: false,
       });
+      if (storageStatePath) {
+        await context.storageState({ path: storageStatePath });
+      }
+      return account;
     } finally {
       await context.close();
     }
-  }
+  };
+
+  const [api, cli, mcp, importExport] = await Promise.all([
+    createIsolatedAccount("service-api"),
+    createIsolatedAccount("service-cli"),
+    createIsolatedAccount("service-mcp"),
+    createIsolatedAccount("import-export", importExportStorageStateFile),
+  ]);
+  updateState((state) => {
+    state.accounts.push(api, cli, mcp, importExport);
+    state.importExport = importExport;
+    state.serviceAccounts = { api, cli, mcp };
+  });
 });
