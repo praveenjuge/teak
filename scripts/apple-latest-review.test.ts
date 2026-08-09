@@ -62,6 +62,35 @@ describe("latest Apple review planning", () => {
     expect(plan.supersededId).toBe("newer");
   });
 
+  test("does not promote a pre-existing developer-rejected version", () => {
+    const plan = planLatestReviewVersion(
+      response([
+        { id: "rejected", state: "DEVELOPER_REJECTED", version: "1.0.60" },
+      ]),
+      "1.0.61"
+    );
+    expect(plan.promoteSuperseded).toBe(false);
+    expect(plan.supersededId).toBe("");
+  });
+
+  test("refuses to resubmit an exact developer-rejected target", async () => {
+    await expect(
+      applyLatestReviewVersion({
+        appId: "app-id",
+        dryRun: false,
+        platform: "IOS",
+        response: response([
+          {
+            id: "rejected",
+            state: "DEVELOPER_REJECTED",
+            version: "1.0.61",
+          },
+        ]),
+        targetVersion: "1.0.61",
+      })
+    ).rejects.toThrow("Refusing to mutate App Store version");
+  });
+
   test("leaves the requested version alone when it is already in review", () => {
     const plan = planLatestReviewVersion(
       response([

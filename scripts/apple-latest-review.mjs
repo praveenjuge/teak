@@ -12,11 +12,12 @@ const cancellableStates = new Set([
   "WAITING_FOR_EXPORT_COMPLIANCE",
   "WAITING_FOR_REVIEW",
 ]);
-const reusableStates = new Set([
+const cancellationReadyStates = new Set([
   "DEVELOPER_REJECTED",
   "PREPARE_FOR_SUBMISSION",
   "READY_FOR_REVIEW",
 ]);
+const reusableStates = new Set(["PREPARE_FOR_SUBMISSION", "READY_FOR_REVIEW"]);
 const releasedStates = new Set([
   "PROCESSING_FOR_DISTRIBUTION",
   "READY_FOR_DISTRIBUTION",
@@ -34,7 +35,6 @@ const completedStates = new Set([
 ]);
 const mutableStates = new Set([
   "",
-  "DEVELOPER_REJECTED",
   "PREPARE_FOR_SUBMISSION",
   "READY_FOR_REVIEW",
 ]);
@@ -160,7 +160,7 @@ async function waitForCancellation(versionId, runCommand, waitCommand) {
   const deadline = Date.now() + 10 * 60 * 1000;
   while (Date.now() < deadline) {
     const version = runCommand(["versions", "view", "--version-id", versionId]);
-    if (reusableStates.has(version.state)) {
+    if (cancellationReadyStates.has(version.state)) {
       return version;
     }
     await waitCommand(15_000);
@@ -170,8 +170,11 @@ async function waitForCancellation(versionId, runCommand, waitCommand) {
   );
 }
 
-function mutationForState(state) {
+function mutationForState(state, allowCancelledDeveloperRejection) {
   if (mutableStates.has(state)) {
+    return true;
+  }
+  if (state === "DEVELOPER_REJECTED" && allowCancelledDeveloperRejection) {
     return true;
   }
   if (completedStates.has(state)) {
@@ -246,7 +249,10 @@ export async function applyLatestReviewVersion({
 
   return {
     ...plan,
-    mutate: mutationForState(targetState),
+    mutate: mutationForState(
+      targetState,
+      plan.cancelSuperseded && plan.promoteSuperseded
+    ),
     targetId,
     targetState,
   };
