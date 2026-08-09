@@ -179,10 +179,16 @@ jobs:
           asset_label="App Store build $build_number"
           manifest="$RUNNER_TEMP/safari-reuse-manifest.json"
           manifest_name="teak-safari-$VERSION-app-store.json"
+          reusable_pkg="$RUNNER_TEMP/safari-reuse.pkg"
           existing_label="$(gh release view "v$VERSION" --json assets --jq ".assets[] | select(.name == \"$asset\") | .label" 2>/dev/null || true)"
-          if [ -n "$build_id" ] && [ "$existing_label" = "$asset_label" ] && gh release download "v$VERSION" --pattern "$manifest_name" --output "$manifest" 2>/dev/null; then
+          if [ -n "$build_id" ] && [ "$existing_label" = "$asset_label" ] && \
+            gh release download "v$VERSION" --pattern "$manifest_name" --output "$manifest" 2>/dev/null && \
+            gh release download "v$VERSION" --pattern "$asset" --output "$reusable_pkg" 2>/dev/null; then
+            expected_sha="$(jq -r '.artifact.sha256 // empty' "$manifest")"
+            actual_sha="$(shasum -a 256 "$reusable_pkg" | awk '{print $1}')"
             if ! jq -e --arg id "$build_id" --arg number "$build_number" \
-              '.build.id == $id and .build.number == $number and .artifact.sha256 != ""' "$manifest" > /dev/null; then
+              '.build.id == $id and .build.number == $number' "$manifest" > /dev/null || \
+              [ -z "$expected_sha" ] || [ "$actual_sha" != "$expected_sha" ]; then
               echo "The canonical Safari manifest does not prove the exact reusable build." >&2
               exit 1
             fi

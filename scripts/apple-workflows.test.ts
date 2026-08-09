@@ -287,9 +287,8 @@ describe("Apple release workflows", () => {
     expect(safari).toContain(
       'manifest_name="teak-safari-$VERSION-app-store.json"'
     );
-    expect(safari).toContain(
-      '.build.id == $id and .build.number == $number and .artifact.sha256 != ""'
-    );
+    expect(safari).toContain('actual_sha="$(shasum -a 256 "$reusable_pkg"');
+    expect(safari).toContain('[ "$actual_sha" != "$expected_sha" ]');
     for (const workflow of [mobile, safari]) {
       expect(workflow).toContain('reuse=false\n            build_id=""');
     }
