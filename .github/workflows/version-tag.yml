@@ -39,26 +39,25 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          node - <<'NODE'
-          const fs = require('fs');
-          const expected = process.env.VERSION;
-          const paths = ['package.json'];
-          for (const dir of ['apps', 'packages']) {
-            for (const name of fs.readdirSync(dir)) {
-              const file = `${dir}/${name}/package.json`;
-              if (fs.existsSync(file)) paths.push(file);
-            }
-          }
-          const mismatches = paths.filter((file) => JSON.parse(fs.readFileSync(file, 'utf8')).version !== expected);
-          if (mismatches.length) {
-            console.error(`Version mismatch; expected ${expected}:`);
-            console.error(mismatches.join('\n'));
-            process.exit(1);
-          }
-          NODE
+          node scripts/release-version.mjs lockstep "$VERSION"
+
+      - name: Detect and verify release version change
+        id: version-change
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          previous_version="$(git show HEAD^:package.json | node -e 'let input=""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => console.log(JSON.parse(input).version));')"
+          if [ "$previous_version" = "$VERSION" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Root version is unchanged at $VERSION; no release tag is needed."
+            exit 0
+          fi
+          node scripts/release-version.mjs patch "$previous_version" "$VERSION"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Create version tag
         id: tag
+        if: steps.version-change.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ steps.version.outputs.tag }}
@@ -73,7 +72,7 @@ jobs:
           echo "created=true" >> "$GITHUB_OUTPUT"
 
       - name: Dispatch release workflows
-        if: steps.tag.outputs.created == 'true'
+        if: steps.version-change.outputs.changed == 'true' && steps.tag.outputs.created == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ steps.version.outputs.tag }}
@@ -82,4 +81,5 @@ jobs:
           gh workflow run cli-release.yml --ref "$TAG_NAME"
           gh workflow run desktop-release.yml --ref "$TAG_NAME"
           gh workflow run extension-release.yml --ref "$TAG_NAME"
-          gh workflow run safari-extension-release.yml --ref "$TAG_NAME" -f "version=${VERSION}"
+          gh workflow run mobile-release.yml --ref "$TAG_NAME" -f "version=${VERSION}" -f "dry_run=false"
+          gh workflow run safari-extension-release.yml --ref "$TAG_NAME" -f "version=${VERSION}" -f "dry_run=false"

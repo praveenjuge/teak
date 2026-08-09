@@ -138,7 +138,7 @@ These rules govern everything that lands in `apps/docs/content/changelog/*.mdx`.
 
 ## Mobile Release Process
 
-When asked to release the mobile app (cut a new App Store version, publish to iOS, submit to TestFlight/App Store, or similar), follow the step-by-step process in `apps/mobile/release.md`. That file is the source of truth for mobile releases: pulling metadata, updating `store.config.json` (version + release notes), pushing metadata, building the IPA locally via EAS, and submitting it.
+When asked to release the mobile app (cut a new App Store version, publish to iOS, submit to TestFlight/App Store, or similar), follow `apps/mobile/release.md`. The canonical release trigger is one next-patch lockstep `package.json` bump merged to `main`. The Version Tag workflow creates the tag and dispatches the hosted EAS build, mandatory Sentry Size Analysis upload, asc upload/validation, and direct App Review submission. Do not use EAS Submit or manually edit Expo/App Store marketing versions.
 
 Do not invent a release flow. Read `apps/mobile/release.md` and run the commands listed there in order.
 
@@ -192,7 +192,7 @@ The npm package is `teak-cli` and the installed binary is `teak`.
 2. Merge the version change to `main`.
 3. The `Version Tag` workflow creates `v<version>` when all package versions match.
 4. The `CLI Release` workflow publishes `apps/cli` to npm as `teak-cli` on the same tag.
-5. The desktop, browser extension, and Safari release workflows also run from that tag.
+5. The desktop, browser extension, iOS, and Safari release workflows also run from that tag.
 
 ## Safari Extension Release Process
 

@@ -1,124 +1,62 @@
 # Teak for Safari Release Process
 
-Use this when the user asks to release Teak for Safari.
+Teak for Safari ships through
+`.github/workflows/safari-extension-release.yml`. A lockstep `package.json`
+patch bump merged to `main` is the only normal manual release action. Root
+`package.json` is the sole marketing-version source.
 
-Teak for Safari is the macOS Safari extension app in `apps/safari-extension/`
-and ships through App Store Connect app `6770003409`. The release version comes
-from the root `package.json`.
+## Canonical release
 
-## Agent Rule
+1. Patch-bump every tracked `package.json` to the same next version and merge
+   the scoped bump to `main`.
+2. `Version Tag` verifies the next-patch and lockstep invariants, creates
+   `v<version>`, and dispatches `Safari Extension Release` at that tag.
+3. The workflow verifies the tag, Xcode project, asc version, and App Store
+   Connect credentials.
+4. asc finds or creates the `MAC_OS` App Store version, copies localization
+   metadata from the prior live macOS version without copying What's New,
+   applies the generic note, preserves review details, and sets
+   `AFTER_APPROVAL`.
+5. For a new build, asc resolves or creates the Mac App Distribution and Mac
+   Installer Distribution certificates that match the repository's private key,
+   then resolves, creates, and downloads the two Mac App Store provisioning
+   profiles. The private key and certificates live only in the runner's secure
+   temporary keychain.
+6. Xcode archives and exports
+   `teak-safari-<version>-mac-app-store.pkg` without changing the stable app,
+   extension, App Group, native-messaging, or keychain identifiers.
+7. `asc builds upload --pkg --wait` uploads the PKG. The workflow resolves the
+   exact returned marketing-version/build-number pair and requires one `VALID`
+   `MAC_OS` build.
+8. The PKG is attached to the matching GitHub Release. asc attaches the exact
+   Apple build, validates readiness, runs review doctor, and submits it directly
+   to App Review.
+9. The workflow succeeds only after Safari macOS reaches `WAITING_FOR_REVIEW`
+   or a later valid state.
 
-When the user says to release a Safari version, treat that as approval to:
+The release note is:
 
-1. Bump every tracked `package.json` to the next patch version.
-2. Commit the release change.
-3. Push `main`.
-4. Create and push the matching `v<version>` tag.
-5. Wait for the Safari GitHub Action to finish.
-6. Verify the workflow uploaded the build, attached the processed build to the
-   macOS App Store version, set generic release notes, and submitted the version
-   to App Review with automatic release after approval.
+> Small fixes and polish to keep saving pages from Safari smooth and reliable.
 
-Stop only for real blockers: failed checks, failed GitHub Action, Apple
-login/2FA, missing secrets, missing processed build, or App Store Connect
-validation errors.
-
-## Release Steps
-
-### 1. Bump versions
-
-Patch-bump every tracked `package.json` in the monorepo:
-
-```bash
-next="$(node -e "const v=require('./package.json').version.split('.').map(Number); v[2]+=1; console.log(v.join('.'))")"
-NEXT_VERSION="$next" node - <<'NODE'
-const fs = require('fs');
-const { execSync } = require('child_process');
-const next = process.env.NEXT_VERSION;
-for (const file of execSync("git ls-files 'package.json' 'apps/*/package.json' 'packages/*/package.json'", { encoding: 'utf8' }).trim().split('\\n')) {
-  const json = JSON.parse(fs.readFileSync(file, 'utf8'));
-  json.version = next;
-  fs.writeFileSync(file, `${JSON.stringify(json, null, 2)}\\n`);
-}
-NODE
-```
-
-Then confirm:
-
-```bash
-rg '"version": "' package.json apps/*/package.json packages/*/package.json
-```
-
-All versions must match.
-
-### 2. Write App Store release notes
-
-Review user-visible changes since the last Safari release:
-
-```bash
-git log --oneline "$(git describe --tags --abbrev=0)"..HEAD -- apps/safari-extension packages/convex apps/web
-```
-
-Write short App Store release notes for the macOS version. Keep them marketing
-and user-facing only. Do not mention code, frameworks, build tooling, App Store
-automation, signing, tests, backend services, tokens, App Groups, native
-messaging, keychain storage, or permissions.
-
-If there are no user-visible Safari changes, use:
-
-```text
-IMPROVED: Small fixes and polish to keep saving pages from Safari smooth and reliable.
-```
-
-### 3. Validate
-
-Run:
-
-```bash
-bun run pre-commit
-xcodebuild -list -project apps/safari-extension/teak-safari.xcodeproj
-```
-
-### 4. Commit, push, and tag
-
-Use a conventional commit:
+## Dry run
 
 ```bash
 version="$(node -p "require('./package.json').version")"
-git add package.json apps/*/package.json packages/*/package.json
-git commit -m "chore: release v$version"
-git push origin main
-git tag "v$version"
-git push origin "v$version"
+gh workflow run safari-extension-release.yml --ref main -f "version=$version" -f dry_run=true
 ```
 
-### 5. Wait for GitHub Actions
+## Reliability and recovery
 
-Watch the Safari release workflow until it reaches a terminal state:
+- Concurrency is scoped by Safari version. Reruns reuse an exact valid Apple
+  build when the matching GitHub PKG already exists.
+- The workflow addresses only `MAC_OS`; unrelated iOS version records are
+  ignored.
+- In-review or already-live versions are read-only. Rejected versions are never
+  resubmitted or modified automatically.
+- A terminal failure opens or updates the same version-scoped Apple release
+  issue used by iOS. The scheduled status workflow closes it only after both
+  platforms are live.
 
-```bash
-gh run list --workflow safari-extension-release.yml --limit 5
-gh run watch <run-id> --exit-status
-```
+App Store Connect app: `6770003409`
 
-The workflow uploads the Mac App Store package to App Store Connect and attaches
-`teak-safari-<version>-mac-app-store.pkg` to the GitHub Release.
-
-### 6. Verify App Store Connect submission
-
-Open:
-
-```text
-https://appstoreconnect.apple.com/apps/6770003409/distribution/macos/version/inflight
-```
-
-The workflow should leave the version in App Review without manual clicks. Use
-App Store Connect only to inspect Apple-side validation errors, missing metadata,
-or stuck processing.
-
-## Constants
-
-- App Store Connect app id: `6770003409`
-- macOS version page:
-  `https://appstoreconnect.apple.com/apps/6770003409/distribution/macos/version/inflight`
-- Privacy policy: `https://teakvault.com/docs/privacy-policy/`
+Bundle ID: `com.praveenjuge.teak-safari`

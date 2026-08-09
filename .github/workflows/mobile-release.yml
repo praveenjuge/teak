@@ -1,0 +1,477 @@
+name: Mobile App Store Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Patch version matching every package.json"
+        required: true
+        type: string
+      dry_run:
+        description: "Verify release readiness without building or mutating Apple state"
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: mobile-app-store-${{ inputs.version }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  ASC_APP_ID: "6756574989"
+  ASC_BYPASS_KEYCHAIN: "1"
+  ASC_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER }}
+  ASC_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+  ASC_NO_UPDATE: "1"
+  ASC_VERSION: "3.6.1"
+  EAS_CLI_VERSION: "21.7.0"
+  EXPO_PROJECT_ID: "a5a2124f-d673-47f8-90e2-ed4ae3d41cc1"
+  EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+  PLATFORM: IOS
+  RELEASE_NOTES: "Small fixes and polish to keep saving and organizing your ideas smooth and reliable."
+  VERSION: ${{ inputs.version }}
+
+jobs:
+  release:
+    runs-on: macos-latest
+    timeout-minutes: 150
+
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.5
+
+      - name: Set up asc
+        uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
+        with:
+          version: ${{ env.ASC_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prepare App Store Connect key
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          if [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$APPLE_API_KEY_P8" ]; then
+            echo "Missing App Store Connect credentials." >&2
+            exit 1
+          fi
+          key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY_P8" > "$key_path"
+          chmod 600 "$key_path"
+          echo "ASC_PRIVATE_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+
+      - name: Verify release identity and canonical version
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          GITHUB_SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ] || [ -z "$GITHUB_SENTRY_AUTH_TOKEN" ]; then
+            echo "Missing EXPO_TOKEN or SENTRY_AUTH_TOKEN." >&2
+            exit 1
+          fi
+          node scripts/release-version.mjs lockstep "$VERSION"
+          if [ "$DRY_RUN" != "true" ] && [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+            echo "A real release must run from v$VERSION; received $GITHUB_REF_NAME." >&2
+            exit 1
+          fi
+
+          expo_version="$(cd apps/mobile && bunx expo config --type public --json | jq -r '.version')"
+          if [ "$expo_version" != "$VERSION" ]; then
+            echo "Expo resolved $expo_version, expected root package version $VERSION." >&2
+            exit 1
+          fi
+
+          project_id="$(cd apps/mobile && bunx eas-cli@"$EAS_CLI_VERSION" project:info | awk '/^ID[[:space:]]/{print $2}')"
+          if [ "$project_id" != "$EXPO_PROJECT_ID" ]; then
+            echo "Expo project mismatch: $project_id" >&2
+            exit 1
+          fi
+          if ! (cd apps/mobile && bunx eas-cli@"$EAS_CLI_VERSION" env:list production --format short) \
+            | grep -q '^SENTRY_AUTH_TOKEN='; then
+            echo "The EAS production environment is missing SENTRY_AUTH_TOKEN." >&2
+            exit 1
+          fi
+
+          asc auth status --validate --output table
+          asc_version="$(asc --version | awk '{print $1}')"
+          if [ "$asc_version" != "$ASC_VERSION" ]; then
+            echo "asc $ASC_VERSION is required; found $asc_version." >&2
+            exit 1
+          fi
+
+      - name: Resolve current Apple release state
+        id: release_state
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          versions_json="$RUNNER_TEMP/ios-versions.json"
+          for attempt in 1 2 3; do
+            if asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --paginate > "$versions_json"; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep $((attempt * 10))
+          done
+
+          target="$(jq -c --arg version "$VERSION" '.data[]? | select(.attributes.versionString == $version)' "$versions_json" | head -1)"
+          target_id="$(jq -r '.id // empty' <<< "$target")"
+          target_state="$(jq -r '.attributes.appVersionState // .attributes.appStoreState // empty' <<< "$target")"
+          source_version="$(jq -r --arg target "$VERSION" '
+            .data[]?
+            | select((.attributes.appVersionState // .attributes.appStoreState) as $state
+              | ["READY_FOR_DISTRIBUTION", "READY_FOR_SALE", "PROCESSING_FOR_DISTRIBUTION"]
+              | index($state))
+            | .attributes.versionString
+            | select(. != $target)
+          ' "$versions_json" | sort -V | tail -1)"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            mutate=false
+            {
+              echo "### iOS dry run"
+              echo "- App: $ASC_APP_ID"
+              echo "- Target: $VERSION (${target_state:-not created})"
+              echo "- Metadata source: ${source_version:-not found}"
+              echo "- Expo project: $EXPO_PROJECT_ID"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            case "$target_state" in
+              ""|PREPARE_FOR_SUBMISSION)
+                mutate=true
+                ;;
+              WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)
+                mutate=false
+                echo "iOS $VERSION is already $target_state; no mutation will run." >> "$GITHUB_STEP_SUMMARY"
+                ;;
+              DEVELOPER_REJECTED|REJECTED|METADATA_REJECTED|INVALID_BINARY)
+                echo "iOS $VERSION is $target_state. Rejections are never resubmitted automatically." >&2
+                exit 1
+                ;;
+              *)
+                echo "Refusing to mutate iOS $VERSION in unknown state: $target_state" >&2
+                exit 1
+                ;;
+            esac
+          fi
+          {
+            echo "target_id=$target_id"
+            echo "target_state=$target_state"
+            echo "source_version=$source_version"
+            echo "mutate=$mutate"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Find, build, and wait for the exact EAS production build
+        id: eas_build
+        if: steps.release_state.outputs.mutate == 'true'
+        working-directory: apps/mobile
+        run: |
+          builds_json="$RUNNER_TEMP/eas-builds.json"
+          bunx eas-cli@"$EAS_CLI_VERSION" build:list \
+            --platform ios \
+            --build-profile production \
+            --limit 100 \
+            --json \
+            --non-interactive > "$builds_json"
+
+          build="$(jq -c \
+            --arg version "$VERSION" \
+            --arg commit "$GITHUB_SHA" \
+            '[.[] | select(.appVersion == $version and .gitCommitHash == $commit and .buildProfile == "production" and .distribution == "STORE" and .status == "FINISHED")][0] // empty' \
+            "$builds_json")"
+
+          if [ -z "$build" ]; then
+            active="$(jq -c \
+              --arg version "$VERSION" \
+              --arg commit "$GITHUB_SHA" \
+              '[.[] | select(.appVersion == $version and .gitCommitHash == $commit and .buildProfile == "production" and (.status == "NEW" or .status == "IN_QUEUE" or .status == "IN_PROGRESS"))][0] // empty' \
+              "$builds_json")"
+            active_id="$(jq -r '.id // empty' <<< "$active")"
+            if [ -n "$active_id" ]; then
+              echo "Waiting for existing EAS build $active_id."
+              deadline=$((SECONDS + 7200))
+              while [ "$SECONDS" -lt "$deadline" ]; do
+                build="$(bunx eas-cli@"$EAS_CLI_VERSION" build:view "$active_id" --json)"
+                build_state="$(jq -r '.status' <<< "$build")"
+                case "$build_state" in
+                  FINISHED) break ;;
+                  ERRORED|CANCELED) echo "EAS build $active_id ended $build_state." >&2; exit 1 ;;
+                esac
+                sleep 30
+              done
+              if [ "$(jq -r '.status' <<< "$build")" != "FINISHED" ]; then
+                echo "Timed out waiting for EAS build $active_id." >&2
+                exit 1
+              fi
+            else
+              echo "Starting a hosted EAS production build."
+              build="$(bunx eas-cli@"$EAS_CLI_VERSION" build \
+                --platform ios \
+                --profile production \
+                --non-interactive \
+                --wait \
+                --json)"
+            fi
+          else
+            echo "Reusing successful EAS build $(jq -r '.id' <<< "$build")."
+          fi
+
+          build="$(jq -c 'if type == "array" then .[0] else . end' <<< "$build")"
+
+          build_id="$(jq -r '.id // empty' <<< "$build")"
+          build_number="$(jq -r '.appBuildVersion // empty' <<< "$build")"
+          artifact_url="$(jq -r '.artifacts.applicationArchiveUrl // .artifacts.buildUrl // empty' <<< "$build")"
+          if [ -z "$build_id" ] || [ -z "$build_number" ] || [ -z "$artifact_url" ]; then
+            echo "EAS did not return a complete production build." >&2
+            exit 1
+          fi
+          if [ "$(jq -r '.appVersion' <<< "$build")" != "$VERSION" ]; then
+            echo "EAS app version does not match $VERSION." >&2
+            exit 1
+          fi
+
+          {
+            echo "id=$build_id"
+            echo "build_number=$build_number"
+            echo "artifact_url=$artifact_url"
+          } >> "$GITHUB_OUTPUT"
+          echo "- EAS build: [$build_id](https://expo.dev/accounts/praveenjuge/projects/teak/builds/$build_id) ($VERSION/$build_number)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Download the exact IPA
+        id: ipa
+        if: steps.release_state.outputs.mutate == 'true'
+        env:
+          ARTIFACT_URL: ${{ steps.eas_build.outputs.artifact_url }}
+        run: |
+          ipa_path="$RUNNER_TEMP/teak-mobile-$VERSION-${{ steps.eas_build.outputs.build_number }}.ipa"
+          curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 900 \
+            "$ARTIFACT_URL" --output "$ipa_path"
+          if [ ! -s "$ipa_path" ]; then
+            echo "Downloaded IPA is empty." >&2
+            exit 1
+          fi
+          echo "path=$ipa_path" >> "$GITHUB_OUTPUT"
+
+      - name: Upload IPA to Sentry Size Analysis
+        if: steps.release_state.outputs.mutate == 'true'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo "Sentry Size Analysis is mandatory and SENTRY_AUTH_TOKEN is missing." >&2
+            exit 1
+          fi
+          bun run --cwd apps/mobile build:sentry -- "${{ steps.ipa.outputs.path }}"
+
+      - name: Upload IPA with asc or reuse the exact valid Apple build
+        id: apple_build
+        if: steps.release_state.outputs.mutate == 'true'
+        env:
+          BUILD_NUMBER: ${{ steps.eas_build.outputs.build_number }}
+          IPA_PATH: ${{ steps.ipa.outputs.path }}
+        run: |
+          builds_path="$RUNNER_TEMP/apple-ios-builds.json"
+          asc builds list \
+            --app "$ASC_APP_ID" \
+            --platform "$PLATFORM" \
+            --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --processing-state VALID \
+            --exclude-expired > "$builds_path"
+          build_id="$(jq -r '.data[0].id // empty' "$builds_path")"
+
+          if [ -z "$build_id" ]; then
+            asc builds upload \
+              --app "$ASC_APP_ID" \
+              --ipa "$IPA_PATH" \
+              --version "$VERSION" \
+              --build-number "$BUILD_NUMBER" \
+              --checksum \
+              --wait > "$RUNNER_TEMP/ios-upload.json"
+            asc builds list \
+              --app "$ASC_APP_ID" \
+              --platform "$PLATFORM" \
+              --version "$VERSION" \
+              --build-number "$BUILD_NUMBER" \
+              --processing-state VALID \
+              --exclude-expired > "$builds_path"
+            build_id="$(jq -r '.data[0].id // empty' "$builds_path")"
+          else
+            echo "Reusing App Store Connect build $build_id."
+          fi
+
+          if [ -z "$build_id" ] || [ "$(jq '.data | length' "$builds_path")" -ne 1 ]; then
+            echo "Expected exactly one VALID iOS build for $VERSION/$BUILD_NUMBER." >&2
+            exit 1
+          fi
+          echo "id=$build_id" >> "$GITHUB_OUTPUT"
+          echo "- App Store build: $build_id ($VERSION/$BUILD_NUMBER, VALID)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Find or create the iOS version and preserve release metadata
+        id: apple_version
+        if: steps.release_state.outputs.mutate == 'true'
+        env:
+          SOURCE_VERSION: ${{ steps.release_state.outputs.source_version }}
+          TARGET_ID: ${{ steps.release_state.outputs.target_id }}
+        run: |
+          version_id="$TARGET_ID"
+          if [ -z "$version_id" ]; then
+            if [ -z "$SOURCE_VERSION" ]; then
+              echo "No prior live iOS version is available for metadata carry-forward." >&2
+              exit 1
+            fi
+            asc versions create \
+              --app "$ASC_APP_ID" \
+              --version "$VERSION" \
+              --platform "$PLATFORM" \
+              --release-type AFTER_APPROVAL \
+              --copy-metadata-from "$SOURCE_VERSION" \
+              --exclude-fields whatsNew > "$RUNNER_TEMP/ios-version-create.json"
+            version_id="$(jq -r '.id // empty' "$RUNNER_TEMP/ios-version-create.json")"
+          fi
+          if [ -z "$version_id" ]; then
+            version_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 | jq -r '.data[0].id // empty')"
+          fi
+          if [ -z "$version_id" ]; then
+            echo "Could not resolve iOS App Store version $VERSION." >&2
+            exit 1
+          fi
+
+          asc versions update --version-id "$version_id" --release-type AFTER_APPROVAL > "$RUNNER_TEMP/ios-version-update.json"
+          localizations="$RUNNER_TEMP/ios-localizations.json"
+          asc localizations list --version "$version_id" --paginate > "$localizations"
+          if [ "$(jq '.data | length' "$localizations")" -eq 0 ]; then
+            echo "Metadata carry-forward produced no version localizations." >&2
+            exit 1
+          fi
+          while IFS= read -r locale; do
+            asc localizations update \
+              --version "$version_id" \
+              --locale "$locale" \
+              --whats-new "$RELEASE_NOTES" > /dev/null
+          done < <(jq -r '.data[].attributes.locale' "$localizations")
+
+          source_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$SOURCE_VERSION" --limit 1 | jq -r '.data[0].id // empty')"
+          if ! asc review details-for-version --version-id "$version_id" > "$RUNNER_TEMP/ios-review-target.json" 2>/dev/null; then
+            asc review details-for-version --version-id "$source_id" > "$RUNNER_TEMP/ios-review-source.json"
+            review="$RUNNER_TEMP/ios-review-source.json"
+            args=(review details-create --version-id "$version_id")
+            for field in contactFirstName contactLastName contactEmail contactPhone notes; do
+              value="$(jq -r --arg field "$field" '.data.attributes[$field] // .[$field] // empty' "$review")"
+              case "$field" in
+                contactFirstName) flag=--contact-first-name ;;
+                contactLastName) flag=--contact-last-name ;;
+                contactEmail) flag=--contact-email ;;
+                contactPhone) flag=--contact-phone ;;
+                notes) flag=--notes ;;
+              esac
+              if [ -n "$value" ]; then args+=("$flag" "$value"); fi
+            done
+            demo_required="$(jq -r '.data.attributes.demoAccountRequired // .demoAccountRequired // false' "$review")"
+            if [ "$demo_required" = "true" ]; then
+              echo "Source review details require sensitive demo credentials; refusing to expose or copy them." >&2
+              exit 1
+            fi
+            args+=(--demo-account-required=false)
+            asc "${args[@]}" > "$RUNNER_TEMP/ios-review-create.json"
+          fi
+
+          echo "id=$version_id" >> "$GITHUB_OUTPUT"
+          echo "- App Store version: $version_id (AFTER_APPROVAL)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Attach exact build, validate, run doctor, and submit
+        id: submit
+        if: steps.release_state.outputs.mutate == 'true'
+        env:
+          BUILD_ID: ${{ steps.apple_build.outputs.id }}
+          VERSION_ID: ${{ steps.apple_version.outputs.id }}
+        run: |
+          asc versions attach-build --version-id "$VERSION_ID" --build-id "$BUILD_ID" > "$RUNNER_TEMP/ios-attach.json"
+          asc validate --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" --strict > "$RUNNER_TEMP/ios-validate.json"
+          asc review doctor --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/ios-doctor.json"
+          asc review submit \
+            --app "$ASC_APP_ID" \
+            --version-id "$VERSION_ID" \
+            --build "$BUILD_ID" \
+            --platform "$PLATFORM" \
+            --confirm > "$RUNNER_TEMP/ios-submit.json"
+
+          submission_id="$(jq -r '.submissionId // .id // empty' "$RUNNER_TEMP/ios-submit.json")"
+          echo "submission_id=$submission_id" >> "$GITHUB_OUTPUT"
+
+      - name: Prove iOS reached App Review
+        if: steps.release_state.outputs.mutate == 'true'
+        env:
+          VERSION_ID: ${{ steps.apple_version.outputs.id }}
+        run: |
+          deadline=$((SECONDS + 1200))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 > "$RUNNER_TEMP/ios-final-version.json"
+            final_state="$(jq -r '.data[0].attributes.appVersionState // .data[0].attributes.appStoreState // empty' "$RUNNER_TEMP/ios-final-version.json")"
+            case "$final_state" in
+              WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)
+                asc review status --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/ios-final-review.json"
+                {
+                  echo "- Review submission: ${{ steps.submit.outputs.submission_id }}"
+                  echo "- Final iOS state: $final_state"
+                  echo "- Release: automatic after approval"
+                } >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+                ;;
+              DEVELOPER_REJECTED|REJECTED|METADATA_REJECTED|INVALID_BINARY)
+                echo "iOS $VERSION entered terminal state $final_state." >&2
+                exit 1
+                ;;
+            esac
+            sleep 30
+          done
+          echo "Timed out waiting for iOS $VERSION to reach WAITING_FOR_REVIEW." >&2
+          exit 1
+
+  report-failure:
+    if: ${{ failure() && inputs.dry_run == false }}
+    needs: release
+    runs-on: ubuntu-latest
+    concurrency:
+      group: apple-release-issue-${{ inputs.version }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up asc
+        uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
+        with:
+          version: ${{ env.ASC_VERSION }}
+      - name: Prepare App Store Connect key
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY_P8" > "$key_path"
+          chmod 600 "$key_path"
+          echo "ASC_PRIVATE_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+      - name: Capture redacted asc diagnostics
+        run: |
+          asc status --app "$ASC_APP_ID" > "$RUNNER_TEMP/ios-status.txt" 2>&1 || true
+          asc review doctor --app "$ASC_APP_ID" --version "$VERSION" --platform "$PLATFORM" > "$RUNNER_TEMP/ios-doctor.txt" 2>&1 || true
+      - name: Open or update the release issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/apple-release-issue.mjs failure \
+            --version "$VERSION" \
+            --platform "$PLATFORM" \
+            --app-id "$ASC_APP_ID" \
+            --workflow-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --status-file "$RUNNER_TEMP/ios-status.txt" \
+            --doctor-file "$RUNNER_TEMP/ios-doctor.txt"
