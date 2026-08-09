@@ -168,6 +168,8 @@ jobs:
       - name: Reuse an exact valid build or allocate the next Apple build number
         id: build_state
         if: steps.release_state.outputs.mutate == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           exact_builds="$RUNNER_TEMP/apple-ios-exact-builds.json"
           asc builds list \
@@ -181,12 +183,20 @@ jobs:
             --output json > "$exact_builds"
           build_id="$(jq -r '.data[0].id // empty' "$exact_builds")"
           build_number="$(jq -r '.data[0].attributes.version // empty' "$exact_builds")"
+          manifest="$RUNNER_TEMP/ios-reuse-manifest.json"
+          manifest_name="teak-ios-$VERSION-app-store.json"
 
-          if [ -n "$build_id" ]; then
+          if [ -n "$build_id" ] && gh release download "v$VERSION" --pattern "$manifest_name" --output "$manifest" 2>/dev/null; then
+            if ! jq -e --arg id "$build_id" --arg number "$build_number" \
+              '.build.id == $id and .build.number == $number and .artifact.sha256 != "" and .sentrySizeAnalysis == "success"' "$manifest" > /dev/null; then
+              echo "The canonical iOS manifest does not prove the exact reusable build." >&2
+              exit 1
+            fi
             reuse=true
-            echo "Reusing VALID App Store Connect build $build_id ($VERSION/$build_number)."
+            echo "Reusing manifest-proven VALID App Store Connect build $build_id ($VERSION/$build_number)."
           else
             reuse=false
+            build_id=""
             all_builds="$RUNNER_TEMP/apple-ios-all-builds.json"
             asc builds list --app "$ASC_APP_ID" --platform "$PLATFORM" --paginate --output json > "$all_builds"
             build_number="$(node scripts/apple-build-number.mjs "$all_builds")"
