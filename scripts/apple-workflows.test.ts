@@ -46,6 +46,18 @@ describe("Apple release workflows", () => {
     expect(safari).not.toContain("xcrun altool");
   });
 
+  test("reuses a Safari PKG only for its exact App Store build", () => {
+    const assetLabel = (buildNumber: string) =>
+      `App Store build ${buildNumber}`;
+
+    expect(assetLabel("100")).not.toBe(assetLabel("101"));
+    expect(safari).toContain('asset_label="App Store build $build_number"');
+    expect(safari).toContain('[ "$existing_label" = "$asset_label" ]');
+    expect(safari).toContain(
+      'labeled_package="$PACKAGE_PATH#App Store build $BUILD_NUMBER"'
+    );
+  });
+
   test("dispatches every release from the one version tag", () => {
     for (const workflow of [
       "cli-release.yml",

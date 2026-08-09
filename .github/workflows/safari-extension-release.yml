@@ -225,10 +225,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           asset="teak-safari-$VERSION-mac-app-store.pkg"
-          asset_exists=false
-          if gh release view "v$VERSION" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx "$asset"; then
-            asset_exists=true
-          fi
           asc builds list \
             --app "$ASC_APP_ID" \
             --platform "$PLATFORM" \
@@ -239,9 +235,11 @@ jobs:
             --limit 1 > "$RUNNER_TEMP/safari-existing-build.json"
           build_id="$(jq -r '.data[0].id // empty' "$RUNNER_TEMP/safari-existing-build.json")"
           build_number="$(jq -r '.data[0].attributes.version // empty' "$RUNNER_TEMP/safari-existing-build.json")"
-          if [ "$asset_exists" = "true" ] && [ -n "$build_id" ]; then
+          asset_label="App Store build $build_number"
+          existing_label="$(gh release view "v$VERSION" --json assets --jq ".assets[] | select(.name == \"$asset\") | .label" 2>/dev/null || true)"
+          if [ -n "$build_id" ] && [ "$existing_label" = "$asset_label" ]; then
             reuse=true
-            echo "Reusing VALID Safari build $build_id and existing GitHub PKG asset."
+            echo "Reusing VALID Safari build $build_id and its exact GitHub PKG asset."
           else
             reuse=false
             build_number="${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
@@ -485,13 +483,15 @@ jobs:
       - name: Publish GitHub Release PKG
         if: steps.release_state.outputs.mutate == 'true' && steps.reuse.outputs.reuse != 'true'
         env:
+          BUILD_NUMBER: ${{ steps.reuse.outputs.build_number }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PACKAGE_PATH: ${{ steps.export.outputs.path }}
         run: |
+          labeled_package="$PACKAGE_PATH#App Store build $BUILD_NUMBER"
           if gh release view "v$VERSION" >/dev/null 2>&1; then
-            gh release upload "v$VERSION" "$PACKAGE_PATH" --clobber
+            gh release upload "v$VERSION" "$labeled_package" --clobber
           else
-            gh release create "v$VERSION" "$PACKAGE_PATH" --title "$VERSION" --verify-tag
+            gh release create "v$VERSION" "$labeled_package" --title "$VERSION" --verify-tag
           fi
 
       - name: Attach exact build, validate, run doctor, and submit
