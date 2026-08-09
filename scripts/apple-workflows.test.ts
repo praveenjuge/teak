@@ -21,6 +21,7 @@ describe("Apple release workflows", () => {
   const safari = read(".github/workflows/safari-extension-release.yml");
   const status = read(".github/workflows/apple-release-status.yml");
   const issueHelper = read("scripts/apple-release-issue.mjs");
+  const latestReview = read("scripts/apple-latest-review.mjs");
   const versionTag = read(".github/workflows/version-tag.yml");
   const productReleases = [
     read(".github/workflows/cli-release.yml"),
@@ -61,10 +62,7 @@ describe("Apple release workflows", () => {
       mobile,
       "Download verified signed IPA handoff"
     );
-    const verifyHandoff = workflowStep(
-      mobile,
-      "Verify signed IPA handoff"
-    );
+    const verifyHandoff = workflowStep(mobile, "Verify signed IPA handoff");
     const sentryAnalysis = workflowStep(
       mobile,
       "Upload IPA to mandatory Sentry Size Analysis on Apple Silicon"
@@ -124,14 +122,21 @@ describe("Apple release workflows", () => {
     );
   });
 
-  test("serializes app-wide iOS build-number allocation through upload", () => {
+  test("serializes app-wide Apple mutations across versions", () => {
     expect(mobile).toContain(
       `group: mobile-app-store-ios-${expression("github.repository")}`
     );
     expect(mobile).not.toContain(
       `group: mobile-app-store-${expression("inputs.version")}`
     );
+    expect(safari).toContain(
+      `group: safari-app-store-${expression("github.repository")}`
+    );
+    expect(safari).not.toContain(
+      `group: safari-app-store-${expression("inputs.version")}`
+    );
     expect(mobile).toContain("cancel-in-progress: false");
+    expect(safari).toContain("cancel-in-progress: false");
   });
 
   test("hands a signed Safari PKG to an isolated Ubuntu submission job", () => {
@@ -235,6 +240,25 @@ describe("Apple release workflows", () => {
     expect(status).toContain('--safari-store-version "$safari_store"');
   });
 
+  test("makes the newest package version replace an older Apple review", () => {
+    for (const workflow of [mobile, safari]) {
+      const releaseState = workflowStep(
+        workflow,
+        "Resolve current Apple release state"
+      );
+      expect(releaseState).toContain(
+        'node scripts/apple-latest-review.mjs apply "$versions_json" "$VERSION" "$ASC_APP_ID" "$PLATFORM" "$DRY_RUN"'
+      );
+      expect(releaseState).toContain('echo "target_id=$target_id"');
+      expect(releaseState).toContain('echo "mutate=$mutate"');
+    }
+    expect(latestReview).toContain('"submit",\n      "cancel"');
+    expect(latestReview).toContain('"versions",\n      "update"');
+    expect(latestReview).toContain('"--version",\n      targetVersion');
+    expect(latestReview).toContain("Multiple older App Store versions");
+    expect(latestReview).toContain("newer than requested");
+  });
+
   test("publishes replayable proof manifests after exact read-only verification", () => {
     for (const workflow of [mobile, safari]) {
       expect(workflow).toContain("apple-release-proof.mjs verify");
@@ -283,10 +307,6 @@ describe("Apple release workflows", () => {
             '`;
 
     for (const workflow of [mobile, safari]) {
-      expect(workflow).toContain('""|PREPARE_FOR_SUBMISSION|READY_FOR_REVIEW)');
-      expect(workflow).not.toContain(
-        "WAITING_FOR_REVIEW|READY_FOR_REVIEW|IN_REVIEW"
-      );
       expect(workflow.split(exactAttachRecovery)).toHaveLength(2);
       expect(workflow).toContain(
         'asc versions view --version-id "$VERSION_ID" --include-build'

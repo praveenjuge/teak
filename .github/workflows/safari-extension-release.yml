@@ -19,7 +19,8 @@ on:
         type: boolean
 
 concurrency:
-  group: safari-app-store-${{ inputs.version }}
+  # Serialize every mutation for this App Store app, including cross-version promotion.
+  group: safari-app-store-${{ github.repository }}
   cancel-in-progress: false
 
 permissions:
@@ -139,52 +140,23 @@ jobs:
             sleep $((attempt * 10))
           done
 
-          target="$(jq -c --arg version "$VERSION" '.data[]? | select(.attributes.versionString == $version)' "$versions_json" | head -1)"
-          target_id="$(jq -r '.id // empty' <<< "$target")"
-          target_state="$(jq -r '.attributes.appVersionState // .attributes.appStoreState // empty' <<< "$target")"
-          source_version="$(jq -r --arg target "$VERSION" '
-            .data[]?
-            | select((.attributes.appVersionState // .attributes.appStoreState) as $state
-              | ["READY_FOR_DISTRIBUTION", "READY_FOR_SALE", "PROCESSING_FOR_DISTRIBUTION"]
-              | index($state))
-            | .attributes.versionString
-            | select(. != $target)
-          ' "$versions_json" | sort -V | tail -1)"
-
-          if [ "$DRY_RUN" = "true" ]; then
-            mutate=false
-            {
-              echo "### Safari macOS dry run"
-              echo "- App: $ASC_APP_ID"
-              echo "- Target: $VERSION (${target_state:-not created})"
-              echo "- Metadata source: ${source_version:-not found}"
-              echo "- Xcode project and asc authentication: valid"
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            case "$target_state" in
-              ""|PREPARE_FOR_SUBMISSION|READY_FOR_REVIEW)
-                mutate=true
-                ;;
-              WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)
-                mutate=false
-                echo "Safari macOS $VERSION is already $target_state; no mutation will run." >> "$GITHUB_STEP_SUMMARY"
-                ;;
-              DEVELOPER_REJECTED|REJECTED|METADATA_REJECTED|INVALID_BINARY)
-                echo "Safari macOS $VERSION is $target_state. Rejections are never resubmitted automatically." >&2
-                exit 1
-                ;;
-              *)
-                echo "Refusing to mutate Safari macOS $VERSION in unknown state: $target_state" >&2
-                exit 1
-                ;;
-            esac
-          fi
+          result="$(node scripts/apple-latest-review.mjs apply "$versions_json" "$VERSION" "$ASC_APP_ID" "$PLATFORM" "$DRY_RUN")"
+          target_id="$(jq -r '.targetId' <<< "$result")"
+          target_state="$(jq -r '.targetState' <<< "$result")"
+          source_version="$(jq -r '.sourceVersion' <<< "$result")"
+          mutate="$(jq -r '.mutate' <<< "$result")"
           {
             echo "target_id=$target_id"
             echo "target_state=$target_state"
             echo "source_version=$source_version"
             echo "mutate=$mutate"
           } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Safari macOS $([ "$DRY_RUN" = "true" ] && echo 'dry run' || echo 'latest-review release')"
+            echo "- Target: $VERSION (${target_state:-not created})"
+            echo "- Superseded: $(jq -r 'if .supersededId == "" then "none" else "\(.supersededVersion) (\(.supersededState)); cancel=\(.cancelSuperseded), promote=\(.promoteSuperseded)" end' <<< "$result")"
+            echo "- Metadata source: ${source_version:-not found}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Reuse an exact uploaded Safari build and PKG when available
         id: reuse
