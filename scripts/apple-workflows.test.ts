@@ -32,6 +32,8 @@ describe("Apple release workflows", () => {
     expect(mobile).toContain("asc review submit");
     expect(mobile).not.toContain("eas submit");
     expect(mobile).not.toContain("submit-app-review.mjs");
+    expect(mobile).toContain("--limit 50");
+    expect(mobile).not.toContain("--limit 100");
   });
 
   test("keeps Safari PKG artifacts while using asc for every Apple operation", () => {
@@ -44,6 +46,18 @@ describe("Apple release workflows", () => {
     expect(safari).toContain("asc review submit");
     expect(safari).not.toContain("apps/safari-extension/scripts/");
     expect(safari).not.toContain("xcrun altool");
+    expect(safari).toContain('[ "$candidate_hash" = "$private_hash" ]');
+    expect(safari).not.toContain("EXPECTED_SIGNING_IDENTITY");
+  });
+
+  test("permits real recovery only from a tagged release descendant", () => {
+    for (const workflow of [mobile, safari]) {
+      expect(workflow).toContain('release_tag="v$VERSION"');
+      expect(workflow).toContain(
+        'git merge-base --is-ancestor "$tag_commit" "$GITHUB_SHA"'
+      );
+      expect(workflow).toContain("descendant recovery commits");
+    }
   });
 
   test("reuses a Safari PKG only for its exact App Store build", () => {

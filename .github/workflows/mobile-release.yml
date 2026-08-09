@@ -82,9 +82,20 @@ jobs:
             exit 1
           fi
           node scripts/release-version.mjs lockstep "$VERSION"
-          if [ "$DRY_RUN" != "true" ] && [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
-            echo "A real release must run from v$VERSION; received $GITHUB_REF_NAME." >&2
-            exit 1
+          if [ "$DRY_RUN" != "true" ]; then
+            release_tag="v$VERSION"
+            tag_commit="$(git rev-list -n 1 "$release_tag" 2>/dev/null || true)"
+            if [ -z "$tag_commit" ]; then
+              echo "A real release requires the existing $release_tag tag." >&2
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor "$tag_commit" "$GITHUB_SHA"; then
+              echo "A real release must run from $release_tag or one of its descendant recovery commits." >&2
+              exit 1
+            fi
+            if [ "$tag_commit" != "$GITHUB_SHA" ]; then
+              echo "- Recovery source: $GITHUB_SHA (descends from $release_tag at $tag_commit)" >> "$GITHUB_STEP_SUMMARY"
+            fi
           fi
 
           expo_version="$(cd apps/mobile && bunx expo config --type public --json | jq -r '.version')"
@@ -181,7 +192,7 @@ jobs:
           bunx eas-cli@"$EAS_CLI_VERSION" build:list \
             --platform ios \
             --build-profile production \
-            --limit 100 \
+            --limit 50 \
             --json \
             --non-interactive > "$builds_json"
 

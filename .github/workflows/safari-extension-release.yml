@@ -73,9 +73,20 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           node scripts/release-version.mjs lockstep "$VERSION"
-          if [ "$DRY_RUN" != "true" ] && [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
-            echo "A real release must run from v$VERSION; received $GITHUB_REF_NAME." >&2
-            exit 1
+          if [ "$DRY_RUN" != "true" ]; then
+            release_tag="v$VERSION"
+            tag_commit="$(git rev-list -n 1 "$release_tag" 2>/dev/null || true)"
+            if [ -z "$tag_commit" ]; then
+              echo "A real release requires the existing $release_tag tag." >&2
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor "$tag_commit" "$GITHUB_SHA"; then
+              echo "A real release must run from $release_tag or one of its descendant recovery commits." >&2
+              exit 1
+            fi
+            if [ "$tag_commit" != "$GITHUB_SHA" ]; then
+              echo "- Recovery source: $GITHUB_SHA (descends from $release_tag at $tag_commit)" >> "$GITHUB_STEP_SUMMARY"
+            fi
           fi
           asc auth status --validate --output table
           asc_version="$(asc --version | awk '{print $1}')"
@@ -256,9 +267,8 @@ jobs:
         env:
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64 }}
-          EXPECTED_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
-          if [ -z "$APPLE_CERTIFICATE_PASSWORD" ] || [ -z "$APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64" ] || [ -z "$EXPECTED_SIGNING_IDENTITY" ]; then
+          if [ -z "$APPLE_CERTIFICATE_PASSWORD" ] || [ -z "$APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64" ]; then
             echo "Missing Safari signing credentials." >&2
             exit 1
           fi
@@ -309,8 +319,8 @@ jobs:
 
           distribution_identity="$(openssl x509 -in "$RUNNER_TEMP/distribution.pem" -noout -subject -nameopt multiline | awk -F'= ' '/commonName/{print $2; exit}')"
           installer_identity="$(openssl x509 -in "$RUNNER_TEMP/installer.pem" -noout -subject -nameopt multiline | awk -F'= ' '/commonName/{print $2; exit}')"
-          if [ "$distribution_identity" != "$EXPECTED_SIGNING_IDENTITY" ]; then
-            echo "Resolved certificate identity does not match the configured Apple signing identity." >&2
+          if [ -z "$distribution_identity" ] || [ -z "$installer_identity" ]; then
+            echo "Could not resolve the matched Apple certificate identities." >&2
             exit 1
           fi
 
