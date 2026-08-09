@@ -44,6 +44,14 @@ describe("Apple release workflows", () => {
     expect(mobile).toContain("--social-media-age-restricted false");
   });
 
+  test("serializes app-wide iOS build-number allocation through upload", () => {
+    expect(mobile).toContain(
+      "group: mobile-app-store-ios-${{ github.repository }}"
+    );
+    expect(mobile).not.toContain("group: mobile-app-store-${{ inputs.version }}");
+    expect(mobile).toContain("cancel-in-progress: false");
+  });
+
   test("keeps Safari PKG artifacts while using asc for every Apple operation", () => {
     expect(safari).toContain("xcodebuild archive");
     expect(safari).toContain("asc certificates");

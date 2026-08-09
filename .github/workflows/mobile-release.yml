@@ -14,7 +14,9 @@ on:
         type: boolean
 
 concurrency:
-  group: mobile-app-store-${{ inputs.version }}
+  # App Store build numbers are allocated from app-wide ASC history, so keep
+  # allocation through upload atomic even when different patch versions queue.
+  group: mobile-app-store-ios-${{ github.repository }}
   cancel-in-progress: false
 
 permissions:
