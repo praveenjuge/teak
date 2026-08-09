@@ -594,11 +594,24 @@ jobs:
         if: steps.release_state.outputs.mutate == 'true'
         env:
           BUILD_ID: ${{ steps.apple_build.outputs.id }}
+          CURRENT_STATE: ${{ steps.release_state.outputs.target_state }}
           VERSION_ID: ${{ steps.apple_version.outputs.id }}
         run: |
           asc versions attach-build --version-id "$VERSION_ID" --build-id "$BUILD_ID" > "$RUNNER_TEMP/ios-attach.json"
           asc validate --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" --strict > "$RUNNER_TEMP/ios-validate.json"
-          asc review doctor --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/ios-doctor.json"
+          doctor_exit=0
+          asc review doctor --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/ios-doctor.json" || doctor_exit=$?
+          if [ "$doctor_exit" -ne 0 ]; then
+            if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e '
+              .summary.errors == 1
+              and .summary.blocking == 1
+              and ([.blockingChecks[]?.id] == ["version.state.editable"])
+            ' "$RUNNER_TEMP/ios-doctor.json" > /dev/null; then
+              echo "asc review doctor found unexpected iOS submission blockers." >&2
+              exit "$doctor_exit"
+            fi
+            echo "asc review doctor confirmed the only blocker is the expected existing READY_FOR_REVIEW draft." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
           ready_submissions="$RUNNER_TEMP/ios-ready-submissions.json"
           asc review submissions-list \

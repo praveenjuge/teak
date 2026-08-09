@@ -525,6 +525,7 @@ jobs:
         id: submit
         if: steps.release_state.outputs.mutate == 'true'
         env:
+          CURRENT_STATE: ${{ steps.release_state.outputs.target_state }}
           NEW_BUILD_ID: ${{ steps.uploaded_build.outputs.id }}
           REUSED_BUILD_ID: ${{ steps.reuse.outputs.build_id }}
           VERSION_ID: ${{ steps.apple_version.outputs.id }}
@@ -537,7 +538,19 @@ jobs:
           fi
           asc versions attach-build --version-id "$VERSION_ID" --build-id "$build_id" > "$RUNNER_TEMP/safari-attach.json"
           asc validate --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" --strict > "$RUNNER_TEMP/safari-validate.json"
-          asc review doctor --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/safari-doctor.json"
+          doctor_exit=0
+          asc review doctor --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/safari-doctor.json" || doctor_exit=$?
+          if [ "$doctor_exit" -ne 0 ]; then
+            if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e '
+              .summary.errors == 1
+              and .summary.blocking == 1
+              and ([.blockingChecks[]?.id] == ["version.state.editable"])
+            ' "$RUNNER_TEMP/safari-doctor.json" > /dev/null; then
+              echo "asc review doctor found unexpected Safari submission blockers." >&2
+              exit "$doctor_exit"
+            fi
+            echo "asc review doctor confirmed the only blocker is the expected existing READY_FOR_REVIEW draft." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
           ready_submissions="$RUNNER_TEMP/safari-ready-submissions.json"
           asc review submissions-list \
