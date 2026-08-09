@@ -1,0 +1,14 @@
+{
+  "data": [
+    {
+      "id": "ios-version-61",
+      "type": "appStoreVersions",
+      "attributes": {
+        "versionString": "1.0.61",
+        "platform": "IOS",
+        "appVersionState": "WAITING_FOR_REVIEW",
+        "releaseType": "AFTER_APPROVAL"
+      }
+    }
+  ]
+}

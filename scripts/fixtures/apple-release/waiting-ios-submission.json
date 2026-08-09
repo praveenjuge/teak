@@ -1,0 +1,18 @@
+{
+  "data": {
+    "type": "reviewSubmissions",
+    "id": "ios-submission-61",
+    "attributes": {
+      "platform": "IOS",
+      "state": "WAITING_FOR_REVIEW"
+    },
+    "relationships": {
+      "appStoreVersionForReview": {
+        "data": {
+          "type": "appStoreVersions",
+          "id": "ios-version-61"
+        }
+      }
+    }
+  }
+}

@@ -19,12 +19,17 @@ permissions:
 
 jobs:
   tag-version:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
+    outputs:
+      release_ready: ${{ steps.tag.outputs.release_ready }}
+      tag: ${{ steps.version.outputs.tag }}
+      tag_commit: ${{ steps.tag.outputs.tag_commit }}
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -63,23 +68,117 @@ jobs:
           TAG_NAME: ${{ steps.version.outputs.tag }}
         run: |
           if git rev-parse "$TAG_NAME" >/dev/null 2>&1 || gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            echo "$TAG_NAME already exists."
-            echo "created=false" >> "$GITHUB_OUTPUT"
+            tag_commit="$(git rev-list -n 1 "$TAG_NAME")"
+            if [ "$tag_commit" != "$GITHUB_SHA" ]; then
+              echo "$TAG_NAME points to $tag_commit, expected $GITHUB_SHA." >&2
+              exit 1
+            fi
+            echo "$TAG_NAME already exists at the expected commit."
+            {
+              echo "created=false"
+              echo "release_ready=true"
+              echo "tag_commit=$tag_commit"
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git tag "$TAG_NAME"
           git push origin "$TAG_NAME"
-          echo "created=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "created=true"
+            echo "release_ready=true"
+            echo "tag_commit=$GITHUB_SHA"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Dispatch release workflows
-        if: steps.version-change.outputs.changed == 'true' && steps.tag.outputs.created == 'true'
+  release:
+    name: Release / ${{ matrix.name }}
+    needs: tag-version
+    if: needs.tag-version.outputs.release_ready == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: CLI
+            workflow: cli-release.yml
+            apple: false
+            title_prefix: ""
+          - name: Desktop
+            workflow: desktop-release.yml
+            apple: false
+            title_prefix: ""
+          - name: Extension
+            workflow: extension-release.yml
+            apple: false
+            title_prefix: ""
+          - name: iOS
+            workflow: mobile-release.yml
+            apple: true
+            title_prefix: iOS
+          - name: Safari macOS
+            workflow: safari-extension-release.yml
+            apple: true
+            title_prefix: Safari macOS
+
+    steps:
+      - name: Reuse or dispatch and wait for release workflow
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
+          APPLE_WORKFLOW: ${{ matrix.apple }}
+          EXPECTED_TITLE: ${{ matrix.title_prefix && format('{0} {1} (release)', matrix.title_prefix, needs.tag-version.outputs.version) || '' }}
+          TAG_COMMIT: ${{ needs.tag-version.outputs.tag_commit }}
+          TAG_NAME: ${{ needs.tag-version.outputs.tag }}
+          VERSION: ${{ needs.tag-version.outputs.version }}
+          WORKFLOW: ${{ matrix.workflow }}
         run: |
-          gh workflow run cli-release.yml --ref "$TAG_NAME"
-          gh workflow run desktop-release.yml --ref "$TAG_NAME"
-          gh workflow run extension-release.yml --ref "$TAG_NAME"
-          gh workflow run mobile-release.yml --ref "$TAG_NAME" -f "version=${VERSION}" -f "dry_run=false"
-          gh workflow run safari-extension-release.yml --ref "$TAG_NAME" -f "version=${VERSION}" -f "dry_run=false"
+          runs="$(gh api \
+            "/repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/runs?per_page=100" \
+            | jq --arg sha "$TAG_COMMIT" --arg apple "$APPLE_WORKFLOW" --arg title "$EXPECTED_TITLE" \
+              '[.workflow_runs[] | select(.head_sha == $sha) | select($apple != "true" or (.event == "workflow_dispatch" and .display_title == $title))]')"
+          if [ "$APPLE_WORKFLOW" != "true" ]; then
+            for _ in {1..10}; do
+              if [ "$(jq 'length' <<< "$runs")" -gt 0 ]; then break; fi
+              echo "Waiting briefly for the tag-triggered $WORKFLOW run to register."
+              sleep 2
+              runs="$(gh api \
+                "/repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/runs?per_page=100" \
+                | jq --arg sha "$TAG_COMMIT" '[.workflow_runs[] | select(.head_sha == $sha)]')"
+            done
+          fi
+          successful="$(jq -r '[.[] | select(.status == "completed" and .conclusion == "success")][0].id // empty' <<< "$runs")"
+          if [ -n "$successful" ]; then
+            echo "Reusing successful $WORKFLOW run $successful for $TAG_NAME."
+            echo "- ${{ matrix.name }}: https://github.com/$GITHUB_REPOSITORY/actions/runs/$successful" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          active="$(jq -r '[.[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "pending")][0].id // empty' <<< "$runs")"
+          if [ -n "$active" ]; then
+            echo "Waiting for existing $WORKFLOW run $active."
+            gh run watch "$active" --exit-status
+            echo "- ${{ matrix.name }}: https://github.com/$GITHUB_REPOSITORY/actions/runs/$active" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          dispatched_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          if [ "$APPLE_WORKFLOW" = "true" ]; then
+            gh workflow run "$WORKFLOW" --ref "$TAG_NAME" -f "version=$VERSION" -f dry_run=false
+          else
+            gh workflow run "$WORKFLOW" --ref "$TAG_NAME"
+          fi
+
+          run_id=""
+          for _ in {1..30}; do
+            run_id="$(gh api \
+              "/repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/runs?per_page=20" \
+              | jq -r --arg sha "$TAG_COMMIT" --arg created "$dispatched_at" --arg apple "$APPLE_WORKFLOW" --arg title "$EXPECTED_TITLE" \
+              '[.workflow_runs[] | select(.head_sha == $sha and .created_at >= $created) | select($apple != "true" or (.event == "workflow_dispatch" and .display_title == $title))][0].id // empty')"
+            if [ -n "$run_id" ]; then break; fi
+            sleep 2
+          done
+          if [ -z "$run_id" ]; then
+            echo "Could not resolve the dispatched $WORKFLOW run." >&2
+            exit 1
+          fi
+          gh run watch "$run_id" --exit-status
+          echo "- ${{ matrix.name }}: https://github.com/$GITHUB_REPOSITORY/actions/runs/$run_id" >> "$GITHUB_STEP_SUMMARY"

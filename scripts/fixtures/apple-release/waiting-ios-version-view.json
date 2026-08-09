@@ -1,0 +1,9 @@
+{
+  "id": "ios-version-61",
+  "version": "1.0.61",
+  "platform": "IOS",
+  "state": "WAITING_FOR_REVIEW",
+  "releaseType": "AFTER_APPROVAL",
+  "buildId": "ios-build-65",
+  "buildNumber": "65"
+}

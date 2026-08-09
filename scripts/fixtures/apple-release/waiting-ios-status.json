@@ -1,0 +1,26 @@
+{
+  "builds": {
+    "latest": {
+      "id": "ios-build-65",
+      "version": "1.0.61",
+      "buildNumber": "65",
+      "processingState": "VALID",
+      "platform": "IOS"
+    }
+  },
+  "appstore": {
+    "versionId": "ios-version-61",
+    "version": "1.0.61",
+    "state": "WAITING_FOR_REVIEW",
+    "platform": "IOS"
+  },
+  "submission": {
+    "inFlight": true,
+    "blockingIssues": []
+  },
+  "review": {
+    "latestSubmissionId": "ios-submission-61",
+    "state": "WAITING_FOR_REVIEW",
+    "platform": "IOS"
+  }
+}

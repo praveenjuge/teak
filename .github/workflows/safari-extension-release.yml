@@ -1,4 +1,5 @@
 name: Safari Extension Release
+run-name: Safari macOS ${{ inputs.version }} (${{ inputs.dry_run && 'dry run' || 'release' }})
 
 on:
   workflow_dispatch:
@@ -40,19 +41,28 @@ env:
   VERSION: ${{ inputs.version }}
 
 jobs:
-  release:
-    runs-on: macos-latest
-    timeout-minutes: 120
+  build:
+    runs-on: macos-26
+    timeout-minutes: 90
+    outputs:
+      build_id: ${{ steps.reuse.outputs.build_id }}
+      build_number: ${{ steps.reuse.outputs.build_number }}
+      mutate: ${{ steps.release_state.outputs.mutate }}
+      reuse: ${{ steps.reuse.outputs.reuse }}
+      source_version: ${{ steps.release_state.outputs.source_version }}
+      target_id: ${{ steps.release_state.outputs.target_id }}
+      target_state: ${{ steps.release_state.outputs.target_state }}
 
     steps:
       - name: Checkout release ref
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Set up asc
         uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
         with:
+          cache: "false"
           version: ${{ env.ASC_VERSION }}
 
       - name: Prepare App Store Connect key
@@ -80,13 +90,26 @@ jobs:
               echo "A real release requires the existing $release_tag tag." >&2
               exit 1
             fi
-            if ! git merge-base --is-ancestor "$tag_commit" "$GITHUB_SHA"; then
-              echo "A real release must run from $release_tag or one of its descendant recovery commits." >&2
-              exit 1
-            fi
-            if [ "$tag_commit" != "$GITHUB_SHA" ]; then
-              echo "- Recovery source: $GITHUB_SHA (descends from $release_tag at $tag_commit)" >> "$GITHUB_STEP_SUMMARY"
-            fi
+            case "$GITHUB_REF" in
+              "refs/tags/$release_tag")
+                if [ "$tag_commit" != "$GITHUB_SHA" ]; then
+                  echo "$release_tag resolved to an unexpected commit." >&2
+                  exit 1
+                fi
+                ;;
+              refs/heads/main)
+                git fetch origin main
+                if [ "$GITHUB_SHA" != "$(git rev-parse origin/main)" ] || ! git merge-base --is-ancestor "$tag_commit" "$GITHUB_SHA"; then
+                  echo "A recovery release must run at the current origin/main commit descending from $release_tag." >&2
+                  exit 1
+                fi
+                echo "- Recovery source: current main $GITHUB_SHA (descends from $release_tag at $tag_commit)" >> "$GITHUB_STEP_SUMMARY"
+                ;;
+              *)
+                echo "A real release may run only from $release_tag or current main, not $GITHUB_REF." >&2
+                exit 1
+                ;;
+            esac
           fi
           asc auth status --validate --output table
           asc_version="$(asc --version | awk '{print $1}')"
@@ -94,6 +117,12 @@ jobs:
             echo "asc $ASC_VERSION is required; found $asc_version." >&2
             exit 1
           fi
+          xcode_version="$(xcodebuild -version)"
+          if [[ "$xcode_version" != Xcode\ 26.* ]]; then
+            echo "The pinned macos-26 release image must provide Xcode 26.x." >&2
+            exit 1
+          fi
+          echo "$xcode_version"
           xcodebuild -list -project "$PROJECT_PATH"
 
       - name: Resolve current Apple release state
@@ -103,7 +132,7 @@ jobs:
         run: |
           versions_json="$RUNNER_TEMP/safari-versions.json"
           for attempt in 1 2 3; do
-            if asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --paginate > "$versions_json"; then
+            if asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --paginate --output json > "$versions_json"; then
               break
             fi
             if [ "$attempt" -eq 3 ]; then exit 1; fi
@@ -157,95 +186,6 @@ jobs:
             echo "mutate=$mutate"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Find or create the macOS version and preserve release metadata
-        id: apple_version
-        if: steps.release_state.outputs.mutate == 'true'
-        env:
-          SOURCE_VERSION: ${{ steps.release_state.outputs.source_version }}
-          TARGET_ID: ${{ steps.release_state.outputs.target_id }}
-        run: |
-          version_id="$TARGET_ID"
-          if [ -z "$version_id" ]; then
-            if [ -z "$SOURCE_VERSION" ]; then
-              echo "No prior live macOS version is available for metadata carry-forward." >&2
-              exit 1
-            fi
-            asc versions create \
-              --app "$ASC_APP_ID" \
-              --version "$VERSION" \
-              --platform "$PLATFORM" \
-              --release-type AFTER_APPROVAL \
-              --copy-metadata-from "$SOURCE_VERSION" \
-              --exclude-fields whatsNew > "$RUNNER_TEMP/safari-version-create.json"
-            version_id="$(jq -r '.id // empty' "$RUNNER_TEMP/safari-version-create.json")"
-          fi
-          if [ -z "$version_id" ]; then
-            version_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 | jq -r '.data[0].id // empty')"
-          fi
-          if [ -z "$version_id" ]; then
-            echo "Could not resolve Safari macOS App Store version $VERSION." >&2
-            exit 1
-          fi
-
-          asc versions update --version-id "$version_id" --release-type AFTER_APPROVAL > "$RUNNER_TEMP/safari-version-update.json"
-          localizations="$RUNNER_TEMP/safari-localizations.json"
-          asc localizations list --version "$version_id" --paginate > "$localizations"
-          if [ "$(jq '.data | length' "$localizations")" -eq 0 ]; then
-            echo "Metadata carry-forward produced no version localizations." >&2
-            exit 1
-          fi
-          while IFS= read -r locale; do
-            asc localizations update \
-              --version "$version_id" \
-              --locale "$locale" \
-              --whats-new "$RELEASE_NOTES" > /dev/null
-          done < <(jq -r '.data[].attributes.locale' "$localizations")
-
-          source_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$SOURCE_VERSION" --limit 1 | jq -r '.data[0].id // empty')"
-          if ! asc review details-for-version --version-id "$version_id" > "$RUNNER_TEMP/safari-review-target.json" 2>/dev/null; then
-            asc review details-for-version --version-id "$source_id" > "$RUNNER_TEMP/safari-review-source.json"
-            review="$RUNNER_TEMP/safari-review-source.json"
-            args=(review details-create --version-id "$version_id")
-            for field in contactFirstName contactLastName contactEmail contactPhone notes; do
-              value="$(jq -r --arg field "$field" '.data.attributes[$field] // .[$field] // empty' "$review")"
-              case "$field" in
-                contactFirstName) flag=--contact-first-name ;;
-                contactLastName) flag=--contact-last-name ;;
-                contactEmail) flag=--contact-email ;;
-                contactPhone) flag=--contact-phone ;;
-                notes) flag=--notes ;;
-              esac
-              if [ -n "$value" ]; then args+=("$flag" "$value"); fi
-            done
-            demo_required="$(jq -r '.data.attributes.demoAccountRequired // .demoAccountRequired // false' "$review")"
-            if [ "$demo_required" = "true" ]; then
-              echo "Source review details require sensitive demo credentials; refusing to expose or copy them." >&2
-              exit 1
-            fi
-            args+=(--demo-account-required=false)
-            asc "${args[@]}" > "$RUNNER_TEMP/safari-review-create.json"
-          fi
-
-          echo "id=$version_id" >> "$GITHUB_OUTPUT"
-          echo "- App Store version: $version_id (AFTER_APPROVAL)" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Complete new Apple age-rating fields without changing the existing declaration
-        if: steps.release_state.outputs.mutate == 'true'
-        env:
-          VERSION_ID: ${{ steps.apple_version.outputs.id }}
-        run: |
-          asc age-rating edit \
-            --version-id "$VERSION_ID" \
-            --social-media false \
-            --social-media-age-restricted false > "$RUNNER_TEMP/safari-age-rating-edit.json"
-          asc age-rating view \
-            --version-id "$VERSION_ID" \
-            --fields socialMedia,socialMediaAgeRestricted > "$RUNNER_TEMP/safari-age-rating-view.json"
-          if ! jq -e '.data.attributes.socialMedia == false and .data.attributes.socialMediaAgeRestricted == false' "$RUNNER_TEMP/safari-age-rating-view.json" > /dev/null; then
-            echo "App Store Connect did not retain the required Safari social-media age-rating declarations." >&2
-            exit 1
-          fi
-
       - name: Reuse an exact uploaded Safari build and PKG when available
         id: reuse
         if: steps.release_state.outputs.mutate == 'true'
@@ -260,7 +200,8 @@ jobs:
             --processing-state VALID \
             --exclude-expired \
             --sort=-uploadedDate \
-            --limit 1 > "$RUNNER_TEMP/safari-existing-build.json"
+            --limit 1 \
+            --output json > "$RUNNER_TEMP/safari-existing-build.json"
           build_id="$(jq -r '.data[0].id // empty' "$RUNNER_TEMP/safari-existing-build.json")"
           build_number="$(jq -r '.data[0].attributes.version // empty' "$RUNNER_TEMP/safari-existing-build.json")"
           asset_label="App Store build $build_number"
@@ -270,7 +211,12 @@ jobs:
             echo "Reusing VALID Safari build $build_id and its exact GitHub PKG asset."
           else
             reuse=false
-            build_number="${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+            asc builds next-build-number --app "$ASC_APP_ID" --platform "$PLATFORM" --output json > "$RUNNER_TEMP/safari-next-build.json"
+            build_number="$(jq -r '.nextBuildNumber // empty' "$RUNNER_TEMP/safari-next-build.json")"
+            if [ -z "$build_number" ]; then
+              echo "asc could not allocate the next Safari build number." >&2
+              exit 1
+            fi
           fi
           {
             echo "reuse=$reuse"
@@ -478,76 +424,263 @@ jobs:
           cp "$package_path" "$release_pkg"
           echo "path=$release_pkg" >> "$GITHUB_OUTPUT"
 
-      - name: Upload PKG with asc and resolve the exact VALID build
-        id: uploaded_build
+      - name: Prepare verified signed PKG handoff
+        id: handoff
         if: steps.release_state.outputs.mutate == 'true' && steps.reuse.outputs.reuse != 'true'
         env:
           BUILD_NUMBER: ${{ steps.reuse.outputs.build_number }}
           PACKAGE_PATH: ${{ steps.export.outputs.path }}
         run: |
-          asc builds upload \
-            --app "$ASC_APP_ID" \
-            --pkg "$PACKAGE_PATH" \
-            --version "$VERSION" \
-            --build-number "$BUILD_NUMBER" \
-            --checksum \
-            --wait > "$RUNNER_TEMP/safari-upload.json"
+          sha256="$(shasum -a 256 "$PACKAGE_PATH" | awk '{print $1}')"
+          descriptor="$RUNNER_TEMP/safari-handoff.json"
+          jq -n \
+            --arg version "$VERSION" \
+            --arg buildNumber "$BUILD_NUMBER" \
+            --arg sha256 "$sha256" \
+            --arg fileName "$(basename "$PACKAGE_PATH")" \
+            '{version: $version, buildNumber: $buildNumber, sha256: $sha256, fileName: $fileName}' > "$descriptor"
+          echo "descriptor=$descriptor" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload verified signed PKG handoff
+        if: steps.release_state.outputs.mutate == 'true' && steps.reuse.outputs.reuse != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: teak-safari-${{ env.VERSION }}-signed
+          path: |
+            ${{ steps.export.outputs.path }}
+            ${{ steps.handoff.outputs.descriptor }}
+          if-no-files-found: error
+          retention-days: 1
+
+  submit:
+    if: inputs.dry_run == false
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up asc
+        uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
+        with:
+          cache: "false"
+          version: ${{ env.ASC_VERSION }}
+
+      - name: Prepare App Store Connect key
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          if [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$APPLE_API_KEY_P8" ]; then
+            echo "Missing App Store Connect credentials." >&2
+            exit 1
+          fi
+          key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY_P8" > "$key_path"
+          chmod 600 "$key_path"
+          echo "ASC_PRIVATE_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+          asc auth status --validate --output table
+
+      - name: Download verified signed PKG handoff
+        if: needs.build.outputs.mutate == 'true' && needs.build.outputs.reuse != 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: teak-safari-${{ env.VERSION }}-signed
+          path: ${{ runner.temp }}/safari-handoff
+
+      - name: Verify signed PKG handoff
+        id: handoff
+        if: needs.build.outputs.mutate == 'true' && needs.build.outputs.reuse != 'true'
+        env:
+          BUILD_NUMBER: ${{ needs.build.outputs.build_number }}
+        run: |
+          descriptor="$(find "$RUNNER_TEMP/safari-handoff" -maxdepth 1 -type f -name 'safari-handoff.json')"
+          package_path="$(find "$RUNNER_TEMP/safari-handoff" -maxdepth 1 -type f -name '*.pkg')"
+          if [ "$(find "$RUNNER_TEMP/safari-handoff" -maxdepth 1 -type f -name '*.pkg' | wc -l | tr -d ' ')" -ne 1 ] || [ ! -s "$descriptor" ]; then
+            echo "Expected one signed PKG and its handoff descriptor." >&2
+            exit 1
+          fi
+          jq -e --arg version "$VERSION" --arg build "$BUILD_NUMBER" \
+            '.version == $version and .buildNumber == $build' "$descriptor" > /dev/null
+          expected_sha="$(jq -r '.sha256' "$descriptor")"
+          actual_sha="$(sha256sum "$package_path" | awk '{print $1}')"
+          if [ "$actual_sha" != "$expected_sha" ]; then
+            echo "Signed PKG handoff digest mismatch." >&2
+            exit 1
+          fi
+          echo "path=$package_path" >> "$GITHUB_OUTPUT"
+          echo "sha256=$actual_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Upload PKG with asc or reuse exact VALID build
+        id: apple_build
+        if: needs.build.outputs.mutate == 'true'
+        env:
+          BUILD_NUMBER: ${{ needs.build.outputs.build_number }}
+          EXISTING_BUILD_ID: ${{ needs.build.outputs.build_id }}
+          PACKAGE_PATH: ${{ steps.handoff.outputs.path }}
+          REUSE: ${{ needs.build.outputs.reuse }}
+        run: |
+          build_id="$EXISTING_BUILD_ID"
+          if [ "$REUSE" != "true" ]; then
+            asc builds upload \
+              --app "$ASC_APP_ID" \
+              --pkg "$PACKAGE_PATH" \
+              --version "$VERSION" \
+              --build-number "$BUILD_NUMBER" \
+              --checksum \
+              --wait \
+              --output json > "$RUNNER_TEMP/safari-upload.json"
+          fi
           asc builds list \
             --app "$ASC_APP_ID" \
             --platform "$PLATFORM" \
             --version "$VERSION" \
             --build-number "$BUILD_NUMBER" \
             --processing-state VALID \
-            --exclude-expired > "$RUNNER_TEMP/safari-build.json"
-          build_id="$(jq -r '.data[0].id // empty' "$RUNNER_TEMP/safari-build.json")"
-          if [ -z "$build_id" ] || [ "$(jq '.data | length' "$RUNNER_TEMP/safari-build.json")" -ne 1 ]; then
+            --exclude-expired \
+            --output json > "$RUNNER_TEMP/safari-build.json"
+          resolved_build_id="$(jq -r '.data[0].id // empty' "$RUNNER_TEMP/safari-build.json")"
+          if [ -z "$resolved_build_id" ] || [ "$(jq '.data | length' "$RUNNER_TEMP/safari-build.json")" -ne 1 ]; then
             echo "Expected exactly one VALID macOS build for $VERSION/$BUILD_NUMBER." >&2
             exit 1
           fi
-          echo "id=$build_id" >> "$GITHUB_OUTPUT"
-          echo "- App Store build: $build_id ($VERSION/$BUILD_NUMBER, VALID)" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Publish GitHub Release PKG
-        if: steps.release_state.outputs.mutate == 'true' && steps.reuse.outputs.reuse != 'true'
-        env:
-          BUILD_NUMBER: ${{ steps.reuse.outputs.build_number }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PACKAGE_PATH: ${{ steps.export.outputs.path }}
-        run: |
-          labeled_package="$PACKAGE_PATH#App Store build $BUILD_NUMBER"
-          if gh release view "v$VERSION" >/dev/null 2>&1; then
-            gh release upload "v$VERSION" "$labeled_package" --clobber
-          else
-            gh release create "v$VERSION" "$labeled_package" --title "$VERSION" --verify-tag
+          if [ -n "$build_id" ] && [ "$resolved_build_id" != "$build_id" ]; then
+            echo "The exact reusable Safari build changed unexpectedly." >&2
+            exit 1
           fi
+          echo "id=$resolved_build_id" >> "$GITHUB_OUTPUT"
+          echo "- App Store build: $resolved_build_id ($VERSION/$BUILD_NUMBER, VALID)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Evaluate asc high-level release commands without mutation
+        id: asc_parity
+        if: needs.build.outputs.mutate == 'true'
+        env:
+          BUILD_ID: ${{ steps.apple_build.outputs.id }}
+          SOURCE_VERSION: ${{ needs.build.outputs.source_version }}
+        run: |
+          stage_exit=0
+          asc release stage \
+            --app "$ASC_APP_ID" \
+            --version "$VERSION" \
+            --build "$BUILD_ID" \
+            --platform "$PLATFORM" \
+            --copy-metadata-from "$SOURCE_VERSION" \
+            --exclude-fields whatsNew \
+            --strict-validate \
+            --dry-run \
+            --output json > "$RUNNER_TEMP/safari-release-stage-dry-run.json" || stage_exit=$?
+          echo "stage_exit=$stage_exit" >> "$GITHUB_OUTPUT"
+          echo "publish_exit=unsupported_pkg" >> "$GITHUB_OUTPUT"
+          {
+            echo "- asc release stage dry-run exit: $stage_exit"
+            echo "- asc publish appstore: not used because 3.6.1 has no PKG input"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Find or create the macOS version and preserve release metadata
+        id: apple_version
+        if: needs.build.outputs.mutate == 'true'
+        env:
+          SOURCE_VERSION: ${{ needs.build.outputs.source_version }}
+          TARGET_ID: ${{ needs.build.outputs.target_id }}
+        run: |
+          version_id="$TARGET_ID"
+          if [ -z "$version_id" ]; then
+            if [ -z "$SOURCE_VERSION" ]; then
+              echo "No prior live macOS version is available for metadata carry-forward." >&2
+              exit 1
+            fi
+            asc versions create \
+              --app "$ASC_APP_ID" \
+              --version "$VERSION" \
+              --platform "$PLATFORM" \
+              --release-type AFTER_APPROVAL \
+              --copy-metadata-from "$SOURCE_VERSION" \
+              --exclude-fields whatsNew \
+              --output json > "$RUNNER_TEMP/safari-version-create.json"
+            version_id="$(jq -r '.id // empty' "$RUNNER_TEMP/safari-version-create.json")"
+          fi
+          if [ -z "$version_id" ]; then
+            version_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 --output json | jq -r '.data[0].id // empty')"
+          fi
+          if [ -z "$version_id" ]; then
+            echo "Could not resolve Safari macOS App Store version $VERSION." >&2
+            exit 1
+          fi
+          asc versions update --version-id "$version_id" --release-type AFTER_APPROVAL --output json > "$RUNNER_TEMP/safari-version-update.json"
+          localizations="$RUNNER_TEMP/safari-localizations.json"
+          asc localizations list --version "$version_id" --paginate --output json > "$localizations"
+          if [ "$(jq '.data | length' "$localizations")" -eq 0 ]; then
+            echo "Metadata carry-forward produced no version localizations." >&2
+            exit 1
+          fi
+          while IFS= read -r locale; do
+            asc localizations update --version "$version_id" --locale "$locale" --whats-new "$RELEASE_NOTES" --output json > /dev/null
+          done < <(jq -r '.data[].attributes.locale' "$localizations")
+          source_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$SOURCE_VERSION" --limit 1 --output json | jq -r '.data[0].id // empty')"
+          if ! asc review details-for-version --version-id "$version_id" --output json > "$RUNNER_TEMP/safari-review-target.json" 2>/dev/null; then
+            asc review details-for-version --version-id "$source_id" --output json > "$RUNNER_TEMP/safari-review-source.json"
+            review="$RUNNER_TEMP/safari-review-source.json"
+            args=(review details-create --version-id "$version_id")
+            for field in contactFirstName contactLastName contactEmail contactPhone notes; do
+              value="$(jq -r --arg field "$field" '.data.attributes[$field] // .[$field] // empty' "$review")"
+              case "$field" in
+                contactFirstName) flag=--contact-first-name ;;
+                contactLastName) flag=--contact-last-name ;;
+                contactEmail) flag=--contact-email ;;
+                contactPhone) flag=--contact-phone ;;
+                notes) flag=--notes ;;
+              esac
+              if [ -n "$value" ]; then args+=("$flag" "$value"); fi
+            done
+            demo_required="$(jq -r '.data.attributes.demoAccountRequired // .demoAccountRequired // false' "$review")"
+            if [ "$demo_required" = "true" ]; then
+              echo "Source review details require sensitive demo credentials; refusing to expose or copy them." >&2
+              exit 1
+            fi
+            args+=(--demo-account-required=false --output json)
+            asc "${args[@]}" > "$RUNNER_TEMP/safari-review-create.json"
+          fi
+          echo "id=$version_id" >> "$GITHUB_OUTPUT"
+
+      - name: Complete new Apple age-rating fields without changing the existing declaration
+        if: needs.build.outputs.mutate == 'true'
+        env:
+          VERSION_ID: ${{ steps.apple_version.outputs.id }}
+        run: |
+          asc age-rating edit --version-id "$VERSION_ID" --social-media false --social-media-age-restricted false --output json > "$RUNNER_TEMP/safari-age-rating-edit.json"
+          asc age-rating view --version-id "$VERSION_ID" --fields socialMedia,socialMediaAgeRestricted --output json > "$RUNNER_TEMP/safari-age-rating-view.json"
+          jq -e '.data.attributes.socialMedia == false and .data.attributes.socialMediaAgeRestricted == false' "$RUNNER_TEMP/safari-age-rating-view.json" > /dev/null
 
       - name: Attach exact build, validate, run doctor, and submit
         id: submit
-        if: steps.release_state.outputs.mutate == 'true'
+        if: needs.build.outputs.mutate == 'true'
         env:
-          CURRENT_STATE: ${{ steps.release_state.outputs.target_state }}
-          NEW_BUILD_ID: ${{ steps.uploaded_build.outputs.id }}
-          REUSED_BUILD_ID: ${{ steps.reuse.outputs.build_id }}
+          CURRENT_STATE: ${{ needs.build.outputs.target_state }}
+          BUILD_ID: ${{ steps.apple_build.outputs.id }}
           VERSION_ID: ${{ steps.apple_version.outputs.id }}
         run: |
-          build_id="$NEW_BUILD_ID"
-          if [ -z "$build_id" ]; then build_id="$REUSED_BUILD_ID"; fi
-          if [ -z "$build_id" ]; then
+          if [ -z "$BUILD_ID" ]; then
             echo "No exact VALID Safari build was resolved." >&2
             exit 1
           fi
           attach_exit=0
-          asc versions attach-build --version-id "$VERSION_ID" --build-id "$build_id" > "$RUNNER_TEMP/safari-attach.json" || attach_exit=$?
+          asc versions attach-build --version-id "$VERSION_ID" --build-id "$BUILD_ID" --output json > "$RUNNER_TEMP/safari-attach.json" || attach_exit=$?
           if [ "$attach_exit" -ne 0 ]; then
-            asc versions view --version-id "$VERSION_ID" --include-build > "$RUNNER_TEMP/safari-attached-version.json"
-            if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e --arg version "$VERSION_ID" --arg build "$build_id" '.id == $version and .state == "READY_FOR_REVIEW" and .buildId == $build' "$RUNNER_TEMP/safari-attached-version.json" > /dev/null; then
+            asc versions view --version-id "$VERSION_ID" --include-build --output json > "$RUNNER_TEMP/safari-attached-version.json"
+            if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e --arg version "$VERSION_ID" --arg build "$BUILD_ID" '.id == $version and .state == "READY_FOR_REVIEW" and .buildId == $build' "$RUNNER_TEMP/safari-attached-version.json" > /dev/null; then
               echo "Could not attach the exact Safari build to the target version." >&2
               exit "$attach_exit"
             fi
             echo "- Exact Safari build was already attached to the existing READY_FOR_REVIEW draft." >> "$GITHUB_STEP_SUMMARY"
           fi
           validate_exit=0
-          asc validate --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" --strict > "$RUNNER_TEMP/safari-validate.json" || validate_exit=$?
+          asc validate --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" --strict --output json > "$RUNNER_TEMP/safari-validate.json" || validate_exit=$?
           if [ "$validate_exit" -ne 0 ]; then
             if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e '
               .summary.errors == 1
@@ -560,7 +693,7 @@ jobs:
             echo "asc validate confirmed the only blocker is the expected existing READY_FOR_REVIEW draft." >> "$GITHUB_STEP_SUMMARY"
           fi
           doctor_exit=0
-          asc review doctor --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/safari-doctor.json" || doctor_exit=$?
+          asc review doctor --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" --output json > "$RUNNER_TEMP/safari-doctor.json" || doctor_exit=$?
           if [ "$doctor_exit" -ne 0 ]; then
             if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e '
               .summary.errors == 1
@@ -578,7 +711,8 @@ jobs:
             --app "$ASC_APP_ID" \
             --platform "$PLATFORM" \
             --state READY_FOR_REVIEW \
-            --paginate > "$ready_submissions"
+            --paginate \
+            --output json > "$ready_submissions"
           matching_submission=""
           empty_submission=""
           while IFS= read -r candidate_id; do
@@ -587,7 +721,8 @@ jobs:
               --submission "$candidate_id" \
               --fields appStoreVersion \
               --include appStoreVersion \
-              --paginate > "$candidate_items"
+              --paginate \
+              --output json > "$candidate_items"
             item_count="$(jq '.data | length' "$candidate_items")"
             target_count="$(jq --arg target "$VERSION_ID" '[.data[]? | select(.relationships.appStoreVersion.data.id == $target)] | length' "$candidate_items")"
             if [ "$target_count" -eq 1 ] && [ "$item_count" -eq 1 ]; then
@@ -605,7 +740,7 @@ jobs:
           if [ -z "$submission_id" ]; then
             submission_id="$empty_submission"
             if [ -z "$submission_id" ]; then
-              asc review submissions-create --app "$ASC_APP_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/safari-submission-create.json"
+              asc review submissions-create --app "$ASC_APP_ID" --platform "$PLATFORM" --output json > "$RUNNER_TEMP/safari-submission-create.json"
               submission_id="$(jq -r '.data.id // .id // empty' "$RUNNER_TEMP/safari-submission-create.json")"
             fi
             if [ -z "$submission_id" ]; then
@@ -622,33 +757,55 @@ jobs:
             --submission "$submission_id" \
             --fields appStoreVersion \
             --include appStoreVersion \
-            --paginate > "$RUNNER_TEMP/safari-review-items-final.json"
+            --paginate \
+            --output json > "$RUNNER_TEMP/safari-review-items-final.json"
           if ! jq -e --arg target "$VERSION_ID" '.data | length == 1 and .[0].relationships.appStoreVersion.data.id == $target' "$RUNNER_TEMP/safari-review-items-final.json" > /dev/null; then
             echo "Refusing to submit a Safari review draft that is empty or contains unrelated items." >&2
             exit 1
           fi
-          asc review submissions-submit --id "$submission_id" --confirm > "$RUNNER_TEMP/safari-submit.json"
+          asc review submissions-submit --id "$submission_id" --confirm --output json > "$RUNNER_TEMP/safari-submit.json"
           echo "submission_id=$submission_id" >> "$GITHUB_OUTPUT"
 
-      - name: Prove Safari macOS reached App Review
-        if: steps.release_state.outputs.mutate == 'true'
+      - name: Prove exact Safari release and publish artifacts and manifest
         env:
+          BUILD_ID: ${{ steps.apple_build.outputs.id }}
+          BUILD_NUMBER: ${{ needs.build.outputs.build_number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MANIFEST_NAME: teak-safari-${{ env.VERSION }}-app-store.json
+          MUTATE: ${{ needs.build.outputs.mutate }}
+          PACKAGE_PATH: ${{ steps.handoff.outputs.path }}
+          PUBLISH_EXIT: ${{ steps.asc_parity.outputs.publish_exit || 'not_run' }}
+          STAGE_EXIT: ${{ steps.asc_parity.outputs.stage_exit || 'not_run' }}
+          TARGET_ID: ${{ needs.build.outputs.target_id }}
           VERSION_ID: ${{ steps.apple_version.outputs.id }}
         run: |
+          version_id="$VERSION_ID"
+          build_id="$BUILD_ID"
+          build_number="$BUILD_NUMBER"
+          submission_id="${{ steps.submit.outputs.submission_id }}"
+          prior_manifest="$RUNNER_TEMP/prior-safari-manifest.json"
+          if [ "$MUTATE" != "true" ]; then
+            version_id="$TARGET_ID"
+            if ! gh release download "v$VERSION" --pattern "$MANIFEST_NAME" --output "$prior_manifest"; then
+              echo "A read-only rerun requires the existing release manifest $MANIFEST_NAME." >&2
+              exit 1
+            fi
+            build_id="$(jq -r '.build.id' "$prior_manifest")"
+            build_number="$(jq -r '.build.number' "$prior_manifest")"
+            submission_id="$(jq -r '.submission.id' "$prior_manifest")"
+          elif [ "${{ needs.build.outputs.reuse }}" = "true" ]; then
+            if ! gh release download "v$VERSION" --pattern "$MANIFEST_NAME" --output "$prior_manifest"; then
+              echo "Reusing an existing Apple build requires its canonical release manifest." >&2
+              exit 1
+            fi
+          fi
           deadline=$((SECONDS + 1200))
           while [ "$SECONDS" -lt "$deadline" ]; do
-            asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 > "$RUNNER_TEMP/safari-final-version.json"
+            asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 --output json > "$RUNNER_TEMP/safari-final-version.json"
             final_state="$(jq -r '.data[0].attributes.appVersionState // .data[0].attributes.appStoreState // empty' "$RUNNER_TEMP/safari-final-version.json")"
             case "$final_state" in
               WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)
-                asc review status --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/safari-final-review.json"
-                {
-                  echo "- Review submission: ${{ steps.submit.outputs.submission_id }}"
-                  echo "- Final Safari macOS state: $final_state"
-                  echo "- Release: automatic after approval"
-                  echo "- GitHub asset: teak-safari-$VERSION-mac-app-store.pkg"
-                } >> "$GITHUB_STEP_SUMMARY"
-                exit 0
+                break
                 ;;
               DEVELOPER_REJECTED|REJECTED|METADATA_REJECTED|INVALID_BINARY)
                 echo "Safari macOS $VERSION entered terminal state $final_state." >&2
@@ -657,21 +814,75 @@ jobs:
             esac
             sleep 30
           done
-          echo "Timed out waiting for Safari macOS $VERSION to reach WAITING_FOR_REVIEW." >&2
-          exit 1
+          if ! [[ "$final_state" =~ ^(WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)$ ]]; then
+            echo "Timed out waiting for Safari macOS $VERSION to reach WAITING_FOR_REVIEW." >&2
+            exit 1
+          fi
+          asc versions view --version-id "$version_id" --include-build --output json > "$RUNNER_TEMP/safari-final-view.json"
+          asc builds info --build-id "$build_id" --output json > "$RUNNER_TEMP/safari-final-build.json"
+          asc review submissions-get --id "$submission_id" --include appStoreVersionForReview --output json > "$RUNNER_TEMP/safari-final-submission.json"
+          jq -n --arg version "$VERSION" --arg platform "$PLATFORM" --arg versionId "$version_id" --arg buildId "$build_id" --arg buildNumber "$build_number" --arg submissionId "$submission_id" \
+            '{version: $version, platform: $platform, versionId: $versionId, buildId: $buildId, buildNumber: $buildNumber, submissionId: $submissionId}' > "$RUNNER_TEMP/safari-expected.json"
+          node scripts/apple-release-proof.mjs verify \
+            --version-list "$RUNNER_TEMP/safari-final-version.json" \
+            --version-view "$RUNNER_TEMP/safari-final-view.json" \
+            --build "$RUNNER_TEMP/safari-final-build.json" \
+            --submission "$RUNNER_TEMP/safari-final-submission.json" \
+            --expected "$RUNNER_TEMP/safari-expected.json" \
+            --output "$RUNNER_TEMP/safari-proof.json"
+
+          artifact_sha="${{ steps.handoff.outputs.sha256 }}"
+          prior_args=()
+          if [ "$MUTATE" != "true" ] || [ "${{ needs.build.outputs.reuse }}" = "true" ]; then
+            artifact_sha=""
+            prior_args=(--prior "$prior_manifest")
+          fi
+          node scripts/apple-release-manifest.mjs create \
+            --proof "$RUNNER_TEMP/safari-proof.json" \
+            --output "$RUNNER_TEMP/$MANIFEST_NAME" \
+            --tag "v$VERSION" \
+            --source-sha "$GITHUB_SHA" \
+            --app-id "$ASC_APP_ID" \
+            --artifact-name "teak-safari-$VERSION-mac-app-store.pkg" \
+            --artifact-sha "$artifact_sha" \
+            --asc-version "$ASC_VERSION" \
+            --stage-exit "$STAGE_EXIT" \
+            --publish-exit "$PUBLISH_EXIT" \
+            --workflow "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${prior_args[@]}"
+
+          for attempt in 1 2 3 4 5 6; do
+            if gh release view "v$VERSION" > /dev/null 2>&1; then break; fi
+            gh release create "v$VERSION" --verify-tag --title "v$VERSION" --generate-notes > /dev/null 2>&1 || true
+            if [ "$attempt" -eq 6 ]; then exit 1; fi
+            sleep 10
+          done
+          if [ "$MUTATE" = "true" ] && [ "${{ needs.build.outputs.reuse }}" != "true" ]; then
+            gh release upload "v$VERSION" "$PACKAGE_PATH#App Store build $build_number" --clobber
+          fi
+          gh release upload "v$VERSION" "$RUNNER_TEMP/$MANIFEST_NAME" --clobber
+          {
+            echo "- Review submission: $submission_id"
+            echo "- Final Safari macOS state: $final_state"
+            echo "- Release: automatic after approval"
+            echo "- GitHub asset: teak-safari-$VERSION-mac-app-store.pkg"
+            echo "- Manifest: $MANIFEST_NAME"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   report-failure:
-    if: ${{ failure() && inputs.dry_run == false }}
-    needs: release
-    runs-on: ubuntu-latest
+    if: ${{ always() && inputs.dry_run == false && (needs.build.result == 'failure' || needs.submit.result == 'failure') }}
+    needs: [build, submit]
+    runs-on: ubuntu-24.04
     concurrency:
       group: apple-release-issue-${{ inputs.version }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up asc
         uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
         with:
+          cache: "false"
           version: ${{ env.ASC_VERSION }}
       - name: Prepare App Store Connect key
         env:

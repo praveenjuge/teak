@@ -1,0 +1,20 @@
+{
+  "data": {
+    "type": "builds",
+    "id": "ios-build-65",
+    "attributes": {
+      "version": "65",
+      "processingState": "VALID"
+    }
+  },
+  "included": [
+    {
+      "type": "preReleaseVersions",
+      "id": "ios-pre-release-61",
+      "attributes": {
+        "version": "1.0.61",
+        "platform": "IOS"
+      }
+    }
+  ]
+}
